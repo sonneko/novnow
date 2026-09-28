@@ -1,0 +1,5 @@
+[
+  { "path": "all.txt", "abs": "物語全体の超ダイジェスト", "status": "approval" },
+  { "path": "01.txt", "abs": "1章ダイジェスト", "status": "approval" },
+  { "path": "01-04.txt", "abs": "1章4話の詳細プロット", "status": "approval" }
+]

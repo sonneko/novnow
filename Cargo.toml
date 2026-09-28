@@ -1,0 +1,40 @@
+[package]
+name = "fugu-writer"
+version = "0.1.0"
+edition = "2021"
+description = "小説プロジェクト（[title]/ レイアウト）向け執筆 IDE — egui + ropey"
+license = "MIT"
+
+[[bin]]
+name = "novnow"
+path = "src/main.rs"
+
+[dependencies]
+# egui / eframe 0.27 系に固定する。
+# このバージョンは
+#   * `eframe::App::update(&mut self, ctx, frame)`
+#   * `TextEditOutput.cursor_range: Option<CursorRange>`（`cursor_range.primary.ccursor.index`）
+#   * `egui::Frame::none()` / `Margin::same(f32)` / `Visuals::dark_mode`
+# という、本実装が前提にしている API を持ち、型の揺れが最も小さい。
+# 既定フィーチャで glow / x11 / wayland / default_fonts が有効になる。
+eframe = "0.27.2"
+egui = "0.27.2"
+
+ropey = "1.6"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["rt-multi-thread", "fs", "sync", "macros", "time"] }
+regex = "1.10"
+aho-corasick = "1.1"
+# システム日本語フォントの自動検出・読み込み用（CJK対応）
+fontdb = "0.16"
+anyhow = "1.0"
+# フォルダ選択ダイアログ（Ctrl+O 用）。
+# Linux で GTK 開発ヘッダを入れたくない場合は xdg-portal に切り替えられる:
+#   rfd = { version = "0.14", default-features = false, features = ["xdg-portal"] }
+rfd = "0.14"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
