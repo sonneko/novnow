@@ -1,6 +1,5 @@
 //! 上左: ファイルリーダー（ファイルツリー + 読み取り専用ビューア）。
 
-use super::TreeRow;
 use crate::app::FuguWriterApp;
 use egui::{Color32, RichText};
 
