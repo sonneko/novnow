@@ -87,8 +87,8 @@ pub struct FuguWriterApp {
     // 外部変更監視。
     pub watch_rx: Option<Receiver<FileChanged>>,
 
-    // Aho-Corasick（用語検出）のキャッシュ。辞書変更時に再構築。
-    pub ac: Option<(AhoCorasick, Vec<String>)>,
+    // Aho-Corasick（用語検出）のキャッシュ。辞書変更時に再構築。 (AC matcher, patterns, pattern_idx -> word_key)
+    pub ac: Option<(AhoCorasick, Vec<String>, Vec<String>)>,
 }
 
 impl FuguWriterApp {
@@ -206,8 +206,10 @@ impl FuguWriterApp {
         let text = buf.rope.to_string();
         match std::fs::write(&path, text) {
             Ok(()) => {
+                let mtime = std::fs::metadata(&path).and_then(|m| m.modified()).ok();
                 if let Some(b) = self.buffers.get_mut(&path) {
                     b.dirty = false;
+                    b.modified = mtime;
                 }
                 self.set_status(format!("保存しました: {}", short(&path)));
             }
@@ -230,8 +232,10 @@ impl FuguWriterApp {
                     count += 1;
                 }
             }
+            let mtime = std::fs::metadata(&p).and_then(|m| m.modified()).ok();
             if let Some(b) = self.buffers.get_mut(&p) {
                 b.dirty = false;
+                b.modified = mtime;
             }
         }
         self.set_status(format!("{count} 件を保存しました"));
@@ -319,18 +323,27 @@ impl FuguWriterApp {
     }
 
     fn rebuild_ac(&mut self) {
-        let mut terms: Vec<String> = Vec::new();
-        for w in self.state.words.values() {
-            terms.extend(w.all_terms());
+        let mut terms_with_keys: Vec<(String, String)> = Vec::new();
+        for (key, w) in &self.state.words {
+            for term in w.all_terms() {
+                if !term.is_empty() {
+                    terms_with_keys.push((term, key.clone()));
+                }
+            }
         }
-        terms.sort();
-        terms.dedup();
-        if terms.is_empty() {
+        terms_with_keys.sort_by(|a, b| a.0.cmp(&b.0));
+        terms_with_keys.dedup_by(|a, b| a.0 == b.0);
+
+        if terms_with_keys.is_empty() {
             self.ac = None;
             return;
         }
+
+        let terms: Vec<String> = terms_with_keys.iter().map(|(t, _)| t.clone()).collect();
+        let word_keys: Vec<String> = terms_with_keys.into_iter().map(|(_, k)| k).collect();
+
         match AhoCorasick::new(terms.iter().map(String::as_str)) {
-            Ok(ac) => self.ac = Some((ac, terms)),
+            Ok(ac) => self.ac = Some((ac, terms, word_keys)),
             Err(_) => self.ac = None,
         }
     }
@@ -358,21 +371,20 @@ impl FuguWriterApp {
         }
 
         // --- カーソル行・アクティブファイル全体のテキストを収集 ------------
-        let mut scan_text = String::new();
+        let scan_text = self
+            .active_buffer()
+            .map(|buf| buf.rope.to_string())
+            .unwrap_or_default();
+
         let mut direct_names: Vec<String> = Vec::new();
         if let Some(buf) = self.active_buffer() {
             let cur = buf.line_text(buf.cursor_line);
             if let Some((name, _)) = parse_speaker(&cur) {
                 direct_names.push(name);
             }
-            for i in 0..buf.line_count() {
-                let t = buf.line_text(i);
-                scan_text.push_str(&t);
-                scan_text.push('\n');
-            }
         }
 
-        // --- 登場キャラ（優先順位: カーソル行 > ファイル内 > 本文中の辞書名） --
+        // --- 登場キャラ（優先順位: カーソル行 > ファイル内話者 > 本文中の辞書名） --
         let mut seen: Vec<String> = Vec::new();
         for name in &direct_names {
             push_unique(&mut seen, name);
@@ -385,10 +397,13 @@ impl FuguWriterApp {
                 }
             }
         }
-        for (name, ch) in &self.state.characters {
-            for alias in ch.all_names() {
-                if !alias.is_empty() && scan_text.contains(&alias) {
-                    push_unique(&mut seen, name);
+        if !scan_text.is_empty() {
+            for (name, ch) in &self.state.characters {
+                for alias in ch.all_names() {
+                    if !alias.is_empty() && scan_text.contains(&alias) {
+                        push_unique(&mut seen, name);
+                        break;
+                    }
                 }
             }
         }
@@ -398,21 +413,18 @@ impl FuguWriterApp {
             }
         }
 
-        // --- 用語（Aho-Corasick で検出） -----------------------------------
-        if let Some((ac, terms)) = &self.ac {
-            let mut hit_terms: Vec<String> = Vec::new();
-            for m in ac.find_overlapping_iter(&scan_text) {
-                let term = &terms[m.pattern().as_usize()];
-                for (key, w) in &self.state.words {
-                    if w.all_terms().iter().any(|t| t == term) {
-                        push_unique(&mut hit_terms, key);
-                        break;
-                    }
+        // --- 用語（Aho-Corasick で検出: O(1) キー引継ぎ） --------------------
+        if !scan_text.is_empty() {
+            if let Some((ac, _terms, word_keys)) = &self.ac {
+                let mut hit_terms: Vec<String> = Vec::new();
+                for m in ac.find_overlapping_iter(&scan_text) {
+                    let key = &word_keys[m.pattern().as_usize()];
+                    push_unique(&mut hit_terms, key);
                 }
-            }
-            for t in hit_terms {
-                if let Some(w) = self.state.word(&t).cloned() {
-                    info.words.push(w);
+                for t in hit_terms {
+                    if let Some(w) = self.state.word(&t).cloned() {
+                        info.words.push(w);
+                    }
                 }
             }
         }
@@ -430,10 +442,14 @@ impl FuguWriterApp {
         info
     }
 
-    /// 起動時に構築されていない場合、plots ディレクトリから直接読む。
+    /// 起動時に構築されていない場合、plots ディレクトリまたは開いているバッファから直接読む。
     fn read_plot_from_disk(&self, sid: &SceneId) -> Option<String> {
         let path = crate::project::resolver::plots_path(&self.state.root, sid);
-        let text = std::fs::read_to_string(path).ok()?;
+        let text = if let Some(buf) = self.buffers.get(&path) {
+            buf.rope.to_string()
+        } else {
+            std::fs::read_to_string(path).ok()?
+        };
         let file = loader::parse_plot_file(&sid.episode_key(), &text);
         for node in file.nodes {
             if let Some(id) = node.scene {
@@ -510,16 +526,26 @@ impl FuguWriterApp {
                     if cur != p {
                         continue;
                     }
-                    let dirty = self.buffers.get(&p).map(|b| b.dirty).unwrap_or(false);
-                    if dirty {
+                    let Some(buf) = self.buffers.get(&p) else {
+                        continue;
+                    };
+                    if buf.dirty {
                         continue;
                     }
+                    let disk_mtime = std::fs::metadata(&p).and_then(|m| m.modified()).ok();
+                    if let (Some(m1), Some(m2)) = (buf.modified, disk_mtime) {
+                        if m1 == m2 {
+                            // 自作保存による変更イベントのためスキップ
+                            continue;
+                        }
+                    }
                     if let Ok(t) = std::fs::read_to_string(&p) {
-                        let cursor = self.buffers.get(&p).map(|b| b.cursor_line).unwrap_or(0);
+                        let cursor = buf.cursor_line;
                         let kind = classify(&p);
-                        let mut buf = TextBuffer::new(p.clone(), kind, t);
-                        buf.cursor_line = cursor.min(buf.line_count().saturating_sub(1));
-                        self.buffers.insert(p.clone(), buf);
+                        let mut new_buf = TextBuffer::new(p.clone(), kind, t);
+                        new_buf.cursor_line = cursor.min(new_buf.line_count().saturating_sub(1));
+                        new_buf.modified = disk_mtime;
+                        self.buffers.insert(p.clone(), new_buf);
                         self.set_status("外部変更を再読込しました");
                     }
                 }
@@ -611,7 +637,8 @@ impl FuguWriterApp {
             Action::Focus1 => self.focus = FocusPane::Tree,
             Action::Focus2 => self.focus = FocusPane::Editor,
             Action::Focus3 => self.focus = FocusPane::Info,
-            Action::FocusUp | Action::FocusDown => self.focus = self.focus.next(),
+            Action::FocusUp => self.focus = self.focus.prev(),
+            Action::FocusDown => self.focus = self.focus.next(),
             Action::OpenPlot => self.open_current_plot(),
             Action::OpenMaterial => self.show_material_info(),
             Action::NewWord => self.register_selection_as_word(false),
@@ -748,11 +775,18 @@ impl FuguWriterApp {
         }
     }
 
-    /// 選択テキストは「現在行」を対象にする（単一 TextEdit のため）。
+    /// 選択テキストがあればそれを返し、無ければ現在行を対象にする。
     fn selected_or_current_text(&self) -> String {
-        self.active_buffer()
-            .map(|b| b.line_text(b.cursor_line))
-            .unwrap_or_default()
+        if let Some(buf) = self.active_buffer() {
+            if let Some(sel) = buf.selected_text() {
+                if !sel.trim().is_empty() {
+                    return sel;
+                }
+            }
+            buf.line_text(buf.cursor_line)
+        } else {
+            String::new()
+        }
     }
 
     fn apply_search(&mut self, replace: bool) {
@@ -768,14 +802,37 @@ impl FuguWriterApp {
         };
 
         // 借用を長引かせないよう、必要な情報は先にスナップショットする。
-        let (text, cursor, hit_line) = match self.buffers.get(&path) {
+        let (text, cursor_line, cursor_col, hit_line) = match self.buffers.get(&path) {
             Some(buf) => {
                 let text = buf.rope.to_string();
-                let line = text.find(&q).map(|pos| {
+                // 現在カーソルのバイト位置を計算
+                let start_line = buf.cursor_line.min(buf.rope.len_lines().saturating_sub(1));
+                let line_start_char = buf.rope.line_to_char(start_line);
+                let current_char_idx = (line_start_char + buf.cursor_col).min(buf.rope.len_chars());
+                let current_byte_idx = buf.rope.char_to_byte(current_char_idx).min(text.len());
+
+                // 次の検索位置: 現在カーソルが既に一致文字列の先頭にある場合は 1 バイト進めた位置から検索
+                let search_from = if text[current_byte_idx..].starts_with(&q) {
+                    current_byte_idx + q.len().max(1)
+                } else {
+                    current_byte_idx
+                };
+
+                // 現在位置以降を検索し、なければ文頭からラップアラウンド検索
+                let hit_byte = if search_from < text.len() {
+                    text[search_from..]
+                        .find(&q)
+                        .map(|p| search_from + p)
+                        .or_else(|| text[..search_from].find(&q))
+                } else {
+                    text.find(&q)
+                };
+
+                let hit_line = hit_byte.map(|pos| {
                     let char_idx = text[..pos].chars().count();
                     buf.rope.char_to_line(char_idx.min(buf.rope.len_chars()))
                 });
-                (text, buf.cursor_line, line)
+                (text, buf.cursor_line, buf.cursor_col, hit_line)
             }
             None => {
                 self.search_mode = SearchMode::None;
@@ -788,7 +845,8 @@ impl FuguWriterApp {
             if new_text != text {
                 let kind = classify(&path);
                 let mut nb = TextBuffer::new(path.clone(), kind, new_text);
-                nb.cursor_line = cursor.min(nb.line_count().saturating_sub(1));
+                nb.cursor_line = cursor_line.min(nb.line_count().saturating_sub(1));
+                nb.cursor_col = cursor_col;
                 nb.dirty = true;
                 self.buffers.insert(path.clone(), nb);
                 self.mark_context_dirty();
@@ -802,6 +860,7 @@ impl FuguWriterApp {
                 b.cursor_col = 0;
             }
             self.sync_editor_focus();
+            self.mark_context_dirty();
             self.set_status(format!("一致: {} 行目", line + 1));
         } else {
             self.set_status("一致なし");

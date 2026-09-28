@@ -28,6 +28,7 @@ pub struct TextBuffer {
     pub scratch_dirty: bool,
     pub cursor_line: usize,
     pub cursor_col: usize,
+    pub selection_range: Option<(usize, usize)>,
     pub dirty: bool,
     pub modified: Option<SystemTime>,
 }
@@ -46,9 +47,21 @@ impl TextBuffer {
             scratch_dirty: false,
             cursor_line: 0,
             cursor_col: 0,
+            selection_range: None,
             dirty: false,
             modified: None,
         }
+    }
+
+    /// 選択テキストを取得（範囲指定がある場合）。
+    pub fn selected_text(&self) -> Option<String> {
+        if let Some((start, end)) = self.selection_range {
+            if start < end && end <= self.rope.len_chars() {
+                let slice = self.rope.slice(start..end);
+                return Some(slice.to_string());
+            }
+        }
+        None
     }
 
     pub fn line_count(&self) -> usize {
@@ -198,5 +211,17 @@ mod tests {
         buf.as_edit_str().push_str("c\n");
         buf.sync_from_scratch();
         assert_eq!(buf.rope.to_string(), "a\nb\nc\n");
+    }
+
+    #[test]
+    fn selection_text_retrieval() {
+        let mut buf = TextBuffer::new(
+            PathBuf::from("x.txt"),
+            FileKind::Contents,
+            "hello world\n".to_string(),
+        );
+        assert_eq!(buf.selected_text(), None);
+        buf.selection_range = Some((0, 5));
+        assert_eq!(buf.selected_text(), Some("hello".to_string()));
     }
 }

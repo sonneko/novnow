@@ -128,10 +128,14 @@ pub fn show_viewer(app: &mut FuguWriterApp, ui: &mut egui::Ui) {
         }
     };
 
+    let lines: Vec<&str> = text.lines().collect();
+    let row_height = ui.text_style_height(&egui::TextStyle::Body);
+
     egui::ScrollArea::vertical()
         .id_source("file-viewer")
-        .show(ui, |ui| {
-            for (i, line) in text.lines().enumerate() {
+        .show_rows(ui, row_height, lines.len(), |ui, range| {
+            for i in range {
+                let line = lines[i];
                 let is_cursor = i == cursor_line;
                 let is_header = line.trim_start().starts_with('@');
                 let txt = if is_header {

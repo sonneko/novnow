@@ -58,6 +58,8 @@ pub fn show(app: &mut FuguWriterApp, ui: &mut egui::Ui) {
                         };
 
                         let mut new_cursor: Option<(usize, usize)> = None;
+                        let mut new_selection: Option<(usize, usize)> = None;
+                        let mut cursor_moved = false;
                         let mut changed = false;
 
                         // このブロック内でのみ `app.buffers` を可変借用する。
@@ -80,8 +82,21 @@ pub fn show(app: &mut FuguWriterApp, ui: &mut egui::Ui) {
                                 changed = true;
                             }
                             if let Some(range) = output.cursor_range {
-                                let idx = range.primary.ccursor.index;
-                                new_cursor = Some(char_to_line_col(buffer, idx));
+                                let p_idx = range.primary.ccursor.index;
+                                let s_idx = range.secondary.ccursor.index;
+                                let (line, col) = char_to_line_col(buffer, p_idx);
+                                if line != buffer.cursor_line || col != buffer.cursor_col {
+                                    cursor_moved = true;
+                                }
+                                new_cursor = Some((line, col));
+
+                                if p_idx != s_idx {
+                                    let min = p_idx.min(s_idx);
+                                    let max = p_idx.max(s_idx);
+                                    new_selection = Some((min, max));
+                                } else {
+                                    new_selection = None;
+                                }
                             }
                         }
 
@@ -91,12 +106,17 @@ pub fn show(app: &mut FuguWriterApp, ui: &mut egui::Ui) {
                                 buf.cursor_line = line;
                                 buf.cursor_col = col;
                             }
+                            buf.selection_range = new_selection;
                             if changed {
                                 // 変更行のみ再トークン化する。
                                 buf.sync_from_scratch();
                             }
                         }
-                        if changed {
+
+                        if cursor_moved {
+                            app.sync_editor_focus();
+                            app.mark_context_dirty();
+                        } else if changed {
                             app.mark_context_dirty();
                         }
                     });
