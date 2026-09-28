@@ -174,8 +174,10 @@ impl FuguWriterApp {
     /// エディタ下部バーの対象行をカーソル位置に合わせる。
     pub fn sync_editor_focus(&mut self) {
         if let Some(buf) = self.active_buffer() {
-            self.editor_focus_line = buf.cursor_line;
-            self.editor_bar_text = buf.line_text(buf.cursor_line);
+            let cursor_line = buf.cursor_line;
+            let bar_text = buf.line_text(cursor_line);
+            self.editor_focus_line = cursor_line;
+            self.editor_bar_text = bar_text;
         }
         self.update_tree_selection_to_active();
     }

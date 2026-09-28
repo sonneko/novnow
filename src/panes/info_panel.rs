@@ -2,7 +2,7 @@
 //!
 //! 優先順位: カーソル行に直接含まれる要素 > 同一場面の要素 > 同一話の要素。
 
-use crate::app::{ContextInfo, FuguWriterApp};
+use crate::app::FuguWriterApp;
 use egui::{Color32, RichText};
 
 pub fn show(app: &mut FuguWriterApp, ui: &mut egui::Ui) {

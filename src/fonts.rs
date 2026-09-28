@@ -5,7 +5,6 @@
 
 use egui::{FontData, FontDefinitions, FontFamily, FontTweak};
 use fontdb::{Database, Family, Query, Style, Stretch, Weight};
-use std::sync::Arc;
 
 /// 起動時に呼び出し、日本語フォントを検出して egui に登録する。
 ///
@@ -68,11 +67,11 @@ pub fn setup_japanese_fonts(ctx: &egui::Context) {
     // 日本語フォントを "japanese" として登録
     fonts.font_data.insert(
         "japanese".to_string(),
-        Arc::new(FontData {
+        FontData {
             font: std::borrow::Cow::Owned(bytes),
             index,
             tweak: FontTweak::default(),
-        }),
+        },
     );
 
     // Proportional / Monospace のフォールバック末尾に追加。

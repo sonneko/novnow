@@ -21,7 +21,6 @@ cargo build --release
 # 生成物: target/release/novnow
 ```
 
-> このソースは開発環境を持たない環境で生成されたため、未コンパイルです。
 > `cargo build` は初回に crates.io から依存を取得します（要ネットワーク）。
 >
 > **egui/eframe は 0.27.2 に固定しています。** 実装は 0.27 系の API
