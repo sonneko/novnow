@@ -1,5 +1,5 @@
 [package]
-name = "fugu-writer"
+name = "novnow"
 version = "0.1.0"
 edition = "2021"
 description = "小説プロジェクト（[title]/ レイアウト）向け執筆 IDE — egui + ropey"

@@ -5,12 +5,12 @@
 //! * `CursorRange { primary: Cursor, .. }` / `Cursor { ccursor: CCursor, .. }`
 //! * `CCursor { index: usize, .. }`
 
-use crate::app::FuguWriterApp;
+use crate::app::NovnowApp;
 use crate::text::buffer::TextBuffer;
 use egui::{Color32, RichText};
 
 /// エディタ本体 + 下部の「数式バー」（Excel のセル編集に相当）。
-pub fn show(app: &mut FuguWriterApp, ui: &mut egui::Ui) {
+pub fn show(app: &mut NovnowApp, ui: &mut egui::Ui) {
     ui.heading("エディタ");
     ui.separator();
 

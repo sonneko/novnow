@@ -1,4 +1,4 @@
-//! fugu-writer エントリポイント。
+//! novnow エントリポイント。
 //!
 //! 使い方:
 //!   novnow <project-dir>          # 既存プロジェクトを開く（不正ならエラー終了）
@@ -90,7 +90,7 @@ fn main() -> eframe::Result<()> {
         native_options,
         Box::new(move |cc| {
             fonts::setup_japanese_fonts(&cc.egui_ctx);
-            Box::new(app::FuguWriterApp::new(cc, runtime, state))
+            Box::new(app::NovnowApp::new(cc, runtime, state))
         }),
     )
 }

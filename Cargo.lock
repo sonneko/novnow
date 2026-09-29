@@ -1317,23 +1317,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "fugu-writer"
-version = "0.1.0"
-dependencies = [
- "aho-corasick",
- "anyhow",
- "eframe",
- "egui",
- "fontdb",
- "regex",
- "rfd",
- "ropey",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
 name = "futures-channel"
 version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2166,6 +2149,23 @@ name = "nohash-hasher"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2bf50223579dc7cdcfb3bfcacf7069ff68243f8c363f62ffa99cf000a6b9c451"
+
+[[package]]
+name = "novnow"
+version = "0.1.0"
+dependencies = [
+ "aho-corasick",
+ "anyhow",
+ "eframe",
+ "egui",
+ "fontdb",
+ "regex",
+ "rfd",
+ "ropey",
+ "serde",
+ "serde_json",
+ "tokio",
+]
 
 [[package]]
 name = "num-traits"

@@ -2,10 +2,10 @@
 //!
 //! 優先順位: カーソル行に直接含まれる要素 > 同一場面の要素 > 同一話の要素。
 
-use crate::app::FuguWriterApp;
+use crate::app::NovnowApp;
 use egui::{Color32, RichText};
 
-pub fn show(app: &mut FuguWriterApp, ui: &mut egui::Ui) {
+pub fn show(app: &mut NovnowApp, ui: &mut egui::Ui) {
     ui.heading("情報");
     ui.separator();
 

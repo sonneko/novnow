@@ -46,7 +46,7 @@ pub enum SearchMode {
     Jump,
 }
 
-pub struct FuguWriterApp {
+pub struct NovnowApp {
     pub runtime: Runtime,
     pub state: ProjectState,
 
@@ -91,7 +91,7 @@ pub struct FuguWriterApp {
     pub ac: Option<(AhoCorasick, Vec<String>, Vec<String>)>,
 }
 
-impl FuguWriterApp {
+impl NovnowApp {
     pub fn new(cc: &eframe::CreationContext<'_>, runtime: Runtime, state: ProjectState) -> Self {
         configure_style(&cc.egui_ctx);
         let tree_rows = panes::build_rows(&state.contents_files, &state.plots_files);
@@ -999,7 +999,7 @@ enum Action {
     Escape,
 }
 
-impl eframe::App for FuguWriterApp {
+impl eframe::App for NovnowApp {
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
         // 外部変更の取り込み。
         self.handle_external_changes();
