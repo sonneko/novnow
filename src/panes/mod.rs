@@ -106,12 +106,21 @@ pub enum FocusPane {
 }
 
 impl FocusPane {
-    /// Ctrl+↑ / Ctrl+↓ で巡回させる。
+    /// Ctrl+↓ で正順巡回させる。
     pub fn next(self) -> Self {
         match self {
             FocusPane::Tree => FocusPane::Editor,
             FocusPane::Editor => FocusPane::Info,
             FocusPane::Info => FocusPane::Tree,
+        }
+    }
+
+    /// Ctrl+↑ で逆順巡回させる。
+    pub fn prev(self) -> Self {
+        match self {
+            FocusPane::Tree => FocusPane::Info,
+            FocusPane::Editor => FocusPane::Tree,
+            FocusPane::Info => FocusPane::Editor,
         }
     }
 }

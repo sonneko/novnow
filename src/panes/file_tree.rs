@@ -1,6 +1,6 @@
 //! 上左: ファイルリーダー（ファイルツリー + 読み取り専用ビューア）。
 
-use crate::app::FuguWriterApp;
+use crate::app::NovnowApp;
 use egui::{Color32, RichText};
 
 /// ファイルツリーの UI。
@@ -8,7 +8,7 @@ use egui::{Color32, RichText};
 /// * 上下キーで行移動、Enter で開く
 /// * 選択中ファイルはハイライト
 /// * ホバー行は `hovered_tree_row` に記録し、右パネルに情報表示
-pub fn show(app: &mut FuguWriterApp, ui: &mut egui::Ui) {
+pub fn show(app: &mut NovnowApp, ui: &mut egui::Ui) {
     ui.heading("ファイル");
     ui.separator();
 
@@ -112,7 +112,7 @@ pub fn show(app: &mut FuguWriterApp, ui: &mut egui::Ui) {
 /// ツリー下部の「選択中ファイルの内容ビューア（薄くハイライト付き）」。
 ///
 /// 節スクロールでカーソル行が移動し、その行が薄くハイライトされる。
-pub fn show_viewer(app: &mut FuguWriterApp, ui: &mut egui::Ui) {
+pub fn show_viewer(app: &mut NovnowApp, ui: &mut egui::Ui) {
     ui.separator();
     ui.label(
         RichText::new("プレビュー（節スクロール: Alt+↑ / Alt+↓）")
@@ -128,10 +128,14 @@ pub fn show_viewer(app: &mut FuguWriterApp, ui: &mut egui::Ui) {
         }
     };
 
+    let lines: Vec<&str> = text.lines().collect();
+    let row_height = ui.text_style_height(&egui::TextStyle::Body);
+
     egui::ScrollArea::vertical()
         .id_source("file-viewer")
-        .show(ui, |ui| {
-            for (i, line) in text.lines().enumerate() {
+        .show_rows(ui, row_height, lines.len(), |ui, range| {
+            for i in range {
+                let line = lines[i];
                 let is_cursor = i == cursor_line;
                 let is_header = line.trim_start().starts_with('@');
                 let txt = if is_header {

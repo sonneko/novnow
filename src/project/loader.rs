@@ -1,16 +1,21 @@
 //! JSON / テキストファイルの読み書き（tokio による非同期 I/O）。
 
+#[cfg(not(target_arch = "wasm32"))]
 use crate::project::resolver::parse_file_stem;
 use crate::project::state::{PlotNodeRef, ProjectState};
+#[cfg(not(target_arch = "wasm32"))]
 use crate::types::characters::parse_characters;
+#[cfg(not(target_arch = "wasm32"))]
 use crate::types::materials::parse_materials;
 use crate::types::plots::{PlotFile, PlotNode, SceneId};
+#[cfg(not(target_arch = "wasm32"))]
 use crate::types::words::parse_words;
 use anyhow::{Context, Result};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 /// 非同期でテキストファイルを読む。
+#[cfg(not(target_arch = "wasm32"))]
 pub async fn read_to_string_async(path: &Path) -> Result<String> {
     let s = tokio::fs::read_to_string(path)
         .await
@@ -18,7 +23,15 @@ pub async fn read_to_string_async(path: &Path) -> Result<String> {
     Ok(s)
 }
 
+#[cfg(target_arch = "wasm32")]
+pub async fn read_to_string_async(path: &Path) -> Result<String> {
+    let s = std::fs::read_to_string(path)
+        .with_context(|| format!("読み込みに失敗: {}", path.display()))?;
+    Ok(s)
+}
+
 /// 非同期で書き込む（一時ファイル + rename による安全な保存は将来拡張）。
+#[cfg(not(target_arch = "wasm32"))]
 pub async fn write_string_async(path: &Path, contents: &str) -> Result<()> {
     if let Some(parent) = path.parent() {
         tokio::fs::create_dir_all(parent).await.ok();
@@ -26,6 +39,11 @@ pub async fn write_string_async(path: &Path, contents: &str) -> Result<()> {
     tokio::fs::write(path, contents)
         .await
         .with_context(|| format!("書き込みに失敗: {}", path.display()))?;
+    Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn write_string_async(_path: &Path, _contents: &str) -> Result<()> {
     Ok(())
 }
 
@@ -41,6 +59,7 @@ const REQUIRED: &[&str] = &[
 ];
 
 /// プロジェクトを読み込む。必須ファイルが無ければエラー。
+#[cfg(not(target_arch = "wasm32"))]
 pub async fn load_project(root: PathBuf) -> Result<ProjectState> {
     validate_layout(&root)?;
 
@@ -148,6 +167,11 @@ pub async fn load_project(root: PathBuf) -> Result<ProjectState> {
     Ok(state)
 }
 
+#[cfg(target_arch = "wasm32")]
+pub async fn load_project(_root: PathBuf) -> Result<ProjectState> {
+    Ok(scaffold_in_memory_state())
+}
+
 /// レイアウト検証。
 fn validate_layout(root: &Path) -> Result<()> {
     if !root.exists() {
@@ -189,8 +213,8 @@ pub fn parse_plot_file(stem: &str, text: &str) -> PlotFile {
             continue;
         }
         let trimmed = raw.trim();
-        if trimmed == ";" {
-            // ノード区切り: 直前ノードの本文を伸ばすだけで、`;` は本文に含めない。
+        if trimmed.starts_with(';') {
+            // ノード区切り（`;` または `; /* ... */`）: 直前ノードの本文を伸ばすだけで、`;` 行は本文に含めない。
             continue;
         }
         if let Some(node) = cur.as_mut() {
@@ -206,7 +230,81 @@ pub fn parse_plot_file(stem: &str, text: &str) -> PlotFile {
     file
 }
 
+pub fn scaffold_in_memory_state() -> ProjectState {
+    let root = PathBuf::from("my-novel");
+    let mut state = ProjectState {
+        title: "my-novel".to_string(),
+        root: root.clone(),
+        ..Default::default()
+    };
+
+    let mut char_map = crate::types::characters::CharacterMap::new();
+    char_map.insert(
+        "アルス".to_string(),
+        crate::types::characters::Character {
+            name: "アルス".to_string(),
+            role: "主人公".to_string(),
+            personality: "正義感が強い魔法使い".to_string(),
+            speech: "僕、～だよ".to_string(),
+            notes: "デモプロジェクト".to_string(),
+            ..Default::default()
+        },
+    );
+    char_map.insert(
+        "リリア".to_string(),
+        crate::types::characters::Character {
+            name: "リリア".to_string(),
+            role: "ヒロイン".to_string(),
+            personality: "冷静沈着な剣士".to_string(),
+            speech: "私、～ね".to_string(),
+            notes: "デモプロジェクト".to_string(),
+            ..Default::default()
+        },
+    );
+    state.characters = char_map;
+
+    let mut word_map = crate::types::words::WordMap::new();
+    word_map.insert(
+        "魔導書".to_string(),
+        crate::types::words::Word {
+            term: "魔導書".to_string(),
+            reading: "まどうしょ".to_string(),
+            definition: "古代の魔法が記された書物".to_string(),
+            category: "用語".to_string(),
+            ..Default::default()
+        },
+    );
+    state.words = word_map;
+
+    let contents_file = root.join("contents/01-01.txt");
+    let plots_file = root.join("plots/01-01.txt");
+
+    state.contents_files = vec![contents_file];
+    state.plots_files = vec![plots_file];
+
+    let plot_text = "@01-01-01\nアルスとリリアが出会う場面\n;\n";
+    let file = parse_plot_file("01-01", plot_text);
+    let sid = SceneId::new(1, 1, 1, 0);
+    state.plots.insert(
+        sid,
+        PlotNodeRef {
+            scene: sid,
+            source_file: "01-01".to_string(),
+            line: 0,
+            text: "アルスとリリアが出会う場面".to_string(),
+        },
+    );
+    state.plot_files.insert("01-01".to_string(), file);
+
+    let mut chapters = BTreeMap::new();
+    chapters.insert(1, vec![1]);
+    state.chapters = chapters.into_iter().collect();
+
+    state
+}
+
 /// 新規プロジェクトの雛形を作成する。
+#[cfg(not(target_arch = "wasm32"))]
 pub async fn scaffold_project(root: &Path) -> Result<()> {
     let dirs = ["contents", "materials", "plots", "skills", "agents", "log"];
     for d in dirs {
@@ -234,6 +332,7 @@ pub async fn scaffold_project(root: &Path) -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 async fn write_if_absent(path: &Path, contents: &str) -> Result<()> {
     if !path.exists() {
         write_string_async(path, contents).await?;

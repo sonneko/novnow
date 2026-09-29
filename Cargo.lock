@@ -847,6 +847,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "console_error_panic_hook"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a06aeb73f470f66dcdbf7223caeebb85984942f22f1adb2a088cf9668146bbbc"
+dependencies = [
+ "cfg-if",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1314,23 +1324,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb4cb245038516f5f85277875cdaa4f7d2c9a0fa0468de06ed190163b1581fcf"
 dependencies = [
  "percent-encoding",
-]
-
-[[package]]
-name = "fugu-writer"
-version = "0.1.0"
-dependencies = [
- "aho-corasick",
- "anyhow",
- "eframe",
- "egui",
- "fontdb",
- "regex",
- "rfd",
- "ropey",
- "serde",
- "serde_json",
- "tokio",
 ]
 
 [[package]]
@@ -2166,6 +2159,27 @@ name = "nohash-hasher"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2bf50223579dc7cdcfb3bfcacf7069ff68243f8c363f62ffa99cf000a6b9c451"
+
+[[package]]
+name = "novnow"
+version = "0.1.0"
+dependencies = [
+ "aho-corasick",
+ "anyhow",
+ "console_error_panic_hook",
+ "eframe",
+ "egui",
+ "fontdb",
+ "regex",
+ "rfd",
+ "ropey",
+ "serde",
+ "serde_json",
+ "tokio",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
 
 [[package]]
 name = "num-traits"

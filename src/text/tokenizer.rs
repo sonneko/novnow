@@ -179,11 +179,11 @@ pub fn tokenize_line(kind: FileKind, line_idx: usize, line: &str) -> Token {
             }
         }
         FileKind::Contents => {
-            if let Some((_name, at)) = parse_speaker(line) {
+            if parse_speaker(line).is_some() {
                 Token {
                     kind: TokenKind::Speaker,
                     line: line_idx,
-                    byte_start: at,
+                    byte_start: lead,
                     byte_end: line.len(),
                 }
             } else {

@@ -1,4 +1,4 @@
-//! fugu-writer エントリポイント。
+//! novnow エントリポイント。
 //!
 //! 使い方:
 //!   novnow <project-dir>          # 既存プロジェクトを開く（不正ならエラー終了）
@@ -12,10 +12,10 @@ mod project;
 mod text;
 mod types;
 
-use std::path::PathBuf;
-
-/// eframe 0.27 の `run_native` は `eframe::Result<()>` を返す。
+#[cfg(not(target_arch = "wasm32"))]
 fn main() -> eframe::Result<()> {
+    use std::path::PathBuf;
+
     // --- コマンドライン解析（プロジェクトルートは必須） --------------------
     let mut init = false;
     let mut positional: Vec<String> = Vec::new();
@@ -90,11 +90,12 @@ fn main() -> eframe::Result<()> {
         native_options,
         Box::new(move |cc| {
             fonts::setup_japanese_fonts(&cc.egui_ctx);
-            Box::new(app::FuguWriterApp::new(cc, runtime, state))
+            Box::new(app::NovnowApp::new(cc, runtime, state))
         }),
     )
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn print_usage() {
     eprintln!("novnow — 小説プロジェクト向け執筆 IDE");
     eprintln!();
@@ -103,4 +104,41 @@ fn print_usage() {
     eprintln!("  novnow --init <project-dir>  新規プロジェクトを作成");
     eprintln!();
     eprintln!("例: novnow ./");
+}
+
+#[cfg(target_arch = "wasm32")]
+fn main() {}
+
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen(start)]
+pub fn start() {
+    console_error_panic_hook::set_once();
+
+    let web_options = eframe::WebOptions::default();
+
+    wasm_bindgen_futures::spawn_local(async {
+        let runner = eframe::WebRunner::new();
+        let state = project::loader::scaffold_in_memory_state();
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .expect("tokio runtime failed");
+
+        let _ = runner
+            .start(
+                "the_canvas_id",
+                web_options,
+                Box::new(|cc| {
+                    fonts::setup_japanese_fonts(&cc.egui_ctx);
+                    let mut app = app::NovnowApp::new(cc, runtime, state);
+                    if let Some(p) = app.state.contents_files.first().cloned() {
+                        app.open_file(&p);
+                    }
+                    Box::new(app)
+                }),
+            )
+            .await;
+    });
 }

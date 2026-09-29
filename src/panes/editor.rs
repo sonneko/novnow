@@ -5,12 +5,12 @@
 //! * `CursorRange { primary: Cursor, .. }` / `Cursor { ccursor: CCursor, .. }`
 //! * `CCursor { index: usize, .. }`
 
-use crate::app::FuguWriterApp;
+use crate::app::NovnowApp;
 use crate::text::buffer::TextBuffer;
 use egui::{Color32, RichText};
 
 /// エディタ本体 + 下部の「数式バー」（Excel のセル編集に相当）。
-pub fn show(app: &mut FuguWriterApp, ui: &mut egui::Ui) {
+pub fn show(app: &mut NovnowApp, ui: &mut egui::Ui) {
     ui.heading("エディタ");
     ui.separator();
 
@@ -58,6 +58,8 @@ pub fn show(app: &mut FuguWriterApp, ui: &mut egui::Ui) {
                         };
 
                         let mut new_cursor: Option<(usize, usize)> = None;
+                        let mut new_selection: Option<(usize, usize)> = None;
+                        let mut cursor_moved = false;
                         let mut changed = false;
 
                         // このブロック内でのみ `app.buffers` を可変借用する。
@@ -73,15 +75,28 @@ pub fn show(app: &mut FuguWriterApp, ui: &mut egui::Ui) {
                                 .code_editor()
                                 .desired_width(f32::INFINITY)
                                 .desired_rows(30)
-                                .id_source("editor-main")
+                                .id_source(("editor-main", path.to_string_lossy().to_string()))
                                 .show(ui);
 
                             if output.response.changed() {
                                 changed = true;
                             }
                             if let Some(range) = output.cursor_range {
-                                let idx = range.primary.ccursor.index;
-                                new_cursor = Some(char_to_line_col(buffer, idx));
+                                let p_idx = range.primary.ccursor.index;
+                                let s_idx = range.secondary.ccursor.index;
+                                let (line, col) = char_to_line_col(buffer, p_idx);
+                                if line != buffer.cursor_line || col != buffer.cursor_col {
+                                    cursor_moved = true;
+                                }
+                                new_cursor = Some((line, col));
+
+                                if p_idx != s_idx {
+                                    let min = p_idx.min(s_idx);
+                                    let max = p_idx.max(s_idx);
+                                    new_selection = Some((min, max));
+                                } else {
+                                    new_selection = None;
+                                }
                             }
                         }
 
@@ -91,12 +106,17 @@ pub fn show(app: &mut FuguWriterApp, ui: &mut egui::Ui) {
                                 buf.cursor_line = line;
                                 buf.cursor_col = col;
                             }
+                            buf.selection_range = new_selection;
                             if changed {
                                 // 変更行のみ再トークン化する。
                                 buf.sync_from_scratch();
                             }
                         }
-                        if changed {
+
+                        if cursor_moved {
+                            app.sync_editor_focus();
+                            app.mark_context_dirty();
+                        } else if changed {
                             app.mark_context_dirty();
                         }
                     });
@@ -135,14 +155,6 @@ pub fn show(app: &mut FuguWriterApp, ui: &mut egui::Ui) {
                 .weak(),
         );
 
-        let current_line = app
-            .active_buffer()
-            .map(|b| b.line_text(focus_line))
-            .unwrap_or_default();
-        // バーが未編集なら現在行を表示する。
-        if bar_edit.is_empty() && !current_line.is_empty() {
-            bar_edit = current_line.clone();
-        }
     });
 
     let response = ui.add(

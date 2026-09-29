@@ -28,27 +28,48 @@ pub struct TextBuffer {
     pub scratch_dirty: bool,
     pub cursor_line: usize,
     pub cursor_col: usize,
+    pub selection_range: Option<(usize, usize)>,
+    pub non_whitespace_chars: usize,
     pub dirty: bool,
     pub modified: Option<SystemTime>,
 }
 
 impl TextBuffer {
     pub fn new(path: PathBuf, kind: FileKind, text: String) -> Self {
-        let rope = Rope::from_str(&text);
+        let normalized = text.replace("\r\n", "\n");
+        let rope = Rope::from_str(&normalized);
         let tokens = TokenIndex::build(kind, &rope);
+        let non_whitespace_chars = rope.chars().filter(|c| !c.is_whitespace()).count();
         Self {
             path,
             kind,
             rope,
             tokens,
-            scratch: text.clone(),
-            last_seen: text,
+            scratch: normalized.clone(),
+            last_seen: normalized,
             scratch_dirty: false,
             cursor_line: 0,
             cursor_col: 0,
+            selection_range: None,
+            non_whitespace_chars,
             dirty: false,
             modified: None,
         }
+    }
+
+    pub fn recompute_non_whitespace(&mut self) {
+        self.non_whitespace_chars = self.rope.chars().filter(|c| !c.is_whitespace()).count();
+    }
+
+    /// 選択テキストを取得（範囲指定がある場合）。
+    pub fn selected_text(&self) -> Option<String> {
+        if let Some((start, end)) = self.selection_range {
+            if start < end && end <= self.rope.len_chars() {
+                let slice = self.rope.slice(start..end);
+                return Some(slice.to_string());
+            }
+        }
+        None
     }
 
     pub fn line_count(&self) -> usize {
@@ -87,6 +108,7 @@ impl TextBuffer {
         self.last_seen.push_str(&self.scratch);
 
         self.tokens.retokenize_range(self.kind, &self.rope, first, last);
+        self.recompute_non_whitespace();
         self.dirty = true;
     }
 
@@ -117,6 +139,7 @@ impl TextBuffer {
         self.scratch = self.rope.to_string();
         self.last_seen = self.scratch.clone();
         self.scratch_dirty = false;
+        self.recompute_non_whitespace();
         self.dirty = true;
     }
 
@@ -198,5 +221,27 @@ mod tests {
         buf.as_edit_str().push_str("c\n");
         buf.sync_from_scratch();
         assert_eq!(buf.rope.to_string(), "a\nb\nc\n");
+    }
+
+    #[test]
+    fn selection_text_retrieval() {
+        let mut buf = TextBuffer::new(
+            PathBuf::from("x.txt"),
+            FileKind::Contents,
+            "hello world\n".to_string(),
+        );
+        assert_eq!(buf.selected_text(), None);
+        buf.selection_range = Some((0, 5));
+        assert_eq!(buf.selected_text(), Some("hello".to_string()));
+    }
+
+    #[test]
+    fn crlf_normalization() {
+        let buf = TextBuffer::new(
+            PathBuf::from("x.txt"),
+            FileKind::Contents,
+            "line1\r\nline2\r\n".to_string(),
+        );
+        assert_eq!(buf.rope.to_string(), "line1\nline2\n");
     }
 }

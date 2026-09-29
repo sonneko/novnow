@@ -5,6 +5,7 @@
 
 use std::path::PathBuf;
 use std::sync::mpsc::Sender;
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::{Duration, SystemTime};
 
 /// 監視対象の変更通知。
@@ -14,6 +15,7 @@ pub struct FileChanged {
 }
 
 /// ポーリング監視スレッドを起動する。
+#[cfg(not(target_arch = "wasm32"))]
 pub fn spawn(root: PathBuf, tx: Sender<FileChanged>) {
     std::thread::Builder::new()
         .name("novnow-watch".into())
@@ -44,6 +46,10 @@ pub fn spawn(root: PathBuf, tx: Sender<FileChanged>) {
         .ok();
 }
 
+#[cfg(target_arch = "wasm32")]
+pub fn spawn(_root: PathBuf, _tx: Sender<FileChanged>) {}
+
+#[cfg(not(target_arch = "wasm32"))]
 fn mtime(p: &PathBuf) -> Option<SystemTime> {
     std::fs::metadata(p).ok().and_then(|m| m.modified().ok())
 }
