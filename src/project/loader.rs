@@ -189,8 +189,8 @@ pub fn parse_plot_file(stem: &str, text: &str) -> PlotFile {
             continue;
         }
         let trimmed = raw.trim();
-        if trimmed == ";" {
-            // ノード区切り: 直前ノードの本文を伸ばすだけで、`;` は本文に含めない。
+        if trimmed.starts_with(';') {
+            // ノード区切り（`;` または `; /* ... */`）: 直前ノードの本文を伸ばすだけで、`;` 行は本文に含めない。
             continue;
         }
         if let Some(node) = cur.as_mut() {

@@ -439,10 +439,10 @@ impl NovnowApp {
         for (name, ch) in &self.state.characters {
             for alias in ch.all_names() {
                 if !alias.is_empty() {
-                    if active_scene_text.contains(&alias) {
+                    if is_name_match(&active_scene_text, &alias) {
                         push_unique(&mut scene_chars, name);
                         break;
-                    } else if scan_text.contains(&alias) {
+                    } else if is_name_match(&scan_text, &alias) {
                         push_unique(&mut other_chars, name);
                         break;
                     }
@@ -554,10 +554,7 @@ impl NovnowApp {
     fn reload_project(&mut self) {
         let root = self.state.root.clone();
         match self.runtime.block_on(loader::load_project(root)) {
-            Ok(mut st) => {
-                // 走査済みファイル一覧は維持する。
-                st.contents_files = self.state.contents_files.clone();
-                st.plots_files = self.state.plots_files.clone();
+            Ok(st) => {
                 self.state = st;
                 self.tree_rows =
                     panes::build_rows(&self.state.contents_files, &self.state.plots_files);
@@ -806,13 +803,11 @@ impl NovnowApp {
             self.state.root.join("words.json")
         };
 
-        // 既存 JSON を読み、追記して保存する。
+        // 既存 JSON を読み、追記して保存する（配列形式・オブジェクト形式を維持）。
         let text = std::fs::read_to_string(&path).unwrap_or_else(|_| "[]".to_string());
         let mut value: serde_json::Value =
             serde_json::from_str(&text).unwrap_or(serde_json::json!([]));
-        if !value.is_array() {
-            value = serde_json::json!([value]);
-        }
+
         if let Some(arr) = value.as_array_mut() {
             if as_character {
                 arr.push(serde_json::json!({
@@ -829,6 +824,46 @@ impl NovnowApp {
                     "definition": "",
                     "category": ""
                 }));
+            }
+        } else if let Some(obj) = value.as_object_mut() {
+            if as_character {
+                obj.insert(
+                    term.clone(),
+                    serde_json::json!({
+                        "name": term,
+                        "role": "",
+                        "personality": "",
+                        "speech": "",
+                        "notes": "novnow から登録"
+                    }),
+                );
+            } else {
+                obj.insert(
+                    term.clone(),
+                    serde_json::json!({
+                        "term": term,
+                        "reading": "",
+                        "definition": "",
+                        "category": ""
+                    }),
+                );
+            }
+        } else {
+            if as_character {
+                value = serde_json::json!([{
+                    "name": term,
+                    "role": "",
+                    "personality": "",
+                    "speech": "",
+                    "notes": "novnow から登録"
+                }]);
+            } else {
+                value = serde_json::json!([{
+                    "term": term,
+                    "reading": "",
+                    "definition": "",
+                    "category": ""
+                }]);
             }
         }
         if let Ok(pretty) = serde_json::to_string_pretty(&value) {
@@ -878,7 +913,7 @@ impl NovnowApp {
         };
 
         // 借用を長引かせないよう、必要な情報は先にスナップショットする。
-        let (text, cursor_line, cursor_col, hit_pos) = match self.buffers.get(&path) {
+        let hit_pos = match self.buffers.get(&path) {
             Some(buf) => {
                 let text = buf.rope.to_string();
                 // 現在カーソルのバイト位置を計算
@@ -894,7 +929,7 @@ impl NovnowApp {
                         .or_else(|| text[search_until..].rfind(&q).map(|p| search_until + p))
                 } else {
                     let search_from = if text[current_byte_idx..].starts_with(&q) {
-                        current_byte_idx + q.as_bytes().iter().next().map(|_| q.chars().next().map_or(1, |c| c.len_utf8())).unwrap_or(1)
+                        current_byte_idx + q.len()
                     } else {
                         current_byte_idx
                     };
@@ -915,7 +950,7 @@ impl NovnowApp {
                     let col = char_idx - line_start;
                     (line, col)
                 });
-                (text, buf.cursor_line, buf.cursor_col, pos)
+                pos
             }
             None => {
                 if !keep_modal {
@@ -926,14 +961,23 @@ impl NovnowApp {
         };
 
         if replace {
-            let new_text = text.replace(&q, &rep);
-            if new_text != text {
-                let kind = classify(&path);
-                let mut nb = TextBuffer::new(path.clone(), kind, new_text);
-                nb.cursor_line = cursor_line.min(nb.line_count().saturating_sub(1));
-                nb.cursor_col = cursor_col;
-                nb.dirty = true;
-                self.buffers.insert(path.clone(), nb);
+            if let Some((hit_l, hit_c)) = hit_pos {
+                // カーソル位置以降（またはラップアラウンド）の該当箇所 1 件のみを置換
+                if let Some(buf) = self.buffers.get_mut(&path) {
+                    let line_start = buf.rope.line_to_char(hit_l);
+                    let char_start = line_start + hit_c;
+                    let char_end = char_start + q.chars().count();
+                    buf.rope.remove(char_start..char_end);
+                    buf.rope.insert(char_start, &rep);
+                    buf.tokens.retokenize_range(buf.kind, &buf.rope, hit_l, hit_l + 1);
+                    buf.scratch = buf.rope.to_string();
+                    buf.last_seen = buf.scratch.clone();
+                    buf.scratch_dirty = false;
+                    buf.dirty = true;
+                    buf.cursor_line = hit_l;
+                    buf.cursor_col = hit_c + rep.chars().count();
+                }
+                self.sync_editor_focus();
                 self.mark_context_dirty();
                 self.set_status(format!("置換しました: {q} → {rep}"));
             } else {
@@ -1198,6 +1242,31 @@ fn push_unique(v: &mut Vec<String>, s: &str) {
     if !v.iter().any(|x| x == s) {
         v.push(s.to_string());
     }
+}
+
+/// キャラクター名・別名の単語境界を考慮した一致判定。
+fn is_name_match(text: &str, name: &str) -> bool {
+    let mut start = 0;
+    while let Some(pos) = text[start..].find(name) {
+        let abs_pos = start + pos;
+        let char_before = text[..abs_pos].chars().last();
+        let char_after = text[abs_pos + name.len()..].chars().next();
+
+        let is_valid_before = match char_before {
+            Some(c) => !c.is_alphanumeric() && c != 'ー',
+            None => true,
+        };
+        let is_valid_after = match char_after {
+            Some(c) => !c.is_alphanumeric() && c != 'ー',
+            None => true,
+        };
+
+        if is_valid_before && is_valid_after {
+            return true;
+        }
+        start = abs_pos + name.len().max(1);
+    }
+    false
 }
 
 fn short(p: &std::path::Path) -> String {

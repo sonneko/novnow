@@ -75,7 +75,7 @@ pub fn show(app: &mut NovnowApp, ui: &mut egui::Ui) {
                                 .code_editor()
                                 .desired_width(f32::INFINITY)
                                 .desired_rows(30)
-                                .id_source("editor-main")
+                                .id_source(("editor-main", path.to_string_lossy().to_string()))
                                 .show(ui);
 
                             if output.response.changed() {
@@ -155,14 +155,6 @@ pub fn show(app: &mut NovnowApp, ui: &mut egui::Ui) {
                 .weak(),
         );
 
-        let current_line = app
-            .active_buffer()
-            .map(|b| b.line_text(focus_line))
-            .unwrap_or_default();
-        // バーが未編集なら現在行を表示する。
-        if bar_edit.is_empty() && !current_line.is_empty() {
-            bar_edit = current_line.clone();
-        }
     });
 
     let response = ui.add(
