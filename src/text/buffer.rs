@@ -35,15 +35,16 @@ pub struct TextBuffer {
 
 impl TextBuffer {
     pub fn new(path: PathBuf, kind: FileKind, text: String) -> Self {
-        let rope = Rope::from_str(&text);
+        let normalized = text.replace("\r\n", "\n");
+        let rope = Rope::from_str(&normalized);
         let tokens = TokenIndex::build(kind, &rope);
         Self {
             path,
             kind,
             rope,
             tokens,
-            scratch: text.clone(),
-            last_seen: text,
+            scratch: normalized.clone(),
+            last_seen: normalized,
             scratch_dirty: false,
             cursor_line: 0,
             cursor_col: 0,
@@ -223,5 +224,15 @@ mod tests {
         assert_eq!(buf.selected_text(), None);
         buf.selection_range = Some((0, 5));
         assert_eq!(buf.selected_text(), Some("hello".to_string()));
+    }
+
+    #[test]
+    fn crlf_normalization() {
+        let buf = TextBuffer::new(
+            PathBuf::from("x.txt"),
+            FileKind::Contents,
+            "line1\r\nline2\r\n".to_string(),
+        );
+        assert_eq!(buf.rope.to_string(), "line1\nline2\n");
     }
 }

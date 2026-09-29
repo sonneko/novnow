@@ -194,7 +194,7 @@ impl NovnowApp {
         }
     }
 
-    /// 現在ファイルを保存。
+    /// 現在ファイルを保存（アトミック保存）。
     pub fn save_active(&mut self) {
         let Some(path) = self.active_path.clone() else {
             self.set_status("保存対象がありません");
@@ -204,7 +204,7 @@ impl NovnowApp {
             return;
         };
         let text = buf.rope.to_string();
-        match std::fs::write(&path, text) {
+        match atomic_write(&path, &text) {
             Ok(()) => {
                 let mtime = std::fs::metadata(&path).and_then(|m| m.modified()).ok();
                 if let Some(b) = self.buffers.get_mut(&path) {
@@ -217,7 +217,7 @@ impl NovnowApp {
         }
     }
 
-    /// 全バッファ保存。
+    /// 全バッファ保存（アトミック保存）。
     pub fn save_all(&mut self) {
         let paths: Vec<PathBuf> = self
             .buffers
@@ -228,7 +228,7 @@ impl NovnowApp {
         let mut count = 0;
         for p in paths {
             if let Some(b) = self.buffers.get(&p) {
-                if std::fs::write(&p, b.rope.to_string()).is_ok() {
+                if atomic_write(&p, &b.rope.to_string()).is_ok() {
                     count += 1;
                 }
             }
@@ -384,44 +384,111 @@ impl NovnowApp {
             }
         }
 
-        // --- 登場キャラ（優先順位: カーソル行 > ファイル内話者 > 本文中の辞書名） --
-        let mut seen: Vec<String> = Vec::new();
+        // 同一場面（SceneId）のテキストブロックを特定
+        let active_scene_text = if let Some(buf) = self.active_buffer() {
+            let cur_line = buf.cursor_line;
+            let mut start = 0;
+            for i in (0..=cur_line).rev() {
+                if i < buf.line_count() {
+                    let t = buf.line_text(i);
+                    if parse_header(t.trim_start()).is_some() {
+                        start = i;
+                        break;
+                    }
+                }
+            }
+            let mut end = buf.line_count();
+            for i in (cur_line + 1)..buf.line_count() {
+                let t = buf.line_text(i);
+                if parse_header(t.trim_start()).is_some() {
+                    end = i;
+                    break;
+                }
+            }
+            let mut s = String::new();
+            for i in start..end {
+                s.push_str(&buf.line_text(i));
+                s.push('\n');
+            }
+            s
+        } else {
+            String::new()
+        };
+
+        // --- 登場キャラ（同一場面最優先） ----------------------------------
+        let mut scene_chars: Vec<String> = Vec::new();
+        let mut other_chars: Vec<String> = Vec::new();
+
         for name in &direct_names {
-            push_unique(&mut seen, name);
+            push_unique(&mut scene_chars, name);
         }
+
         if let Some(buf) = self.active_buffer() {
             for i in 0..buf.line_count() {
                 let t = buf.line_text(i);
                 if let Some((name, _)) = parse_speaker(&t) {
-                    push_unique(&mut seen, &name);
+                    if active_scene_text.contains(&t) {
+                        push_unique(&mut scene_chars, &name);
+                    } else {
+                        push_unique(&mut other_chars, &name);
+                    }
                 }
             }
         }
-        if !scan_text.is_empty() {
-            for (name, ch) in &self.state.characters {
-                for alias in ch.all_names() {
-                    if !alias.is_empty() && scan_text.contains(&alias) {
-                        push_unique(&mut seen, name);
+
+        for (name, ch) in &self.state.characters {
+            for alias in ch.all_names() {
+                if !alias.is_empty() {
+                    if active_scene_text.contains(&alias) {
+                        push_unique(&mut scene_chars, name);
+                        break;
+                    } else if scan_text.contains(&alias) {
+                        push_unique(&mut other_chars, name);
                         break;
                     }
                 }
             }
         }
-        for name in seen {
+
+        for name in scene_chars {
             if let Some(c) = self.state.character(&name).cloned() {
                 info.characters.push(c);
             }
         }
+        for name in other_chars {
+            if !info.characters.iter().any(|c| c.name == name) {
+                if let Some(c) = self.state.character(&name).cloned() {
+                    info.characters.push(c);
+                }
+            }
+        }
 
-        // --- 用語（Aho-Corasick で検出: O(1) キー引継ぎ） --------------------
+        // --- 用語（同一場面最優先） ---------------------------------------
         if !scan_text.is_empty() {
             if let Some((ac, _terms, word_keys)) = &self.ac {
-                let mut hit_terms: Vec<String> = Vec::new();
+                let mut scene_words: Vec<String> = Vec::new();
+                let mut other_words: Vec<String> = Vec::new();
+
+                if !active_scene_text.is_empty() {
+                    for m in ac.find_overlapping_iter(&active_scene_text) {
+                        let key = &word_keys[m.pattern().as_usize()];
+                        push_unique(&mut scene_words, key);
+                    }
+                }
+
                 for m in ac.find_overlapping_iter(&scan_text) {
                     let key = &word_keys[m.pattern().as_usize()];
-                    push_unique(&mut hit_terms, key);
+                    if !scene_words.contains(key) {
+                        push_unique(&mut other_words, key);
+                    }
                 }
-                for t in hit_terms {
+
+                for t in scene_words {
+                    if let Some(w) = self.state.word(&t).cloned() {
+                        info.words.push(w);
+                    }
+                }
+                for t in other_words {
                     if let Some(w) = self.state.word(&t).cloned() {
                         info.words.push(w);
                     }
@@ -574,7 +641,9 @@ impl NovnowApp {
                 }
                 return;
             }
-            if ctrl && i.key_pressed(egui::Key::O) {
+            if i.key_pressed(egui::Key::F3) {
+                action = Action::FindNext;
+            } else if ctrl && i.key_pressed(egui::Key::O) {
                 action = Action::OpenFolder;
             } else if ctrl && shift && i.key_pressed(egui::Key::S) {
                 action = Action::SaveAll;
@@ -622,6 +691,9 @@ impl NovnowApp {
             Action::ReloadJson | Action::RefreshRight => self.reload_project(),
             Action::OpenFolder => self.open_folder_dialog(),
             Action::CycleRecent => self.cycle_recent(),
+            Action::FindNext => {
+                self.apply_search(false, false, false);
+            }
             Action::Jump => {
                 self.search_mode = SearchMode::Jump;
                 self.search_query.clear();
@@ -789,20 +861,24 @@ impl NovnowApp {
         }
     }
 
-    fn apply_search(&mut self, replace: bool) {
+    fn apply_search(&mut self, replace: bool, reverse: bool, keep_modal: bool) {
         let q = self.search_query.clone();
         if q.is_empty() {
-            self.search_mode = SearchMode::None;
+            if !keep_modal {
+                self.search_mode = SearchMode::None;
+            }
             return;
         }
         let rep = self.replace_query.clone();
         let Some(path) = self.active_path.clone() else {
-            self.search_mode = SearchMode::None;
+            if !keep_modal {
+                self.search_mode = SearchMode::None;
+            }
             return;
         };
 
         // 借用を長引かせないよう、必要な情報は先にスナップショットする。
-        let (text, cursor_line, cursor_col, hit_line) = match self.buffers.get(&path) {
+        let (text, cursor_line, cursor_col, hit_pos) = match self.buffers.get(&path) {
             Some(buf) => {
                 let text = buf.rope.to_string();
                 // 現在カーソルのバイト位置を計算
@@ -811,31 +887,40 @@ impl NovnowApp {
                 let current_char_idx = (line_start_char + buf.cursor_col).min(buf.rope.len_chars());
                 let current_byte_idx = buf.rope.char_to_byte(current_char_idx).min(text.len());
 
-                // 次の検索位置: 現在カーソルが既に一致文字列の先頭にある場合は 1 バイト進めた位置から検索
-                let search_from = if text[current_byte_idx..].starts_with(&q) {
-                    current_byte_idx + q.len().max(1)
+                let hit_byte = if reverse {
+                    let search_until = current_byte_idx;
+                    text[..search_until]
+                        .rfind(&q)
+                        .or_else(|| text[search_until..].rfind(&q).map(|p| search_until + p))
                 } else {
-                    current_byte_idx
+                    let search_from = if text[current_byte_idx..].starts_with(&q) {
+                        current_byte_idx + q.as_bytes().iter().next().map(|_| q.chars().next().map_or(1, |c| c.len_utf8())).unwrap_or(1)
+                    } else {
+                        current_byte_idx
+                    };
+                    if search_from < text.len() {
+                        text[search_from..]
+                            .find(&q)
+                            .map(|p| search_from + p)
+                            .or_else(|| text[..search_from].find(&q))
+                    } else {
+                        text.find(&q)
+                    }
                 };
 
-                // 現在位置以降を検索し、なければ文頭からラップアラウンド検索
-                let hit_byte = if search_from < text.len() {
-                    text[search_from..]
-                        .find(&q)
-                        .map(|p| search_from + p)
-                        .or_else(|| text[..search_from].find(&q))
-                } else {
-                    text.find(&q)
-                };
-
-                let hit_line = hit_byte.map(|pos| {
-                    let char_idx = text[..pos].chars().count();
-                    buf.rope.char_to_line(char_idx.min(buf.rope.len_chars()))
+                let pos = hit_byte.map(|b_idx| {
+                    let char_idx = text[..b_idx].chars().count();
+                    let line = buf.rope.char_to_line(char_idx.min(buf.rope.len_chars()));
+                    let line_start = buf.rope.line_to_char(line);
+                    let col = char_idx - line_start;
+                    (line, col)
                 });
-                (text, buf.cursor_line, buf.cursor_col, hit_line)
+                (text, buf.cursor_line, buf.cursor_col, pos)
             }
             None => {
-                self.search_mode = SearchMode::None;
+                if !keep_modal {
+                    self.search_mode = SearchMode::None;
+                }
                 return;
             }
         };
@@ -854,18 +939,21 @@ impl NovnowApp {
             } else {
                 self.set_status("一致なし");
             }
-        } else if let Some(line) = hit_line {
+        } else if let Some((line, col)) = hit_pos {
             if let Some(b) = self.buffers.get_mut(&path) {
                 b.cursor_line = line;
-                b.cursor_col = 0;
+                b.cursor_col = col;
             }
             self.sync_editor_focus();
             self.mark_context_dirty();
-            self.set_status(format!("一致: {} 行目", line + 1));
+            self.set_status(format!("一致: {} 行目 ({} 文字目)", line + 1, col + 1));
         } else {
             self.set_status("一致なし");
         }
-        self.search_mode = SearchMode::None;
+
+        if !keep_modal {
+            self.search_mode = SearchMode::None;
+        }
     }
 
     fn apply_jump(&mut self) {
@@ -960,14 +1048,14 @@ impl NovnowApp {
                 }
             });
 
-        let enter = ctx.input(|i| i.key_pressed(egui::Key::Enter));
+        let (enter, shift) = ctx.input(|i| (i.key_pressed(egui::Key::Enter), i.modifiers.shift));
         let esc = ctx.input(|i| i.key_pressed(egui::Key::Escape));
         if !open || esc {
             self.search_mode = SearchMode::None;
         } else if enter {
             match mode {
-                SearchMode::Find => self.apply_search(false),
-                SearchMode::Replace => self.apply_search(true),
+                SearchMode::Find => self.apply_search(false, shift, true),
+                SearchMode::Replace => self.apply_search(true, false, false),
                 SearchMode::Jump => self.apply_jump(),
                 SearchMode::None => {}
             }
@@ -978,6 +1066,7 @@ impl NovnowApp {
 #[derive(PartialEq)]
 enum Action {
     None,
+    FindNext,
     Save,
     SaveAll,
     ReloadJson,
@@ -1047,14 +1136,23 @@ impl eframe::App for NovnowApp {
                 let msg = if Instant::now() < self.status_until {
                     self.status.clone()
                 } else if let Some(buf) = self.active_buffer() {
+                    let total_chars = buf.char_count();
+                    let non_whitespace_chars = buf
+                        .rope
+                        .chars()
+                        .filter(|c| !c.is_whitespace())
+                        .count();
+                    let pages = non_whitespace_chars as f64 / 400.0;
                     format!(
-                        "{} ・ {} 行 ・ {} 文字 ・ {}",
+                        "{} ・ {} 行 ・ {} 文字 (空白除外: {}) ・ 原稿用紙換算: 約 {:.1} 枚 ・ {}",
                         buf.path
                             .file_name()
                             .map(|s| s.to_string_lossy().to_string())
                             .unwrap_or_default(),
                         buf.line_count(),
-                        buf.char_count(),
+                        total_chars,
+                        non_whitespace_chars,
+                        pages,
                         if buf.dirty { "未保存" } else { "保存済み" }
                     )
                 } else {
@@ -1122,55 +1220,32 @@ fn classify(path: &PathBuf) -> FileKind {
     }
 }
 
+fn atomic_write(path: &std::path::Path, content: &str) -> std::io::Result<()> {
+    let file_name = path
+        .file_name()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_else(|| "file".to_string());
+    let tmp_name = format!(".{file_name}.tmp");
+    let tmp_path = path.with_file_name(tmp_name);
+
+    if let Err(e) = std::fs::write(&tmp_path, content) {
+        let _ = std::fs::remove_file(&tmp_path);
+        return Err(e);
+    }
+
+    if let Err(e) = std::fs::rename(&tmp_path, path) {
+        let _ = std::fs::remove_file(&tmp_path);
+        return Err(e);
+    }
+
+    Ok(())
+}
+
 fn configure_style(ctx: &Context) {
     let mut style = (*ctx.style()).clone();
     style.spacing.item_spacing = egui::vec2(6.0, 4.0);
     style.visuals.dark_mode = true;
     ctx.set_style(style);
-
-    // 日本語グリフを持つシステムフォントを自動検出して追加する。
-    // egui の既定フォントはラテン文字のみなので、漢字・ひらがな表示のために必要。
-    if let Some(data) = find_jp_font() {
-        let mut fonts = egui::FontDefinitions::default();
-        fonts.font_data.insert(
-            "jp".to_owned(),
-            egui::FontData::from_owned(data),
-        );
-        fonts.families
-            .get_mut(&egui::FontFamily::Proportional)
-            .unwrap()
-            .insert(0, "jp".to_owned());
-        fonts.families
-            .get_mut(&egui::FontFamily::Monospace)
-            .unwrap()
-            .push("jp".to_owned());
-        ctx.set_fonts(fonts);
-    }
-}
-
-/// 一般的な OS フォントパスから日本語フォントを探す。
-fn find_jp_font() -> Option<Vec<u8>> {
-    for path in [
-        // Linux (Noto CJK)
-        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-        "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
-        "/usr/share/fonts/noto/NotoSansCJK-Regular.ttc",
-        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
-        // macOS
-        "/System/Library/Fonts/PingFang.ttc",
-        "/System/Library/Fonts/Hiragino Sans GB.ttc",
-        "/Library/Fonts/Arial Unicode.ttf",
-        // Windows
-        "C:\\Windows\\Fonts\\meiryo.ttc",
-        "C:\\Windows\\Fonts\\YuGothM.ttc",
-        "C:\\Windows\\Fonts\\msgothic.ttc",
-        "C:\\Windows\\Fonts\\msyh.ttc",
-    ] {
-        if let Ok(data) = std::fs::read(path) {
-            return Some(data);
-        }
-    }
-    None
 }
 
 fn shortcuts_help() -> String {
