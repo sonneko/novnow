@@ -148,9 +148,19 @@ impl NovnowApp {
 
         let text = match std::fs::read_to_string(path) {
             Ok(t) => t,
-            Err(e) => {
-                self.set_status(format!("開けません: {e}"));
-                return;
+            Err(_e) => {
+                if cfg!(target_arch = "wasm32") {
+                    if path.to_string_lossy().contains("contents") {
+                        "@01-01-01\n「こんにちは、novnowへようこそ！」@アルス\n;\n".to_string()
+                    } else if path.to_string_lossy().contains("plots") {
+                        "@01-01-01\nアルスとリリアが出会う場面\n;\n".to_string()
+                    } else {
+                        "".to_string()
+                    }
+                } else {
+                    self.set_status(format!("開けません: {_e}"));
+                    return;
+                }
             }
         };
         let kind = classify(path);
@@ -716,6 +726,7 @@ impl NovnowApp {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn open_folder_dialog(&mut self) {
         if let Some(dir) = rfd::FileDialog::new().pick_folder() {
             let names = ["characters.json", "words.json"];
@@ -734,6 +745,11 @@ impl NovnowApp {
             }
             self.load_new_root(root);
         }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn open_folder_dialog(&mut self) {
+        self.set_status("ブラウザ版ではフォルダ選択ダイアログは非対応です");
     }
 
     fn load_new_root(&mut self, root: PathBuf) {
@@ -1289,6 +1305,7 @@ fn classify(path: &PathBuf) -> FileKind {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn atomic_write(path: &std::path::Path, content: &str) -> std::io::Result<()> {
     let file_name = path
         .file_name()
@@ -1307,6 +1324,11 @@ fn atomic_write(path: &std::path::Path, content: &str) -> std::io::Result<()> {
         return Err(e);
     }
 
+    Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+fn atomic_write(_path: &std::path::Path, _content: &str) -> std::io::Result<()> {
     Ok(())
 }
 
