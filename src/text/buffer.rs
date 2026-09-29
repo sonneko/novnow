@@ -29,6 +29,7 @@ pub struct TextBuffer {
     pub cursor_line: usize,
     pub cursor_col: usize,
     pub selection_range: Option<(usize, usize)>,
+    pub non_whitespace_chars: usize,
     pub dirty: bool,
     pub modified: Option<SystemTime>,
 }
@@ -38,6 +39,7 @@ impl TextBuffer {
         let normalized = text.replace("\r\n", "\n");
         let rope = Rope::from_str(&normalized);
         let tokens = TokenIndex::build(kind, &rope);
+        let non_whitespace_chars = rope.chars().filter(|c| !c.is_whitespace()).count();
         Self {
             path,
             kind,
@@ -49,9 +51,14 @@ impl TextBuffer {
             cursor_line: 0,
             cursor_col: 0,
             selection_range: None,
+            non_whitespace_chars,
             dirty: false,
             modified: None,
         }
+    }
+
+    pub fn recompute_non_whitespace(&mut self) {
+        self.non_whitespace_chars = self.rope.chars().filter(|c| !c.is_whitespace()).count();
     }
 
     /// 選択テキストを取得（範囲指定がある場合）。
@@ -101,6 +108,7 @@ impl TextBuffer {
         self.last_seen.push_str(&self.scratch);
 
         self.tokens.retokenize_range(self.kind, &self.rope, first, last);
+        self.recompute_non_whitespace();
         self.dirty = true;
     }
 
@@ -131,6 +139,7 @@ impl TextBuffer {
         self.scratch = self.rope.to_string();
         self.last_seen = self.scratch.clone();
         self.scratch_dirty = false;
+        self.recompute_non_whitespace();
         self.dirty = true;
     }
 

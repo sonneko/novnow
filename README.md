@@ -94,6 +94,8 @@ sudo pacman -S noto-fonts-cjk
 | Ctrl+Tab | 最近開いたファイルの切り替え |
 | Ctrl+G | 指定 SceneId へジャンプ（例 `01-04-02-03`） |
 | Ctrl+F | 現在ファイル内検索 |
+| F3 | 次を検索（検索モーダルを閉じている場合も可） |
+| Shift+Enter | 検索モーダル内で前を検索 |
 | Ctrl+H | 置換 |
 | Ctrl+R | プロジェクト JSON を手動再読込 |
 | Ctrl+1 / Ctrl+2 / Ctrl+3 | ペイン1（上左）/ ペイン2（下左）/ ペイン3（右）へフォーカス |

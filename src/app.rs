@@ -240,12 +240,12 @@ impl NovnowApp {
             if let Some(b) = self.buffers.get(&p) {
                 if atomic_write(&p, &b.rope.to_string()).is_ok() {
                     count += 1;
+                    let mtime = std::fs::metadata(&p).and_then(|m| m.modified()).ok();
+                    if let Some(b) = self.buffers.get_mut(&p) {
+                        b.dirty = false;
+                        b.modified = mtime;
+                    }
                 }
-            }
-            let mtime = std::fs::metadata(&p).and_then(|m| m.modified()).ok();
-            if let Some(b) = self.buffers.get_mut(&p) {
-                b.dirty = false;
-                b.modified = mtime;
             }
         }
         self.set_status(format!("{count} 件を保存しました"));
@@ -989,6 +989,7 @@ impl NovnowApp {
                     buf.scratch = buf.rope.to_string();
                     buf.last_seen = buf.scratch.clone();
                     buf.scratch_dirty = false;
+                    buf.recompute_non_whitespace();
                     buf.dirty = true;
                     buf.cursor_line = hit_l;
                     buf.cursor_col = hit_c + rep.chars().count();
@@ -1197,11 +1198,7 @@ impl eframe::App for NovnowApp {
                     self.status.clone()
                 } else if let Some(buf) = self.active_buffer() {
                     let total_chars = buf.char_count();
-                    let non_whitespace_chars = buf
-                        .rope
-                        .chars()
-                        .filter(|c| !c.is_whitespace())
-                        .count();
+                    let non_whitespace_chars = buf.non_whitespace_chars;
                     let pages = non_whitespace_chars as f64 / 400.0;
                     format!(
                         "{} ・ {} 行 ・ {} 文字 (空白除外: {}) ・ 原稿用紙換算: 約 {:.1} 枚 ・ {}",
