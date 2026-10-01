@@ -23,7 +23,8 @@ use egui::Context;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::mpsc::{channel, Receiver};
-use std::time::{Duration, Instant};
+use std::time::Duration;
+use web_time::Instant;
 use tokio::runtime::Runtime;
 
 /// 情報パネルに渡す推論結果。
@@ -146,21 +147,11 @@ impl NovnowApp {
             return;
         }
 
-        let text = match std::fs::read_to_string(path) {
+        let text = match crate::storage::read_to_string(path) {
             Ok(t) => t,
             Err(_e) => {
-                if cfg!(target_arch = "wasm32") {
-                    if path.to_string_lossy().contains("contents") {
-                        "@01-01-01\n「こんにちは、novnowへようこそ！」@アルス\n;\n".to_string()
-                    } else if path.to_string_lossy().contains("plots") {
-                        "@01-01-01\nアルスとリリアが出会う場面\n;\n".to_string()
-                    } else {
-                        "".to_string()
-                    }
-                } else {
-                    self.set_status(format!("開けません: {_e}"));
-                    return;
-                }
+                self.set_status(format!("開けません: {_e}"));
+                return;
             }
         };
         let kind = classify(path);
@@ -214,7 +205,7 @@ impl NovnowApp {
             return;
         };
         let text = buf.rope.to_string();
-        match atomic_write(&path, &text) {
+        match save_file(&path, &text) {
             Ok(()) => {
                 let mtime = std::fs::metadata(&path).and_then(|m| m.modified()).ok();
                 if let Some(b) = self.buffers.get_mut(&path) {
@@ -238,7 +229,7 @@ impl NovnowApp {
         let mut count = 0;
         for p in paths {
             if let Some(b) = self.buffers.get(&p) {
-                if atomic_write(&p, &b.rope.to_string()).is_ok() {
+                if save_file(&p, &b.rope.to_string()).is_ok() {
                     count += 1;
                     let mtime = std::fs::metadata(&p).and_then(|m| m.modified()).ok();
                     if let Some(b) = self.buffers.get_mut(&p) {
@@ -525,7 +516,7 @@ impl NovnowApp {
         let text = if let Some(buf) = self.buffers.get(&path) {
             buf.rope.to_string()
         } else {
-            std::fs::read_to_string(path).ok()?
+            crate::storage::read_to_string(&path).ok()?
         };
         let file = loader::parse_plot_file(&sid.episode_key(), &text);
         for node in file.nodes {
@@ -563,7 +554,7 @@ impl NovnowApp {
 
     fn reload_project(&mut self) {
         let root = self.state.root.clone();
-        match self.runtime.block_on(loader::load_project(root)) {
+        match loader::load_project(root) {
             Ok(st) => {
                 self.state = st;
                 self.tree_rows =
@@ -613,7 +604,7 @@ impl NovnowApp {
                             continue;
                         }
                     }
-                    if let Ok(t) = std::fs::read_to_string(&p) {
+                    if let Ok(t) = crate::storage::read_to_string(&p) {
                         let cursor = buf.cursor_line;
                         let kind = classify(&p);
                         let mut new_buf = TextBuffer::new(p.clone(), kind, t);
@@ -753,7 +744,7 @@ impl NovnowApp {
     }
 
     fn load_new_root(&mut self, root: PathBuf) {
-        match self.runtime.block_on(loader::load_project(root.clone())) {
+        match loader::load_project(root.clone()) {
             Ok(st) => {
                 self.state = st;
                 self.buffers.clear();
@@ -770,6 +761,70 @@ impl NovnowApp {
                 self.set_status(format!("プロジェクトを開きました: {title}"));
             }
             Err(e) => self.set_status(format!("読み込み失敗: {e}")),
+        }
+    }
+
+    pub fn export_zip(&mut self) {
+        let root = self.state.root.clone();
+        match crate::storage::export_project_zip(&root) {
+            Ok(bytes) => {
+                if cfg!(target_arch = "wasm32") {
+                    let filename = format!("{}.zip", self.state.title);
+                    if let Err(e) = crate::storage::trigger_browser_download(&filename, &bytes) {
+                        self.set_status(format!("エクスポートエラー: {e}"));
+                    } else {
+                        self.set_status("プロジェクトを Zip エクスポートしました");
+                    }
+                } else {
+                    #[cfg(not(target_arch = "wasm32"))]
+                    if let Some(path) = rfd::FileDialog::new()
+                        .set_file_name(format!("{}.zip", self.state.title))
+                        .add_filter("Zip Archive", &["zip"])
+                        .save_file()
+                    {
+                        if std::fs::write(&path, bytes).is_ok() {
+                            self.set_status(format!("Zip保存完了: {}", path.display()));
+                        } else {
+                            self.set_status("Zip保存失敗");
+                        }
+                    }
+                }
+            }
+            Err(e) => self.set_status(format!("エクスポート失敗: {e}")),
+        }
+    }
+
+    pub fn import_zip(&mut self) {
+        let root = self.state.root.clone();
+        #[cfg(target_arch = "wasm32")]
+        {
+            wasm_bindgen_futures::spawn_local(async move {
+                if let Some(file) = rfd::AsyncFileDialog::new()
+                    .add_filter("Zip Archive", &["zip"])
+                    .pick_file()
+                    .await
+                {
+                    let data = file.read().await;
+                    let _ = crate::storage::import_project_zip(&data, &root);
+                }
+            });
+            self.set_status("Zipファイルを選択してください... (完了後「再読込」をクリック)");
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            if let Some(path) = rfd::FileDialog::new()
+                .add_filter("Zip Archive", &["zip"])
+                .pick_file()
+            {
+                if let Ok(data) = std::fs::read(&path) {
+                    if crate::storage::import_project_zip(&data, &root).is_ok() {
+                        self.reload_project();
+                        self.set_status("Zipからプロジェクトをインポートしました");
+                        return;
+                    }
+                }
+                self.set_status("Zipインポートに失敗しました");
+            }
         }
     }
 
@@ -791,7 +846,7 @@ impl NovnowApp {
     fn open_current_plot(&mut self) {
         if let Some(sid) = self.current_scene_id() {
             let p = crate::project::resolver::plots_path(&self.state.root, &sid);
-            if p.exists() {
+            if crate::storage::exists(&p) {
                 self.open_file(&p);
                 self.set_status(format!("プロットを開きました: {}", sid.episode_key()));
             } else {
@@ -820,7 +875,7 @@ impl NovnowApp {
         };
 
         // 既存 JSON を読み、追記して保存する（配列形式・オブジェクト形式を維持）。
-        let text = std::fs::read_to_string(&path).unwrap_or_else(|_| "[]".to_string());
+        let text = crate::storage::read_to_string(&path).unwrap_or_else(|_| "[]".to_string());
         let mut value: serde_json::Value =
             serde_json::from_str(&text).unwrap_or(serde_json::json!([]));
 
@@ -883,7 +938,7 @@ impl NovnowApp {
             }
         }
         if let Ok(pretty) = serde_json::to_string_pretty(&value) {
-            if std::fs::write(&path, pretty).is_ok() {
+            if crate::storage::write_string(&path, &pretty).is_ok() {
                 self.reload_project();
                 self.set_status(format!(
                     "{} に登録しました: {}",
@@ -1026,7 +1081,7 @@ impl NovnowApp {
         match q.parse::<SceneId>() {
             Ok(sid) => {
                 let path = crate::project::resolver::contents_path(&self.state.root, &sid);
-                if !path.exists() {
+                if !crate::storage::exists(&path) {
                     self.set_status(format!("ファイルがありません: {}", path.display()));
                     self.search_mode = SearchMode::None;
                     return;
@@ -1167,6 +1222,17 @@ impl eframe::App for NovnowApp {
                     egui::RichText::new(format!("novnow — {}", self.state.title)).strong(),
                 );
                 ui.separator();
+                if ui.button("エクスポート (Zip)").clicked() {
+                    self.export_zip();
+                }
+                if ui.button("インポート (Zip)").clicked() {
+                    self.import_zip();
+                }
+                ui.separator();
+                if ui.button("再読込 (F5)").clicked() {
+                    self.reload_project();
+                }
+                ui.separator();
                 ui.label(format!(
                     "フォーカス: {}",
                     match self.focus {
@@ -1302,31 +1368,9 @@ fn classify(path: &PathBuf) -> FileKind {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-fn atomic_write(path: &std::path::Path, content: &str) -> std::io::Result<()> {
-    let file_name = path
-        .file_name()
-        .map(|s| s.to_string_lossy().to_string())
-        .unwrap_or_else(|| "file".to_string());
-    let tmp_name = format!(".{file_name}.tmp");
-    let tmp_path = path.with_file_name(tmp_name);
-
-    if let Err(e) = std::fs::write(&tmp_path, content) {
-        let _ = std::fs::remove_file(&tmp_path);
-        return Err(e);
-    }
-
-    if let Err(e) = std::fs::rename(&tmp_path, path) {
-        let _ = std::fs::remove_file(&tmp_path);
-        return Err(e);
-    }
-
-    Ok(())
-}
-
-#[cfg(target_arch = "wasm32")]
-fn atomic_write(_path: &std::path::Path, _content: &str) -> std::io::Result<()> {
-    Ok(())
+fn save_file(path: &std::path::Path, content: &str) -> std::io::Result<()> {
+    crate::storage::write_string(path, content)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
 }
 
 fn configure_style(ctx: &Context) {

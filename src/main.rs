@@ -9,6 +9,7 @@ mod app;
 mod fonts;
 mod panes;
 mod project;
+mod storage;
 mod text;
 mod types;
 
@@ -55,7 +56,7 @@ fn main() -> eframe::Result<()> {
                 std::process::exit(1);
             }
         }
-        match runtime.block_on(project::loader::load_project(target.clone())) {
+        match project::loader::load_project(target.clone()) {
             Ok(s) => s,
             Err(e) => {
                 eprintln!("プロジェクトを読み込めませんでした: {e:#}");
@@ -63,7 +64,7 @@ fn main() -> eframe::Result<()> {
             }
         }
     } else {
-        match runtime.block_on(project::loader::load_project(target.clone())) {
+        match project::loader::load_project(target.clone()) {
             Ok(s) => s,
             Err(e) => {
                 eprintln!("プロジェクトを読み込めませんでした: {e:#}");
