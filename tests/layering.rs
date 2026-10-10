@@ -16,6 +16,13 @@
 //! `#[cfg(test)] mod tests { .. }` の内側は日本語リテラル検査の対象外にする（パーサの単体
 //! テストには日本語の入力例が必須で、テストデータはユーザー向け文言ではないため）。禁止依存は
 //! テスト内でも禁止のまま（フィクスチャは `include_str!` か `tests/golden/**` を使う）。
+//! この免除の判定は **`test` という Ident の完全一致**で行い、`all(...)` / `any(...)` の中は
+//! 再帰して探す。`contains("test")` のような部分文字列判定にすると `#[cfg(feature = "latest")]`
+//! が免除されてしまう。
+//!
+//! §3.2 の「読み書きは不可」は `std::fs` 等の禁止モジュールに加えて、**`io::stdin` /
+//! `io::stdout` / `io::stderr`**（`use std::io;` 経由の 2 セグメント形を含む）でも検査する。
+//! `std::io::Read` / `Write` / `Error` を型として使うのは純粋なので許可する。
 //!
 //! 検査器そのものの回帰は末尾の `checker_*` テストが担保する（`PLANS.md` §5.1 の完了条件
 //! 「`src/core/` に意図的に `use egui;` を書き足すと CI が落ちる」の機械化）。
@@ -168,6 +175,18 @@ impl Checker {
             return;
         }
 
+        // (4b) 標準入出力（§3.2「`PathBuf` を型として持つのは可、読み書きは不可」）。
+        //      `std::io::stdout` だけでなく、`use std::io;` 経由の `io::stdout` も捕まえる。
+        //      `std::io::Read` / `Write` を**型として**使うのは純粋なので許可する
+        //      （末尾が stdin / stdout / stderr のときだけ違反にする）。
+        let stdio = segs
+            .windows(2)
+            .any(|w| w[0] == "io" && matches!(w[1].as_str(), "stdin" | "stdout" | "stderr"));
+        if stdio {
+            self.report_dep(&path, ctx);
+            return;
+        }
+
         // (5) §3.2 の許可リストに無いクレートの import
         if pos == Pos::Import && !ALLOWED_ROOTS.contains(&first) {
             self.report_dep(&path, ctx);
@@ -313,14 +332,30 @@ fn meta_path(meta: &Meta) -> &syn::Path {
 }
 
 /// `#[cfg(test)]`（または `#[cfg(all(test))]` 等）が付いているか。
+///
+/// `tokens.to_string().contains("test")` のような**部分文字列判定はしない**。
+/// `#[cfg(feature = "latest")]` が `test` を含んでしまい、§12.2 の日本語リテラル検査を
+/// 意図せず免除してしまうため。`test` という **Ident の完全一致**を `all(...)` / `any(...)`
+/// の括弧の中まで再帰して探す（`"test"` という文字列リテラルは feature 名であって
+/// test 設定ではないので、Ident だけを見るのが正しい）。
 fn has_cfg_test(attrs: &[Attribute]) -> bool {
     attrs.iter().any(|a| {
-        let is_cfg = meta_path(&a.meta).is_ident("cfg");
-        let mentions_test = match &a.meta {
-            Meta::List(l) => l.tokens.to_string().contains("test"),
+        if !meta_path(&a.meta).is_ident("cfg") {
+            return false;
+        }
+        match &a.meta {
+            Meta::List(l) => mentions_test_ident(&l.tokens),
             _ => false,
-        };
-        is_cfg && mentions_test
+        }
+    })
+}
+
+/// トークン列を再帰して `test` という Ident があるかを探す。
+fn mentions_test_ident(tokens: &TokenStream) -> bool {
+    tokens.clone().into_iter().any(|tt| match tt {
+        TokenTree::Ident(ident) => ident == "test",
+        TokenTree::Group(group) => mentions_test_ident(&group.stream()),
+        _ => false,
     })
 }
 
@@ -486,6 +521,10 @@ const MUST_CATCH_DEPS: &[&str] = &[
     "use std::process::Command;",
     "use std::thread;",
     "use std::env;",
+    // --- 標準入出力（§3.2「読み書きは不可」。io の型そのものは可） ---
+    "use std::io::stdout;",
+    "pub fn a() { let _ = std::io::stdout(); }",
+    "use std::io;\npub fn b() { let _ = io::stderr(); }",
     // --- 逆方向依存（core → ui / adapters） ---
     "use crate::ui::theme;",
     "use crate::adapters::storage_fs;",
@@ -549,6 +588,10 @@ const MUST_PASS_DEPS: &[&str] = &[
     "pub fn zip_local(v: Vec<u8>) -> usize { let zip = v.iter().zip(v.iter()); zip.count() }",
     // --- std::iter::zip は std::iter であって zip クレートではない ---
     "pub fn zipped() -> usize { std::iter::zip(0..3, 3..6).count() }",
+    // --- std::io は型として使うぶんには純粋（stdin / stdout / stderr だけ禁止） ---
+    "use std::io::{Read, Write};",
+    "pub fn write_all<W: std::io::Write>(w: &mut W) -> std::io::Result<()> { w.flush() }",
+    "pub type IoError = std::io::Error;",
     // --- 時刻・乱数でも now() でなければ可（Duration 等は純粋な型） ---
     "pub fn span() -> std::time::Duration { std::time::Duration::from_secs(1) }",
     // --- derive の中身は許可クレート ---
@@ -569,6 +612,9 @@ const MUST_CATCH_TEXT: &[&str] = &[
     "pub struct G; impl G { pub fn h(&self) -> String { String::from(\"開けません\") } }",
     // --- 免除は #[cfg(test)] の内側だけ（外に出たら違反） ---
     "pub fn x() { let _ = \"日本語\"; }\n#[cfg(test)] mod t {}",
+    // --- "latest" のように test を部分文字列として含むだけの cfg は免除しない ---
+    "#[cfg(feature = \"latest\")] mod t { pub const M: &str = \"日本語\"; }",
+    "#[cfg(any(feature = \"greatest\"))] mod t { pub const M: &str = \"日本語\"; }",
 ];
 
 /// 検出されてはいけない日本語（コメント・doc コメント・char リテラル）。
@@ -583,6 +629,9 @@ const MUST_PASS_TEXT: &[&str] = &[
     "pub const H: &str = r#\"{\"title\": \"ascii\"}\"#;",
     // --- #[cfg(test)] の内側はテストデータなので日本語リテラルを許容 ---
     "#[cfg(test)] mod t { fn a() { let _ = \"日本語のテストデータ\"; } }",
+    // --- all(...) / any(...) の括弧の中に test があっても同じ（再帰して探す） ---
+    "#[cfg(all(test, feature = \"x\"))] mod t { pub const M: &str = \"日本語\"; }",
+    "#[cfg(any(not(feature = \"x\"), test))] mod t { fn a() { let _ = \"日本語\"; } }",
 ];
 
 #[test]
