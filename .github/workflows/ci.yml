@@ -1,5 +1,9 @@
 name: CI
 
+# PLANS.md §5.1 作業項目 4 / §6.2、SPECIFICATIONS.md §18.4 の 4 ジョブ。
+# `spec` ジョブは PLANS.md §9.4 B-14 の決定により M11 で追加する。
+# `wasm` ジョブを `trunk build` にしない判断は PLANS.md §9.2 B-16 を参照。
+
 on:
   push:
     branches:
@@ -14,9 +18,11 @@ on:
 permissions:
   contents: read
 
+# PR のときは新しい push で古い実行を取り消す。main への push は最後まで走らせる
+# （マージ結果の検証が途中で消えると、緑の証跡が残らないため）。
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   fmt:
@@ -38,7 +44,9 @@ jobs:
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
-      - run: cargo clippy --all-targets -- -D warnings
+      # --all-targets: tests/ 配下（layering.rs を含む）も lint する
+      # --locked: Cargo.lock と Cargo.toml の乖離を落とす
+      - run: cargo clippy --locked --all-targets -- -D warnings
 
   test:
     name: Test
@@ -47,7 +55,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test --all-targets
+      # tests/layering.rs（§3.2 の禁止依存 + §12.2 の日本語リテラル + 検査器の自己テスト）を
+      # 含む全ターゲットを実行する。DEVELOPERS.md §1.4「layering が落ちたらマージしない」。
+      - run: cargo test --locked --all-targets
 
   wasm:
     name: WASM Build Check
@@ -58,4 +68,4 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
-      - run: cargo check --target wasm32-unknown-unknown
+      - run: cargo check --locked --target wasm32-unknown-unknown
