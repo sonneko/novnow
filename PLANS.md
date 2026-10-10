@@ -316,9 +316,23 @@ tests/layering.rs
 
 **完了条件**
 
-- [ ] `cargo test` が通り、`tests/layering.rs` が含まれている。
-- [ ] `src/core/` に意図的に `use egui;` を書き足すと CI が落ちることを確認した。
-- [ ] CI が GitHub Actions で緑になる。
+- [x] `cargo test` が通り、`tests/layering.rs` が含まれている。
+  - 証跡: [run 38048771031](https://github.com/sonneko/novnow/actions/runs/38048771031)（head `421d50c`）の `Test` ジョブ緑。
+    コマンドは `cargo test --locked --all-targets`。`tests/layering.rs` の 6 テスト
+    （本体 2 ＋ **検査器の自己テスト 4**）が実行対象に含まれる。
+- [x] `src/core/` に意図的に `use egui;` を書き足すと CI が落ちることを確認した。
+  - 証跡: [run 38048158470](https://github.com/sonneko/novnow/actions/runs/38048158470)（head `b69ff46`）で `Test` 赤。
+    負例は `src/core/id.rs` に置いた **型位置の `egui::Context`**（fn シグネチャ。文字列走査では見逃す形）と
+    **ユーザー向け日本語リテラル**の 2 件。同じ run で `Clippy` / `WASM` は緑だったので、
+    **コンパイルは通り、検査器の判定だけで落ちた**ことが分かる。直後の `421d50c` で revert 済み。
+  - 加えて検査器の自己テスト（`MUST_CATCH_*` 45+10 件 / `MUST_PASS_*` 27+10 件）が
+    負例を毎回の CI で再現する（§6.2）。
+- [ ] CI が GitHub Actions で緑になる。 → **未達（`Rustfmt` のみ赤）**。
+  - `Test` / `Clippy` / `WASM Build Check` は緑（上記 run 38048771031）。
+  - `Rustfmt` は `cargo fmt --check` の差分で赤。**作業環境に Rust ツールチェーンが無く**
+    （本書 §9.3）`cargo fmt --all` を実行できないため、整形だけが未適用のまま残っている。
+    機能的な問題は無いが、`DEVELOPERS.md` §1.4 の「CI が赤ならマージしない」に照らすと
+    **ツールチェーンのある環境で `cargo fmt --all` を 1 回実行して push するまで M0 は完了としない**。
 
 > **M0 から IME スパイクを外した（2026-10-09）**。egui 0.27.2 に
 > `Event::CompositionStart` / `CompositionUpdate` / `CompositionEnd` があることをソースで確認済みで、
@@ -894,9 +908,16 @@ tests/layering.rs
 
 ### 9.3 環境の前提
 
-- ~~**現在の作業環境に Rust ツールチェーンが無い**（`cargo` / `rustc` が未インストール）。M0 の最初の作業として `rustup` の導入と `wasm32-unknown-unknown` ターゲットの追加が必要。~~
-  **M0 で解消（2026-10-10）**: `rust-toolchain.toml`（stable + `rustfmt` / `clippy` + `wasm32-unknown-unknown`）を置き、CI（`.github/workflows/ci.yml`）で fmt / clippy / test / wasm を常時検査するようにした。
-  ローカルにツールチェーンが無い環境で作業する場合も、**push して CI で検証する**ことを前提にする（`cargo fmt --check` と `cargo clippy -D warnings` は CI で落ちるため、手元で通せないときは CI を確認すること）。
+- **作業環境に Rust ツールチェーンが無い**（`cargo` / `rustc` が未インストール）。
+  **M0 での対応（2026-10-10）**: 環境そのものは未解決のままなので、**CI を検証器として使う**運用に切り替えた。
+  `rust-toolchain.toml`（stable + `rustfmt` / `clippy` + `wasm32-unknown-unknown`）を置き、
+  `.github/workflows/ci.yml` で fmt / clippy / test / wasm を常時検査する。
+  push すればコンパイル・lint・テストの結果は分かるが、**整形（`cargo fmt`）だけは CI の合否しか分からない**。
+  この環境では Actions のログ取得先（`results-receiver.actions.githubusercontent.com`）に到達できず、
+  `cargo fmt --check` の差分を読む手段が無いため、**ツールチェーンのある環境で `cargo fmt --all` を 1 回実行する**のが最短。
+- **GitHub Actions がリポジトリ設定で無効になっていると、push しても run が生成されない**（2026-10-10 に実際に遭遇）。
+  症状は「PR に Checks が 1 件も付かない／`actions/runs` に何も増えない」で、ワークフローの記述ミスと区別しにくい。
+  まず Settings → Actions の有効状態を確認すること（有効化すれば、その後の push で正常に起動する）。
 - Trunk（wasm ビルド）は既存 `.github/workflows/deploy.yml` が前提にしている。CI 用ワークフローと共存させる。
 
 ### 9.4 委譲モデル（P5 改定）に関する設計判断 — ユーザー決定済み（2026-10-10）
@@ -957,4 +978,4 @@ tests/layering.rs
 | 2026-10-09 | 初版。段階 ①（v1 仕様の実装）の計画を策定 |
 | 2026-10-09 | **第 1.1 版**。`SPECIFICATIONS.md` 第 2.1 版（読者モードの #27 移管 / `unicode-normalization` 許可）を反映。<br>・M9「出力 10 日」→「エクスポート 5 日」、**合計 127 → 122 人日**<br>・§4.2 の累計日数の算術誤りを訂正（M5=55 / M7=75 / M9=98 を追記・修正）<br>・M8 は 7 ワークスペース（`Alt+7` は欠番として予約）<br>・R-1 をクローズ。**R-2（IME）は存続**（縦書きとは独立の問題のため）<br>・A-1 / A-2 を解消済みとして記録 |
 | 2026-10-09 | **第 1.2 版**。`SPECIFICATIONS.md` 第 2.2 版を反映。<br>・**R-2（IME）を調査の結果クローズ**。egui 0.27.2 に `Event::CompositionStart` / `CompositionUpdate` / `CompositionEnd` があり native / Web 両方で発火することをソースで確認。egui を上げる必要は無い<br>・代わりに **R-2'（`PlatformOutput.ime` の出し忘れ）** を新設<br>・R-3 に「上げるなら 0.29.x を飛ばす」を追記（Linux IME 回帰 #5544）<br>・M0 から IME スパイクを削除、M7 に §9.8.5 の実装項目と完了条件 2 件を追加<br>・G1 を「0.27.2 固定の確認のみ」に<br>・**A-3 / A-4 を解消済みとして記録** |
-| 2026-10-10 | **M0 実装の記録**（実装は PR、本書は記録のみ）。<br>・§5.1 の完了条件を消し込み（CI 4 ジョブ緑 / `tests/layering.rs` / `v0-final` タグ）<br>・§2 に「v0 は全削除、流用は `v0-final` タグから取り出す」を記録<br>・§2.1 に dev-dependency（`syn` / `proc-macro2`）を追加<br>・§9.2 に B-16（M0 の CI `wasm` ジョブは `cargo check`。§18.4 の `trunk build` + サイズ検査は M7）を追加<br>・§9.3 の「作業環境に Rust ツールチェーンが無い」を解消済みとして更新<br>・`tests/layering.rs` は AST（`syn`）検査へ変更し、検査器の自己テストを同梱（§5.1 完了条件 2 の機械化） |
+| 2026-10-10 | **M0 実装の記録**（実装は PR、本書は記録のみ）。<br>・§5.1 の完了条件を消し込み（`Test` / `Clippy` / `WASM` の 3 ジョブ緑＋負例で `Test` 赤の証跡 URL を記載。**`Rustfmt` は未整形で赤のまま＝完了条件 3 は未達**、`v0-final` タグ）<br>・§2 に「v0 は全削除、流用は `v0-final` タグから取り出す」を記録<br>・§2.1 に dev-dependency（`syn` / `proc-macro2`）を追加<br>・§9.2 に B-16（M0 の CI `wasm` ジョブは `cargo check`。§18.4 の `trunk build` + サイズ検査は M7）を追加<br>・§9.3 の「作業環境に Rust ツールチェーンが無い」を解消済みとして更新<br>・`tests/layering.rs` は AST（`syn`）検査へ変更し、検査器の自己テストを同梱（§5.1 完了条件 2 の機械化）<br>・§5.1 完了条件 1・2 を CI の run URL 付きで消し込み（負例 commit `b69ff46` → `Test` 赤、revert `421d50c` → 緑）。**完了条件 3 は `Rustfmt` 赤のため未達**として明記<br>・§9.3 に「Actions が無効だと run が生成されない」「fmt 差分はこの環境から読めない」を追記 |
