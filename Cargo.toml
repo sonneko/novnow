@@ -47,6 +47,9 @@ web-sys = { version = "0.3", features = [
 console_error_panic_hook = "0.1"
 
 [dev-dependencies]
+# tests/layering.rs が src/core/** の AST を訪走するために使う（§3.2 / §12.2 の機械検査）。
+# 実行時には一切依存しない（dev-dependency）。
+proc-macro2 = "1"
 syn = { version = "2.0", features = ["full", "visit"] }
 
 [profile.release]

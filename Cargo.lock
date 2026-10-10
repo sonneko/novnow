@@ -2213,6 +2213,7 @@ dependencies = [
  "egui",
  "fontdb",
  "js-sys",
+ "proc-macro2",
  "regex",
  "rfd",
  "ropey",
