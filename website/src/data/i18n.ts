@@ -6,6 +6,7 @@ export const translations = {
       home: "トップ",
       guide: "機能ガイド",
       troubleshooting: "トラブルシューティング",
+      illustrations: "イラスト一覧",
       github: "GitHub",
     },
     hero: {
@@ -41,6 +42,7 @@ export const translations = {
       home: "Home",
       guide: "Feature Guide",
       troubleshooting: "Troubleshooting",
+      illustrations: "Illustrations",
       github: "GitHub",
     },
     hero: {

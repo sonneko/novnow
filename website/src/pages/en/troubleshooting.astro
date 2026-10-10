@@ -8,25 +8,47 @@ import { troubleshootingData } from "../../data/troubleshooting";
 const lang = "en";
 ---
 
-<BaseLayout title="Troubleshooting Guide" lang={lang}>
+<BaseLayout title="Troubleshooting Guide & Reference" lang={lang}>
   <Header lang={lang} currentPath="/en/troubleshooting" />
 
-  <main class="container" style="margin-top: 3rem; margin-bottom: 5rem;">
-    <div style="margin-bottom: 3rem; text-align: center;">
-      <h1 style="font-size: 2.25rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.75rem;">
-        Troubleshooting & Diagnostics
-      </h1>
-      <p style="color: var(--text-secondary); max-width: 760px; margin: 0 auto; line-height: 1.6;">
-        Solutions for startup issues, missing project structure files, diagnostic warnings, AI MCP connectivity, and Web IndexedDB limits.
-      </p>
-    </div>
+  <div class="container" style="display: grid; grid-template-columns: 260px 1fr; gap: 2.5rem; margin-top: 3rem; margin-bottom: 5rem; align-items: start;">
+    <!-- Sticky Sidebar Navigation (Starlight Style) -->
+    <aside style="position: sticky; top: 90px; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.25rem; max-height: calc(100vh - 120px); overflow-y: auto;">
+      <h3 style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+        Troubleshooting Topics
+      </h3>
+      <nav style="display: flex; flex-direction: column; gap: 0.5rem;">
+        {troubleshootingData.map((item) => (
+          <a
+            href={`#${item.id}`}
+            style="font-size: 0.85rem; color: var(--text-secondary); text-decoration: none; padding: 0.35rem 0.6rem; border-radius: 4px; transition: all 0.15s ease;"
+            onmouseover="this.style.color='var(--accent-purple)'; this.style.backgroundColor='var(--bg-subtle)';"
+            onmouseout="this.style.color='var(--text-secondary)'; this.style.backgroundColor='transparent';"
+          >
+            {item.title[lang]}
+          </a>
+        ))}
+      </nav>
+    </aside>
 
-    <div>
-      {troubleshootingData.map((item) => (
-        <TroubleshootingItem item={item} lang={lang} />
-      ))}
-    </div>
-  </main>
+    <!-- Main Reference Content -->
+    <main>
+      <div style="margin-bottom: 2.5rem;">
+        <h1 style="font-size: 2.25rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.75rem;">
+          Troubleshooting Reference
+        </h1>
+        <p style="color: var(--text-secondary); line-height: 1.6; font-size: 1.05rem;">
+          Reference index for common setup issues, errors, diagnostic alerts, and resolution steps in NovNow.
+        </p>
+      </div>
+
+      <div>
+        {troubleshootingData.map((item) => (
+          <TroubleshootingItem item={item} lang={lang} />
+        ))}
+      </div>
+    </main>
+  </div>
 
   <Footer lang={lang} />
 </BaseLayout>

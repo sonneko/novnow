@@ -9,6 +9,21 @@ interface Props {
 }
 
 const { item, lang } = Astro.props;
+
+const labels = {
+  ja: {
+    problem: "症状・事象",
+    cause: "原因",
+    solution: "解決方法",
+  },
+  en: {
+    problem: "Symptoms & Issue",
+    cause: "Root Cause",
+    solution: "Resolution",
+  },
+};
+
+const l = labels[lang];
 ---
 
 <div class={styles.itemCard} id={item.id}>
@@ -18,17 +33,17 @@ const { item, lang } = Astro.props;
   </div>
 
   <div class={styles.section}>
-    <strong class={styles.sectionLabelProblem}>症状・事象</strong>
+    <strong class={styles.sectionLabelProblem}>{l.problem}</strong>
     <p>{item.problem[lang]}</p>
   </div>
 
   <div class={styles.section}>
-    <strong class={styles.sectionLabelCause}>原因</strong>
+    <strong class={styles.sectionLabelCause}>{l.cause}</strong>
     <p>{item.cause[lang]}</p>
   </div>
 
   <div class={styles.solutionBox}>
-    <strong class={styles.sectionLabelSolution}>解決方法</strong>
+    <strong class={styles.sectionLabelSolution}>{l.solution}</strong>
     <p>{item.solution[lang]}</p>
 
     {item.code && (

@@ -9,6 +9,57 @@ interface Props {
 const { lang } = Astro.props;
 const t = translations[lang].hero;
 const installT = translations[lang].installNotice;
+
+const ideContent = {
+  ja: {
+    title: "novnow v1 - [星屑の時計 / 01-04-02-03]",
+    treeHeader: "構造ツリー",
+    editorHeader: "節エディタ (01-04-02-03)",
+    contextHeader: "連動コンテキスト (配役・プロット)",
+    line1Title: "@01-04-02 図書室の放課後",
+    line2Text: "「やっぱり",
+    line2Ref1: "'アーリア",
+    line2Text2: "、ここにいたのね」",
+    line2Speaker: "@リヴィア:A",
+    line3Text: "安堵したような声とともに、",
+    line3Ref: "'リヴィア",
+    line3Text2: "が隣の椅子を引き寄せた。",
+    line5Text: "「旧校舎の地下遺跡に眠る、",
+    line5Ref: "'『星屑の時計』",
+    line5Text2: "の設計図だ」",
+    line5Speaker: "@アーリア",
+    charName: "👤 リヴィア・ヴァンス [モード A: 日常]",
+    charDesc: "性格: 温厚で物静か。アーリアを陰から支える。",
+    charRole: "役割語: 「〜かしら」「えへへ、*」",
+    plotTitle: "📌 場面プロット (01-04-02)",
+    plotDesc: "図書室でアーリアがリヴィアに設計図を見せ、放課後の旧校舎探索を約束する。",
+  },
+  en: {
+    title: "novnow v1 - [The Stardust Clock / 01-04-02-03]",
+    treeHeader: "File Structure",
+    editorHeader: "Section Editor (01-04-02-03)",
+    contextHeader: "Context Reference (Character & Plot)",
+    line1Title: "@01-04-02 Library After School",
+    line2Text: '"I knew I\'d find you here, ',
+    line2Ref1: "'Aria",
+    line2Text2: '."',
+    line2Speaker: "@Livia:A",
+    line3Text: "With a gentle sigh of relief, ",
+    line3Ref: "'Livia",
+    line3Text2: " pulled up a chair beside him.",
+    line5Text: '"This is the blueprint for the ',
+    line5Ref: "'Stardust Clock",
+    line5Text2: ' hidden in the ruins."',
+    line5Speaker: "@Aria",
+    charName: "👤 Livia Vance [Mode A: Normal]",
+    charDesc: "Personality: Gentle and quiet. Always supports Aria.",
+    charRole: "Speech Style: '...I suppose', 'Hehe, *'",
+    plotTitle: "📌 Scene Plot (01-04-02)",
+    plotDesc: "Aria shows Livia the ancient blueprint in the library and agrees to explore after school.",
+  },
+};
+
+const c = ideContent[lang];
 ---
 
 <section class={styles.heroSection}>
@@ -53,11 +104,11 @@ const installT = translations[lang].installNotice;
         <span class={styles.dotRed}></span>
         <span class={styles.dotYellow}></span>
         <span class={styles.dotGreen}></span>
-        <span class={styles.ideTitle}>novnow v1 - [星屑の時計 / 01-04-02-03]</span>
+        <span class={styles.ideTitle}>{c.title}</span>
       </div>
       <div class={styles.ideBody}>
         <div class={styles.paneLeftTree}>
-          <div class={styles.paneLabel}>ファイル・構造ツリー</div>
+          <div class={styles.paneLabel}>{c.treeHeader}</div>
           <div class={styles.treeItem}>📁 contents/</div>
           <div class={styles.treeItemActive}>  📄 01-04.txt</div>
           <div class={styles.treeItem}>📁 plots/</div>
@@ -66,24 +117,24 @@ const installT = translations[lang].installNotice;
         </div>
 
         <div class={styles.paneCenterEditor}>
-          <div class={styles.paneLabel}>節エディタ (01-04-02-03)</div>
-          <div class={styles.codeLine}><span class={styles.sigil}>@01-04-02</span> 図書室の攻防</div>
-          <div class={styles.codeLine}>「やっぱり<span class={styles.ref}>'アルス</span>、ここにいたのね」<span class={styles.speaker}>@リリア:A</span></div>
-          <div class={styles.codeLine}>呆れたような声とともに、<span class={styles.ref}>'リリア</span>が隣の椅子を引き寄せた。</div>
+          <div class={styles.paneLabel}>{c.editorHeader}</div>
+          <div class={styles.codeLine}><span class={styles.sigil}>{c.line1Title}</span></div>
+          <div class={styles.codeLine}>{c.line2Text}<span class={styles.ref}>{c.line2Ref1}</span>{c.line2Text2} <span class={styles.speaker}>{c.line2Speaker}</span></div>
+          <div class={styles.codeLine}>{c.line3Text}<span class={styles.ref}>{c.line3Ref}</span>{c.line3Text2}</div>
           <div class={styles.codeLine}><span class={styles.sigil}>;</span></div>
-          <div class={styles.codeLine}>「旧校舎の地下遺跡に眠っているっていう<span class={styles.ref}>'『星屑の時計』</span>の設計図だ」<span class={styles.speaker}>@アルス</span></div>
+          <div class={styles.codeLine}>{c.line5Text}<span class={styles.ref}>{c.line5Ref}</span>{c.line5Text2} <span class={styles.speaker}>{c.line5Speaker}</span></div>
         </div>
 
         <div class={styles.paneRightRef}>
-          <div class={styles.paneLabel}>連動コンテキスト (配役・プロット)</div>
+          <div class={styles.paneLabel}>{c.contextHeader}</div>
           <div class={styles.refCard}>
-            <div class={styles.refCardTitle}>👤 恩田恵 (リリア) [モード A: 日常]</div>
-            <p>性格: おとなしく控えめ。アルスの後ろに隠れていることが多い。</p>
-            <div class={styles.roleTag}>役割語: 「*だよ…」「えへへ、*」</div>
+            <div class={styles.refCardTitle}>{c.charName}</div>
+            <p>{c.charDesc}</p>
+            <div class={styles.roleTag}>{c.charRole}</div>
           </div>
           <div class={styles.refCard}>
-            <div class={styles.refCardTitle}>📌 場面プロット (01-04-02)</div>
-            <p>試験前の図書室でアルスがリリアに設計図を見せ、放課後の探索を約束させる。</p>
+            <div class={styles.refCardTitle}>{c.plotTitle}</div>
+            <p>{c.plotDesc}</p>
           </div>
         </div>
       </div>
