@@ -325,7 +325,7 @@ tests/layering.rs
     負例は `src/core/id.rs` に置いた **型位置の `egui::Context`**（fn シグネチャ。文字列走査では見逃す形）と
     **ユーザー向け日本語リテラル**の 2 件。同じ run で `Clippy` / `WASM` は緑だったので、
     **コンパイルは通り、検査器の判定だけで落ちた**ことが分かる。直後の `421d50c` で revert 済み。
-  - 加えて検査器の自己テスト（`MUST_CATCH_*` 45+10 件 / `MUST_PASS_*` 27+10 件）が
+  - 加えて検査器の自己テスト（`MUST_CATCH_DEPS` 44 件・`MUST_CATCH_TEXT` 10 件 / `MUST_PASS_DEPS` 27 件・`MUST_PASS_TEXT` 9 件）が
     負例を毎回の CI で再現する（§6.2）。
 - [ ] CI が GitHub Actions で緑になる。 → **未達（`Rustfmt` のみ赤）**。
   - `Test` / `Clippy` / `WASM Build Check` は緑（上記 run 38048771031）。
