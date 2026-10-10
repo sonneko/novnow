@@ -1,0 +1,84 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Header from "../../components/Header.astro";
+import Hero from "../../components/Hero.astro";
+import FeatureCard from "../../components/FeatureCard.astro";
+import Footer from "../../components/Footer.astro";
+import { featuresData } from "../../data/features";
+import { translations } from "../../data/i18n";
+
+const lang = "en";
+const t = translations[lang];
+---
+
+<BaseLayout title="Dedicated Novel & Scenario IDE" lang={lang}>
+  <Header lang={lang} currentPath="/en" />
+
+  <main>
+    <Hero lang={lang} />
+
+    <!-- Feature Grid Section -->
+    <section class="container" style="margin-top: 4rem; margin-bottom: 5rem;">
+      <div style="text-align: center; margin-bottom: 3rem;">
+        <h2 style="font-size: 2rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.5rem;">
+          Key Features of NovNow
+        </h2>
+        <p style="color: var(--text-secondary); max-width: 680px; margin: 0 auto;">
+          Blending an author-centric writing philosophy with software engineering reliability. Designed from both writer and technical perspectives.
+        </p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
+        {featuresData.map((feature) => (
+          <FeatureCard feature={feature} lang={lang} />
+        ))}
+      </div>
+    </section>
+
+    <!-- Community & Sponsor Section -->
+    <section class="container" style="margin-bottom: 5rem;">
+      <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 2.5rem;">
+        <h2 style="font-size: 1.75rem; color: var(--text-primary); margin-bottom: 0.75rem;">
+          {t.community.title}
+        </h2>
+        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem; max-width: 800px; line-height: 1.6;">
+          {t.community.description}
+        </p>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+          <div style="background-color: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.25rem;">
+            <h3 style="color: var(--accent-blue); font-size: 1.1rem; margin-bottom: 0.5rem;">
+              {t.community.contributeTitle}
+            </h3>
+            <p style="color: var(--text-secondary); font-size: 0.92rem; line-height: 1.6;">
+              {t.community.contributeDesc}
+            </p>
+          </div>
+
+          <div style="background-color: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.25rem;">
+            <h3 style="color: var(--accent-purple); font-size: 1.1rem; margin-bottom: 0.5rem;">
+              {t.community.sponsorTitle}
+            </h3>
+            <p style="color: var(--text-secondary); font-size: 0.92rem; line-height: 1.6;">
+              {t.community.sponsorDesc}
+            </p>
+          </div>
+        </div>
+
+        <a
+          href="https://github.com/sonneko/novnow"
+          target="_blank"
+          rel="noopener noreferrer"
+          style="display: inline-flex; align-items: center; gap: 0.5rem; background-color: var(--accent-purple); color: #fff; font-weight: 600; padding: 0.75rem 1.5rem; border-radius: 8px; text-decoration: none;"
+        >
+          <svg height="18" width="18" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+          </svg>
+          {t.community.githubBtn}
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <Footer lang={lang} />
+</BaseLayout>

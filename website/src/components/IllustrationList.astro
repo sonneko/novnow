@@ -1,0 +1,43 @@
+---
+import { illustrationSpecs } from "../data/illustrations";
+import type { Language } from "../data/i18n";
+import styles from "./IllustrationList.module.scss";
+
+interface Props {
+  lang: Language;
+}
+
+const { lang } = Astro.props;
+---
+
+<div class={styles.container}>
+  <div class={styles.notice}>
+    <h3>イラスト素材アップロードのご案内 (フリーイラスト導入手順)</h3>
+    <p>
+      NovNowのWebサイトデザインでは、フリーイラストやオリジナル素材を以下の各ディレクトリパスに配置することで適用される仕組みになっています。
+      該当する画像ファイルを用意し、指定パスに保存してください。
+    </p>
+  </div>
+
+  <div class={styles.grid}>
+    {illustrationSpecs.map((item) => (
+      <div class={styles.card}>
+        <div class={styles.header}>
+          <span class={styles.badge}>{item.fileType}</span>
+          <h4>{item.title[lang]}</h4>
+        </div>
+
+        <div class={styles.pathBox}>
+          <span class={styles.pathLabel}>指定配置パス:</span>
+          <code>{item.targetPath}</code>
+        </div>
+
+        <p class={styles.desc}>{item.description[lang]}</p>
+
+        <div class={styles.dimensions}>
+          推奨サイズ / アスペクト比: <strong>{item.recommendedDimensions}</strong>
+        </div>
+      </div>
+    ))}
+  </div>
+</div>

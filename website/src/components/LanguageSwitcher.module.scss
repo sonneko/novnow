@@ -1,0 +1,35 @@
+@use "../styles/variables.scss" as *;
+
+.switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: $bg-card;
+  border: 1px solid $border-color;
+  border-radius: $radius-sm;
+  padding: 0.25rem 0.5rem;
+}
+
+.langBtn {
+  font-size: 0.85rem;
+  color: $text-secondary;
+  font-weight: 500;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  text-decoration: none;
+
+  &:hover {
+    color: $text-primary;
+    text-decoration: none;
+  }
+
+  &.active {
+    color: $accent-purple;
+    background-color: rgba($accent-purple, 0.15);
+  }
+}
+
+.divider {
+  color: $border-color;
+  font-size: 0.8rem;
+}

@@ -1,0 +1,51 @@
+@use "./variables.scss" as *;
+
+:root {
+  --bg-dark: #{$bg-dark};
+  --bg-subtle: #{$bg-subtle};
+  --bg-card: #{$bg-card};
+  --border-color: #{$border-color};
+  --text-primary: #{$text-primary};
+  --text-secondary: #{$text-secondary};
+  --accent-purple: #{$accent-purple};
+  --accent-blue: #{$accent-blue};
+  --accent-green: #{$accent-green};
+  --font-sans: #{$font-family};
+  --font-mono: #{$font-family-mono};
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  background-color: var(--bg-dark);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+a {
+  color: var(--accent-blue);
+  text-decoration: none;
+  transition: color 0.2s ease;
+
+  &:hover {
+    color: var(--accent-purple);
+    text-decoration: underline;
+  }
+}
+
+code, pre {
+  font-family: var(--font-mono);
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}

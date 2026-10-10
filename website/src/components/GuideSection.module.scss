@@ -1,0 +1,82 @@
+@use "../styles/variables.scss" as *;
+
+.guideBlock {
+  background-color: $bg-card;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.guideHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+
+  h2 {
+    font-size: 1.35rem;
+    color: $text-primary;
+  }
+}
+
+.idBadge {
+  font-family: $font-family-mono;
+  font-size: 0.8rem;
+  color: $accent-purple;
+  background-color: rgba($accent-purple, 0.15);
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+}
+
+.guideSummary {
+  font-size: 1.05rem;
+  color: $text-secondary;
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+}
+
+.perspectiveGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+.nonEngBox, .engBox {
+  padding: 1.25rem;
+  border-radius: $radius-sm;
+
+  p {
+    color: $text-primary;
+    line-height: 1.6;
+    font-size: 0.95rem;
+    margin-top: 0.5rem;
+  }
+}
+
+.nonEngBox {
+  background-color: rgba($accent-blue, 0.08);
+  border: 1px solid rgba($accent-blue, 0.25);
+}
+
+.engBox {
+  background-color: rgba($accent-purple, 0.08);
+  border: 1px solid rgba($accent-purple, 0.25);
+}
+
+.boxTagNonEng, .boxTagEng {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.boxTagNonEng { color: $accent-blue; }
+.boxTagEng { color: $accent-purple; }
+
+@media (max-width: 768px) {
+  .perspectiveGrid {
+    grid-template-columns: 1fr;
+  }
+}

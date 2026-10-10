@@ -1,0 +1,31 @@
+---
+import { translations, type Language } from "../data/i18n";
+import styles from "./Footer.module.scss";
+
+interface Props {
+  lang: Language;
+}
+
+const { lang } = Astro.props;
+const t = translations[lang].credits;
+const navT = translations[lang].nav;
+---
+
+<footer class={styles.footer}>
+  <div class:list={["container", styles.inner]}>
+    <div class={styles.left}>
+      <p class={styles.creditText}>
+        {t.text} <a href="https://github.com/sonneko" target="_blank" rel="noopener noreferrer" class={styles.author}>sonneko</a>.
+      </p>
+      <p class={styles.copyright}>© 2026 NovNow Project. {t.rights}</p>
+    </div>
+
+    <div class={styles.links}>
+      <a href={`/${lang}`}>{navT.home}</a>
+      <a href={`/${lang}/guide`}>{navT.guide}</a>
+      <a href={`/${lang}/troubleshooting`}>{navT.troubleshooting}</a>
+      <a href={`/${lang}/illustrations`}>{navT.illustrations}</a>
+      <a href="https://github.com/sonneko/novnow" target="_blank" rel="noopener noreferrer">GitHub</a>
+    </div>
+  </div>
+</footer>
