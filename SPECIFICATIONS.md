@@ -41,6 +41,9 @@
 >
 > **第 2.1 版について**: 実装計画の見積りを受けて、**読者モード（縦書きプレビュー）を v1 本体から追加仕様 #27 へ移した**（§0.6.1）。
 > 指示 12 のうちエクスポート（§17.1 / §17.2）は v1 のままである。
+>
+> **第 2.2 版について**: egui 0.27.2 の IME 実装を調査した結果を **§9.8.5「IME 変換中の判定（実装規約）」** として固定した。
+> あわせて §3.4 の `folding` の v1 用途を明確化し、`DEVELOPERS.md` を v1 仕様に整合させた。
 
 ---
 
@@ -335,7 +338,13 @@ src/
 | `document_symbol::all(doc)` | `textDocument/documentSymbol` | 構造ツリー・ジャンプ |
 | `formatting::document(doc, project)` | `textDocument/formatting` | 正規化（§5.12） |
 | `rename::prepare/apply` | `textDocument/rename` | キャラ名・用語の一括改名 |
-| `folding::ranges(doc)` | `textDocument/foldingRange` | 場面折り畳み |
+| `folding::ranges(doc)` | `textDocument/foldingRange` | **`plot-outline` の構成ツリーの章→話展開（§10.3.1）** |
+
+> **`folding` の v1 での位置づけ（A-3）**: `core::features::folding` は **v1 本体で実装する**（§19.13 が
+> 「11 機能すべてが UI から呼ばれている」ことを要求するため）。ただし v1 での唯一の呼び出し元は
+> `plot-outline` の構成ツリー（§10.3.1）である。
+> **本文エディタの折りたたみ UI（§9.3.3）と `ui.json` の `folded` キーは v1 追加仕様 9** であり、v1 本体には無い。
+> つまり v1 では `folding::ranges()` は「章→話の範囲」を返せればよく、場面・節の範囲は追加仕様 9 で足す。
 
 **位置表現**: core は内部的に byte offset を使う。`core/text/position.rs` が `Utf8Byte ⇔ CharIndex ⇔ Utf16CodeUnit` を相互変換する（LSP は UTF-16 既定のため MUST）。
 
@@ -2653,9 +2662,107 @@ note: 語尾をもう少し硬くしてみる
 句切れ提案レイヤー（§9.4.3）が **有効** かつ **現在の節に候補が 1 件以上ある** ときのみ、候補移動が優先される。
 候補が尽きた状態でさらに押すと、場面移動に戻る。レイヤーが無効なら常に場面移動。
 
-IME 変換中（composing）はすべてのショートカットを無効化する（MUST）。`Alt` 系は macOS では `Option` が文字入力に使われるため、macOS では `Ctrl+Alt` に読み替える（MUST）。
+IME 変換中（composing）はすべてのショートカットを無効化する（MUST、実装規約は §9.8.5）。`Alt` 系は macOS では `Option` が文字入力に使われるため、macOS では `Ctrl+Alt` に読み替える（MUST）。
 `Ctrl+K Ctrl+0` は **2 ストローク**（`Ctrl+K` を押してから 2 秒以内に `Ctrl+0`）。2 秒を過ぎたら破棄する。
 `Ctrl+0`（文字サイズ既定）とは、直前に `Ctrl+K` があったかどうかだけで区別する。
+
+#### 9.8.5 IME 変換中の判定（実装規約）
+
+日本語を書くための IDE である以上、**変換中にショートカットが誤爆しないこと**は機能ではなく前提である。
+本節は egui 0.27.2（§3.1 で固定）での実現方法を規約として固定する。
+
+**(1) 購読するイベント**
+
+egui 0.27.2 のイベント名は `Ime` ではなく `Composition*` である（`Event::Ime` への統合は egui 0.28.0 / PR #4358）。
+v1 は 0.27.2 に固定するため、次の 3 つを購読する。
+
+| egui 0.27.2 | 意味 | 0.28.0 以降での対応物 |
+|---|---|---|
+| `Event::CompositionStart` | 変換開始 | `Event::Ime(ImeEvent::Enabled)` 相当 |
+| `Event::CompositionUpdate(String)` | 未確定文字列が更新された | `ImeEvent::Preedit(String)` |
+| `Event::CompositionEnd(String)` | 確定した | `ImeEvent::Commit(String)` |
+
+これらは native（`egui-winit` が `WindowEvent::Ime` から生成）でも
+Web（`eframe` の text agent が DOM の `compositionstart` / `compositionupdate` / `compositionend` を購読）でも発火する。
+**両ターゲットで同じイベント名が来る**ので、分岐は不要（MUST: `#[cfg]` で IME 処理を分けてはならない）。
+
+**(2) 状態の持ち方**
+
+`egui::TextEditState::has_ime` は **`pub(crate)` であり外部から読めない**（0.27.2）。
+したがって novnow は `ui/shell.rs` に **自前の composition 状態機械**を持つ（MUST）。
+
+```rust
+// ui/shell.rs — core には置かない（UI フレームワークの事情のため）
+#[derive(Default)]
+pub struct ImeState { composing: bool, last_event_at: Option<f64> }
+
+impl ImeState {
+    /// 毎フレーム、ショートカット解釈より前に呼ぶ（MUST）
+    pub fn update(&mut self, input: &egui::InputState) {
+        for ev in &input.events {
+            match ev {
+                egui::Event::CompositionStart        => { self.composing = true;  }
+                egui::Event::CompositionUpdate(_)    => { self.composing = true;  }
+                egui::Event::CompositionEnd(_)       => { self.composing = false; }
+                _ => {}
+            }
+        }
+        if self.composing { self.last_event_at = Some(input.time); }
+    }
+    pub fn composing(&self) -> bool { self.composing }
+}
+```
+
+**(3) 処理順序（MUST）**
+
+1 フレームの入力処理は必ずこの順で行う。
+
+```
+ImeState::update()  →  composing なら Key イベントを全部捨てる  →  ショートカット解釈  →  テキスト編集
+```
+
+`composing() == true` の間は、**`Event::Key` を根拠とする処理をすべて抑止する**（MUST）。
+抑止対象にはショートカット（§9.8.1〜§9.8.3）だけでなく、`Enter` による節確定（§9.4）と
+`Esc` によるモーダル閉じ（§9.6）も含む。変換候補の選択に `Enter` / `Esc` / `Space` / 矢印キーが使われるためである。
+`Event::Text` と `Composition*` は通常どおり処理する。
+
+**(4) フェイルセーフ（MUST）**
+
+`egui-winit` 0.27.2 は `winit::event::Ime::Preedit(_, None)`（カーソル情報を伴わないプリエディット）を**捨てる**。
+変換を `Esc` で取り消した場合などに `CompositionEnd` が来ず、`composing` が `true` のまま張り付く経路がありうる。
+これはキーボードが一切効かなくなる致命的な状態なので、次の 2 つで必ず解除する。
+
+- `Event::WindowFocused(false)` を受けたら `composing = false`。
+- 最後に `Composition*` を受けてから **2 秒**、かつその間 `Event::Text` も `Event::Key` も来ていなければ `composing = false`。
+
+**(5) native で IME を有効にするための出力（MUST）**
+
+`egui-winit` 0.27.2 は **`PlatformOutput.ime` が `Some(IMEOutput)` のフレームでのみ `Window::set_ime_allowed(true)` を呼ぶ**。
+novnow の本文エディタは `egui::TextEdit` をそのまま使わない（§9.4 の節単位編集のため）ので、
+**自前で `ime` を出力しないと native で日本語入力そのものができない**。
+本文編集にフォーカスがある間、毎フレーム次を出力する。
+
+```rust
+ctx.output_mut(|o| o.ime = Some(egui::output::IMEOutput {
+    rect,        // 編集領域の矩形（論理座標）
+    cursor_rect, // キャレットの矩形。変換候補ウィンドウがこの直下に出る
+}));
+```
+
+`cursor_rect` が正しくないと変換候補ウィンドウが画面の隅に出る。**縦書きではない通常の本文編集でも必須**。
+
+**(6) 既知の制約（v1 では受け入れる）**
+
+| 事象 | 影響 | v1 での扱い |
+|---|---|---|
+| macOS で変換中の `Cmd+C` が未確定文字列に `c` を混ぜる（egui-winit 0.27.2 の既知挙動） | 変換中のコピーが壊れる | 受け入れる。(3) により `Cmd+C` は抑止されるので誤動作はしない |
+| フォーカス獲得/喪失時の IME 挙動の修正（PR #4794 / #4896）は egui 0.29.0 で入った | 0.27.2 には無い | (4) のフェイルセーフで代替する |
+| Linux で IME が壊れる回帰（issue #5544）は egui **0.29.0** で発生し PR #5198 で修正された | — | **0.27.2 はこの回帰の前なので影響を受けない**。将来 egui を上げるときは 0.29.x を飛ばす（MUST） |
+
+**(7) 受け入れ確認**
+
+§19.14-U7 とは別に、§19.4 のチェック項目として「変換中に `Alt+1` / `Enter` / `Esc` を押しても
+ワークスペースが切り替わらず、節が確定せず、モーダルが閉じないこと」を native と Web の両方で確認する。
 
 ### 9.9 アクセシビリティ
 
@@ -4369,6 +4476,9 @@ pub fn layout(text: &str, metrics: &FontMetrics, opts: &ReaderOptions) -> Vec<Po
 - [ ] `「」` と `;` に専用色が付く。
 - [ ] 未解決参照に赤波線と E001 が出る。
 - [ ] ハイライトが本文ビュー（文脈ビュー）と節エディタの両方で効く。
+- [ ] **IME 変換中（§9.8.5）に `Alt+1` / `Enter` / `Esc` / 矢印キーを押しても、ワークスペースが切り替わらず、
+  節が確定せず、モーダルが閉じない。native と Web の両方で確認する。**
+- [ ] **変換候補ウィンドウがキャレットの直下に出る（§9.8.5-5 の `IMEOutput` が出力されている）。**
 
 ### 19.5 指示 5: 用途別 UI
 - [ ] `Alt+1..9` の 9 ワークスペースが存在し、切替で SceneId が維持される。
@@ -5008,5 +5118,6 @@ sample/
 | 日付 | 版 | 内容 |
 |---|---|---|
 | 2026-10-09 | 第 1 版 | 開発指示 1〜13 に基づき v1 仕様を策定（§0〜§20 ＋ 付録 A〜D） |
+| 2026-10-09 | 第 2.2 版 | (1) §3.4 の `folding` の v1 用途を「`plot-outline` の章→話展開」に修正し、本文折りたたみ UI（§9.3.3）が追加仕様 9 であることを注記（A-3）。(2) **§9.8.5「IME 変換中の判定（実装規約）」を新設**。egui 0.27.2 では `Event::CompositionStart` / `CompositionUpdate` / `CompositionEnd` を購読すること、`TextEditState::has_ime` が非公開のため自前で状態機械を持つこと、`PlatformOutput.ime` を出力しないと native で日本語入力ができないこと、張り付き防止のフェイルセーフ、egui 0.29.x を飛ばすことを規定。§19.4 に受け入れ項目 2 件を追加。(3) `DEVELOPERS.md` を v1 仕様に合わせて全面改訂（A-4）。 |
 | 2026-10-09 | 第 2.1 版 | 実装計画（`PLANS.md`）の検討結果を反映。(1) §3.2 の core 許可依存に `unicode-normalization` を追加し、許可クレートを表で明示（§6.1.3 の NFKC 照合のため）。(2) **読者モード（縦書きプレビュー）を v1 本体から外し、v1 追加仕様 #27 とした**（経緯は §0.6.1）。指示 12 のうちエクスポートは v1 のまま。影響箇所: 目次、§0.5、§0.6、§3.3、§4.1、§4.4.3、§4.5.1、§10（ワークスペース表・§10.7）、§12.7、§17 章題・§17.3、§18.1、§19.12、§19.14-27、付録 D-7、付録 E（F4/F7/F12/E.1） |
 | 2026-10-09 | 第 2 版 | 第 2 次指示を反映。(1) 未決事項 U-1〜U-8 の裁定を付録 D.2 に記載し、U-7（既定プロンプトの不変保管と復元・版管理はしない）と U-8（並列実行）を v1 に追加。(2) v1 追加仕様 26 件を関係各章へ統合（対応表は §0.6）。(3) 将来機能提案 F1〜F12 を付録 E として新設。主な変更箇所: §4.1 `assets/` `prompts/custom/` `contents/00-*`、§4.4.2 `stats.json`、§4.5.1 追加設定キー、§5.0.2 シジル 3 種追加、§5.0.6 別名表拡張、§5.0.8 `# ` コメント、§5.1.2 予約番号 `00`、§5.2.4 `^` 引用注釈、§5.2.5 `! ` 挿絵メモ、§5.3.5–5.3.7 `when:` `space:` `blurb:`、§5.4.4 `senses:`、§5.5.3 `icon:`、§5.5.6 `address:`、§5.8.2 `S` 接頭辞、§5.9.2 カスタムロール、§6.1.1 `Address` 辞書、§6.2.4 `:` の文脈例外表、§7.2 新診断（W080–W093 / E032–E035 / E064 / I054–I058）、§8.7 提案モード、§9.3.3 折りたたみ、§9.4.2–9.4.4 比率バー・句切れ提案、§9.5.2 参照ペイン拡張、§9.6.2–9.6.3 セッション情報・統計モード、§9.7.4 正規表現検索、§9.8 ショートカット追加、§10.0 瞬時切替、§10.3.1–10.3.4 ツリー・タイムライン・ストック・分量、§10.6.1 呼称マトリクス、§10.9 点検タブ再編、§14.2.1 Git/CI 解説 URL、§15.2.1 カスタムロール、§15.5.4 U-7 全面改訂、§15.7.5 並列実行、§15.8.4 ローカル LLM、§16.3.1 検索結果の資料化、§17.1–17.2 除去規則とオプション、§19.14 受け入れ基準 |

@@ -1,134 +1,265 @@
-# novnow — 決定論的アルゴリズムによる小説執筆IDE
+# novnow — 開発者向け資料
 
-## 起動
+決定論的アルゴリズムによる小説執筆 IDE。
+
+> **この文書の位置づけ**
+>
+> - 仕様の正本は **[`SPECIFICATIONS.md`](./SPECIFICATIONS.md)**（v1 仕様 第 2.2 版）。
+> - 実装順序と見積りは **[`PLANS.md`](./PLANS.md)**（段階 ① の実装計画）。
+> - 本書は「手を動かすときに開く頁」であり、仕様と食い違った場合は **`SPECIFICATIONS.md` が優先する**。
+>
+> **現在の `src/` は v0（プロトタイプ）であり、v1 仕様とは別物である。**
+> v1 では `src/` を層構造へ作り直す（`PLANS.md` §3「v0 資産の扱い」）。
+> 本書の「モジュール構成」以降は **v1 の目標形** を書いてあり、現在のコードとは一致しない。
+
+---
+
+## 1. ビルドと起動
+
+### 1.1 必要なもの
+
+| 用途 | 要件 |
+|---|---|
+| ネイティブ | Rust stable（edition 2021）、`cargo` |
+| Web | `rustup target add wasm32-unknown-unknown` ＋ `cargo install trunk` |
+| 日本語表示 | システムに日本語フォント（§7） |
+
+### 1.2 ネイティブ
 
 ```bash
-# 既存プロジェクトを開く（必須ファイルが無ければエラー終了）
+# 既存プロジェクトを開く（必須ファイルが欠けていれば GUI を出さずにエラー終了）
 cargo run --release -- ./my-novel
 
 # 新規プロジェクトを雛形から作成
-cargo run --release -- --init ./my-novel
+cargo run --release -- new ./my-novel
+
+# 検査のみ（CI 用。診断を出して終了する）
+cargo run --release -- check ./my-novel
+
+cargo build --release    # 生成物: target/release/novnow
 ```
 
-ビルド:
+> **v0 からの変更点**: 新規作成は `--init <dir>` ではなく **サブコマンド `new`** になった（`SPECIFICATIONS.md` §14.1）。
+> 「ディレクトリはフラグなし位置引数で指定する」という指示 2 に合わせたため。
 
-```bash
-cargo build --release
-# 生成物: target/release/novnow
-```
-
-Web版ビルド:
+### 1.3 Web
 
 ```bash
 rustup target add wasm32-unknown-unknown
+cargo install trunk          # または cargo binstall trunk
 
-cargo install trunk
-# または cargo binstall trunk
-
-trunk build --release
-
-# ./dist/に成果物が生成されます。
-# ./dist/以下をルートパスとしてブラウザで開かないと不具合が発生する可能性があります。
+trunk serve                  # 開発（127.0.0.1:8080）
+trunk build --release        # 成果物は ./dist/
 ```
 
-## 画面構成（3 ペイン）
+`./dist/` はディレクトリをルートパスとして配信すること（相対パス解決のため）。
 
-```
-┌───────────────────────────────┬──────────────────────┐
-│ 上左: ファイルリーダー          │                      │
-│  ・ツリー（contents / plots）   │                      │
-│  ・下部にプレビュー付きビューア  │ 右: 情報パネル        │
-│     （カーソル行をハイライト）   │  ・現在の節 SceneId   │
-├───────────────────────────────┤  ・対応プロット        │
-│ 下左: エディタ                 │  ・登場人物・口調      │
-│  ・行番号 + 単一 TextEdit       │  ・用語解説            │
-│  ・下部に「節」ピンポイント編集  │  ・関連資料            │
-│   バー（Excel の数式バー相当）   │  ・警告               │
-└───────────────────────────────┴──────────────────────┘
+### 1.4 テスト
+
+```bash
+cargo test                        # すべて
+cargo test --test layering        # 層構造の検査（本書 3 節 / 仕様 §3.2）だけ
 ```
 
-## キーボードショートカット
+CI で常設するテストは `PLANS.md` §6 を参照。`tests/layering.rs` は **落ちたらマージしない**（例外なし）。
 
-| ショートカット | 動作 |
-|---|---|
-| Ctrl+O | プロジェクトフォルダを開く |
-| Ctrl+S | 現在のファイルを保存 |
-| Ctrl+Shift+S | 全バッファ保存 |
-| Ctrl+↑ / Ctrl+↓ | ファイルツリーとエディタ間のフォーカス移動 |
-| Alt+↑ / Alt+↓ | 節単位スクロール（プレビューと下部バーの対象行を節見出しへ移動） |
-| Ctrl+Tab | 最近開いたファイルの切り替え |
-| Ctrl+G | 指定 SceneId へジャンプ（例 `01-04-02-03`） |
-| Ctrl+F | 現在ファイル内検索 |
-| F3 | 次を検索（検索モーダルを閉じている場合も可） |
-| Shift+Enter | 検索モーダル内で前を検索 |
-| Ctrl+H | 置換 |
-| Ctrl+R | プロジェクト JSON を手動再読込 |
-| Ctrl+1 / Ctrl+2 / Ctrl+3 | ペイン1（上左）/ ペイン2（下左）/ ペイン3（右）へフォーカス |
-| Ctrl+B | 現在行の節に対応するプロットファイルを開く |
-| Ctrl+M | 現在の節に対応する資料を検索・表示 |
-| F5 | プロジェクト JSON を再読込 |
-| Ctrl+T | 選択テキストを用語辞書へ新規登録 |
-| Ctrl+Shift+T | 選択テキストをキャラ辞書へ新規登録 |
-| Enter | 下部バーの編集を確定（Rope の該当行へ反映） |
-| Esc | モーダルを閉じる |
+---
 
-## モジュール構成
+## 2. CLI 文法（`SPECIFICATIONS.md` §14.1）
+
+```
+novnow <dir>                    既存プロジェクトを開く（フラグなし位置引数）
+novnow new [dir]                dir（既定 "."）に新規プロジェクトを作る
+novnow check <dir>              妥当性検査のみ行い、診断を出して終了（CI 用）
+novnow export <dir> [options]   アノテーション除去エクスポート（§17）
+novnow migrate <dir>            v0 → v1 移行（§20）
+novnow mcp <dir>                MCP サーバとして起動（§15.8.3）
+novnow --gui                    引数があっても GUI 起動を強制
+novnow --help | -h
+novnow --version | -V
+```
+
+- 第 1 位置引数が `new` / `check` / `export` / `migrate` / `mcp` と**完全一致**したときのみサブコマンド。
+  それ以外はプロジェクトディレクトリとして解釈する（`new` という名前のディレクトリは `novnow ./new`）。
+- フラグを取るのは `export` だけ。
+- **`lsp` サブコマンドは v1 には無い**（裁定 U-3 は保留）。ただし `core/features/*` は LSP のメソッドと
+  1:1 で対応する純粋関数として書くこと（§3.4）。将来 `novnow lsp` を足すときに core を触らずに済ませるため。
+- 必須ファイルが欠けている場合は **stderr にエラー＋解説 URL＋`novnow new` の案内だけを出して終了**し、
+  GUI は一切出さない（§14.2、指示 2 の明文）。
+
+---
+
+## 3. 層構造（`SPECIFICATIONS.md` §3.2）
+
+v1 の最重要の制約。**`tests/layering.rs` が CI で機械的に検査する。**
+
+```
+main ──→ ui ──→ ports ←── adapters
+          │       │
+          └──→ core ←┘          core は誰にも依存しない
+```
+
+| 層 | 依存してよいもの | 禁止 |
+|---|---|---|
+| `core/` | `serde` / `serde_json`、`regex`、`aho-corasick`、`ropey`、`anyhow` / `thiserror`、`unicode-normalization`、std の純粋データ構造 | **`std::fs`、`std::net`、`std::time::SystemTime`、`egui`、`tokio`、フォント、ロケール文言** |
+| `ports/` | `core` の型、トレイト定義のみ | 実装 |
+| `adapters/` | `ports` の実装。ここだけが I/O を持つ | `ui` への依存 |
+| `ui/` | `core`（読む）・`ports`（呼ぶ）・`egui` | `adapters` への直接依存 |
+
+- **`core` は文言を持たない。** 診断は `E001` のようなコードと引数だけを返し、日本語/英語への変換は `ui/i18n/` が行う（§12）。
+- **`core` は時刻を読まない。** 必要なら `ports::clock` を経由する。
+- 許可クレートを増やすときは、**先に `SPECIFICATIONS.md` §3.2 の表を更新してから** `Cargo.toml` を触る（MUST）。
+
+---
+
+## 4. モジュール構成（v1 の目標ツリー・`SPECIFICATIONS.md` §3.3）
 
 ```
 src/
-  main.rs              eframe::run_native のエントリポイント / CLI 解析
-  app.rs               App 状態と egui 更新ループ、ショートカット、コンテキスト推論
-  panes/
-    file_tree.rs       上左: ファイルリーダー + プレビュー
-    editor.rs          下左: 単一 TextEdit + 行番号 + 節ピンポイント編集バー
-    info_panel.rs      右: 情報パネル
-  text/
-    buffer.rs          Ropey ラッパ・カーソル位置管理
-    tokenizer.rs       カスタム文法のトークナイザ
-    incremental.rs     行単位のインクリメンタル更新
-  project/
-    loader.rs          JSON/テキストの読み書き・雛形生成
-    resolver.rs        パス解決・参照追跡
-    state.rs           プロジェクト全体のインメモリキャッシュ
-    watcher.rs         ファイル監視（自前ポーリング）
-  types/
-    characters.rs      characters.json
-    words.rs           words.json
-    plots.rs           plots の SceneId / PlotNode
-    materials.rs       materials/index.json
+  main.rs                  起動のみ（CLI 解析 → GUI or CLI）
+  core/
+    id.rs                  SceneId / PartialSceneId / RangeExpr
+    text/                  rope.rs  position.rs  lexer.rs  incremental.rs
+    syntax/                contents.rs  plot_outline.rs  plot_episode.rs
+                           characters_md.rs  words_md.rs  ideas_md.rs
+                           materials_index.rs  prompt_md.rs
+    model/                 Project, Document, Character, Mode, RolePattern,
+                           Word, Material, Idea, Task
+    resolve/               dictionary.rs  modes.rs  role_language.rs
+                           materials.rs  context_rules.rs
+    diagnostics.rs         コード定義と生成（文言は持たない）
+    features/              LSP に 1:1 対応する純粋 API（§3.4）
+                           semantic_tokens  completion  hover  inlay_hint
+                           code_action  definition  references  document_symbol
+                           formatting  rename  folding
+    export.rs              アノテーション除去（§17.1）
+    aicontext/             packet.rs  budget.rs
+  ports/                   storage.rs  clock.rs  mcp.rs  env.rs  dialog.rs
+  adapters/                storage_fs.rs  storage_idb.rs  mcp_stdio.rs
+                           clock_system.rs  dialog_rfd.rs
+  ui/
+    shell.rs               共通シェル（ステータスバー・パレット・モーダル・IME 状態）
+    theme.rs  i18n/
+    widgets/               context_view  section_editor  reference_pane
+                           syntax_text  inlay
+    workspaces/            write  plot_episode  plot_outline  idea
+                           material  cast  agent  review
 ```
 
-## カスタム文法
+`core/reader.rs` と `ui/workspaces/reader.rs`（縦書きプレビュー）は **v1 追加仕様 #27** であり、
+v1 本体では作らない（§0.6.1）。
 
-| ファイル種別 | トークン |
-|---|---|
-| `contents/*.txt` | SceneHeader `@A-B-C[-D]` / Speaker 行末 `@キャラ名` / Narration / ParagraphBreak `;` / Blank |
-| `plots/*.txt` | SceneHeader / Comment `//` / PlotPoint / ParagraphBreak / Blank |
+---
 
-* 複数行トークンは存在しない前提のため、行単位で完全に分割でき、編集行のみ再トークン化できます。
-* `SceneId` は 4 階層（`A-B-C-D`）。見出しで D を省略（`@01-04-01`）した場合は `section = 0`。
+## 5. カスタム文法（`SPECIFICATIONS.md` §5）
 
-## 情報パネルの優先順位
+v1 は **8 形式**を解析する。v0 の 2 形式から大きく増えているので、`§5` を読んでから実装すること。
 
-カーソル行に直接含まれる要素 > 同一場面の要素 > 同一話の要素、の順で推論します。
-用語検出は Aho-Corasick による複数パターン一括マッチです。
+| 形式 | ファイル | 主なトークン |
+|---|---|---|
+| A | `plots/00-*.txt`（全体・章プロット） | `@` 見出し、`//` コメント、プロット行 |
+| B | `plots/*.txt`（話プロット） | `@` 見出し、`;`、`when:` / `space:` / `blurb:` などのフィールド |
+| C | `contents/*.txt`（本文） | `@` 見出し、行末 `@キャラ名`、`'参照`、`;`、`^` 引用注釈、`! ` 挿絵メモ、`# ` コメント |
+| D | `characters.md` | 見出し、`attributes` / `personality` / `emotion` / `couple` / `tone` / `role` |
+| E | `words.md` | 用語と説明 |
+| F | `ideas.md` | 着想行と `status` |
+| G | `materials/index.json` | 資料 ID（`M` / `S` 接頭辞）とタイトル |
+| H | `prompts/*.md` | エージェント用メタ指示 |
 
+**行頭シジル（`@` `;` `'` `//` `#` `!` `^`）は `const SIGIL_TABLE` による表駆動で扱う**（MUST）。
+追加仕様で増えるため、`match` を直書きしないこと（`PLANS.md` §1.5-4）。
 
-## 日本語フォント要件
+`SceneId` は 4 階層（`章-話-場面-節`）。見出しで節を省略した場合は `section = 0`。
+複数行トークンは存在しないので、行単位で完全に分割でき、編集行のみ再トークン化できる。
 
-egui の既定フォントは CJK（漢字・ひらがな・カタカナ）グリフを含まないため、
-**システムに日本語対応フォントがインストールされている必要があります**。
+---
 
-起動時に `fontdb` で以下の優先順位で自動検出します:
+## 6. 日本語入力（IME）— 実装時にまず読むこと
+
+`SPECIFICATIONS.md` **§9.8.5** に実装規約がある。要点だけ再掲する。
+
+- **egui 0.27.2 のイベント名は `Event::Ime` ではない。**
+  `Event::CompositionStart` / `CompositionUpdate(String)` / `CompositionEnd(String)` を購読する。
+  （`Event::Ime(ImeEvent)` への統合は egui 0.28.0 から。v1 は 0.27.2 に固定する）
+- native（`egui-winit`）でも Web（`eframe` の text agent）でも**同じイベント名**が来る。`#[cfg]` で分岐しない。
+- `egui::TextEditState::has_ime` は `pub(crate)` で**読めない**。`ui/shell.rs` に自前の状態機械を持つ。
+- **変換中は `Event::Key` 起因の処理をすべて抑止する**（ショートカットだけでなく `Enter` の節確定と `Esc` のモーダル閉じも）。
+- **`PlatformOutput.ime` を出力しないと native で IME が有効にならない。**
+  `egui-winit` は `ime` が `Some` のフレームでしか `set_ime_allowed(true)` を呼ばないため、
+  `egui::TextEdit` を使わない自前エディタでは `ctx.output_mut(|o| o.ime = Some(IMEOutput { rect, cursor_rect }))` が必須。
+- 張り付き防止: `WindowFocused(false)` と「2 秒間 IME イベントなし」で `composing` を落とす。
+- **egui を上げるときは 0.29.x を飛ばす。** 0.29.0 で Linux の IME が壊れ（emilk/egui#5544）、
+  修正（#5198）は 0.30.0 以降に入った。
+
+---
+
+## 7. 日本語フォント要件
+
+egui の既定フォントは CJK グリフを含まないため、**システムに日本語対応フォントが必要**。
+起動時に `fontdb` で次の優先順位で自動検出する。
 
 1. Noto Sans CJK JP / Noto Sans JP
-2. Meiryo / Yu Gothic / MS PGothic (Windows)
-3. Hiragino Sans (macOS)
-4. TakaoPGothic / IPAGothic / VL PGothic (Linux)
+2. Meiryo / Yu Gothic / MS PGothic（Windows）
+3. Hiragino Sans（macOS）
+4. TakaoPGothic / IPAGothic / VL PGothic（Linux）
 
-インストールされていない場合、日本語部分が □ や ? で表示されます。
+見つからない場合、日本語部分が □ や ? で表示される。
+Web 版は wasm に同梱したフォントを強制的に読み込む。
 
-Web版の場合は、強制的にWeb版のwasmファイルに付属しているフォントファイルが読み込まれます。
+---
+
+## 8. 画面構成とショートカット
+
+v1 の画面は **3 ペイン ＋ ワークスペース切替** になる（v0 の固定 3 ペインとは別物）。
+正確な定義は `SPECIFICATIONS.md` §9（共通シェル）と §10（ワークスペース）を参照。
+
+| 分類 | キー | 備考 |
+|---|---|---|
+| ペイン移動 | `Ctrl+1` / `Ctrl+2` / `Ctrl+3` | §9.8.1 |
+| ワークスペース切替 | `Alt+1`〜`Alt+9` | **`Alt+7`（reader）は v1 では欠番**（追加仕様 #27） |
+| 階層の上下 | `Ctrl+B` / `Ctrl+Shift+B` / `Ctrl+Enter` | 全体 → 章 → 話 → 本文の 4 段階（指示 11） |
+| 着想の捕捉 | `Ctrl+Shift+I` | どこからでも 1 行書いて `Enter`。画面遷移しない（MUST） |
+| 資料検索 | `Ctrl+M` | §16 |
+| ジャンプ | `Ctrl+G` | SceneId 指定 |
+| 検索 | `Ctrl+F` / `Ctrl+Shift+F` | 正規表現モードは追加仕様 |
+
+**保存の扱いが v0 と根本的に違う。** v1 では `Ctrl+S` を主役に据えない。
+節の位置が変わった瞬間に保存し、**ユーザーに節単位の保存/未保存を意識させない**（§8.2）。
+全体の保存状態だけを右下のステータスバーにアイコンで出す。
+
+---
+
+## 9. 情報パネル（参照ペイン）
+
+カーソル行に直接含まれる要素 > 同一場面 > 同一話、の順で推論する（`core/resolve/context_rules.rs`）。
+用語検出は Aho-Corasick による複数パターン一括マッチ、参照は**最短一致**（§6.1）。
+
+**カード UI にしないこと**（§9.5.1、MUST）。最小限の見出しスタイルを付けたただのテキストとして並べる。
+v0 の `panes/info_panel.rs` はこの規約に反するので流用しない。
+
+役割語が正しく付いている台詞には**緑の下線**を引く。付いていない場合は**何も表示しない**（エラーにしない、§6.4）。
+
+---
+
+## 10. AI エージェント（`SPECIFICATIONS.md` §15）
+
+- **LLM へのアクセスはすべて MCP 経由**（MUST）。`adapters/mcp_stdio.rs` 以外から外部通信しない。
+  `tests/no_llm_sdk.rs` が CI で検査する。
+- エージェントは自動化のための仕組みではなく、**役割を最小単位に割り、必要なコンテキストを設計するための単位**である（README の思想）。
+- メタ指示（プロンプト）は**ユーザーが自由に書き換えられる**。プロジェクトごとに持ち、プロジェクト間で共有しない。
+  既定プロンプトはプロジェクト外の「一切変更されない場所」に置き、いつでも復元できるようにする（裁定 U-7）。
+- **プロジェクトディレクトリ外に置いてよい情報は「プロジェクトディレクトリパスの履歴」だけ**（規則 10、MUST）。
+  `tests/storage_policy.rs` が検査する。
+
+---
+
+## 11. 作業を始める前に
+
+1. `SPECIFICATIONS.md` §0（読み方）と §3（アーキテクチャ）を読む。
+2. `PLANS.md` §1（段階の切り分け）で、その作業が ①（v1 本体）か ②（追加仕様）かを確認する。
+3. 該当マイルストーン（`PLANS.md` §5）の「① での削り」を読む。**追加仕様を先回りして実装しない。**
+4. `PLANS.md` §1.5 の「① が ② のために守る 10 項目」を読む。未知キーの温存など、
+   後から直すのが高くつく事項が並んでいる。
 
 ## ライセンス
 
