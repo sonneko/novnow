@@ -5,6 +5,10 @@ edition = "2021"
 description = "小説プロジェクト（[title]/ レイアウト）向け執筆 IDE — egui + ropey"
 license = "MIT"
 
+[lib]
+name = "novnow"
+path = "src/lib.rs"
+
 [[bin]]
 name = "novnow"
 path = "src/main.rs"
@@ -41,6 +45,9 @@ web-sys = { version = "0.3", features = [
   "IdbFactory", "IdbDatabase", "IdbObjectStore", "IdbTransaction", "IdbRequest", "IdbOpenDbRequest", "IdbCursor", "IdbKeyRange"
 ] }
 console_error_panic_hook = "0.1"
+
+[dev-dependencies]
+syn = { version = "2.0", features = ["full", "visit"] }
 
 [profile.release]
 opt-level = 3

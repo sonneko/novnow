@@ -2218,6 +2218,7 @@ dependencies = [
  "ropey",
  "serde",
  "serde_json",
+ "syn 2.0.119",
  "thiserror 1.0.69",
  "tokio",
  "toml",

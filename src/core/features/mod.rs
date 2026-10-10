@@ -1,1 +1,11 @@
-// Features
+pub mod code_action;
+pub mod completion;
+pub mod definition;
+pub mod document_symbol;
+pub mod folding;
+pub mod formatting;
+pub mod hover;
+pub mod inlay_hint;
+pub mod references;
+pub mod rename;
+pub mod semantic_tokens;

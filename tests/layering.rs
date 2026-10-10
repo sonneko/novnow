@@ -1,130 +1,134 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use syn::visit::{self, Visit};
+use syn::{ExprPath, ItemUse, LitStr, UseTree};
 
-const FORBIDDEN: &[&str] = &[
-    "egui",
-    "eframe",
-    "rfd",
-    "std::fs",
-    "web_sys",
-    "js_sys",
-    "wasm_bindgen",
-    "tokio",
-    "std::thread",
-    "SystemTime::now",
-    "Instant::now",
-    "thread_rng",
+const FORBIDDEN_PREFIXES: &[&[&str]] = &[
+    &["egui"],
+    &["eframe"],
+    &["rfd"],
+    &["std", "fs"],
+    &["std", "net"],
+    &["std", "process"],
+    &["web_sys"],
+    &["js_sys"],
+    &["wasm_bindgen"],
+    &["tokio"],
+    &["std", "thread"],
+    &["fontdb"],
+    &["zip"],
+    &["toml"],
+    &["directories"],
+    &["crate", "ui"],
+    &["crate", "adapters"],
+    &["ui"],
+    &["adapters"],
 ];
 
-fn strip_comments_and_literals(source: &str) -> String {
-    let mut result = String::new();
-    let chars: Vec<char> = source.chars().collect();
-    let len = chars.len();
-    let mut i = 0;
+struct LayerVisitor {
+    filepath: PathBuf,
+    violations: Vec<String>,
+    jp_violations: Vec<String>,
+}
 
-    while i < len {
-        if chars[i] == '/' && i + 1 < len && chars[i + 1] == '/' {
-            // Line comment
-            i += 2;
-            while i < len && chars[i] != '\n' {
-                i += 1;
-            }
-        } else if chars[i] == '/' && i + 1 < len && chars[i + 1] == '*' {
-            // Block comment
-            i += 2;
-            let mut depth = 1;
-            while i < len && depth > 0 {
-                if chars[i] == '/' && i + 1 < len && chars[i + 1] == '*' {
-                    depth += 1;
-                    i += 2;
-                } else if chars[i] == '*' && i + 1 < len && chars[i + 1] == '/' {
-                    depth -= 1;
-                    i += 2;
-                } else {
-                    i += 1;
+impl LayerVisitor {
+    fn check_path_segments(&mut self, segments: &[String], context: &str) {
+        for forbidden in FORBIDDEN_PREFIXES {
+            if segments.len() >= forbidden.len() {
+                let matches = forbidden.iter().zip(segments.iter()).all(|(f, s)| f == s);
+                if matches {
+                    let path_str = segments.join("::");
+                    self.violations.push(format!(
+                        "Forbidden import/access '{}' in {} ({})",
+                        path_str,
+                        self.filepath.display(),
+                        context
+                    ));
                 }
             }
-        } else if chars[i] == '"' {
-            // String literal - replace with empty string
-            i += 1;
-            while i < len && chars[i] != '"' {
-                if chars[i] == '\\' {
-                    i += 2;
-                } else {
-                    i += 1;
-                }
-            }
-            if i < len && chars[i] == '"' {
-                i += 1;
-            }
-        } else {
-            result.push(chars[i]);
-            i += 1;
+        }
+
+        // Specific forbidden calls/paths
+        let full_path = segments.join("::");
+        if full_path.contains("SystemTime::now")
+            || full_path.contains("Instant::now")
+            || full_path.contains("thread_rng")
+        {
+            self.violations.push(format!(
+                "Forbidden time/random call '{}' in {} ({})",
+                full_path,
+                self.filepath.display(),
+                context
+            ));
         }
     }
 
-    result
-}
-
-fn contains_japanese_string_literals(source: &str) -> Vec<String> {
-    let mut japanese_strings = Vec::new();
-    let chars: Vec<char> = source.chars().collect();
-    let len = chars.len();
-    let mut i = 0;
-
-    while i < len {
-        if chars[i] == '/' && i + 1 < len && chars[i + 1] == '/' {
-            i += 2;
-            while i < len && chars[i] != '\n' {
-                i += 1;
+    fn check_use_tree(&mut self, tree: &UseTree, prefix: &mut Vec<String>) {
+        match tree {
+            UseTree::Path(use_path) => {
+                prefix.push(use_path.ident.to_string());
+                self.check_use_tree(&use_path.tree, prefix);
+                prefix.pop();
             }
-        } else if chars[i] == '/' && i + 1 < len && chars[i + 1] == '*' {
-            i += 2;
-            let mut depth = 1;
-            while i < len && depth > 0 {
-                if chars[i] == '/' && i + 1 < len && chars[i + 1] == '*' {
-                    depth += 1;
-                    i += 2;
-                } else if chars[i] == '*' && i + 1 < len && chars[i + 1] == '/' {
-                    depth -= 1;
-                    i += 2;
-                } else {
-                    i += 1;
+            UseTree::Name(use_name) => {
+                prefix.push(use_name.ident.to_string());
+                self.check_path_segments(prefix, "use statement");
+                prefix.pop();
+            }
+            UseTree::Rename(use_rename) => {
+                prefix.push(use_rename.ident.to_string());
+                self.check_path_segments(prefix, "use statement");
+                prefix.pop();
+            }
+            UseTree::Glob(_) => {
+                self.check_path_segments(prefix, "use glob statement");
+            }
+            UseTree::Group(use_group) => {
+                for item in &use_group.items {
+                    self.check_use_tree(item, prefix);
                 }
             }
-        } else if chars[i] == '"' {
-            i += 1;
-            let mut s = String::new();
-            while i < len && chars[i] != '"' {
-                if chars[i] == '\\' && i + 1 < len {
-                    s.push(chars[i]);
-                    s.push(chars[i + 1]);
-                    i += 2;
-                } else {
-                    s.push(chars[i]);
-                    i += 1;
-                }
-            }
-            if i < len && chars[i] == '"' {
-                i += 1;
-            }
-            if s.chars().any(|c| {
-                matches!(
-                    c,
-                    '\u{3040}'..='\u{309F}' | '\u{30A0}'..='\u{30FF}' | '\u{4E00}'..='\u{9FFF}'
-                )
-            }) {
-                japanese_strings.push(s);
-            }
-        } else {
-            i += 1;
         }
     }
-
-    japanese_strings
 }
 
-fn visit_dirs(dir: &Path, files: &mut Vec<std::path::PathBuf>) {
+impl<'ast> Visit<'ast> for LayerVisitor {
+    fn visit_item_use(&mut self, node: &'ast ItemUse) {
+        let mut prefix = Vec::new();
+        self.check_use_tree(&node.tree, &mut prefix);
+        visit::visit_item_use(self, node);
+    }
+
+    fn visit_expr_path(&mut self, node: &'ast ExprPath) {
+        let segments: Vec<String> = node
+            .path
+            .segments
+            .iter()
+            .map(|s| s.ident.to_string())
+            .collect();
+        self.check_path_segments(&segments, "expr path");
+        visit::visit_expr_path(self, node);
+    }
+
+    fn visit_lit_str(&mut self, node: &'ast LitStr) {
+        let s = node.value();
+        if s.chars().any(|c| {
+            matches!(
+                c,
+                '\u{3040}'..='\u{309F}' | '\u{30A0}'..='\u{30FF}' | '\u{4E00}'..='\u{9FFF}'
+            )
+        }) {
+            self.jp_violations.push(format!(
+                "Japanese string literal \"{}\" in {}",
+                s,
+                self.filepath.display()
+            ));
+        }
+        visit::visit_lit_str(self, node);
+    }
+}
+
+fn visit_dirs(dir: &Path, files: &mut Vec<PathBuf>) {
     if dir.is_dir() {
         for entry in fs::read_dir(dir).expect("read_dir failed") {
             let entry = entry.expect("entry failed");
@@ -153,26 +157,19 @@ fn test_core_layering_and_no_japanese_literals() {
         let content = fs::read_to_string(&file)
             .unwrap_or_else(|e| panic!("Failed to read {}: {}", file.display(), e));
 
-        let stripped = strip_comments_and_literals(&content);
+        let syntax = syn::parse_file(&content)
+            .unwrap_or_else(|e| panic!("Failed to parse Rust AST in {}: {}", file.display(), e));
 
-        for &forbidden in FORBIDDEN {
-            if stripped.contains(forbidden) {
-                violations.push(format!(
-                    "Forbidden token '{}' found in {}",
-                    forbidden,
-                    file.display()
-                ));
-            }
-        }
+        let mut visitor = LayerVisitor {
+            filepath: file.clone(),
+            violations: Vec::new(),
+            jp_violations: Vec::new(),
+        };
 
-        let jp_literals = contains_japanese_string_literals(&content);
-        for jp_str in jp_literals {
-            jp_violations.push(format!(
-                "Japanese string literal \"{}\" found in {}",
-                jp_str,
-                file.display()
-            ));
-        }
+        visitor.visit_file(&syntax);
+
+        violations.extend(visitor.violations);
+        jp_violations.extend(visitor.jp_violations);
     }
 
     if !violations.is_empty() || !jp_violations.is_empty() {
