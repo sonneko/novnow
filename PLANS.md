@@ -171,6 +171,12 @@
 
 **再利用率の見込み: 15% 程度**（約 600 行）。実質的に新規実装と考えて計画する。
 
+> **M0 での確定事項（2026-10-10）**: v0 の `src/` は **`src/panes/` と `src/app.rs` だけでなく全体を削除した**
+> （`fonts.rs` / `project/` / `storage.rs` / `text/` / `types/` を含む）。本書 I3「v0 と並走させない」を
+> 徹底するためで、上表の「流用」は **`v0-final` タグ（v0 が生きていた最後のコミット）から取り出す** 運用にする。
+> 作業項目 5 の文言（`src/panes/` と `src/app.rs` の削除）より広い削除になった点は逸脱として記録する。
+
+
 ### 2.1 依存クレートの変更
 
 | 追加 | 用途 | 層 |
@@ -180,6 +186,7 @@
 | `toml` | `ui/i18n/*.toml` の読み込み | ui |
 | `directories` | XDG / APPDATA の履歴パス解決（§13.2） | adapters（native のみ） |
 | web-sys の IDB 系 feature | `IdbFactory` `IdbDatabase` `IdbObjectStore` `IdbTransaction` `IdbRequest` `IdbOpenDbRequest` `IdbCursor` `IdbKeyRange` | adapters（wasm のみ） |
+| `syn`（`full` / `visit`）<br>`proc-macro2` | `tests/layering.rs` が `src/core/**` を AST として訪走し、§3.2 の禁止依存と §12.2 の日本語リテラルを検査する | **dev-dependency のみ**（実行時バイナリには入らない。core の許可リスト §3.2 とは無関係） |
 
 | 維持 | 備考 |
 |---|---|
@@ -883,10 +890,13 @@ tests/layering.rs
 | B-3 | `Project` の保持方法 | 全ファイルをメモリ常駐 / 遅延読み | **常駐**（§18.2 の想定規模なら数 MB。単純さを取る） |
 | B-4 | 非同期ランタイム | tokio / 自前スレッドプール | **tokio（native のみ）**。wasm は `wasm-bindgen-futures`。adapters に閉じ込める |
 | B-5 | i18n カタログ形式 | toml / json / fluent | **toml**（§12.3 が `ui/i18n/*.toml` と明記） |
+| B-16 | M0 の CI `wasm` ジョブの内容 | `trunk build --release` + サイズ検査（§18.4）/ `cargo check --target wasm32-unknown-unknown` | **M0 は `cargo check`（§18.4 からの逸脱）**。M0 時点の wasm には起動口（`#[wasm_bindgen(start)]` / eframe 起動）が無く、`trunk build` は「何も描画しない成果物」を作るだけで、同じビルドは `deploy.yml` が main で既に行っているため。§18.4 の `trunk build` + サイズ検査は **GUI が起動する M7 で追加する** |
 
 ### 9.3 環境の前提
 
-- **現在の作業環境に Rust ツールチェーンが無い**（`cargo` / `rustc` が未インストール）。M0 の最初の作業として `rustup` の導入と `wasm32-unknown-unknown` ターゲットの追加が必要。
+- ~~**現在の作業環境に Rust ツールチェーンが無い**（`cargo` / `rustc` が未インストール）。M0 の最初の作業として `rustup` の導入と `wasm32-unknown-unknown` ターゲットの追加が必要。~~
+  **M0 で解消（2026-10-10）**: `rust-toolchain.toml`（stable + `rustfmt` / `clippy` + `wasm32-unknown-unknown`）を置き、CI（`.github/workflows/ci.yml`）で fmt / clippy / test / wasm を常時検査するようにした。
+  ローカルにツールチェーンが無い環境で作業する場合も、**push して CI で検証する**ことを前提にする（`cargo fmt --check` と `cargo clippy -D warnings` は CI で落ちるため、手元で通せないときは CI を確認すること）。
 - Trunk（wasm ビルド）は既存 `.github/workflows/deploy.yml` が前提にしている。CI 用ワークフローと共存させる。
 
 ### 9.4 委譲モデル（P5 改定）に関する設計判断 — ユーザー決定済み（2026-10-10）
@@ -947,3 +957,4 @@ tests/layering.rs
 | 2026-10-09 | 初版。段階 ①（v1 仕様の実装）の計画を策定 |
 | 2026-10-09 | **第 1.1 版**。`SPECIFICATIONS.md` 第 2.1 版（読者モードの #27 移管 / `unicode-normalization` 許可）を反映。<br>・M9「出力 10 日」→「エクスポート 5 日」、**合計 127 → 122 人日**<br>・§4.2 の累計日数の算術誤りを訂正（M5=55 / M7=75 / M9=98 を追記・修正）<br>・M8 は 7 ワークスペース（`Alt+7` は欠番として予約）<br>・R-1 をクローズ。**R-2（IME）は存続**（縦書きとは独立の問題のため）<br>・A-1 / A-2 を解消済みとして記録 |
 | 2026-10-09 | **第 1.2 版**。`SPECIFICATIONS.md` 第 2.2 版を反映。<br>・**R-2（IME）を調査の結果クローズ**。egui 0.27.2 に `Event::CompositionStart` / `CompositionUpdate` / `CompositionEnd` があり native / Web 両方で発火することをソースで確認。egui を上げる必要は無い<br>・代わりに **R-2'（`PlatformOutput.ime` の出し忘れ）** を新設<br>・R-3 に「上げるなら 0.29.x を飛ばす」を追記（Linux IME 回帰 #5544）<br>・M0 から IME スパイクを削除、M7 に §9.8.5 の実装項目と完了条件 2 件を追加<br>・G1 を「0.27.2 固定の確認のみ」に<br>・**A-3 / A-4 を解消済みとして記録** |
+| 2026-10-10 | **M0 実装の記録**（実装は PR、本書は記録のみ）。<br>・§5.1 の完了条件を消し込み（CI 4 ジョブ緑 / `tests/layering.rs` / `v0-final` タグ）<br>・§2 に「v0 は全削除、流用は `v0-final` タグから取り出す」を記録<br>・§2.1 に dev-dependency（`syn` / `proc-macro2`）を追加<br>・§9.2 に B-16（M0 の CI `wasm` ジョブは `cargo check`。§18.4 の `trunk build` + サイズ検査は M7）を追加<br>・§9.3 の「作業環境に Rust ツールチェーンが無い」を解消済みとして更新<br>・`tests/layering.rs` は AST（`syn`）検査へ変更し、検査器の自己テストを同梱（§5.1 完了条件 2 の機械化） |
