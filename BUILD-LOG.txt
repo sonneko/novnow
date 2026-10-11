@@ -107,3 +107,1843 @@ remote MANIFEST.json http=200
   },
   "probe_3mb_sha256": "a80eaae5bd4bd47a77f78e9e49d5624827ce52d67078fbfe8d2d8160e65bd01f"
 }remote cache_key=35e17a550621c56a-1 status=ready
+既存の ready 生成物を守るため probe は push しない（commit はローカルに作る）
+info: downloading installer
+error: $HOME differs from euid-obtained home directory: you may be using sudo
+error: $HOME directory: /github/home
+error: euid-obtained home directory: /root
+info: profile set to minimal
+info: default host tuple is x86_64-unknown-linux-gnu
+info: skipping toolchain installation
+
+
+Rust is installed now. Great!
+
+To get started you need Cargo's bin directory (/tmp/cargo/bin) in your PATH
+environment variable. This has not been done automatically.
+
+To configure your current shell, you need to source
+the corresponding env file under /tmp/cargo.
+
+Consider running the right command for your shell (note the leading DOT):
+. "/tmp/cargo/env" # For sh/ash/dash/pdksh
+cargo:rerun-if-env-changed=CC_x86_64-unknown-linux-gnu
+CC_x86_64-unknown-linux-gnu = None
+cargo:rerun-if-env-changed=CC_x86_64_unknown_linux_gnu
+CC_x86_64_unknown_linux_gnu = None
+cargo:rerun-if-env-changed=HOST_CC
+HOST_CC = None
+cargo:rerun-if-env-changed=CC
+CC = None
+cargo:rerun-if-env-changed=CC_ENABLE_DEBUG_OUTPUT
+cargo:rerun-if-env-changed=CRATE_CC_NO_DEFAULTS
+CRATE_CC_NO_DEFAULTS = None
+cargo:rerun-if-env-changed=CFLAGS
+CFLAGS = None
+cargo:rerun-if-env-changed=HOST_CFLAGS
+HOST_CFLAGS = None
+cargo:rerun-if-env-changed=CFLAGS_x86_64_unknown_linux_gnu
+CFLAGS_x86_64_unknown_linux_gnu = None
+cargo:rerun-if-env-changed=CFLAGS_x86_64-unknown-linux-gnu
+CFLAGS_x86_64-unknown-linux-gnu = None
+info: syncing channel updates for stable-x86_64-unknown-linux-gnu
+info: latest update on 2026-10-01 for version 1.99.0 (b940084d7 2026-09-28)
+info: downloading 5 components
+
+  stable-x86_64-unknown-linux-gnu installed - rustc 1.99.0 (b940084d7 2026-09-28)
+
+info: default toolchain set to stable-x86_64-unknown-linux-gnu
+info: downloading component rust-std
+Default host: x86_64-unknown-linux-gnu
+rustup home:  /tmp/rustup
+
+installed toolchains
+--------------------
+stable-x86_64-unknown-linux-gnu (active, default)
+
+active toolchain
+----------------
+name: stable-x86_64-unknown-linux-gnu
+active because: overridden by environment variable RUSTUP_TOOLCHAIN
+installed targets:
+  wasm32-unknown-unknown
+  x86_64-unknown-linux-gnu
+rustc  : rustc 1.99.0 (b940084d7 2026-09-28)
+cargo  : cargo 1.99.0 (5f94df478 2026-08-27)
+rustfmt: rustfmt 1.10.0-stable (b940084d7e 2026-09-28)
+clippy : clippy 0.1.99 (b940084d7e 2026-09-28)
+SYSROOT=/tmp/rustup/toolchains/stable-x86_64-unknown-linux-gnu
+716M	/tmp/rustup/toolchains/stable-x86_64-unknown-linux-gnu
+71M	/tmp/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin
+48K	/tmp/rustup/toolchains/stable-x86_64-unknown-linux-gnu/etc
+627M	/tmp/rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib
+1.6M	/tmp/rustup/toolchains/stable-x86_64-unknown-linux-gnu/libexec
+16M	/tmp/rustup/toolchains/stable-x86_64-unknown-linux-gnu/share
+# ldd of the packaged binaries (debian:12 container)
+## rustc
+	linux-vdso.so.1 (0x00007f35a8c6f000)
+	librustc_driver-999a121de2f042be.so => /tmp/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/../lib/librustc_driver-999a121de2f042be.so (0x00007f35a0800000)
+	libdl.so.2 => /lib/x86_64-linux-gnu/libdl.so.2 (0x00007f35a89c2000)
+	librt.so.1 => /lib/x86_64-linux-gnu/librt.so.1 (0x00007f35a89bd000)
+	libpthread.so.0 => /lib/x86_64-linux-gnu/libpthread.so.0 (0x00007f35a89b8000)
+	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f35a061e000)
+	libLLVM.so.23.1-rust-1.99.0-stable => /tmp/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/../lib/../lib/libLLVM.so.23.1-rust-1.99.0-stable (0x00007f3595600000)
+	libgcc_s.so.1 => /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007f35a05fe000)
+	/lib64/ld-linux-x86-64.so.2 (0x00007f35a8c71000)
+	libm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x00007f3595520000)
+	libz.so.1 => /lib/x86_64-linux-gnu/libz.so.1 (0x00007f35a05df000)
+## cargo
+	linux-vdso.so.1 (0x00007f34c85c0000)
+	libdl.so.2 => /lib/x86_64-linux-gnu/libdl.so.2 (0x00007f34c6a3c000)
+	libgcc_s.so.1 => /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007f34c6a1c000)
+	librt.so.1 => /lib/x86_64-linux-gnu/librt.so.1 (0x00007f34c6a17000)
+	libpthread.so.0 => /lib/x86_64-linux-gnu/libpthread.so.0 (0x00007f34c6a12000)
+	libm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x00007f34c6932000)
+	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f34c674e000)
+	/lib64/ld-linux-x86-64.so.2 (0x00007f34c85c2000)
+## rustfmt
+	linux-vdso.so.1 (0x00007feba7034000)
+	librustc_driver-999a121de2f042be.so => /tmp/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/../lib/librustc_driver-999a121de2f042be.so (0x00007feb9ea00000)
+	libgcc_s.so.1 => /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007feba6bdc000)
+	libpthread.so.0 => /lib/x86_64-linux-gnu/libpthread.so.0 (0x00007feba6bd7000)
+	libm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x00007feb9e920000)
+	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007feb9e73e000)
+	libdl.so.2 => /lib/x86_64-linux-gnu/libdl.so.2 (0x00007feba6bd0000)
+	libLLVM.so.23.1-rust-1.99.0-stable => /tmp/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/../lib/../lib/libLLVM.so.23.1-rust-1.99.0-stable (0x00007feb93600000)
+	librt.so.1 => /lib/x86_64-linux-gnu/librt.so.1 (0x00007feba6bcb000)
+	/lib64/ld-linux-x86-64.so.2 (0x00007feba7036000)
+	libz.so.1 => /lib/x86_64-linux-gnu/libz.so.1 (0x00007feba6bac000)
+## clippy-driver
+	linux-vdso.so.1 (0x00007fea186a4000)
+	librustc_driver-999a121de2f042be.so => /tmp/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/../lib/librustc_driver-999a121de2f042be.so (0x00007fea0f800000)
+	libdl.so.2 => /lib/x86_64-linux-gnu/libdl.so.2 (0x00007fea179af000)
+	libgcc_s.so.1 => /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007fea0f7e0000)
+	librt.so.1 => /lib/x86_64-linux-gnu/librt.so.1 (0x00007fea179aa000)
+	libpthread.so.0 => /lib/x86_64-linux-gnu/libpthread.so.0 (0x00007fea0f7db000)
+	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007fea0f5f9000)
+	libLLVM.so.23.1-rust-1.99.0-stable => /tmp/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/../lib/../lib/libLLVM.so.23.1-rust-1.99.0-stable (0x00007fea04600000)
+	/lib64/ld-linux-x86-64.so.2 (0x00007fea186a6000)
+	libm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x00007fea04520000)
+	libz.so.1 => /lib/x86_64-linux-gnu/libz.so.1 (0x00007fea0f5da000)
+## librustc_driver
+	linux-vdso.so.1 (0x00007f709252f000)
+	libdl.so.2 => /lib/x86_64-linux-gnu/libdl.so.2 (0x00007f709251f000)
+	libLLVM.so.23.1-rust-1.99.0-stable => /tmp/rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/../lib/libLLVM.so.23.1-rust-1.99.0-stable (0x00007f707f200000)
+	libgcc_s.so.1 => /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007f70924ff000)
+	librt.so.1 => /lib/x86_64-linux-gnu/librt.so.1 (0x00007f70924fa000)
+	libpthread.so.0 => /lib/x86_64-linux-gnu/libpthread.so.0 (0x00007f70924f5000)
+	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f707f01e000)
+	/lib64/ld-linux-x86-64.so.2 (0x00007f7092531000)
+	libm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x00007f7092413000)
+	libz.so.1 => /lib/x86_64-linux-gnu/libz.so.1 (0x00007f70923f4000)
+16M	./share
+-rw-r--r-- 1 root root 252206782 Oct 11 11:58 /tmp/payload/sysroot.tar.gz
+    Updating crates.io index
+ Downloading crates ...
+  Downloaded generic-array v0.14.7
+  Downloaded foreign-types v0.5.0
+  Downloaded ab_glyph v0.2.32
+  Downloaded fontconfig-parser v0.5.8
+  Downloaded flate2 v1.1.10
+  Downloaded fontdb v0.16.2
+  Downloaded icu_provider v2.3.1
+  Downloaded objc2 v0.3.0-beta.3.patch-leaks.3
+  Downloaded toml_datetime v0.6.11
+  Downloaded tokio-macros v2.7.2
+  Downloaded bytemuck_derive v1.12.1
+  Downloaded toml v0.8.23
+  Downloaded wayland-protocols-misc v0.3.12
+  Downloaded winapi-util v0.1.11
+  Downloaded wasi v0.11.1+wasi-snapshot-preview1
+  Downloaded icu_locale_core v2.3.0
+  Downloaded objc2 v0.6.4
+  Downloaded itoa v1.0.18
+  Downloaded memchr v2.8.3
+  Downloaded memoffset v0.9.1
+  Downloaded ndk-context v0.1.1
+  Downloaded glutin_wgl_sys v0.5.0
+  Downloaded gpu-allocator v0.25.0
+  Downloaded jni-sys v0.3.1
+  Downloaded log v0.4.34
+  Downloaded memmap2 v0.9.11
+  Downloaded ndk v0.8.0
+  Downloaded nohash-hasher v0.2.0
+  Downloaded futures-lite v1.13.0
+  Downloaded icu_normalizer_data v2.3.0
+  Downloaded jobserver v0.1.35
+  Downloaded libredox v0.1.25
+  Downloaded lock_api v0.4.14
+  Downloaded objc v0.2.7
+  Downloaded wasm-bindgen-macro v0.2.129
+  Downloaded windows_i686_gnu v0.53.1
+  Downloaded tokio v1.53.1
+  Downloaded toml_write v0.1.2
+  Downloaded tracing-core v0.1.36
+  Downloaded wayland-protocols v0.31.2
+  Downloaded wayland-protocols-wlr v0.3.12
+  Downloaded wayland-scanner v0.31.11
+  Downloaded windows-targets v0.53.5
+  Downloaded errno v0.3.14
+  Downloaded getrandom v0.2.17
+  Downloaded idna_adapter v1.2.2
+  Downloaded libloading v0.8.9
+  Downloaded toml_parser v1.1.3+spec-1.1.0
+  Downloaded unicode-normalization v0.1.25
+  Downloaded waker-fn v1.2.0
+  Downloaded wasm-bindgen v0.2.129
+  Downloaded wasm-bindgen-macro-support v0.2.129
+  Downloaded wasm-bindgen-shared v0.2.129
+  Downloaded wayland-protocols v0.32.13
+  Downloaded wayland-protocols-plasma v0.2.0
+  Downloaded wgpu v0.19.4
+  Downloaded wgpu-core v0.19.4
+  Downloaded widestring v1.2.1
+  Downloaded windows_aarch64_gnullvm v0.42.2
+  Downloaded type-map v0.5.1
+  Downloaded unicode-xid v0.2.6
+  Downloaded urlencoding v2.1.3
+  Downloaded walkdir v2.5.0
+  Downloaded wayland-cursor v0.31.14
+  Downloaded uds_windows v1.2.1
+  Downloaded foreign-types-macros v0.2.4
+  Downloaded gethostname v1.1.0
+  Downloaded glutin-winit v0.4.2
+  Downloaded unicode-segmentation v1.13.3
+  Downloaded version_check v0.9.5
+  Downloaded wayland-client v0.31.15
+  Downloaded wayland-csd-frame v0.3.0
+  Downloaded wayland-protocols-wlr v0.2.0
+  Downloaded webbrowser v0.8.15
+  Downloaded windows-core v0.52.0
+  Downloaded windows-targets v0.42.2
+  Downloaded wasm-bindgen-futures v0.4.79
+  Downloaded windows-interface v0.48.0
+  Downloaded windows_i686_gnu v0.48.5
+  Downloaded wayland-protocols-experimental v20250721.0.1
+  Downloaded windows-targets v0.52.6
+  Downloaded instant v0.1.13
+  Downloaded foreign-types-shared v0.3.1
+  Downloaded toml_datetime v1.1.1+spec-1.1.0
+  Downloaded windows-link v0.2.1
+  Downloaded futures-macro v0.3.34
+  Downloaded futures-sink v0.3.34
+  Downloaded futures-task v0.3.34
+  Downloaded glutin_egl_sys v0.6.0
+  Downloaded home v0.5.12
+  Downloaded malloc_buf v0.0.6
+  Downloaded objc-foundation v0.1.1
+  Downloaded utf8_iter v1.0.4
+  Downloaded wayland-sys v0.31.11
+  Downloaded windows-implement v0.48.0
+  Downloaded windows-targets v0.48.5
+  Downloaded atspi-connection v0.3.0
+  Downloaded cocoa-foundation v0.1.2
+  Downloaded cpufeatures v0.2.17
+  Downloaded ecolor v0.27.2
+  Downloaded hex v0.4.3
+  Downloaded tracing v0.1.44
+  Downloaded web-time v0.2.4
+  Downloaded cfg_aliases v0.2.2
+  Downloaded cursor-icon v1.2.0
+  Downloaded form_urlencoded v1.2.2
+  Downloaded glutin_glx_sys v0.5.0
+  Downloaded gpu-alloc-types v0.3.1
+  Downloaded gpu-descriptor v0.2.4
+  Downloaded gpu-descriptor-types v0.1.2
+  Downloaded hermit-abi v0.3.9
+  Downloaded hexf-parse v0.2.1
+  Downloaded jni-sys-macros v0.4.1
+  Downloaded memoffset v0.7.1
+  Downloaded block2 v0.3.0
+  Downloaded color_quant v1.1.0
+  Downloaded egui-wgpu v0.27.2
+  Downloaded enumflags2 v0.7.12
+  Downloaded equivalent v1.0.2
+  Downloaded jni-sys v0.4.1
+  Downloaded num_enum_derive v0.7.6
+  Downloaded option-ext v0.2.0
+  Downloaded owned_ttf_parser v0.25.1
+  Downloaded parking v2.2.1
+  Downloaded rand_chacha v0.3.1
+  Downloaded same-file v1.0.6
+  Downloaded stable_deref_trait v1.2.1
+  Downloaded tracing-attributes v0.1.31
+  Downloaded unicode-ident v1.0.26
+  Downloaded wgpu-types v0.19.2
+  Downloaded atomic-waker v1.1.2
+  Downloaded atspi v0.19.0
+  Downloaded digest v0.10.7
+  Downloaded dispatch2 v0.3.1
+  Downloaded futures-core v0.3.34
+  Downloaded futures-io v0.3.34
+  Downloaded gl_generator v0.14.0
+  Downloaded gpu-alloc v0.6.2
+  Downloaded hassle-rs v0.11.0
+  Downloaded hermit-abi v0.5.3
+  Downloaded io-lifetimes v1.0.11
+  Downloaded khronos-egl v6.0.0
+  Downloaded libloading v0.7.4
+  Downloaded num_enum v0.7.6
+  Downloaded objc-sys v0.3.5
+  Downloaded objc2-encode v2.0.0-pre.2
+  Downloaded ordered-stream v0.2.0
+  Downloaded quote v1.0.47
+  Downloaded renderdoc-sys v1.1.0
+  Downloaded rustversion v1.0.23
+  Downloaded simd-adler32 v0.3.10
+  Downloaded slab v0.4.12
+  Downloaded typenum v1.20.1
+  Downloaded accesskit_unix v0.6.2
+  Downloaded atspi-proxies v0.3.0
+  Downloaded autocfg v1.5.1
+  Downloaded bit-set v0.5.3
+  Downloaded cfg_aliases v0.1.1
+  Downloaded cgl v0.3.2
+  Downloaded codespan-reporting v0.11.1
+  Downloaded derivative v2.2.0
+  Downloaded derive_arbitrary v1.4.2
+  Downloaded enumflags2_derive v0.7.12
+  Downloaded event-listener-strategy v0.5.4
+  Downloaded futures-channel v0.3.34
+  Downloaded futures-lite v2.6.1
+  Downloaded getrandom v0.3.4
+  Downloaded getrandom v0.4.3
+  Downloaded litrs v1.0.0
+  Downloaded objc-sys v0.2.0-beta.2
+  Downloaded objc2-encode v3.0.0
+  Downloaded objc_id v0.1.1
+  Downloaded once_cell v1.21.4
+  Downloaded percent-encoding v2.3.2
+  Downloaded pin-project-lite v0.2.17
+  Downloaded piper v0.2.5
+  Downloaded pkg-config v0.3.34
+  Downloaded plain v0.2.3
+  Downloaded rustc-hash v2.1.3
+  Downloaded smallvec v1.16.2
+  Downloaded smithay-clipboard v0.7.3
+  Downloaded smol_str v0.2.2
+  Downloaded spirv v0.3.0+sdk-1.3.268.0
+  Downloaded toml_edit v0.19.15
+  Downloaded toml_edit v0.25.15+spec-1.1.0
+  Downloaded url v2.5.8
+  Downloaded wayland-backend v0.3.17
+  Downloaded writeable v0.6.4
+  Downloaded yoke-derive v0.8.3
+  Downloaded zbus_names v2.6.1
+  Downloaded zbus_names v3.0.0
+  Downloaded zerofrom v0.1.8
+  Downloaded accesskit_consumer v0.16.1
+  Downloaded accesskit_macos v0.10.1
+  Downloaded accesskit_windows v0.15.1
+  Downloaded accesskit_winit v0.16.1
+  Downloaded async-net v2.0.0
+  Downloaded atspi-common v0.3.0
+  Downloaded bit-vec v0.6.3
+  Downloaded calloop v0.12.4
+  Downloaded clipboard-win v5.4.1
+  Downloaded egui-winit v0.27.2
+  Downloaded jni v0.21.1
+  Downloaded litemap v0.8.3
+  Downloaded miniz_oxide v0.8.9
+  Downloaded miniz_oxide v0.9.1
+  Downloaded num-traits v0.2.19
+  Downloaded parking_lot v0.12.5
+  Downloaded parking_lot_core v0.9.12
+  Downloaded paste v1.0.15
+  Downloaded r-efi v5.3.0
+  Downloaded r-efi v6.0.0
+  Downloaded rfd v0.14.1
+  Downloaded rustc-hash v1.1.0
+  Downloaded slotmap v1.1.1
+  Downloaded socket2 v0.4.10
+  Downloaded toml_edit v0.22.27
+  Downloaded yoke v0.8.3
+  Downloaded zbus_macros v3.15.2
+  Downloaded zbus_macros v4.4.0
+  Downloaded arrayvec v0.7.8
+  Downloaded as-raw-xcb-connection v1.0.1
+  Downloaded async-broadcast v0.5.1
+  Downloaded async-broadcast v0.7.2
+  Downloaded async-channel v2.5.0
+  Downloaded async-executor v1.14.0
+  Downloaded async-fs v1.6.0
+  Downloaded async-fs v2.2.0
+  Downloaded async-once-cell v0.5.4
+  Downloaded bitflags v1.3.2
+  Downloaded cc v1.5.1
+  Downloaded directories v5.0.1
+  Downloaded displaydoc v0.2.7
+  Downloaded glutin v0.31.3
+  Downloaded icu_collections v2.3.0
+  Downloaded icu_properties v2.3.0
+  Downloaded indexmap v2.14.2
+  Downloaded js-sys v0.3.106
+  Downloaded objc2-core-graphics v0.3.2
+  Downloaded objc2-encode v4.1.0
+  Downloaded objc2-io-surface v0.3.2
+  Downloaded objc_exception v0.1.2
+  Downloaded polling v2.8.0
+  Downloaded pollster v0.3.0
+  Downloaded potential_utf v0.1.6
+  Downloaded ppv-lite86 v0.2.21
+  Downloaded presser v0.3.1
+  Downloaded proc-macro-crate v1.3.1
+  Downloaded proc-macro-crate v3.5.0
+  Downloaded rand v0.8.8
+  Downloaded rand_core v0.6.4
+  Downloaded roxmltree v0.20.0
+  Downloaded scoped-tls v1.0.1
+  Downloaded scopeguard v1.2.0
+  Downloaded static_assertions v1.1.0
+  Downloaded str_indices v0.4.4
+  Downloaded ttf-parser v0.25.1
+  Downloaded wasip2 v1.0.4+wasi-0.2.12
+  Downloaded wit-bindgen v0.57.1
+  Downloaded zvariant_utils v2.1.0
+  Downloaded ab_glyph_rasterizer v0.1.10
+  Downloaded accesskit v0.12.3
+  Downloaded adler2 v2.0.1
+  Downloaded android-properties v0.2.2
+  Downloaded android_system_properties v0.1.6
+  Downloaded arrayref v0.3.9
+  Downloaded async-io v1.13.0
+  Downloaded async-lock v2.8.0
+  Downloaded async-lock v3.4.2
+  Downloaded async-process v1.8.1
+  Downloaded async-process v2.5.0
+  Downloaded async-recursion v1.1.1
+  Downloaded bitflags v2.13.2
+  Downloaded block v0.1.6
+  Downloaded idna v1.1.0
+  Downloaded png v0.17.16
+  Downloaded polling v3.11.0
+  Downloaded proc-macro2 v1.0.107
+  Downloaded raw-window-handle v0.6.2
+  Downloaded smithay-client-toolkit v0.20.0
+  Downloaded strict-num v0.1.1
+  Downloaded ttf-parser v0.20.0
+  Downloaded unicode-width v0.1.14
+  Downloaded ahash v0.8.12
+  Downloaded allocator-api2 v0.2.21
+  Downloaded anyhow v1.0.104
+  Downloaded arbitrary v1.4.2
+  Downloaded arboard v3.6.1
+  Downloaded ashpd v0.8.2
+  Downloaded async-io v2.6.0
+  Downloaded async-signal v0.2.14
+  Downloaded async-task v4.7.1
+  Downloaded async-trait v0.1.92
+  Downloaded block-buffer v0.10.4
+  Downloaded block-sys v0.1.0-beta.1
+  Downloaded calloop v0.14.4
+  Downloaded calloop-wayland-source v0.2.0
+  Downloaded calloop-wayland-source v0.4.1
+  Downloaded cfg-if v1.0.5
+  Downloaded endi v1.1.1
+  Downloaded futures-util v0.3.34
+  Downloaded glow v0.13.1
+  Downloaded hashbrown v0.14.5
+  Downloaded hashbrown v0.17.1
+  Downloaded icu_properties_data v2.3.0
+  Downloaded objc2 v0.4.1
+  Downloaded objc2-core-foundation v0.3.2
+  Downloaded profiling v1.0.18
+  Downloaded raw-window-handle v0.5.2
+  Downloaded redox_syscall v0.3.5
+  Downloaded redox_syscall v0.9.4
+  Downloaded ropey v1.6.1
+  Downloaded winnow v0.5.40
+  Downloaded x11-dl v2.21.0
+  Downloaded zbus v3.15.2
+  Downloaded zbus v4.4.0
+  Downloaded zerocopy-derive v0.8.59
+  Downloaded zerofrom-derive v0.1.8
+  Downloaded block-sys v0.2.1
+  Downloaded block2 v0.2.0-alpha.6
+  Downloaded blocking v1.7.0
+  Downloaded byteorder v1.5.0
+  Downloaded cesu8 v1.1.0
+  Downloaded com v0.6.0
+  Downloaded com_macros v0.6.0
+  Downloaded com_macros_support v0.6.0
+  Downloaded core-foundation v0.9.4
+  Downloaded core-graphics v0.23.2
+  Downloaded core-graphics-types v0.1.3
+  Downloaded crypto-common v0.1.7
+  Downloaded dirs-sys v0.4.1
+  Downloaded document-features v0.2.12
+  Downloaded downcast-rs v1.2.1
+  Downloaded egui_glow v0.27.2
+  Downloaded event-listener v2.5.3
+  Downloaded quick-xml v0.41.0
+  Downloaded redox_syscall v0.5.18
+  Downloaded redox_users v0.4.6
+  Downloaded sha1 v0.10.7
+  Downloaded smithay-client-toolkit v0.18.1
+  Downloaded termcolor v1.4.1
+  Downloaded tiny-skia-path v0.11.4
+  Downloaded xcursor v0.3.11
+  Downloaded xkbcommon-dl v0.4.2
+  Downloaded concurrent-queue v2.5.0
+  Downloaded core-foundation-sys v0.8.7
+  Downloaded crc32fast v1.5.2
+  Downloaded crossbeam-utils v0.8.23
+  Downloaded dispatch v0.2.0
+  Downloaded dlib v0.5.3
+  Downloaded eframe v0.27.2
+  Downloaded emath v0.27.2
+  Downloaded error-code v3.4.0
+  Downloaded nix v0.26.4
+  Downloaded sctk-adwaita v0.8.3
+  Downloaded serde_spanned v0.6.9
+  Downloaded thiserror v1.0.69
+  Downloaded thiserror v2.0.21
+  Downloaded thiserror-impl v1.0.69
+  Downloaded tinystr v0.8.4
+  Downloaded winnow v0.7.15
+  Downloaded winnow v1.0.4
+  Downloaded xdg-home v1.3.0
+  Downloaded aho-corasick v1.1.5
+  Downloaded bytemuck v1.25.2
+  Downloaded cocoa v0.25.0
+  Downloaded event-listener v3.1.0
+  Downloaded event-listener v5.4.2
+  Downloaded nix v0.29.0
+  Downloaded serde_core v1.0.229
+  Downloaded synstructure v0.14.0
+  Downloaded thiserror-impl v2.0.21
+  Downloaded zerovec v0.11.8
+  Downloaded bytes v1.12.1
+  Downloaded fastrand v1.9.0
+  Downloaded fastrand v2.5.0
+  Downloaded ndk-sys v0.5.0+25.2.9519653
+  Downloaded regex v1.13.1
+  Downloaded serde_repr v0.1.21
+  Downloaded shlex v2.0.1
+  Downloaded signal-hook-registry v1.4.8
+  Downloaded zerocopy v0.8.59
+  Downloaded zerotrie v0.2.5
+  Downloaded zvariant_derive v3.15.2
+  Downloaded zvariant_utils v1.0.1
+  Downloaded bumpalo v3.20.3
+  Downloaded combine v4.6.8
+  Downloaded fdeflate v0.3.7
+  Downloaded find-msvc-tools v0.1.14
+  Downloaded serde v1.0.229
+  Downloaded serde_derive v1.0.229
+  Downloaded tempfile v3.27.0
+  Downloaded wgpu-hal v0.19.5
+  Downloaded zerovec-derive v0.11.6
+  Downloaded zmij v1.0.23
+  Downloaded tinyvec v1.13.3
+  Downloaded xkeysym v0.2.1
+  Downloaded xml-rs v0.8.29
+  Downloaded zopfli v0.8.3
+  Downloaded zvariant_derive v4.2.0
+  Downloaded android-activity v0.5.2
+  Downloaded zvariant v3.15.2
+  Downloaded zvariant v4.2.0
+  Downloaded serde_json v1.0.151
+  Downloaded web-sys v0.3.106
+  Downloaded zip v2.4.2
+  Downloaded objc2-foundation v0.3.2
+  Downloaded tiny-skia v0.11.4
+  Downloaded rustix v0.37.28
+  Downloaded windows_aarch64_gnullvm v0.48.5
+  Downloaded windows_aarch64_gnullvm v0.52.6
+  Downloaded windows_x86_64_gnullvm v0.42.2
+  Downloaded x11rb v0.13.2
+  Downloaded windows_i686_gnullvm v0.52.6
+  Downloaded rustix v0.38.44
+  Downloaded syn v1.0.109
+  Downloaded windows_x86_64_gnullvm v0.52.6
+  Downloaded regex-syntax v0.8.11
+  Downloaded windows_x86_64_gnullvm v0.48.5
+  Downloaded zlib-rs v0.6.8
+  Downloaded ash v0.37.3+1.3.251
+  Downloaded icu_normalizer v2.3.0
+  Downloaded naga v0.19.2
+  Downloaded objc2-app-kit v0.3.2
+  Downloaded rustix v1.1.5
+  Downloaded syn v2.0.119
+  Downloaded syn v3.0.6
+  Downloaded egui v0.27.2
+  Downloaded khronos_api v3.1.0
+  Downloaded windows_aarch64_msvc v0.42.2
+  Downloaded console_error_panic_hook v0.1.7
+  Downloaded winit v0.29.15
+  Downloaded libc v0.2.189
+  Downloaded regex-automata v0.4.18
+  Downloaded windows_x86_64_gnu v0.42.2
+  Downloaded windows_aarch64_msvc v0.48.5
+  Downloaded windows_i686_gnu v0.42.2
+  Downloaded x11rb-protocol v0.13.2
+  Downloaded windows_x86_64_msvc v0.42.2
+  Downloaded windows_x86_64_gnu v0.48.5
+  Downloaded windows_i686_msvc v0.42.2
+  Downloaded windows_aarch64_gnullvm v0.53.1
+  Downloaded linux-raw-sys v0.3.8
+  Downloaded windows_aarch64_msvc v0.52.6
+  Downloaded windows_i686_gnullvm v0.53.1
+  Downloaded icrate v0.0.4
+  Downloaded windows_aarch64_msvc v0.53.1
+  Downloaded windows_i686_msvc v0.48.5
+  Downloaded windows_x86_64_gnu v0.52.6
+  Downloaded windows_x86_64_gnullvm v0.53.1
+  Downloaded windows_x86_64_msvc v0.48.5
+  Downloaded windows_x86_64_msvc v0.52.6
+  Downloaded windows_i686_gnu v0.52.6
+  Downloaded windows_i686_msvc v0.52.6
+  Downloaded windows_x86_64_msvc v0.53.1
+  Downloaded windows_i686_msvc v0.53.1
+  Downloaded windows_x86_64_gnu v0.53.1
+  Downloaded epaint v0.27.2
+  Downloaded orbclient v0.3.55
+  Downloaded winapi v0.3.9
+  Downloaded linux-raw-sys v0.4.15
+  Downloaded windows-sys v0.59.0
+  Downloaded windows-sys v0.45.0
+  Downloaded windows-sys v0.60.2
+  Downloaded windows-sys v0.61.2
+  Downloaded windows-sys v0.52.0
+  Downloaded windows-sys v0.48.0
+  Downloaded metal v0.27.0
+  Downloaded linux-raw-sys v0.12.1
+  Downloaded winapi-i686-pc-windows-gnu v0.4.0
+  Downloaded winapi-x86_64-pc-windows-gnu v0.4.0
+  Downloaded image v0.24.9
+  Downloaded windows v0.52.0
+  Downloaded windows v0.48.0
+   Vendoring ab_glyph v0.2.32 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ab_glyph-0.2.32) to /tmp/payload/vendor-src/ab_glyph
+   Vendoring ab_glyph_rasterizer v0.1.10 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ab_glyph_rasterizer-0.1.10) to /tmp/payload/vendor-src/ab_glyph_rasterizer
+   Vendoring accesskit v0.12.3 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/accesskit-0.12.3) to /tmp/payload/vendor-src/accesskit
+   Vendoring accesskit_consumer v0.16.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/accesskit_consumer-0.16.1) to /tmp/payload/vendor-src/accesskit_consumer
+   Vendoring accesskit_macos v0.10.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/accesskit_macos-0.10.1) to /tmp/payload/vendor-src/accesskit_macos
+   Vendoring accesskit_unix v0.6.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/accesskit_unix-0.6.2) to /tmp/payload/vendor-src/accesskit_unix
+   Vendoring accesskit_windows v0.15.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/accesskit_windows-0.15.1) to /tmp/payload/vendor-src/accesskit_windows
+   Vendoring accesskit_winit v0.16.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/accesskit_winit-0.16.1) to /tmp/payload/vendor-src/accesskit_winit
+   Vendoring adler2 v2.0.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/adler2-2.0.1) to /tmp/payload/vendor-src/adler2
+   Vendoring ahash v0.8.12 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ahash-0.8.12) to /tmp/payload/vendor-src/ahash
+   Vendoring aho-corasick v1.1.5 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aho-corasick-1.1.5) to /tmp/payload/vendor-src/aho-corasick
+   Vendoring allocator-api2 v0.2.21 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/allocator-api2-0.2.21) to /tmp/payload/vendor-src/allocator-api2
+   Vendoring android-activity v0.5.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/android-activity-0.5.2) to /tmp/payload/vendor-src/android-activity
+   Vendoring android-properties v0.2.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/android-properties-0.2.2) to /tmp/payload/vendor-src/android-properties
+   Vendoring android_system_properties v0.1.6 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/android_system_properties-0.1.6) to /tmp/payload/vendor-src/android_system_properties
+   Vendoring anyhow v1.0.104 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.104) to /tmp/payload/vendor-src/anyhow
+   Vendoring arbitrary v1.4.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arbitrary-1.4.2) to /tmp/payload/vendor-src/arbitrary
+   Vendoring arboard v3.6.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arboard-3.6.1) to /tmp/payload/vendor-src/arboard
+   Vendoring arrayref v0.3.9 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrayref-0.3.9) to /tmp/payload/vendor-src/arrayref
+   Vendoring arrayvec v0.7.8 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrayvec-0.7.8) to /tmp/payload/vendor-src/arrayvec
+   Vendoring as-raw-xcb-connection v1.0.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/as-raw-xcb-connection-1.0.1) to /tmp/payload/vendor-src/as-raw-xcb-connection
+   Vendoring ash v0.37.3+1.3.251 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ash-0.37.3+1.3.251) to /tmp/payload/vendor-src/ash
+   Vendoring ashpd v0.8.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ashpd-0.8.2) to /tmp/payload/vendor-src/ashpd
+   Vendoring async-broadcast v0.5.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-broadcast-0.5.1) to /tmp/payload/vendor-src/async-broadcast-0.5.1
+   Vendoring async-broadcast v0.7.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-broadcast-0.7.2) to /tmp/payload/vendor-src/async-broadcast
+   Vendoring async-channel v2.5.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-channel-2.5.0) to /tmp/payload/vendor-src/async-channel
+   Vendoring async-executor v1.14.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-executor-1.14.0) to /tmp/payload/vendor-src/async-executor
+   Vendoring async-fs v1.6.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-fs-1.6.0) to /tmp/payload/vendor-src/async-fs-1.6.0
+   Vendoring async-fs v2.2.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-fs-2.2.0) to /tmp/payload/vendor-src/async-fs
+   Vendoring async-io v1.13.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-io-1.13.0) to /tmp/payload/vendor-src/async-io-1.13.0
+   Vendoring async-io v2.6.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-io-2.6.0) to /tmp/payload/vendor-src/async-io
+   Vendoring async-lock v2.8.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-lock-2.8.0) to /tmp/payload/vendor-src/async-lock-2.8.0
+   Vendoring async-lock v3.4.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-lock-3.4.2) to /tmp/payload/vendor-src/async-lock
+   Vendoring async-net v2.0.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-net-2.0.0) to /tmp/payload/vendor-src/async-net
+   Vendoring async-once-cell v0.5.4 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-once-cell-0.5.4) to /tmp/payload/vendor-src/async-once-cell
+   Vendoring async-process v1.8.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-process-1.8.1) to /tmp/payload/vendor-src/async-process-1.8.1
+   Vendoring async-process v2.5.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-process-2.5.0) to /tmp/payload/vendor-src/async-process
+   Vendoring async-recursion v1.1.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-recursion-1.1.1) to /tmp/payload/vendor-src/async-recursion
+   Vendoring async-signal v0.2.14 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-signal-0.2.14) to /tmp/payload/vendor-src/async-signal
+   Vendoring async-task v4.7.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-task-4.7.1) to /tmp/payload/vendor-src/async-task
+   Vendoring async-trait v0.1.92 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-trait-0.1.92) to /tmp/payload/vendor-src/async-trait
+   Vendoring atomic-waker v1.1.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/atomic-waker-1.1.2) to /tmp/payload/vendor-src/atomic-waker
+   Vendoring atspi v0.19.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/atspi-0.19.0) to /tmp/payload/vendor-src/atspi
+   Vendoring atspi-common v0.3.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/atspi-common-0.3.0) to /tmp/payload/vendor-src/atspi-common
+   Vendoring atspi-connection v0.3.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/atspi-connection-0.3.0) to /tmp/payload/vendor-src/atspi-connection
+   Vendoring atspi-proxies v0.3.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/atspi-proxies-0.3.0) to /tmp/payload/vendor-src/atspi-proxies
+   Vendoring autocfg v1.5.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/autocfg-1.5.1) to /tmp/payload/vendor-src/autocfg
+   Vendoring bit-set v0.5.3 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bit-set-0.5.3) to /tmp/payload/vendor-src/bit-set
+   Vendoring bit-vec v0.6.3 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bit-vec-0.6.3) to /tmp/payload/vendor-src/bit-vec
+   Vendoring bitflags v1.3.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bitflags-1.3.2) to /tmp/payload/vendor-src/bitflags-1.3.2
+   Vendoring bitflags v2.13.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bitflags-2.13.2) to /tmp/payload/vendor-src/bitflags
+   Vendoring block v0.1.6 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block-0.1.6) to /tmp/payload/vendor-src/block
+   Vendoring block-buffer v0.10.4 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block-buffer-0.10.4) to /tmp/payload/vendor-src/block-buffer
+   Vendoring block-sys v0.1.0-beta.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block-sys-0.1.0-beta.1) to /tmp/payload/vendor-src/block-sys-0.1.0-beta.1
+   Vendoring block-sys v0.2.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block-sys-0.2.1) to /tmp/payload/vendor-src/block-sys
+   Vendoring block2 v0.2.0-alpha.6 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.2.0-alpha.6) to /tmp/payload/vendor-src/block2-0.2.0-alpha.6
+   Vendoring block2 v0.3.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.3.0) to /tmp/payload/vendor-src/block2
+   Vendoring blocking v1.7.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/blocking-1.7.0) to /tmp/payload/vendor-src/blocking
+   Vendoring bumpalo v3.20.3 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bumpalo-3.20.3) to /tmp/payload/vendor-src/bumpalo
+   Vendoring bytemuck v1.25.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytemuck-1.25.2) to /tmp/payload/vendor-src/bytemuck
+   Vendoring bytemuck_derive v1.12.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytemuck_derive-1.12.1) to /tmp/payload/vendor-src/bytemuck_derive
+   Vendoring byteorder v1.5.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/byteorder-1.5.0) to /tmp/payload/vendor-src/byteorder
+   Vendoring bytes v1.12.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1) to /tmp/payload/vendor-src/bytes
+   Vendoring calloop v0.12.4 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/calloop-0.12.4) to /tmp/payload/vendor-src/calloop-0.12.4
+   Vendoring calloop v0.14.4 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/calloop-0.14.4) to /tmp/payload/vendor-src/calloop
+   Vendoring calloop-wayland-source v0.2.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/calloop-wayland-source-0.2.0) to /tmp/payload/vendor-src/calloop-wayland-source-0.2.0
+   Vendoring calloop-wayland-source v0.4.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/calloop-wayland-source-0.4.1) to /tmp/payload/vendor-src/calloop-wayland-source
+   Vendoring cc v1.5.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cc-1.5.1) to /tmp/payload/vendor-src/cc
+   Vendoring cesu8 v1.1.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cesu8-1.1.0) to /tmp/payload/vendor-src/cesu8
+   Vendoring cfg-if v1.0.5 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cfg-if-1.0.5) to /tmp/payload/vendor-src/cfg-if
+   Vendoring cfg_aliases v0.1.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cfg_aliases-0.1.1) to /tmp/payload/vendor-src/cfg_aliases-0.1.1
+   Vendoring cfg_aliases v0.2.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cfg_aliases-0.2.2) to /tmp/payload/vendor-src/cfg_aliases
+   Vendoring cgl v0.3.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cgl-0.3.2) to /tmp/payload/vendor-src/cgl
+   Vendoring clipboard-win v5.4.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clipboard-win-5.4.1) to /tmp/payload/vendor-src/clipboard-win
+   Vendoring cocoa v0.25.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cocoa-0.25.0) to /tmp/payload/vendor-src/cocoa
+   Vendoring cocoa-foundation v0.1.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cocoa-foundation-0.1.2) to /tmp/payload/vendor-src/cocoa-foundation
+   Vendoring codespan-reporting v0.11.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/codespan-reporting-0.11.1) to /tmp/payload/vendor-src/codespan-reporting
+   Vendoring color_quant v1.1.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/color_quant-1.1.0) to /tmp/payload/vendor-src/color_quant
+   Vendoring com v0.6.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/com-0.6.0) to /tmp/payload/vendor-src/com
+   Vendoring com_macros v0.6.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/com_macros-0.6.0) to /tmp/payload/vendor-src/com_macros
+   Vendoring com_macros_support v0.6.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/com_macros_support-0.6.0) to /tmp/payload/vendor-src/com_macros_support
+   Vendoring combine v4.6.8 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/combine-4.6.8) to /tmp/payload/vendor-src/combine
+   Vendoring concurrent-queue v2.5.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/concurrent-queue-2.5.0) to /tmp/payload/vendor-src/concurrent-queue
+   Vendoring console_error_panic_hook v0.1.7 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console_error_panic_hook-0.1.7) to /tmp/payload/vendor-src/console_error_panic_hook
+   Vendoring core-foundation v0.9.4 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/core-foundation-0.9.4) to /tmp/payload/vendor-src/core-foundation
+   Vendoring core-foundation-sys v0.8.7 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/core-foundation-sys-0.8.7) to /tmp/payload/vendor-src/core-foundation-sys
+   Vendoring core-graphics v0.23.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/core-graphics-0.23.2) to /tmp/payload/vendor-src/core-graphics
+   Vendoring core-graphics-types v0.1.3 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/core-graphics-types-0.1.3) to /tmp/payload/vendor-src/core-graphics-types
+   Vendoring cpufeatures v0.2.17 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cpufeatures-0.2.17) to /tmp/payload/vendor-src/cpufeatures
+   Vendoring crc32fast v1.5.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.2) to /tmp/payload/vendor-src/crc32fast
+   Vendoring crossbeam-utils v0.8.23 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crossbeam-utils-0.8.23) to /tmp/payload/vendor-src/crossbeam-utils
+   Vendoring crypto-common v0.1.7 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crypto-common-0.1.7) to /tmp/payload/vendor-src/crypto-common
+   Vendoring cursor-icon v1.2.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cursor-icon-1.2.0) to /tmp/payload/vendor-src/cursor-icon
+   Vendoring derivative v2.2.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/derivative-2.2.0) to /tmp/payload/vendor-src/derivative
+   Vendoring derive_arbitrary v1.4.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/derive_arbitrary-1.4.2) to /tmp/payload/vendor-src/derive_arbitrary
+   Vendoring digest v0.10.7 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/digest-0.10.7) to /tmp/payload/vendor-src/digest
+   Vendoring directories v5.0.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/directories-5.0.1) to /tmp/payload/vendor-src/directories
+   Vendoring dirs-sys v0.4.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dirs-sys-0.4.1) to /tmp/payload/vendor-src/dirs-sys
+   Vendoring dispatch v0.2.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dispatch-0.2.0) to /tmp/payload/vendor-src/dispatch
+   Vendoring dispatch2 v0.3.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dispatch2-0.3.1) to /tmp/payload/vendor-src/dispatch2
+   Vendoring displaydoc v0.2.7 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/displaydoc-0.2.7) to /tmp/payload/vendor-src/displaydoc
+   Vendoring dlib v0.5.3 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dlib-0.5.3) to /tmp/payload/vendor-src/dlib
+   Vendoring document-features v0.2.12 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/document-features-0.2.12) to /tmp/payload/vendor-src/document-features
+   Vendoring downcast-rs v1.2.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/downcast-rs-1.2.1) to /tmp/payload/vendor-src/downcast-rs
+   Vendoring ecolor v0.27.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ecolor-0.27.2) to /tmp/payload/vendor-src/ecolor
+   Vendoring eframe v0.27.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/eframe-0.27.2) to /tmp/payload/vendor-src/eframe
+   Vendoring egui v0.27.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/egui-0.27.2) to /tmp/payload/vendor-src/egui
+   Vendoring egui-wgpu v0.27.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/egui-wgpu-0.27.2) to /tmp/payload/vendor-src/egui-wgpu
+   Vendoring egui-winit v0.27.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/egui-winit-0.27.2) to /tmp/payload/vendor-src/egui-winit
+   Vendoring egui_glow v0.27.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/egui_glow-0.27.2) to /tmp/payload/vendor-src/egui_glow
+   Vendoring emath v0.27.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/emath-0.27.2) to /tmp/payload/vendor-src/emath
+   Vendoring endi v1.1.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/endi-1.1.1) to /tmp/payload/vendor-src/endi
+   Vendoring enumflags2 v0.7.12 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/enumflags2-0.7.12) to /tmp/payload/vendor-src/enumflags2
+   Vendoring enumflags2_derive v0.7.12 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/enumflags2_derive-0.7.12) to /tmp/payload/vendor-src/enumflags2_derive
+   Vendoring epaint v0.27.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/epaint-0.27.2) to /tmp/payload/vendor-src/epaint
+   Vendoring equivalent v1.0.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/equivalent-1.0.2) to /tmp/payload/vendor-src/equivalent
+   Vendoring errno v0.3.14 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/errno-0.3.14) to /tmp/payload/vendor-src/errno
+   Vendoring error-code v3.4.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/error-code-3.4.0) to /tmp/payload/vendor-src/error-code
+   Vendoring event-listener v2.5.3 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/event-listener-2.5.3) to /tmp/payload/vendor-src/event-listener-2.5.3
+   Vendoring event-listener v3.1.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/event-listener-3.1.0) to /tmp/payload/vendor-src/event-listener-3.1.0
+   Vendoring event-listener v5.4.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/event-listener-5.4.2) to /tmp/payload/vendor-src/event-listener
+   Vendoring event-listener-strategy v0.5.4 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/event-listener-strategy-0.5.4) to /tmp/payload/vendor-src/event-listener-strategy
+   Vendoring fastrand v1.9.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fastrand-1.9.0) to /tmp/payload/vendor-src/fastrand-1.9.0
+   Vendoring fastrand v2.5.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fastrand-2.5.0) to /tmp/payload/vendor-src/fastrand
+   Vendoring fdeflate v0.3.7 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fdeflate-0.3.7) to /tmp/payload/vendor-src/fdeflate
+   Vendoring find-msvc-tools v0.1.14 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/find-msvc-tools-0.1.14) to /tmp/payload/vendor-src/find-msvc-tools
+   Vendoring flate2 v1.1.10 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/flate2-1.1.10) to /tmp/payload/vendor-src/flate2
+   Vendoring fontconfig-parser v0.5.8 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fontconfig-parser-0.5.8) to /tmp/payload/vendor-src/fontconfig-parser
+   Vendoring fontdb v0.16.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fontdb-0.16.2) to /tmp/payload/vendor-src/fontdb
+   Vendoring foreign-types v0.5.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/foreign-types-0.5.0) to /tmp/payload/vendor-src/foreign-types
+   Vendoring foreign-types-macros v0.2.4 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/foreign-types-macros-0.2.4) to /tmp/payload/vendor-src/foreign-types-macros
+   Vendoring foreign-types-shared v0.3.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/foreign-types-shared-0.3.1) to /tmp/payload/vendor-src/foreign-types-shared
+   Vendoring form_urlencoded v1.2.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/form_urlencoded-1.2.2) to /tmp/payload/vendor-src/form_urlencoded
+   Vendoring futures-channel v0.3.34 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/futures-channel-0.3.34) to /tmp/payload/vendor-src/futures-channel
+   Vendoring futures-core v0.3.34 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/futures-core-0.3.34) to /tmp/payload/vendor-src/futures-core
+   Vendoring futures-io v0.3.34 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/futures-io-0.3.34) to /tmp/payload/vendor-src/futures-io
+   Vendoring futures-lite v1.13.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/futures-lite-1.13.0) to /tmp/payload/vendor-src/futures-lite-1.13.0
+   Vendoring futures-lite v2.6.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/futures-lite-2.6.1) to /tmp/payload/vendor-src/futures-lite
+   Vendoring futures-macro v0.3.34 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/futures-macro-0.3.34) to /tmp/payload/vendor-src/futures-macro
+   Vendoring futures-sink v0.3.34 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/futures-sink-0.3.34) to /tmp/payload/vendor-src/futures-sink
+   Vendoring futures-task v0.3.34 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/futures-task-0.3.34) to /tmp/payload/vendor-src/futures-task
+   Vendoring futures-util v0.3.34 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/futures-util-0.3.34) to /tmp/payload/vendor-src/futures-util
+   Vendoring generic-array v0.14.7 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/generic-array-0.14.7) to /tmp/payload/vendor-src/generic-array
+   Vendoring gethostname v1.1.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gethostname-1.1.0) to /tmp/payload/vendor-src/gethostname
+   Vendoring getrandom v0.2.17 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/getrandom-0.2.17) to /tmp/payload/vendor-src/getrandom-0.2.17
+   Vendoring getrandom v0.3.4 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/getrandom-0.3.4) to /tmp/payload/vendor-src/getrandom-0.3.4
+   Vendoring getrandom v0.4.3 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/getrandom-0.4.3) to /tmp/payload/vendor-src/getrandom
+   Vendoring gl_generator v0.14.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gl_generator-0.14.0) to /tmp/payload/vendor-src/gl_generator
+   Vendoring glow v0.13.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/glow-0.13.1) to /tmp/payload/vendor-src/glow
+   Vendoring glutin v0.31.3 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/glutin-0.31.3) to /tmp/payload/vendor-src/glutin
+   Vendoring glutin-winit v0.4.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/glutin-winit-0.4.2) to /tmp/payload/vendor-src/glutin-winit
+   Vendoring glutin_egl_sys v0.6.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/glutin_egl_sys-0.6.0) to /tmp/payload/vendor-src/glutin_egl_sys
+   Vendoring glutin_glx_sys v0.5.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/glutin_glx_sys-0.5.0) to /tmp/payload/vendor-src/glutin_glx_sys
+   Vendoring glutin_wgl_sys v0.5.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/glutin_wgl_sys-0.5.0) to /tmp/payload/vendor-src/glutin_wgl_sys
+   Vendoring gpu-alloc v0.6.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gpu-alloc-0.6.2) to /tmp/payload/vendor-src/gpu-alloc
+   Vendoring gpu-alloc-types v0.3.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gpu-alloc-types-0.3.1) to /tmp/payload/vendor-src/gpu-alloc-types
+   Vendoring gpu-allocator v0.25.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gpu-allocator-0.25.0) to /tmp/payload/vendor-src/gpu-allocator
+   Vendoring gpu-descriptor v0.2.4 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gpu-descriptor-0.2.4) to /tmp/payload/vendor-src/gpu-descriptor
+   Vendoring gpu-descriptor-types v0.1.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gpu-descriptor-types-0.1.2) to /tmp/payload/vendor-src/gpu-descriptor-types
+   Vendoring hashbrown v0.14.5 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/hashbrown-0.14.5) to /tmp/payload/vendor-src/hashbrown-0.14.5
+   Vendoring hashbrown v0.17.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/hashbrown-0.17.1) to /tmp/payload/vendor-src/hashbrown
+   Vendoring hassle-rs v0.11.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/hassle-rs-0.11.0) to /tmp/payload/vendor-src/hassle-rs
+   Vendoring hermit-abi v0.3.9 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/hermit-abi-0.3.9) to /tmp/payload/vendor-src/hermit-abi-0.3.9
+   Vendoring hermit-abi v0.5.3 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/hermit-abi-0.5.3) to /tmp/payload/vendor-src/hermit-abi
+   Vendoring hex v0.4.3 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/hex-0.4.3) to /tmp/payload/vendor-src/hex
+   Vendoring hexf-parse v0.2.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/hexf-parse-0.2.1) to /tmp/payload/vendor-src/hexf-parse
+   Vendoring home v0.5.12 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/home-0.5.12) to /tmp/payload/vendor-src/home
+   Vendoring icrate v0.0.4 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icrate-0.0.4) to /tmp/payload/vendor-src/icrate
+   Vendoring icu_collections v2.3.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_collections-2.3.0) to /tmp/payload/vendor-src/icu_collections
+   Vendoring icu_locale_core v2.3.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_locale_core-2.3.0) to /tmp/payload/vendor-src/icu_locale_core
+   Vendoring icu_normalizer v2.3.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer-2.3.0) to /tmp/payload/vendor-src/icu_normalizer
+   Vendoring icu_normalizer_data v2.3.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer_data-2.3.0) to /tmp/payload/vendor-src/icu_normalizer_data
+   Vendoring icu_properties v2.3.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_properties-2.3.0) to /tmp/payload/vendor-src/icu_properties
+   Vendoring icu_properties_data v2.3.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_properties_data-2.3.0) to /tmp/payload/vendor-src/icu_properties_data
+   Vendoring icu_provider v2.3.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_provider-2.3.1) to /tmp/payload/vendor-src/icu_provider
+   Vendoring idna v1.1.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/idna-1.1.0) to /tmp/payload/vendor-src/idna
+   Vendoring idna_adapter v1.2.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/idna_adapter-1.2.2) to /tmp/payload/vendor-src/idna_adapter
+   Vendoring image v0.24.9 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/image-0.24.9) to /tmp/payload/vendor-src/image
+   Vendoring indexmap v2.14.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/indexmap-2.14.2) to /tmp/payload/vendor-src/indexmap
+   Vendoring instant v0.1.13 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/instant-0.1.13) to /tmp/payload/vendor-src/instant
+   Vendoring io-lifetimes v1.0.11 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/io-lifetimes-1.0.11) to /tmp/payload/vendor-src/io-lifetimes
+   Vendoring itoa v1.0.18 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/itoa-1.0.18) to /tmp/payload/vendor-src/itoa
+   Vendoring jni v0.21.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/jni-0.21.1) to /tmp/payload/vendor-src/jni
+   Vendoring jni-sys v0.3.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/jni-sys-0.3.1) to /tmp/payload/vendor-src/jni-sys-0.3.1
+   Vendoring jni-sys v0.4.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/jni-sys-0.4.1) to /tmp/payload/vendor-src/jni-sys
+   Vendoring jni-sys-macros v0.4.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/jni-sys-macros-0.4.1) to /tmp/payload/vendor-src/jni-sys-macros
+   Vendoring jobserver v0.1.35 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/jobserver-0.1.35) to /tmp/payload/vendor-src/jobserver
+   Vendoring js-sys v0.3.106 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/js-sys-0.3.106) to /tmp/payload/vendor-src/js-sys
+   Vendoring khronos-egl v6.0.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/khronos-egl-6.0.0) to /tmp/payload/vendor-src/khronos-egl
+   Vendoring khronos_api v3.1.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/khronos_api-3.1.0) to /tmp/payload/vendor-src/khronos_api
+   Vendoring libc v0.2.189 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libc-0.2.189) to /tmp/payload/vendor-src/libc
+   Vendoring libloading v0.7.4 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libloading-0.7.4) to /tmp/payload/vendor-src/libloading-0.7.4
+   Vendoring libloading v0.8.9 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libloading-0.8.9) to /tmp/payload/vendor-src/libloading
+   Vendoring libredox v0.1.25 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libredox-0.1.25) to /tmp/payload/vendor-src/libredox
+   Vendoring linux-raw-sys v0.3.8 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/linux-raw-sys-0.3.8) to /tmp/payload/vendor-src/linux-raw-sys-0.3.8
+   Vendoring linux-raw-sys v0.4.15 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/linux-raw-sys-0.4.15) to /tmp/payload/vendor-src/linux-raw-sys-0.4.15
+   Vendoring linux-raw-sys v0.12.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/linux-raw-sys-0.12.1) to /tmp/payload/vendor-src/linux-raw-sys
+   Vendoring litemap v0.8.3 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/litemap-0.8.3) to /tmp/payload/vendor-src/litemap
+   Vendoring litrs v1.0.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/litrs-1.0.0) to /tmp/payload/vendor-src/litrs
+   Vendoring lock_api v0.4.14 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/lock_api-0.4.14) to /tmp/payload/vendor-src/lock_api
+   Vendoring log v0.4.34 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.34) to /tmp/payload/vendor-src/log
+   Vendoring malloc_buf v0.0.6 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/malloc_buf-0.0.6) to /tmp/payload/vendor-src/malloc_buf
+   Vendoring memchr v2.8.3 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/memchr-2.8.3) to /tmp/payload/vendor-src/memchr
+   Vendoring memmap2 v0.9.11 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/memmap2-0.9.11) to /tmp/payload/vendor-src/memmap2
+   Vendoring memoffset v0.7.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/memoffset-0.7.1) to /tmp/payload/vendor-src/memoffset-0.7.1
+   Vendoring memoffset v0.9.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/memoffset-0.9.1) to /tmp/payload/vendor-src/memoffset
+   Vendoring metal v0.27.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/metal-0.27.0) to /tmp/payload/vendor-src/metal
+   Vendoring miniz_oxide v0.8.9 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/miniz_oxide-0.8.9) to /tmp/payload/vendor-src/miniz_oxide-0.8.9
+   Vendoring miniz_oxide v0.9.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/miniz_oxide-0.9.1) to /tmp/payload/vendor-src/miniz_oxide
+   Vendoring naga v0.19.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/naga-0.19.2) to /tmp/payload/vendor-src/naga
+   Vendoring ndk v0.8.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ndk-0.8.0) to /tmp/payload/vendor-src/ndk
+   Vendoring ndk-context v0.1.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ndk-context-0.1.1) to /tmp/payload/vendor-src/ndk-context
+   Vendoring ndk-sys v0.5.0+25.2.9519653 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ndk-sys-0.5.0+25.2.9519653) to /tmp/payload/vendor-src/ndk-sys
+   Vendoring nix v0.26.4 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/nix-0.26.4) to /tmp/payload/vendor-src/nix-0.26.4
+   Vendoring nix v0.29.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/nix-0.29.0) to /tmp/payload/vendor-src/nix
+   Vendoring nohash-hasher v0.2.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/nohash-hasher-0.2.0) to /tmp/payload/vendor-src/nohash-hasher
+   Vendoring num-traits v0.2.19 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/num-traits-0.2.19) to /tmp/payload/vendor-src/num-traits
+   Vendoring num_enum v0.7.6 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/num_enum-0.7.6) to /tmp/payload/vendor-src/num_enum
+   Vendoring num_enum_derive v0.7.6 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/num_enum_derive-0.7.6) to /tmp/payload/vendor-src/num_enum_derive
+   Vendoring objc v0.2.7 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc-0.2.7) to /tmp/payload/vendor-src/objc
+   Vendoring objc-foundation v0.1.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc-foundation-0.1.1) to /tmp/payload/vendor-src/objc-foundation
+   Vendoring objc-sys v0.2.0-beta.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc-sys-0.2.0-beta.2) to /tmp/payload/vendor-src/objc-sys-0.2.0-beta.2
+   Vendoring objc-sys v0.3.5 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc-sys-0.3.5) to /tmp/payload/vendor-src/objc-sys
+   Vendoring objc2 v0.3.0-beta.3.patch-leaks.3 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-0.3.0-beta.3.patch-leaks.3) to /tmp/payload/vendor-src/objc2-0.3.0-beta.3.patch-leaks.3
+   Vendoring objc2 v0.4.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-0.4.1) to /tmp/payload/vendor-src/objc2-0.4.1
+   Vendoring objc2 v0.6.4 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-0.6.4) to /tmp/payload/vendor-src/objc2
+   Vendoring objc2-app-kit v0.3.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-app-kit-0.3.2) to /tmp/payload/vendor-src/objc2-app-kit
+   Vendoring objc2-core-foundation v0.3.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-core-foundation-0.3.2) to /tmp/payload/vendor-src/objc2-core-foundation
+   Vendoring objc2-core-graphics v0.3.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-core-graphics-0.3.2) to /tmp/payload/vendor-src/objc2-core-graphics
+   Vendoring objc2-encode v2.0.0-pre.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-encode-2.0.0-pre.2) to /tmp/payload/vendor-src/objc2-encode-2.0.0-pre.2
+   Vendoring objc2-encode v3.0.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-encode-3.0.0) to /tmp/payload/vendor-src/objc2-encode-3.0.0
+   Vendoring objc2-encode v4.1.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-encode-4.1.0) to /tmp/payload/vendor-src/objc2-encode
+   Vendoring objc2-foundation v0.3.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-foundation-0.3.2) to /tmp/payload/vendor-src/objc2-foundation
+   Vendoring objc2-io-surface v0.3.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-io-surface-0.3.2) to /tmp/payload/vendor-src/objc2-io-surface
+   Vendoring objc_exception v0.1.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc_exception-0.1.2) to /tmp/payload/vendor-src/objc_exception
+   Vendoring objc_id v0.1.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc_id-0.1.1) to /tmp/payload/vendor-src/objc_id
+   Vendoring once_cell v1.21.4 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/once_cell-1.21.4) to /tmp/payload/vendor-src/once_cell
+   Vendoring option-ext v0.2.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/option-ext-0.2.0) to /tmp/payload/vendor-src/option-ext
+   Vendoring orbclient v0.3.55 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/orbclient-0.3.55) to /tmp/payload/vendor-src/orbclient
+   Vendoring ordered-stream v0.2.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ordered-stream-0.2.0) to /tmp/payload/vendor-src/ordered-stream
+   Vendoring owned_ttf_parser v0.25.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/owned_ttf_parser-0.25.1) to /tmp/payload/vendor-src/owned_ttf_parser
+   Vendoring parking v2.2.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/parking-2.2.1) to /tmp/payload/vendor-src/parking
+   Vendoring parking_lot v0.12.5 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/parking_lot-0.12.5) to /tmp/payload/vendor-src/parking_lot
+   Vendoring parking_lot_core v0.9.12 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/parking_lot_core-0.9.12) to /tmp/payload/vendor-src/parking_lot_core
+   Vendoring paste v1.0.15 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/paste-1.0.15) to /tmp/payload/vendor-src/paste
+   Vendoring percent-encoding v2.3.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/percent-encoding-2.3.2) to /tmp/payload/vendor-src/percent-encoding
+   Vendoring pin-project-lite v0.2.17 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pin-project-lite-0.2.17) to /tmp/payload/vendor-src/pin-project-lite
+   Vendoring piper v0.2.5 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/piper-0.2.5) to /tmp/payload/vendor-src/piper
+   Vendoring pkg-config v0.3.34 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pkg-config-0.3.34) to /tmp/payload/vendor-src/pkg-config
+   Vendoring plain v0.2.3 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/plain-0.2.3) to /tmp/payload/vendor-src/plain
+   Vendoring png v0.17.16 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/png-0.17.16) to /tmp/payload/vendor-src/png
+   Vendoring polling v2.8.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polling-2.8.0) to /tmp/payload/vendor-src/polling-2.8.0
+   Vendoring polling v3.11.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polling-3.11.0) to /tmp/payload/vendor-src/polling
+   Vendoring pollster v0.3.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pollster-0.3.0) to /tmp/payload/vendor-src/pollster
+   Vendoring potential_utf v0.1.6 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/potential_utf-0.1.6) to /tmp/payload/vendor-src/potential_utf
+   Vendoring ppv-lite86 v0.2.21 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ppv-lite86-0.2.21) to /tmp/payload/vendor-src/ppv-lite86
+   Vendoring presser v0.3.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/presser-0.3.1) to /tmp/payload/vendor-src/presser
+   Vendoring proc-macro-crate v1.3.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/proc-macro-crate-1.3.1) to /tmp/payload/vendor-src/proc-macro-crate-1.3.1
+   Vendoring proc-macro-crate v3.5.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/proc-macro-crate-3.5.0) to /tmp/payload/vendor-src/proc-macro-crate
+   Vendoring proc-macro2 v1.0.107 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/proc-macro2-1.0.107) to /tmp/payload/vendor-src/proc-macro2
+   Vendoring profiling v1.0.18 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/profiling-1.0.18) to /tmp/payload/vendor-src/profiling
+   Vendoring quick-xml v0.41.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/quick-xml-0.41.0) to /tmp/payload/vendor-src/quick-xml
+   Vendoring quote v1.0.47 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/quote-1.0.47) to /tmp/payload/vendor-src/quote
+   Vendoring r-efi v5.3.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/r-efi-5.3.0) to /tmp/payload/vendor-src/r-efi-5.3.0
+   Vendoring r-efi v6.0.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/r-efi-6.0.0) to /tmp/payload/vendor-src/r-efi
+   Vendoring rand v0.8.8 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rand-0.8.8) to /tmp/payload/vendor-src/rand
+   Vendoring rand_chacha v0.3.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rand_chacha-0.3.1) to /tmp/payload/vendor-src/rand_chacha
+   Vendoring rand_core v0.6.4 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rand_core-0.6.4) to /tmp/payload/vendor-src/rand_core
+   Vendoring raw-window-handle v0.5.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/raw-window-handle-0.5.2) to /tmp/payload/vendor-src/raw-window-handle-0.5.2
+   Vendoring raw-window-handle v0.6.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/raw-window-handle-0.6.2) to /tmp/payload/vendor-src/raw-window-handle
+   Vendoring redox_syscall v0.3.5 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/redox_syscall-0.3.5) to /tmp/payload/vendor-src/redox_syscall-0.3.5
+   Vendoring redox_syscall v0.5.18 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/redox_syscall-0.5.18) to /tmp/payload/vendor-src/redox_syscall-0.5.18
+   Vendoring redox_syscall v0.9.4 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/redox_syscall-0.9.4) to /tmp/payload/vendor-src/redox_syscall
+   Vendoring redox_users v0.4.6 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/redox_users-0.4.6) to /tmp/payload/vendor-src/redox_users
+   Vendoring regex v1.13.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/regex-1.13.1) to /tmp/payload/vendor-src/regex
+   Vendoring regex-automata v0.4.18 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/regex-automata-0.4.18) to /tmp/payload/vendor-src/regex-automata
+   Vendoring regex-syntax v0.8.11 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/regex-syntax-0.8.11) to /tmp/payload/vendor-src/regex-syntax
+   Vendoring renderdoc-sys v1.1.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/renderdoc-sys-1.1.0) to /tmp/payload/vendor-src/renderdoc-sys
+   Vendoring rfd v0.14.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rfd-0.14.1) to /tmp/payload/vendor-src/rfd
+   Vendoring ropey v1.6.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ropey-1.6.1) to /tmp/payload/vendor-src/ropey
+   Vendoring roxmltree v0.20.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/roxmltree-0.20.0) to /tmp/payload/vendor-src/roxmltree
+   Vendoring rustc-hash v1.1.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rustc-hash-1.1.0) to /tmp/payload/vendor-src/rustc-hash-1.1.0
+   Vendoring rustc-hash v2.1.3 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rustc-hash-2.1.3) to /tmp/payload/vendor-src/rustc-hash
+   Vendoring rustix v0.37.28 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rustix-0.37.28) to /tmp/payload/vendor-src/rustix-0.37.28
+   Vendoring rustix v0.38.44 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rustix-0.38.44) to /tmp/payload/vendor-src/rustix-0.38.44
+   Vendoring rustix v1.1.5 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rustix-1.1.5) to /tmp/payload/vendor-src/rustix
+   Vendoring rustversion v1.0.23 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rustversion-1.0.23) to /tmp/payload/vendor-src/rustversion
+   Vendoring same-file v1.0.6 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/same-file-1.0.6) to /tmp/payload/vendor-src/same-file
+   Vendoring scoped-tls v1.0.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scoped-tls-1.0.1) to /tmp/payload/vendor-src/scoped-tls
+   Vendoring scopeguard v1.2.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scopeguard-1.2.0) to /tmp/payload/vendor-src/scopeguard
+   Vendoring sctk-adwaita v0.8.3 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sctk-adwaita-0.8.3) to /tmp/payload/vendor-src/sctk-adwaita
+   Vendoring serde v1.0.229 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229) to /tmp/payload/vendor-src/serde
+   Vendoring serde_core v1.0.229 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_core-1.0.229) to /tmp/payload/vendor-src/serde_core
+   Vendoring serde_derive v1.0.229 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_derive-1.0.229) to /tmp/payload/vendor-src/serde_derive
+   Vendoring serde_json v1.0.151 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.151) to /tmp/payload/vendor-src/serde_json
+   Vendoring serde_repr v0.1.21 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_repr-0.1.21) to /tmp/payload/vendor-src/serde_repr
+   Vendoring serde_spanned v0.6.9 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_spanned-0.6.9) to /tmp/payload/vendor-src/serde_spanned
+   Vendoring sha1 v0.10.7 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sha1-0.10.7) to /tmp/payload/vendor-src/sha1
+   Vendoring shlex v2.0.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/shlex-2.0.1) to /tmp/payload/vendor-src/shlex
+   Vendoring signal-hook-registry v1.4.8 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/signal-hook-registry-1.4.8) to /tmp/payload/vendor-src/signal-hook-registry
+   Vendoring simd-adler32 v0.3.10 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/simd-adler32-0.3.10) to /tmp/payload/vendor-src/simd-adler32
+   Vendoring slab v0.4.12 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slab-0.4.12) to /tmp/payload/vendor-src/slab
+   Vendoring slotmap v1.1.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slotmap-1.1.1) to /tmp/payload/vendor-src/slotmap
+   Vendoring smallvec v1.16.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/smallvec-1.16.2) to /tmp/payload/vendor-src/smallvec
+   Vendoring smithay-client-toolkit v0.18.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/smithay-client-toolkit-0.18.1) to /tmp/payload/vendor-src/smithay-client-toolkit-0.18.1
+   Vendoring smithay-client-toolkit v0.20.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/smithay-client-toolkit-0.20.0) to /tmp/payload/vendor-src/smithay-client-toolkit
+   Vendoring smithay-clipboard v0.7.3 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/smithay-clipboard-0.7.3) to /tmp/payload/vendor-src/smithay-clipboard
+   Vendoring smol_str v0.2.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/smol_str-0.2.2) to /tmp/payload/vendor-src/smol_str
+   Vendoring socket2 v0.4.10 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/socket2-0.4.10) to /tmp/payload/vendor-src/socket2
+   Vendoring spirv v0.3.0+sdk-1.3.268.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spirv-0.3.0+sdk-1.3.268.0) to /tmp/payload/vendor-src/spirv
+   Vendoring stable_deref_trait v1.2.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/stable_deref_trait-1.2.1) to /tmp/payload/vendor-src/stable_deref_trait
+   Vendoring static_assertions v1.1.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/static_assertions-1.1.0) to /tmp/payload/vendor-src/static_assertions
+   Vendoring str_indices v0.4.4 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/str_indices-0.4.4) to /tmp/payload/vendor-src/str_indices
+   Vendoring strict-num v0.1.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/strict-num-0.1.1) to /tmp/payload/vendor-src/strict-num
+   Vendoring syn v1.0.109 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/syn-1.0.109) to /tmp/payload/vendor-src/syn-1.0.109
+   Vendoring syn v2.0.119 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/syn-2.0.119) to /tmp/payload/vendor-src/syn-2.0.119
+   Vendoring syn v3.0.6 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/syn-3.0.6) to /tmp/payload/vendor-src/syn
+   Vendoring synstructure v0.14.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/synstructure-0.14.0) to /tmp/payload/vendor-src/synstructure
+   Vendoring tempfile v3.27.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tempfile-3.27.0) to /tmp/payload/vendor-src/tempfile
+   Vendoring termcolor v1.4.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/termcolor-1.4.1) to /tmp/payload/vendor-src/termcolor
+   Vendoring thiserror v1.0.69 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69) to /tmp/payload/vendor-src/thiserror-1.0.69
+   Vendoring thiserror v2.0.21 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21) to /tmp/payload/vendor-src/thiserror
+   Vendoring thiserror-impl v1.0.69 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-1.0.69) to /tmp/payload/vendor-src/thiserror-impl-1.0.69
+   Vendoring thiserror-impl v2.0.21 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.21) to /tmp/payload/vendor-src/thiserror-impl
+   Vendoring tiny-skia v0.11.4 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tiny-skia-0.11.4) to /tmp/payload/vendor-src/tiny-skia
+   Vendoring tiny-skia-path v0.11.4 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tiny-skia-path-0.11.4) to /tmp/payload/vendor-src/tiny-skia-path
+   Vendoring tinystr v0.8.4 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinystr-0.8.4) to /tmp/payload/vendor-src/tinystr
+   Vendoring tinyvec v1.13.3 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinyvec-1.13.3) to /tmp/payload/vendor-src/tinyvec
+   Vendoring tokio v1.53.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1) to /tmp/payload/vendor-src/tokio
+   Vendoring tokio-macros v2.7.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-macros-2.7.2) to /tmp/payload/vendor-src/tokio-macros
+   Vendoring toml v0.8.23 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml-0.8.23) to /tmp/payload/vendor-src/toml
+   Vendoring toml_datetime v0.6.11 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_datetime-0.6.11) to /tmp/payload/vendor-src/toml_datetime-0.6.11
+   Vendoring toml_datetime v1.1.1+spec-1.1.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_datetime-1.1.1+spec-1.1.0) to /tmp/payload/vendor-src/toml_datetime
+   Vendoring toml_edit v0.19.15 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_edit-0.19.15) to /tmp/payload/vendor-src/toml_edit-0.19.15
+   Vendoring toml_edit v0.22.27 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_edit-0.22.27) to /tmp/payload/vendor-src/toml_edit-0.22.27
+   Vendoring toml_edit v0.25.15+spec-1.1.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_edit-0.25.15+spec-1.1.0) to /tmp/payload/vendor-src/toml_edit
+   Vendoring toml_parser v1.1.3+spec-1.1.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_parser-1.1.3+spec-1.1.0) to /tmp/payload/vendor-src/toml_parser
+   Vendoring toml_write v0.1.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.2) to /tmp/payload/vendor-src/toml_write
+   Vendoring tracing v0.1.44 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tracing-0.1.44) to /tmp/payload/vendor-src/tracing
+   Vendoring tracing-attributes v0.1.31 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tracing-attributes-0.1.31) to /tmp/payload/vendor-src/tracing-attributes
+   Vendoring tracing-core v0.1.36 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tracing-core-0.1.36) to /tmp/payload/vendor-src/tracing-core
+   Vendoring ttf-parser v0.20.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ttf-parser-0.20.0) to /tmp/payload/vendor-src/ttf-parser-0.20.0
+   Vendoring ttf-parser v0.25.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ttf-parser-0.25.1) to /tmp/payload/vendor-src/ttf-parser
+   Vendoring type-map v0.5.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/type-map-0.5.1) to /tmp/payload/vendor-src/type-map
+   Vendoring typenum v1.20.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/typenum-1.20.1) to /tmp/payload/vendor-src/typenum
+   Vendoring uds_windows v1.2.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uds_windows-1.2.1) to /tmp/payload/vendor-src/uds_windows
+   Vendoring unicode-ident v1.0.26 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unicode-ident-1.0.26) to /tmp/payload/vendor-src/unicode-ident
+   Vendoring unicode-normalization v0.1.25 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unicode-normalization-0.1.25) to /tmp/payload/vendor-src/unicode-normalization
+   Vendoring unicode-segmentation v1.13.3 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unicode-segmentation-1.13.3) to /tmp/payload/vendor-src/unicode-segmentation
+   Vendoring unicode-width v0.1.14 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unicode-width-0.1.14) to /tmp/payload/vendor-src/unicode-width
+   Vendoring unicode-xid v0.2.6 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unicode-xid-0.2.6) to /tmp/payload/vendor-src/unicode-xid
+   Vendoring url v2.5.8 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/url-2.5.8) to /tmp/payload/vendor-src/url
+   Vendoring urlencoding v2.1.3 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/urlencoding-2.1.3) to /tmp/payload/vendor-src/urlencoding
+   Vendoring utf8_iter v1.0.4 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/utf8_iter-1.0.4) to /tmp/payload/vendor-src/utf8_iter
+   Vendoring version_check v0.9.5 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/version_check-0.9.5) to /tmp/payload/vendor-src/version_check
+   Vendoring waker-fn v1.2.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/waker-fn-1.2.0) to /tmp/payload/vendor-src/waker-fn
+   Vendoring walkdir v2.5.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/walkdir-2.5.0) to /tmp/payload/vendor-src/walkdir
+   Vendoring wasi v0.11.1+wasi-snapshot-preview1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wasi-0.11.1+wasi-snapshot-preview1) to /tmp/payload/vendor-src/wasi
+   Vendoring wasip2 v1.0.4+wasi-0.2.12 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wasip2-1.0.4+wasi-0.2.12) to /tmp/payload/vendor-src/wasip2
+   Vendoring wasm-bindgen v0.2.129 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wasm-bindgen-0.2.129) to /tmp/payload/vendor-src/wasm-bindgen
+   Vendoring wasm-bindgen-futures v0.4.79 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wasm-bindgen-futures-0.4.79) to /tmp/payload/vendor-src/wasm-bindgen-futures
+   Vendoring wasm-bindgen-macro v0.2.129 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wasm-bindgen-macro-0.2.129) to /tmp/payload/vendor-src/wasm-bindgen-macro
+   Vendoring wasm-bindgen-macro-support v0.2.129 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wasm-bindgen-macro-support-0.2.129) to /tmp/payload/vendor-src/wasm-bindgen-macro-support
+   Vendoring wasm-bindgen-shared v0.2.129 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wasm-bindgen-shared-0.2.129) to /tmp/payload/vendor-src/wasm-bindgen-shared
+   Vendoring wayland-backend v0.3.17 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-backend-0.3.17) to /tmp/payload/vendor-src/wayland-backend
+   Vendoring wayland-client v0.31.15 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-client-0.31.15) to /tmp/payload/vendor-src/wayland-client
+   Vendoring wayland-csd-frame v0.3.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-csd-frame-0.3.0) to /tmp/payload/vendor-src/wayland-csd-frame
+   Vendoring wayland-cursor v0.31.14 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-cursor-0.31.14) to /tmp/payload/vendor-src/wayland-cursor
+   Vendoring wayland-protocols v0.31.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-protocols-0.31.2) to /tmp/payload/vendor-src/wayland-protocols-0.31.2
+   Vendoring wayland-protocols v0.32.13 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-protocols-0.32.13) to /tmp/payload/vendor-src/wayland-protocols
+   Vendoring wayland-protocols-experimental v20250721.0.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-protocols-experimental-20250721.0.1) to /tmp/payload/vendor-src/wayland-protocols-experimental
+   Vendoring wayland-protocols-misc v0.3.12 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-protocols-misc-0.3.12) to /tmp/payload/vendor-src/wayland-protocols-misc
+   Vendoring wayland-protocols-plasma v0.2.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-protocols-plasma-0.2.0) to /tmp/payload/vendor-src/wayland-protocols-plasma
+   Vendoring wayland-protocols-wlr v0.2.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-protocols-wlr-0.2.0) to /tmp/payload/vendor-src/wayland-protocols-wlr-0.2.0
+   Vendoring wayland-protocols-wlr v0.3.12 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-protocols-wlr-0.3.12) to /tmp/payload/vendor-src/wayland-protocols-wlr
+   Vendoring wayland-scanner v0.31.11 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-scanner-0.31.11) to /tmp/payload/vendor-src/wayland-scanner
+   Vendoring wayland-sys v0.31.11 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-sys-0.31.11) to /tmp/payload/vendor-src/wayland-sys
+   Vendoring web-sys v0.3.106 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.106) to /tmp/payload/vendor-src/web-sys
+   Vendoring web-time v0.2.4 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-time-0.2.4) to /tmp/payload/vendor-src/web-time
+   Vendoring webbrowser v0.8.15 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/webbrowser-0.8.15) to /tmp/payload/vendor-src/webbrowser
+   Vendoring wgpu v0.19.4 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wgpu-0.19.4) to /tmp/payload/vendor-src/wgpu
+   Vendoring wgpu-core v0.19.4 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wgpu-core-0.19.4) to /tmp/payload/vendor-src/wgpu-core
+   Vendoring wgpu-hal v0.19.5 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wgpu-hal-0.19.5) to /tmp/payload/vendor-src/wgpu-hal
+   Vendoring wgpu-types v0.19.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wgpu-types-0.19.2) to /tmp/payload/vendor-src/wgpu-types
+   Vendoring widestring v1.2.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/widestring-1.2.1) to /tmp/payload/vendor-src/widestring
+   Vendoring winapi v0.3.9 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/winapi-0.3.9) to /tmp/payload/vendor-src/winapi
+   Vendoring winapi-i686-pc-windows-gnu v0.4.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/winapi-i686-pc-windows-gnu-0.4.0) to /tmp/payload/vendor-src/winapi-i686-pc-windows-gnu
+   Vendoring winapi-util v0.1.11 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/winapi-util-0.1.11) to /tmp/payload/vendor-src/winapi-util
+   Vendoring winapi-x86_64-pc-windows-gnu v0.4.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/winapi-x86_64-pc-windows-gnu-0.4.0) to /tmp/payload/vendor-src/winapi-x86_64-pc-windows-gnu
+   Vendoring windows v0.48.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-0.48.0) to /tmp/payload/vendor-src/windows-0.48.0
+   Vendoring windows v0.52.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-0.52.0) to /tmp/payload/vendor-src/windows
+   Vendoring windows-core v0.52.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-core-0.52.0) to /tmp/payload/vendor-src/windows-core
+   Vendoring windows-implement v0.48.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-implement-0.48.0) to /tmp/payload/vendor-src/windows-implement
+   Vendoring windows-interface v0.48.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-interface-0.48.0) to /tmp/payload/vendor-src/windows-interface
+   Vendoring windows-link v0.2.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-link-0.2.1) to /tmp/payload/vendor-src/windows-link
+   Vendoring windows-sys v0.45.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-sys-0.45.0) to /tmp/payload/vendor-src/windows-sys-0.45.0
+   Vendoring windows-sys v0.48.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-sys-0.48.0) to /tmp/payload/vendor-src/windows-sys-0.48.0
+   Vendoring windows-sys v0.52.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-sys-0.52.0) to /tmp/payload/vendor-src/windows-sys-0.52.0
+   Vendoring windows-sys v0.59.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-sys-0.59.0) to /tmp/payload/vendor-src/windows-sys-0.59.0
+   Vendoring windows-sys v0.60.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-sys-0.60.2) to /tmp/payload/vendor-src/windows-sys-0.60.2
+   Vendoring windows-sys v0.61.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-sys-0.61.2) to /tmp/payload/vendor-src/windows-sys
+   Vendoring windows-targets v0.42.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-targets-0.42.2) to /tmp/payload/vendor-src/windows-targets-0.42.2
+   Vendoring windows-targets v0.48.5 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-targets-0.48.5) to /tmp/payload/vendor-src/windows-targets-0.48.5
+   Vendoring windows-targets v0.52.6 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-targets-0.52.6) to /tmp/payload/vendor-src/windows-targets-0.52.6
+   Vendoring windows-targets v0.53.5 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-targets-0.53.5) to /tmp/payload/vendor-src/windows-targets
+   Vendoring windows_aarch64_gnullvm v0.42.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_aarch64_gnullvm-0.42.2) to /tmp/payload/vendor-src/windows_aarch64_gnullvm-0.42.2
+   Vendoring windows_aarch64_gnullvm v0.48.5 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_aarch64_gnullvm-0.48.5) to /tmp/payload/vendor-src/windows_aarch64_gnullvm-0.48.5
+   Vendoring windows_aarch64_gnullvm v0.52.6 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_aarch64_gnullvm-0.52.6) to /tmp/payload/vendor-src/windows_aarch64_gnullvm-0.52.6
+   Vendoring windows_aarch64_gnullvm v0.53.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_aarch64_gnullvm-0.53.1) to /tmp/payload/vendor-src/windows_aarch64_gnullvm
+   Vendoring windows_aarch64_msvc v0.42.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_aarch64_msvc-0.42.2) to /tmp/payload/vendor-src/windows_aarch64_msvc-0.42.2
+   Vendoring windows_aarch64_msvc v0.48.5 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_aarch64_msvc-0.48.5) to /tmp/payload/vendor-src/windows_aarch64_msvc-0.48.5
+   Vendoring windows_aarch64_msvc v0.52.6 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_aarch64_msvc-0.52.6) to /tmp/payload/vendor-src/windows_aarch64_msvc-0.52.6
+   Vendoring windows_aarch64_msvc v0.53.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_aarch64_msvc-0.53.1) to /tmp/payload/vendor-src/windows_aarch64_msvc
+   Vendoring windows_i686_gnu v0.42.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_i686_gnu-0.42.2) to /tmp/payload/vendor-src/windows_i686_gnu-0.42.2
+   Vendoring windows_i686_gnu v0.48.5 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_i686_gnu-0.48.5) to /tmp/payload/vendor-src/windows_i686_gnu-0.48.5
+   Vendoring windows_i686_gnu v0.52.6 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_i686_gnu-0.52.6) to /tmp/payload/vendor-src/windows_i686_gnu-0.52.6
+   Vendoring windows_i686_gnu v0.53.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_i686_gnu-0.53.1) to /tmp/payload/vendor-src/windows_i686_gnu
+   Vendoring windows_i686_gnullvm v0.52.6 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_i686_gnullvm-0.52.6) to /tmp/payload/vendor-src/windows_i686_gnullvm-0.52.6
+   Vendoring windows_i686_gnullvm v0.53.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_i686_gnullvm-0.53.1) to /tmp/payload/vendor-src/windows_i686_gnullvm
+   Vendoring windows_i686_msvc v0.42.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_i686_msvc-0.42.2) to /tmp/payload/vendor-src/windows_i686_msvc-0.42.2
+   Vendoring windows_i686_msvc v0.48.5 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_i686_msvc-0.48.5) to /tmp/payload/vendor-src/windows_i686_msvc-0.48.5
+   Vendoring windows_i686_msvc v0.52.6 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_i686_msvc-0.52.6) to /tmp/payload/vendor-src/windows_i686_msvc-0.52.6
+   Vendoring windows_i686_msvc v0.53.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_i686_msvc-0.53.1) to /tmp/payload/vendor-src/windows_i686_msvc
+   Vendoring windows_x86_64_gnu v0.42.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_x86_64_gnu-0.42.2) to /tmp/payload/vendor-src/windows_x86_64_gnu-0.42.2
+   Vendoring windows_x86_64_gnu v0.48.5 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_x86_64_gnu-0.48.5) to /tmp/payload/vendor-src/windows_x86_64_gnu-0.48.5
+   Vendoring windows_x86_64_gnu v0.52.6 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_x86_64_gnu-0.52.6) to /tmp/payload/vendor-src/windows_x86_64_gnu-0.52.6
+   Vendoring windows_x86_64_gnu v0.53.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_x86_64_gnu-0.53.1) to /tmp/payload/vendor-src/windows_x86_64_gnu
+   Vendoring windows_x86_64_gnullvm v0.42.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_x86_64_gnullvm-0.42.2) to /tmp/payload/vendor-src/windows_x86_64_gnullvm-0.42.2
+   Vendoring windows_x86_64_gnullvm v0.48.5 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_x86_64_gnullvm-0.48.5) to /tmp/payload/vendor-src/windows_x86_64_gnullvm-0.48.5
+   Vendoring windows_x86_64_gnullvm v0.52.6 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_x86_64_gnullvm-0.52.6) to /tmp/payload/vendor-src/windows_x86_64_gnullvm-0.52.6
+   Vendoring windows_x86_64_gnullvm v0.53.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_x86_64_gnullvm-0.53.1) to /tmp/payload/vendor-src/windows_x86_64_gnullvm
+   Vendoring windows_x86_64_msvc v0.42.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_x86_64_msvc-0.42.2) to /tmp/payload/vendor-src/windows_x86_64_msvc-0.42.2
+   Vendoring windows_x86_64_msvc v0.48.5 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_x86_64_msvc-0.48.5) to /tmp/payload/vendor-src/windows_x86_64_msvc-0.48.5
+   Vendoring windows_x86_64_msvc v0.52.6 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_x86_64_msvc-0.52.6) to /tmp/payload/vendor-src/windows_x86_64_msvc-0.52.6
+   Vendoring windows_x86_64_msvc v0.53.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_x86_64_msvc-0.53.1) to /tmp/payload/vendor-src/windows_x86_64_msvc
+   Vendoring winit v0.29.15 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/winit-0.29.15) to /tmp/payload/vendor-src/winit
+   Vendoring winnow v0.5.40 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/winnow-0.5.40) to /tmp/payload/vendor-src/winnow-0.5.40
+   Vendoring winnow v0.7.15 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/winnow-0.7.15) to /tmp/payload/vendor-src/winnow-0.7.15
+   Vendoring winnow v1.0.4 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/winnow-1.0.4) to /tmp/payload/vendor-src/winnow
+   Vendoring wit-bindgen v0.57.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wit-bindgen-0.57.1) to /tmp/payload/vendor-src/wit-bindgen
+   Vendoring writeable v0.6.4 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/writeable-0.6.4) to /tmp/payload/vendor-src/writeable
+   Vendoring x11-dl v2.21.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/x11-dl-2.21.0) to /tmp/payload/vendor-src/x11-dl
+   Vendoring x11rb v0.13.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/x11rb-0.13.2) to /tmp/payload/vendor-src/x11rb
+   Vendoring x11rb-protocol v0.13.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/x11rb-protocol-0.13.2) to /tmp/payload/vendor-src/x11rb-protocol
+   Vendoring xcursor v0.3.11 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xcursor-0.3.11) to /tmp/payload/vendor-src/xcursor
+   Vendoring xdg-home v1.3.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xdg-home-1.3.0) to /tmp/payload/vendor-src/xdg-home
+   Vendoring xkbcommon-dl v0.4.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xkbcommon-dl-0.4.2) to /tmp/payload/vendor-src/xkbcommon-dl
+   Vendoring xkeysym v0.2.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xkeysym-0.2.1) to /tmp/payload/vendor-src/xkeysym
+   Vendoring xml-rs v0.8.29 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xml-rs-0.8.29) to /tmp/payload/vendor-src/xml-rs
+   Vendoring yoke v0.8.3 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yoke-0.8.3) to /tmp/payload/vendor-src/yoke
+   Vendoring yoke-derive v0.8.3 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yoke-derive-0.8.3) to /tmp/payload/vendor-src/yoke-derive
+   Vendoring zbus v3.15.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zbus-3.15.2) to /tmp/payload/vendor-src/zbus-3.15.2
+   Vendoring zbus v4.4.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zbus-4.4.0) to /tmp/payload/vendor-src/zbus
+   Vendoring zbus_macros v3.15.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zbus_macros-3.15.2) to /tmp/payload/vendor-src/zbus_macros-3.15.2
+   Vendoring zbus_macros v4.4.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zbus_macros-4.4.0) to /tmp/payload/vendor-src/zbus_macros
+   Vendoring zbus_names v2.6.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zbus_names-2.6.1) to /tmp/payload/vendor-src/zbus_names-2.6.1
+   Vendoring zbus_names v3.0.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zbus_names-3.0.0) to /tmp/payload/vendor-src/zbus_names
+   Vendoring zerocopy v0.8.59 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerocopy-0.8.59) to /tmp/payload/vendor-src/zerocopy
+   Vendoring zerocopy-derive v0.8.59 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerocopy-derive-0.8.59) to /tmp/payload/vendor-src/zerocopy-derive
+   Vendoring zerofrom v0.1.8 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerofrom-0.1.8) to /tmp/payload/vendor-src/zerofrom
+   Vendoring zerofrom-derive v0.1.8 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerofrom-derive-0.1.8) to /tmp/payload/vendor-src/zerofrom-derive
+   Vendoring zerotrie v0.2.5 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerotrie-0.2.5) to /tmp/payload/vendor-src/zerotrie
+   Vendoring zerovec v0.11.8 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerovec-0.11.8) to /tmp/payload/vendor-src/zerovec
+   Vendoring zerovec-derive v0.11.6 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerovec-derive-0.11.6) to /tmp/payload/vendor-src/zerovec-derive
+   Vendoring zip v2.4.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zip-2.4.2) to /tmp/payload/vendor-src/zip
+   Vendoring zlib-rs v0.6.8 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zlib-rs-0.6.8) to /tmp/payload/vendor-src/zlib-rs
+   Vendoring zmij v1.0.23 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zmij-1.0.23) to /tmp/payload/vendor-src/zmij
+   Vendoring zopfli v0.8.3 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zopfli-0.8.3) to /tmp/payload/vendor-src/zopfli
+   Vendoring zvariant v3.15.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zvariant-3.15.2) to /tmp/payload/vendor-src/zvariant-3.15.2
+   Vendoring zvariant v4.2.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zvariant-4.2.0) to /tmp/payload/vendor-src/zvariant
+   Vendoring zvariant_derive v3.15.2 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zvariant_derive-3.15.2) to /tmp/payload/vendor-src/zvariant_derive-3.15.2
+   Vendoring zvariant_derive v4.2.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zvariant_derive-4.2.0) to /tmp/payload/vendor-src/zvariant_derive
+   Vendoring zvariant_utils v1.0.1 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zvariant_utils-1.0.1) to /tmp/payload/vendor-src/zvariant_utils-1.0.1
+   Vendoring zvariant_utils v2.1.0 (/tmp/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zvariant_utils-2.1.0) to /tmp/payload/vendor-src/zvariant_utils
+To use vendored sources, add this to your .cargo/config.toml for this project:
+
+[source.crates-io]
+replace-with = "vendored-sources"
+
+[source.vendored-sources]
+directory = "/tmp/payload/vendor-src"
+crates=474
+1.1G	/tmp/payload/vendor-src
+-rw-r--r-- 1 root root 123580151 Oct 11 11:59 vendor.tar.gz
+extracted sysroot: 700M
+rustc  : rustc 1.99.0 (b940084d7 2026-09-28)
+cargo  : cargo 1.99.0 (5f94df478 2026-08-27)  (/tmp/verify/sysroot/bin/cargo)
+rustfmt: rustfmt 1.10.0-stable (b940084d7e 2026-09-28)
+clippy : clippy 0.1.99 (b940084d7e 2026-09-28)
+	linux-vdso.so.1 (0x00007ff893f67000)
+	libdl.so.2 => /lib/x86_64-linux-gnu/libdl.so.2 (0x00007ff8923e3000)
+	libgcc_s.so.1 => /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007ff8923c3000)
+	librt.so.1 => /lib/x86_64-linux-gnu/librt.so.1 (0x00007ff8923be000)
+	libpthread.so.0 => /lib/x86_64-linux-gnu/libpthread.so.0 (0x00007ff8923b9000)
+	libm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x00007ff8922d9000)
+	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007ff8920f5000)
+	/lib64/ld-linux-x86-64.so.2 (0x00007ff893f69000)
+--- SMOKE_CMD: cargo test --locked --all-targets && cargo check --locked --target wasm32-unknown-unknown ---
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.26
+   Compiling quote v1.0.47
+   Compiling cfg-if v1.0.5
+   Compiling libc v0.2.189
+   Compiling once_cell v1.21.4
+   Compiling syn v3.0.6
+   Compiling log v0.4.34
+   Compiling memchr v2.8.3
+   Compiling smallvec v1.16.2
+   Compiling autocfg v1.5.1
+   Compiling bitflags v2.13.2
+   Compiling syn v2.0.119
+   Compiling rustix v1.1.5
+   Compiling pin-project-lite v0.2.17
+   Compiling linux-raw-sys v0.12.1
+   Compiling version_check v0.9.5
+   Compiling pkg-config v0.3.34
+   Compiling libloading v0.8.9
+   Compiling equivalent v1.0.2
+   Compiling hashbrown v0.17.1
+   Compiling indexmap v2.14.2
+   Compiling futures-core v0.3.34
+   Compiling serde_core v1.0.229
+   Compiling slab v0.4.12
+   Compiling parking v2.2.1
+   Compiling dlib v0.5.3
+   Compiling wayland-sys v0.31.11
+   Compiling shlex v2.0.1
+   Compiling serde v1.0.229
+   Compiling find-msvc-tools v0.1.14
+   Compiling cc v1.5.1
+   Compiling serde_derive v1.0.229
+   Compiling synstructure v0.14.0
+   Compiling wayland-backend v0.3.17
+   Compiling crossbeam-utils v0.8.23
+   Compiling futures-io v0.3.34
+   Compiling zerocopy v0.8.59
+   Compiling zerofrom-derive v0.1.8
+   Compiling downcast-rs v1.2.1
+   Compiling scoped-tls v1.0.1
+   Compiling zerofrom v0.1.8
+   Compiling yoke-derive v0.8.3
+   Compiling quick-xml v0.41.0
+   Compiling wayland-client v0.31.15
+   Compiling stable_deref_trait v1.2.1
+   Compiling yoke v0.8.3
+   Compiling wayland-scanner v0.31.11
+   Compiling concurrent-queue v2.5.0
+   Compiling event-listener v5.4.2
+   Compiling fastrand v2.5.0
+   Compiling event-listener-strategy v0.5.4
+   Compiling zerovec-derive v0.11.6
+   Compiling displaydoc v0.2.7
+   Compiling zerovec v0.11.8
+   Compiling futures-lite v2.6.1
+   Compiling polling v3.11.0
+   Compiling generic-array v0.14.7
+   Compiling enumflags2_derive v0.7.12
+   Compiling tracing-attributes v0.1.31
+   Compiling tracing-core v0.1.36
+   Compiling typenum v1.20.1
+   Compiling atomic-waker v1.1.2
+   Compiling async-task v4.7.1
+   Compiling syn v1.0.109
+   Compiling piper v0.2.5
+   Compiling tracing v0.1.44
+   Compiling enumflags2 v0.7.12
+   Compiling async-channel v2.5.0
+   Compiling static_assertions v1.1.0
+   Compiling blocking v1.7.0
+   Compiling tinystr v0.8.4
+   Compiling bytemuck_derive v1.12.1
+   Compiling getrandom v0.2.17
+   Compiling toml_datetime v0.6.11
+   Compiling winnow v0.5.40
+   Compiling writeable v0.6.4
+   Compiling litemap v0.8.3
+   Compiling icu_locale_core v2.3.0
+   Compiling toml_edit v0.19.15
+   Compiling rand_core v0.6.4
+   Compiling bytemuck v1.25.2
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling potential_utf v0.1.6
+   Compiling zerotrie v0.2.5
+   Compiling ppv-lite86 v0.2.21
+   Compiling bitflags v1.3.2
+   Compiling regex-syntax v0.8.11
+   Compiling percent-encoding v2.3.2
+   Compiling icu_properties_data v2.3.0
+   Compiling icu_normalizer_data v2.3.0
+   Compiling utf8_iter v1.0.4
+   Compiling icu_collections v2.3.0
+   Compiling proc-macro-crate v1.3.1
+   Compiling rand_chacha v0.3.1
+   Compiling icu_provider v2.3.1
+   Compiling digest v0.10.7
+   Compiling zvariant_utils v1.0.1
+   Compiling futures-macro v0.3.34
+   Compiling io-lifetimes v1.0.11
+   Compiling futures-sink v0.3.34
+   Compiling futures-task v0.3.34
+   Compiling event-listener v2.5.3
+   Compiling cpufeatures v0.2.17
+   Compiling sha1 v0.10.7
+   Compiling futures-util v0.3.34
+   Compiling rand v0.8.8
+   Compiling async-executor v1.14.0
+   Compiling ordered-stream v0.2.0
+   Compiling serde_repr v0.1.21
+   Compiling async-trait v0.1.92
+   Compiling memoffset v0.7.1
+   Compiling polling v2.8.0
+   Compiling aho-corasick v1.1.5
+   Compiling xdg-home v1.3.0
+   Compiling hex v0.4.3
+   Compiling cfg_aliases v0.1.1
+   Compiling waker-fn v1.2.0
+   Compiling fastrand v1.9.0
+   Compiling khronos_api v3.1.0
+   Compiling byteorder v1.5.0
+   Compiling rustix v0.37.28
+   Compiling regex-automata v0.4.18
+   Compiling futures-lite v1.13.0
+   Compiling icu_normalizer v2.3.0
+   Compiling icu_properties v2.3.0
+   Compiling async-lock v2.8.0
+   Compiling zvariant_derive v3.15.2
+   Compiling async-io v1.13.0
+   Compiling async-fs v1.6.0
+   Compiling getrandom v0.3.4
+   Compiling ttf-parser v0.25.1
+   Compiling linux-raw-sys v0.3.8
+   Compiling thiserror v1.0.69
+   Compiling rustix v0.38.44
+   Compiling owned_ttf_parser v0.25.1
+   Compiling zvariant v3.15.2
+   Compiling idna_adapter v1.2.2
+   Compiling regex v1.13.1
+   Compiling ahash v0.8.12
+   Compiling thiserror-impl v1.0.69
+   Compiling memmap2 v0.9.11
+   Compiling socket2 v0.4.10
+   Compiling xml-rs v0.8.29
+   Compiling cursor-icon v1.2.0
+   Compiling xkeysym v0.2.1
+   Compiling linux-raw-sys v0.4.15
+   Compiling winnow v1.0.4
+   Compiling xcursor v0.3.11
+   Compiling ab_glyph_rasterizer v0.1.10
+   Compiling gl_generator v0.14.0
+   Compiling toml_parser v1.1.3+spec-1.1.0
+   Compiling ab_glyph v0.2.32
+   Compiling wayland-cursor v0.31.14
+   Compiling wayland-csd-frame v0.3.0
+   Compiling zbus_names v2.6.1
+   Compiling nix v0.26.4
+   Compiling zbus_macros v3.15.2
+   Compiling idna v1.1.0
+   Compiling async-broadcast v0.5.1
+   Compiling form_urlencoded v1.2.2
+   Compiling derivative v2.2.0
+   Compiling wayland-protocols v0.31.2
+   Compiling x11-dl v2.21.0
+   Compiling async-recursion v1.1.1
+   Compiling simd-adler32 v0.3.10
+   Compiling toml_datetime v1.1.1+spec-1.1.0
+   Compiling parking_lot_core v0.9.12
+   Compiling toml_edit v0.25.15+spec-1.1.0
+   Compiling zbus v3.15.2
+   Compiling url v2.5.8
+   Compiling calloop v0.12.4
+   Compiling memoffset v0.9.1
+   Compiling smithay-client-toolkit v0.18.1
+   Compiling scopeguard v1.2.0
+   Compiling strict-num v0.1.1
+   Compiling crc32fast v1.5.2
+   Compiling arrayref v0.3.9
+   Compiling tiny-skia-path v0.11.4
+   Compiling lock_api v0.4.14
+   Compiling calloop-wayland-source v0.2.0
+   Compiling atspi-common v0.3.0
+   Compiling wayland-protocols-wlr v0.2.0
+   Compiling proc-macro-crate v3.5.0
+   Compiling wayland-protocols v0.32.13
+   Compiling gethostname v1.1.0
+   Compiling zvariant_utils v2.1.0
+   Compiling accesskit v0.12.3
+   Compiling as-raw-xcb-connection v1.0.1
+   Compiling adler2 v2.0.1
+   Compiling arrayvec v0.7.8
+   Compiling x11rb-protocol v0.13.2
+   Compiling thiserror v2.0.21
+   Compiling tiny-skia v0.11.4
+   Compiling parking_lot v0.12.5
+   Compiling x11rb v0.13.2
+   Compiling atspi-proxies v0.3.0
+   Compiling winit v0.29.15
+   Compiling thiserror-impl v2.0.21
+   Compiling async-io v2.6.0
+   Compiling raw-window-handle v0.6.2
+   Compiling cfg_aliases v0.2.2
+   Compiling raw-window-handle v0.5.2
+   Compiling nix v0.29.0
+   Compiling atspi-connection v0.3.0
+   Compiling sctk-adwaita v0.8.3
+   Compiling miniz_oxide v0.9.1
+   Compiling zvariant_derive v4.2.0
+   Compiling wayland-protocols-plasma v0.2.0
+   Compiling glutin_egl_sys v0.6.0
+   Compiling glutin_glx_sys v0.5.0
+   Compiling xkbcommon-dl v0.4.2
+   Compiling emath v0.27.2
+   Compiling ecolor v0.27.2
+   Compiling calloop v0.14.4
+   Compiling nohash-hasher v0.2.0
+   Compiling endi v1.1.1
+   Compiling smol_str v0.2.2
+   Compiling smithay-client-toolkit v0.20.0
+   Compiling calloop-wayland-source v0.4.1
+   Compiling zvariant v4.2.0
+   Compiling epaint v0.27.2
+   Compiling flate2 v1.1.10
+   Compiling atspi v0.19.0
+   Compiling wayland-protocols-experimental v20250721.0.1
+   Compiling wayland-protocols-wlr v0.3.12
+   Compiling wayland-protocols-misc v0.3.12
+   Compiling accesskit_consumer v0.16.1
+   Compiling glutin v0.31.3
+   Compiling async-lock v3.4.2
+   Compiling num-traits v0.2.19
+   Compiling async-once-cell v0.5.4
+   Compiling async-fs v2.2.0
+   Compiling accesskit_unix v0.6.2
+   Compiling egui v0.27.2
+   Compiling zbus_names v3.0.0
+   Compiling miniz_oxide v0.8.9
+   Compiling zbus_macros v4.4.0
+   Compiling fdeflate v0.3.7
+   Compiling glutin-winit v0.4.2
+   Compiling async-broadcast v0.7.2
+   Compiling slotmap v1.1.1
+   Compiling zmij v1.0.23
+   Compiling home v0.5.12
+   Compiling webbrowser v0.8.15
+   Compiling zbus v4.4.0
+   Compiling png v0.17.16
+   Compiling accesskit_winit v0.16.1
+   Compiling smithay-clipboard v0.7.3
+   Compiling async-net v2.0.0
+   Compiling arboard v3.6.1
+   Compiling serde_spanned v0.6.9
+   Compiling futures-channel v0.3.34
+   Compiling rfd v0.14.1
+   Compiling web-time v0.2.4
+   Compiling anyhow v1.0.104
+   Compiling toml_write v0.1.2
+   Compiling winnow v0.7.15
+   Compiling bumpalo v3.20.3
+   Compiling tinyvec v1.13.3
+   Compiling zip v2.4.2
+   Compiling litrs v1.0.0
+   Compiling glow v0.13.1
+   Compiling option-ext v0.2.0
+   Compiling color_quant v1.1.0
+   Compiling roxmltree v0.20.0
+   Compiling serde_json v1.0.151
+   Compiling egui_glow v0.27.2
+   Compiling fontconfig-parser v0.5.8
+   Compiling image v0.24.9
+   Compiling dirs-sys v0.4.1
+   Compiling document-features v0.2.12
+   Compiling zopfli v0.8.3
+   Compiling toml_edit v0.22.27
+   Compiling egui-winit v0.27.2
+   Compiling ashpd v0.8.2
+   Compiling tokio-macros v2.7.2
+   Compiling pollster v0.3.0
+   Compiling itoa v1.0.18
+   Compiling urlencoding v2.1.3
+   Compiling str_indices v0.4.4
+   Compiling ttf-parser v0.20.0
+   Compiling ropey v1.6.1
+   Compiling fontdb v0.16.2
+   Compiling tokio v1.53.1
+   Compiling eframe v0.27.2
+   Compiling toml v0.8.23
+   Compiling directories v5.0.1
+   Compiling unicode-normalization v0.1.25
+   Compiling novnow v0.1.0 (/__w/novnow/novnow)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 28s
+     Running unittests src/lib.rs (target/debug/deps/novnow-c2dbc1626ddf7e82)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/novnow-e16d3921e9f9f271)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/contents.rs (target/debug/deps/contents-ae6214f8471b55ca)
+
+running 37 tests
+test a_bare_at_sign_is_w002 ... ok
+test a_broken_header_still_makes_sections ... ok
+test a_comment_line_inside_a_section_is_content ... ok
+test a_comment_line_keeps_the_text_after_the_sigil ... ok
+test a_four_level_header_fixes_the_first_section_number ... ok
+test a_header_followed_by_a_break_is_an_empty_section ... ok
+test a_line_decomposes_into_body_speaker_and_comment ... ok
+test a_malformed_scene_id_is_e002 ... ok
+test a_new_header_restarts_the_numbering ... ok
+test a_reserved_scene_zero_is_e020 ... ok
+test a_ruby_needs_a_base_and_a_reading ... ok
+test a_scene_header_carries_id_title_and_comment ... ok
+test a_section_break_takes_a_trailing_comment ... ok
+test a_section_of_only_blank_lines_is_empty ... ok
+test a_speaker_annotation_is_taken_from_the_line_end ... ok
+test a_trailing_break_does_not_open_a_section ... ok
+test a_whitespace_only_line_is_blank ... ok
+test an_annotation_survives_a_broken_name ... ok
+test an_empty_document_has_one_blank_line_and_no_sections ... ok
+test an_explicit_d_starts_the_numbering_there ... ok
+test both_ruby_forms_are_found ... ok
+test broken_input_does_not_panic ... ok
+test consecutive_breaks_make_an_empty_section ... ok
+test indented_prose_is_body_text_not_a_continuation ... ok
+test diagnostics_are_ordered_by_line ... ok
+test only_the_last_at_sign_can_be_an_annotation ... ok
+test lines_before_the_first_header_belong_to_no_section ... ok
+test section_numbers_increase_with_each_break ... ok
+test round_trip_is_byte_exact ... ok
+test several_rubies_on_one_line_are_kept_in_order ... ok
+test shapes_that_are_not_annotations_stay_in_the_body ... ok
+test the_spaces_before_and_after_an_annotation_join_it ... ok
+test the_spec_example_has_three_sections ... ok
+test the_spec_example_parses_line_by_line ... ok
+test trailing_blank_lines_are_not_section_content ... ok
+test the_spec_example_round_trips_and_has_no_diagnostics ... ok
+test unknown_syntax_stays_in_the_body ... ok
+
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/diagnostics_catalog.rs (target/debug/deps/diagnostics_catalog-4ff295d401c957ba)
+
+running 13 tests
+test a_diagnostic_carries_only_the_code_and_the_arguments ... ok
+test a_notice_has_no_range_and_no_underline ... ok
+test code_strings_are_well_formed ... ok
+test e004_skips_the_first_placeholder ... ok
+test every_spec_row_is_in_the_catalog ... ok
+test ja_and_en_use_the_same_placeholders ... ok
+test every_variant_documents_the_condition_from_the_spec ... ok
+test the_catalog_is_sorted_and_unique ... ok
+test the_catalog_has_no_code_the_spec_does_not_list ... ok
+test the_default_toggles_match_the_spec ... ok
+test the_spec_has_77_codes_in_three_tables ... ok
+test the_cost_table_matches_the_spec ... ok
+test the_storage_table_has_no_document_position ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/id_range.rs (target/debug/deps/id_range-778c9bb55bea8b36)
+
+running 23 tests
+test partial_id_display_shows_only_written_levels ... ok
+test partial_id_expands_low_and_high ... ok
+test partial_id_keeps_depth ... ok
+test range_accepts_whitespace_variants ... ok
+test range_expands_omitted_levels ... ok
+test range_intersects_other_range ... ok
+test range_is_closed_interval ... ok
+test range_is_union_of_comma_separated_terms ... ok
+test range_rejects_malformed_input ... ok
+test range_reversed_bounds_are_e016 ... ok
+test range_single_term_covers_its_subtree ... ok
+test range_supports_open_ends ... ok
+test range_term_may_have_one_to_four_levels ... ok
+test reserved_zero_is_accepted ... ok
+test scene_id_accepts_one_to_four_digits_per_level ... ok
+test scene_id_converts_to_partial ... ok
+test scene_id_display_uses_digits_and_hides_zero_section ... ok
+test scene_id_extremes ... ok
+test scene_id_new_rejects_values_over_four_digits ... ok
+test scene_id_order_is_lexicographic ... ok
+test scene_id_parse_with_sigil ... ok
+test scene_id_parses_three_and_four_levels ... ok
+test scene_id_rejects_malformed_input ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/incremental.rs (target/debug/deps/incremental-4719293c900d4b4a)
+
+running 17 tests
+test a_kind_change_that_cannot_move_a_section_number_asks_for_nothing ... ok
+test a_paste_of_several_lines_replaces_the_range ... ok
+test a_structure_heading_also_asks_for_renumbering ... ok
+test a_text_edit_that_keeps_the_kind_asks_for_nothing ... ok
+test an_out_of_range_line_falls_back_to_a_full_renumber ... ok
+test editing_through_the_rope_uses_the_current_line_text ... ok
+test every_line_gets_a_tag ... ok
+test every_line_kind_has_a_tag ... ok
+test inserting_a_line_shifts_the_rest_and_asks_from_that_line ... ok
+test numbering_lines_skips_the_lines_that_do_not_matter ... ok
+test only_structure_and_section_break_affect_numbering ... ok
+test only_the_edited_line_is_relexed ... ok
+test removing_a_line_shifts_the_rest_and_asks_from_that_line ... ok
+test renumber_results_merge_to_the_earliest_line ... ok
+test the_index_built_from_a_rope_matches_the_one_built_from_a_str ... ok
+test turning_a_line_into_a_sigil_line_asks_for_renumbering_from_there ... ok
+test a_long_file_stays_cheap_to_relex ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+     Running tests/layering.rs (target/debug/deps/layering-a54684d3ab9bbd0b)
+
+running 6 tests
+test checker_allows_japanese_comments ... ok
+test checker_allows_pure_core_code ... ok
+test checker_catches_forbidden_dependencies ... ok
+test checker_catches_japanese_literals ... ok
+test core_has_no_user_facing_text ... ok
+test core_has_no_forbidden_dependency ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+     Running tests/lexer.rs (target/debug/deps/lexer-a8af5519678b106b)
+
+running 71 tests
+test a_full_width_colon_does_not_need_a_space ... ok
+test a_half_width_colon_needs_a_space_for_keys_outside_the_table ... ok
+test a_japanese_word_outside_the_alias_table_is_not_a_key ... ok
+test a_key_in_the_table_does_not_need_a_space_after_a_half_width_colon ... ok
+test a_line_head_sigil_tolerates_one_space_of_indent ... ok
+test a_lone_backslash_at_the_end_of_a_line_is_not_an_escape ... ok
+test a_scheme_separator_is_not_a_line_comment ... ok
+test a_url_in_a_field_value_is_kept_whole ... ok
+test aliases_of_stage_two_keys_are_not_in_the_table ... ok
+test an_empty_document_stays_empty ... ok
+test an_escaped_at_is_not_a_sigil ... ok
+test an_escaped_backslash_consumes_both_chars ... ok
+test an_escaped_slash_does_not_open_an_inline_comment ... ok
+test an_escaped_slash_does_not_start_a_line_comment ... ok
+test an_invalid_escape_stays_two_chars_without_a_diagnostic ... ok
+test ascii_key_follows_the_regular_expression ... ok
+test at_any_other_position_does_not_change_the_line_kind ... ok
+test at_line_head_is_structure_in_every_format ... ok
+test bom_is_stripped_on_load_and_never_written ... ok
+test citation_sigil_is_plain_text_in_stage_one ... ok
+test crlf_and_cr_become_lf_on_load ... ok
+test dialogue_brackets_are_plain_text_to_the_lexer ... ok
+test escapes_are_found_at_any_position ... ok
+test every_alias_in_the_spec_table_is_present ... ok
+test every_escape_target_is_listed_in_the_spec ... ok
+test every_key_in_the_table_resolves_both_ways ... ok
+test every_line_is_lexed_on_its_own ... ok
+test every_valid_escape_is_recognized_and_removed ... ok
+test field_line_exposes_indent_key_and_value ... ok
+test field_line_exposes_the_byte_position_of_the_value ... ok
+test field_line_in_a_b_and_markdown_but_not_in_c ... ok
+test field_may_have_one_space_of_indent ... ok
+test field_value_is_trimmed_but_the_key_is_not_normalized ... ok
+test field_value_may_be_empty ... ok
+test hash_comment_is_txt_only ... ok
+test formats_are_a_bitmask_of_the_four_text_forms ... ok
+test hash_comment_needs_a_space_even_in_stage_two ... ok
+test illustration_memo_is_contents_only ... ok
+test indent_counts_chars_including_tabs_and_full_width_space ... ok
+test inline_comment_does_not_change_the_line_kind ... ok
+test inline_comment_must_close_on_the_same_line ... ok
+test line_comment_at_line_head_in_every_format ... ok
+test line_comment_runs_to_the_end_of_the_line ... ok
+test newline_is_serialized_the_way_project_json_writes_it ... ok
+test no_field_key_collides_with_a_url_scheme ... ok
+test no_unicode_normalization_happens ... ok
+test one_space_of_indent_is_not_a_continuation ... ok
+test only_the_slash_pair_right_after_a_colon_is_protected ... ok
+test ref_sigils_do_not_change_the_line_kind ... ok
+test section_break_is_a_whole_line_in_every_txt_form ... ok
+test section_break_allows_a_trailing_line_comment ... ok
+test section_break_is_rejected_in_markdown ... ok
+test section_break_tolerates_trailing_space ... ok
+test section_break_needs_the_whole_line ... ok
+test stage_two_accepts_them_without_rewriting_the_lexer ... ok
+test stage_two_sigils_are_plain_text_in_stage_one ... ok
+test structure_sigil_does_not_need_a_title ... ok
+test text_format_helpers_agree_with_the_table ... ok
+test the_alias_table_is_one_to_one_in_both_directions ... ok
+test the_file_ends_with_exactly_one_newline ... ok
+test the_newline_setting_decides_the_output_form ... ok
+test the_range_operator_belongs_to_core_id ... ok
+test the_sigil_table_is_the_fixed_priority_order ... ok
+test the_spec_example_splits_into_a_field_and_a_continuation ... ok
+test the_table_records_the_formats_of_each_key ... ok
+test the_table_records_the_place_and_shape_of_each_sigil ... ok
+test trailing_spaces_are_removed_and_indent_is_kept_on_save ... ok
+test two_or_more_spaces_of_indent_beat_the_field_line ... ok
+test unescape_borrows_when_there_is_nothing_to_remove ... ok
+test unknown_ascii_key_is_kept_as_unknown ... ok
+test urls_and_identifiers_stay_in_the_prose ... ok
+
+test result: ok. 71 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/plot_episode.rs (target/debug/deps/plot_episode-38ec8d3e21790e74)
+
+running 40 tests
+test a_file_ending_with_a_break_gets_no_empty_tail_section ... ok
+test a_four_level_header_starts_numbering_from_d ... ok
+test a_continuation_chain_breaks_on_a_blank_or_a_comment ... ok
+test a_modifier_that_is_not_a_mode_id_is_left_to_m3 ... ok
+test a_reserved_scene_number_is_e020 ... ok
+test a_hash_line_is_prose_in_stage_one ... ok
+test a_scene_without_a_break_still_gets_one_section ... ok
+test a_two_level_id_is_e002_because_b_needs_three_levels ... ok
+test a_section_break_before_the_first_header_does_nothing ... ok
+test an_empty_file_has_no_scenes ... ok
+test an_empty_modifier_is_not_e005 ... ok
+test an_orphan_continuation_stays_a_line_of_its_own ... ok
+test an_unparsable_id_is_e002 ... ok
+test accessors_return_nothing_out_of_range ... ok
+test cast_is_not_checked_for_e005 ... ok
+test broken_input_yields_a_partial_tree_and_diagnostics ... ok
+test chapter_zero_follows_the_project_setting ... ok
+test comments_do_not_end_the_scene_field_region ... ok
+test e005_is_reported_once_per_offending_token ... ok
+test each_scene_numbers_its_own_sections ... ok
+test every_fixture_round_trips_byte_for_byte ... ok
+test fields_before_the_first_header_are_the_preamble ... ok
+test field_returns_the_field_of_a_line ... ok
+test scene_level_fields_stop_at_the_first_point_line ... ok
+test section_numbering_saturates_instead_of_panicking ... ok
+test scene_of_and_section_of_find_the_owner ... ok
+test senses_before_the_first_point_is_scene_level ... ok
+test the_same_character_twice_in_one_mode_is_e005 ... ok
+test the_illustration_example_has_an_empty_first_section ... ok
+test the_same_id_twice_is_e008 ... ok
+test the_same_id_at_a_different_depth_is_not_e008 ... ok
+test the_spec_example_has_one_scene_with_four_sections ... ok
+test the_spec_example_reads_the_space_memo_as_a_continuation ... ok
+test the_spec_example_round_trips_byte_for_byte ... ok
+test three_modes_on_one_character_is_e005 ... ok
+test trailing_blank_lines_are_not_part_of_the_content ... ok
+test two_modes_and_a_trailing_comment_are_allowed ... ok
+test the_spec_example_warns_about_stage_two_keys_and_keeps_their_values ... ok
+test two_modes_on_one_character_are_allowed ... ok
+test unknown_keys_are_warned_and_their_values_are_kept ... ok
+
+test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/plot_outline.rs (target/debug/deps/plot_outline-57b8ee1a3329049a)
+
+running 38 tests
+test a_block_end_may_carry_a_line_comment ... ok
+test a_block_end_closes_the_block ... ok
+test a_block_runs_to_the_next_heading_or_to_the_end ... ok
+test a_block_without_a_summary_is_e018 ... ok
+test a_continuation_line_joins_the_field_value ... ok
+test a_continuation_needs_a_field_before_it ... ok
+test a_duplicated_heading_id_is_e008 ... ok
+test a_full_width_space_also_separates_refs ... ok
+test a_hash_comment_is_a_note_while_stage_one_is_in_force ... ok
+test a_heading_keeps_the_id_the_title_and_the_comment ... ok
+test a_heading_of_the_wrong_depth_is_e020 ... ok
+test a_japanese_alias_is_a_known_key ... ok
+test a_length_that_is_not_a_number_is_kept_as_text ... ok
+test a_malformed_heading_id_is_e002 ... ok
+test a_material_title_stays_a_modifier ... ok
+test a_summary_over_120_chars_is_w019 ... ok
+test a_whitespace_only_line_is_blank ... ok
+test an_empty_file_has_one_blank_line_and_no_blocks ... ok
+test an_explicit_ref_form_is_recognized ... ok
+test block_of_finds_the_owner_of_a_line ... ok
+test an_unknown_key_is_w011_and_keeps_its_value ... ok
+test cast_and_mode_values_are_read_as_refs ... ok
+test broken_input_does_not_panic ... ok
+test chapter_zero_is_rejected_only_when_strict ... ok
+test diagnostics_are_ordered_by_line_then_by_block ... ok
+test fields_before_the_first_heading_are_the_preamble ... ok
+test fields_after_a_block_end_belong_to_no_block ... ok
+test fields_of_returns_every_occurrence ... ok
+test prose_that_is_not_a_field_is_a_note ... ok
+test seed_and_payoff_split_at_the_arrow ... ok
+test shapes_that_are_not_refs_stay_out ... ok
+test round_trip_is_byte_exact ... ok
+test stage_two_keys_survive_as_unknown_fields ... ok
+test the_spec_example_for_a_chapter_plot_parses ... ok
+test the_spec_example_for_all_txt_has_two_blocks ... ok
+test the_spec_example_for_all_txt_warns_about_the_unknown_title_key ... ok
+test the_spec_example_for_all_txt_reads_the_field_shapes ... ok
+test the_spec_examples_round_trip ... ok
+
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/position.rs (target/debug/deps/position-a0a766d1fc2b18dd)
+
+running 16 tests
+test byte_column_converts_to_utf16_column ... ok
+test char_column_conversions ... ok
+test line_table_counts_lines ... ok
+test line_table_locates_the_line_of_a_byte ... ok
+test line_table_ranges_exclude_the_newline ... ok
+test positions_clamp_instead_of_panicking ... ok
+test positions_have_expected_values ... ok
+test positions_round_trip_on_every_char_boundary ... ok
+test text_buffer_converts_indexes ... ok
+test text_buffer_edits_by_char_index ... ok
+test text_buffer_is_built_from_strings ... ok
+test text_buffer_exposes_lines ... ok
+test text_buffer_reads_byte_ranges ... ok
+test utf16_column_converts_to_byte_column ... ok
+test utf16_len_counts_a_surrogate_pair_as_two ... ok
+test text_buffer_matches_line_table ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+    Checking cfg-if v1.0.5
+   Compiling wasm-bindgen-shared v0.2.129
+   Compiling rustversion v1.0.23
+   Compiling syn v3.0.6
+    Checking once_cell v1.21.4
+   Compiling version_check v0.9.5
+   Compiling wasm-bindgen v0.2.129
+    Checking unicode-ident v1.0.26
+    Checking pin-project-lite v0.2.17
+    Checking futures-core v0.3.34
+    Checking futures-task v0.3.34
+    Checking slab v0.4.12
+    Checking futures-util v0.3.34
+   Compiling wasm-bindgen-macro-support v0.2.129
+    Checking log v0.4.34
+   Compiling serde_core v1.0.229
+   Compiling bytemuck_derive v1.12.1
+    Checking smallvec v1.16.2
+   Compiling parking_lot_core v0.9.12
+   Compiling zerocopy v0.8.59
+    Checking bytemuck v1.25.2
+   Compiling slotmap v1.1.1
+   Compiling ahash v0.8.12
+    Checking scopeguard v1.2.0
+    Checking ttf-parser v0.25.1
+   Compiling wasm-bindgen-macro v0.2.129
+   Compiling serde v1.0.229
+    Checking owned_ttf_parser v0.25.1
+    Checking js-sys v0.3.106
+    Checking lock_api v0.4.14
+   Compiling serde_derive v1.0.229
+   Compiling crc32fast v1.5.2
+    Checking ab_glyph_rasterizer v0.1.10
+    Checking memchr v2.8.3
+   Compiling autocfg v1.5.1
+   Compiling memoffset v0.9.1
+    Checking ab_glyph v0.2.32
+    Checking parking_lot v0.12.5
+    Checking ecolor v0.27.2
+    Checking emath v0.27.2
+    Checking nohash-hasher v0.2.0
+    Checking hashbrown v0.17.1
+    Checking equivalent v1.0.2
+    Checking simd-adler32 v0.3.10
+    Checking indexmap v2.14.2
+    Checking epaint v0.27.2
+   Compiling syn v2.0.119
+    Checking web-sys v0.3.106
+   Compiling thiserror v1.0.69
+    Checking adler2 v2.0.1
+   Compiling thiserror v2.0.21
+    Checking accesskit v0.12.3
+   Compiling zmij v1.0.23
+    Checking egui v0.27.2
+    Checking miniz_oxide v0.9.1
+   Compiling thiserror-impl v1.0.69
+    Checking wasm-bindgen-futures v0.4.79
+    Checking toml_datetime v0.6.11
+    Checking serde_spanned v0.6.9
+    Checking aho-corasick v1.1.5
+   Compiling thiserror-impl v2.0.21
+   Compiling litrs v1.0.0
+    Checking bumpalo v3.20.3
+   Compiling serde_json v1.0.151
+    Checking regex-syntax v0.8.11
+    Checking tinyvec v1.13.3
+    Checking winnow v0.7.15
+   Compiling anyhow v1.0.104
+   Compiling rfd v0.14.1
+    Checking raw-window-handle v0.6.2
+    Checking toml_write v0.1.2
+   Compiling zip v2.4.2
+    Checking toml_edit v0.22.27
+    Checking regex-automata v0.4.18
+    Checking zopfli v0.8.3
+   Compiling document-features v0.2.12
+    Checking flate2 v1.1.10
+    Checking web-time v0.2.4
+   Compiling tokio-macros v2.7.2
+   Compiling displaydoc v0.2.7
+    Checking str_indices v0.4.4
+    Checking itoa v1.0.18
+    Checking percent-encoding v2.3.2
+    Checking static_assertions v1.1.0
+    Checking raw-window-handle v0.5.2
+    Checking ttf-parser v0.20.0
+    Checking memmap2 v0.9.11
+    Checking fontdb v0.16.2
+    Checking ropey v1.6.1
+    Checking tokio v1.53.1
+    Checking regex v1.13.1
+    Checking toml v0.8.23
+    Checking unicode-normalization v0.1.25
+    Checking console_error_panic_hook v0.1.7
+    Checking glow v0.13.1
+    Checking egui_glow v0.27.2
+    Checking eframe v0.27.2
+    Checking novnow v0.1.0 (/__w/novnow/novnow)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 50.36s
+smoke test passed in 199s on 2 cpus
+Filesystem      Size  Used Avail Use% Mounted on
+overlay          72G   62G   11G  86% /
+9bd240bd7b3f756937ee936fe2e77047cce48be352cbf1f0bfc9ed8f98ceef65  ./sysroot.tar.gz
+b11ae095e5318fba2270af26005703517a0baaea4b0c77b58512e59fd0b837bc  ./vendor.tar.gz
+total 366980
+-rw-r--r-- 1 root root 47185920 Oct 11 12:02 sysroot.tar.gz.000
+-rw-r--r-- 1 root root 47185920 Oct 11 12:02 sysroot.tar.gz.001
+-rw-r--r-- 1 root root 47185920 Oct 11 12:02 sysroot.tar.gz.002
+-rw-r--r-- 1 root root 47185920 Oct 11 12:02 sysroot.tar.gz.003
+-rw-r--r-- 1 root root 47185920 Oct 11 12:02 sysroot.tar.gz.004
+-rw-r--r-- 1 root root 16277182 Oct 11 12:02 sysroot.tar.gz.005
+-rw-r--r-- 1 root root 47185920 Oct 11 12:02 vendor.tar.gz.000
+-rw-r--r-- 1 root root 47185920 Oct 11 12:02 vendor.tar.gz.001
+-rw-r--r-- 1 root root 29208311 Oct 11 12:02 vendor.tar.gz.002

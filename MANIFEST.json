@@ -1,1 +1,33 @@
-{"status":"probe","cache_key":"6513cdc8bc5e962b-1"}
+{
+  "status": "ready",
+  "cache_key": "6513cdc8bc5e962b-1",
+  "generated_at": "2026-10-11T12:02:45Z",
+  "run_id": "38137471175",
+  "source_sha": "6647ab4bfe41921baa22dcb8f91f5d179957220f",
+  "built_on": "debian:12 container on ubuntu-latest",
+  "smoke": "smoke test passed in 199s on 2 cpus",
+  "files": {
+    "sysroot.tar.gz": {
+      "sha256": "9bd240bd7b3f756937ee936fe2e77047cce48be352cbf1f0bfc9ed8f98ceef65",
+      "bytes": 252206782,
+      "chunks": [
+        "chunks/sysroot.tar.gz.000",
+        "chunks/sysroot.tar.gz.001",
+        "chunks/sysroot.tar.gz.002",
+        "chunks/sysroot.tar.gz.003",
+        "chunks/sysroot.tar.gz.004",
+        "chunks/sysroot.tar.gz.005"
+      ]
+    },
+    "vendor.tar.gz": {
+      "sha256": "b11ae095e5318fba2270af26005703517a0baaea4b0c77b58512e59fd0b837bc",
+      "bytes": 123580151,
+      "chunks": [
+        "chunks/vendor.tar.gz.000",
+        "chunks/vendor.tar.gz.001",
+        "chunks/vendor.tar.gz.002"
+      ]
+    }
+  },
+  "probe_3mb_sha256": "acbbf3ed7923cf3a88b1f465570c06bab7f20b9a371775fa566f3fc48d03dadf"
+}
