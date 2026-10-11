@@ -762,9 +762,10 @@ fn text_format_helpers_agree_with_the_table() {
     assert!(!MD.is_txt());
     assert!(!C.allows_field());
     assert!(A.allows_field());
+    // `;` は `.txt` 3 形式（§5.2.1 / §5.3.1 / §5.4.1。`PLANS.md` §9.1 A-11）
     assert!(C.allows_section_break());
     assert!(B.allows_section_break());
-    assert!(!A.allows_section_break());
+    assert!(A.allows_section_break());
     assert!(!MD.allows_section_break());
 }
 
@@ -940,5 +941,5 @@ fn every_line_is_lexed_on_its_own() {
     assert_eq!(whole, alone);
     assert_eq!(whole.len(), 6);
     assert_eq!(whole[0], "structure[01-04 見出し]");
-    assert_eq!(whole[5], "text[;]");
+    assert_eq!(whole[5], "section-break");
 }

@@ -591,7 +591,11 @@ fn a_summary_over_120_chars_is_w019() {
     let over = format!("@01 x\nsummary: {}\n;\n", "あ".repeat(121));
     assert_eq!(diags_tag(&over), "W019@15..378(121)");
     // 継続行まで含めた字数で数える（改行も 1 字、B-38）。範囲は 1 行目の値
-    let joined = format!("@01 x\nsummary: {}\n  {}\n;\n", "あ".repeat(60), "あ".repeat(61));
+    let joined = format!(
+        "@01 x\nsummary: {}\n  {}\n;\n",
+        "あ".repeat(60),
+        "あ".repeat(61)
+    );
     assert_eq!(diags_tag(&joined), "W019@15..195(122)");
 }
 

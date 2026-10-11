@@ -430,11 +430,9 @@ fn parse_line(raw: &str) -> Line<'_> {
         LineKind::SectionBreak => Line::Break(contents::parse_break(raw)),
         LineKind::Comment { .. } => Line::Comment(contents::parse_comment(raw)),
         LineKind::Field(found) => Line::Field(parse_field(raw, found)),
-        LineKind::Continuation { indent, text } => Line::Continuation(Continuation {
-            raw,
-            indent,
-            text,
-        }),
+        LineKind::Continuation { indent, text } => {
+            Line::Continuation(Continuation { raw, indent, text })
+        }
         // フィールドに当てはまらない自由記述（§5.3.1 `note_line`）。一字下げも本文
         LineKind::Text(_) | LineKind::IllustrationMemo(_) => Line::Note(raw),
     }
@@ -565,7 +563,9 @@ fn collect(
     out: &mut Vec<Diagnostic>,
 ) -> (Preamble, Vec<Block>) {
     // §5.3.1 `outline_file = [ preamble ] , { block }`。見出しより前だけが前文
-    let head = lines.iter().position(|line| matches!(line, Line::Header(_)));
+    let head = lines
+        .iter()
+        .position(|line| matches!(line, Line::Header(_)));
     let mut preamble = Preamble {
         span: 0..head.unwrap_or(lines.len()),
         fields: Vec::new(),
@@ -595,7 +595,14 @@ fn collect(
             Line::Break(_) => {
                 // §5.3.1 `block_end`。見出しより前の `;` は何もしない（C 形式の B-32 と同じ）
                 if let Some(closed) = open.take() {
-                    finish(closed, index + 1, Some(index), lines, &mut blocks, &mut missing);
+                    finish(
+                        closed,
+                        index + 1,
+                        Some(index),
+                        lines,
+                        &mut blocks,
+                        &mut missing,
+                    );
                 }
             }
             Line::Field(_) => {
@@ -700,7 +707,11 @@ fn check_header(
     if depth != found.depth || chapter_zero {
         // §5.3.2「ファイル内の見出し階層は揃っていること」/ §5.1.2 の `A = 00`
         let args = vec![Arg::number(depth as i64)];
-        out.push(Diagnostic::new(DiagnosticCode::E020, Some(id_range.clone()), args));
+        out.push(Diagnostic::new(
+            DiagnosticCode::E020,
+            Some(id_range.clone()),
+            args,
+        ));
     }
     if seen.contains(&(id, found.depth)) {
         // §5.3.2「ブロックの見出し ID は同一ファイル内で一意」
