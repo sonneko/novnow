@@ -542,11 +542,111 @@ tests/layering.rs
 > 次は作業項目 3（`characters.md` §5.5）・4（`materials/index.json` §5.8.2）・5（ゴールデンテスト）と
 > `core/model/`。
 
+> **M2 の進捗（2026-10-11）: `characters.md`（§5.5）を実装した**
+>
+> `core/syntax/characters_md.rs`（約 1200 行）＋ `tests/characters_md.rs`（54 テスト）で作業項目 3 の
+> `characters.md` ぶんを完了。**§5.5.7 の恩田恵の例をそのまま**受け入れテストにした（完了条件 1）。
+> 意味を持つ行は §5.5.1 の 4 種（H1/H2/H3・フィールド行・箇条書き・鉤括弧行）だけで、それ以外は
+> すべて自由記述として木に載せる（`#恩田恵`＝`#` の直後に空白が無い、`#### 深い見出し`＝§5.5.1 が
+> 数えない階層、`-5`、閉じない `「` を含む）。木は `Characters { lines, preamble, characters,
+> diagnostics }` → `Character { name, span, fields, free, sections }` → `Section { key, key_text,
+> span, fields, bullets, patterns, free, relations, modes }` → `ModeDef { id, label, valid_id, span,
+> fields, patterns, free, range }` で、行は **index で指すだけ**（A/B 形式と同じ流儀）。
+> §5.5.4 の**同一 `mode_id`・異 range 変種**を許し（D-4）、`range` の検査は **E002**（範囲式として
+> 読めない）／**E016**（左端 > 右端）／**E017**（同一キャラ内の同一 `mode_id` で交差。位置は 2 件目の
+> `range`、無ければ見出しの `mode_id`）。`range` 省略時は全範囲（§5.5.4）。§5.5.5 の役割語パターンは
+> `## tone` 直下ならキャラ共通、`### <mode>` 直下ならモード専用として抽出する（マッチャ化は M3）。
+> §5.5.6 の `'参照: 説明` は `## relations` の中だけで読み（半角・全角コロンとも）、行そのものは
+> 自由記述のまま残す。**`address:` は ② なので実装せず**、未知フィールド（W011 ＋ 値を保持）になる
+> （作業項目 3）。診断の並びは**行順の W011** のあとに**モード順の E002 / E016**、最後に **E017**。
+> E013（参照の解決）・E004（未定義のモード ID）は辞書が要るので M3、W084（呼称）は本文と配役を
+> 突き合わせる M4、`icon:` の E062 / W068〜W070 は ②。
+> **MD 方言の共通部はこのファイルが正本**（`Line` / `Heading` / `Bullet` / `PatternLine` / `Pattern` /
+> `parse_line` / `attach_continuations` / `line_offsets` / `range_value` / `check_range` /
+> `all_range` / `unknown_field` / `section_key_of`）で、`words_md` / `ideas_md` / `prompt_md` が
+> `pub use`（型）と `pub(crate)`（関数）で共有する（§9.2 **B-42**。`.txt` 側の B-40 と同じ判断）。
+> 判断は §9.2 **B-42〜B-44**、仕様側の要補正点は §9.1 **A-15**。
+
+> **M2 の進捗（2026-10-11）: `words.md` / `ideas.md` / `prompts/*.md`（§5.6 / §5.7 / §5.9）を実装した**
+>
+> `core/syntax/words_md.rs`（約 230 行）＋ `tests/words_md.rs`（21 テスト）、
+> `core/syntax/ideas_md.rs`（約 250 行）＋ `tests/ideas_md.rs`（18 テスト）、
+> `core/syntax/prompt_md.rs`（約 470 行）＋ `tests/prompt_md.rs`（31 テスト）で作業項目 3 を完了。
+> **§5.6・§5.7・§5.9.1・§5.9.2 の例をそのまま**受け入れテストにした（完了条件 1）。
+> 3 形式とも §5.6「`characters.md` と同一の MD 方言」なので行の分類は `characters_md.rs` のものを
+> 共有し（B-42）、形式ごとの違いは**木の意味と診断だけ**。
+> `words.md`: H1 が用語（`Word { term, span, fields, free, range }`）。**H2 は用語を閉じない**
+> （`## notes` は木に載らないが行は残る）。診断は行順の W011 → 用語順に E002 / E016 /
+> **E021**（`definition` 欠落。位置は H1 行全体で、`definition:` だけの**空の値は OK**）。
+> `range` 省略時は全範囲（`Words::range(i)` が `all_range()` を返す）。
+> `ideas.md`: `# I0007 タイトル`（`I` ＋ 4 桁以上、`Idea { id, number, valid_id, title, span,
+> fields, free }`）。診断は行順の W011 → アイデア順に **E008**（ID 文字列の重複）。
+> §5.7 が定義する `status` `created` `relates` `promoted-to` は §5.0.6 の表に無いので
+> **W011 ＋ 値を改変せず保持**（§9.1 **A-15**。表を正本にした）。
+> `prompts/*.md`: `# <role>`（§5.9.2 の既定 7 役割は `BUILTIN_ROLES` で持つ）、`## system` /
+> `task` / `output` / `examples` / `refuse` の**固定 5 種**（5 種に無い `## ` は
+> `PromptSectionKey::Other` として行を残す）、`{{variable}}` は §15.5.3 の **19 変数の閉じた集合**。
+> 診断は **E032**（ロール名が `/^[a-z][a-z0-9-]{0,31}$/` に合わない）／**E033**（既定 7 役割と同名）
+> → 行順の W011 → 行順の **E031**（未知の変数）。E032 / E033 は `Options::custom = true`
+> （`prompts/custom/`）のときだけで、既定の `prompts/<role>.md` では上書きが正当なので出さない。
+> 変数の走査は**行コメント（`//`）と空行を除く全行**（`# ` の行コメントは ② なので ① では走る）。
+> §5.9.1 の `model-hint` `max-chars` `temperature` と §5.9.2 の `label` は §5.0.6 の表に無いので
+> W011（**A-15**）。§5.9.2 の例は `{{content_section}}` を使うが §15.5.3 の閉集合に無い
+> （本文は `text_current`）ので **E031 が出る**（**A-16**。閉集合を正本にした）。
+> E034 / I056（MCP サーバの実在と接続）は M10。判断は §9.2 **B-47**、要補正点は §9.1 **A-15・A-16**。
+
+> **M2 の進捗（2026-10-11）: `core/model/` の 10 型と `materials/index.json`（§5.8.2）を実装した**
+>
+> `core/model/`（10 ファイル）＋ `tests/model.rs`（36 テスト）で B-29 / B-30 を完了。型は §3.3 の
+> 列挙どおり（`Project` / `Document` / `Character` / `Mode` / `RolePattern` / `Word` / `Material` /
+> `Idea` / `Task` / `Delegation`）で、依存は `syntax → model` の 1 本。**§4.5 の例をそのまま**
+> デシリアライズし、§4.5.1 の既定値を確認した（数値は手書き `Default`、コンテナは
+> `#[serde(default)]`。`schema_version` だけ field 単位の default = 0 ＝ §4.3-2「キーが無ければ 0」）。
+> 未知キーは `#[serde(flatten)] unknown: BTreeMap<String, Value>` で温存し、`deny_unknown_fields` は
+> 使わない（B-30）。構造体に `rename_all` は付けず、ハイフンを含むキー（`default-mode` /
+> `promoted-to` / `context-hash` / `human-comment`）だけ個別に `rename` する（JSON の形が仕様書と
+> 目視で突き合わせられるように）。**閉じた集合の値は serde の enum にせず String ＋ `*_kind()` /
+> `parse()`** で受ける（未知値 1 つでファイル全体が読めなくなるのは §4.3-4 に反する。§9.2 **B-46**）。
+> `RolePattern::anchor()` は §6.5.2 の固定表 5 行どおり（`*` と `〜` だけがワイルドカードで、
+> `…` `?` はリテラル）。`MaterialId` は**接頭辞 1 文字**（`M` / `S` 両方を読む。① が見つけた
+> `S` は拒否しない、作業項目 4）＋ 4 桁以上、`Display` は `{:04}`。`MaterialIndex::issue` は
+> `max(next_id, 最大番号 + 1)` を発行して `next_id` を進める（**再利用しない**、単調増加）。
+> `core/syntax/materials_index.rs`（約 200 行）＋ `tests/materials_index.rs`（26 テスト）で
+> 作業項目 4 を完了。**§5.8.2 の例をそのまま**受け入れテストにした。診断は書いた順に **E024**
+> （`path` が `materials/` 外・絶対パス・`../` を含む。**空は診断しない**）と **E008**（ID 重複、
+> 2 件目）。位置は**値の JSON リテラルを原文から検索**して決める（serde の `Value` は位置を持たないので
+> §9.2 **B-45**）。JSON が壊れているときは `Index::error` にメッセージを持つだけで**診断コードは
+> 出せない**（§7 に対応コードが無い。§9.1 **A-17**）。`to_text()` は**原文をそのまま返す**
+> （再シリアライズはキー順と空白を変えるので完了条件 2 のバイト一致を満たせない）。
+
+> **M2 の進捗（2026-10-11）: ゴールデンテストと round-trip テスト（作業項目 5・§6.2 の M2 の 2 行）**
+>
+> `tests/golden.rs` ＋ `tests/golden/<形式>/<ケース>.txt`・`<ケース>.expected.json`（**8 形式 12 ケース**:
+> 仕様書のコード例 9 件＝§5.2.3 / §5.3.3 / §5.4.3 / §5.5.7 / §5.6 / §5.7 / §5.8.2 / §5.9.1 / §5.9.2、
+> 壊れた入力 3 件）と `tests/roundtrip.rs`（14 テスト）で **M2 の作業項目はすべて完了**。
+> §6.3 の運用どおり: 入力は仕様書のコード例を**そのまま**、期待値 JSON は**手書き**、比較は
+> `serde_json` だけ（`insta` は入れない）、失敗時は実測 JSON を stderr に出す（自動更新コマンドは
+> 持たない）、`.txt` と `.expected.json` の**片方だけあるケースはテストを落とす**、ケースの発見は
+> `std::fs::read_dir`。`.expected.json` には**診断（コード文字列と byte range）も入れる**ので、
+> 完了条件 3 の「壊れた入力でパニックせず、診断を返して部分木を作る」が 1 ファイルで固定される。
+> `tree` は serde ダンプではなく**形式ごとの射影**: コンテナは `span` の数値、フィールドは
+> **キー文字列の列**（未知キーは `{"unknown": "color"}` の形で区別するので §5.0.6 の
+> 「正準形へ正規化しない」が目に見える）、free / bullets / notes は**件数**、役割語パターンは
+> パターン本体。行番号を数える手作業を最小化しつつ、目視で仕様書と突き合わせられる形にした
+> （§9.2 **B-48**）。round-trip（完了条件 2）は JSON には入れず、ハーネスが**全ケースで機械的に**
+> 検査する。`tests/roundtrip.rs` は §1.5-1,2 を 1 ファイルに集約したもので、② のキー
+> （`when` `senses` `space` `space-mode` `illustration` `blurb` `address` `icon` `color`）・
+> 未知キー・日本語別名（`要約:`）・継続行・末尾改行なし・末尾空白・CRLF・空ファイル・壊れた JSON・
+> `project.json` と `materials/index.json` の 3 階層の未知キーを含む。
+> ゴールデンは**既定の `Options`** で読む（設定で変わる診断 E020 / E032 / E033 は unit テストが見る）。
+> **464 テスト / clippy `-D warnings` / rustfmt / wasm32 check すべて緑**。
+> 判断は §9.2 **B-48・B-49**、仕様側の要補正点は §9.1 **A-16・A-17**。
+
 **完了条件**
 
-- [ ] 仕様書中のすべてのコード例（§5.2.3 / §5.3.3 / §5.3.4 / §5.4.3 / §5.5.7 / §5.6 / §5.7 / §5.9.1）がパースでき、構造が期待値と一致する。
-- [ ] 未知フィールドキーを含むファイルを読んで書き戻したとき、**バイト列が完全に一致する**（round-trip テスト）。
-- [ ] 壊れた入力（閉じない `'{`、不正な SceneId）でパニックせず、診断を返して部分木を構築する（§4.3-4）。
+- [x] 仕様書中のすべてのコード例（§5.2.3 / §5.3.3 / §5.3.4 / §5.4.3 / §5.5.7 / §5.6 / §5.7 / §5.9.1）がパースでき、構造が期待値と一致する。上記 8 件に加え §5.4.4 / §5.4.5 / §5.3.6 / §5.8.2 / §5.9.2 / §4.5 / §6.5.2 / §15.1.1 の例も unit テストに入れ、§5.3.3 / §5.4.3 / §5.5.7 / §5.6 / §5.7 / §5.8.2 / §5.9.1 / §5.9.2 / §5.2.3 は `tests/golden/**` の入力に**そのまま**使って期待値 JSON と突き合わせている。仕様書と食い違う例は §9.1 A-12 / A-15 / A-16 に記録した（実装は表・閉集合を正本にし、値は改変せず保持する）。
+- [x] 未知フィールドキーを含むファイルを読んで書き戻したとき、**バイト列が完全に一致する**（round-trip テスト）。`tests/roundtrip.rs` が 8 形式ぶんのフィクスチャ（② のキー・未知キー・日本語別名・継続行・末尾改行なし・末尾空白・CRLF・空ファイル）でバイト一致を固定し、`tests/golden.rs` が全 12 ケースで機械的に検査する。JSON（`materials/index.json`）は再シリアライズがキー順と空白を変えるので**原文をそのまま返す**（未知キーは `#[serde(flatten)]` で温存）。
+- [x] 壊れた入力（閉じない `'{`、不正な SceneId）でパニックせず、診断を返して部分木を構築する（§4.3-4）。`tests/golden/contents/broken_unclosed_ref.txt`（閉じない `'{`・裸の `@`・2 階層の ID → E002 ×2 ＋ W012 ×2）、`tests/golden/plot_episode/broken_scene_ids.txt`（2 階層・5 階層の ID → E002 ×3）、`tests/golden/characters_md/broken_unclosed_bracket.txt`（逆順・形が壊れた `range:`・同一 `mode_id` の交差 → E016 / E002 / E017 ＋ W011）が**診断と部分木の両方**を 1 ファイルで固定する。壊れた JSON は `Index::error` に入り、原文はそのまま戻る。
 
 ---
 
@@ -1041,6 +1141,9 @@ tests/layering.rs
 | **A-12** | §5.3.3 の例と §5.0.6 のキー表 | §5.3.3（`plots/all.txt` の例）は前文に `title: 星屑の時計` を書くが、§5.0.6 の 36 行のキー表に **`title` は無い**。仕様どおりに実装すると**仕様書自身の例が W011（未知のキー）を出す**（`tests/plot_outline.rs` の `the_spec_example_for_all_txt_warns_about_the_unknown_title_key` が固定している）。作品の題は `project.json`（§4.5）にも入るので、前文の `title:` が要るのかも不明 | (1) §5.0.6 の表に `title`（別名「題」）を A 形式・前文のキーとして足す、(2) §5.3.3 の例から `title:` の行を消す（題は `project.json` に一本化）、(3) §5.3.7 の `blurb:` と同じく「前文にだけ許すファイル全体のメタ」として節を新設する、のいずれか。**実装はどれも採用せず仕様どおり W011**（未知キーは値を改変せず保持するので作者のデータは失われない）。**ユーザーの裁定が要る** | M2 の A/B 形式のレビューまで |
 | ~~**A-13**~~ | §5.4.2 の制約と §7.2 の E005 の行 | §5.4.2（B 形式）は「1 節の `mode` に**同じキャラを 2 回**書くのは **E005**。1 キャラに 3 つ以上のモード（`A+B+C`）も **E005**」と **2 つの条件**を E005 に割り当てるが、§7.2 の E005 の行は条件が「1 節に 3 つ以上のモード」、ja 文言が `1 つの節に設定できるモードは 2 つまでです`、処置が「先頭 2 つを残す」だけで、**「同じキャラを 2 回」を言い表せない**（文言も処置も 3 モード前提）。§6.4.4 も「1 キャラ 1 節につき最大 2 モード」しか書いていない | (1) §7.2 の E005 の条件を「1 節に 3 つ以上のモード、**または** 1 節の `mode` に同じキャラを 2 回」に広げ、ja 文言を両方に効くもの（例: `1 つの節に設定できるモードは 2 つまでです（同じキャラに 3 つ以上のモードは付けられません）`）にする、(2)「同じキャラを 2 回」に別のコードを新設する（コードの新設は仕様更新が先、MUST）、のいずれか。**実装は §5.4.2 を採ってどちらも E005**（文言は §7.2 のまま。`tests/plot_episode.rs` の `the_same_character_twice_in_one_mode_is_e005` と `e005_is_reported_once_per_offending_token` が固定している）。**裁定（2026-10-11）: §5.4.2 を優先。今の実装で確定**（＝上記 (1) の方針。§7.2 の E005 の行の条件・ja 文言を §5.4.2 に合わせる仕様書側の追記は**未実施**、指示があれば行う） | ~~M3 まで~~ 裁定済み |
 | ~~**A-14**~~ | §5.0.2 の行内コメントと §5.4.3 の例（フィールド値の後ろの `//`） | §5.0.2 は「未エスケープの `//` 以降、行末までコメント」を**行内でも**有効なものとして定義し、§5.4.3（B 形式）の例は `mode: 'リリア:B+C          // 呆れモードと好奇心モードの併用（2 つまで）` と**フィールド行の値の後ろに行内コメント**を書く。ところが §5.0.5 のフィールド行の 7 段の手順に行末コメントの除去は無く、仕様どおりに実装すると**コメントが値の一部になる**（§9.2 B-36）。このままだと `length: 500 // 目標` の値が `500 // 目標` になって `Field::number()` が `None` を返す（§6.2 の参照走査も `//` の中まで `'` を探しに行く。実害は無いが無駄） | (1) §5.0.5 の手順に「値は未エスケープの `//` より前（`://` は URL なので除く、§5.0.2）」を足し、`Field` に `comment: Option<Comment>` を持たせて round-trip を保つ（字句器 1 箇所の変更で A/B 形式に効く）、(2) §5.4.3 の例のコメントを**次の行の行コメント**（`// …`）に直す、のいずれか。**実装はどちらも採らず B-36 のまま**（値に行末コメントを含む。A 形式はこれで緑、B 形式は `two_modes_on_one_character_are_allowed` が固定）。**裁定（2026-10-11）: 今の実装（B-36）で確定**。§5.0.5 にコメント除去は足さず、`Field` に `comment` も持たせない。値を数値として読む層（M3）は行末コメントを自分で落としてから解釈する | ~~M3 まで~~ 裁定済み |
+| **A-15** | §5.0.6 のキー表と §5.5.3 / §5.7 / §5.9.1 / §5.9.2 | 各形式の節が**自分で定義しているフィールドキー**が §5.0.6 の 36 行の表に無い。該当は **9 キー**: §5.5.3 の `color`、§5.7 の `status` `created` `relates` `promoted-to`、§5.9.1 の `model-hint` `max-chars` `temperature`、§5.9.2 の `label`。仕様どおりに実装すると**仕様書自身の例が W011（未知のキー）を出す**（§5.5.7 の恩田恵の例で `color` 1 件、§5.7 の例で 4 件、§5.9.1 の例で 3 件、§5.9.2 の例で 3 件。A-12 の `title` と同じ構図で、こちらは 4 形式ぶん）。`status` は §5.0.6 の `state`（別名「状態」）と**意味が近いが別物**（アイデアの inbox / keep / promoted / dropped）なので、別名の追加では解決しない | (1) §5.0.6 の表に 9 キーを足す。**日本語別名は 1:1 の固定表**（§5.0.6 MUST）なので 9 件ぶん発明が要り、`state`＝「状態」と衝突しないように `status`→「状況」等の割り当ても決める必要がある。(2) 表は ① の語彙のままにして、§5.5.3 / §5.7 / §5.9 のキーは「形式が自分で定義する追加キー」として §5.0.6 に**参照行**を足す（W011 が出ない扱いにする）。(3) 例から消す（`color` は UI 側の設定に寄せる等）。**実装はどれも採用せず仕様どおり W011 ＋ 値を改変せず保持**（`tests/characters_md.rs`・`tests/ideas_md.rs`・`tests/prompt_md.rs`・`tests/golden/**` が固定しているので、表を直すとテストも直す）。**ユーザーの裁定が要る** | M2 のレビューまで（② のキー追加とまとめて直すのが安い） |
+| **A-16** | §5.9.2 の例と §15.5.3 の変数表 | §5.9.2（カスタムロールの例）は `本文: {{content_section}}` を使うが、§15.5.3 の**閉じた集合**（19 変数）に `content_section` は無い。本文は `text_current` なので、仕様書自身の例が **E031（使用できない変数）** を出す（`tests/prompt_md.rs` と `tests/golden/prompt_md/spec_5_9_2_custom.expected.json` が固定） | (1) §5.9.2 の例を `{{text_current}}` に直す（変数名の綴り違いと読む。閉集合は §15.5.3 が正本）、(2) §15.5.3 の表に `content_section` を足す（`text_current` と意味が重なるので別名扱いの規則も要る）。**実装は (1) 側＝閉集合を正本**にして例の `{{content_section}}` に E031 を出す。プロンプトは保存できるので作者のデータは失われない（§7.2「保存は可能、実行は不可」） | M10（MCP 接続）まで |
+| **A-17** | §7 の診断コード表と §5.8.2 / §4.3-4 | `materials/index.json` が **JSON として壊れている**ときの診断コードが §7 の 77 件に無い（`project.json` / `ui.json` / `stats.json` も同じ）。§4.3-4 は「壊れていても開ける。診断として表示し、既定値で続行する（MUST）」と**診断として表示する**ことを要求しているので、コードが無いと MUST を満たせない | (1) §7.1 に「設定・索引ファイルがパースできない」コードを新設する（例 **E064 以降の空き**か §7.1 の E024 の隣。コードの新設は仕様更新が先、MUST）。位置はファイル全体、引数はパーサのエラーメッセージ。(2) 既存のコードを流用する（`project.json` のスキーマ不一致に E032 系を使う等。意味が合わないので非推奨）。**実装はどちらもしない**: `core::syntax::materials_index::Index` が `error: Option<String>` にメッセージを持ち、`index` は `None`、原文は `to_text()` でそのまま戻る（パニックはしない）。呼び出し側（M5 のストレージ）が既定値で続行する。コードが新設されたら `error` を診断に変換する | M5（ストレージ）まで |
 | ~~**A-4**~~ | §14.1 | サブコマンド一覧に `lsp` が無い（U-3 保留の帰結）が、`DEVELOPERS.md` との整合が未確認 | **解消（2026-10-09）**。`DEVELOPERS.md` を全面改訂。`--init` → `new`、層構造、8 形式、IME（§9.8.5）、`Alt+7` 欠番、保存の考え方、`lsp` 不在の理由を反映。**M11 では sample と実装の実態に合わせた微修正だけでよい** | 済（M11 で再確認） |
 
 ### 9.2 設計判断（実装者が決めてよいが、決めてから書く）
@@ -1076,6 +1179,14 @@ tests/layering.rs
 | B-38 | ブロックの外にあるフィールドと自由記述 | 前文に含める / 直前のブロックに含める / どのブロックにも含めない | **どのブロックにも含めない**（C 形式の B-32 と同じ流儀）。§5.3.1 の EBNF には `block_end` のあと・次の `outline_header` の前にフィールドを置く場所が無く、§7 に対応コードも無い。行は残るので round-trip は保たれ、**W011 / W019 はブロックの外でも出す**（キーと値の形は場所に依らない）。W019 の字数は継続行まで含めた `Field::full_value`（**改行も 1 字**）で数え、範囲は 1 行目の値。`summary` の有無（E018）は**ブロック単位**なので前文とブロック外は要求されない |
 | B-39 | `state` / `length` の値が形に合わないとき | 診断を出す / `None` にして原文を残す | **`None` にして原文を残す**。§5.3.2 の表は `state`（`draft` / `review` / `fixed`）と `length`（整数）の形を書くが、§7 に対応するコードが無い（コードの新設は仕様更新が先、MUST）。`Field::number()` が `None` を返すだけで、値は `value` に原文のまま残る。`state` の enum 化は検査器（M4）か `core/model/` 側で行う |
 | B-40（**移設見送り 2026-10-11 承認**） | `.txt` 3 形式の共通ヘルパの置き場所 | `text/lexer.rs` に移す / `syntax/mod.rs` に新設 / C 形式の `syntax/contents.rs` のものを `pub(crate)` で共有 | **当面は `contents.rs` のものを `pub(crate)` で共有**（`body_start` / `find_comment` / `is_char_name` / `is_mode_id` / `split_modes` / `parse_break` / `parse_comment` と `Comment` / `BreakLine` / `CommentLine` 型）。同じ規則を 2 箇所に書かないことを優先した。A 形式が 2 番目の消費者なので今はこれで足りるが、**3 番目（B 形式）が来たら `syntax/mod.rs` か `text/lexer.rs` に移す**（`contents.rs` は C 形式のパーサなので、共通部の置き場所としては名前が嘘になる）。`pub(crate)` のまま移すので外部 API は変わらない。**（2026-10-11 更新）B 形式が 3 番目の消費者になったが、移設はしなかった**: §3.3 のファイルツリーに `syntax/` の共通ヘルパ用ファイルが無く、**新しいファイルは仕様更新が先**（§3.2 の MUST）だから。代わりに (a) 見出し行まわり（`parse_scene` / `body_start` / `find_comment` / `is_char_name` / `is_mode_id` / `MODE_JOIN` / `parse_break` / `parse_comment` と `SceneLine` / `BreakLine` / `CommentLine` / `Comment` 型）は `contents.rs` のまま `pub(crate)` で共有、(b) フィールド行まわり（`Field` / `Continuation` / `CharRef` / `parse_field` / `drop_indent` / `warn_unknown_key`）は `plot_outline.rs` が持ち、`plot_episode.rs` が `pub use` で**同じ名前**で公開する（利用側は実体が A 形式にあることを知らなくてよい）。**名前が実態に合わないのは承知の上**で、§3.3 に `syntax/common.rs`（仮）を足す仕様更新があれば (a)(b) とも移す（`pub(crate)` のまま移すので外部 API は変わらない）。B 形式が独自に持つのは `Line` / `attach_continuations` / `content_span` の 3 つだけ（行の型が形式ごとに違うのでループは共有できない。規則そのものは `drop_indent` と §5.2.2 の末尾空行除去で共有している） |
+| B-42 | MD 方言（`characters.md` / `words.md` / `ideas.md` / `prompts/*.md`）の共通部の置き場所 | `text/lexer.rs` に移す / `syntax/mod.rs` に新設 / `characters_md.rs` のものを `pub(crate)`・`pub use` で共有 | **`characters_md.rs` が正本**で、行の分類（`Line` / `Heading` / `Bullet` / `PatternLine` / `Pattern` / `parse_line` / `attach_continuations` / `line_offsets`）と `range` の検査（`range_value` / `check_range` / `all_range`）・`unknown_field`・`section_key_of` を `pub(crate)` で、型は `pub use` で共有する（`words_md.rs` / `ideas_md.rs` / `prompt_md.rs`）。§5.6 が「`characters.md` と同一の MD 方言を使う」と明記しているので**最初に実装する MD 形式が正本**になるのが自然で、B-40（`.txt` 側は `contents.rs` が正本）と同じ判断。§3.3 のツリーに `syntax/common.rs` が無いので**移設はしない**（新しいファイルは仕様更新が先、§3.2 の MUST）。フィールド行まわり（`Field` / `Continuation` / `parse_field` / `drop_indent` / `warn_unknown_key` / `CharRef`）は A 形式の `plot_outline.rs` が正本のまま（MD も §5.0.5 の同じ規則を使う） |
+| B-43 | MD 方言で**入れ子の外**にある見出しと、モード内の箇条書きを木に載せるか | 全部載せる / 入れ子が正しいものだけ載せる / 行だけ残して木に載せない | **入れ子が正しいものだけ木に載せ、それ以外は行だけ残す**（`lines` にあるので round-trip は保たれ、`Lines` の分類はそのまま見える）。H1 の外にある H2/H3、セクションの外にある H3、`#### ` 以上の深い見出し（§5.5.1 が数えない階層）、モード内にある箇条書き（§5.5.2 の `section_body` にしか現れない）が該当する。**診断は出さない**: §7 に「入れ子が間違っている」コードが無く、§5.5.1 は「それ以外は自由記述として保持」としか言わないので、勝手に E を新設しない（コードの新設は仕様更新が先、MUST）。深い見出しと `#名前`（空白なし）は自由記述として木に載る |
+| B-44 | `range:` の検査（E002 / E016 / E017）の順序と、比較に使う範囲 | 行順に全部 / コンテナ順に E002・E016 → 最後に E017 / 書いた順に混在 | **行順の W011 → キャラクタ（用語）ごとのモード順に E002 / E016 → 最後に E017**。E017 は「同じ ID の前の定義全部」と比べるので 1 回の走査では出せず、A 形式の E018（行順のあとにブロック順）と同じ流儀で後から並べる。`range:` の値が**範囲式として読めない**（E002）ときは `None` を返して**比較しない**（読めない範囲と交差を言っても作者に行動できない）。**左端 > 右端**（E016）のときは `RangeExpr` ができているので**比較には使う**（`Interval::intersects` は `start <= other.end && other.start <= end` なので逆順の区間でも交差を言う。作者は E016 を先に直す）。`range:` だけの空の値は `Err(RangeError::Empty)` を「範囲を書かなかった」と読んで**全範囲**（§5.5.4「`range` 省略時は全範囲」）にし、診断しない |
+| B-45 | `materials/index.json` の診断（E024 / E008）の byte range の決め方 | serde に位置を持たせる（`serde_path_to_error` 等の新クレート） / `Value` の `span` 機能を使う / 値のリテラルを原文から検索する | **値の JSON リテラルを原文から検索する**（`literal_ranges`）。新クレートは足せない（§3.2 MUST）し、`serde_json` の位置情報なしの `Value` は byte 位置を持たない。検索は「`"path"` の後ろの文字列リテラル」のように**キー名と値の両方**を鍵にするので、同じ値が 2 箇所にあっても最初の未使用のものを採る（`Index::raw` は原文のままなので、位置がずれても round-trip は壊れない）。診断の位置は §7 の「文書位置」列（E024＝`path` の値、E008＝2 件目の `id` の値）に合わせた |
+| B-46 | 閉じた集合の値（`newline` / `paragraph_break` / `status` / `delegation` / `kind` 等）を serde の enum にするか | serde の enum（`#[serde(rename_all)]`） / String ＋ `*_kind()`・`parse()` / `#[serde(other)]` 付き enum | **String で受けて `*_kind()`（enum への変換）と `parse()`（文字列からの生成）を別に持つ**。serde の enum にすると**未知値 1 つでファイル全体がデシリアライズできなくなり**、§4.3-4「壊れていても開ける。既定値で続行する（MUST）」と §1.5-1 の未知キー温存に反する（② が値を足した瞬間に ① のプロジェクトが開けなくなる）。`#[serde(other)]` は unit variant にしか付けられないので入れ子のある値には使えない。enum 自体は `MaterialStatus` / `SourceKind` / `ConditionKind` / `Delegation` / `Newline` 等として持ち、**ドメイン層は enum で書く**（文字列比較を散らさない） |
+| B-47 | `prompts/*.md` の `{{variable}}` の走査範囲と位置 | フィールド値とセクション本文だけ / 行コメントと空行を除く全行 / H1 より後ろだけ | **行コメント（`//`）と空行を除く全行**を走査する。LLM に渡らない部分（コメント）の変数は実行時に展開されないので診断しても行動できず、空行には変数が無い。`# ` の行コメントは ②（§5.0.8）なので ① では**走査対象に残る**（B-36 と同じ理由）。`Variable::at` / `range` は**行内相対**（`Field::value_at` と同じ流儀）で、診断の byte range だけは `line_offsets` を足して絶対位置にする（最初は両方に足して 17 byte ずれるバグを出したので、テストで絶対位置を固定した）。E032 / E033 は `Options::custom = true` のときだけ（既定 7 役割の `prompts/<role>.md` は**上書きが正当**なので同名でも E033 にしない。§5.9.2「上書きは `prompts/<role>.md` 側で行う」） |
+| B-48 | ゴールデンテストの `.expected.json` の `tree` の形 | 木を serde でそのままダンプ / 形式ごとの射影 / 短いタグ文字列（unit テストと同じ） | **形式ごとの射影**。serde ダンプは行の `raw` と借用スライス全部が入って**人が読めず**、仕様書と突き合わせられない（§6.3「自動生成した期待値は仕様の検証にならない」）。unit テストのタグ文字列は 1 行に詰まっていて差分が読みにくい。射影は「コンテナは `span` の数値、フィールドは**キー文字列の列**（未知キーは `{"unknown": "…"}` で区別）、free / bullets / notes は**件数**、役割語パターンはパターン本体」としたので、**行番号を数える手作業を最小化**しつつ §5.3 完了条件 1 の「構造が期待値と一致する」を目視で検証できる。round-trip（完了条件 2）は JSON には入れず**ハーネスが全ケースで機械的に assert** する（期待値に書くとかえって壊れやすい）。ゴールデンは**既定の `Options`** で読む（`project.json` 由来の設定で変わる診断 E020 / E032 / E033 は unit テストが見る。§6.3 のケースは 1 ファイル 1 入力なので設定を足す仕組みは持たない） |
+| B-49 | `core/model/mod.rs` の再公開の書き方 | `pub use project::Project;` / `pub use self::project::Project;` | **`self::` を付ける**。`tests/layering.rs` の `core_has_no_forbidden_dependency` は `use` / `pub use` の**先頭セグメント**が `ALLOWED_ROOTS`（`std` `core` `alloc` `crate` `self` `super` と許可クレート）にあるかを見るので、同一クレート内のモジュール名を直接書くと落ちる（B-19 の検査器の自己テストが拾った）。`crate::` でも通るが、`mod.rs` の中では `self::` が一番短い |
 | B-41（**2026-10-11 承認**） | B 形式のフィールドのスコープ（場面レベル／節レベル）の境目 | 最初の `;` で切る / 最初の `point_line` で切る / §5.4.2 の「適用」列でキーごとに決める | **最初の `point_line`（1 行も無ければ最初の `;`）で切る**。§5.4.1 の EBNF が `scene_block = scene_header , { scene_field | comment_line | blank } , section , …` で `section = { point_line | section_field | comment_line | blank }` なので、`point_line` が現れた時点で `scene_field` の領域は終わる（**コメント行と空行は領域を終わらせない**）。「最初の `;` で切る」案だと §5.4.3 の例の `check:`（「適用」＝**節**）と `senses:` が場面レベルになり、§5.4.2 の表と食い違う。キーごとに決める案は `scene_field = field_line ; section_field = field_line`（**形は同じ**）という EBNF に反するので採らない（適用範囲の表は「そのキーがどのスコープで意味を持つか」の話で、パーサの位置決めの規則ではない）。最初の節の `span` は最初の `point_line` から始まり、`point_line` が 1 行も無ければ**空**（§5.4.5 の例の 1 節目）。`;` の後ろの節は `;` の次の行から始まる。見出しより前の行は前文（フィールドは `Preamble::fields`）、前文より後ろで見出しが無いままの行はどのスコープにも入れない（B-32・B-38 と同じ流儀） |
 | B-23 | 行頭シジル表の形 | `&[(Sigil, Prefix)]`（§5.2 作業項目 4）/ `(prefix, kind, requires_space)` のタプル（§7 縫い代 4）/ 名前付きフィールドの構造体 | **`&[SigilSpec]`**（`prefix` / `sigil` / `requires_space` / `whole_line` / `formats` / `stage`）。タプルでは §5.0.2 の「直後に半角または全角の空白が必要」「行全体が `;` のときのみ」「出現場所（形式）」「① / ②」を載せられない。配列の**並び順そのもの**が優先順位で、順序は字句器側に書いていない |
 
