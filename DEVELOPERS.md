@@ -13,8 +13,9 @@
 > **実装済み**: `core/id.rs`・`core/text/*`（字句・位置・rope・増分）・`core/diagnostics.rs`
 > （§7 / §7.1 / §7.2 の **78 コード**）・`core/syntax/*`（**8 形式**のパーサ）・`core/model/*`
 > （10 型）・`core/resolve/dictionary.rs`（辞書と `'` の最短一致、§6.1 / §6.2）・
-> `core/resolve/modes.rs`（モード解決の 8 段、§6.4）。
-> **空のまま**: `core/resolve/` の残り 3 本（M3 進行中）・`core/features/*`（M4）・`ports/**`・
+> `core/resolve/modes.rs`（モード解決の 8 段、§6.4）・`core/resolve/role_language.rs`
+> （役割語パターン → 正規表現、§6.5）。
+> **空のまま**: `core/resolve/` の残り 2 本（M3 進行中）・`core/features/*`（M4）・`ports/**`・
 > `adapters/**`（M5 / M6）・`ui/**`（M7 以降）。本書の「モジュール構成」は **v1 の目標形**。
 >
 > **GUI は M7 まで動かない**（`PLANS.md` §3 I3）。M0 時点の `cargo run` は
@@ -315,6 +316,41 @@ let assignment = modes::resolve(&input, &target); // → Assignment { step, ids,
 **`Target.character` は `Characters::characters` の添字**（行 index ではない）。
 `Characters::character_of` は**行 index**を取るので混ぜないこと（M3 で実際に踏んだ。
 `tests/modes.rs` の `definitions_uses_the_character_index_not_a_line_index` が固定している）。
+
+---
+
+### 5.3 役割語 — `core/resolve/role_language.rs`
+
+`「` `」` の中の**小言語**（§6.5.1）を正規表現に変換し、**コンパイル済みで持つ**。
+正本は §6.5 / 付録 B、判断は `PLANS.md` §9.2 B-68〜B-70（仕様の要補正点は §9.1 A-21・A-23・A-24）。
+
+| 規則 | 内容 |
+|---|---|
+| 5 アトム（§6.5.1） | `*` / `〜` → `[^\n]*?`（**非貪欲**）、`…` / `...` / `‥` → `[…‥.。]{1,6}`、`(体言)` 等 → `project.json.lexicon.word_classes`（無ければ §6.5.1 の**既定 3 クラス**）、`?` → `[^\n]`、それ以外 → エスケープしたリテラル |
+| アンカー（§6.5.2） | 先頭・末尾が `*` / `〜` かどうかだけで決まる（`RolePattern::anchor` が M2 で持つ）。`=` 前置は**完全一致** |
+| `^` / `$` の範囲 | **発話全体**の先頭・末尾（「文」単位ではない）。付録 B.3 の 1・2 行目が文単位では成立しないため（§9.1 **A-23**） |
+| 下線（§6.5.4 / B.4） | マッチ全体から **`*` / `〜` が食った範囲だけ**を除く。語クラス・`…`・`?` は**含める**（**A-21**）。実装は「下線に含めるアトムの連続」をキャプチャグループで囲んだ正規表現を別に生成する（**B-68**） |
+| 和集合（§6.5.4） | 複数パターンの一致は 1 本にまとめる（重なり・隣接をマージ）。**一致しなければ何も返さない**（診断も色も出さない、MUST） |
+| 照合対象（§6.5.3） | `「」` / `『』` の**内側だけ**（`dialogue_spans`。地の文は照合しない MUST）。入れ子は内側と外側の両方を返す。**話者不明の台詞を除外するのは呼び出し側** |
+| 計算量（§6.5.5） | `RegexSet` で候補を絞ってから個別検索。`Cache` がキー（例: `"恩田恵:A"`）ごとに `MatcherSet` を覚える。**release 実測 0.68µs / 行（10 パターン）**、100 パターンで 9.8µs |
+
+```rust
+// 適用パターン集合（§6.5.3）= モード専用 ∪ キャラ共通 `## tone`
+let set = MatcherSet::new(&modes::applicable_patterns(&characters, &assignment, 0), cache.lexicon());
+let raw = line.raw();
+let marks: Vec<Range<usize>> = role_language::dialogue_spans(raw)
+    .iter()
+    .flat_map(|span| {
+        set.underlines(&raw[span.clone()])
+            .into_iter()
+            .map(move |found| found.start + span.start..found.end + span.start)
+    })
+    .collect();   // → §11.3 の `syntax.role-language` の装飾（行内相対）
+```
+
+語クラスの正規表現が壊れている（`project.json` の書き間違い）パターンは**黙って捨てる**
+（§7 に対応コードが無い。§9.1 **A-24**）。未知のクラス名 `(ほげ)` は**リテラル扱い**（**B-69**）。
+`MatcherSet` は**編集のたびに作り直さない**こと（正規表現のコンパイルが本体のコスト。§6.5.5）。
 
 ---
 
