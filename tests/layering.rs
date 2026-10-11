@@ -20,6 +20,12 @@
 //! 再帰して探す。`contains("test")` のような部分文字列判定にすると `#[cfg(feature = "latest")]`
 //! が免除されてしまう。
 //!
+//! `i18n: format-vocabulary` という doc 行を付けた `const` / `static` の中も日本語リテラル検査の
+//! 対象外にする。§5.0.6 のフィールドキー別名表は「UI 言語が `en` でも受理する」ファイル形式の
+//! 語彙であってユーザー向け文言ではなく、ロケール表（`ui/i18n/`）にも置けないため（§12.2 の
+//! 「文言」の解釈は `PLANS.md` §9.1 A-5 / §9.2 B-19）。マーカーは **doc 行の完全一致**で判定し、
+//! 免除が及ぶのはその item の中だけ（同じファイルの関数やモジュールには効かない）。
+//!
 //! §3.2 の「読み書きは不可」は `std::fs` 等の禁止モジュールに加えて、**`io::stdin` /
 //! `io::stdout` / `io::stderr`**（`use std::io;` 経由の 2 セグメント形を含む）でも検査する。
 //! `std::io::Read` / `Write` / `Error` を型として使うのは純粋なので許可する。
@@ -32,7 +38,10 @@ use std::path::{Path, PathBuf};
 
 use proc_macro2::{TokenStream, TokenTree};
 use syn::visit::{self, Visit};
-use syn::{Attribute, ItemExternCrate, ItemMod, ItemUse, LitStr, Meta, UseTree};
+use syn::{
+    Attribute, Expr, ItemConst, ItemExternCrate, ItemMod, ItemStatic, ItemUse, Lit, LitStr, Meta,
+    UseTree,
+};
 
 /// このクレートの名前（`Cargo.toml` の `[lib] name`）。
 const CRATE_NAME: &str = "novnow";
@@ -115,6 +124,9 @@ struct Checker {
     /// `#[cfg(test)]` モジュールの内側かどうか。テストデータの日本語はユーザー向け文言では
     /// ないので、§12.2 の検査からは外す（パーサの単体テストには日本語の入力例が必須）。
     in_test_cfg: bool,
+    /// [`VOCABULARY_MARKER`] の doc 行を付けた `const` / `static` の内側かどうか。
+    /// §5.0.6 の別名表のような**ファイル形式の語彙**はユーザー向け文言ではないので外す。
+    in_vocabulary: bool,
 }
 
 impl Checker {
@@ -124,7 +136,7 @@ impl Checker {
     }
 
     fn report_text(&mut self, shown: &str) {
-        if self.in_test_cfg {
+        if self.in_test_cfg || self.in_vocabulary {
             return;
         }
         if has_japanese(shown) {
@@ -289,6 +301,26 @@ impl<'ast> Visit<'ast> for Checker {
         self.in_test_cfg = outer;
     }
 
+    /// [`VOCABULARY_MARKER`] の doc 行が付いた `const` の中だけ日本語リテラルを許容する。
+    fn visit_item_const(&mut self, node: &'ast ItemConst) {
+        let outer = self.in_vocabulary;
+        if !outer && has_vocabulary_marker(&node.attrs) {
+            self.in_vocabulary = true;
+        }
+        visit::visit_item_const(self, node);
+        self.in_vocabulary = outer;
+    }
+
+    /// `const` と同じ免除を `static` にも適用する。
+    fn visit_item_static(&mut self, node: &'ast ItemStatic) {
+        let outer = self.in_vocabulary;
+        if !outer && has_vocabulary_marker(&node.attrs) {
+            self.in_vocabulary = true;
+        }
+        visit::visit_item_static(self, node);
+        self.in_vocabulary = outer;
+    }
+
     /// 式・型・パターン・マクロ呼び出しのパスをまとめて検査する。
     fn visit_path(&mut self, node: &'ast syn::Path) {
         let segs: Vec<String> = node.segments.iter().map(|s| s.ident.to_string()).collect();
@@ -360,6 +392,35 @@ fn mentions_test_ident(tokens: &TokenStream) -> bool {
         TokenTree::Ident(ident) => ident == "test",
         TokenTree::Group(group) => mentions_test_ident(&group.stream()),
         _ => false,
+    })
+}
+
+/// 字句データ（ファイル形式の語彙）であることを宣言する doc 行のマーカー。
+///
+/// §5.0.6 の別名表のように、**日本語だがユーザー向け文言ではない**データを core に置くための
+/// 唯一の抜け道。`ui/i18n/` はロケールで引く表なので、UI 言語が `en` でも受理する別名は
+/// 置けない（§12）。
+const VOCABULARY_MARKER: &str = "i18n: format-vocabulary";
+
+/// doc コメントに [`VOCABULARY_MARKER`] の行があるか。
+///
+/// **行の完全一致**だけをマーカーと認める（説明文の中に同じ語が紛れ込んでも免除しない）。
+/// 普通の `//` コメントは syn が捨てて AST に残らないので、`///`（doc 属性）で書く必要がある。
+fn has_vocabulary_marker(attrs: &[Attribute]) -> bool {
+    attrs.iter().any(|a| {
+        if !meta_path(&a.meta).is_ident("doc") {
+            return false;
+        }
+        match &a.meta {
+            Meta::NameValue(nv) => match &nv.value {
+                Expr::Lit(lit) => match &lit.lit {
+                    Lit::Str(s) => s.value().trim() == VOCABULARY_MARKER,
+                    _ => false,
+                },
+                _ => false,
+            },
+            _ => false,
+        }
     })
 }
 
@@ -621,6 +682,12 @@ const MUST_CATCH_TEXT: &[&str] = &[
     // --- "latest" のように test を部分文字列として含むだけの cfg は免除しない ---
     "#[cfg(feature = \"latest\")] mod t { pub const M: &str = \"日本語\"; }",
     "#[cfg(any(feature = \"greatest\"))] mod t { pub const M: &str = \"日本語\"; }",
+    // --- 字句データの免除はマーカー付き const / static の中だけ（関数には効かない） ---
+    "pub const KEYS: &[(&str, &str)] = &[(\"summary\", \"要約\")];",
+    "/// i18n: format-vocabulary\npub const KEYS: &[&str] = &[\"要約\"];\npub fn msg() -> &'static str { \"保存しました\" }",
+    // --- マーカーは doc 行の完全一致（説明文の中の語や、普通の `//` コメントでは免除しない） ---
+    "/// §5.0.6 は i18n: format-vocabulary に触れている\npub const KEYS: &[&str] = &[\"要約\"];",
+    "// i18n: format-vocabulary\npub const KEYS: &[&str] = &[\"要約\"];",
 ];
 
 /// 検出されてはいけない日本語（コメント・doc コメント・char リテラル）。
@@ -638,6 +705,9 @@ const MUST_PASS_TEXT: &[&str] = &[
     // --- all(...) / any(...) の括弧の中に test があっても同じ（再帰して探す） ---
     "#[cfg(all(test, feature = \"x\"))] mod t { pub const M: &str = \"日本語\"; }",
     "#[cfg(any(not(feature = \"x\"), test))] mod t { fn a() { let _ = \"日本語\"; } }",
+    // --- §5.0.6 の別名表のような字句データは `i18n: format-vocabulary` の doc 行で免除 ---
+    "/// i18n: format-vocabulary\npub const KEYS: &[(&str, &str)] = &[(\"summary\", \"要約\")];",
+    "/// 説明\n/// i18n: format-vocabulary\npub static KEYS: [&str; 1] = [\"要約\"];",
 ];
 
 #[test]

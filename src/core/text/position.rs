@@ -110,9 +110,8 @@ impl LineTable {
 
     /// `line` 行目の終端 byte offset（**改行を含まない**）。範囲外なら `None`。
     pub fn line_end(&self, line: usize) -> Option<usize> {
-        if self.starts.get(line).is_none() {
-            return None;
-        }
+        // 行が存在するかだけを見て、終端は次の行頭（または文書末尾）から決める
+        self.starts.get(line)?;
         match self.starts.get(line + 1) {
             Some(&next) => Some(next - 1),
             None => Some(self.text_len),
