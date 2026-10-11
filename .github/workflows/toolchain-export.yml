@@ -36,6 +36,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: toolchain-export
@@ -406,6 +407,16 @@ jobs:
           . /home/user/build/env.sh && cd /home/user/novnow && cargo test --all-targets
           ```
           NOTES
+          # 分割元の tar.gz は 100MB を超えるので push できない（GitHub の制限）。
+          # チャンクと SHA256SUMS だけを残す。サンドボックス側は cat で連結して戻す。
+          rm -f ./*.tar.gz
+          big=$(find . -type f -size +95M -not -path './.git/*')
+          if [ -n "$big" ]; then
+            echo "100MB 超のファイルが残っている（push できない）: $big"
+            exit 1
+          fi
+          du -sh .
+          df -h /tmp
           git add -A
           git commit -q -m "toolchain-export: rust sysroot + vendored crates ($CACHE_KEY)"
           git push -q origin "$CACHE_BRANCH"
@@ -418,16 +429,13 @@ jobs:
         run: |
           set -uo pipefail
           CACHE_BRANCH="${CACHE_BRANCH:-cache/rust-toolchain}"
-          mkdir -p "$PAYLOAD"
-          cd "$PAYLOAD"
-          if [ ! -d .git ]; then
-            git init -q -b "$CACHE_BRANCH"
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git config http.postBuffer 524288000
-            git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          fi
+          # 巨大な生成物を巻き込まないよう、失敗情報は別のきれいなディレクトリから push する。
+          FAILDIR=/tmp/failinfo
+          rm -rf "$FAILDIR"
+          mkdir -p "$FAILDIR"
+          cd "$FAILDIR"
           last=$(tail -1 "$PROGRESS" 2>/dev/null || echo unknown)
+          cp "$PROGRESS" PROGRESS.txt 2>/dev/null || true
           python3 - "$last" <<'PY' || true
           import json, os, sys, time
           token = os.environ.get("GH_TOKEN", "")
@@ -444,6 +452,71 @@ jobs:
           }, open("MANIFEST.json", "w"), indent=2)
           PY
           ls -l
+          # 正常な生成物が既にあるブランチを失敗情報で上書きしない。
+          code=$(curl -sS -o /tmp/rm.json -w '%{http_code}' \
+            -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github.raw" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/MANIFEST.json?ref=$CACHE_BRANCH" || true)
+          status=$(python3 -c 'import json;print(json.load(open("/tmp/rm.json")).get("status",""))' 2>/dev/null || echo "")
+          if [ "$code" = "200" ] && [ "$status" = "ready" ]; then
+            echo "ブランチには正常な生成物があるので上書きしない（失敗の詳細は PR コメントへ）。"
+            exit 0
+          fi
+          git init -q -b "$CACHE_BRANCH"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config http.postBuffer 524288000
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git add -A
-          git commit -q -m "toolchain-export: FAILED at $last" || echo "nothing to commit"
-          git push -q -f origin "$CACHE_BRANCH" || echo "push failed too"
+          git commit -q -m "toolchain-export: FAILED at $last"
+          if git push -q -f origin "$CACHE_BRANCH"; then
+            echo "failure info pushed to $CACHE_BRANCH"
+          else
+            echo "failure info の push にも失敗（PR コメントを参照）"
+          fi
+
+      # Actions のログはサンドボックスから読めない（ログ取得先ホストに到達できない）ので、
+      # 失敗時はログ末尾を PR コメントに置く。ci.yml と同じ「読める経路」。
+      - name: 11 report failure to the PR
+        if: failure()
+        shell: bash
+        run: |
+          set -uo pipefail
+          python3 - <<'PY' || echo "PR コメントの投稿に失敗"
+          import json, os, urllib.request
+
+          token = os.environ.get("GH_TOKEN", "")
+          repo = os.environ["GITHUB_REPOSITORY"]
+          owner = repo.split("/")[0]
+          ref = os.environ.get("GITHUB_REF_NAME", "")
+
+          def api(path, data=None):
+              req = urllib.request.Request(
+                  "https://api.github.com" + path,
+                  data=json.dumps(data).encode() if data is not None else None,
+                  method="POST" if data is not None else "GET",
+                  headers={"Authorization": "Bearer " + token,
+                           "Accept": "application/vnd.github+json"},
+              )
+              with urllib.request.urlopen(req) as r:
+                  return json.load(r)
+
+          log = open(os.environ.get("LOG", "/tmp/build.log"), errors="replace").read()
+          if token:
+              log = log.replace(token, "***REDACTED***")
+          progress = open(os.environ.get("PROGRESS", "/tmp/progress"), errors="replace").read().split()
+          last = progress[-1] if progress else "unknown"
+          prs = api("/repos/%s/pulls?state=open&head=%s:%s" % (repo, owner, ref))
+          if not prs:
+              print("open PR not found; skip comment")
+              raise SystemExit(0)
+          body = (
+              "### toolchain-export が失敗（`%s` / run %s）\n\n"
+              "落ちたステップ: `%s`\n\n```\n%s\n```\n"
+              % (os.environ.get("GITHUB_SHA", "")[:7],
+                 os.environ.get("GITHUB_RUN_ID", ""),
+                 last,
+                 "\n".join(log.splitlines()[-110:]))
+          )
+          api("/repos/%s/issues/%d/comments" % (repo, prs[0]["number"]), {"body": body})
+          print("posted the log tail to PR #%d" % prs[0]["number"])
+          PY
