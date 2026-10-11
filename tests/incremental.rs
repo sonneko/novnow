@@ -221,7 +221,7 @@ fn only_structure_and_section_break_affect_numbering() {
 fn a_long_file_stays_cheap_to_relex() {
     // §6.7「10 万行で 2ms 以内」の枠組み確認。実測値は 1ms 未満だが、
     // CI の負荷で落ちないよう上限は桁違いに緩くしてある（狙いは O(n^2) 化の検出）
-    let lines = 100_000;
+    let lines: usize = 100_000;
     let mut text = String::new();
     for line in 0..lines {
         text.push_str("あいうえお ");

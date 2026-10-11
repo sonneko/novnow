@@ -409,9 +409,8 @@ pub fn classify_at_stage(line: &str, format: TextFormat, stage: Stage) -> LineKi
         if !spec.formats.contains(format) {
             continue;
         }
-        let rest = match match_sigil(line, spec) {
-            Some(rest) => rest,
-            None => continue,
+        let Some(rest) = match_sigil(line, spec) else {
+            continue;
         };
         return match spec.sigil {
             Sigil::Structure => LineKind::Structure(rest),
