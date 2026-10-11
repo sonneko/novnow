@@ -57,7 +57,10 @@ fn scene_id_rejects_malformed_input() {
     assert_eq!(SceneId::parse(""), Err(IdError::Empty));
     assert_eq!(SceneId::parse("01-04"), Err(IdError::TooFewLevels));
     assert_eq!(SceneId::parse("01"), Err(IdError::TooFewLevels));
-    assert_eq!(SceneId::parse("01-04-02-03-01"), Err(IdError::TooManyLevels));
+    assert_eq!(
+        SceneId::parse("01-04-02-03-01"),
+        Err(IdError::TooManyLevels)
+    );
     assert_eq!(SceneId::parse("01-04-0x"), Err(IdError::NotANumber));
     assert_eq!(SceneId::parse("01-04- 2"), Err(IdError::NotANumber));
     assert_eq!(SceneId::parse("12345-01-02"), Err(IdError::TooManyDigits));
@@ -71,7 +74,10 @@ fn scene_id_rejects_malformed_input() {
 fn scene_id_parse_with_sigil() {
     let with_sigil = SceneId::parse_with_sigil("@01-04-02-03").unwrap();
     assert_eq!(with_sigil, id(1, 4, 2, 3));
-    assert_eq!(SceneId::parse_with_sigil("01-04-02"), Err(IdError::MissingSigil));
+    assert_eq!(
+        SceneId::parse_with_sigil("01-04-02"),
+        Err(IdError::MissingSigil)
+    );
 }
 
 #[test]
@@ -136,7 +142,10 @@ fn scene_id_order_is_lexicographic() {
 #[test]
 fn scene_id_new_rejects_values_over_four_digits() {
     assert_eq!(SceneId::new(1, 2, 3, 4), Some(id(1, 2, 3, 4)));
-    assert_eq!(SceneId::new(MAX_LEVEL, MAX_LEVEL, MAX_LEVEL, MAX_LEVEL), Some(SceneId::MAX));
+    assert_eq!(
+        SceneId::new(MAX_LEVEL, MAX_LEVEL, MAX_LEVEL, MAX_LEVEL),
+        Some(SceneId::MAX)
+    );
     assert_eq!(SceneId::new(MAX_LEVEL + 1, 0, 0, 0), None);
     assert_eq!(SceneId::new(0, 0, 0, MAX_LEVEL + 1), None);
 }
@@ -167,7 +176,10 @@ fn partial_id_keeps_depth() {
     assert_eq!(four.section(), Some(3));
 
     assert_eq!(PartialSceneId::parse(""), Err(IdError::Empty));
-    assert_eq!(PartialSceneId::parse("01-04-02-03-05"), Err(IdError::TooManyLevels));
+    assert_eq!(
+        PartialSceneId::parse("01-04-02-03-05"),
+        Err(IdError::TooManyLevels)
+    );
 }
 
 #[test]
@@ -190,8 +202,14 @@ fn partial_id_expands_low_and_high() {
 #[test]
 fn partial_id_display_shows_only_written_levels() {
     let digits = Digits::default();
-    assert_eq!(PartialSceneId::parse("1-4").unwrap().display(digits), "01-04");
-    assert_eq!(PartialSceneId::parse("1-4-2-3").unwrap().display(digits), "01-04-02-03");
+    assert_eq!(
+        PartialSceneId::parse("1-4").unwrap().display(digits),
+        "01-04"
+    );
+    assert_eq!(
+        PartialSceneId::parse("1-4-2-3").unwrap().display(digits),
+        "01-04-02-03"
+    );
     let wide = Digits {
         chapter: 3,
         episode: 1,
@@ -321,7 +339,13 @@ fn term_of(error: RangeError) -> usize {
 fn range_accepts_whitespace_variants() {
     // §5.1 の ebnf は `..` の前後とカンマの後の ws を許す
     let expected = (id(1, 0, 0, 0), id(2, 9999, 9999, 9999));
-    for text in ["@01..@02", "@01 ..@02", "@01.. @02", " @01 .. @02 ", "\t@01 .. @02\n"] {
+    for text in [
+        "@01..@02",
+        "@01 ..@02",
+        "@01.. @02",
+        " @01 .. @02 ",
+        "\t@01 .. @02\n",
+    ] {
         assert_eq!(interval(text), expected, "input: {text}");
     }
     let union = ["@01 .. @02,@05", "@01 .. @02 ,@05", "@01 .. @02, @05"];
@@ -340,10 +364,16 @@ fn range_rejects_malformed_input() {
     assert_eq!(RangeExpr::parse("01 .. 02"), Err(RangeError::MissingSigil));
     assert_eq!(RangeExpr::parse(".. 02"), Err(RangeError::MissingSigil));
     // ID 部分が壊れている
-    assert_eq!(RangeExpr::parse("@01 .. @0x"), Err(RangeError::Id(IdError::NotANumber)));
+    assert_eq!(
+        RangeExpr::parse("@01 .. @0x"),
+        Err(RangeError::Id(IdError::NotANumber))
+    );
     let doubled = RangeExpr::parse("@01 .. @02 .. @03");
     assert_eq!(doubled, Err(RangeError::Id(IdError::NotANumber)));
-    assert_eq!(RangeExpr::parse("@12345"), Err(RangeError::Id(IdError::TooManyDigits)));
+    assert_eq!(
+        RangeExpr::parse("@12345"),
+        Err(RangeError::Id(IdError::TooManyDigits))
+    );
 }
 
 #[test]

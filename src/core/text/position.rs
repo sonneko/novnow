@@ -110,7 +110,9 @@ impl LineTable {
 
     /// `line` 行目の終端 byte offset（**改行を含まない**）。範囲外なら `None`。
     pub fn line_end(&self, line: usize) -> Option<usize> {
-        let start = *self.starts.get(line)?;
+        if self.starts.get(line).is_none() {
+            return None;
+        }
         match self.starts.get(line + 1) {
             Some(&next) => Some(next - 1),
             None => Some(self.text_len),
@@ -236,14 +238,10 @@ pub fn byte_col_to_char_col(line: &str, byte_col: usize) -> usize {
 
 /// 行内の char 列 → byte 列。範囲外は行末にクランプする。
 pub fn char_col_to_byte_col(line: &str, char_col: usize) -> usize {
-    let mut idx = 0;
-    for (byte_idx, _) in line.char_indices() {
-        if idx == char_col {
-            return byte_idx;
-        }
-        idx += 1;
+    match line.char_indices().nth(char_col) {
+        Some((byte_idx, _)) => byte_idx,
+        None => line.len(),
     }
-    line.len()
 }
 
 /// 行内の char 列 → UTF-16 列。範囲外は行末にクランプする。

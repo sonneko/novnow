@@ -28,7 +28,9 @@ fn cpos(line: usize, character: usize) -> position::CharPosition {
 
 /// `text` の char 境界の byte offset だけを列挙する。
 fn boundaries(text: &str) -> Vec<usize> {
-    (0..=text.len()).filter(|&b| text.is_char_boundary(b)).collect()
+    (0..=text.len())
+        .filter(|&b| text.is_char_boundary(b))
+        .collect()
 }
 
 // ------------------------------------------------------------- LineTable
@@ -115,7 +117,8 @@ fn utf16_column_converts_to_byte_column() {
 #[test]
 fn char_column_conversions() {
     let line = "あa😀い";
-    assert_eq!(position::byte_col_to_char_col(line, 8), 2);
+    // byte 8 は 😀（4..8）の直後なので、前にある char は あ・a・😀 の 3 つ
+    assert_eq!(position::byte_col_to_char_col(line, 8), 3);
     assert_eq!(position::byte_col_to_char_col(line, 5), 2);
     assert_eq!(position::char_col_to_byte_col(line, 2), 4);
     assert_eq!(position::char_col_to_byte_col(line, 4), 11);
@@ -134,7 +137,11 @@ fn positions_round_trip_on_every_char_boundary() {
         assert_eq!(table.byte_of_position(MIXED, lsp), byte, "byte {byte}");
 
         let chars = table.char_position_of_byte(MIXED, byte);
-        assert_eq!(table.byte_of_char_position(MIXED, chars), byte, "byte {byte}");
+        assert_eq!(
+            table.byte_of_char_position(MIXED, chars),
+            byte,
+            "byte {byte}"
+        );
 
         // 2 つの位置表現も互いに往復できる
         assert_eq!(table.position_of_char_position(MIXED, chars), lsp);
@@ -281,13 +288,16 @@ fn text_buffer_edits_by_char_index() {
     assert!(!buffer.remove(0..999));
     assert_eq!(buffer.to_string(), "日本語a\nb");
 
-    // 編集後は位置の変換も新しい本文に追随する。
-    // "日本語a\nb" の byte 3 は「1 文字目」だが UTF-16 列は 3（ここが char 列と違う）。
+    // 編集後は位置の変換も新しい本文に追随する（"日本語a\nb"）。
     assert_eq!(buffer.position_of_byte(0), Some(pos(0, 0)));
-    assert_eq!(buffer.position_of_byte(3), Some(pos(0, 3)));
+    // byte 3 は「日」の直後＝1 文字目・UTF-16 列も 1
+    assert_eq!(buffer.position_of_byte(3), Some(pos(0, 1)));
     assert_eq!(buffer.char_position_of_byte(3), Some(cpos(0, 1)));
-    assert_eq!(buffer.byte_of_position(pos(0, 3)), Some(3));
-    assert_eq!(buffer.byte_of_char_position(cpos(0, 1)), Some(3));
+    assert_eq!(buffer.byte_of_position(pos(0, 1)), Some(3));
+    // byte 9 は「日本語」の直後＝3 文字目・UTF-16 列も 3
+    assert_eq!(buffer.position_of_byte(9), Some(pos(0, 3)));
+    assert_eq!(buffer.char_position_of_byte(9), Some(cpos(0, 3)));
+    assert_eq!(buffer.byte_of_char_position(cpos(0, 3)), Some(9));
 }
 
 #[test]

@@ -253,9 +253,10 @@ impl PartialSceneId {
     /// 表示用の文字列。書かれた階層だけを `digits` でゼロ詰めして `-` でつなぐ。
     pub fn display(&self, digits: Digits) -> String {
         let widths = [digits.chapter, digits.episode, digits.scene, digits.section];
+        let depth = self.depth();
         let mut out = pad(self.levels[0], widths[0]);
-        for idx in 1..self.depth() {
-            push_level(&mut out, self.levels[idx], widths[idx]);
+        for (value, width) in self.levels[1..depth].iter().zip(&widths[1..depth]) {
+            push_level(&mut out, *value, *width);
         }
         out
     }
