@@ -748,16 +748,14 @@ fn a_modifier_that_is_not_a_mode_id_is_left_to_m3() {
 /// 診断（E003 / E004）は `characters.md` の辞書が要るので M3（§6.4）。
 #[test]
 fn an_empty_modifier_is_not_e005() {
+    // `let text = "…"` は `&str` なので `&text` にしない（clippy::needless_borrow）
     let text = "@01-04-02 攻防\nmode: 'アルス: 'リリア:A\n本文。\n";
-    assert_eq!(diags_tag(&text), "");
+    assert_eq!(diags_tag(text), "");
     assert_eq!(
-        refs_tag_of(&text, 1),
+        refs_tag_of(text, 1),
         "ref[アルス|m@0..11] / ref[リリア|mA@12..24]"
     );
-    assert_eq!(
-        scene_keys_of(&text, 0, FieldKey::Mode),
-        "'アルス: 'リリア:A"
-    );
+    assert_eq!(scene_keys_of(text, 0, FieldKey::Mode), "'アルス: 'リリア:A");
 }
 
 /// E005 は `mode:` だけの規則。`cast:` に同じキャラを 2 回書いてもここでは何も出さない。
