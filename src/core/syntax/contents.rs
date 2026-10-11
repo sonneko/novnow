@@ -66,7 +66,7 @@ const MODE_ID_MAX: usize = 16;
 const SPEAKER_SEP: char = ':';
 
 /// `mode_expr = mode_id , [ "+" , mode_id ]`（§5.1）の連結子。
-const MODE_JOIN: char = '+';
+pub(crate) const MODE_JOIN: char = '+';
 
 /// ルビの括弧（§5.2.1 `ruby`）。
 const RUBY_OPEN: char = '《';
@@ -441,7 +441,7 @@ fn parse_line<'a>(
     }
 }
 
-fn parse_scene<'a>(
+pub(crate) fn parse_scene<'a>(
     raw: &'a str,
     offset: usize,
     options: &Options,

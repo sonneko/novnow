@@ -475,7 +475,9 @@ fn parse_header_id(text: &str) -> (Option<SceneId>, usize) {
 }
 
 /// フィールド行（§5.0.5）。継続行は [`attach_continuations`] が後から付ける。
-fn parse_field<'a>(raw: &'a str, found: lexer::FieldLine<'a>) -> Field<'a> {
+///
+/// A / B 形式で同じ形なので B 形式（[`super::plot_episode`]）もこれを使う（B-40）。
+pub(crate) fn parse_field<'a>(raw: &'a str, found: lexer::FieldLine<'a>) -> Field<'a> {
     Field {
         raw,
         indent: found.indent,
@@ -522,7 +524,7 @@ fn continuation_text<'a>(line: &Line<'a>) -> Option<&'a str> {
 ///
 /// §5.3.6 の `space-mode: ascii` は「整形なし」で形を保つ MUST なので、2 文字を超える字下げは
 /// 相対的な形として残す。2 文字は「値の続き」を示す印なので落とす。
-fn drop_indent(raw: &str) -> &str {
+pub(crate) fn drop_indent(raw: &str) -> &str {
     match raw.char_indices().nth(lexer::CONTINUATION_INDENT) {
         Some((at, _)) => &raw[at..],
         None => "",
@@ -726,13 +728,7 @@ fn warn_field(line: &Line<'_>, at: usize, out: &mut Vec<Diagnostic>) {
     let Line::Field(found) = line else {
         return;
     };
-    if found.is_unknown() {
-        // §5.0.6「未知のキーは W011 とし、値は改変せず保持する」
-        let start = at + contents::body_start(found.raw);
-        let args = vec![Arg::text(found.key_text)];
-        let range = start..start + found.key_text.len();
-        out.push(Diagnostic::new(DiagnosticCode::W011, Some(range), args));
-    }
+    warn_unknown_key(found, at, out);
     if found.key != FieldKey::Summary {
         return;
     }
@@ -744,6 +740,20 @@ fn warn_field(line: &Line<'_>, at: usize, out: &mut Vec<Diagnostic>) {
         let range = start..start + found.value.len();
         out.push(Diagnostic::new(DiagnosticCode::W019, Some(range), args));
     }
+}
+
+/// §5.0.6「未知のキーは W011 とし、値は改変せず保持する」。
+///
+/// A / B 形式で同じ規則なので B 形式（[`super::plot_episode`]）もこれを呼ぶ（B-40）。
+/// `offset` はこの行の先頭の byte 位置。
+pub(crate) fn warn_unknown_key(found: &Field<'_>, offset: usize, out: &mut Vec<Diagnostic>) {
+    if !found.is_unknown() {
+        return;
+    }
+    let start = offset + contents::body_start(found.raw);
+    let args = vec![Arg::text(found.key_text)];
+    let range = start..start + found.key_text.len();
+    out.push(Diagnostic::new(DiagnosticCode::W011, Some(range), args));
 }
 
 // ============================================================ 値の形
