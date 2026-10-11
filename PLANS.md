@@ -328,12 +328,13 @@ tests/layering.rs
   - 加えて検査器の自己テスト（固定例 `MUST_CATCH_DEPS` / `MUST_CATCH_TEXT` / `MUST_PASS_DEPS` /
     `MUST_PASS_TEXT`）が同種の負例を毎回の CI で再現する（§6.2）。**検査器を直したら固定例も直す**
     （`DEVELOPERS.md` §1.4）。
-- [ ] CI が GitHub Actions で緑になる。 → **未達（`Rustfmt` のみ赤）**。
-  - `Test` / `Clippy` / `WASM Build Check` は緑（上記 run 38048771031）。
-  - `Rustfmt` は `cargo fmt --check` の差分で赤。**作業環境に Rust ツールチェーンが無く**
-    （本書 §9.3）`cargo fmt --all` を実行できないため、整形だけが未適用のまま残っている。
-    機能的な問題は無いが、`DEVELOPERS.md` §1.4 の「CI が赤ならマージしない」に照らすと
-    **ツールチェーンのある環境で `cargo fmt --all` を 1 回実行して push するまで M0 は完了としない**。
+- [x] CI が GitHub Actions で緑になる。
+  - 証跡: [run 38097509035](https://github.com/sonneko/novnow/actions/runs/38097509035)（head `a3311d9`）で
+    `Rustfmt` / `Clippy` / `Test` / `WASM Build Check` の **4 ジョブすべて緑**。
+  - 経緯: 作業環境に Rust ツールチェーンが無く（本書 §9.3）`cargo fmt --all` を実行できないため、
+    一時 `Rustfmt` が赤だった。**CI の失敗出力を PR コメントに投稿する**ようにして
+    （`.github/workflows/ci.yml` の Report ステップ）rustfmt の差分を取得し、適用して解消した。
+    ツールチェーンの無い環境で整形を合わせる手段として、この仕組みは残しておく。
 
 > **M0 から IME スパイクを外した（2026-10-09）**。egui 0.27.2 に
 > `Event::CompositionStart` / `CompositionUpdate` / `CompositionEnd` があることをソースで確認済みで、
@@ -979,4 +980,4 @@ tests/layering.rs
 | 2026-10-09 | 初版。段階 ①（v1 仕様の実装）の計画を策定 |
 | 2026-10-09 | **第 1.1 版**。`SPECIFICATIONS.md` 第 2.1 版（読者モードの #27 移管 / `unicode-normalization` 許可）を反映。<br>・M9「出力 10 日」→「エクスポート 5 日」、**合計 127 → 122 人日**<br>・§4.2 の累計日数の算術誤りを訂正（M5=55 / M7=75 / M9=98 を追記・修正）<br>・M8 は 7 ワークスペース（`Alt+7` は欠番として予約）<br>・R-1 をクローズ。**R-2（IME）は存続**（縦書きとは独立の問題のため）<br>・A-1 / A-2 を解消済みとして記録 |
 | 2026-10-09 | **第 1.2 版**。`SPECIFICATIONS.md` 第 2.2 版を反映。<br>・**R-2（IME）を調査の結果クローズ**。egui 0.27.2 に `Event::CompositionStart` / `CompositionUpdate` / `CompositionEnd` があり native / Web 両方で発火することをソースで確認。egui を上げる必要は無い<br>・代わりに **R-2'（`PlatformOutput.ime` の出し忘れ）** を新設<br>・R-3 に「上げるなら 0.29.x を飛ばす」を追記（Linux IME 回帰 #5544）<br>・M0 から IME スパイクを削除、M7 に §9.8.5 の実装項目と完了条件 2 件を追加<br>・G1 を「0.27.2 固定の確認のみ」に<br>・**A-3 / A-4 を解消済みとして記録** |
-| 2026-10-10 | **M0 実装の記録**（実装は PR、本書は記録のみ）。<br>・§5.1 の完了条件を消し込み（`Test` / `Clippy` / `WASM` の 3 ジョブ緑＋負例で `Test` 赤の証跡 URL を記載。**`Rustfmt` は未整形で赤のまま＝完了条件 3 は未達**、`v0-final` タグ）<br>・§2 に「v0 は全削除、流用は `v0-final` タグから取り出す」を記録<br>・§2.1 に dev-dependency（`syn` / `proc-macro2`）を追加<br>・§9.2 に B-16（M0 の CI `wasm` ジョブは `cargo check`。§18.4 の `trunk build` + サイズ検査は M7）を追加<br>・§9.3 の「作業環境に Rust ツールチェーンが無い」を解消済みとして更新<br>・`tests/layering.rs` は AST（`syn`）検査へ変更し、検査器の自己テストを同梱（§5.1 完了条件 2 の機械化）<br>・§5.1 完了条件 1・2 を CI の run URL 付きで消し込み（負例 commit `b69ff46` → `Test` 赤、revert `421d50c` → 緑）。**完了条件 3 は `Rustfmt` 赤のため未達**として明記<br>・§9.3 に「Actions が無効だと run が生成されない」「fmt 差分はこの環境から読めない」を追記 |
+| 2026-10-10 | **M0 実装の記録**（実装は PR、本書は記録のみ）。<br>・§5.1 の完了条件を消し込み（`Test` / `Clippy` / `WASM` の 3 ジョブ緑＋負例で `Test` 赤の証跡 URL を記載。**`Rustfmt` は未整形で赤のまま＝完了条件 3 は未達**、`v0-final` タグ）<br>・§2 に「v0 は全削除、流用は `v0-final` タグから取り出す」を記録<br>・§2.1 に dev-dependency（`syn` / `proc-macro2`）を追加<br>・§9.2 に B-16（M0 の CI `wasm` ジョブは `cargo check`。§18.4 の `trunk build` + サイズ検査は M7）を追加<br>・§9.3 の「作業環境に Rust ツールチェーンが無い」を解消済みとして更新<br>・`tests/layering.rs` は AST（`syn`）検査へ変更し、検査器の自己テストを同梱（§5.1 完了条件 2 の機械化）<br>・§5.1 完了条件 1・2 を CI の run URL 付きで消し込み（負例 commit `b69ff46` → `Test` 赤、revert `421d50c` → 緑）。完了条件 3 は `Rustfmt` 赤のため一度未達としたが、CI が PR に投稿する rustfmt 差分を適用して**4 ジョブ緑（run 38097509035）を達成**<br>・§9.3 に「Actions が無効だと run が生成されない」「fmt 差分はこの環境から読めない」を追記 |
