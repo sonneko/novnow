@@ -407,7 +407,7 @@ fn cost_line(code: &str) -> String {
         if cells.len() < 4 {
             continue;
         }
-        let mut listed = cells[1].split(|c: char| c == '・' || c == '/');
+        let mut listed = cells[1].split(['・', '/']);
         if listed.any(|item| item.trim() == code) {
             return line.to_string();
         }
@@ -426,7 +426,7 @@ fn cost_table_codes() -> Vec<String> {
         if cells.len() < 4 {
             continue;
         }
-        for word in cells[1].split(|c: char| c == '・' || c == '/') {
+        for word in cells[1].split(['・', '/']) {
             if is_code(word.trim()) {
                 out.push(word.trim().to_string());
             }
