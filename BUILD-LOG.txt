@@ -1,0 +1,109 @@
+debconf: delaying package configuration, since apt-utils is not installed
+--- runner environment ---
+Linux ccdf2f1b93f9 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 GNU/Linux
+PRETTY_NAME="Debian GNU/Linux 12 (bookworm)"
+NAME="Debian GNU/Linux"
+ldd (Debian GLIBC 2.36-9+deb12u14) 2.36
+Copyright (C) 2022 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+Written by Roland McGrath and Ulrich Drepper.
+cpus=2 mem=7938MB
+Filesystem      Size  Used Avail Use% Mounted on
+overlay          72G   59G   13G  83% /
+git version 2.39.5
+curl 7.88.1 (x86_64-pc-linux-gnu) libcurl/7.88.1 OpenSSL/3.0.22 zlib/1.2.13 brotli/1.0.9 zstd/1.5.4 libidn2/2.3.3 libpsl/0.21.2 (+libidn2/2.3.3) libssh2/1.10.0 nghttp2/1.52.0 librtmp/2.3 OpenLDAP/2.5.13
+Release-Date: 2023-02-20, security patched: 7.88.1-10+deb12u15
+Protocols: dict file ftp ftps gopher gophers http https imap imaps ldap ldaps mqtt pop3 pop3s rtmp rtsp scp sftp smb smbs smtp smtps telnet tftp
+Features: alt-svc AsynchDNS brotli GSS-API HSTS HTTP2 HTTPS-proxy IDN IPv6 Kerberos Largefile libz NTLM NTLM_WB PSL SPNEGO SSL threadsafe TLS-SRP UnixSockets zstd
+tar (GNU tar) 1.34
+Copyright (C) 2021 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+Written by John Gilmore and Jay Fenlason.
+pigz 2.6
+Python 3.11.2
+cc (Debian 12.2.0-14+deb12u1) 12.2.0
+Copyright (C) 2022 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+--- toolchain.env ---
+# toolchain-export ワークフローの設定パネル（エージェント側から書き換えて push するだけ）。
+#
+# 背景: 開発サンドボックスに Rust ツールチェーンが無く、static.rust-lang.org にも
+# crates.io にも到達できない（PLANS.md §9.3）。そこで Actions 側でツールチェーンと
+# 依存クレートのソースをまとめ、孤立ブランチに commit して git 経由で持ち出す。
+#
+# 不要になったら ENABLED=0（またはこのファイルと workflow を削除）にして、
+#   git push origin --delete cache/rust-toolchain
+# で生成物ブランチも消す。main にも作業ブランチにも影響しない。
+
+# 0 にすると checkout 直後に終了する（Actions 使用時間の節約）。
+ENABLED=1
+
+# 生成物を push する孤立ブランチ（orphan）。履歴は作業ブランチと完全に分離される。
+CACHE_BRANCH=cache/rust-toolchain
+
+# GitHub は 1 ファイル 100MB までしか push できない。この大きさで分割する。
+# 45MB にしてあるのは、大きな pack を 1 リクエストで送ると
+# "RPC failed; curl 55 Send failure: Broken pipe" で切れたため（1 チャンクずつ push する）。
+CHUNK_MB=45
+
+# 入れるツールチェーン。CI（dtolnay/rust-toolchain@stable）と同じ構成にする。
+TOOLCHAIN=stable
+PROFILE=minimal
+COMPONENTS=rustfmt,clippy
+
+# 追加ターゲット（CI の wasm ジョブと同じ）。空にすると host だけになる。
+TARGETS=wasm32-unknown-unknown
+
+# 依存クレートのソースを cargo vendor で同梱する（サンドボックスは crates.io 到達不可）。
+VENDOR=1
+
+# 同梱物だけで実際にビルド＆テストして、Debian 12 互換を push 前に確認する。
+# Actions 使用時間を削りたいときは SMOKE=0、または SMOKE_CMD を軽いコマンドにする。
+SMOKE=1
+# eval されるので && やパイプも書ける。CI の test ジョブと wasm ジョブに相当する。
+SMOKE_CMD="cargo test --locked --all-targets && cargo check --locked --target wasm32-unknown-unknown"
+
+# cache_key は (このファイル + rust-toolchain.toml + Cargo.lock + SALT) のハッシュ。
+# 同じ key の生成物が既にブランチにあれば何もしない。中身を変えずに作り直したいときや
+# stable のバージョンが上がったあとに更新したいときは SALT を増やす。
+SALT=1
+
+# 1 にすると cache_key が一致しても強制的に作り直す。
+FORCE=0
+cache_key=6513cdc8bc5e962b-1
+remote MANIFEST.json http=200
+{
+  "status": "ready",
+  "cache_key": "35e17a550621c56a-1",
+  "generated_at": "2026-10-11T11:43:22Z",
+  "run_id": "38136349094",
+  "source_sha": "3e488af398282ff388c15c8895b78e4330a637f1",
+  "built_on": "debian:12 container on ubuntu-latest",
+  "smoke": "smoke test passed in 150s on 2 cpus",
+  "files": {
+    "sysroot.tar.gz": {
+      "sha256": "739f78fdff066fbf93257b622420a6466ad13827c2c99bf97b28d6f8825f6f97",
+      "bytes": 217293242,
+      "chunks": [
+        "chunks/sysroot.tar.gz.000",
+        "chunks/sysroot.tar.gz.001",
+        "chunks/sysroot.tar.gz.002"
+      ]
+    },
+    "vendor.tar.gz": {
+      "sha256": "98ad347e72df0a9ccbd9e4cf72d52c7421fa67b7ffbb17bc662b5ec4748e84ea",
+      "bytes": 123579727,
+      "chunks": [
+        "chunks/vendor.tar.gz.000",
+        "chunks/vendor.tar.gz.001"
+      ]
+    }
+  },
+  "probe_3mb_sha256": "a80eaae5bd4bd47a77f78e9e49d5624827ce52d67078fbfe8d2d8160e65bd01f"
+}remote cache_key=35e17a550621c56a-1 status=ready
