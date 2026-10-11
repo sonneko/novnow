@@ -1,9 +1,9 @@
 //! `core::diagnostics` の表を `SPECIFICATIONS.md` §7 と突き合わせるテスト。
 //!
-//! §7（36 件）・§7.1（14 件）・§7.2（27 件）の **77 件**を仕様書の Markdown から直接
+//! §7（37 件）・§7.1（14 件）・§7.2（27 件）の **78 件**を仕様書の Markdown から直接
 //! 読み直し、`CATALOG` と一致するかを見る。`PLANS.md` §6.2 では `tests/diagnostics_catalog.rs`
 //! の導入は M4 だが、§3 I5「診断は先に表を実装」に合わせて**前倒し**した。表を先に作る以上、
-//! 仕様書との一致も先に固定しておく（後から 77 件を照合するのは手でできない）。
+//! 仕様書との一致も先に固定しておく（後から 78 件を照合するのは手でできない）。
 //!
 //! 確認するのは次の 7 つ。
 //!
@@ -49,15 +49,15 @@ struct Row {
 }
 
 #[test]
-fn the_spec_has_77_codes_in_three_tables() {
+fn the_spec_has_78_codes_in_three_tables() {
     let rows = all_rows();
     let core = count_group(&rows, Group::Core);
     let storage = count_group(&rows, Group::Storage);
     let writing = count_group(&rows, Group::Writing);
-    assert_eq!(core, 36);
+    assert_eq!(core, 37);
     assert_eq!(storage, 14);
     assert_eq!(writing, 27);
-    assert_eq!(rows.len(), 77);
+    assert_eq!(rows.len(), 78);
     assert_eq!(CATALOG.len(), rows.len());
 }
 

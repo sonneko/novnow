@@ -110,36 +110,57 @@ fn the_spec_example_reads_the_idea() {
 }
 
 #[test]
-fn the_spec_example_reads_the_known_and_unknown_keys() {
+fn the_spec_example_reads_the_keys_of_the_table() {
     assert_eq!(
         keys_tag(SPEC_EXAMPLE, 0),
         "status,created,tags,relates,promoted-to"
     );
-    // `tags` だけ §5.0.6 の表にある
+    // §5.7 の 5 キーは**すべて** §5.0.6 の表にある（第 2.6 版。A-15 の裁定＝正式追加）
     let parsed = ideas_md::parse(SPEC_EXAMPLE);
+    let keys: Vec<FieldKey> = parsed.ideas[0]
+        .fields
+        .iter()
+        .map(|&line| parsed.field(line).unwrap().key)
+        .collect();
+    assert_eq!(
+        keys,
+        vec![
+            FieldKey::Status,
+            FieldKey::Created,
+            FieldKey::Tags,
+            FieldKey::Relates,
+            FieldKey::PromotedTo,
+        ]
+    );
     let tags = parsed.idea_fields(0, FieldKey::Tags);
     assert_eq!(tags.len(), 1);
     assert_eq!(tags[0].value, "学院長, 動機");
 }
 
 #[test]
-fn the_spec_example_warns_about_the_untabled_keys() {
-    // §5.7 が定義する `status` `created` `relates` `promoted-to` は §5.0.6 の表に無いので
-    // W011（値は改変せず保持）。表を正本にした判断は PLANS.md §9.1 A-15
+fn keys_outside_the_table_still_warn_and_keep_their_values() {
+    // §5.0.6 の表に無いキーは W011 ＋ 値を改変せず保持（縫い代 2）。② のキー（`blurb`）も
+    // ① では未知のまま（PLANS.md §1.2）
+    let text = "# I0001 下書き\nstatus: inbox\nblurb: 一行紹介\nfoo: bar\n";
     assert_eq!(
-        diags_tag(SPEC_EXAMPLE),
-        [
-            w011(SPEC_EXAMPLE, 1, "status"),
-            w011(SPEC_EXAMPLE, 2, "created"),
-            w011(SPEC_EXAMPLE, 4, "relates"),
-            w011(SPEC_EXAMPLE, 5, "promoted-to"),
-        ]
-        .join("\n")
+        diags_tag(text),
+        [w011(text, 2, "blurb"), w011(text, 3, "foo")].join("\n")
     );
+    let parsed = ideas_md::parse(text);
+    assert_eq!(parsed.status(0).unwrap().key, FieldKey::Status);
+    assert_eq!(parsed.unknown_field(0, "blurb").unwrap().value, "一行紹介");
+    assert_eq!(parsed.to_text(), text);
 }
 
 #[test]
-fn the_spec_example_keeps_the_values_of_the_untabled_keys() {
+fn the_spec_example_reads_the_meta_keys_from_the_table() {
+    // §5.7 が定義する `status` `created` `relates` `promoted-to` は §5.0.6 の表に**正式追加**
+    // された（第 2.6 版。PLANS.md §9.1 A-15 の裁定＝すべて正式追加）ので W011 は出ない
+    assert_eq!(diags_tag(SPEC_EXAMPLE), "");
+}
+
+#[test]
+fn the_spec_example_keeps_the_values_of_the_meta_keys() {
     let parsed = ideas_md::parse(SPEC_EXAMPLE);
     // §5.0.8 の `# ` 行コメントは ② なので、① では値の一部としてそのまま残る（B-36 と同じ）
     assert_eq!(

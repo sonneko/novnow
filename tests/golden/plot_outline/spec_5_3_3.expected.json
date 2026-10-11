@@ -2,43 +2,9 @@
   "form": "plot_outline",
   "lines": 21,
   "tree": {
-    "diagnostics": [
-      {
-        "code": "W011",
-        "range": [
-          63,
-          68
-        ],
-        "args": [
-          "title"
-        ]
-      }
-    ],
-    "preamble": {
-      "span": [
-        0,
-        4
-      ],
-      "fields": [
-        {
-          "unknown": "title"
-        },
-        "summary"
-      ]
-    },
     "blocks": [
       {
-        "id": {
-          "chapter": 1,
-          "episode": 0,
-          "scene": 0,
-          "section": 0
-        },
         "depth": 1,
-        "span": [
-          4,
-          12
-        ],
         "end": 11,
         "fields": [
           "summary",
@@ -48,20 +14,20 @@
           "seed",
           "state"
         ],
-        "notes": 0
-      },
-      {
         "id": {
-          "chapter": 2,
+          "chapter": 1,
           "episode": 0,
           "scene": 0,
           "section": 0
         },
-        "depth": 1,
+        "notes": 0,
         "span": [
-          13,
-          20
-        ],
+          4,
+          12
+        ]
+      },
+      {
+        "depth": 1,
         "end": 19,
         "fields": [
           "summary",
@@ -70,8 +36,29 @@
           "payoff",
           "state"
         ],
-        "notes": 0
+        "id": {
+          "chapter": 2,
+          "episode": 0,
+          "scene": 0,
+          "section": 0
+        },
+        "notes": 0,
+        "span": [
+          13,
+          20
+        ]
       }
-    ]
+    ],
+    "diagnostics": [],
+    "preamble": {
+      "fields": [
+        "title",
+        "summary"
+      ],
+      "span": [
+        0,
+        4
+      ]
+    }
   }
 }

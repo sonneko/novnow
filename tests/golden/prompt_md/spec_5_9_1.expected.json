@@ -2,104 +2,67 @@
   "form": "prompt_md",
   "lines": 17,
   "tree": {
-    "diagnostics": [
-      {
-        "code": "W011",
-        "range": [
-          9,
-          19
-        ],
-        "args": [
-          "model-hint"
-        ]
-      },
-      {
-        "code": "W011",
-        "range": [
-          104,
-          113
-        ],
-        "args": [
-          "max-chars"
-        ]
-      },
-      {
-        "code": "W011",
-        "range": [
-          172,
-          183
-        ],
-        "args": [
-          "temperature"
-        ]
-      }
+    "diagnostics": [],
+    "fields": [
+      "model-hint",
+      "max-chars",
+      "temperature"
     ],
     "role": {
+      "builtin": true,
       "name": "writer",
-      "valid": true,
-      "builtin": true
+      "valid": true
     },
-    "fields": [
-      {
-        "unknown": "model-hint"
-      },
-      {
-        "unknown": "max-chars"
-      },
-      {
-        "unknown": "temperature"
-      }
-    ],
     "sections": [
       {
+        "bullets": 0,
+        "fields": [],
+        "free": 1,
         "key": "System",
         "key_text": "system",
         "span": [
           5,
           8
-        ],
-        "fields": [],
-        "bullets": 0,
-        "free": 1
+        ]
       },
       {
+        "bullets": 0,
+        "fields": [],
+        "free": 3,
         "key": "Task",
         "key_text": "task",
         "span": [
           8,
           13
-        ],
-        "fields": [],
-        "bullets": 0,
-        "free": 3
+        ]
       },
       {
+        "bullets": 2,
+        "fields": [],
+        "free": 0,
         "key": "Output",
         "key_text": "output",
         "span": [
           13,
           17
-        ],
-        "fields": [],
-        "bullets": 2,
-        "free": 0
+        ]
       }
     ],
     "variables": [
       {
-        "name": "scene_id",
+        "known": true,
         "line": 10,
-        "known": true
+        "name": "scene_id"
       },
       {
-        "name": "plot_section",
+        "known": true,
         "line": 11,
-        "known": true
+        "name": "plot_section"
       },
       {
-        "name": "role_language",
+        "known": true,
         "line": 15,
-        "known": true
+        "name": "role_language"
       }
     ]
   }

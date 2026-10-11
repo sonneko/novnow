@@ -17,16 +17,19 @@
 //! |---|---|---|
 //! | **E024** | `path` が `materials/` 配下でない（§5.8.2） | 原文中の `path` の値のリテラル |
 //! | **E008** | `id` が同一ファイル内で重複（§5.8.2「単調増加・再利用禁止」） | 2 件目の `id` のリテラル |
+//! | **E025** | JSON ファイルがパースできない（§4.3-4・§5.8.2） | ファイル全体 |
 //!
 //! JSON のトークン位置は serde が持たないので、位置は**値の JSON リテラルを原文から探して**
 //! 決める（[`literal_ranges`]）。同じ文字列が何度も出てくる場合は書いた順に当てはめるだけで、
 //! いつも「その値が実際に書かれている場所」を指す。
 //!
+//! **E025**（JSON として読めない）のときも**パニックしない**（§4.3-4「パース失敗を起動失敗に
+//! しない」）。診断を出したうえで [`Index::index_or_default`] の空索引で続行し、
+//! **原文は 1 バイトも書き換えない**（MUST、§5.8.2）。E025 が出たときは
+//! E024 / E008 は報告しない（パースできていないので検査のしようがない）。
+//!
 //! # M2 で出さない診断
 //!
-//! - **JSON として読めない**: §7 に対応するコードが無い（`PLANS.md` §9.1 A-17）。
-//!   [`Index::error`] に serde のメッセージを入れて返し、**パニックしない**（§4.3-4
-//!   「パース失敗を起動失敗にしない」）。木は `None`。
 //! - `title` の長さ（1〜80 字）・`summary`（≤120 字）・`saved_at`（RFC 3339）・
 //!   `status` / `source.kind` / `conditions[].kind` の未知の値: 対応コードが §7 に無いので
 //!   診断しない（B-39 の流儀）。値は文字列のまま保持され、`*_kind()` が `None` を返す。
@@ -52,7 +55,8 @@ pub struct Index<'a> {
     pub index: Option<MaterialIndex>,
     /// JSON として読めなかった理由（serde のメッセージ）。
     ///
-    /// §7 に対応する診断コードが無いので診断にはしない（`PLANS.md` §9.1 A-17）。
+    /// 同じ内容は **E025** の引数 `{0}` にも入る（§7）。`error` は呼び出し側が
+    /// ログに書きやすいよう生の文字列でも持つ。
     pub error: Option<String>,
     /// 診断（§7）。
     pub diagnostics: Vec<Diagnostic>,
@@ -61,7 +65,8 @@ pub struct Index<'a> {
 /// `materials/index.json` のテキストをパースする。
 ///
 /// JSON として壊れていても**パニックしない**（`PLANS.md` §5.3 完了条件 3）:
-/// [`Index::error`] に理由を入れて木を `None` で返す。
+/// **E025**（§4.3-4・§7）を出し、[`Index::error`] に理由を入れて木を `None` で返す。
+/// 呼び出し側は [`Index::index_or_default`] で既定値のまま続行する。
 pub fn parse(text: &str) -> Index<'_> {
     match serde_json::from_str::<MaterialIndex>(text) {
         Ok(index) => {
@@ -74,13 +79,17 @@ pub fn parse(text: &str) -> Index<'_> {
                 diagnostics,
             }
         }
-        // §4.3-4「パース失敗を起動失敗にしない」。§7 に対応コードが無いので診断にはせず
-        // （PLANS.md §9.1 A-17）、理由は [`Index::error`] に持つ
+        // §4.3-4「パース失敗を起動失敗にしない」＝ E025（§7）を出して既定値で続行する。
+        // 位置はトークン情報が無いのでファイル全体（§7.1 の範囲の決め方と同じ流儀）
         Err(error) => Index {
             raw: text,
             index: None,
             error: Some(error.to_string()),
-            diagnostics: Vec::new(),
+            diagnostics: vec![Diagnostic::new(
+                DiagnosticCode::E025,
+                Some(0..text.len()),
+                vec![Arg::text(error.to_string())],
+            )],
         },
     }
 }
@@ -91,6 +100,14 @@ impl<'a> Index<'a> {
     /// JSON は再シリアライズするとキー順と空白が変わるので、**原文をそのまま返す**。
     pub fn to_text(&self) -> &'a str {
         self.raw
+    }
+
+    /// パースできた木、または JSON が壊れているときの**空索引の既定値**（§4.3-4・§5.8.2）。
+    ///
+    /// **E025** が出てもアプリはこれで止まらない（P4「作家の原稿を人質に取らない」）。
+    /// 原文は [`Index::raw`] にそのまま残るので、壊れたファイルを開き直しても失われない。
+    pub fn index_or_default(&self) -> MaterialIndex {
+        self.index.clone().unwrap_or_default()
     }
 
     /// 資料を ID で引く（§5.8.2）。`M` と `S` は同一の連番空間なので接頭辞は問わない。

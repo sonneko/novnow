@@ -608,7 +608,7 @@ fn indent_counts_chars_including_tabs_and_full_width_space() {
 #[test]
 fn every_key_in_the_table_resolves_both_ways() {
     // §5.0.6「固定・双方向 1:1」
-    assert_eq!(FIELD_KEYS.len(), 28);
+    assert_eq!(FIELD_KEYS.len(), 38);
     for (field, key, alias, _) in FIELD_KEYS {
         assert_eq!(lexer::lookup_key(key), *field, "ascii: {key}");
         assert_eq!(lexer::lookup_key(alias), *field, "alias: {alias}");
@@ -638,6 +638,21 @@ fn the_table_records_the_formats_of_each_key() {
     assert_eq!(FieldKey::Note.formats(), Some(Formats::FIELD_FORMATS));
     assert_eq!(FieldKey::Tone.formats(), Some(Formats::MARKDOWN));
     assert_eq!(FieldKey::Unknown.formats(), None);
+    // 第 2.6 版で追加した 10 キーの「使用形式」列
+    assert_eq!(FieldKey::Title.formats(), Some(Formats::PLOT_OUTLINE));
+    for key in [
+        FieldKey::Color,
+        FieldKey::Status,
+        FieldKey::Created,
+        FieldKey::Relates,
+        FieldKey::PromotedTo,
+        FieldKey::ModelHint,
+        FieldKey::MaxChars,
+        FieldKey::Temperature,
+        FieldKey::Label,
+    ] {
+        assert_eq!(key.formats(), Some(Formats::MARKDOWN), "{key:?}");
+    }
 }
 
 #[test]
@@ -667,7 +682,7 @@ fn aliases_of_stage_two_keys_are_not_in_the_table() {
 
 #[test]
 fn every_alias_in_the_spec_table_is_present() {
-    // §5.0.6 の表（① の 28 件）を 1 行ずつ確認する
+    // §5.0.6 の表（① の 38 件）を 1 行ずつ確認する
     let spec = [
         (FieldKey::Summary, "要約"),
         (FieldKey::Goal, "目的"),
@@ -697,6 +712,17 @@ fn every_alias_in_the_spec_table_is_present() {
         (FieldKey::Source, "出典"),
         (FieldKey::Condition, "条件"),
         (FieldKey::Context, "文脈"),
+        // 第 2.6 版で追加した 10 キー（A-12・A-15）
+        (FieldKey::Title, "題"),
+        (FieldKey::Color, "色"),
+        (FieldKey::Status, "状況"),
+        (FieldKey::Created, "作成日時"),
+        (FieldKey::Relates, "関連"),
+        (FieldKey::PromotedTo, "昇格先"),
+        (FieldKey::ModelHint, "モデル指定"),
+        (FieldKey::MaxChars, "最大文字数"),
+        (FieldKey::Temperature, "温度"),
+        (FieldKey::Label, "表示名"),
     ];
     for (field, alias) in spec {
         assert_eq!(lexer::lookup_key(alias), field, "{alias}");

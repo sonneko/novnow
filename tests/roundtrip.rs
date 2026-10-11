@@ -19,6 +19,7 @@ use novnow::core::syntax::{
     characters_md, contents, ideas_md, materials_index, plot_episode, plot_outline, prompt_md,
     words_md,
 };
+use novnow::core::text::lexer::FieldKey;
 
 // ============================================================ ② のキーをたっぷり含むフィクスチャ
 
@@ -257,7 +258,8 @@ fn the_c_form_round_trips_byte_for_byte() {
 fn characters_md_round_trips_byte_for_byte_with_unknown_keys() {
     let parsed = characters_md::parse(CHARACTERS_MD);
     assert_eq!(parsed.to_text(), CHARACTERS_MD);
-    // `color` / `address` / `icon` は ① の表に無いので W011 ＋ 値を保持
+    // `address` / `icon` は ② のキーなので ① では W011 ＋ 値を保持（PLANS.md §1.2）。
+    // `color` は §5.0.6 の表に正式追加された（第 2.6 版・A-15）ので W011 にならない
     let warned: Vec<String> = parsed
         .diagnostics
         .iter()
@@ -267,9 +269,12 @@ fn characters_md_round_trips_byte_for_byte_with_unknown_keys() {
             _ => None,
         })
         .collect();
-    assert!(warned.contains(&"color".to_owned()), "{warned:?}");
-    assert!(warned.contains(&"address".to_owned()), "{warned:?}");
-    assert!(warned.contains(&"icon".to_owned()), "{warned:?}");
+    assert_eq!(warned, vec!["icon".to_owned(), "address".to_owned()]);
+    assert_eq!(
+        parsed.character_fields(0, FieldKey::Color).len(),
+        1,
+        "{warned:?}"
+    );
 }
 
 #[test]
@@ -289,15 +294,11 @@ fn words_md_round_trips_byte_for_byte_with_unknown_keys() {
 fn ideas_md_round_trips_byte_for_byte_with_unknown_keys() {
     let parsed = ideas_md::parse(IDEAS_MD);
     assert_eq!(parsed.to_text(), IDEAS_MD);
-    // ② のキー（`status` `created` `relates` `promoted-to`）が W011 付きで残る
-    assert_eq!(
-        parsed
-            .diagnostics
-            .iter()
-            .filter(|found| found.code.as_str() == "W011")
-            .count(),
-        4
-    );
+    // `status` `created` `relates` `promoted-to` は §5.0.6 の表に正式追加された
+    // （第 2.6 版・A-15）ので W011 は出ない。値は改変せず残る
+    assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+    assert_eq!(parsed.status(0).unwrap().key, FieldKey::Status);
+    assert_eq!(parsed.promoted_to(0).unwrap().key, FieldKey::PromotedTo);
     assert_eq!(
         parsed.unknown_field(0, "relates").unwrap().value,
         "@02, 'アルス"

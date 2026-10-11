@@ -314,11 +314,27 @@ fn the_spec_example_for_all_txt_has_two_blocks() {
 }
 
 #[test]
-fn the_spec_example_for_all_txt_warns_about_the_unknown_title_key() {
-    // §5.3.3 の例は `title:` を使うが、§5.0.6 の表に `title` は無いので **W011**
-    // （`PLANS.md` §9.1 A-12）。値は改変せずに保持する（§5.0.6 MUST）
-    assert_eq!(diags_tag(SPEC_ALL), "W011@63..68(title)");
-    assert_eq!(line_tag_of(SPEC_ALL, 1), "field[title|Unknown|v星屑の時計]");
+fn the_spec_example_for_all_txt_reads_the_title_key() {
+    // §5.3.3 の例の `title:` は §5.0.6 の表に**正式追加**された（第 2.6 版。`PLANS.md` §9.1
+    // A-12）ので、例の診断は 0 件。値は改変せずに保持する（§5.0.6 MUST）
+    assert_eq!(diags_tag(SPEC_ALL), "");
+    assert_eq!(line_tag_of(SPEC_ALL, 1), "field[title|Title|v星屑の時計]");
+    let parsed = plot_outline::parse(SPEC_ALL);
+    let titles: Vec<&str> = parsed
+        .preamble
+        .fields
+        .iter()
+        .filter_map(|&index| parsed.field(index))
+        .filter(|field| field.key == FieldKey::Title)
+        .map(|field| field.value)
+        .collect();
+    assert_eq!(titles, vec!["星屑の時計"]);
+    // 別名（§5.0.6「固定・双方向 1:1」）でも同じキーになる
+    assert_eq!(diags_tag("題: 星屑の時計\n"), "");
+    assert_eq!(
+        line_tag_of("題: 星屑の時計\n", 0),
+        "field[題|Title|v星屑の時計]"
+    );
 }
 
 #[test]
@@ -577,8 +593,9 @@ fn fields_of_returns_every_occurrence() {
 fn a_block_without_a_summary_is_e018() {
     // §5.3.2 MUST「`summary` が無いブロックは E018」。位置は見出し行
     assert_eq!(diags_tag("@01 x\ngoal: y\n;\n"), "E018@0..5");
-    // 前文はブロックではないので `summary` を要求されない（`title` は未知キーなので W011）
-    assert_eq!(diags_tag("title: 星屑の時計\n"), "W011@0..5(title)");
+    // 前文はブロックではないので `summary` を要求されない（`title` は表にあるキー、第 2.6 版）
+    assert_eq!(diags_tag("title: 星屑の時計\n"), "");
+    assert_eq!(diags_tag("foo: bar\n"), "W011@0..3(foo)");
     // `;` が無くても同じ
     assert_eq!(diags_tag("@01 x\n"), "E018@0..5");
 }

@@ -355,25 +355,26 @@ fn the_spec_example_reads_the_five_modes_in_order() {
 #[test]
 fn the_spec_example_does_not_report_overlapping_ranges() {
     // `### C` は 2 回あるが `@01 .. @02` と `@03 ..` は重ならない（§5.5.7 の注）。
-    // 出る診断は `color:` の W011 だけ
-    let at = byte_offset(SPEC_EXAMPLE, 5);
-    assert_eq!(
-        diags_tag(SPEC_EXAMPLE),
-        format!("W011@{}..{}(color)", at, at + "color".len())
-    );
+    // `color:` も §5.0.6 の表にある（第 2.6 版）ので、例の診断は 0 件
+    assert_eq!(diags_tag(SPEC_EXAMPLE), "");
 }
 
 #[test]
-fn the_spec_example_warns_only_about_the_untabled_color_key() {
-    // §5.5.3 は `color:` を定義しているが §5.0.6 の表に無い（PLANS.md §9.1 A-15）。
-    // 表を正本として W011 を出し、値は改変せずに保持する
+fn the_spec_example_reads_the_color_key_from_the_table() {
+    // §5.5.3 の `color:` は §5.0.6 の表に**正式追加**された（第 2.6 版。PLANS.md §9.1 A-15 の
+    // 裁定＝すべて正式追加）。値は改変せずに保持する（§5.0.6 MUST）
     let parsed = characters_md::parse(SPEC_EXAMPLE);
-    assert_eq!(parsed.diagnostics.len(), 1);
+    assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
     let color = &parsed.characters[0].fields[4];
     let field = parsed.field(*color).unwrap();
     assert_eq!(field.key_text, "color");
-    assert_eq!(field.key, FieldKey::Unknown);
+    assert_eq!(field.key, FieldKey::Color);
+    assert_eq!(field.key.alias(), Some("色"));
     assert_eq!(field.value, "#8fb8ff");
+    // 表にあるキーなので正準形でも引ける（§5.0.6「双方向 1:1」）
+    let found = parsed.character_fields(0, FieldKey::Color);
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].value, "#8fb8ff");
 }
 
 #[test]

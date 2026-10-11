@@ -326,6 +326,26 @@ pub enum FieldKey {
     Condition,
     /// `context`
     Context,
+    /// `title`
+    Title,
+    /// `color`
+    Color,
+    /// `status`
+    Status,
+    /// `created`
+    Created,
+    /// `relates`
+    Relates,
+    /// `promoted-to`
+    PromotedTo,
+    /// `model-hint`
+    ModelHint,
+    /// `max-chars`
+    MaxChars,
+    /// `temperature`
+    Temperature,
+    /// `label`
+    Label,
     /// §5.0.6 の表に無いキー（**W011**。値は改変せず保持する）。
     Unknown,
 }
@@ -355,7 +375,7 @@ impl FieldKey {
 /// [`FIELD_KEYS`] の 1 行 = `(キー, 正準形の ascii_key, 日本語別名, 使用形式)`。
 pub type KeyRow = (FieldKey, &'static str, &'static str, Formats);
 
-/// §5.0.6 のフィールドキー別名表（固定・双方向 1:1）。① の 28 件。
+/// §5.0.6 のフィールドキー別名表（固定・双方向 1:1）。① の 38 件。
 ///
 /// i18n: format-vocabulary
 ///
@@ -412,6 +432,36 @@ pub const FIELD_KEYS: &[KeyRow] = &[
     (FieldKey::Source, "source", "出典", Formats::MARKDOWN),
     (FieldKey::Condition, "condition", "条件", Formats::MARKDOWN),
     (FieldKey::Context, "context", "文脈", Formats::MARKDOWN), // §5.0.6: prompts/*.md
+    (FieldKey::Title, "title", "題", Formats::PLOT_OUTLINE),   // §5.0.6: 00_plot/00_outline.txt
+    (FieldKey::Color, "color", "色", Formats::MARKDOWN),       // §5.0.6: characters.md
+    (FieldKey::Status, "status", "状況", Formats::MARKDOWN),   // §5.0.6: ideas.md
+    (FieldKey::Created, "created", "作成日時", Formats::MARKDOWN), // §5.0.6: ideas.md
+    (FieldKey::Relates, "relates", "関連", Formats::MARKDOWN), // §5.0.6: ideas.md
+    (
+        FieldKey::PromotedTo,
+        "promoted-to",
+        "昇格先",
+        Formats::MARKDOWN,
+    ), // §5.0.6: ideas.md
+    (
+        FieldKey::ModelHint,
+        "model-hint",
+        "モデル指定",
+        Formats::MARKDOWN,
+    ), // §5.0.6: prompts/*.md
+    (
+        FieldKey::MaxChars,
+        "max-chars",
+        "最大文字数",
+        Formats::MARKDOWN,
+    ), // §5.0.6: prompts/*.md
+    (
+        FieldKey::Temperature,
+        "temperature",
+        "温度",
+        Formats::MARKDOWN,
+    ), // §5.0.6: prompts/*.md
+    (FieldKey::Label, "label", "表示名", Formats::MARKDOWN),   // §5.0.6: prompts/*.md
 ];
 
 /// 1 行を字句解析する（§5.0.1「1 行は常に単独で字句解析できる」）。

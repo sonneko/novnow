@@ -95,7 +95,7 @@ pub enum Scope {
     Session,
 }
 
-/// 診断コード（§7 / §7.1 / §7.2 の全 77 件）。
+/// 診断コード（§7 / §7.1 / §7.2 の全 78 件）。
 ///
 /// **variant 名はコード文字列そのもの**（`E001` → `"E001"`）。i18n のキーは
 /// `diag.` を前に付けた形（`diag.E001`、§12.3「キー命名」）で、core は文言を持たない。
@@ -136,6 +136,8 @@ pub enum DiagnosticCode {
     E021,
     /// `materials` 外を指す `path`（§7）
     E024,
+    /// JSON ファイルがパースできない（§4.3-4）（§7）
+    E025,
     /// 用語に修飾子（§7）
     E026,
     /// 辞書キーが 96 バイト超（§7）
@@ -283,6 +285,7 @@ impl DiagnosticCode {
             Self::E020 => "E020",
             Self::E021 => "E021",
             Self::E024 => "E024",
+            Self::E025 => "E025",
             Self::E026 => "E026",
             Self::E028 => "E028",
             Self::E030 => "E030",
@@ -471,6 +474,7 @@ pub const CATALOG: &[CatalogRow] = &[
     (DiagnosticCode::E020, 1),
     (DiagnosticCode::E021, 0),
     (DiagnosticCode::E024, 0),
+    (DiagnosticCode::E025, 1),
     (DiagnosticCode::E026, 0),
     (DiagnosticCode::E028, 0),
     (DiagnosticCode::E030, 1),

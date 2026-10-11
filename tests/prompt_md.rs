@@ -40,7 +40,7 @@ context: project outline target materials constraints    # 送るブロックを
 ## task
 次の節の武器・防具の描写に、時代考証上の誤りがないか指摘してください。
 対象: {{scene_id}}
-本文: {{content_section}}
+本文: {{text_current}}
 
 ## output
 - 指摘は箇条書き。各項目に「該当箇所の引用」「問題」「代案」を書く。
@@ -191,18 +191,23 @@ fn the_spec_example_reads_the_meta_fields() {
 }
 
 #[test]
-fn the_spec_example_warns_about_the_untabled_meta_keys() {
-    // §5.9.1 が定義する `model-hint` / `max-chars` / `temperature` は §5.0.6 の表に無いので
-    // W011（値は保持）。表を正本にした判断は PLANS.md §9.1 A-15
-    assert_eq!(
-        diags_tag(SPEC_EXAMPLE),
-        [
-            w011(SPEC_EXAMPLE, 1, "model-hint"),
-            w011(SPEC_EXAMPLE, 2, "max-chars"),
-            w011(SPEC_EXAMPLE, 3, "temperature"),
-        ]
-        .join("\n")
-    );
+fn the_spec_example_reads_the_meta_keys_from_the_table() {
+    // §5.9.1 が定義する `model-hint` / `max-chars` / `temperature` は §5.0.6 の表に**正式追加**
+    // された（第 2.6 版。PLANS.md §9.1 A-15 の裁定＝すべて正式追加）ので W011 は出ない
+    assert_eq!(diags_tag(SPEC_EXAMPLE), "");
+    let parsed = prompt_md::parse(SPEC_EXAMPLE);
+    for (key, alias) in [
+        (FieldKey::ModelHint, "モデル指定"),
+        (FieldKey::MaxChars, "最大文字数"),
+        (FieldKey::Temperature, "温度"),
+    ] {
+        assert_eq!(parsed.meta_fields(key).len(), 1, "{key:?}");
+        assert_eq!(
+            parsed.meta_fields(key)[0].key.alias(),
+            Some(alias),
+            "{key:?}"
+        );
+    }
 }
 
 #[test]
@@ -272,33 +277,36 @@ fn the_custom_role_example_has_a_valid_name() {
 }
 
 #[test]
-fn the_custom_role_example_warns_about_three_untabled_keys() {
+fn the_custom_role_example_reads_the_meta_keys_from_the_table() {
+    // §5.9.2 の `label` も表に**正式追加**された（第 2.6 版。A-15）ので、例の診断は 0 件
     let parsed = prompt_md::parse_with(SPEC_CUSTOM, &custom());
-    let warnings: Vec<String> = parsed
-        .diagnostics
-        .iter()
-        .filter(|found| found.code.as_str() == "W011")
-        .map(|found| match &found.args[0] {
-            novnow::core::diagnostics::Arg::Text(value) => value.clone(),
-            novnow::core::diagnostics::Arg::Number(_) => String::new(),
-        })
-        .collect();
-    assert_eq!(warnings, vec!["label", "model-hint", "max-chars"]);
+    assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+    let found = parsed.meta_fields(FieldKey::Label);
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].key_text, "label");
+    // §5.0.8 の `# ` 行コメントは ② なので、① では値の一部としてそのまま残る（B-36）
+    assert!(
+        found[0].value.starts_with("武器考証"),
+        "{:?}",
+        found[0].value
+    );
+    // `context` は表に元からあるキー（§5.9.2）
+    assert_eq!(parsed.meta_fields(FieldKey::Context).len(), 1);
 }
 
 #[test]
-fn the_custom_role_example_uses_a_variable_outside_the_closed_set() {
-    // §5.9.2 の例は `{{content_section}}` を使うが、§15.5.3 の閉じた集合に無い
-    // （`text_current` が本文）。集合を正本として E031 を出す。PLANS.md §9.1 A-16
+fn the_custom_role_example_uses_only_variables_of_the_closed_set() {
+    // §5.9.2 の例は第 2.6 版で `{{content_section}}` → `{{text_current}}` に直った
+    // （§15.5.3 の閉じた 19 変数が正本。PLANS.md §9.1 A-16 の裁定＝サンプルの記述ミス）
     let parsed = prompt_md::parse_with(SPEC_CUSTOM, &custom());
-    let unknown: Vec<&str> = parsed
-        .unknown_variables()
-        .iter()
-        .map(|found| found.name)
-        .collect();
-    assert_eq!(unknown, vec!["content_section"]);
-    assert_eq!(diags_of(&parsed).lines().count(), 4);
-    assert!(diags_of(&parsed).ends_with("(content_section)"));
+    assert!(
+        parsed.unknown_variables().is_empty(),
+        "{:?}",
+        parsed.unknown_variables()
+    );
+    let names: Vec<&str> = parsed.variables.iter().map(|found| found.name).collect();
+    assert_eq!(names, vec!["scene_id", "text_current"]);
+    assert!(names.iter().all(|name| VARIABLES.contains(name)));
 }
 
 #[test]
@@ -328,6 +336,18 @@ fn an_unknown_variable_reports_e031() {
     assert_eq!(
         diags_tag(text),
         format!("E031@{}..{}(scene)", at, at + "scene".len())
+    );
+    // 第 2.6 版までの §5.9.2 の例が書いていた `content_section` も §15.5.3 の集合に無い
+    // （本文は `text_current`）。例は直したが**検査はここに残す**（A-16）
+    let old = "# writer\n## task\n本文: {{content_section}}\n";
+    let at = byte_offset(old, 2) + "本文: ".len() + 2;
+    assert_eq!(
+        diags_tag(old),
+        format!(
+            "E031@{}..{}(content_section)",
+            at,
+            at + "content_section".len()
+        )
     );
 }
 
@@ -516,6 +536,27 @@ fn a_second_heading_is_not_a_second_role() {
     assert_eq!(parsed.sections[0].span, 1..2);
     assert_eq!(parsed.sections[1].span, 3..5);
     assert!(matches!(parsed.lines[2], Line::Heading(_)));
+}
+
+// ============================================================ 未知キー（§5.0.6）
+
+#[test]
+fn keys_outside_the_table_still_warn_and_keep_their_values() {
+    // §5.0.6 の表に無いキーは W011 ＋ 値を改変せず保持（縫い代 2）。② のキー（`blurb`）も
+    // ① では未知のまま（PLANS.md §1.2）
+    let text = "# writer\nmodel-hint: careful\nfoo: bar\nblurb: 一行紹介\n";
+    assert_eq!(
+        diags_tag(text),
+        [w011(text, 2, "foo"), w011(text, 3, "blurb")].join("\n")
+    );
+    let parsed = prompt_md::parse(text);
+    // 表にあるキーは正準形で引ける（第 2.6 版）
+    assert_eq!(parsed.meta_fields(FieldKey::ModelHint).len(), 1);
+    // 表に無いキーは書かれたままのキーで引く
+    assert_eq!(parsed.meta_field("foo").unwrap().key, FieldKey::Unknown);
+    assert_eq!(parsed.meta_field("foo").unwrap().value, "bar");
+    assert_eq!(parsed.meta_field("blurb").unwrap().value, "一行紹介");
+    assert_eq!(parsed.to_text(), text);
 }
 
 // ============================================================ 壊れた入力（完了条件 3）

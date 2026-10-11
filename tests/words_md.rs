@@ -240,13 +240,19 @@ fn a_range_may_list_several_intervals() {
 
 #[test]
 fn unknown_keys_warn_and_keep_their_values() {
-    // §5.0.6 の表に無いキー（`color` 等）は W011 ＋ 値を改変せずに保持（縫い代 2）
-    let text = "# 用語\ndefinition: x\ncolor: #ff0000\n";
+    // §5.0.6 の表に無いキーは W011 ＋ 値を改変せずに保持（縫い代 2）。② のキー（`icon`）も
+    // ① では未知のまま（PLANS.md §1.2）。`color` は第 2.6 版で表に入ったので W011 にならない
+    let text = "# 用語\ndefinition: x\nicon: star\ncolor: #ff0000\n";
     let at = byte_offset(text, 2);
-    assert_eq!(diags_tag(text), format!("W011@{}..{}(color)", at, at + 5));
+    assert_eq!(diags_tag(text), format!("W011@{}..{}(icon)", at, at + 4));
     let parsed = words_md::parse(text);
-    let found = parsed.unknown_field(0, "color");
-    assert_eq!(found.map(|field| field.value), Some("#ff0000"));
+    let found = parsed.unknown_field(0, "icon");
+    assert_eq!(found.map(|field| field.value), Some("star"));
+    // 表にあるキーは `unknown_field`（書かれたままのキーで引く）からも引ける
+    assert_eq!(
+        parsed.unknown_field(0, "color").map(|field| field.key),
+        Some(FieldKey::Color)
+    );
     assert_eq!(parsed.to_text(), text);
 }
 

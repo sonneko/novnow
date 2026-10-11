@@ -84,7 +84,7 @@ CI で常設するテストは `PLANS.md` §6 を参照。`tests/layering.rs` �
 > 自己テストが無い検査器は、改修で検出漏れが混入しても CI が緑のままになる。
 
 `tests/diagnostics_catalog.rs` は **仕様書そのものを読む**テスト（`include_str!("../SPECIFICATIONS.md")`）。
-§7 / §7.1 / §7.2 の表を Markdown から読み直し、`src/core/diagnostics.rs` の **77 コード**と
+§7 / §7.1 / §7.2 の表を Markdown から読み直し、`src/core/diagnostics.rs` の **78 コード**と
 件数・コード文字列・重大度・引数の数・文書位置の有無・既定の有効/無効・実行コスト表・variant の
 doc コメントまで突き合わせる。診断コードを足す／直すときは **先に `SPECIFICATIONS.md` の表**を直すこと
 （`PLANS.md` §6.3「仕様書 → ゴールデン → 実装」）。表に無いコードを enum に足すと

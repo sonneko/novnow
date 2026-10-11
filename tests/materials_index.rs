@@ -3,6 +3,7 @@
 //! `PLANS.md` §5.3 完了条件の 1（§5.8.2 の例が期待どおりにパースできる）・2（round-trip が
 //! バイト一致）・3（壊れた入力でパニックしない）に対応する。
 
+use novnow::core::diagnostics::{Arg, DiagnosticCode};
 use novnow::core::model::material::{
     ConditionKind, Material, MaterialId, MaterialIndex, MaterialStatus, SourceKind,
     PREFIX_MATERIAL, PREFIX_SEARCH,
@@ -403,13 +404,44 @@ fn broken_json_returns_the_error_without_panicking() {
 }
 
 #[test]
-fn a_broken_json_has_no_diagnostics_but_an_error_message() {
-    // §7 に JSON のパース失敗に対応するコードが無い（PLANS.md §9.1 A-17）ので診断は出さず、
-    // 理由だけを返す
-    let parsed = materials_index::parse("{\"items\": }");
+fn a_broken_json_reports_e025_with_the_parser_message() {
+    // §4.3-4・§7 の E025「JSON ファイルがパースできない」。位置はファイル全体で、
+    // 引数 {0} はパーサのメッセージ
+    let text = "{\"items\": }";
+    let parsed = materials_index::parse(text);
     assert!(parsed.index.is_none());
-    assert!(parsed.diagnostics.is_empty());
     assert!(parsed.error.as_deref().unwrap().contains("expected value"));
+    assert_eq!(parsed.diagnostics.len(), 1);
+    let found = &parsed.diagnostics[0];
+    assert_eq!(found.code, DiagnosticCode::E025);
+    assert_eq!(found.range, Some(0..text.len()));
+    assert_eq!(found.args.len(), 1);
+    let Arg::Text(message) = &found.args[0] else {
+        panic!("{:?}", found.args);
+    };
+    assert!(message.contains("expected value"), "{message}");
+    // E025 が出たときは E024 / E008 は報告しない（§5.8.2）
+    assert!(!parsed
+        .diagnostics
+        .iter()
+        .any(|item| item.code != DiagnosticCode::E025));
+}
+
+#[test]
+fn a_broken_json_continues_with_the_default_index_and_keeps_the_original() {
+    // §5.8.2「診断を出したうえで空の索引の既定値で続行する」「原文は書き換えない（MUST）」
+    let text = "{\"next_id\": 7,";
+    let parsed = materials_index::parse(text);
+    assert_eq!(parsed.diagnostics.len(), 1);
+    let index = parsed.index_or_default();
+    assert_eq!(index, MaterialIndex::default());
+    assert!(index.items.is_empty());
+    assert_eq!(parsed.to_text(), text);
+    // パースできているときは木そのものを返す
+    let good = index_with(&item("M0001", "materials/docs/a.md"));
+    let ok = materials_index::parse(&good);
+    assert!(ok.diagnostics.is_empty());
+    assert_eq!(ok.index_or_default(), *ok.index.as_ref().unwrap());
 }
 
 #[test]

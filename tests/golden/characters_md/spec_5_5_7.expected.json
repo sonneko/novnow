@@ -2,205 +2,177 @@
   "form": "characters_md",
   "lines": 63,
   "tree": {
-    "diagnostics": [
-      {
-        "code": "W011",
-        "range": [
-          106,
-          111
-        ],
-        "args": [
-          "color"
-        ]
-      }
-    ],
-    "preamble": {
-      "span": [
-        0,
-        0
-      ],
-      "fields": []
-    },
     "characters": [
       {
-        "name": "恩田恵",
-        "span": [
-          0,
-          63
-        ],
         "fields": [
           "reading",
           "alias",
           "role",
           "default-mode",
-          {
-            "unknown": "color"
-          }
+          "color"
         ],
         "free": 0,
+        "name": "恩田恵",
         "sections": [
           {
+            "bullets": 0,
+            "fields": [],
+            "free": 4,
             "key": "Attributes",
             "key_text": "attributes",
+            "modes": [],
+            "patterns": [],
+            "relations": [],
             "span": [
               7,
               13
-            ],
-            "fields": [],
-            "bullets": 0,
-            "patterns": [],
-            "free": 4,
-            "relations": [],
-            "modes": []
+            ]
           },
           {
+            "bullets": 0,
+            "fields": [],
+            "free": 0,
             "key": "Tone",
             "key_text": "tone",
-            "span": [
-              13,
-              16
-            ],
-            "fields": [],
-            "bullets": 0,
+            "modes": [],
             "patterns": [
               "*で…",
               "*です…",
               "…あの…*"
             ],
-            "free": 0,
             "relations": [],
-            "modes": []
+            "span": [
+              13,
+              16
+            ]
           },
           {
+            "bullets": 0,
+            "fields": [],
+            "free": 0,
             "key": "Modes",
             "key_text": "modes",
-            "span": [
-              16,
-              53
-            ],
-            "fields": [],
-            "bullets": 0,
-            "patterns": [],
-            "free": 0,
-            "relations": [],
             "modes": [
               {
-                "id": "A",
-                "label": "日常",
-                "valid_id": true,
-                "span": [
-                  18,
-                  25
-                ],
                 "fields": [
                   "range",
                   "personality",
                   "emotion",
                   "role"
                 ],
+                "free": 0,
+                "id": "A",
+                "label": "日常",
                 "patterns": [
                   "*だよ…",
                   "えへへ、*"
                 ],
-                "free": 0,
-                "range": "@01 .."
+                "range": "@01 ..",
+                "span": [
+                  18,
+                  25
+                ],
+                "valid_id": true
               },
               {
-                "id": "B",
-                "label": "開発・実装",
-                "valid_id": true,
-                "span": [
-                  25,
-                  32
-                ],
                 "fields": [
                   "range",
                   "personality",
                   "emotion",
                   "role"
                 ],
+                "free": 0,
+                "id": "B",
+                "label": "開発・実装",
                 "patterns": [
                   "*ないと…！",
                   "*ないんです"
                 ],
-                "free": 0,
-                "range": "@01 .."
+                "range": "@01 ..",
+                "span": [
+                  25,
+                  32
+                ],
+                "valid_id": true
               },
               {
-                "id": "C",
-                "label": "混乱・言語化障害",
-                "valid_id": true,
-                "span": [
-                  32,
-                  39
-                ],
                 "fields": [
                   "range",
                   "personality",
                   "emotion",
                   "role"
                 ],
+                "free": 0,
+                "id": "C",
+                "label": "混乱・言語化障害",
                 "patterns": [
                   "*あの…その…",
                   "…伝わらない…！"
                 ],
-                "free": 0,
-                "range": "@01 .. @02"
+                "range": "@01 .. @02",
+                "span": [
+                  32,
+                  39
+                ],
+                "valid_id": true
               },
               {
+                "fields": [
+                  "range",
+                  "personality",
+                  "emotion",
+                  "role"
+                ],
+                "free": 0,
                 "id": "C",
                 "label": "混乱・言語化障害（改善後）",
-                "valid_id": true,
+                "patterns": [
+                  "*あの…でも、つまり*"
+                ],
+                "range": "@03 ..",
                 "span": [
                   39,
                   46
                 ],
-                "fields": [
-                  "range",
-                  "personality",
-                  "emotion",
-                  "role"
-                ],
-                "patterns": [
-                  "*あの…でも、つまり*"
-                ],
-                "free": 0,
-                "range": "@03 .."
+                "valid_id": true
               },
               {
-                "id": "D",
-                "label": "あおい依存・感傷",
-                "valid_id": true,
-                "span": [
-                  46,
-                  53
-                ],
                 "fields": [
                   "range",
                   "personality",
                   "emotion",
                   "role"
                 ],
+                "free": 0,
+                "id": "D",
+                "label": "あおい依存・感傷",
                 "patterns": [
                   "あおいちゃん…*",
                   "*いなくなったら…"
                 ],
-                "free": 0,
-                "range": "@01 .."
+                "range": "@01 ..",
+                "span": [
+                  46,
+                  53
+                ],
+                "valid_id": true
               }
+            ],
+            "patterns": [],
+            "relations": [],
+            "span": [
+              16,
+              53
             ]
           },
           {
+            "bullets": 0,
+            "fields": [],
+            "free": 2,
             "key": "Relations",
             "key_text": "relations",
-            "span": [
-              53,
-              57
-            ],
-            "fields": [],
-            "bullets": 0,
+            "modes": [],
             "patterns": [],
-            "free": 2,
             "relations": [
               {
                 "name": "葵あおい",
@@ -211,24 +183,39 @@
                 "note": "技術の師弟関係。ミスを未然に防ぐ「絶対失敗しない設計哲学」を学ぶ。"
               }
             ],
-            "modes": []
+            "span": [
+              53,
+              57
+            ]
           },
           {
+            "bullets": 0,
+            "fields": [],
+            "free": 4,
             "key": "Notes",
             "key_text": "notes",
+            "modes": [],
+            "patterns": [],
+            "relations": [],
             "span": [
               57,
               63
-            ],
-            "fields": [],
-            "bullets": 0,
-            "patterns": [],
-            "free": 4,
-            "relations": [],
-            "modes": []
+            ]
           }
+        ],
+        "span": [
+          0,
+          63
         ]
       }
-    ]
+    ],
+    "diagnostics": [],
+    "preamble": {
+      "fields": [],
+      "span": [
+        0,
+        0
+      ]
+    }
   }
 }
