@@ -47,18 +47,21 @@ pub enum TextFormat {
 
 impl TextFormat {
     /// `.txt`（A / B / C 形式）か。§5.0.8 の `# ` コメントは `.txt` のみで有効。
+    ///
+    /// §5.0.2 の「出現場所」は [`Formats`] の定数に 1 箇所だけ書き、ここからは引くだけにする
+    /// （同じ仕様を 2 箇所に書くと片方だけ変わる）。
     pub fn is_txt(self) -> bool {
-        !matches!(self, Self::Markdown)
+        Formats::TXT.contains(self)
     }
 
     /// フィールド行（§5.0.5）を書ける形式か。C 形式（本文）にはフィールド行が無い。
     pub fn allows_field(self) -> bool {
-        !matches!(self, Self::Contents)
+        Formats::FIELD_FORMATS.contains(self)
     }
 
     /// 節区切り `;`（§5.0.2）を書ける形式か。C 形式と B 形式のみ。
     pub fn allows_section_break(self) -> bool {
-        matches!(self, Self::Contents | Self::PlotEpisode)
+        Formats::CB.contains(self)
     }
 }
 
@@ -81,6 +84,8 @@ impl Formats {
     pub const MARKDOWN: Self = Self(0b1000);
     /// A / B（§5.0.6 の「使用形式」列で最も多い組み合わせ）。
     pub const AB: Self = Self(0b0110);
+    /// C / B（§5.0.2 の `;` 節区切りの出現場所）。
+    pub const CB: Self = Self(0b0101);
     /// `.txt` 3 形式（§5.0.8 の `# ` は `.md` では見出しなので含まない）。
     pub const TXT: Self = Self(0b0111);
     /// フィールド行を書ける形式（§5.0.2 の `key:` の出現場所「A/B 形式, `*.md`」）。
@@ -168,7 +173,7 @@ pub const SIGIL_TABLE: &[SigilSpec] = &[
         sigil: Sigil::SectionBreak,
         requires_space: false,
         whole_line: true,
-        formats: Formats::CONTENTS.union(Formats::PLOT_EPISODE),
+        formats: Formats::CB,
         stage: Stage::One,
     },
     SigilSpec {
