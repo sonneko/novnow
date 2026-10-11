@@ -401,7 +401,7 @@ fn warn_modes(found: &Field<'_>, offset: usize, out: &mut Vec<Diagnostic>) {
 /// E005 ではなく E003 / E004（M3、`characters.md` の辞書が要る）の領域。空の修飾子
 /// （`'アルス:`）も `mode_id` でないので `None`。
 fn mode_count(text: &str) -> Option<usize> {
-    let mut parts = text.split(contents::MODE_JOIN);
+    let parts = text.split(contents::MODE_JOIN);
     if !parts.clone().all(contents::is_mode_id) {
         return None;
     }
@@ -540,7 +540,9 @@ fn collect(lines: &[Line<'_>]) -> (Preamble, Vec<Scene>) {
                 }
                 let next = current.section.next_section(index + 1);
                 let closed = std::mem::replace(&mut current.section, next);
-                current.sections.push(close_section(closed, index, Some(index), lines));
+                current
+                    .sections
+                    .push(close_section(closed, index, Some(index), lines));
                 current.scene_scope = false;
             }
             Line::Field(_) => match open.as_mut() {

@@ -71,7 +71,8 @@ const SPEC_ILLUSTRATION: &str = "@01-04-02 図書室の攻防\n;\nillustration: 
 
 const PREAMBLE: &str = "note: 前の行\n;\n@01-04-02 攻防\ncast: a\n";
 const BREAK_FIRST: &str = ";\n@01-04-02 攻防\n何か起こる。\n;";
-const TWO_SCENES: &str = "@01-04-01 一\nmode: 'アルス:A\n始まる。\n;\n@01-04-02 二\n続く。\n;\n おわり";
+const TWO_SCENES: &str =
+    "@01-04-01 一\nmode: 'アルス:A\n始まる。\n;\n@01-04-02 二\n続く。\n;\n おわり";
 const FOUR_LEVELS: &str = "@01-04-02-07 攻防\ncast: a\n;\n次\n";
 const EMPTY: &str = "";
 const NO_BREAK: &str = "@01-04-02 攻防\ncast: a\n本文。\n";
@@ -87,11 +88,13 @@ const ORPHAN_CONT: &str = "  続きだけ\n@01-04-02 攻防\n本文。\n";
 const BLANK_TAIL: &str = "@01-04-02 攻防\n本文。\n\n   \n;\n";
 const MODE_THREE: &str = "@01-04-02 攻防\nmode: 'アルス:A+B+C\n本文。\n";
 const MODE_TWICE: &str = "@01-04-02 攻防\nmode: 'アルス:A 'アルス:B\n本文。\n";
-const MODE_BOTH: &str = "@01-04-02 攻防\nmode: 'アルス:A+B+C 'リリア:A 'リリア:B 'アルス:D\n本文。\n";
+const MODE_BOTH: &str =
+    "@01-04-02 攻防\nmode: 'アルス:A+B+C 'リリア:A 'リリア:B 'アルス:D\n本文。\n";
 const MODE_TWO: &str = "@01-04-02 攻防\nmode: 'リリア:B+C // 2 つまで\n本文。\n";
 const MODE_NOT_ID: &str = "@01-04-02 攻防\nmode: 'アルス:A+戦闘+B\n本文。\n";
 const MODE_PLAIN: &str = "@01-04-02 攻防\ncast: 'アルス 'リリア\n本文。\n";
-const UNKNOWN_KEYS: &str = "@01-04-02 攻防\nwhen: 406 09:40\nsenses: 視覚\n本文。\nillustration: 見開き / 逆光\n;";
+const UNKNOWN_KEYS: &str =
+    "@01-04-02 攻防\nwhen: 406 09:40\nsenses: 視覚\n本文。\nillustration: 見開き / 逆光\n;";
 const SATURATE: &str = "@01-04-02-9998 攻防\n一\n;\n二\n;\n三\n";
 const CONT_CHAIN: &str = "@01-04-02 攻防\nspace-mode: ascii\nspace:\n  ┌────┐\n  │ 机 │\n  └────┘\n\n  孤児\n// コメント\n  続き\n本文。\n";
 const BROKEN: &str = "@\n@01-04-02\n; ; ;\n  \n:\nmode: '\n@01-04-02-03-04\n\\@ エスケープ\n";
@@ -741,7 +744,23 @@ fn a_modifier_that_is_not_a_mode_id_is_left_to_m3() {
     assert_eq!(refs_tag_of(MODE_NOT_ID, 1), "ref[アルス|mA+戦闘+B@0..21]");
 }
 
-/// E005 は `mode:` だけの規則。`cast:` に同じキャラを 2 回書いても here では何も出さない。
+/// 修飾子が空（`'アルス:`）のときは `mode_id` でないので E005 にしない。存在しないモードの
+/// 診断（E003 / E004）は `characters.md` の辞書が要るので M3（§6.4）。
+#[test]
+fn an_empty_modifier_is_not_e005() {
+    let text = "@01-04-02 攻防\nmode: 'アルス: 'リリア:A\n本文。\n";
+    assert_eq!(diags_tag(&text), "");
+    assert_eq!(
+        refs_tag_of(&text, 1),
+        "ref[アルス|m@0..11] / ref[リリア|mA@12..24]"
+    );
+    assert_eq!(
+        scene_keys_of(&text, 0, FieldKey::Mode),
+        "'アルス: 'リリア:A"
+    );
+}
+
+/// E005 は `mode:` だけの規則。`cast:` に同じキャラを 2 回書いてもここでは何も出さない。
 #[test]
 fn cast_is_not_checked_for_e005() {
     assert_eq!(diags_tag(MODE_PLAIN), "");
