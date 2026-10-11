@@ -148,7 +148,7 @@ pub fn parse(text: &str) -> Characters<'_> {
     attach_continuations(&mut lines);
     let mut diagnostics = Vec::new();
     let (preamble, characters) = collect(&lines, &mut diagnostics);
-    warn_ranges(&characters, &diagnostics_offsets(&lines), &mut diagnostics);
+    warn_ranges(&characters, &line_offsets(&lines), &mut diagnostics);
     Characters {
         lines,
         preamble,
@@ -352,12 +352,12 @@ pub struct ModeDef<'a> {
     /// 自由記述の index（出現順）。
     pub free: Vec<usize>,
     /// `range:` の値（§5.5.4）。**書かれていなければ全範囲**。
-    pub range: Option<ModeRange<'a>>,
+    pub range: Option<RangeValue<'a>>,
 }
 
-/// `range:` フィールドの値（§5.5.4）。
+/// `range:` フィールドの値（§5.5.4 のモード、§5.6 の用語）。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct ModeRange<'a> {
+pub struct RangeValue<'a> {
     /// フィールド行の index。
     pub line: usize,
     /// **書かれたままの**値（`@01 .. @02`）。
@@ -370,7 +370,7 @@ pub struct ModeRange<'a> {
     pub valid: bool,
 }
 
-impl ModeRange<'_> {
+impl RangeValue<'_> {
     /// 範囲式（§5.1）。パースできなければ `None`（診断は [`parse`] が出している）。
     pub fn expr(&self) -> Option<RangeExpr> {
         RangeExpr::parse(self.text).ok()
@@ -957,7 +957,7 @@ fn finish_mode<'a>(open: OpenMode<'a>, stop: usize, lines: &[Line<'a>]) -> ModeD
         patterns,
         free,
     } = open;
-    let range = fields.iter().find_map(|&index| mode_range(lines, index));
+    let range = fields.iter().find_map(|&index| range_value(lines, index));
     ModeDef {
         heading,
         id,
@@ -972,20 +972,57 @@ fn finish_mode<'a>(open: OpenMode<'a>, stop: usize, lines: &[Line<'a>]) -> ModeD
     }
 }
 
-/// `range:` フィールドなら [`ModeRange`]（§5.5.4）。それ以外は `None`。
-fn mode_range<'a>(lines: &[Line<'a>], index: usize) -> Option<ModeRange<'a>> {
+/// `range:` フィールドなら [`RangeValue`]（§5.5.4 / §5.6）。それ以外は `None`。
+///
+/// §5.6 の `words.md` も同じ形なので [`super::words_md`] が呼ぶ（B-40 の流儀）。
+pub(crate) fn range_value<'a>(lines: &[Line<'a>], index: usize) -> Option<RangeValue<'a>> {
     let Line::Field(found) = lines.get(index)? else {
         return None;
     };
     if found.key != FieldKey::Range {
         return None;
     }
-    Some(ModeRange {
+    Some(RangeValue {
         line: index,
         text: found.value,
         at: found.value_at,
         valid: matches!(RangeExpr::parse(found.value), Ok(expr) if expr.check().is_ok()),
     })
+}
+
+/// `range:` の値を検査して **E002**（範囲式として読めない）/ **E016**（左端 > 右端）を出し、
+/// 比較に使える範囲を返す。形が読めないときは `None`（呼び出し側は**比較しない**）。
+///
+/// §5.5.4（モード）と §5.6（用語）で同じ規則なので [`super::words_md`] も呼ぶ。
+/// `at` は値の先頭の byte 位置。
+pub(crate) fn check_range(
+    found: &RangeValue<'_>,
+    at: usize,
+    out: &mut Vec<Diagnostic>,
+) -> Option<RangeExpr> {
+    let range = at..at + found.text.len();
+    match RangeExpr::parse(found.text) {
+        Ok(expr) => {
+            if expr.check().is_err() {
+                out.push(Diagnostic::new(
+                    DiagnosticCode::E016,
+                    Some(range),
+                    Vec::new(),
+                ));
+            }
+            Some(expr)
+        }
+        // `range:` だけの行は「範囲を書かなかった」と読む（§5.5.4 の省略と同じ）
+        Err(RangeError::Empty) => Some(all_range()),
+        Err(_) => {
+            out.push(Diagnostic::new(
+                DiagnosticCode::E002,
+                Some(range),
+                Vec::new(),
+            ));
+            None
+        }
+    }
 }
 
 /// §5.5.2 の `section_key` を引き当てる。
@@ -1094,33 +1131,11 @@ fn classify_mode<'a>(
         };
     };
     let start = offsets[found.line] + found.at;
-    let at = start..start + found.text.len();
-    let expr = match RangeExpr::parse(found.text) {
-        Ok(expr) => {
-            if expr.check().is_err() {
-                out.push(Diagnostic::new(
-                    DiagnosticCode::E016,
-                    Some(at.clone()),
-                    Vec::new(),
-                ));
-            }
-            Some(expr)
-        }
-        // `range:` だけの行は「範囲を書かなかった」と読む（§5.5.4 の省略と同じ）
-        Err(RangeError::Empty) => Some(all_range()),
-        Err(_) => {
-            out.push(Diagnostic::new(
-                DiagnosticCode::E002,
-                Some(at.clone()),
-                Vec::new(),
-            ));
-            None
-        }
-    };
+    let expr = check_range(found, start, out);
     Seen {
         id: mode.id,
         expr,
-        at,
+        at: start..start + found.text.len(),
     }
 }
 
@@ -1148,7 +1163,7 @@ fn warn_overlaps(seen: &[Seen<'_>], out: &mut Vec<Diagnostic>) {
 }
 
 /// 全範囲（§5.5.4「`range` 省略時は全範囲（`@00 ..`）」）。両端が開放の 1 項。
-fn all_range() -> RangeExpr {
+pub(crate) fn all_range() -> RangeExpr {
     RangeExpr {
         terms: vec![RangeTerm {
             start: None,
@@ -1158,7 +1173,10 @@ fn all_range() -> RangeExpr {
 }
 
 /// 各行の先頭の byte 位置（`lines.len() + 1` 要素）。
-fn diagnostics_offsets(lines: &[Line<'_>]) -> Vec<usize> {
+///
+/// MD 方言の診断は行内の相対位置を持つので、絶対位置にするときに使う
+/// （[`super::words_md`] / [`super::ideas_md`] / [`super::prompt_md`] も呼ぶ）。
+pub(crate) fn line_offsets(lines: &[Line<'_>]) -> Vec<usize> {
     let mut offsets = Vec::with_capacity(lines.len() + 1);
     let mut at = 0;
     for line in lines {
@@ -1167,6 +1185,22 @@ fn diagnostics_offsets(lines: &[Line<'_>]) -> Vec<usize> {
     }
     offsets.push(at);
     offsets
+}
+
+/// `indices` の中から**書かれたままのキー**が `key_text` のフィールド行を引く。
+///
+/// 字句器は §5.0.6 の表に無いキーをすべて [`FieldKey::Unknown`] にするので、どの未知キーかを
+/// 知るには [`Field::key_text`] で比べる。§5.0.6「値は改変せず保持する」（縫い代 2）の中身を
+/// 読む手段で、MD 方言を使うパーサ（[`super::words_md`] / [`super::ideas_md`]）が共有する。
+pub(crate) fn unknown_field<'s, 'a>(
+    lines: &'s [Line<'a>],
+    indices: &[usize],
+    key_text: &str,
+) -> Option<&'s Field<'a>> {
+    indices.iter().find_map(|&index| match lines.get(index) {
+        Some(Line::Field(found)) if found.key_text == key_text => Some(found),
+        _ => None,
+    })
 }
 
 /// `indices` の中から `key` のフィールド行を集める（A / B 形式の `pick` と同じ）。

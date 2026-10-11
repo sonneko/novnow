@@ -11,7 +11,7 @@ use std::ops::Range;
 
 use novnow::core::diagnostics::{Arg, Diagnostic};
 use novnow::core::syntax::characters_md::{
-    self, Character, Characters, Line, ModeDef, ModeRange, Relation, Section, SectionKey,
+    self, Character, Characters, Line, ModeDef, RangeValue, Relation, Section, SectionKey,
 };
 use novnow::core::syntax::contents::Comment;
 use novnow::core::text::lexer::FieldKey;
@@ -142,7 +142,7 @@ fn line_tag(line: &Line<'_>) -> String {
     }
 }
 
-fn mode_range_tag(found: Option<&ModeRange<'_>>) -> String {
+fn range_tag(found: Option<&RangeValue<'_>>) -> String {
     match found {
         Some(found) => format!("{}|ok{}|l{}", found.text, found.valid, found.line),
         None => "-".to_owned(),
@@ -159,7 +159,7 @@ fn mode_tag(found: &ModeDef<'_>) -> String {
         indices(&found.fields),
         indices(&found.patterns),
         indices(&found.free),
-        mode_range_tag(found.range.as_ref())
+        range_tag(found.range.as_ref())
     )
 }
 
