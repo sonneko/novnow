@@ -1,0 +1,77 @@
+{
+  "form": "plot_outline",
+  "lines": 21,
+  "tree": {
+    "diagnostics": [
+      {
+        "code": "W011",
+        "range": [
+          63,
+          68
+        ],
+        "args": [
+          "title"
+        ]
+      }
+    ],
+    "preamble": {
+      "span": [
+        0,
+        4
+      ],
+      "fields": [
+        {
+          "unknown": "title"
+        },
+        "summary"
+      ]
+    },
+    "blocks": [
+      {
+        "id": {
+          "chapter": 1,
+          "episode": 0,
+          "scene": 0,
+          "section": 0
+        },
+        "depth": 1,
+        "span": [
+          4,
+          12
+        ],
+        "end": 11,
+        "fields": [
+          "summary",
+          "goal",
+          "turn",
+          "cast",
+          "seed",
+          "state"
+        ],
+        "notes": 0
+      },
+      {
+        "id": {
+          "chapter": 2,
+          "episode": 0,
+          "scene": 0,
+          "section": 0
+        },
+        "depth": 1,
+        "span": [
+          13,
+          20
+        ],
+        "end": 19,
+        "fields": [
+          "summary",
+          "goal",
+          "cast",
+          "payoff",
+          "state"
+        ],
+        "notes": 0
+      }
+    ]
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "form": "prompt_md",
+  "lines": 18,
+  "tree": {
+    "diagnostics": [
+      {
+        "code": "W011",
+        "range": [
+          17,
+          22
+        ],
+        "args": [
+          "label"
+        ]
+      },
+      {
+        "code": "W011",
+        "range": [
+          105,
+          115
+        ],
+        "args": [
+          "model-hint"
+        ]
+      },
+      {
+        "code": "W011",
+        "range": [
+          125,
+          134
+        ],
+        "args": [
+          "max-chars"
+        ]
+      },
+      {
+        "code": "E031",
+        "range": [
+          473,
+          488
+        ],
+        "args": [
+          "content_section"
+        ]
+      }
+    ],
+    "role": {
+      "name": "weapon-advisor",
+      "valid": true,
+      "builtin": false
+    },
+    "fields": [
+      {
+        "unknown": "label"
+      },
+      {
+        "unknown": "model-hint"
+      },
+      {
+        "unknown": "max-chars"
+      },
+      "context"
+    ],
+    "sections": [
+      {
+        "key": "System",
+        "key_text": "system",
+        "span": [
+          6,
+          9
+        ],
+        "fields": [],
+        "bullets": 0,
+        "free": 1
+      },
+      {
+        "key": "Task",
+        "key_text": "task",
+        "span": [
+          9,
+          14
+        ],
+        "fields": [],
+        "bullets": 0,
+        "free": 3
+      },
+      {
+        "key": "Output",
+        "key_text": "output",
+        "span": [
+          14,
+          18
+        ],
+        "fields": [],
+        "bullets": 2,
+        "free": 0
+      }
+    ],
+    "variables": [
+      {
+        "name": "scene_id",
+        "line": 11,
+        "known": true
+      },
+      {
+        "name": "content_section",
+        "line": 12,
+        "known": false
+      }
+    ]
+  }
+}

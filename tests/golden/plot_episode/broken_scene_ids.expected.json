@@ -1,0 +1,118 @@
+{
+  "form": "plot_episode",
+  "lines": 9,
+  "tree": {
+    "diagnostics": [
+      {
+        "code": "E002",
+        "range": [
+          0,
+          6
+        ],
+        "args": []
+      },
+      {
+        "code": "E002",
+        "range": [
+          66,
+          67
+        ],
+        "args": []
+      },
+      {
+        "code": "E002",
+        "range": [
+          84,
+          99
+        ],
+        "args": []
+      }
+    ],
+    "preamble": {
+      "span": [
+        0,
+        0
+      ],
+      "fields": []
+    },
+    "scenes": [
+      {
+        "id": null,
+        "depth": 2,
+        "span": [
+          0,
+          4
+        ],
+        "fields": [
+          "mode",
+          "summary"
+        ],
+        "sections": [
+          {
+            "number": 1,
+            "span": [
+              3,
+              3
+            ],
+            "content": [
+              3,
+              3
+            ],
+            "break_line": 3,
+            "fields": [],
+            "points": 0
+          }
+        ]
+      },
+      {
+        "id": null,
+        "depth": 0,
+        "span": [
+          4,
+          5
+        ],
+        "fields": [],
+        "sections": []
+      },
+      {
+        "id": null,
+        "depth": 0,
+        "span": [
+          5,
+          9
+        ],
+        "fields": [],
+        "sections": [
+          {
+            "number": 1,
+            "span": [
+              6,
+              6
+            ],
+            "content": [
+              6,
+              6
+            ],
+            "break_line": 6,
+            "fields": [],
+            "points": 0
+          },
+          {
+            "number": 2,
+            "span": [
+              7,
+              9
+            ],
+            "content": [
+              7,
+              8
+            ],
+            "break_line": null,
+            "fields": [],
+            "points": 1
+          }
+        ]
+      }
+    ]
+  }
+}

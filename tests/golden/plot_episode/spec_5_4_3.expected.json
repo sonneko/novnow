@@ -1,0 +1,181 @@
+{
+  "form": "plot_episode",
+  "lines": 31,
+  "tree": {
+    "diagnostics": [
+      {
+        "code": "W011",
+        "range": [
+          105,
+          109
+        ],
+        "args": [
+          "when"
+        ]
+      },
+      {
+        "code": "W011",
+        "range": [
+          121,
+          131
+        ],
+        "args": [
+          "space-mode"
+        ]
+      },
+      {
+        "code": "W011",
+        "range": [
+          139,
+          144
+        ],
+        "args": [
+          "space"
+        ]
+      },
+      {
+        "code": "W011",
+        "range": [
+          451,
+          457
+        ],
+        "args": [
+          "senses"
+        ]
+      },
+      {
+        "code": "W011",
+        "range": [
+          670,
+          676
+        ],
+        "args": [
+          "senses"
+        ]
+      },
+      {
+        "code": "W011",
+        "range": [
+          1008,
+          1020
+        ],
+        "args": [
+          "illustration"
+        ]
+      }
+    ],
+    "preamble": {
+      "span": [
+        0,
+        0
+      ],
+      "fields": []
+    },
+    "scenes": [
+      {
+        "id": {
+          "chapter": 1,
+          "episode": 4,
+          "scene": 2,
+          "section": 0
+        },
+        "depth": 3,
+        "span": [
+          0,
+          31
+        ],
+        "fields": [
+          "cast",
+          "mode",
+          "pov",
+          {
+            "unknown": "when"
+          },
+          {
+            "unknown": "space-mode"
+          },
+          {
+            "unknown": "space"
+          }
+        ],
+        "sections": [
+          {
+            "number": 1,
+            "span": [
+              12,
+              15
+            ],
+            "content": [
+              12,
+              15
+            ],
+            "break_line": 15,
+            "fields": [
+              {
+                "unknown": "senses"
+              },
+              "check"
+            ],
+            "points": 1
+          },
+          {
+            "number": 2,
+            "span": [
+              16,
+              19
+            ],
+            "content": [
+              16,
+              19
+            ],
+            "break_line": 19,
+            "fields": [
+              "material",
+              {
+                "unknown": "senses"
+              }
+            ],
+            "points": 1
+          },
+          {
+            "number": 3,
+            "span": [
+              20,
+              26
+            ],
+            "content": [
+              20,
+              26
+            ],
+            "break_line": 26,
+            "fields": [
+              "mode",
+              "check",
+              "length",
+              {
+                "unknown": "illustration"
+              }
+            ],
+            "points": 2
+          },
+          {
+            "number": 4,
+            "span": [
+              27,
+              29
+            ],
+            "content": [
+              27,
+              29
+            ],
+            "break_line": 29,
+            "fields": [
+              "state"
+            ],
+            "points": 1
+          }
+        ]
+      }
+    ]
+  }
+}

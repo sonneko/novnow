@@ -1,0 +1,106 @@
+{
+  "form": "prompt_md",
+  "lines": 17,
+  "tree": {
+    "diagnostics": [
+      {
+        "code": "W011",
+        "range": [
+          9,
+          19
+        ],
+        "args": [
+          "model-hint"
+        ]
+      },
+      {
+        "code": "W011",
+        "range": [
+          104,
+          113
+        ],
+        "args": [
+          "max-chars"
+        ]
+      },
+      {
+        "code": "W011",
+        "range": [
+          172,
+          183
+        ],
+        "args": [
+          "temperature"
+        ]
+      }
+    ],
+    "role": {
+      "name": "writer",
+      "valid": true,
+      "builtin": true
+    },
+    "fields": [
+      {
+        "unknown": "model-hint"
+      },
+      {
+        "unknown": "max-chars"
+      },
+      {
+        "unknown": "temperature"
+      }
+    ],
+    "sections": [
+      {
+        "key": "System",
+        "key_text": "system",
+        "span": [
+          5,
+          8
+        ],
+        "fields": [],
+        "bullets": 0,
+        "free": 1
+      },
+      {
+        "key": "Task",
+        "key_text": "task",
+        "span": [
+          8,
+          13
+        ],
+        "fields": [],
+        "bullets": 0,
+        "free": 3
+      },
+      {
+        "key": "Output",
+        "key_text": "output",
+        "span": [
+          13,
+          17
+        ],
+        "fields": [],
+        "bullets": 2,
+        "free": 0
+      }
+    ],
+    "variables": [
+      {
+        "name": "scene_id",
+        "line": 10,
+        "known": true
+      },
+      {
+        "name": "plot_section",
+        "line": 11,
+        "known": true
+      },
+      {
+        "name": "role_language",
+        "line": 15,
+        "known": true
+      }
+    ]
+  }
+}

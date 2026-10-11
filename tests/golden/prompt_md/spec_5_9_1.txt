@@ -1,0 +1,16 @@
+# writer
+model-hint: balanced          # fast | balanced | careful（MCP サーバ選択のヒント）
+max-chars: 12000              # ContextPacket の上限（§15.4）
+temperature: 0.7
+
+## system
+あなたは novnow プロジェクトの本文執筆担当です。…
+
+## task
+次の節の本文だけを書いてください。
+対象: {{scene_id}}
+プロット: {{plot_section}}
+
+## output
+- 出力は本文のみ。見出し・解説・前置きを書かない。
+- 役割語は {{role_language}} に従う。
