@@ -161,7 +161,11 @@ impl Checker {
         // (3) 逆方向依存（core → ui / adapters）。`crate::ui` だけでなく `novnow::ui` や
         //     `super::super::ui` のような書き方も捕まえる。
         let intra = matches!(first, "crate" | "self" | "super") || first == CRATE_NAME;
-        if intra && segs[1..].iter().any(|s| FORBIDDEN_LAYERS.contains(&s.as_str())) {
+        if intra
+            && segs[1..]
+                .iter()
+                .any(|s| FORBIDDEN_LAYERS.contains(&s.as_str()))
+        {
             self.report_dep(&path, ctx);
             return;
         }
@@ -387,7 +391,9 @@ const JAPANESE_RANGES: &[(u32, u32)] = &[
 fn has_japanese(s: &str) -> bool {
     s.chars().any(|c| {
         let u = c as u32;
-        JAPANESE_RANGES.iter().any(|&(lo, hi)| (lo..=hi).contains(&u))
+        JAPANESE_RANGES
+            .iter()
+            .any(|&(lo, hi)| (lo..=hi).contains(&u))
     })
 }
 
