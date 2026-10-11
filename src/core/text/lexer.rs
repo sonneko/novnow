@@ -11,8 +11,10 @@
 //!    [`Stage::Two`] として残すので、② の実装はフラグを切り替えるだけでよい。
 //! 2. **エスケープ**（§5.0.3）。有効なのは `\@ \' \; \/ \「 \」 \\` のみで、他は 2 文字のまま
 //!    扱い**診断を出さない**。
-//! 3. **フィールド行**（§5.0.5）。`:` の直後に空白が無ければフィールド行ではない
-//!    （`http://` の誤判定回避、MUST）。継続行は 2 スペース以上のインデント。
+//! 3. **フィールド行**（§5.0.5 の 7 段の手順）。全角 `：` は直後の空白を問わず受理し、
+//!    半角 `:` は「空白・行末・§5.0.6 の表にあるキー」のときに受理する。表に無い ascii キーは
+//!    空白が無ければフィールド行にしないので、**URL 判定の除外リストを持たない**
+//!    （`http://` `doi:` `mailto:` `10:30` は自動的に本文のまま）。継続行は 2 スペース以上のインデント。
 //! 4. **改行・BOM・末尾改行の正規化**（§5.0.4）。Unicode 正規化は**しない**
 //!    （照合時のみ §6.1.3、M3 の仕事）。
 //!
@@ -492,57 +494,52 @@ pub fn after_indent(line: &str) -> &str {
     line.trim_start_matches(is_space)
 }
 
-/// フィールド行をパースする（§5.0.5）。フィールド行でなければ `None`。
+/// フィールド行をパースする（§5.0.5 の 7 段の手順）。フィールド行でなければ `None`。
 fn parse_field_line(line: &str) -> Option<FieldLine<'_>> {
+    // 手順 1: 2 文字以上のインデントは継続行のために予約されている（`PLANS.md` §9.2 B-18）
     let indent = leading_indent(line);
-    // §5.0.5 の `ws?` は 0〜1 文字と読む。2 スペース以上は継続行のために予約されているので
-    // フィールド行にはしない（`PLANS.md` §9.2 B-18）。
     if indent >= CONTINUATION_INDENT {
         return None;
     }
-    let body = after_indent(line);
-    let (key_text, after_key) = split_field_key(body)?;
-    // `key` と `:` の間の `ws?`
-    let after_key = after_key.trim_start_matches(is_space);
-    let rest = strip_colon(after_key)?;
-    // §5.0.5 MUST: `:` の直後に空白が無ければフィールド行ではない（`http://` の誤判定回避）。
-    // 値が空（行末）のときはフィールド行として受理する。
-    if !rest.is_empty() && !rest.starts_with(is_space) {
-        return None;
+    // 手順 2・3: 最初のコロンで切り、キー候補が `field_key` かを見る
+    let (key_text, colon, rest) = split_field_key(after_indent(line))?;
+    let key = lookup_key(key_text);
+    // 手順 4: 全角 `：` は直後の空白を問わない（`要約：あらすじ` を受ける）
+    // 手順 5: 半角 `:` は「空白・行末・表にあるキー」のときだけ
+    // 手順 6: 行末は空の値として受理する（§5.0.4 の行末空白削除と両立）
+    if colon == ':' {
+        let space_after = rest.is_empty() || rest.starts_with(is_space);
+        if !space_after && key == FieldKey::Unknown {
+            return None;
+        }
     }
-    let value = rest.trim_matches(is_space);
     Some(FieldLine {
         indent,
-        key: lookup_key(key_text),
+        key,
         key_text,
-        value,
+        value: rest.trim_matches(is_space),
     })
 }
 
-/// 最初の `:` / `：` までをキー候補として切り出す。
+/// 最初のコロン（半角 `:` / 全角 `：`）で切り、`(キー候補, コロン, コロン以降)` を返す。
 ///
-/// キー候補が §5.0.5 の `ascii_key`（または §5.0.6 の別名）でなければ `None`。
-fn split_field_key(body: &str) -> Option<(&str, &str)> {
+/// §5.0.5 の手順 2・3。コロンが複数あれば**最初のもので切る**ので、値にコロンが残ってよい
+/// （`source:https://example.com`）。キー候補が `field_key` でなければ `None`。
+fn split_field_key(body: &str) -> Option<(&str, char, &str)> {
     let idx = body.find([':', '：'])?;
     let key_text = body[..idx].trim_end_matches(is_space);
     if !is_key_text(key_text) {
         return None;
     }
-    Some((key_text, &body[idx..]))
+    let colon = body[idx..].chars().next()?;
+    Some((key_text, colon, &body[idx + colon.len_utf8()..]))
 }
 
-/// 先頭の `:` / `：` を除く。
-fn strip_colon(text: &str) -> Option<&str> {
-    if let Some(rest) = text.strip_prefix(':') {
-        return Some(rest);
-    }
-    text.strip_prefix('：')
-}
-
-/// キーとして受理できる文字列か（§5.0.5 の `field_key = ascii_key | ja_alias`）。
+/// キーとして受理できる文字列か（§5.0.5 手順 3、`field_key = ascii_key | ja_alias`）。
 ///
-/// 表に無い ascii キー（`foo` 等）は**受理する**（[`FieldKey::Unknown`] → W011）。
-/// 表に無い日本語（`注：これは本文` のような散文）は**受理しない**。
+/// 表に無い ascii キー（`foo` 等）は**受理する**（[`FieldKey::Unknown`] → W011。ただし半角
+/// コロンで空白が無いときは手順 5 で落ちる）。表に無い日本語（`注：これは本文` のような散文）は
+/// **受理しない**。
 pub fn is_key_text(text: &str) -> bool {
     if text.starts_with(|c: char| c.is_ascii_lowercase()) {
         return is_ascii_key(text);
@@ -652,10 +649,14 @@ pub fn unescape(line: &str) -> Cow<'_, str> {
     Cow::Owned(out)
 }
 
-/// 未エスケープの `//` の byte offset（§5.0.2「以降行末までコメント」）。
+/// 未エスケープの `//` の byte offset（§5.0.2「行内: 以降行末までコメント」）。
 ///
-/// `\/` はエスケープなので `\/\/` はコメントにならない。**有効でない** `\x` も
-/// 2 文字として消費する（§5.0.3）ので、`\/` の後の `/` はコメントの始まりにならない。
+/// 次の 2 つはコメントの始めにしない。
+///
+/// - `\/` はエスケープ（§5.0.3）。**有効でない** `\x` も 2 文字を消費するので、
+///   `\/` の後の `/` もコメントの始めにならない。
+/// - **直前が `:` の `//`**（§5.0.2「`://` は行内コメントにしない」MUST）。URL の scheme
+///   区切りなので、`https://example.com` や `source:https://…` の値を壊さない。
 pub fn find_line_comment(line: &str) -> Option<usize> {
     let mut chars = line.char_indices();
     while let Some((idx, ch)) = chars.next() {
@@ -663,9 +664,13 @@ pub fn find_line_comment(line: &str) -> Option<usize> {
             chars.next();
             continue;
         }
-        if ch == '/' && line[idx + 1..].starts_with('/') {
-            return Some(idx);
+        if ch != '/' || !line[idx + 1..].starts_with('/') {
+            continue;
         }
+        if idx > 0 && line[..idx].ends_with(':') {
+            continue;
+        }
+        return Some(idx);
     }
     None
 }

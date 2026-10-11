@@ -36,6 +36,57 @@ const ESCAPES: &[(&str, char, &str)] = &[
     ("\\\\", '\\', "\\"),
 ];
 
+/// §5.0.5 の不変条件（MUST）に使う、URL scheme と本文中に書かれがちな接頭辞。
+///
+/// §5.0.6 のキー表と**交わってはいけない**。交わると `http://example.com` のような行が
+/// フィールド行になってしまう（手順 5 が「表にあるキーは空白を要求しない」ため）。
+const SCHEMES: &[&str] = &[
+    "about",
+    "arxiv",
+    "bitcoin",
+    "blob",
+    "chrome",
+    "data",
+    "doi",
+    "ed2k",
+    "feed",
+    "file",
+    "ftp",
+    "ftps",
+    "gemini",
+    "geo",
+    "git",
+    "gopher",
+    "http",
+    "https",
+    "isbn",
+    "javascript",
+    "jdbc",
+    "ldap",
+    "magnet",
+    "mail",
+    "mailto",
+    "matrix",
+    "news",
+    "nfs",
+    "nntp",
+    "pmid",
+    "rtsp",
+    "s3",
+    "sftp",
+    "sip",
+    "smb",
+    "sms",
+    "ssh",
+    "svn",
+    "tel",
+    "urn",
+    "view-source",
+    "webcal",
+    "ws",
+    "wss",
+];
+
 /// ① の範囲で 1 行を字句解析し、比較しやすい形にする。
 fn tag(line: &str, format: TextFormat) -> String {
     tag_at(line, format, Stage::One)
@@ -163,6 +214,27 @@ fn line_comment_runs_to_the_end_of_the_line() {
 }
 
 #[test]
+fn a_scheme_separator_is_not_a_line_comment() {
+    // §5.0.2「`://` は行内コメントにしない（MUST）」
+    let url = "https://example.com";
+    assert_eq!(lexer::find_line_comment(url), None);
+    assert_eq!(lexer::strip_line_comment(url), url);
+    let mixed = "source: https://example.com // 注";
+    let got = lexer::find_line_comment(mixed);
+    assert_eq!(got, Some(28));
+    assert_eq!(lexer::strip_line_comment(mixed), "source: https://example.com ");
+}
+
+#[test]
+fn only_the_slash_pair_right_after_a_colon_is_protected() {
+    let line = "a://b//c";
+    let got = lexer::find_line_comment(line);
+    assert_eq!(got, Some(5));
+    // 行頭の `//` はこれまでどおりコメント
+    assert_eq!(lexer::find_line_comment("// 注"), Some(0));
+}
+
+#[test]
 fn an_escaped_slash_does_not_start_a_line_comment() {
     // §5.0.3 の `\/`。**無効な** `\x` も 2 文字を消費するので `\/x//` の `//` は残る
     let got = lexer::find_line_comment("本文 \\/\\/ 注");
@@ -285,37 +357,94 @@ fn field_line_in_a_b_and_markdown_but_not_in_c() {
 }
 
 #[test]
-fn field_without_a_space_after_the_colon_is_text() {
-    // §5.0.5 MUST: `http://` のような誤判定を避ける
-    let got = tag("http://example.com", A);
-    assert_eq!(got, "text[http://example.com]");
-    let no_space = tag("summary:一行", A);
-    assert_eq!(no_space, "text[summary:一行]");
+fn a_full_width_colon_does_not_need_a_space() {
+    // §5.0.5 手順 4（ユーザー裁定 2026-10-11）: 日本語の自然な書き方を受ける
+    let tight = tag("要約：あらすじ", A);
+    assert_eq!(tight, "field(Summary, 要約)[あらすじ]");
+    let spaced = tag("要約： あらすじ", A);
+    assert_eq!(spaced, "field(Summary, 要約)[あらすじ]");
+    // 全角コロンのときは表に無い ascii キーでもフィールド行（W011 行き）
+    let unknown = tag("foo：bar", A);
+    assert_eq!(unknown, "field(Unknown, foo)[bar]");
 }
 
 #[test]
-fn field_accepts_the_full_width_colon() {
-    let got = tag("要約： 一行", A);
-    assert_eq!(got, "field(Summary, 要約)[一行]");
+fn a_half_width_colon_needs_a_space_for_keys_outside_the_table() {
+    // §5.0.5 手順 5。表に無い ascii キーは空白が無ければフィールド行にしないので、
+    // URL 判定の**除外リストを持たない**（MUST）
+    let url = tag("http://example.com", A);
+    assert_eq!(url, "text[http://example.com]");
+    let unknown = tag("foo:bar", A);
+    assert_eq!(unknown, "text[foo:bar]");
+    // 空白があれば未知のキーでもフィールド行（W011）
+    let spaced = tag("foo: bar", A);
+    assert_eq!(spaced, "field(Unknown, foo)[bar]");
 }
 
 #[test]
-fn the_space_after_the_colon_is_required_for_aliases_too() {
-    // §5.0.5 の MUST は「行頭が `ascii_key` 相当でも」と書くが、ebnf の
-    // `ws (value | "")` は別名にも及ぶ。日本語の自然な書き方（`要約：あらすじ`）を
-    // フィールド行にするかは仕様の要補正点（`PLANS.md` §9.1 A-6）
-    let tight = tag("要約：一行", A);
-    assert_eq!(tight, "text[要約：一行]");
+fn a_key_in_the_table_does_not_need_a_space_after_a_half_width_colon() {
+    // §5.0.5 手順 5: 表にあるキーは scheme と衝突しない（下の不変条件）ので空白を要求しない
+    let tight = tag("summary:一行", A);
+    assert_eq!(tight, "field(Summary, summary)[一行]");
+    let alias = tag("要約:一行", A);
+    assert_eq!(alias, "field(Summary, 要約)[一行]");
+    let mode = tag("mode:B", B);
+    assert_eq!(mode, "field(Mode, mode)[B]");
+}
+
+#[test]
+fn a_url_in_a_field_value_is_kept_whole() {
+    // 値の中身は検査しない（§5.0.5）。`://` は行内コメントにもならない（§5.0.2）
+    let tight = tag("source:https://example.com/x?a=1", MD);
+    assert_eq!(tight, "field(Source, source)[https://example.com/x?a=1]");
+    let spaced = tag("source: https://example.com", MD);
+    assert_eq!(spaced, "field(Source, source)[https://example.com]");
+}
+
+#[test]
+fn urls_and_identifiers_stay_in_the_prose() {
+    // §5.0.5「URL 判定は除外リストを持たない（MUST）」の確認
+    let prose = [
+        "http://example.com",
+        "https://example.com/x?a=1#b",
+        "ftp://ftp.example.com/pub",
+        "mailto:foo@example.com",
+        "doi:10.1000/xyz",
+        "isbn:978-4-06-519794-1",
+        "tel:090-1234-5678",
+        "file:///tmp/x.txt",
+        "git@github.com:sonneko/novnow.git",
+        "C:\\Users\\writer\\draft.txt",
+        "10:30",
+        "3:4",
+        "注：これは本文",
+    ];
+    for line in prose {
+        let got = tag(line, A);
+        assert_eq!(got, format!("text[{line}]"));
+    }
+}
+
+#[test]
+fn no_field_key_collides_with_a_url_scheme() {
+    // §5.0.5 の不変条件（MUST）。表に scheme と同名のキーを足すと URL がフィールド化するので、
+    // ここで固定する（キーを足すときは §5.0.5 の手順 5 を読むこと）
+    for scheme in SCHEMES {
+        let key = lexer::lookup_key(scheme);
+        assert_eq!(key, FieldKey::Unknown, "{scheme}");
+    }
 }
 
 #[test]
 fn field_value_may_be_empty() {
-    // §5.0.5 の ebnf は `ws (value | "")`。§5.0.4 で行末空白は消えるので、
-    // `key:` だけの行も空の値のフィールド行として受理する（`PLANS.md` §9.1 A-5）
+    // §5.0.5 手順 6。§5.0.4 で行末空白は消えるので、`key:` だけの行も
+    // 空の値のフィールド行として受理する（`PLANS.md` §9.1 A-6 の裁定 (1)）
     let bare = tag("summary:", A);
     assert_eq!(bare, "field(Summary, summary)[]");
     let spaced = tag("summary: ", A);
     assert_eq!(spaced, "field(Summary, summary)[]");
+    let full_width = tag("要約：", A);
+    assert_eq!(full_width, "field(Summary, 要約)[]");
 }
 
 #[test]
