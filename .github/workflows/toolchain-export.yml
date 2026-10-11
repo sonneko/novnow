@@ -103,7 +103,7 @@ jobs:
           . ./.github/toolchain.env
           set +a
           # 以降のステップ（と if: env.XXX）から参照できるよう GITHUB_ENV に写す。
-          for v in ENABLED CACHE_BRANCH CHUNK_MB TOOLCHAIN PROFILE COMPONENTS \
+          for v in ENABLED CACHE_BRANCH CHUNK_MB TOOLCHAIN PROFILE COMPONENTS TARGETS \
                    VENDOR SMOKE SMOKE_CMD SALT FORCE; do
             printf '%s=%s\n' "$v" "${!v}" >> "$GITHUB_ENV"
           done
@@ -126,11 +126,12 @@ jobs:
           echo "remote MANIFEST.json http=$code"
           if [ "$code" = "200" ]; then
             cat /tmp/remote-manifest.json
-            # status=ready のときだけ跳过する（probe / failed の MANIFEST では再実行が要る）。
+            # status=ready のときだけスキップする（probe / failed では再実行が要る）。
             remote=$(python3 -c 'import json;m=json.load(open("/tmp/remote-manifest.json"));print(m.get("cache_key",""),m.get("status",""))')
             remote_key=${remote%% *}
             remote_status=${remote##* }
             echo "remote cache_key=$remote_key status=$remote_status"
+            echo "REMOTE_STATUS=$remote_status" >> "$GITHUB_ENV"
             if [ "$remote_key" = "$CACHE_KEY" ] && [ "$remote_status" = "ready" ] && [ "$FORCE" != "1" ]; then
               echo "同じ cache_key の生成物が既にあるので何もしない（FORCE=1 で強制再生成）。"
               echo "SKIP=1" >> "$GITHUB_ENV"
@@ -163,8 +164,14 @@ jobs:
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git add -A
           git commit -q -m "toolchain-export: probe ($CACHE_KEY)"
-          git push -q -f origin "$CACHE_BRANCH"
-          echo "probe pushed to $CACHE_BRANCH"
+          # 既に status=ready の生成物があるブランチを probe で消さない。
+          # （ここで push しなくても 09 が完全な中身で force push する。）
+          if [ "${REMOTE_STATUS:-}" = "ready" ]; then
+            echo "既存の ready 生成物を守るため probe は push しない（commit はローカルに作る）"
+          else
+            git push -q -f origin "$CACHE_BRANCH"
+            echo "probe pushed to $CACHE_BRANCH"
+          fi
 
       - name: 05 install rust toolchain
         if: env.SKIP != '1'
@@ -185,6 +192,12 @@ jobs:
             [ -n "$c" ] && args+=(--component "$c")
           done
           rustup toolchain install "$TOOLCHAIN" --profile "$PROFILE" "${args[@]}"
+          if [ -n "${TARGETS:-}" ]; then
+            IFS=',' read -ra tgts <<< "$TARGETS"
+            for tg in "${tgts[@]}"; do
+              [ -n "$tg" ] && rustup target add "$tg"
+            done
+          fi
           rustup show
           echo "rustc  : $(rustc -V)"
           echo "cargo  : $(cargo -V)"
@@ -279,7 +292,7 @@ jobs:
           rm -rf target
           echo "--- SMOKE_CMD: $SMOKE_CMD ---"
           start=$(date +%s)
-          $SMOKE_CMD
+          eval "$SMOKE_CMD"
           echo "smoke test passed in $(( $(date +%s) - start ))s on $(nproc) cpus" \
             > /tmp/smoke-result.txt
           cat /tmp/smoke-result.txt
@@ -423,7 +436,8 @@ jobs:
           df -h /tmp
           git add -A
           git commit -q -m "toolchain-export: rust sysroot + vendored crates ($CACHE_KEY)"
-          git push -q origin "$CACHE_BRANCH"
+          # 04 が push を飛ばした場合（既存の ready を保護）でも通るよう force で置く。
+          git push -q -f origin "$CACHE_BRANCH"
           echo "pushed. branch contents (bytes, path):"
           git ls-tree -r --long HEAD | awk '{print $4, $5}'
 
