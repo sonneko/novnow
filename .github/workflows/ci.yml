@@ -4,13 +4,32 @@ name: CI
 # `spec` ジョブは PLANS.md §9.4 B-14 の決定により M11 で追加する。
 # `wasm` ジョブを `trunk build` にしない判断は PLANS.md §9.2 B-16 を参照。
 #
-# 失敗時は各ジョブの出力を PR コメントに投稿する。Actions のログ取得先ホストに到達できないため、
-# **合否だけでなくコンパイルエラーの中身を読む経路**が要る。コメントは
-# `gh api repos/:owner/:repo/issues/:number/comments` で取得できる。
+# ## 失敗の読み方（2026-10-11 に改善）
+#
+# 各ジョブは cargo の出力を `/tmp/ci.log` に tee し、**`.github/report.py` が生ログから
+# 「どれが・どこで・何と言って失敗したか」だけを抜き出す**。出力は 3 つ。
+#
+# 1. **ワークフロー注釈**（`::error file=…,line=…::`）— コンパイルエラーとテストの panic 位置が
+#    PR の「Files changed」とチェック画面にインラインで出る。
+# 2. **実行サマリ**（`$GITHUB_STEP_SUMMARY`）— 成功時も書く。テスト件数の内訳が出るので、
+#    run のページを開けば緑の証跡（何件通ったか）がその場で分かる。
+# 3. **PR コメント**（失敗時のみ）— Actions のログ取得先ホスト（`objects.githubusercontent.com`）に
+#    作業環境から到達できないため、**失敗の中身を読む経路はこれしかない**（PLANS.md §9.3）。
+#    `gh api repos/:owner/:repo/issues/:number/comments` で取得できる。
+#
+# `head` / `tail` の切り出しをやめた理由: テスト失敗の本体（`---- <name> stdout ----`）はログの
+# **真ん中**にあり、切り出しではちょうど落ちる。判断は PLANS.md §9.2 B-55。
+#
+# `cargo test` は **`--no-fail-fast`**: 既定だと最初の失敗ターゲットで止まり、残りの形式の
+# 失敗が一度に見えない（1 回の CI で全部知るための変更。失敗時のみ実行時間が伸びる）。
+#
+# レポート生成自体は CI の合否に影響させない（`|| echo "::warning::…"`）。レポートのバグで
+# 緑のビルドが赤くなっては本末転倒なので。
+#
 # 2026-10-11 以降は作業環境側に Rust ツールチェーンがあり（PLANS.md §9.3、
 # `.github/workflows/toolchain-export.yml` が生成）、fmt / clippy / test / wasm の 4 つは
 # すべてローカルで実行できる。CI は「緑の証跡」として残す。
-# 不要になったら「Report ... to the PR」ステップと `pull-requests: write` を外す。
+# 不要になったら「Comment on the PR」ステップと `pull-requests: write` を外す。
 
 # paths-ignore: 4 ジョブはどれも Rust のソースと Cargo.* しか見ないので、ドキュメントと
 # ワークフローだけの commit では走らせない（Actions 使用時間の節約）。
@@ -49,39 +68,56 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# 4 ジョブ共通の環境変数。
+env:
+  # レポートの見出しに載せる commit（`.github/report.py` が読む）
+  CI_SHA: ${{ github.sha }}
+  # backtrace はレポートを埋めるだけで、失敗の理由は panic メッセージで足りる（読みやすさ優先）
+  RUST_BACKTRACE: 0
+
 jobs:
   fmt:
     name: Rustfmt
     runs-on: ubuntu-latest
+    # 暴走しても課金が伸びないようにする（Actions 使用時間の節約）
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
       # pipefail: パイプ先の tee が成功しても cargo の失敗でステップを落とす
+      # ::group:: で生ログを折りたたむ（読むのはレポートのほう）
       - name: cargo fmt --check
+        id: cargo
         shell: bash
         run: |
           set -o pipefail
+          echo "::group::cargo fmt --all --check（生ログ）"
           cargo fmt --all --check 2>&1 | tee /tmp/ci.log
-      - name: Report fmt diff to the PR
+          status=$?
+          echo "::endgroup::"
+          exit $status
+      - name: Report to the run summary
+        if: always() && steps.cargo.outcome != 'skipped'
+        shell: bash
+        env:
+          CI_LOG: /tmp/ci.log
+          CI_JOB: Rustfmt
+          CI_KIND: fmt
+          CI_STATUS: ${{ steps.cargo.outcome }}
+        run: python3 .github/report.py /tmp/body.md || echo "::warning::レポートの生成に失敗しました（合否には影響しません）"
+      - name: Comment on the PR
         if: failure() && github.event_name == 'pull_request'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          {
-            echo "### Rustfmt が失敗（\`${GITHUB_SHA::7}\`）"
-            echo '下の差分を `cargo fmt --all` で適用できます。'
-            echo '```diff'
-            head -n 160 /tmp/ci.log
-            echo '```'
-          } > /tmp/body.md
-          gh pr comment "${{ github.event.pull_request.number }}" --body-file /tmp/body.md
+        run: gh pr comment "${{ github.event.pull_request.number }}" --body-file /tmp/body.md
 
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -95,82 +131,104 @@ jobs:
       # TODO(M7): src/ui/** に egui の実コードが入ったら、clippy / test / wasm の 3 コマンドに
       #           `--features ui` を足す（PLANS.md §5.8 作業項目 0）。
       - name: cargo clippy
+        id: cargo
         shell: bash
         run: |
           set -o pipefail
+          echo "::group::cargo clippy（生ログ）"
           cargo clippy --locked --all-targets -- -D warnings 2>&1 | tee /tmp/ci.log
-      - name: Report clippy output to the PR
+          status=$?
+          echo "::endgroup::"
+          exit $status
+      - name: Report to the run summary
+        if: always() && steps.cargo.outcome != 'skipped'
+        shell: bash
+        env:
+          CI_LOG: /tmp/ci.log
+          CI_JOB: Clippy
+          CI_KIND: clippy
+          CI_STATUS: ${{ steps.cargo.outcome }}
+        run: python3 .github/report.py /tmp/body.md || echo "::warning::レポートの生成に失敗しました（合否には影響しません）"
+      - name: Comment on the PR
         if: failure() && github.event_name == 'pull_request'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          {
-            echo "### Clippy が失敗（\`${GITHUB_SHA::7}\`）"
-            echo '```'
-            head -n 120 /tmp/ci.log
-            echo '...（中略）...'
-            tail -n 40 /tmp/ci.log
-            echo '```'
-          } > /tmp/body.md
-          gh pr comment "${{ github.event.pull_request.number }}" --body-file /tmp/body.md
+        run: gh pr comment "${{ github.event.pull_request.number }}" --body-file /tmp/body.md
 
   test:
     name: Test
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      # tests/layering.rs（§3.2 の禁止依存 + §12.2 の日本語リテラル + 検査器の自己テスト）を
-      # 含む全ターゲットを実行する。DEVELOPERS.md §1.4「layering が落ちたらマージしない」。
+      # tests/layering.rs（§3.2 の禁止依存 + §12.2 の日本語リテラル + feature gate + 検査器の
+      # 自己テスト）を含む全ターゲットを実行する。DEVELOPERS.md §1.4「layering が落ちたら
+      # マージしない」。
+      # --no-fail-fast: 既定だと**最初の失敗ターゲットで止まる**（統合テストはアルファベット順）
+      # ので、1 回の CI で全形式の失敗を知るために外す。
+      # `--features ui` は付けない（上の clippy ジョブと同じ理由。PLANS.md §9.2 B-54）。
       - name: cargo test
+        id: cargo
         shell: bash
         run: |
           set -o pipefail
-          cargo test --locked --all-targets 2>&1 | tee /tmp/ci.log
-      - name: Report test output to the PR
+          echo "::group::cargo test（生ログ）"
+          cargo test --locked --all-targets --no-fail-fast 2>&1 | tee /tmp/ci.log
+          status=$?
+          echo "::endgroup::"
+          exit $status
+      - name: Report to the run summary
+        if: always() && steps.cargo.outcome != 'skipped'
+        shell: bash
+        env:
+          CI_LOG: /tmp/ci.log
+          CI_JOB: Test
+          CI_KIND: test
+          CI_STATUS: ${{ steps.cargo.outcome }}
+        run: python3 .github/report.py /tmp/body.md || echo "::warning::レポートの生成に失敗しました（合否には影響しません）"
+      - name: Comment on the PR
         if: failure() && github.event_name == 'pull_request'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          {
-            echo "### Test が失敗（\`${GITHUB_SHA::7}\`）"
-            echo '```'
-            head -n 120 /tmp/ci.log
-            echo '...（中略）...'
-            tail -n 60 /tmp/ci.log
-            echo '```'
-          } > /tmp/body.md
-          gh pr comment "${{ github.event.pull_request.number }}" --body-file /tmp/body.md
+        run: gh pr comment "${{ github.event.pull_request.number }}" --body-file /tmp/body.md
 
   wasm:
     name: WASM Build Check
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
+      # `--features ui` は付けない（上の clippy ジョブと同じ理由。PLANS.md §9.2 B-54）。
       - name: cargo check (wasm32)
+        id: cargo
         shell: bash
         run: |
           set -o pipefail
+          echo "::group::cargo check --target wasm32-unknown-unknown（生ログ）"
           cargo check --locked --target wasm32-unknown-unknown 2>&1 | tee /tmp/ci.log
-      - name: Report wasm output to the PR
+          status=$?
+          echo "::endgroup::"
+          exit $status
+      - name: Report to the run summary
+        if: always() && steps.cargo.outcome != 'skipped'
+        shell: bash
+        env:
+          CI_LOG: /tmp/ci.log
+          CI_JOB: WASM Build Check
+          CI_KIND: wasm
+          CI_STATUS: ${{ steps.cargo.outcome }}
+        run: python3 .github/report.py /tmp/body.md || echo "::warning::レポートの生成に失敗しました（合否には影響しません）"
+      - name: Comment on the PR
         if: failure() && github.event_name == 'pull_request'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          {
-            echo "### WASM Build Check が失敗（\`${GITHUB_SHA::7}\`）"
-            echo '```'
-            head -n 120 /tmp/ci.log
-            echo '...（中略）...'
-            tail -n 40 /tmp/ci.log
-            echo '```'
-          } > /tmp/body.md
-          gh pr comment "${{ github.event.pull_request.number }}" --body-file /tmp/body.md
+        run: gh pr comment "${{ github.event.pull_request.number }}" --body-file /tmp/body.md

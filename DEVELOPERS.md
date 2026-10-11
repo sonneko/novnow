@@ -4,15 +4,16 @@
 
 > **この文書の位置づけ**
 >
-> - 仕様の正本は **[`SPECIFICATIONS.md`](./SPECIFICATIONS.md)**（v1 仕様 第 2.2 版）。
+> - 仕様の正本は **[`SPECIFICATIONS.md`](./SPECIFICATIONS.md)**（v1 仕様 **第 2.6 版**）。
 > - 実装順序と見積りは **[`PLANS.md`](./PLANS.md)**（段階 ① の実装計画）。
 > - 本書は「手を動かすときに開く頁」であり、仕様と食い違った場合は **`SPECIFICATIONS.md` が優先する**。
 >
-> **現在の `src/` は v1 の層構造の「空の骨格」（M0 完了時点）である。**
+> **現在の `src/` は v1 の層構造のまま、`core` の基盤と構文が入った状態（M2 完了時点）である。**
 > v0（プロトタイプ）の UI コードは M0 で削除し、`v0-final` タグに保存した。
-> `src/core/**` `src/ports/**` `src/adapters/**` `src/ui/**` は中身が空で、
-> 実装は M1 以降（`PLANS.md` §5）で順に埋まる。本書の「モジュール構成」は
-> **v1 の目標形**であり、M0 時点のツリーはそれと一致している（中身だけが空）。
+> **実装済み**: `core/id.rs`・`core/text/*`（字句・位置・rope・増分）・`core/diagnostics.rs`
+> （§7 / §7.1 / §7.2 の **78 コード**）・`core/syntax/*`（**8 形式**のパーサ）・`core/model/*`
+> （10 型）。**空のまま**: `core/resolve/*`（M3）・`core/features/*`（M4）・`ports/**`・
+> `adapters/**`（M5 / M6）・`ui/**`（M7 以降）。本書の「モジュール構成」は **v1 の目標形**。
 >
 > **GUI は M7 まで動かない**（`PLANS.md` §3 I3）。M0 時点の `cargo run` は
 > 使用法を表示して終了コード 2 で終了するだけの暫定版である。
@@ -92,6 +93,9 @@ cargo test --features ui          # M7 以降は GUI 込みでも通すこと
 
 CI で常設するテストは `PLANS.md` §6 を参照。`tests/layering.rs` は **落ちたらマージしない**（例外なし）。
 
+`cargo test` は **`--no-fail-fast`** で走らせること（CI もそうしている）。既定だと統合テストは
+アルファベット順の**最初の失敗ターゲットで止まる**ので、他の形式の失敗が一度に見えない。
+
 `tests/layering.rs` の中身は次の 3 系統（8 テスト）。
 
 | テスト | 検査内容 |
@@ -112,6 +116,36 @@ doc コメントまで突き合わせる。診断コードを足す／直すと�
 （`PLANS.md` §6.3「仕様書 → ゴールデン → 実装」）。表に無いコードを enum に足すと
 `the_catalog_has_no_code_the_spec_does_not_list` が、文言の引数を変えると
 `every_spec_row_is_in_the_catalog` が落ちる。
+
+### 1.5 CI の出力（`.github/report.py`）
+
+`.github/workflows/ci.yml` の 4 ジョブは、cargo の出力を `/tmp/ci.log` に tee したうえで
+**`.github/report.py`** に渡す。スクリプトは生ログから「どれが・どこで・何と言って失敗したか」
+だけを抜き出し、次の 3 つを書く（標準ライブラリのみ・追加インストールなし）。
+
+| 出力 | いつ | 内容 |
+|---|---|---|
+| ワークフロー注釈（`::error file=…,line=…,col=…::`） | 失敗時 | コンパイルエラーとテストの panic 位置。**PR の「Files changed」にインラインで出る** |
+| 実行サマリ（`$GITHUB_STEP_SUMMARY`） | **成功時も** | テスト件数の内訳（`469 passed / 0 failed`・ターゲット数）と、失敗があればその一覧 |
+| PR コメント（`gh pr comment`） | 失敗時かつ PR | 上の 2 つと同じ内容を Markdown で。GitHub の上限（65,536 字）に合わせて切り詰める |
+
+`head` / `tail` の切り出しをやめたのは、テスト失敗の本体（`---- <name> stdout ----`）がログの
+**真ん中**にあってちょうど落ちるから（`PLANS.md` §9.2 **B-55**）。解析できなかったときは
+生ログの先頭 120 行と末尾 60 行にフォールバックする（情報を落とさないことを優先）。
+
+**レポート生成は CI の合否に影響しない**（`python3 .github/report.py … || echo "::warning::…"`）。
+レポート側のバグで緑のビルドが赤くなっては本末転倒なので。
+
+ローカルでレポートだけ試すとき（cargo を失敗させる必要はない。既存のログを渡せばよい）:
+
+```bash
+cargo test --locked --all-targets --no-fail-fast 2>&1 | tee /tmp/ci.log
+CI_LOG=/tmp/ci.log CI_JOB=Test CI_KIND=test CI_STATUS=failure CI_SHA=$(git rev-parse HEAD) \
+  python3 .github/report.py /tmp/body.md   # 注釈は stdout、本文は /tmp/body.md
+```
+
+`CI_KIND` は `fmt` / `clippy` / `test` / `wasm`（`fmt` は unified diff を、`test` は
+`test result:` の件数と `---- <name> stdout ----` を、それ以外は rustc の診断を解析する）。
 
 ---
 
