@@ -129,7 +129,7 @@ pub enum Stage {
 pub enum Sigil {
     /// `@` 構造見出し（行末話者注釈の判定は M2 のパーサが行う）。
     Structure,
-    /// `;` 節区切り。**行全体が `;` のときのみ**。
+    /// `;` 節区切り。**行全体が `;` のとき、または行末コメントが続くときのみ**。
     SectionBreak,
     /// `//` 行コメント（以降行末まで）。
     LineComment,
@@ -148,7 +148,8 @@ pub struct SigilSpec {
     pub sigil: Sigil,
     /// 直後に半角または全角の空白を要求するか（§5.0.2 MUST: `#1 位` や `!?` を誤認しない）。
     pub requires_space: bool,
-    /// 行全体が `prefix` だけのときのみ一致させるか（`;` の節区切り）。
+    /// 行全体が `prefix` だけのときのみ一致させるか（`;` の節区切り）。行末コメント
+    /// （`// …`）だけは許す（§5.2.1 `section_break = ws? , ";" , [ comment ] , eol`）。
     pub whole_line: bool,
     /// 受理する形式。
     pub formats: Formats,
@@ -213,10 +214,11 @@ pub const CONTINUATION_INDENT: usize = 2;
 /// 行スライスからの借用で返す。呼び出し側は `&line[..]` で好きな位置を取り出せる。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LineKind<'a> {
-    /// `@` で始まる行。中身は `@` を除いた残り（構造見出し §5.2.2 / 話者注釈 §5.2.3 の
-    /// 区別は M2 のパーサが行う）。
+    /// `@` で始まる行。中身は `@` を除いた残り（構造見出し §5.2.1 / 行末話者注釈の区別は
+    /// 形式ごとのパーサが行う。C 形式は `crate::core::syntax::contents`）。
     Structure(&'a str),
-    /// 行全体が `;`（§5.0.2 の節区切り）。
+    /// `;` の節区切り（§5.0.2）。**行全体が `;` のとき、または `;` の後ろが行コメント
+    /// だけのとき**（§5.2.1 `section_break = ws? , ";" , [ comment ] , eol`）。
     SectionBreak,
     /// 行頭コメント。`text` はシジルの直後から行末まで（トリムしていない）。
     Comment {
@@ -462,15 +464,29 @@ pub fn classify_at_stage(line: &str, format: TextFormat, stage: Stage) -> LineKi
     LineKind::Text(line)
 }
 
-/// シジルが行頭に一致するかを調べ、一致したら残りを返す。
+/// シジルが行頭に一致するかを調べ、一致したらシジルの直後を返す。
+///
+/// - **行頭の前に 0〜1 文字の空白を許す**（§5.2.1 の `scene_header` / `section_break` /
+///   `comment_line` / `illust_line` / `blank` はいずれも `ws?` で始まり、§5.0.5 の
+///   フィールド行も 0〜1 文字）。2 文字以上は継続行のために予約されているので
+///   シジルを見ない（`PLANS.md` §9.2 B-18・B-31）。
+/// - `whole_line`（`;`）は、残りが空か **行コメントだけ**のときに一致する
+///   （§5.2.1 `section_break = ws? , ";" , [ comment ] , eol`。§5.0.2 の表の
+///   「行全体が `;` のときのみ」はこの読み方で、`PLANS.md` §9.1 A-9 に記録した）。
 fn match_sigil<'a>(line: &'a str, spec: &SigilSpec) -> Option<&'a str> {
-    let rest = line.strip_prefix(spec.prefix)?;
+    if leading_indent(line) >= CONTINUATION_INDENT {
+        return None;
+    }
+    let rest = after_indent(line).strip_prefix(spec.prefix)?;
     if spec.requires_space {
         // §5.0.2 MUST: `# ` と `! ` は直後に半角または全角の空白が必要
         return rest.strip_prefix(is_space);
     }
-    if spec.whole_line && !rest.trim_matches(is_space).is_empty() {
-        return None;
+    if spec.whole_line {
+        let body = strip_line_comment(rest);
+        if !body.trim_matches(is_space).is_empty() {
+            return None;
+        }
     }
     Some(rest)
 }

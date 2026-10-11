@@ -177,11 +177,39 @@ fn section_break_tolerates_trailing_space() {
 
 #[test]
 fn section_break_needs_the_whole_line() {
-    // §5.0.2「行全体が `;` のときのみ」
-    for line in ["; 注", "a;", " ;", "；", "\\;"] {
+    // §5.0.2「行全体が `;` のときのみ」。`;` の後ろに本文があれば節区切りではない
+    for line in ["; 注", "a;", "；", "\\;", ";;"] {
         let got = tag(line, C);
         assert_eq!(got, format!("text[{line}]"));
     }
+}
+
+#[test]
+fn section_break_allows_a_trailing_line_comment() {
+    // §5.2.1 `section_break = ws? , ";" , [ comment ] , eol`（`PLANS.md` §9.1 A-9）
+    for line in ["; // メモ", ";  // メモ", ";//メモ", "\t;\t// メモ"] {
+        let got = tag(line, C);
+        assert_eq!(got, "section-break");
+    }
+    // `://` は行内コメントにしない（§5.0.2）ので、これは本文のまま
+    let url = tag("; https://example.com", C);
+    assert_eq!(url, "text[; https://example.com]");
+}
+
+#[test]
+fn a_line_head_sigil_tolerates_one_space_of_indent() {
+    // §5.2.1 の各行は `ws?` で始まる。§5.0.5 のフィールド行と同じ 0〜1 文字
+    let scene = tag(" @01-04 見出し", C);
+    assert_eq!(scene, "structure[01-04 見出し]");
+    let wide = tag("　@01-04", C);
+    assert_eq!(wide, "structure[01-04]");
+    let comment = tag(" // メモ", C);
+    assert_eq!(comment, "comment(LineComment)[ メモ]");
+    // 2 文字以上は継続行（§5.0.5、B-18）。シジルより優先する
+    let deep = tag("  @01-04 見出し", C);
+    assert_eq!(deep, "continuation(2)[@01-04 見出し]");
+    let deep_break = tag("　　;", C);
+    assert_eq!(deep_break, "continuation(2)[;]");
 }
 
 #[test]
