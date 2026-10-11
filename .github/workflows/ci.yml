@@ -4,10 +4,12 @@ name: CI
 # `spec` ジョブは PLANS.md §9.4 B-14 の決定により M11 で追加する。
 # `wasm` ジョブを `trunk build` にしない判断は PLANS.md §9.2 B-16 を参照。
 #
-# 失敗時は各ジョブの出力を PR コメントに投稿する。開発環境に Rust ツールチェーンが無く
-# （PLANS.md §9.3）、Actions のログ取得先ホストにも到達できないため、**合否だけでなく
-# コンパイルエラーの中身を読む経路**が要る。コメントは
+# 失敗時は各ジョブの出力を PR コメントに投稿する。Actions のログ取得先ホストに到達できないため、
+# **合否だけでなくコンパイルエラーの中身を読む経路**が要る。コメントは
 # `gh api repos/:owner/:repo/issues/:number/comments` で取得できる。
+# 2026-10-11 以降は作業環境側に Rust ツールチェーンがあり（PLANS.md §9.3、
+# `.github/workflows/toolchain-export.yml` が生成）、fmt / clippy / test / wasm の 4 つは
+# すべてローカルで実行できる。CI は「緑の証跡」として残す。
 # 不要になったら「Report ... to the PR」ステップと `pull-requests: write` を外す。
 
 # paths-ignore: 4 ジョブはどれも Rust のソースと Cargo.* しか見ないので、ドキュメントと

@@ -297,7 +297,8 @@ tests/layering.rs
 
 **作業項目**
 
-1. Rust ツールチェーン固定: `rust-toolchain.toml`（stable を明示）。※**現在のサンドボックスに cargo が無い。開発環境の準備が前提**（本書 §9.3）
+1. Rust ツールチェーン固定: `rust-toolchain.toml`（stable を明示）。※~~現在のサンドボックスに cargo が無い~~
+   **2026-10-11 に解決**（本書 §9.3、`.github/workflows/toolchain-export.yml`）。作業環境で 4 ジョブすべてを実行できる。
 2. `src/` を §3.3 の目標ツリーの**空の骨格**として作る。
 3. `tests/layering.rs` を実装する。
    ```rust
@@ -334,7 +335,8 @@ tests/layering.rs
   - 経緯: 作業環境に Rust ツールチェーンが無く（本書 §9.3）`cargo fmt --all` を実行できないため、
     一時 `Rustfmt` が赤だった。**CI の失敗出力を PR コメントに投稿する**ようにして
     （`.github/workflows/ci.yml` の Report ステップ）rustfmt の差分を取得し、適用して解消した。
-    ツールチェーンの無い環境で整形を合わせる手段として、この仕組みは残しておく。
+    ツールチェーンの無い環境で整形を合わせる手段として作った仕組みだが、2026-10-11 に作業環境へ
+    ツールチェーンを行き渡らせたあとも（本書 §9.3）、**失敗の中身を読める唯一の経路**として残している。
 
 > **M0 から IME スパイクを外した（2026-10-09）**。egui 0.27.2 に
 > `Event::CompositionStart` / `CompositionUpdate` / `CompositionEnd` があることをソースで確認済みで、
@@ -1079,13 +1081,33 @@ tests/layering.rs
 
 ### 9.3 環境の前提
 
-- **作業環境に Rust ツールチェーンが無い**（`cargo` / `rustc` が未インストール）。
-  **M0 での対応（2026-10-10）**: 環境そのものは未解決のままなので、**CI を検証器として使う**運用に切り替えた。
-  `rust-toolchain.toml`（stable + `rustfmt` / `clippy` + `wasm32-unknown-unknown`）を置き、
-  `.github/workflows/ci.yml` で fmt / clippy / test / wasm を常時検査する。
-  push すればコンパイル・lint・テストの結果は分かるが、**整形（`cargo fmt`）だけは CI の合否しか分からない**。
-  この環境では Actions のログ取得先（`results-receiver.actions.githubusercontent.com`）に到達できず、
-  `cargo fmt --check` の差分を読む手段が無いため、**ツールチェーンのある環境で `cargo fmt --all` を 1 回実行する**のが最短。
+- ~~**作業環境に Rust ツールチェーンが無い**（`cargo` / `rustc` が未インストール）。~~
+  **解決（2026-10-11）**: Actions 側でツールチェーンを生成して git 経由で持ち込む経路を作り、
+  **作業環境で `cargo` / `rustc` / `rustfmt` / `clippy` が実行できるようになった**（rustc 1.99.0 ＝ CI と同一）。
+  - 生成: `.github/workflows/toolchain-export.yml`。**debian:12 コンテナ**（＝作業環境と同一 OS・同一 glibc 2.36）で
+    rustup の sysroot（rustc / cargo / rust-std / rustfmt / clippy / `wasm32-unknown-unknown`）と
+    `cargo vendor` の出力（474 クレート）を tar.gz にし、45MB ずつに分割して孤立ブランチ
+    `cache/rust-toolchain` に push する。push 前に「同梱物だけ」で `cargo test --all-targets` と
+    `cargo check --target wasm32-unknown-unknown` を実行するので、**作業環境で動かないものが届くことはない**。
+  - 取得: `codeload.github.com`（到達可能・実測 30MB/s）からブランチの tarball を一括取得 →
+    `cat chunks/*.NNN > x.tar.gz` で連結 → `sha256sum -c` → 展開。376MB で約 40 秒。
+  - 設定: `.github/toolchain.env`（`ENABLED` / `CHUNK_MB` / `COMPONENTS` / `TARGETS` / `SMOKE` /
+    `SMOKE_CMD` / `SALT` / `FORCE`）。`cache_key`（toolchain.env + rust-toolchain.toml + Cargo.lock + SALT
+    のハッシュ）が一致し `status=ready` の生成物が既にあれば**何もしない**ので、push しても Actions 分を消費しない。
+    依存を変えて `Cargo.lock` が更新되면自動的に再生成される。
+  - 実測（作業環境: 2 CPU / 3.9GB RAM）: コールドビルド込み `cargo test --all-targets` が **1 分 46 秒（261 テスト緑）**。
+    温まったあとは fmt 0.1 秒 / clippy 0.9 秒 / test 1.5 秒 / wasm check 36 秒。
+    **CI を待たずに 4 ジョブ全部をローカルで確認できる**（CI は「緑の証跡」用に残す）。
+  - 注意: 展開先（既定 `/home/user/build`）はスナップショット対象外なので、サンドボックス再作成後は取得からやり直す
+    （約 40 秒 ＋ 展開 10 秒）。`target/` も消えるのでコールドビルド（約 2 分）が 1 回走る。
+  - 撤去: `.github/toolchain.env` を `ENABLED=0` にする（または 2 ファイルを削除）＋
+    `git push origin --delete cache/rust-toolchain`。孤立ブランチなので main にも作業ブランチにも影響しない。
+  - 経緯（2026-10-10）: 環境そのものは未解決のまま、**CI を検証器として使う**運用に切り替えていた。
+    `rust-toolchain.toml`（stable + `rustfmt` / `clippy` + `wasm32-unknown-unknown`）を置き、
+    `.github/workflows/ci.yml` で fmt / clippy / test / wasm を常時検査する形。push すればコンパイル・lint・
+    テストの結果は分かるが、**整形（`cargo fmt`）だけは CI の合否しか分からず**、Actions のログ取得先
+    （`results-receiver.actions.githubusercontent.com`）にも到達できないため `cargo fmt --check` の差分を
+    読む手段が無かった。現在はローカルで `cargo fmt --all` を実行できる。
 - **GitHub Actions がリポジトリ設定で無効になっていると、push しても run が生成されない**（2026-10-10 に実際に遭遇）。
   症状は「PR に Checks が 1 件も付かない／`actions/runs` に何も増えない」で、ワークフローの記述ミスと区別しにくい。
   まず Settings → Actions の有効状態を確認すること（有効化すれば、その後の push で正常に起動する）。
