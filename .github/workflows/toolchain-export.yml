@@ -126,8 +126,12 @@ jobs:
           echo "remote MANIFEST.json http=$code"
           if [ "$code" = "200" ]; then
             cat /tmp/remote-manifest.json
-            remote_key=$(python3 -c 'import json;print(json.load(open("/tmp/remote-manifest.json")).get("cache_key",""))')
-            if [ "$remote_key" = "$CACHE_KEY" ] && [ "$FORCE" != "1" ]; then
+            # status=ready のときだけ跳过する（probe / failed の MANIFEST では再実行が要る）。
+            remote=$(python3 -c 'import json;m=json.load(open("/tmp/remote-manifest.json"));print(m.get("cache_key",""),m.get("status",""))')
+            remote_key=${remote%% *}
+            remote_status=${remote##* }
+            echo "remote cache_key=$remote_key status=$remote_status"
+            if [ "$remote_key" = "$CACHE_KEY" ] && [ "$remote_status" = "ready" ] && [ "$FORCE" != "1" ]; then
               echo "同じ cache_key の生成物が既にあるので何もしない（FORCE=1 で強制再生成）。"
               echo "SKIP=1" >> "$GITHUB_ENV"
             fi
