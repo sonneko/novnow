@@ -1,0 +1,221 @@
+{
+  "form": "characters_md",
+  "lines": 63,
+  "tree": {
+    "characters": [
+      {
+        "fields": [
+          "reading",
+          "alias",
+          "role",
+          "default-mode",
+          "color"
+        ],
+        "free": 0,
+        "name": "恩田恵",
+        "sections": [
+          {
+            "bullets": 0,
+            "fields": [],
+            "free": 4,
+            "key": "Attributes",
+            "key_text": "attributes",
+            "modes": [],
+            "patterns": [],
+            "relations": [],
+            "span": [
+              7,
+              13
+            ]
+          },
+          {
+            "bullets": 0,
+            "fields": [],
+            "free": 0,
+            "key": "Tone",
+            "key_text": "tone",
+            "modes": [],
+            "patterns": [
+              "*で…",
+              "*です…",
+              "…あの…*"
+            ],
+            "relations": [],
+            "span": [
+              13,
+              16
+            ]
+          },
+          {
+            "bullets": 0,
+            "fields": [],
+            "free": 0,
+            "key": "Modes",
+            "key_text": "modes",
+            "modes": [
+              {
+                "fields": [
+                  "range",
+                  "personality",
+                  "emotion",
+                  "role"
+                ],
+                "free": 0,
+                "id": "A",
+                "label": "日常",
+                "patterns": [
+                  "*だよ…",
+                  "えへへ、*"
+                ],
+                "range": "@01 ..",
+                "span": [
+                  18,
+                  25
+                ],
+                "valid_id": true
+              },
+              {
+                "fields": [
+                  "range",
+                  "personality",
+                  "emotion",
+                  "role"
+                ],
+                "free": 0,
+                "id": "B",
+                "label": "開発・実装",
+                "patterns": [
+                  "*ないと…！",
+                  "*ないんです"
+                ],
+                "range": "@01 ..",
+                "span": [
+                  25,
+                  32
+                ],
+                "valid_id": true
+              },
+              {
+                "fields": [
+                  "range",
+                  "personality",
+                  "emotion",
+                  "role"
+                ],
+                "free": 0,
+                "id": "C",
+                "label": "混乱・言語化障害",
+                "patterns": [
+                  "*あの…その…",
+                  "…伝わらない…！"
+                ],
+                "range": "@01 .. @02",
+                "span": [
+                  32,
+                  39
+                ],
+                "valid_id": true
+              },
+              {
+                "fields": [
+                  "range",
+                  "personality",
+                  "emotion",
+                  "role"
+                ],
+                "free": 0,
+                "id": "C",
+                "label": "混乱・言語化障害（改善後）",
+                "patterns": [
+                  "*あの…でも、つまり*"
+                ],
+                "range": "@03 ..",
+                "span": [
+                  39,
+                  46
+                ],
+                "valid_id": true
+              },
+              {
+                "fields": [
+                  "range",
+                  "personality",
+                  "emotion",
+                  "role"
+                ],
+                "free": 0,
+                "id": "D",
+                "label": "あおい依存・感傷",
+                "patterns": [
+                  "あおいちゃん…*",
+                  "*いなくなったら…"
+                ],
+                "range": "@01 ..",
+                "span": [
+                  46,
+                  53
+                ],
+                "valid_id": true
+              }
+            ],
+            "patterns": [],
+            "relations": [],
+            "span": [
+              16,
+              53
+            ]
+          },
+          {
+            "bullets": 0,
+            "fields": [],
+            "free": 2,
+            "key": "Relations",
+            "key_text": "relations",
+            "modes": [],
+            "patterns": [],
+            "relations": [
+              {
+                "name": "葵あおい",
+                "note": "魂のパートナー。あおい無しでは他者と円滑な開発ができないが、あおいとなら最強になれる。"
+              },
+              {
+                "name": "瀬戸晴香",
+                "note": "技術の師弟関係。ミスを未然に防ぐ「絶対失敗しない設計哲学」を学ぶ。"
+              }
+            ],
+            "span": [
+              53,
+              57
+            ]
+          },
+          {
+            "bullets": 0,
+            "fields": [],
+            "free": 4,
+            "key": "Notes",
+            "key_text": "notes",
+            "modes": [],
+            "patterns": [],
+            "relations": [],
+            "span": [
+              57,
+              63
+            ]
+          }
+        ],
+        "span": [
+          0,
+          63
+        ]
+      }
+    ],
+    "diagnostics": [],
+    "preamble": {
+      "fields": [],
+      "span": [
+        0,
+        0
+      ]
+    }
+  }
+}

@@ -5,42 +5,73 @@ edition = "2021"
 description = "小説プロジェクト（[title]/ レイアウト）向け執筆 IDE — egui + ropey"
 license = "MIT"
 
+[lib]
+name = "novnow"
+path = "src/lib.rs"
+
 [[bin]]
 name = "novnow"
 path = "src/main.rs"
 
-[dependencies]
-# egui / eframe 0.27 系に固定する。
-# このバージョンは
-#   * `eframe::App::update(&mut self, ctx, frame)`
-#   * `TextEditOutput.cursor_range: Option<CursorRange>`（`cursor_range.primary.ccursor.index`）
-#   * `egui::Frame::none()` / `Margin::same(f32)` / `Visuals::dark_mode`
-# という、本実装が前提にしている API を持ち、型の揺れが最も小さい。
-# 既定フィーチャで glow / x11 / wayland / default_fonts が有効になる。
-eframe = "0.27.2"
-egui = "0.27.2"
+[features]
+# **既定は空**。GUI（§3.3 の `ui` 層）に要るクレートだけを立てる `ui` feature を持つ。
+#
+# M7 まで `src/ui/**` は空の stub なので、egui / eframe（依存ツリーは 200 クレート規模）を
+# 毎回ビルドするのは CI の 4 ジョブと手元のビルドの時間を無駄にする（2026-10-11 の
+# ユーザー承認、`PLANS.md` §9.2 B-54）。core / ports / adapters は GUI なしでビルドでき、
+# §3.2 の「core は egui / eframe / rfd に依存しない」は `tests/layering.rs` が検査する。
+#
+# M7 で `src/ui/**` に egui のコードが入ったら、`.github/workflows/ci.yml` の 4 コマンドに
+# `--features ui` を足す（同ファイルの TODO も参照）。GUI 付きのビルドは
+# `cargo build --features ui` / `cargo run --features ui`。
+default = []
+ui = ["dep:eframe", "dep:egui", "dep:rfd", "dep:fontdb", "dep:toml"]
 
-ropey = "1.6"
+[dependencies]
+# 以下 5 つは `ui` feature のときだけ（上記）。層は `PLANS.md` §2.1 の表のとおり ui。
+eframe = { version = "0.27.2", optional = true }
+egui = { version = "0.27.2", optional = true }
+
+# 行区切りを LF のみにする（SPECIFICATIONS §5.0.4「内部表現は LF」）。
+# 既定 feature の unicode_lines は U+2028 等も行区切りにしてしまい、本文にそれが
+# 含まれると行番号がずれるため落とす（simd は性能のため残す）。
+ropey = { version = "1.6", default-features = false, features = ["simd"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1.0"
 regex = "1.10"
 aho-corasick = "1.1"
-fontdb = "0.16"
+fontdb = { version = "0.16", optional = true }
 anyhow = "1.0"
-rfd = "0.14"
+thiserror = "1.0"
+unicode-normalization = "0.1"
+toml = { version = "0.8", optional = true }
+rfd = { version = "0.14", optional = true }
 web-time = "0.2"
 zip = { version = "2.1", default-features = false, features = ["deflate"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "fs", "sync", "macros", "time"] }
+directories = "5.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 tokio = { version = "1", features = ["sync", "macros", "rt", "time"] }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
-web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlElement", "Storage", "Blob", "BlobPropertyBag", "Url", "console"] }
+web-sys = { version = "0.3", features = [
+  "Window", "Document", "Element", "HtmlElement", "Storage", "Blob", "BlobPropertyBag", "Url", "console",
+  "IdbFactory", "IdbDatabase", "IdbObjectStore", "IdbTransaction", "IdbRequest", "IdbOpenDbRequest", "IdbCursor", "IdbKeyRange"
+] }
 console_error_panic_hook = "0.1"
+
+[dev-dependencies]
+# tests/layering.rs が src/core/** の AST を訪走するために使う（§3.2 / §12.2 の機械検査）。
+# 実行時には一切依存しない（dev-dependency）。
+proc-macro2 = "1"
+syn = { version = "2.0", features = ["full", "visit"] }
+# tests/layering.rs が Cargo.toml 自身を読んで feature gate（上の [features]）を検査するのに使う。
+# `ui` feature を立てなくてもテストが Cargo.toml を読めるよう、dev 側にも置く。
+toml = "0.8"
 
 [profile.release]
 opt-level = 3

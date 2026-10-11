@@ -1,0 +1,63 @@
+{
+  "form": "contents",
+  "lines": 11,
+  "tree": {
+    "diagnostics": [],
+    "sections": [
+      {
+        "scene": {
+          "chapter": 1,
+          "episode": 4,
+          "scene": 2,
+          "section": 0
+        },
+        "number": 1,
+        "span": [
+          1,
+          4
+        ],
+        "content": [
+          1,
+          4
+        ],
+        "header": 0
+      },
+      {
+        "scene": {
+          "chapter": 1,
+          "episode": 4,
+          "scene": 2,
+          "section": 0
+        },
+        "number": 2,
+        "span": [
+          5,
+          8
+        ],
+        "content": [
+          5,
+          8
+        ],
+        "header": 0
+      },
+      {
+        "scene": {
+          "chapter": 1,
+          "episode": 4,
+          "scene": 2,
+          "section": 0
+        },
+        "number": 3,
+        "span": [
+          9,
+          11
+        ],
+        "content": [
+          9,
+          10
+        ],
+        "header": 0
+      }
+    ]
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "form": "words_md",
+  "lines": 13,
+  "tree": {
+    "diagnostics": [],
+    "preamble": {
+      "span": [
+        0,
+        0
+      ],
+      "fields": []
+    },
+    "words": [
+      {
+        "term": "星屑の時計",
+        "span": [
+          0,
+          8
+        ],
+        "fields": [
+          "reading",
+          "category",
+          "alias",
+          "definition",
+          "range",
+          "note"
+        ],
+        "free": 0,
+        "range": "@01 .."
+      },
+      {
+        "term": "旧校舎",
+        "span": [
+          8,
+          13
+        ],
+        "fields": [
+          "reading",
+          "category",
+          "definition"
+        ],
+        "free": 0,
+        "range": null
+      }
+    ]
+  }
+}

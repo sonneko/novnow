@@ -4,13 +4,20 @@
 
 > **この文書の位置づけ**
 >
-> - 仕様の正本は **[`SPECIFICATIONS.md`](./SPECIFICATIONS.md)**（v1 仕様 第 2.2 版）。
+> - 仕様の正本は **[`SPECIFICATIONS.md`](./SPECIFICATIONS.md)**（v1 仕様 **第 2.6 版**）。
 > - 実装順序と見積りは **[`PLANS.md`](./PLANS.md)**（段階 ① の実装計画）。
 > - 本書は「手を動かすときに開く頁」であり、仕様と食い違った場合は **`SPECIFICATIONS.md` が優先する**。
 >
-> **現在の `src/` は v0（プロトタイプ）であり、v1 仕様とは別物である。**
-> v1 では `src/` を層構造へ作り直す（`PLANS.md` §3「v0 資産の扱い」）。
-> 本書の「モジュール構成」以降は **v1 の目標形** を書いてあり、現在のコードとは一致しない。
+> **現在の `src/` は v1 の層構造のまま、`core` の基盤と構文が入った状態（M2 完了時点）である。**
+> v0（プロトタイプ）の UI コードは M0 で削除し、`v0-final` タグに保存した。
+> **実装済み**: `core/id.rs`・`core/text/*`（字句・位置・rope・増分）・`core/diagnostics.rs`
+> （§7 / §7.1 / §7.2 の **78 コード**）・`core/syntax/*`（**8 形式**のパーサ）・`core/model/*`
+> （10 型）・`core/resolve/dictionary.rs`（辞書と `'` の最短一致、§6.1 / §6.2）。
+> **空のまま**: `core/resolve/` の残り 4 本（M3 進行中）・`core/features/*`（M4）・`ports/**`・
+> `adapters/**`（M5 / M6）・`ui/**`（M7 以降）。本書の「モジュール構成」は **v1 の目標形**。
+>
+> **GUI は M7 まで動かない**（`PLANS.md` §3 I3）。M0 時点の `cargo run` は
+> 使用法を表示して終了コード 2 で終了するだけの暫定版である。
 
 ---
 
@@ -42,6 +49,29 @@ cargo build --release    # 生成物: target/release/novnow
 > **v0 からの変更点**: 新規作成は `--init <dir>` ではなく **サブコマンド `new`** になった（`SPECIFICATIONS.md` §14.1）。
 > 「ディレクトリはフラグなし位置引数で指定する」という指示 2 に合わせたため。
 
+> **M0 時点の実態（注意）**: 上のコマンドは **v1 の目標形**であり、まだ実装されていない。
+> 現在の `src/main.rs` は引数に関わらず使用法を stderr に出して終了コード 2 で終了するだけ
+> （`SPECIFICATIONS.md` §14.3 の判定順と §14.1 のサブコマンドは M6 で実装する）。
+
+> **`ui` feature（2026-10-11〜）**: GUI に要るクレート（`egui` / `eframe` / `rfd` / `fontdb` /
+> `toml`）は **`optional = true`** で、`Cargo.toml` の `[features]` の `ui` が引き込む。
+> **既定は `default = []`** なので、素の `cargo build` / `cargo test` / `cargo clippy` /
+> `cargo check --target wasm32-unknown-unknown` は GUI なしで通り、egui・eframe（依存ツリーは
+> 200 クレート規模）をコンパイルしない。GUI 付きでビルドするときは **`--features ui`** を付ける。
+>
+> ```bash
+> cargo build --features ui               # GUI 込み
+> cargo check --features ui               # GUI 込みの型検査
+> cargo run   --release --features ui ./my-novel   # M7 以降の起動形
+> ```
+>
+> `src/lib.rs` の `pub mod ui;` と `src/adapters/mod.rs` の `pub mod dialog_rfd;` は
+> `#[cfg(feature = "ui")]` で守る（**MUST**。守らないと M7 で `src/ui/**` が egui を使い始めた
+> 瞬間に既定のビルド＝ CI の 4 ジョブが落ちる）。`tests/layering.rs` の末尾 2 テストが
+> `Cargo.toml` と `src/lib.rs` を読んでこの形を固定している。判断は `PLANS.md` §9.2 **B-54**。
+> **M7 で `src/ui/**` に実コードが入ったら、`.github/workflows/ci.yml` の 4 コマンドに
+> `--features ui` を足す**（同ファイルに TODO がある）。
+
 ### 1.3 Web
 
 ```bash
@@ -57,11 +87,66 @@ trunk build --release        # 成果物は ./dist/
 ### 1.4 テスト
 
 ```bash
-cargo test                        # すべて
-cargo test --test layering        # 層構造の検査（本書 3 節 / 仕様 §3.2）だけ
+cargo test                        # すべて（GUI なし。速い）
+cargo test --test layering        # 層構造と feature gate の検査（本書 3 節 / 仕様 §3.2・§12.2）だけ
+cargo test --features ui          # M7 以降は GUI 込みでも通すこと
 ```
 
 CI で常設するテストは `PLANS.md` §6 を参照。`tests/layering.rs` は **落ちたらマージしない**（例外なし）。
+
+`cargo test` は **`--no-fail-fast`** で走らせること（CI もそうしている）。既定だと統合テストは
+アルファベット順の**最初の失敗ターゲットで止まる**ので、他の形式の失敗が一度に見えない。
+
+`tests/layering.rs` の中身は次の 3 系統（8 テスト）。
+
+| テスト | 検査内容 |
+|---|---|
+| `core_has_no_forbidden_dependency` | `src/core/**` の AST（`syn`）を訪走し、§3.2 の禁止依存を検出する。`use` 文・`extern crate`・式／型／パターン／マクロ呼び出しのパス・属性・マクロ本体のトークン列が対象。許可リストに無いクレートの `use` も落とす |
+| `core_has_no_user_facing_text` | 同様に日本語の文字列リテラル（§12.2）を検出する。コメント・doc コメント・char リテラルは対象外。**例外は `i18n: format-vocabulary` の doc 行を付けた `const` / `static` の中だけ**（§5.0.6 のフィールドキー別名表のような「ファイル形式の語彙」は UI 言語が `en` でも受理するのでユーザー向け文言ではない。`PLANS.md` §9.2 B-19。§12.2 に「字句データは文言に含まない」と明記されて A-5 は解消済み）。免除が関数に及ばないことは自己テストのフィクスチャで固定してある |
+| `checker_catches_*` / `checker_allows_*`（4 本） | **検査器そのもの**の自己テスト。「違反を書いたら本当に落ちるか」「正当な core コードを誤検出しないか」を固定例で担保する |
+| `the_ui_crates_are_optional_and_behind_the_ui_feature` | `Cargo.toml` を `toml` でパースし、GUI の 5 クレート（`egui` / `eframe` / `rfd` / `fontdb` / `toml`）が `optional = true` で `[features] ui` の `dep:` に並んでいること、`default` に `ui` が入っていないことを見る（§1.2 の feature gate、`PLANS.md` §9.2 B-54）。既定のビルドに egui が戻ると CI の 4 ジョブが数分単位で遅くなるので、ここで機械的に止める |
+| `the_ui_layer_is_compiled_only_with_the_ui_feature` | `src/lib.rs` の `pub mod ui;` と `src/adapters/mod.rs` の `pub mod dialog_rfd;` に `#[cfg(feature = "ui")]` が付いているかを見る |
+
+> 検査器を直すときは、必ず自己テストの固定例（`MUST_CATCH_*` / `MUST_PASS_*`）も一緒に更新すること。
+> 自己テストが無い検査器は、改修で検出漏れが混入しても CI が緑のままになる。
+
+`tests/diagnostics_catalog.rs` は **仕様書そのものを読む**テスト（`include_str!("../SPECIFICATIONS.md")`）。
+§7 / §7.1 / §7.2 の表を Markdown から読み直し、`src/core/diagnostics.rs` の **78 コード**と
+件数・コード文字列・重大度・引数の数・文書位置の有無・既定の有効/無効・実行コスト表・variant の
+doc コメントまで突き合わせる。診断コードを足す／直すときは **先に `SPECIFICATIONS.md` の表**を直すこと
+（`PLANS.md` §6.3「仕様書 → ゴールデン → 実装」）。表に無いコードを enum に足すと
+`the_catalog_has_no_code_the_spec_does_not_list` が、文言の引数を変えると
+`every_spec_row_is_in_the_catalog` が落ちる。
+
+### 1.5 CI の出力（`.github/report.py`）
+
+`.github/workflows/ci.yml` の 4 ジョブは、cargo の出力を `/tmp/ci.log` に tee したうえで
+**`.github/report.py`** に渡す。スクリプトは生ログから「どれが・どこで・何と言って失敗したか」
+だけを抜き出し、次の 3 つを書く（標準ライブラリのみ・追加インストールなし）。
+
+| 出力 | いつ | 内容 |
+|---|---|---|
+| ワークフロー注釈（`::error file=…,line=…,col=…::`） | 失敗時 | コンパイルエラーとテストの panic 位置。**PR の「Files changed」にインラインで出る** |
+| 実行サマリ（`$GITHUB_STEP_SUMMARY`） | **成功時も** | テスト件数の内訳（`469 passed / 0 failed`・ターゲット数）と、失敗があればその一覧 |
+| PR コメント（`gh pr comment`） | 失敗時かつ PR | 上の 2 つと同じ内容を Markdown で。GitHub の上限（65,536 字）に合わせて切り詰める |
+
+`head` / `tail` の切り出しをやめたのは、テスト失敗の本体（`---- <name> stdout ----`）がログの
+**真ん中**にあってちょうど落ちるから（`PLANS.md` §9.2 **B-55**）。解析できなかったときは
+生ログの先頭 120 行と末尾 60 行にフォールバックする（情報を落とさないことを優先）。
+
+**レポート生成は CI の合否に影響しない**（`python3 .github/report.py … || echo "::warning::…"`）。
+レポート側のバグで緑のビルドが赤くなっては本末転倒なので。
+
+ローカルでレポートだけ試すとき（cargo を失敗させる必要はない。既存のログを渡せばよい）:
+
+```bash
+cargo test --locked --all-targets --no-fail-fast 2>&1 | tee /tmp/ci.log
+CI_LOG=/tmp/ci.log CI_JOB=Test CI_KIND=test CI_STATUS=failure CI_SHA=$(git rev-parse HEAD) \
+  python3 .github/report.py /tmp/body.md   # 注釈は stdout、本文は /tmp/body.md
+```
+
+`CI_KIND` は `fmt` / `clippy` / `test` / `wasm`（`fmt` は unified diff を、`test` は
+`test result:` の件数と `---- <name> stdout ----` を、それ以外は rustc の診断を解析する）。
 
 ---
 
@@ -171,6 +256,34 @@ v1 は **8 形式**を解析する。v0 の 2 形式から大きく増えてい�
 
 `SceneId` は 4 階層（`章-話-場面-節`）。見出しで節を省略した場合は `section = 0`。
 複数行トークンは存在しないので、行単位で完全に分割でき、編集行のみ再トークン化できる。
+
+### 5.1 参照（`'` と `@`）の解決 — `core/resolve/dictionary.rs`
+
+字句（M2）は `'` と `@` の**形**だけを読み、**実体があるかは M3 の辞書**が決める。
+実装を触るときに効いてくる規則だけ抜き出す（正本は §6.1 / §6.2、判断は `PLANS.md` §9.2 B-56〜B-63）。
+
+| 規則 | 内容 |
+|---|---|
+| 正規化（§6.1.3） | **長音統一（`ー` `－` `—` `〜` → `ー`）→ NFKC → 小文字化 → 空白除去**。元テキストは書き換えない。順序を入れ替えているのは、仕様書の順（NFKC が先）だと `－` が ASCII の `-` になって長音統一が発火しないから（§9.1 **A-19**） |
+| 最短一致（§6.2.1） | `'` の後ろを 1 文字ずつトライに進め、**終端に当たった瞬間に確定**。`リリア` と `リリアナ` が両方あれば `リリア` が勝ち、残り `ナ` は地の文。長いほうもあるときは **W029**（クイックフィックスは `'{リリアナ}`） |
+| 未解決（§6.2.1） | 区切り文字（`DELIMITERS` ＋ 空白）までを範囲に **E001**。ASCII の `.` と `,` は区切り**ではない**（仕様どおり） |
+| 明示形（§6.2.3） | `'{…}` は内側全体がキー。閉じ括弧が無ければ **E002**（行末まで） |
+| 修飾子 `:`（§6.2.4） | **半角だけ**。`Character` ならモード式（`B` / `B+D`、3 つ以上は **E005**、形が違えば **E002**）、`Material` なら資料タイトル（**空白を許す**）、`Word` / `MaterialTitle` なら **E026** |
+| アポストロフィ | 直前が ASCII 英数字（`don't`）、または未解決かつ候補が ASCII 英字 2 文字以下（`リリア's`）なら**参照として扱わない**（B-60） |
+| 話者注釈 `@`（§6.2.5） | M2 の `contents::Speaker` が名前を区切っているので**完全一致**で引く。対象は `Character` のみ（§6.1.1 の MUST）。無ければ **E012** |
+| 衝突（§6.1.1） | 優先順位は `Character > Address > Word > Material > MaterialTitle`（① に `Address` は無い）。負けた側に **W027** |
+| 長さ（§6.2.1） | `MAX_KEY_BYTES = 96`（**正規化後**の byte 数）。超えたキーは登録せず **E028** |
+
+```rust
+// 3 ファイルの木（M2）から辞書を作り、1 行を解決する
+let built = Dictionary::from_sources(&characters, &words, &index);   // → Built { dictionary, diagnostics }
+let scan = dictionary::scan_line(line, line_start, &built.dictionary); // → LineScan { tokens, diagnostics }
+```
+
+`scan_line` の**診断はファイル単位の byte 範囲**（`line_start` を足したもの）、
+`RefToken` の範囲は**行内相対**（M2 の `Speaker` / `Pattern` と同じ）。
+走査する範囲（コメントやルビの中を除くか）は**呼び出し側**が決める。
+位置の単位を混ぜると波線がずれるので、M4 の `features/*` はここで変換すること。
 
 ---
 

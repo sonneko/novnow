@@ -1,0 +1,64 @@
+{
+  "form": "plot_outline",
+  "lines": 21,
+  "tree": {
+    "blocks": [
+      {
+        "depth": 1,
+        "end": 11,
+        "fields": [
+          "summary",
+          "goal",
+          "turn",
+          "cast",
+          "seed",
+          "state"
+        ],
+        "id": {
+          "chapter": 1,
+          "episode": 0,
+          "scene": 0,
+          "section": 0
+        },
+        "notes": 0,
+        "span": [
+          4,
+          12
+        ]
+      },
+      {
+        "depth": 1,
+        "end": 19,
+        "fields": [
+          "summary",
+          "goal",
+          "cast",
+          "payoff",
+          "state"
+        ],
+        "id": {
+          "chapter": 2,
+          "episode": 0,
+          "scene": 0,
+          "section": 0
+        },
+        "notes": 0,
+        "span": [
+          13,
+          20
+        ]
+      }
+    ],
+    "diagnostics": [],
+    "preamble": {
+      "fields": [
+        "title",
+        "summary"
+      ],
+      "span": [
+        0,
+        4
+      ]
+    }
+  }
+}
