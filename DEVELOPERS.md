@@ -12,8 +12,9 @@
 > v0（プロトタイプ）の UI コードは M0 で削除し、`v0-final` タグに保存した。
 > **実装済み**: `core/id.rs`・`core/text/*`（字句・位置・rope・増分）・`core/diagnostics.rs`
 > （§7 / §7.1 / §7.2 の **78 コード**）・`core/syntax/*`（**8 形式**のパーサ）・`core/model/*`
-> （10 型）・`core/resolve/dictionary.rs`（辞書と `'` の最短一致、§6.1 / §6.2）。
-> **空のまま**: `core/resolve/` の残り 4 本（M3 進行中）・`core/features/*`（M4）・`ports/**`・
+> （10 型）・`core/resolve/dictionary.rs`（辞書と `'` の最短一致、§6.1 / §6.2）・
+> `core/resolve/modes.rs`（モード解決の 8 段、§6.4）。
+> **空のまま**: `core/resolve/` の残り 3 本（M3 進行中）・`core/features/*`（M4）・`ports/**`・
 > `adapters/**`（M5 / M6）・`ui/**`（M7 以降）。本書の「モジュール構成」は **v1 の目標形**。
 >
 > **GUI は M7 まで動かない**（`PLANS.md` §3 I3）。M0 時点の `cargo run` は
@@ -284,6 +285,36 @@ let scan = dictionary::scan_line(line, line_start, &built.dictionary); // → Li
 `RefToken` の範囲は**行内相対**（M2 の `Speaker` / `Pattern` と同じ）。
 走査する範囲（コメントやルビの中を除くか）は**呼び出し側**が決める。
 位置の単位を混ぜると波線がずれるので、M4 の `features/*` はここで変換すること。
+
+---
+
+### 5.2 モード解決 — `core/resolve/modes.rs`
+
+「この節のこのキャラのモードは何か」を決める**純粋関数**（正本は §6.4、判断は `PLANS.md` §9.2 B-64〜B-67）。
+入力は **M2 の木**（`Characters` / `EpisodePlot` / `Outline` / `contents::Speaker`）＋ 辞書で、
+`model::Mode` は**出口でその場で組む**（`to_model`。B-56）。
+
+| 規則 | 内容 |
+|---|---|
+| 8 段（§6.4.3） | 話者注釈（**その行のみ**）→ 節 `mode:` → 場面 `mode:` → preamble `mode:` → 章プロット `cast:` → 全体プロット `cast:` → `default-mode:` → **W006**。上から順に試し、**最初に見つかったもの**を採用する（固定） |
+| 「見つかった」の条件 | その段に**対象キャラのモード ID が 1 つ以上**書かれていること。`mode: 'リリア`（名前だけ）は**見つからなかった**扱いで次の段へ進む（B-65） |
+| 最大 2 モード（§6.4.4） | 3 つ以上は **E005** だが、§7 のクイックフィックスどおり**先頭 2 つで解決を続ける** |
+| E005 の担当（B-67） | B 形式の `mode:` → `plot_episode`（M2）／1 トークンの中の 3 つ以上 → `dictionary::token_diagnostics`／`cast:` の重複と `default-mode:` の 3 つ以上 → `modes`。**同じ形に 2 層が波線を引かない**。M4 で診断を組み立てるときはこの分担を保つこと |
+| 変種選択（§6.4.5） | 同一 `mode_id` の複数定義から `range` が対象 SceneId を**含む**ものを選ぶ。`range:` が壊れていれば**全範囲扱い**（B-66。E004 を重ねない）。ID の比較は **ASCII の大文字小文字を無視**（B-64） |
+| 有効モード（§6.4.6） | `Assignment.definitions` が「有効モード」。**E003 / E004 の ID は入らない**ので、参照ペインと ContextPacket（§15.4.1 の `5 cast`）はこれをそのまま使う |
+| 適用パターン（§6.5.3） | `applicable_patterns` = モード専用 **∪** キャラ共通 `## tone`（**和集合**。上書きではない）。同じパターンは 1 本にする（§6.5.4「二重線にしない」） |
+| 診断の位置 | `FileDiagnostic { file, diagnostic }` で**どのファイルの波線か**を返す（`contents` / `episode` / `chapter` / `all` / `characters`）。範囲はそのファイル内の byte |
+
+```rust
+let input = modes::Input { characters: &characters, episode: Some(&episode),
+                           chapter: None, all: None, dictionary: &built.dictionary };
+let target = modes::Target { scene, character: 0, speaker: line.speaker.as_ref(), line_start };
+let assignment = modes::resolve(&input, &target); // → Assignment { step, ids, definitions, diagnostics }
+```
+
+**`Target.character` は `Characters::characters` の添字**（行 index ではない）。
+`Characters::character_of` は**行 index**を取るので混ぜないこと（M3 で実際に踏んだ。
+`tests/modes.rs` の `definitions_uses_the_character_index_not_a_line_index` が固定している）。
 
 ---
 

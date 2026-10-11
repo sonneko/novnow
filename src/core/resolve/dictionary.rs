@@ -1318,7 +1318,7 @@ fn mode_modifier(text: &str) -> ModifierKind {
 /// |---|---|
 /// | **E001** | `'` の後が辞書に一致しない（§6.2.1 の (c)、明示形で実体が無い場合を含む） |
 /// | **E002** | 明示形が閉じていない（§6.2.3）／モード式の形が壊れている（§6.2.4） |
-/// | **E005** | モード式が 3 つ以上（§6.4.4） |
+/// | **E005** | モード式が 3 つ以上（§6.4.4）。範囲は**トークン全体**（B-67） |
 /// | **E026** | 修飾子を付けられない種別に修飾子（§6.1.1） |
 /// | **W029** | より長い辞書項目にも一致しうる（§6.2.2、MUST） |
 ///
@@ -1352,14 +1352,20 @@ pub fn token_diagnostics(line: &str, token: &RefToken, dictionary: &Dictionary) 
         ));
     }
     if let Some(modifier) = &token.modifier {
-        let code = match &modifier.kind {
-            ModifierKind::MalformedMode => Some(DiagnosticCode::E002),
-            ModifierKind::TooManyModes => Some(DiagnosticCode::E005),
-            ModifierKind::NotAllowed => Some(DiagnosticCode::E026),
+        // **E005 だけトークン全体**に引く: 違反は「その参照に 3 つ以上のモードが付いている」
+        // ことなので、波線の単位は `'リリア:A+B+C` の 1 トークン。B 形式の `mode:` を読む
+        // `plot_episode::warn_modes`（M2）と同じ範囲にして、ファイルによって波線の長さが
+        // 変わらないようにする（`PLANS.md` §9.2 B-67）。
+        // E002（形が壊れている）と E026（付けられない修飾子）は修飾子そのものの問題なので
+        // 修飾子の範囲のまま。
+        let found = match &modifier.kind {
+            ModifierKind::MalformedMode => Some((DiagnosticCode::E002, modifier.range.clone())),
+            ModifierKind::TooManyModes => Some((DiagnosticCode::E005, token.range.clone())),
+            ModifierKind::NotAllowed => Some((DiagnosticCode::E026, modifier.range.clone())),
             ModifierKind::Modes(_) | ModifierKind::Title => None,
         };
-        if let Some(code) = code {
-            out.push(Diagnostic::simple(code, Some(modifier.range.clone())));
+        if let Some((code, range)) = found {
+            out.push(Diagnostic::simple(code, Some(range)));
         }
     }
     out
