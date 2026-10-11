@@ -10,15 +10,31 @@ name: CI
 # `gh api repos/:owner/:repo/issues/:number/comments` で取得できる。
 # 不要になったら「Report ... to the PR」ステップと `pull-requests: write` を外す。
 
+# paths-ignore: 4 ジョブはどれも Rust のソースと Cargo.* しか見ないので、ドキュメントと
+# ワークフローだけの commit では走らせない（Actions 使用時間の節約）。
+# 状態チェックを必須にしている場合は両方の paths-ignore を外すこと。
+# （GitHub Actions は YAML アンカーを使えないので同じ一覧を 2 か所に書いている。）
 on:
   push:
     branches:
       - main
       - master
+    paths-ignore:
+      - '**.md'
+      - '.github/**'
+      - 'assets/**'
+      - 'screenshot.jpeg'
+      - 'LICENSE'
   pull_request:
     branches:
       - main
       - master
+    paths-ignore:
+      - '**.md'
+      - '.github/**'
+      - 'assets/**'
+      - 'screenshot.jpeg'
+      - 'LICENSE'
   workflow_dispatch:
 
 permissions:
