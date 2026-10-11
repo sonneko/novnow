@@ -16,6 +16,7 @@
 //!
 //! 仕様書に明記の無い属性の決め方は `PLANS.md` §9.2 B-26、仕様側の要補正点は §9.1 A-7・A-8。
 
+use serde::Serialize;
 use std::ops::Range;
 
 /// 重大度（§7 の `Sev` 列）。
@@ -101,7 +102,7 @@ pub enum Scope {
 ///
 /// 並びは重大度（E → W → I）、その中で番号順。§7.2 の表は W が先に来るが、
 /// enum はコードで引ける順に揃えた（`Ord` もこの順になる）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub enum DiagnosticCode {
     /// `'` の後が辞書に一致しない（§7）
     E001,
@@ -643,7 +644,7 @@ pub const COST: &[CostRow] = &[
 /// 文言のプレースホルダ（`{0}` 等）に埋める値。
 ///
 /// 表示用の文字列化は `ui/i18n/*` が行う（§12.2）。core は**値の意味だけ**を渡す。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum Arg {
     /// 名前・ID・パス・範囲など、そのまま挿入する文字列。
     Text(String),
@@ -666,8 +667,14 @@ impl Arg {
 /// 1 件の診断。**コードと引数だけ**を持つ（§7.2「診断の実装規則（MUST）」）。
 ///
 /// 文言もアイコンも波線の色も持たない。それらは §7 の表と §11（テーマ）から
-/// UI 側が引く。JSON 化（ゴールデンテストの `.expected.json` に出す形）は M2 で決める。
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// UI 側が引く。
+///
+/// **JSON 化（M2 で決定）**: ゴールデンテストの `.expected.json` に出す形は
+/// `{"code": "E020", "range": {"start": 3, "end": 9}, "args": [{"Number": 3}]}`。
+/// `code` はユニットバリアントなので §7.2 のコード文字列そのもの、`range` は
+/// `Option<Range<usize>>`（無いときは `null`）、`args` は `Arg` の newtype バリアント。
+/// **文言は入れない**（§12.2: 表示用の文字列化は `ui/i18n/*` が行う）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Diagnostic {
     /// コード。
     pub code: DiagnosticCode,

@@ -131,7 +131,7 @@ pub fn parse(text: &str) -> Contents<'_> {
 }
 
 /// 設定を渡して C 形式を解析する。
-pub fn parse_with(text: &str, options: &Options) -> Contents<'_> {
+pub fn parse_with<'a>(text: &'a str, options: &Options) -> Contents<'a> {
     let mut lines = Vec::new();
     let mut diagnostics = Vec::new();
     let mut at = 0;
@@ -498,7 +498,11 @@ fn warn_reserved(id: SceneId, options: &Options, range: &Range<usize>, out: &mut
     let chapter_zero = id.chapter == 0 && !options.allow_chapter_zero;
     if scene_zero || chapter_zero {
         let args = vec![Arg::number(HEADER_DEPTH as i64)];
-        out.push(Diagnostic::new(DiagnosticCode::E020, Some(range.clone()), args));
+        out.push(Diagnostic::new(
+            DiagnosticCode::E020,
+            Some(range.clone()),
+            args,
+        ));
     }
 }
 

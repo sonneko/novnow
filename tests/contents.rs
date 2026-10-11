@@ -241,10 +241,7 @@ fn a_scene_header_carries_id_title_and_comment() {
         "scene[01-04-02|d3|id1-4-2-0|t図書室|c]"
     );
     // タイトルは無くてもよい
-    assert_eq!(
-        line_tag_of("@01-04-02"),
-        "scene[01-04-02|d3|id1-4-2-0|t|c]"
-    );
+    assert_eq!(line_tag_of("@01-04-02"), "scene[01-04-02|d3|id1-4-2-0|t|c]");
     // 行頭の空白 1 文字は許す（§5.2.1 `ws?`）
     assert_eq!(
         line_tag_of(" @01-04-02 x"),
@@ -333,10 +330,7 @@ fn a_speaker_annotation_is_taken_from_the_line_end() {
         line_tag_of("「やっぱり'アルス、ここにいたのね」@リリア:A"),
         "text[「やっぱり'アルス、ここにいたのね」|sp=リリア:A@52..64]"
     );
-    assert_eq!(
-        line_tag_of("本文@リリア"),
-        "text[本文|sp=リリア:@6..16]"
-    );
+    assert_eq!(line_tag_of("本文@リリア"), "text[本文|sp=リリア:@6..16]");
     assert_eq!(
         line_tag_of("本文@リリア:B+D"),
         "text[本文|sp=リリア:B+D@6..20]"
