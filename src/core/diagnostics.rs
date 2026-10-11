@@ -348,7 +348,10 @@ impl DiagnosticCode {
 
     /// コード文字列から引く（レビュー一覧のフィルタ・テスト用）。
     pub fn parse(text: &str) -> Option<Self> {
-        CATALOG.iter().find(|row| row.0.as_str() == text).map(|row| row.0)
+        CATALOG
+            .iter()
+            .find(|row| row.0.as_str() == text)
+            .map(|row| row.0)
     }
 
     /// 3 桁の番号（`E001` → 1）。

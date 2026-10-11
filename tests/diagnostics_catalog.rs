@@ -316,7 +316,9 @@ fn rows_of(group: Group, start: &str, end: &str) -> Vec<Row> {
 
 /// 表の行を `|` で割る（先頭と末尾に空のセルができるので 6 列の行は 8 要素）。
 fn split_cells(line: &str) -> Vec<String> {
-    line.split('|').map(|cell| cell.trim().to_string()).collect()
+    line.split('|')
+        .map(|cell| cell.trim().to_string())
+        .collect()
 }
 
 /// 文言のセルを囲む backquote を外す。
@@ -405,7 +407,7 @@ fn cost_line(code: &str) -> String {
         if cells.len() < 4 {
             continue;
         }
-        let listed = cells[1].split(|c: char| c == '・' || c == '/');
+        let mut listed = cells[1].split(|c: char| c == '・' || c == '/');
         if listed.any(|item| item.trim() == code) {
             return line.to_string();
         }
