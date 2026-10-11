@@ -161,8 +161,9 @@ fn ref_sigils_do_not_change_the_line_kind() {
 // ============================================================ §5.0.2 `;` SectionBreak
 
 #[test]
-fn section_break_is_a_whole_line_in_c_and_b() {
-    for format in [C, B] {
+fn section_break_is_a_whole_line_in_every_txt_form() {
+    // §5.2.1 / §5.3.1 / §5.4.1（`PLANS.md` §9.1 A-11）
+    for format in [C, B, A] {
         let got = tag(";", format);
         assert_eq!(got, "section-break");
     }
@@ -213,12 +214,10 @@ fn a_line_head_sigil_tolerates_one_space_of_indent() {
 }
 
 #[test]
-fn section_break_is_rejected_in_a_form_and_markdown() {
-    // §5.0.2 の出現場所は「C 形式 / B 形式」だけ
-    for format in [A, MD] {
-        let got = tag(";", format);
-        assert_eq!(got, "text[;]");
-    }
+fn section_break_is_rejected_in_markdown() {
+    // §5.0.2 の `;` の出現場所は `.txt` 3 形式。`.md` では通常テキストのまま
+    let got = tag(";", MD);
+    assert_eq!(got, "text[;]");
 }
 
 // ============================================================ §5.0.2 `//` LineComment
@@ -504,6 +503,30 @@ fn field_line_exposes_indent_key_and_value() {
     }
 }
 
+/// `value_at`（値の 1 byte 目の**行内**位置）だけを取り出す。
+fn value_at(line: &str) -> usize {
+    match lexer::classify(line, A) {
+        LineKind::Field(field) => field.value_at,
+        other => panic!("not a field line: {other:?}"),
+    }
+}
+
+#[test]
+fn field_line_exposes_the_byte_position_of_the_value() {
+    // 診断の範囲を値の中の一部に作るときに使う（A 形式の W019 は値の範囲、
+    // B 形式の E005 は `mode:` の値の中のトークン、§5.4.2）
+    assert_eq!(value_at("summary: あらすじ"), 9);
+    // 全角コロンは 3 byte。位置は byte で数える（§3.4）
+    assert_eq!(value_at(" 要約：あらすじ"), 10);
+    // 値の前の空白はすべて飛ぶ（§5.0.5 手順 6）
+    assert_eq!(value_at("summary:   x"), 11);
+    // 値が空のときは行末（範囲が空になる位置）
+    assert_eq!(value_at("space:  "), 8);
+    assert_eq!(value_at("summary:"), 8);
+    // 行末コメントは**値の一部**。フィールド行では `//` で切らない（`PLANS.md` §9.2 B-36）
+    assert_eq!(value_at("mode: 'アルス:A // 戦闘"), 6);
+}
+
 #[test]
 fn unknown_ascii_key_is_kept_as_unknown() {
     // §5.0.6「未知のキーは W011 とし、値は改変せず保持する」
@@ -701,8 +724,7 @@ fn the_table_records_the_place_and_shape_of_each_sigil() {
     // §5.0.2 の「出現場所」列
     assert_eq!(sigil_formats(Sigil::Structure), Formats::ALL);
     assert_eq!(sigil_formats(Sigil::LineComment), Formats::ALL);
-    let cb = Formats::CONTENTS.union(Formats::PLOT_EPISODE);
-    assert_eq!(sigil_formats(Sigil::SectionBreak), cb);
+    assert_eq!(sigil_formats(Sigil::SectionBreak), Formats::TXT);
     assert_eq!(sigil_formats(Sigil::HashComment), Formats::TXT);
     assert_eq!(sigil_formats(Sigil::IllustrationMemo), Formats::CONTENTS);
 

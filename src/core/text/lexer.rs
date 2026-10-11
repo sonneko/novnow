@@ -61,9 +61,12 @@ impl TextFormat {
         Formats::FIELD_FORMATS.contains(self)
     }
 
-    /// 節区切り `;`（§5.0.2）を書ける形式か。C 形式と B 形式のみ。
+    /// 節区切り `;`（§5.0.2）を書ける形式か。**`.txt` 3 形式**。
+    ///
+    /// A 形式は §5.3.1 `block_end = ws? , ";" , eol`、B 形式は §5.4.1、C 形式は §5.2.1。
+    /// `PLANS.md` §9.1 A-11（§5.0.2 の表は「C / B」だけだった）。
     pub fn allows_section_break(self) -> bool {
-        Formats::CB.contains(self)
+        Formats::TXT.contains(self)
     }
 }
 
@@ -86,8 +89,6 @@ impl Formats {
     pub const MARKDOWN: Self = Self(0b1000);
     /// A / B（§5.0.6 の「使用形式」列で最も多い組み合わせ）。
     pub const AB: Self = Self(0b0110);
-    /// C / B（§5.0.2 の `;` 節区切りの出現場所）。
-    pub const CB: Self = Self(0b0101);
     /// `.txt` 3 形式（§5.0.8 の `# ` は `.md` では見出しなので含まない）。
     pub const TXT: Self = Self(0b0111);
     /// フィールド行を書ける形式（§5.0.2 の `key:` の出現場所「A/B 形式, `*.md`」）。
@@ -176,7 +177,7 @@ pub const SIGIL_TABLE: &[SigilSpec] = &[
         sigil: Sigil::SectionBreak,
         requires_space: false,
         whole_line: true,
-        formats: Formats::CB,
+        formats: Formats::TXT,
         stage: Stage::One,
     },
     SigilSpec {
@@ -257,6 +258,9 @@ pub struct FieldLine<'a> {
     pub key_text: &'a str,
     /// 値（前後の空白を除く）。`key:` だけの行は空文字列。
     pub value: &'a str,
+    /// `value` の**行内の byte 位置**。値の中の一部に診断の範囲を作るときに使う
+    /// （B 形式の E005 は `mode:` の値の中の該当トークンを指す、§5.4.2）。
+    pub value_at: usize,
 }
 
 /// §5.0.6 のフィールドキー（① の範囲）。
@@ -264,7 +268,7 @@ pub struct FieldLine<'a> {
 /// **② のキーは含めない**（`PLANS.md` §1.2）: `when`（3）/ `senses`（7）/ `space`・
 /// `space-mode`（21）/ `illustration`（23）/ `blurb`（17）/ `address`（8）/ `icon`（24）。
 /// ① ではそれらは [`FieldKey::Unknown`] として**値を改変せず保持する**（縫い代 1・2）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 pub enum FieldKey {
     /// `summary`
     Summary,
@@ -518,7 +522,9 @@ fn parse_field_line(line: &str) -> Option<FieldLine<'_>> {
         return None;
     }
     // 手順 2・3: 最初のコロンで切り、キー候補が `field_key` かを見る
-    let (key_text, colon, rest) = split_field_key(after_indent(line))?;
+    let body = after_indent(line);
+    let body_at = line.len() - body.len();
+    let (key_text, colon, rest) = split_field_key(body)?;
     let key = lookup_key(key_text);
     // 手順 4: 全角 `：` は直後の空白を問わない（`要約：あらすじ` を受ける）
     // 手順 5: 半角 `:` は「空白・行末・表にあるキー」のときだけ
@@ -529,11 +535,16 @@ fn parse_field_line(line: &str) -> Option<FieldLine<'_>> {
             return None;
         }
     }
+    let value = rest.trim_matches(is_space);
+    // 値の前の空白は手順 6 で落とすので、そのぶんだけ開始位置が進む
+    let skipped = rest.len() - rest.trim_start_matches(is_space).len();
+    let value_at = body_at + key_text.len() + colon.len_utf8() + skipped;
     Some(FieldLine {
         indent,
         key,
         key_text,
-        value: rest.trim_matches(is_space),
+        value,
+        value_at,
     })
 }
 

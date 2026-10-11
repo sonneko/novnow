@@ -506,7 +506,7 @@ fn warn_reserved(id: SceneId, options: &Options, range: &Range<usize>, out: &mut
     }
 }
 
-fn parse_break<'a>(raw: &'a str) -> BreakLine<'a> {
+pub(crate) fn parse_break<'a>(raw: &'a str) -> BreakLine<'a> {
     BreakLine {
         raw,
         indent: lexer::leading_indent(raw),
@@ -515,7 +515,7 @@ fn parse_break<'a>(raw: &'a str) -> BreakLine<'a> {
     }
 }
 
-fn parse_comment<'a>(raw: &'a str) -> CommentLine<'a> {
+pub(crate) fn parse_comment<'a>(raw: &'a str) -> CommentLine<'a> {
     // 字句器が行頭コメントと判定した行には必ず `//` がある（§5.0.2）。`# ` は ② なので
     // [`Stage::One`] では作られない（§5.0.8）。保険として [`whole_line_comment`] を持つ
     let comment = find_comment(raw).unwrap_or_else(|| whole_line_comment(raw));
@@ -594,7 +594,7 @@ fn split_speaker(tail: &str) -> Option<(&str, Vec<&str>)> {
 }
 
 /// `mode_expr = mode_id , [ "+" , mode_id ]`（§5.1）。3 つ以上あれば話者注釈にしない。
-fn split_modes(expr: &str) -> Option<Vec<&str>> {
+pub(crate) fn split_modes(expr: &str) -> Option<Vec<&str>> {
     let modes: Vec<&str> = expr.split(MODE_JOIN).collect();
     if modes.len() > 2 {
         return None;
@@ -608,7 +608,7 @@ fn split_modes(expr: &str) -> Option<Vec<&str>> {
 }
 
 /// `mode_id = /[A-Za-z][A-Za-z0-9_]{0,15}/`（§5.5）。
-fn is_mode_id(text: &str) -> bool {
+pub(crate) fn is_mode_id(text: &str) -> bool {
     let Some(first) = text.chars().next() else {
         return false;
     };
@@ -625,7 +625,7 @@ fn is_mode_id(text: &str) -> bool {
 /// `char_name` は仕様書に文字種の定義が無いので「空白を含まない 1 字以上」とした
 /// （`PLANS.md` §9.2 B-33）。名前の中に `:` があるとモード式と区別できないので、
 /// その行は話者注釈にならない（W002）。
-fn is_char_name(name: &str) -> bool {
+pub(crate) fn is_char_name(name: &str) -> bool {
     !name.is_empty() && !name.contains(lexer::is_space)
 }
 
@@ -771,7 +771,10 @@ fn is_kanji(c: char) -> bool {
 }
 
 /// 行末コメント（§5.0.2）。`://` は URL なのでコメントにしない（字句器と同じ規則）。
-fn find_comment(raw: &str) -> Option<Comment<'_>> {
+///
+/// `.txt` 3 形式に共通の形なので A 形式（[`super::plot_outline`]）と B 形式
+/// （[`super::plot_episode`]）もこれを使う。[`Comment`] も同じ理由で共用する。
+pub(crate) fn find_comment(raw: &str) -> Option<Comment<'_>> {
     let start = lexer::find_line_comment(raw)?;
     let text_start = start + LINE_COMMENT.len();
     Some(Comment {
@@ -780,8 +783,8 @@ fn find_comment(raw: &str) -> Option<Comment<'_>> {
     })
 }
 
-/// 最初の非空白文字の byte 位置（行頭シジルの位置）。
-fn body_start(raw: &str) -> usize {
+/// 最初の非空白文字の byte 位置（行頭シジルの位置）。A / B 形式でも同じ計算が要る。
+pub(crate) fn body_start(raw: &str) -> usize {
     raw.len() - lexer::after_indent(raw).len()
 }
 
