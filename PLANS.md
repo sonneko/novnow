@@ -452,6 +452,9 @@ tests/layering.rs
 >    スナップショット更新は「`.expected.json` を書き直す小さなバイナリ」ではなく、失敗時に
 >    実測値を stderr に出して手動で貼り替える運用にする。
 > 4. **ベンチマークは入れない**（B-25。ユーザー裁定 ④ で後回し）。
+> 5. **ゴールデンテストの仕組みと `core/model/` の配置を決めた**（§6.3 の追記、§9.2 B-29・B-30）。
+>    新しいクレートは足さない（`insta` は入れず `serde_json` で比較）。未知キー温存は
+>    `#[serde(flatten)] unknown: BTreeMap<String, serde_json::Value>`（§5.3 完了条件 2 のバイト一致）。
 
 **完了条件**
 
@@ -859,6 +862,18 @@ tests/layering.rs
 - 仕様書のコード例を**そのまま**入力に使う。仕様が正本であることを機械的に担保する。
 - 期待値 JSON は手で書く（自動生成した期待値は仕様の検証にならない）。
 - 仕様変更時は「仕様書 → ゴールデン → 実装」の順で直す。
+- **新しいクレートを足さない**（§3.2 の MUST）。比較は既に許可されている `serde_json` で行い、
+  `insta` は入れない（入れるなら先に §3.2 の許可クレート表を直す）。「スナップショット更新コマンド」も
+  持たない。失敗時は**実測の JSON をそのまま stderr に出す**ので、仕様書と突き合わせて手で貼り替える
+  （自動更新にすると期待値が実装の写しになり、仕様の検証にならなくなる）。
+- 置き場所は `tests/golden/<形式>/<ケース>.txt` ＋ 同名の `.expected.json`（I4）。`<形式>` の
+  ディレクトリ名は §3.3 のモジュール名に合わせる（`contents` / `plot_outline` / `plot_episode` /
+  `characters_md` / `words_md` / `ideas_md` / `materials_index` / `prompt_md`）。
+- ケースの発見は `std::fs::read_dir`。テストは core ではないので fs を使える
+  （`tests/layering.rs` が既に同じことをしている）。`.txt` だけあって `.expected.json` が無い
+  （または逆）ケースは**テストを落とす**。片方だけ足して緑になるのを防ぐため。
+- `.expected.json` には**診断も入れる**（コード文字列と byte range）。§5.3 完了条件 3 の
+  「壊れた入力でパニックせず、診断を返して部分木を作る」を 1 ファイルで固定できる。
 
 ---
 
@@ -957,6 +972,8 @@ tests/layering.rs
 | B-26 | 診断カタログの「仕様書に書いていない属性」 | 明記のある属性だけ持つ（表に穴を残す）/ 機械的な規則で全コードを埋める | **規則で全部埋める**。穴を残すと M4 で同じ判断をもう一度することになる。明記があるのは §7.1 の全 14 件（表の見出しが「文書位置を持たない通知」）と §7.2 の E032〜E036（同節の注「エラーだが文書位置を持たない」）だけなので、残りは「文書内の byte range を指せるか」で決めた: 接続・保存・検索・件数・プロジェクト全体の通知（E064・W040・W041・W094・W095・I050・I051・I054〜I058）を `Anchor::Status` にした（計 31 件）。トグルは §7.2 の 16 件だけが対象で、仕様書が名指しする有効 9 件・無効 7 件に加え、名指しの無い **W085・W086 を W084 と同じタイミング・範囲の同族 lint として有効側**に寄せた（計 11 件）。`tests/diagnostics_catalog.rs` は**明記のある分だけ**を仕様書から導いて照合し、追加分は「`TOGGLE_ON.len() == 名指し 9 + 2`」の形で固定している |
 | B-27 | §7.2 のコードを ① で enum に入れるか | §3 I5「§7 の表を**全件**先に定義し、未使用警告を許容する」に従う / §5.5 M4 作業項目 1「**W080 以降・E032 以降・E064・I054 以降は定義しない**（② の予約、本書 §1.5-3）」に従う | **全件定義する（I5 を優先）**。I5 の狙いは「後から足すと番号が散らかる」ことで、§7.2 の番号はすでに仕様書で確定している（② が振り直す余地はない）。「② の予約」は「① で**検査を実装しない**」ことだと読み、コードの定義だけ済ませた（未使用 variant の警告は I5 が明示的に許容している）。**77 件 = §7 の 36 + §7.1 の 14 + §7.2 の 27**。§5.5 M4 の作業項目 1 はこの判断に合わせて書き換えた |
 | B-28 | `Diagnostic` の形 | §5.5 M4 作業項目 1 のスケッチどおり `{ code, range, args: Vec<String> }` / `{ code, args: Vec<Arg>, range: Option<Range<usize>> }` | **`Vec<Arg>` + `Option<Range<usize>>`**（`Arg` は `Text(String)` と `Number(i64)` の 2 種）。`Vec<String>` だと字数（W019 の `{0} 字`）や比率（W090 の `{0}%`）・偏差値（W091）を core が文字列化することになり、単位や桁数を UI が言語ごとに組み直せない（en は `{0} chars`）。`range` を `Option` にしたのは `Anchor::Status` の診断に文書位置が無いから（§7.1）。**文言を持たない**のは §7.2 の MUST どおりで、`DiagnosticCode::as_str()` が返すコード文字列を `ui/i18n/*` のキー `diag.<コード>`（§12.3）に使う。JSON 化（ゴールデンテストの `.expected.json` に出す形）は M2 で決める |
+| B-29 | `core/model/` のファイル配置 | 型ごとに 1 ファイル / 形式ごとにまとめる / 全部 `mod.rs` | **型ごとに 1 ファイル**。§3.3 が `model/` に並べた 10 型をそのままファイル名にする（`project.rs` / `document.rs` / `character.rs` / `mode.rs` / `role_pattern.rs` / `word.rs` / `material.rs` / `idea.rs` / `task.rs` / `delegation.rs`）。`mod.rs` には `pub mod` と `pub use` だけを置き、`core::model::Project` で引けるようにする。§3.3 は `syntax/` と `resolve/` にはファイル名を書いているが `model/` には型名しか書いていないので、ここは実装者の判断。**依存の向きは `syntax/<形式>.rs` → `model` の 1 本だけ**（`model` は `syntax` を `use` しない） |
+| B-30 | `model` の型の serde と未知キー温存 | `Serialize` だけ / `Serialize` + `Deserialize` / 手書きパーサ | **両方付ける**（§3.2 は serde / serde_json を許可済み）。`materials/index.json`（§5.8.2）・`project.json`（§4.5）・`.novnow/ui.json` は JSON そのものがストレージ形式なので `Deserialize` が要り、ゴールデンテストの `.expected.json` 比較に `Serialize` が要る。**未知キー温存**（本書 §1.5-2、MUST。§5.3 完了条件 2 のバイト一致はこれでしか満たせない）は `#[serde(flatten)] unknown: BTreeMap<String, serde_json::Value>` で行う。`deny_unknown_fields` は**使わない**。`rename_all` も付けず、フィールド名は仕様書のキー名にそのまま合わせる（JSON の形が仕様書と目視で突き合わせられるように）。TOML は i18n カタログ（B-5）だけで、`model` には TOML の型が無い |
 | B-23 | 行頭シジル表の形 | `&[(Sigil, Prefix)]`（§5.2 作業項目 4）/ `(prefix, kind, requires_space)` のタプル（§7 縫い代 4）/ 名前付きフィールドの構造体 | **`&[SigilSpec]`**（`prefix` / `sigil` / `requires_space` / `whole_line` / `formats` / `stage`）。タプルでは §5.0.2 の「直後に半角または全角の空白が必要」「行全体が `;` のときのみ」「出現場所（形式）」「① / ②」を載せられない。配列の**並び順そのもの**が優先順位で、順序は字句器側に書いていない |
 
 ### 9.3 環境の前提
