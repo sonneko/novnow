@@ -3,12 +3,15 @@
 //! 番号は `num = /\d{1,4}/`（0〜9999）で、`A-B-C-D` の 4 階層（章・話・場面・節）。
 //! `D` を省略した `A-B-C` は `section = 0` で「場面全体」を意味する（§5.1）。
 //! 比較は `(chapter, episode, scene, section)` の辞書式順序（`Ord` の derive がそのまま一致する）。
+//! `Serialize` は構文木のゴールデンテスト（`PLANS.md` §5.3 作業項目 5・§6.3）が JSON で
+//! 比較できるように付ける。
 //!
 //! **予約番号 `00` はパースを拒否しない（§5.1.2 の MUST）**。`A = 00`（未配属ストック章）と
 //! `B = 00`（章あらすじ）の**機能**は追加仕様 22 / 17 で ② だが、番号としての正当性は ① でも
 //! 保たれていなければならない（拒否すると ② で既存データを救えない）。
-//! したがってこのファイルは `00` に意味を与えない。`structure.allow_chapter_zero` の検査や
-//! E020 は M4 以降の診断の仕事である。
+//! したがってこのファイルは `00` に意味を与えない。`structure.allow_chapter_zero` の検査と
+//! E020 は**形式ごとのパーサ**の仕事で、C 形式では `core::syntax::contents` が設定を
+//! `Options` として受け取って出す（§5.1.2）。
 //!
 //! 範囲式（§5.1）:
 //!
@@ -20,6 +23,8 @@
 //!
 //! §12.2 により core はユーザー向け文言を持たないので、エラー型に `Display` は実装しない
 //! （`Debug` のみ）。文言は `ui/i18n` のカタログが `(code, params)` から作る。
+
+use serde::Serialize;
 
 /// 1 階層の番号の最大値（§5.1 の `num = /\d{1,4}/`）。
 pub const MAX_LEVEL: u16 = 9999;
@@ -61,7 +66,7 @@ impl Default for Digits {
 ///
 /// `section == 0` は「場面全体」を意味する（§5.1）。フィールドの宣言順がそのまま
 /// 辞書式順序になるよう `Ord` を derive している。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize)]
 pub struct SceneId {
     /// 章（A）。
     pub chapter: u16,
