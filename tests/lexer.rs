@@ -222,7 +222,8 @@ fn a_scheme_separator_is_not_a_line_comment() {
     let mixed = "source: https://example.com // 注";
     let got = lexer::find_line_comment(mixed);
     assert_eq!(got, Some(28));
-    assert_eq!(lexer::strip_line_comment(mixed), "source: https://example.com ");
+    let stripped = lexer::strip_line_comment(mixed);
+    assert_eq!(stripped, "source: https://example.com ");
 }
 
 #[test]
