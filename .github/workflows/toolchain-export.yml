@@ -65,15 +65,26 @@ jobs:
           exec >> "$LOG" 2>&1
           set -euo pipefail
           apt-get update -qq
+          # gcc/libc6-dev: smoke test でクレートをリンクするのに要る（素のイメージに無い）。
           apt-get install -y -qq --no-install-recommends \
-            git curl ca-certificates pigz python3 > /dev/null
-          echo "--- runner environment ---"
-          uname -a
-          head -2 /etc/os-release
-          ldd --version | head -1
-          echo "cpus=$(nproc) mem=$(free -m | awk '/^Mem:/{print $2}')MB"
-          git --version
-          curl --version | head -1
+            git curl ca-certificates pigz python3 gcc libc6-dev pkg-config > /dev/null
+          # 情報表示でステップを落とさないよう || true で囲む。
+          # `cmd | head -1` は pipefail と SIGPIPE（終了コード 141）で死ぬので使わない。
+          # free(1) は debian:12 の素のイメージに入っていないので /proc/meminfo を読む。
+          {
+            echo "--- runner environment ---"
+            uname -a
+            sed -n '1,2p' /etc/os-release
+            ldd --version 2>&1
+            echo "cpus=$(nproc) mem=$(awk '/^MemTotal/{printf "%dMB", $2/1024}' /proc/meminfo)"
+            df -h /tmp
+            git --version
+            curl --version
+            tar --version
+            pigz --version 2>&1
+            python3 --version
+            cc --version
+          } 2>&1 || true
 
       - name: 02 checkout
         uses: actions/checkout@v4
