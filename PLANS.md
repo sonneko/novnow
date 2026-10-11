@@ -196,6 +196,16 @@
 
 **新規追加しないもの**: MCP クライアントは `serde_json` + `tokio::process` で stdio JSON-RPC を自前実装する（専用クレートを足さない。§15.8.1 の要求は薄い）。
 
+> **feature gate（2026-10-11、ユーザー承認）**: 上表で層が **ui** の 5 クレート（`eframe` / `egui` /
+> `rfd` / `fontdb` / `toml`）は `optional = true` にし、`Cargo.toml` の `[features] ui` が引き込む。
+> **`default = []`** なので、既定のビルド（＝ CI の fmt / clippy / test / wasm の 4 ジョブ）は
+> GUI をコンパイルしない（egui / eframe は依存ツリーが 200 クレート規模で、M7 まで
+> `src/ui/**` が空の stub である間は純粋な無駄になる）。`src/lib.rs` の `pub mod ui;` と
+> `src/adapters/mod.rs` の `pub mod dialog_rfd;` は `#[cfg(feature = "ui")]` で守り、
+> `tests/layering.rs` の末尾 2 テストが `Cargo.toml` と `src/lib.rs` を読んで固定する。
+> **M7 で `src/ui/**` に実コードが入ったら CI の 4 コマンドに `--features ui` を足す**
+> （§5.8 の作業項目 0、`.github/workflows/ci.yml` の TODO）。判断は §9.2 **B-54**。
+
 ---
 
 ## 3. 実装方針
@@ -873,6 +883,11 @@ tests/layering.rs
 
 **作業項目**
 
+0. **`ui` feature を CI に足す**（§2.1 の feature gate、§9.2 B-54）。`src/ui/**` に egui の実コードが
+   入る最初のマイルストーンなので、`.github/workflows/ci.yml` の clippy / test / wasm の 3 コマンドを
+   `--features ui` 付きにする（fmt は feature に依存しない）。`tests/layering.rs` の feature gate の
+   2 テストはそのまま残す（既定のビルドが GUI を引き込まないことの検査は M7 以降も意味を持つ。
+   GUI 込みの検査は `--features ui` のジョブが担う）。
 1. **ラベル撤廃**（§9.2、指示 1）: 「ファイル」「エディタ」「情報」等のペイン名を全廃。§9.2.2 の撤廃一覧を消し込む。
 2. **テーマ**（§11.4）: `system | dark | light`。v0 の `dark_mode = true` 固定を撤廃。`Ctrl+Alt+T` で切替。
 3. **i18n**（§12）: `Ctrl+Alt+L` で ja ⇄ en。**core に文字列を置かない**（I6）。
@@ -1245,6 +1260,7 @@ tests/layering.rs
 | B-51（**2026-10-11**） | E025（JSON がパースできない）の**番号**と位置・引数 | §7.1 に置く（E064 以降の空き）/ §7 の E024 の隣 / 既存コードの流用 | **§7 の E024 の隣（E025）**。E024 が「`materials/index.json` の `path`」で、E025 は同じファイルの**パース失敗**なので隣が最も読める。空き番号の確認は全 docs / src を grep して **E009–E011 / E014 / E015 / E019 / E022 / E023 / E025 / E027 / E029 がどこにも出現しない**ことを確かめたうえで行い、② の予約域（**W080 以降 / E032 以降 / E064 / I054 以降**、本書 §1.5-3）には触れていない。位置は**ファイル全体**（`0..raw.len()`）: serde はトークン位置を持たないので「どのキーが壊れたか」は言えず、§7.1 の「文書位置を持たない通知」にするよりは**ファイルを開いたまま直せる**ほうが作者の行動に合う（Anchor は `STATUS_ANCHOR` 外なので自動的に `Document`）。引数は **1 個**（`{0}` ＝パーサのメッセージ）で、ja / en の両方の文言が `{0}` を使うので `tests/diagnostics_catalog.rs` の引数検査をそのまま通る。`Group::Core`（Error 1..=31）も既存の規則で自動的に正しくなる |
 | B-52（**2026-10-11**） | 仕様の例を直したあと、**消えた診断の網羅**をどう残すか | 例が直ったので検査も消す / 合成入力で検査だけ残す / ゴールデンに壊れたケースを足す | **合成入力で検査だけ残す**。§5.9.2 の例が `{{text_current}}` になったことで E031 のゴールデン網羅が消えるので、`tests/prompt_md.rs` の `an_unknown_variable_reports_e031` に `{{content_section}}` のケースを追加した（**A-16 で直した綴りそのもの**を「閉集合に無い名前」の例として残すので、回帰が起きても気づける）。同様に W011 は §5.5.7 / §5.7 / §5.9.1 / §5.9.2 の例から消えたので、② のキー（`blurb` `icon` `address`）と `foo` を使う unit テストを 4 形式ぶん残した。「ゴールデンに壊れたケースを足す」案は §6.3 の「入力は**仕様書のコード例をそのまま**」に反するので採らない（壊れた入力のゴールデン 3 件は仕様書の例ではないが、いずれも M2 で既存のものを固定した範囲） |
 | B-53（**2026-10-11**） | E025 の**ゴールデンケース**を足すか | `materials_index/broken_json.txt` を足す / unit テストだけにしておく | **unit テストだけ**。E025 の引数 `{0}` は serde_json のエラーメッセージ（`trailing comma at line 6 column 3` のように**行・列を含む**）なので、`.expected.json` に書くと `serde_json` を更新しただけでゴールデンが落ちる（仕様の変更でない理由で赤くなる）。`Index::error` も同じメッセージを写像するので同様。§6.3 の「期待値は仕様と突き合わせられるもの」を守るため、E025 は `tests/materials_index.rs` の 2 テスト（コード・位置・引数の数・`contains("expected value")`・既定値での続行・原文の不変）で固定する |
+| B-54（**2026-10-11・ユーザー承認**） | GUI のクレート（egui / eframe）を既定のビルドに入れるか | 常にビルドする（`Cargo.toml` のまま）/ **`ui` feature にして既定は空** / `default = ["ui"]` にして CI だけ `--no-default-features` | **`ui` feature にして `default = []`**。M7 まで `src/ui/**` は 1 行の stub ばかり（54 行）で egui を一切使わないのに、egui / eframe は依存ツリーが 200 クレート規模あるので、CI の clippy / test / wasm の 3 ジョブが毎回それをビルドしていた（`Swatinem/rust-cache` が効くのは `Cargo.lock` が変わらない間だけ）。ユーザーの「Actions 使用時間をできるだけ抑える」指示にも沿う。対象は §2.1 の表で層が **ui** の 5 クレート（`eframe` / `egui` / `rfd` / `fontdb` / `toml`）で、`zip` / `web-time` / `tokio` / `directories` / wasm 系は **ui ではない**（export・clock・storage・MCP のアダプタが使う）ので既定のまま残した。`default = ["ui"]` ＋ CI だけ `--no-default-features` の案は、手元の `cargo test` が毎回 egui をビルドすることになって開発ループが遅いので採らない（CI の時間だけを問題にすればどちらでもよいが、`cargo build` で GUI が要るのは M7 以降で、そのときは `--features ui` を 1 回付けるだけ）。**回帰の防止**: `tests/layering.rs` の末尾 2 テストが `Cargo.toml`（5 クレートが `optional = true` で `[features] ui` の `dep:` に並ぶ／`default` に `ui` が無い）と `src/lib.rs`・`src/adapters/mod.rs` の `#[cfg(feature = "ui")]` を `include_str!` で読む。`toml` は optional になるとテストからも使えなくなるので **`[dev-dependencies]` にも置いた**（検査のために GUI をビルドしない）。**M7 の作業項目 0** で CI の 3 コマンドに `--features ui` を足す |
 
 ### 9.3 環境の前提
 

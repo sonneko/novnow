@@ -5,6 +5,10 @@
 //! 1. 禁止依存（§3.2）— UI / I/O / 非同期 / 時刻・乱数、および許可リストに無いクレート
 //! 2. ユーザー向け文言（§12.2）— 日本語の文字列リテラル
 //!
+//! 加えて末尾の 2 テストが **`Cargo.toml` の feature gate**（`PLANS.md` §9.2 B-54）を見る:
+//! GUI のクレート（egui / eframe / rfd / fontdb / toml）が `optional = true` で `ui` feature の
+//! 後ろにあり、既定のビルド（＝ CI の fmt / clippy / test / wasm）がそれらをコンパイルしないこと。
+//!
 //! テキスト走査ではなく AST を使うので、コメント・文字列リテラル・char リテラルを字句として
 //! 正しく区別できる。`'"'` のような char リテラルや `r#"..."#` の埋め込みデータによって
 //! 検査が抜けたり誤検出したりしない。
@@ -775,5 +779,73 @@ fn checker_allows_japanese_comments() {
         "検査器がコメント等を誤検出（{} 件）:\n{}",
         flagged.len(),
         bullets(&flagged)
+    );
+}
+
+// ============================================================ Cargo の feature gate（§9.2 B-54）
+
+/// `Cargo.toml`（依存と feature の正本）。
+const CARGO_TOML: &str = include_str!("../Cargo.toml");
+
+/// `src/lib.rs`（4 層の宣言の正本）。
+const LIB_RS: &str = include_str!("../src/lib.rs");
+
+/// `src/adapters/mod.rs`（アダプタの宣言の正本）。
+const ADAPTERS_MOD_RS: &str = include_str!("../src/adapters/mod.rs");
+
+/// GUI（§3.3 の `ui` 層）に要るクレート。`PLANS.md` §2.1 の表で層が ui の 5 つ。
+const UI_CRATES: &[&str] = &["eframe", "egui", "rfd", "fontdb", "toml"];
+
+#[test]
+fn the_ui_crates_are_optional_and_behind_the_ui_feature() {
+    let cargo: toml::Value = toml::from_str(CARGO_TOML).expect("Cargo.toml がパースできない");
+    let deps = cargo["dependencies"]
+        .as_table()
+        .expect("Cargo.toml に [dependencies] が無い");
+    for name in UI_CRATES {
+        let dep = deps[*name]
+            .as_table()
+            .unwrap_or_else(|| panic!("{name} はインラインテーブル（`optional = true`）にする"));
+        assert_eq!(
+            dep["optional"].as_bool(),
+            Some(true),
+            "{name} は optional = true にする（PLANS.md §9.2 B-54）"
+        );
+    }
+    let features = cargo["features"]
+        .as_table()
+        .expect("Cargo.toml に [features] が無い");
+    let ui: Vec<&str> = features["ui"]
+        .as_array()
+        .expect("[features] に ui が無い")
+        .iter()
+        .filter_map(|found| found.as_str())
+        .collect();
+    for name in UI_CRATES {
+        let want = format!("dep:{name}");
+        assert!(ui.contains(&want.as_str()), "ui feature に {want} が無い");
+    }
+    // 既定で ui をビルドしない（egui / eframe を CI の 4 ジョブから外すのが目的そのもの）
+    let default: Vec<&str> = features["default"]
+        .as_array()
+        .map(|found| found.iter().filter_map(|item| item.as_str()).collect())
+        .unwrap_or_default();
+    assert!(
+        !default.contains(&"ui"),
+        "default に ui を入れると CI が egui / eframe をビルドしてしまう（{default:?}）"
+    );
+}
+
+#[test]
+fn the_ui_layer_is_compiled_only_with_the_ui_feature() {
+    // `pub mod ui;` と `pub mod dialog_rfd;` が cfg で守られているか。守られていないと、
+    // M7 で `src/ui/**` が egui を使い始めた瞬間に**既定のビルド（CI の 4 ジョブ）が落ちる**
+    assert!(
+        LIB_RS.contains("#[cfg(feature = \"ui\")]\npub mod ui;"),
+        "src/lib.rs の `pub mod ui;` に `#[cfg(feature = \"ui\")]` が付いていない"
+    );
+    assert!(
+        ADAPTERS_MOD_RS.contains("#[cfg(feature = \"ui\")]\npub mod dialog_rfd;"),
+        "src/adapters/mod.rs の `pub mod dialog_rfd;` に `#[cfg(feature = \"ui\")]` が付いていない"
     );
 }

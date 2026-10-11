@@ -51,6 +51,25 @@ cargo build --release    # 生成物: target/release/novnow
 > 現在の `src/main.rs` は引数に関わらず使用法を stderr に出して終了コード 2 で終了するだけ
 > （`SPECIFICATIONS.md` §14.3 の判定順と §14.1 のサブコマンドは M6 で実装する）。
 
+> **`ui` feature（2026-10-11〜）**: GUI に要るクレート（`egui` / `eframe` / `rfd` / `fontdb` /
+> `toml`）は **`optional = true`** で、`Cargo.toml` の `[features]` の `ui` が引き込む。
+> **既定は `default = []`** なので、素の `cargo build` / `cargo test` / `cargo clippy` /
+> `cargo check --target wasm32-unknown-unknown` は GUI なしで通り、egui・eframe（依存ツリーは
+> 200 クレート規模）をコンパイルしない。GUI 付きでビルドするときは **`--features ui`** を付ける。
+>
+> ```bash
+> cargo build --features ui               # GUI 込み
+> cargo check --features ui               # GUI 込みの型検査
+> cargo run   --release --features ui ./my-novel   # M7 以降の起動形
+> ```
+>
+> `src/lib.rs` の `pub mod ui;` と `src/adapters/mod.rs` の `pub mod dialog_rfd;` は
+> `#[cfg(feature = "ui")]` で守る（**MUST**。守らないと M7 で `src/ui/**` が egui を使い始めた
+> 瞬間に既定のビルド＝ CI の 4 ジョブが落ちる）。`tests/layering.rs` の末尾 2 テストが
+> `Cargo.toml` と `src/lib.rs` を読んでこの形を固定している。判断は `PLANS.md` §9.2 **B-54**。
+> **M7 で `src/ui/**` に実コードが入ったら、`.github/workflows/ci.yml` の 4 コマンドに
+> `--features ui` を足す**（同ファイルに TODO がある）。
+
 ### 1.3 Web
 
 ```bash
@@ -66,19 +85,22 @@ trunk build --release        # 成果物は ./dist/
 ### 1.4 テスト
 
 ```bash
-cargo test                        # すべて
-cargo test --test layering        # 層構造の検査（本書 3 節 / 仕様 §3.2・§12.2）だけ
+cargo test                        # すべて（GUI なし。速い）
+cargo test --test layering        # 層構造と feature gate の検査（本書 3 節 / 仕様 §3.2・§12.2）だけ
+cargo test --features ui          # M7 以降は GUI 込みでも通すこと
 ```
 
 CI で常設するテストは `PLANS.md` §6 を参照。`tests/layering.rs` は **落ちたらマージしない**（例外なし）。
 
-`tests/layering.rs` の中身は次の 2 系統（6 テスト）。
+`tests/layering.rs` の中身は次の 3 系統（8 テスト）。
 
 | テスト | 検査内容 |
 |---|---|
 | `core_has_no_forbidden_dependency` | `src/core/**` の AST（`syn`）を訪走し、§3.2 の禁止依存を検出する。`use` 文・`extern crate`・式／型／パターン／マクロ呼び出しのパス・属性・マクロ本体のトークン列が対象。許可リストに無いクレートの `use` も落とす |
 | `core_has_no_user_facing_text` | 同様に日本語の文字列リテラル（§12.2）を検出する。コメント・doc コメント・char リテラルは対象外。**例外は `i18n: format-vocabulary` の doc 行を付けた `const` / `static` の中だけ**（§5.0.6 のフィールドキー別名表のような「ファイル形式の語彙」は UI 言語が `en` でも受理するのでユーザー向け文言ではない。`PLANS.md` §9.2 B-19。§12.2 に「字句データは文言に含まない」と明記されて A-5 は解消済み）。免除が関数に及ばないことは自己テストのフィクスチャで固定してある |
 | `checker_catches_*` / `checker_allows_*`（4 本） | **検査器そのもの**の自己テスト。「違反を書いたら本当に落ちるか」「正当な core コードを誤検出しないか」を固定例で担保する |
+| `the_ui_crates_are_optional_and_behind_the_ui_feature` | `Cargo.toml` を `toml` でパースし、GUI の 5 クレート（`egui` / `eframe` / `rfd` / `fontdb` / `toml`）が `optional = true` で `[features] ui` の `dep:` に並んでいること、`default` に `ui` が入っていないことを見る（§1.2 の feature gate、`PLANS.md` §9.2 B-54）。既定のビルドに egui が戻ると CI の 4 ジョブが数分単位で遅くなるので、ここで機械的に止める |
+| `the_ui_layer_is_compiled_only_with_the_ui_feature` | `src/lib.rs` の `pub mod ui;` と `src/adapters/mod.rs` の `pub mod dialog_rfd;` に `#[cfg(feature = "ui")]` が付いているかを見る |
 
 > 検査器を直すときは、必ず自己テストの固定例（`MUST_CATCH_*` / `MUST_PASS_*`）も一緒に更新すること。
 > 自己テストが無い検査器は、改修で検出漏れが混入しても CI が緑のままになる。

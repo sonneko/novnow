@@ -90,6 +90,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       # --all-targets: tests/ 配下（layering.rs を含む）も lint する
       # --locked: Cargo.lock と Cargo.toml の乖離を落とす
+      # `--features ui` を付けない: GUI のクレート（egui / eframe / rfd / fontdb / toml）は
+      # optional で既定のビルドに入れない（PLANS.md §2.1 の feature gate・§9.2 B-54）。
+      # TODO(M7): src/ui/** に egui の実コードが入ったら、clippy / test / wasm の 3 コマンドに
+      #           `--features ui` を足す（PLANS.md §5.8 作業項目 0）。
       - name: cargo clippy
         shell: bash
         run: |

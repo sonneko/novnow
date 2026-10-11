@@ -13,9 +13,24 @@ path = "src/lib.rs"
 name = "novnow"
 path = "src/main.rs"
 
+[features]
+# **既定は空**。GUI（§3.3 の `ui` 層）に要るクレートだけを立てる `ui` feature を持つ。
+#
+# M7 まで `src/ui/**` は空の stub なので、egui / eframe（依存ツリーは 200 クレート規模）を
+# 毎回ビルドするのは CI の 4 ジョブと手元のビルドの時間を無駄にする（2026-10-11 の
+# ユーザー承認、`PLANS.md` §9.2 B-54）。core / ports / adapters は GUI なしでビルドでき、
+# §3.2 の「core は egui / eframe / rfd に依存しない」は `tests/layering.rs` が検査する。
+#
+# M7 で `src/ui/**` に egui のコードが入ったら、`.github/workflows/ci.yml` の 4 コマンドに
+# `--features ui` を足す（同ファイルの TODO も参照）。GUI 付きのビルドは
+# `cargo build --features ui` / `cargo run --features ui`。
+default = []
+ui = ["dep:eframe", "dep:egui", "dep:rfd", "dep:fontdb", "dep:toml"]
+
 [dependencies]
-eframe = "0.27.2"
-egui = "0.27.2"
+# 以下 5 つは `ui` feature のときだけ（上記）。層は `PLANS.md` §2.1 の表のとおり ui。
+eframe = { version = "0.27.2", optional = true }
+egui = { version = "0.27.2", optional = true }
 
 # 行区切りを LF のみにする（SPECIFICATIONS §5.0.4「内部表現は LF」）。
 # 既定 feature の unicode_lines は U+2028 等も行区切りにしてしまい、本文にそれが
@@ -25,12 +40,12 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1.0"
 regex = "1.10"
 aho-corasick = "1.1"
-fontdb = "0.16"
+fontdb = { version = "0.16", optional = true }
 anyhow = "1.0"
 thiserror = "1.0"
 unicode-normalization = "0.1"
-toml = "0.8"
-rfd = "0.14"
+toml = { version = "0.8", optional = true }
+rfd = { version = "0.14", optional = true }
 web-time = "0.2"
 zip = { version = "2.1", default-features = false, features = ["deflate"] }
 
@@ -54,6 +69,9 @@ console_error_panic_hook = "0.1"
 # 実行時には一切依存しない（dev-dependency）。
 proc-macro2 = "1"
 syn = { version = "2.0", features = ["full", "visit"] }
+# tests/layering.rs が Cargo.toml 自身を読んで feature gate（上の [features]）を検査するのに使う。
+# `ui` feature を立てなくてもテストが Cargo.toml を読めるよう、dev 側にも置く。
+toml = "0.8"
 
 [profile.release]
 opt-level = 3
