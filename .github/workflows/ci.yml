@@ -3,6 +3,12 @@ name: CI
 # PLANS.md §5.1 作業項目 4 / §6.2、SPECIFICATIONS.md §18.4 の 4 ジョブ。
 # `spec` ジョブは PLANS.md §9.4 B-14 の決定により M11 で追加する。
 # `wasm` ジョブを `trunk build` にしない判断は PLANS.md §9.2 B-16 を参照。
+#
+# 失敗時は各ジョブの出力を PR コメントに投稿する。開発環境に Rust ツールチェーンが無く
+# （PLANS.md §9.3）、Actions のログ取得先ホストにも到達できないため、**合否だけでなく
+# コンパイルエラーの中身を読む経路**が要る。コメントは
+# `gh api repos/:owner/:repo/issues/:number/comments` で取得できる。
+# 不要になったら「Report ... to the PR」ステップと `pull-requests: write` を外す。
 
 on:
   push:
@@ -17,6 +23,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
 
 # PR のときは新しい push で古い実行を取り消す。main への push は最後まで走らせる
 # （マージ結果の検証が途中で消えると、緑の証跡が残らないため）。
@@ -33,7 +40,26 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
-      - run: cargo fmt --check
+      # pipefail: パイプ先の tee が成功しても cargo の失敗でステップを落とす
+      - name: cargo fmt --check
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo fmt --all --check 2>&1 | tee /tmp/ci.log
+      - name: Report fmt diff to the PR
+        if: failure() && github.event_name == 'pull_request'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo "### Rustfmt が失敗（\`${GITHUB_SHA::7}\`）"
+            echo '下の差分を `cargo fmt --all` で適用できます。'
+            echo '```diff'
+            head -n 160 /tmp/ci.log
+            echo '```'
+          } > /tmp/body.md
+          gh pr comment "${{ github.event.pull_request.number }}" --body-file /tmp/body.md
 
   clippy:
     name: Clippy
@@ -46,7 +72,26 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       # --all-targets: tests/ 配下（layering.rs を含む）も lint する
       # --locked: Cargo.lock と Cargo.toml の乖離を落とす
-      - run: cargo clippy --locked --all-targets -- -D warnings
+      - name: cargo clippy
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo clippy --locked --all-targets -- -D warnings 2>&1 | tee /tmp/ci.log
+      - name: Report clippy output to the PR
+        if: failure() && github.event_name == 'pull_request'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo "### Clippy が失敗（\`${GITHUB_SHA::7}\`）"
+            echo '```'
+            head -n 120 /tmp/ci.log
+            echo '...（中略）...'
+            tail -n 40 /tmp/ci.log
+            echo '```'
+          } > /tmp/body.md
+          gh pr comment "${{ github.event.pull_request.number }}" --body-file /tmp/body.md
 
   test:
     name: Test
@@ -57,7 +102,26 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       # tests/layering.rs（§3.2 の禁止依存 + §12.2 の日本語リテラル + 検査器の自己テスト）を
       # 含む全ターゲットを実行する。DEVELOPERS.md §1.4「layering が落ちたらマージしない」。
-      - run: cargo test --locked --all-targets
+      - name: cargo test
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo test --locked --all-targets 2>&1 | tee /tmp/ci.log
+      - name: Report test output to the PR
+        if: failure() && github.event_name == 'pull_request'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo "### Test が失敗（\`${GITHUB_SHA::7}\`）"
+            echo '```'
+            head -n 120 /tmp/ci.log
+            echo '...（中略）...'
+            tail -n 60 /tmp/ci.log
+            echo '```'
+          } > /tmp/body.md
+          gh pr comment "${{ github.event.pull_request.number }}" --body-file /tmp/body.md
 
   wasm:
     name: WASM Build Check
@@ -68,4 +132,23 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
-      - run: cargo check --locked --target wasm32-unknown-unknown
+      - name: cargo check (wasm32)
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo check --locked --target wasm32-unknown-unknown 2>&1 | tee /tmp/ci.log
+      - name: Report wasm output to the PR
+        if: failure() && github.event_name == 'pull_request'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo "### WASM Build Check が失敗（\`${GITHUB_SHA::7}\`）"
+            echo '```'
+            head -n 120 /tmp/ci.log
+            echo '...（中略）...'
+            tail -n 40 /tmp/ci.log
+            echo '```'
+          } > /tmp/body.md
+          gh pr comment "${{ github.event.pull_request.number }}" --body-file /tmp/body.md
