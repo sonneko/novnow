@@ -296,6 +296,11 @@ jobs:
           echo "smoke test passed in $(( $(date +%s) - start ))s on $(nproc) cpus" \
             > /tmp/smoke-result.txt
           cat /tmp/smoke-result.txt
+          # runner のディスクは余裕が無い（overlay 72G 中 6.7G 空き）ので、
+          # 検証に使い終わった展開物と target/ を消してから chunk 化する。
+          cd /tmp
+          rm -rf "$VERIFY" "$GITHUB_WORKSPACE/target"
+          df -h /tmp
 
       - name: 09 chunk, manifest, push
         if: env.SKIP != '1'
@@ -434,10 +439,31 @@ jobs:
           fi
           du -sh .
           df -h /tmp
-          git add -A
-          git commit -q -m "toolchain-export: rust sysroot + vendored crates ($CACHE_KEY)"
-          # 04 が push を飛ばした場合（既存の ready を保護）でも通るよう force で置く。
-          git push -q -f origin "$CACHE_BRANCH"
+          # 365MB を 1 リクエストで送ると "RPC failed; curl 55 Send failure: Broken pipe"
+          # で切れるので、小さいファイル → チャンク 1 個ずつの順に分けて push する。
+          # （04 が push を飛ばした場合＝既存 ready の保護、でも通るよう毎回 force。）
+          push_retry() {
+            n=0
+            until git push -q -f origin "$CACHE_BRANCH"; do
+              n=$((n + 1))
+              if [ "$n" -ge 3 ]; then
+                echo "push が 3 回失敗した"
+                return 1
+              fi
+              echo "push が失敗したので 15 秒待って再試行 ($n/3)"
+              sleep 15
+            done
+          }
+          git add -A -- . ':(exclude)chunks'
+          git commit -q -m "toolchain-export: metadata ($CACHE_KEY)"
+          push_retry
+          echo "metadata pushed"
+          for f in chunks/*; do
+            git add "$f"
+            git commit -q -m "toolchain-export: $f ($CACHE_KEY)"
+            push_retry
+            echo "$f pushed ($(stat -c%s "$f") bytes)"
+          done
           echo "pushed. branch contents (bytes, path):"
           git ls-tree -r --long HEAD | awk '{print $4, $5}'
 
