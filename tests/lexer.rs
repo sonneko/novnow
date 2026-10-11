@@ -186,7 +186,7 @@ fn section_break_needs_the_whole_line() {
 
 #[test]
 fn section_break_allows_a_trailing_line_comment() {
-    // §5.2.1 `section_break = ws? , ";" , [ comment ] , eol`（`PLANS.md` §9.1 A-9）
+    // §5.2.1 `section_break = ws? , ";" , [ comment ] , eol`（`PLANS.md` §9.2 B-31）
     for line in ["; // メモ", ";  // メモ", ";//メモ", "\t;\t// メモ"] {
         let got = tag(line, C);
         assert_eq!(got, "section-break");

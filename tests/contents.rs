@@ -7,7 +7,7 @@
 //! （`tests/lexer.rs` と同じ流儀。`assert_eq!` の引数に構造体リテラルを直接書くと rustfmt が
 //! 必ず折り返すので、期待値を 1 行に収めるためでもある）。
 
-use novnow::core::diagnostics::{Arg, Diagnostic, DiagnosticCode};
+use novnow::core::diagnostics::{Arg, Diagnostic};
 use novnow::core::id::SceneId;
 use novnow::core::syntax::contents::{
     self, BreakLine, Comment, CommentLine, Contents, Line, Options, Ruby, SceneLine, Section,
@@ -216,11 +216,6 @@ fn owner_tag(text: &str, index: usize) -> String {
         Some(found) => found.number.to_string(),
         None => "-".to_owned(),
     }
-}
-
-/// 診断コードだけの列（順を確認するのに使う）。
-fn codes(found: &[Diagnostic]) -> Vec<DiagnosticCode> {
-    found.iter().map(|diag| diag.code).collect()
 }
 
 // ============================================================ §5.2.1 行の種別
@@ -625,15 +620,12 @@ fn a_reserved_scene_zero_is_e020() {
 fn diagnostics_are_ordered_by_line() {
     let text = "@01-04 x\n本文 @ 裸\n;\n;\n";
     let parsed = contents::parse(text);
-    assert_eq!(
-        codes(&parsed.diagnostics),
-        vec![
-            DiagnosticCode::E002,
-            DiagnosticCode::W002,
-            DiagnosticCode::W012,
-            DiagnosticCode::W012
-        ]
-    );
+    // 行の診断が先（行の順）、空の節の W012 が後（節の順）
+    let found: Vec<&str> = parsed.diagnostics.iter().map(|d| d.code.as_str()).collect();
+    assert_eq!(found, ["E002", "W002", "W012"]);
+    // 位置は text の中の byte range。W012 は節を閉じた 2 つ目の `;` を指す（B-35）。
+    // 3 つ目の節は開かない（末尾に本文が無いので W012 も増えない、B-35）
+    assert_eq!(diags_tag(text), "E002@0..6 / W002@16..17 / W012@24..25");
 }
 
 // ============================================================ round-trip

@@ -472,7 +472,7 @@ pub fn classify_at_stage(line: &str, format: TextFormat, stage: Stage) -> LineKi
 ///   シジルを見ない（`PLANS.md` §9.2 B-18・B-31）。
 /// - `whole_line`（`;`）は、残りが空か **行コメントだけ**のときに一致する
 ///   （§5.2.1 `section_break = ws? , ";" , [ comment ] , eol`。§5.0.2 の表の
-///   「行全体が `;` のときのみ」はこの読み方で、`PLANS.md` §9.1 A-9 に記録した）。
+///   「行全体が `;` のときのみ」はこの読み方で、`PLANS.md` §9.2 B-31 に記録した）。
 fn match_sigil<'a>(line: &'a str, spec: &SigilSpec) -> Option<&'a str> {
     if leading_indent(line) >= CONTINUATION_INDENT {
         return None;
