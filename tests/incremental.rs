@@ -20,6 +20,8 @@ use novnow::core::text::rope::TextBuffer;
 const C: TextFormat = TextFormat::Contents;
 /// A 形式（§5.3）。フィールド行は C 形式では書けないのでこちらを使う。
 const A: TextFormat = TextFormat::PlotOutline;
+/// B 形式（§5.4）。フィールド行も節区切り `;` も書ける形式。
+const B: TextFormat = TextFormat::PlotEpisode;
 
 /// 構造見出し → 本文 → 節区切り → 本文 ×2 → 節区切り。
 const DOC: &str = "@01-04 見出し\nあいう\n;\nえお\nかきく\n;";
@@ -131,7 +133,8 @@ fn removing_a_line_shifts_the_rest_and_asks_from_that_line() {
 
 #[test]
 fn a_paste_of_several_lines_replaces_the_range() {
-    let mut index = LineIndex::new(DOC, C);
+    // フィールド行と `;` を両方書ける B 形式で確かめる（§5.0.2 の出現場所）
+    let mut index = LineIndex::new(DOC, B);
     let pasted = ["summary: 一行", "  継続", ";"];
     let changed = index.replace_lines(1, 2, &pasted);
     assert_eq!(changed, Renumber::From(1));
@@ -168,8 +171,7 @@ fn numbering_lines_skips_the_lines_that_do_not_matter() {
     assert_eq!(found, [0, 2, 5]);
 
     let fields = LineIndex::new("summary: 一行\n  継続\n// メモ", A);
-    let none: Vec<usize> = fields.numbering_lines().map(|(line, _)| line).collect();
-    assert!(none.is_empty());
+    assert_eq!(fields.numbering_lines().count(), 0);
 }
 
 #[test]

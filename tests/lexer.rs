@@ -614,7 +614,7 @@ fn an_invalid_escape_stays_two_chars_without_a_diagnostic() {
         assert!(found[0].target.is_some(), "{written}");
         assert_eq!(found[0].len, written.len(), "{written}");
         let unescaped = lexer::unescape(written);
-        assert_eq!(unescaped.as_ref(), *written, "{written}");
+        assert_eq!(unescaped.as_ref(), written, "{written}");
     }
 }
 
