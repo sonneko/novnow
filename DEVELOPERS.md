@@ -15,8 +15,9 @@
 > （10 型）・`core/resolve/dictionary.rs`（辞書と `'` の最短一致、§6.1 / §6.2）・
 > `core/resolve/modes.rs`（モード解決の 8 段、§6.4）・`core/resolve/role_language.rs`
 > （役割語パターン → 正規表現、§6.5）・`core/resolve/materials.rs`（資料 ID とインレイヒント、
-> §6.6）。
-> **空のまま**: `core/resolve/context_rules.rs`（M3 進行中）・`core/features/*`（M4）・`ports/**`・
+> §6.6）・`core/resolve/context_rules.rs`（参照ペインと ContextPacket の共用ルール、
+> §9.5.2 / §15.4）。**`core/resolve/` は 5 本すべて実装済み（M3 完了）**。
+> **空のまま**: `core/features/*`（M4）・`ports/**`・
 > `adapters/**`（M5 / M6）・`ui/**`（M7 以降）。本書の「モジュール構成」は **v1 の目標形**。
 >
 > **GUI は M7 まで動かない**（`PLANS.md` §3 I3）。M0 時点の `cargo run` は
@@ -383,6 +384,34 @@ for resolved in &scan.resolutions {
 
 ---
 
+### 5.5 参照ペインと ContextPacket の共用ルール — `core/resolve/context_rules.rs`
+
+**規則だけ**を持つ（純粋なデータと順位）。中身を集めるのは M4 の `core/features/*`（参照ペイン）と
+M10 の ContextPacket で、**両方がここを引く**ことが §15.4 の MUST の実体（`PLANS.md` §9.2 B-73）。
+
+| 規則 | 内容 |
+|---|---|
+| 優先順位（§9.5.2） | `Scope` = **カーソル行 > 同一節 > 同一場面 > 同一話**。派生した `Ord` がそのまま表示順。`Layout` は**行範囲**の枠で、**呼び出し側が木から作る**（core は形式を問わない、§3.2）。`ranked` は近い順に並べ、**範囲外を捨てる** |
+| ペインの上限 | `PANE_FARTHEST`（同一話まで）。ContextPacket は §15.4.1 のブロックごとの範囲を**上限として渡す**（`6 lexicon` なら `Scope::Section`） |
+| 9 セクション（§9.5.2） | `PaneSection` が固定順で持つ。**5 五感・6 空間・8 挿絵は内容が無ければ見出しごと出さない**（MUST）。1〜4・7・9 は中身だけ省略（「—」も書かない） |
+| 資料の順（§9.5.2 の 7） | 明示参照 → 引用注釈 → 条件一致候補（`MaterialSource`）。**この 3 つだけ**はスコープ順ではなく経路順 |
+| 9 ブロック（§15.4.1） | `PacketBlock` が固定順と Markdown 見出し（`## 1 project` …）を持つ。`project` と `constraints` は**外せない**（§5.9.2 MUST）、`1 project` / `3 plot` / `5 cast` / `8 constraints` は**決して削らない**（§15.4.1 MUST） |
+| 対応表 | `PaneSection::packet_blocks` と `PacketBlock::pane_sections`（逆引き）。9 診断はパケットに対応ブロックが無い（LLM には診断ではなく制約を渡す） |
+| 診断の順（§9.5.2 の 9） | `sort_diagnostics` = `E` → `W` → `I`、同じ重大度なら位置、同じ位置ならコード順 |
+
+```rust
+// B 形式の木から枠を作り、近い順に並べる（範囲外は自動的に落ちる）
+let layout = Layout { cursor_line, section: Some(section.span.clone()),
+                      scene: Some(scene.span.clone()), episode: Some(file_lines) };
+let ranked = layout.ranked(PANE_FARTHEST, occurrences);   // → Vec<(Scope, usize, T)>
+```
+
+見出しの**文言は core が持たない**（§12.2）。`PaneSection::key()` / `Scope::key()` の ascii 名で
+i18n キー（§12.3 `pane.<key>` / `scope.<key>`）を引くこと。§15.4.1 の Markdown 見出しは ascii なので
+`PacketBlock::heading()` がそのまま持つ（**固定**＝LLM 側のパース安定性のため）。
+
+---
+
 ## 6. 日本語入力（IME）— 実装時にまず読むこと
 
 `SPECIFICATIONS.md` **§9.8.5** に実装規約がある。要点だけ再掲する。
@@ -440,7 +469,8 @@ v1 の画面は **3 ペイン ＋ ワークスペース切替** になる（v0 �
 
 ## 9. 情報パネル（参照ペイン）
 
-カーソル行に直接含まれる要素 > 同一場面 > 同一話、の順で推論する（`core/resolve/context_rules.rs`）。
+**カーソル行 > 同一節 > 同一場面 > 同一話** の順で推論する（§9.5.2、`core/resolve/context_rules.rs`
+の `Scope` / `Layout`。本書 §5.5）。同じ話より遠い項目は**出さない**。
 用語検出は Aho-Corasick による複数パターン一括マッチ、参照は**最短一致**（§6.1）。
 
 **カード UI にしないこと**（§9.5.1、MUST）。最小限の見出しスタイルを付けたただのテキストとして並べる。
