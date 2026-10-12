@@ -530,6 +530,10 @@ fn three_modes_in_one_expression_is_e005() {
     let scan = dictionary::scan_line(line, 0, &built);
     assert_eq!(scan.diagnostics.len(), 1);
     assert_eq!(scan.diagnostics[0].code, DiagnosticCode::E005);
+    // 波線は修飾子（`:A+B+C`）ではなく**トークン全体**（B 形式の `mode:` を読む
+    // `plot_episode::warn_modes` と同じ範囲。B-67）
+    let range = scan.diagnostics[0].range.clone().expect("range");
+    assert_eq!(&line[range], "'リリア:A+B+C");
 }
 
 #[test]

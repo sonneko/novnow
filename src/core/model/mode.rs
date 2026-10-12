@@ -38,9 +38,9 @@ pub struct Mode {
     pub note: Option<String>,
     /// このモード専用の役割語パターン（§5.5.5）。
     ///
-    /// **1 件でもあればキャラ共通を上書きする**（和集合ではない、§5.5.6 の `address:` と同じ
-    /// 流儀。§5.5.5「モード専用 ∪ キャラ共通」はモード専用がある場合の合集合のことで、
-    /// 実装は M3 の `resolve/role_language.rs`）。
+    /// 適用される集合は **モード専用 ∪ キャラ共通 `## tone`**（§5.5.5・§6.5.3 の両方が
+    /// 和集合と定める。上書きではない）。和を作るのは M3 の
+    /// [`applicable_patterns`](crate::core::resolve::modes::applicable_patterns)。
     pub patterns: Vec<RolePattern>,
     /// §5.5.4 に無いキー（② の追加仕様を含む）。**削除してはならない**（縫い代 1）。
     #[serde(flatten)]
