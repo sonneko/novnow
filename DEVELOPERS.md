@@ -14,8 +14,9 @@
 > （§7 / §7.1 / §7.2 の **78 コード**）・`core/syntax/*`（**8 形式**のパーサ）・`core/model/*`
 > （10 型）・`core/resolve/dictionary.rs`（辞書と `'` の最短一致、§6.1 / §6.2）・
 > `core/resolve/modes.rs`（モード解決の 8 段、§6.4）・`core/resolve/role_language.rs`
-> （役割語パターン → 正規表現、§6.5）。
-> **空のまま**: `core/resolve/` の残り 2 本（M3 進行中）・`core/features/*`（M4）・`ports/**`・
+> （役割語パターン → 正規表現、§6.5）・`core/resolve/materials.rs`（資料 ID とインレイヒント、
+> §6.6）。
+> **空のまま**: `core/resolve/context_rules.rs`（M3 進行中）・`core/features/*`（M4）・`ports/**`・
 > `adapters/**`（M5 / M6）・`ui/**`（M7 以降）。本書の「モジュール構成」は **v1 の目標形**。
 >
 > **GUI は M7 まで動かない**（`PLANS.md` §3 I3）。M0 時点の `cargo run` は
@@ -351,6 +352,34 @@ let marks: Vec<Range<usize>> = role_language::dialogue_spans(raw)
 語クラスの正規表現が壊れている（`project.json` の書き間違い）パターンは**黙って捨てる**
 （§7 に対応コードが無い。§9.1 **A-24**）。未知のクラス名 `(ほげ)` は**リテラル扱い**（**B-69**）。
 `MatcherSet` は**編集のたびに作り直さない**こと（正規表現のコンパイルが本体のコスト。§6.5.5）。
+
+---
+
+### 5.4 資料 — `core/resolve/materials.rs`
+
+`'M0137` を `materials/index.json` の実体に当てる（正本は §6.6、判断は `PLANS.md` §9.2 B-71・B-72）。
+`'` トークンは**辞書が既に引いている**ので、ここは実体との照合と表示情報の担当。
+
+| 規則 | 内容 |
+|---|---|
+| 3 経路（§6.6.1） | `'M0137` → `Route::Id`（タイトルはインレイヒント）／`'M0137:タイトル` → `Route::IdWithTitle`（index と照合）／`'タイトル` → `Route::Title`（辞書の `MaterialTitle`。`normalize_to_id` が `'M0137` への置換を提案） |
+| **E006**（§6.6.3） | 明示タイトルが index の `title` と**正規化比較（§6.1.3）で不一致**。波線は `modifier.text_range`（タイトル部分だけ）。クイックフィックスは `TitleFixes` の 3 つ（**中身だけ**。文言は UI/i18n） |
+| **E007**（§6.6.3） | 資料 ID の形（`M` / `S` ＋ 4 桁以上）なのに index に無い。候補は `suggestions` が**近い順に 5 件**（正規化後のレーベンシュタイン距離で、ID とタイトルの近いほう） |
+| **E001 と重ねない**（B-71） | 資料 ID の形の未解決トークンは **E007 だけ**。M4 は `materials::scan_line` を入口にして、辞書の診断（E001 / E002 / E026 / W029）と資料の診断（E006 / E007 / W031）を**1 か所で**組むこと |
+| インレイヒント（§6.6.2） | 位置は**トークン直後**（ファイル単位）。タイトルは **24 字超で 23 字 + `…`**（字は Unicode の文字数）。`⟨⟩` と「提案中」「却下」の添え文言は **UI が組む**（§12.2）。色・サイズ・`Alt+H`・**選択やコピーの対象にしない**・エクスポートで出さない（すべて MUST）は UI 側 |
+| **W031**（§6.6.4） | 本文（C 形式）に書かれた資料参照。`scan_line` の `in_body` で切り替える（**ファイルの形式は呼び出し側が知る**、§3.2） |
+
+```rust
+// M4 の入口（1 行ぶん。辞書と資料の診断が一度に出る）
+let scan = materials::scan_line(line, line_start, &built.dictionary, &index, in_body);
+for resolved in &scan.resolutions {
+    if let Some(hint) = &resolved.hint { /* hint.at に ⟨タイトル⟩（UI が文言を組む） */ }
+}
+```
+
+`index.json` が壊れていても（**E025**）空の索引で続行するので、`resolve` は **E007** を返して止まらない
+（§4.3-4）。`Index::find_by_title` は完全一致なので、E006 とクイックフィックス 3 の照合は
+**`same_title`（正規化）**を使うこと。
 
 ---
 
