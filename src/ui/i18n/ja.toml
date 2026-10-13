@@ -151,3 +151,25 @@ version = "版を表示する"
 new_dir = "new という名前のディレクトリを開くときは novnow ./new と書いてください。"
 no_args = "端末から引数なしで起動したときは、GUI を出さずにこの使い方を表示します（GUI は novnow --gui）。"
 exit_codes = "終了コード: 0 正常 / 2 使い方の誤り / 3 プロジェクトの不備・v0 形式・新しすぎる版 / 4 読み書きの失敗 / 5 check がエラーを検出"
+
+# ============================================================ 診断の「どこ」（§14.2.5・§10.9.2、第 2.11 版）
+#
+# `core::features::place` の各場合。`novnow check` の `[…]` と GUI の診断タブの「位置」が使う。
+# {0} {1} は構造 ID（`@` なし）・名前・ID・タイトルなど、ファイルに書かれたままの文字列。
+
+[place]
+contents = "本文 @{0}"
+episode_plot = "話プロット @{0}"
+chapter_plot = "章プロット @{0}"
+chapter_plot_head = "章プロット"
+whole_plot = "全体プロット @{0}"
+whole_plot_head = "全体プロット"
+character = "登場人物「{0}」"
+character_mode = "登場人物「{0}」のモード {1}"
+word = "用語「{0}」"
+idea = "アイデア {0}「{1}」"
+material = "資料 {0}「{1}」"
+material_id = "資料 {0}"
+prompt = "プロンプト {0}"
+prompt_section = "プロンプト {0} の {1}"
+settings = "作品の設定"

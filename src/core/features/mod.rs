@@ -16,6 +16,8 @@ pub mod folding;
 pub mod formatting;
 pub mod hover;
 pub mod inlay_hint;
+/// LSP に対応しない補助（診断の「どこ」を作家の言葉で。§14.2.5・§10.9.2、第 2.11 版）。
+pub mod place;
 pub mod project;
 pub mod references;
 pub mod rename;

@@ -25,7 +25,7 @@ use novnow::adapters::storage_fs::{FsGate, FsStorage};
 use novnow::adapters::zip;
 use novnow::core::diagnostics::{Anchor, Arg, DiagnosticCode};
 use novnow::core::policy::{
-    Allowed, PathError, PolicyViolation, ProjectPath, Violation, WritePolicy,
+    Allowed, ExportKind, PathError, PolicyViolation, ProjectPath, Violation, WritePolicy,
 };
 use novnow::ports::dialog::ChosenPath;
 use novnow::ports::storage::{Storage, StorageError};
@@ -115,6 +115,16 @@ fn path(text: &str) -> ProjectPath {
     ProjectPath::new(text).expect("相対パス")
 }
 
+/// 保存ダイアログで Zip の保存先として指定されたパス。
+fn zip_choice(path: PathBuf) -> ChosenPath {
+    ChosenPath::from_save_dialog(path, ExportKind::Zip)
+}
+
+/// 保存ダイアログでテキストのエクスポートの保存先として指定されたパス（§17.2、第 2.11 版）。
+fn text_choice(path: PathBuf) -> ChosenPath {
+    ChosenPath::from_save_dialog(path, ExportKind::Text)
+}
+
 // ============================================================ core の判定
 
 #[test]
@@ -158,14 +168,14 @@ fn the_save_dialog_exception_allows_only_a_zip_file_outside() {
     // §13.1.1 の特例（第 2.10 版）: 判定は check_chosen_export だけ。check は特例を知らない
     let history = "/home/u/.local/state/novnow/recent.json";
     let mut policy = WritePolicy::new(Some(PathBuf::from(history)));
-    let chosen = |target: &str| policy.check_chosen_export(Path::new(target));
+    let chosen = |target: &str| policy.check_chosen_export(Path::new(target), ExportKind::Zip);
     // プロジェクトを開いていなくても、ダイアログで指定された外の Zip は書ける
     assert_eq!(
         chosen("/home/u/Desktop/novel.zip"),
         Ok(Allowed::ChosenExport)
     );
     policy.open(Path::new("/novels/hoshi")).expect("open");
-    let chosen = |target: &str| policy.check_chosen_export(Path::new(target));
+    let chosen = |target: &str| policy.check_chosen_export(Path::new(target), ExportKind::Zip);
     assert_eq!(
         chosen("/home/u/Desktop/novel.zip"),
         Ok(Allowed::ChosenExport)
@@ -179,7 +189,7 @@ fn the_save_dialog_exception_allows_only_a_zip_file_outside() {
     );
     let reason = |target: &str| {
         policy
-            .check_chosen_export(Path::new(target))
+            .check_chosen_export(Path::new(target), ExportKind::Zip)
             .expect_err(target)
             .reason
     };
@@ -200,6 +210,44 @@ fn the_save_dialog_exception_allows_only_a_zip_file_outside() {
             .reason,
         Violation::Outside
     );
+}
+
+#[test]
+fn the_exception_for_text_exports_accepts_only_txt_and_md() {
+    // §13.1.1 の特例（第 2.11 版）: テキストのエクスポート（§17.2 の「名前を付けて保存」・
+    // `novnow export --out`）は `.txt` / `.md` だけ。種類と拡張子が合わなければ特例にならない
+    let history = "/home/u/.local/state/novnow/recent.json";
+    let mut policy = WritePolicy::new(Some(PathBuf::from(history)));
+    policy.open(Path::new("/novels/hoshi")).expect("open");
+    let text = |target: &str| policy.check_chosen_export(Path::new(target), ExportKind::Text);
+    assert_eq!(text("/home/u/Desktop/hoshi.txt"), Ok(Allowed::ChosenExport));
+    assert_eq!(text("/home/u/Desktop/hoshi.MD"), Ok(Allowed::ChosenExport));
+    assert_eq!(text("/novels/hoshi/exports/a.txt"), Ok(Allowed::Project));
+    let reason = |target: &str, kind| {
+        policy
+            .check_chosen_export(Path::new(target), kind)
+            .expect_err(target)
+            .reason
+    };
+    assert_eq!(
+        reason("/home/u/Desktop/hoshi.zip", ExportKind::Text),
+        Violation::NotAnExport
+    );
+    assert_eq!(
+        reason("/home/u/Desktop/hoshi.txt", ExportKind::Zip),
+        Violation::NotAnExport
+    );
+    assert_eq!(
+        reason("/home/u/.bashrc", ExportKind::Text),
+        Violation::NotAnExport
+    );
+    assert_eq!(
+        reason("/home/u/Desktop/hoshi", ExportKind::Text),
+        Violation::NotAnExport
+    );
+    assert_eq!(reason(history, ExportKind::Text), Violation::NotAnExport);
+    assert_eq!(ExportKind::Text.extensions(), &["txt", "md"]);
+    assert_eq!(ExportKind::Zip.extensions(), &["zip"]);
 }
 
 #[test]
@@ -434,8 +482,7 @@ fn the_save_dialog_exception_writes_exactly_the_chosen_zip() {
     let before = tree(&world.outside);
     let target = world.outside.join("星屑の時計.zip");
     let written =
-        zip::export_to_chosen(&world.storage, ChosenPath::from_save_dialog(target.clone()))
-            .expect("export");
+        zip::export_to_chosen(&world.storage, zip_choice(target.clone())).expect("export");
     assert_eq!(written, std::fs::canonicalize(&target).expect("written"));
     // プロジェクトの外で増えたのは指定した Zip 1 個だけ（一時ファイルも残らない）
     let mut expected = before.clone();
@@ -456,8 +503,7 @@ fn the_save_dialog_exception_writes_exactly_the_chosen_zip() {
     assert!(names.contains(&"contents/01-01.txt"), "{names:?}");
     // ダイアログで上書きを確かめた既存の Zip は上書きする（直接・一時ファイルなし）
     std::fs::write(&target, b"old").expect("plant");
-    zip::export_to_chosen(&world.storage, ChosenPath::from_save_dialog(target.clone()))
-        .expect("overwrite");
+    zip::export_to_chosen(&world.storage, zip_choice(target.clone())).expect("overwrite");
     assert_ne!(std::fs::read(&target).expect("zip"), b"old");
     assert_eq!(tree(&world.outside).len(), before.len() + 1);
 }
@@ -467,7 +513,7 @@ fn the_save_dialog_exception_is_only_for_zip_files_and_only_through_its_door() {
     let world = World::new("policy-chosen-limits");
     let before = tree(&world.outside);
     let gate = &world.gate;
-    let chosen = |name: &str| ChosenPath::from_save_dialog(world.outside.join(name));
+    let chosen = |name: &str| zip_choice(world.outside.join(name));
     // 事前判定は panic しない（ダイアログの結果なので E060 を出すだけ。§13.1.2）
     let text = gate
         .check_chosen_export(&chosen("novel.txt"))
@@ -484,7 +530,7 @@ fn the_save_dialog_exception_is_only_for_zip_files_and_only_through_its_door() {
     rejected(|| gate.write_chosen_export(chosen("novel.txt"), b"x"));
     rejected(|| gate.write_chosen_export(chosen("victim.txt"), b"x"));
     let history = gate.history_file().expect("history");
-    rejected(|| gate.write_chosen_export(ChosenPath::from_save_dialog(history.clone()), b"x"));
+    rejected(|| gate.write_chosen_export(zip_choice(history.clone()), b"x"));
     assert!(!history.exists());
     // ほかの口は特例を使えない（外の `.zip` でも拒否）
     let zip_outside = world.outside.join("novel.zip");
@@ -493,7 +539,7 @@ fn the_save_dialog_exception_is_only_for_zip_files_and_only_through_its_door() {
     assert!(gate.check(&zip_outside).is_err());
     // 親ディレクトリは作らない（ダイアログで選べるのは既存のディレクトリだけ）
     let missing = world.outside.join("missing/novel.zip");
-    match gate.write_chosen_export(ChosenPath::from_save_dialog(missing), b"x") {
+    match gate.write_chosen_export(zip_choice(missing), b"x") {
         Err(StorageError::Io { kind, .. }) => assert_eq!(kind, std::io::ErrorKind::NotFound),
         other => panic!("親ディレクトリが無いのに書けた: {other:?}"),
     }
@@ -506,11 +552,57 @@ fn the_save_dialog_exception_is_only_for_zip_files_and_only_through_its_door() {
 }
 
 #[test]
+fn a_text_export_goes_only_to_the_chosen_txt_or_md() {
+    // §17.2（第 2.11 版）: ユーザーが明示したパスにだけ書く。1 個だけ・直接・親ディレクトリは作らない
+    let world = World::new("policy-chosen-text");
+    let before = tree(&world.outside);
+    let gate = &world.gate;
+    let target = world.outside.join("星屑の時計-01-20261013-1200.txt");
+    let written = gate
+        .write_chosen_export(text_choice(target.clone()), "本文\n".as_bytes())
+        .expect("text");
+    assert_eq!(written, std::fs::canonicalize(&target).expect("written"));
+    let md = world.outside.join("星屑の時計.md");
+    gate.write_chosen_export(text_choice(md.clone()), b"# 01\n")
+        .expect("md");
+    let mut expected = before.clone();
+    expected.insert(
+        "星屑の時計-01-20261013-1200.txt".to_owned(),
+        "本文\n".as_bytes().to_vec(),
+    );
+    expected.insert("星屑の時計.md".to_owned(), b"# 01\n".to_vec());
+    assert_eq!(tree(&world.outside), expected);
+    // 種類と拡張子が合わないもの・既存の別ファイルは書かない
+    assert_eq!(
+        gate.check_chosen_export(&text_choice(world.outside.join("a.zip")))
+            .expect_err("zip")
+            .reason,
+        Violation::NotAnExport
+    );
+    rejected(|| gate.write_chosen_export(text_choice(world.outside.join("victim.json")), b"x"));
+    // Zip の口にテキストの指定を渡しても書かない（事前判定で E060）
+    match zip::export_to_chosen(&world.storage, text_choice(world.outside.join("a.txt"))) {
+        Err(zip::ArchiveError::Storage(StorageError::Policy(violation))) => {
+            assert_eq!(violation.reason, Violation::NotAnExport);
+        }
+        other => panic!("拒否されなかった: {other:?}"),
+    }
+    assert!(!world.outside.join("a.txt").exists());
+    // ほかの口は外の `.txt` を書けない
+    rejected(|| gate.write_atomic(&world.outside.join("b.txt"), b"x"));
+    // 親ディレクトリは作らない
+    match gate.write_chosen_export(text_choice(world.outside.join("no/c.txt")), b"x") {
+        Err(StorageError::Io { kind, .. }) => assert_eq!(kind, std::io::ErrorKind::NotFound),
+        other => panic!("{other:?}"),
+    }
+    assert!(!world.outside.join("no").exists());
+}
+
+#[test]
 fn the_save_dialog_exception_inside_the_project_is_an_ordinary_atomic_write() {
     let world = World::new("policy-chosen-inside");
     let target = world.root.join("exports/hoshi.zip");
-    let written = zip::export_to_chosen(&world.storage, ChosenPath::from_save_dialog(target))
-        .expect("export");
+    let written = zip::export_to_chosen(&world.storage, zip_choice(target)).expect("export");
     assert_eq!(
         written,
         std::fs::canonicalize(world.root.join("exports/hoshi.zip")).expect("written")
@@ -518,7 +610,7 @@ fn the_save_dialog_exception_inside_the_project_is_an_ordinary_atomic_write() {
     // 書き出し先の Zip 自身は中身に入らない（2 回目でも入れ子にならない）
     let again = zip::export_to_chosen(
         &world.storage,
-        ChosenPath::from_save_dialog(world.root.join("exports/hoshi.zip")),
+        zip_choice(world.root.join("exports/hoshi.zip")),
     )
     .expect("again");
     let imported = zip::import(&std::fs::read(again).expect("zip")).expect("import");
@@ -653,13 +745,13 @@ mod symlinks {
         symlink(world.outside.join("victim.txt"), &link).expect("ln");
         let violation = world
             .gate
-            .check_chosen_export(&ChosenPath::from_save_dialog(link.clone()))
+            .check_chosen_export(&zip_choice(link.clone()))
             .expect_err("link");
         assert_eq!(violation.reason, Violation::NotAnExport);
         rejected(|| {
             world
                 .gate
-                .write_chosen_export(ChosenPath::from_save_dialog(link.clone()), b"x")
+                .write_chosen_export(zip_choice(link.clone()), b"x")
         });
         // 履歴ファイルへのリンクも同じ
         let history = world.gate.history_file().expect("history");
@@ -669,7 +761,7 @@ mod symlinks {
         rejected(|| {
             world
                 .gate
-                .write_chosen_export(ChosenPath::from_save_dialog(to_history.clone()), b"x")
+                .write_chosen_export(zip_choice(to_history.clone()), b"x")
         });
         assert_eq!(std::fs::read(&history).expect("read"), b"{}");
         world.outside_untouched(&before);
@@ -720,11 +812,8 @@ fn after_a_full_session_the_only_files_outside_the_projects_are_the_history_and_
     block_on(storage.append(&path("agents/log/2026-10-13.jsonl"), "{}\n")).expect("a");
     block_on(storage.write(&path("agents/proposals/H0001.md"), "# 提案\n")).expect("w");
     let zip_path = zip::export_project(&storage, "hoshi").expect("export");
-    zip::export_to_chosen(
-        &storage,
-        ChosenPath::from_save_dialog(desktop.join("hoshi.zip")),
-    )
-    .expect("export to the chosen path");
+    zip::export_to_chosen(&storage, zip_choice(desktop.join("hoshi.zip")))
+        .expect("export to the chosen path");
     block_on(storage.remove(&path(".novnow/ui.json"))).expect("rm");
     // Zip を別のディレクトリに取り込む（新しいプロジェクトルート）
     let bytes = storage.read_bytes(&zip_path).expect("zip");

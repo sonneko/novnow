@@ -152,3 +152,26 @@ version = "show the version"
 new_dir = "To open a directory named new, write novnow ./new."
 no_args = "Started from a terminal without arguments, novnow prints this help instead of starting the GUI (use novnow --gui)."
 exit_codes = "Exit codes: 0 ok / 2 usage error / 3 incomplete, v0 or too-new project / 4 read or write failure / 5 check found errors"
+
+# ============================================================ Where the problem is (§14.2.5, §10.9.2, rev. 2.11)
+#
+# The cases of `core::features::place`, used by the `[…]` of `novnow check` and by the "where"
+# column of the GUI's diagnostics tab. {0} {1} are strings as written in the files (structure IDs
+# without `@`, names, IDs, titles).
+
+[place]
+contents = "prose @{0}"
+episode_plot = "episode plot @{0}"
+chapter_plot = "chapter plot @{0}"
+chapter_plot_head = "chapter plot"
+whole_plot = "overall plot @{0}"
+whole_plot_head = "overall plot"
+character = "character \"{0}\""
+character_mode = "character \"{0}\", mode {1}"
+word = "term \"{0}\""
+idea = "idea {0} \"{1}\""
+material = "material {0} \"{1}\""
+material_id = "material {0}"
+prompt = "prompt {0}"
+prompt_section = "prompt {0}, section {1}"
+settings = "project settings"

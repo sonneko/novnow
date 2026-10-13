@@ -23,7 +23,8 @@
 > `ports/*`（5 本の trait）・`adapters/{storage_fs,recent_file,zip,project_load,storage_idb,env_system,clock_system}.rs`。本書 §5.7。
 > **M6**: `cli/*`（§14 の判定・起動前の検査・`new` / `check`。`export` / `migrate` / `mcp` は枠だけ）・`main.rs`・
 > `ui/i18n/mod.rs`（文言カタログの読み込みと言語の決定。`cli.*` の文言 44 件）・`core/template/`（`novnow new` の雛形と
-> 既定プロンプト）。本書 §2・§5.8。あわせて §13.1.1 の特例（保存ダイアログで指定した Zip）を入れた（§5.7）。
+> 既定プロンプト）。本書 §2・§5.8。あわせて §13.1.1 の特例（ユーザーが明示的に指定したエクスポートの書き出し先。
+> Zip とテキスト）を入れた（§5.7）。`core/features/place.rs`（診断の「どこ」を作家の言葉で、§14.2.5）も M6 の後に足した。
 > **空のまま**: `core/aicontext/*`（M10）・`adapters/mcp_stdio.rs`（M10）・`adapters/dialog_rfd.rs`（M7）・
 > `ui/**`（M7 以降。`ui/i18n/` を除く）。本書の「モジュール構成」は **v1 の目標形**。
 >
@@ -201,7 +202,7 @@ novnow --version | -V
 
 ```bash
 novnow new ./my-novel        # 雛形（§14.5）。既存のファイルは上書きしない。v0 / 新しすぎる版には何も書かない
-novnow check ./my-novel      # 1 行 1 件: contents/01-01.txt:3:1: E001 辞書にない参照です: 星屑
+novnow check ./my-novel      # 1 行 1 件: contents/01-01.txt:3:1: [本文 @01-01-01-02] E001 辞書にない参照です: 星屑
 NOVNOW_LANG=en novnow check ./my-novel   # 言語: NOVNOW_LANG → LC_ALL / LC_MESSAGES / LANG → ja（ui.json は読まない）
 NO_COLOR=1 novnow check ./my-novel       # 色は端末のときだけ・Windows では付けない
 ```
@@ -486,8 +487,8 @@ let items = completion::at(document, cursor, &project);           // `'` の補�
 
 **規則 10**（§13.1）: 書いてよいのは**今開いているプロジェクトの中**と**パス履歴ファイル 1 個**だけ。
 一時ファイルもキャッシュも例外にならない。M5 はこれを**構造で**守る形にした（判断は `PLANS.md` §9.2 B-88〜B-98）。
-**特例は 1 つだけ**: 保存ダイアログでユーザーが指定した Zip の保存先（§13.1.1、ユーザー裁定 2026-10-13・
-仕様 第 2.10 版、B-99）。
+**特例は 1 つだけ**: ユーザーが書き出しを指示して明示的に指定した書き出し先（§13.1.1、ユーザー裁定 2026-10-13・
+仕様 第 2.10 版で Zip、第 2.11 版でテキスト。B-99・B-109）。
 
 | 規則 | 内容 |
 |---|---|
@@ -500,7 +501,7 @@ let items = completion::at(document, cursor, &project);           // `'` の補�
 | 読み込み（B-94） | `adapters::project_load::load(&storage)` が一覧 → UTF-8 の確認 → `model::project::validate`（§4.3）→ §5.0.4 の正規化 → `features::Project`。設定は `project.json` の文書から集約が読む（B-89）。起動前の軽い検査は `listing` ＋ `validate` |
 | 外部変更（B-95） | `project_load::poll(&storage, &mut snapshot)` を 1,000ms ごと（タイマは UI）。候補は中身を読んで `policy::external_change::react`（Clean は再読込 ＋ I052、Dirty は衝突、辞書の 3 ファイルは常に再読込） |
 | Zip（B-93・B-99） | `adapters::zip::{export, import}` はバイト列どうし（デスクトップと Web で共通）。デスクトップの書き出しは **保存ダイアログ**（`Dialog::save_zip`、初期値 `storage.absolute(&zip::export_path(name))`）→ `zip::export_to_chosen(&storage, chosen)`。ダイアログを通さない `export_project` は `exports/<name>.zip`。取り込みは新しいルートへ（`FsStorage::create` ＋ `import_project`。既存のファイルは上書きしない）。何を入れて何を取り込むかは `policy::archive` |
-| 保存ダイアログの特例（B-99） | プロジェクトの外に書けるのは `FsGate::write_chosen_export(ChosenPath, …)` だけ（`.zip` 1 個・1 回・直接・親ディレクトリは作らない）。`ChosenPath::from_save_dialog` を呼んでよいのは **`Dialog::save_zip` の実装とテストだけ**。ダイアログの結果は `FsGate::check_chosen_export`（panic しない）で先に確かめて E060 を出す（`export_to_chosen` は内部でそうしている）。`WritePolicy::check` は特例を知らないので、他の口に外の `.zip` を渡しても拒否される |
+| 明示された書き出し先の特例（B-99・B-109） | プロジェクトの外に書けるのは `FsGate::write_chosen_export(ChosenPath, …)` だけ（ファイル 1 個・1 回・直接・親ディレクトリは作らない）。`ChosenPath` は書き出しの種類 `ExportKind` を持ち、書ける拡張子は Zip が `.zip`、Text が `.txt` / `.md`（種類に合わなければ E060）。`ChosenPath::from_save_dialog(path, kind)` を呼んでよいのは **`Dialog::save_zip` / `save_text` の実装とテストだけ**、`ChosenPath::from_command_line(path, kind)` は **`novnow export --out` だけ**。結果は `FsGate::check_chosen_export`（panic しない）で先に確かめて E060 を出す（`zip::export_to_chosen` は内部でそうしている。テキストの書き出しも同じにする）。`WritePolicy::check` は特例を知らないので、他の口に外のパスを渡しても拒否される |
 | IndexedDB（B-96） | `adapters::storage_idb`。純粋な部分（レコード・`app` の許可キー・W062・v0 の取り込みの計画）はネイティブでテストし、`wasm32` の接続はコンパイルだけを CI で確かめる（実行の確認は M7）。`app` ストアに書く口は `Idb::push_recent` だけ |
 
 ```rust
@@ -533,6 +534,7 @@ M6 で入れた（判断は `PLANS.md` §9.2 B-100〜B-108。使い方は本書 
 | テスト | `Cli::new(&FakeEnv, &mut Vec<u8>, &mut Vec<u8>, cwd, Terminal)` でプロセス内で走らせる（`tests/cli.rs`）。**プロセスの環境変数とカレントディレクトリは書き換えない**（並列に走る）。実行ファイルは `env!("CARGO_BIN_EXE_novnow")` を `env_clear()` した子プロセスで |
 | 雛形 | `core/template/project/` を直したら `novnow check` の 0 件を保つ（`tests/template.rs`）。行頭に `ascii キー:` や §5.0.6 の別名＋コロン（`資料:` `条件:` 等）を書くとフィールド行になる（W011 など）。B 形式・C 形式の末尾に `;` を置くと節が 1 つ増える（W030）。URL は書かない（§14.2.1） |
 | Windows | `#[cfg(windows)]` のコードは作業環境で検査できない（Windows の std が無い）。CI の wasm ジョブの `cargo check --target x86_64-pc-windows-msvc` が見る。FFI は `main.rs` の `AttachConsole` と `env_system.rs` の `GetUserDefaultLocaleName` の 2 つだけ |
+| 診断の「どこ」（B-110） | `check` の 1 行は `パス:行:列: [場所] コード 文言`。場所は `core::features::place::at(document, byte, project)`（文言を持たない）→ `ui::i18n::place(locale, &place)`（`place.*`）。GUI の診断タブの「位置」も同じ 2 つを使う。新しい文書の種類を足したら `place::at` と §14.2.5 の表と `tests/place.rs` |
 
 ---
 

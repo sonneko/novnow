@@ -16,6 +16,7 @@ use std::collections::HashMap;
 use std::sync::OnceLock;
 
 use crate::core::diagnostics::{Arg, Diagnostic};
+use crate::core::features::place::Place;
 use crate::ports::env::Env;
 
 /// 日本語のカタログ（正本）。
@@ -206,6 +207,41 @@ pub fn diagnostic(locale: Locale, found: &Diagnostic) -> String {
         .collect();
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
     fill(text(locale, &key), &args)
+}
+
+/// 診断の「どこ」（`core::features::place`）を作家の言葉にする（`place.*`。§14.2.5・§10.9.2、
+/// 第 2.11 版）。`novnow check` の `[…]` と、GUI の診断タブの「位置」が同じものを使う。
+pub fn place(locale: Locale, found: &Place) -> String {
+    match found {
+        Place::Contents(id) => format(locale, "place.contents", &[id]),
+        Place::EpisodePlot(id) => format(locale, "place.episode_plot", &[id]),
+        Place::ChapterPlot(id) if id.is_empty() => {
+            text(locale, "place.chapter_plot_head").to_owned()
+        }
+        Place::ChapterPlot(id) => format(locale, "place.chapter_plot", &[id]),
+        Place::WholePlot(Some(id)) => format(locale, "place.whole_plot", &[id]),
+        Place::WholePlot(None) => text(locale, "place.whole_plot_head").to_owned(),
+        Place::Character { name, mode: None } => format(locale, "place.character", &[name]),
+        Place::Character {
+            name,
+            mode: Some(mode),
+        } => format(locale, "place.character_mode", &[name, mode]),
+        Place::Word(term) => format(locale, "place.word", &[term]),
+        Place::Idea { id, title } => format(locale, "place.idea", &[id, title]),
+        Place::Material { id, title } if title.is_empty() => {
+            format(locale, "place.material_id", &[id])
+        }
+        Place::Material { id, title } => format(locale, "place.material", &[id, title]),
+        Place::Prompt {
+            role,
+            section: None,
+        } => format(locale, "place.prompt", &[role]),
+        Place::Prompt {
+            role,
+            section: Some(section),
+        } => format(locale, "place.prompt_section", &[role, section]),
+        Place::Settings => text(locale, "place.settings").to_owned(),
+    }
 }
 
 /// `{0}` `{1}` … を `args` で埋める（1 回だけ走査するので、値の中の `{0}` は埋め直さない）。

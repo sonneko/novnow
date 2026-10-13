@@ -197,6 +197,14 @@ pub fn export_to_chosen(
     storage: &super::storage_fs::FsStorage,
     chosen: crate::ports::dialog::ChosenPath,
 ) -> Result<std::path::PathBuf, ArchiveError> {
+    if chosen.kind() != crate::core::policy::ExportKind::Zip {
+        return Err(ArchiveError::Storage(StorageError::Policy(
+            crate::core::policy::PolicyViolation {
+                target: chosen.path().to_path_buf(),
+                reason: crate::core::policy::Violation::NotAnExport,
+            },
+        )));
+    }
     let target = storage
         .gate()
         .check_chosen_export(&chosen)

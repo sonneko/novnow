@@ -4,7 +4,9 @@
 //! 2. `project_load::load` で全文書を読み、§4.3 の判定（不備・v0・新しすぎる → 3、不正 UTF-8 → 4。
 //!    表示は `novnow <dir>` と同じ）。
 //! 3. 全文書に `diagnostics::document`（M4。GUI の波線と同じもの）。1 行 1 件で標準出力に
-//!    `パス:行:列: コード 文言`（行と列は 1 始まり、列は文字数。位置を持たない診断は `パス: コード 文言`）。
+//!    `パス:行:列: [場所] コード 文言`（行と列は 1 始まり、列は文字数。位置を持たない診断は
+//!    `パス: [場所] コード 文言`）。`[場所]` は作家の言葉での「どこ」（`core::features::place`。
+//!    本文は `[本文 @01-04-02-03]`、資料は `[資料 M0137「…」]` など。決まらなければ省く。第 2.11 版）。
 //!    並びはパス → 位置 → コード。最後に件数の要約を 1 行。
 //! 4. E が 1 件でもあれば 5、無ければ 0（W と I は 0 のまま、§14.2.5）。
 
@@ -13,6 +15,7 @@ use std::path::Path;
 use crate::adapters::block_on;
 use crate::adapters::project_load;
 use crate::core::diagnostics::{self, Diagnostic, Severity};
+use crate::core::features::place;
 use crate::core::model::document::Document;
 use crate::core::text::position::LineTable;
 use crate::ports::env::Env;
@@ -43,7 +46,13 @@ pub fn run<E: Env>(cli: &mut Cli<'_, E>, dir: &Path) -> Exit {
     for document in &documents {
         for (position, found) in located(document, &loaded.project) {
             counts.add(found.severity());
-            let line = render(cli, document, position, &found);
+            let place = place::at(
+                document,
+                found.range.as_ref().map(|range| range.start),
+                &loaded.project,
+            )
+            .map(|place| i18n::place(cli.locale(), &place));
+            let line = render(cli, document, position, place.as_deref(), &found);
             cli.line(Stream::Out, &line);
         }
     }
@@ -94,11 +103,12 @@ fn located(
     out
 }
 
-/// 1 行にする。
+/// 1 行にする（`パス:行:列: [場所] コード 文言`）。
 fn render<E: Env>(
     cli: &Cli<'_, E>,
     document: &Document,
     position: Position,
+    place: Option<&str>,
     found: &Diagnostic,
 ) -> String {
     let paint = match found.severity() {
@@ -108,9 +118,12 @@ fn render<E: Env>(
     };
     let code = cli.paint(Stream::Out, paint, found.code.as_str());
     let message = i18n::diagnostic(cli.locale(), found);
+    let place = place.map(|text| format!("[{text}] ")).unwrap_or_default();
     match position {
-        Some((line, column)) => format!("{}:{line}:{column}: {code} {message}", document.path),
-        None => format!("{}: {code} {message}", document.path),
+        Some((line, column)) => {
+            format!("{}:{line}:{column}: {place}{code} {message}", document.path)
+        }
+        None => format!("{}: {place}{code} {message}", document.path),
     }
 }
 

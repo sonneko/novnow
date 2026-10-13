@@ -14,6 +14,9 @@
 //! M6 から: §12.7 の表の `cli.*` の行がカタログの写しであること、CLI のソースが使うキーが
 //! 両方のカタログにあり、使われていない `cli.*` のキーが無いこと、実行時の `ui::i18n`
 //! （読み込み・プレースホルダ・言語の決定 §12.4）が正しいこと。
+//!
+//! 第 2.11 版から: 診断の「どこ」（`place.*`、§14.2.5）も同じく、`ui::i18n` が使うキーが揃い、
+//! 使われていないキーが無いこと。
 
 mod sandbox;
 
@@ -226,25 +229,14 @@ fn the_cli_rows_of_the_spec_table_are_copied_verbatim() {
     assert_eq!(seen, 4, "§12.7 の cli.* の行の数");
 }
 
-/// `src/cli/**` と `src/main.rs` の文字列リテラルに現れる `cli.…` のキー。
-fn cli_keys_in_source() -> BTreeSet<String> {
-    fn collect(dir: &Path, out: &mut Vec<PathBuf>) {
-        for entry in std::fs::read_dir(dir).expect("read_dir").flatten() {
-            let path = entry.path();
-            if path.is_dir() {
-                collect(&path, out);
-            } else if path.extension().is_some_and(|ext| ext == "rs") {
-                out.push(path);
-            }
-        }
-    }
-    let mut files = vec![PathBuf::from("src/main.rs")];
-    collect(Path::new("src/cli"), &mut files);
+/// `files` の文字列リテラルに現れる `prefix…` のキー（`prefix` は `cli.` など）。
+fn keys_in_source(prefix: &str, files: &[PathBuf]) -> BTreeSet<String> {
+    let opening = format!("\"{prefix}");
     let mut keys = BTreeSet::new();
     for file in files {
-        let source = std::fs::read_to_string(&file).expect("read");
+        let source = std::fs::read_to_string(file).expect("read");
         let mut rest = source.as_str();
-        while let Some(at) = rest.find("\"cli.") {
+        while let Some(at) = rest.find(&opening) {
             let after = &rest[at + 1..];
             let end = after.find('"').expect("閉じる引用符");
             keys.insert(after[..end].to_owned());
@@ -252,6 +244,33 @@ fn cli_keys_in_source() -> BTreeSet<String> {
         }
     }
     keys
+}
+
+/// `dir` の下の `.rs` を全部。
+fn rust_files(dir: &Path, out: &mut Vec<PathBuf>) {
+    for entry in std::fs::read_dir(dir).expect("read_dir").flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            rust_files(&path, out);
+        } else if path.extension().is_some_and(|ext| ext == "rs") {
+            out.push(path);
+        }
+    }
+}
+
+/// `src/cli/**` と `src/main.rs` の文字列リテラルに現れる `cli.…` のキー。
+fn cli_keys_in_source() -> BTreeSet<String> {
+    let mut files = vec![PathBuf::from("src/main.rs")];
+    rust_files(Path::new("src/cli"), &mut files);
+    keys_in_source("cli.", &files)
+}
+
+/// カタログ（ja）の `prefix…` のキーのうち、`used` に無いもの。
+fn unused_keys(prefix: &str, used: &BTreeSet<String>) -> Vec<String> {
+    flatten(JA, "ja.toml")
+        .into_keys()
+        .filter(|key| key.starts_with(prefix) && !used.contains(key))
+        .collect()
 }
 
 #[test]
@@ -267,13 +286,25 @@ fn every_cli_key_used_in_the_source_exists_and_none_is_unused() {
         assert!(ja.contains_key(key), "ja.toml に {key} が無い");
         assert!(en.contains_key(key), "en.toml に {key} が無い");
     }
-    let defined: BTreeSet<String> = ja
-        .keys()
-        .filter(|key| key.starts_with("cli."))
-        .cloned()
-        .collect();
-    let unused: Vec<&String> = defined.difference(&used).collect();
+    let unused = unused_keys("cli.", &used);
     assert!(unused.is_empty(), "使われていない cli.* のキー: {unused:?}");
+}
+
+#[test]
+fn every_place_key_used_in_the_source_exists_and_none_is_unused() {
+    let ja = flatten(JA, "ja.toml");
+    let en = flatten(EN, "en.toml");
+    let used = keys_in_source("place.", &[PathBuf::from("src/ui/i18n/mod.rs")]);
+    assert!(used.len() >= 10, "キーが少なすぎる: {used:?}");
+    for key in &used {
+        assert!(ja.contains_key(key), "ja.toml に {key} が無い");
+        assert!(en.contains_key(key), "en.toml に {key} が無い");
+    }
+    let unused = unused_keys("place.", &used);
+    assert!(
+        unused.is_empty(),
+        "使われていない place.* のキー: {unused:?}"
+    );
 }
 
 #[test]

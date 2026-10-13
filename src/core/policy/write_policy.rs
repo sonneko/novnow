@@ -5,10 +5,11 @@
 //! 1. 現在開いているプロジェクトルート配下
 //! 2. パス履歴ファイル 1 個（§13.2）。その親ディレクトリの作成も履歴の書き込みの一部として許す（第 2.9 版）
 //!
-//! **特例は 1 つだけ**（§13.1.1、ユーザー裁定 2026-10-13・第 2.10 版）: デスクトップの Zip エクスポートで、
-//! ユーザーが**保存ダイアログで指定した** `.zip` のパスはプロジェクトの外でも書いてよい。判定は
-//! [`WritePolicy::check_chosen_export`] だけが行い、[`WritePolicy::check`] は特例を知らない
-//! （ほかの書き込みの口が特例を使えないようにするため。`PLANS.md` §9.2 B-99）。
+//! **特例は 1 つだけ**（§13.1.1、ユーザー裁定 2026-10-13・第 2.10 / 2.11 版）: エクスポート（Zip と
+//! テキスト）で、ユーザーが保存先として**明示した**パス（保存ダイアログ・`novnow export --out`）は
+//! プロジェクトの外でも書いてよい。書けるのはエクスポートの種類ごとの拡張子（[`ExportKind`]）の
+//! ファイルだけ。判定は [`WritePolicy::check_chosen_export`] だけが行い、[`WritePolicy::check`] は
+//! 特例を知らない（ほかの書き込みの口が特例を使えないようにするため。`PLANS.md` §9.2 B-99・B-109）。
 //!
 //! # 分担（§13.1.2 第 2.9 版）
 //!
@@ -53,7 +54,7 @@ pub enum Allowed {
     History,
     /// 履歴ファイルの祖先ディレクトリ（作成だけに使う。[`WritePolicy::check_dir`]）。
     HistoryDir,
-    /// 保存ダイアログでユーザーが指定した Zip（プロジェクトの外。§13.1.1 の特例、第 2.10 版）。
+    /// ユーザーが保存先として明示したエクスポート（プロジェクトの外。§13.1.1 の特例、第 2.10 / 2.11 版）。
     /// [`WritePolicy::check_chosen_export`] だけが返す。
     ChosenExport,
 }
@@ -72,13 +73,41 @@ pub enum Violation {
     /// シンボリックリンクを解決できない（壊れたリンク・読めないディレクトリ）。行き先を
     /// 確かめられないので書かない（adapters の関門が使う）。
     Unresolved,
-    /// 保存ダイアログの特例（§13.1.1）を使えない: ファイル名が `.zip` で終わらない、または
-    /// 履歴ファイル（[`WritePolicy::check_chosen_export`]）。
+    /// 明示された保存先の特例（§13.1.1）を使えない: ファイル名がエクスポートの種類の拡張子
+    /// （[`ExportKind::extensions`]）で終わらない、または履歴ファイル（[`WritePolicy::check_chosen_export`]）。
     NotAnExport,
 }
 
-/// 保存ダイアログの特例で書けるファイルの拡張子（§13.1.1・§13.5。大文字小文字は問わない）。
-pub const CHOSEN_EXPORT_EXTENSION: &str = "zip";
+/// 特例で書けるエクスポートの種類（§13.1.1）。種類ごとに書ける拡張子が決まっている
+/// （`.zip` を装って原稿や設定ファイルを潰させないため）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ExportKind {
+    /// Zip（§13.5）。`.zip` だけ。
+    Zip,
+    /// アノテーションを除いたテキスト（§17.2）。`.txt` と `.md` だけ。
+    Text,
+}
+
+impl ExportKind {
+    /// 書ける拡張子（小文字。比べるときは大文字小文字を問わない）。
+    pub fn extensions(self) -> &'static [&'static str] {
+        match self {
+            Self::Zip => &["zip"],
+            Self::Text => &["txt", "md"],
+        }
+    }
+
+    /// `path` の拡張子がこの種類のものか。
+    pub fn accepts(self, path: &Path) -> bool {
+        path.extension()
+            .and_then(|extension| extension.to_str())
+            .is_some_and(|extension| {
+                self.extensions()
+                    .iter()
+                    .any(|allowed| extension.eq_ignore_ascii_case(allowed))
+            })
+    }
+}
 
 /// 規則 10 の違反（§13.1.2）。表示は **E060**（[`PolicyViolation::diagnostic`]）。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -166,20 +195,20 @@ impl WritePolicy {
         self.inside_project(target, &normal)
     }
 
-    /// 保存ダイアログでユーザーが指定した Zip の保存先を書いてよいか（§13.1.1 の特例、第 2.10 版）。
+    /// ユーザーが保存先として明示したエクスポートを書いてよいか（§13.1.1 の特例、第 2.10 / 2.11 版）。
     /// `target` は解決済みの絶対パス（シンボリックリンクなら行き先）。
     ///
-    /// ファイル名が `.zip`（[`CHOSEN_EXPORT_EXTENSION`]）で終わらないもの・履歴ファイルは
+    /// ファイル名が `kind` の拡張子（[`ExportKind::extensions`]）で終わらないもの・履歴ファイルは
     /// [`Violation::NotAnExport`]。プロジェクトの中なら [`Allowed::Project`]（ふつうの原子的保存で書く）、
     /// 外なら [`Allowed::ChosenExport`]。プロジェクトを開いていなくても外のパスは許す。
     /// **許可は覚えない**（関門がその 1 回の書き込みの直前に呼ぶ）。
-    pub fn check_chosen_export(&self, target: &Path) -> Result<Allowed, PolicyViolation> {
+    pub fn check_chosen_export(
+        &self,
+        target: &Path,
+        kind: ExportKind,
+    ) -> Result<Allowed, PolicyViolation> {
         let normal = self.normal(target)?;
-        let is_export = normal
-            .extension()
-            .and_then(|extension| extension.to_str())
-            .is_some_and(|extension| extension.eq_ignore_ascii_case(CHOSEN_EXPORT_EXTENSION));
-        if !is_export || self.history_file.as_ref() == Some(&normal) {
+        if !kind.accepts(&normal) || self.history_file.as_ref() == Some(&normal) {
             return Err(PolicyViolation {
                 target: target.to_path_buf(),
                 reason: Violation::NotAnExport,

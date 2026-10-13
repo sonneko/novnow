@@ -20,12 +20,12 @@
 |---|---|
 | `main` | `00a5813`（PR #11 マージ済み。M0〜M3 ＋ 本書と `scripts/`） |
 | 作業ブランチ | セッションが指定したもの固定（2026-10-13 のセッションは `arena/cb878908-novnow`）。**PR #12** に M4・M5・M6 を積んだ（ユーザー指示「同じ PR で続ける・マージはまだしない」）。**マージはユーザー** |
-| マイルストーン | **M0〜M6 完了**（PR #12 のマージ待ち。M6 は「Windows でエクスプローラから起動してコンソールが出ない」の手動確認だけが未了）。**次は M7「UI シェル ＋ `write`」**（`PLANS.md` §5.8） |
-| 仕様書 | **第 2.10 版**（2026-10-13。§13.1.1 の特例＝保存ダイアログで指定した Zip と、§14 の補足）。診断コード **80 件**（§7:39 + §7.1:14 + §7.2:27） |
+| マイルストーン | **M0〜M6 完了**（PR #12 のマージ待ち。Windows の確認もユーザーが済ませた）。**M7「UI シェル ＋ `write`」に着手**（`PLANS.md` §5.8） |
+| 仕様書 | **第 2.11 版**（2026-10-13。§13.1.1 の特例をテキストのエクスポートに広げた・`check` の `[場所]`）。診断コード **80 件**（§7:39 + §7.1:14 + §7.2:27） |
 | テスト | **889 件緑**（`bash scripts/verify.sh`） |
 | 未決の裁定 | なし |
 
-M6 で何を入れたか・決めたか（B-99〜B-108）は `PLANS.md` §5.7 の進捗ノートと §9.2、使い方は `DEVELOPERS.md` §2・§5.8。
+M6 で何を入れたか・決めたか（B-99〜B-110）は `PLANS.md` §5.7 の進捗ノートと §9.2、使い方は `DEVELOPERS.md` §2・§5.8。
 
 ### 次の一手（M7 に入る人へ）
 
@@ -33,8 +33,10 @@ M6 で何を入れたか・決めたか（B-99〜B-108）は `PLANS.md` §5.7 �
    起動・開けたら `RecentFile::push`・`cli::GUI_AVAILABLE` を `cfg!(feature = "ui")` に）が M6 からの引き継ぎ。
 2. GUI の文言は `ui/i18n/{ja,en}.toml` に足す（読み込み・言語の決定は M6 で済み。`Locale::detect(ui.json の language, env)`）。
    `ui::i18n` だけは GUI なしでもビルドされるので **egui を使わない**（`tests/layering.rs`）。
-3. Zip の書き出しは保存ダイアログ（`Dialog::save_zip`）→ `zip::export_to_chosen`。外に書けるのはこの口だけ（B-99）。
-4. M7 の完了条件に `docs/verify-rule10.md` の GUI での実施と、§19.2 の GUI の項目（M6 から移した）がある。
+3. 外に書けるのは `FsGate::write_chosen_export(ChosenPath)` だけ（Zip は `Dialog::save_zip` → `zip::export_to_chosen`、テキストは
+   `Dialog::save_text` / `novnow export --out` → `ChosenPath::from_command_line(.., ExportKind::Text)`。B-99・B-109）。
+4. GUI の診断タブの「位置」は `place::at` ＋ `i18n::place`（`novnow check` と同じ表記。B-110）。
+5. M7 の完了条件に `docs/verify-rule10.md` の GUI での実施と、§19.2 の GUI の項目（M6 から移した）がある。
 
 ---
 

@@ -17,5 +17,5 @@ pub mod write_policy;
 
 pub use self::external_change::{FileEntry, Stamp};
 pub use self::write_policy::{
-    Allowed, PathError, PolicyViolation, ProjectPath, Violation, WritePolicy,
+    Allowed, ExportKind, PathError, PolicyViolation, ProjectPath, Violation, WritePolicy,
 };

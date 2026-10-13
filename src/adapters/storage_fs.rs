@@ -17,10 +17,12 @@
 //! 履歴ファイルは [`FsGate::write_history`] からしか書けない（他の口は履歴を許さない）。履歴の
 //! 置き場所は [`FsGate::new`] が環境から決める（§13.2.1。引数でパスを渡す口は無い）。
 //!
-//! **特例**（§13.1.1、ユーザー裁定 2026-10-13・第 2.10 版、`PLANS.md` §9.2 B-99）: 保存ダイアログで
-//! 指定された Zip（[`ChosenPath`]）は [`FsGate::write_chosen_export`] からだけ、プロジェクトの外でも
-//! 書ける。`.zip` のファイル 1 個・その 1 回だけ（パスは覚えない）・一時ファイルを使わず直接・
-//! 親ディレクトリは作らない。他の口は特例を使えない（`WritePolicy::check` が特例を知らない）。
+//! **特例**（§13.1.1、ユーザー裁定 2026-10-13・第 2.10 / 2.11 版、`PLANS.md` §9.2 B-99・B-109）:
+//! エクスポートの保存先としてユーザーが明示したパス（[`ChosenPath`]。保存ダイアログと
+//! `novnow export --out`）は [`FsGate::write_chosen_export`] からだけ、プロジェクトの外でも書ける。
+//! 種類ごとの拡張子（Zip は `.zip`、テキストは `.txt` / `.md`）のファイル 1 個・その 1 回だけ
+//! （パスは覚えない）・一時ファイルを使わず直接・親ディレクトリは作らない。他の口は特例を使えない
+//! （`WritePolicy::check` が特例を知らない）。
 //!
 //! # 原子的書き込み（§8.3）
 //!
@@ -180,15 +182,15 @@ impl FsGate {
         overwrite(&parent, &resolved, bytes).map_err(|error| io_error(&history, &error))
     }
 
-    /// 保存ダイアログで指定された Zip の保存先の事前判定（**panic しない**。§13.1.1 の特例・
-    /// §13.1.2）。書いてよければ解決済みの絶対パスを返す。`.zip` でない・履歴ファイルは
+    /// 明示されたエクスポートの保存先の事前判定（**panic しない**。§13.1.1 の特例・§13.1.2）。
+    /// 書いてよければ解決済みの絶対パスを返す。種類の拡張子でない・履歴ファイルは
     /// [`Violation::NotAnExport`]（表示は E060）。
     pub fn check_chosen_export(&self, chosen: &ChosenPath) -> Result<PathBuf, PolicyViolation> {
-        self.judge_chosen_export(chosen.path())
+        self.judge_chosen_export(chosen)
             .map(|(resolved, _)| resolved)
     }
 
-    /// 保存ダイアログで指定された Zip を書く（§13.1.1 の特例、第 2.10 版）。書いた絶対パスを返す。
+    /// 明示された保存先にエクスポートを書く（§13.1.1 の特例、第 2.10 / 2.11 版）。書いた絶対パスを返す。
     ///
     /// `chosen` は**消費する**（許可はこの 1 回だけ。関門はパスを覚えない）。プロジェクトの中なら
     /// ふつうの原子的保存（[`Self::write_atomic`]）。外なら**一時ファイルを使わずに直接上書き**し、
@@ -201,7 +203,7 @@ impl FsGate {
         bytes: &[u8],
     ) -> Result<PathBuf, StorageError> {
         let target = chosen.path();
-        let (resolved, allowed) = self.judge_chosen_export(target).map_err(deny)?;
+        let (resolved, allowed) = self.judge_chosen_export(&chosen).map_err(deny)?;
         if allowed == Allowed::Project {
             self.write_atomic(&resolved, bytes)?;
             return Ok(resolved);
@@ -220,10 +222,16 @@ impl FsGate {
 
     // ---------------------------------------------------------------- 判定
 
-    /// 保存ダイアログで指定された Zip の保存先を解決して判定する（panic しない）。
-    fn judge_chosen_export(&self, target: &Path) -> Result<(PathBuf, Allowed), PolicyViolation> {
+    /// 明示された保存先を解決して判定する（panic しない）。
+    fn judge_chosen_export(
+        &self,
+        chosen: &ChosenPath,
+    ) -> Result<(PathBuf, Allowed), PolicyViolation> {
+        let target = chosen.path();
         let resolved = resolve(target).map_err(|_| unresolved(target))?;
-        let allowed = self.read_policy().check_chosen_export(&resolved)?;
+        let allowed = self
+            .read_policy()
+            .check_chosen_export(&resolved, chosen.kind())?;
         let normal = normalize(&resolved).ok_or_else(|| PolicyViolation {
             target: target.to_path_buf(),
             reason: Violation::Escape,

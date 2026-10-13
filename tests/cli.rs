@@ -495,17 +495,17 @@ fn check_prints_one_line_per_diagnostic_and_exits_5_on_errors() {
     assert_eq!(ran.err, "");
     assert_eq!(
         ran.out,
-        "contents/01-01.txt:2:5: E012 登場人物 謎の人 は characters.md にいません\n\
-         contents/01-01.txt:3:1: E001 辞書にない参照です: 未登録の語が出る\n\
-         contents/01-01.txt:5:1: W012 空の節です\n\
+        "contents/01-01.txt:2:5: [本文 @01-01-01-01] E012 登場人物 謎の人 は characters.md にいません\n\
+         contents/01-01.txt:3:1: [本文 @01-01-01-01] E001 辞書にない参照です: 未登録の語が出る\n\
+         contents/01-01.txt:5:1: [本文 @01-01-01-02] W012 空の節です\n\
          \n\
          6 個の文書を検査しました（エラー 2・警告 1・情報 0）\n"
     );
     let ran = run(dir.path(), &env_en(&dir), &["check", "novel"]);
     assert_eq!(ran.exit(), Exit::Diagnostics);
-    assert!(ran
-        .out
-        .starts_with("contents/01-01.txt:2:5: E012 Character 謎の人 is not defined\n"));
+    assert!(ran.out.starts_with(
+        "contents/01-01.txt:2:5: [prose @01-01-01-01] E012 Character 謎の人 is not defined\n"
+    ));
     assert!(ran
         .out
         .ends_with("\nchecked 6 documents (errors: 2, warnings: 1, info: 0)\n"));
@@ -522,7 +522,12 @@ fn check_with_only_warnings_exits_0() {
     .expect("write");
     let ran = run(dir.path(), &env_ja(&dir), &["check", "novel"]);
     assert_eq!(ran.exit(), Exit::Ok);
-    assert!(ran.out.contains(": W012 "), "{}", ran.out);
+    assert!(
+        ran.out
+            .contains("contents/01-01.txt:4:1: [本文 @01-01-01-02] W012 空の節です\n"),
+        "{}",
+        ran.out
+    );
     assert!(
         ran.out.ends_with("（エラー 0・警告 1・情報 0）\n"),
         "{}",
@@ -546,7 +551,47 @@ fn check_shows_diagnostics_without_a_position_with_the_path_only() {
         "位置のある E027: {}",
         ran.out
     );
-    assert!(ran.out.contains(" E027 語クラス a の正規表現が不正です\n"));
+    assert!(ran
+        .out
+        .contains(" [作品の設定] E027 語クラス a の正規表現が不正です\n"));
+}
+
+#[test]
+fn check_names_the_place_in_the_writers_terms() {
+    // §14.2.5（第 2.11 版）: `パス:行:列:` に加えて、作家の言葉での「どこ」
+    let dir = TempDir::new("cli-check-place");
+    let root = minimal_project(&dir, "novel");
+    std::fs::write(
+        root.join("characters.md"),
+        "# 星野ひかり\nrole: 主人公\n\n## modes\n\n### A ふだん\nrange: @99 .. @01\n",
+    )
+    .expect("write");
+    std::fs::write(
+        root.join("plots/01-01.txt"),
+        "@01-01-01 屋根裏\n'未登録の語を探す\n;\n",
+    )
+    .expect("write");
+    let ran = run(dir.path(), &env_ja(&dir), &["check", "novel"]);
+    assert!(
+        ran.out.contains(
+            "characters.md:7:8: [登場人物「星野ひかり」のモード A ふだん] E016 範囲の指定が逆です\n"
+        ),
+        "{}",
+        ran.out
+    );
+    assert!(
+        ran.out
+            .contains("plots/01-01.txt:2:1: [話プロット @01-01-01-01] E001 "),
+        "{}",
+        ran.out
+    );
+    let ran = run(dir.path(), &env_en(&dir), &["check", "novel"]);
+    assert!(
+        ran.out
+            .contains("characters.md:7:8: [character \"星野ひかり\", mode A ふだん] E016 "),
+        "{}",
+        ran.out
+    );
 }
 
 #[test]
