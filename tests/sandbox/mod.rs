@@ -57,7 +57,10 @@ impl TempDir {
 
 impl Drop for TempDir {
     fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.path);
+        // `docs/verify-rule10.md` のファイル差分の手順で中身を見るときは残す
+        if std::env::var_os("NOVNOW_TEST_KEEP").is_none() {
+            let _ = fs::remove_dir_all(&self.path);
+        }
     }
 }
 

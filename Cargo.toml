@@ -58,9 +58,12 @@ tokio = { version = "1", features = ["sync", "macros", "rt", "time"] }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
+# IndexedDB（§13.3、`src/adapters/storage_idb.rs`）に要る feature も含む（M5 で足した: IdbIndex 以降）。
 web-sys = { version = "0.3", features = [
   "Window", "Document", "Element", "HtmlElement", "Storage", "Blob", "BlobPropertyBag", "Url", "console",
-  "IdbFactory", "IdbDatabase", "IdbObjectStore", "IdbTransaction", "IdbRequest", "IdbOpenDbRequest", "IdbCursor", "IdbKeyRange"
+  "IdbFactory", "IdbDatabase", "IdbObjectStore", "IdbTransaction", "IdbRequest", "IdbOpenDbRequest", "IdbCursor", "IdbKeyRange",
+  "IdbIndex", "IdbObjectStoreParameters", "IdbTransactionMode", "DomException", "DomStringList", "Event",
+  "Navigator", "StorageManager", "StorageEstimate"
 ] }
 console_error_panic_hook = "0.1"
 
