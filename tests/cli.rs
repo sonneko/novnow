@@ -8,7 +8,9 @@
 //!
 //! §14.2.2 / §14.2.3 / §14.2.4 の出力例は**仕様書を読み直して一字一句**突き合わせる。
 
+mod novel;
 mod sandbox;
+mod world;
 
 use std::collections::BTreeMap;
 use std::ffi::OsString;
@@ -849,33 +851,265 @@ fn new_writes_nothing_outside_the_project() {
     assert_eq!(top, ["novel", "outside"]);
 }
 
-// ============================================================ 枠だけのサブコマンド
+// ============================================================ novnow export（§17.2、M9）
+
+/// 実プロジェクト（`tests/novel`）をディレクトリに書く。
+fn write_novel(dir: &TempDir, root: &str) -> PathBuf {
+    for (path, text) in novel::files() {
+        dir.write(&format!("{root}/{path}"), text);
+    }
+    dir.join(root)
+}
+
+fn names_in(dir: &Path) -> Vec<String> {
+    let mut names: Vec<String> = std::fs::read_dir(dir)
+        .map(|entries| {
+            entries
+                .flatten()
+                .map(|entry| entry.file_name().to_string_lossy().into_owned())
+                .collect()
+        })
+        .unwrap_or_default();
+    names.sort();
+    names
+}
 
 #[test]
-fn export_mcp_and_migrate_are_frames_only_in_m6() {
-    let dir = TempDir::new("cli-frames");
+fn export_to_stdout_prints_only_the_text() {
+    let dir = TempDir::new("cli-export-stdout");
+    let root = write_novel(&dir, "novel");
+    let before = tree(&root);
+    let ran = run(
+        dir.path(),
+        &env_ja(&dir),
+        &["export", "novel", "--out", "-"],
+    );
+    assert_eq!(ran.exit(), Exit::Ok, "{}", ran.err);
+    assert_eq!(ran.out, novel::EXPECTED);
+    assert_eq!(ran.err, "");
+    assert_eq!(tree(&root), before, "標準出力のときは何も書かない");
+    // `--name=value` の形・範囲（`@` なし）・状態
+    let ran = run(
+        dir.path(),
+        &env_ja(&dir),
+        &[
+            "export",
+            "novel",
+            "--range=01-02 .. 02",
+            "--state",
+            "fixed",
+            "--out=-",
+        ],
+    );
+    assert_eq!(ran.exit(), Exit::Ok, "{}", ran.err);
+    assert_eq!(
+        ran.out,
+        "旧校舎の扉は、錆びついていた。\r\n\r\n扉の向こうは暗かった。\\ 落書きの「「」が見える。\r\n"
+    );
+    // 同じオプションが 2 回なら後のほう
+    let ran = run(
+        dir.path(),
+        &env_ja(&dir),
+        &[
+            "export", "novel", "--range", "@01", "--range", "@02", "--out", "-",
+        ],
+    );
+    assert_eq!(ran.out, "補習の教室で、アルス は居眠りをしていた。\r\n");
+}
+
+#[test]
+fn export_writes_the_default_file_inside_the_project() {
+    let dir = TempDir::new("cli-export-default");
+    let root = minimal_project(&dir, "novel");
+    let ran = run(&root, &env_ja(&dir), &["export", "."]);
+    assert_eq!(ran.exit(), Exit::Ok, "{}", ran.err);
+    // exports/<title>-<範囲>-<YYYYMMDD-HHMM>.txt（§17.2）
+    let names = names_in(&root.join("exports"));
+    assert_eq!(names.len(), 1, "{names:?}");
+    let stamp = names[0]
+        .strip_prefix("星屑の時計-all-")
+        .and_then(|rest| rest.strip_suffix(".txt"))
+        .unwrap_or_else(|| panic!("{names:?}"));
+    assert!(
+        stamp.len() == 13
+            && stamp.as_bytes()[8] == b'-'
+            && stamp.bytes().filter(u8::is_ascii_digit).count() == 12,
+        "{stamp}"
+    );
+    let target = root.join("exports").join(&names[0]);
+    assert_eq!(
+        std::fs::read_to_string(&target).expect("書き出したファイル"),
+        "「こんにちは」\r\n"
+    );
+    assert_eq!(
+        ran.out,
+        format!(
+            "novnow: 書き出しました（1 節・7 字）\n  書き出し先: {}\n",
+            display_path(&target)
+        )
+    );
+    assert_eq!(ran.err, "");
+    // 範囲はファイル名に入る（英語）
+    let ran = run(&root, &env_en(&dir), &["export", ".", "--range", "@01-01"]);
+    assert_eq!(ran.exit(), Exit::Ok, "{}", ran.err);
+    assert!(
+        ran.out
+            .starts_with("novnow: exported 1 sections (7 characters)\n  output: "),
+        "{}",
+        ran.out
+    );
+    assert!(names_in(&root.join("exports"))
+        .iter()
+        .any(|name| name.starts_with("星屑の時計-01-01-")));
+    // 履歴には書かない
+    assert!(!dir.join("state").exists());
+}
+
+#[test]
+fn export_writes_only_the_chosen_file_outside_the_project() {
+    let dir = TempDir::new("cli-export-out");
+    let root = minimal_project(&dir, "novel");
+    dir.mkdir("outside");
+    let before = tree(&root);
+    let ran = run(
+        dir.path(),
+        &env_ja(&dir),
+        &["export", "novel", "--out", "outside/星屑.md"],
+    );
+    assert_eq!(ran.exit(), Exit::Ok, "{}", ran.err);
+    let written = dir.join("outside/星屑.md");
+    assert_eq!(
+        std::fs::read_to_string(&written).expect("書き出したファイル"),
+        "「こんにちは」\r\n"
+    );
+    // 指定した 1 個だけ（一時ファイルも残さない）・プロジェクトには何も書かない・履歴にも書かない
+    assert_eq!(names_in(&dir.join("outside")), ["星屑.md"]);
+    assert_eq!(tree(&root), before);
+    assert!(!dir.join("state").exists());
+    assert!(ran
+        .out
+        .ends_with(&format!("  書き出し先: {}\n", display_path(&written))));
+    // 親ディレクトリは作らない（4）
+    let ran = run(
+        dir.path(),
+        &env_ja(&dir),
+        &["export", "novel", "--out", "nowhere/a.txt"],
+    );
+    assert_eq!(ran.exit(), Exit::Io);
+    assert!(!dir.join("nowhere").exists());
+    assert!(
+        ran.err.starts_with("novnow: 書き込めませんでした: "),
+        "{}",
+        ran.err
+    );
+    // 名前が .txt / .md でなければ E060 で書かない（4）
+    let ran = run(
+        dir.path(),
+        &env_ja(&dir),
+        &["export", "novel", "--out", "outside/a.zip"],
+    );
+    assert_eq!(ran.exit(), Exit::Io);
+    assert!(
+        ran.err
+            .starts_with("novnow: 書き込めませんでした: プロジェクトの外には書き込めません: "),
+        "{}",
+        ran.err
+    );
+    assert_eq!(names_in(&dir.join("outside")), ["星屑.md"]);
+    // プロジェクトの中を指定してもよい（ふつうの保存）
+    let ran = run(
+        dir.path(),
+        &env_ja(&dir),
+        &["export", "novel", "--out", "novel/exports/公開用.txt"],
+    );
+    assert_eq!(ran.exit(), Exit::Ok, "{}", ran.err);
+    assert!(root.join("exports/公開用.txt").is_file());
+}
+
+#[test]
+fn export_option_errors_are_exit_2_and_empty_selections_write_nothing() {
+    let dir = TempDir::new("cli-export-args");
     minimal_project(&dir, "novel");
-    for args in [
-        &["export", "novel"][..],
-        &["export", "novel", "--range", "@01"],
-        &["mcp", "novel"],
-    ] {
+    let cases: [(&[&str], &str); 7] = [
+        (
+            &["export", "novel", "--range"],
+            "--range に値を指定してください",
+        ),
+        (
+            &["export", "novel", "--range", "--state", "fixed"],
+            "--range に値を指定してください",
+        ),
+        (
+            &["export", "novel", "--range", "@03 .. @01"],
+            "範囲として読めません: @03 .. @01（例: @01-04、@01 .. @03, @05）",
+        ),
+        (
+            &["export", "novel", "--state", "done"],
+            "状態は draft / review / fixed のどれかです: done",
+        ),
+        (
+            &["export", "novel", "--out="],
+            "--out に値を指定してください",
+        ),
+        // ② のオプション（`PLANS.md` §1.2）
+        (
+            &["export", "novel", "--include-stock"],
+            "不明なオプションです: --include-stock",
+        ),
+        (&["export", "novel", "extra"], "余分な引数です: extra"),
+    ];
+    for (args, message) in cases {
         let ran = run(dir.path(), &env_ja(&dir), args);
         assert_eq!(ran.exit(), Exit::Usage, "{args:?}");
+        assert_eq!(ran.out, "", "{args:?}");
         assert_eq!(
             ran.err,
-            format!(
-                "novnow: novnow {} はまだ実装されていません\n使い方: novnow --help\n",
-                args[0]
-            )
+            format!("novnow: {message}\n使い方: novnow --help\n"),
+            "{args:?}"
         );
     }
-    // export / mcp は先に §14.2 の検査をする
+    // §14.2 の検査（不備は 3）
     spec_like_incomplete(&dir, "broken");
     assert_eq!(
         run(dir.path(), &env_ja(&dir), &["export", "broken"]).exit(),
         Exit::Project
     );
+    // 当てはまる節が無ければ何も書かずに 0（state の無い節は draft）
+    let ran = run(
+        dir.path(),
+        &env_ja(&dir),
+        &["export", "novel", "--state", "fixed"],
+    );
+    assert_eq!(ran.exit(), Exit::Ok);
+    assert_eq!(ran.out, "");
+    assert_eq!(
+        ran.err,
+        "novnow: 範囲に当てはまる節がありません（何も書き出していません）\n"
+    );
+    assert!(!dir.join("novel/exports").exists());
+    // 使い方にオプションが載っている
+    let help = run(dir.path(), &env_ja(&dir), &["--help"]);
+    assert!(
+        help.out.contains("--state draft|review|fixed"),
+        "{}",
+        help.out
+    );
+}
+
+// ============================================================ 枠だけのサブコマンド
+
+#[test]
+fn mcp_and_migrate_are_frames_only() {
+    let dir = TempDir::new("cli-frames");
+    minimal_project(&dir, "novel");
+    let ran = run(dir.path(), &env_ja(&dir), &["mcp", "novel"]);
+    assert_eq!(ran.exit(), Exit::Usage);
+    assert_eq!(
+        ran.err,
+        "novnow: novnow mcp はまだ実装されていません\n使い方: novnow --help\n"
+    );
+    // mcp は先に §14.2 の検査をする
+    spec_like_incomplete(&dir, "broken");
     assert_eq!(
         run(dir.path(), &env_ja(&dir), &["mcp", "broken"]).exit(),
         Exit::Project

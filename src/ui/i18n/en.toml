@@ -114,12 +114,16 @@ not_implemented = "novnow {0} is not implemented yet"
 no_gui = "this build of novnow does not include the GUI"
 gui_failed = "could not start the GUI: {0}"
 write_failed = "could not write: {0}"
+missing_value = "{0} needs a value"
+bad_range = "not a range: {0} (e.g. @01-04, @01 .. @03, @05)"
+bad_state = "the state must be draft, review or fixed: {0}"
 
 [cli.label]
 target = "target"
 created = "Created files"
 kept = "Kept files (not overwritten)"
 invalid_utf8 = "Files that are not valid UTF-8"
+output = "output"
 
 [cli.hint]
 structure_doc = "Project structure"
@@ -134,6 +138,10 @@ check = "To check it"
 created = "created a new project"
 completed = "created the missing files (existing files were not overwritten)"
 nothing = "nothing to create (every file already exists)"
+
+[cli.export]
+written = "exported {0} sections ({1} characters)"
+empty = "no section matches the range (nothing was exported)"
 
 [cli.check]
 summary = "checked {0} documents (errors: {1}, warnings: {2}, info: {3})"
@@ -150,6 +158,7 @@ mcp = "run as an MCP server"
 gui = "start the GUI even when arguments are given"
 help = "show this help"
 version = "show the version"
+export_options = "Options of export: --range <range> (@01-04 or @01 .. @03, @05; the whole work by default) / --state draft|review|fixed (only sections at or above that state) / --out <path> (.txt or .md; - for standard output; exports/ in the project by default)"
 new_dir = "To open a directory named new, write novnow ./new."
 no_args = "Started from a terminal without arguments, novnow prints this help instead of starting the GUI (use novnow --gui)."
 exit_codes = "Exit codes: 0 ok / 2 usage error / 3 incomplete, v0 or too-new project / 4 read or write failure / 5 check found errors"
@@ -244,6 +253,23 @@ new_section = "Add a section after this one"
 jump = "Jump to a structure ID"
 reference = "Show or hide the reference pane"
 help = "Keyboard shortcuts"
+export = "Export the text (without annotations)"
+
+# The `>export` modal (§17.2, M9). The button texts fall under rule 1 of §9.2.1.
+[export]
+title = "Export (the text without annotations)"
+range_hint = "Range (empty for the whole work): @01-04 / @01 .. @03, @05"
+state_all = "All"
+state_review = "review or later"
+state_fixed = "fixed only"
+preview = "{0} sections, {1} characters"
+bad_range = "Not a range (e.g. @01-04, @01 .. @03, @05)"
+write = "Save to exports/ (Enter)"
+save_as = "Save as… (Shift+Enter)"
+copy = "Copy (Ctrl+Shift+C)"
+written = "Exported: {0}"
+copied = "Copied to the clipboard ({0} characters)"
+failed = "Could not export: {0}"
 
 [help]
 title = "Keyboard"

@@ -19,20 +19,21 @@
 | 項目 | 状態 |
 |---|---|
 | `main` | `00a5813`（PR #11 マージ済み。M0〜M3 ＋ 本書と `scripts/`） |
-| 作業ブランチ | セッションが指定したもの固定（2026-10-13 のセッションは `arena/cb878908-novnow`）。**PR #12** に M4〜M7 を積んだ（ユーザー指示「同じ PR で続ける・マージはまだしない」）。**マージはユーザー** |
-| マイルストーン | **M0〜M6 完了**（PR #12 のマージ待ち）。**M7「UI シェル ＋ `write`」は実装済み・人の確認待ち**（`PLANS.md` §5.8 の完了条件の消し込み状況を参照。Web の選択モーダルは未接続＝ B-118） |
-| 仕様書 | **第 2.13 版**（2026-10-13。2.12 は M7 に合わせた補正、2.13 は §11 の色のコントラスト比）。診断コード **80 件**（§7:39 + §7.1:14 + §7.2:27） |
-| テスト | **947 件緑**（`bash scripts/verify.sh`。M7 から既定で `--features ui`） |
+| 作業ブランチ | セッションが指定したもの固定（2026-10-13 のセッションは `arena/cb878908-novnow`）。**PR #12** に M4〜M7・M9 を積んだ（ユーザー指示「同じ PR で続ける・マージはまだしない」）。**マージはユーザー** |
+| マイルストーン | **M0〜M6 完了**（PR #12 のマージ待ち）。**M7「UI シェル ＋ `write`」と M9「エクスポート」は実装済み・人の確認待ち**（`PLANS.md` §5.8 / §5.10 の完了条件の消し込み状況を参照。Web の選択モーダルは未接続＝ B-118）。**M8 は未着手** |
+| 仕様書 | **第 2.14 版**（2026-10-13。2.12 は M7 に合わせた補正、2.13 は §11 の色のコントラスト比、2.14 は §17 のエクスポートの細部）。診断コード **80 件**（§7:39 + §7.1:14 + §7.2:27） |
+| テスト | **976 件緑**（`bash scripts/verify.sh`。M7 から既定で `--features ui`） |
 | 未決の裁定 | なし |
 
-M7 で何を入れたか・決めたか（B-111〜）は `PLANS.md` §5.8 の進捗ノートと §9.2、GUI の作りは `DEVELOPERS.md` §6。
+M7 で何を入れたか・決めたか（B-111〜B-121）は `PLANS.md` §5.8 の進捗ノートと §9.2、M9（B-122〜B-125）は §5.10、
+GUI の作りは `DEVELOPERS.md` §6。
 
 ### 次の一手
 
 1. M7 の残り（`PLANS.md` §5.8 の未チェックの完了条件）: 人の確認（2,000 字の執筆・IME・Windows のダブルクリック・
    `docs/verify-rule10.md` の GUI での実施）と、Web の選択モーダル（§13.4、B-118）・`Alt+H`（B-119）。
-2. **M9（エクスポート）を M8 より先にやる**（`PLANS.md` §9.2 B-120）。
-3. M8（ワークスペース、`PLANS.md` §5.9）: `ui::app::NovnowApp` に「ワークスペース」の層が無い（M7 は `write` 1 つ）。
+2. M9 の残り: 1 話（約 6,000 字）を外部の縦書きビューアで通読する人の確認（`PLANS.md` §5.10）。
+3. **M8（ワークスペース、`PLANS.md` §5.9）が次**: `ui::app::NovnowApp` に「ワークスペース」の層が無い（M7 は `write` 1 つ）。
    `Alt+1..9` の切替は `ui::shell::command_of` に足し、`Stage::Open` の中で描き分ける。点検ワークスペースの「位置」は
    `place::at` ＋ `i18n::place`（`novnow check` と同じ表記。B-110）。
 4. 外に書けるのは `FsGate::write_chosen_export(ChosenPath)` だけ（Zip は `Dialog::save_zip` → `zip::export_to_chosen`、テキストは
@@ -83,7 +84,7 @@ gh pr list --state open
   `CARGO_INCREMENTAL=0` にしている（`scripts/bootstrap-toolchain.sh` が書く）。それでも溢れたら
   `find target/debug/deps -maxdepth 1 -type f -perm -u+x -delete` と `rm -rf target/debug/incremental`（作り直しはリンクだけ）。
 
-### 2.3 ローカル git が基点まで巻き戻る（実際に 3 回起きた）
+### 2.3 ローカル git が基点まで巻き戻る（実際に 4 回起きた）
 
 サンドボックスの再作成で、**ファイルは残るのに `.git` のブランチポインタだけが古いコミットに戻る**ことがある。
 **`git reset --hard` は絶対に使わない**（作業ツリーを壊す）。
@@ -118,6 +119,7 @@ shallow clone なので `git diff main...HEAD` が使えないことがある。
 
 温まったあと: fmt 0.1 秒 / clippy 2〜15 秒 / test（`--features ui`）10〜45 秒 / wasm check 2〜30 秒。
 `--features ui` のコールドビルドは約 2 分（egui / eframe / winit のツリー）。release ビルド初回は約 40 秒。
+作業環境が 2 CPU / 3GB のときはコールドの `--no-run` ビルドが約 2 分、`verify.sh` 全体が約 2.6 分だった（2026-10-13）。
 
 ---
 
@@ -201,6 +203,11 @@ shallow clone なので `git diff main...HEAD` が使えないことがある。
   「ファイル先頭の節」なので、`TextEdit` の「先頭へ」は効かない（テストで踏んだ）。
 - 画面なしのテストで `NovnowApp` を回すときは `RawInput { focused: true, time: Some(..), .. }` を毎フレーム渡す
   （`time` を進めないと 400ms の自動保存が来ない）。
+- **新しく出たモーダル（`egui::Area`）は最初のフレームでは大きさを測るだけで描かれない**。画面なしのテストで文言を
+  確かめるときは、出した後に 2 フレーム回してから `painted_text` を見る（M9 で踏んだ）。
+- `InputState::consume_key(mods, key)` は `matches_logically` で比べるので、**`Modifiers::NONE` は Shift / Alt 付きにも当たる**。
+  `Shift+Enter` と `Enter` を分けるときは Shift のほうを先に消費する。`Modifiers::COMMAND` を要求する組み合わせは、テストの
+  イベントでも `command: true` を立てる（実機の egui-winit は Windows / Linux の Ctrl で ctrl と command の両方を立てる）。
 
 ### 4.6 core の書き方（検査で落ちるもの。規則の全文は `DEVELOPERS.md` §1.4・§3）
 

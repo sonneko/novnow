@@ -13,7 +13,10 @@ use egui::{
     Pos2, Rect, RichText, Sense, Stroke, Vec2,
 };
 
+use crate::core::diagnostics::Diagnostic;
+use crate::core::export::{self as export_text, State as ExportState};
 use crate::core::features::Project;
+use crate::ports::dialog::ChosenPath;
 use crate::ui::i18n::{self, Locale};
 use crate::ui::palette;
 use crate::ui::save_machine::{Indicator, State};
@@ -34,6 +37,30 @@ pub trait Host {
     fn poll(&mut self) -> Vec<(String, Option<String>)>;
     /// プロジェクトの名前（ヘッダ・ウィンドウ題名）。
     fn name(&self) -> String;
+    /// 今の日時 `YYYYMMDD-HHMM`（テキストのエクスポートの既定の名前、§17.2）。
+    fn stamp(&self) -> String;
+    /// 「名前を付けて保存」の保存ダイアログ（§17.2・§13.1.1 の特例）。`suggested` は既定のファイル名。
+    /// 取り消されたとき・ダイアログを持たない環境では `None`。
+    fn choose_export(&mut self, suggested: &str) -> Option<ChosenPath> {
+        let _ = suggested;
+        None
+    }
+    /// 選ばれた保存先にテキストを書く（関門の特例の口だけを通る）。書いた場所（表示用）を返す。
+    fn write_export(&mut self, chosen: ChosenPath, text: &str) -> Result<String, ExportFailure> {
+        let _ = text;
+        Err(ExportFailure::Failed(
+            chosen.path().to_string_lossy().into_owned(),
+        ))
+    }
+}
+
+/// 「名前を付けて保存」に失敗した理由（文言は `NovnowApp` がカタログで引く）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExportFailure {
+    /// 関門が拒んだ（E060: 名前が `.txt` / `.md` で終わらない・履歴ファイル。§13.1.1）。
+    Refused(Diagnostic),
+    /// 書けなかった（OS のメッセージ）。
+    Failed(String),
 }
 
 /// フォーカス中のペイン（§9.2.3。外周 2px の `accent` 枠で示す）。
@@ -90,6 +117,12 @@ enum Overlay {
     },
     /// `Ctrl+Shift+D`（§8.5）。
     Diff,
+    /// `>export`（§17.2）。範囲（空欄なら全体）と状態の絞り込み。`fresh` は開いた直後のフレーム。
+    Export {
+        range: String,
+        state: Option<ExportState>,
+        fresh: bool,
+    },
 }
 
 /// 開いているプロジェクト。
@@ -117,6 +150,20 @@ pub struct Session {
     search_cache: Option<(String, u64, Vec<crate::ui::assist::Hit>)>,
     /// 衝突したファイルの外部の版（§8.5。消えたなら `None`）。
     conflict_texts: std::collections::BTreeMap<String, Option<String>>,
+    /// エクスポートの下書き（文書の世代・範囲・状態が同じあいだは作り直さない）。
+    export_cache: Option<ExportDraft>,
+}
+
+/// エクスポートの下書き（`>export` のモーダルが毎フレーム作り直さないため）。
+struct ExportDraft {
+    /// 鍵: 文書の世代・範囲の文字列・状態。
+    key: (u64, String, Option<ExportState>),
+    /// 範囲が読めなければ `None`。
+    range: Option<Option<crate::core::id::RangeExpr>>,
+    /// 出す節の数。
+    sections: usize,
+    /// 書き出した文字列（`.txt` の形）。
+    text: String,
 }
 
 impl Session {
@@ -144,7 +191,58 @@ impl Session {
             last_find: String::new(),
             search_cache: None,
             conflict_texts: std::collections::BTreeMap::new(),
+            export_cache: None,
         }
+    }
+
+    /// エクスポートの下書きを（必要なら作り直して）返す（§17.2）。
+    fn export_draft(&mut self, range: &str, state: Option<ExportState>) -> &ExportDraft {
+        let key = (self.bench.generation(), range.trim().to_owned(), state);
+        if self
+            .export_cache
+            .as_ref()
+            .is_none_or(|draft| draft.key != key)
+        {
+            let project = self.bench.project();
+            let parsed = if key.1.is_empty() {
+                Some(None)
+            } else {
+                export_text::parse_range(&key.1).ok().map(Some)
+            };
+            let (sections, text) = match &parsed {
+                Some(range) => {
+                    let mut options =
+                        export_text::Options::from_settings(&project.settings().export);
+                    options.state = state;
+                    let chosen = export_text::select(project, range.as_ref(), state);
+                    let text = export_text::render(project, &chosen, &options);
+                    (chosen.len(), text)
+                }
+                None => (0, String::new()),
+            };
+            self.export_cache = Some(ExportDraft {
+                key,
+                range: parsed,
+                sections,
+                text,
+            });
+        }
+        self.export_cache.as_ref().expect("the draft was just made")
+    }
+
+    /// 既定の書き出し先の名前（§17.2 `<title>-<範囲>-<YYYYMMDD-HHMM>.txt`）。題名が空ならプロジェクトの名前。
+    fn export_name(
+        &self,
+        range: Option<&crate::core::id::RangeExpr>,
+        format: export_text::Format,
+    ) -> String {
+        let project = self.bench.project();
+        let title = match project.settings().title.trim() {
+            "" => self.host.name(),
+            title => title.to_owned(),
+        };
+        let label = export_text::range_label(range, project.digits());
+        export_text::file_name(&title, &label, &self.host.stamp(), format)
     }
 
     /// 選択範囲（無ければキャレットの位置、それも無ければ節の先頭）のファイルの中の byte 範囲。
@@ -536,6 +634,15 @@ impl NovnowApp {
                 if session.bench.current().is_some() {
                     self.overlay = Overlay::ConfirmDelete;
                 }
+            }
+            Command::Export => {
+                // 節エディタの中身も含めて書き出す
+                session.bench.commit();
+                self.overlay = Overlay::Export {
+                    range: String::new(),
+                    state: None,
+                    fresh: true,
+                };
             }
             Command::QuickFix => {
                 let actions = session
@@ -1349,6 +1456,110 @@ impl NovnowApp {
                     close = true;
                 }
             }
+            Overlay::Export {
+                range,
+                state,
+                fresh,
+            } => {
+                // 先に消費する（`Shift+Enter` は `Enter` より先に。素の `Enter` は Shift も拾うため）
+                let cycle = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Tab));
+                let save_as_key = ctx.input_mut(|i| i.consume_key(Modifiers::SHIFT, Key::Enter));
+                let write_key = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
+                let copy_key =
+                    ctx.input_mut(|i| i.consume_key(Modifiers::COMMAND | Modifiers::SHIFT, Key::C));
+                if cycle {
+                    // すべて → review 以上 → fixed だけ → すべて
+                    *state = match *state {
+                        None | Some(ExportState::Draft) => Some(ExportState::Review),
+                        Some(ExportState::Review) => Some(ExportState::Fixed),
+                        Some(ExportState::Fixed) => None,
+                    };
+                }
+                let draft = session.export_draft(range, *state);
+                let readable = draft.range.is_some();
+                let sections = draft.sections;
+                let chars = crate::core::features::sections::count_chars(&draft.text);
+                let mut action = if save_as_key {
+                    Some(ExportAction::SaveAs)
+                } else if write_key {
+                    Some(ExportAction::Write)
+                } else if copy_key {
+                    Some(ExportAction::Copy)
+                } else {
+                    None
+                };
+                popup(ctx, "export", colors, |ui| {
+                    ui.label(
+                        RichText::new(i18n::text(locale, "export.title")).color(colors.fg_faint),
+                    );
+                    ui.add_space(6.0);
+                    let edit = ui.add(
+                        egui::TextEdit::singleline(range)
+                            .hint_text(i18n::text(locale, "export.range_hint"))
+                            .desired_width(440.0),
+                    );
+                    // `Tab` は状態の切替に使うので、フォーカスは範囲の欄に置いたままにする
+                    edit.request_focus();
+                    *fresh = false;
+                    ui.add_space(6.0);
+                    ui.horizontal(|ui| {
+                        for (choice, key) in [
+                            (None, "export.state_all"),
+                            (Some(ExportState::Review), "export.state_review"),
+                            (Some(ExportState::Fixed), "export.state_fixed"),
+                        ] {
+                            let selected = *state == choice;
+                            let text = RichText::new(i18n::text(locale, key)).color(if selected {
+                                colors.accent
+                            } else {
+                                colors.fg_muted
+                            });
+                            if ui.selectable_label(selected, text).clicked() {
+                                *state = choice;
+                            }
+                        }
+                    });
+                    ui.add_space(6.0);
+                    if readable {
+                        let count = i18n::format(
+                            locale,
+                            "export.preview",
+                            &[&sections.to_string(), &chars.to_string()],
+                        );
+                        ui.label(RichText::new(count).color(colors.fg_muted));
+                    } else {
+                        ui.label(
+                            RichText::new(i18n::text(locale, "export.bad_range"))
+                                .color(colors.error),
+                        );
+                    }
+                    ui.add_space(8.0);
+                    ui.horizontal(|ui| {
+                        let enabled = readable && sections > 0;
+                        for (kind, key) in [
+                            (ExportAction::Write, "export.write"),
+                            (ExportAction::SaveAs, "export.save_as"),
+                            (ExportAction::Copy, "export.copy"),
+                        ] {
+                            let button = egui::Button::new(i18n::text(locale, key));
+                            if ui.add_enabled(enabled, button).clicked() {
+                                action = Some(kind);
+                            }
+                        }
+                    });
+                });
+                if let Some(kind) = action {
+                    if let Some(result) = export_now(ctx, session, kind, locale, now) {
+                        match result {
+                            Ok(message) => {
+                                session.notice = Some((message, now));
+                                close = true;
+                            }
+                            Err(message) => self.overlay = Overlay::Message(message),
+                        }
+                    }
+                }
+            }
             Overlay::Message(text) => {
                 popup(ctx, "message", colors, |ui| {
                     for line in text.lines() {
@@ -1944,6 +2155,80 @@ fn popup(ctx: &Context, id: &str, colors: theme::Palette, add: impl FnOnce(&mut 
         });
 }
 
+/// `>export` のモーダルでの操作（§17.2）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ExportAction {
+    /// `Enter`: プロジェクトの `exports/` に書く（既定の名前）。
+    Write,
+    /// `Shift+Enter`: 名前を付けて保存（保存ダイアログ。§13.1.1 の特例）。
+    SaveAs,
+    /// `Ctrl+Shift+C`: クリップボードへ。
+    Copy,
+}
+
+/// エクスポートを実行する（下書きはモーダルが作ったもの）。何もしなかった（当てはまる節が無い・
+/// 範囲が読めない・ダイアログを取り消した）なら `None`、結果の文言（成功は通知・失敗はモーダル）。
+fn export_now(
+    ctx: &Context,
+    session: &mut Session,
+    kind: ExportAction,
+    locale: Locale,
+    now: f64,
+) -> Option<Result<String, String>> {
+    let _ = now;
+    let draft = session.export_cache.as_ref()?;
+    let range = draft.range.clone()?;
+    if draft.sections == 0 {
+        return None;
+    }
+    let text = draft.text.clone();
+    let state = draft.key.2;
+    match kind {
+        ExportAction::Copy => {
+            let chars = crate::core::features::sections::count_chars(&text);
+            ctx.copy_text(text);
+            Some(Ok(i18n::format(
+                locale,
+                "export.copied",
+                &[&chars.to_string()],
+            )))
+        }
+        ExportAction::Write => {
+            let name = session.export_name(range.as_ref(), export_text::Format::Text);
+            let path = format!("exports/{name}");
+            Some(match session.host.write(&path, &text) {
+                Ok(()) => Ok(i18n::format(locale, "export.written", &[&path])),
+                Err(error) => Err(i18n::format(locale, "export.failed", &[&error])),
+            })
+        }
+        ExportAction::SaveAs => {
+            let name = session.export_name(range.as_ref(), export_text::Format::Text);
+            let chosen = session.host.choose_export(&name)?;
+            // `.md` を選んだら見出しを `#` で書き直す（§17.2）
+            let format = export_text::Format::of_name(&chosen.path().to_string_lossy());
+            let text = if format == export_text::Format::Markdown {
+                let project = session.bench.project();
+                let mut options = export_text::Options::from_settings(&project.settings().export);
+                options.state = state;
+                options.format = format;
+                export_text::run(project, range.as_ref(), &options)
+            } else {
+                text
+            };
+            Some(match session.host.write_export(chosen, &text) {
+                Ok(written) => Ok(i18n::format(locale, "export.written", &[&written])),
+                Err(ExportFailure::Refused(diagnostic)) => {
+                    let reason = i18n::diagnostic(locale, &diagnostic);
+                    Err(i18n::format(locale, "export.failed", &[&reason]))
+                }
+                Err(ExportFailure::Failed(error)) => {
+                    Err(i18n::format(locale, "export.failed", &[&error]))
+                }
+            })
+        }
+    }
+}
+
 /// パレットの候補 1 つ。
 struct PaletteItem {
     key: String,
@@ -1965,6 +2250,7 @@ const PALETTE_COMMANDS: &[(&str, &str, Command)] = &[
     ("new-section", "command.new_section", Command::NewSection),
     ("jump", "command.jump", Command::Jump),
     ("reference", "command.reference", Command::ToggleReference),
+    ("export", "command.export", Command::Export),
     ("help", "command.help", Command::Help),
 ];
 
@@ -2091,7 +2377,8 @@ mod native {
     use crate::core::model::project::ProjectError;
     use crate::core::policy::external_change::{ChangeKind, Snapshot};
     use crate::core::policy::ProjectPath;
-    use crate::ports::dialog::Dialog;
+    use crate::ports::clock::Clock;
+    use crate::ports::dialog::{ChosenPath, Dialog};
     use crate::ui::i18n::{self, Locale};
     use crate::ui::settings::{UiSettings, UI_JSON};
     use crate::ui::theme::{self, Mode};
@@ -2187,6 +2474,41 @@ mod native {
                 .file_name()
                 .map(|name| name.to_string_lossy().into_owned())
                 .unwrap_or_default()
+        }
+
+        fn stamp(&self) -> String {
+            // ネイティブはタイムゾーンが分からないので UTC（`PLANS.md` §9.2 B-92・B-123）
+            let clock = SystemClock;
+            crate::adapters::clock_system::compact_stamp(
+                clock.now_millis(),
+                clock.utc_offset_minutes(),
+            )
+        }
+
+        fn choose_export(&mut self, suggested: &str) -> Option<ChosenPath> {
+            // 初期値はプロジェクトの `exports/`（まだ無ければプロジェクトのルート）。作りはしない
+            let exports = self.storage.root().join("exports");
+            let dir = if exports.is_dir() {
+                exports
+            } else {
+                self.storage.root().to_path_buf()
+            };
+            block_on(RfdDialog.save_text(&dir.join(suggested)))
+        }
+
+        fn write_export(
+            &mut self,
+            chosen: ChosenPath,
+            text: &str,
+        ) -> Result<String, super::ExportFailure> {
+            // 名前・履歴ファイルの判定を先に（違反を関門の口に渡すと debug ビルドは panic する）
+            let gate = self.storage.gate().clone();
+            if let Err(violation) = gate.check_chosen_export(&chosen) {
+                return Err(super::ExportFailure::Refused(violation.diagnostic()));
+            }
+            gate.write_chosen_export(chosen, text.as_bytes())
+                .map(|path| cli::display_path(&path))
+                .map_err(|error| super::ExportFailure::Failed(format!("{error:?}")))
         }
     }
 
@@ -2489,6 +2811,9 @@ mod native {
     }
 }
 
+/// [`MemoryHost`] の時計（`YYYYMMDD-HHMM`。テストで既定のファイル名を決め打ちできるように固定）。
+pub const MEMORY_STAMP: &str = "20261013-2140";
+
 /// メモリの `Host`（テストと、ファイルを持たない環境の確認用）。中身は `Rc` で共有するので、
 /// `Session` に渡した後も外から読める。
 #[derive(Debug, Default, Clone)]
@@ -2508,6 +2833,10 @@ pub struct MemoryFiles {
     pub fail: bool,
     /// 次の監視で外部変更として返すもの。
     pub changes: Vec<(String, Option<String>)>,
+    /// 次の「名前を付けて保存」のダイアログで選ばれるパス（`None` なら取り消し）。
+    pub chosen: Option<String>,
+    /// 「名前を付けて保存」で書かれたもの（パス → 中身）。
+    pub exported: std::collections::BTreeMap<String, String>,
 }
 
 impl Host for MemoryHost {
@@ -2527,6 +2856,38 @@ impl Host for MemoryHost {
 
     fn name(&self) -> String {
         "memory".into()
+    }
+
+    fn stamp(&self) -> String {
+        MEMORY_STAMP.into()
+    }
+
+    fn choose_export(&mut self, suggested: &str) -> Option<ChosenPath> {
+        let _ = suggested;
+        let path = self.files.borrow_mut().chosen.take()?;
+        Some(ChosenPath::from_save_dialog(
+            PathBuf::from(path),
+            crate::ports::dialog::ExportKind::Text,
+        ))
+    }
+
+    fn write_export(&mut self, chosen: ChosenPath, text: &str) -> Result<String, ExportFailure> {
+        let name = chosen.path().to_string_lossy().into_owned();
+        // 関門と同じ名前の規則（§13.1.1 の特例: `.txt` / `.md` だけ）
+        let lower = name.to_ascii_lowercase();
+        if !lower.ends_with(".txt") && !lower.ends_with(".md") {
+            let violation = crate::core::policy::PolicyViolation {
+                target: chosen.path().to_path_buf(),
+                reason: crate::core::policy::Violation::NotAnExport,
+            };
+            return Err(ExportFailure::Refused(violation.diagnostic()));
+        }
+        let mut files = self.files.borrow_mut();
+        if files.fail {
+            return Err(ExportFailure::Failed("disk full".into()));
+        }
+        files.exported.insert(name.clone(), text.to_owned());
+        Ok(name)
     }
 }
 

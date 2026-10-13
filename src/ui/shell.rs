@@ -139,6 +139,8 @@ pub enum Command {
     Register { character: bool },
     /// `Ctrl+Shift+D` 外部変更との差分モーダル（衝突時のみ）。
     Diff,
+    /// `>export` テキストのエクスポート（§17.2。ショートカットは無く、パレットから）。
+    Export,
 }
 
 /// キー 1 つをショートカットに読む。`text_focused` は入力欄にフォーカスがあるか（`?` の判定）。

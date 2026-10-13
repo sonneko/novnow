@@ -199,14 +199,20 @@ novnow --version | -V
 | 不備・v0・新しすぎる・見つからない・ディレクトリでない | §14.2.2〜§14.2.4 を stderr（何も書かない） | 3 |
 | 読めない（権限）・UTF-8 でない（`check` だけが調べる） | stderr | 4 |
 | `check` が E を検出 | 診断を stdout | 5 |
-| `export` / `migrate` / `mcp`、GUI を求められた（M6） | 「まだ実装されていません」「GUI が含まれていません」を stderr | 2 |
+| `migrate` / `mcp`、GUI を含まないビルドで GUI を求められた | 「まだ実装されていません」「GUI が含まれていません」を stderr | 2 |
+| `export` の値の無いオプション・読めない範囲 / 状態（M9） | `novnow: …` と `使い方: novnow --help` を stderr | 2 |
+| `export --out` が `.txt` / `.md` でない・親ディレクトリが無い・書けない | `novnow: 書き込めませんでした: …` を stderr（何も書かない） | 4 |
 
 ```bash
 novnow new ./my-novel        # 雛形（§14.5）。既存のファイルは上書きしない。v0 / 新しすぎる版には何も書かない
 novnow check ./my-novel      # 1 行 1 件: contents/01-01.txt:3:1: [本文 @01-01-01-02] E001 辞書にない参照です: 星屑
 NOVNOW_LANG=en novnow check ./my-novel   # 言語: NOVNOW_LANG → LC_ALL / LC_MESSAGES / LANG → ja（ui.json は読まない）
 NO_COLOR=1 novnow check ./my-novel       # 色は端末のときだけ・Windows では付けない
+novnow export ./my-novel --range @01-04 --state fixed --out -   # §17。- は stdout（本文だけ）。--out 省略は exports/…
 ```
+
+エクスポート（M9）の中身は `core::export`（純粋。`run` = `select` ＋ `render`）。CLI と GUI は書き出し先を決めて書くだけ
+（`PLANS.md` §9.2 B-122〜B-125）。テストの「実プロジェクト」は `tests/novel/mod.rs`（`mod world;` も宣言すること）。
 
 - **Windows のリリースビルドは GUI サブシステム**なので、`cmd.exe` は終了を待たない（出力がプロンプトの後に出る・
   `%ERRORLEVEL%` が取れない）。CI では `start /wait novnow check .` か PowerShell の `Start-Process -Wait -PassThru`。

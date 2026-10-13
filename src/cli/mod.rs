@@ -8,8 +8,9 @@
 //!
 //! - **§14.2 の検査に落ちたら「他には何もしない」**: 標準エラーに出して終了する。GUI もダイアログも
 //!   出さず、履歴にも書かず、ディレクトリも作らない（指示 2）。
-//! - ファイルを書くのは `novnow new` だけで、`FsGate` / `FsStorage` を通る（§13.1.2）。M6 では
-//!   履歴（`RecentFile::push`）にも書かない（積むのは GUI がプロジェクトを開けたとき、§14.4）。
+//! - ファイルを書くのは `novnow new` と `novnow export` だけで、`FsGate` / `FsStorage` を通る
+//!   （§13.1.2。`export --out <パス>` は §13.1.1 の特例の口 `FsGate::write_chosen_export`）。
+//!   履歴（`RecentFile::push`）には書かない（積むのは GUI がプロジェクトを開けたとき、§14.4）。
 //! - 文言はすべて `ui::i18n` のカタログ（§12.2）。言語は `NOVNOW_LANG` → OS のロケール → `ja`
 //!   （§14.2.3。`ui.json` は読まない）。
 //! - 色は出力先が端末で、`NO_COLOR` が無く、Windows でないときだけ（§14.2.3）。
@@ -124,7 +125,7 @@ pub enum Command {
     New(PathBuf),
     /// `novnow check <dir>`。
     Check(PathBuf),
-    /// `novnow export <dir> [options]`（中身は M9。オプションはそのまま持つ）。
+    /// `novnow export <dir> [options]`（§17.2。オプションは `cli::export` が読む）。
     Export {
         /// プロジェクト。
         dir: PathBuf,
@@ -159,6 +160,12 @@ pub enum ArgError {
     UnexpectedArgument(String),
     /// ディレクトリが要るサブコマンドに無い。
     MissingDir(&'static str),
+    /// 値を取るオプションに値が無い（`novnow export . --range`）。
+    MissingValue(String),
+    /// `--range` の値が範囲式として読めない（§17.2）。
+    BadRange(String),
+    /// `--state` の値が `draft` / `review` / `fixed` のどれでもない（§17.2）。
+    BadState(String),
 }
 
 /// 起動のしかたを決める（§14.3。**純粋**: 引数と端末かどうかだけを見る）。
@@ -199,8 +206,8 @@ pub fn decide(args: &[OsString], terminal: Terminal) -> Launch {
 /// サブコマンドの引数を読む。
 fn subcommand(name: &'static str, rest: &[OsString]) -> Launch {
     if name == "export" {
-        // フラグを取るのは export だけ（§14.1）。中身は M9 なので、ここでは最初の引数を
-        // ディレクトリとし、残りはそのまま渡す
+        // フラグを取るのは export だけ（§14.1）。ここでは最初の引数をディレクトリとし、
+        // 残りはそのまま渡す（読むのは `cli::export`）
         return match rest.first() {
             Some(dir) if as_option(dir).is_none() => Launch::Command(Command::Export {
                 dir: PathBuf::from(dir),
@@ -414,6 +421,7 @@ impl<'a, E: Env> Cli<'a, E> {
             text.push_str(&format!("  {synopsis:<32}{}\n", self.text(key)));
         }
         for key in [
+            "cli.usage.export_options",
             "cli.usage.new_dir",
             "cli.usage.no_args",
             "cli.usage.exit_codes",
@@ -534,13 +542,16 @@ impl<'a, E: Env> Cli<'a, E> {
                 self.format("cli.error.unexpected_argument", &[extra])
             }
             ArgError::MissingDir(name) => self.format("cli.error.missing_dir", &[name]),
+            ArgError::MissingValue(option) => self.format("cli.error.missing_value", &[option]),
+            ArgError::BadRange(value) => self.format("cli.error.bad_range", &[value]),
+            ArgError::BadState(value) => self.format("cli.error.bad_state", &[value]),
         };
         self.headline(Stream::Err, Paint::Error, &message);
         self.help_hint();
         Exit::Usage
     }
 
-    /// まだ実装されていないサブコマンド（M6 の `export` / `migrate` / `mcp`）。説明して 2 を返す。
+    /// まだ実装されていないサブコマンド（`migrate` / `mcp`）。説明して 2 を返す。
     fn not_implemented(&mut self, name: &str) -> Exit {
         let message = self.format("cli.error.not_implemented", &[name]);
         self.headline(Stream::Err, Paint::Error, &message);

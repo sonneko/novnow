@@ -1276,3 +1276,136 @@ fn the_diff_modal_keeps_mine_or_takes_theirs() {
     assert_eq!(bench.buffer(), "外の版。");
     assert_eq!(bench.unsaved().count(), 0);
 }
+
+// ============================================================ エクスポート（§17.2、M9）
+
+/// パレットから `>export` を開く。
+fn open_export(harness: &mut Harness) {
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text(">export".into())]);
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    assert!(harness.app.overlay_open(), "エクスポートのモーダル");
+    // 範囲の欄にフォーカスが移るのを待つ
+    harness.frame(Vec::new());
+}
+
+fn exported(project: &novnow::core::features::Project, range: Option<&str>) -> String {
+    use novnow::core::export;
+    let range = range.map(|text| export::parse_range(text).expect(text));
+    let options = export::Options::from_settings(&project.settings().export);
+    export::run(project, range.as_ref(), &options)
+}
+
+#[test]
+fn the_export_modal_saves_into_exports_with_the_default_name() {
+    let mut harness = Harness::new();
+    open_export(&mut harness);
+    let output = harness.frame(Vec::new());
+    let painted = painted_text(&output);
+    assert!(painted.contains("3 節・"), "件数と字数: {painted}");
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    assert!(!harness.app.overlay_open(), "書いたら閉じる");
+    let name = format!("exports/memory-all-{}.txt", novnow::ui::app::MEMORY_STAMP);
+    let written = harness.host.files.borrow().written.get(&name).cloned();
+    assert_eq!(written, Some(exported(&world(), None)), "{name}");
+    let painted = painted_text(&harness.frame(Vec::new()));
+    assert!(
+        painted.contains(&format!("エクスポートしました: {name}")),
+        "{painted}"
+    );
+}
+
+#[test]
+fn the_export_modal_narrows_by_range_and_state() {
+    // 章 @01 の state を外し、2 節目だけ fixed にする
+    let all = "@01 失われた刻印\nsummary: 導入章。\n;\n";
+    let plot = "@01-04-02 図書室の攻防\n咎める。\n;\n明かす。\nstate: fixed\n;\n心変わり。\n";
+    let make = || {
+        let mut project = world_with("plots/all.txt", all);
+        project.insert(novnow::core::model::document::Document::new(
+            "plots/01-04.txt",
+            plot,
+        ));
+        project
+    };
+    let project = make();
+    let (mut harness, _) = Harness::start_with(make(), true);
+    open_export(&mut harness);
+    // Tab で review 以上 → fixed だけ
+    harness.frame(vec![key(Key::Tab, Modifiers::NONE)]);
+    harness.frame(vec![key(Key::Tab, Modifiers::NONE)]);
+    let painted = painted_text(&harness.frame(Vec::new()));
+    assert!(painted.contains("1 節・"), "{painted}");
+    // 範囲が読めなければ書かない
+    harness.frame(vec![Event::Text("@01-x".into())]);
+    let painted = painted_text(&harness.frame(Vec::new()));
+    assert!(painted.contains("範囲として読めません"), "{painted}");
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    assert!(harness.app.overlay_open());
+    assert!(harness.host.files.borrow().written.is_empty());
+    // 範囲を直して書く（全部消してから）
+    for _ in 0.."@01-x".chars().count() {
+        harness.frame(vec![key(Key::Backspace, Modifiers::NONE)]);
+    }
+    harness.frame(vec![Event::Text("01-04-02".into())]);
+    harness.frame(Vec::new());
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    assert!(!harness.app.overlay_open());
+    let name = format!(
+        "exports/memory-01-04-02-{}.txt",
+        novnow::ui::app::MEMORY_STAMP
+    );
+    let written = harness.host.files.borrow().written.get(&name).cloned();
+    let want = {
+        use novnow::core::export;
+        let range = export::parse_range("@01-04-02").expect("range");
+        let options = export::Options {
+            state: Some(export::State::Fixed),
+            ..export::Options::from_settings(&project.settings().export)
+        };
+        export::run(&project, Some(&range), &options)
+    };
+    assert_eq!(written.as_deref(), Some(want.as_str()));
+    assert!(want.starts_with("「旧校舎の地下遺跡に"), "{want}");
+}
+
+#[test]
+fn save_as_goes_through_the_dialog_and_copy_fills_the_clipboard() {
+    let mut harness = Harness::new();
+    // 名前を付けて保存（Shift+Enter）: ダイアログが選んだ 1 か所にだけ書く
+    harness.host.files.borrow_mut().chosen = Some("/elsewhere/公開用.md".into());
+    open_export(&mut harness);
+    harness.frame(vec![key(Key::Enter, Modifiers::SHIFT)]);
+    assert!(!harness.app.overlay_open());
+    {
+        let files = harness.host.files.borrow();
+        assert_eq!(
+            files.exported.get("/elsewhere/公開用.md"),
+            Some(&exported(&world(), None))
+        );
+        assert!(files.written.is_empty(), "プロジェクトには書かない");
+    }
+    // 取り消したら何もせずモーダルのまま
+    open_export(&mut harness);
+    harness.frame(vec![key(Key::Enter, Modifiers::SHIFT)]);
+    assert!(harness.app.overlay_open());
+    // .txt / .md でない名前は E060 で書かない
+    harness.host.files.borrow_mut().chosen = Some("/elsewhere/a.zip".into());
+    harness.frame(vec![key(Key::Enter, Modifiers::SHIFT)]);
+    // 新しく出たモーダルは最初のフレームでは大きさを測るだけで描かれない（egui の Area）
+    harness.frame(Vec::new());
+    let painted = painted_text(&harness.frame(Vec::new()));
+    assert!(
+        painted.contains("エクスポートできませんでした: プロジェクトの外には書き込めません"),
+        "{painted}"
+    );
+    assert_eq!(harness.host.files.borrow().exported.len(), 1);
+    harness.frame(vec![key(Key::Escape, Modifiers::NONE)]);
+    // コピー（Ctrl+Shift+C）
+    open_export(&mut harness);
+    // 実機の egui-winit は Windows / Linux の Ctrl で ctrl と command の両方を立てる
+    let ctrl_shift = Modifiers::CTRL | Modifiers::COMMAND | Modifiers::SHIFT;
+    let output = harness.frame(vec![key(Key::C, ctrl_shift)]);
+    assert_eq!(output.platform_output.copied_text, exported(&world(), None));
+    assert!(!harness.app.overlay_open());
+}

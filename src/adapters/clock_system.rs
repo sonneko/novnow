@@ -126,6 +126,20 @@ pub fn yyyymmdd(millis: i64, offset_minutes: i32) -> String {
     format!("{year:04}{month:02}{day:02}")
 }
 
+/// `YYYYMMDD-HHMM`（テキストのエクスポートの既定の名前、§17.2 `<YYYYMMDD-HHMM>`）。
+///
+/// ネイティブ版はローカルのずれが分からないので UTC になる（`PLANS.md` §9.2 B-92・B-123）。
+pub fn compact_stamp(millis: i64, offset_minutes: i32) -> String {
+    let local = millis.div_euclid(1000) + i64::from(offset_minutes) * 60;
+    let of_day = local.rem_euclid(86_400);
+    format!(
+        "{}-{:02}{:02}",
+        yyyymmdd(millis, offset_minutes),
+        of_day / 3600,
+        of_day % 3600 / 60
+    )
+}
+
 /// 1970-01-01 からの日数 → 年・月・日（先発グレゴリオ暦）。
 fn civil_from_days(days: i64) -> (i64, u32, u32) {
     let z = days + 719_468;

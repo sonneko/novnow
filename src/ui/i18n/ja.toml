@@ -113,12 +113,16 @@ not_implemented = "novnow {0} はまだ実装されていません"
 no_gui = "この novnow には GUI が含まれていません"
 gui_failed = "GUI を起動できませんでした: {0}"
 write_failed = "書き込めませんでした: {0}"
+missing_value = "{0} に値を指定してください"
+bad_range = "範囲として読めません: {0}（例: @01-04、@01 .. @03, @05）"
+bad_state = "状態は draft / review / fixed のどれかです: {0}"
 
 [cli.label]
 target = "対象"
 created = "作成したファイル"
 kept = "上書きしなかったファイル"
 invalid_utf8 = "UTF-8 として読めないファイル"
+output = "書き出し先"
 
 [cli.hint]
 structure_doc = "プロジェクト構造"
@@ -133,6 +137,10 @@ check = "検査する"
 created = "新しいプロジェクトを作りました"
 completed = "足りないファイルを作りました（既存のファイルは上書きしていません）"
 nothing = "作るファイルはありませんでした（すべて揃っています）"
+
+[cli.export]
+written = "書き出しました（{0} 節・{1} 字）"
+empty = "範囲に当てはまる節がありません（何も書き出していません）"
 
 [cli.check]
 summary = "{0} 個の文書を検査しました（エラー {1}・警告 {2}・情報 {3}）"
@@ -149,6 +157,7 @@ mcp = "MCP サーバとして起動する"
 gui = "引数があっても GUI で起動する"
 help = "この使い方を表示する"
 version = "版を表示する"
+export_options = "export のオプション: --range <範囲>（@01-04 や @01 .. @03, @05。既定は全体）/ --state draft|review|fixed（その状態以上の節だけ）/ --out <パス>（.txt か .md。- なら標準出力。既定はプロジェクトの exports/）"
 new_dir = "new という名前のディレクトリを開くときは novnow ./new と書いてください。"
 no_args = "端末から引数なしで起動したときは、GUI を出さずにこの使い方を表示します（GUI は novnow --gui）。"
 exit_codes = "終了コード: 0 正常 / 2 使い方の誤り / 3 プロジェクトの不備・v0 形式・新しすぎる版 / 4 読み書きの失敗 / 5 check がエラーを検出"
@@ -242,6 +251,23 @@ new_section = "直後に新しい節を作る"
 jump = "構造 ID へジャンプ"
 reference = "参照ペインの表示を切り替える"
 help = "キーボード一覧"
+export = "テキストにエクスポートする（アノテーションを除く）"
+
+# `>export` のモーダル（§17.2、M9）。ボタンの文字は §9.2.1 の 1（内容から役割が分からない）
+[export]
+title = "エクスポート（アノテーションを除いたテキスト）"
+range_hint = "範囲（空欄なら全体）: @01-04 / @01 .. @03, @05"
+state_all = "すべて"
+state_review = "review 以上"
+state_fixed = "fixed だけ"
+preview = "{0} 節・{1} 字"
+bad_range = "範囲として読めません（例: @01-04、@01 .. @03, @05）"
+write = "exports/ に保存（Enter）"
+save_as = "名前を付けて保存…（Shift+Enter）"
+copy = "コピー（Ctrl+Shift+C）"
+written = "エクスポートしました: {0}"
+copied = "クリップボードにコピーしました（{0} 字）"
+failed = "エクスポートできませんでした: {0}"
 
 [help]
 title = "キーボード"
