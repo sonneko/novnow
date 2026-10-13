@@ -419,6 +419,67 @@ impl Workbench {
         Some((Document::new(current.path.clone(), text), start))
     }
 
+    /// 複数ファイルにまたがる編集を当てる（クイックフィックス・辞書への登録）。今のファイルの範囲は
+    /// [`Workbench::spliced_document`]（節エディタの中身を書き戻した形）の上の byte であること。
+    pub fn apply_edit(&mut self, edit: &crate::core::features::WorkspaceEdit, now: f64) -> bool {
+        let Some((spliced, _)) = self.spliced_document() else {
+            return false;
+        };
+        let current = self.editing.clone();
+        let mut touched = false;
+        for change in &edit.changes {
+            let base = if change.path == spliced.path {
+                spliced.text.clone()
+            } else {
+                self.project.text(&change.path).to_owned()
+            };
+            let text = crate::core::features::apply_edits(&base, &change.edits);
+            self.project
+                .insert(Document::new(change.path.clone(), text));
+            self.unsaved.insert(change.path.clone());
+            touched = true;
+        }
+        if !touched {
+            return false;
+        }
+        self.rebuild();
+        if let Some(current) = current {
+            match sections::position_of(&self.list, &current.section.path, current.section.id) {
+                Some(index) => self.enter(index),
+                None => self.editing = Some(current),
+            }
+        }
+        self.save.edited(now);
+        true
+    }
+
+    /// 外部の版で置き換える（§8.5 の差分モーダルの「外部の版を読み込む」）。
+    pub fn take_external(&mut self, path: &str, text: Option<String>) {
+        self.unsaved.remove(path);
+        self.conflicts.remove(path);
+        let editing_here = self
+            .editing
+            .as_ref()
+            .is_some_and(|editing| editing.section.path == path);
+        if editing_here {
+            // 節エディタの中身は外部の版で読み直す（未保存の編集は捨てる）
+            if let Some(current) = self.editing.as_ref() {
+                if let Some(document) = self.project.document(path) {
+                    self.buffer = sections::text_of(&document.text, &current.section);
+                }
+            }
+        }
+        self.external_change(path, text);
+    }
+
+    /// 自分の版を残す（§8.5 の差分モーダル。次の保存で外部の版を上書きする）。
+    pub fn keep_mine(&mut self, path: &str, now: f64) {
+        self.conflicts.remove(path);
+        self.unsaved.insert(path.to_owned());
+        self.save.edited(now);
+        self.save.request_now();
+    }
+
     /// 書くべきファイルと中身（書き戻してから）。書き終えたら [`Workbench::write_finished`]。
     pub fn take_writes(&mut self) -> Vec<(String, String)> {
         self.commit();

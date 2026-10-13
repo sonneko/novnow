@@ -272,6 +272,9 @@ term = "Full text of the term"
 delete_section = "Delete this section (asks first)"
 recent = "Recent files"
 open = "Open a project"
+quick_fix = "Quick fix"
+register = "Register the selection as a term / character"
+diff = "Diff with outside changes (on conflict)"
 
 [find]
 placeholder = "Find"
@@ -286,3 +289,38 @@ placeholder = "Search all prose"
 [delete]
 confirm = "Delete this section? (Ctrl+Z cannot undo this)"
 yes = "Delete"
+
+[quickfix]
+none = "Nothing to fix here"
+
+[register]
+word_done = "Added to words.md: {0}"
+character_done = "Added to characters.md: {0}"
+no_selection = "Select the text to register"
+
+[diff]
+title = "Files changed outside novnow (they conflict with your unsaved changes)"
+lines = "Yours: {0} lines / theirs: {1} lines"
+keep_mine = "Keep yours (overwrite theirs)"
+take_theirs = "Load theirs (discard your changes)"
+
+[action]
+RegisterWord = "Add to words.md as a term: {0}"
+RegisterCharacter = "Add to characters.md as a character: {0}"
+ReplaceWithCandidate = "Replace with {0}"
+CloseExplicitForm = "Close the explicit form: {0}"
+ReplaceMode = "Use mode {0}"
+KeepFirstTwoModes = "Keep only the first two modes: {0}"
+ReplaceTitle = "Use the index title: {0}"
+RewriteIndexTitle = "Rewrite the index title: {0}"
+UseOtherMaterialId = "Use material ID {0}"
+ReplaceMaterialId = "Replace with material ID {0}"
+Renumber = "Renumber: {0}"
+SwapRange = "Swap the range: {0}"
+InsertSummary = "Add a summary line{0}"
+InsertDefinition = "Add a definition line{0}"
+RemoveModifier = "Remove the modifier{0}"
+EscapeAt = "Put \\ before @{0}"
+ReplaceKey = "Use the key {0}"
+RemoveSection = "Remove the empty section{0}"
+UseExplicitForm = "Use the explicit form: {0}"

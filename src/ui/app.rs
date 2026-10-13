@@ -83,6 +83,13 @@ enum Overlay {
     ConfirmDelete,
     /// 開けなかったときなどの表示（§14.2.2 と同じ内容）。
     Message(String),
+    /// `Ctrl+.`。キャレットの下に出す。
+    QuickFix {
+        actions: Vec<crate::core::features::code_action::CodeAction>,
+        selected: usize,
+    },
+    /// `Ctrl+Shift+D`（§8.5）。
+    Diff,
 }
 
 /// 開いているプロジェクト。
@@ -108,6 +115,8 @@ pub struct Session {
     last_find: String,
     /// 全体検索の結果（文字列ごとに作り直す）。
     search_cache: Option<(String, u64, Vec<crate::ui::assist::Hit>)>,
+    /// 衝突したファイルの外部の版（§8.5。消えたなら `None`）。
+    conflict_texts: std::collections::BTreeMap<String, Option<String>>,
 }
 
 impl Session {
@@ -134,6 +143,7 @@ impl Session {
             recent: Vec::new(),
             last_find: String::new(),
             search_cache: None,
+            conflict_texts: std::collections::BTreeMap::new(),
         }
     }
 
@@ -527,6 +537,70 @@ impl NovnowApp {
                     self.overlay = Overlay::ConfirmDelete;
                 }
             }
+            Command::QuickFix => {
+                let actions = session
+                    .bench
+                    .spliced_document()
+                    .map(|(document, start)| {
+                        let selection = session.selection.clone().unwrap_or(0..0);
+                        let mut actions = crate::core::features::code_action::at(
+                            &document,
+                            start + selection.start..start + selection.end,
+                            session.bench.project(),
+                        );
+                        // 既定（`Enter` 一発で適用）を先頭に
+                        actions.sort_by_key(|action| !action.preferred);
+                        actions
+                    })
+                    .unwrap_or_default();
+                if actions.is_empty() {
+                    session.notice = Some((i18n::text(locale, "quickfix.none").to_owned(), now));
+                } else {
+                    self.overlay = Overlay::QuickFix {
+                        actions,
+                        selected: 0,
+                    };
+                }
+            }
+            Command::Register { character } => {
+                let name = session
+                    .selection
+                    .clone()
+                    .filter(|range| !range.is_empty())
+                    .and_then(|range| session.bench.buffer().get(range).map(str::to_owned))
+                    .map(|text| text.trim().to_owned())
+                    .filter(|text| !text.is_empty() && !text.contains('\n'));
+                match name {
+                    Some(name) => {
+                        let kind = if character {
+                            crate::core::resolve::dictionary::EntryKind::Character
+                        } else {
+                            crate::core::resolve::dictionary::EntryKind::Word
+                        };
+                        let edit = crate::core::features::code_action::register_edit(
+                            session.bench.project(),
+                            kind,
+                            &name,
+                        );
+                        session.bench.apply_edit(&edit, now);
+                        let key = if character {
+                            "register.character_done"
+                        } else {
+                            "register.word_done"
+                        };
+                        session.notice = Some((i18n::format(locale, key, &[&name]), now));
+                    }
+                    None => {
+                        session.notice =
+                            Some((i18n::text(locale, "register.no_selection").to_owned(), now));
+                    }
+                }
+            }
+            Command::Diff => {
+                if session.bench.conflicts().next().is_some() {
+                    self.overlay = Overlay::Diff;
+                }
+            }
             Command::RecentFile(forward) => {
                 let target = if forward {
                     session.recent.get(1).cloned()
@@ -699,7 +773,10 @@ impl NovnowApp {
         }
         // 補完のポップアップが出ている間は、↑/↓/Enter/Tab を節エディタより先に取る
         let mut completion_keys = (false, false, false);
-        if matches!(self.overlay, Overlay::Completion { .. }) {
+        if matches!(
+            self.overlay,
+            Overlay::Completion { .. } | Overlay::QuickFix { .. }
+        ) {
             completion_keys = ctx.input_mut(|input| {
                 let down = input.consume_key(Modifiers::NONE, Key::ArrowDown);
                 let up = input.consume_key(Modifiers::NONE, Key::ArrowUp);
@@ -820,6 +897,20 @@ impl NovnowApp {
                 self.overlay = Overlay::None;
             }
         }
+        if let Overlay::QuickFix { actions, selected } = &mut self.overlay {
+            if !quick_fix(
+                ctx,
+                session,
+                actions,
+                selected,
+                completion_keys,
+                locale,
+                mode,
+                now,
+            ) {
+                self.overlay = Overlay::None;
+            }
+        }
         if let Some(index) = clicked {
             if session.bench.go_to(index) {
                 session.settings_dirty = true;
@@ -837,11 +928,15 @@ impl NovnowApp {
         if now - session.last_poll >= 1.0 {
             session.last_poll = now;
             for (path, text) in session.host.poll() {
-                if session.bench.external_change(&path, text)
-                    == crate::ui::workbench::Reaction::Reloaded
-                {
-                    let message = i18n::format(locale, "diag.I052", &[&path]);
-                    session.notice = Some((message, now));
+                match session.bench.external_change(&path, text.clone()) {
+                    crate::ui::workbench::Reaction::Reloaded => {
+                        let message = i18n::format(locale, "diag.I052", &[&path]);
+                        session.notice = Some((message, now));
+                    }
+                    crate::ui::workbench::Reaction::Conflict => {
+                        session.conflict_texts.insert(path, text);
+                    }
+                    crate::ui::workbench::Reaction::Unchanged => {}
                 }
             }
         }
@@ -1157,7 +1252,58 @@ impl NovnowApp {
                     close = true;
                 }
             }
-            Overlay::Completion { .. } => {}
+            Overlay::Completion { .. } | Overlay::QuickFix { .. } => {}
+            Overlay::Diff => {
+                let conflicts: Vec<String> = session.bench.conflicts().map(str::to_owned).collect();
+                if conflicts.is_empty() {
+                    close = true;
+                }
+                let mut keep: Option<String> = None;
+                let mut take: Option<String> = None;
+                popup(ctx, "diff", colors, |ui| {
+                    ui.label(
+                        RichText::new(i18n::text(locale, "diff.title")).color(colors.fg_faint),
+                    );
+                    ui.add_space(6.0);
+                    for path in &conflicts {
+                        let mine = session.bench.project().text(path).lines().count();
+                        let theirs = session
+                            .conflict_texts
+                            .get(path)
+                            .and_then(|text| text.as_ref().map(|text| text.lines().count()));
+                        ui.label(RichText::new(path).color(colors.fg_primary));
+                        ui.label(
+                            RichText::new(i18n::format(
+                                locale,
+                                "diff.lines",
+                                &[
+                                    &mine.to_string(),
+                                    &theirs.map_or_else(|| "—".to_owned(), |n| n.to_string()),
+                                ],
+                            ))
+                            .color(colors.fg_muted),
+                        );
+                        ui.horizontal(|ui| {
+                            // どちらも上書き・破棄（破壊的操作）なので文字ラベルを置く（§9.2.1-2）
+                            if ui.button(i18n::text(locale, "diff.keep_mine")).clicked() {
+                                keep = Some(path.clone());
+                            }
+                            if ui.button(i18n::text(locale, "diff.take_theirs")).clicked() {
+                                take = Some(path.clone());
+                            }
+                        });
+                        ui.add_space(6.0);
+                    }
+                });
+                if let Some(path) = keep {
+                    session.bench.keep_mine(&path, now);
+                    session.conflict_texts.remove(&path);
+                }
+                if let Some(path) = take {
+                    let text = session.conflict_texts.remove(&path).flatten();
+                    session.bench.take_external(&path, text);
+                }
+            }
             Overlay::Info { lines } => {
                 let anchor = session.caret.map_or(Pos2::new(120.0, 120.0), |rect| {
                     rect.left_bottom() + Vec2::new(0.0, 6.0)
@@ -1643,6 +1789,96 @@ fn completion(
     false
 }
 
+/// クイックフィックスのポップアップ（§9.8.3 `Ctrl+.`）。適用したら閉じる（`false`）。
+#[allow(clippy::too_many_arguments)]
+fn quick_fix(
+    ctx: &Context,
+    session: &mut Session,
+    actions: &[crate::core::features::code_action::CodeAction],
+    selected: &mut usize,
+    keys: (bool, bool, bool),
+    locale: Locale,
+    mode: Mode,
+    now: f64,
+) -> bool {
+    let (down, up, enter) = keys;
+    if down && *selected + 1 < actions.len() {
+        *selected += 1;
+    }
+    if up {
+        *selected = selected.saturating_sub(1);
+    }
+    let mut chosen = enter.then_some(*selected);
+    let colors = theme::palette(mode);
+    let anchor = session.caret.map_or(Pos2::new(120.0, 120.0), |rect| {
+        rect.left_bottom() + Vec2::new(0.0, 4.0)
+    });
+    egui::Area::new(Id::new("quick-fix"))
+        .order(egui::Order::Foreground)
+        .fixed_pos(anchor)
+        .show(ctx, |ui| {
+            Frame::none()
+                .fill(colors.bg_raised)
+                .stroke(Stroke::new(1.0_f32, colors.border))
+                .inner_margin(Margin::same(6.0))
+                .show(ui, |ui| {
+                    ui.style_mut().wrap = Some(false);
+                    for (index, action) in actions.iter().enumerate() {
+                        let label = action_label(locale, action);
+                        let color = if index == *selected {
+                            colors.accent
+                        } else {
+                            colors.fg_primary
+                        };
+                        if ui
+                            .selectable_label(index == *selected, RichText::new(label).color(color))
+                            .clicked()
+                        {
+                            chosen = Some(index);
+                        }
+                    }
+                });
+        });
+    match chosen.and_then(|index| actions.get(index)) {
+        Some(action) => {
+            session.bench.apply_edit(&action.edit, now);
+            false
+        }
+        None => true,
+    }
+}
+
+/// クイックフィックスの名前（`action.<種別>` に引数を埋める）。
+fn action_label(locale: Locale, action: &crate::core::features::code_action::CodeAction) -> String {
+    use crate::core::features::code_action::ActionKind;
+    let key = match action.kind {
+        ActionKind::RegisterWord => "action.RegisterWord",
+        ActionKind::RegisterCharacter => "action.RegisterCharacter",
+        ActionKind::ReplaceWithCandidate => "action.ReplaceWithCandidate",
+        ActionKind::CloseExplicitForm => "action.CloseExplicitForm",
+        ActionKind::ReplaceMode => "action.ReplaceMode",
+        ActionKind::KeepFirstTwoModes => "action.KeepFirstTwoModes",
+        ActionKind::ReplaceTitle => "action.ReplaceTitle",
+        ActionKind::RewriteIndexTitle => "action.RewriteIndexTitle",
+        ActionKind::UseOtherMaterialId => "action.UseOtherMaterialId",
+        ActionKind::ReplaceMaterialId => "action.ReplaceMaterialId",
+        ActionKind::Renumber => "action.Renumber",
+        ActionKind::SwapRange => "action.SwapRange",
+        ActionKind::InsertSummary => "action.InsertSummary",
+        ActionKind::InsertDefinition => "action.InsertDefinition",
+        ActionKind::RemoveModifier => "action.RemoveModifier",
+        ActionKind::EscapeAt => "action.EscapeAt",
+        ActionKind::ReplaceKey => "action.ReplaceKey",
+        ActionKind::RemoveSection => "action.RemoveSection",
+        ActionKind::UseExplicitForm => "action.UseExplicitForm",
+    };
+    format!(
+        "{}  {}",
+        action.diagnostic.as_str(),
+        i18n::format(locale, key, &[&action.arg])
+    )
+}
+
 fn diagnostic_count(session: &mut Session) -> usize {
     let Some(current) = session.bench.current() else {
         return 0;
@@ -1831,6 +2067,9 @@ const HELP_KEYS: &[(&str, &str)] = &[
     ("Ctrl+Shift+;", "help.delete_section"),
     ("Ctrl+Tab", "help.recent"),
     ("Ctrl+O", "help.open"),
+    ("Ctrl+.", "help.quick_fix"),
+    ("Ctrl+T / Ctrl+Shift+T", "help.register"),
+    ("Ctrl+Shift+D", "help.diff"),
     ("Esc", "help.escape"),
 ];
 

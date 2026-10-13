@@ -270,6 +270,9 @@ term = "用語の全文"
 delete_section = "今の節を削除（確認あり）"
 recent = "最近開いたファイル"
 open = "プロジェクトを開く"
+quick_fix = "クイックフィックス"
+register = "選択を用語 / キャラとして登録"
+diff = "外部変更との差分（衝突時）"
 
 [find]
 placeholder = "検索"
@@ -284,3 +287,38 @@ placeholder = "本文の全体から検索"
 [delete]
 confirm = "この節を削除しますか？（取り消しは Ctrl+Z ではできません）"
 yes = "削除する"
+
+[quickfix]
+none = "この位置に直せるものはありません"
+
+[register]
+word_done = "words.md に登録しました: {0}"
+character_done = "characters.md に登録しました: {0}"
+no_selection = "登録する文字列を選んでください"
+
+[diff]
+title = "外部で変更されたファイル（未保存の変更と衝突しています）"
+lines = "自分の版 {0} 行 / 外部の版 {1} 行"
+keep_mine = "自分の版を残す（外部の版を上書き）"
+take_theirs = "外部の版を読み込む（自分の変更を破棄）"
+
+[action]
+RegisterWord = "用語として words.md に登録: {0}"
+RegisterCharacter = "キャラとして characters.md に登録: {0}"
+ReplaceWithCandidate = "{0} に置き換える"
+CloseExplicitForm = "明示形を閉じる: {0}"
+ReplaceMode = "モード {0} に置き換える"
+KeepFirstTwoModes = "最初の 2 つのモードだけ残す: {0}"
+ReplaceTitle = "索引のタイトルに揃える: {0}"
+RewriteIndexTitle = "索引のタイトルを書き換える: {0}"
+UseOtherMaterialId = "資料 ID を {0} にする"
+ReplaceMaterialId = "資料 ID {0} に置き換える"
+Renumber = "番号を振り直す: {0}"
+SwapRange = "範囲を入れ替える: {0}"
+InsertSummary = "summary（要約）の行を足す{0}"
+InsertDefinition = "definition（定義）の行を足す{0}"
+RemoveModifier = "修飾子を外す{0}"
+EscapeAt = "@ の前に \\ を入れる{0}"
+ReplaceKey = "キーを {0} にする"
+RemoveSection = "空の節を消す{0}"
+UseExplicitForm = "明示形にする: {0}"

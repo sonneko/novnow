@@ -238,33 +238,11 @@ impl Context<'_> {
 
     /// `characters.md` / `words.md` の末尾に項目を足す（無ければファイルを作る）。
     fn register(&self, kind: EntryKind, name: &str) -> CodeAction {
-        let (path, block, action) = match kind {
-            EntryKind::Word => (
-                SourceFile::Words.path(),
-                format!("# {name}\ndefinition: \n"),
-                ActionKind::RegisterWord,
-            ),
-            _ => (
-                SourceFile::Characters.path(),
-                format!("# {name}\n"),
-                ActionKind::RegisterCharacter,
-            ),
+        let action = match kind {
+            EntryKind::Word => ActionKind::RegisterWord,
+            _ => ActionKind::RegisterCharacter,
         };
-        let text = self.project.text(path);
-        let separator = if text.is_empty() || text.ends_with("\n\n") {
-            ""
-        } else if text.ends_with('\n') {
-            "\n"
-        } else {
-            "\n\n"
-        };
-        let edit = WorkspaceEdit::single(
-            path,
-            vec![TextEdit {
-                range: text.len()..text.len(),
-                new_text: format!("{separator}{block}"),
-            }],
-        );
+        let edit = register_edit(self.project, kind, name);
         self.action(action, name.to_string(), edit, false)
     }
 
@@ -765,4 +743,31 @@ fn display(id: SceneId, depth: usize, digits: Digits) -> String {
 
 fn shift(range: &Range<usize>, by: usize) -> Range<usize> {
     range.start + by..range.end + by
+}
+
+/// `name` を `words.md`（`EntryKind::Word`）か `characters.md`（それ以外）の末尾に足す編集
+/// （E001 のクイックフィックスと、§9.8.3 の `Ctrl+T` / `Ctrl+Shift+T` が共有する）。ファイルが無ければ作る。
+pub fn register_edit(project: &Project, kind: EntryKind, name: &str) -> WorkspaceEdit {
+    let (path, block) = match kind {
+        EntryKind::Word => (
+            SourceFile::Words.path(),
+            format!("# {name}\ndefinition: \n"),
+        ),
+        _ => (SourceFile::Characters.path(), format!("# {name}\n")),
+    };
+    let text = project.text(path);
+    let separator = if text.is_empty() || text.ends_with("\n\n") {
+        ""
+    } else if text.ends_with('\n') {
+        "\n"
+    } else {
+        "\n\n"
+    };
+    WorkspaceEdit::single(
+        path,
+        vec![TextEdit {
+            range: text.len()..text.len(),
+            new_text: format!("{separator}{block}"),
+        }],
+    )
 }

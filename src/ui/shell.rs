@@ -133,6 +133,12 @@ pub enum Command {
     DeleteSection,
     /// `Ctrl+Tab` / `Ctrl+Shift+Tab` 最近開いたファイルを循環。
     RecentFile(bool),
+    /// `Ctrl+.` クイックフィックス（カーソル位置の診断）。
+    QuickFix,
+    /// `Ctrl+T` / `Ctrl+Shift+T` 選択文字列を用語 / キャラとして登録。
+    Register { character: bool },
+    /// `Ctrl+Shift+D` 外部変更との差分モーダル（衝突時のみ）。
+    Diff,
 }
 
 /// キー 1 つをショートカットに読む。`text_focused` は入力欄にフォーカスがあるか（`?` の判定）。
@@ -190,6 +196,9 @@ pub fn command_of(
         Key::M if ctrl && !alt && shift => Command::Modes,
         Key::W if ctrl && !alt && shift => Command::Term,
         Key::Tab if ctrl && !alt => Command::RecentFile(!shift),
+        Key::Period if ctrl && !alt && !shift => Command::QuickFix,
+        Key::T if ctrl && !alt => Command::Register { character: shift },
+        Key::D if ctrl && !alt && shift => Command::Diff,
         Key::ArrowUp if ctrl && alt && !shift => Command::ContextRatio(true),
         Key::ArrowDown if ctrl && alt && !shift => Command::ContextRatio(false),
         Key::ArrowLeft if ctrl && alt && shift => Command::MainRatio(false),

@@ -300,8 +300,23 @@ fn every_cli_key_used_in_the_source_exists_and_none_is_unused() {
 
 /// GUI（M7）の文言の領域。`src/ui/**`（カタログ自身を除く）の文字列リテラルから引く。
 const GUI_PREFIXES: &[&str] = &[
-    "status.", "palette.", "project.", "header.", "editor.", "pane.", "jump.", "modal.",
-    "command.", "help.", "find.", "search.", "delete.",
+    "status.",
+    "palette.",
+    "project.",
+    "header.",
+    "editor.",
+    "pane.",
+    "jump.",
+    "modal.",
+    "command.",
+    "help.",
+    "find.",
+    "search.",
+    "delete.",
+    "quickfix.",
+    "register.",
+    "diff.",
+    "action.",
 ];
 
 #[test]

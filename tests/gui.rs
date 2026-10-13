@@ -1029,3 +1029,67 @@ fn typing_a_quote_opens_completion_and_enter_inserts_the_candidate() {
         "候補を挿入する（Enter で改行は入らない）: {buffer:?}"
     );
 }
+
+#[test]
+fn quick_fix_and_register_write_to_the_dictionary_files() {
+    use novnow::core::features::code_action;
+    use novnow::core::resolve::dictionary::EntryKind;
+    let text = world()
+        .text(CONTENTS_PATH)
+        .replace("呆れたような声", "'新語な声");
+    let mut bench = Workbench::new(world_with(CONTENTS_PATH, &text), None, 400);
+    let (document, start) = bench.spliced_document().expect("open");
+    let at = document.text.find("'新語").expect("ref") - start + 1;
+    let actions = code_action::at(&document, start + at..start + at, bench.project());
+    let register = actions
+        .iter()
+        .find(|action| action.kind == code_action::ActionKind::RegisterWord)
+        .expect("E001 の登録");
+    assert!(bench.apply_edit(&register.edit, 1.0));
+    let words = bench.project().text("words.md").to_owned();
+    assert!(
+        words.contains(&format!("# {}\ndefinition: \n", register.arg)),
+        "{:?} / {words}",
+        register.arg
+    );
+    assert!(register.arg.starts_with("新語"), "{:?}", register.arg);
+    assert!(bench.unsaved().any(|path| path == "words.md"));
+    assert_eq!(bench.current_id(), Some(id(1, 4, 2, 1)), "同じ節にいる");
+    // Ctrl+T / Ctrl+Shift+T と同じ編集
+    let edit = code_action::register_edit(bench.project(), EntryKind::Character, "ミナ");
+    assert!(bench.apply_edit(&edit, 2.0));
+    assert!(bench
+        .project()
+        .text("characters.md")
+        .ends_with("\n\n# ミナ\n"));
+    let writes = bench.take_writes();
+    let paths: Vec<&str> = writes.iter().map(|(path, _)| path.as_str()).collect();
+    assert_eq!(paths, vec!["characters.md", "words.md"]);
+}
+
+#[test]
+fn the_diff_modal_keeps_mine_or_takes_theirs() {
+    let mut bench = Workbench::new(world(), None, 400);
+    bench.buffer_mut().push_str("自分の編集");
+    bench.edited(0.0);
+    let theirs = "@01-04-02 図書室の攻防\n外の版。\n".to_owned();
+    assert_eq!(
+        bench.external_change(CONTENTS_PATH, Some(theirs.clone())),
+        Reaction::Conflict
+    );
+    bench.keep_mine(CONTENTS_PATH, 1.0);
+    assert_eq!(bench.conflicts().count(), 0);
+    assert!(bench.save.due(1.0), "自分の版を書き出す");
+    assert!(bench.take_writes()[0].1.contains("自分の編集"));
+    // もう一度衝突させて、今度は外部の版を読む
+    bench.buffer_mut().push_str("さらに");
+    bench.edited(2.0);
+    assert_eq!(
+        bench.external_change(CONTENTS_PATH, Some(theirs.clone())),
+        Reaction::Conflict
+    );
+    bench.take_external(CONTENTS_PATH, Some(theirs.clone()));
+    assert_eq!(bench.project().text(CONTENTS_PATH), theirs);
+    assert_eq!(bench.buffer(), "外の版。");
+    assert_eq!(bench.unsaved().count(), 0);
+}
