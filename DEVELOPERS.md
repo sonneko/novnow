@@ -581,12 +581,15 @@ M6 で入れた（判断は `PLANS.md` §9.2 B-100〜B-108。使い方は本書 
 | `ui/app.rs` | `eframe::App` の本体 `NovnowApp`。`Host`（書き込み・外部変更の監視）と `Picker`（§14.4）を差し替えられる |
 | `ui/theme.rs` | §11 の色（**生の色を書いてよいのはここだけ**）とフォント（`fontdb` → 無ければ同梱の `assets/ipag.ttf`） |
 | `ui/widgets/*` | 文脈ビュー・節エディタ・参照ペイン・構文ハイライト（下線と波線は `Galley` のベースラインから描く） |
+| `core/features/plots.rs` / `ideas.rs` / `materials_ops.rs` / `cast.rs` | M8 のワークスペースの規則（プロットの行の並び・アイデアの操作・資料の索引の操作と検索・モードの帯の移動）。純粋（B-127・B-130・B-131・B-133〜B-136） |
+| `ui/workspaces/*` | M8 の 7 種のワークスペース。`mod.rs` に切替（`Switcher`）と `View` / `Request`。本文以外の文書は `Workbench` の Slice で編集する（B-126） |
+| `ui/widgets/slice_editor.rs` / `inlay.rs` | M8 のエディタ（Slice。節エディタと同じ `section_editor::area`）／インレイヒントの隙間と描画（B-137） |
 
 書き込みは `ui::app::Host::write` だけ（デスクトップは `FsStorage` ＝ `FsGate` を通る）。eframe の `persistence` は使わない。
 
 ### 6.3 テスト
 
-`tests/gui.rs`（`#![cfg(feature = "ui")]`）が `NovnowApp` を `egui::Context::run` で 1 フレームずつ回す。
+`tests/gui.rs` と `tests/workspaces.rs`（M8。どちらも `#![cfg(feature = "ui")]`）が `NovnowApp` を `egui::Context::run` で 1 フレームずつ回す。
 `RawInput { events, time, focused: true, .. }` を渡し、`FullOutput.shapes` の文字列（「文脈ビューに編集中の本文を描かない」）や
 `platform_output.ime`、`MemoryHost`（書いた中身を `Rc` で外から読める）を見る。
 
@@ -594,7 +597,8 @@ M6 で入れた（判断は `PLANS.md` §9.2 B-100〜B-108。使い方は本書 
 
 ```bash
 NOVNOW_SHOT=/tmp/shot.rgba cargo test --features ui --test gui screenshot -- --ignored
-# NOVNOW_SHOT_SCENE=completion|palette|find|help、NOVNOW_SHOT_LIGHT=1 で場面と配色を変えられる
+# NOVNOW_SHOT_SCENE=inlay|completion|palette|find|help|episode|outline|idea|material|material-search|cast|review、
+# NOVNOW_SHOT_LIGHT=1 で場面と配色を変えられる
 python3 - <<'PY'
 import zlib, struct
 w, h = 1280, 800
@@ -606,7 +610,7 @@ open('/tmp/shot.png', 'wb').write(b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.p
 PY
 ```
 
-egui のテッセレーション結果を三角形ごとにソフトウェアで塗るだけの道具（`screenshot` テスト）。`docs/screenshot-m7.png` はこれで作った。
+egui のテッセレーション結果を三角形ごとにソフトウェアで塗るだけの道具（`screenshot` テスト）。`docs/screenshot-m7.png` と `docs/screenshot-m8.png` はこれで作った。
 
 ---
 

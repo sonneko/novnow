@@ -1,6 +1,6 @@
 # 実装担当の引き継ぎ — novnow
 
-> 最終更新: **2026-10-13**（ユーザーのタイムゾーンは Asia/Tokyo）
+> 最終更新: **2026-10-14**（ユーザーのタイムゾーンは Asia/Tokyo）
 >
 > **本書の方針（ユーザー指示 2026-10-13。更新する人も守ること）**
 >
@@ -19,23 +19,22 @@
 | 項目 | 状態 |
 |---|---|
 | `main` | `00a5813`（PR #11 マージ済み。M0〜M3 ＋ 本書と `scripts/`） |
-| 作業ブランチ | セッションが指定したもの固定（2026-10-13 のセッションは `arena/cb878908-novnow`）。**PR #12** に M4〜M7・M9 を積んだ（ユーザー指示「同じ PR で続ける・マージはまだしない」）。**マージはユーザー** |
-| マイルストーン | **M0〜M6 完了**（PR #12 のマージ待ち）。**M7「UI シェル ＋ `write`」と M9「エクスポート」は実装済み・人の確認待ち**（`PLANS.md` §5.8 / §5.10 の完了条件の消し込み状況を参照。Web の選択モーダルは未接続＝ B-118）。**M8 は未着手** |
-| 仕様書 | **第 2.14 版**（2026-10-13。2.12 は M7 に合わせた補正、2.13 は §11 の色のコントラスト比、2.14 は §17 のエクスポートの細部）。診断コード **80 件**（§7:39 + §7.1:14 + §7.2:27） |
-| テスト | **976 件緑**（`bash scripts/verify.sh`。M7 から既定で `--features ui`） |
+| 作業ブランチ | セッションが指定したもの固定（2026-10-13 のセッションは `arena/cb878908-novnow`）。**PR #12** に M4〜M9 を積んだ（ユーザー指示「同じ PR で続ける・マージはまだしない」）。**マージはユーザー** |
+| マイルストーン | **M0〜M6 完了**（PR #12 のマージ待ち）。**M7「UI シェル ＋ `write`」・M8「ワークスペース」・M9「エクスポート」は実装済み・人の確認待ち**（`PLANS.md` §5.8 / §5.9 / §5.10 の完了条件の消し込み状況を参照。Web の選択モーダルは未接続＝ B-118）。**M8 の後は止まる**（ユーザー指示 2026-10-13「M8 のみ完了させてください。その後、実際に私が触ってレビューします」。M10 には指示があるまで進まない） |
+| 仕様書 | **第 2.15 版**（2026-10-14。2.12 は M7 に合わせた補正、2.13 は §11 の色のコントラスト比、2.14 は §17 のエクスポートの細部、2.15 は §10.5・§16・§6.6.2 の M8 の細部）。診断コード **80 件**（§7:39 + §7.1:14 + §7.2:27） |
+| テスト | **1,057 件緑**（`bash scripts/verify.sh`。M7 から既定で `--features ui`） |
 | 未決の裁定 | なし |
 
 M7 で何を入れたか・決めたか（B-111〜B-121）は `PLANS.md` §5.8 の進捗ノートと §9.2、M9（B-122〜B-125）は §5.10、
-GUI の作りは `DEVELOPERS.md` §6。
+M8（B-126〜B-137）は §5.9、GUI の作りは `DEVELOPERS.md` §6。
 
 ### 次の一手
 
-1. M7 の残り（`PLANS.md` §5.8 の未チェックの完了条件）: 人の確認（2,000 字の執筆・IME・Windows のダブルクリック・
-   `docs/verify-rule10.md` の GUI での実施）と、Web の選択モーダル（§13.4、B-118）・`Alt+H`（B-119）。
-2. M9 の残り: 1 話（約 6,000 字）を外部の縦書きビューアで通読する人の確認（`PLANS.md` §5.10）。
-3. **M8（ワークスペース、`PLANS.md` §5.9）が次**: `ui::app::NovnowApp` に「ワークスペース」の層が無い（M7 は `write` 1 つ）。
-   `Alt+1..9` の切替は `ui::shell::command_of` に足し、`Stage::Open` の中で描き分ける。点検ワークスペースの「位置」は
-   `place::at` ＋ `i18n::place`（`novnow check` と同じ表記。B-110）。
+1. **ユーザーの実機レビュー（M8）の結果を待つ**。指摘はその場で直して PR #12 に積む。M10（エージェント）はユーザーの指示が
+   あってから。
+2. M7 の残り（`PLANS.md` §5.8 の未チェックの完了条件）: 人の確認（2,000 字の執筆・IME・Windows のダブルクリック・
+   `docs/verify-rule10.md` の GUI での実施）と、Web の選択モーダル（§13.4、B-118）。`Alt+H` は M8 で入った（B-137）。
+3. M9 の残り: 1 話（約 6,000 字）を外部の縦書きビューアで通読する人の確認（`PLANS.md` §5.10）。
 4. 外に書けるのは `FsGate::write_chosen_export(ChosenPath)` だけ（Zip は `Dialog::save_zip` → `zip::export_to_chosen`、テキストは
    `Dialog::save_text` / `novnow export --out` → `ChosenPath::from_command_line(.., ExportKind::Text)`。B-99・B-109）。
 
@@ -84,7 +83,7 @@ gh pr list --state open
   `CARGO_INCREMENTAL=0` にしている（`scripts/bootstrap-toolchain.sh` が書く）。それでも溢れたら
   `find target/debug/deps -maxdepth 1 -type f -perm -u+x -delete` と `rm -rf target/debug/incremental`（作り直しはリンクだけ）。
 
-### 2.3 ローカル git が基点まで巻き戻る（実際に 4 回起きた）
+### 2.3 ローカル git が基点まで巻き戻る（実際に 6 回起きた）
 
 サンドボックスの再作成で、**ファイルは残るのに `.git` のブランチポインタだけが古いコミットに戻る**ことがある。
 **`git reset --hard` は絶対に使わない**（作業ツリーを壊す）。
@@ -95,6 +94,7 @@ git status --short   # 本当に新しい差分だけになれば復旧完了
 ```
 
 shallow clone なので `git diff main...HEAD` が使えないことがある。
+巻き戻りと一緒に作業ツリーの外（`$HOME/build` のツールチェーンと `/tmp`）も消える。`bash scripts/bootstrap-toolchain.sh` で戻す（約 30 秒）。
 
 ### 2.4 CI（4 ジョブの中身と出力は `DEVELOPERS.md` §1.4・§1.5）
 
@@ -191,7 +191,7 @@ shallow clone なので `git diff main...HEAD` が使えないことがある。
 ### 4.5 GUI（M7）で踏んだもの
 
 - **画面が無くても見た目を確かめられる**: `NOVNOW_SHOT=/tmp/shot.rgba cargo test --features ui --test gui screenshot -- --ignored`
-  が egui の出力をソフトウェアで描いて RGBA を書く（`NOVNOW_SHOT_SCENE=completion|palette|find|help`・`NOVNOW_SHOT_LIGHT=1`）。
+  が egui の出力をソフトウェアで描いて RGBA を書く（`NOVNOW_SHOT_SCENE=inlay|completion|palette|find|help|episode|outline|idea|material|material-search|cast|review`・`NOVNOW_SHOT_LIGHT=1`）。
   PNG にするのは標準ライブラリの zlib だけで足りる（`DEVELOPERS.md` §6.4 に 10 行のスクリプト）。作業環境には CJK フォントが無いので、
   画面下に「同梱のフォントを使います」が出るのは正しい。
 - フォントのテクスチャは**最初のフレームにだけ全体が来る**（以降は差分）。最初のフレームの出力を捨てると描けない。
@@ -208,6 +208,24 @@ shallow clone なので `git diff main...HEAD` が使えないことがある。
 - `InputState::consume_key(mods, key)` は `matches_logically` で比べるので、**`Modifiers::NONE` は Shift / Alt 付きにも当たる**。
   `Shift+Enter` と `Enter` を分けるときは Shift のほうを先に消費する。`Modifiers::COMMAND` を要求する組み合わせは、テストの
   イベントでも `command: true` を立てる（実機の egui-winit は Windows / Linux の Ctrl で ctrl と command の両方を立てる）。
+
+### 4.7 ワークスペース（M8）で踏んだもの
+
+- **`TextEdit` には文字ではない表示（インレイヒント）を挟めない**。ヒントの位置から始まる `LayoutSection` の `leading_space` で
+  隙間を空け、`TextEdit` の後に上から描く（`ui/widgets/inlay.rs`、B-137）。epaint 0.27 の `extra_letter_spacing` は同じセクションの
+  2 字目以降にしか効かないので使えない。下線・波線の右端は「次の字の左端」ではなく「最後の字の右端」で取る（でないと隙間の下まで伸びる）。
+- **フォントに無い字は豆腐になる**: 同梱の IPA ゴシックにも egui の Ubuntu-Light にも `⟨⟩`（U+27E8 / U+27E9）が無い。比例フォントの最後に
+  egui 既定の Hack を受け皿として足した（`theme::fonts`）。新しい記号を画面に出すときは、python で `cmap` 表を読んで有無を確かめる。
+- **仕様書を `include_str!` で取り込むテストが 7 本ある**。`verify.sh` の実行中に `SPECIFICATIONS.md` を書き換えない（テストのビルドが
+  途中の版を拾う）。`PLANS.md` / README / 本書は読まれない。
+- **write 以外のワークスペースでは、`NovnowApp::run_workspace` が知らないコマンドを飲み込む**（write 向けのキーが他の画面で誤爆しない
+  ように）。どこでも効かせたいコマンドは `run()` の先頭の `match`（言語・テーマ・`Alt+H` など）に置くか、`run_workspace` の素通しの列に足す。
+  write 以外の描画は `common_tail` で早く戻るので、ポップアップ（`Ctrl+.`）もそちらで描く。ポップアップの ↑ / ↓ / Enter はエディタを
+  描く**前**に `popup_keys` で取る（後だと `TextEdit` に入る）。
+- **ボタンだけのオーバーレイ（確認など）は、開いたフレームでキーボードのフォーカスを手放す**。手放さないと後ろの `TextEdit` に
+  `Enter` が入る（B-135 の (7)）。
+- Slice のエディタのキャレットの矩形は `slice_editor::caret_rect(ctx)`（egui の一時データ）。`Workbench::apply_edit` は Slice の文書を
+  変えたら Slice を閉じる。次のフレームで各ワークスペースの `sync` が鍵から開き直す。
 
 ### 4.6 core の書き方（検査で落ちるもの。規則の全文は `DEVELOPERS.md` §1.4・§3）
 

@@ -1162,7 +1162,7 @@ tests/layering.rs
 >   `docs/handoff.md` §2.2。
 > - **検査**: `tests/gui.rs`（36。egui を画面なしで 1 フレームずつ回す。画面のソフトウェア描画 `screenshot` は手動用）・
 >   `tests/sections.rs`（8）・`tests/layering.rs`（+2、`Frame::group` と GUI の日本語リテラル）・`tests/i18n_catalog.rs`（GUI の文言キー）で **947 件**。
-> - **残り**: Web の選択モーダルと IndexedDB の接続（**B-118**）・`Alt+H`（**B-119**）・10 万行の計測・下の人の確認。
+> - **残り**: Web の選択モーダルと IndexedDB の接続（**B-118**）・10 万行の計測・下の人の確認。`Alt+H`（**B-119**）は M8 で入れた（**B-137**）。
 
 **完了条件**
 
@@ -1211,11 +1211,63 @@ tests/layering.rs
    - 役割語テスターは **M3 の成果を可視化する最良の場**。ここで役割語の仕様解釈を検証する。
 5. ワークスペース切替で **SceneId を維持**（§10 冒頭の MUST）。状態オブジェクトは破棄しない（本書 §1.5-5）。
 
+> **M8 の進捗（2026-10-14）: 7 種のワークスペースを実装した — 自動で確かめられる項目は通った。残りは人の確認（実機で触るレビュー）**
+>
+> M9 の後に入った（**B-120**）。
+>
+> - **切替**（§10.0）: `Alt+1..9`（`Alt+7` reader と `Alt+8` agent は欠番の案内だけ）・`Alt+0` で直前へ。初回は今の節に着地し、
+>   2 回目からはそのワークスペースの前の位置（**B-126**）。切り替える前に書き戻して保存する（確認なし）。本文以外の文書の編集は
+>   `Workbench` の Slice（**B-126**）。
+> - **plot-episode / plot-outline**（§10.2・§10.3）: 上段に親プロット（常に見える）、中段に節 / ブロックの一覧、下段にエディタ。
+>   `Ctrl+B` / `Ctrl+Enter` で 4 段階を上下（**B-127**〜**B-129**）。
+> - **idea**（§10.4）: `Ctrl+Shift+I` でどこからでも 1 行（画面は変えない）・`Ctrl+Delete` は `status: dropped`・`Ctrl+Enter` で昇格
+>   （**B-130**）。
+> - **material**（§10.5・§16）: 一覧（未登録の MD が先頭）・MD 全体のエディタ・審査フォーム。`Ctrl+Enter` 採用（出典が無ければ確認）・
+>   `Ctrl+Delete` 却下（ファイルは残す）・`Ctrl+Shift+N` 作成・W064 / W065（**B-131**・**B-134**・**B-135**）。`Ctrl+M` はどこからでも
+>   検索して挿入。条件一致の候補は参照ペインに薄く出し、`Enter` でプロットに足す（**B-136**）。
+> - **インレイヒント**（§6.6.2）: 資料 ID の直後に `⟨タイトル⟩`（提案中・却下は添える）、モード修飾・話者注釈の直後にモードの表示名。
+>   エディタだけ・`Alt+H` で切り替え。話プロットなど M8 のエディタでも `Ctrl+.` が効く（**B-137**）。
+> - **cast**（§10.6）: タイムライン（`Shift+←/→` で帯を章単位で動かす）・役割語テスター・未一致の台詞（`Ctrl+Shift+V`）（**B-133**）。
+> - **review**（§10.9）: 診断（`Ctrl+Shift+E`）と進捗の 2 タブ（**B-132**）。
+> - **検査**: `tests/workspaces.rs`（40）・`tests/materials_ops.rs`（13）・`tests/plots.rs`・`tests/ideas_ops.rs`・`tests/cast.rs` などと、
+>   §19 の項目を埋める 5 件（下の「完了条件」に書いた「今回」）で **1,057 件**。
+> - **残り**: 下の人の確認。①での削り（上の表）と、他のマイルストーンの項目（§19.7-4 `novnow migrate` は M11、§19.11-4 writer の
+>   ContextPacket は M10）は M8 の外。
+
 **完了条件**
 
-- [ ] §19.5 / §19.6 / §19.7 / §19.9 / §19.11 のチェックリストが通る。
-- [ ] 9 ワークスペースのうち **8 つ**が動く（`agent` は M10、`reader` は ② ＝ 追加仕様 #27）。
-- [ ] 切替で SceneId が失われない。
+- [x] §19.5 / §19.6 / §19.7 / §19.9 / §19.11 のチェックリストが通る（**M8 の担当分**）。根拠のテスト（「今回」は M8 の検収で足したもの）:
+  - §19.5: 1 `workspaces_are_numbered_like_the_spec_table_and_reader_agent_are_reserved`・`alt_2_opens_the_episode_plot_at_the_same_scene_id_with_its_parent_visible`
+    （9 種のうち reader は ②、agent は M10 で、番号の予約と案内だけ）／2 同・`ctrl_enter_goes_down_to_write_and_ctrl_b_comes_back_up`／
+    3 `ctrl_shift_i_captures_an_idea_from_anywhere_without_changing_the_screen`／4 `the_cast_workspace_shows_the_timeline_and_moves_a_band_with_shift_arrows`・
+    `the_role_language_tester_and_the_unmatched_dialogue_list`（以上 `tests/workspaces.rs`）。
+  - §19.6: 1 `tests/characters_md.rs` の `the_spec_example_reads_the_five_modes_in_order`・`tests/modes.rs` の `the_first_variant_is_chosen_in_chapter_01` /
+    `the_second_variant_is_chosen_in_chapter_03`／2 `the_section_mode_wins_over_the_scene_mode`・`the_scene_mode_is_used_when_the_section_has_none`／
+    3 `tests/sections.rs` の `the_reference_pane_shows_only_the_personality_of_the_effective_mode`（今回）／4 `tests/plot_episode.rs` の
+    `three_modes_on_one_character_is_e005`・`tests/dictionary.rs` の `three_modes_in_one_expression_is_e005`・`tests/modes.rs` の
+    `a_mode_outside_every_variant_range_is_e004`／5 `tests/role_language.rs` の `b3_hit_examples_underline_exactly_the_literal_part`・`tests/features.rs` の
+    `role_language_underlines_follow_the_speaker_rules_of_6_5_3`／6 `tests/features.rs` の
+    `a_dialogue_that_matches_no_pattern_gets_no_underline_no_color_and_no_diagnostic`（今回）・`a_miss_returns_nothing_at_all`／7 `b3_*`（付録 B.3 の表駆動）。
+  - §19.7: 1 `tests/layering.rs` の `only_the_v0_marker_and_migrate_mention_characters_json`（今回）／2 `lines_are_classified_one_by_one`・
+    `the_spec_example_round_trips_byte_for_byte`／3 `broken_input_does_not_panic`・`a_reversed_range_reports_e016`・
+    `an_unparsable_range_reports_e002_and_is_not_compared`（以上 `tests/characters_md.rs`）／4 `novnow migrate` は **M11**（§5.12）。
+  - §19.9: 1 `tests/materials_index.rs` の `issue_hands_out_the_next_number_and_moves_next_id`・`tests/ideas_ops.rs` の
+    `proposing_a_material_issues_the_next_id_and_never_reuses_one`・`tests/materials_ops.rs` の `register_issues_a_new_id_and_writes_the_id_comment`／
+    2 `a_material_id_in_the_episode_plot_shows_its_title_as_an_inlay_hint_and_the_file_keeps_the_id`（今回、B-137）／3 `tests/materials.rs` の
+    `a_differing_explicit_title_is_e006`・`tests/features_edit.rs` の `e006_offers_all_three_fixes_when_another_material_has_the_written_title`（今回）・
+    `ctrl_period_in_the_episode_plot_offers_the_e006_fixes_and_enter_applies_the_first`（今回）／4 `tests/materials_ops.rs` の
+    `search_follows_the_query_language_of_16_3`（タイトル・`#カテゴリ`・条件の `@範囲` / `'参照`・ID）・`ctrl_m_searches_materials_and_inserts_a_reference_at_the_caret_in_write`／
+    5 `condition_matches_follow_the_explicit_references_and_are_marked_as_candidates`・`a_condition_match_in_the_reference_pane_is_added_to_the_plot_with_enter`。
+  - §19.11: 1 `tests/plot_outline.rs` の `the_spec_example_for_all_txt_has_two_blocks`・`the_spec_example_for_a_chapter_plot_parses`（同じ A 形式のパーサ）／
+    2 `tests/plot_episode.rs` の `the_spec_example_round_trips_byte_for_byte`（B）・`tests/contents.rs` の `the_spec_example_round_trips_and_has_no_diagnostics`（C）／
+    3 `alt_2_opens_the_episode_plot_at_the_same_scene_id_with_its_parent_visible`・`alt_3_opens_the_chapter_plot_with_the_parent_block_and_foreshadows`・
+    `the_four_levels_go_up_with_ctrl_b_and_down_with_ctrl_enter`／4 writer の ContextPacket は **M10**（§5.11）。
+- [x] 9 ワークスペースのうち **7 つ**が動く（`write` は M7、ほかに plot-episode / plot-outline / idea / material / cast / review。`agent` は M10、
+  `reader` は ② ＝ 追加仕様 #27）。→ 旧版の「8 つ」は reader を ② に移す前の数え方だったので直した（目的の行の「7 種」と同じ）。
+- [x] 切替で SceneId が失われない。→ `alt_2_opens_the_episode_plot_at_the_same_scene_id_with_its_parent_visible`・
+  `each_workspace_keeps_its_own_position_after_switching_back`・`ctrl_enter_goes_down_to_write_and_ctrl_b_comes_back_up`。
+- [ ] **人の確認**（実機で触るレビュー）: キーボードだけで 4 段階を往復できる・資料の収集 → 審査 → 参照が一通りできる・インレイヒントが
+  邪魔にならない・`Ctrl+M` / `Ctrl+Shift+I` がどこからでも使える。→ **人の確認待ち**。
 
 ---
 
@@ -1634,7 +1686,7 @@ tests/layering.rs
 | B-116（**2026-10-13**） | キー割当の衝突（§9.1 と §9.8.2）と macOS の読み替え | §9.1 を正 ／ **§9.8 を正** | §9.1 の「`Ctrl+Alt+←/→` でメイン/参照の比」は §9.8.2 の「前 / 次の話」と衝突する。§9.8 は「v1 確定版」なので、**比を `Ctrl+Alt+Shift+←/→`** にした（仕様 第 2.12 版）。§9.8.4 の「macOS では `Alt` 系を `Ctrl+Alt` に読み替える」は**矢印以外**に限った（`Option+矢印` は文字を入力しないうえ、読み替えると `Ctrl+Alt+←/→`（話の移動）と衝突するため） |
 | B-117（**2026-10-13**） | M7 のパレットとショートカットの範囲 | 全部 M7 ／ **write ワークスペースで閉じるものだけ M7** | パレットは「なし / `@`」= 節（場面タイトル込み）、`>` = コマンド 8 つ、`?` = ヘルプ。**`'`（辞書）と `M` / `#`（資料）は M8**（material / cast ワークスペースと一緒に）。ワークスペースを持つ操作（`Alt+1..9`・`Ctrl+B`・`Ctrl+Shift+B`・`Ctrl+Shift+E`・`Ctrl+Shift+I`・`Ctrl+M`）は M8。`Ctrl+\` / `Ctrl+Shift+\` は ② の一覧（本書 §1.2）にあるが、`ui.json` の `reference_pane_side` は §0 の MUST で、キーも 1 行で済むので入れた |
 | B-118（**2026-10-13**） | Web の GUI（§13.4 のプロジェクト選択と IndexedDB） | M7 で全部 ／ **起動とシェルは M7、選択モーダルの接続は後で** | Web でも同じ `NovnowApp` を `eframe::WebRunner` で起動し、Pages の deploy を戻した（`index.html` に `data-cargo-features="ui"`）。IndexedDB は非同期（`Storage` の Future）で、`Host::write` を同期で返す今の形には「書き込みの結果を後のフレームで受け取る」口が要る。作業環境にブラウザが無く確かめられないので、**M7 では選択モーダルに「準備中」を出す**。M7 の完了条件「Web で IndexedDB の接続を一通り動かす」は未達として残す |
-| B-119（**2026-10-13**） | M7 の検索・置換・補完・ポップアップの範囲 | 仕様の全部 ／ **write ワークスペースで閉じる形** | `Ctrl+F` / `Ctrl+H` / `F3` は**今のファイルの文字どおりの一致**（大小文字を区別。正規表現と大小文字無視は ② の §9.7.4）。一致が見出し行など節の外にあれば、その後ろの節へ移るだけ（選択しない）。`Ctrl+Shift+F` は**本文（`contents/`）の全ファイル**（プロット・辞書は M8 のワークスペースで開くので、M7 では移動先が無い）。補完（§9.7.3）は `'` `:` `@` の直後と `Ctrl+Space` で `core::features::completion::at` の候補を出し、`↑/↓` と `Enter` / `Tab` で確定（変換中は §9.8.5 で Key が来ない）。`Ctrl+Shift+M` / `Ctrl+Shift+W` は `hover::at` の中身（この節で使えないモードは `×`）。`Ctrl+Shift+;` は確認のうえ節と区切り `;` を消す（**ファイル単位の削除なので `Ctrl+Z` では戻らない**と確認文に書いた。§8.6 の undo は節エディタの中だけ）。`Ctrl+Tab` は直前に開いていたファイル、`Ctrl+Shift+Tab` は最も古いファイル（押し続けての循環はしない）。`Ctrl+O` は今のプロジェクトを書き終えてから、フォルダを選んで §14.2 の検査を通ったら切り替える。`Ctrl+.`（クイックフィックス、19 種の名前は `action.*`）・`Ctrl+T` / `Ctrl+Shift+T`（`code_action::register_edit` を E001 の登録と共有）・`Ctrl+Shift+D`（差分モーダル。**「自分の版を残す / 外部の版を読み込む」の 2 択で、§8.5 の行単位マージは入れていない**）も M7 で入れた。**`Alt+H`（インレイヒント §6.6）は M7 では入れていない**（`TextEdit` の `Galley` に仮想の文字を差し込む口が egui 0.27 に無い。文脈ビューだけに出すか M8 で決める） |
+| B-119（**2026-10-13**） | M7 の検索・置換・補完・ポップアップの範囲 | 仕様の全部 ／ **write ワークスペースで閉じる形** | `Ctrl+F` / `Ctrl+H` / `F3` は**今のファイルの文字どおりの一致**（大小文字を区別。正規表現と大小文字無視は ② の §9.7.4）。一致が見出し行など節の外にあれば、その後ろの節へ移るだけ（選択しない）。`Ctrl+Shift+F` は**本文（`contents/`）の全ファイル**（プロット・辞書は M8 のワークスペースで開くので、M7 では移動先が無い）。補完（§9.7.3）は `'` `:` `@` の直後と `Ctrl+Space` で `core::features::completion::at` の候補を出し、`↑/↓` と `Enter` / `Tab` で確定（変換中は §9.8.5 で Key が来ない）。`Ctrl+Shift+M` / `Ctrl+Shift+W` は `hover::at` の中身（この節で使えないモードは `×`）。`Ctrl+Shift+;` は確認のうえ節と区切り `;` を消す（**ファイル単位の削除なので `Ctrl+Z` では戻らない**と確認文に書いた。§8.6 の undo は節エディタの中だけ）。`Ctrl+Tab` は直前に開いていたファイル、`Ctrl+Shift+Tab` は最も古いファイル（押し続けての循環はしない）。`Ctrl+O` は今のプロジェクトを書き終えてから、フォルダを選んで §14.2 の検査を通ったら切り替える。`Ctrl+.`（クイックフィックス、19 種の名前は `action.*`）・`Ctrl+T` / `Ctrl+Shift+T`（`code_action::register_edit` を E001 の登録と共有）・`Ctrl+Shift+D`（差分モーダル。**「自分の版を残す / 外部の版を読み込む」の 2 択で、§8.5 の行単位マージは入れていない**）も M7 で入れた。**`Alt+H`（インレイヒント §6.6）は M7 では入れていない**（`TextEdit` の `Galley` に仮想の文字を差し込む口が egui 0.27 に無い。文脈ビューだけに出すか M8 で決める）。→ **M8 で入れた**（エディタに隙間を空けて描く。**B-137**） |
 | B-120（**2026-10-13**） | M7 の後の順番（M8 と M9） | §4.1 の順（M8 → M9） ／ **M9（エクスポート）を先に** | §4.3 の依存では M8・M9・M10 はどれも M7 の後で互いに独立。M9 は core の純粋関数（§17.1）・`novnow export`（§17.2）・GUI の「名前を付けて保存」で閉じる 5 日の段で、M6 の報告へのユーザー裁定（テキストのエクスポートの書き出し先、B-109）をそのまま使える形にできる。M8（18 日）は M7 の `write` の上に 6 つのワークスペースを積む大きな段なので、先に閉じられる M9 を済ませてから入る。§4.2 の「見せられる状態」の順（M8 完了 → M9 完了 = β）は入れ替わるが、β の中身（エージェント以外すべて）は変わらない |
 | B-121（**2026-10-13**） | §11 の色のコントラスト比（§19.1）| 表の値のまま ／ 文字を大きくする ／ **色の明るさだけを直す** | §11.1 の注記は `fg.faint / bg.base` を dark 4.6:1・light 4.5:1 としていたが、表の値（`#6E7278` / `#87898F`）を WCAG 2.x の式で測ると 3.7:1 / 3.4:1 だった。`fg.faint` は 10〜11px の見出し（§9.2.2・§9.3.1）に使うので §9.9 の「本文 4.5:1」が要る。§11.2 の `comment`（dark 2.8:1）と `section.break`（2.8 / 2.5:1）は「補助 3:1」も満たしていなかった。色相を変えずに明るさだけを動かし、`fg.faint` = `#82878E` / `#727479`、`section.break` = `#596574` / `#8D929A`、`comment`（dark）= `#60666E` にした（仕様 第 2.13 版）。どの色をどちらの基準で測るか（文字の色は `bg.base` に 4.5:1、`fg.*` と `accent` は `bg.raised` にも 4.5:1、本文の大きさの注記と `state.*` は 3:1、`border` は対象外）を §11.1 に書き、`tests/gui.rs` が §11.1 / §11.2 の表と `ui::theme` の一致、と比を検査する |
 | B-122（**2026-10-13**） | エクスポートの状態の絞り込み（§17.2 `--state`）の意味 | 節の `state` だけを見る ／ **近いものから順に引き、`s` 以上を出す** | §17.2 は「`--state fixed`（`draft` を除外して公開分だけ出す）」とだけ書く。`state` は A 形式（章・話のブロック）にも B 形式（節）にも書けるので、節の実効の状態を **話プロットの節 → 同じ場面の場面レベル（最初の要点より前。§5.4.2 では節だけのキーだが、書かれていれば場面の既定として読む）→ 章プロットの話のブロック → 全体プロットの章のブロック → `draft`** の順に引く（章を `fixed` にしたら中の節が全部 `fixed` になる、が自然）。順序は `draft` < `review` < `fixed` で、`--state s` は **実効の状態が `s` 以上**の節（`review` なら `review` と `fixed`）。読めない値（`done` など）は書かれていないのと同じ。`core::export::effective_state` / `select`。仕様 第 2.14 版の §17.2 に書いた |
@@ -1646,9 +1698,13 @@ tests/layering.rs
 | B-128（**2026-10-13**） | plot-episode から write へ降りたときの着地（§10.0）| — | 本文にその節があればそこへ（場面の行なら場面の最初の節）。本文のファイルはあるが節が無ければ近い節へ行き、ステータスバーに「本文に @… はまだありません」（§10.0「空の節を作らず」）。**本文のファイルが無ければ**、場面見出しだけの新しい節として開き（`Workbench::start_file`）、**書き始めるまでファイルは作らない**。書くと `@AA-BB-CC タイトル`（話プロットの場面見出しのタイトル）と本文でファイルを作る |
 | B-129（**2026-10-13**） | plot-outline の操作（§10.3。① は単一ビュー）| — | 左のレベル切替（全体 / 各章。章は全体プロットのブロック・章プロット・本文と話プロットのファイルのどれかに現れるもの）をクリックか `Ctrl+Alt+←/→`（前 / 次のレベル）で選ぶ。中央はブロックの一覧（見出しの ID とタイトル・`summary:` の 1 行目・`state:` の縦線）と、選んだブロックのエディタ（見出しから `;` の前まで）。章のときは上段に**親（全体プロットの章のブロック）**を出す（§19.11）。`Ctrl+B` / `Ctrl+Shift+B` で章 → 全体、`Ctrl+Enter` で全体の章 → その章・章の話 → plot-episode（話の最初の行）。§10.3 にキーの無い「ブロックを足す」は plot-episode と同じ `Ctrl+Shift+N`（次の番号の見出しだけを書いて `;` で閉じる。文書が無ければ作る）。右は伏線（`seed:` / `payoff:` を全体・章・話プロットから集めて伏線 ID で突き合わせ、未回収 → 二重回収 → その他の順）。タイムライン・分量・ストックのタブと折りたたみは ② |
 | B-130（**2026-10-13**） | idea ワークスペースの細部（§10.4・§5.7）| — | (1) 一覧は `status` の絞り込み（既定「すべて」= `dropped` 以外、§5.7）とタグの部分一致。`status` が無い・読めない値は `inbox`。(2) **即時入力** `Ctrl+Shift+I` はどのワークスペースからでも開く 1 行の重ね物で、`Enter` で `ideas.md` の**末尾**に `# I####（最大値 + 1）タイトル` / `status: inbox` / `created:`（RFC 3339。デスクトップは UTC、B-92）を積む。画面は変えず、ステータスバーに知らせる。(3) `Ctrl+Delete`（idea の中だけ。B-126）は `status: dropped` にするだけで行を消さない。(4) **昇格** `Ctrl+Enter` の行き先は 4 つ: プロットの節（write の今の場面の最後に、タイトルと本文を要点として足す。場面が無ければ見出しを書く）・用語（`words.md` の末尾に `# タイトル` / `definition:`。本文が無ければタイトル。E021 を出さないため）・キャラのメモ（選んだキャラの最後に自由記述の行として。§5.5.1）・資料（`materials/inbox/` に提案として作る、B-131）。転記の後 `status: promoted` と `promoted-to: <パス>#<場所>` を書く（`status` / `promoted-to` は §5.0.6 の表に無いキーなので、書かれたままのキーで探して書き換え、無ければ最後のフィールド行の後ろに足す） |
-| B-131（**2026-10-13**） | 資料の作成・審査の細部（§16.1・§5.8.2）| — | 人間が作る資料も §16.1 の流れどおり**提案**（`materials/inbox/M####.md`・`status: proposed`・`added_by: human`・`source: {kind: custom}`・カテゴリは空）として作り、material ワークスペースで整えて採用する。ファイル名は ID だけ（`M0142.md`。タイトルをローマ字にするクレートは足さない）。ID は `MaterialIndex::issue`（`next_id` と既存の最大値 + 1 の大きいほう）なので、`next_id` が壊れていても再利用しない。採用は `docs/` へ動かして `approved`、却下は `rejected`（ファイルは inbox に残す）で、どちらも `updated_at` を書く。`index.json` が読めない（E025）ときは何もしない（原文を書き換えない、§5.8.2 MUST）。`items` の順は追加順のまま（§16.2）。索引は serde で書き直す（2 スペースの字下げ） |
+| B-131（**2026-10-13**） | 資料の作成・審査の細部（§16.1・§5.8.2）| — | 人間が作る資料も §16.1 の流れどおり**提案**（`materials/inbox/M####.md`・`status: proposed`・`added_by: human`・`source: {kind: custom}`・カテゴリは空）として作り、material ワークスペースで整えて採用する。ファイル名は ID だけ（`M0142.md`。タイトルをローマ字にするクレートは足さない）。ID は `MaterialIndex::issue`（`next_id` と既存の最大値 + 1 の大きいほう）なので、`next_id` が壊れていても再利用しない。採用は `docs/` へ動かして `approved`、却下は `rejected`（ファイルは inbox に残す）で、どちらも `updated_at` を書く。`index.json` が読めない（E025）ときは何もしない（原文を書き換えない、§5.8.2 MUST）。`items` の順は追加順のまま（§16.2）。索引は serde で書き直す（2 スペースの字下げ）。**追記（M8 の資料の仕上げ）**: (1) `checksum` は `sha256:` ＋ 本文（UTF-8）の 16 進。SHA-256 は自前（`core::text::sha256`、FIPS 180-4 の例とブロックの境目で検査。クレートは足さない、§3.2）。(2) 資料 MD を書く保存のたびに、その MD の `updated_at` と `checksum` を書き直す（`Workbench::touch_materials`、保存の直前）。(3) 採用で inbox → docs に動かすとき、古いファイルは書き込みが全部済んでから消す（既に無ければそれでよい）。(4) 検索（§16.3）: 却下は `!` の語が無ければ出さない。語は §6.1.3 の正規化 ＋ 小文字の部分一致、重みはタイトル 4・タグ 3・summary 2・本文 1、並びは点の高い順 → `saved_at` の新しい順 → ID。(5) 審査フォームは打鍵ごとに索引を書くので、`update` は出典の種類が変わっても `accessed_at` と知らないキーを残す |
 | B-132（**2026-10-13**） | review の 2 タブの細部（§10.9。① は診断と進捗）| — | (1) **診断**はプロジェクトの全文書の `diagnostics::document`（`novnow check` と同じもの・同じ並び）に `パス:行:列` と作家の言葉での「どこ」（`core::features::place`）を添える。重大度の絞り込み（E / W / I）と並べ替え（場所順・重大度順・コード順）。文書の世代か言語が変わったときだけ数え直し、`Ctrl+Shift+E`（どこからでも。ステータスバーの `⚑` のクリックも同じ）は review の診断タブへ移って数え直す。§10.9.2 の一括実行の項目のうち、M4 までに診断があるもの（W030・E004・E006・W022・E012 など）はこの一覧に入る。伏線の未回収 / 二重回収は plot-outline の伏線ペインに出す。W080・W084・I054・I055 は ②（診断そのものが未実装）。(2) `Enter`（`Ctrl+Enter`・ダブルクリックも）で該当箇所へ: 本文 → write の節、話プロット → plot-episode、全体 / 章プロット → plot-outline、`ideas.md` → idea。`characters.md`・`words.md`・資料は開く画面が無ければ知らせるだけ（cast・material の段で足す）。(3) **進捗**は本文の節と話プロットの節の和（計画だけの節も 0 字で出す）を章 → 話 → 場面 → 節に積み、文字数（空白除外）・目標比（節は話プロットの `length:`、上の階層は下の目標の合計）・状態（節は実効の状態 B-122、上の階層は下の**最も遅い**状態）を出す。折りたたみ（§9.3.3）は ②。(4) review には編集欄が無いので、素の `↑` / `↓` / `Enter` も効く（テキストにフォーカスが無いとき） |
 | B-133（**2026-10-13**） | cast ワークスペースの細部（§10.6）| — | (1) 左はキャラ一覧（`reading:` の順、無ければ名前の順）、中央は `characters.md` のそのキャラの部分（H1 から次の H1 の前まで）のエディタ。(2) 右のタブ（モード / 役割語 / 未一致）は `Ctrl+Shift+→/←`（cast の中だけ取る。中央の編集欄の単語選択より優先する、B-126）で、キーで切り替えるとタブの中身にフォーカスが移る（`Esc` で編集欄へ戻る）。(3) **モードタイムライン**: 横軸はプロジェクトにある章（全体プロット・章プロット・本文と話プロットのファイル）、縦軸は `## modes` のモード、帯はモードの `range:` と章が交わる列（`range:` が無ければ全部）。帯の操作は**タイムラインにフォーカスがあるときだけ**（クリック・ドラッグ・キーでのタブ切替で移る）: `↑/↓` で帯を選び `Shift+←/→` で 1 章ずらす。ドラッグは列の幅で丸めた章数だけずらす。ずらすのは `range:` の値の各 ID の**章の番号だけ**（下の階層と桁数は保つ。章 0 になるなら動かさない）で、`range:` が無い（全範囲）モードは動かさない。(4) **役割語テスター**: キャラ共通（`## tone`）→ モード専用の順に全パターンを並べ、一致 / 不一致と §6.5.1 の正規表現を出す。一致部分は本文と同じ `state.ok` の 2px 下線。(5) **未一致**（`Ctrl+Shift+V`、cast の中だけ）: 本文の台詞のうち、話者が決まり（行末の話者注釈 → 直前の注釈 → `pov:`、§6.5.3）適用パターンがあるのに**どれも一致しなかった**もの（§6.5.4 の例外として一覧だけ。診断は出さない）。ダブルクリックで本文のその台詞へ。呼称タブ（§10.6.1）とアイコン（§5.5.3 `icon:`）は ② |
+| B-134（**2026-10-13**） | 資料の診断と登録（W064・W065、§5.8.3・§16.1） | — | **W065** は「提案中（`proposed`）で出典が無い」資料（`index.json` の、その項目の `id` の値の位置）。**W064** は索引に無い資料 MD（`materials/**/*.md`、1 行目）。登録は material ワークスペースの `Ctrl+Enter`: 必ず新しい ID（`MaterialIndex::issue`）、タイトルは H1（無ければファイル名の語幹）、`docs/` の下なら `approved`・それ以外は `proposed`、ID のコメント `<!-- novnow:M0137 -->` は書き換えるか H1 の下に入れる。§7 の「登録する」「出典を入力」は `code_action` ではなくワークスペースの操作として出す（索引と MD を一緒に書くため。`Ctrl+.` には出ない） |
+| B-135（**2026-10-13**） | material ワークスペースの細部（§10.5・§16.1・§16.3） | — | (1) 左は一覧: チップ「却下以外（既定）/ 提案 / 採用 / 却下」と §16.3 の書式の絞り込み欄。未登録の MD を先頭（赤い帯・ID は「—」）、あとは `saved_at` の新しい順。(2) 中央は MD 全体の Slice、右は審査フォーム（カテゴリはカタログのチップ。打鍵ごとに索引を書き、H1 が古いタイトルと同じならタイトルに追従させる。✓ / ✕ はその状態でないときだけ）。(3) キー: `Ctrl+Enter` 採用（W065 なら確認のオーバーレイ）・`Ctrl+Delete` 却下（ファイルは残し、選択は次の行へ）・`Ctrl+Shift+N` 作成（`draft_of`。空なら「無題の資料」）・`Ctrl+3` フォーム・`Ctrl+2` エディタ。着地は 明示参照 → 条件一致の候補 → 一覧の先頭。(4) `Ctrl+M` はどこからでも: `Enter` は挿入（write = キャレットに `'ID`、plot-episode = 節の最後に `material: 'ID` の行、idea / outline / cast = Slice のキャレット、material / review = 開く）、`Shift+Enter` は開く、`Ctrl+Enter` は作ってから挿入、もう一度 `Ctrl+M` で閉じる。(5) パレット: `#` / `M` は資料検索、`'` はキャラと用語（`Enter` = cast で選ぶ / 用語の情報、`Shift+Enter` = 使用箇所の検索）。(6) review の行のうち資料 MD と `index.json` は material ワークスペースで開く。(7) ボタンだけのオーバーレイ（確認など）は開いたフレームでキーボードのフォーカスを手放す（後ろのエディタに `Enter` が入らない） |
+| B-136（**2026-10-13**） | 資料の明示参照と条件一致（§16.4・§9.5） | — | **明示参照** = 本文の参照 ∪ 話プロットの場面見出しの行と節の `material:`。**条件一致の候補** = 採用済みで、`scope` がその節を含むか、`ref` / タグ（B 形式の `tags:` / `タグ:`）が合うもの。参照ペインでは明示参照の後に薄く出す。ダブルクリックか `Ctrl+3` → `Enter` で足す（write は `plots::append_line` で話プロットのその節に、plot-episode は Slice に足して書き戻す） |
+| B-137（**2026-10-14**） | インレイヒントの描き方（§6.6.2）と、M8 のエディタでの `Ctrl+.` | 行末にまとめて描く ／ **トークンの直後に隙間を空けて描く** | egui 0.27 の `TextEdit` は文字ではない表示を挟めないので、ヒントの位置から始まるレイアウトのセクションに `leading_space`（ヒントの幅 + 余白 3px × 2）を足して隙間を空け、`TextEdit` の後にそこへ描く（`ui::widgets::inlay`）。文字と `Galley` の対応は変わらない（カーソル・選択・IME はそのまま。トークンの直後のキャレットはヒントの後ろに出る）。行末・末尾のヒントは隙間を空けずに描く。文字は `fg.faint`・本文の 0.85 倍・ベースラインを揃える。文言はカタログ（`editor.inlay_*`。`en` は `⟨{0} · proposed⟩` / `⟨{0} · rejected⟩`、モードは表示名を `+` でつなぐ）。出すのは**エディタだけ**（節エディタと M8 のワークスペースのエディタ）で、文脈ビューなど読むだけの表示には出さない。`Alt+H`（macOS は `Ctrl+Option+H`、§9.8.4）とパレットの `>inlay-hints` で切り替え、`ui.json.inlay_hints` に残す。括弧 `⟨⟩`（U+27E8 / U+27E9）は Ubuntu-Light にも同梱の IPA ゴシックにも無いので、比例フォントの最後に egui 既定の Hack を受け皿として足した。診断の波線の右端は「範囲の最後の字の右端」にした（隙間の下に線を引かない）。**`Ctrl+.`**: 資料 ID はプロットに書く（§6.6.4）ので、M8 のワークスペースでも Slice の中身とキャレットからクイックフィックスを出す（ポップアップは Slice のキャレットの下） |
 
 ### 9.3 環境の前提
 
