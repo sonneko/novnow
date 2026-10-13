@@ -9,29 +9,34 @@ use std::ops::Range;
 
 use egui::{Id, Ui};
 
-use crate::ui::theme::Mode;
-use crate::ui::widgets::section_editor::{self, EditorOutput};
+use crate::ui::widgets::inlay;
+use crate::ui::widgets::section_editor::{self, EditorOutput, Look};
 use crate::ui::widgets::syntax_text::Highlight;
 use crate::ui::workbench::Workbench;
 
 /// ハイライトのキャッシュ（中身が変わったときだけ作り直す）。
 #[derive(Debug, Default)]
 pub struct Cache {
-    key: Option<(u64, String, usize)>,
+    key: Option<(u64, String, usize, bool)>,
     text: String,
     highlight: Highlight,
 }
 
 impl Cache {
-    fn get(&mut self, bench: &Workbench, text: &str) -> Highlight {
+    fn get(&mut self, bench: &Workbench, text: &str, hints: bool) -> Highlight {
         let Some(slice) = bench.slice() else {
             return Highlight::default();
         };
-        let key = (bench.generation(), slice.tag.clone(), slice.lines.start);
+        let key = (
+            bench.generation(),
+            slice.tag.clone(),
+            slice.lines.start,
+            hints,
+        );
         if self.key.as_ref() == Some(&key) && self.text == text {
             return self.highlight.clone();
         }
-        self.highlight = highlight_of(bench, text);
+        self.highlight = highlight_of(bench, text, hints);
         self.text = text.to_owned();
         self.key = Some(key);
         self.highlight.clone()
@@ -47,13 +52,7 @@ pub fn editor_id(bench: &Workbench) -> Id {
 }
 
 /// エディタを描く。Slice を開いていなければ何もしない。
-pub fn show(
-    ui: &mut Ui,
-    bench: &mut Workbench,
-    cache: &mut Cache,
-    mode: Mode,
-    scale: f32,
-) -> EditorOutput {
+pub fn show(ui: &mut Ui, bench: &mut Workbench, cache: &mut Cache, look: Look) -> EditorOutput {
     if bench.slice().is_none() {
         return EditorOutput::default();
     }
@@ -64,8 +63,9 @@ pub fn show(
     );
     let mut buffer = std::mem::take(bench.slice_buffer_mut());
     let bench_ref: &Workbench = bench;
-    let mut highlight = |text: &str| cache.get(bench_ref, text);
-    let result = section_editor::area(ui, id, &scroll, &mut buffer, &mut highlight, mode, scale);
+    let hints = look.inlay.is_some();
+    let mut highlight = |text: &str| cache.get(bench_ref, text, hints);
+    let result = section_editor::area(ui, id, &scroll, &mut buffer, &mut highlight, look);
     *bench.slice_buffer_mut() = buffer;
     if let Some(selection) = result.selection.clone() {
         bench.set_slice_caret(selection);
@@ -91,7 +91,8 @@ pub fn select(ctx: &egui::Context, bench: &Workbench, range: Range<usize>) {
 }
 
 /// Slice の中身 `text` のハイライト（文書全体に書き戻した形で解析し、開いている行の部分だけを取る）。
-pub fn highlight_of(bench: &Workbench, text: &str) -> Highlight {
+/// `hints` ならインレイヒント（§6.6.2）も入れる。
+pub fn highlight_of(bench: &Workbench, text: &str, hints: bool) -> Highlight {
     let Some(slice) = bench.slice() else {
         return Highlight::default();
     };
@@ -107,5 +108,9 @@ pub fn highlight_of(bench: &Workbench, text: &str) -> Highlight {
         .unwrap_or(spliced.len());
     let range: Range<usize> = start..(start + text.len()).min(spliced.len());
     let whole = crate::core::model::document::Document::new(slice.path.clone(), spliced);
-    Highlight::of_range(&whole, range, bench.project())
+    let mut out = Highlight::of_range(&whole, range.clone(), bench.project());
+    if hints {
+        out.hints = inlay::of_range(&whole, range, bench.project());
+    }
+    out
 }

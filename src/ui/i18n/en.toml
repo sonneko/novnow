@@ -234,6 +234,11 @@ theme = "Switch theme"
 [editor]
 editing = "Editing"
 no_sections = "There are no sections yet. Write a scene heading (a line like @01-01-01) in a file under contents/."
+# Inlay hints (§6.6.2). {0} is the material title (23 characters + … past 24), or the mode names joined with +
+inlay_title = "⟨{0}⟩"
+inlay_proposed = "⟨{0} · proposed⟩"
+inlay_rejected = "⟨{0} · rejected⟩"
+inlay_modes = "⟨{0}⟩"
 
 [pane]
 plot = "Plot"
@@ -266,6 +271,7 @@ reload = "Reload the project"
 new_section = "Add a section after this one"
 jump = "Jump to a structure ID"
 reference = "Show or hide the reference pane"
+inlay_hints = "Show or hide inlay hints (material titles, mode names)"
 help = "Keyboard shortcuts"
 export = "Export the text (without annotations)"
 
@@ -303,6 +309,7 @@ main_ratio = "Main column vs. reference pane"
 font = "Text size larger / smaller / default"
 language = "Language (ja ⇄ en)"
 theme = "Theme (system → dark → light)"
+inlay_hints = "Inlay hints (material titles, mode names)"
 reload = "Reload the project"
 escape = "Close / back to the section editor"
 find = "Find / replace (this file)"

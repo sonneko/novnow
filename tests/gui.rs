@@ -17,6 +17,7 @@ use novnow::ui::palette;
 use novnow::ui::save_machine::{Indicator, SaveMachine, State};
 use novnow::ui::settings::{LanguageChoice, ThemeChoice, UiSettings};
 use novnow::ui::shell::{self, Command, ImeState};
+use novnow::ui::widgets::inlay;
 use novnow::ui::workbench::{Nav, Reaction, Workbench};
 
 use harness::{key, painted_text, Harness};
@@ -120,6 +121,7 @@ fn a_broken_or_missing_ui_json_gives_the_defaults() {
         assert_eq!(settings.language, LanguageChoice::System);
         assert_eq!(settings.context_sections, 3);
         assert_eq!(settings.autosave_ms, 400);
+        assert!(settings.inlay_hints, "インレイヒントは既定で出す: {text}");
     }
 }
 
@@ -127,7 +129,7 @@ fn a_broken_or_missing_ui_json_gives_the_defaults() {
 fn ui_json_keeps_unknown_keys_and_clamps_values() {
     let text = r#"{"schema_version":1,"theme":"light","language":"en","font_scale":9,
         "pane_ratio":{"main":0.1,"context_view":0.5},"context_sections":12,"autosave_ms":50,
-        "folded":{"outline":["@02"]},"future_key":true}"#;
+        "inlay_hints":false,"folded":{"outline":["@02"]},"future_key":true}"#;
     let mut settings = UiSettings::parse(text);
     assert_eq!(settings.theme, ThemeChoice::Light);
     assert_eq!(settings.language, LanguageChoice::En);
@@ -135,6 +137,7 @@ fn ui_json_keeps_unknown_keys_and_clamps_values() {
     assert_eq!(settings.main_ratio, 0.3);
     assert_eq!(settings.context_sections, 3, "範囲外は既定値");
     assert_eq!(settings.autosave_ms, 200);
+    assert!(!settings.inlay_hints);
     settings.theme = settings.theme.next();
     settings.last_scene = Some("01-04-02-03".into());
     let written = settings.to_json();
@@ -143,8 +146,10 @@ fn ui_json_keeps_unknown_keys_and_clamps_values() {
     assert_eq!(value["future_key"], true, "知らないキーを残す");
     assert_eq!(value["folded"]["outline"][0], "@02");
     assert_eq!(value["last_scene"], "01-04-02-03");
+    assert_eq!(value["inlay_hints"], false);
     assert!(written.ends_with('\n'));
     assert_eq!(UiSettings::parse(&written).theme, ThemeChoice::System);
+    assert!(!UiSettings::parse(&written).inlay_hints);
 }
 
 #[test]
@@ -447,6 +452,12 @@ fn keys_map_to_the_v1_table() {
     assert_eq!(of(Key::Semicolon, ctrl), Some(Command::NewSection));
     assert_eq!(of(Key::L, ctrl_alt), Some(Command::ToggleLanguage));
     assert_eq!(of(Key::T, ctrl_alt), Some(Command::CycleTheme));
+    assert_eq!(of(Key::H, alt), Some(Command::InlayHints));
+    assert_eq!(
+        of(Key::H, ctrl),
+        Some(Command::Replace),
+        "Ctrl+H は置換のまま"
+    );
     assert_eq!(of(Key::Backslash, ctrl), Some(Command::ToggleReference));
     assert_eq!(of(Key::Backslash, ctrl_shift), Some(Command::SwapReference));
     assert_eq!(of(Key::Num2, ctrl), Some(Command::FocusEditor));
@@ -462,6 +473,91 @@ fn keys_map_to_the_v1_table() {
         shell::command_of(Key::ArrowUp, alt, true, true),
         Some(Command::Nav(Nav::PrevSection))
     );
+    assert_eq!(
+        shell::command_of(Key::H, ctrl_alt, true, true),
+        Some(Command::InlayHints)
+    );
+    assert_eq!(
+        shell::command_of(Key::H, alt, true, true),
+        None,
+        "macOS の Option+H は文字の入力"
+    );
+}
+
+// ============================================================ インレイヒント（§6.6.2、B-137）
+
+#[test]
+fn an_inlay_gap_is_leading_space_at_the_hint_and_keeps_every_character() {
+    use egui::text::{LayoutJob, TextFormat};
+    let text = "'M0137 @x\nend";
+    let mut plain = LayoutJob::default();
+    plain.append(text, 0.0, TextFormat::default());
+    let mut job = plain.clone();
+    // 6 = トークンの直後（空白の前）、9 = 改行の直前、13 = 末尾（後ろに字が無いので空けない）
+    inlay::open_gaps(&mut job, &[(6, 40.0), (9, 30.0), (13, 10.0)]);
+    let sections: Vec<(std::ops::Range<usize>, f32)> = job
+        .sections
+        .iter()
+        .map(|section| (section.byte_range.clone(), section.leading_space))
+        .collect();
+    assert_eq!(sections, vec![(0..6, 0.0), (6..13, 40.0)]);
+    // セクションの頭なら割らずに足す
+    inlay::open_gaps(&mut job, &[(6, 2.0)]);
+    assert_eq!(job.sections[1].leading_space, 42.0);
+    // 文字と Galley の対応は変わらない（カーソル・選択・IME はそのまま）
+    let ctx = egui::Context::default();
+    let _ = ctx.run(egui::RawInput::default(), |_| {});
+    let before = ctx.fonts(|fonts| fonts.layout_job(plain));
+    let after = ctx.fonts(|fonts| fonts.layout_job(job));
+    assert_eq!(after.text(), before.text());
+    assert_eq!(after.rows[0].glyphs.len(), before.rows[0].glyphs.len());
+    let x = |galley: &egui::Galley, index: usize| galley.rows[0].glyphs[index].pos.x;
+    assert_eq!(x(&after, 5), x(&before, 5), "トークンの字は動かない");
+    assert!(x(&after, 6) - x(&before, 6) >= 41.0, "隙間の後ろの字が右へ");
+}
+
+#[test]
+fn mode_names_show_as_inlay_hints_and_alt_h_hides_them_without_touching_the_text() {
+    let mut harness = Harness::new();
+    let alt = Modifiers {
+        alt: true,
+        ..Modifiers::NONE
+    };
+    // world の @01-04-02-01: 「やっぱり'アルス、ここにいたのね」@リリア:A（A = 呆れ）
+    let output = harness.frame(Vec::new());
+    let text = painted_text(&output);
+    assert!(text.contains("⟨呆れ⟩"), "{text}");
+    let before = harness.app.workbench().expect("open").buffer().to_owned();
+    assert!(before.contains("@リリア:A"), "{before}");
+    assert!(!before.contains('⟨'), "ヒントは本文に入らない");
+    harness.frame(vec![key(Key::H, alt)]);
+    let output = harness.frame(Vec::new());
+    assert!(!painted_text(&output).contains("⟨呆れ⟩"));
+    assert!(!harness.app.settings().inlay_hints);
+    assert_eq!(harness.app.workbench().expect("open").buffer(), before);
+    harness.idle(0.3);
+    let ui_json = harness
+        .host
+        .files
+        .borrow()
+        .written
+        .get(".novnow/ui.json")
+        .cloned()
+        .expect("ui.json");
+    let value: serde_json::Value = serde_json::from_str(&ui_json).expect("json");
+    assert_eq!(value["inlay_hints"], false);
+    assert!(
+        !harness
+            .host
+            .files
+            .borrow()
+            .written
+            .contains_key(CONTENTS_PATH),
+        "本文は書き直さない"
+    );
+    harness.frame(vec![key(Key::H, alt)]);
+    let output = harness.frame(Vec::new());
+    assert!(painted_text(&output).contains("⟨呆れ⟩"));
 }
 
 #[test]
@@ -789,11 +885,18 @@ fn screenshot() {
         return;
     };
     // 2 節目に辞書に無い参照（E001 の波線）を入れ、`NOVNOW_SHOT_LIGHT` があれば明るい配色で描く
-    let text = world()
+    let scene = std::env::var("NOVNOW_SHOT_SCENE").unwrap_or_default();
+    let mut text = world()
         .text(CONTENTS_PATH)
         .replace("図面の精巧な", "'未登録の図面の精巧な");
+    if scene == "inlay" {
+        // 資料 ID（タイトルのインレイヒント）を行の途中に置く（§6.6.2、B-137）
+        text = text.replace(
+            "隣の椅子を引き寄せた。",
+            "隣の椅子を引き寄せた。机には'M0137 の写しがある。",
+        );
+    }
     let light = std::env::var_os("NOVNOW_SHOT_LIGHT").is_some();
-    let scene = std::env::var("NOVNOW_SHOT_SCENE").unwrap_or_default();
     let mut project = world_with(CONTENTS_PATH, &text);
     if scene.starts_with("material") {
         // 資料 MD（§5.8.3 の形）と、索引に無い資料 MD（W064）
@@ -844,8 +947,8 @@ fn screenshot() {
             }
         }
     };
-    // `NOVNOW_SHOT_SCENE`: edit（既定）/ completion / palette / find / help / episode / outline /
-    // idea / material / material-search / cast / review
+    // `NOVNOW_SHOT_SCENE`: edit（既定）/ inlay / completion / palette / find / help / episode /
+    // outline / idea / material / material-search / cast / review
     let mut steps: Vec<Vec<Event>> = vec![
         vec![key(Key::Num2, Modifiers::CTRL)],
         vec![Event::Text("ここで一文を書き足す。".into())],

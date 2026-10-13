@@ -207,6 +207,9 @@ pub const BUNDLED_FONT: &[u8] = include_bytes!("../../assets/ipag.ttf");
 /// フォントの名前（egui の `FontDefinitions` の中の）。
 const CJK: &str = "novnow-cjk";
 
+/// 記号の受け皿にする egui 既定のフォントの名前（`FontDefinitions::default()` の中の）。
+const SYMBOLS: &str = "Hack";
+
 /// デスクトップで探す CJK フォント（先に見つかったもの。§11.5「`fontdb` による自動検出」）。
 #[cfg(not(target_arch = "wasm32"))]
 const CANDIDATES: &[&str] = &[
@@ -241,6 +244,15 @@ pub fn fonts() -> (FontDefinitions, bool) {
             .entry(family)
             .or_default()
             .push(CJK.to_owned());
+    }
+    // 記号の最後の受け皿に egui 既定の等幅フォント（Hack）を置く。インレイヒントの括弧 `⟨⟩`
+    // （U+27E8 / U+27E9、§6.6.2）は Ubuntu-Light にも同梱の IPA ゴシックにも無い（`PLANS.md` §9.2 B-137）
+    if fonts.font_data.contains_key(SYMBOLS) {
+        fonts
+            .families
+            .entry(FontFamily::Proportional)
+            .or_default()
+            .push(SYMBOLS.to_owned());
     }
     (fonts, fallback)
 }

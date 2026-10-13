@@ -14,6 +14,7 @@ use egui::text::{LayoutJob, TextFormat};
 use egui::{Color32, FontFamily, FontId, Galley, Painter, Pos2, Stroke, Vec2};
 
 use crate::core::diagnostics::{self, Severity};
+use crate::core::features::inlay_hint::InlayKind;
 use crate::core::features::semantic_tokens::{self, TokenType};
 use crate::core::features::Project;
 use crate::core::model::document::Document;
@@ -26,6 +27,9 @@ pub struct Highlight {
     pub tokens: Vec<(Range<usize>, TokenType, bool)>,
     /// 診断の波線（範囲・重さ）。I は出さない。
     pub squiggles: Vec<(Range<usize>, Severity)>,
+    /// インレイヒント（位置・中身。§6.6.2）。エディタ（節エディタと M8 のワークスペースのエディタ）
+    /// だけが入れる（[`crate::ui::widgets::inlay`]、`PLANS.md` §9.2 B-137）。
+    pub hints: Vec<(usize, InlayKind)>,
 }
 
 impl Highlight {
@@ -51,7 +55,11 @@ impl Highlight {
                 clip(&at, &range).map(|clipped| (clipped, found.severity()))
             })
             .collect();
-        Self { tokens, squiggles }
+        Self {
+            tokens,
+            squiggles,
+            hints: Vec::new(),
+        }
     }
 }
 
@@ -185,7 +193,11 @@ pub fn row_spans(galley: &Galley, text: &str, range: &Range<usize>) -> Vec<(f32,
         let to = end.min(row_end);
         if from < to {
             let left = row.x_offset(from - offset);
-            let right = row.x_offset(to - offset);
+            // 右端は範囲の最後の字の右端（次の字の左端ではない。インレイヒントの隙間に線を引かない、B-137）
+            let right = row
+                .glyphs
+                .get(to - offset - 1)
+                .map_or_else(|| row.x_offset(to - offset), |last| last.max_x());
             // ベースライン（グリフの `pos.y`）。グリフが無ければ行の下端の少し上
             let baseline = row
                 .glyphs

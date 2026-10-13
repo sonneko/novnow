@@ -187,6 +187,45 @@ fn the_reference_pane_lists_words_materials_and_this_sections_errors() {
 }
 
 #[test]
+fn the_reference_pane_shows_only_the_personality_of_the_effective_mode() {
+    // §19.6「参照ペインに有効モードの性格だけが出る（他モードが出ないことをテスト）」
+    let characters = world::CHARACTERS
+        .replace(
+            "### A 呆れ\nrange: @01 ..\n",
+            "### A 呆れ\nrange: @01 ..\npersonality: 突き放す\n",
+        )
+        .replace(
+            "### B 呆れ（強）\nrange: @01 ..\n",
+            "### B 呆れ（強）\nrange: @01 ..\npersonality: 本気で怒る\n",
+        );
+    assert_ne!(characters, world::CHARACTERS);
+    let project = world_with("characters.md", &characters);
+    let document: Document = project.document(CONTENTS_PATH).cloned().expect("doc");
+    let list = sections::all(&project);
+    let lilia = |index: usize| {
+        let content = reference::at(
+            &document,
+            list[index].lines.clone(),
+            list[index].id,
+            &project,
+        );
+        content
+            .cast
+            .into_iter()
+            .find(|cast| cast.name == "リリア")
+            .expect("リリア")
+    };
+    // 1 節目は場面の `mode: 'リリア:A`
+    let first = lilia(0);
+    assert_eq!(first.modes, vec!["A 呆れ"]);
+    assert_eq!(first.personality.as_deref(), Some("突き放す"));
+    // 3 節目は `mode: 'リリア:B+C`。A の性格は出ない
+    let third = lilia(2);
+    assert_eq!(third.modes, vec!["B 呆れ（強）", "C 好奇心"]);
+    assert_eq!(third.personality.as_deref(), Some("本気で怒る"));
+}
+
+#[test]
 fn removing_a_section_takes_its_separator_with_it() {
     let project = world();
     let list = sections::all(&project);

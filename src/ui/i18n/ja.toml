@@ -232,6 +232,11 @@ theme = "テーマを切り替える"
 [editor]
 editing = "編集中"
 no_sections = "本文の節がありません。contents/ に場面見出し（@01-01-01 のような行）を書いてください。"
+# インレイヒント（§6.6.2）。{0} は資料のタイトル（24 字を超えたら 23 字 + …）、モードは表示名を + でつないだもの
+inlay_title = "⟨{0}⟩"
+inlay_proposed = "⟨{0}・提案中⟩"
+inlay_rejected = "⟨{0}・却下⟩"
+inlay_modes = "⟨{0}⟩"
 
 [pane]
 plot = "プロット"
@@ -264,6 +269,7 @@ reload = "プロジェクトを読み直す"
 new_section = "直後に新しい節を作る"
 jump = "構造 ID へジャンプ"
 reference = "参照ペインの表示を切り替える"
+inlay_hints = "インレイヒント（資料のタイトル・モード名）の表示を切り替える"
 help = "キーボード一覧"
 export = "テキストにエクスポートする（アノテーションを除く）"
 
@@ -301,6 +307,7 @@ main_ratio = "メインと参照ペインの比"
 font = "文字サイズ 拡大 / 縮小 / 既定"
 language = "言語（ja ⇄ en）"
 theme = "テーマ（system → dark → light）"
+inlay_hints = "インレイヒント（資料のタイトル・モード名）の表示"
 reload = "プロジェクトを読み直す"
 escape = "閉じる / 節エディタへ"
 find = "検索 / 置換（今のファイル）"

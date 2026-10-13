@@ -1267,3 +1267,65 @@ fn the_palette_searches_materials_with_hash_and_the_dictionary_with_a_quote() {
         Some(1)
     );
 }
+
+// ============================================================ インレイヒント（§6.6.2、B-137）
+
+#[test]
+fn a_material_id_in_the_episode_plot_shows_its_title_as_an_inlay_hint_and_the_file_keeps_the_id() {
+    let mut harness = material_harness();
+    harness.frame(vec![key(Key::Num2, ALT)]);
+    harness.frame(Vec::new());
+    harness.frame(vec![key(Key::End, Modifiers::NONE)]);
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(vec![Event::Text("material: 'M0137".into())]);
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(vec![Event::Text("material: 'M0138".into())]);
+    let output = harness.frame(Vec::new());
+    let text = painted_text(&output);
+    assert!(
+        text.contains("⟨科学の甲子園 本戦の運営と実技課題⟩"),
+        "{text}"
+    );
+    assert!(
+        text.contains("⟨旧校舎の歴史・提案中⟩"),
+        "提案中の資料には添える: {text}"
+    );
+    harness.idle(0.6);
+    let plot = written(&harness, "plots/01-01.txt");
+    assert!(
+        plot.contains("state: fixed\nmaterial: 'M0137\nmaterial: 'M0138\n;\n"),
+        "{plot}"
+    );
+    assert!(!plot.contains('⟨'), "ヒントはファイルに書かない: {plot}");
+    // Alt+H で消え、ui.json に残り、もう一度で戻る
+    harness.frame(vec![key(Key::H, ALT)]);
+    let output = harness.frame(Vec::new());
+    assert!(!painted_text(&output).contains("⟨科学の甲子園"));
+    harness.idle(0.3);
+    let ui_json = written(&harness, ".novnow/ui.json");
+    assert!(ui_json.contains("\"inlay_hints\": false"), "{ui_json}");
+    harness.frame(vec![key(Key::H, ALT)]);
+    let output = harness.frame(Vec::new());
+    assert!(painted_text(&output).contains("⟨科学の甲子園 本戦の運営と実技課題⟩"));
+}
+
+#[test]
+fn the_section_editor_shows_a_material_title_and_a_mode_name_after_their_tokens() {
+    let mut harness = novel_harness();
+    // @01-01-01-02: 「これに載ってたんだ」'M0137 @アルス:B（B = 補習）
+    harness.frame(vec![key(Key::ArrowDown, ALT)]);
+    let output = harness.frame(Vec::new());
+    assert_eq!(
+        harness.app.workbench().and_then(Workbench::current_id),
+        Some(id(1, 1, 1, 2))
+    );
+    let text = painted_text(&output);
+    assert!(
+        text.contains("⟨科学の甲子園 本戦の運営と実技課題⟩"),
+        "{text}"
+    );
+    assert!(text.contains("⟨補習⟩"), "{text}");
+    let buffer = harness.app.workbench().expect("open").buffer().to_owned();
+    assert!(buffer.contains("'M0137 @アルス:B"), "{buffer}");
+    assert!(!buffer.contains('⟨'));
+}

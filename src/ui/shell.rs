@@ -163,6 +163,8 @@ pub enum Command {
     Scan,
     /// `Ctrl+M` 資料検索（§16.3・§9.8.3。どのワークスペースからでも。`PLANS.md` §9.2 B-134）。
     MaterialSearch,
+    /// `Alt+H` インレイヒントの表示トグル（§6.6.2・§9.8.1。`ui.json.inlay_hints`、B-137）。
+    InlayHints,
 }
 
 /// キー 1 つをショートカットに読む。`text_focused` は入力欄にフォーカスがあるか（`?` の判定）。
@@ -215,6 +217,7 @@ pub fn command_of(
         Key::F if ctrl && !alt && shift => Command::Search,
         Key::F if ctrl && !alt => Command::Find,
         Key::H if ctrl && !alt && !shift => Command::Replace,
+        Key::H if plain_alt && !shift => Command::InlayHints,
         Key::F3 if !ctrl && !alt => Command::FindNext(!shift),
         Key::Space if ctrl && !alt && !shift => Command::Complete,
         Key::M if ctrl && !alt && shift => Command::Modes,

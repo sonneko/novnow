@@ -7,6 +7,7 @@
 //! - 行番号は**節内のローカル行番号**（1 始まり、§9.4.1）。折り返した行には番号を振らない。
 //! - ソフトラップ有り・横スクロール無し。
 //! - 節ごとに別の `Id` を使うので、undo の履歴は節ごとに残る（§8.6。戻ってくると復元される）。
+//! - インレイヒント（§6.6.2）は [`crate::ui::widgets::inlay`] が隙間を空けて上から描く（B-137）。
 
 use std::ops::Range;
 use std::sync::Arc;
@@ -17,20 +18,22 @@ use egui::{FontFamily, FontId, Galley, Id, Pos2, Rect, TextEdit, Ui, Vec2};
 use crate::core::features::project::line_starts_of;
 use crate::core::features::sections;
 use crate::core::model::document::Document;
+use crate::ui::i18n::Locale;
 use crate::ui::theme::{self, Mode};
+use crate::ui::widgets::inlay;
 use crate::ui::widgets::syntax_text::{self, Highlight, Metrics};
 use crate::ui::workbench::Workbench;
 
 /// 節エディタのハイライトのキャッシュ（中身が変わったときだけ作り直す）。
 #[derive(Debug, Default)]
 pub struct Cache {
-    key: Option<(u64, String, usize)>,
+    key: Option<(u64, String, usize, bool)>,
     text: String,
     highlight: Highlight,
 }
 
 impl Cache {
-    fn get(&mut self, bench: &Workbench, text: &str) -> Highlight {
+    fn get(&mut self, bench: &Workbench, text: &str, hints: bool) -> Highlight {
         let Some(current) = bench.current() else {
             return Highlight::default();
         };
@@ -38,11 +41,12 @@ impl Cache {
             bench.generation(),
             current.path.clone(),
             current.lines.start,
+            hints,
         );
         if self.key.as_ref() == Some(&key) && self.text == text {
             return self.highlight.clone();
         }
-        self.highlight = highlight_of(bench, text);
+        self.highlight = highlight_of(bench, text, hints);
         self.text = text.to_owned();
         self.key = Some(key);
         self.highlight.clone()
@@ -97,26 +101,31 @@ fn byte_of(text: &str, char_index: usize) -> usize {
         .map_or(text.len(), |(at, _)| at)
 }
 
+/// エディタの見た目（配色・文字の倍率・インレイヒント）。
+#[derive(Debug, Clone, Copy)]
+pub struct Look {
+    /// 配色。
+    pub mode: Mode,
+    /// 文字の倍率（`ui.json.font_scale`）。
+    pub scale: f32,
+    /// インレイヒントを出すなら、その文言の言語（`None` = 出さない。`Alt+H`、§6.6.2）。
+    pub inlay: Option<Locale>,
+}
+
 /// 節エディタを描く。
-pub fn show(
-    ui: &mut Ui,
-    bench: &mut Workbench,
-    cache: &mut Cache,
-    mode: Mode,
-    scale: f32,
-) -> EditorOutput {
+pub fn show(ui: &mut Ui, bench: &mut Workbench, cache: &mut Cache, look: Look) -> EditorOutput {
     let id = editor_id(bench);
     let mut buffer = std::mem::take(bench.buffer_mut());
     let bench_ref: &Workbench = bench;
-    let mut highlight = |text: &str| cache.get(bench_ref, text);
+    let hints = look.inlay.is_some();
+    let mut highlight = |text: &str| cache.get(bench_ref, text, hints);
     let result = area(
         ui,
         id,
         "section-editor-scroll",
         &mut buffer,
         &mut highlight,
-        mode,
-        scale,
+        look,
     );
     *bench.buffer_mut() = buffer;
     result
@@ -130,9 +139,9 @@ pub(crate) fn area(
     scroll_id: &str,
     buffer: &mut String,
     highlight: &mut dyn FnMut(&str) -> Highlight,
-    mode: Mode,
-    scale: f32,
+    look: Look,
 ) -> EditorOutput {
+    let Look { mode, scale, inlay } = look;
     let colors = theme::palette(mode);
     let metrics = Metrics {
         size: 15.0 * scale,
@@ -152,7 +161,16 @@ pub(crate) fn area(
                 let width = ui.available_width();
                 let mut layouter = |ui: &Ui, text: &str, wrap: f32| -> Arc<Galley> {
                     let found = highlight(text);
-                    let job = syntax_text::job(text, &found, mode, metrics, wrap);
+                    let mut job = syntax_text::job(text, &found, mode, metrics, wrap);
+                    if let Some(locale) = inlay {
+                        // ヒントの幅の隙間を空ける（描くのは `TextEdit` の後）
+                        let gaps: Vec<(usize, f32)> =
+                            inlay::lay_out(ui, &found.hints, locale, mode, metrics.size)
+                                .iter()
+                                .map(|(at, label)| (*at, inlay::gap_of(label)))
+                                .collect();
+                        inlay::open_gaps(&mut job, &gaps);
+                    }
                     ui.fonts(|fonts| fonts.layout_job(job))
                 };
                 let output = TextEdit::multiline(buffer)
@@ -184,6 +202,17 @@ pub(crate) fn area(
                     &found,
                     mode,
                 );
+                if let Some(locale) = inlay {
+                    let laid = inlay::lay_out(ui, &found.hints, locale, mode, metrics.size);
+                    inlay::paint(
+                        &painter,
+                        output.galley_pos,
+                        &output.galley,
+                        buffer,
+                        &laid,
+                        mode,
+                    );
+                }
                 paint_line_numbers(
                     &painter,
                     gutter_rect.min.x + gutter - 8.0,
@@ -224,8 +253,8 @@ fn paint_line_numbers(
 }
 
 /// 今の節の本文 `text` のハイライト（ファイル全体に書き戻した形で解析し、節の部分だけを取る。
-/// 役割語・モードの解決には場面の文脈が要るため）。
-pub fn highlight_of(bench: &Workbench, text: &str) -> Highlight {
+/// 役割語・モードの解決には場面の文脈が要るため）。`hints` ならインレイヒントも入れる。
+pub fn highlight_of(bench: &Workbench, text: &str, hints: bool) -> Highlight {
     let Some(current) = bench.current() else {
         return Highlight::default();
     };
@@ -240,5 +269,9 @@ pub fn highlight_of(bench: &Workbench, text: &str) -> Highlight {
         .unwrap_or(spliced.len());
     let range: Range<usize> = start..(start + text.len()).min(spliced.len());
     let whole = Document::new(current.path.clone(), spliced);
-    Highlight::of_range(&whole, range, bench.project())
+    let mut out = Highlight::of_range(&whole, range.clone(), bench.project());
+    if hints {
+        out.hints = inlay::of_range(&whole, range, bench.project());
+    }
+    out
 }

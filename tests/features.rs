@@ -398,6 +398,45 @@ fn role_language_underlines_follow_the_speaker_rules_of_6_5_3() {
 }
 
 #[test]
+fn a_dialogue_that_matches_no_pattern_gets_no_underline_no_color_and_no_diagnostic() {
+    // §19.6「一致しない台詞には何も表示されない（色も診断も付かないことをテスト）」。
+    // リリアの A には専用のパターンが無く、共通の tone は「*のね」
+    let text = "@01-04-02 x\n「ねえ、いいでしょ？」@リリア:A\n";
+    let project = world_with(CONTENTS_PATH, text);
+    let document = doc(&project, CONTENTS_PATH);
+    let line = line_range(text, 1);
+    let inside: Vec<SemanticToken> = semantic_tokens::full(&document, &project)
+        .into_iter()
+        .filter(|token| token.range.start >= line.start && token.range.end <= line.end)
+        .collect();
+    assert!(
+        inside.iter().all(|token| !token.role_language),
+        "{inside:?}"
+    );
+    let speech: Vec<&SemanticToken> = inside
+        .iter()
+        .filter(|token| slice(text, &token.range).contains("いいでしょ"))
+        .collect();
+    assert!(!speech.is_empty(), "{inside:?}");
+    assert!(
+        speech
+            .iter()
+            .all(|token| token.kind == TokenType::DialogueText),
+        "台詞の色のまま: {speech:?}"
+    );
+    let on_line: Vec<Diagnostic> = diagnostics::document(&document, &project)
+        .into_iter()
+        .filter(|found| {
+            found
+                .range
+                .as_ref()
+                .is_some_and(|range| range.start < line.end && range.end > line.start)
+        })
+        .collect();
+    assert!(on_line.is_empty(), "{on_line:?}");
+}
+
+#[test]
 fn the_plot_pov_is_the_last_resort_for_the_speaker() {
     // 話プロットの 01-04-02 は `pov: 'アルス`。アルスの tone は「*だ」
     let text = "@01-04-02 x\n「これは設計図だ」\n";

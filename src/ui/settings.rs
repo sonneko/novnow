@@ -111,6 +111,8 @@ pub struct UiSettings {
     pub context_sections: usize,
     /// `autosave_ms`（200–2000。§8.2、第 2.12 版で §4.4.1 に足した）。
     pub autosave_ms: u32,
+    /// `inlay_hints`（§6.6.2。`Alt+H` で切り替える。既定 `true`）。
+    pub inlay_hints: bool,
     /// 参照ペインを表示するか（`Ctrl+\`。保存しない、セッション内）。
     pub reference_visible: bool,
     /// 読んだ JSON（知らないキーを残すため）。
@@ -129,6 +131,7 @@ impl Default for UiSettings {
             font_scale: 1.0,
             context_sections: 3,
             autosave_ms: 400,
+            inlay_hints: true,
             reference_visible: true,
             raw: Map::new(),
         }
@@ -172,6 +175,9 @@ impl UiSettings {
         if let Some(ms) = raw.get("autosave_ms").and_then(Value::as_u64) {
             out.autosave_ms = ms.clamp(200, 2000) as u32;
         }
+        if let Some(shown) = raw.get("inlay_hints").and_then(Value::as_bool) {
+            out.inlay_hints = shown;
+        }
         out.raw = raw;
         out
     }
@@ -200,6 +206,7 @@ impl UiSettings {
         raw.insert("font_scale".into(), json!(round2(self.font_scale)));
         raw.insert("context_sections".into(), json!(self.context_sections));
         raw.insert("autosave_ms".into(), json!(self.autosave_ms));
+        raw.insert("inlay_hints".into(), json!(self.inlay_hints));
         let mut text = serde_json::to_string_pretty(&Value::Object(raw)).unwrap_or_default();
         text.push('\n');
         text

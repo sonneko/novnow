@@ -324,5 +324,6 @@ pub fn slice(highlight: &Highlight, range: &Range<usize>) -> Highlight {
             .iter()
             .filter_map(|(at, severity)| cut(at).map(|clipped| (clipped, *severity)))
             .collect(),
+        hints: Vec::new(),
     }
 }

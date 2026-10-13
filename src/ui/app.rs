@@ -583,6 +583,10 @@ impl NovnowApp {
                 self.settings.theme = self.settings.theme.next();
                 self.settings_changed();
             }
+            Command::InlayHints => {
+                self.settings.inlay_hints = !self.settings.inlay_hints;
+                self.settings_changed();
+            }
             Command::FontUp | Command::FontDown => {
                 self.settings.step_font(command == Command::FontUp);
                 self.settings_changed();
@@ -1702,6 +1706,7 @@ impl NovnowApp {
                 now,
                 reference: show_reference
                     .then_some((self.settings.reference_pane_side, reference_width)),
+                inlay_hints: self.settings.inlay_hints,
             };
             let mut jump = None;
             let mut cast_jump = None;
@@ -1890,8 +1895,11 @@ impl NovnowApp {
                         ui,
                         &mut session.bench,
                         &mut session.editor_cache,
-                        mode,
-                        scale,
+                        section_editor::Look {
+                            mode,
+                            scale,
+                            inlay: self.settings.inlay_hints.then_some(locale),
+                        },
                     )
                 });
                 editor_output = editor.inner;
@@ -3648,6 +3656,7 @@ const PALETTE_COMMANDS: &[(&str, &str, Command)] = &[
     ("new-section", "command.new_section", Command::NewSection),
     ("jump", "command.jump", Command::Jump),
     ("reference", "command.reference", Command::ToggleReference),
+    ("inlay-hints", "command.inlay_hints", Command::InlayHints),
     ("export", "command.export", Command::Export),
     ("help", "command.help", Command::Help),
 ];
@@ -3820,6 +3829,7 @@ const HELP_KEYS: &[(&str, &str)] = &[
     ("Ctrl+Plus / Minus / 0", "help.font"),
     ("Ctrl+Alt+L", "help.language"),
     ("Ctrl+Alt+T", "help.theme"),
+    ("Alt+H", "help.inlay_hints"),
     ("F5", "help.reload"),
     ("Ctrl+F / Ctrl+H", "help.find"),
     ("F3 / Shift+F3", "help.find_next"),

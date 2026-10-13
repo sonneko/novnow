@@ -467,7 +467,7 @@ pub fn show(
                     let id = slice_editor::editor_id(bench);
                     ctx.memory_mut(|memory| memory.request_focus(id));
                 }
-                let output = slice_editor::show(ui, bench, &mut state.editor, view.mode, scale);
+                let output = slice_editor::show(ui, bench, &mut state.editor, view.look());
                 if output.changed {
                     bench.slice_edited(view.now);
                 }

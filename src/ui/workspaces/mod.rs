@@ -207,6 +207,19 @@ pub struct View {
     pub now: f64,
     /// 参照ペインを出すなら、その側と幅（§9.1。幅 < 900px では畳む）。
     pub reference: Option<(PaneSide, f32)>,
+    /// インレイヒントを出すか（`ui.json.inlay_hints`、`Alt+H`。§6.6.2）。
+    pub inlay_hints: bool,
+}
+
+impl View {
+    /// エディタの見た目（[`crate::ui::widgets::slice_editor::show`] に渡す）。
+    pub fn look(&self) -> crate::ui::widgets::section_editor::Look {
+        crate::ui::widgets::section_editor::Look {
+            mode: self.mode,
+            scale: self.scale,
+            inlay: self.inlay_hints.then_some(self.locale),
+        }
+    }
 }
 
 /// ワークスペースの描画から `NovnowApp` に頼むこと（マウスでの操作。キーは `Command` で来る）。
