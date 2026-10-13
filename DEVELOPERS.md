@@ -4,22 +4,24 @@
 
 > **この文書の位置づけ**
 >
-> - 仕様の正本は **[`SPECIFICATIONS.md`](./SPECIFICATIONS.md)**（v1 仕様 **第 2.8 版**）。
+> - 仕様の正本は **[`SPECIFICATIONS.md`](./SPECIFICATIONS.md)**（v1 仕様 **第 2.9 版**）。
 > - 実装順序と見積りは **[`PLANS.md`](./PLANS.md)**（段階 ① の実装計画）。
 > - 本書は「手を動かすときに開く頁」であり、仕様と食い違った場合は **`SPECIFICATIONS.md` が優先する**。
 >
-> **現在の `src/` は v1 の層構造のまま、`core` が揃った状態（M4 完了時点）である。**
+> **現在の `src/` は v1 の層構造のまま、`core` とストレージが揃った状態（M5 完了時点）である。**
 > v0（プロトタイプ）の UI コードは M0 で削除し、`v0-final` タグに保存した。
 > **実装済み**: `core/id.rs`・`core/text/*`（字句・位置・rope・増分）・`core/diagnostics.rs`
-> （§7 / §7.1 / §7.2 の **79 コード**）・`core/syntax/*`（**8 形式**のパーサ）・`core/model/*`
+> （§7 / §7.1 / §7.2 の **80 コード**）・`core/syntax/*`（**8 形式**のパーサ）・`core/model/*`
 > （10 型）・`core/resolve/dictionary.rs`（辞書と `'` の最短一致、§6.1 / §6.2）・
 > `core/resolve/modes.rs`（モード解決の 8 段、§6.4）・`core/resolve/role_language.rs`
 > （役割語パターン → 正規表現、§6.5）・`core/resolve/materials.rs`（資料 ID とインレイヒント、
 > §6.6）・`core/resolve/context_rules.rs`（参照ペインと ContextPacket の共用ルール、
 > §9.5.2 / §15.4）。**`core/resolve/` は 5 本すべて実装済み（M3 完了）**。
 > **M4**: `core/features/*`（§3.4 の 11 機能と集約 `features::Project`）・`diagnostics::document`
-> （文書単位の診断の組み立て）・`ui/i18n/{ja,en}.toml`（`diag.*` の文言 79 件）。本書 §5.6。
-> **空のまま**: `core/aicontext/*`（M10）・`ports/**`・`adapters/**`（M5 / M6）・
+> （文書単位の診断の組み立て）・`ui/i18n/{ja,en}.toml`（`diag.*` の文言 80 件）。本書 §5.6。
+> **M5**: `core/policy/*`（規則 10 の判定・履歴・Zip・外部変更）・`core/syntax/project_json.rs`・
+> `ports/*`（5 本の trait）・`adapters/{storage_fs,recent_file,zip,project_load,storage_idb,env_system,clock_system}.rs`。本書 §5.7。
+> **空のまま**: `core/aicontext/*`（M10）・`adapters/mcp_stdio.rs`（M10）・`adapters/dialog_rfd.rs`（M7）・
 > `ui/**`（M7 以降。`ui/i18n/*.toml` を除く）。本書の「モジュール構成」は **v1 の目標形**。
 >
 > **GUI は M7 まで動かない**（`PLANS.md` §3 I3）。M0 時点の `cargo run` は
@@ -103,7 +105,7 @@ CI で常設するテストは `PLANS.md` §6 を参照。`tests/layering.rs` �
 `cargo test` は **`--no-fail-fast`** で走らせること（CI もそうしている）。既定だと統合テストは
 アルファベット順の**最初の失敗ターゲットで止まる**ので、他の形式の失敗が一度に見えない。
 
-`tests/layering.rs` の中身は次の 3 系統（8 テスト）。
+`tests/layering.rs` の中身は次の 4 系統（11 テスト）。
 
 | テスト | 検査内容 |
 |---|---|
@@ -112,12 +114,13 @@ CI で常設するテストは `PLANS.md` §6 を参照。`tests/layering.rs` �
 | `checker_catches_*` / `checker_allows_*`（4 本） | **検査器そのもの**の自己テスト。「違反を書いたら本当に落ちるか」「正当な core コードを誤検出しないか」を固定例で担保する |
 | `the_ui_crates_are_optional_and_behind_the_ui_feature` | `Cargo.toml` を `toml` でパースし、GUI の 5 クレート（`egui` / `eframe` / `rfd` / `fontdb` / `toml`）が `optional = true` で `[features] ui` の `dep:` に並んでいること、`default` に `ui` が入っていないことを見る（§1.2 の feature gate、`PLANS.md` §9.2 B-54）。既定のビルドに egui が戻ると CI の 4 ジョブが数分単位で遅くなるので、ここで機械的に止める |
 | `the_ui_layer_is_compiled_only_with_the_ui_feature` | `src/lib.rs` の `pub mod ui;` と `src/adapters/mod.rs` の `pub mod dialog_rfd;` に `#[cfg(feature = "ui")]` が付いているかを見る |
+| `only_the_write_gate_touches_the_file_system_for_writing` ＋ `write_checker_*`（2 本） | §13.1.2（第 2.9 版）: `src/` 全体で、書き込みの system call（`OpenOptions`・`File::create`・`fs::write` / `rename` / `remove_file` / `create_dir_all` / `copy`・`symlink`・`tokio::fs`・`use std::fs::*`）が **`src/adapters/storage_fs.rs`（書き込みの関門）にしか無い**ことを AST で見る。読み取り（`fs::read_to_string` / `File::open` / `fs::metadata`）は許す。本書 §5.7 |
 
 > 検査器を直すときは、必ず自己テストの固定例（`MUST_CATCH_*` / `MUST_PASS_*`）も一緒に更新すること。
 > 自己テストが無い検査器は、改修で検出漏れが混入しても CI が緑のままになる。
 
 `tests/diagnostics_catalog.rs` は **仕様書そのものを読む**テスト（`include_str!("../SPECIFICATIONS.md")`）。
-§7 / §7.1 / §7.2 の表を Markdown から読み直し、`src/core/diagnostics.rs` の **79 コード**と
+§7 / §7.1 / §7.2 の表を Markdown から読み直し、`src/core/diagnostics.rs` の **80 コード**と
 件数・コード文字列・重大度・引数の数・文書位置の有無・既定の有効/無効・実行コスト表・variant の
 doc コメントまで突き合わせる。診断コードを足す／直すときは **先に `SPECIFICATIONS.md` の表**を直すこと
 （`PLANS.md` §6.3「仕様書 → ゴールデン → 実装」）。表に無いコードを enum に足すと
@@ -213,7 +216,7 @@ src/
     text/                  rope.rs  position.rs  lexer.rs  incremental.rs
     syntax/                contents.rs  plot_outline.rs  plot_episode.rs
                            characters_md.rs  words_md.rs  ideas_md.rs
-                           materials_index.rs  prompt_md.rs
+                           materials_index.rs  prompt_md.rs  project_json.rs
     model/                 Project, Document, Character, Mode, RolePattern,
                            Word, Material, Idea, Task
     resolve/               dictionary.rs  modes.rs  role_language.rs
@@ -223,11 +226,14 @@ src/
                            semantic_tokens  completion  hover  inlay_hint
                            code_action  definition  references  document_symbol
                            formatting  rename  folding
+    policy/                ストレージの規則（純粋）: write_policy  recent  archive
+                           external_change（本書 §5.7）
     export.rs              アノテーション除去（§17.1）
     aicontext/             packet.rs  budget.rs
   ports/                   storage.rs  clock.rs  mcp.rs  env.rs  dialog.rs
-  adapters/                storage_fs.rs  storage_idb.rs  mcp_stdio.rs
-                           clock_system.rs  dialog_rfd.rs
+  adapters/                storage_fs.rs（書き込みの関門）  storage_idb.rs  recent_file.rs
+                           zip.rs  project_load.rs  env_system.rs  clock_system.rs
+                           mcp_stdio.rs  dialog_rfd.rs
   ui/
     shell.rs               共通シェル（ステータスバー・パレット・モーダル・IME 状態）
     theme.rs  i18n/
@@ -441,6 +447,39 @@ let items = completion::at(document, cursor, &project);           // `'` の補�
 
 テストのフィクスチャは `tests/world/mod.rs`（**仕様書の例でできたプロジェクト**。`characters.md` だけは
 人物を合わせるために差し替え）。期待値は**編集を当てた後の文字列**や `&text[range]` で書く（byte を数えない）。
+
+### 5.7 ストレージと規則 10 — `core/policy/*` / `ports/*` / `adapters/*`
+
+**規則 10**（§13.1）: 書いてよいのは**今開いているプロジェクトの中**と**パス履歴ファイル 1 個**だけ。
+一時ファイルもキャッシュも例外にならない。M5 はこれを**構造で**守る形にした（判断は `PLANS.md` §9.2 B-88〜B-98）。
+
+| 規則 | 内容 |
+|---|---|
+| 書き込みの関門（B-91） | ファイルを書く・消す・作る system call は **`adapters/storage_fs.rs` の `FsGate` にしか無い**（`tests/layering.rs` が検査）。新しい書き込み経路が要るときは `FsGate` にメソッドを足す。関門の外で `std::fs::write` / `OpenOptions` / `fs::rename` 等を書くと CI が落ちる |
+| 判定の分担 | シンボリックリンクの解決は adapters（`storage_fs::resolve`）、判定は core（`policy::WritePolicy::check`。字句だけ）。違反は **debug で panic**・release で E060。ユーザーが選んだパスは panic しない `FsGate::check` で先に確かめて E060 を出す |
+| パス（B-90） | ストレージの API は `core::policy::ProjectPath`（ルートからの相対。`..`・絶対・`\`・`:` を作れない）。ネイティブのパスへは `ProjectPath::under(root)`。**文字列を手でつないでパスを作らない** |
+| 非同期（B-90） | `ports::storage::Storage` のメソッドは `Future` を返す（IndexedDB が非同期のため）。ネイティブは即座に完了するので CLI とテストは `adapters::block_on` で待つ |
+| 履歴（B-92） | 場所は §13.2.1（`recent_file::location`、`NOVNOW_RECENT_FILE` で上書き）。書くのは `RecentFile::push` / `remove` → `FsGate::write_history` だけ（一時ファイルを使わず直接上書き）。キーは `path` / `opened_at` だけ・32 件（`policy::recent`） |
+| 原子的保存（§8.3） | `FsStorage::write` が `.<name>.novnow-tmp` → `fsync` → `rename`。保存の成否は `Result`、`Ok` は新しいスタンプ（外部変更の検出で自分の保存を候補にしないために `Snapshot::acknowledge` する） |
+| 読み込み（B-94） | `adapters::project_load::load(&storage)` が一覧 → UTF-8 の確認 → `model::project::validate`（§4.3）→ §5.0.4 の正規化 → `features::Project`。設定は `project.json` の文書から集約が読む（B-89）。起動前の軽い検査は `listing` ＋ `validate` |
+| 外部変更（B-95） | `project_load::poll(&storage, &mut snapshot)` を 1,000ms ごと（タイマは UI）。候補は中身を読んで `policy::external_change::react`（Clean は再読込 ＋ I052、Dirty は衝突、辞書の 3 ファイルは常に再読込） |
+| Zip（B-93） | `adapters::zip::{export, import}` はバイト列どうし（デスクトップと Web で共通）。デスクトップの書き出し先は `exports/<name>.zip`（`export_project`）、取り込みは新しいルートへ（`FsStorage::create` ＋ `import_project`。既存のファイルは上書きしない）。何を入れて何を取り込むかは `policy::archive` |
+| IndexedDB（B-96） | `adapters::storage_idb`。純粋な部分（レコード・`app` の許可キー・W062・v0 の取り込みの計画）はネイティブでテストし、`wasm32` の接続はコンパイルだけを CI で確かめる（実行の確認は M7）。`app` ストアに書く口は `Idb::push_recent` だけ |
+
+```rust
+// ネイティブ（M6 の CLI・M7 の GUI）。関門はプロセスに 1 つ
+let gate = Arc::new(FsGate::new(&SystemEnv));                    // 履歴の置き場所は環境から決まる
+let storage = FsStorage::open(gate.clone(), Path::new(dir))?;    // 関門の許可をこのプロジェクトに切り替える
+let loaded = block_on(project_load::load(&storage))?;            // §4.3 の判定 ＋ 文書
+loaded.validation?;                                              // Incomplete / LegacyV0 / TooNew / Encoding
+let path = ProjectPath::new("contents/01-04.txt")?;
+let stamp = block_on(storage.write(&path, &text))?;              // 原子的に保存
+RecentFile::new(gate).push(storage.root(), &SystemClock)?;       // 開けたら履歴の先頭へ（§14.4）
+```
+
+テストの共有部品は `tests/sandbox/mod.rs`（一時ディレクトリ・偽の `Env`・固定の `Clock`・木の写し）。
+**テストではプロセスの環境変数を書き換えない**（並列に走る）。履歴の場所は偽の `Env` で渡す。
+規則 10 の手動確認の手順は [`docs/verify-rule10.md`](./docs/verify-rule10.md)。
 
 ---
 

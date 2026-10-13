@@ -9,12 +9,16 @@
 //!
 //! 判定に失敗しても文書は読んで返す（起動を止めるかどうかは呼び出し側が決める。§14.2 の CLI は
 //! 止め、§13.5 の Zip の取り込みは「不備のまま取り込む / 取り消す」を選ばせる）。
+//!
+//! 外部変更の監視（§8.5）の 1 回分も、どのストレージでも同じ手順なのでここに置く（[`poll`]）。
+//! 1,000ms ごとに呼ぶタイマは UI（M7）が持つ（ネイティブはスレッド、Web は `setInterval`）。
 
 use std::collections::BTreeSet;
 
 use crate::core::features::Project;
 use crate::core::model::document::{Document, DocumentFormat};
 use crate::core::model::project::{validate, Listing, ProjectError, PROJECT_FILE};
+use crate::core::policy::external_change::{Change, Snapshot};
 use crate::core::policy::ProjectPath;
 use crate::core::text::lexer;
 use crate::ports::storage::{Storage, StorageError};
@@ -104,6 +108,19 @@ pub async fn load<S: Storage>(storage: &S) -> Result<Loaded, StorageError> {
         validation,
         project,
     })
+}
+
+/// 外部変更の監視の 1 回分（§8.5）: 一覧を取り、前回（`snapshot`）と比べた候補を返して、
+/// `snapshot` を今回の一覧に置き換える。自分の保存は `Snapshot::acknowledge` で先に覚えておけば
+/// 候補にならない。候補の中身を読んで `policy::external_change::react` で反応を決めるのは呼び出し側。
+pub async fn poll<S: Storage>(
+    storage: &S,
+    snapshot: &mut Snapshot,
+) -> Result<Vec<Change>, StorageError> {
+    let now = Snapshot::from_entries(storage.list().await?);
+    let changes = snapshot.diff(&now);
+    *snapshot = now;
+    Ok(changes)
 }
 
 /// ディレクトリの一覧を足す。ディレクトリを持たないストレージなら「暗黙にある」とする（§4.3 第 2.9 版）。

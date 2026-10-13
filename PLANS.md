@@ -883,7 +883,7 @@ tests/layering.rs
 
 1. ~~**§7 の診断を全件先に定義**（I5）~~ → **前倒しで完了（2026-10-11、M2 の準備）**。
    `src/core/diagnostics.rs` に §7 / §7.1 / §7.2 の **78 件すべて**を定義済み（§9.2 B-27。
-   E025 は第 2.6 版で §7 に追加、§9.1 A-17 解消）。**第 2.8 版で E022 を足して 79 件**（§9.1 A-9）。
+   E025 は第 2.6 版で §7 に追加、§9.1 A-17 解消）。**第 2.8 版で E022 を足して 79 件**（§9.1 A-9）、**第 2.9 版で E027 を足して 80 件**（§9.1 A-24）。
    - ① が**検査を実装する**のは **E001–E031 / E060–E063 / W002–W041 / W062–W067 / I050–I053**。
      W080 以降・E032 以降・E064・I054 以降は **② の予約（本書 §1.5-3）としてコードだけ定義し、
      検査は実装しない**（未使用 variant の警告は I5 が許容）。
@@ -963,11 +963,34 @@ tests/layering.rs
 4. **履歴ファイル**（§13.2）: `{path, opened_at}` 最大 32 件。`NOVNOW_RECENT_FILE` で上書き可。
 5. 外部変更の監視（§8.5）: ポーリング（v0 の方式を流用）。
 
+> **M5 の進捗（2026-10-13）: 規則 10 の関門・ストレージ・履歴・Zip・IndexedDB を実装した — M5 完了**
+>
+> 着手前に仕様書を**第 2.9 版**にした（A-24 のユーザー裁定で **E027**「語クラスの正規表現が不正」を新設して
+> 80 コード。あわせて規則 10 と食い違っていた書き出し先・履歴の書き方・関門の範囲・Zip の規則・§4.3 の分担を
+> 直した。経緯は仕様書の変更履歴）。そのうえで:
+>
+> - **設定の読み込み**: `core::syntax::project_json`（E025 / E027）。`features::Project` は `project.json` の文書
+>   から設定を取る（§9.2 **B-88**・**B-89**）。`ui.json` / `stats.json` は壊れていても診断を出さない（仕様どおり）。
+> - **規則の層** `core::policy`（純粋関数）: `write_policy`（関門の判定と相対パスの型 `ProjectPath`、**B-91**）／
+>   `recent`（履歴の形と上限、**B-92**）／`archive`（Zip に入れるもの・取り込むもの、**B-93**）／
+>   `external_change`（外部変更の候補と反応、**B-95**）。§4.3 の `validate` は `core::model::project`（**B-94**）。
+> - **ポート**: `Storage`（非同期・相対パス、**B-90**）／`Clock`／`Env`／`Dialog`（開くだけ）／`McpClient`（**B-97**）。
+> - **アダプタ**: `storage_fs`（**書き込みの関門** `FsGate` と `FsStorage`。原子的書き込み・シンボリックリンクの
+>   解決・debug は panic / release は E060）／`recent_file`（§13.2）／`zip`（§13.5）／`project_load`（一覧 →
+>   判定 → 文書、監視の 1 回分）／`storage_idb`（§13.3。純粋な部分と wasm の接続、**B-96**）／`env_system`／
+>   `clock_system`／`block_on`。
+> - **検査**: `tests/layering.rs` に「書き込み API は `src/adapters/storage_fs.rs` だけ」（§13.1.2）。テストは
+>   `storage_policy`（18）・`storage_fs`（11）・`recent_file`（11）・`zip_roundtrip`（13）・`project_load`（19）・
+>   `storage_idb`（12）・`project_json`（12）と `layering` の 3 本を足して **827 件**。`storage_policy` は
+>   リリースビルド（E060 を返す側）でも緑を確かめた。共有部品は `tests/sandbox/mod.rs`。
+> - **M5 の完了時に動くもの**（§4.1）: ディスク上のプロジェクトを読み、M4 の診断がメモリ上と同じ結果になる
+>   （`tests/project_load.rs`）。コマンドとしての `novnow check` は M6 がこれを呼ぶ。
+
 **完了条件**
 
-- [ ] `tests/storage_policy.rs`: 全書き込み経路（本文・設定・エクスポート・提案・ログ・Zip）にプロジェクト外パスを与えて、**すべて拒否される**。
-- [ ] 実機で一通り操作した後、プロジェクト外に作られたファイルが**履歴 1 個だけ**（手動確認手順を `docs/verify-rule10.md` に記載）。
-- [ ] Zip エクスポート → 別環境でインポート → 内容一致。
+- [x] `tests/storage_policy.rs`: 全書き込み経路（本文・設定・エクスポート・提案・ログ・Zip）にプロジェクト外パスを与えて、**すべて拒否される**。履歴（`write_history` 以外の口から履歴ファイルは書けない）・閉じたプロジェクト・前のプロジェクト・外を指すシンボリックリンク（ディレクトリ・ファイル・壊れたリンク・一時ファイルの名前）・`..`・絶対パス・カレントディレクトリ基準の相対パスも含めて 18 本。debug（panic）と release（E060）の両方で緑。
+- [x] 実機で一通り操作した後、プロジェクト外に作られたファイルが**履歴 1 個だけ**（手動確認手順を `docs/verify-rule10.md` に記載）。**M5 はストレージ層で実施**（一通りの操作をなぞるテストを実プロセスとして走らせ、ファイルシステム全体の差分で確認。記録は同書 §5）。GUI での実施は §5.8 の完了条件に移した（§9.2 **B-98**）。
+- [x] Zip エクスポート → 別環境でインポート → 内容一致。`tests/zip_roundtrip.rs` がデスクトップから書き出した Zip を (1) 別のディレクトリ（デスクトップ）と (2) Web の取り込み経路（テキストのみ）の両方で読み直し、`.novnow/`・`.git/`・OS の不要ファイル・一時ファイル・書き出し先の Zip 自身を除いた全ファイルがバイト単位で一致することを確かめる（ブラウザでの実行は M7）。
 
 ---
 
@@ -988,6 +1011,12 @@ tests/layering.rs
 6. `novnow new`（§14.5）: 必須ファイル一式 ＋ `.gitignore`（`.novnow/` と `exports/`）＋ 既定プロンプト 7 本。
    - **`prompts/custom/` と `assets/` は作らない**（本書 §1.2）。
 7. `novnow check`: M4 の診断を走らせて一覧を出す（**ここで core の成果が初めて目に見える**）。
+   - 部品は M5 で揃っている（`DEVELOPERS.md` §5.7）: `FsGate::new(&SystemEnv)` をプロセスに 1 つ →
+     `FsStorage::open` → `block_on(project_load::load(&storage))` → `validation`（`Incomplete` / `LegacyV0` /
+     `TooNew` は終了コード 3、`Encoding` は 4、§14.2.5）→ 全文書に `diagnostics::document`（E が 1 件でもあれば 5）。
+     §14.2 の起動前の検査は文字コードを読まない `project_load::listing` ＋ `validate` で足りる。
+   - 履歴（`RecentFile::push`）に積むのはプロジェクトを**開けたとき**だけ（§14.4）。`check` や失敗時は書かない（§14.2.3）。
+   - `novnow new` は `FsStorage::create` で作り、既存のファイルは書かない（`FsStorage::exists` で確かめる、§14.5）。
 8. `novnow migrate` / `export` / `mcp` は**枠だけ**。中身は M11 / M9 / M10。
 
 **完了条件**
@@ -1007,7 +1036,7 @@ tests/layering.rs
 | ファイル | 内容 | 仕様 | 目安 |
 |---|---|---|---|
 | `ui/theme.rs` | セマンティックカラートークン ＋ 3 テーマ | §11 | 1.5 日 |
-| `ui/i18n/{mod.rs,ja.toml,en.toml}` | 2 言語カタログ（**`ja.toml` / `en.toml` の `diag.*` 79 件と §12.3 の CI 検査は M4 で作成済み**。M7 は `mod.rs` の読み込みとステータス・パレット等の文言） | §12 | 1.5 日 |
+| `ui/i18n/{mod.rs,ja.toml,en.toml}` | 2 言語カタログ（**`ja.toml` / `en.toml` の `diag.*`（80 件）と §12.3 の CI 検査は M4 で作成済み**。M7 は `mod.rs` の読み込みとステータス・パレット等の文言） | §12 | 1.5 日 |
 | `ui/shell.rs` | メニュー・ステータスバー・モーダル・パレット | §9.6 / §9.7 | 3 日 |
 | `ui/widgets/syntax_text.rs` | セマンティックトークン描画 ＋ 波線 ＋ 緑下線 | §11.2 / §11.3 | 2.5 日 |
 | `ui/widgets/context_view.rs` | 文脈ビュー ＋ 編集中プレースホルダ | §9.3 | 2 日 |
@@ -1052,6 +1081,10 @@ tests/layering.rs
      出さないと native で IME 自体が無効のままになる。**最初の疎通で真っ先に確認すること。**
    - 張り付き防止: `WindowFocused(false)` と 2 秒タイムアウトで composing を落とす。
 10. **役割語の緑下線**（§6.5.4）: 一致リテラル部のみ。**不一致時は何も出さない**。
+11. **規則 10 を GUI で崩さない**（M5 の B-91・B-98）: 書き込みは `ports::storage::Storage` と `FsGate` だけ。
+    **eframe の `persistence` feature を有効にしない**（状態は `.novnow/ui.json`）。ファイル選択は開くダイアログだけ
+    （`ports::dialog`）。`docs/verify-rule10.md` §4 の「GUI のライブラリが自分で書くもの」を確かめる。
+    外部変更の監視は `adapters::project_load::poll` を 1,000ms ごとに呼ぶ（B-95）。
 
 **完了条件**
 
@@ -1061,6 +1094,8 @@ tests/layering.rs
 - [ ] **変換候補ウィンドウがキャレットの直下に出る**（`IMEOutput.cursor_rect` が正しい）。
 - [ ] `Frame::group` が `ui/` 全体で 0 件（grep で検査、CI に追加）。
 - [ ] 10 万行のファイルで 1 フレーム 8ms 以内（§18.1）。
+- [ ] `docs/verify-rule10.md` の手順（§3.1 の操作の一覧）を GUI で実施し、プロジェクト外に作られたファイルが**履歴 1 個だけ**であることを同書 §5 に記録する（§19.10。M5 はストレージ層まで、B-98）。
+- [ ] Web で IndexedDB の接続（`adapters::storage_idb` の `web`）を一通り動かす: DB の作成・保存（`SaveFailed` を含む）・プロジェクトの作成 / 削除・Zip の取り込み / 書き出し・`app` ストアのキーが `recent_projects` だけ（M5 はコンパイルだけを確かめた、B-96）。
 
 ---
 
@@ -1206,8 +1241,12 @@ tests/layering.rs
 1. **移行**（§20.1）: バックアップ → 変換 → 検査 → **E が 1 件でもあれば全巻き戻し**。
    - 変換表（§20.1）の 12 行を実装。`speech` → 役割語は**人手確認**（W066）。
    - `'『星屑の時計』` → `『'星屑の時計』` の自動修正と W067。
+   - **Web の移行**（§13.3.6・§20.2）: 取り込みの経路は M5 で作ってある（`adapters::storage_idb` の
+     `Idb::import_local_storage_with`。変換を引数で受ける）。`storage_idb::convert_v0`（M5 では失敗を返して E061）を
+     この移行器に差し替える（§9.2 B-96）。
 2. **sample**（付録 C）: 「機能を一通り踏んだ最小例」。モード併用・range 変種・役割語の一致/不一致・資料参照・未回収伏線・`state: fixed`・アイデアを各 1 回ずつ。
    - **① の範囲の機能のみ**。`when` / `senses` / `address` 等は入れない。
+   - Web の初回投入は `Idb::seed_sample` に中身を渡すだけ（仕組みは M5、§9.2 B-96）。
 3. **性能**（§18.1）: 10 万行 / 5,000 辞書エントリ / 500 節のプロジェクトで目標値を計測。
 4. **受け入れ基準**: §19.1–19.13 を 1 項目ずつチェックし、`docs/acceptance-v1.md` に証跡を残す。**§19.14 は ② のため対象外**。
    あわせて CI に `spec` ジョブ（§18.4。受け入れ基準に対応するテスト名の存在確認スクリプト）を追加する（本書 §9.4 B-14）。
@@ -1240,7 +1279,7 @@ tests/layering.rs
 | `tests/export_invariants.rs` | エクスポート結果の不変条件（§17.1） | M9 |
 | `tests/no_llm_sdk.rs` | `Cargo.toml` に LLM プロバイダ SDK が無い（§15.1 A5） | M10 |
 | `tests/delegation.rs` | 委譲レベル解決・自動適用キュー・上限停止・監査ログ記録（§15.1.1） | M10 |
-| `tests/diagnostics_catalog.rs` | §7 / §7.1 / §7.2 の表（**79 件** = 38 + 14 + 27）と enum / `CATALOG` の一致。件数だけでなく重大度・引数の数・文書位置・既定の有効/無効・実行コスト表・variant の doc コメントも、`SPECIFICATIONS.md` を `include_str!` で読み直して照合する | ~~M4~~ → **M2 準備で前倒し（I5、2026-10-11）** |
+| `tests/diagnostics_catalog.rs` | §7 / §7.1 / §7.2 の表（**80 件** = 39 + 14 + 27。第 2.9 版）と enum / `CATALOG` の一致。件数だけでなく重大度・引数の数・文書位置・既定の有効/無効・実行コスト表・variant の doc コメントも、`SPECIFICATIONS.md` を `include_str!` で読み直して照合する | ~~M4~~ → **M2 準備で前倒し（I5、2026-10-11）** |
 | `tests/golden/**` | 8 形式のパース結果 snapshot | M2 |
 | `tests/roundtrip.rs` | 未知キーを含むファイルの読み書きでバイト一致（本書 §1.5-1,2） | M2 |
 
@@ -1453,6 +1492,15 @@ tests/layering.rs
 | B-87（**2026-10-13**） | C 形式（本文）の見出しの重複 | 検査しない（M2 のまま）/ **E008** | **E008**。§7 の E008 は「同一ファイル内の ID 重複」で形式を限らず、B 形式（話プロット）は M2 から検査していた。B 形式の `warn_duplicate` を `contents.rs` に移して共有する（B-40）。比べるのは ID と階層の組（`@01-04-02` の後の `@01-04-02-03` は §5.2.2 の「D 節目から」で重複ではない） |
 | B-88（**2026-10-13**） | §9.1 A-24 の診断コード（語クラスの正規表現が不正） | §7 に置く / §7.1 に置く / W にする | **§7 の E027**（ユーザー裁定は「診断を足す」＝ A-24 の (1)。番号・表・重大度は実装側に任された）。`project.json` の中に位置を持つので §7.1（位置を持たない通知）ではなく §7。設定の誤りなので E（E025 と同じ扱い）。番号は E025（JSON）の近くの空き番号で、② の予約域（W080 以降 / E032 以降 / E064 / I054 以降）に触れない。不正かどうかは値を**単独で**コンパイルできるか（`Lexicon::invalid_word_classes`）で決める。パターンに埋め込んだときだけ壊れる値（同じ名前付きグループを 2 回使う等）は E027 を出さず、従来どおりそのパターンだけ捨てる（まれで、単独の検査で取りこぼしても執筆は止まらない）。位置は値の文字列リテラル（B-45 と同じく原文から探す）。見つからない書き方（`\u` エスケープ）ならキー → `"word_classes"` → ファイル全体に広げる。仕様 第 2.9 版 |
 | B-89（**2026-10-13**） | M5 の「設定の読み込み」の置き場所 | ストレージが `model::Project` を作って渡す / **`project.json` の文書から集約が自分で読む** | `features::Project` が `project.json` の文書を `insert` / `with_documents` で受け取ったときに `syntax::project_json::parse` で設定を置き換える（読めなければ既定値、§4.3-4）。文書を外せば既定値。ストレージは「読んだ文書を渡す」だけで済み、エディタで `project.json` を直したときも同じ経路で設定が変わる（実効値は常に `project.json` の原文の関数）。E025 / E027 は `diagnostics::document` が `project.json` の上に出す。**`.novnow/ui.json` と `stats.json` は壊れていても診断を出さない**（§4.4.1 の MUST「エラーを出さない」と §4.4.2。§9.1 A-17 の解消欄の「`ui.json` / `stats.json` のパース失敗も同じ E025」は仕様と食い違うので取り消した。E025 を出すのは `project.json` と `materials/index.json` だけ） |
+| B-90（**2026-10-13**） | ストレージのポートの形 | 同期の trait ／ Web だけ別の API ／ **非同期の trait 1 つ** | `ports::storage::Storage` の `list` / `dirs` / `read` / `write` / `append` / `remove` は `impl Future` を返す（RPITIT。trait に `async fn` と書くと `async_fn_in_trait` の警告で `-D warnings` に落ちるので、宣言は `fn … -> impl Future`、実装は `async fn`）。IndexedDB は非同期の API しか持たないので、両方を 1 つの trait にするにはこれしかない。`Send` は要求しない（Web の Future は `JsValue` を持つ）。ネイティブの実装は即座に完了する Future を返し、CLI とテストは `adapters::block_on`（std だけの 20 行。ネイティブ専用）で待つ。パスは `core::policy::ProjectPath`（ルートからの相対・`/` 区切り。空・絶対・`\`・`.` / `..`・空の要素・`:`・制御文字を作る時点で拒否）なので、trait から字句的にルートの外へは書けない。`dirs()` は §4.3 の必須ディレクトリの判定用で、ディレクトリを持たない IndexedDB は `None` |
+| B-91（**2026-10-13**） | 規則 10 の関門の作り | core が I/O 込みで判定する ／ adapters 全体で書く ／ **関門 1 ファイル ＋ core の字句判定** | `core::policy::WritePolicy` は**解決済みの絶対パス**を字句で判定するだけ（`..` を正規化してルートより上は `Escape`、要素単位の前方一致でプロジェクト内、履歴はそのファイルだけ、履歴の祖先はディレクトリの作成だけ＝`check_dir`）。シンボリックリンクの解決は `adapters::storage_fs::resolve`（存在する最も深い祖先を `canonicalize` し、無い残りを字句のままつなぐ）。書き込みの system call は `storage_fs.rs` の `FsGate` にしか無く、`tests/layering.rs` が `src/` 全体を検査する（§13.1.2 の「`adapters/` 以外」より狭い。仕様 第 2.9 版）。違反は debug で panic・release で E060（`PolicyViolation::diagnostic`）。ユーザーが選んだパスは panic しない `FsGate::check` で先に確かめる。判定はロックを外してから panic する（毒にしない）。履歴の置き場所は `FsGate::new(&impl Env)` が §13.2.1 の規則で決め、パスを渡す口は無い。履歴は `write_history` からしか書けず、他の口は `Allowed::Project` だけを通す。関門が別のプロジェクトを開くと古い `FsStorage` は書けない（§13.1.1「現在開いている」）。解決できないパス（壊れたリンク等）は `Violation::Unresolved` で書かない。削除はリンク自身を消すのでリンクの置き場所で判定する。原子的保存の一時ファイルは前回の残り（リンクを含む）を消してから `create_new` で作り、置き換える前のファイルの権限を引き継ぐ |
+| B-92（**2026-10-13**） | 履歴ファイルの書き方と時刻 | §8.3 の原子的書き込み ／ **直接上書き** | §13.1.1 は一時ファイルであってもプロジェクト外への書き込みを禁じるので、§8.3 の一時ファイル方式は使えない（仕様 第 2.9 版で §8.3・§13.2.2 に明記）。壊れても §13.2.2 の「空として扱い上書き」で回復する。親ディレクトリの作成は許す。`opened_at` は RFC 3339 の UTC（`Z`）: 標準ライブラリにローカル時差の API が無く、クレートも足せない（`Clock::utc_offset_minutes` はネイティブで 0、Web は `Date#getTimezoneOffset`）。暦の計算は `clock_system` に自前で持つ（Hinnant の算法）。場所は `Env`（`var` / `os` / `home_dir`）から決める純粋な関数（`recent_file::location`）で、`XDG_STATE_HOME` が相対パスなら無視（XDG の規則）、`HOME` が無ければ `directories` の既定。形は `core::policy::recent`（デスクトップの `{path, opened_at}` と Web の `{id, opened_at}` が同じ規則。手で足されたキーは読むときに落ちる＝温存しない、重複は新しいほうを残す、`schema_version` が 1 以外は空）。置き場所が決まらない環境では書かない |
+| B-93（**2026-10-13**） | Zip の書き出し先と取り込みの規則 | §13.5 の保存ダイアログ ／ **`exports/<name>.zip`** | 規則 10 と §5.6 の完了条件 1（エクスポートと Zip にプロジェクト外のパスを与えたら拒否）を優先し、デスクトップは `exports/<project-name>.zip` に書く（§13.5・§17.2 を仕様 第 2.9 版で修正。§17.2 の「名前を付けて保存」もデスクトップはプロジェクト内に限る）。書き出し先の Zip 自身は入れない（入れると毎回入れ子になる）。ドットで始まる名前は入れず取り込まないが、`novnow new` が作る `.gitignore` / `.gitkeep` は例外（落とすと往復で消え、完了条件 3 の「内容一致」が崩れる）。単一のルートを剥がすのは「全エントリが同じ 1 つのディレクトリの下」のときで、その名前が構成のディレクトリ名（`contents` 等）なら `<root>/project.json` があるときだけ。`..` のようなルートは剥がさない（剥がして安全にはしない）。絶対パス・`..`・`:` を含む名前は取り込まずに一覧で返す（zip slip の防止）。展開後の上限は 1 エントリ 256MiB・合計 1GiB。デスクトップの取り込みは既存のファイルを上書きしない。Web はテキストのみ（UTF-8 でないものは `NotText` で一覧） |
+| B-94（**2026-10-13**） | §4.3 の判定と読み込みの分担 | adapters が判定する ／ **判定は core、材料は adapters** | `core::model::project::validate(&Listing)`（ファイルとディレクトリの集合・`project.json` の中身・UTF-8 として不正なファイルの一覧）。§14.2.4 の表示のため、v0 の目印（`characters.json` があって `characters.md` が無い）を不足の列挙より先に見る。`project.json` が読めない・`schema_version` が数でなければ版の検査を飛ばす（E025 を出して既定値、§4.3-4）。`ProjectError::LegacyV0` は何で分かったか（`detected`）を持ち、`Encoding` はファイルを列挙する（仕様の例より情報を足した）。材料集めと文書の読み込みは `adapters::project_load`（どの `Storage` でも同じ手順。`load` は `.md` / `.txt` / `.json` を全部読んで UTF-8 を確かめ、`.novnow/`・`exports/`・ドットファイルは除く。§4.2 の形式のものだけを §5.0.4 の正規化にかけて `features::Project` に入れる）。§3.3 のツリーに `adapters/project_load.rs` を足した |
+| B-95（**2026-10-13**） | 外部変更の監視の分担 | v0 のように監視スレッドを adapters に置く ／ **規則は core、1 回分は adapters、タイマは UI** | `core::policy::external_change`: スタンプ（更新時刻・長さ）の差分で候補を出し（`Snapshot::diff`）、**中身を比べてから**反応を決める（`react`: 同じなら無視＝自分の保存や `touch`、辞書の 3 ファイルは常に再読込、Clean は再読込 ＋ I052、Dirty は衝突）。自分の保存は `write` が返すスタンプを `acknowledge` する。`.novnow/`・`exports/`・ドットファイルは見ない。1 回分（一覧 → 差分 → 置き換え）は `adapters::project_load::poll`。1,000ms のタイマは M7 の UI（ネイティブはスレッド、Web は `setInterval`） |
+| B-96（**2026-10-13**） | IndexedDB のアダプタの確かめ方と、v0 の取り込み | wasm の実行テストを足す（ブラウザが要る）／ **純粋な部分を分けてネイティブで試し、接続はコンパイルだけ** | `storage_idb.rs` の上半分（レコードの形・`app` の許可キー・W062・v0 の取り込みの計画・ID）は `tests/storage_idb.rs`。`wasm32` だけの `web` は CI の WASM ジョブがコンパイルを確かめ、実行の確認は M7 の Web UI（完了条件に足した）。`app` ストアに書く口は `push_recent` だけ（任意のキーの API を持たない）。トランザクションの境界は §13.3.3 のとおりで、成功は `oncomplete` で判定する（§8.3）。日時は UTC のミリ秒付き RFC 3339（固定幅で文字列の順 = 時刻の順。`by_updated` のため）。§13.3.6 の手順 3（v0 → v1 の変換）は M11 なので、変換は呼び出し側が渡す関数にした（`Idb::import_local_storage_with`）。M5 の既定の `convert_v0` は失敗を返すので、**v0 のデータがあれば E061 になり、LocalStorage は消さず IndexedDB にも書かない**（変換していない v0 を v1 のプロジェクトとして置かないため）。サンプルの投入（§13.3.5）は仕組みだけ（中身の付録 C は M11）。UUID は `crypto.getRandomValues`（§3.1 の図の `Random` ポートは足さない） |
+| B-97（**2026-10-13**） | 残りのポート | — | `Clock`（`now_millis` / `utc_offset_minutes`）・`Env`（`var` / `os` / `home_dir`。M6 で言語・`NO_COLOR`・端末の判定に広げる）・`Dialog`（**開くためのダイアログだけ**。プロジェクト外には書けないので、保存先を選ぶダイアログは持たない）・`McpClient`（§15.8.1 の 1 回の呼び出し。中身は M10）。実装は `adapters/env_system.rs`（§3.3 のツリーに追加）と `clock_system.rs` |
+| B-98（**2026-10-13**） | §5.6 の完了条件 2（実機で一通り操作して、プロジェクト外のファイルが履歴 1 個だけ）の扱い | M7 まで保留する ／ **M5 はストレージ層で実施して記録し、GUI での実施を M7 の完了条件にする** | M5 の時点では操作できる実機（CLI は M6・GUI は M7）が無い。`docs/verify-rule10.md` に手順（ファイル差分・strace・fs_usage・Process Monitor）と、GUI のライブラリが勝手に書くもの（eframe の `persistence`・GTK の `recently-used.xbel`・シェーダのキャッシュ）を書いた。ストレージ層で一通りの操作をなぞるテスト（`after_a_full_session_…`）を実プロセスとして走らせ、ファイルシステム全体の差分で確かめた（記録は同書 §5）。GUI での実施は §5.8 の完了条件に足した |
 
 ### 9.3 環境の前提
 

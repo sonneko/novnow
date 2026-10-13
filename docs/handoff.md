@@ -19,23 +19,21 @@
 | 項目 | 状態 |
 |---|---|
 | `main` | `00a5813`（PR #11 マージ済み。M0〜M3 ＋ 本書と `scripts/`） |
-| 作業ブランチ | セッションが指定したもの固定（2026-10-13 のセッションは `arena/cb878908-novnow`）。**PR #12**（M4。ready for review にして CI を 1 回回した。**マージはユーザー**） |
-| マイルストーン | **M0〜M4 完了**。**M5「ストレージ」進行中**（同じ PR #12 に積む。ユーザー指示 2026-10-13「マージはまだしない」）。済: 仕様 第 2.9 版・E027（A-24）・`core::policy`・ports・`storage_fs`（関門）・履歴・Zip・`project_load`。残り: `storage_idb`・`docs/verify-rule10.md`・文書の更新 |
+| 作業ブランチ | セッションが指定したもの固定（2026-10-13 のセッションは `arena/cb878908-novnow`）。**PR #12** に M4 と M5 を積んだ（ユーザー指示「同じ PR で続ける・マージはまだしない」）。**マージはユーザー** |
+| マイルストーン | **M0〜M5 完了**（PR #12 のマージ待ち）。**次は M6「起動」**（`PLANS.md` §5.7） |
 | 仕様書 | **第 2.9 版**（2026-10-13）。診断コード **80 件**（§7:39 + §7.1:14 + §7.2:27） |
-| テスト | **814 件緑**（`bash scripts/verify.sh`） |
-| 未決の裁定 | なし（A-24 は 2026-10-13 にユーザー裁定 → E027） |
+| テスト | **827 件緑**（`bash scripts/verify.sh`） |
+| 未決の裁定 | なし |
 
-M4 で何を入れたか・決めたか（B-74〜B-87）は `PLANS.md` §5.5 の進捗ノートと §9.2、使い方は `DEVELOPERS.md` §5.6。
+M5 で何を入れたか・決めたか（B-88〜B-98）は `PLANS.md` §5.6 の進捗ノートと §9.2、使い方は `DEVELOPERS.md` §5.7。
 
-### 次の一手（M5 に入る人へ）
+### 次の一手（M6 に入る人へ）
 
-1. `PLANS.md` §5.6（M5 の作業項目と完了条件）を読む。
-2. **A-24 をユーザーに裁定してもらう**（`project.json` の `lexicon.word_classes` の正規表現が壊れているとき。
-   今は `role_language::Matcher::new` が黙ってパターンを捨てている）。コードを足すなら**仕様書 §7 が先**
-   （`tests/diagnostics_catalog.rs` と `tests/i18n_catalog.rs` が仕様書を読むので、表・enum・`ja.toml`・
-   `en.toml` を同じコミットで直す）。
-3. M5 のストレージは `features::Project` に文書を `insert` する側。辞書の作り直しは `insert` / `remove` が
-   自動でやるので、ストレージは「読んだ文書を渡す」だけでよい（`DEVELOPERS.md` §5.6）。
+1. `PLANS.md` §5.7（M6）を読む。作業項目 7 に **M5 の部品のつなぎ方**（`FsGate` → `FsStorage` →
+   `project_load::load` → 終了コード）を書いてある。
+2. CLI もファイルを書くとき（`novnow new`）は **`FsGate` / `FsStorage` を通す**（関門の外で書くと
+   `tests/layering.rs` が落ちる。`DEVELOPERS.md` §5.7）。
+3. M7 では `docs/verify-rule10.md` の手順を GUI で実施する（M5 はストレージ層まで。`PLANS.md` §5.8 の完了条件）。
 
 ---
 
@@ -61,6 +59,7 @@ gh pr list --state open
 - **到達できない**: `objects.githubusercontent.com` / `results-receiver.actions.githubusercontent.com`
   （**Actions のログが読めない**）・`static.rust-lang.org`（rustup 不可）・crates.io 系
   （**cargo はオフライン**。vendored sources で動く）・GitHub リリースの asset（trunk 等）。
+- `strace` は無く、`apt` のミラーにも届かない。規則 10 の確認はファイル差分で代用する（`docs/verify-rule10.md` §3.2・§5）。
 - **新しいクレートは仕様書 §3.2 の許可リスト更新が先**（ユーザー指示）。作業環境の cargo はオフラインなので、
   `Cargo.lock` を変えるには `.github/toolchain.env` の `FORCE=1` を push して `toolchain-export.yml` で vendor を
   作り直し、ツールチェーンを取り直す（仕組みは `PLANS.md` §9.3）。
@@ -68,6 +67,8 @@ gh pr list --state open
 ### 2.2 ツールチェーン
 
 - `$HOME/build` に展開される（スナップショット対象外。サンドボックスが作り直されたら §1 をやり直す）。
+- vendored のソースは `$HOME/build/vendor-src/<crate>`（API の確認に使える）。**web-sys の feature を足しても
+  `Cargo.lock` は変わらない**（vendored に全 feature のソースがある）ので、オフラインのまま足せる。
 - **bash の呼び出しごとに環境変数が消える**ので、cargo を直接使うときは毎回
   `. $HOME/build/env.sh && cargo …`。`scripts/verify.sh` はこれを自分でやる（使い方はスクリプト冒頭）。
 - `target/` も消えるので、作り直し後はコールドビルド（約 2 分）が 1 回走る。
@@ -137,6 +138,11 @@ shallow clone なので `git diff main...HEAD` が使えないことがある。
   `doc_lazy_continuation` などで実際に落ちた）。
 - **`assert!` のメッセージに `{0}` を書くと書式引数になってコンパイルエラー** → `{{0}}` か言い換え。
 - 性能テストは release で測ってから、上限は **debug 前提の緩い値**にする（実測値はコメントと `PLANS.md` に書く）。
+- **CI の clippy は `#[cfg(target_arch = "wasm32")]` の中を見ない**（ネイティブでしか回さない）。Web 専用のコードを
+  触ったら手元で `cargo clippy --locked --target wasm32-unknown-unknown -- -D warnings` も回す。
+- clippy で実際に落ちたもの（M5）: `assert!(cfg!(debug_assertions))`（`assertions_on_constants` → `if` ＋ `panic!`）、
+  `(|| { … })()`（`redundant_closure_call` → 関数に出す）。trait に `async fn` を書くと `async_fn_in_trait`
+  （→ 宣言は `fn … -> impl Future`、実装は `async fn` でよい）。
 
 ### 4.2 テストの期待値（最大の欠陥源は自分の期待値）
 
@@ -144,6 +150,9 @@ shallow clone なので `git diff main...HEAD` が使えないことがある。
 - 仕様書のコード例を**そのまま**フィクスチャにする（`PLANS.md` §6.3）。ゴールデンの期待値 JSON は手で書く
   （失敗時は実測 JSON が stderr に出るので、仕様と突き合わせてから貼り替える）。
 - B 形式の節番号: 見出し直下の `;` が 1 節目（空）を作り、その次が 2 節目。
+- 規則 10 の違反は **debug ビルドで panic** する（§13.1.2）。拒否を確かめるテストは `catch_unwind` で受ける
+  （`tests/storage_policy.rs` の `rejected`。panic の表示は hook で黙らせている）。release でも一度
+  `cargo test --release --test storage_policy` を回す（E060 を返す側。初回は約 30 秒）。
 
 ### 4.3 シェル
 

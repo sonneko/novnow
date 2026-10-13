@@ -12,7 +12,7 @@ use std::collections::BTreeSet;
 use std::path::PathBuf;
 
 use novnow::adapters::block_on;
-use novnow::adapters::project_load::{is_document, listing, load};
+use novnow::adapters::project_load::{is_document, listing, load, poll};
 use novnow::core::diagnostics::{self, DiagnosticCode, Severity};
 use novnow::core::model::project::{schema_of, validate, Listing, ProjectError, SchemaState};
 use novnow::core::policy::external_change::{
@@ -473,5 +473,46 @@ fn polling_a_real_directory_ignores_our_own_saves() {
             Some(&disk)
         ),
         Reaction::Reload
+    );
+}
+
+#[test]
+fn one_poll_reports_changes_once_and_remembers_the_new_state() {
+    let dir = TempDir::new("load-poll-once");
+    let root = world_on_disk(&dir);
+    let (_, storage) = open(
+        &FakeEnv::with_history(&dir.join("state/recent.json")),
+        &root,
+    );
+    let mut snapshot = Snapshot::default();
+    // 初回は全部が「現れた」
+    let first = block_on(poll(&storage, &mut snapshot)).expect("poll");
+    assert_eq!(first.len(), 7);
+    assert!(first
+        .iter()
+        .all(|change| change.kind == ChangeKind::Created));
+    // 何も変えなければ候補なし
+    assert_eq!(
+        block_on(poll(&storage, &mut snapshot)).expect("poll"),
+        vec![]
+    );
+    // 外部で足す・消す → 1 回だけ報告される
+    std::fs::write(root.join("plots/01.txt"), "@01-04\n").expect("w");
+    std::fs::remove_file(root.join("words.md")).expect("rm");
+    let changes: Vec<(String, ChangeKind)> = block_on(poll(&storage, &mut snapshot))
+        .expect("poll")
+        .into_iter()
+        .map(|change| (change.path.as_str().to_owned(), change.kind))
+        .collect();
+    assert_eq!(
+        changes,
+        vec![
+            ("plots/01.txt".to_owned(), ChangeKind::Created),
+            ("words.md".to_owned(), ChangeKind::Removed),
+        ]
+    );
+    assert_eq!(
+        block_on(poll(&storage, &mut snapshot)).expect("poll"),
+        vec![]
     );
 }
