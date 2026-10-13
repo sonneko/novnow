@@ -170,6 +170,8 @@ pub struct Session {
     export_cache: Option<ExportDraft>,
     /// ワークスペースごとの状態（§10.0。切替で破棄しない）。
     spaces: workspaces::Spaces,
+    /// ステータスバーの `⚑` が押された（次に点検の診断を開く。§9.6.1）。
+    open_review: bool,
 }
 
 /// エクスポートの下書き（`>export` のモーダルが毎フレーム作り直さないため）。
@@ -211,6 +213,7 @@ impl Session {
             conflict_texts: std::collections::BTreeMap::new(),
             export_cache: None,
             spaces: workspaces::Spaces::default(),
+            open_review: false,
         }
     }
 
@@ -810,6 +813,14 @@ impl NovnowApp {
                 };
                 return true;
             }
+            Command::Review => {
+                // §10.9.2: 整合チェックの一括実行。点検の診断タブで数え直す
+                session.spaces.review.rerun();
+                if current != Workspace::Review {
+                    self.switch_to(ctx, Workspace::Review, now);
+                }
+                return true;
+            }
             Command::Up => {
                 match current {
                     Workspace::Write => {
@@ -865,6 +876,17 @@ impl NovnowApp {
             }
             (Workspace::PlotOutline, Command::InsertSection) => {
                 spaces.outline.insert(bench, now);
+            }
+            (Workspace::Review, Command::Nav(nav)) => {
+                spaces.review.nav(bench, locale, nav);
+            }
+            (Workspace::Review, Command::Tab(_)) => {
+                spaces.review.next_tab();
+            }
+            (Workspace::Review, Command::ConfirmNext) => {
+                if let Some(target) = spaces.review.target(bench, locale) {
+                    self.review_jump(ctx, target, now);
+                }
             }
             (Workspace::Idea, Command::Nav(nav)) => {
                 spaces.idea.nav(bench, nav);
@@ -960,6 +982,122 @@ impl NovnowApp {
         self.focus = Pane::Editor;
         let _ = ctx;
         true
+    }
+
+    /// 点検の行から該当箇所へ（§10.9.2「`Enter` で該当節へジャンプ」、B-132）。文書の種類で
+    /// 開くワークスペースが決まる（本文 → write、話プロット → plot-episode、全体 / 章プロット →
+    /// plot-outline、`ideas.md` → idea）。それ以外は開く画面が無いので知らせるだけ。
+    fn review_jump(&mut self, ctx: &Context, target: workspaces::review::Target, now: f64) {
+        use crate::core::model::document::DocumentFormat;
+        use workspaces::review::Target;
+        let locale = self.locale();
+        let Stage::Open(session) = &mut self.stage else {
+            return;
+        };
+        match target {
+            Target::Scene(id) => {
+                if id.scene > 0 {
+                    self.go_write(ctx, id, now);
+                } else {
+                    let episode = id.episode;
+                    session.bench.commit();
+                    if episode > 0 {
+                        session
+                            .spaces
+                            .outline
+                            .land_chapter(&session.bench, id.chapter, episode);
+                    } else {
+                        session.spaces.outline.land_all(&session.bench, id.chapter);
+                    }
+                    session.spaces.switcher.mark_visited(Workspace::PlotOutline);
+                    self.switch_to(ctx, Workspace::PlotOutline, now);
+                }
+            }
+            Target::Document(path, byte) => {
+                let Some(document) = session.bench.project().document(&path).cloned() else {
+                    return;
+                };
+                let line = byte.map_or(0, |at| {
+                    crate::core::features::project::line_of(&document.text, at)
+                });
+                match document.format {
+                    DocumentFormat::Contents => {
+                        session.bench.reveal(&path, byte.unwrap_or(0));
+                        session.settings_dirty = true;
+                        self.switch_to(ctx, Workspace::Write, now);
+                        if let Stage::Open(session) = &self.stage {
+                            let id = section_editor::editor_id(&session.bench);
+                            ctx.memory_mut(|memory| memory.request_focus(id));
+                        }
+                    }
+                    DocumentFormat::PlotEpisode => {
+                        let found =
+                            session
+                                .bench
+                                .project()
+                                .scene_at(&document, line)
+                                .or_else(|| {
+                                    crate::core::features::project::episode_of_path(&path).map(
+                                        |(chapter, episode)| crate::core::id::SceneId {
+                                            chapter,
+                                            episode,
+                                            scene: 0,
+                                            section: 0,
+                                        },
+                                    )
+                                });
+                        if let Some(id) = found {
+                            session.bench.commit();
+                            if id.scene > 0 {
+                                session.spaces.episode.land(&session.bench, id);
+                            } else {
+                                session.spaces.episode.land_episode(
+                                    &session.bench,
+                                    id.chapter,
+                                    id.episode,
+                                );
+                            }
+                            session.spaces.switcher.mark_visited(Workspace::PlotEpisode);
+                            self.switch_to(ctx, Workspace::PlotEpisode, now);
+                        }
+                    }
+                    DocumentFormat::PlotOutline => {
+                        let chapter = crate::core::features::project::chapter_of_path(&path);
+                        let blocks = crate::core::features::plots::outline_blocks(
+                            session.bench.project(),
+                            chapter,
+                        );
+                        let block = blocks
+                            .iter()
+                            .rev()
+                            .find(|block| block.lines.start <= line)
+                            .map(|block| block.id);
+                        session.bench.commit();
+                        match (chapter, block) {
+                            (Some(number), found) => session.spaces.outline.land_chapter(
+                                &session.bench,
+                                number,
+                                found.map_or(0, |id| id.episode),
+                            ),
+                            (None, found) => session
+                                .spaces
+                                .outline
+                                .land_all(&session.bench, found.map_or(0, |id| id.chapter)),
+                        }
+                        session.spaces.switcher.mark_visited(Workspace::PlotOutline);
+                        self.switch_to(ctx, Workspace::PlotOutline, now);
+                    }
+                    DocumentFormat::Ideas => {
+                        session.spaces.idea.select_line(&session.bench, line);
+                        self.switch_to(ctx, Workspace::Idea, now);
+                    }
+                    _ => {
+                        session.notice =
+                            Some((i18n::format(locale, "review.cannot_open", &[&path]), now));
+                    }
+                }
+            }
+        }
     }
 
     /// write の節 `id` へ降りる（`plot-episode` の `Ctrl+Enter`、§10.0 の着地点、B-128）。
@@ -1133,6 +1271,11 @@ impl NovnowApp {
         if let Some(target) = switch_to {
             self.switch_to(ctx, target, now);
         }
+        if let Stage::Open(session) = &mut self.stage {
+            if std::mem::take(&mut session.open_review) {
+                self.run(ctx, Command::Review, now);
+            }
+        }
         let Stage::Open(session) = &mut self.stage else {
             return;
         };
@@ -1167,7 +1310,18 @@ impl NovnowApp {
                 reference: show_reference
                     .then_some((self.settings.reference_pane_side, reference_width)),
             };
+            let mut jump = None;
             let request = match workspace {
+                Workspace::Review => {
+                    let (request, target) = workspaces::review::show(
+                        ctx,
+                        &mut session.spaces.review,
+                        &mut session.bench,
+                        &view,
+                    );
+                    jump = target;
+                    request
+                }
                 Workspace::PlotEpisode => workspaces::plot_episode::show(
                     ctx,
                     &mut session.spaces.episode,
@@ -1193,6 +1347,9 @@ impl NovnowApp {
                     }
                 }
                 None => {}
+            }
+            if let Some(target) = jump {
+                self.review_jump(ctx, target, now);
             }
             self.common_tail(ctx, locale, now);
             return;
@@ -2287,11 +2444,19 @@ fn status_bar(
         let count = diagnostic_count(session);
         if count > 0 {
             ui.label(dot());
-            ui.label(
-                RichText::new(format!("⚑{count}"))
-                    .font(mono.clone())
-                    .color(colors.warn),
-            );
+            let flag = ui
+                .add(
+                    egui::Label::new(
+                        RichText::new(format!("⚑{count}"))
+                            .font(mono.clone())
+                            .color(colors.warn),
+                    )
+                    .sense(Sense::click()),
+                )
+                .on_hover_text(i18n::text(locale, "status.open_review"));
+            if flag.clicked() {
+                session.open_review = true;
+            }
         }
         if session.bench.conflicts().next().is_some() {
             ui.label(dot());

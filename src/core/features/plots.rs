@@ -446,6 +446,136 @@ pub fn all_episodes(project: &Project) -> Vec<(u16, u16)> {
         .collect()
 }
 
+// ============================================================ 進捗（§10.9.1 の進捗タブ）
+
+/// 進捗ツリーの 1 行（章 → 話 → 場面 → 節。§10.9.1、B-132）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProgressRow {
+    /// 構造 ID（章の行は `episode == 0`、話の行は `scene == 0`、場面の行は `section == 0`）。
+    pub id: SceneId,
+    /// 階層（0 = 章 … 3 = 節）。
+    pub depth: usize,
+    /// タイトル（章・話は全体 / 章プロットのブロック、場面は見出し。節は最初の要点か空）。
+    pub title: String,
+    /// 本文の文字数（空白除外。上の階層は下の合計）。
+    pub chars: usize,
+    /// 目標字数（節は話プロットの `length:`、上の階層は下の目標の合計。どこにも無ければ `None`）。
+    pub target: Option<u32>,
+    /// 状態（節は実効の状態 B-122、上の階層は下の**最も遅い**状態）。
+    pub state: State,
+    /// 本文があるか（上の階層は下のどれかにあれば）。
+    pub prose: bool,
+}
+
+/// 進捗ツリー（本文の節と話プロットの節の和。本文の無い計画だけの節も 0 字で出す）。
+pub fn progress(project: &Project) -> Vec<ProgressRow> {
+    use std::collections::{BTreeMap, BTreeSet};
+    let prose = crate::core::features::sections::all(project);
+    let mut chars: BTreeMap<SceneId, usize> = BTreeMap::new();
+    let mut scene_titles: BTreeMap<SceneId, String> = BTreeMap::new();
+    for section in &prose {
+        let text = crate::core::features::sections::text_of(project.text(&section.path), section);
+        *chars.entry(section.id).or_default() +=
+            crate::core::features::sections::count_chars(&text);
+        scene_titles
+            .entry(SceneId {
+                section: 0,
+                ..section.id
+            })
+            .or_insert_with(|| section.scene_title.clone());
+    }
+    let mut ids: BTreeSet<SceneId> = chars.keys().copied().collect();
+    let mut point_titles: BTreeMap<SceneId, String> = BTreeMap::new();
+    for (chapter, episode) in all_episodes(project) {
+        for row in episode_rows(project, chapter, episode) {
+            if row.is_scene() {
+                if !row.summary.is_empty() {
+                    scene_titles.entry(row.id).or_insert(row.summary);
+                }
+            } else {
+                ids.insert(row.id);
+                point_titles.insert(row.id, row.summary);
+            }
+        }
+    }
+    let list: Vec<SceneId> = ids.iter().copied().collect();
+    let states = export::effective_states(project, &list);
+    let mut chapter_titles: BTreeMap<u16, String> = BTreeMap::new();
+    for block in outline_blocks(project, None) {
+        chapter_titles.insert(block.id.chapter, block.title);
+    }
+    let mut episode_titles: BTreeMap<(u16, u16), String> = BTreeMap::new();
+    for chapter in list.iter().map(|id| id.chapter).collect::<BTreeSet<_>>() {
+        for block in outline_blocks(project, Some(chapter)) {
+            episode_titles.insert((block.id.chapter, block.id.episode), block.title);
+        }
+    }
+    // 節の行（ID の順）から上の階層を積み上げる
+    let mut out: Vec<ProgressRow> = Vec::new();
+    let mut open: [Option<usize>; 3] = [None, None, None];
+    for (id, state) in list.iter().zip(states) {
+        let keys = [
+            SceneId {
+                episode: 0,
+                scene: 0,
+                section: 0,
+                ..*id
+            },
+            SceneId {
+                scene: 0,
+                section: 0,
+                ..*id
+            },
+            SceneId { section: 0, ..*id },
+        ];
+        for depth in 0..3 {
+            let current = open[depth].map(|at| out[at].id);
+            if current != Some(keys[depth]) {
+                let title = match depth {
+                    0 => chapter_titles.get(&id.chapter).cloned(),
+                    1 => episode_titles.get(&(id.chapter, id.episode)).cloned(),
+                    _ => scene_titles.get(&keys[2]).cloned(),
+                }
+                .unwrap_or_default();
+                out.push(ProgressRow {
+                    id: keys[depth],
+                    depth,
+                    title,
+                    chars: 0,
+                    target: None,
+                    state: State::Fixed,
+                    prose: false,
+                });
+                open[depth] = Some(out.len() - 1);
+                for deeper in open.iter_mut().skip(depth + 1) {
+                    *deeper = None;
+                }
+            }
+        }
+        let count = chars.get(id).copied();
+        let target = crate::core::features::reference::target_length(project, *id);
+        out.push(ProgressRow {
+            id: *id,
+            depth: 3,
+            title: point_titles.get(id).cloned().unwrap_or_default(),
+            chars: count.unwrap_or(0),
+            target,
+            state,
+            prose: count.is_some(),
+        });
+        for at in open.iter().flatten() {
+            let parent = &mut out[*at];
+            parent.chars += count.unwrap_or(0);
+            if let Some(value) = target {
+                parent.target = Some(parent.target.unwrap_or(0) + value);
+            }
+            parent.state = parent.state.min(state);
+            parent.prose |= count.is_some();
+        }
+    }
+    out
+}
+
 // ============================================================ 伏線（§10.3 の伏線タブ）
 
 /// 伏線 1 つ（伏線 ID ごと）。

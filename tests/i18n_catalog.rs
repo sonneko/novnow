@@ -321,6 +321,7 @@ const GUI_PREFIXES: &[&str] = &[
     "episode.",
     "outline.",
     "idea.",
+    "review.",
 ];
 
 #[test]

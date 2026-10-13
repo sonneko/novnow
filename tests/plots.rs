@@ -276,3 +276,52 @@ fn inserting_a_block_uses_the_next_number_and_closes_it() {
     assert_eq!(appended, "@02-01\n;\n\n@02-02\n;\n");
     assert_eq!(at, 3);
 }
+
+#[test]
+fn the_progress_tree_sums_chars_and_targets_and_takes_the_slowest_state() {
+    let project = novel::novel_with(
+        "plots/01-01.txt",
+        "@01-01-01 放課後\n二人が図書室で話す。\nlength: 100\nstate: fixed\n;\n'アルス が資料を見せる。\nlength: 50\n;\n'リリア が設計図を覗き込む。\nstate: draft\n;\n計画だけの節。\n\n@01-01-02 帰り道\n二人で帰る。\n",
+    );
+    let rows = plots::progress(&project);
+    let ids: Vec<(usize, SceneId)> = rows.iter().map(|row| (row.depth, row.id)).collect();
+    assert_eq!(ids[0], (0, id(1, 0, 0, 0)));
+    assert_eq!(ids[1], (1, id(1, 1, 0, 0)));
+    assert_eq!(ids[2], (2, id(1, 1, 1, 0)));
+    assert_eq!(ids[3], (3, id(1, 1, 1, 1)));
+    // 本文の無い計画だけの節（@01-01-01-04）も 0 字で出る
+    let planned = rows
+        .iter()
+        .find(|row| row.id == id(1, 1, 1, 4))
+        .expect("計画だけの節");
+    assert_eq!(planned.chars, 0);
+    assert!(!planned.prose);
+    assert_eq!(planned.title, "計画だけの節。");
+    let scene = &rows[2];
+    assert_eq!(scene.title, "放課後");
+    assert_eq!(scene.target, Some(150), "下の目標の合計");
+    assert_eq!(scene.state, State::Draft, "下の最も遅い状態");
+    let first = &rows[3];
+    assert_eq!(first.state, State::Fixed);
+    assert_eq!(first.target, Some(100));
+    assert!(first.chars > 0);
+    let chapter = &rows[0];
+    assert_eq!(chapter.title, "失われた刻印");
+    let total: usize = rows
+        .iter()
+        .filter(|row| row.depth == 3)
+        .map(|row| row.chars)
+        .sum();
+    let chapters: usize = rows
+        .iter()
+        .filter(|row| row.depth == 0)
+        .map(|row| row.chars)
+        .sum();
+    assert_eq!(total, chapters, "章の合計 = 節の合計");
+    let episode = rows
+        .iter()
+        .find(|row| row.id == id(1, 2, 0, 0))
+        .expect("@01-02");
+    assert_eq!(episode.title, "旧校舎へ");
+    assert_eq!(episode.state, State::Fixed, "章プロットの話の state");
+}

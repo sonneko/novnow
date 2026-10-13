@@ -782,3 +782,70 @@ fn ctrl_delete_still_deletes_a_word_in_write() {
         "write では Ctrl+Delete を取らない"
     );
 }
+
+// ============================================================ 画面（review）
+
+#[test]
+fn ctrl_shift_e_opens_the_project_diagnostics_and_enter_jumps_to_the_section() {
+    let mut project = novel::novel();
+    // 本文 @01-02-01-03 に辞書に無い参照（E001）
+    let text = project
+        .text("contents/01-02.txt")
+        .replace("扉の向こうは暗かった。", "扉の向こうは'未登録の闇 だった。");
+    project.insert(Document::new("contents/01-02.txt", text));
+    let mut harness = Harness::start_with(project, true).0;
+    harness.frame(vec![key(Key::E, CTRL_SHIFT)]);
+    let output = harness.frame(Vec::new());
+    assert_eq!(harness.app.workspace(), Some(Workspace::Review));
+    let text = painted_text(&output);
+    assert!(text.contains("診断"), "{text}");
+    assert!(text.contains("進捗"), "{text}");
+    assert!(text.contains("contents/01-02.txt:"), "{text}");
+    assert!(
+        text.contains("[本文 @01-02-01-03]"),
+        "作家の言葉での「どこ」: {text}"
+    );
+    // E001 の行まで ↓ で進めて Enter
+    let index = harness
+        .app
+        .spaces()
+        .and_then(|spaces| spaces.review.cached())
+        .and_then(|rows| {
+            rows.iter()
+                .position(|row| row.code == "E001" && row.path == "contents/01-02.txt")
+        })
+        .expect("E001 の行");
+    for _ in 0..index {
+        harness.frame(vec![key(Key::ArrowDown, Modifiers::NONE)]);
+    }
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+    assert_eq!(harness.app.workspace(), Some(Workspace::Write));
+    assert_eq!(
+        harness.app.workbench().and_then(Workbench::current_id),
+        Some(id(1, 2, 1, 3))
+    );
+}
+
+#[test]
+fn the_progress_tab_lists_the_tree_and_opens_a_section() {
+    let mut harness = novel_harness();
+    harness.frame(vec![key(Key::Num9, ALT)]);
+    harness.frame(vec![key(Key::ArrowRight, CTRL_SHIFT)]);
+    let output = harness.frame(Vec::new());
+    let text = painted_text(&output);
+    assert!(text.contains("失われた刻印"), "{text}");
+    assert!(text.contains("図書室の密談"), "{text}");
+    assert!(text.contains("放課後"), "{text}");
+    // 章 → 話 → 場面 → 節（@01-01-01-01）
+    for _ in 0..3 {
+        harness.frame(vec![key(Key::ArrowDown, Modifiers::NONE)]);
+    }
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+    assert_eq!(harness.app.workspace(), Some(Workspace::Write));
+    assert_eq!(
+        harness.app.workbench().and_then(Workbench::current_id),
+        Some(id(1, 1, 1, 1))
+    );
+}

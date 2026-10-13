@@ -190,6 +190,7 @@ settings = "project settings"
 # Rows of the §12.7 table (`status.*`, `palette.placeholder`, `project.pick.*`) are copied verbatim (tests/i18n_catalog.rs).
 
 [status]
+open_review = "Open the diagnostics in Review (Ctrl+Shift+E)"
 unsaved = "Unsaved changes"
 saving = "Saving"
 save_failed = "Could not save"
@@ -421,3 +422,25 @@ no_characters = "characters.md has no characters"
 # {0} = idea ID, {1} = destination
 promoted = "Promoted {0} to {1}"
 promote_failed = "Could not promote (the destination document cannot be read)"
+
+[review]
+tab_diagnostics = "Diagnostics"
+tab_progress = "Progress"
+keys = "Ctrl+Shift+← / → tabs · ↑ / ↓ select · Enter open · Ctrl+Shift+E recount"
+# {0} = count
+errors = "Errors {0}"
+# {0} = count
+warnings = "Warnings {0}"
+# {0} = count
+infos = "Info {0}"
+sort_position = "By place"
+sort_severity = "By severity"
+sort_code = "By code"
+no_diagnostics = "No diagnostics to show"
+no_progress = "No prose or plots yet"
+# {0} = characters
+chars = "{0} characters"
+# {0} = characters, {1} = target, {2} = percentage
+chars_of = "{0} / {1} characters ({2}%)"
+# {0} = path
+cannot_open = "This version has no screen that opens {0} yet"

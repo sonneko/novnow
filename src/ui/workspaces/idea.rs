@@ -125,6 +125,26 @@ impl State {
         found
     }
 
+    /// `ideas.md` の行 `line` を含むアイデアを選ぶ（点検からのジャンプ）。見えなければ絞り込みを外す。
+    pub fn select_line(&mut self, bench: &Workbench, line: usize) {
+        let found = self
+            .rows(bench)
+            .iter()
+            .rev()
+            .find(|row| row.lines.start <= line)
+            .cloned();
+        if let Some(row) = found {
+            if !self.filter.admits(row.status) {
+                self.filter = Filter::Only(row.status);
+            }
+            if !self.tag.is_empty() && !row.tags.iter().any(|tag| tag.contains(self.tag.trim())) {
+                self.tag.clear();
+            }
+            self.selected = Some(row.id);
+            self.reveal = true;
+        }
+    }
+
     /// 選んだアイデアをエディタ（Slice）に開く。
     pub fn sync(&mut self, bench: &mut Workbench) {
         match self.current(bench) {

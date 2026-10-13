@@ -188,6 +188,7 @@ settings = "作品の設定"
 # `status.*` `palette.placeholder` `project.pick.*` の §12.7 の表にある行は表の写し（tests/i18n_catalog.rs）。
 
 [status]
+open_review = "点検の診断を開く（Ctrl+Shift+E）"
 unsaved = "未保存の変更があります"
 saving = "保存中"
 save_failed = "保存できませんでした"
@@ -419,3 +420,25 @@ no_characters = "characters.md にキャラがいません"
 # {0} = アイデアの ID、{1} = 転記先
 promoted = "{0} を {1} へ昇格しました"
 promote_failed = "昇格できませんでした（転記先の文書を読めません）"
+
+[review]
+tab_diagnostics = "診断"
+tab_progress = "進捗"
+keys = "Ctrl+Shift+← / → タブ · ↑ / ↓ 選ぶ · Enter 開く · Ctrl+Shift+E 数え直す"
+# {0} = 件数
+errors = "エラー {0}"
+# {0} = 件数
+warnings = "警告 {0}"
+# {0} = 件数
+infos = "情報 {0}"
+sort_position = "場所順"
+sort_severity = "重大度順"
+sort_code = "コード順"
+no_diagnostics = "表示する診断はありません"
+no_progress = "本文もプロットもまだありません"
+# {0} = 文字数
+chars = "{0} 字"
+# {0} = 文字数、{1} = 目標字数、{2} = 割合（%）
+chars_of = "{0} / {1} 字（{2}%）"
+# {0} = パス
+cannot_open = "{0} を開く画面はこの版にはまだありません"
