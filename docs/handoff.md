@@ -19,24 +19,24 @@
 | 項目 | 状態 |
 |---|---|
 | `main` | `00a5813`（PR #11 マージ済み。M0〜M3 ＋ 本書と `scripts/`） |
-| 作業ブランチ | セッションが指定したもの固定（2026-10-13 のセッションは `arena/cb878908-novnow`）。**PR #12** に M4・M5・M6 を積んだ（ユーザー指示「同じ PR で続ける・マージはまだしない」）。**マージはユーザー** |
-| マイルストーン | **M0〜M6 完了**（PR #12 のマージ待ち。Windows の確認もユーザーが済ませた）。**M7「UI シェル ＋ `write`」に着手**（`PLANS.md` §5.8） |
-| 仕様書 | **第 2.11 版**（2026-10-13。§13.1.1 の特例をテキストのエクスポートに広げた・`check` の `[場所]`）。診断コード **80 件**（§7:39 + §7.1:14 + §7.2:27） |
-| テスト | **889 件緑**（`bash scripts/verify.sh`） |
+| 作業ブランチ | セッションが指定したもの固定（2026-10-13 のセッションは `arena/cb878908-novnow`）。**PR #12** に M4〜M7 を積んだ（ユーザー指示「同じ PR で続ける・マージはまだしない」）。**マージはユーザー** |
+| マイルストーン | **M0〜M6 完了**（PR #12 のマージ待ち）。**M7「UI シェル ＋ `write`」は実装済み・人の確認待ち**（`PLANS.md` §5.8 の完了条件の消し込み状況を参照。Web の選択モーダルは未接続＝ B-118） |
+| 仕様書 | **第 2.13 版**（2026-10-13。2.12 は M7 に合わせた補正、2.13 は §11 の色のコントラスト比）。診断コード **80 件**（§7:39 + §7.1:14 + §7.2:27） |
+| テスト | **947 件緑**（`bash scripts/verify.sh`。M7 から既定で `--features ui`） |
 | 未決の裁定 | なし |
 
-M6 で何を入れたか・決めたか（B-99〜B-110）は `PLANS.md` §5.7 の進捗ノートと §9.2、使い方は `DEVELOPERS.md` §2・§5.8。
+M7 で何を入れたか・決めたか（B-111〜）は `PLANS.md` §5.8 の進捗ノートと §9.2、GUI の作りは `DEVELOPERS.md` §6。
 
-### 次の一手（M7 に入る人へ）
+### 次の一手
 
-1. `PLANS.md` §5.8（M7）を読む。作業項目 0（CI に `--features ui`）と 12（`main.rs` の `Outcome::Gui` で GUI を
-   起動・開けたら `RecentFile::push`・`cli::GUI_AVAILABLE` を `cfg!(feature = "ui")` に）が M6 からの引き継ぎ。
-2. GUI の文言は `ui/i18n/{ja,en}.toml` に足す（読み込み・言語の決定は M6 で済み。`Locale::detect(ui.json の language, env)`）。
-   `ui::i18n` だけは GUI なしでもビルドされるので **egui を使わない**（`tests/layering.rs`）。
-3. 外に書けるのは `FsGate::write_chosen_export(ChosenPath)` だけ（Zip は `Dialog::save_zip` → `zip::export_to_chosen`、テキストは
+1. M7 の残り（`PLANS.md` §5.8 の未チェックの完了条件）: 人の確認（2,000 字の執筆・IME・Windows のダブルクリック・
+   `docs/verify-rule10.md` の GUI での実施）と、Web の選択モーダル（§13.4、B-118）・`Alt+H`（B-119）。
+2. **M9（エクスポート）を M8 より先にやる**（`PLANS.md` §9.2 B-120）。
+3. M8（ワークスペース、`PLANS.md` §5.9）: `ui::app::NovnowApp` に「ワークスペース」の層が無い（M7 は `write` 1 つ）。
+   `Alt+1..9` の切替は `ui::shell::command_of` に足し、`Stage::Open` の中で描き分ける。点検ワークスペースの「位置」は
+   `place::at` ＋ `i18n::place`（`novnow check` と同じ表記。B-110）。
+4. 外に書けるのは `FsGate::write_chosen_export(ChosenPath)` だけ（Zip は `Dialog::save_zip` → `zip::export_to_chosen`、テキストは
    `Dialog::save_text` / `novnow export --out` → `ChosenPath::from_command_line(.., ExportKind::Text)`。B-99・B-109）。
-4. GUI の診断タブの「位置」は `place::at` ＋ `i18n::place`（`novnow check` と同じ表記。B-110）。
-5. M7 の完了条件に `docs/verify-rule10.md` の GUI での実施と、§19.2 の GUI の項目（M6 から移した）がある。
 
 ---
 
@@ -78,6 +78,10 @@ gh pr list --state open
 - **bash の呼び出しごとに環境変数が消える**ので、cargo を直接使うときは毎回
   `. $HOME/build/env.sh && cargo …`。`scripts/verify.sh` はこれを自分でやる（使い方はスクリプト冒頭）。
 - `target/` も消えるので、作り直し後はコールドビルド（約 2 分）が 1 回走る。
+- **ディスクは 21GB しか無い**。M7 で GUI 込みのテスト 40 本を debuginfo 付きで作ったら `target/` が 18GB になり、リンカが
+  `Bus error` で落ちた（ディスク満杯の症状）。`env.sh` で `CARGO_PROFILE_DEV_DEBUG=line-tables-only` と
+  `CARGO_INCREMENTAL=0` にしている（`scripts/bootstrap-toolchain.sh` が書く）。それでも溢れたら
+  `find target/debug/deps -maxdepth 1 -type f -perm -u+x -delete` と `rm -rf target/debug/incremental`（作り直しはリンクだけ）。
 
 ### 2.3 ローカル git が基点まで巻き戻る（実際に 3 回起きた）
 
@@ -107,12 +111,13 @@ shallow clone なので `git diff main...HEAD` が使えないことがある。
     | gh api -X PATCH repos/sonneko/novnow/pulls/<番号> --input -
   ```
 - `gh workflow run`（`workflow_dispatch`）・branch protection の API は **403**。
-- Pages（`deploy.yml`）は M7 まで手動実行だけ（v0 の UI を消した M0 以降 `trunk build` が失敗していた）。
+- Pages（`deploy.yml`）は M7 で `push: branches: [main]` を戻した（`index.html` の `data-cargo-features="ui"`）。
+  作業環境に trunk もブラウザも無いので、Web の GUI は `cargo check --target wasm32-unknown-unknown --features ui` までしか確かめていない。
 
 ### 2.5 この環境の速さ（予算の目安）
 
-温まったあと: fmt 0.1 秒 / clippy 2〜15 秒 / test 3〜30 秒 / wasm check 1〜26 秒。
-`cargo clippy --features ui` の初回は約 1 分（egui ツリー）。release ビルド初回は約 40 秒。
+温まったあと: fmt 0.1 秒 / clippy 2〜15 秒 / test（`--features ui`）10〜45 秒 / wasm check 2〜30 秒。
+`--features ui` のコールドビルドは約 2 分（egui / eframe / winit のツリー）。release ビルド初回は約 40 秒。
 
 ---
 
@@ -150,6 +155,8 @@ shallow clone なので `git diff main...HEAD` が使えないことがある。
   `(|| { … })()`（`redundant_closure_call` → 関数に出す）。trait に `async fn` を書くと `async_fn_in_trait`
   （→ 宣言は `fn … -> impl Future`、実装は `async fn` でよい）。M6: `fn f<'a>(x: &'a str) -> &'a str`（`needless_lifetimes`）、
   `&[x.clone()]`（`cloned_ref_to_slice_refs` → `std::slice::from_ref(&x)`）。
+- **rustc 1.99 の `float_literal_f32_fallback`**（将来エラーになる警告）: `Stroke::new(1.0, …)` のように `impl Into<f32>` へ
+  浮動小数のリテラルを渡すと出る → `1.0_f32`。clippy 1.99 の `manual_is_multiple_of`（`n % 2 == 0` → `n.is_multiple_of(2)`）。
 - **`main.rs` は wasm でもビルドされる**（Web も同じ実行ファイル `data-bin="novnow"` を入口にする）。ネイティブ専用の
   コード（`novnow::cli` は `cfg(not(wasm32))`）は `main.rs` の中で `#[cfg(not(target_arch = "wasm32"))]` に入れる。
 
@@ -179,7 +186,23 @@ shallow clone なので `git diff main...HEAD` が使えないことがある。
 - Markdown の表に行を足すとき、前後に空行を入れると表が割れる。挿入後は `grep -n "^| B-"` で順序を目視。
 - `PLANS.md` §9.1 の A 表は解決したら名前を `~~**A-n**~~` にし、最後のセルを「済」にする。
 
-### 4.5 core の書き方（検査で落ちるもの。規則の全文は `DEVELOPERS.md` §1.4・§3）
+### 4.5 GUI（M7）で踏んだもの
+
+- **画面が無くても見た目を確かめられる**: `NOVNOW_SHOT=/tmp/shot.rgba cargo test --features ui --test gui screenshot -- --ignored`
+  が egui の出力をソフトウェアで描いて RGBA を書く（`NOVNOW_SHOT_SCENE=completion|palette|find|help`・`NOVNOW_SHOT_LIGHT=1`）。
+  PNG にするのは標準ライブラリの zlib だけで足りる（`DEVELOPERS.md` §6.4 に 10 行のスクリプト）。作業環境には CJK フォントが無いので、
+  画面下に「同梱のフォントを使います」が出るのは正しい。
+- フォントのテクスチャは**最初のフレームにだけ全体が来る**（以降は差分）。最初のフレームの出力を捨てると描けない。
+- `TextFormat::underline` は行の**下端**に引くので、行間 1.8〜1.9 では文字から離れる。下線と波線は `Glyph::pos.y`（ベースライン）
+  から自分で描く（`ui/widgets/syntax_text.rs`）。
+- **ファイル末尾（と場面の末尾）の `;` の後は、本文が無いと節にならない**（§5.2.2）。`Ctrl+Enter` / `Ctrl+;` で末尾に作った節は、
+  書き始めるまで文書に無い節として `Workbench` が持つ（B-112）。
+- ショートカットのイベントは `ui::shell::take_commands` が `TextEdit` より先に**消費する**。`Ctrl+Home` は §9.8.2 の
+  「ファイル先頭の節」なので、`TextEdit` の「先頭へ」は効かない（テストで踏んだ）。
+- 画面なしのテストで `NovnowApp` を回すときは `RawInput { focused: true, time: Some(..), .. }` を毎フレーム渡す
+  （`time` を進めないと 400ms の自動保存が来ない）。
+
+### 4.6 core の書き方（検査で落ちるもの。規則の全文は `DEVELOPERS.md` §1.4・§3）
 
 - `src/core/**` に日本語の**文字列リテラル**を置かない（仮名・漢字が対象。`「」` `。` `！` `…` などの約物と全角形は対象外）。
   ファイル形式の語彙だけは `/// i18n: format-vocabulary` を付けた `const` / `static` に置ける。

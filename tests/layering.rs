@@ -1013,6 +1013,27 @@ fn cli_has_no_user_facing_text() {
     );
 }
 
+#[test]
+fn gui_has_no_user_facing_text() {
+    // §19.1「`ui/` 内に i18n を経由しない日本語リテラルが存在しない（例外は i18n カタログのみ）」。
+    // GUI のコードは `ui` feature の中だけでビルドされるが、ここはソースを読むので既定のビルドでも検査できる
+    let mut files = Vec::new();
+    collect_rs(Path::new("src/ui"), &mut files);
+    assert!(files.len() > 10, "src/ui の .rs が少なすぎる: {files:?}");
+    let mut found = Vec::new();
+    for file in &files {
+        let source = read_core(file);
+        let (_, text) = scan_or_panic(&file.display().to_string(), &source);
+        found.extend(text);
+    }
+    assert!(
+        found.is_empty(),
+        "SPECIFICATIONS.md §12.2 / §19.1 違反（GUI の文言はカタログに置く）が {} 件:\n{}",
+        found.len(),
+        bullets(&found)
+    );
+}
+
 // ---------------------------------------------------------------------------
 // §13.1.2: 書き込みの system call は書き込みの関門（`src/adapters/storage_fs.rs`）だけ
 //

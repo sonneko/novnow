@@ -62,8 +62,9 @@ cargo build --release    # 生成物: target/release/novnow
 > **v0 からの変更点**: 新規作成は `--init <dir>` ではなく **サブコマンド `new`** になった（`SPECIFICATIONS.md` §14.1）。
 > 「ディレクトリはフラグなし位置引数で指定する」という指示 2 に合わせたため。
 
-> **M6 時点の実態**: `new` と `check` は動く（本書 §2）。`novnow ./my-novel` は §14.2 の検査までで、検査を
-> 通ると「GUI が含まれていません」で終了コード 2（GUI は M7）。
+> **M7 時点の実態**: GUI は **`--features ui` を付けたビルドだけ**が持つ（`cargo run --release --features ui -- ./my-novel`。
+> Windows の配布物も `cargo build --release --features ui`）。付けないビルドは CLI だけで、GUI を求められると
+> 「GUI が含まれていません」で終了コード 2（§14.2.5）。
 
 > **`ui` feature（2026-10-11〜）**: GUI に要るクレート（`egui` / `eframe` / `rfd` / `fontdb`）は
 > **`optional = true`** で、`Cargo.toml` の `[features]` の `ui` が引き込む（`toml` は M6 から通常の依存。
@@ -78,13 +79,13 @@ cargo build --release    # 生成物: target/release/novnow
 > cargo run   --release --features ui ./my-novel   # M7 以降の起動形
 > ```
 >
-> `src/ui/mod.rs` の GUI のモジュール（`shell` / `theme` / `widgets` / `workspaces`）と `src/adapters/mod.rs` の
+> `src/ui/mod.rs` の GUI のモジュール（`app` / `shell` / `theme` / `widgets` / `workbench` ほか）と `src/adapters/mod.rs` の
 > `pub mod dialog_rfd;` は `#[cfg(feature = "ui")]` で守る（**MUST**。守らないと M7 で `src/ui/**` が egui を
 > 使い始めた瞬間に既定のビルド＝ CI の 4 ジョブが落ちる）。**`ui::i18n` だけは守らない**（CLI が使う。egui を
 > 使ってはいけない）。`src/lib.rs` の `pub mod ui;` は cfg なし。`tests/layering.rs` がこの形を固定している。
 > 判断は `PLANS.md` §9.2 **B-54**・**B-100**。
-> **M7 で `src/ui/**` に実コードが入ったら、`.github/workflows/ci.yml` の 4 コマンドに
-> `--features ui` を足す**（同ファイルに TODO がある）。
+> **M7 から CI と `scripts/verify.sh` は GUI 込み**（clippy は GUI あり・なしの両方、test は `--features ui` ＋ GUI なしの
+> `tests/cli.rs`、wasm / Windows の検査は `--features ui`）。
 
 ### 1.3 Web
 
@@ -538,7 +539,9 @@ M6 で入れた（判断は `PLANS.md` §9.2 B-100〜B-108。使い方は本書 
 
 ---
 
-## 6. 日本語入力（IME）— 実装時にまず読むこと
+## 6. GUI（M7〜）
+
+### 6.1 日本語入力（IME）— 実装時にまず読むこと
 
 `SPECIFICATIONS.md` **§9.8.5** に実装規約がある。要点だけ再掲する。
 
@@ -546,14 +549,58 @@ M6 で入れた（判断は `PLANS.md` §9.2 B-100〜B-108。使い方は本書 
   `Event::CompositionStart` / `CompositionUpdate(String)` / `CompositionEnd(String)` を購読する。
   （`Event::Ime(ImeEvent)` への統合は egui 0.28.0 から。v1 は 0.27.2 に固定する）
 - native（`egui-winit`）でも Web（`eframe` の text agent）でも**同じイベント名**が来る。`#[cfg]` で分岐しない。
-- `egui::TextEditState::has_ime` は `pub(crate)` で**読めない**。`ui/shell.rs` に自前の状態機械を持つ。
-- **変換中は `Event::Key` 起因の処理をすべて抑止する**（ショートカットだけでなく `Enter` の節確定と `Esc` のモーダル閉じも）。
-- **`PlatformOutput.ime` を出力しないと native で IME が有効にならない。**
-  `egui-winit` は `ime` が `Some` のフレームでしか `set_ime_allowed(true)` を呼ばないため、
-  `egui::TextEdit` を使わない自前エディタでは `ctx.output_mut(|o| o.ime = Some(IMEOutput { rect, cursor_rect }))` が必須。
-- 張り付き防止: `WindowFocused(false)` と「2 秒間 IME イベントなし」で `composing` を落とす。
+- `egui::TextEditState::has_ime` は `pub(crate)` で**読めない**。`ui/shell.rs` の `ImeState` が自前で持つ。
+- **変換中は `Event::Key` を全部捨てる**（ショートカットだけでなく `Enter` の節確定と `Esc` のモーダル閉じも）。
+  `ui::shell::take_commands` がフレームの最初に `InputState::events` から消す（`TextEdit` にも届かない）。
+- **`PlatformOutput.ime` を出力しないと native で IME が有効にならない。** 節エディタは `egui::TextEdit` なので、
+  `TextEdit` が編集中のフレームで自分で出す（`tests/gui.rs` の `the_editor_asks_the_platform_for_ime_every_frame`）。
+  `TextEdit` を使わない編集領域を作るときは `ctx.output_mut(|o| o.ime = Some(IMEOutput { rect, cursor_rect }))` が必須。
+- 張り付き防止: `WindowFocused(false)` と「2 秒間 IME イベントも打鍵も無し」で `composing` を落とす。
 - **egui を上げるときは 0.29.x を飛ばす。** 0.29.0 で Linux の IME が壊れ（emilk/egui#5544）、
   修正（#5198）は 0.30.0 以降に入った。
+
+### 6.2 作り（どこに何があるか）
+
+**状態の規則は egui に依存しないモジュールに置き、画面は薄く保つ**（テストを画面なしで書くため）。
+
+| ファイル | 中身 |
+|---|---|
+| `core/features/sections.rs` | 節の並び・節の本文・書き戻し・新しい節・節の削除・場面 / 話の移動・SceneId ジャンプ（純粋、B-112） |
+| `core/features/reference.rs` | 参照ペインの ① の 6 セクションを集める（純粋・文言なし、B-113） |
+| `ui/workbench.rs` | 編集の状態（今の節・節エディタの中身・未保存のファイル・外部変更への反応）。I/O をしない |
+| `ui/save_machine.rs` | §8.2 の保存ステートマシン（時刻は秒で受け取る） |
+| `ui/settings.rs` | `.novnow/ui.json`（壊れていたら既定値・知らないキーを残す） |
+| `ui/palette.rs` / `ui/assist.rs` | パレットの採点（§9.7.1）／検索・置換・全体検索・ホバーの中身 |
+| `ui/shell.rs` | `ImeState` とキー割当（`command_of`）。§9.8 の表はここ |
+| `ui/app.rs` | `eframe::App` の本体 `NovnowApp`。`Host`（書き込み・外部変更の監視）と `Picker`（§14.4）を差し替えられる |
+| `ui/theme.rs` | §11 の色（**生の色を書いてよいのはここだけ**）とフォント（`fontdb` → 無ければ同梱の `assets/ipag.ttf`） |
+| `ui/widgets/*` | 文脈ビュー・節エディタ・参照ペイン・構文ハイライト（下線と波線は `Galley` のベースラインから描く） |
+
+書き込みは `ui::app::Host::write` だけ（デスクトップは `FsStorage` ＝ `FsGate` を通る）。eframe の `persistence` は使わない。
+
+### 6.3 テスト
+
+`tests/gui.rs`（`#![cfg(feature = "ui")]`）が `NovnowApp` を `egui::Context::run` で 1 フレームずつ回す。
+`RawInput { events, time, focused: true, .. }` を渡し、`FullOutput.shapes` の文字列（「文脈ビューに編集中の本文を描かない」）や
+`platform_output.ime`、`MemoryHost`（書いた中身を `Rc` で外から読める）を見る。
+
+### 6.4 画面なしで見た目を確かめる
+
+```bash
+NOVNOW_SHOT=/tmp/shot.rgba cargo test --features ui --test gui screenshot -- --ignored
+# NOVNOW_SHOT_SCENE=completion|palette|find|help、NOVNOW_SHOT_LIGHT=1 で場面と配色を変えられる
+python3 - <<'PY'
+import zlib, struct
+w, h = 1280, 800
+data = open('/tmp/shot.rgba', 'rb').read()
+raw = b''.join(b'\x00' + data[y*w*4:(y+1)*w*4] for y in range(h))
+chunk = lambda t, d: struct.pack('>I', len(d)) + t + d + struct.pack('>I', zlib.crc32(t + d) & 0xffffffff)
+open('/tmp/shot.png', 'wb').write(b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 6, 0, 0, 0))
+    + chunk(b'IDAT', zlib.compress(raw)) + chunk(b'IEND', b''))
+PY
+```
+
+egui のテッセレーション結果を三角形ごとにソフトウェアで塗るだけの道具（`screenshot` テスト）。`docs/screenshot-m7.png` はこれで作った。
 
 ---
 
@@ -567,8 +614,8 @@ egui の既定フォントは CJK グリフを含まないため、**システ�
 3. Hiragino Sans（macOS）
 4. TakaoPGothic / IPAGothic / VL PGothic（Linux）
 
-見つからない場合、日本語部分が □ や ? で表示される。
-Web 版は wasm に同梱したフォントを強制的に読み込む。
+見つからない場合は、起動エラーにせず、同梱の `assets/ipag.ttf`（IPA ゴシック）に切り替えてステータスバーに一度だけ
+知らせる（§11.5 SHOULD。M7）。Web 版は常に同梱のフォントを使う。
 
 ---
 

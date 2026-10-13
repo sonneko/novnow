@@ -202,6 +202,8 @@ create_here = "ここに新規作成する"
 web_pending = "Web 版のプロジェクト選択は準備中です（デスクトップ版をお使いください）"
 
 [header]
+# 言語ボタンの記号（今の言語を表す 1 文字。§12.5）
+language_symbol = "あ"
 language = "言語を切り替える"
 theme = "テーマを切り替える"
 "workspace.write" = "本文執筆"

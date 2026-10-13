@@ -204,6 +204,8 @@ create_here = "Create a project here"
 web_pending = "Choosing a project on the Web is not ready yet (please use the desktop app)"
 
 [header]
+# 言語ボタンの記号（今の言語を表す 1 文字。§12.5）
+language_symbol = "A"
 language = "Switch language"
 theme = "Switch theme"
 "workspace.write" = "Writing"

@@ -994,6 +994,8 @@ tests/layering.rs
 > プロジェクトの外にも書ける**」特例を足した（仕様 第 2.10 版、§9.2 **B-99**。B-93・B-97 を改めた）。下の
 > 完了条件 1・2 の「すべて拒否」「履歴 1 個だけ」は、この特例を除いた意味になる（`tests/storage_policy.rs` は
 > 特例の範囲も検査する: 指定した `.zip` 1 個だけ・他の口は使えない・一時ファイルも親ディレクトリも作らない）。
+> 同日の M6 の報告への裁定で、特例をテキストのエクスポート（`.txt` / `.md`。保存ダイアログと `novnow export --out`）にも
+> 広げた（第 2.11 版、**B-109**）。
 
 **完了条件**
 
@@ -1129,24 +1131,58 @@ tests/layering.rs
 10. **役割語の緑下線**（§6.5.4）: 一致リテラル部のみ。**不一致時は何も出さない**。
 11. **規則 10 を GUI で崩さない**（M5 の B-91・B-98）: 書き込みは `ports::storage::Storage` と `FsGate` だけ。
     **eframe の `persistence` feature を有効にしない**（状態は `.novnow/ui.json`）。ファイル選択は開くダイアログと、
-    Zip の保存先を選ぶ `Dialog::save_zip`（§13.1.1 の特例。書くのは `zip::export_to_chosen` → `FsGate::write_chosen_export`
-    だけ、B-99）。`docs/verify-rule10.md` §4 の「GUI のライブラリが自分で書くもの」を確かめる。
+    Zip の保存先を選ぶ `Dialog::save_zip` と、テキストの「名前を付けて保存」の `Dialog::save_text`（§13.1.1 の特例。書くのは
+    `zip::export_to_chosen` / テキストのエクスポート → `FsGate::write_chosen_export` だけ、B-99・B-109）。`docs/verify-rule10.md` §4 の「GUI のライブラリが自分で書くもの」を確かめる。
     外部変更の監視は `adapters::project_load::poll` を 1,000ms ごとに呼ぶ（B-95）。
 12. **起動をつなぐ**（M6 の続き、B-105）: `main.rs` の `Outcome::Gui(project)` で GUI を起動する（`Some` は §14.2 の検査を
     通ったルート、`None` は §14.4 の選択モーダルから）。プロジェクトを開けたら `RecentFile::push`（§14.4。M6 は履歴に
     書いていない）。`cli::GUI_AVAILABLE` を `cfg!(feature = "ui")` にする（`novnow new` の案内が「開く」になる）。
 
+> **M7 の進捗（2026-10-13）: GUI のシェルと `write` を実装した — 自動で確かめられる項目は通った。残りは人の確認と Web の選択モーダル**
+>
+> - **起動**（作業項目 12）: `--features ui` のビルドで `novnow ./my-novel`（§14.2 の検査を通ったルート）と、`novnow --gui`・
+>   ダブルクリック（§14.4 の選択モーダル。履歴と OS のフォルダ選択・`novnow new` 相当の作成。未選択では背後を描かず `Esc` で
+>   閉じない）。開けたら `RecentFile::push`。`cli::GUI_AVAILABLE = cfg!(feature = "ui")`。
+> - **節単位編集**（§8.1・§9.3・§9.4.1）: 規則は `core::features::sections`（純粋）と `ui::workbench`（I/O なし）。ファイル・場面の
+>   末尾に作った節は、書き始めるまで文書に無い節として持つ（**B-112**）。文脈ビューは前後 3 節・44 字で、編集中の節の位置には
+>   プレースホルダだけ（MUST）。節エディタは `TextEdit` ＋ 構文ハイライトの layouter（**B-111**）。
+> - **保存**（§8.2〜§8.6）: `ui::save_machine`（400ms の idle・節の移動と `Ctrl+S` で即時・1→2→4→8 秒の再試行・0.3 秒未満は
+>   スピナーなし・未保存なら閉じない）。書き込みは `ui::app::Host::write` だけ（デスクトップは `FsStorage` ＝ `FsGate`）。外部変更は
+>   1,000ms ごとの `poll`（未保存の変更が無ければ読み直し、あれば差分モーダル `Ctrl+Shift+D`。行単位のマージは無し）。
+>   `ui.json` は保存と一緒に書く（`autosave_ms` を足した。**B-114**）。
+> - **参照ペイン**（§9.5）: ① の 6 セクション（`core::features::reference`、**B-113**）。`Frame::group` は使わない。
+> - **キー・パレット・検索・補完**（§9.7・§9.8）: write ワークスペースで閉じる範囲（**B-116**・**B-117**・**B-119**）。IME の変換中は
+>   `Event::Key` をフレームの最初に全部捨てる（`ui::shell::ImeState` / `take_commands`。`TextEdit` にも届かない）。
+>   クイックフィックス（`Ctrl+.`）と辞書への登録（`Ctrl+T` / `Ctrl+Shift+T`）は M4 の `code_action` を使う。
+> - **テーマ・文言・フォント**（§11・§12）: §11 の色（表に無い 4 種は **B-115**）。検収でコントラスト比の食い違いが見つかり、
+>   `fg.faint` などの値を直した（仕様 第 2.13 版、**B-121**）。`Ctrl+Alt+T` / `Ctrl+Alt+L`。フォントは `fontdb` で OS の CJK フォント →
+>   無ければ同梱の IPA ゴシック（ステータスバーに 1 回だけ知らせる）。
+> - **CI**（作業項目 0）: clippy は GUI あり・なしの両方、test は `--features ui` ＋ GUI なしの `tests/cli.rs`、wasm / Windows の型検査は
+>   `--features ui`。Pages の `push: branches: [main]` を戻した。手元のディスク対策（`CARGO_PROFILE_DEV_DEBUG=line-tables-only`）は
+>   `docs/handoff.md` §2.2。
+> - **検査**: `tests/gui.rs`（36。egui を画面なしで 1 フレームずつ回す。画面のソフトウェア描画 `screenshot` は手動用）・
+>   `tests/sections.rs`（8）・`tests/layering.rs`（+1、`Frame::group`）・`tests/i18n_catalog.rs`（GUI の文言キー）で **947 件**。
+> - **残り**: Web の選択モーダルと IndexedDB の接続（**B-118**）・`Alt+H`（**B-119**）・10 万行の計測・下の人の確認。
+
 **完了条件**
 
-- [ ] §19.1 / §19.3 / §19.4 のチェックリストが通る。
-- [ ] 実際に 2,000 字以上の本文を書いて、保存を意識せずに済むことを人間が確認する（I7 のレビュー）。
-- [ ] **日本語を IME で 2,000 字入力して、変換中にショートカットが誤爆しない**（§19.4、native と Web の両方）。
-- [ ] **変換候補ウィンドウがキャレットの直下に出る**（`IMEOutput.cursor_rect` が正しい）。
-- [ ] `Frame::group` が `ui/` 全体で 0 件（grep で検査、CI に追加）。
-- [ ] 10 万行のファイルで 1 フレーム 8ms 以内（§18.1）。
-- [ ] `docs/verify-rule10.md` の手順（§3.1 の操作の一覧）を GUI で実施し、プロジェクト外に作られたファイルが**履歴 1 個と、保存ダイアログで指定した Zip だけ**であることを同書 §5 に記録する（§19.10。M5 はストレージ層まで、B-98。特例は B-99）。
-- [ ] §19.2 の GUI の項目（M6 から移した、B-105）: `novnow ./valid-project` で GUI が起動する・GUI 起動時にプロジェクト選択モーダルが出て履歴とフォルダ選択の両方が使える・未選択では背後の UI を描かない（`Esc` で閉じない）・Windows で `.exe` をダブルクリックするとコンソールを出さずに GUI が起動する。
-- [ ] Web で IndexedDB の接続（`adapters::storage_idb` の `web`）を一通り動かす: DB の作成・保存（`SaveFailed` を含む）・プロジェクトの作成 / 削除・Zip の取り込み / 書き出し・`app` ストアのキーが `recent_projects` だけ（M5 はコンパイルだけを確かめた、B-96）。
+- [ ] §19.1 / §19.3 / §19.4 のチェックリストが通る。→ **自動の項目は通る**: ペイン名のラベルが無い・`ja` / `en` のキーと
+  プレースホルダが一致・`ui/` に i18n を経ない日本語が無い・コントラスト比（`tests/gui.rs` が §11 の表と §9.9 の基準を照合）・
+  文脈ビューに編集中の本文を描かない・節の移動で即保存・保存の文言はインジケータだけ・`Frame::group` なし・最短一致・シジルの色・
+  E001 の波線・変換中にショートカット / `Enter` / `Esc` が効かない（`tests/gui.rs`・`tests/layering.rs`・`tests/i18n_catalog.rs`）。
+  **人の確認が要る項目**: `Ctrl+Alt+L` / `Ctrl+Alt+T` の見た目と OS の配色への 1 秒以内の追従・1280px で 44 字・マウスを使わない
+  往復のシナリオ・Web での IME。
+- [ ] 実際に 2,000 字以上の本文を書いて、保存を意識せずに済むことを人間が確認する（I7 のレビュー）。→ **人の確認待ち**。
+- [ ] **日本語を IME で 2,000 字入力して、変換中にショートカットが誤爆しない**（§19.4、native と Web の両方）。→ **人の確認待ち**
+  （規則そのものは `tests/gui.rs` の `while_composing_every_key_event_is_dropped_before_shortcuts`・`shortcuts_do_nothing_while_composing`）。
+- [ ] **変換候補ウィンドウがキャレットの直下に出る**（`IMEOutput.cursor_rect` が正しい）。→ **人の確認待ち**（毎フレーム
+  `IMEOutput` を出すことは `the_editor_asks_the_platform_for_ime_every_frame`）。
+- [x] `Frame::group` が `ui/` 全体で 0 件（grep で検査、CI に追加）。→ `tests/layering.rs` の `the_gui_never_uses_frame_group`。
+- [ ] 10 万行のファイルで 1 フレーム 8ms 以内（§18.1）。→ **未計測**（節エディタは今の節だけ、文脈ビューは前後 3 節だけを
+  レイアウトする作り）。
+- [ ] `docs/verify-rule10.md` の手順（§3.1 の操作の一覧）を GUI で実施し、プロジェクト外に作られたファイルが**履歴 1 個と、ユーザーが指定した書き出し先（保存ダイアログの Zip・テキスト、`novnow export --out`）だけ**であることを同書 §5 に記録する（§19.10。M5 はストレージ層まで、B-98。特例は B-99・B-109）。
+- [ ] §19.2 の GUI の項目（M6 から移した、B-105）: `novnow ./valid-project` で GUI が起動する・GUI 起動時にプロジェクト選択モーダルが出て履歴とフォルダ選択の両方が使える・未選択では背後の UI を描かない（`Esc` で閉じない）・Windows で `.exe` をダブルクリックするとコンソールを出さずに GUI が起動する。→ **実装済み・人の確認待ち**（作業環境に画面が無い）。
+- [ ] Web で IndexedDB の接続（`adapters::storage_idb` の `web`）を一通り動かす: DB の作成・保存（`SaveFailed` を含む）・プロジェクトの作成 / 削除・Zip の取り込み / 書き出し・`app` ストアのキーが `recent_projects` だけ（M5 はコンパイルだけを確かめた、B-96）。→ **未達**（Web は選択モーダルに「準備中」を出す。**B-118**）。
 
 ---
 
@@ -1326,7 +1362,7 @@ tests/layering.rs
 | テスト | 内容 | 導入 |
 |---|---|---|
 | `tests/layering.rs` | core の禁止依存（§3.2）＋ core・CLI・文言カタログの日本語文字列禁止（§12.2）＋ feature gate ＋ 書き込みの関門（§13.1.2） | **M0** |
-| `tests/storage_policy.rs` | 全書き込み経路でプロジェクト外を拒否（§13.1）。§13.1.1 の特例（保存ダイアログで指定した Zip）の範囲も | M5（特例は M6） |
+| `tests/storage_policy.rs` | 全書き込み経路でプロジェクト外を拒否（§13.1）。§13.1.1 の特例（保存ダイアログ・`--out` で指定した Zip / テキスト）の範囲も | M5（特例は M6、テキストは B-109） |
 | `tests/cli.rs` | §14.3 の判定・§14.2 の検査と表示（§14.2.2〜§14.2.4 を仕様書と照合）・`new` / `check`・終了コード・実行ファイル | M6 |
 | `tests/template.rs` | §14.5 の雛形と既定プロンプト（診断 0 件・§15.5.2 の約束・付録 A の要素） | M6 |
 | `tests/export_invariants.rs` | エクスポート結果の不変条件（§17.1） | M9 |
@@ -1552,7 +1588,7 @@ tests/layering.rs
 | B-94（**2026-10-13**） | §4.3 の判定と読み込みの分担 | adapters が判定する ／ **判定は core、材料は adapters** | `core::model::project::validate(&Listing)`（ファイルとディレクトリの集合・`project.json` の中身・UTF-8 として不正なファイルの一覧）。§14.2.4 の表示のため、v0 の目印（`characters.json` があって `characters.md` が無い）を不足の列挙より先に見る。`project.json` が読めない・`schema_version` が数でなければ版の検査を飛ばす（E025 を出して既定値、§4.3-4）。`ProjectError::LegacyV0` は何で分かったか（`detected`）を持ち、`Encoding` はファイルを列挙する（仕様の例より情報を足した）。材料集めと文書の読み込みは `adapters::project_load`（どの `Storage` でも同じ手順。`load` は `.md` / `.txt` / `.json` を全部読んで UTF-8 を確かめ、`.novnow/`・`exports/`・ドットファイルは除く。§4.2 の形式のものだけを §5.0.4 の正規化にかけて `features::Project` に入れる）。§3.3 のツリーに `adapters/project_load.rs` を足した |
 | B-95（**2026-10-13**） | 外部変更の監視の分担 | v0 のように監視スレッドを adapters に置く ／ **規則は core、1 回分は adapters、タイマは UI** | `core::policy::external_change`: スタンプ（更新時刻・長さ）の差分で候補を出し（`Snapshot::diff`）、**中身を比べてから**反応を決める（`react`: 同じなら無視＝自分の保存や `touch`、辞書の 3 ファイルは常に再読込、Clean は再読込 ＋ I052、Dirty は衝突）。自分の保存は `write` が返すスタンプを `acknowledge` する。`.novnow/`・`exports/`・ドットファイルは見ない。1 回分（一覧 → 差分 → 置き換え）は `adapters::project_load::poll`。1,000ms のタイマは M7 の UI（ネイティブはスレッド、Web は `setInterval`） |
 | B-96（**2026-10-13**） | IndexedDB のアダプタの確かめ方と、v0 の取り込み | wasm の実行テストを足す（ブラウザが要る）／ **純粋な部分を分けてネイティブで試し、接続はコンパイルだけ** | `storage_idb.rs` の上半分（レコードの形・`app` の許可キー・W062・v0 の取り込みの計画・ID）は `tests/storage_idb.rs`。`wasm32` だけの `web` は CI の WASM ジョブがコンパイルを確かめ、実行の確認は M7 の Web UI（完了条件に足した）。`app` ストアに書く口は `push_recent` だけ（任意のキーの API を持たない）。トランザクションの境界は §13.3.3 のとおりで、成功は `oncomplete` で判定する（§8.3）。日時は UTC のミリ秒付き RFC 3339（固定幅で文字列の順 = 時刻の順。`by_updated` のため）。§13.3.6 の手順 3（v0 → v1 の変換）は M11 なので、変換は呼び出し側が渡す関数にした（`Idb::import_local_storage_with`）。M5 の既定の `convert_v0` は失敗を返すので、**v0 のデータがあれば E061 になり、LocalStorage は消さず IndexedDB にも書かない**（変換していない v0 を v1 のプロジェクトとして置かないため）。サンプルの投入（§13.3.5）は仕組みだけ（中身の付録 C は M11）。UUID は `crypto.getRandomValues`（§3.1 の図の `Random` ポートは足さない） |
-| B-97（**2026-10-13**） | 残りのポート | — | `Clock`（`now_millis` / `utc_offset_minutes`）・`Env`（`var` / `os` / `home_dir`。M6 で言語・`NO_COLOR`・端末の判定に広げる → **改（M6、B-101）**: OS のロケール `locale` を足した。端末かどうかは標準入出力の性質なので `cli::Terminal` が持つ）・`Dialog`（~~**開くためのダイアログだけ**。プロジェクト外には書けないので、保存先を選ぶダイアログは持たない~~ → **改（2026-10-13、B-99）**: §13.1.1 の特例のため、Zip の保存先を選ぶ `save_zip` と、その結果の型 `ChosenPath` を足した）・`McpClient`（§15.8.1 の 1 回の呼び出し。中身は M10）。実装は `adapters/env_system.rs`（§3.3 のツリーに追加）と `clock_system.rs` |
+| B-97（**2026-10-13**） | 残りのポート | — | `Clock`（`now_millis` / `utc_offset_minutes`）・`Env`（`var` / `os` / `home_dir`。M6 で言語・`NO_COLOR`・端末の判定に広げる → **改（M6、B-101）**: OS のロケール `locale` を足した。端末かどうかは標準入出力の性質なので `cli::Terminal` が持つ）・`Dialog`（~~**開くためのダイアログだけ**。プロジェクト外には書けないので、保存先を選ぶダイアログは持たない~~ → **改（2026-10-13、B-99）**: §13.1.1 の特例のため、Zip の保存先を選ぶ `save_zip` と、その結果の型 `ChosenPath` を足した → さらに **改（B-109）**: テキストの「名前を付けて保存」の `save_text` も足した）・`McpClient`（§15.8.1 の 1 回の呼び出し。中身は M10）。実装は `adapters/env_system.rs`（§3.3 のツリーに追加）と `clock_system.rs` |
 | B-98（**2026-10-13**） | §5.6 の完了条件 2（実機で一通り操作して、プロジェクト外のファイルが履歴 1 個だけ）の扱い | M7 まで保留する ／ **M5 はストレージ層で実施して記録し、GUI での実施を M7 の完了条件にする** | M5 の時点では操作できる実機（CLI は M6・GUI は M7）が無い。`docs/verify-rule10.md` に手順（ファイル差分・strace・fs_usage・Process Monitor）と、GUI のライブラリが勝手に書くもの（eframe の `persistence`・GTK の `recently-used.xbel`・シェーダのキャッシュ）を書いた。ストレージ層で一通りの操作をなぞるテスト（`after_a_full_session_…`）を実プロセスとして走らせ、ファイルシステム全体の差分で確かめた（記録は同書 §5）。GUI での実施は §5.8 の完了条件に足した |
 | B-99（**2026-10-13**） | §13.1.1 の特例（保存ダイアログで指定された Zip はプロジェクトの外にも書ける）の作り | 関門の一般の口に許可を足す ／ 指定されたパスを関門に覚えさせる ／ **専用の判定・専用の口・消費される型** | ユーザー裁定（2026-10-13）「保存ダイアログによりユーザーから指定されたパスへの保存は特例として外部保存を許可する」。仕様 第 2.10 版で §13.1.1 に特例を足し、§13.1.2・§13.5・§19.10（と §0 の表・P6・§15.5.4 の言い回し）を直した。(1) 判定は core の `WritePolicy::check_chosen_export` だけで、`check` は特例を知らない（本文・設定・ログ・提案・履歴の口は従来どおり外を拒否する）。条件はファイル名が `.zip`（大文字小文字を問わない）で終わることと、履歴ファイルでないこと。シンボリックリンクは**行き先で**判定する（`.zip` を装ったリンクで任意のファイルを潰させない）。プロジェクト内を指定したら `Allowed::Project`（ふつうの原子的保存）。(2) 書き込みは `FsGate::write_chosen_export(ChosenPath, &[u8])` だけ。`ports::dialog::ChosenPath` は `Clone` を持たず値で消費される（1 回の指定で 1 回）。関門はパスを覚えない。外へは一時ファイルを使わず直接上書きし（§13.1.1「一時ファイルであっても」）、親ディレクトリは作らない（作ると「指定した 1 個」より多くを外に作る。ダイアログで選べるのは既存のディレクトリ）。(3) ダイアログの結果は panic しない `check_chosen_export` で先に確かめる（§13.1.2）。`zip::export_to_chosen` が内部でそうし、書き出し先がプロジェクト内ならその Zip を中身から除く。(4) `Dialog::save_zip(suggested)` を足した（B-97 を改める）。初期値は `exports/<name>.zip`、上書きの確認は OS のダイアログに任せる。(5) ~~§17.2 の「名前を付けて保存」（テキストのエクスポート）は特例に含めない（裁定は Zip について。広げるならユーザーの判断）~~ → **改（2026-10-13、B-109）**: ユーザー裁定でテキストにも広げた。(6) 指定されたパスは履歴にも書かない（§13.1.3）。`tests/storage_policy.rs` に 5 本（core 1・関門 3・リンク 1）を足し、総合テストの期待値を「履歴 ＋ 指定した Zip」にした |
 | B-100（**2026-10-13**） | CLI の文言カタログをどこでビルドするか | `ui` feature の後ろのまま（CLI は別の表を持つ）／ CLI 専用のモジュールに写す ／ **`ui::i18n` だけを常にビルドする** | 仕様 §12.2「CLI のメッセージも同じカタログを使う」を守るには、GUI なしのビルド（既定）でもカタログが要る。`toml` を通常の依存にし（feature の後ろは `eframe` / `egui` / `rfd` / `fontdb` の 4 つ。§2.1・B-54 を改める）、`src/lib.rs` の `pub mod ui;` は cfg なし、`src/ui/mod.rs` が `i18n` 以外を `#[cfg(feature = "ui")]` で守る。`tests/layering.rs` が (1) この形、(2) `ui/i18n` が GUI のクレートを使わないこと、(3) `src/cli/**`・`src/main.rs`・`src/ui/i18n/**` に日本語の文字列リテラルが無いこと（§12.2 の検査を CLI に広げた）を固定する。`Cargo.lock` は変わらない（optional でも lock には載っていた） |
@@ -1575,6 +1611,8 @@ tests/layering.rs
 | B-117（**2026-10-13**） | M7 のパレットとショートカットの範囲 | 全部 M7 ／ **write ワークスペースで閉じるものだけ M7** | パレットは「なし / `@`」= 節（場面タイトル込み）、`>` = コマンド 8 つ、`?` = ヘルプ。**`'`（辞書）と `M` / `#`（資料）は M8**（material / cast ワークスペースと一緒に）。ワークスペースを持つ操作（`Alt+1..9`・`Ctrl+B`・`Ctrl+Shift+B`・`Ctrl+Shift+E`・`Ctrl+Shift+I`・`Ctrl+M`）は M8。`Ctrl+\` / `Ctrl+Shift+\` は ② の一覧（本書 §1.2）にあるが、`ui.json` の `reference_pane_side` は §0 の MUST で、キーも 1 行で済むので入れた |
 | B-118（**2026-10-13**） | Web の GUI（§13.4 のプロジェクト選択と IndexedDB） | M7 で全部 ／ **起動とシェルは M7、選択モーダルの接続は後で** | Web でも同じ `NovnowApp` を `eframe::WebRunner` で起動し、Pages の deploy を戻した（`index.html` に `data-cargo-features="ui"`）。IndexedDB は非同期（`Storage` の Future）で、`Host::write` を同期で返す今の形には「書き込みの結果を後のフレームで受け取る」口が要る。作業環境にブラウザが無く確かめられないので、**M7 では選択モーダルに「準備中」を出す**。M7 の完了条件「Web で IndexedDB の接続を一通り動かす」は未達として残す |
 | B-119（**2026-10-13**） | M7 の検索・置換・補完・ポップアップの範囲 | 仕様の全部 ／ **write ワークスペースで閉じる形** | `Ctrl+F` / `Ctrl+H` / `F3` は**今のファイルの文字どおりの一致**（大小文字を区別。正規表現と大小文字無視は ② の §9.7.4）。一致が見出し行など節の外にあれば、その後ろの節へ移るだけ（選択しない）。`Ctrl+Shift+F` は**本文（`contents/`）の全ファイル**（プロット・辞書は M8 のワークスペースで開くので、M7 では移動先が無い）。補完（§9.7.3）は `'` `:` `@` の直後と `Ctrl+Space` で `core::features::completion::at` の候補を出し、`↑/↓` と `Enter` / `Tab` で確定（変換中は §9.8.5 で Key が来ない）。`Ctrl+Shift+M` / `Ctrl+Shift+W` は `hover::at` の中身（この節で使えないモードは `×`）。`Ctrl+Shift+;` は確認のうえ節と区切り `;` を消す（**ファイル単位の削除なので `Ctrl+Z` では戻らない**と確認文に書いた。§8.6 の undo は節エディタの中だけ）。`Ctrl+Tab` は直前に開いていたファイル、`Ctrl+Shift+Tab` は最も古いファイル（押し続けての循環はしない）。`Ctrl+O` は今のプロジェクトを書き終えてから、フォルダを選んで §14.2 の検査を通ったら切り替える。`Ctrl+.`（クイックフィックス、19 種の名前は `action.*`）・`Ctrl+T` / `Ctrl+Shift+T`（`code_action::register_edit` を E001 の登録と共有）・`Ctrl+Shift+D`（差分モーダル。**「自分の版を残す / 外部の版を読み込む」の 2 択で、§8.5 の行単位マージは入れていない**）も M7 で入れた。**`Alt+H`（インレイヒント §6.6）は M7 では入れていない**（`TextEdit` の `Galley` に仮想の文字を差し込む口が egui 0.27 に無い。文脈ビューだけに出すか M8 で決める） |
+| B-120（**2026-10-13**） | M7 の後の順番（M8 と M9） | §4.1 の順（M8 → M9） ／ **M9（エクスポート）を先に** | §4.3 の依存では M8・M9・M10 はどれも M7 の後で互いに独立。M9 は core の純粋関数（§17.1）・`novnow export`（§17.2）・GUI の「名前を付けて保存」で閉じる 5 日の段で、M6 の報告へのユーザー裁定（テキストのエクスポートの書き出し先、B-109）をそのまま使える形にできる。M8（18 日）は M7 の `write` の上に 6 つのワークスペースを積む大きな段なので、先に閉じられる M9 を済ませてから入る。§4.2 の「見せられる状態」の順（M8 完了 → M9 完了 = β）は入れ替わるが、β の中身（エージェント以外すべて）は変わらない |
+| B-121（**2026-10-13**） | §11 の色のコントラスト比（§19.1）| 表の値のまま ／ 文字を大きくする ／ **色の明るさだけを直す** | §11.1 の注記は `fg.faint / bg.base` を dark 4.6:1・light 4.5:1 としていたが、表の値（`#6E7278` / `#87898F`）を WCAG 2.x の式で測ると 3.7:1 / 3.4:1 だった。`fg.faint` は 10〜11px の見出し（§9.2.2・§9.3.1）に使うので §9.9 の「本文 4.5:1」が要る。§11.2 の `comment`（dark 2.8:1）と `section.break`（2.8 / 2.5:1）は「補助 3:1」も満たしていなかった。色相を変えずに明るさだけを動かし、`fg.faint` = `#82878E` / `#727479`、`section.break` = `#596574` / `#8D929A`、`comment`（dark）= `#60666E` にした（仕様 第 2.13 版）。どの色をどちらの基準で測るか（文字の色は `bg.base` に 4.5:1、`fg.*` と `accent` は `bg.raised` にも 4.5:1、本文の大きさの注記と `state.*` は 3:1、`border` は対象外）を §11.1 に書き、`tests/gui.rs` が §11.1 / §11.2 の表と `ui::theme` の一致、と比を検査する |
 
 ### 9.3 環境の前提
 
@@ -1591,11 +1629,11 @@ tests/layering.rs
   - 設定: `.github/toolchain.env`（`ENABLED` / `CHUNK_MB` / `COMPONENTS` / `TARGETS` / `SMOKE` /
     `SMOKE_CMD` / `SALT` / `FORCE`）。`cache_key`（toolchain.env + rust-toolchain.toml + Cargo.lock + SALT
     のハッシュ）が一致し `status=ready` の生成物が既にあれば**何もしない**ので、push しても Actions 分を消費しない。
-    依存を変えて `Cargo.lock` が更新되면自動的に再生成される。
+    依存を変えて `Cargo.lock` が更新されると自動的に再生成される。
   - 実測（作業環境: 2 CPU / 3.9GB RAM）: コールドビルド込み `cargo test --all-targets` が **1 分 46 秒（261 テスト緑）**。
     温まったあとは fmt 0.1 秒 / clippy 0.9 秒 / test 1.5 秒 / wasm check 36 秒。
     **CI を待たずに 4 ジョブ全部をローカルで確認できる**（CI は「緑の証跡」用に残す）。
-  - 注意: 展開先（既定 `/home/user/build`）はスナップショット対象外なので、サンドボックス再作成後は取得からやり直す
+  - 注意: 展開先（既定 `$HOME/build`）はスナップショット対象外なので、サンドボックス再作成後は取得からやり直す
     （約 40 秒 ＋ 展開 10 秒）。`target/` も消えるのでコールドビルド（約 2 分）が 1 回走る。
   - 撤去: `.github/toolchain.env` を `ENABLED=0` にする（または 2 ファイルを削除）＋
     `git push origin --delete cache/rust-toolchain`。孤立ブランチなので main にも作業ブランチにも影響しない。

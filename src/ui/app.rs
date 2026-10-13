@@ -704,11 +704,8 @@ impl NovnowApp {
                             self.settings.theme = self.settings.theme.next();
                             session.settings_dirty = true;
                         }
-                        // §12.5: 2 文字の記号ボタン（あ / A）。文字ラベルは置かない
-                        let symbol = match locale {
-                            Locale::Ja => "あ",
-                            Locale::En => "A",
-                        };
+                        // §12.5: 記号ボタン（ja は「あ」、en は「A」。カタログの header.language_symbol）。文字ラベルは置かない
+                        let symbol = i18n::text(locale, "header.language_symbol");
                         let language = ui.add(egui::Button::new(symbol).frame(false));
                         language.widget_info(|| {
                             egui::WidgetInfo::labeled(

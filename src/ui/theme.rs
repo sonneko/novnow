@@ -76,7 +76,7 @@ pub const fn palette(mode: Mode) -> Palette {
             bg_selection: hex(0x2D3A4D),
             fg_primary: hex(0xE6E6E3),
             fg_muted: hex(0xA6A8AD),
-            fg_faint: hex(0x6E7278),
+            fg_faint: hex(0x82878E),
             border: hex(0x2A2E35),
             accent: hex(0x6FA8FF),
             unsaved: hex(0xE8A33D),
@@ -91,7 +91,7 @@ pub const fn palette(mode: Mode) -> Palette {
             bg_selection: hex(0xD6E4F7),
             fg_primary: hex(0x1B1C1E),
             fg_muted: hex(0x55585E),
-            fg_faint: hex(0x87898F),
+            fg_faint: hex(0x727479),
             border: hex(0xDEDED9),
             accent: hex(0x1D5FD0),
             unsaved: hex(0xB9720A),
@@ -157,12 +157,12 @@ pub fn token_style(mode: Mode, kind: TokenType) -> TokenStyle {
             scale: 0.9,
             ..plain(pick(0xE7C96B, 0x8A6A00))
         },
-        TokenType::SectionBreak => plain(pick(0x55606E, 0x9AA0A8)),
+        TokenType::SectionBreak => plain(pick(0x596574, 0x8D929A)),
         TokenType::FieldKey => plain(pick(0x8C9CB8, 0x425777)),
         // 挿絵行（`! `）はコメントと同じ（本文に出ない注記）
         TokenType::Comment | TokenType::Illustration => TokenStyle {
             italic: true,
-            ..plain(pick(0x5A6068, 0x8B8E93))
+            ..plain(pick(0x60666E, 0x8B8E93))
         },
         TokenType::RubyText => TokenStyle {
             scale: 0.6,

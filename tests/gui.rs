@@ -164,6 +164,189 @@ fn the_theme_cycles_system_dark_light_and_font_steps_are_bounded() {
     assert_eq!(settings.main_ratio, 0.67);
 }
 
+/// WCAG 2.x のコントラスト比（§9.9）。
+fn contrast(a: egui::Color32, b: egui::Color32) -> f64 {
+    let luminance = |c: egui::Color32| {
+        let channel = |v: u8| {
+            let v = f64::from(v) / 255.0;
+            if v <= 0.03928 {
+                v / 12.92
+            } else {
+                ((v + 0.055) / 1.055).powf(2.4)
+            }
+        };
+        0.2126 * channel(c.r()) + 0.7152 * channel(c.g()) + 0.0722 * channel(c.b())
+    };
+    let (hi, lo) = {
+        let (x, y) = (luminance(a), luminance(b));
+        if x >= y {
+            (x, y)
+        } else {
+            (y, x)
+        }
+    };
+    (hi + 0.05) / (lo + 0.05)
+}
+
+#[test]
+fn every_token_meets_the_contrast_minimums() {
+    // §9.9: 本文 4.5:1、12px 以上の補助テキストと図形 3:1。§11.1 の注記（B-121）:
+    // - 文字の色（fg.* と §11.2 のトークン）は本文と同じ 4.5:1。fg.faint は 10〜11px の見出しにも使うので 4.5:1。
+    // - 本文の大きさで描く注記（comment / illustration の `//`・`! `、section.break の `;`）は補助で 3:1。
+    // - state.* はアイコンとステータスバーの 12px の数字なので 3:1。border は飾り（対象外）。
+    use novnow::core::features::semantic_tokens::TokenType;
+    use novnow::ui::theme::{palette, token_style, Mode};
+    for mode in [Mode::Dark, Mode::Light] {
+        let colors = palette(mode);
+        // 節エディタ（枠なしの TextEdit）と文脈ビューは bg.base、ヘッダ・ステータスバー・モーダルは bg.raised
+        for background in [colors.bg_base, colors.bg_raised] {
+            for (name, fg) in [
+                ("fg.primary", colors.fg_primary),
+                ("fg.muted", colors.fg_muted),
+                ("fg.faint", colors.fg_faint),
+                ("accent", colors.accent),
+            ] {
+                let ratio = contrast(fg, background);
+                assert!(ratio >= 4.5, "{mode:?} {name} {ratio:.2}");
+            }
+            for (name, fg) in [
+                ("state.unsaved", colors.unsaved),
+                ("state.error", colors.error),
+                ("state.warn", colors.warn),
+                ("state.ok", colors.ok),
+            ] {
+                let ratio = contrast(fg, background);
+                assert!(ratio >= 3.0, "{mode:?} {name} {ratio:.2}");
+            }
+        }
+        for kind in TokenType::ALL {
+            let minimum = match kind {
+                TokenType::Comment | TokenType::Illustration | TokenType::SectionBreak => 3.0,
+                _ => 4.5,
+            };
+            let ratio = contrast(token_style(mode, kind).color, colors.bg_base);
+            assert!(ratio >= minimum, "{mode:?} {kind:?} {ratio:.2}");
+        }
+        // 入力欄（パレット・検索）は bg.inset に fg.primary
+        assert!(contrast(colors.fg_primary, colors.bg_inset) >= 4.5);
+    }
+}
+
+#[test]
+fn theme_colors_are_the_spec_tables() {
+    // §11.1 / §11.2 の表が正（色を変えるときは仕様書から）。表に無い 4 種（B-115）は近い役割の色なので比べない
+    use novnow::core::features::semantic_tokens::TokenType;
+    use novnow::ui::theme::{palette, token_style, Mode};
+    let spec = include_str!("../SPECIFICATIONS.md");
+    let row = |name: &str| -> (egui::Color32, egui::Color32) {
+        let prefix = format!("| `{name}`");
+        let line = spec
+            .lines()
+            .find(|line| {
+                line.starts_with(&prefix)
+                    && line[prefix.len()..].starts_with([' ', '（'])
+                    && line.contains("| `#")
+            })
+            .unwrap_or_else(|| panic!("仕様書の表に {name} の行が無い"));
+        let colors: Vec<egui::Color32> = line
+            .split('|')
+            .filter_map(|cell| cell.trim().strip_prefix("`#")?.strip_suffix('`'))
+            .map(|hex| {
+                let rgb = u32::from_str_radix(hex, 16).expect("hex");
+                egui::Color32::from_rgb((rgb >> 16) as u8, (rgb >> 8) as u8, rgb as u8)
+            })
+            .collect();
+        assert_eq!(colors.len(), 2, "{line}");
+        (colors[0], colors[1])
+    };
+    let (dark, light) = (palette(Mode::Dark), palette(Mode::Light));
+    for (name, d, l) in [
+        ("bg.base", dark.bg_base, light.bg_base),
+        ("bg.raised", dark.bg_raised, light.bg_raised),
+        ("bg.inset", dark.bg_inset, light.bg_inset),
+        ("bg.selection", dark.bg_selection, light.bg_selection),
+        ("fg.primary", dark.fg_primary, light.fg_primary),
+        ("fg.muted", dark.fg_muted, light.fg_muted),
+        ("fg.faint", dark.fg_faint, light.fg_faint),
+        ("border", dark.border, light.border),
+        ("accent", dark.accent, light.accent),
+        ("state.unsaved", dark.unsaved, light.unsaved),
+        ("state.error", dark.error, light.error),
+        ("state.warn", dark.warn, light.warn),
+        ("state.ok", dark.ok, light.ok),
+    ] {
+        assert_eq!(row(name), (d, l), "§11.1 {name}");
+    }
+    for kind in TokenType::ALL {
+        if matches!(
+            kind,
+            TokenType::RefAddress
+                | TokenType::Citation
+                | TokenType::Illustration
+                | TokenType::RubyBase
+        ) {
+            continue;
+        }
+        let want = row(kind.as_str());
+        let got = (
+            token_style(Mode::Dark, kind).color,
+            token_style(Mode::Light, kind).color,
+        );
+        assert_eq!(got, want, "§11.2 {}", kind.as_str());
+    }
+}
+
+#[test]
+fn no_pane_is_labelled_files_editor_or_information() {
+    // §19.1 / §9.2.2: ペイン見出し「ファイル」「エディタ」「情報」は撤廃。文言の一部（「最近開いたファイル」など）は
+    // 見出しではないので、文言**そのもの**がこの語であるものを探す。
+    for (locale, catalog, banned) in [
+        (
+            Locale::Ja,
+            include_str!("../src/ui/i18n/ja.toml"),
+            ["ファイル", "エディタ", "情報"],
+        ),
+        (
+            Locale::En,
+            include_str!("../src/ui/i18n/en.toml"),
+            ["Files", "Editor", "Info"],
+        ),
+    ] {
+        let table: toml::Table = catalog.parse().expect("catalog");
+        let mut stack = vec![("".to_owned(), toml::Value::Table(table))];
+        while let Some((path, value)) = stack.pop() {
+            match value {
+                toml::Value::Table(table) => {
+                    for (key, child) in table {
+                        stack.push((format!("{path}.{key}"), child));
+                    }
+                }
+                toml::Value::String(text) => {
+                    let trimmed = text.trim().trim_end_matches([':', '：']);
+                    assert!(
+                        !banned.contains(&trimmed),
+                        "{locale:?} {path} がペイン名「{text}」"
+                    );
+                }
+                _ => {}
+            }
+        }
+    }
+    // 実際に描いた画面にも、この語だけの文字列が無い（ステータスバー・文脈ビュー・参照ペイン）
+    for dark in [true, false] {
+        let (mut harness, _) = Harness::start_with(world(), dark);
+        let output = harness.idle(0.2);
+        let text = painted_text(&output);
+        for line in text.lines() {
+            let trimmed = line.trim();
+            assert!(
+                !["ファイル", "エディタ", "情報", "Files", "Editor", "Info"].contains(&trimmed),
+                "画面にペイン名「{line}」"
+            );
+        }
+    }
+}
+
 // ============================================================ パレット（§9.7.1）
 
 #[test]
