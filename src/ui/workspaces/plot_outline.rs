@@ -351,81 +351,81 @@ pub fn show(
     state.sync(bench);
     let mut request = None;
     // 左: レベル切替
-    egui::SidePanel::left("outline-levels")
-        .resizable(false)
-        .exact_width(200.0 * scale.min(1.2))
-        .frame(
-            Frame::none()
-                .fill(colors.bg_base)
-                .inner_margin(Margin::symmetric(8.0, 8.0)),
+    super::fixed_width(
+        egui::SidePanel::left("outline-levels"),
+        200.0 * scale.min(1.2),
+        8.0,
+    )
+    .frame(
+        Frame::none()
+            .fill(colors.bg_base)
+            .inner_margin(Margin::symmetric(8.0, 8.0)),
+    )
+    .show(ctx, |ui| {
+        let current = state.level.unwrap_or(None);
+        let mut chosen: Option<Level> = None;
+        let all = i18n::text(locale, "outline.all");
+        if list_row(
+            ui,
+            view.mode,
+            scale,
+            Row {
+                selected: current.is_none(),
+                text: all,
+                ..Row::default()
+            },
         )
-        .show(ctx, |ui| {
-            let current = state.level.unwrap_or(None);
-            let mut chosen: Option<Level> = None;
-            let all = i18n::text(locale, "outline.all");
+        .clicked()
+        {
+            chosen = Some(None);
+        }
+        let chapters = state.chapters(bench).to_vec();
+        let digits = bench.project().digits();
+        for (chapter, title) in chapters {
+            let label = plots::short_id(
+                SceneId {
+                    chapter,
+                    episode: 0,
+                    scene: 0,
+                    section: 0,
+                },
+                digits,
+            );
             if list_row(
                 ui,
                 view.mode,
                 scale,
                 Row {
-                    selected: current.is_none(),
-                    text: all,
+                    selected: current == Some(chapter),
+                    label: &label,
+                    text: &title,
                     ..Row::default()
                 },
             )
             .clicked()
             {
-                chosen = Some(None);
+                chosen = Some(Some(chapter));
             }
-            let chapters = state.chapters(bench).to_vec();
-            let digits = bench.project().digits();
-            for (chapter, title) in chapters {
-                let label = plots::short_id(
-                    SceneId {
-                        chapter,
-                        episode: 0,
-                        scene: 0,
-                        section: 0,
-                    },
-                    digits,
-                );
-                if list_row(
-                    ui,
-                    view.mode,
-                    scale,
-                    Row {
-                        selected: current == Some(chapter),
-                        label: &label,
-                        text: &title,
-                        ..Row::default()
-                    },
-                )
-                .clicked()
-                {
-                    chosen = Some(Some(chapter));
-                }
+        }
+        match chosen {
+            Some(None) => {
+                bench.commit();
+                state.land_all(bench, current.unwrap_or(0));
             }
-            match chosen {
-                Some(None) => {
-                    bench.commit();
-                    state.land_all(bench, current.unwrap_or(0));
-                }
-                Some(Some(chapter)) => {
-                    bench.commit();
-                    state.land_chapter(bench, chapter, 0);
-                }
-                None => {}
+            Some(Some(chapter)) => {
+                bench.commit();
+                state.land_chapter(bench, chapter, 0);
             }
-        });
+            None => {}
+        }
+    });
     // 右: 伏線
     if let Some((side, width)) = view.reference {
         let panel = match side {
             PaneSide::Right => egui::SidePanel::right("reference"),
             PaneSide::Left => egui::SidePanel::left("reference"),
         };
-        panel
-            .resizable(false)
-            .exact_width(width)
+        super::fixed_width(panel, width, 14.0)
             .frame(
                 Frame::none()
                     .fill(colors.bg_base)

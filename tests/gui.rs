@@ -831,7 +831,8 @@ fn screenshot() {
             }
         }
     };
-    // `NOVNOW_SHOT_SCENE`: edit（既定）/ completion / palette / find / help / episode / outline
+    // `NOVNOW_SHOT_SCENE`: edit（既定）/ completion / palette / find / help / episode / outline /
+    // idea / cast / review
     let scene = std::env::var("NOVNOW_SHOT_SCENE").unwrap_or_default();
     let mut steps: Vec<Vec<Event>> = vec![
         vec![key(Key::Num2, Modifiers::CTRL)],
@@ -847,6 +848,9 @@ fn screenshot() {
         // M8 のワークスペース（Alt+2 / Alt+3）
         "episode" => steps.push(vec![key(Key::Num2, Modifiers::ALT)]),
         "outline" => steps.push(vec![key(Key::Num3, Modifiers::ALT)]),
+        "idea" => steps.push(vec![key(Key::Num4, Modifiers::ALT)]),
+        "cast" => steps.push(vec![key(Key::Num6, Modifiers::ALT)]),
+        "review" => steps.push(vec![key(Key::Num9, Modifiers::ALT)]),
         _ => {}
     }
     if scene == "help" {

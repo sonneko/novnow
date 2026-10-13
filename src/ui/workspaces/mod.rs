@@ -188,6 +188,8 @@ pub struct Spaces {
     pub idea: idea::State,
     /// `review`。
     pub review: review::State,
+    /// `cast`。
+    pub cast: cast::State,
 }
 
 /// 描画に要る画面の設定（`NovnowApp` から渡す）。
@@ -322,6 +324,15 @@ pub fn list_row(ui: &mut Ui, mode: Mode, scale: f32, row: Row<'_>) -> egui::Resp
         color,
     );
     response
+}
+
+/// 幅を決めた横のペイン（egui 0.27 の `exact_width` は中身の最小幅を枠の幅そのものにするので、
+/// 内側の余白のぶんだけ外へはみ出す。中身の最小幅を左右の余白を除いた幅にする）。
+pub fn fixed_width(panel: egui::SidePanel, width: f32, margin_x: f32) -> egui::SidePanel {
+    panel
+        .resizable(false)
+        .default_width(width)
+        .width_range((width - 2.0 * margin_x).max(0.0)..=width)
 }
 
 /// 段の区切り（1px の `border`、上下 4px の余白）。

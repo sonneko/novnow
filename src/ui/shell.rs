@@ -156,8 +156,10 @@ pub enum Command {
     Review,
     /// `Ctrl+Delete` アイデアを破棄（`status: dropped`。§10.4。`idea` の中だけ）。
     Drop,
-    /// `Ctrl+Shift+→` / `Ctrl+Shift+←` タブの切替（§10.9.1。`review` の中だけ）。
+    /// `Ctrl+Shift+→` / `Ctrl+Shift+←` タブの切替（§10.9.1・§10.6。`review` と `cast` の中だけ）。
     Tab(bool),
+    /// `Ctrl+Shift+V` 役割語が一致しなかった台詞の一覧（§10.6。`cast` の中だけ）。
+    Scan,
 }
 
 /// キー 1 つをショートカットに読む。`text_focused` は入力欄にフォーカスがあるか（`?` の判定）。
@@ -253,6 +255,8 @@ pub fn command_of(
 ///
 /// - `idea`: `Ctrl+Delete` で破棄（§10.4。編集欄の「後ろの単語を消す」より優先する）。
 /// - `review`: `Ctrl+Shift+→` / `←` でタブ（§10.9.1。`review` には編集欄が無い）。
+/// - `cast`: `Ctrl+Shift+→` / `←` でタブ（§10.6。中央の編集欄の単語選択より優先する）、
+///   `Ctrl+Shift+V` で未一致の台詞（§10.6）。
 pub fn local_command_of(
     key: Key,
     modifiers: Modifiers,
@@ -267,6 +271,9 @@ pub fn local_command_of(
         (Workspace::Idea, Key::Delete) if ctrl && !alt && !shift => Some(Command::Drop),
         (Workspace::Review, Key::ArrowRight) if ctrl && shift && !alt => Some(Command::Tab(true)),
         (Workspace::Review, Key::ArrowLeft) if ctrl && shift && !alt => Some(Command::Tab(false)),
+        (Workspace::Cast, Key::ArrowRight) if ctrl && shift && !alt => Some(Command::Tab(true)),
+        (Workspace::Cast, Key::ArrowLeft) if ctrl && shift && !alt => Some(Command::Tab(false)),
+        (Workspace::Cast, Key::V) if ctrl && shift && !alt => Some(Command::Scan),
         _ => None,
     }
 }

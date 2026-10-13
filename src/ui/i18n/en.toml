@@ -444,3 +444,20 @@ chars = "{0} characters"
 chars_of = "{0} / {1} characters ({2}%)"
 # {0} = path
 cannot_open = "This version has no screen that opens {0} yet"
+
+[cast]
+none = "characters.md has no characters"
+empty = "Choose a character in the list to edit it here"
+tab_modes = "Modes"
+tab_tester = "Speech"
+tab_unmatched = "Unmatched"
+no_modes = "This character has no modes under ## modes"
+timeline = "Mode timeline"
+range_all = "(not written = everywhere)"
+timeline_keys = "Click a band, choose with ↑ / ↓, and move it one chapter with Shift+← / → (or drag)"
+tester_hint = "Type a line of dialogue to see which patterns match"
+no_patterns = "This character has no speech patterns"
+common = "all modes"
+all_matched = "No dialogue failed to match its speech patterns"
+# {0} = count
+unmatched_count = "{0} lines of dialogue matched no speech pattern (double-click to open)"

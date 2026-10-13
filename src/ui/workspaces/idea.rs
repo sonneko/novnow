@@ -299,15 +299,17 @@ pub fn show(
     let locale = view.locale;
     state.sync(bench);
     let width = ctx.screen_rect().width();
-    egui::SidePanel::left("idea-list")
-        .resizable(false)
-        .exact_width((width * 0.36).clamp(240.0, 420.0))
-        .frame(
-            Frame::none()
-                .fill(colors.bg_base)
-                .inner_margin(Margin::symmetric(8.0, 8.0)),
-        )
-        .show(ctx, |ui| list(ui, state, bench, view));
+    super::fixed_width(
+        egui::SidePanel::left("idea-list"),
+        (width * 0.36).clamp(240.0, 420.0),
+        8.0,
+    )
+    .frame(
+        Frame::none()
+            .fill(colors.bg_base)
+            .inner_margin(Margin::symmetric(8.0, 8.0)),
+    )
+    .show(ctx, |ui| list(ui, state, bench, view));
     egui::CentralPanel::default()
         .frame(
             Frame::none()

@@ -335,9 +335,7 @@ pub fn show(
             PaneSide::Right => egui::SidePanel::right("reference"),
             PaneSide::Left => egui::SidePanel::left("reference"),
         };
-        panel
-            .resizable(false)
-            .exact_width(width)
+        super::fixed_width(panel, width, 14.0)
             .frame(
                 Frame::none()
                     .fill(colors.bg_base)

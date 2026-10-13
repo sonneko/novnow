@@ -849,3 +849,51 @@ fn the_progress_tab_lists_the_tree_and_opens_a_section() {
         Some(id(1, 1, 1, 1))
     );
 }
+
+// ============================================================ 画面（cast）
+
+#[test]
+fn the_cast_workspace_shows_the_timeline_and_moves_a_band_with_shift_arrows() {
+    let mut harness = novel_harness();
+    harness.frame(vec![key(Key::Num6, ALT)]);
+    let output = harness.frame(Vec::new());
+    assert_eq!(harness.app.workspace(), Some(Workspace::Cast));
+    let text = painted_text(&output);
+    assert!(text.contains("アルス"), "{text}");
+    assert!(text.contains("リリア"), "{text}");
+    assert!(text.contains("@01"), "{text}");
+    assert!(text.contains("A 探究"), "{text}");
+    assert!(text.contains("B 補習"), "{text}");
+    // タブを 1 周してモードへ戻る（キーで切り替えるとタブの中身にフォーカスが移る）
+    for _ in 0..3 {
+        harness.frame(vec![key(Key::ArrowRight, CTRL_SHIFT)]);
+    }
+    harness.frame(Vec::new());
+    harness.frame(vec![key(Key::ArrowDown, Modifiers::NONE)]);
+    harness.frame(vec![key(Key::ArrowLeft, Modifiers::SHIFT)]);
+    harness.idle(0.6);
+    let characters = written(&harness, "characters.md");
+    assert!(
+        characters.contains("### B 補習\nrange: @01 ..\n"),
+        "{characters}"
+    );
+}
+
+#[test]
+fn the_role_language_tester_and_the_unmatched_dialogue_list() {
+    let mut harness = novel_harness();
+    harness.frame(vec![key(Key::Num6, ALT)]);
+    harness.frame(vec![key(Key::ArrowDown, ALT)]);
+    harness.frame(vec![key(Key::ArrowRight, CTRL_SHIFT)]);
+    harness.frame(Vec::new());
+    harness.frame(vec![Event::Text("そうなのね".into())]);
+    let output = harness.frame(Vec::new());
+    let text = painted_text(&output);
+    assert!(text.contains("✓"), "{text}");
+    assert!(text.contains("「*のね」"), "{text}");
+    assert!(text.contains("「*わよ」"), "{text}");
+    harness.frame(vec![key(Key::V, CTRL_SHIFT)]);
+    let output = harness.frame(Vec::new());
+    let text = painted_text(&output);
+    assert!(text.contains("明日も来るの？"), "{text}");
+}

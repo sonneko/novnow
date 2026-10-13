@@ -328,6 +328,8 @@ pub struct NovnowApp {
     font_warning: bool,
     allow_close: bool,
     mac: bool,
+    /// 次のフレームの頭で戻すフォーカス（矢印のショートカットの後。`frame` の注記）。
+    refocus: Option<egui::Id>,
 }
 
 impl NovnowApp {
@@ -356,6 +358,7 @@ impl NovnowApp {
             font_warning: fallback && !cfg!(target_arch = "wasm32"),
             allow_close: false,
             mac: ctx.os() == egui::os::OperatingSystem::Mac,
+            refocus: None,
         }
     }
 
@@ -418,6 +421,26 @@ impl NovnowApp {
         self.apply_style(ctx, mode);
         let now = ctx.input(|input| input.time);
         let locale = self.locale();
+        // 前のフレームの矢印のショートカットで egui が動かしたフォーカスを戻す（下の注記）
+        if let Some(id) = self.refocus.take() {
+            ctx.memory_mut(|memory| memory.request_focus(id));
+        }
+        // egui は矢印キーで（修飾キーが付いていても）フォーカスを隣のウィジェットへ動かす（フォーカス中の
+        // ウィジェットが矢印を取らないとき。フレームの終わりに動く）。novnow は矢印でのフォーカス移動を
+        // 使わない（`Alt+↑/↓` などのショートカットと、一覧・タイムラインの選択に使う）ので、矢印が
+        // 押されたフレームの終わりのフォーカスを、次のフレームの頭で戻す
+        let arrow_pressed = ctx.input(|input| {
+            input.events.iter().any(|event| {
+                matches!(
+                    event,
+                    egui::Event::Key {
+                        key: Key::ArrowUp | Key::ArrowDown | Key::ArrowLeft | Key::ArrowRight,
+                        pressed: true,
+                        ..
+                    }
+                )
+            })
+        });
         // §9.8.5 (3): IME → 変換中なら Key を捨てる → ショートカット
         let text_focused = ctx.wants_keyboard_input();
         let workspace = self.workspace().unwrap_or_default();
@@ -454,6 +477,9 @@ impl NovnowApp {
             }
         }
         self.close_guard(ctx, now);
+        if arrow_pressed {
+            self.refocus = ctx.memory(|memory| memory.focused());
+        }
         // 次の再描画（保存のタイマ・外部変更の監視 1s・OS の配色の追従 1s、§11.4）
         ctx.request_repaint_after(std::time::Duration::from_millis(1000));
     }
@@ -888,6 +914,18 @@ impl NovnowApp {
                     self.review_jump(ctx, target, now);
                 }
             }
+            (Workspace::Cast, Command::Nav(nav)) => {
+                spaces.cast.nav(bench, nav);
+            }
+            (Workspace::Cast, Command::Tab(forward)) => {
+                spaces.cast.step_tab(forward);
+            }
+            (Workspace::Cast, Command::Scan) => {
+                spaces.cast.scan();
+                // 一覧は右のペインに出すので、畳んでいれば出す
+                self.settings.reference_visible = true;
+                session.settings_dirty = true;
+            }
             (Workspace::Idea, Command::Nav(nav)) => {
                 spaces.idea.nav(bench, nav);
             }
@@ -1091,6 +1129,11 @@ impl NovnowApp {
                         session.spaces.idea.select_line(&session.bench, line);
                         self.switch_to(ctx, Workspace::Idea, now);
                     }
+                    DocumentFormat::Characters => {
+                        session.spaces.cast.select_line(&session.bench, line);
+                        session.spaces.switcher.mark_visited(Workspace::Cast);
+                        self.switch_to(ctx, Workspace::Cast, now);
+                    }
                     _ => {
                         session.notice =
                             Some((i18n::format(locale, "review.cannot_open", &[&path]), now));
@@ -1205,6 +1248,16 @@ impl NovnowApp {
                 .outline
                 .breadcrumb(&session.bench, i18n::text(locale, "outline.all")),
             Workspace::Idea => session.spaces.idea.selected().map(str::to_owned),
+            Workspace::Cast => {
+                let selected = session.spaces.cast.selected();
+                session
+                    .spaces
+                    .cast
+                    .rows(&session.bench)
+                    .iter()
+                    .find(|row| Some(row.index) == selected)
+                    .map(|row| row.name.clone())
+            }
             _ => None,
         };
         egui::TopBottomPanel::top("header")
@@ -1311,7 +1364,18 @@ impl NovnowApp {
                     .then_some((self.settings.reference_pane_side, reference_width)),
             };
             let mut jump = None;
+            let mut cast_jump = None;
             let request = match workspace {
+                Workspace::Cast => {
+                    let (request, target) = workspaces::cast::show(
+                        ctx,
+                        &mut session.spaces.cast,
+                        &mut session.bench,
+                        &view,
+                    );
+                    cast_jump = target;
+                    request
+                }
                 Workspace::Review => {
                     let (request, target) = workspaces::review::show(
                         ctx,
@@ -1351,6 +1415,13 @@ impl NovnowApp {
             if let Some(target) = jump {
                 self.review_jump(ctx, target, now);
             }
+            if let Some(found) = cast_jump {
+                self.review_jump(
+                    ctx,
+                    workspaces::review::Target::Document(found.path, Some(found.byte)),
+                    now,
+                );
+            }
             self.common_tail(ctx, locale, now);
             return;
         }
@@ -1364,9 +1435,7 @@ impl NovnowApp {
                 PaneSide::Left => egui::SidePanel::left("reference"),
             };
             let default_width = (width * (1.0 - self.settings.main_ratio)).clamp(320.0, 560.0);
-            let response = panel
-                .resizable(false)
-                .exact_width(default_width)
+            let response = workspaces::fixed_width(panel, default_width, 14.0)
                 .frame(
                     Frame::none()
                         .fill(colors.bg_base)

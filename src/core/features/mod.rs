@@ -8,6 +8,8 @@
 //! **文言は返さない**（§12.2）。表示名が要るものは種別の enum を返し、UI が `ui/i18n/` で引く。
 //! 引数の順は §3.4 の表のとおり（`semantic_tokens::full(doc, project)` など。`PLANS.md` §9.2 B-78）。
 
+/// LSP に対応しない補助（キャラの並び・モードタイムライン・役割語テスター。§10.6、`PLANS.md` §9.2 B-133）。
+pub mod cast;
 pub mod code_action;
 pub mod completion;
 pub mod definition;

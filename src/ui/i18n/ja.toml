@@ -442,3 +442,20 @@ chars = "{0} 字"
 chars_of = "{0} / {1} 字（{2}%）"
 # {0} = パス
 cannot_open = "{0} を開く画面はこの版にはまだありません"
+
+[cast]
+none = "characters.md にキャラがいません"
+empty = "一覧からキャラを選ぶと、ここで編集できます"
+tab_modes = "モード"
+tab_tester = "役割語"
+tab_unmatched = "未一致"
+no_modes = "このキャラには ## modes のモードがありません"
+timeline = "モードタイムライン"
+range_all = "（書かれていない = 全範囲）"
+timeline_keys = "帯をクリックしてから ↑ / ↓ で選び、Shift+← / → で 1 章ずらす（ドラッグも同じ）"
+tester_hint = "台詞を打つと、一致するパターンを示します"
+no_patterns = "このキャラには役割語のパターンがありません"
+common = "キャラ共通"
+all_matched = "役割語が一致しなかった台詞はありません"
+# {0} = 件数
+unmatched_count = "役割語が一致しなかった台詞 {0} 件（ダブルクリックで本文へ）"
