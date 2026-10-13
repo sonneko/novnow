@@ -141,6 +141,23 @@ pub enum Command {
     Diff,
     /// `>export` テキストのエクスポート（§17.2。ショートカットは無く、パレットから）。
     Export,
+    /// `Alt+1..9` ワークスペースの切替（§10.0。番号は §10 の表の `#`）。
+    Workspace(u8),
+    /// `Alt+0` 直前のワークスペースへ（§10.0）。
+    PreviousWorkspace,
+    /// `Ctrl+B` / `Ctrl+Shift+B` 4 段階を 1 つ上へ（write → plot-episode → plot-outline の章 → 全体。
+    /// §10.1・§10.3、`PLANS.md` §9.2 B-126）。
+    Up,
+    /// `Ctrl+Shift+N` 話プロットに節を挿入（§10.2）。
+    InsertSection,
+    /// `Ctrl+Shift+I` アイデアの即時入力（§10.4。どのワークスペースからでも、画面遷移なし）。
+    Capture,
+    /// `Ctrl+Shift+E` 点検（review）の診断へ（§9.6.1・§10.9.2）。
+    Review,
+    /// `Ctrl+Delete` アイデアを破棄（`status: dropped`。§10.4。`idea` の中だけ）。
+    Drop,
+    /// `Ctrl+Shift+→` / `Ctrl+Shift+←` タブの切替（§10.9.1。`review` の中だけ）。
+    Tab(bool),
 }
 
 /// キー 1 つをショートカットに読む。`text_focused` は入力欄にフォーカスがあるか（`?` の判定）。
@@ -213,9 +230,45 @@ pub fn command_of(
         Key::ArrowRight if plain_alt && !shift => Command::Nav(Nav::NextScene),
         Key::Home if ctrl && !alt && !shift => Command::Nav(Nav::FileStart),
         Key::End if ctrl && !alt && !shift => Command::Nav(Nav::FileEnd),
+        Key::Num0 if plain_alt && !shift => Command::PreviousWorkspace,
+        Key::Num1 if plain_alt && !shift => Command::Workspace(1),
+        Key::Num2 if plain_alt && !shift => Command::Workspace(2),
+        Key::Num3 if plain_alt && !shift => Command::Workspace(3),
+        Key::Num4 if plain_alt && !shift => Command::Workspace(4),
+        Key::Num5 if plain_alt && !shift => Command::Workspace(5),
+        Key::Num6 if plain_alt && !shift => Command::Workspace(6),
+        Key::Num7 if plain_alt && !shift => Command::Workspace(7),
+        Key::Num8 if plain_alt && !shift => Command::Workspace(8),
+        Key::Num9 if plain_alt && !shift => Command::Workspace(9),
+        Key::B if ctrl && !alt => Command::Up,
+        Key::N if ctrl && !alt && shift => Command::InsertSection,
+        Key::I if ctrl && !alt && shift => Command::Capture,
+        Key::E if ctrl && !alt && shift => Command::Review,
         _ => return None,
     };
     Some(command)
+}
+
+/// ワークスペースの中だけで効くキー（テキストの編集と重なるので、そのワークスペースでだけ取る）。
+///
+/// - `idea`: `Ctrl+Delete` で破棄（§10.4。編集欄の「後ろの単語を消す」より優先する）。
+/// - `review`: `Ctrl+Shift+→` / `←` でタブ（§10.9.1。`review` には編集欄が無い）。
+pub fn local_command_of(
+    key: Key,
+    modifiers: Modifiers,
+    mac: bool,
+    workspace: crate::ui::workspaces::Workspace,
+) -> Option<Command> {
+    use crate::ui::workspaces::Workspace;
+    let ctrl = modifiers.ctrl || (modifiers.mac_cmd && mac);
+    let alt = modifiers.alt;
+    let shift = modifiers.shift;
+    match (workspace, key) {
+        (Workspace::Idea, Key::Delete) if ctrl && !alt && !shift => Some(Command::Drop),
+        (Workspace::Review, Key::ArrowRight) if ctrl && shift && !alt => Some(Command::Tab(true)),
+        (Workspace::Review, Key::ArrowLeft) if ctrl && shift && !alt => Some(Command::Tab(false)),
+        _ => None,
+    }
 }
 
 /// 1 フレームの入力処理の前半（§9.8.5 (3)）: IME の判定 → 変換中なら Key を全部捨てる →
@@ -225,6 +278,23 @@ pub fn take_commands(
     ime: &mut ImeState,
     mac: bool,
     text_focused: bool,
+) -> Vec<Command> {
+    take_commands_in(
+        input,
+        ime,
+        mac,
+        text_focused,
+        crate::ui::workspaces::Workspace::Write,
+    )
+}
+
+/// [`take_commands`] のワークスペース付き（[`local_command_of`] を先に見る）。
+pub fn take_commands_in(
+    input: &mut InputState,
+    ime: &mut ImeState,
+    mac: bool,
+    text_focused: bool,
+    workspace: crate::ui::workspaces::Workspace,
 ) -> Vec<Command> {
     ime.update(input);
     if ime.composing() {
@@ -245,7 +315,9 @@ pub fn take_commands(
         else {
             return true;
         };
-        match command_of(*key, *modifiers, mac, text_focused) {
+        let found = local_command_of(*key, *modifiers, mac, workspace)
+            .or_else(|| command_of(*key, *modifiers, mac, text_focused));
+        match found {
             Some(command) => {
                 out.push(command);
                 false

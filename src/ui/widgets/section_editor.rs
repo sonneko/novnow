@@ -105,17 +105,43 @@ pub fn show(
     mode: Mode,
     scale: f32,
 ) -> EditorOutput {
+    let id = editor_id(bench);
+    let mut buffer = std::mem::take(bench.buffer_mut());
+    let bench_ref: &Workbench = bench;
+    let mut highlight = |text: &str| cache.get(bench_ref, text);
+    let result = area(
+        ui,
+        id,
+        "section-editor-scroll",
+        &mut buffer,
+        &mut highlight,
+        mode,
+        scale,
+    );
+    *bench.buffer_mut() = buffer;
+    result
+}
+
+/// 色分け付きの複数行エディタ（節エディタと、M8 のワークスペースの [`crate::ui::widgets::slice_editor`]
+/// が共有する）。行番号はエディタの中のローカル行番号（1 始まり）。
+pub(crate) fn area(
+    ui: &mut Ui,
+    id: Id,
+    scroll_id: &str,
+    buffer: &mut String,
+    highlight: &mut dyn FnMut(&str) -> Highlight,
+    mode: Mode,
+    scale: f32,
+) -> EditorOutput {
     let colors = theme::palette(mode);
     let metrics = Metrics {
         size: 15.0 * scale,
         line_height: 1.8,
     };
-    let id = editor_id(bench);
     let gutter = 36.0 * scale;
-    let mut buffer = std::mem::take(bench.buffer_mut());
     let mut result = EditorOutput::default();
     egui::ScrollArea::vertical()
-        .id_source("section-editor-scroll")
+        .id_source(scroll_id)
         .auto_shrink([false, false])
         .show(ui, |ui| {
             ui.horizontal_top(|ui| {
@@ -124,13 +150,12 @@ pub fn show(
                     egui::Sense::hover(),
                 );
                 let width = ui.available_width();
-                let bench_ref: &Workbench = bench;
                 let mut layouter = |ui: &Ui, text: &str, wrap: f32| -> Arc<Galley> {
-                    let highlight = cache.get(bench_ref, text);
-                    let job = syntax_text::job(text, &highlight, mode, metrics, wrap);
+                    let found = highlight(text);
+                    let job = syntax_text::job(text, &found, mode, metrics, wrap);
                     ui.fonts(|fonts| fonts.layout_job(job))
                 };
-                let output = TextEdit::multiline(&mut buffer)
+                let output = TextEdit::multiline(buffer)
                     .id(id)
                     .frame(false)
                     .desired_width(width)
@@ -143,21 +168,20 @@ pub fn show(
                     if let Some(range) = output.cursor_range {
                         let [low, high] = range.sorted_cursors();
                         result.selection = Some(
-                            byte_of(&buffer, low.ccursor.index)
-                                ..byte_of(&buffer, high.ccursor.index),
+                            byte_of(buffer, low.ccursor.index)..byte_of(buffer, high.ccursor.index),
                         );
                         let caret = output.galley.pos_from_cursor(&range.primary);
                         result.caret = Some(caret.translate(output.galley_pos.to_vec2()));
                     }
                 }
                 let painter = ui.painter().clone();
-                let highlight = cache.highlight.clone();
+                let found = highlight(buffer);
                 syntax_text::paint_squiggles(
                     &painter,
                     output.galley_pos,
                     &output.galley,
-                    &buffer,
-                    &highlight,
+                    buffer,
+                    &found,
                     mode,
                 );
                 paint_line_numbers(
@@ -170,7 +194,6 @@ pub fn show(
                 );
             });
         });
-    *bench.buffer_mut() = buffer;
     result
 }
 

@@ -4,8 +4,13 @@
 //! `Document`）へは [`Workbench::commit`] で書き戻す（節の移動・保存の直前、§8.1）。
 //! 書き込みはしない: [`Workbench::take_writes`] が「書くべきファイルと中身」を返し、ホスト
 //! （`ui::app`）が書いて [`Workbench::write_finished`] で結果を戻す（`PLANS.md` §9.2 B-114）。
+//!
+//! 本文以外の文書（話プロット・全体/章プロット・`ideas.md`・`characters.md`・資料）は、M8 の
+//! ワークスペースが**行の範囲**（[`Slice`]）で開いて編集する。規則は節エディタと同じで、書き戻しは
+//! [`Workbench::commit`]（節の移動・保存・ワークスペースの切替の直前）に一緒に行う（B-126）。
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::ops::Range;
 
 use crate::core::features::sections::{self, SectionRef};
 use crate::core::features::Project;
@@ -51,6 +56,17 @@ struct Editing {
     section: SectionRef,
 }
 
+/// 本文以外の文書の一部（行の範囲）を編集する口（M8 のワークスペース、`PLANS.md` §9.2 B-126）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Slice {
+    /// 文書のパス（まだ無いファイルでもよい。書き始めると作る）。
+    pub path: String,
+    /// 受け持つ行（ファイルの行 index）。空なら、その位置に行を入れる。
+    pub lines: Range<usize>,
+    /// 開いた側が決める鍵（同じものを開き直さないため。`plot-episode:plots/01-04.txt:01-04-02-03` など）。
+    pub tag: String,
+}
+
 /// 編集の状態。
 #[derive(Debug)]
 pub struct Workbench {
@@ -64,6 +80,10 @@ pub struct Workbench {
     conflicts: BTreeSet<String>,
     counts: BTreeMap<String, usize>,
     generation: u64,
+    slice: Option<Slice>,
+    slice_buffer: String,
+    /// まだ無い本文のファイルを開いているとき、書き始めたら先頭に書く場面見出し（B-128）。
+    pending_header: Option<String>,
 }
 
 impl Workbench {
@@ -79,6 +99,9 @@ impl Workbench {
             conflicts: BTreeSet::new(),
             counts: BTreeMap::new(),
             generation: 0,
+            slice: None,
+            slice_buffer: String::new(),
+            pending_header: None,
         };
         out.rebuild();
         let start = last_scene
@@ -159,13 +182,32 @@ impl Workbench {
         self.conflicts.iter().map(String::as_str)
     }
 
-    /// 節エディタの中身を文書へ書き戻す（移動はしない）。並びを作り直す。
+    /// 節エディタ（と、開いていれば [`Slice`]）の中身を文書へ書き戻す（移動はしない）。並びを作り直す。
     pub fn commit(&mut self) {
+        self.commit_slice();
+        self.commit_section();
+    }
+
+    fn commit_section(&mut self) {
         let Some(editing) = self.editing.as_mut() else {
             return;
         };
         let path = editing.section.path.clone();
         let Some(document) = self.project.document(&path) else {
+            // まだ無いファイル（[`Workbench::start_file`]）: 書き始めたら場面見出しと一緒に作る
+            if self.buffer.is_empty() {
+                return;
+            }
+            let Some(header) = self.pending_header.take() else {
+                return;
+            };
+            let count = sections::line_count(&self.buffer);
+            editing.section.lines = 1..1 + count;
+            editing.section.span = 1..1 + count;
+            let text = format!("{header}\n{}\n", self.buffer);
+            self.project.insert(Document::new(path.clone(), text));
+            self.unsaved.insert(path);
+            self.rebuild();
             return;
         };
         let current = sections::text_of(&document.text, &editing.section);
@@ -327,6 +369,35 @@ impl Workbench {
         }
     }
 
+    /// まだ無い本文のファイル `path` を、場面見出し `header`（`@01-05-01 タイトル`）の最初の節として
+    /// 開く（`plot-episode` から降りたとき、`PLANS.md` §9.2 B-128）。**書き始めるまでファイルは作らない**
+    /// （§10.0「空の節を作らず、その位置にカーソルだけ置く」）。ファイルがあれば何もしない。
+    pub fn start_file(&mut self, path: &str, id: SceneId, header: &str) -> bool {
+        self.commit();
+        if self.project.document(path).is_some() {
+            return false;
+        }
+        let title = header
+            .trim_start()
+            .strip_prefix('@')
+            .and_then(|rest| rest.find(char::is_whitespace).map(|at| rest[at..].trim()))
+            .unwrap_or_default()
+            .to_owned();
+        self.buffer.clear();
+        self.editing = Some(Editing {
+            section: SectionRef {
+                path: path.to_owned(),
+                id: SceneId { section: 1, ..id },
+                lines: 1..1,
+                span: 1..1,
+                header: Some(0),
+                scene_title: title,
+            },
+        });
+        self.pending_header = Some(header.to_owned());
+        true
+    }
+
     /// 今の節を消して、次の節（無ければ前の節）へ（§9.8.3 `Ctrl+Shift+;`。確認は呼び出し側）。
     pub fn delete_section(&mut self, now: f64) -> bool {
         self.commit();
@@ -422,17 +493,20 @@ impl Workbench {
     /// 複数ファイルにまたがる編集を当てる（クイックフィックス・辞書への登録）。今のファイルの範囲は
     /// [`Workbench::spliced_document`]（節エディタの中身を書き戻した形）の上の byte であること。
     pub fn apply_edit(&mut self, edit: &crate::core::features::WorkspaceEdit, now: f64) -> bool {
-        let Some((spliced, _)) = self.spliced_document() else {
-            return false;
-        };
+        // 節エディタと Slice の中身を先に書き戻す（書き戻した文書は spliced_document と同じ文字列なので、
+        // 範囲はそのまま使える。書き戻さずに他のファイルだけを変えると、節を開き直したときに
+        // 書き戻していない打鍵が消える）
+        self.commit();
+        if let Some(slice) = &self.slice {
+            if edit.changes.iter().any(|change| change.path == slice.path) {
+                self.slice = None;
+                self.slice_buffer.clear();
+            }
+        }
         let current = self.editing.clone();
         let mut touched = false;
         for change in &edit.changes {
-            let base = if change.path == spliced.path {
-                spliced.text.clone()
-            } else {
-                self.project.text(&change.path).to_owned()
-            };
+            let base = self.project.text(&change.path).to_owned();
             let text = crate::core::features::apply_edits(&base, &change.edits);
             self.project
                 .insert(Document::new(change.path.clone(), text));
@@ -461,6 +535,11 @@ impl Workbench {
             .editing
             .as_ref()
             .is_some_and(|editing| editing.section.path == path);
+        if self.slice.as_ref().is_some_and(|slice| slice.path == path) {
+            // Slice の未保存の編集も捨てる（閉じて、開いた側が鍵から開き直す）
+            self.slice = None;
+            self.slice_buffer.clear();
+        }
         if editing_here {
             // 節エディタの中身は外部の版で読み直す（未保存の編集は捨てる）
             if let Some(current) = self.editing.as_ref() {
@@ -478,6 +557,129 @@ impl Workbench {
         self.unsaved.insert(path.to_owned());
         self.save.edited(now);
         self.save.request_now();
+    }
+
+    // ------------------------------------------------------------ 本文以外の文書（B-126）
+
+    /// 開いている [`Slice`]。
+    pub fn slice(&self) -> Option<&Slice> {
+        self.slice.as_ref()
+    }
+
+    /// [`Slice`] の中身（エディタに渡す）。
+    pub fn slice_buffer(&self) -> &str {
+        &self.slice_buffer
+    }
+
+    /// [`Slice`] の中身（egui の `TextEdit` に渡す）。変えたら [`Workbench::slice_edited`] を呼ぶ。
+    pub fn slice_buffer_mut(&mut self) -> &mut String {
+        &mut self.slice_buffer
+    }
+
+    /// 文書 `path` の行 `lines` を開く（前に開いていたものは書き戻す）。`tag` が同じものを開いて
+    /// いれば何もしない。
+    pub fn open_slice(&mut self, path: &str, lines: Range<usize>, tag: &str) {
+        if self.slice.as_ref().is_some_and(|slice| slice.tag == tag) {
+            return;
+        }
+        self.commit_slice();
+        self.slice_buffer = sections::text_of_lines(self.project.text(path), &lines);
+        self.slice = Some(Slice {
+            path: path.to_owned(),
+            lines,
+            tag: tag.to_owned(),
+        });
+    }
+
+    /// [`Slice`] を書き戻して閉じる。
+    pub fn close_slice(&mut self) {
+        self.commit_slice();
+        self.slice = None;
+        self.slice_buffer.clear();
+    }
+
+    /// [`Slice`] のエディタで編集があった（§8.2 の Dirty とタイマ再起動）。
+    pub fn slice_edited(&mut self, now: f64) {
+        if let Some(slice) = &self.slice {
+            self.unsaved.insert(slice.path.clone());
+        }
+        self.save.edited(now);
+    }
+
+    /// [`Slice`] のエディタの中身を書き戻した文書と、中身の先頭の byte 位置（補完・ハイライトの換算）。
+    pub fn slice_document(&self) -> Option<(Document, usize)> {
+        let slice = self.slice.as_ref()?;
+        let text = sections::splice_lines(
+            self.project.text(&slice.path),
+            &slice.lines,
+            &self.slice_buffer,
+        );
+        let starts = crate::core::features::project::line_starts_of(&text);
+        let start = starts.get(slice.lines.start).copied().unwrap_or(text.len());
+        Some((Document::new(slice.path.clone(), text), start))
+    }
+
+    /// 文書を 1 つ丸ごと置き換える（ワークスペースの操作: 節の挿入・アイデアの破棄など）。
+    /// 開いている [`Slice`] は先に書き戻し、同じ文書なら閉じる（開いた側が鍵から開き直す）。
+    pub fn replace_document(&mut self, path: &str, text: String, now: f64) -> bool {
+        self.commit();
+        if self
+            .project
+            .document(path)
+            .is_some_and(|found| found.text == text)
+        {
+            return false;
+        }
+        if self.slice.as_ref().is_some_and(|slice| slice.path == path) {
+            self.slice = None;
+            self.slice_buffer.clear();
+        }
+        let editing = self.editing.clone();
+        self.project.insert(Document::new(path.to_owned(), text));
+        self.unsaved.insert(path.to_owned());
+        self.changed(path);
+        if let Some(editing) = editing {
+            if editing.section.path == path {
+                match sections::position_of(&self.list, path, editing.section.id) {
+                    Some(index) => self.enter(index),
+                    None => {
+                        self.editing = None;
+                        self.buffer.clear();
+                    }
+                }
+            }
+        }
+        self.save.edited(now);
+        self.save.request_now();
+        true
+    }
+
+    fn commit_slice(&mut self) {
+        let Some(slice) = self.slice.as_mut() else {
+            return;
+        };
+        let text = self.project.text(&slice.path);
+        if sections::text_of_lines(text, &slice.lines) == self.slice_buffer {
+            return;
+        }
+        let updated = sections::splice_lines(text, &slice.lines, &self.slice_buffer);
+        let start = slice.lines.start;
+        slice.lines = start..start + sections::line_count(&self.slice_buffer);
+        let path = slice.path.clone();
+        self.project.insert(Document::new(path.clone(), updated));
+        self.unsaved.insert(path.clone());
+        self.changed(&path);
+    }
+
+    /// 文書 `path` が変わった後の並び・世代の更新（本文なら並びを作り直す）。
+    fn changed(&mut self, path: &str) {
+        if self.project.document(path).map(|found| found.format)
+            == Some(crate::core::model::document::DocumentFormat::Contents)
+        {
+            self.rebuild();
+        } else {
+            self.generation += 1;
+        }
     }
 
     /// 書くべきファイルと中身（書き戻してから）。書き終えたら [`Workbench::write_finished`]。
@@ -505,7 +707,12 @@ impl Workbench {
                 && self.project.document(path).zip(self.current()).is_some_and(
                     |(document, section)| sections::text_of(&document.text, section) != self.buffer,
                 );
-            if !still_dirty {
+            let slice_dirty = self.slice.as_ref().is_some_and(|slice| {
+                &slice.path == path
+                    && sections::text_of_lines(self.project.text(path), &slice.lines)
+                        != self.slice_buffer
+            });
+            if !still_dirty && !slice_dirty {
                 self.unsaved.remove(path);
             }
         }
@@ -538,6 +745,11 @@ impl Workbench {
             }
         }
         self.conflicts.remove(path);
+        // 開いている Slice は閉じる（開いた側が鍵から開き直す）
+        if self.slice.as_ref().is_some_and(|slice| slice.path == path) {
+            self.slice = None;
+            self.slice_buffer.clear();
+        }
         // 編集中のファイルなら、同じ節（無ければ近い節）を開き直す
         let editing = self.editing.clone();
         self.rebuild();
@@ -594,6 +806,7 @@ impl Workbench {
         let Some(section) = self.list.get(index).cloned() else {
             return;
         };
+        self.pending_header = None;
         self.buffer = self
             .project
             .document(&section.path)

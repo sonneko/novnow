@@ -215,7 +215,16 @@ web_pending = "Web 版のプロジェクト選択は準備中です（デスク�
 language_symbol = "あ"
 language = "言語を切り替える"
 theme = "テーマを切り替える"
-"workspace.write" = "本文執筆"
+# ワークスペースの名前（§10 の表。ヘッダのインジケータのツールチップとアクセシブル名）
+"workspace.write" = "本文"
+"workspace.plot-episode" = "話プロット"
+"workspace.plot-outline" = "構成"
+"workspace.idea" = "アイデア"
+"workspace.material" = "資料"
+"workspace.cast" = "配役"
+"workspace.reader" = "読者"
+"workspace.agent" = "エージェント"
+"workspace.review" = "点検"
 
 [editor]
 editing = "編集中"
@@ -232,6 +241,7 @@ personality = "性格"
 emotion = "感情"
 role = "役割"
 tone = "口調"
+prose = "本文"
 
 [jump]
 not_found = "その構造 ID の節はありません"
@@ -350,3 +360,19 @@ EscapeAt = "@ の前に \\ を入れる{0}"
 ReplaceKey = "キーを {0} にする"
 RemoveSection = "空の節を消す{0}"
 UseExplicitForm = "明示形にする: {0}"
+
+[workspace]
+# {0} = ワークスペースの名前
+unavailable = "{0} はこの版ではまだ使えません"
+
+[episode]
+# {0} = 文字数（3 桁区切り）
+prose_chars = "{0} 字"
+no_prose = "まだ書かれていません"
+# {0} = 本文の構造 ID
+prose_missing = "本文に @{0} はまだありません。近い節を開きました"
+# {0} = 章プロットのパス、{1} = 話の ID
+no_block = "章プロット {0} に @{1} のブロックはまだありません"
+# {0} = 話プロットのパス
+no_plot = "話プロット {0} はまだありません。Ctrl+Shift+N で最初の節を作ります"
+empty = "上の一覧から節を選ぶと、ここで編集できます"

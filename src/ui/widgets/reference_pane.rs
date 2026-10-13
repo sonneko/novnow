@@ -66,8 +66,29 @@ impl Cache {
 
 /// 参照ペインを描く。
 pub fn show(ui: &mut Ui, cache: &Cache, locale: Locale, mode: Mode, scale: f32) {
+    egui::ScrollArea::vertical()
+        .id_source("reference-pane")
+        .auto_shrink([false, false])
+        .show(ui, |ui| {
+            sections(ui, cache.content(), locale, mode, scale);
+        });
+}
+
+/// 参照ペインの見出し（11px・`fg.faint`、上に 12px の余白）。ワークスペースが足す行にも使う。
+pub fn heading(ui: &mut Ui, text: &str, mode: Mode, scale: f32) {
     let colors = theme::palette(mode);
-    let content = cache.content();
+    ui.add_space(12.0);
+    ui.label(
+        RichText::new(text)
+            .font(FontId::new(11.0 * scale, FontFamily::Proportional))
+            .color(colors.fg_faint),
+    );
+    ui.add_space(2.0);
+}
+
+/// 参照ペインの中身（スクロールの中に置く。M8 のワークスペースも同じ見た目で使う）。
+pub fn sections(ui: &mut Ui, content: &Reference, locale: Locale, mode: Mode, scale: f32) {
+    let colors = theme::palette(mode);
     let heading = |ui: &mut Ui, key: &str| {
         ui.add_space(12.0);
         ui.label(
@@ -109,10 +130,8 @@ pub fn show(ui: &mut Ui, cache: &Cache, locale: Locale, mode: Mode, scale: f32) 
         );
         ui.label(job);
     };
-    egui::ScrollArea::vertical()
-        .id_source("reference-pane")
-        .auto_shrink([false, false])
-        .show(ui, |ui| {
+    {
+        {
             // 表示順は固定（§9.5.2。`context_rules::PaneSection` の順）
             let order = [
                 PaneSection::Plot,
@@ -204,7 +223,8 @@ pub fn show(ui: &mut Ui, cache: &Cache, locale: Locale, mode: Mode, scale: f32) 
                     _ => {}
                 }
             }
-        });
+        }
+    }
 }
 
 fn first_line(text: &str) -> &str {

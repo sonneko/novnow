@@ -217,7 +217,16 @@ web_pending = "Choosing a project on the Web is not ready yet (please use the de
 language_symbol = "A"
 language = "Switch language"
 theme = "Switch theme"
-"workspace.write" = "Writing"
+# Workspace names (§10 table). Tooltips and accessible names of the header indicator
+"workspace.write" = "Write"
+"workspace.plot-episode" = "Episode"
+"workspace.plot-outline" = "Outline"
+"workspace.idea" = "Ideas"
+"workspace.material" = "Materials"
+"workspace.cast" = "Cast"
+"workspace.reader" = "Reader"
+"workspace.agent" = "Agents"
+"workspace.review" = "Review"
 
 [editor]
 editing = "Editing"
@@ -234,6 +243,7 @@ personality = "Personality"
 emotion = "Emotion"
 role = "Role"
 tone = "Tone"
+prose = "Prose"
 
 [jump]
 not_found = "No section has that structure ID"
@@ -352,3 +362,19 @@ EscapeAt = "Put \\ before @{0}"
 ReplaceKey = "Use the key {0}"
 RemoveSection = "Remove the empty section{0}"
 UseExplicitForm = "Use the explicit form: {0}"
+
+[workspace]
+# {0} = workspace name
+unavailable = "{0} is not available in this version yet"
+
+[episode]
+# {0} = character count (grouped)
+prose_chars = "{0} characters"
+no_prose = "Not written yet"
+# {0} = structure ID of the prose
+prose_missing = "The prose has no @{0} yet. Opened the nearest section"
+# {0} = chapter plot path, {1} = episode ID
+no_block = "The chapter plot {0} has no @{1} block yet"
+# {0} = episode plot path
+no_plot = "The episode plot {0} does not exist yet. Press Ctrl+Shift+N to create the first section"
+empty = "Choose a section in the list above to edit it here"

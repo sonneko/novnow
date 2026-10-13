@@ -294,6 +294,12 @@ pub fn effective_state(project: &Project, id: SceneId) -> State {
     States::new(project).of(id)
 }
 
+/// [`effective_state`] を節の列について（プロットは話・章ごとに 1 回だけ読む。M8 の節リスト・進捗ツリー）。
+pub fn effective_states(project: &Project, ids: &[SceneId]) -> Vec<State> {
+    let mut states = States::new(project);
+    ids.iter().map(|id| states.of(*id)).collect()
+}
+
 /// [`effective_state`] の表引き（プロットは話・章ごとに 1 回だけ読む）。
 struct States<'p> {
     project: &'p Project,

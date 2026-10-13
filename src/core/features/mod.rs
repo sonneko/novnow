@@ -18,6 +18,8 @@ pub mod hover;
 pub mod inlay_hint;
 /// LSP に対応しない補助（診断の「どこ」を作家の言葉で。§14.2.5・§10.9.2、第 2.11 版）。
 pub mod place;
+/// LSP に対応しない補助（プロットのワークスペースの行の並び・伏線。§10.2・§10.3、`PLANS.md` §9.2 B-127）。
+pub mod plots;
 pub mod project;
 /// LSP に対応しない補助（参照ペインの中身を集める。§9.5.2、`PLANS.md` §9.2 B-113）。
 pub mod reference;

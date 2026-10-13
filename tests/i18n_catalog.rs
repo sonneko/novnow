@@ -317,6 +317,8 @@ const GUI_PREFIXES: &[&str] = &[
     "register.",
     "diff.",
     "action.",
+    "workspace.",
+    "episode.",
 ];
 
 #[test]

@@ -101,10 +101,16 @@ fn header_title(line: &str) -> String {
 
 /// 節の本文（節の行を LF でつないだもの）。
 pub fn text_of(text: &str, section: &SectionRef) -> String {
-    let lines: Vec<&str> = text.split('\n').collect();
-    let end = section.lines.end.min(lines.len());
-    let start = section.lines.start.min(end);
-    lines[start..end].join("\n")
+    text_of_lines(text, &section.lines)
+}
+
+/// ファイルの行 `lines`（行 index の範囲）を LF でつないだもの（M8 のワークスペースが本文以外の
+/// 文書の一部を編集するときも同じ規則、`PLANS.md` §9.2 B-126）。
+pub fn text_of_lines(text: &str, lines: &Range<usize>) -> String {
+    let all: Vec<&str> = text.split('\n').collect();
+    let end = lines.end.min(all.len());
+    let start = lines.start.min(end);
+    all[start..end].join("\n")
 }
 
 /// 節の本文を `body` で置き換えたファイル全体。
@@ -112,16 +118,31 @@ pub fn text_of(text: &str, section: &SectionRef) -> String {
 /// 空の節（行が無い）に本文を書くと、その位置（次の `;` の直前）に行が入る。`body` が空なら
 /// 節の行を消す（節は空になるが、区切りは残るので節の数は変わらない）。
 pub fn splice(text: &str, section: &SectionRef, body: &str) -> String {
-    let mut lines: Vec<&str> = text.split('\n').collect();
-    let end = section.lines.end.min(lines.len());
-    let start = section.lines.start.min(end);
+    splice_lines(text, &section.lines, body)
+}
+
+/// ファイルの行 `lines` を `body` で置き換えたファイル全体（[`splice`] の行範囲版）。
+/// `body` の行数が [`line_count`]。
+pub fn splice_lines(text: &str, lines: &Range<usize>, body: &str) -> String {
+    let mut all: Vec<&str> = text.split('\n').collect();
+    let end = lines.end.min(all.len());
+    let start = lines.start.min(end);
     let replacement: Vec<&str> = if body.is_empty() {
         Vec::new()
     } else {
         body.split('\n').collect()
     };
-    lines.splice(start..end, replacement);
-    lines.join("\n")
+    all.splice(start..end, replacement);
+    all.join("\n")
+}
+
+/// [`splice_lines`] で `body` が占める行数（空なら 0）。
+pub fn line_count(body: &str) -> usize {
+    if body.is_empty() {
+        0
+    } else {
+        body.split('\n').count()
+    }
 }
 
 /// 節の直後に空の節を作ったファイル全体と、新しい節の行 index（§9.4.1 の `Ctrl+;`・`Ctrl+Enter`）。
@@ -255,6 +276,19 @@ pub fn jump(list: &[SectionRef], query: &str) -> Option<usize> {
             item.id.section,
         ];
         parts.iter().zip(id.iter()).all(|(want, have)| want == have)
+    })
+}
+
+/// SceneId ジャンプの入力（§9.7.2）を構造 ID にする（書かれていない階層は 0）。M8 のワークスペースの
+/// `Ctrl+G` に使う。
+pub fn query_id(query: &str) -> Option<SceneId> {
+    let parts = parse_query(query)?;
+    let at = |index: usize| parts.get(index).copied().unwrap_or(0);
+    Some(SceneId {
+        chapter: at(0),
+        episode: at(1),
+        scene: at(2),
+        section: at(3),
     })
 }
 

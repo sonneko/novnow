@@ -23,8 +23,9 @@ use crate::ui::save_machine::{Indicator, State};
 use crate::ui::settings::{LanguageChoice, PaneSide, ThemeChoice, UiSettings};
 use crate::ui::shell::{self, Command, ImeState};
 use crate::ui::theme::{self, Mode};
-use crate::ui::widgets::{context_view, reference_pane, section_editor};
+use crate::ui::widgets::{context_view, reference_pane, section_editor, slice_editor};
 use crate::ui::workbench::Workbench;
+use crate::ui::workspaces::{self, Workspace};
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use native::run;
@@ -152,6 +153,8 @@ pub struct Session {
     conflict_texts: std::collections::BTreeMap<String, Option<String>>,
     /// エクスポートの下書き（文書の世代・範囲・状態が同じあいだは作り直さない）。
     export_cache: Option<ExportDraft>,
+    /// ワークスペースごとの状態（§10.0。切替で破棄しない）。
+    spaces: workspaces::Spaces,
 }
 
 /// エクスポートの下書き（`>export` のモーダルが毎フレーム作り直さないため）。
@@ -192,6 +195,7 @@ impl Session {
             search_cache: None,
             conflict_texts: std::collections::BTreeMap::new(),
             export_cache: None,
+            spaces: workspaces::Spaces::default(),
         }
     }
 
@@ -345,6 +349,22 @@ impl NovnowApp {
         }
     }
 
+    /// 今のワークスペース（プロジェクトを開いていなければ `None`）。
+    pub fn workspace(&self) -> Option<Workspace> {
+        match &self.stage {
+            Stage::Open(session) => Some(session.spaces.switcher.current()),
+            Stage::Picker => None,
+        }
+    }
+
+    /// ワークスペースごとの状態（テスト用の読み口）。
+    pub fn spaces(&self) -> Option<&workspaces::Spaces> {
+        match &self.stage {
+            Stage::Open(session) => Some(&session.spaces),
+            Stage::Picker => None,
+        }
+    }
+
     /// 何か重ねて出しているか（パレット・ヘルプ・モーダル）。
     pub fn overlay_open(&self) -> bool {
         self.overlay != Overlay::None
@@ -382,8 +402,10 @@ impl NovnowApp {
         let locale = self.locale();
         // §9.8.5 (3): IME → 変換中なら Key を捨てる → ショートカット
         let text_focused = ctx.wants_keyboard_input();
-        let commands = ctx
-            .input_mut(|input| shell::take_commands(input, &mut self.ime, self.mac, text_focused));
+        let workspace = self.workspace().unwrap_or_default();
+        let commands = ctx.input_mut(|input| {
+            shell::take_commands_in(input, &mut self.ime, self.mac, text_focused, workspace)
+        });
         let focus_lost = ctx.input(|input| {
             input
                 .events
@@ -477,9 +499,11 @@ impl NovnowApp {
                 }
                 self.focus = Pane::Editor;
                 if let Stage::Open(session) = &self.stage {
-                    ctx.memory_mut(|memory| {
-                        memory.request_focus(section_editor::editor_id(&session.bench))
-                    });
+                    let id = match session.spaces.switcher.current() {
+                        Workspace::Write => section_editor::editor_id(&session.bench),
+                        _ => slice_editor::editor_id(&session.bench),
+                    };
+                    ctx.memory_mut(|memory| memory.request_focus(id));
                 }
             }
             Command::Open => {
@@ -509,6 +533,9 @@ impl NovnowApp {
                 }
             }
             _ => {}
+        }
+        if self.run_workspace(ctx, command, now) {
+            return;
         }
         let Stage::Open(session) = &mut self.stage else {
             return;
@@ -738,6 +765,195 @@ impl NovnowApp {
         }
     }
 
+    // ============================================================ ワークスペース（§10）
+
+    /// ワークスペースの切替と、ワークスペースごとに意味が変わるキー。受け持ったら `true`
+    /// （`run` の残り = write の処理には進まない）。
+    fn run_workspace(&mut self, ctx: &Context, command: Command, now: f64) -> bool {
+        let locale = self.locale();
+        let Stage::Open(session) = &mut self.stage else {
+            return false;
+        };
+        let current = session.spaces.switcher.current();
+        match command {
+            Command::Workspace(number) => {
+                if let Some(target) = Workspace::of_number(number) {
+                    self.switch_to(ctx, target, now);
+                }
+                return true;
+            }
+            Command::PreviousWorkspace => {
+                if let Some(previous) = session.spaces.switcher.previous() {
+                    self.switch_to(ctx, previous, now);
+                }
+                return true;
+            }
+            Command::Up => {
+                if current == Workspace::Write {
+                    // §10.1: 同じ節の話プロットへ（初めてでなくても今の節に着地する）
+                    if let Some(id) = session.bench.current_id() {
+                        session.bench.commit();
+                        session.spaces.episode.land(&session.bench, id);
+                        session.spaces.switcher.mark_visited(Workspace::PlotEpisode);
+                    }
+                    self.switch_to(ctx, Workspace::PlotEpisode, now);
+                }
+                return true;
+            }
+            _ => {}
+        }
+        if current == Workspace::Write {
+            return false;
+        }
+        let bench = &mut session.bench;
+        let spaces = &mut session.spaces;
+        match (current, command) {
+            (Workspace::PlotEpisode, Command::Nav(nav)) => {
+                spaces.episode.nav(bench, nav);
+            }
+            (Workspace::PlotEpisode, Command::ConfirmNext) => {
+                if let Some(row) = spaces.episode.current_row(bench) {
+                    self.go_write(ctx, row.id, now);
+                }
+            }
+            (Workspace::PlotEpisode, Command::InsertSection) => {
+                let scene = bench.current_id().unwrap_or_default();
+                spaces.episode.insert(bench, scene, now);
+            }
+            (_, Command::Jump | Command::Palette | Command::SaveNow | Command::Reload) => {
+                return false
+            }
+            (_, Command::Export | Command::Search | Command::Help | Command::Escape) => {
+                return false
+            }
+            (_, Command::ToggleReference | Command::SwapReference | Command::MainRatio(_)) => {
+                return false
+            }
+            (_, Command::FocusReference | Command::Diff | Command::Open) => return false,
+            _ => {
+                // write の節エディタに向けたキー（検索・補完・節の削除など）はここでは何もしない
+                let _ = locale;
+            }
+        }
+        true
+    }
+
+    /// ワークスペースを切り替える（§10.0）。切替は保存のきっかけ（§8.2）。確認は出さない。
+    fn switch_to(&mut self, ctx: &Context, target: Workspace, now: f64) -> bool {
+        let locale = self.locale();
+        let Stage::Open(session) = &mut self.stage else {
+            return false;
+        };
+        if !target.available() {
+            let name = i18n::text(locale, target.label_key()).to_owned();
+            session.notice = Some((i18n::format(locale, "workspace.unavailable", &[&name]), now));
+            return false;
+        }
+        // 開いている文書の一部を書き戻して閉じ、すぐに保存する
+        session.bench.close_slice();
+        session.bench.commit();
+        session.bench.save.request_now();
+        if !session.spaces.switcher.switch(target) {
+            return false;
+        }
+        if session.spaces.switcher.first_visit(target) {
+            // 初めて開くワークスペースは今の節の対応物に着地する（SceneId の維持、§10 MUST）
+            let id = session.bench.current_id();
+            if let (Workspace::PlotEpisode, Some(id)) = (target, id) {
+                session.spaces.episode.land(&session.bench, id);
+            }
+            session.spaces.switcher.mark_visited(target);
+        }
+        // キャレットの下に出すもの（補完・クイックフィックス・情報）は閉じる
+        if matches!(
+            self.overlay,
+            Overlay::Completion { .. }
+                | Overlay::QuickFix { .. }
+                | Overlay::Info { .. }
+                | Overlay::Find { .. }
+        ) {
+            self.overlay = Overlay::None;
+        }
+        self.focus = Pane::Editor;
+        let _ = ctx;
+        true
+    }
+
+    /// write の節 `id` へ降りる（`plot-episode` の `Ctrl+Enter`、§10.0 の着地点、B-128）。
+    ///
+    /// - 本文にその節があればそこへ。場面の行なら場面の最初の節へ。
+    /// - 本文のファイルはあるが節が無ければ、近い節へ（空の節は作らない）。
+    /// - 本文のファイルが無ければ、場面見出しだけの新しい節として開く（書き始めるまで作らない）。
+    fn go_write(&mut self, ctx: &Context, id: crate::core::id::SceneId, now: f64) {
+        let locale = self.locale();
+        let Stage::Open(session) = &mut self.stage else {
+            return;
+        };
+        session.bench.close_slice();
+        let digits = session.bench.project().digits();
+        let path = session
+            .bench
+            .project()
+            .contents_path(id.chapter, id.episode);
+        let query = if id.section == 0 {
+            crate::core::id::SceneId { section: 0, ..id }
+                .display(digits)
+                .split('-')
+                .take(3)
+                .collect::<Vec<_>>()
+                .join("-")
+        } else {
+            id.display(digits)
+        };
+        let exact = session.bench.sections().iter().position(|section| {
+            section.path == path
+                && section.id.scene == id.scene
+                && (id.section == 0 || section.id.section == id.section)
+        });
+        if let Some(index) = exact {
+            session.bench.go_to(index);
+        } else if session.bench.project().document(&path).is_some() {
+            if let Some(index) =
+                crate::core::features::sections::position_of(session.bench.sections(), &path, id)
+            {
+                session.bench.go_to(index);
+            }
+            session.notice = Some((
+                i18n::format(locale, "episode.prose_missing", &[&query]),
+                now,
+            ));
+        } else {
+            let scene = crate::core::id::SceneId { section: 0, ..id };
+            let title = session
+                .spaces
+                .episode
+                .rows(&session.bench)
+                .iter()
+                .find(|row| row.id == scene)
+                .map(|row| row.summary.clone())
+                .unwrap_or_default();
+            let shown: Vec<String> = scene
+                .display(digits)
+                .split('-')
+                .take(3)
+                .map(str::to_owned)
+                .collect();
+            let header = if title.is_empty() {
+                format!("@{}", shown.join("-"))
+            } else {
+                format!("@{} {title}", shown.join("-"))
+            };
+            session.bench.start_file(&path, id, &header);
+        }
+        session.settings_dirty = true;
+        session.bench.save.request_now();
+        self.switch_to(ctx, Workspace::Write, now);
+        if let Stage::Open(session) = &self.stage {
+            let editor = section_editor::editor_id(&session.bench);
+            ctx.memory_mut(|memory| memory.request_focus(editor));
+        }
+    }
+
     // ============================================================ 執筆画面（§9.1）
 
     fn workbench_frame(
@@ -759,6 +975,12 @@ impl NovnowApp {
             session.bench.save.request_now();
         }
         // ① ヘッダ（28px・ラベル無し）
+        let mut switch_to = None;
+        let crumb = match session.spaces.switcher.current() {
+            Workspace::Write => session.bench.breadcrumb(),
+            Workspace::PlotEpisode => session.spaces.episode.breadcrumb(&session.bench),
+            _ => None,
+        };
         egui::TopBottomPanel::top("header")
             .exact_height(28.0)
             .frame(
@@ -768,21 +990,11 @@ impl NovnowApp {
             )
             .show(ctx, |ui| {
                 ui.horizontal_centered(|ui| {
-                    // ワークスペースインジケータ（M7 は write のみ。鉛筆の図形）
-                    let (rect, response) =
-                        ui.allocate_exact_size(Vec2::splat(16.0), Sense::hover());
-                    response.widget_info(|| {
-                        egui::WidgetInfo::labeled(
-                            egui::WidgetType::Label,
-                            i18n::text(locale, "header.workspace.write"),
-                        )
-                    });
-                    let painter = ui.painter_at(rect.expand(2.0));
-                    let center = rect.center();
-                    painter.line_segment(
-                        [center + Vec2::new(-5.0, 5.0), center + Vec2::new(5.0, -5.0)],
-                        Stroke::new(1.5_f32, colors.accent),
-                    );
+                    // ワークスペースインジケータ（§9.2.1。図形だけ、今のものを accent）
+                    let current = session.spaces.switcher.current();
+                    if let Some(target) = workspaces::indicator(ui, mode, locale, current) {
+                        switch_to = Some(target);
+                    }
                     ui.add_space(8.0);
                     ui.label(
                         RichText::new(session.host.name())
@@ -790,7 +1002,7 @@ impl NovnowApp {
                             .color(colors.fg_faint),
                     );
                     ui.add_space(8.0);
-                    if let Some(crumb) = session.bench.breadcrumb() {
+                    if let Some(crumb) = crumb {
                         ui.label(
                             RichText::new(crumb)
                                 .font(FontId::new(12.0 * scale, FontFamily::Monospace))
@@ -830,6 +1042,12 @@ impl NovnowApp {
                     });
                 });
             });
+        if let Some(target) = switch_to {
+            self.switch_to(ctx, target, now);
+        }
+        let Stage::Open(session) = &mut self.stage else {
+            return;
+        };
         // ④ ステータスバー（22px）
         let indicator = session.bench.save.indicator(now);
         let mut open_error = false;
@@ -850,6 +1068,38 @@ impl NovnowApp {
         let width = ctx.screen_rect().width();
         let show_reference =
             self.settings.reference_visible && (width >= 900.0 || self.focus == Pane::Reference);
+        let workspace = session.spaces.switcher.current();
+        if workspace != Workspace::Write {
+            let reference_width = (width * (1.0 - self.settings.main_ratio)).clamp(320.0, 560.0);
+            let view = workspaces::View {
+                mode,
+                locale,
+                scale,
+                now,
+                reference: show_reference
+                    .then_some((self.settings.reference_pane_side, reference_width)),
+            };
+            let request = match workspace {
+                Workspace::PlotEpisode => workspaces::plot_episode::show(
+                    ctx,
+                    &mut session.spaces.episode,
+                    &mut session.bench,
+                    &view,
+                ),
+                _ => None,
+            };
+            match request {
+                Some(workspaces::Request::Down) => self.run(ctx, Command::ConfirmNext, now),
+                Some(workspaces::Request::Notice(message)) => {
+                    if let Stage::Open(session) = &mut self.stage {
+                        session.notice = Some((message, now));
+                    }
+                }
+                None => {}
+            }
+            self.common_tail(ctx, locale, now);
+            return;
+        }
         // 参照ペインの中身は畳んでいても更新する（ミニヘッダーの有効モードにも使う）
         if let Some(next) = session.reference_cache.update(&session.bench, now) {
             ctx.request_repaint_after(std::time::Duration::from_secs_f64((next - now).max(0.0)));
@@ -1023,6 +1273,15 @@ impl NovnowApp {
                 });
             }
         }
+        self.common_tail(ctx, locale, now);
+    }
+
+    /// どのワークスペースでも毎フレーム行うこと: 保存・外部変更の監視・重ねるもの。
+    fn common_tail(&mut self, ctx: &Context, locale: Locale, now: f64) {
+        let mode = self.applied.map_or(Mode::Dark, |(mode, _)| mode);
+        let Stage::Open(session) = &mut self.stage else {
+            return;
+        };
         // 保存（§8.2）
         save_if_due(session, &mut self.settings, now);
         if let Some(at) = session.bench.save.next_wakeup(now) {
@@ -1055,6 +1314,8 @@ impl NovnowApp {
             return;
         };
         let mut close = false;
+        let mut to_write = false;
+        let workspace = session.spaces.switcher.current();
         match &mut self.overlay {
             Overlay::None => {}
             Overlay::Palette { input, selected } => {
@@ -1106,6 +1367,7 @@ impl NovnowApp {
                             PaletteAction::Section(at) => {
                                 session.bench.go_to(*at);
                                 session.settings_dirty = true;
+                                to_write = workspace != Workspace::Write;
                             }
                             PaletteAction::Command(command) => {
                                 let command = *command;
@@ -1134,11 +1396,27 @@ impl NovnowApp {
                     }
                 });
                 if enter {
-                    if session.bench.jump(input) {
-                        session.settings_dirty = true;
-                        close = true;
-                    } else {
-                        *missed = true;
+                    match workspace {
+                        // plot-episode: その話の節（無ければ場面・話の先頭）に着地する
+                        Workspace::PlotEpisode => {
+                            match crate::core::features::sections::query_id(input) {
+                                Some(id) if id.chapter > 0 && id.episode > 0 => {
+                                    session.bench.commit();
+                                    session.spaces.episode.land(&session.bench, id);
+                                    close = true;
+                                }
+                                _ => *missed = true,
+                            }
+                        }
+                        _ => {
+                            if session.bench.jump(input) {
+                                session.settings_dirty = true;
+                                close = true;
+                                to_write = workspace != Workspace::Write;
+                            } else {
+                                *missed = true;
+                            }
+                        }
                     }
                 }
             }
@@ -1600,9 +1878,18 @@ impl NovnowApp {
         }
         if close {
             self.overlay = Overlay::None;
-            ctx.memory_mut(|memory| {
-                memory.request_focus(section_editor::editor_id(&session.bench))
-            });
+            let id = match workspace {
+                Workspace::Write => section_editor::editor_id(&session.bench),
+                _ => slice_editor::editor_id(&session.bench),
+            };
+            ctx.memory_mut(|memory| memory.request_focus(id));
+        }
+        if to_write {
+            self.switch_to(ctx, Workspace::Write, now);
+            if let Stage::Open(session) = &self.stage {
+                let id = section_editor::editor_id(&session.bench);
+                ctx.memory_mut(|memory| memory.request_focus(id));
+            }
         }
     }
 
