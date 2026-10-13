@@ -233,3 +233,46 @@ fn foreshadows_pair_seeds_and_payoffs_and_list_the_open_ones_first() {
     assert_eq!(f01.payoffs[0].block, Some(id(2, 1, 1, 0)));
     assert!(found[2].seeds.is_empty(), "設置の無い回収");
 }
+
+#[test]
+fn short_ids_stop_at_the_first_zero_level() {
+    let digits = digits();
+    assert_eq!(plots::short_id(id(1, 0, 0, 0), digits), "01");
+    assert_eq!(plots::short_id(id(1, 4, 0, 0), digits), "01-04");
+    assert_eq!(plots::short_id(id(1, 4, 2, 0), digits), "01-04-02");
+    assert_eq!(plots::short_id(id(1, 4, 2, 3), digits), "01-04-02-03");
+}
+
+#[test]
+fn inserting_a_block_uses_the_next_number_and_closes_it() {
+    let project = novel::novel();
+    let all = plots::outline_blocks(&project, None);
+    assert_eq!(plots::next_block_id(&all, None), id(3, 0, 0, 0));
+    let chapter = plots::outline_blocks(&project, Some(1));
+    assert_eq!(plots::next_block_id(&chapter, Some(1)), id(1, 3, 0, 0));
+    assert_eq!(plots::next_block_id(&[], Some(4)), id(4, 1, 0, 0));
+    // 選んだブロックの後ろ（`;` の次）に、空行を挟んで入れる
+    let text = project.text("plots/all.txt");
+    let (updated, at) = plots::insert_block(text, &all, Some(0), id(3, 0, 0, 0), digits());
+    let lines: Vec<&str> = updated.split('\n').collect();
+    assert_eq!(lines[at], "@03");
+    assert_eq!(lines[at + 1], ";");
+    let project = novel::novel_with("plots/all.txt", &updated);
+    let ids: Vec<SceneId> = plots::outline_blocks(&project, None)
+        .iter()
+        .map(|block| block.id)
+        .collect();
+    assert_eq!(
+        ids,
+        vec![id(1, 0, 0, 0), id(3, 0, 0, 0), id(2, 0, 0, 0)],
+        "選んだブロックの直後"
+    );
+    // 文書が無ければ作る
+    let (created, at) = plots::insert_block("", &[], None, id(2, 1, 0, 0), digits());
+    assert_eq!(created, "@02-01\n;\n");
+    assert_eq!(at, 0);
+    // 末尾に足す
+    let (appended, at) = plots::insert_block("@02-01\n;\n", &[], None, id(2, 2, 0, 0), digits());
+    assert_eq!(appended, "@02-01\n;\n\n@02-02\n;\n");
+    assert_eq!(at, 3);
+}

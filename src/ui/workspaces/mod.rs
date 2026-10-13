@@ -182,6 +182,8 @@ pub struct Spaces {
     pub switcher: Switcher,
     /// `plot-episode`。
     pub episode: plot_episode::State,
+    /// `plot-outline`。
+    pub outline: plot_outline::State,
 }
 
 /// 描画に要る画面の設定（`NovnowApp` から渡す）。
@@ -318,6 +320,15 @@ pub fn list_row(ui: &mut Ui, mode: Mode, scale: f32, row: Row<'_>) -> egui::Resp
     response
 }
 
+/// 段の区切り（1px の `border`、上下 4px の余白）。
+pub fn separator(ui: &mut Ui, mode: Mode) {
+    let colors = theme::palette(mode);
+    ui.add_space(4.0);
+    let (rect, _) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 1.0), Sense::hover());
+    ui.painter().rect_filled(rect, 0.0, colors.border);
+    ui.add_space(4.0);
+}
+
 /// 中身が無いときの案内（`fg.muted`・13px。§9.2.1 の 3「ヘルプの文言」）。
 pub fn hint(ui: &mut Ui, mode: Mode, scale: f32, text: &str) {
     let colors = theme::palette(mode);
@@ -378,12 +389,14 @@ pub fn glyph(painter: &Painter, rect: Rect, workspace: Workspace, color: Color32
                 painter.line_segment([at(-2.0, y), at(6.0, y)], stroke);
             }
         }
-        // 木（全体 → 章 → 話）
+        // 木（全体 → 章 → 話）: 親の節点から 2 つの子へ枝分かれする
         Workspace::PlotOutline => {
-            painter.line_segment([at(-5.0, -5.0), at(-5.0, 5.0)], stroke);
-            painter.line_segment([at(-5.0, -5.0), at(5.0, -5.0)], stroke);
-            painter.line_segment([at(-5.0, 0.0), at(5.0, 0.0)], stroke);
-            painter.line_segment([at(-5.0, 5.0), at(5.0, 5.0)], stroke);
+            painter.circle_filled(at(-4.0, -5.0), 1.8, color);
+            painter.line_segment([at(-4.0, -4.0), at(-4.0, 5.0)], stroke);
+            painter.line_segment([at(-4.0, 0.0), at(0.5, 0.0)], stroke);
+            painter.line_segment([at(-4.0, 5.0), at(0.5, 5.0)], stroke);
+            painter.circle_filled(at(3.0, 0.0), 1.8, color);
+            painter.circle_filled(at(3.0, 5.0), 1.8, color);
         }
         // 電球
         Workspace::Idea => {

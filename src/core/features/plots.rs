@@ -225,6 +225,8 @@ pub struct OutlineBlock {
     pub path: String,
     /// 見出しからの行（`;` と末尾の空行を含まない）。エディタで編集する範囲。
     pub lines: Range<usize>,
+    /// ブロックの終わり（`;` があればその次の行、無ければ次の見出しの行）。
+    pub end: usize,
     /// 見出しのタイトル。
     pub title: String,
     /// `summary:` の 1 行目。
@@ -266,6 +268,7 @@ pub fn outline_blocks(project: &Project, chapter: Option<u16>) -> Vec<OutlineBlo
                 id,
                 path: path.clone(),
                 lines: block.header..end,
+                end: block.span.end,
                 title: outline
                     .header(block.header)
                     .map(|header| header.title.trim().to_owned())
@@ -275,6 +278,102 @@ pub fn outline_blocks(project: &Project, chapter: Option<u16>) -> Vec<OutlineBlo
             })
         })
         .collect()
+}
+
+/// 全体 / 章プロットに新しいブロックを足したファイル全体と、新しい見出しの行（`plot-outline` の
+/// `Ctrl+Shift+N`、B-129）。
+///
+/// 見出しは `id`（全体なら `@03`、章なら `@01-05`）だけで、すぐ `;` で閉じる。`after` のブロックの
+/// 後ろ（無ければファイルの末尾）に、空行を 1 行挟んで入れる。
+pub fn insert_block(
+    text: &str,
+    blocks: &[OutlineBlock],
+    after: Option<usize>,
+    id: SceneId,
+    digits: Digits,
+) -> (String, usize) {
+    let mut lines: Vec<String> = text.split('\n').map(str::to_owned).collect();
+    let header = format!("@{}", short_id(id, digits));
+    let at = match after.and_then(|index| blocks.get(index)) {
+        Some(block) => block.end.min(lines.len()),
+        None => {
+            // 改行で終わる（または空の）ファイルの最後の空の「行」の位置
+            if lines.last().is_some_and(|line| line.is_empty()) {
+                lines.len() - 1
+            } else {
+                lines.len()
+            }
+        }
+    };
+    let needs_gap = at > 0
+        && lines
+            .get(at - 1)
+            .is_some_and(|line| !line.trim().is_empty());
+    let mut inserted = Vec::new();
+    if needs_gap {
+        inserted.push(String::new());
+    }
+    let header_at = at + inserted.len();
+    inserted.push(header);
+    inserted.push(";".to_owned());
+    let followed = lines.get(at).is_some_and(|line| !line.trim().is_empty());
+    if followed {
+        inserted.push(String::new());
+    }
+    lines.splice(at..at, inserted);
+    let mut out = lines.join("\n");
+    if !out.ends_with('\n') {
+        out.push('\n');
+    }
+    (out, header_at)
+}
+
+/// 次に足すブロックの ID（全体なら最大の章 + 1、章なら章の中の最大の話 + 1）。
+pub fn next_block_id(blocks: &[OutlineBlock], chapter: Option<u16>) -> SceneId {
+    match chapter {
+        None => SceneId {
+            chapter: blocks
+                .iter()
+                .map(|block| block.id.chapter)
+                .max()
+                .unwrap_or(0)
+                + 1,
+            episode: 0,
+            scene: 0,
+            section: 0,
+        },
+        Some(number) => SceneId {
+            chapter: number,
+            episode: blocks
+                .iter()
+                .filter(|block| block.id.chapter == number)
+                .map(|block| block.id.episode)
+                .max()
+                .unwrap_or(0)
+                + 1,
+            scene: 0,
+            section: 0,
+        },
+    }
+}
+
+/// 階層の深さだけの ID（`01`・`01-04`・`01-04-02`・`01-04-02-03`）。0 の階層から下は書かない。
+pub fn short_id(id: SceneId, digits: Digits) -> String {
+    let depth = if id.episode == 0 {
+        1
+    } else if id.scene == 0 {
+        2
+    } else if id.section == 0 {
+        3
+    } else {
+        4
+    };
+    let full = SceneId {
+        section: if depth == 4 { id.section } else { 0 },
+        ..id
+    }
+    .display(digits);
+    full.split('-').take(depth).collect::<Vec<_>>().join("-")
 }
 
 /// 章プロットの中の話 `chapter`-`episode` のブロック（§10.2 の上段）。

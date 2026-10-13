@@ -378,3 +378,18 @@ no_block = "The chapter plot {0} has no @{1} block yet"
 # {0} = episode plot path
 no_plot = "The episode plot {0} does not exist yet. Press Ctrl+Shift+N to create the first section"
 empty = "Choose a section in the list above to edit it here"
+
+[outline]
+all = "All"
+empty = "Choose a block in the list above to edit it here"
+no_parent = "The overall plot plots/all.txt has no block for this chapter yet"
+# {0} = document path
+no_blocks = "{0} has no blocks yet. Press Ctrl+Shift+N to create one"
+foreshadow = "Foreshadowing"
+no_foreshadow = "No seed: / payoff: yet"
+open = "open"
+doubled = "paid off twice"
+no_seed = "no seed"
+closed = "paid off"
+seed = "seed"
+payoff = "payoff"

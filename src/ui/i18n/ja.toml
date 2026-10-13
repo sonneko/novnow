@@ -376,3 +376,18 @@ no_block = "章プロット {0} に @{1} のブロックはまだありません
 # {0} = 話プロットのパス
 no_plot = "話プロット {0} はまだありません。Ctrl+Shift+N で最初の節を作ります"
 empty = "上の一覧から節を選ぶと、ここで編集できます"
+
+[outline]
+all = "全体"
+empty = "一覧からブロックを選ぶと、ここで編集できます"
+no_parent = "全体プロット plots/all.txt にこの章のブロックはまだありません"
+# {0} = 文書のパス
+no_blocks = "{0} にブロックはまだありません。Ctrl+Shift+N で作ります"
+foreshadow = "伏線"
+no_foreshadow = "seed: / payoff: はまだありません"
+open = "未回収"
+doubled = "二重回収"
+no_seed = "設置なし"
+closed = "回収済み"
+seed = "設置"
+payoff = "回収"

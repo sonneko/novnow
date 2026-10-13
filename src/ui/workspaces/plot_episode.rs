@@ -388,7 +388,7 @@ pub fn show(
                 ui.set_min_height(top);
                 upper(ui, state, bench, view);
             });
-            separator(ui, view);
+            super::separator(ui, view.mode);
             // 中段: 節リスト
             let middle = (total * 0.34).max(80.0);
             ui.allocate_ui(Vec2::new(ui.available_width(), middle), |ui| {
@@ -397,7 +397,7 @@ pub fn show(
                     request = Some(found);
                 }
             });
-            separator(ui, view);
+            super::separator(ui, view.mode);
             // 下段: エディタ
             if bench.slice().is_some() {
                 if state.reveal {
@@ -414,15 +414,6 @@ pub fn show(
             state.reveal = false;
         });
     request
-}
-
-fn separator(ui: &mut Ui, view: &View) {
-    let colors = theme::palette(view.mode);
-    ui.add_space(4.0);
-    let (rect, _) =
-        ui.allocate_exact_size(Vec2::new(ui.available_width(), 1.0), egui::Sense::hover());
-    ui.painter().rect_filled(rect, 0.0, colors.border);
-    ui.add_space(4.0);
 }
 
 /// 上段: 章プロットの該当話ブロック。

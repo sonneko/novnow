@@ -789,14 +789,32 @@ impl NovnowApp {
                 return true;
             }
             Command::Up => {
-                if current == Workspace::Write {
-                    // §10.1: 同じ節の話プロットへ（初めてでなくても今の節に着地する）
-                    if let Some(id) = session.bench.current_id() {
-                        session.bench.commit();
-                        session.spaces.episode.land(&session.bench, id);
-                        session.spaces.switcher.mark_visited(Workspace::PlotEpisode);
+                match current {
+                    Workspace::Write => {
+                        // §10.1: 同じ節の話プロットへ（初めてでなくても今の節に着地する）
+                        if let Some(id) = session.bench.current_id() {
+                            session.bench.commit();
+                            session.spaces.episode.land(&session.bench, id);
+                            session.spaces.switcher.mark_visited(Workspace::PlotEpisode);
+                        }
+                        self.switch_to(ctx, Workspace::PlotEpisode, now);
                     }
-                    self.switch_to(ctx, Workspace::PlotEpisode, now);
+                    Workspace::PlotEpisode => {
+                        // 話 → 章プロットのその話のブロック
+                        if let Some((chapter, episode)) = session.spaces.episode.episode() {
+                            session.bench.commit();
+                            session
+                                .spaces
+                                .outline
+                                .land_chapter(&session.bench, chapter, episode);
+                            session.spaces.switcher.mark_visited(Workspace::PlotOutline);
+                        }
+                        self.switch_to(ctx, Workspace::PlotOutline, now);
+                    }
+                    Workspace::PlotOutline => {
+                        session.spaces.outline.up(&mut session.bench);
+                    }
+                    _ => {}
                 }
                 return true;
             }
@@ -819,6 +837,21 @@ impl NovnowApp {
             (Workspace::PlotEpisode, Command::InsertSection) => {
                 let scene = bench.current_id().unwrap_or_default();
                 spaces.episode.insert(bench, scene, now);
+            }
+            (Workspace::PlotOutline, Command::Nav(nav)) => {
+                spaces.outline.nav(bench, nav);
+            }
+            (Workspace::PlotOutline, Command::InsertSection) => {
+                spaces.outline.insert(bench, now);
+            }
+            (Workspace::PlotOutline, Command::ConfirmNext) => {
+                if let Some(workspaces::plot_outline::Down::Episode(chapter, episode)) =
+                    spaces.outline.down(bench)
+                {
+                    spaces.episode.land_episode(bench, chapter, episode);
+                    spaces.switcher.mark_visited(Workspace::PlotEpisode);
+                    self.switch_to(ctx, Workspace::PlotEpisode, now);
+                }
             }
             (_, Command::Jump | Command::Palette | Command::SaveNow | Command::Reload) => {
                 return false
@@ -859,8 +892,20 @@ impl NovnowApp {
         if session.spaces.switcher.first_visit(target) {
             // 初めて開くワークスペースは今の節の対応物に着地する（SceneId の維持、§10 MUST）
             let id = session.bench.current_id();
-            if let (Workspace::PlotEpisode, Some(id)) = (target, id) {
-                session.spaces.episode.land(&session.bench, id);
+            match (target, id) {
+                (Workspace::PlotEpisode, Some(id)) => {
+                    session.spaces.episode.land(&session.bench, id);
+                }
+                (Workspace::PlotOutline, Some(id)) => {
+                    session
+                        .spaces
+                        .outline
+                        .land_chapter(&session.bench, id.chapter, id.episode);
+                }
+                (Workspace::PlotOutline, None) => {
+                    session.spaces.outline.land_all(&session.bench, 0);
+                }
+                _ => {}
             }
             session.spaces.switcher.mark_visited(target);
         }
@@ -979,6 +1024,10 @@ impl NovnowApp {
         let crumb = match session.spaces.switcher.current() {
             Workspace::Write => session.bench.breadcrumb(),
             Workspace::PlotEpisode => session.spaces.episode.breadcrumb(&session.bench),
+            Workspace::PlotOutline => session
+                .spaces
+                .outline
+                .breadcrumb(&session.bench, i18n::text(locale, "outline.all")),
             _ => None,
         };
         egui::TopBottomPanel::top("header")
@@ -1083,6 +1132,12 @@ impl NovnowApp {
                 Workspace::PlotEpisode => workspaces::plot_episode::show(
                     ctx,
                     &mut session.spaces.episode,
+                    &mut session.bench,
+                    &view,
+                ),
+                Workspace::PlotOutline => workspaces::plot_outline::show(
+                    ctx,
+                    &mut session.spaces.outline,
                     &mut session.bench,
                     &view,
                 ),
@@ -1397,6 +1452,21 @@ impl NovnowApp {
                 });
                 if enter {
                     match workspace {
+                        // plot-outline: 章（話があればそのブロック）へ
+                        Workspace::PlotOutline => {
+                            match crate::core::features::sections::query_id(input) {
+                                Some(id) if id.chapter > 0 => {
+                                    session.bench.commit();
+                                    session.spaces.outline.land_chapter(
+                                        &session.bench,
+                                        id.chapter,
+                                        id.episode,
+                                    );
+                                    close = true;
+                                }
+                                _ => *missed = true,
+                            }
+                        }
                         // plot-episode: その話の節（無ければ場面・話の先頭）に着地する
                         Workspace::PlotEpisode => {
                             match crate::core::features::sections::query_id(input) {

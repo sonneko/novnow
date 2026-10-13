@@ -319,6 +319,7 @@ const GUI_PREFIXES: &[&str] = &[
     "action.",
     "workspace.",
     "episode.",
+    "outline.",
 ];
 
 #[test]

@@ -506,3 +506,164 @@ fn going_down_to_a_missing_prose_file_does_not_create_it_until_typing() {
         .unwrap_or_default();
     assert_eq!(written, "@03-01-01 新章\n新しい章。\n");
 }
+
+// ============================================================ 画面（plot-outline）
+
+fn outline_selected(harness: &Harness) -> Option<SceneId> {
+    harness
+        .app
+        .spaces()
+        .and_then(|spaces| spaces.outline.selected())
+}
+
+#[test]
+fn alt_3_opens_the_chapter_plot_with_the_parent_block_and_foreshadows() {
+    let mut harness = novel_harness();
+    harness.frame(vec![key(Key::Num3, ALT)]);
+    let output = harness.frame(Vec::new());
+    assert_eq!(harness.app.workspace(), Some(Workspace::PlotOutline));
+    assert_eq!(
+        harness
+            .app
+            .spaces()
+            .and_then(|spaces| spaces.outline.level()),
+        Some(Some(1)),
+        "write の章"
+    );
+    assert_eq!(
+        outline_selected(&harness),
+        Some(id(1, 1, 0, 0)),
+        "write の話"
+    );
+    let text = painted_text(&output);
+    // 親（全体プロットの章のブロック）が常に見える（§19.11）
+    assert!(text.contains("@01 失われた刻印"), "{text}");
+    assert!(text.contains("図書室の密談"), "{text}");
+    assert!(text.contains("旧校舎へ"), "{text}");
+    assert!(text.contains("伏線"), "{text}");
+    assert!(text.contains("全体"), "{text}");
+}
+
+#[test]
+fn the_four_levels_go_up_with_ctrl_b_and_down_with_ctrl_enter() {
+    let mut harness = novel_harness();
+    // write → plot-episode → plot-outline（章）→ 全体
+    harness.frame(vec![key(Key::B, CTRL)]);
+    assert_eq!(harness.app.workspace(), Some(Workspace::PlotEpisode));
+    harness.frame(vec![key(Key::B, CTRL_SHIFT)]);
+    assert_eq!(harness.app.workspace(), Some(Workspace::PlotOutline));
+    assert_eq!(outline_selected(&harness), Some(id(1, 1, 0, 0)));
+    harness.frame(vec![key(Key::B, CTRL)]);
+    assert_eq!(
+        harness
+            .app
+            .spaces()
+            .and_then(|spaces| spaces.outline.level()),
+        Some(None)
+    );
+    assert_eq!(outline_selected(&harness), Some(id(1, 0, 0, 0)));
+    harness.frame(vec![key(Key::B, CTRL)]);
+    assert_eq!(
+        harness
+            .app
+            .spaces()
+            .and_then(|spaces| spaces.outline.level()),
+        Some(None),
+        "全体より上は無い"
+    );
+    // 全体 → 章 → 話（plot-episode）→ 本文（write）
+    harness.frame(vec![key(Key::ArrowDown, ALT)]);
+    assert_eq!(outline_selected(&harness), Some(id(2, 0, 0, 0)));
+    harness.frame(vec![key(Key::ArrowUp, ALT)]);
+    harness.frame(vec![key(Key::Enter, CTRL)]);
+    assert_eq!(
+        harness
+            .app
+            .spaces()
+            .and_then(|spaces| spaces.outline.level()),
+        Some(Some(1))
+    );
+    harness.frame(vec![key(Key::ArrowDown, ALT)]);
+    assert_eq!(outline_selected(&harness), Some(id(1, 2, 0, 0)));
+    harness.frame(vec![key(Key::ArrowUp, ALT)]);
+    harness.frame(vec![key(Key::Enter, CTRL)]);
+    assert_eq!(harness.app.workspace(), Some(Workspace::PlotEpisode));
+    assert_eq!(
+        harness
+            .app
+            .spaces()
+            .and_then(|spaces| spaces.episode.episode()),
+        Some((1, 1))
+    );
+    assert_eq!(selected(&harness), Some(id(1, 1, 1, 0)), "話の最初の行");
+    harness.frame(vec![key(Key::ArrowDown, ALT)]);
+    harness.frame(vec![key(Key::Enter, CTRL)]);
+    assert_eq!(harness.app.workspace(), Some(Workspace::Write));
+    assert_eq!(
+        harness.app.workbench().and_then(Workbench::current_id),
+        Some(id(1, 1, 1, 1))
+    );
+}
+
+#[test]
+fn editing_a_block_in_the_outline_is_saved_to_the_chapter_plot() {
+    let mut harness = novel_harness();
+    harness.frame(vec![key(Key::Num3, ALT)]);
+    harness.frame(Vec::new());
+    harness.frame(vec![key(Key::End, Modifiers::NONE)]);
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(vec![Event::Text("when: 春".into())]);
+    harness.idle(0.6);
+    let written = harness
+        .host
+        .files
+        .borrow()
+        .written
+        .get("plots/01.txt")
+        .cloned()
+        .unwrap_or_default();
+    assert!(
+        written.starts_with("// 章プロット\n@01-01 図書室の密談\nsummary: 二人が図書室で出会い直す。\nwhen: 春\n;\n"),
+        "{written}"
+    );
+}
+
+#[test]
+fn ctrl_shift_n_in_the_outline_adds_a_block_and_ctrl_alt_arrows_change_the_level() {
+    let mut harness = novel_harness();
+    harness.frame(vec![key(Key::Num3, ALT)]);
+    harness.frame(vec![key(Key::ArrowRight, CTRL_ALT)]);
+    assert_eq!(
+        harness
+            .app
+            .spaces()
+            .and_then(|spaces| spaces.outline.level()),
+        Some(Some(2))
+    );
+    let output = harness.frame(Vec::new());
+    assert!(painted_text(&output).contains("plots/02.txt にブロックはまだありません"));
+    harness.frame(vec![key(Key::N, CTRL_SHIFT)]);
+    harness.frame(Vec::new());
+    assert_eq!(outline_selected(&harness), Some(id(2, 1, 0, 0)));
+    harness.frame(vec![key(Key::End, Modifiers::NONE)]);
+    harness.frame(vec![Event::Text(" 補習".into())]);
+    harness.idle(0.6);
+    let written = harness
+        .host
+        .files
+        .borrow()
+        .written
+        .get("plots/02.txt")
+        .cloned()
+        .unwrap_or_default();
+    assert_eq!(written, "@02-01 補習\n;\n");
+    harness.frame(vec![key(Key::ArrowLeft, CTRL_ALT)]);
+    harness.frame(vec![key(Key::ArrowLeft, CTRL_ALT)]);
+    assert_eq!(
+        harness
+            .app
+            .spaces()
+            .and_then(|spaces| spaces.outline.level()),
+        Some(None)
+    );
+}
