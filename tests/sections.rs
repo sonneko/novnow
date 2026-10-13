@@ -185,3 +185,28 @@ fn the_reference_pane_lists_words_materials_and_this_sections_errors() {
         second.diagnostics
     );
 }
+
+#[test]
+fn removing_a_section_takes_its_separator_with_it() {
+    let project = world();
+    let list = sections::all(&project);
+    let text = project.text(CONTENTS_PATH);
+    // 真ん中の節: 後ろの `;` ごと消える
+    let removed = sections::remove(text, &list[1]);
+    let after = sections::all(&world_with(CONTENTS_PATH, &removed));
+    assert_eq!(after.len(), 2);
+    assert!(!removed.contains("旧校舎の地下遺跡"));
+    assert_eq!(removed.matches("\n;\n").count(), 1);
+    // 最後の節: 前の `;` が消え、ファイル末尾の改行は残る
+    let removed = sections::remove(text, &list[2]);
+    assert!(removed.ends_with("目を奪われた。\n"), "{removed:?}");
+    assert_eq!(sections::all(&world_with(CONTENTS_PATH, &removed)).len(), 2);
+    // 場面に 1 節しか無ければ、節の行だけ（見出しは残る）
+    let single = "@01-04-02 図書室の攻防\n一節だけ。\n";
+    let project = world_with(CONTENTS_PATH, single);
+    let list = sections::all(&project);
+    assert_eq!(
+        sections::remove(single, &list[0]),
+        "@01-04-02 図書室の攻防\n"
+    );
+}

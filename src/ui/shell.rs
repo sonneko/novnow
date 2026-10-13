@@ -115,6 +115,24 @@ pub enum Command {
     MainRatio(bool),
     /// `Ctrl+Alt+↑/↓` 文脈ビュー/節エディタの比（§9.1）。
     ContextRatio(bool),
+    /// `Ctrl+F` 検索（今のファイル）。
+    Find,
+    /// `Ctrl+H` 置換（今のファイル）。
+    Replace,
+    /// `F3` / `Shift+F3` 次 / 前の一致。
+    FindNext(bool),
+    /// `Ctrl+Shift+F` プロジェクト全体検索。
+    Search,
+    /// `Ctrl+Space` 補完。
+    Complete,
+    /// `Ctrl+Shift+M` 全モード一覧。
+    Modes,
+    /// `Ctrl+Shift+W` 用語の全文。
+    Term,
+    /// `Ctrl+Shift+;` 今の節を削除（確認あり）。
+    DeleteSection,
+    /// `Ctrl+Tab` / `Ctrl+Shift+Tab` 最近開いたファイルを循環。
+    RecentFile(bool),
 }
 
 /// キー 1 つをショートカットに読む。`text_focused` は入力欄にフォーカスがあるか（`?` の判定）。
@@ -162,6 +180,16 @@ pub fn command_of(
         Key::Escape => Command::Escape,
         Key::Enter if ctrl && !alt && !shift => Command::ConfirmNext,
         Key::Semicolon if ctrl && !alt && !shift => Command::NewSection,
+        // `Shift+;` は配列によって `:` として来る
+        Key::Semicolon | Key::Colon if ctrl && !alt && shift => Command::DeleteSection,
+        Key::F if ctrl && !alt && shift => Command::Search,
+        Key::F if ctrl && !alt => Command::Find,
+        Key::H if ctrl && !alt && !shift => Command::Replace,
+        Key::F3 if !ctrl && !alt => Command::FindNext(!shift),
+        Key::Space if ctrl && !alt && !shift => Command::Complete,
+        Key::M if ctrl && !alt && shift => Command::Modes,
+        Key::W if ctrl && !alt && shift => Command::Term,
+        Key::Tab if ctrl && !alt => Command::RecentFile(!shift),
         Key::ArrowUp if ctrl && alt && !shift => Command::ContextRatio(true),
         Key::ArrowDown if ctrl && alt && !shift => Command::ContextRatio(false),
         Key::ArrowLeft if ctrl && alt && shift => Command::MainRatio(false),

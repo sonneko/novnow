@@ -327,6 +327,98 @@ impl Workbench {
         }
     }
 
+    /// 今の節を消して、次の節（無ければ前の節）へ（§9.8.3 `Ctrl+Shift+;`。確認は呼び出し側）。
+    pub fn delete_section(&mut self, now: f64) -> bool {
+        self.commit();
+        let Some(editing) = self.editing.clone() else {
+            return false;
+        };
+        let Some(document) = self.project.document(&editing.section.path) else {
+            return false;
+        };
+        let index = self.split_index();
+        let text = sections::remove(&document.text, &editing.section);
+        let path = editing.section.path.clone();
+        self.project.insert(Document::new(path.clone(), text));
+        self.unsaved.insert(path);
+        self.rebuild();
+        if self.list.is_empty() {
+            self.editing = None;
+            self.buffer.clear();
+        } else {
+            self.enter(index.min(self.list.len() - 1));
+        }
+        self.save.edited(now);
+        self.save.request_now();
+        true
+    }
+
+    /// 今のファイルの中身を置き換える（`Ctrl+H` の「すべて置換」）。今の節は同じ ID の節を開き直す。
+    pub fn replace_current_file(&mut self, text: String, now: f64) -> bool {
+        self.commit();
+        let Some(editing) = self.editing.clone() else {
+            return false;
+        };
+        let path = editing.section.path.clone();
+        if self.project.text(&path) == text {
+            return false;
+        }
+        self.project.insert(Document::new(path.clone(), text));
+        self.unsaved.insert(path.clone());
+        self.rebuild();
+        match sections::position_of(&self.list, &path, editing.section.id) {
+            Some(index) => self.enter(index),
+            None => {
+                self.editing = None;
+                self.buffer.clear();
+            }
+        }
+        self.save.edited(now);
+        true
+    }
+
+    /// ファイルの中の byte 位置を含む節へ移る。移った先の節の本文の中での位置を返す（節の外なら `None`）。
+    pub fn reveal(&mut self, path: &str, byte: usize) -> Option<usize> {
+        self.commit();
+        let text = self.project.text(path).to_owned();
+        let line = crate::core::features::project::line_of(&text, byte);
+        let index = self
+            .list
+            .iter()
+            .position(|item| item.path == path && item.span.contains(&line))
+            .or_else(|| {
+                // 見出しの行など節の外: その後ろの最初の節
+                self.list
+                    .iter()
+                    .position(|item| item.path == path && item.lines.start >= line)
+            })?;
+        if Some(index) != self.current_index() {
+            self.enter(index);
+            self.save.request_now();
+        }
+        let section = &self.list[index];
+        if !section.lines.contains(&line) {
+            return None;
+        }
+        let starts = crate::core::features::project::line_starts_of(&text);
+        let start = starts.get(section.lines.start).copied()?;
+        byte.checked_sub(start)
+    }
+
+    /// 編集中の節の本文の先頭が、ファイルの中で何 byte 目か（補完・ホバーの位置の換算）。
+    /// 返す文書は節エディタの中身を書き戻した形（まだ文書に書き戻していない編集も含む）。
+    pub fn spliced_document(&self) -> Option<(Document, usize)> {
+        let current = self.current()?;
+        let document = self.project.document(&current.path)?;
+        let text = sections::splice(&document.text, current, &self.buffer);
+        let starts = crate::core::features::project::line_starts_of(&text);
+        let start = starts
+            .get(current.lines.start)
+            .copied()
+            .unwrap_or(text.len());
+        Some((Document::new(current.path.clone(), text), start))
+    }
+
     /// 書くべきファイルと中身（書き戻してから）。書き終えたら [`Workbench::write_finished`]。
     pub fn take_writes(&mut self) -> Vec<(String, String)> {
         self.commit();

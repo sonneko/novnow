@@ -263,3 +263,26 @@ language = "Language (ja ⇄ en)"
 theme = "Theme (system → dark → light)"
 reload = "Reload the project"
 escape = "Close / back to the section editor"
+find = "Find / replace (this file)"
+find_next = "Next / previous match"
+search = "Search all prose"
+complete = "Complete"
+modes = "All modes of the character"
+term = "Full text of the term"
+delete_section = "Delete this section (asks first)"
+recent = "Recent files"
+open = "Open a project"
+
+[find]
+placeholder = "Find"
+count = "{0} found"
+replace_placeholder = "Replace with"
+replace = "Replace"
+replace_all = "Replace all"
+
+[search]
+placeholder = "Search all prose"
+
+[delete]
+confirm = "Delete this section? (Ctrl+Z cannot undo this)"
+yes = "Delete"

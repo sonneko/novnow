@@ -465,14 +465,27 @@ struct Harness {
     app: NovnowApp,
     host: MemoryHost,
     time: f64,
+    dark: bool,
 }
 
 impl Harness {
     fn new() -> Self {
+        Self::start().0
+    }
+
+    /// 最初のフレームの出力も返す（フォントのテクスチャは最初のフレームにだけ全体が来る）。
+    fn start() -> (Self, egui::FullOutput) {
+        Self::start_with(world(), true)
+    }
+
+    fn start_with(
+        project: novnow::core::features::Project,
+        dark: bool,
+    ) -> (Self, egui::FullOutput) {
         let ctx = egui::Context::default();
         let host = MemoryHost::default();
         let settings = UiSettings::default();
-        let session = Session::new(Box::new(host.clone()), world(), &settings);
+        let session = Session::new(Box::new(host.clone()), project, &settings);
         let app = NovnowApp::new(
             &ctx,
             Locale::Ja,
@@ -484,9 +497,10 @@ impl Harness {
             app,
             host,
             time: 0.0,
+            dark,
         };
-        harness.frame(Vec::new());
-        harness
+        let first = harness.frame(Vec::new());
+        (harness, first)
     }
 
     fn frame(&mut self, events: Vec<Event>) -> egui::FullOutput {
@@ -499,7 +513,8 @@ impl Harness {
             ..Default::default()
         };
         let app = &mut self.app;
-        self.ctx.run(input, |ctx| app.frame(ctx, Some(true)))
+        let dark = self.dark;
+        self.ctx.run(input, |ctx| app.frame(ctx, Some(dark)))
     }
 
     fn idle(&mut self, seconds: f64) -> egui::FullOutput {
@@ -675,5 +690,342 @@ fn a_failed_save_shows_the_red_indicator_and_keeps_the_text() {
         harness.app.workbench().map(|bench| bench.save.state()),
         Some(State::Clean),
         "再試行で保存できる"
+    );
+}
+
+// ============================================================ 目視用のスクリーンショット（手動）
+
+/// egui の出力をソフトウェアで描いて RGBA を書き出す（`cargo test --features ui --test gui
+/// screenshot -- --ignored`）。作業環境に画面が無いので、配置と配色を目で確かめるための道具。
+/// 書き出し先は環境変数 `NOVNOW_SHOT`（無ければ何もしない）。PNG への変換は呼び出し側。
+#[test]
+#[ignore]
+fn screenshot() {
+    let Some(target) = std::env::var_os("NOVNOW_SHOT") else {
+        return;
+    };
+    // 2 節目に辞書に無い参照（E001 の波線）を入れ、`NOVNOW_SHOT_LIGHT` があれば明るい配色で描く
+    let text = world()
+        .text(CONTENTS_PATH)
+        .replace("図面の精巧な", "'未登録の図面の精巧な");
+    let light = std::env::var_os("NOVNOW_SHOT_LIGHT").is_some();
+    let (mut harness, first) = Harness::start_with(world_with(CONTENTS_PATH, &text), !light);
+    let mut textures: std::collections::HashMap<
+        egui::TextureId,
+        (usize, usize, Vec<egui::Color32>),
+    > = std::collections::HashMap::new();
+    let absorb = |output: &egui::FullOutput,
+                  textures: &mut std::collections::HashMap<
+        egui::TextureId,
+        (usize, usize, Vec<egui::Color32>),
+    >| {
+        for (id, delta) in &output.textures_delta.set {
+            let (w, h, pixels): (usize, usize, Vec<egui::Color32>) = match &delta.image {
+                egui::ImageData::Color(image) => {
+                    (image.size[0], image.size[1], image.pixels.clone())
+                }
+                egui::ImageData::Font(image) => (
+                    image.size[0],
+                    image.size[1],
+                    image.srgba_pixels(None).collect(),
+                ),
+            };
+            match delta.pos {
+                None => {
+                    textures.insert(*id, (w, h, pixels));
+                }
+                Some([x0, y0]) => {
+                    let entry = textures
+                        .get_mut(id)
+                        .expect("partial update of a known texture");
+                    for y in 0..h {
+                        for x in 0..w {
+                            entry.2[(y0 + y) * entry.0 + x0 + x] = pixels[y * w + x];
+                        }
+                    }
+                }
+            }
+        }
+    };
+    // `NOVNOW_SHOT_SCENE`: edit（既定）/ completion / palette / find / help
+    let scene = std::env::var("NOVNOW_SHOT_SCENE").unwrap_or_default();
+    let mut steps: Vec<Vec<Event>> = vec![
+        vec![key(Key::Num2, Modifiers::CTRL)],
+        vec![Event::Text("ここで一文を書き足す。".into())],
+        vec![],
+        vec![],
+    ];
+    match scene.as_str() {
+        "completion" => steps.push(vec![Event::Text("'".into())]),
+        "palette" => steps.push(vec![key(Key::P, Modifiers::CTRL)]),
+        "find" => steps.push(vec![key(Key::H, Modifiers::CTRL)]),
+        "help" => steps.push(vec![key(Key::Escape, Modifiers::NONE)]),
+        _ => {}
+    }
+    if scene == "help" {
+        // 入力欄の外で `?`
+        steps.push(vec![Event::Text("?".into())]);
+    }
+    absorb(&first, &mut textures);
+    let mut last = None;
+    for events in steps {
+        let output = harness.frame(events);
+        absorb(&output, &mut textures);
+        last = Some(output);
+    }
+    for _ in 0..4 {
+        let output = harness.frame(Vec::new());
+        absorb(&output, &mut textures);
+        last = Some(output);
+    }
+    let output = last.expect("frame");
+    let primitives = harness
+        .ctx
+        .tessellate(output.shapes.clone(), output.pixels_per_point);
+    let (width, height) = (1280usize, 800usize);
+    let mut frame = vec![[0f32; 4]; width * height];
+    for clipped in primitives {
+        let egui::epaint::Primitive::Mesh(mesh) = clipped.primitive else {
+            continue;
+        };
+        let Some((tw, th, texels)) = textures.get(&mesh.texture_id) else {
+            continue;
+        };
+        let clip = clipped.clip_rect;
+        for triangle in mesh.indices.chunks(3) {
+            let [a, b, c] = [
+                mesh.vertices[triangle[0] as usize],
+                mesh.vertices[triangle[1] as usize],
+                mesh.vertices[triangle[2] as usize],
+            ];
+            let min_x = a
+                .pos
+                .x
+                .min(b.pos.x)
+                .min(c.pos.x)
+                .max(clip.min.x)
+                .max(0.0)
+                .floor() as i32;
+            let max_x = a
+                .pos
+                .x
+                .max(b.pos.x)
+                .max(c.pos.x)
+                .min(clip.max.x)
+                .min(width as f32)
+                .ceil() as i32;
+            let min_y = a
+                .pos
+                .y
+                .min(b.pos.y)
+                .min(c.pos.y)
+                .max(clip.min.y)
+                .max(0.0)
+                .floor() as i32;
+            let max_y = a
+                .pos
+                .y
+                .max(b.pos.y)
+                .max(c.pos.y)
+                .min(clip.max.y)
+                .min(height as f32)
+                .ceil() as i32;
+            let edge =
+                |p: Pos2, q: Pos2, r: Pos2| (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
+            let area = edge(a.pos, b.pos, c.pos);
+            if area.abs() < 1e-6 {
+                continue;
+            }
+            for y in min_y..max_y {
+                for x in min_x..max_x {
+                    let p = Pos2::new(x as f32 + 0.5, y as f32 + 0.5);
+                    let w0 = edge(b.pos, c.pos, p) / area;
+                    let w1 = edge(c.pos, a.pos, p) / area;
+                    let w2 = edge(a.pos, b.pos, p) / area;
+                    if w0 < 0.0 || w1 < 0.0 || w2 < 0.0 {
+                        continue;
+                    }
+                    let u = w0 * a.uv.x + w1 * b.uv.x + w2 * c.uv.x;
+                    let v = w0 * a.uv.y + w1 * b.uv.y + w2 * c.uv.y;
+                    let tx = ((u * *tw as f32) as usize).min(tw - 1);
+                    let ty = ((v * *th as f32) as usize).min(th - 1);
+                    let texel = texels[ty * tw + tx].to_array();
+                    let mut src = [0f32; 4];
+                    for (channel, value) in src.iter_mut().enumerate() {
+                        let vertex = w0 * a.color.to_array()[channel] as f32
+                            + w1 * b.color.to_array()[channel] as f32
+                            + w2 * c.color.to_array()[channel] as f32;
+                        *value = vertex / 255.0 * texel[channel] as f32 / 255.0;
+                    }
+                    let dst = &mut frame[y as usize * width + x as usize];
+                    for channel in 0..4 {
+                        dst[channel] = src[channel] + dst[channel] * (1.0 - src[3]);
+                    }
+                }
+            }
+        }
+    }
+    let mut bytes = Vec::with_capacity(width * height * 4);
+    for pixel in frame {
+        for channel in pixel {
+            bytes.push((channel.clamp(0.0, 1.0) * 255.0).round() as u8);
+        }
+    }
+    std::fs::write(target, bytes).expect("write");
+}
+
+// ============================================================ 検索・置換・補完（§9.7.3・§9.8）
+
+#[test]
+fn find_steps_through_matches_and_wraps() {
+    use novnow::ui::assist;
+    let text = "あいあいう";
+    let matches = assist::find_all(text, "あい");
+    assert_eq!(matches, vec![0..6, 6..12]);
+    assert_eq!(assist::step(&matches, 0..0, true), Some(0..6));
+    assert_eq!(assist::step(&matches, 0..6, true), Some(6..12));
+    assert_eq!(assist::step(&matches, 6..12, true), Some(0..6), "端で回る");
+    assert_eq!(assist::step(&matches, 6..12, false), Some(0..6));
+    assert_eq!(assist::step(&matches, 0..6, false), Some(6..12));
+    assert!(assist::find_all(text, "").is_empty());
+}
+
+#[test]
+fn project_search_lists_prose_hits_with_line_numbers() {
+    let project = world_with("contents/01-05.txt", "@01-05-01 屋上\n'リリアが笑う。\n");
+    let hits = novnow::ui::assist::search(&project, "リリア");
+    assert!(hits.len() >= 3, "{hits:?}");
+    assert!(hits.iter().all(|hit| hit.path.starts_with("contents/")));
+    let last = hits.last().expect("hit");
+    assert_eq!((last.path.as_str(), last.line), ("contents/01-05.txt", 2));
+    assert_eq!(last.text, "'リリアが笑う。");
+}
+
+#[test]
+fn the_modes_popup_lists_every_mode_and_marks_unavailable_ones() {
+    use novnow::core::features::hover;
+    let project = world();
+    let document = project.document(CONTENTS_PATH).expect("doc");
+    let at = document.text.find("'アルス").expect("ref") + 1;
+    let found = hover::at(document, at, &project).expect("hover");
+    let lines = novnow::ui::assist::info_lines(&found, true).expect("character");
+    assert_eq!(lines[0], "アルス（あるす）");
+    assert!(
+        lines.iter().any(|line| line.contains("A 探究")),
+        "{lines:?}"
+    );
+    // B 補習は @02 から（この節 @01-04-02 では使えない）
+    assert!(
+        lines
+            .iter()
+            .any(|line| line.starts_with('×') && line.contains("B 補習")),
+        "{lines:?}"
+    );
+    assert!(
+        novnow::ui::assist::info_lines(&found, false).is_none(),
+        "用語ではない"
+    );
+}
+
+#[test]
+fn the_workbench_reveals_a_byte_and_deletes_or_replaces_sections() {
+    let mut bench = Workbench::new(world(), None, 400);
+    let text = bench.project().text(CONTENTS_PATH).to_owned();
+    let at = text.find("図面の精巧な").expect("match");
+    let offset = bench.reveal(CONTENTS_PATH, at).expect("inside a section");
+    assert_eq!(bench.current_id(), Some(id(1, 4, 2, 2)));
+    assert_eq!(&bench.buffer()[offset..offset + "図面".len()], "図面");
+    // 見出しの行は節の外: 直後の節へ移るが選択はしない
+    assert_eq!(bench.reveal(CONTENTS_PATH, 0), None);
+    assert_eq!(bench.current_id(), Some(id(1, 4, 2, 1)));
+    // 削除: 次の節へ
+    assert!(bench.delete_section(1.0));
+    assert_eq!(bench.sections().len(), 2);
+    assert!(bench.buffer().starts_with("「旧校舎"));
+    // すべて置換
+    let replaced = bench
+        .project()
+        .text(CONTENTS_PATH)
+        .replace("リリア", "リリィ");
+    assert!(bench.replace_current_file(replaced, 2.0));
+    assert!(!bench.project().text(CONTENTS_PATH).contains("リリア"));
+    assert!(bench.unsaved().count() == 1);
+}
+
+#[test]
+fn ctrl_f_and_enter_jump_to_the_next_match_in_another_section() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::F, Modifiers::CTRL)]);
+    assert!(harness.app.overlay_open());
+    harness.frame(vec![Event::Text("精巧".into())]);
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.idle(0.1);
+    assert_eq!(
+        harness.app.workbench().and_then(Workbench::current_id),
+        Some(id(1, 4, 2, 2)),
+        "一致のある 2 節目へ"
+    );
+    // F3 は端で回って同じ一致に戻る（一致は 1 つ）
+    harness.frame(vec![key(Key::Escape, Modifiers::NONE)]);
+    harness.frame(vec![key(Key::F3, Modifiers::NONE)]);
+    assert_eq!(
+        harness.app.workbench().and_then(Workbench::current_id),
+        Some(id(1, 4, 2, 2))
+    );
+}
+
+#[test]
+fn ctrl_shift_semicolon_asks_before_deleting_the_section() {
+    let mut harness = Harness::new();
+    let ctrl_shift = Modifiers {
+        ctrl: true,
+        shift: true,
+        ..Modifiers::NONE
+    };
+    harness.frame(vec![key(Key::Semicolon, ctrl_shift)]);
+    assert!(harness.app.overlay_open(), "確認を出す");
+    assert_eq!(
+        harness.app.workbench().map(|bench| bench.sections().len()),
+        Some(3)
+    );
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    assert!(!harness.app.overlay_open());
+    assert_eq!(
+        harness.app.workbench().map(|bench| bench.sections().len()),
+        Some(2)
+    );
+    harness.idle(0.6);
+    let written = harness
+        .host
+        .files
+        .borrow()
+        .written
+        .get(CONTENTS_PATH)
+        .cloned();
+    assert!(!written.expect("saved").contains("呆れたような声"));
+}
+
+#[test]
+fn typing_a_quote_opens_completion_and_enter_inserts_the_candidate() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
+    // キャレットは節の末尾（`Ctrl+Home` は §9.8.2 の「ファイル先頭の節」なので使わない）
+    harness.frame(vec![Event::Text("'".into())]);
+    harness.frame(Vec::new());
+    assert!(
+        harness.app.overlay_open(),
+        "`'` の直後に補完を出す（§9.7.3）"
+    );
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+    assert!(!harness.app.overlay_open());
+    let buffer = harness
+        .app
+        .workbench()
+        .map(|bench| bench.buffer().to_owned())
+        .expect("open");
+    assert!(
+        buffer.ends_with("引き寄せた。'アルス") || buffer.ends_with("引き寄せた。'リリア"),
+        "候補を挿入する（Enter で改行は入らない）: {buffer:?}"
     );
 }

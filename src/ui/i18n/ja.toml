@@ -261,3 +261,26 @@ language = "言語（ja ⇄ en）"
 theme = "テーマ（system → dark → light）"
 reload = "プロジェクトを読み直す"
 escape = "閉じる / 節エディタへ"
+find = "検索 / 置換（今のファイル）"
+find_next = "次 / 前の一致"
+search = "本文の全体を検索"
+complete = "補完"
+modes = "キャラの全モード"
+term = "用語の全文"
+delete_section = "今の節を削除（確認あり）"
+recent = "最近開いたファイル"
+open = "プロジェクトを開く"
+
+[find]
+placeholder = "検索"
+count = "{0} 件"
+replace_placeholder = "置換後の文字列"
+replace = "置換"
+replace_all = "すべて置換"
+
+[search]
+placeholder = "本文の全体から検索"
+
+[delete]
+confirm = "この節を削除しますか？（取り消しは Ctrl+Z ではできません）"
+yes = "削除する"

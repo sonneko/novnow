@@ -11,7 +11,8 @@
 use std::ops::Range;
 use std::sync::Arc;
 
-use egui::{FontFamily, FontId, Galley, Id, Pos2, TextEdit, Ui, Vec2};
+use egui::text::{CCursor, CCursorRange};
+use egui::{FontFamily, FontId, Galley, Id, Pos2, Rect, TextEdit, Ui, Vec2};
 
 use crate::core::features::project::line_starts_of;
 use crate::core::features::sections;
@@ -56,8 +57,54 @@ pub fn editor_id(bench: &Workbench) -> Id {
     }
 }
 
-/// 節エディタを描く。中身が変わったら `true`。
-pub fn show(ui: &mut Ui, bench: &mut Workbench, cache: &mut Cache, mode: Mode, scale: f32) -> bool {
+/// 節エディタの 1 フレームの結果。
+#[derive(Debug, Clone, Default)]
+pub struct EditorOutput {
+    /// 中身が変わった。
+    pub changed: bool,
+    /// 選択範囲（節の本文の中の byte。キャレットだけなら空範囲）。フォーカスが無ければ `None`。
+    pub selection: Option<Range<usize>>,
+    /// キャレットの矩形（画面の座標。補完のポップアップの位置）。
+    pub caret: Option<Rect>,
+}
+
+/// 節エディタの選択範囲を byte で指定する（次のフレームから効く。検索の一致・補完の確定の後）。
+pub fn select(ui_ctx: &egui::Context, bench: &Workbench, range: Range<usize>) {
+    let id = editor_id(bench);
+    let text = bench.buffer();
+    let start = char_of(text, range.start);
+    let end = char_of(text, range.end);
+    let mut state = egui::text_edit::TextEditState::load(ui_ctx, id).unwrap_or_default();
+    state.cursor.set_char_range(Some(CCursorRange::two(
+        CCursor::new(start),
+        CCursor::new(end),
+    )));
+    state.store(ui_ctx, id);
+    ui_ctx.memory_mut(|memory| memory.request_focus(id));
+}
+
+fn char_of(text: &str, byte: usize) -> usize {
+    let mut at = byte.min(text.len());
+    while at > 0 && !text.is_char_boundary(at) {
+        at -= 1;
+    }
+    text[..at].chars().count()
+}
+
+fn byte_of(text: &str, char_index: usize) -> usize {
+    text.char_indices()
+        .nth(char_index)
+        .map_or(text.len(), |(at, _)| at)
+}
+
+/// 節エディタを描く。
+pub fn show(
+    ui: &mut Ui,
+    bench: &mut Workbench,
+    cache: &mut Cache,
+    mode: Mode,
+    scale: f32,
+) -> EditorOutput {
     let colors = theme::palette(mode);
     let metrics = Metrics {
         size: 15.0 * scale,
@@ -66,7 +113,7 @@ pub fn show(ui: &mut Ui, bench: &mut Workbench, cache: &mut Cache, mode: Mode, s
     let id = editor_id(bench);
     let gutter = 36.0 * scale;
     let mut buffer = std::mem::take(bench.buffer_mut());
-    let mut changed = false;
+    let mut result = EditorOutput::default();
     egui::ScrollArea::vertical()
         .id_source("section-editor-scroll")
         .auto_shrink([false, false])
@@ -91,7 +138,18 @@ pub fn show(ui: &mut Ui, bench: &mut Workbench, cache: &mut Cache, mode: Mode, s
                     .lock_focus(true)
                     .layouter(&mut layouter)
                     .show(ui);
-                changed = output.response.changed();
+                result.changed = output.response.changed();
+                if output.response.has_focus() {
+                    if let Some(range) = output.cursor_range {
+                        let [low, high] = range.sorted_cursors();
+                        result.selection = Some(
+                            byte_of(&buffer, low.ccursor.index)
+                                ..byte_of(&buffer, high.ccursor.index),
+                        );
+                        let caret = output.galley.pos_from_cursor(&range.primary);
+                        result.caret = Some(caret.translate(output.galley_pos.to_vec2()));
+                    }
+                }
                 let painter = ui.painter().clone();
                 let highlight = cache.highlight.clone();
                 syntax_text::paint_squiggles(
@@ -113,7 +171,7 @@ pub fn show(ui: &mut Ui, bench: &mut Workbench, cache: &mut Cache, mode: Mode, s
             });
         });
     *bench.buffer_mut() = buffer;
-    changed
+    result
 }
 
 /// 論理行の 1 行目にだけ番号を振る（右寄せ）。

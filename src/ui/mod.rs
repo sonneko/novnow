@@ -9,6 +9,8 @@ pub mod i18n;
 #[cfg(feature = "ui")]
 pub mod app;
 #[cfg(feature = "ui")]
+pub mod assist;
+#[cfg(feature = "ui")]
 pub mod palette;
 #[cfg(feature = "ui")]
 pub mod save_machine;

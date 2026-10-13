@@ -139,6 +139,32 @@ pub fn insert_after(text: &str, section: &SectionRef) -> (String, usize) {
     (lines.join("\n"), at + 1)
 }
 
+/// 節を消したファイル全体（§9.8.3 `Ctrl+Shift+;`）。
+///
+/// 節の行（末尾の空行を含む）と、その後ろの区切り `;` を消す。後ろに `;` が無い（場面の最後の節）
+/// なら、前の `;` を消す。場面にこの節しか無ければ、節の行だけを消す（見出しは残る）。
+pub fn remove(text: &str, section: &SectionRef) -> String {
+    let mut lines: Vec<&str> = text.split('\n').collect();
+    let end = section.span.end.min(lines.len());
+    let start = section.span.start.min(end);
+    let is_break = |line: Option<&&str>| line.is_some_and(|line| line.trim() == ";");
+    let (from, to) = if is_break(lines.get(end)) {
+        (start, end + 1)
+    } else if start > 0 && is_break(lines.get(start - 1)) {
+        (start - 1, end)
+    } else {
+        (start, end)
+    };
+    // ファイル末尾の改行の後ろの空の「行」は残す
+    let to = if to == lines.len() && text.ends_with('\n') && to > from {
+        to - 1
+    } else {
+        to
+    };
+    lines.drain(from..to.max(from));
+    lines.join("\n")
+}
+
 /// 空白を除いた文字数（§9.6.1。コメント行・アノテーションも数える）。
 pub fn count_chars(text: &str) -> usize {
     text.chars().filter(|c| !c.is_whitespace()).count()

@@ -48,11 +48,41 @@ enum Pane {
 #[derive(Debug, Clone, PartialEq)]
 enum Overlay {
     None,
-    Palette { input: String, selected: usize },
-    Jump { input: String, missed: bool },
+    Palette {
+        input: String,
+        selected: usize,
+    },
+    Jump {
+        input: String,
+        missed: bool,
+    },
     Help,
     SaveError,
     CloseGuard,
+    /// `Ctrl+F` / `Ctrl+H`（`replace` が `Some` なら置換も）。背景を暗くしない。
+    /// `fresh` は開いた直後のフレーム（検索欄にフォーカスを移す）。
+    Find {
+        query: String,
+        replace: Option<String>,
+        fresh: bool,
+    },
+    /// `Ctrl+Shift+F`。
+    Search {
+        query: String,
+        selected: usize,
+    },
+    /// `Ctrl+Space` / `'` の直後。キャレットの下に出す（背景を暗くしない）。
+    Completion {
+        selected: usize,
+    },
+    /// `Ctrl+Shift+M` / `Ctrl+Shift+W`。キャレットの下に出す。
+    Info {
+        lines: Vec<String>,
+    },
+    /// `Ctrl+Shift+;` の確認（§9.2.1-2: 破壊的操作の確認には文字ラベルを置いてよい）。
+    ConfirmDelete,
+    /// 開けなかったときなどの表示（§14.2.2 と同じ内容）。
+    Message(String),
 }
 
 /// 開いているプロジェクト。
@@ -66,6 +96,18 @@ pub struct Session {
     reference_cache: reference_pane::Cache,
     diag_count: Option<(u64, String, usize)>,
     notice: Option<(String, f64)>,
+    /// 節エディタの選択範囲（節の本文の中の byte。前のフレームの）。
+    selection: Option<std::ops::Range<usize>>,
+    /// キャレットの矩形（前のフレームの）。
+    caret: Option<Rect>,
+    /// 次のフレームで節エディタに設定する選択範囲（検索の一致・補完の確定）。
+    pending_selection: Option<std::ops::Range<usize>>,
+    /// 最近開いたファイル（先頭が今。`Ctrl+Tab`）。
+    recent: Vec<(String, crate::core::id::SceneId)>,
+    /// 最後に検索した文字列（`F3`）。
+    last_find: String,
+    /// 全体検索の結果（文字列ごとに作り直す）。
+    search_cache: Option<(String, u64, Vec<crate::ui::assist::Hit>)>,
 }
 
 impl Session {
@@ -86,7 +128,41 @@ impl Session {
             reference_cache: reference_pane::Cache::default(),
             diag_count: None,
             notice: None,
+            selection: None,
+            caret: None,
+            pending_selection: None,
+            recent: Vec::new(),
+            last_find: String::new(),
+            search_cache: None,
         }
+    }
+
+    /// 選択範囲（無ければキャレットの位置、それも無ければ節の先頭）のファイルの中の byte 範囲。
+    fn file_selection(&self) -> Option<(String, std::ops::Range<usize>)> {
+        let (document, start) = self.bench.spliced_document()?;
+        let selection = self.selection.clone().unwrap_or(0..0);
+        Some((
+            document.path,
+            start + selection.start..start + selection.end,
+        ))
+    }
+
+    /// 今のファイルで `query` の次 / 前の一致へ移る（`F3` / `Shift+F3` / 検索欄の `Enter`）。
+    fn find_step(&mut self, query: &str, forward: bool) -> bool {
+        self.bench.commit();
+        let Some((path, here)) = self.file_selection() else {
+            return false;
+        };
+        let text = self.bench.project().text(&path).to_owned();
+        let matches = crate::ui::assist::find_all(&text, query);
+        let Some(found) = crate::ui::assist::step(&matches, here, forward) else {
+            return false;
+        };
+        self.last_find = query.to_owned();
+        if let Some(offset) = self.bench.reveal(&path, found.start) {
+            self.pending_selection = Some(offset..offset + found.len());
+        }
+        true
     }
 }
 
@@ -94,18 +170,25 @@ impl Session {
 pub trait Picker {
     /// 描く。プロジェクトを開いたら `Some`。
     fn show(&mut self, ctx: &Context, locale: Locale, mode: Mode) -> Option<(Session, UiSettings)>;
-    /// `Ctrl+O`。
+    /// `Ctrl+O`（選択画面の中）。
     fn open_folder(&mut self);
+    /// `Ctrl+O`（プロジェクトを開いている間）: フォルダを選んで開く。取り消したら `None`、
+    /// 開けなければ §14.2.2 と同じ内容の文字列。
+    fn open_dialog(&mut self, locale: Locale) -> Option<Result<(Session, UiSettings), String>> {
+        let _ = locale;
+        None
+    }
 }
 
 enum Stage {
-    Picker(Box<dyn Picker>),
+    Picker,
     Open(Box<Session>),
 }
 
 /// novnow の GUI。
 pub struct NovnowApp {
     stage: Stage,
+    picker: Box<dyn Picker>,
     settings: UiSettings,
     env_locale: Locale,
     ime: ImeState,
@@ -129,10 +212,11 @@ impl NovnowApp {
         ctx.set_fonts(fonts);
         let (stage, settings) = match opened {
             Some((session, settings)) => (Stage::Open(Box::new(session)), settings),
-            None => (Stage::Picker(picker), UiSettings::default()),
+            None => (Stage::Picker, UiSettings::default()),
         };
         Self {
             stage,
+            picker,
             settings,
             env_locale,
             ime: ImeState::default(),
@@ -149,7 +233,7 @@ impl NovnowApp {
     pub fn workbench(&self) -> Option<&Workbench> {
         match &self.stage {
             Stage::Open(session) => Some(&session.bench),
-            Stage::Picker(_) => None,
+            Stage::Picker => None,
         }
     }
 
@@ -202,8 +286,8 @@ impl NovnowApp {
             self.run(ctx, command, now);
         }
         match &mut self.stage {
-            Stage::Picker(picker) => {
-                if let Some((session, settings)) = picker.show(ctx, locale, mode) {
+            Stage::Picker => {
+                if let Some((session, settings)) = self.picker.show(ctx, locale, mode) {
                     self.settings = settings;
                     self.stage = Stage::Open(Box::new(session));
                     self.overlay = Overlay::None;
@@ -291,10 +375,30 @@ impl NovnowApp {
                 }
             }
             Command::Open => {
-                if let Stage::Picker(picker) = &mut self.stage {
-                    picker.open_folder();
+                match &mut self.stage {
+                    Stage::Picker => self.picker.open_folder(),
+                    Stage::Open(session) => {
+                        // 今のプロジェクトを書き終えてから切り替える（書けなければ切り替えない）
+                        session.bench.commit();
+                        session.bench.edited(now);
+                        session.bench.save.request_now();
+                        save_if_due(session, &mut self.settings, now);
+                        if session.bench.save.state() != State::Clean {
+                            self.overlay = Overlay::SaveError;
+                            return;
+                        }
+                        match self.picker.open_dialog(locale) {
+                            Some(Ok((next, settings))) => {
+                                self.stage = Stage::Open(Box::new(next));
+                                self.settings = settings;
+                                self.overlay = Overlay::None;
+                            }
+                            Some(Err(report)) => self.overlay = Overlay::Message(report),
+                            None => {}
+                        }
+                        return;
+                    }
                 }
-                // 開いている間の `Ctrl+O`（別のプロジェクトへ）は M8 のパレットから（B-117）
             }
             _ => {}
         }
@@ -368,6 +472,80 @@ impl NovnowApp {
             Command::ContextRatio(grow) => {
                 self.settings.step_ratio(false, grow);
                 session.settings_dirty = true;
+            }
+            Command::Find | Command::Replace => {
+                let query = session
+                    .selection
+                    .clone()
+                    .filter(|range| !range.is_empty())
+                    .and_then(|range| bench.buffer().get(range).map(str::to_owned))
+                    .unwrap_or_else(|| session.last_find.clone());
+                self.overlay = Overlay::Find {
+                    query,
+                    replace: (command == Command::Replace).then(String::new),
+                    fresh: true,
+                };
+            }
+            Command::FindNext(forward) => {
+                let query = match &self.overlay {
+                    Overlay::Find { query, .. } => query.clone(),
+                    _ => session.last_find.clone(),
+                };
+                if !query.is_empty() {
+                    session.find_step(&query, forward);
+                }
+            }
+            Command::Search => {
+                self.overlay = Overlay::Search {
+                    query: session.last_find.clone(),
+                    selected: 0,
+                };
+            }
+            Command::Complete => {
+                self.overlay = Overlay::Completion { selected: 0 };
+            }
+            Command::Modes | Command::Term => {
+                let lines = session
+                    .bench
+                    .spliced_document()
+                    .and_then(|(document, start)| {
+                        let caret =
+                            start + session.selection.clone().map_or(0, |range| range.start);
+                        let hover = crate::core::features::hover::at(
+                            &document,
+                            caret,
+                            session.bench.project(),
+                        )?;
+                        crate::ui::assist::info_lines(&hover, command == Command::Modes)
+                    });
+                if let Some(lines) = lines {
+                    self.overlay = Overlay::Info { lines };
+                }
+            }
+            Command::DeleteSection => {
+                if session.bench.current().is_some() {
+                    self.overlay = Overlay::ConfirmDelete;
+                }
+            }
+            Command::RecentFile(forward) => {
+                let target = if forward {
+                    session.recent.get(1).cloned()
+                } else if session.recent.len() > 1 {
+                    session.recent.last().cloned()
+                } else {
+                    None
+                };
+                if let Some((path, id)) = target {
+                    if let Some(index) = crate::core::features::sections::position_of(
+                        session.bench.sections(),
+                        &path,
+                        id,
+                    ) {
+                        if session.bench.go_to(index) {
+                            session.settings_dirty = true;
+                        }
+                    }
+                }
             }
             _ => {}
         }
@@ -494,12 +672,11 @@ impl NovnowApp {
         let width = ctx.screen_rect().width();
         let show_reference =
             self.settings.reference_visible && (width >= 900.0 || self.focus == Pane::Reference);
+        // 参照ペインの中身は畳んでいても更新する（ミニヘッダーの有効モードにも使う）
+        if let Some(next) = session.reference_cache.update(&session.bench, now) {
+            ctx.request_repaint_after(std::time::Duration::from_secs_f64((next - now).max(0.0)));
+        }
         if show_reference {
-            if let Some(next) = session.reference_cache.update(&session.bench, now) {
-                ctx.request_repaint_after(std::time::Duration::from_secs_f64(
-                    (next - now).max(0.0),
-                ));
-            }
             let panel = match self.settings.reference_pane_side {
                 PaneSide::Right => egui::SidePanel::right("reference"),
                 PaneSide::Left => egui::SidePanel::left("reference"),
@@ -520,9 +697,24 @@ impl NovnowApp {
                 focus_ring(ctx, response.response.rect, colors.accent);
             }
         }
+        // 補完のポップアップが出ている間は、↑/↓/Enter/Tab を節エディタより先に取る
+        let mut completion_keys = (false, false, false);
+        if matches!(self.overlay, Overlay::Completion { .. }) {
+            completion_keys = ctx.input_mut(|input| {
+                let down = input.consume_key(Modifiers::NONE, Key::ArrowDown);
+                let up = input.consume_key(Modifiers::NONE, Key::ArrowUp);
+                let enter = input.consume_key(Modifiers::NONE, Key::Enter)
+                    || input.consume_key(Modifiers::NONE, Key::Tab);
+                (down, up, enter)
+            });
+        }
+        if let Some(range) = session.pending_selection.take() {
+            section_editor::select(ctx, &session.bench, range);
+        }
         // ② メインカラム: 文脈ビュー（55%）/ 節エディタ（45%）
         let mut clicked = None;
         let mut changed = false;
+        let mut editor_output = section_editor::EditorOutput::default();
         egui::CentralPanel::default()
             .frame(
                 Frame::none()
@@ -578,6 +770,7 @@ impl NovnowApp {
                     focus_ring(ctx, context.response.rect, colors.accent);
                 }
                 ui.add_space(6.0);
+                mini_header(ui, session, mode, scale);
                 let editor = ui.allocate_ui(ui.available_size(), |ui| {
                     section_editor::show(
                         ui,
@@ -587,13 +780,45 @@ impl NovnowApp {
                         scale,
                     )
                 });
-                changed = editor.inner;
+                editor_output = editor.inner;
+                changed = editor_output.changed;
                 if self.focus == Pane::Editor {
                     focus_ring(ctx, editor.response.rect, colors.accent);
                 }
             });
+        if editor_output.selection.is_some() {
+            session.selection = editor_output.selection.clone();
+            session.caret = editor_output.caret;
+        }
         if changed {
             session.bench.edited(now);
+            // §9.7.3: `'` を入力した瞬間（`:` はキャラ参照の直後、`@` は行頭 / 行末）に補完を出す
+            let before = session.selection.as_ref().and_then(|range| {
+                session.bench.buffer()[..range.start.min(session.bench.buffer().len())]
+                    .chars()
+                    .last()
+            });
+            if matches!(before, Some('\'' | ':' | '@')) && self.overlay == Overlay::None {
+                self.overlay = Overlay::Completion { selected: 0 };
+            }
+        }
+        // 最近開いたファイル（`Ctrl+Tab`）
+        if let Some(current) = session.bench.current() {
+            let entry = (current.path.clone(), current.id);
+            match session.recent.first_mut() {
+                Some(first) if first.0 == entry.0 => *first = entry,
+                _ => {
+                    session.recent.retain(|(path, _)| path != &entry.0);
+                    session.recent.insert(0, entry);
+                    session.recent.truncate(20);
+                }
+            }
+        }
+        if let Overlay::Completion { selected } = &mut self.overlay {
+            let (down, up, enter) = completion_keys;
+            if !completion(ctx, session, selected, (down, up, enter), mode, now) {
+                self.overlay = Overlay::None;
+            }
         }
         if let Some(index) = clicked {
             if session.bench.go_to(index) {
@@ -759,6 +984,237 @@ impl NovnowApp {
                             close = true;
                         }
                     });
+                });
+            }
+            Overlay::Find {
+                query,
+                replace,
+                fresh,
+            } => {
+                let mut step: Option<bool> = None;
+                let mut replace_one = false;
+                let mut replace_all = false;
+                let count = session
+                    .bench
+                    .spliced_document()
+                    .map(|(document, _)| crate::ui::assist::find_all(&document.text, query).len())
+                    .unwrap_or(0);
+                egui::Area::new(Id::new("find"))
+                    .order(egui::Order::Foreground)
+                    .anchor(Align2::RIGHT_TOP, Vec2::new(-24.0, 40.0))
+                    .show(ctx, |ui| {
+                        Frame::none()
+                            .fill(colors.bg_raised)
+                            .stroke(Stroke::new(1.0_f32, colors.border))
+                            .inner_margin(Margin::same(8.0))
+                            .show(ui, |ui| {
+                                ui.horizontal(|ui| {
+                                    let edit = ui.add(
+                                        egui::TextEdit::singleline(query)
+                                            .hint_text(i18n::text(locale, "find.placeholder"))
+                                            .desired_width(220.0),
+                                    );
+                                    if *fresh {
+                                        edit.request_focus();
+                                        *fresh = false;
+                                    }
+                                    if edit.lost_focus()
+                                        && ui.input(|input| input.key_pressed(Key::Enter))
+                                    {
+                                        step = Some(!ui.input(|input| input.modifiers.shift));
+                                        edit.request_focus();
+                                    }
+                                    ui.label(
+                                        RichText::new(i18n::format(
+                                            locale,
+                                            "find.count",
+                                            &[&count.to_string()],
+                                        ))
+                                        .color(colors.fg_faint),
+                                    );
+                                });
+                                if let Some(replacement) = replace {
+                                    ui.horizontal(|ui| {
+                                        ui.add(
+                                            egui::TextEdit::singleline(replacement)
+                                                .hint_text(i18n::text(
+                                                    locale,
+                                                    "find.replace_placeholder",
+                                                ))
+                                                .desired_width(220.0),
+                                        );
+                                        // 置換は上書き（破壊的操作）なので文字ラベルを置く（§9.2.1-2）
+                                        if ui.button(i18n::text(locale, "find.replace")).clicked() {
+                                            replace_one = true;
+                                        }
+                                        if ui
+                                            .button(i18n::text(locale, "find.replace_all"))
+                                            .clicked()
+                                        {
+                                            replace_all = true;
+                                        }
+                                    });
+                                }
+                            });
+                    });
+                if !query.is_empty() {
+                    session.last_find = query.clone();
+                }
+                if replace_one {
+                    let replacement = replace.clone().unwrap_or_default();
+                    let selected = session.selection.clone().filter(|range| {
+                        session.bench.buffer().get(range.clone()) == Some(query.as_str())
+                    });
+                    if let Some(range) = selected {
+                        session
+                            .bench
+                            .buffer_mut()
+                            .replace_range(range.clone(), &replacement);
+                        session.bench.edited(now);
+                        let end = range.start + replacement.len();
+                        session.selection = Some(end..end);
+                    }
+                    step = Some(true);
+                }
+                if replace_all && !query.is_empty() {
+                    session.bench.commit();
+                    if let Some(current) = session.bench.current() {
+                        let text = session
+                            .bench
+                            .project()
+                            .text(&current.path)
+                            .replace(query.as_str(), replace.as_deref().unwrap_or_default());
+                        session.bench.replace_current_file(text, now);
+                    }
+                }
+                if let Some(forward) = step {
+                    let query = query.clone();
+                    session.find_step(&query, forward);
+                }
+            }
+            Overlay::Search { query, selected } => {
+                let down = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::ArrowDown));
+                let up = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::ArrowUp));
+                let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
+                let generation = session.bench.generation();
+                let stale = !matches!(
+                    &session.search_cache,
+                    Some((cached, at, _)) if cached == query && *at == generation
+                );
+                if stale {
+                    let hits = crate::ui::assist::search(session.bench.project(), query);
+                    session.search_cache = Some((query.clone(), generation, hits));
+                }
+                let hits = session
+                    .search_cache
+                    .as_ref()
+                    .map(|(_, _, hits)| hits.clone())
+                    .unwrap_or_default();
+                if down && *selected + 1 < hits.len() {
+                    *selected += 1;
+                }
+                if up {
+                    *selected = selected.saturating_sub(1);
+                }
+                let mut chosen = enter.then_some(*selected);
+                popup(ctx, "search", colors, |ui| {
+                    let edit = ui.add(
+                        egui::TextEdit::singleline(query)
+                            .hint_text(i18n::text(locale, "search.placeholder"))
+                            .desired_width(520.0),
+                    );
+                    edit.request_focus();
+                    if edit.changed() {
+                        *selected = 0;
+                    }
+                    ui.add_space(4.0);
+                    egui::ScrollArea::vertical()
+                        .max_height(360.0)
+                        .show(ui, |ui| {
+                            for (index, hit) in hits.iter().enumerate() {
+                                let color = if index == *selected {
+                                    colors.accent
+                                } else {
+                                    colors.fg_primary
+                                };
+                                let text = RichText::new(format!(
+                                    "{}:{}  {}",
+                                    hit.path, hit.line, hit.text
+                                ))
+                                .color(color);
+                                if ui.selectable_label(index == *selected, text).clicked() {
+                                    chosen = Some(index);
+                                }
+                            }
+                        });
+                });
+                if let Some(hit) = chosen.and_then(|index| hits.get(index)) {
+                    session.last_find = query.clone();
+                    if let Some(offset) = session.bench.reveal(&hit.path, hit.range.start) {
+                        session.pending_selection = Some(offset..offset + hit.range.len());
+                    }
+                    session.settings_dirty = true;
+                    close = true;
+                }
+            }
+            Overlay::Completion { .. } => {}
+            Overlay::Info { lines } => {
+                let anchor = session.caret.map_or(Pos2::new(120.0, 120.0), |rect| {
+                    rect.left_bottom() + Vec2::new(0.0, 6.0)
+                });
+                egui::Area::new(Id::new("info"))
+                    .order(egui::Order::Foreground)
+                    .fixed_pos(anchor)
+                    .show(ctx, |ui| {
+                        Frame::none()
+                            .fill(colors.bg_raised)
+                            .stroke(Stroke::new(1.0_f32, colors.border))
+                            .inner_margin(Margin::same(8.0))
+                            .show(ui, |ui| {
+                                ui.set_max_width(420.0);
+                                for (index, line) in lines.iter().enumerate() {
+                                    let color = if index == 0 {
+                                        colors.accent
+                                    } else if line.starts_with('×') {
+                                        colors.fg_faint
+                                    } else {
+                                        colors.fg_primary
+                                    };
+                                    ui.label(RichText::new(line).color(color));
+                                }
+                            });
+                    });
+            }
+            Overlay::ConfirmDelete => {
+                let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
+                let mut confirmed = enter;
+                popup(ctx, "confirm-delete", colors, |ui| {
+                    ui.label(i18n::text(locale, "delete.confirm"));
+                    ui.add_space(8.0);
+                    ui.horizontal(|ui| {
+                        if ui.button(i18n::text(locale, "delete.yes")).clicked() {
+                            confirmed = true;
+                        }
+                        if ui.button(i18n::text(locale, "modal.cancel")).clicked() {
+                            close = true;
+                        }
+                    });
+                });
+                if confirmed {
+                    session.bench.delete_section(now);
+                    session.settings_dirty = true;
+                    close = true;
+                }
+            }
+            Overlay::Message(text) => {
+                popup(ctx, "message", colors, |ui| {
+                    for line in text.lines() {
+                        ui.label(RichText::new(line).color(colors.fg_muted));
+                    }
+                    ui.add_space(8.0);
+                    if ui.button(i18n::text(locale, "modal.close")).clicked() {
+                        close = true;
+                    }
                 });
             }
             Overlay::CloseGuard => {
@@ -1070,6 +1526,123 @@ fn status_bar(
     clicked
 }
 
+/// 節エディタのミニヘッダー（§9.4.2 の ① の部分: パンくず ＋ 有効モードのバッジ。比率バーは ②）。
+fn mini_header(ui: &mut egui::Ui, session: &Session, mode: Mode, scale: f32) {
+    let colors = theme::palette(mode);
+    let mode_color = theme::token_style(
+        mode,
+        crate::core::features::semantic_tokens::TokenType::ModifierMode,
+    )
+    .color;
+    let font = FontId::new(11.0 * scale, FontFamily::Monospace);
+    ui.horizontal(|ui| {
+        ui.set_height(18.0);
+        if let Some(crumb) = session.bench.breadcrumb() {
+            ui.label(
+                RichText::new(crumb)
+                    .font(font.clone())
+                    .color(colors.fg_faint),
+            );
+        }
+        for cast in &session.reference_cache.content().cast {
+            if cast.modes.is_empty() {
+                continue;
+            }
+            let ids: Vec<&str> = cast
+                .modes
+                .iter()
+                .map(|heading| heading.split(' ').next().unwrap_or(""))
+                .collect();
+            ui.add_space(10.0);
+            ui.label(
+                RichText::new(format!("{} {}", cast.name, ids.join("+")))
+                    .font(FontId::new(11.0 * scale, FontFamily::Proportional))
+                    .color(mode_color),
+            );
+        }
+    });
+}
+
+/// 補完のポップアップ（§9.7.3）。候補が無くなったら `false`（閉じる）。確定したら挿入して閉じる。
+fn completion(
+    ctx: &Context,
+    session: &mut Session,
+    selected: &mut usize,
+    keys: (bool, bool, bool),
+    mode: Mode,
+    now: f64,
+) -> bool {
+    let Some((document, start)) = session.bench.spliced_document() else {
+        return false;
+    };
+    let caret = session.selection.clone().map_or(0, |range| range.end);
+    let items =
+        crate::core::features::completion::at(&document, start + caret, session.bench.project());
+    if items.is_empty() {
+        return false;
+    }
+    let (down, up, enter) = keys;
+    if down && *selected + 1 < items.len() {
+        *selected += 1;
+    }
+    if up {
+        *selected = selected.saturating_sub(1);
+    }
+    *selected = (*selected).min(items.len() - 1);
+    let mut chosen = enter.then_some(*selected);
+    let colors = theme::palette(mode);
+    let anchor = session.caret.map_or(Pos2::new(120.0, 120.0), |rect| {
+        rect.left_bottom() + Vec2::new(0.0, 4.0)
+    });
+    egui::Area::new(Id::new("completion"))
+        .order(egui::Order::Foreground)
+        .fixed_pos(anchor)
+        .show(ctx, |ui| {
+            Frame::none()
+                .fill(colors.bg_raised)
+                .stroke(Stroke::new(1.0_f32, colors.border))
+                .inner_margin(Margin::same(6.0))
+                .show(ui, |ui| {
+                    // 候補は折り返さない（幅が足りなければ Area が画面の内側へ寄せる）
+                    ui.style_mut().wrap = Some(false);
+                    for (index, item) in items.iter().enumerate().take(24) {
+                        let color = if item.faint {
+                            colors.fg_faint
+                        } else if index == *selected {
+                            colors.accent
+                        } else {
+                            colors.fg_primary
+                        };
+                        let text = if item.detail.is_empty() {
+                            item.label.clone()
+                        } else {
+                            format!("{}  {}", item.label, item.detail)
+                        };
+                        if ui
+                            .selectable_label(index == *selected, RichText::new(text).color(color))
+                            .clicked()
+                        {
+                            chosen = Some(index);
+                        }
+                    }
+                });
+        });
+    let Some(item) = chosen.and_then(|index| items.get(index)) else {
+        return true;
+    };
+    let length = session.bench.buffer().len();
+    let from = item.range.start.saturating_sub(start).min(length);
+    let to = item.range.end.saturating_sub(start).min(length).max(from);
+    let buffer = session.bench.buffer_mut();
+    if buffer.is_char_boundary(from) && buffer.is_char_boundary(to) {
+        buffer.replace_range(from..to, &item.insert_text);
+        let caret = from + item.insert_text.len();
+        session.bench.edited(now);
+        session.pending_selection = Some(caret..caret);
+    }
+    false
+}
+
 fn diagnostic_count(session: &mut Session) -> usize {
     let Some(current) = session.bench.current() else {
         return 0;
@@ -1249,6 +1822,15 @@ const HELP_KEYS: &[(&str, &str)] = &[
     ("Ctrl+Alt+L", "help.language"),
     ("Ctrl+Alt+T", "help.theme"),
     ("F5", "help.reload"),
+    ("Ctrl+F / Ctrl+H", "help.find"),
+    ("F3 / Shift+F3", "help.find_next"),
+    ("Ctrl+Shift+F", "help.search"),
+    ("Ctrl+Space", "help.complete"),
+    ("Ctrl+Shift+M", "help.modes"),
+    ("Ctrl+Shift+W", "help.term"),
+    ("Ctrl+Shift+;", "help.delete_section"),
+    ("Ctrl+Tab", "help.recent"),
+    ("Ctrl+O", "help.open"),
     ("Esc", "help.escape"),
 ];
 
@@ -1500,6 +2082,14 @@ mod native {
     impl Picker for NativePicker {
         fn open_folder(&mut self) {
             self.want_folder = true;
+        }
+
+        fn open_dialog(&mut self, locale: Locale) -> Option<Result<(Session, UiSettings), String>> {
+            let dir = block_on(RfdDialog.pick_folder())?;
+            Some(match precheck_report(&dir, locale) {
+                Ok(root) => open_project(&root),
+                Err((report, _)) => Err(report),
+            })
         }
 
         fn show(

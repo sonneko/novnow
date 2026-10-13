@@ -1,10 +1,11 @@
 //! 構文ハイライト付きのテキスト（§11.2）と下線（§11.3）。
 //!
 //! - 色はトークン（`core::features::semantic_tokens`）→ [`theme::token_style`]。
-//! - 役割語の一致は **緑の直線**（`state.ok`、1.5px、§6.5.4・§11.3）。`TextFormat::underline` で描く。
-//! - 診断は **波線**（エラー `state.error` / 警告 `state.warn`、周期 4px・振幅 1.5px）。egui の
-//!   `TextFormat` に波線は無いので、レイアウト後の `Galley` の行から位置を求めて上から描く
-//!   （役割語の緑より後に描く = エラーが上、§11.3）。
+//! - 役割語の一致は **緑の直線**（`state.ok`、1.5px、ベースライン + 2px、§6.5.4・§11.3）。
+//! - 診断は **波線**（エラー `state.error` / 警告 `state.warn`、周期 4px・振幅 1.5px、ベースライン + 2px）。
+//! - どちらもレイアウト後の `Galley` のグリフ（`Glyph::pos.y` がベースライン）から位置を求めて上から描く
+//!   （`TextFormat::underline` は行の下端に引くので、行間 1.8〜1.9 では文字から離れすぎる）。
+//!   役割語の緑を先に、波線を後に描く = エラーが上（§11.3）。
 
 use std::ops::Range;
 use std::sync::Arc;
@@ -97,7 +98,7 @@ pub fn job(
     let mut at = 0;
     let mut tokens: Vec<&(Range<usize>, TokenType, bool)> = highlight.tokens.iter().collect();
     tokens.sort_by_key(|token| token.0.start);
-    for (range, kind, role) in tokens {
+    for (range, kind, _) in tokens {
         let start = floor(text, range.start.max(at));
         let end = floor(text, range.end.min(text.len()));
         if start >= end {
@@ -107,15 +108,12 @@ pub fn job(
             job.append(&text[at..start], 0.0, base.clone());
         }
         let style = theme::token_style(mode, *kind);
-        let mut format = TextFormat {
+        let format = TextFormat {
             font_id: FontId::new(metrics.size * style.scale, FontFamily::Proportional),
             color: style.color,
             italics: style.italic,
             ..base.clone()
         };
-        if *role {
-            format.underline = Stroke::new(1.5_f32, colors.ok);
-        }
         job.append(&text[start..end], 0.0, format);
         at = end;
     }
@@ -133,7 +131,7 @@ fn floor(text: &str, mut at: usize) -> usize {
     at
 }
 
-/// 波線を描く（`galley` を `origin` に置いたとき）。
+/// 役割語の緑の直線と、診断の波線を描く（`galley` を `origin` に置いたとき）。緑が下、波線が上。
 pub fn paint_squiggles(
     painter: &Painter,
     origin: Pos2,
@@ -143,6 +141,20 @@ pub fn paint_squiggles(
     mode: Mode,
 ) {
     let colors = theme::palette(mode);
+    for (range, _, role) in &highlight.tokens {
+        if !role {
+            continue;
+        }
+        for (left, right, y) in row_spans(galley, text, range) {
+            painter.line_segment(
+                [
+                    origin + Vec2::new(left, y + 2.0),
+                    origin + Vec2::new(right, y + 2.0),
+                ],
+                Stroke::new(1.5_f32, colors.ok),
+            );
+        }
+    }
     for (range, severity) in &highlight.squiggles {
         let color = match severity {
             Severity::Error => colors.error,
@@ -160,6 +172,7 @@ pub fn paint_squiggles(
 }
 
 /// byte 範囲が占める行ごとの `(左端 x, 右端 x, ベースライン y)`（`galley` の座標）。
+/// 線はベースライン + 2px に引く（§11.3）。
 pub fn row_spans(galley: &Galley, text: &str, range: &Range<usize>) -> Vec<(f32, f32, f32)> {
     let start = char_index(text, range.start);
     let end = char_index(text, range.end).max(start + 1);
@@ -173,7 +186,13 @@ pub fn row_spans(galley: &Galley, text: &str, range: &Range<usize>) -> Vec<(f32,
         if from < to {
             let left = row.x_offset(from - offset);
             let right = row.x_offset(to - offset);
-            out.push((left, right.max(left + 2.0), row.rect.max.y - 2.0));
+            // ベースライン（グリフの `pos.y`）。グリフが無ければ行の下端の少し上
+            let baseline = row
+                .glyphs
+                .get(from - offset)
+                .map(|glyph| glyph.pos.y)
+                .unwrap_or(row.rect.max.y - 4.0);
+            out.push((left, right.max(left + 2.0), baseline));
         }
         offset += count;
         if offset >= end {
