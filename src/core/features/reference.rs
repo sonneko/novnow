@@ -9,7 +9,7 @@
 //! | 2 上位プロット | 章プロット → 全体プロットの `summary` の 1 行目（計 2 行まで） |
 //! | 3 配役 | この節に出るキャラ（話者注釈・`'` 参照）の、この節で有効なモード（§6.4.6） |
 //! | 4 用語 | この節に出る用語の `term` と `definition` の 1 行目 |
-//! | 7 資料 | 明示参照（`'M…` / `'タイトル`）。引用注釈（`^M…`、§5.2.4）は ②（追加仕様 10）、条件一致候補（§16.4）は M8 |
+//! | 7 資料 | 明示参照（節の `'M…` / `'タイトル` と、話プロットの同じ節・場面レベルの `material:`）の後に、条件一致の候補（§16.4、M8）。引用注釈（`^M…`、§5.2.4）は ②（追加仕様 10） |
 //! | 9 診断 | この節に掛かるもの。E → W の順（I は出さない） |
 //!
 //! 五感・空間・挿絵（5・6・8）は ②（`PLANS.md` §5.8 作業項目 7）。
@@ -101,6 +101,8 @@ pub struct MaterialRef {
     pub title: String,
     /// `summary`（無ければ空）。
     pub summary: String,
+    /// 条件一致の候補か（§16.4。明示参照の後に薄い色で並べる。`false` = 明示参照）。
+    pub candidate: bool,
 }
 
 /// `document`（本文）の節 `scene`（4 階層）の参照ペイン。`lines` は節の行（`sections::SectionRef::lines`）。
@@ -118,7 +120,7 @@ pub fn at(
         upper: upper_plots(project, scene),
         cast: cast(document, &parsed, &lines, scene, project),
         words: words(document, &lines, project),
-        materials: materials(document, &lines, project),
+        materials: materials(document, &lines, scene, project),
         diagnostics: section_diagnostics(document, &byte_range, project),
     }
 }
@@ -402,25 +404,42 @@ fn words(document: &Document, lines: &Range<usize>, project: &Project) -> Vec<Wo
 
 // ============================================================ 7. 資料
 
-fn materials(document: &Document, lines: &Range<usize>, project: &Project) -> Vec<MaterialRef> {
-    let dictionary = project.dictionary();
+fn materials(
+    document: &Document,
+    lines: &Range<usize>,
+    scene: SceneId,
+    project: &Project,
+) -> Vec<MaterialRef> {
     let mut ids: Vec<String> = Vec::new();
-    // 明示参照（`'M0137` / `'タイトル`）
-    for site in project.ref_sites(document) {
-        if !lines.contains(&site.line) {
-            continue;
+    let mut names: Vec<String> = Vec::new();
+    // 明示参照（`'M0137` / `'タイトル`）。節に出てくる参照の名前は条件一致（`ref`）にも使う
+    collect_refs(
+        document,
+        std::slice::from_ref(lines),
+        project,
+        &mut ids,
+        &mut names,
+    );
+    // 話プロットのこの節（と場面レベル）の `material:` も明示参照（§16.4 の追記先。追記した候補は
+    // 候補でなくなる、`PLANS.md` §9.2 B-134）
+    let plot = plot_scope(project, scene);
+    if let Some((path, ranges, _)) = &plot {
+        if let Some(found) = project.document(path) {
+            collect_refs(found, ranges, project, &mut ids, &mut names);
         }
-        if let Some(entry) = site.entry().and_then(|id| dictionary.entry(id)) {
-            if let Target::Material { id } = &entry.target {
-                if !ids.contains(id) {
-                    ids.push(id.clone());
-                }
-            }
+    }
+    let explicit = ids.len();
+    // §16.4: 条件一致の候補（明示参照していないもの）
+    let tags = plot.map(|(_, _, tags)| tags).unwrap_or_default();
+    for id in crate::core::features::materials_ops::matching(project, scene, &names, &tags) {
+        if !ids.contains(&id) {
+            ids.push(id);
         }
     }
     let index = project.materials();
     ids.into_iter()
-        .map(|id| {
+        .enumerate()
+        .map(|(at, id)| {
             let found = index
                 .index
                 .as_ref()
@@ -431,9 +450,93 @@ fn materials(document: &Document, lines: &Range<usize>, project: &Project) -> Ve
                     .and_then(|item| item.summary.clone())
                     .unwrap_or_default(),
                 id,
+                candidate: at >= explicit,
             }
         })
         .collect()
+}
+
+/// `document` の行 `lines`（どれかに入る行）の `'` 参照: 資料なら `ids` に、名前は全部 `names` に
+/// （重複なし、出た順）。
+fn collect_refs(
+    document: &Document,
+    lines: &[Range<usize>],
+    project: &Project,
+    ids: &mut Vec<String>,
+    names: &mut Vec<String>,
+) {
+    let dictionary = project.dictionary();
+    for site in project.ref_sites(document) {
+        if !lines.iter().any(|range| range.contains(&site.line)) {
+            continue;
+        }
+        if let Some(name) = document.text.get(site.key_range()) {
+            if !names.iter().any(|seen| seen == name) {
+                names.push(name.to_owned());
+            }
+        }
+        if let Some(entry) = site.entry().and_then(|id| dictionary.entry(id)) {
+            if let Target::Material { id } = &entry.target {
+                if !ids.contains(id) {
+                    ids.push(id.clone());
+                }
+            }
+        }
+    }
+}
+
+/// 話プロットの中の節 `scene` の範囲: (パス, 行の範囲（場面レベルのフィールドの行・節の行）, タグ)。
+///
+/// タグは `tags:` / `タグ:`（§5.0.6 の表では Markdown 形式のキーだが、表にあるキーは B 形式でも
+/// そのまま読む。W011 は表に無いキーだけ）で、§16.4 の `tag` の一致判定に使う。場面レベルのタグは
+/// 場面の全部の節に効く。
+/// 話プロットか場面が無ければ `None`。
+fn plot_scope(
+    project: &Project,
+    scene: SceneId,
+) -> Option<(String, Vec<Range<usize>>, Vec<String>)> {
+    let plot = project.episode_plot(scene.chapter, scene.episode)?;
+    let whole = SceneId {
+        section: 0,
+        ..scene
+    };
+    let (index, found) = plot
+        .scenes
+        .iter()
+        .enumerate()
+        .find(|(_, found)| found.id.map(|id| SceneId { section: 0, ..id }) == Some(whole))?;
+    // 場面レベル: 見出しの次の行から最初の節の手前まで
+    let head_end = found
+        .sections
+        .first()
+        .map_or(found.span.end, |section| section.span.start)
+        .max(found.header + 1);
+    let mut ranges = Vec::with_capacity(2);
+    ranges.push(found.header + 1..head_end);
+    let mut fields = plot.scene_fields(index, FieldKey::Tags);
+    fields.extend(plot.scene_fields(index, FieldKey::Unknown));
+    if scene.section > 0 {
+        if let Some(at) = found
+            .sections
+            .iter()
+            .position(|section| section.number == scene.section)
+        {
+            ranges.push(found.sections[at].span.clone());
+            fields.extend(plot.section_fields(index, at, FieldKey::Tags));
+            fields.extend(plot.section_fields(index, at, FieldKey::Unknown));
+        }
+    }
+    // §5.0.6 の表の `tags` の行（正準形と日本語別名）。字句器が `Tags` と読まなかった書き方も念のため拾う
+    let names = [FieldKey::Tags.ascii_key(), FieldKey::Tags.alias()];
+    let tags = fields
+        .iter()
+        .filter(|field| field.key == FieldKey::Tags || names.contains(&Some(field.key_text)))
+        .flat_map(|field| field.value.split([',', '、']))
+        .map(|tag| tag.trim().to_owned())
+        .filter(|tag| !tag.is_empty())
+        .collect();
+    let path = project.episode_plot_path(scene.chapter, scene.episode);
+    Some((path, ranges, tags))
 }
 
 // ============================================================ 9. 診断

@@ -6,7 +6,7 @@
 //! - 更新はカーソル移動から 80ms のデバウンス。待つ間も前の内容をそのまま出す（スピナーを出さない、§9.5.4 MUST）。
 
 use egui::text::{LayoutJob, TextFormat};
-use egui::{FontFamily, FontId, RichText, Ui};
+use egui::{FontFamily, FontId, RichText, Sense, Stroke, Ui};
 
 use crate::core::features::reference::{self, Reference};
 use crate::core::resolve::context_rules::PaneSection;
@@ -64,14 +64,21 @@ impl Cache {
     }
 }
 
-/// 参照ペインを描く。
-pub fn show(ui: &mut Ui, cache: &Cache, locale: Locale, mode: Mode, scale: f32) {
+/// 参照ペインを描く。資料の候補が選ばれたら（ダブルクリック・フォーカスして `Enter`）その ID。
+pub fn show(ui: &mut Ui, cache: &Cache, locale: Locale, mode: Mode, scale: f32) -> Option<String> {
+    let mut chosen = None;
     egui::ScrollArea::vertical()
         .id_source("reference-pane")
         .auto_shrink([false, false])
         .show(ui, |ui| {
-            sections(ui, cache.content(), locale, mode, scale);
+            chosen = sections(ui, cache.content(), locale, mode, scale);
         });
+    chosen
+}
+
+/// 資料の候補の行の egui の ID（`Ctrl+3` でフォーカスを移す先）。
+pub fn candidate_id(id: &str) -> egui::Id {
+    egui::Id::new(("material-candidate", id))
 }
 
 /// 参照ペインの見出し（11px・`fg.faint`、上に 12px の余白）。ワークスペースが足す行にも使う。
@@ -87,7 +94,18 @@ pub fn heading(ui: &mut Ui, text: &str, mode: Mode, scale: f32) {
 }
 
 /// 参照ペインの中身（スクロールの中に置く。M8 のワークスペースも同じ見た目で使う）。
-pub fn sections(ui: &mut Ui, content: &Reference, locale: Locale, mode: Mode, scale: f32) {
+///
+/// 資料は明示参照の後に、条件一致の候補を薄い色で並べる（§16.4）。候補はダブルクリックか、
+/// フォーカスして `Enter` で選べ、選ばれた候補の ID を返す（呼び出し側が今の節のプロットの
+/// `material:` に足す、`PLANS.md` §9.2 B-136）。
+pub fn sections(
+    ui: &mut Ui,
+    content: &Reference,
+    locale: Locale,
+    mode: Mode,
+    scale: f32,
+) -> Option<String> {
+    let mut chosen = None;
     let colors = theme::palette(mode);
     let heading = |ui: &mut Ui, key: &str| {
         ui.add_space(12.0);
@@ -184,10 +202,15 @@ pub fn sections(ui: &mut Ui, content: &Reference, locale: Locale, mode: Mode, sc
                     }
                     PaneSection::Materials if !content.materials.is_empty() => {
                         heading(ui, "pane.materials");
-                        for material in &content.materials {
+                        for material in content.materials.iter().filter(|found| !found.candidate) {
                             muted(ui, &material.id, &material.title);
                             if !material.summary.is_empty() {
                                 body(ui, &material.summary);
+                            }
+                        }
+                        for material in content.materials.iter().filter(|found| found.candidate) {
+                            if candidate(ui, material, locale, mode, scale) {
+                                chosen = Some(material.id.clone());
                             }
                         }
                     }
@@ -225,6 +248,41 @@ pub fn sections(ui: &mut Ui, content: &Reference, locale: Locale, mode: Mode, sc
             }
         }
     }
+    chosen
+}
+
+/// 条件一致の候補の 1 行（`fg.faint`。ダブルクリック・フォーカスして `Enter` で `true`）。
+fn candidate(
+    ui: &mut Ui,
+    material: &reference::MaterialRef,
+    locale: Locale,
+    mode: Mode,
+    scale: f32,
+) -> bool {
+    let colors = theme::palette(mode);
+    let font = FontId::new(13.0 * scale, FontFamily::Proportional);
+    let mut job = LayoutJob::default();
+    let format = TextFormat {
+        font_id: font,
+        color: colors.fg_faint,
+        line_height: Some(13.0 * scale * 1.6),
+        ..Default::default()
+    };
+    job.append(&material.id, 0.0, format.clone());
+    job.append(&material.title, 12.0, format);
+    let label = ui.label(job);
+    let response = ui.interact(label.rect, candidate_id(&material.id), Sense::click());
+    let name = format!("{} {}", material.id, material.title);
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, &name));
+    if response.has_focus() || response.hovered() {
+        ui.painter().rect_stroke(
+            label.rect.expand(2.0),
+            2.0,
+            Stroke::new(1.0_f32, colors.accent),
+        );
+    }
+    let response = response.on_hover_text(i18n::text(locale, "pane.candidate_hint"));
+    response.double_clicked() || (response.clicked() && response.fake_primary_click)
 }
 
 fn first_line(text: &str) -> &str {

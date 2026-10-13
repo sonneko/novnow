@@ -186,5 +186,5 @@ fn proposing_a_material_issues_the_next_id_and_never_reuses_one() {
     );
     // E025（JSON として読めない）なら何もしない
     assert!(materials_ops::propose("{ broken", "x", "", "t").is_none());
-    assert!(materials_ops::touch("{ broken", "materials/docs/M0137.md", "t").is_none());
+    assert!(materials_ops::touch("{ broken", "materials/docs/M0137.md", "t", "body").is_none());
 }

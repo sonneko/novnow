@@ -67,7 +67,27 @@ pub fn show(
     let mut highlight = |text: &str| cache.get(bench_ref, text);
     let result = section_editor::area(ui, id, &scroll, &mut buffer, &mut highlight, mode, scale);
     *bench.slice_buffer_mut() = buffer;
+    if let Some(selection) = result.selection.clone() {
+        bench.set_slice_caret(selection);
+    }
     result
+}
+
+/// エディタの選択範囲を byte で指定してフォーカスを移す（次のフレームから効く。`Ctrl+M` の挿入の後）。
+pub fn select(ctx: &egui::Context, bench: &Workbench, range: Range<usize>) {
+    let id = editor_id(bench);
+    let text = bench.slice_buffer();
+    let start = section_editor::char_of(text, range.start);
+    let end = section_editor::char_of(text, range.end);
+    let mut state = egui::text_edit::TextEditState::load(ctx, id).unwrap_or_default();
+    state
+        .cursor
+        .set_char_range(Some(egui::text::CCursorRange::two(
+            egui::text::CCursor::new(start),
+            egui::text::CCursor::new(end),
+        )));
+    state.store(ctx, id);
+    ctx.memory_mut(|memory| memory.request_focus(id));
 }
 
 /// Slice の中身 `text` のハイライト（文書全体に書き戻した形で解析し、開いている行の部分だけを取る）。

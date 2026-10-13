@@ -83,7 +83,7 @@ pub fn select(ui_ctx: &egui::Context, bench: &Workbench, range: Range<usize>) {
     ui_ctx.memory_mut(|memory| memory.request_focus(id));
 }
 
-fn char_of(text: &str, byte: usize) -> usize {
+pub(crate) fn char_of(text: &str, byte: usize) -> usize {
     let mut at = byte.min(text.len());
     while at > 0 && !text.is_char_boundary(at) {
         at -= 1;

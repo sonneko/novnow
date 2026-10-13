@@ -756,14 +756,14 @@ impl Diagnostic {
 ///
 /// | 出す層 | コード | 対象の形式 |
 /// |---|---|---|
-/// | `syntax/*` のパーサ（M2） | E002 / E005（B 形式の `mode:`） / E008 / E016 / E017 / E018 / E020 / E021 / E022 / E024 / E025 / E031〜E033 / W002 / W011 / W012 / W019 | 各形式 |
+/// | `syntax/*` のパーサ（M2。W065 は M8） | E002 / E005（B 形式の `mode:`） / E008 / E016 / E017 / E018 / E020 / E021 / E022 / E024 / E025 / E031〜E033 / W002 / W011 / W012 / W019 / W065 | 各形式（W065 は `materials/index.json`） |
 /// | [`project_json::parse`]（M5、B-88） | E025 / E027 | `project.json` |
 /// | [`materials::scan_line`](crate::core::resolve::materials::scan_line)（M3、B-71） | E001 / E002 / E005（1 トークン） / E006 / E007 / E026 / W029 / W031 | 本文部のある全形式（走査範囲は B-77） |
 /// | [`dictionary::speaker_diagnostic`](crate::core::resolve::dictionary::speaker_diagnostic) | E012 | C |
 /// | 辞書の構築（[`Project::dictionary_diagnostics`]） | E028 / W027 | `characters.md` / `words.md` / `materials/index.json` |
 /// | [`dictionary::relation_diagnostics`](crate::core::resolve::dictionary::relation_diagnostics) | E013 | `characters.md` |
 /// | [`modes::resolve`](crate::core::resolve::modes::resolve)（M3、B-67） | E003 / E004 / E005（`cast:` の重複・`default-mode:`） / W006 | C（話者注釈）・B・A・`characters.md` |
-/// | **この関数**（M4） | W022 / W025 / W030 | C・B / 資料 MD / B |
+/// | **この関数**（M4。W064 は M8） | W022 / W025 / W030 / W064 | C・B / 資料 MD / B / 資料 MD |
 ///
 /// モードの検査は「**その文書に書かれた割り当て**」だけをその文書に載せる（B-79）。
 /// 本文を開いて話プロットの `mode:` の E003 が出ることはない（話プロットを開けば出る）。
@@ -1250,12 +1250,25 @@ fn word_ranges(
 /// （[`materials::same_title`](crate::core::resolve::materials::same_title)）。
 fn material_heading(document: &Document, project: &Project, out: &mut Vec<Diagnostic>) {
     let index = project.materials();
-    let Some(material) = index.index.as_ref().and_then(|found| {
-        found
-            .items
-            .iter()
-            .find(|item| item.path.trim_start_matches("./") == document.path)
-    }) else {
+    // 索引が読めない（E025）ときは、登録されているかどうかも分からないので何も言わない
+    let Some(parsed) = index.index.as_ref() else {
+        return;
+    };
+    let Some(material) = parsed
+        .items
+        .iter()
+        .find(|item| item.path.trim_start_matches("./") == document.path)
+    else {
+        // §16.2「MD ファイルを手で足しただけでは資料として認識しない（W064 で通知し、ワンクリックで
+        // 登録できる）」。位置は 1 行目（M8、`PLANS.md` §9.2 B-134）
+        let first = project::lines_of(&document.text)
+            .next()
+            .map(|line| line.start..line.start + line.text.len());
+        out.push(Diagnostic::new(
+            DiagnosticCode::W064,
+            first,
+            vec![Arg::text(document.path.as_str())],
+        ));
         return;
     };
     let Some(first) = project::lines_of(&document.text).next() else {

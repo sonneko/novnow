@@ -96,6 +96,13 @@ impl State {
             .cloned()
     }
 
+    /// H1 の順番 `index` のキャラを選ぶ（パレットの `'名前`、§9.7.1）。
+    pub fn select(&mut self, index: usize) {
+        self.selected = Some(index);
+        self.band = 0;
+        self.reveal = true;
+    }
+
     /// `characters.md` の行 `line` を含むキャラを選ぶ（点検からのジャンプ）。
     pub fn select_line(&mut self, bench: &Workbench, line: usize) {
         // 行を含むキャラ（H1 の前の行なら最初のキャラ）

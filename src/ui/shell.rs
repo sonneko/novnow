@@ -154,12 +154,15 @@ pub enum Command {
     Capture,
     /// `Ctrl+Shift+E` 点検（review）の診断へ（§9.6.1・§10.9.2）。
     Review,
-    /// `Ctrl+Delete` アイデアを破棄（`status: dropped`。§10.4。`idea` の中だけ）。
+    /// `Ctrl+Delete` アイデアを破棄（`status: dropped`。§10.4）・資料を却下（§16.1）。`idea` と
+    /// `material` の中だけ。
     Drop,
     /// `Ctrl+Shift+→` / `Ctrl+Shift+←` タブの切替（§10.9.1・§10.6。`review` と `cast` の中だけ）。
     Tab(bool),
     /// `Ctrl+Shift+V` 役割語が一致しなかった台詞の一覧（§10.6。`cast` の中だけ）。
     Scan,
+    /// `Ctrl+M` 資料検索（§16.3・§9.8.3。どのワークスペースからでも。`PLANS.md` §9.2 B-134）。
+    MaterialSearch,
 }
 
 /// キー 1 つをショートカットに読む。`text_focused` は入力欄にフォーカスがあるか（`?` の判定）。
@@ -215,6 +218,7 @@ pub fn command_of(
         Key::F3 if !ctrl && !alt => Command::FindNext(!shift),
         Key::Space if ctrl && !alt && !shift => Command::Complete,
         Key::M if ctrl && !alt && shift => Command::Modes,
+        Key::M if ctrl && !alt => Command::MaterialSearch,
         Key::W if ctrl && !alt && shift => Command::Term,
         Key::Tab if ctrl && !alt => Command::RecentFile(!shift),
         Key::Period if ctrl && !alt && !shift => Command::QuickFix,
@@ -254,6 +258,7 @@ pub fn command_of(
 /// ワークスペースの中だけで効くキー（テキストの編集と重なるので、そのワークスペースでだけ取る）。
 ///
 /// - `idea`: `Ctrl+Delete` で破棄（§10.4。編集欄の「後ろの単語を消す」より優先する）。
+/// - `material`: `Ctrl+Delete` で却下（§16.1。`idea` と同じ理由で優先する、B-134）。
 /// - `review`: `Ctrl+Shift+→` / `←` でタブ（§10.9.1。`review` には編集欄が無い）。
 /// - `cast`: `Ctrl+Shift+→` / `←` でタブ（§10.6。中央の編集欄の単語選択より優先する）、
 ///   `Ctrl+Shift+V` で未一致の台詞（§10.6）。
@@ -268,7 +273,9 @@ pub fn local_command_of(
     let alt = modifiers.alt;
     let shift = modifiers.shift;
     match (workspace, key) {
-        (Workspace::Idea, Key::Delete) if ctrl && !alt && !shift => Some(Command::Drop),
+        (Workspace::Idea | Workspace::Material, Key::Delete) if ctrl && !alt && !shift => {
+            Some(Command::Drop)
+        }
         (Workspace::Review, Key::ArrowRight) if ctrl && shift && !alt => Some(Command::Tab(true)),
         (Workspace::Review, Key::ArrowLeft) if ctrl && shift && !alt => Some(Command::Tab(false)),
         (Workspace::Cast, Key::ArrowRight) if ctrl && shift && !alt => Some(Command::Tab(true)),

@@ -793,7 +793,20 @@ fn screenshot() {
         .text(CONTENTS_PATH)
         .replace("図面の精巧な", "'未登録の図面の精巧な");
     let light = std::env::var_os("NOVNOW_SHOT_LIGHT").is_some();
-    let (mut harness, first) = Harness::start_with(world_with(CONTENTS_PATH, &text), !light);
+    let scene = std::env::var("NOVNOW_SHOT_SCENE").unwrap_or_default();
+    let mut project = world_with(CONTENTS_PATH, &text);
+    if scene.starts_with("material") {
+        // 資料 MD（§5.8.3 の形）と、索引に無い資料 MD（W064）
+        project.insert(novnow::core::model::document::Document::new(
+            "materials/docs/M0137-kagaku-koshien.md",
+            "# 科学の甲子園 本戦の運営と実技課題\n<!-- novnow:M0137 -->\n\n## タイムテーブル\n- 9:00 開会\n- 13:00 実技課題\n",
+        ));
+        project.insert(novnow::core::model::document::Document::new(
+            "materials/inbox/memo.md",
+            "# 取材メモ\n",
+        ));
+    }
+    let (mut harness, first) = Harness::start_with(project, !light);
     let mut textures: std::collections::HashMap<
         egui::TextureId,
         (usize, usize, Vec<egui::Color32>),
@@ -832,8 +845,7 @@ fn screenshot() {
         }
     };
     // `NOVNOW_SHOT_SCENE`: edit（既定）/ completion / palette / find / help / episode / outline /
-    // idea / cast / review
-    let scene = std::env::var("NOVNOW_SHOT_SCENE").unwrap_or_default();
+    // idea / material / material-search / cast / review
     let mut steps: Vec<Vec<Event>> = vec![
         vec![key(Key::Num2, Modifiers::CTRL)],
         vec![Event::Text("ここで一文を書き足す。".into())],
@@ -849,6 +861,14 @@ fn screenshot() {
         "episode" => steps.push(vec![key(Key::Num2, Modifiers::ALT)]),
         "outline" => steps.push(vec![key(Key::Num3, Modifiers::ALT)]),
         "idea" => steps.push(vec![key(Key::Num4, Modifiers::ALT)]),
+        "material" => {
+            steps.push(vec![key(Key::Num5, Modifiers::ALT)]);
+            steps.push(vec![key(Key::ArrowDown, Modifiers::ALT)]);
+        }
+        "material-search" => {
+            steps.push(vec![key(Key::M, Modifiers::CTRL)]);
+            steps.push(vec![Event::Text("甲子園".into())]);
+        }
         "cast" => steps.push(vec![key(Key::Num6, Modifiers::ALT)]),
         "review" => steps.push(vec![key(Key::Num9, Modifiers::ALT)]),
         _ => {}

@@ -202,6 +202,8 @@ font_fallback = "No Japanese font was found; using the bundled font"
 
 [palette]
 placeholder = "Type to go, search, or run"
+character = "Character"
+term = "Term"
 
 [project.pick]
 title = "Choose a project"
@@ -245,6 +247,7 @@ emotion = "Emotion"
 role = "Role"
 tone = "Tone"
 prose = "Prose"
+candidate_hint = "A material whose conditions match. Double-click or press Enter to add it to this section's plot as material:"
 
 [jump]
 not_found = "No section has that structure ID"
@@ -314,6 +317,15 @@ open = "Open a project"
 quick_fix = "Quick fix"
 register = "Register the selection as a term / character"
 diff = "Diff with outside changes (on conflict)"
+workspace = "Switch workspace / back to the previous one"
+up = "One level up (prose → episode plot → chapter plot → whole)"
+capture = "Jot down an idea (anywhere)"
+review = "Diagnostics in Review"
+material = "Search and insert a material (anywhere)"
+insert = "Insert a plot section / new material"
+drop = "Drop an idea / reject a material"
+tab = "Switch tabs (Review, Cast)"
+scan = "Lines whose role words did not match (Cast)"
 
 [find]
 placeholder = "Find"
@@ -422,6 +434,61 @@ no_characters = "characters.md has no characters"
 # {0} = idea ID, {1} = destination
 promoted = "Promoted {0} to {1}"
 promote_failed = "Could not promote (the destination document cannot be read)"
+
+[material]
+filter_active = "All but rejected"
+status_proposed = "Proposed"
+status_approved = "Approved"
+status_rejected = "Rejected"
+status_unknown = "Unknown status"
+query_hint = "Filter (words, #category, @range, 'ref, ~date)"
+none = "No materials to show. Press Ctrl+Shift+N to create one"
+empty = "Choose a material in the list to edit its file here"
+form_empty = "Choose a material to review it here"
+keys = "Ctrl+Enter approve · Ctrl+Delete reject · Ctrl+Shift+N new material · Ctrl+M search · Ctrl+3 review form"
+# {0} = material file path
+missing_file = "{0} does not exist yet (it is created when you start writing)"
+field_title = "Title"
+field_category = "Category"
+field_summary = "Summary"
+field_tags = "Tags"
+field_conditions = "Conditions (one per line)"
+field_source = "Source"
+# Category suggestions (comma separated; the defaults of §16.2)
+categories = "Interview,Literature,Web,Image,Experience,Primary,Secondary"
+tags_hint = "Comma separated"
+conditions_hint = "scope: @02-03 .. @02-08 / ref: 'name / tag: word / text: free text"
+source_hint = "A URL or a description of the source"
+approve = "Approve (Ctrl+Enter)"
+reject = "Reject (Ctrl+Delete)"
+register = "Register in index.json (Ctrl+Enter)"
+# {0} = material ID
+approved = "Approved {0} (moved to materials/docs/)"
+# {0} = material ID
+rejected = "Rejected {0} (the file stays; approve it again from the Rejected filter)"
+# {0} = material file path, {1} = material ID
+registered = "Registered {0} as {1}"
+# {0} = material ID
+already = "{0} already has that status"
+# {0} = destination path
+occupied = "Cannot move: {0} already exists (rename it and try again)"
+untitled = "Untitled material"
+index_broken = "Cannot create a material: materials/index.json cannot be read (fix E025)"
+# {0} = material ID
+created = "Created {0} as a proposal (materials/inbox/)"
+# {0} = material ID
+inserted = "Inserted {0}"
+# {0} = material ID, {1} = section ID
+appended = "Added {0} to the plot of {1} (material:)"
+# {0} = episode plot path
+no_plot_row = "Cannot add: {0} has no scene for this section"
+search_hint = "Search materials (words, #category, @range, 'ref, M0137, !status, ~date)"
+search_none = "Nothing found. Press Ctrl+Enter to create a new material"
+search_keys = "Enter insert · Shift+Enter open · Ctrl+Enter create and insert · Esc close"
+confirm_approve = "Approve it without a source?"
+confirm_yes = "Approve"
+new_title = "New material (created as a proposal)"
+new_hint = "Type a title (you may add #category), then Enter"
 
 [review]
 tab_diagnostics = "Diagnostics"

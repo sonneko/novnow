@@ -186,6 +186,8 @@ pub struct Spaces {
     pub outline: plot_outline::State,
     /// `idea`。
     pub idea: idea::State,
+    /// `material`。
+    pub material: material::State,
     /// `review`。
     pub review: review::State,
     /// `cast`。
@@ -210,10 +212,14 @@ pub struct View {
 /// ワークスペースの描画から `NovnowApp` に頼むこと（マウスでの操作。キーは `Command` で来る）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Request {
-    /// `Ctrl+Enter` と同じ（下の段へ降りる・昇格など）。
+    /// `Ctrl+Enter` と同じ（下の段へ降りる・昇格・採用など）。
     Down,
+    /// `Ctrl+Delete` と同じ（アイデアの破棄・資料の却下）。
+    Drop,
     /// ステータスバーに 1 行出す。
     Notice(String),
+    /// 参照ペインの資料の候補を、今の節のプロットの `material:` に足す（§10.2・§16.4、B-136）。
+    AppendMaterial(String),
 }
 
 /// 状態の縦線の色（§10.2: draft = 灰 / review = 橙 / fixed = 緑）。

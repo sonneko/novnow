@@ -139,6 +139,32 @@ enum Overlay {
         selected: usize,
         characters: Option<Vec<String>>,
     },
+    /// `Ctrl+M` 資料検索（§16.3）。`create` は `Ctrl+Enter`（新しい資料を作って挿入）が押された。
+    Materials {
+        query: String,
+        selected: usize,
+        create: bool,
+    },
+    /// 出典の無い資料の採用の確認（§16.7「採用ボタンに確認を挟む」。§9.2.1-2 の文字ラベルを置く）。
+    ConfirmApprove {
+        id: String,
+    },
+    /// `material` の `Ctrl+Shift+N` 新しい資料（提案）のタイトル。
+    NewMaterial {
+        input: String,
+    },
+}
+
+/// `Ctrl+M` で選んだ資料をどうするか（§9.8.3・§16.3、`PLANS.md` §9.2 B-134）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum MaterialAction {
+    /// `Enter`: 今のワークスペースのエディタに挿入する（write・アイデアなどは `'M0137`、話プロットは
+    /// `material: 'M0137` の行。material と review では開く）。
+    Insert(String),
+    /// `Shift+Enter`: material ワークスペースで開く。
+    Open(String),
+    /// `Ctrl+Enter`: 検索語から新しい資料（提案）を作って挿入する。
+    Create(String),
 }
 
 /// 開いているプロジェクト。
@@ -164,6 +190,8 @@ pub struct Session {
     last_find: String,
     /// 全体検索の結果（文字列ごとに作り直す）。
     search_cache: Option<(String, u64, Vec<crate::ui::assist::Hit>)>,
+    /// `Ctrl+M` の結果（文字列と文書の世代ごとに作り直す）。
+    material_cache: Option<(String, u64, Vec<crate::core::features::materials_ops::Hit>)>,
     /// 衝突したファイルの外部の版（§8.5。消えたなら `None`）。
     conflict_texts: std::collections::BTreeMap<String, Option<String>>,
     /// エクスポートの下書き（文書の世代・範囲・状態が同じあいだは作り直さない）。
@@ -210,6 +238,7 @@ impl Session {
             recent: Vec::new(),
             last_find: String::new(),
             search_cache: None,
+            material_cache: None,
             conflict_texts: std::collections::BTreeMap::new(),
             export_cache: None,
             spaces: workspaces::Spaces::default(),
@@ -456,6 +485,16 @@ impl NovnowApp {
         for command in commands {
             self.run(ctx, command, now);
         }
+        // 入力欄を持たない重ね物（確認・行き先の選択）が出ている間は、下のエディタにキーを渡さない
+        // （`Enter` や矢印が、重ね物と同時にエディタの改行・カーソル移動にもなるため）。閉じたら戻す
+        if matches!(
+            self.overlay,
+            Overlay::ConfirmDelete | Overlay::ConfirmApprove { .. } | Overlay::Promote { .. }
+        ) {
+            if let Some(id) = ctx.memory(|memory| memory.focused()) {
+                ctx.memory_mut(|memory| memory.surrender_focus(id));
+            }
+        }
         match &mut self.stage {
             Stage::Picker => {
                 if let Some((session, settings)) = self.picker.show(ctx, locale, mode) {
@@ -510,6 +549,28 @@ impl NovnowApp {
 
     fn run(&mut self, ctx: &Context, command: Command, now: f64) {
         let locale = self.locale();
+        // `Ctrl+M` の中の `Ctrl+Enter` は「新しい資料を作って挿入」、もう一度 `Ctrl+M` で閉じる
+        if let Overlay::Materials { create, .. } = &mut self.overlay {
+            match command {
+                Command::ConfirmNext => {
+                    *create = true;
+                    return;
+                }
+                Command::MaterialSearch => {
+                    self.overlay = Overlay::None;
+                    return;
+                }
+                _ => {}
+            }
+        }
+        // 出典の無い資料の採用の確認は `Ctrl+Enter` でも確定する
+        if let Overlay::ConfirmApprove { .. } = &self.overlay {
+            if command == Command::ConfirmNext {
+                self.overlay = Overlay::None;
+                self.approve_material(now, true);
+                return;
+            }
+        }
         match command {
             Command::ToggleLanguage => {
                 self.settings.language = match locale {
@@ -615,6 +676,17 @@ impl NovnowApp {
             Command::FocusReference => {
                 self.focus = Pane::Reference;
                 self.settings.reference_visible = true;
+                // 資料の候補があれば最初の候補へ（`Enter` でプロットの `material:` に足す、B-136）
+                let first = session
+                    .reference_cache
+                    .content()
+                    .materials
+                    .iter()
+                    .find(|found| found.candidate)
+                    .map(|found| reference_pane::candidate_id(&found.id));
+                if let Some(id) = first {
+                    ctx.memory_mut(|memory| memory.request_focus(id));
+                }
             }
             Command::ToggleReference => {
                 self.settings.reference_visible = !self.settings.reference_visible;
@@ -839,6 +911,16 @@ impl NovnowApp {
                 };
                 return true;
             }
+            Command::MaterialSearch => {
+                // §16.3: どのワークスペースからでも開く。挿入先は今のワークスペースのエディタ
+                session.bench.commit();
+                self.overlay = Overlay::Materials {
+                    query: String::new(),
+                    selected: 0,
+                    create: false,
+                };
+                return true;
+            }
             Command::Review => {
                 // §10.9.2: 整合チェックの一括実行。点検の診断タブで数え直す
                 session.spaces.review.rerun();
@@ -926,6 +1008,29 @@ impl NovnowApp {
                 self.settings.reference_visible = true;
                 session.settings_dirty = true;
             }
+            (Workspace::Material, Command::Nav(nav)) => {
+                spaces.material.nav(bench, nav);
+            }
+            (Workspace::Material, Command::ConfirmNext) => {
+                self.approve_material(now, false);
+            }
+            (Workspace::Material, Command::Drop) => {
+                let stamp = session.host.now();
+                let outcome = spaces.material.reject(bench, now, &stamp);
+                self.material_outcome(outcome, now);
+            }
+            (Workspace::Material, Command::InsertSection) => {
+                self.overlay = Overlay::NewMaterial {
+                    input: String::new(),
+                };
+            }
+            (Workspace::Material, Command::FocusReference) => {
+                spaces.material.focus_form();
+                self.settings.reference_visible = true;
+            }
+            (Workspace::Material, Command::FocusEditor) => {
+                spaces.material.focus_editor();
+            }
             (Workspace::Idea, Command::Nav(nav)) => {
                 spaces.idea.nav(bench, nav);
             }
@@ -1003,6 +1108,24 @@ impl NovnowApp {
                 (Workspace::PlotOutline, None) => {
                     session.spaces.outline.land_all(&session.bench, 0);
                 }
+                (Workspace::Material, _) => {
+                    // 今の節の明示参照 → 条件一致の候補 → 一覧の最初（B-134）
+                    let materials = &session.reference_cache.content().materials;
+                    let explicit: Vec<String> = materials
+                        .iter()
+                        .filter(|found| !found.candidate)
+                        .map(|found| found.id.clone())
+                        .collect();
+                    let candidates: Vec<String> = materials
+                        .iter()
+                        .filter(|found| found.candidate)
+                        .map(|found| found.id.clone())
+                        .collect();
+                    session
+                        .spaces
+                        .material
+                        .land(&session.bench, &explicit, &candidates);
+                }
                 _ => {}
             }
             session.spaces.switcher.mark_visited(target);
@@ -1024,7 +1147,8 @@ impl NovnowApp {
 
     /// 点検の行から該当箇所へ（§10.9.2「`Enter` で該当節へジャンプ」、B-132）。文書の種類で
     /// 開くワークスペースが決まる（本文 → write、話プロット → plot-episode、全体 / 章プロット →
-    /// plot-outline、`ideas.md` → idea）。それ以外は開く画面が無いので知らせるだけ。
+    /// plot-outline、`ideas.md` → idea、`characters.md` → cast、資料 MD と `materials/index.json` →
+    /// material）。それ以外は開く画面が無いので知らせるだけ。
     fn review_jump(&mut self, ctx: &Context, target: workspaces::review::Target, now: f64) {
         use crate::core::model::document::DocumentFormat;
         use workspaces::review::Target;
@@ -1134,10 +1258,225 @@ impl NovnowApp {
                         session.spaces.switcher.mark_visited(Workspace::Cast);
                         self.switch_to(ctx, Workspace::Cast, now);
                     }
+                    DocumentFormat::MaterialDoc => {
+                        session.spaces.material.select_path(&session.bench, &path);
+                        session.spaces.switcher.mark_visited(Workspace::Material);
+                        self.switch_to(ctx, Workspace::Material, now);
+                    }
+                    DocumentFormat::MaterialsIndex => {
+                        // 位置の前にある最後の `"id"` の資料（無ければ一覧の最初）
+                        let id = byte.and_then(|at| material_id_before(&document.text, at));
+                        if let Some(id) = id {
+                            session.spaces.material.select(&session.bench, &id);
+                        }
+                        session.spaces.switcher.mark_visited(Workspace::Material);
+                        self.switch_to(ctx, Workspace::Material, now);
+                    }
                     _ => {
                         session.notice =
                             Some((i18n::format(locale, "review.cannot_open", &[&path]), now));
                     }
+                }
+            }
+        }
+    }
+
+    /// `material` の `Ctrl+Enter`: 選んでいる資料を採用する（索引に無い資料 MD なら登録する）。
+    /// 出典が無ければ確認を挟む（§16.7。`confirmed` は確認を経た後）。
+    fn approve_material(&mut self, now: f64, confirmed: bool) {
+        let Stage::Open(session) = &mut self.stage else {
+            return;
+        };
+        let stamp = session.host.now();
+        let outcome = session
+            .spaces
+            .material
+            .approve(&mut session.bench, now, &stamp, confirmed);
+        self.material_outcome(outcome, now);
+    }
+
+    /// 採用・却下・登録の結果を通知（と確認）にする。
+    fn material_outcome(&mut self, outcome: Option<workspaces::material::Outcome>, now: f64) {
+        use workspaces::material::Outcome;
+        let locale = self.locale();
+        let Stage::Open(session) = &mut self.stage else {
+            return;
+        };
+        let message = match outcome {
+            None => return,
+            Some(Outcome::NeedsConfirm(id)) => {
+                self.overlay = Overlay::ConfirmApprove { id };
+                return;
+            }
+            Some(Outcome::Approved(id)) => i18n::format(locale, "material.approved", &[&id]),
+            Some(Outcome::Rejected(id)) => i18n::format(locale, "material.rejected", &[&id]),
+            Some(Outcome::Registered(id, path)) => {
+                i18n::format(locale, "material.registered", &[&path, &id])
+            }
+            Some(Outcome::Already(id)) => i18n::format(locale, "material.already", &[&id]),
+            Some(Outcome::Occupied(path)) => i18n::format(locale, "material.occupied", &[&path]),
+        };
+        session.notice = Some((message, now));
+    }
+
+    /// 資料 `id` を material ワークスペースで開く。
+    fn open_material(&mut self, ctx: &Context, id: &str, now: f64) {
+        let Stage::Open(session) = &mut self.stage else {
+            return;
+        };
+        session.bench.commit();
+        session.spaces.material.select(&session.bench, id);
+        session.spaces.switcher.mark_visited(Workspace::Material);
+        self.switch_to(ctx, Workspace::Material, now);
+    }
+
+    /// `Ctrl+M` で選んだ資料を挿入する・開く・作る（§16.3、B-134）。
+    fn material_action(&mut self, ctx: &Context, action: MaterialAction, now: f64) {
+        use crate::core::features::materials_ops;
+        let locale = self.locale();
+        let Stage::Open(session) = &mut self.stage else {
+            return;
+        };
+        let workspace = session.spaces.switcher.current();
+        let id = match action {
+            MaterialAction::Open(id) => {
+                self.open_material(ctx, &id, now);
+                return;
+            }
+            MaterialAction::Insert(id) => id,
+            MaterialAction::Create(query) => {
+                let (title, category) = materials_ops::draft_of(&query);
+                let title = if title.trim().is_empty() {
+                    i18n::text(locale, "material.untitled").to_owned()
+                } else {
+                    title
+                };
+                let stamp = session.host.now();
+                session.bench.commit();
+                let index_text = session
+                    .bench
+                    .project()
+                    .text(materials_ops::INDEX_PATH)
+                    .to_owned();
+                let Some(created) =
+                    materials_ops::propose_with(&index_text, &title, &category, "", "", &stamp)
+                else {
+                    session.notice =
+                        Some((i18n::text(locale, "material.index_broken").to_owned(), now));
+                    return;
+                };
+                session
+                    .bench
+                    .replace_document(&created.path, created.body, now);
+                session
+                    .bench
+                    .replace_document(materials_ops::INDEX_PATH, created.index, now);
+                session.notice = Some((
+                    i18n::format(locale, "material.created", &[&created.id]),
+                    now,
+                ));
+                created.id
+            }
+        };
+        let reference = format!("'{id}");
+        match workspace {
+            Workspace::Write => {
+                // 節エディタのキャレット（選択していれば選択を置き換える）
+                if session.bench.current().is_none() {
+                    return;
+                }
+                let length = session.bench.buffer().len();
+                let range = session.selection.clone().unwrap_or(length..length);
+                let from = range.start.min(range.end).min(length);
+                let to = range.start.max(range.end).min(length);
+                let buffer = session.bench.buffer_mut();
+                if buffer.is_char_boundary(from) && buffer.is_char_boundary(to) {
+                    buffer.replace_range(from..to, &reference);
+                    let caret = from + reference.len();
+                    session.bench.edited(now);
+                    session.pending_selection = Some(caret..caret);
+                    session.notice = Some((i18n::format(locale, "material.inserted", &[&id]), now));
+                }
+                let editor = section_editor::editor_id(&session.bench);
+                ctx.memory_mut(|memory| memory.request_focus(editor));
+            }
+            Workspace::PlotEpisode => {
+                self.append_material(ctx, &id, now);
+            }
+            Workspace::Material | Workspace::Review => {
+                self.open_material(ctx, &id, now);
+            }
+            _ => {
+                if let Some(caret) = session.bench.insert_in_slice(&reference, now) {
+                    slice_editor::select(ctx, &session.bench, caret..caret);
+                    session.notice = Some((i18n::format(locale, "material.inserted", &[&id]), now));
+                }
+            }
+        }
+    }
+
+    /// 資料 `id` を今の節のプロットに `material: 'M0137` の行で足す（参照ペインの候補・話プロットの
+    /// `Ctrl+M`。§10.2・§16.4、B-136）。話プロットではエディタの中身の最後に、write では話プロットの
+    /// その節の最後に足す。
+    fn append_material(&mut self, ctx: &Context, id: &str, now: f64) {
+        use crate::core::features::plots;
+        let locale = self.locale();
+        let Stage::Open(session) = &mut self.stage else {
+            return;
+        };
+        let line = format!("material: '{id}");
+        let digits = session.bench.project().digits();
+        match session.spaces.switcher.current() {
+            Workspace::PlotEpisode => {
+                let scene = session
+                    .spaces
+                    .episode
+                    .current_row(&session.bench)
+                    .map(|row| row.id);
+                if session.bench.append_to_slice(&line, now) {
+                    // 参照ペインが明示参照として読み直すように、すぐに書き戻す
+                    session.bench.commit();
+                    session.bench.save.request_now();
+                    let place = scene.map_or_else(String::new, |found| {
+                        format!("@{}", plots::short_id(found, digits))
+                    });
+                    session.notice = Some((
+                        i18n::format(locale, "material.appended", &[id, &place]),
+                        now,
+                    ));
+                    let editor = slice_editor::editor_id(&session.bench);
+                    ctx.memory_mut(|memory| memory.request_focus(editor));
+                }
+            }
+            _ => {
+                let Some(scene) = session.bench.current_id() else {
+                    return;
+                };
+                let project = session.bench.project();
+                let path = project.episode_plot_path(scene.chapter, scene.episode);
+                let rows = plots::episode_rows(project, scene.chapter, scene.episode);
+                let text = project.text(&path).to_owned();
+                match plots::append_line(&text, &rows, scene, &line) {
+                    Some(updated) => {
+                        session.bench.replace_document(&path, updated, now);
+                        session.notice = Some((
+                            i18n::format(
+                                locale,
+                                "material.appended",
+                                &[id, &format!("@{}", plots::short_id(scene, digits))],
+                            ),
+                            now,
+                        ));
+                    }
+                    None => {
+                        session.notice =
+                            Some((i18n::format(locale, "material.no_plot_row", &[&path]), now));
+                    }
+                }
+                self.focus = Pane::Editor;
+                if let Stage::Open(session) = &self.stage {
+                    let editor = section_editor::editor_id(&session.bench);
+                    ctx.memory_mut(|memory| memory.request_focus(editor));
                 }
             }
         }
@@ -1248,6 +1587,7 @@ impl NovnowApp {
                 .outline
                 .breadcrumb(&session.bench, i18n::text(locale, "outline.all")),
             Workspace::Idea => session.spaces.idea.selected().map(str::to_owned),
+            Workspace::Material => session.spaces.material.selected().map(str::to_owned),
             Workspace::Cast => {
                 let selected = session.spaces.cast.selected();
                 session
@@ -1401,14 +1741,28 @@ impl NovnowApp {
                 Workspace::Idea => {
                     workspaces::idea::show(ctx, &mut session.spaces.idea, &mut session.bench, &view)
                 }
+                Workspace::Material => {
+                    let stamp = session.host.now();
+                    workspaces::material::show(
+                        ctx,
+                        &mut session.spaces.material,
+                        &mut session.bench,
+                        &view,
+                        &stamp,
+                    )
+                }
                 _ => None,
             };
             match request {
                 Some(workspaces::Request::Down) => self.run(ctx, Command::ConfirmNext, now),
+                Some(workspaces::Request::Drop) => self.run(ctx, Command::Drop, now),
                 Some(workspaces::Request::Notice(message)) => {
                     if let Stage::Open(session) = &mut self.stage {
                         session.notice = Some((message, now));
                     }
+                }
+                Some(workspaces::Request::AppendMaterial(id)) => {
+                    self.append_material(ctx, &id, now);
                 }
                 None => {}
             }
@@ -1442,12 +1796,18 @@ impl NovnowApp {
                         .inner_margin(Margin::symmetric(14.0, 4.0)),
                 )
                 .show(ctx, |ui| {
-                    reference_pane::show(ui, &session.reference_cache, locale, mode, scale);
+                    reference_pane::show(ui, &session.reference_cache, locale, mode, scale)
                 });
             if self.focus == Pane::Reference {
                 focus_ring(ctx, response.response.rect, colors.accent);
             }
+            if let Some(id) = response.inner {
+                self.append_material(ctx, &id, now);
+            }
         }
+        let Stage::Open(session) = &mut self.stage else {
+            return;
+        };
         // 補完のポップアップが出ている間は、↑/↓/Enter/Tab を節エディタより先に取る
         let mut completion_keys = (false, false, false);
         if matches!(
@@ -1638,15 +1998,19 @@ impl NovnowApp {
         };
         let mut close = false;
         let mut to_write = false;
+        let mut material = None;
+        let mut confirm_approve = false;
         let workspace = session.spaces.switcher.current();
         match &mut self.overlay {
             Overlay::None => {}
             Overlay::Palette { input, selected } => {
                 let (mode_kind, query) = palette::split(input);
-                let items = palette_items(&session.bench, locale, mode_kind, query);
+                let items = palette_items(&session.bench, locale, mode_kind, query, input);
                 let down = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::ArrowDown));
                 let up = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::ArrowUp));
                 let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
+                // §9.7.1「`Shift+Enter` は別の意味で開く」（辞書なら使用箇所の一覧）
+                let other = ctx.input_mut(|i| i.consume_key(Modifiers::SHIFT, Key::Enter));
                 if down && *selected + 1 < items.len() {
                     *selected += 1;
                 }
@@ -1681,7 +2045,7 @@ impl NovnowApp {
                             }
                         });
                 });
-                if enter {
+                if enter || other {
                     chosen = Some(*selected);
                 }
                 if let Some(index) = chosen {
@@ -1696,6 +2060,31 @@ impl NovnowApp {
                                 let command = *command;
                                 self.overlay = Overlay::None;
                                 self.run(ctx, command, now);
+                                return;
+                            }
+                            PaletteAction::Material(id) => {
+                                material = Some(MaterialAction::Open(id.clone()));
+                            }
+                            PaletteAction::Character(_) | PaletteAction::Term(_) if other => {
+                                // 使用箇所の一覧 = 全体検索（§9.7.4）
+                                self.overlay = Overlay::Search {
+                                    query: item.key.clone(),
+                                    selected: 0,
+                                };
+                                return;
+                            }
+                            PaletteAction::Character(index) => {
+                                let index = *index;
+                                session.bench.commit();
+                                session.spaces.cast.select(index);
+                                session.spaces.switcher.mark_visited(Workspace::Cast);
+                                self.overlay = Overlay::None;
+                                self.switch_to(ctx, Workspace::Cast, now);
+                                return;
+                            }
+                            PaletteAction::Term(index) => {
+                                let lines = term_lines(session.bench.project(), *index);
+                                self.overlay = Overlay::Info { lines };
                                 return;
                             }
                         }
@@ -2118,6 +2507,182 @@ impl NovnowApp {
                 }
             }
             Overlay::Completion { .. } | Overlay::QuickFix { .. } => {}
+            Overlay::Materials {
+                query,
+                selected,
+                create,
+            } => {
+                let down = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::ArrowDown));
+                let up = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::ArrowUp));
+                let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
+                let open = ctx.input_mut(|i| i.consume_key(Modifiers::SHIFT, Key::Enter));
+                let generation = session.bench.generation();
+                let stale = !matches!(
+                    &session.material_cache,
+                    Some((cached, at, _)) if cached == query && *at == generation
+                );
+                if stale {
+                    let hits = crate::core::features::materials_ops::search(
+                        session.bench.project(),
+                        query,
+                    );
+                    session.material_cache = Some((query.clone(), generation, hits));
+                }
+                let hits = session
+                    .material_cache
+                    .as_ref()
+                    .map(|(_, _, hits)| hits.clone())
+                    .unwrap_or_default();
+                if down && *selected + 1 < hits.len() {
+                    *selected += 1;
+                }
+                if up {
+                    *selected = selected.saturating_sub(1);
+                }
+                *selected = (*selected).min(hits.len().saturating_sub(1));
+                let mut chosen = enter.then_some(*selected);
+                popup(ctx, "materials", colors, |ui| {
+                    let edit = ui.add(
+                        egui::TextEdit::singleline(query)
+                            .hint_text(i18n::text(locale, "material.search_hint"))
+                            .desired_width(560.0),
+                    );
+                    edit.request_focus();
+                    if edit.changed() {
+                        *selected = 0;
+                    }
+                    ui.add_space(4.0);
+                    if hits.is_empty() {
+                        ui.label(
+                            RichText::new(i18n::text(locale, "material.search_none"))
+                                .color(colors.fg_muted),
+                        );
+                    }
+                    egui::ScrollArea::vertical()
+                        .max_height(360.0)
+                        .show(ui, |ui| {
+                            for (index, hit) in hits.iter().enumerate() {
+                                let is_selected = index == *selected;
+                                let category = if hit.category.is_empty() {
+                                    String::new()
+                                } else {
+                                    format!("#{}", hit.category)
+                                };
+                                let text = RichText::new(
+                                    format!(
+                                        "{}  {}  {}  {}",
+                                        hit.id, hit.title, category, hit.date
+                                    )
+                                    .trim_end()
+                                    .to_owned(),
+                                )
+                                .color(if is_selected {
+                                    colors.accent
+                                } else {
+                                    colors.fg_primary
+                                });
+                                if ui.selectable_label(is_selected, text).clicked() {
+                                    chosen = Some(index);
+                                }
+                                if is_selected {
+                                    // 選んだ行の下に要約と出典（§16.3）
+                                    for (line, color) in [
+                                        (&hit.summary, colors.fg_muted),
+                                        (&hit.source, colors.fg_faint),
+                                    ] {
+                                        if !line.is_empty() {
+                                            ui.label(
+                                                RichText::new(format!("    {line}")).color(color),
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    ui.add_space(4.0);
+                    ui.label(
+                        RichText::new(i18n::text(locale, "material.search_keys"))
+                            .small()
+                            .color(colors.fg_faint),
+                    );
+                });
+                if std::mem::take(create) {
+                    material = Some(MaterialAction::Create(query.clone()));
+                } else if open {
+                    material = hits
+                        .get(*selected)
+                        .map(|hit| MaterialAction::Open(hit.id.clone()));
+                } else if let Some(hit) = chosen.and_then(|index| hits.get(index)) {
+                    material = Some(MaterialAction::Insert(hit.id.clone()));
+                }
+                if material.is_some() {
+                    close = true;
+                }
+            }
+            Overlay::ConfirmApprove { id } => {
+                let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
+                let mut approve = enter;
+                popup(ctx, "confirm-approve", colors, |ui| {
+                    ui.label(
+                        RichText::new(i18n::format(locale, "diag.W065", &[id.as_str()]))
+                            .color(colors.warn),
+                    );
+                    ui.label(i18n::text(locale, "material.confirm_approve"));
+                    ui.add_space(8.0);
+                    ui.horizontal(|ui| {
+                        if ui
+                            .button(i18n::text(locale, "material.confirm_yes"))
+                            .clicked()
+                        {
+                            approve = true;
+                        }
+                        if ui.button(i18n::text(locale, "modal.cancel")).clicked() {
+                            close = true;
+                        }
+                    });
+                });
+                if approve {
+                    confirm_approve = true;
+                    close = true;
+                }
+            }
+            Overlay::NewMaterial { input } => {
+                let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
+                popup(ctx, "new-material", colors, |ui| {
+                    ui.label(
+                        RichText::new(i18n::text(locale, "material.new_title"))
+                            .color(colors.fg_faint),
+                    );
+                    let edit = ui.add(
+                        egui::TextEdit::singleline(input)
+                            .hint_text(i18n::text(locale, "material.new_hint"))
+                            .desired_width(520.0),
+                    );
+                    edit.request_focus();
+                });
+                if enter {
+                    let (title, category) =
+                        crate::core::features::materials_ops::draft_of(input.trim());
+                    let title = if title.trim().is_empty() {
+                        i18n::text(locale, "material.untitled").to_owned()
+                    } else {
+                        title
+                    };
+                    let stamp = session.host.now();
+                    let created = session.spaces.material.create(
+                        &mut session.bench,
+                        &title,
+                        &category,
+                        now,
+                        &stamp,
+                    );
+                    if let Some(id) = created {
+                        session.notice =
+                            Some((i18n::format(locale, "material.created", &[&id]), now));
+                    }
+                    close = true;
+                }
+            }
             Overlay::Diff => {
                 let conflicts: Vec<String> = session.bench.conflicts().map(str::to_owned).collect();
                 if conflicts.is_empty() {
@@ -2374,6 +2939,12 @@ impl NovnowApp {
                 ctx.memory_mut(|memory| memory.request_focus(id));
             }
         }
+        if confirm_approve {
+            self.approve_material(now, true);
+        }
+        if let Some(action) = material {
+            self.material_action(ctx, action, now);
+        }
     }
 
     /// 終了ガード（§8.4）: 未保存なら止めて保存し、保存が終わったら閉じる。失敗中は 3 択。
@@ -2418,6 +2989,9 @@ impl NovnowApp {
 /// 保存の時刻なら書く（§8.2）。`ui.json` の変更も一緒に書く。
 fn save_if_due(session: &mut Session, settings: &mut UiSettings, now: f64) {
     if session.bench.save.due(now) {
+        // 書き込む資料 MD の `updated_at` と `checksum` を索引に（§16.6）
+        let stamp = session.host.now();
+        session.bench.touch_materials(&stamp);
         let writes = session.bench.take_writes();
         session.bench.save.begin(now);
         let mut written = Vec::new();
@@ -2426,6 +3000,15 @@ fn save_if_due(session: &mut Session, settings: &mut UiSettings, now: f64) {
             match session.host.write(&path, &text) {
                 Ok(()) => written.push(path),
                 Err(message) => failures.push((path, message)),
+            }
+        }
+        // 動かした文書の元を消す（資料の採用 `inbox/` → `docs/`）。新しい側を書けてから
+        if failures.is_empty() {
+            for path in session.bench.take_removals() {
+                if let Err(message) = session.host.remove(&path) {
+                    session.bench.removal_failed(&path);
+                    failures.push((path, message));
+                }
             }
         }
         session.bench.write_finished(now, &written, &failures);
@@ -3014,9 +3597,46 @@ struct PaletteItem {
     action: PaletteAction,
 }
 
+#[derive(Debug, Clone)]
 enum PaletteAction {
     Section(usize),
     Command(Command),
+    /// `M` / `#` の資料（material ワークスペースで開く）。
+    Material(String),
+    /// `'` のキャラ（`characters.md` の H1 の順。cast で開く）。
+    Character(usize),
+    /// `'` の用語（`words.md` の H1 の順。全文を出す）。
+    Term(usize),
+}
+
+/// 用語の全文（パレットの `'用語` の `Enter`。`Ctrl+Shift+W` と同じ形: 1 行目が用語）。
+fn term_lines(project: &crate::core::features::project::Project, index: usize) -> Vec<String> {
+    use crate::core::text::lexer::FieldKey;
+    let words = project.words();
+    let Some(word) = words.words.get(index) else {
+        return Vec::new();
+    };
+    let mut out = vec![word.term.trim().to_owned()];
+    if let Some(definition) = words.word_fields(index, FieldKey::Definition).first() {
+        out.extend(definition.full_value().lines().map(str::to_owned));
+    }
+    out
+}
+
+/// `materials/index.json` の byte `at` を含む行までで最後の `"id": "…"` の値（点検から資料を開く）。
+fn material_id_before(text: &str, at: usize) -> Option<String> {
+    let mut end = at.min(text.len());
+    while !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    let line_end = text[end..]
+        .find('\n')
+        .map_or(text.len(), |offset| end + offset);
+    let key = text[..line_end].rfind("\"id\"")?;
+    let rest = text[key + 4..].trim_start().strip_prefix(':')?;
+    let rest = rest.trim_start().strip_prefix('"')?;
+    let value: String = rest.chars().take_while(|c| *c != '"').collect();
+    (!value.is_empty()).then_some(value)
 }
 
 /// パレットのコマンド（`>`）。キーは英語の固定名（§9.7.1 の例 `>theme`）。
@@ -3037,6 +3657,7 @@ fn palette_items(
     locale: Locale,
     mode: palette::Mode,
     query: &str,
+    input: &str,
 ) -> Vec<PaletteItem> {
     match mode {
         palette::Mode::Command => {
@@ -3054,10 +3675,7 @@ fn palette_items(
                 .map(|item| PaletteItem {
                     key: item.key.clone(),
                     label: item.label.clone(),
-                    action: match item.action {
-                        PaletteAction::Command(command) => PaletteAction::Command(command),
-                        PaletteAction::Section(at) => PaletteAction::Section(at),
-                    },
+                    action: item.action.clone(),
                 })
                 .collect()
         }
@@ -3088,19 +3706,103 @@ fn palette_items(
                 .map(|item| PaletteItem {
                     key: item.key.clone(),
                     label: item.label.clone(),
-                    action: match item.action {
-                        PaletteAction::Section(at) => PaletteAction::Section(at),
-                        PaletteAction::Command(command) => PaletteAction::Command(command),
-                    },
+                    action: item.action.clone(),
                 })
                 .collect()
         }
-        // 辞書・資料の検索は M8（§10.5・§16.3、`PLANS.md` §9.2 B-117）
-        palette::Mode::Dictionary | palette::Mode::Material => Vec::new(),
+        palette::Mode::Material => {
+            // `#取材 甲子園` の `#` はカテゴリの語として §16.3 の検索にそのまま渡す（`#` だけなら全部）
+            let text = if input.trim_start().starts_with('#') {
+                input.trim()
+            } else {
+                query
+            };
+            let text = if text == "#" { "" } else { text };
+            crate::core::features::materials_ops::search(bench.project(), text)
+                .into_iter()
+                .take(palette::LIMIT)
+                .map(|hit| {
+                    let category = if hit.category.is_empty() {
+                        String::new()
+                    } else {
+                        format!("#{}", hit.category)
+                    };
+                    PaletteItem {
+                        label: format!("{}  {}  {}  {}", hit.id, hit.title, category, hit.date)
+                            .trim_end()
+                            .to_owned(),
+                        key: hit.id.clone(),
+                        action: PaletteAction::Material(hit.id),
+                    }
+                })
+                .collect()
+        }
+        palette::Mode::Dictionary => {
+            use crate::core::text::lexer::FieldKey;
+            let project = bench.project();
+            // (鍵, 照合する文字列, 候補)。照合は名前・読み・別名
+            let mut all: Vec<(String, String, PaletteItem)> = Vec::new();
+            let characters = project.characters();
+            for (index, character) in characters.characters.iter().enumerate() {
+                let name = character.name.trim().to_owned();
+                let mut haystack = name.clone();
+                for key in [FieldKey::Reading, FieldKey::Alias] {
+                    for field in characters.character_fields(index, key) {
+                        haystack.push(' ');
+                        haystack.push_str(&field.full_value());
+                    }
+                }
+                all.push((
+                    name.clone(),
+                    haystack,
+                    PaletteItem {
+                        label: format!("'{name}  {}", i18n::text(locale, "palette.character")),
+                        key: name,
+                        action: PaletteAction::Character(index),
+                    },
+                ));
+            }
+            let words = project.words();
+            for (index, word) in words.words.iter().enumerate() {
+                let term = word.term.trim().to_owned();
+                let mut haystack = term.clone();
+                for key in [FieldKey::Reading, FieldKey::Alias] {
+                    for field in words.word_fields(index, key) {
+                        haystack.push(' ');
+                        haystack.push_str(&field.full_value());
+                    }
+                }
+                let definition = words
+                    .word_fields(index, FieldKey::Definition)
+                    .first()
+                    .map(|field| field.full_value())
+                    .unwrap_or_default();
+                let first = definition.lines().next().unwrap_or("").to_owned();
+                all.push((
+                    term.clone(),
+                    haystack,
+                    PaletteItem {
+                        label: format!("'{term}  {}  {first}", i18n::text(locale, "palette.term"))
+                            .trim_end()
+                            .to_owned(),
+                        key: term,
+                        action: PaletteAction::Term(index),
+                    },
+                ));
+            }
+            palette::rank(query, &all, |entry| (entry.0.as_str(), entry.1.as_str()))
+                .into_iter()
+                .map(|entry| PaletteItem {
+                    key: entry.2.key.clone(),
+                    label: entry.2.label.clone(),
+                    action: entry.2.action.clone(),
+                })
+                .collect()
+        }
     }
 }
 
-/// キーボードヘルプ（§9.8 のうち M7 で動くもの）。左はキー、右はカタログのキー。
+/// キーボードヘルプ（§9.8 のうち M7・M8 で動くもの）。左はキー、右はカタログのキー。
 const HELP_KEYS: &[(&str, &str)] = &[
     ("Ctrl+P", "help.palette"),
     ("Ctrl+G", "help.jump"),
@@ -3131,6 +3833,15 @@ const HELP_KEYS: &[(&str, &str)] = &[
     ("Ctrl+.", "help.quick_fix"),
     ("Ctrl+T / Ctrl+Shift+T", "help.register"),
     ("Ctrl+Shift+D", "help.diff"),
+    ("Alt+1..9 / Alt+0", "help.workspace"),
+    ("Ctrl+B", "help.up"),
+    ("Ctrl+Shift+I", "help.capture"),
+    ("Ctrl+Shift+E", "help.review"),
+    ("Ctrl+M", "help.material"),
+    ("Ctrl+Shift+N", "help.insert"),
+    ("Ctrl+Delete", "help.drop"),
+    ("Ctrl+Shift+← / →", "help.tab"),
+    ("Ctrl+Shift+V", "help.scan"),
     ("Esc", "help.escape"),
 ];
 
@@ -3269,8 +3980,11 @@ mod native {
 
         fn remove(&mut self, path: &str) -> Result<(), String> {
             let path = ProjectPath::new(path).map_err(|error| format!("{error:?}"))?;
-            block_on(crate::ports::storage::Storage::remove(&self.storage, &path))
-                .map_err(|error| format!("{error:?}"))?;
+            match block_on(crate::ports::storage::Storage::remove(&self.storage, &path)) {
+                // もう無ければ消えたのと同じ（資料の採用で、元の inbox のファイルを外で消していた）
+                Ok(()) | Err(crate::ports::storage::StorageError::NotFound(_)) => {}
+                Err(error) => return Err(format!("{error:?}")),
+            }
             // 自分で消したものを外部変更として拾わない（§8.5）
             self.snapshot.forget(&path);
             Ok(())

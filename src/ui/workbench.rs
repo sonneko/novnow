@@ -82,8 +82,12 @@ pub struct Workbench {
     generation: u64,
     slice: Option<Slice>,
     slice_buffer: String,
+    /// [`Slice`] のエディタの最後の選択範囲（中身の中の byte。`Ctrl+M` の挿入位置、B-134）。
+    slice_caret: Option<Range<usize>>,
     /// まだ無い本文のファイルを開いているとき、書き始めたら先頭に書く場面見出し（B-128）。
     pending_header: Option<String>,
+    /// 書き込みの後で消すファイル（資料の採用で `inbox/` から `docs/` へ動かした元、§16.1）。
+    removals: BTreeSet<String>,
 }
 
 impl Workbench {
@@ -101,7 +105,9 @@ impl Workbench {
             generation: 0,
             slice: None,
             slice_buffer: String::new(),
+            slice_caret: None,
             pending_header: None,
+            removals: BTreeSet::new(),
         };
         out.rebuild();
         let start = last_scene
@@ -584,6 +590,7 @@ impl Workbench {
         }
         self.commit_slice();
         self.slice_buffer = sections::text_of_lines(self.project.text(path), &lines);
+        self.slice_caret = None;
         self.slice = Some(Slice {
             path: path.to_owned(),
             lines,
@@ -596,6 +603,61 @@ impl Workbench {
         self.commit_slice();
         self.slice = None;
         self.slice_buffer.clear();
+        self.slice_caret = None;
+    }
+
+    /// [`Slice`] のエディタの選択範囲（エディタが毎フレーム知らせる。フォーカスが外れても最後の値を
+    /// 覚えておく）。
+    pub fn set_slice_caret(&mut self, range: Range<usize>) {
+        self.slice_caret = Some(range);
+    }
+
+    /// [`Slice`] のエディタの最後の選択範囲。
+    pub fn slice_caret(&self) -> Option<Range<usize>> {
+        self.slice_caret.clone()
+    }
+
+    /// [`Slice`] の中身の選択範囲（無ければ末尾）を `text` に置き換える（`Ctrl+M` の `Enter`、§9.8.3）。
+    /// 置き換えた後のキャレットの位置を返す。Slice を開いていなければ `None`。
+    pub fn insert_in_slice(&mut self, text: &str, now: f64) -> Option<usize> {
+        self.slice.as_ref()?;
+        let length = self.slice_buffer.len();
+        let range = self
+            .slice_caret
+            .clone()
+            .filter(|range| {
+                range.end <= length
+                    && self.slice_buffer.is_char_boundary(range.start)
+                    && self.slice_buffer.is_char_boundary(range.end)
+            })
+            .unwrap_or(length..length);
+        let start = range.start.min(range.end);
+        let end = range.start.max(range.end);
+        self.slice_buffer.replace_range(start..end, text);
+        let caret = start + text.len();
+        self.slice_caret = Some(caret..caret);
+        self.slice_edited(now);
+        Some(caret)
+    }
+
+    /// [`Slice`] の中身の最後に 1 行足す（話プロットの `Ctrl+M` → `material:` の行、§10.2）。
+    /// Slice を開いていなければ `false`。
+    pub fn append_to_slice(&mut self, line: &str, now: f64) -> bool {
+        if self.slice.is_none() {
+            return false;
+        }
+        let buffer = &mut self.slice_buffer;
+        while buffer.ends_with('\n') {
+            buffer.pop();
+        }
+        if !buffer.is_empty() {
+            buffer.push('\n');
+        }
+        buffer.push_str(line);
+        let caret = buffer.len();
+        self.slice_caret = Some(caret..caret);
+        self.slice_edited(now);
+        true
     }
 
     /// [`Slice`] のエディタで編集があった（§8.2 の Dirty とタイマ再起動）。
@@ -621,7 +683,28 @@ impl Workbench {
 
     /// 文書を 1 つ丸ごと置き換える（ワークスペースの操作: 節の挿入・アイデアの破棄など）。
     /// 開いている [`Slice`] は先に書き戻し、同じ文書なら閉じる（開いた側が鍵から開き直す）。
+    /// すぐに保存する（操作の単位で保存、§8.2）。
     pub fn replace_document(&mut self, path: &str, text: String, now: f64) -> bool {
+        if !self.put_document(path, text) {
+            return false;
+        }
+        self.save.edited(now);
+        self.save.request_now();
+        true
+    }
+
+    /// [`Workbench::replace_document`] の、打鍵の単位の版（資料の審査フォーム、B-134）。保存は
+    /// 節エディタと同じ自動保存の待ち時間の後（§8.2）。
+    pub fn update_document(&mut self, path: &str, text: String, now: f64) -> bool {
+        if !self.put_document(path, text) {
+            return false;
+        }
+        self.save.edited(now);
+        true
+    }
+
+    /// 文書を置き換える（保存の予約はしない）。中身が同じなら `false`。
+    fn put_document(&mut self, path: &str, text: String) -> bool {
         self.commit();
         if self
             .project
@@ -633,6 +716,7 @@ impl Workbench {
         if self.slice.as_ref().is_some_and(|slice| slice.path == path) {
             self.slice = None;
             self.slice_buffer.clear();
+            self.slice_caret = None;
         }
         let editing = self.editing.clone();
         self.project.insert(Document::new(path.to_owned(), text));
@@ -649,9 +733,75 @@ impl Workbench {
                 }
             }
         }
+        true
+    }
+
+    /// 文書 `from` を `to` へ動かす（資料の採用で `inbox/` → `docs/`、§16.1）。`to` を書いてから
+    /// `from` を消す（[`Workbench::take_removals`]）。`from` が無い・`to` が既にあるなら `false`。
+    pub fn rename_document(&mut self, from: &str, to: &str, now: f64) -> bool {
+        self.commit();
+        if from == to || self.project.document(to).is_some() {
+            return false;
+        }
+        let Some(document) = self.project.remove(from) else {
+            return false;
+        };
+        if self.slice.as_ref().is_some_and(|slice| slice.path == from) {
+            self.slice = None;
+            self.slice_buffer.clear();
+            self.slice_caret = None;
+        }
+        self.unsaved.remove(from);
+        self.conflicts.remove(from);
+        self.removals.insert(from.to_owned());
+        self.removals.remove(to);
+        self.project
+            .insert(Document::new(to.to_owned(), document.text));
+        self.unsaved.insert(to.to_owned());
+        self.changed(to);
         self.save.edited(now);
         self.save.request_now();
         true
+    }
+
+    /// 書き込みの後で消すファイル（[`Workbench::rename_document`] の元）。取り出すと空になる。
+    /// 消せなかったものは [`Workbench::removal_failed`] で戻す。
+    pub fn take_removals(&mut self) -> Vec<String> {
+        std::mem::take(&mut self.removals).into_iter().collect()
+    }
+
+    /// 消せなかったファイルを戻す（次の保存でもう一度消す）。
+    pub fn removal_failed(&mut self, path: &str) {
+        self.removals.insert(path.to_owned());
+    }
+
+    /// 保存の直前: 書き込む資料 MD の `updated_at` と `checksum` を索引に書く（§16.6「保存のたびに
+    /// checksum を更新し、updated_at を書き換える」）。索引が変われば索引も書き込みに入る。
+    pub fn touch_materials(&mut self, stamp: &str) {
+        use crate::core::features::materials_ops;
+        self.commit();
+        let index_path = materials_ops::INDEX_PATH;
+        let before = self.project.text(index_path).to_owned();
+        let mut index = before.clone();
+        for path in &self.unsaved {
+            let is_material = self.project.document(path).is_some_and(|found| {
+                found.format == crate::core::model::document::DocumentFormat::MaterialDoc
+            });
+            if !is_material {
+                continue;
+            }
+            if let Some(updated) =
+                materials_ops::touch(&index, path, stamp, self.project.text(path))
+            {
+                index = updated;
+            }
+        }
+        if index != before {
+            self.project
+                .insert(Document::new(index_path.to_owned(), index));
+            self.unsaved.insert(index_path.to_owned());
+            self.changed(index_path);
+        }
     }
 
     fn commit_slice(&mut self) {

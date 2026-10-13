@@ -367,7 +367,11 @@ pub fn show(
                                     .color(colors.fg_primary),
                             );
                             let content = content.clone();
-                            reference_pane::sections(ui, &content, locale, view.mode, scale);
+                            if let Some(id) =
+                                reference_pane::sections(ui, &content, locale, view.mode, scale)
+                            {
+                                request = Some(Request::AppendMaterial(id));
+                            }
                         }
                     });
             });

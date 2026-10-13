@@ -200,6 +200,8 @@ font_fallback = "日本語フォントが見つからないため、同梱のフ
 
 [palette]
 placeholder = "入力して移動・検索・実行"
+character = "キャラ"
+term = "用語"
 
 [project.pick]
 title = "プロジェクトを選んでください"
@@ -243,6 +245,7 @@ emotion = "感情"
 role = "役割"
 tone = "口調"
 prose = "本文"
+candidate_hint = "条件が合う資料の候補。ダブルクリックか Enter で、この節のプロットに material: として足します"
 
 [jump]
 not_found = "その構造 ID の節はありません"
@@ -312,6 +315,15 @@ open = "プロジェクトを開く"
 quick_fix = "クイックフィックス"
 register = "選択を用語 / キャラとして登録"
 diff = "外部変更との差分（衝突時）"
+workspace = "ワークスペースの切替 / 直前のワークスペースへ"
+up = "1 つ上の段へ（本文 → 話プロット → 章プロット → 全体）"
+capture = "アイデアを書き留める（どこからでも）"
+review = "点検の診断へ"
+material = "資料を検索して挿入（どこからでも）"
+insert = "話プロットに節を挿入 / 新しい資料"
+drop = "アイデアを捨てる / 資料を却下"
+tab = "タブの切替（点検・配役）"
+scan = "役割語が一致しなかった台詞（配役）"
 
 [find]
 placeholder = "検索"
@@ -420,6 +432,61 @@ no_characters = "characters.md にキャラがいません"
 # {0} = アイデアの ID、{1} = 転記先
 promoted = "{0} を {1} へ昇格しました"
 promote_failed = "昇格できませんでした（転記先の文書を読めません）"
+
+[material]
+filter_active = "却下以外"
+status_proposed = "提案"
+status_approved = "採用"
+status_rejected = "却下"
+status_unknown = "状態不明"
+query_hint = "絞り込み（語・#分類・@範囲・'参照・~日付）"
+none = "表示する資料はありません。Ctrl+Shift+N で新しい資料を作れます"
+empty = "一覧から資料を選ぶと、ここで資料 MD を編集できます"
+form_empty = "資料を選ぶと、ここで審査できます"
+keys = "Ctrl+Enter 採用 · Ctrl+Delete 却下 · Ctrl+Shift+N 新しい資料 · Ctrl+M 検索 · Ctrl+3 審査フォーム"
+# {0} = 資料 MD のパス
+missing_file = "{0} はまだありません（書き始めると作ります）"
+field_title = "タイトル"
+field_category = "カテゴリ"
+field_summary = "要約"
+field_tags = "タグ"
+field_conditions = "条件（1 行に 1 つ）"
+field_source = "出典"
+# カテゴリの候補（カンマ区切り。§16.2 の既定）
+categories = "取材,文献,Web,画像,体験,一次資料,二次資料"
+tags_hint = "カンマ区切り"
+conditions_hint = "scope: @02-03 .. @02-08 / ref: '名前 / tag: 語 / text: 自由文"
+source_hint = "URL か、出典の説明"
+approve = "採用（Ctrl+Enter）"
+reject = "却下（Ctrl+Delete）"
+register = "index.json に登録する（Ctrl+Enter）"
+# {0} = 資料 ID
+approved = "{0} を採用しました（materials/docs/ へ移しました）"
+# {0} = 資料 ID
+rejected = "{0} を却下しました（ファイルは残っています。絞り込みの「却下」から採用し直せます）"
+# {0} = 資料 MD のパス、{1} = 資料 ID
+registered = "{0} を {1} として登録しました"
+# {0} = 資料 ID
+already = "{0} はもうその状態です"
+# {0} = 動かす先のパス
+occupied = "{0} が既にあるので動かせません（名前を変えてからもう一度）"
+untitled = "無題の資料"
+index_broken = "materials/index.json を読めないので資料を作れません（E025 を直してください）"
+# {0} = 資料 ID
+created = "{0} を提案として作りました（materials/inbox/）"
+# {0} = 資料 ID
+inserted = "{0} を挿入しました"
+# {0} = 資料 ID、{1} = 節の ID
+appended = "{0} を {1} のプロットに足しました（material:）"
+# {0} = 話プロットのパス
+no_plot_row = "{0} にこの節の場面がないので足せません"
+search_hint = "資料を検索（語・#分類・@範囲・'参照・M0137・!状態・~日付）"
+search_none = "見つかりません。Ctrl+Enter で新しい資料を作れます"
+search_keys = "Enter 挿入 · Shift+Enter 資料を開く · Ctrl+Enter 新しい資料を作って挿入 · Esc 閉じる"
+confirm_approve = "出典がないまま採用しますか？"
+confirm_yes = "採用する"
+new_title = "新しい資料（提案として作ります）"
+new_hint = "タイトル（#分類 も書けます）を書いて Enter"
 
 [review]
 tab_diagnostics = "診断"

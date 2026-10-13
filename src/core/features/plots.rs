@@ -214,6 +214,23 @@ pub fn insert_section(
     (lines.join("\n"), at)
 }
 
+/// 話プロットの行 `id`（節の行。無ければ同じ場面の見出しの行）の最後に `line` を 1 行足した
+/// ファイル全体（§16.4「Enter でプロットの `material:` に追記」・§10.2 の `Ctrl+M`）。
+///
+/// 節の行なら節の内容の最後（`;` と末尾の空行の前）、場面の行なら場面レベルのフィールドの最後に
+/// 入る。見出しだけの場面（空の節の行）は見出しの直後なので場面レベルのフィールドになる。
+/// 行が無ければ（話プロットが無い・場面が無い）`None`（UI が通知する、`PLANS.md` §9.2 B-134）。
+pub fn append_line(text: &str, rows: &[EpisodeRow], id: SceneId, line: &str) -> Option<String> {
+    let row = rows.iter().find(|row| row.id == id).or_else(|| {
+        rows.iter()
+            .find(|row| row.is_scene() && row.id == SceneId { section: 0, ..id })
+    })?;
+    let mut lines: Vec<&str> = text.split('\n').collect();
+    let at = row.lines.end.min(lines.len());
+    lines.insert(at, line);
+    Some(lines.join("\n"))
+}
+
 // ============================================================ 全体 / 章プロット（A 形式）
 
 /// 全体 / 章プロットの 1 ブロック（§10.3 の中央・§10.2 の上段）。

@@ -18,6 +18,7 @@
 //! | **E024** | `path` が `materials/` 配下でない（§5.8.2） | 原文中の `path` の値のリテラル |
 //! | **E008** | `id` が同一ファイル内で重複（§5.8.2「単調増加・再利用禁止」） | 2 件目の `id` のリテラル |
 //! | **E025** | JSON ファイルがパースできない（§4.3-4・§5.8.2） | ファイル全体 |
+//! | **W065** | 出典の無い**提案**（`status: proposed`、§16.7。M8、`PLANS.md` §9.2 B-134） | その資料の `id` のリテラル |
 //!
 //! JSON のトークン位置は serde が持たないので、位置は**値の JSON リテラルを原文から探して**
 //! 決める（[`literal_ranges`]）。同じ文字列が何度も出てくる場合は書いた順に当てはめるだけで、
@@ -35,8 +36,8 @@
 //!   診断しない（B-39 の流儀）。値は文字列のまま保持され、`*_kind()` が `None` を返す。
 //! - `next_id` が既存 ID より小さい（再利用が起きる状態）: 対応コードが無いので
 //!   [`MaterialIndex::is_next_id_valid`] が `false` を返すだけ（保存を直すのは M5）。
-//! - **W025**（資料 MD の H1 と index の不一致、§5.8.3）・index に未登録の MD（**W046**）:
-//!   2 つのファイルを比べるので M4 / M5。
+//! - **W025**（資料 MD の H1 と index の不一致、§5.8.3）・index に未登録の MD（**W064**）:
+//!   2 つのファイルを比べるので資料 MD の側で出す（`core::diagnostics::document`。W064 は M8）。
 //! - **E034**（カスタムロール 16 件超）と同じく、ディレクトリを見る検査は M5 以降。
 
 use std::ops::Range;
@@ -170,6 +171,15 @@ fn warn_items(text: &str, index: &MaterialIndex, out: &mut Vec<Diagnostic>) {
             ));
         } else {
             seen.push(item.id.as_str());
+        }
+        // §16.7「出典のない提案は自動的に W065 を付け、採用ボタンに確認を挟む」。付けるのは**提案**だけ
+        // （採用のときに確認を経たものには付けない。`PLANS.md` §9.2 B-134）
+        if item.status_kind() == Some(MaterialStatus::Proposed) && item.source.is_missing() {
+            out.push(Diagnostic::new(
+                DiagnosticCode::W065,
+                literal_ranges(text, &item.id).into_iter().next(),
+                vec![Arg::text(item.id.as_str())],
+            ));
         }
     }
 }

@@ -897,3 +897,373 @@ fn the_role_language_tester_and_the_unmatched_dialogue_list() {
     let text = painted_text(&output);
     assert!(text.contains("明日も来るの？"), "{text}");
 }
+
+// ============================================================ 画面（material）
+
+const MATERIALS: &str = r#"{
+  "schema_version": 1,
+  "next_id": 140,
+  "items": [
+    {
+      "id": "M0137",
+      "title": "科学の甲子園 本戦の運営と実技課題",
+      "path": "materials/docs/M0137-kagaku-koshien.md",
+      "source": { "kind": "url", "url": "https://example.org/report/2026" },
+      "category": "取材",
+      "conditions": [ { "kind": "ref", "value": "'科学の甲子園" } ],
+      "saved_at": "2026-10-01T09:20:33+09:00",
+      "tags": ["大会"],
+      "status": "approved",
+      "added_by": "human",
+      "summary": "本戦の 1 日のタイムテーブル。"
+    },
+    {
+      "id": "M0138",
+      "title": "旧校舎の歴史",
+      "path": "materials/inbox/M0138.md",
+      "source": { "kind": "custom", "text": "" },
+      "category": "文献",
+      "conditions": [],
+      "saved_at": "2026-10-12T10:00:00+09:00",
+      "tags": [],
+      "status": "proposed",
+      "added_by": "human"
+    },
+    {
+      "id": "M0139",
+      "title": "図書室の書架",
+      "path": "materials/inbox/M0139.md",
+      "source": { "kind": "custom", "text": "学校の案内" },
+      "category": "取材",
+      "conditions": [ { "kind": "scope", "value": "@01-01" } ],
+      "saved_at": "2026-10-11T10:00:00+09:00",
+      "tags": [],
+      "status": "approved",
+      "added_by": "human"
+    }
+  ]
+}
+"#;
+
+const M0138: &str = "# 旧校舎の歴史\n<!-- novnow:M0138 -->\n\n明治の木造校舎。\n";
+
+fn material_project() -> novnow::core::features::Project {
+    let mut project = novel::novel_with("materials/index.json", MATERIALS);
+    project.insert(Document::new("materials/inbox/M0138.md", M0138));
+    project.insert(Document::new(
+        "materials/inbox/M0139.md",
+        "# 図書室の書架\n<!-- novnow:M0139 -->\n",
+    ));
+    project.insert(Document::new("materials/inbox/memo.md", "# 取材メモ\n"));
+    project
+}
+
+fn material_harness() -> Harness {
+    Harness::start_with(material_project(), true).0
+}
+
+fn material_selected(harness: &Harness) -> Option<String> {
+    harness
+        .app
+        .spaces()
+        .and_then(|spaces| spaces.material.selected().map(str::to_owned))
+}
+
+fn removed(harness: &Harness) -> Vec<String> {
+    harness.host.files.borrow().removed.clone()
+}
+
+#[test]
+fn material_keys_follow_the_v1_table() {
+    let of = |key, modifiers| shell::command_of(key, modifiers, false, true);
+    assert_eq!(of(Key::M, CTRL), Some(Command::MaterialSearch));
+    assert_eq!(
+        of(Key::M, CTRL_SHIFT),
+        Some(Command::Modes),
+        "Ctrl+Shift+M は全モード"
+    );
+    assert_eq!(
+        shell::local_command_of(Key::Delete, CTRL, false, Workspace::Material),
+        Some(Command::Drop)
+    );
+}
+
+#[test]
+fn alt_5_lists_materials_and_ctrl_enter_approves_after_confirming_a_missing_source() {
+    let mut harness = material_harness();
+    harness.frame(vec![key(Key::Num5, ALT)]);
+    let output = harness.frame(Vec::new());
+    assert_eq!(harness.app.workspace(), Some(Workspace::Material));
+    let text = painted_text(&output);
+    assert!(text.contains("科学の甲子園 本戦の運営と実技課題"), "{text}");
+    assert!(text.contains("旧校舎の歴史"), "{text}");
+    assert!(
+        text.contains("inbox/memo.md"),
+        "索引に無い資料 MD も並ぶ: {text}"
+    );
+    // 着地: 今の節（@01-01-01-01）に明示参照は無いので、条件一致の候補（M0139 の scope @01-01）
+    assert_eq!(material_selected(&harness).as_deref(), Some("M0139"));
+    // 並びは索引に無い資料 MD → saved_at の新しい順（memo.md・M0138・M0139・M0137）
+    harness.frame(vec![key(Key::ArrowUp, ALT)]);
+    let output = harness.frame(Vec::new());
+    assert_eq!(material_selected(&harness).as_deref(), Some("M0138"));
+    let text = painted_text(&output);
+    assert!(text.contains("明治の木造校舎。"), "中央は資料 MD: {text}");
+    assert!(
+        text.contains("出典が設定されていません: M0138"),
+        "審査フォームに W065: {text}"
+    );
+    // 出典が無いので確認を挟む（§16.7）
+    harness.frame(vec![key(Key::Enter, CTRL)]);
+    harness.frame(Vec::new());
+    assert!(harness.app.overlay_open(), "確認");
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    let output = harness.idle(0.6);
+    assert!(!harness.app.overlay_open());
+    assert_eq!(written(&harness, "materials/docs/M0138.md"), M0138);
+    assert_eq!(
+        removed(&harness),
+        vec!["materials/inbox/M0138.md".to_owned()]
+    );
+    let index = written(&harness, "materials/index.json");
+    assert!(
+        index.contains("\"path\": \"materials/docs/M0138.md\""),
+        "{index}"
+    );
+    assert!(index.contains("\"status\": \"approved\""), "{index}");
+    assert!(
+        painted_text(&output).contains("M0138 を採用しました"),
+        "通知"
+    );
+    // 保存した資料 MD の checksum が索引に入る（§16.6）
+    let checksum = novnow::core::features::materials_ops::checksum(M0138);
+    assert!(index.contains(&checksum), "{index}");
+    assert_eq!(material_selected(&harness).as_deref(), Some("M0138"));
+}
+
+#[test]
+fn ctrl_enter_registers_an_unregistered_file_and_ctrl_delete_rejects_without_deleting() {
+    let mut harness = material_harness();
+    harness.frame(vec![key(Key::Num5, ALT)]);
+    harness.frame(Vec::new());
+    // 先頭の索引に無い資料 MD を登録する（W064 の「登録する」、§16.2）
+    harness.frame(vec![key(Key::Home, CTRL)]);
+    assert_eq!(
+        material_selected(&harness).as_deref(),
+        Some("materials/inbox/memo.md")
+    );
+    harness.frame(vec![key(Key::Enter, CTRL)]);
+    harness.idle(0.6);
+    assert_eq!(material_selected(&harness).as_deref(), Some("M0140"));
+    assert_eq!(
+        written(&harness, "materials/inbox/memo.md"),
+        "# 取材メモ\n<!-- novnow:M0140 -->\n"
+    );
+    let index = written(&harness, "materials/index.json");
+    assert!(index.contains("\"id\": \"M0140\""), "{index}");
+    assert!(index.contains("\"next_id\": 141"), "{index}");
+    // 却下: ファイルは残し、既定の一覧からは消える
+    let entries = harness
+        .app
+        .spaces()
+        .map(|spaces| spaces.material.selected().map(str::to_owned))
+        .unwrap_or_default();
+    assert_eq!(entries.as_deref(), Some("M0140"));
+    harness.frame(vec![key(Key::Delete, CTRL)]);
+    let output = harness.idle(0.6);
+    let index = written(&harness, "materials/index.json");
+    assert!(index.contains("\"status\": \"rejected\""), "{index}");
+    assert!(removed(&harness).is_empty(), "却下はファイルを消さない");
+    assert_ne!(material_selected(&harness).as_deref(), Some("M0140"));
+    assert!(painted_text(&output).contains("M0140 を却下しました"));
+}
+
+#[test]
+fn the_review_form_writes_the_index_and_keeps_the_h1_in_step() {
+    let mut harness = material_harness();
+    harness.frame(vec![key(Key::Num5, ALT)]);
+    harness.frame(vec![key(Key::ArrowUp, ALT)]);
+    assert_eq!(material_selected(&harness).as_deref(), Some("M0138"));
+    // Ctrl+3 で審査フォームのタイトルへ
+    harness.frame(vec![key(Key::Num3, CTRL)]);
+    harness.frame(Vec::new());
+    harness.frame(vec![key(Key::End, Modifiers::NONE)]);
+    harness.frame(vec![Event::Text("（増補）".into())]);
+    harness.idle(1.0);
+    let index = written(&harness, "materials/index.json");
+    assert!(
+        index.contains("\"title\": \"旧校舎の歴史（増補）\""),
+        "{index}"
+    );
+    assert!(
+        index.contains("\"updated_at\": \"2026-10-13T21:40:00+09:00\""),
+        "{index}"
+    );
+    let body = written(&harness, "materials/inbox/M0138.md");
+    assert!(
+        body.starts_with("# 旧校舎の歴史（増補）\n"),
+        "H1 も揃える: {body}"
+    );
+}
+
+#[test]
+fn ctrl_m_searches_materials_and_inserts_a_reference_at_the_caret_in_write() {
+    let mut harness = material_harness();
+    harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
+    harness.frame(vec![key(Key::M, CTRL)]);
+    harness.frame(Vec::new());
+    assert!(harness.app.overlay_open());
+    harness.frame(vec![Event::Text("甲子園".into())]);
+    let output = harness.frame(Vec::new());
+    let text = painted_text(&output);
+    assert!(
+        text.contains("M0137  科学の甲子園 本戦の運営と実技課題  #取材  2026-10-01"),
+        "{text}"
+    );
+    assert!(
+        text.contains("本戦の 1 日のタイムテーブル。"),
+        "選んだ行の要約: {text}"
+    );
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.idle(0.6);
+    assert!(!harness.app.overlay_open());
+    let prose = written(&harness, "contents/01-01.txt");
+    assert!(prose.contains("'M0137"), "{prose}");
+    // Ctrl+Enter: 検索語から新しい資料（提案）を作って挿入する
+    harness.frame(vec![key(Key::M, CTRL)]);
+    harness.frame(Vec::new());
+    harness.frame(vec![Event::Text("時計塔の構造 #文献".into())]);
+    harness.frame(vec![key(Key::Enter, CTRL)]);
+    harness.idle(0.6);
+    let index = written(&harness, "materials/index.json");
+    assert!(index.contains("\"title\": \"時計塔の構造\""), "{index}");
+    assert!(index.contains("\"category\": \"文献\""), "{index}");
+    assert!(
+        written(&harness, "materials/inbox/M0140.md").starts_with("# 時計塔の構造\n"),
+        "提案の MD"
+    );
+    let prose = written(&harness, "contents/01-01.txt");
+    assert!(prose.contains("'M0140"), "{prose}");
+}
+
+#[test]
+fn ctrl_m_in_the_episode_plot_appends_a_material_line_to_the_section() {
+    let mut harness = material_harness();
+    harness.frame(vec![key(Key::Num2, ALT)]);
+    harness.frame(vec![key(Key::M, CTRL)]);
+    harness.frame(Vec::new());
+    harness.frame(vec![Event::Text("M0137".into())]);
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.idle(0.6);
+    let plot = written(&harness, "plots/01-01.txt");
+    assert!(
+        plot.starts_with(
+            "@01-01-01 放課後\n二人が図書室で話す。\nstate: fixed\nmaterial: 'M0137\n;\n"
+        ),
+        "{plot}"
+    );
+}
+
+#[test]
+fn a_condition_match_in_the_reference_pane_is_added_to_the_plot_with_enter() {
+    let mut harness = material_harness();
+    // @01-01-01-01: M0139 の scope（@01-01）に入る
+    harness.idle(0.3);
+    let output = harness.frame(Vec::new());
+    let text = painted_text(&output);
+    assert!(text.contains("図書室の書架"), "条件一致の候補: {text}");
+    harness.frame(vec![key(Key::Num3, CTRL)]);
+    harness.frame(Vec::new());
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.idle(0.6);
+    let plot = written(&harness, "plots/01-01.txt");
+    assert!(
+        plot.starts_with(
+            "@01-01-01 放課後\n二人が図書室で話す。\nstate: fixed\nmaterial: 'M0139\n;\n"
+        ),
+        "{plot}"
+    );
+}
+
+#[test]
+fn review_rows_for_materials_open_the_material_workspace() {
+    let mut harness = material_harness();
+    harness.frame(vec![key(Key::E, CTRL_SHIFT)]);
+    harness.frame(Vec::new());
+    let rows = harness
+        .app
+        .spaces()
+        .and_then(|spaces| spaces.review.cached())
+        .map(<[_]>::to_vec)
+        .unwrap_or_default();
+    let w065 = rows
+        .iter()
+        .position(|row| row.code == "W065")
+        .expect("W065 の行");
+    for _ in 0..w065 {
+        harness.frame(vec![key(Key::ArrowDown, Modifiers::NONE)]);
+    }
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+    assert_eq!(harness.app.workspace(), Some(Workspace::Material));
+    assert_eq!(material_selected(&harness).as_deref(), Some("M0138"));
+    // W064（索引に無い資料 MD）も開ける
+    let mut harness = material_harness();
+    harness.frame(vec![key(Key::E, CTRL_SHIFT)]);
+    harness.frame(Vec::new());
+    let rows = harness
+        .app
+        .spaces()
+        .and_then(|spaces| spaces.review.cached())
+        .map(<[_]>::to_vec)
+        .unwrap_or_default();
+    let w064 = rows
+        .iter()
+        .position(|row| row.code == "W064")
+        .expect("W064 の行");
+    for _ in 0..w064 {
+        harness.frame(vec![key(Key::ArrowDown, Modifiers::NONE)]);
+    }
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+    assert_eq!(harness.app.workspace(), Some(Workspace::Material));
+    assert_eq!(
+        material_selected(&harness).as_deref(),
+        Some("materials/inbox/memo.md")
+    );
+}
+
+#[test]
+fn the_palette_searches_materials_with_hash_and_the_dictionary_with_a_quote() {
+    let mut harness = material_harness();
+    harness.frame(vec![key(Key::P, CTRL)]);
+    harness.frame(Vec::new());
+    harness.frame(vec![Event::Text("#取材 書架".into())]);
+    let output = harness.frame(Vec::new());
+    let text = painted_text(&output);
+    assert!(
+        text.contains("M0139  図書室の書架  #取材  2026-10-11"),
+        "{text}"
+    );
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+    assert_eq!(harness.app.workspace(), Some(Workspace::Material));
+    assert_eq!(material_selected(&harness).as_deref(), Some("M0139"));
+    // `'` は辞書（キャラ → cast で開く）
+    harness.frame(vec![key(Key::P, CTRL)]);
+    harness.frame(Vec::new());
+    harness.frame(vec![Event::Text("'りりあ".into())]);
+    let output = harness.frame(Vec::new());
+    let text = painted_text(&output);
+    assert!(text.contains("'リリア  キャラ"), "読みでも引ける: {text}");
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+    assert_eq!(harness.app.workspace(), Some(Workspace::Cast));
+    assert_eq!(
+        harness
+            .app
+            .spaces()
+            .and_then(|spaces| spaces.cast.selected()),
+        Some(1)
+    );
+}

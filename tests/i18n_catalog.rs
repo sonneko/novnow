@@ -323,6 +323,7 @@ const GUI_PREFIXES: &[&str] = &[
     "idea.",
     "review.",
     "cast.",
+    "material.",
 ];
 
 #[test]
