@@ -488,6 +488,45 @@ fn e006_offers_the_three_fixes_of_6_6_3() {
 }
 
 #[test]
+fn e006_offers_all_three_fixes_when_another_material_has_the_written_title() {
+    // §6.6.3 のクイックフィックス 3（同名タイトルを持つ別 ID へ貼り替える）まで並ぶ（§19.9）
+    let index = INDEX.replacen(
+        "  \"next_id\": 138,\n  \"items\": [\n",
+        "  \"next_id\": 142,\n  \"items\": [\n    { \"id\": \"M0141\", \"title\": \"科学の甲子園 地方大会の運営\", \"path\": \"materials/docs/M0141.md\", \"source\": { \"kind\": \"custom\", \"text\": \"取材\" }, \"category\": \"取材\", \"conditions\": [], \"saved_at\": \"2026-10-03T10:00:00+09:00\", \"tags\": [], \"status\": \"approved\", \"added_by\": \"human\" },\n",
+        1,
+    );
+    assert_ne!(index, INDEX);
+    let plot = EPISODE.replace(
+        "material: 'M0137",
+        "material: 'M0137:科学の甲子園 地方大会の運営",
+    );
+    let mut project = world_with(EPISODE_PATH, &plot);
+    project.insert(Document::new("materials/index.json", index.as_str()));
+    let document = doc(&project, EPISODE_PATH);
+    let actions: Vec<CodeAction> = code_action::at(&document, 0..plot.len(), &project)
+        .into_iter()
+        .filter(|action| action.diagnostic == DiagnosticCode::E006)
+        .collect();
+    assert_eq!(
+        kinds(&actions),
+        vec![
+            (
+                ActionKind::ReplaceTitle,
+                "科学の甲子園 本戦の運営と実技課題".to_string()
+            ),
+            (
+                ActionKind::RewriteIndexTitle,
+                "科学の甲子園 地方大会の運営".to_string()
+            ),
+            (ActionKind::UseOtherMaterialId, "M0141".to_string()),
+        ]
+    );
+    assert!(actions[0].preferred, "1 が既定（Enter 一発）");
+    assert!(after(&project, &actions[2].edit, EPISODE_PATH)
+        .contains("material: 'M0141:科学の甲子園 地方大会の運営\n"));
+}
+
+#[test]
 fn e007_replaces_with_a_close_material_id() {
     let text = "@01-04-02 x\nmaterial: 'M0138\n";
     let (project, actions) = actions_for(EPISODE_PATH, text, DiagnosticCode::E007);

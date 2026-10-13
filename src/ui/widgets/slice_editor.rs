@@ -70,7 +70,19 @@ pub fn show(ui: &mut Ui, bench: &mut Workbench, cache: &mut Cache, look: Look) -
     if let Some(selection) = result.selection.clone() {
         bench.set_slice_caret(selection);
     }
+    if let Some(rect) = result.caret {
+        ui.ctx()
+            .data_mut(|data| data.insert_temp(Id::new(CARET_RECT), rect));
+    }
     result
+}
+
+/// [`caret_rect`] の置き場所（egui の一時データの鍵）。
+const CARET_RECT: &str = "slice-editor-caret-rect";
+
+/// エディタのキャレットの最後の矩形（画面の座標。`Ctrl+.` のポップアップの位置、B-137）。
+pub fn caret_rect(ctx: &egui::Context) -> Option<egui::Rect> {
+    ctx.data(|data| data.get_temp::<egui::Rect>(Id::new(CARET_RECT)))
 }
 
 /// エディタの選択範囲を byte で指定してフォーカスを移す（次のフレームから効く。`Ctrl+M` の挿入の後）。

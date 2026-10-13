@@ -1329,3 +1329,50 @@ fn the_section_editor_shows_a_material_title_and_a_mode_name_after_their_tokens(
     assert!(buffer.contains("'M0137 @アルス:B"), "{buffer}");
     assert!(!buffer.contains('⟨'));
 }
+
+#[test]
+fn ctrl_period_in_the_episode_plot_offers_the_e006_fixes_and_enter_applies_the_first() {
+    // 資料 ID はプロットに書く（§6.6.4）ので、E006 のクイックフィックス（§6.6.3）も話プロットで効く
+    let mut harness = material_harness();
+    harness.frame(vec![key(Key::Num2, ALT)]);
+    harness.frame(Vec::new());
+    harness.frame(vec![key(Key::End, Modifiers::NONE)]);
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(vec![Event::Text("material: 'M0137:科学の甲子園".into())]);
+    harness.frame(vec![key(Key::ArrowLeft, Modifiers::NONE)]);
+    let period = Modifiers {
+        ctrl: true,
+        command: true,
+        ..Modifiers::NONE
+    };
+    harness.frame(vec![key(Key::Period, period)]);
+    let output = harness.frame(Vec::new());
+    let text = painted_text(&output);
+    assert!(
+        text.contains("E006  索引のタイトルに揃える: 科学の甲子園 本戦の運営と実技課題"),
+        "{text}"
+    );
+    assert!(
+        text.contains("E006  索引のタイトルを書き換える: 科学の甲子園"),
+        "{text}"
+    );
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+    harness.idle(0.6);
+    let plot = written(&harness, "plots/01-01.txt");
+    assert!(
+        plot.contains("state: fixed\nmaterial: 'M0137:科学の甲子園 本戦の運営と実技課題\n;\n"),
+        "{plot}"
+    );
+    // Enter は適用に使われ、改行は入らない。エディタは開き直して続きを書ける
+    assert_eq!(harness.app.workspace(), Some(Workspace::PlotEpisode));
+    let slice = harness
+        .app
+        .workbench()
+        .map(|bench| bench.slice_buffer().to_owned())
+        .unwrap_or_default();
+    assert!(
+        slice.ends_with("material: 'M0137:科学の甲子園 本戦の運営と実技課題"),
+        "{slice}"
+    );
+}

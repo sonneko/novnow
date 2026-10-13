@@ -797,14 +797,11 @@ impl NovnowApp {
                     .spliced_document()
                     .map(|(document, start)| {
                         let selection = session.selection.clone().unwrap_or(0..0);
-                        let mut actions = crate::core::features::code_action::at(
+                        quick_fixes(
                             &document,
                             start + selection.start..start + selection.end,
                             session.bench.project(),
-                        );
-                        // 既定（`Enter` 一発で適用）を先頭に
-                        actions.sort_by_key(|action| !action.preferred);
-                        actions
+                        )
                     })
                     .unwrap_or_default();
                 if actions.is_empty() {
@@ -1058,6 +1055,29 @@ impl NovnowApp {
                     spaces.episode.land_episode(bench, chapter, episode);
                     spaces.switcher.mark_visited(Workspace::PlotEpisode);
                     self.switch_to(ctx, Workspace::PlotEpisode, now);
+                }
+            }
+            (_, Command::QuickFix) => {
+                // M8 のエディタ（Slice）でも `Ctrl+.`。資料 ID はプロットに書く（§6.6.4）ので、E006 の
+                // クイックフィックス（§6.6.3）は話プロットで要る（`PLANS.md` §9.2 B-137）
+                let actions = bench
+                    .slice_document()
+                    .map(|(document, start)| {
+                        let selection = bench.slice_caret().unwrap_or(0..0);
+                        quick_fixes(
+                            &document,
+                            start + selection.start..start + selection.end,
+                            bench.project(),
+                        )
+                    })
+                    .unwrap_or_default();
+                if actions.is_empty() {
+                    session.notice = Some((i18n::text(locale, "quickfix.none").to_owned(), now));
+                } else {
+                    self.overlay = Overlay::QuickFix {
+                        actions,
+                        selected: 0,
+                    };
                 }
             }
             (_, Command::Jump | Command::Palette | Command::SaveNow | Command::Reload) => {
@@ -1708,6 +1728,12 @@ impl NovnowApp {
                     .then_some((self.settings.reference_pane_side, reference_width)),
                 inlay_hints: self.settings.inlay_hints,
             };
+            // `Ctrl+.` のポップアップが出ている間は、↑/↓/Enter/Tab を Slice のエディタより先に取る
+            let popup = if matches!(self.overlay, Overlay::QuickFix { .. }) {
+                popup_keys(ctx)
+            } else {
+                (false, false, false)
+            };
             let mut jump = None;
             let mut cast_jump = None;
             let request = match workspace {
@@ -1781,6 +1807,16 @@ impl NovnowApp {
                     now,
                 );
             }
+            if let (Overlay::QuickFix { actions, selected }, Stage::Open(session)) =
+                (&mut self.overlay, &mut self.stage)
+            {
+                let anchor = slice_editor::caret_rect(ctx);
+                if !quick_fix(
+                    ctx, session, actions, selected, popup, anchor, locale, mode, now,
+                ) {
+                    self.overlay = Overlay::None;
+                }
+            }
             self.common_tail(ctx, locale, now);
             return;
         }
@@ -1819,13 +1855,7 @@ impl NovnowApp {
             self.overlay,
             Overlay::Completion { .. } | Overlay::QuickFix { .. }
         ) {
-            completion_keys = ctx.input_mut(|input| {
-                let down = input.consume_key(Modifiers::NONE, Key::ArrowDown);
-                let up = input.consume_key(Modifiers::NONE, Key::ArrowUp);
-                let enter = input.consume_key(Modifiers::NONE, Key::Enter)
-                    || input.consume_key(Modifiers::NONE, Key::Tab);
-                (down, up, enter)
-            });
+            completion_keys = popup_keys(ctx);
         }
         if let Some(range) = session.pending_selection.take() {
             section_editor::select(ctx, &session.bench, range);
@@ -1943,12 +1973,14 @@ impl NovnowApp {
             }
         }
         if let Overlay::QuickFix { actions, selected } = &mut self.overlay {
+            let anchor = session.caret;
             if !quick_fix(
                 ctx,
                 session,
                 actions,
                 selected,
                 completion_keys,
+                anchor,
                 locale,
                 mode,
                 now,
@@ -3366,7 +3398,30 @@ fn completion(
     false
 }
 
-/// クイックフィックスのポップアップ（§9.8.3 `Ctrl+.`）。適用したら閉じる（`false`）。
+/// カーソル位置（`range`、`document` の中の byte）のクイックフィックス。既定（`Enter` 一発で適用）を先頭に。
+fn quick_fixes(
+    document: &crate::core::model::document::Document,
+    range: std::ops::Range<usize>,
+    project: &crate::core::features::Project,
+) -> Vec<crate::core::features::code_action::CodeAction> {
+    let mut actions = crate::core::features::code_action::at(document, range, project);
+    actions.sort_by_key(|action| !action.preferred);
+    actions
+}
+
+/// ポップアップ（補完・クイックフィックス）の ↑ / ↓ / Enter（Tab）を、エディタより先に取る。
+fn popup_keys(ctx: &Context) -> (bool, bool, bool) {
+    ctx.input_mut(|input| {
+        let down = input.consume_key(Modifiers::NONE, Key::ArrowDown);
+        let up = input.consume_key(Modifiers::NONE, Key::ArrowUp);
+        let enter = input.consume_key(Modifiers::NONE, Key::Enter)
+            || input.consume_key(Modifiers::NONE, Key::Tab);
+        (down, up, enter)
+    })
+}
+
+/// クイックフィックスのポップアップ（§9.8.3 `Ctrl+.`）。`anchor` はキャレットの矩形（節エディタか
+/// M8 のエディタの）。適用したら閉じる（`false`）。
 #[allow(clippy::too_many_arguments)]
 fn quick_fix(
     ctx: &Context,
@@ -3374,6 +3429,7 @@ fn quick_fix(
     actions: &[crate::core::features::code_action::CodeAction],
     selected: &mut usize,
     keys: (bool, bool, bool),
+    anchor: Option<Rect>,
     locale: Locale,
     mode: Mode,
     now: f64,
@@ -3387,7 +3443,7 @@ fn quick_fix(
     }
     let mut chosen = enter.then_some(*selected);
     let colors = theme::palette(mode);
-    let anchor = session.caret.map_or(Pos2::new(120.0, 120.0), |rect| {
+    let anchor = anchor.map_or(Pos2::new(120.0, 120.0), |rect| {
         rect.left_bottom() + Vec2::new(0.0, 4.0)
     });
     egui::Area::new(Id::new("quick-fix"))

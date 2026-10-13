@@ -1280,3 +1280,28 @@ fn write_checker_allows_reads() {
         assert!(found.is_empty(), "誤検出: {source}: {found:?}");
     }
 }
+
+/// §19.7「`characters.json` を参照するコードが存在しない（移行コードを除く）」。名前を持ってよいのは
+/// v0 の目印（`core::model::project::V0_MARKER`、§14.2.4）と `cli/migrate.rs`（中身は M11）だけ。
+#[test]
+fn only_the_v0_marker_and_migrate_mention_characters_json() {
+    let mut files = Vec::new();
+    collect_rs(Path::new("src"), &mut files);
+    files.sort();
+    assert!(!files.is_empty(), "No .rs files found in src!");
+    let marker = Path::new("src/core/model/project.rs");
+    let allowed = [marker, Path::new("src/cli/migrate.rs")];
+    let offenders: Vec<String> = files
+        .iter()
+        .filter(|file| !allowed.contains(&file.as_path()))
+        .filter(|file| read_core(file).contains("characters.json"))
+        .map(|file| file.display().to_string())
+        .collect();
+    assert!(
+        offenders.is_empty(),
+        "characters.json を参照している:\n{}",
+        bullets(&offenders)
+    );
+    // 目印の側も、文字列リテラルは定数の 1 か所だけ
+    assert_eq!(read_core(marker).matches("\"characters.json\"").count(), 1);
+}
