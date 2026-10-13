@@ -19,7 +19,7 @@
 | 項目 | 状態 |
 |---|---|
 | `main` | `00a5813`（PR #11 マージ済み。M0〜M3 ＋ 本書と `scripts/`） |
-| 作業ブランチ | セッションが指定したもの固定（2026-10-13 のセッションは `arena/cb878908-novnow`）。PR は未作成（作ったらここに番号を書く） |
+| 作業ブランチ | セッションが指定したもの固定（2026-10-13 のセッションは `arena/cb878908-novnow`）。**PR #12（draft）** |
 | マイルストーン | M0〜M3 完了。**M4「診断と features」進行中**（`PLANS.md` §5.5） |
 | 仕様書 | **第 2.8 版**（2026-10-13）。診断コード **79 件**（§7:38 + §7.1:14 + §7.2:27） |
 | テスト | `bash scripts/verify.sh` で 4 ジョブ緑（件数は verify の出力を見る） |
@@ -29,7 +29,8 @@
 
 - [x] 第 2.8 版の裁定（A-7・A-8・A-9・A-10・A-18・A-23）を仕様・実装・テストに反映。A-23 は**文単位**に再裁定（`PLANS.md` §9.1、§9.2 B-74・B-75）
 - [x] `deploy.yml` を M7 まで `workflow_dispatch` だけにした（M7 の作業項目 0 で戻す）
-- [ ] `ui/i18n/{ja,en}.toml` の `diag.*`（79 件）＋ 仕様書 §7 と突き合わせるテスト
+- [x] `ui/i18n/{ja,en}.toml` の `diag.*`（79 件）＋ `tests/i18n_catalog.rs`（§12.3 の CI チェック）
+- [x] M3 の取りこぼし: `materials::scan_line` が辞書側の診断（E001 等）に `line_start` を足していなかった（行頭が 0 でない行で波線がずれる）のを修正
 - [ ] `core::features::Project`（文書と辞書をまとめた集約）＋ `diagnostics::document(doc, project)`
 - [ ] 11 機能（semantic_tokens / completion / hover / inlay_hint / code_action / definition / references / document_symbol / folding / formatting / rename）
 - [ ] `PLANS.md` §5.5 の完了条件 3 件のチェック

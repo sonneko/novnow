@@ -387,6 +387,26 @@ fn the_hint_sits_right_after_the_token() {
 }
 
 #[test]
+fn dictionary_diagnostics_are_shifted_to_the_file_too() {
+    // 辞書側の診断（E001 / W029 など）も資料側と同じくファイル単位で返す（B-56）。
+    // M3 の時点では `line_start` を足し忘れていて、行頭が 0 でない行で波線がずれていた
+    let world = World::spec();
+    let line = "'存在しない名前 と 'M9999";
+    let shifted = materials::scan_line(line, 100, &world.dictionary, &world.index, false);
+    let mut found: Vec<(String, usize)> = shifted
+        .diagnostics
+        .iter()
+        .map(|d| (d.code.as_str().to_string(), d.range.clone().expect("range").start))
+        .collect();
+    found.sort();
+    let unknown = line.find("'M9999").expect("M9999");
+    assert_eq!(
+        found,
+        vec![("E001".to_string(), 100), ("E007".to_string(), 100 + unknown)]
+    );
+}
+
+#[test]
 fn the_hint_carries_the_status_for_the_ui_to_word() {
     let world = World::spec();
     // §6.6.2 の `⟨タイトル・提案中⟩` / `⟨タイトル・却下⟩` は **UI が組む**（§12.2）。

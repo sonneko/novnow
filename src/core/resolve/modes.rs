@@ -727,9 +727,8 @@ fn finish<'a>(
             }),
             Variant::OutOfRange(variants) => diagnostics.push(FileDiagnostic {
                 file: candidate.file,
-                // §7 E004「モード {1} は {2} では使用できません（有効範囲: {3}）」
-                // **引数は 4 つ**で `args[0]` はどの言語でも捨てられる（PLANS §9.1 A-7）。
-                // 仕様を直すまではキャラ名を予約として入れておく
+                // §7 E004「{0} のモード {1} は {2} では使用できません（有効範囲: {3}）」
+                // （第 2.8 版で `{0}` ＝キャラ名を使う文言になった。`PLANS.md` §9.1 A-7）
                 diagnostic: Diagnostic::new(
                     DiagnosticCode::E004,
                     Some(range),

@@ -405,10 +405,17 @@ pub fn scan_line<'a>(
     for token in &scanned.tokens {
         let found = resolve(line, token, dictionary, index, line_start);
         let is_material = found.route.is_some() || found.id.is_some();
+        // `token_diagnostics` の範囲は**行内相対**なので、ファイル単位に直してから混ぜる
+        // （B-56。資料側の E006 / E007 / W031 は `line_start` を足して作ってある）
+        let from_dictionary = dictionary::token_diagnostics(line, token, dictionary)
+            .into_iter()
+            .map(|diagnostic| Diagnostic {
+                range: diagnostic.range.map(|range| shift(&range, line_start)),
+                ..diagnostic
+            });
         if !is_material {
             // 資料と関係のないトークンは辞書の診断だけ（E001 / E002 / E026 / W029）
-            out.diagnostics
-                .extend(dictionary::token_diagnostics(line, token, dictionary));
+            out.diagnostics.extend(from_dictionary);
             continue;
         }
         if in_body {
@@ -416,7 +423,7 @@ pub fn scan_line<'a>(
             out.diagnostics
                 .push(body_diagnostic(shift(&token.range, line_start)));
         }
-        let mut from_dictionary = dictionary::token_diagnostics(line, token, dictionary);
+        let mut from_dictionary: Vec<Diagnostic> = from_dictionary.collect();
         if found
             .diagnostics
             .iter()
