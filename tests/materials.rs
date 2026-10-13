@@ -396,13 +396,21 @@ fn dictionary_diagnostics_are_shifted_to_the_file_too() {
     let mut found: Vec<(String, usize)> = shifted
         .diagnostics
         .iter()
-        .map(|d| (d.code.as_str().to_string(), d.range.clone().expect("range").start))
+        .map(|d| {
+            (
+                d.code.as_str().to_string(),
+                d.range.clone().expect("range").start,
+            )
+        })
         .collect();
     found.sort();
     let unknown = line.find("'M9999").expect("M9999");
     assert_eq!(
         found,
-        vec![("E001".to_string(), 100), ("E007".to_string(), 100 + unknown)]
+        vec![
+            ("E001".to_string(), 100),
+            ("E007".to_string(), 100 + unknown)
+        ]
     );
 }
 
