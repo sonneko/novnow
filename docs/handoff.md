@@ -31,7 +31,7 @@
 - [x] `deploy.yml` を M7 まで `workflow_dispatch` だけにした（M7 の作業項目 0 で戻す）
 - [x] `ui/i18n/{ja,en}.toml` の `diag.*`（79 件）＋ `tests/i18n_catalog.rs`（§12.3 の CI チェック）
 - [x] M3 の取りこぼし: `materials::scan_line` が辞書側の診断（E001 等）に `line_start` を足していなかった（行頭が 0 でない行で波線がずれる）のを修正
-- [ ] `core::features::Project`（文書と辞書をまとめた集約）＋ `diagnostics::document(doc, project)`
+- [x] `core::features::Project`（`features/project.rs`。文書と辞書をまとめた集約＋参照の走査）＋ `diagnostics::document(doc, project)`（`tests/diagnostics_document.rs`、共有フィクスチャは `tests/world/mod.rs`）
 - [ ] 11 機能（semantic_tokens / completion / hover / inlay_hint / code_action / definition / references / document_symbol / folding / formatting / rename）
 - [ ] `PLANS.md` §5.5 の完了条件 3 件のチェック
 

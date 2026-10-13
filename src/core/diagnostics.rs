@@ -19,6 +19,18 @@
 use serde::Serialize;
 use std::ops::Range;
 
+use crate::core::features::project;
+use crate::core::features::Project;
+use crate::core::id::SceneId;
+use crate::core::model::document::{Document, DocumentFormat};
+use crate::core::resolve::dictionary::{self, SourceFile};
+use crate::core::resolve::{context_rules, materials, modes};
+use crate::core::syntax::{
+    characters_md, contents, ideas_md, materials_index, plot_episode, plot_outline, prompt_md,
+    words_md,
+};
+use crate::core::text::lexer::{self, FieldKey, LineKind};
+
 /// 重大度（§7 の `Sev` 列）。
 ///
 /// 並びは「重い順」で、`sort_by_key(|d| d.severity())` がエラーを先頭に置く。
@@ -725,5 +737,649 @@ impl Diagnostic {
     /// 波線として表示できる診断か（§7「I=情報（下線なし、レビュー一覧のみ）」）。
     pub fn is_underlined(&self) -> bool {
         self.code.anchor() == Anchor::Document && self.code.severity() != Severity::Info
+    }
+}
+
+// ============================================================ 文書単位の診断（§3.4）
+
+/// 1 文書の診断を全部集める（§3.4 `diagnostics::document(doc, project)` →
+/// `textDocument/publishDiagnostics`）。範囲は**この文書の中の byte**。
+///
+/// 下の層が出す診断を**1 か所で組む**まとめ役（`PLANS.md` §5.5 作業項目 1）。どの層が
+/// どのコードを出すかは次の表で、**同じ形に 2 層が波線を引かない**（B-67 / B-71）。
+/// 最後に同一の診断（コード・範囲・引数が同じ）を 1 つにまとめ、§9.5.2 の 9 の順
+/// （`E` → `W` → `I` → 位置 → コード、`context_rules::sort_diagnostics`）に並べる。
+///
+/// | 出す層 | コード | 対象の形式 |
+/// |---|---|---|
+/// | `syntax/*` のパーサ（M2） | E002 / E005（B 形式の `mode:`） / E008 / E016 / E017 / E018 / E020 / E021 / E022 / E024 / E025 / E031〜E033 / W002 / W011 / W012 / W019 | 各形式 |
+/// | [`materials::scan_line`](crate::core::resolve::materials::scan_line)（M3、B-71） | E001 / E002 / E005（1 トークン） / E006 / E007 / E026 / W029 / W031 | 本文部のある全形式（走査範囲は B-77） |
+/// | [`dictionary::speaker_diagnostic`](crate::core::resolve::dictionary::speaker_diagnostic) | E012 | C |
+/// | 辞書の構築（[`Project::dictionary_diagnostics`]） | E028 / W027 | `characters.md` / `words.md` / `materials/index.json` |
+/// | [`dictionary::relation_diagnostics`](crate::core::resolve::dictionary::relation_diagnostics) | E013 | `characters.md` |
+/// | [`modes::resolve`](crate::core::resolve::modes::resolve)（M3、B-67） | E003 / E004 / E005（`cast:` の重複・`default-mode:`） / W006 | C（話者注釈）・B・A・`characters.md` |
+/// | **この関数**（M4） | W022 / W025 / W030 | C・B / 資料 MD / B |
+///
+/// モードの検査は「**その文書に書かれた割り当て**」だけをその文書に載せる（B-79）。
+/// 本文を開いて話プロットの `mode:` の E003 が出ることはない（話プロットを開けば出る）。
+pub fn document(document: &Document, project: &Project) -> Vec<Diagnostic> {
+    let mut out = Vec::new();
+    let text = document.text.as_str();
+    match document.format {
+        DocumentFormat::Contents => {
+            let parsed = contents::parse_with(text, &project.contents_options());
+            out.extend(parsed.diagnostics.iter().cloned());
+            reference_diagnostics(document, project, true, &mut out);
+            contents_speakers(document, project, &parsed, &mut out);
+            let scenes = contents_scenes(&parsed);
+            ref_modes(document, project, &scenes, &mut out);
+            word_ranges(document, project, &scenes, &mut out);
+        }
+        DocumentFormat::PlotEpisode => {
+            let parsed = plot_episode::parse_with(text, &project.contents_options());
+            out.extend(parsed.diagnostics.iter().cloned());
+            reference_diagnostics(document, project, false, &mut out);
+            episode_modes(document, project, &parsed, &mut out);
+            section_counts(document, project, &parsed, &mut out);
+            let scenes = episode_scenes(&parsed);
+            ref_modes(document, project, &scenes, &mut out);
+            word_ranges(document, project, &scenes, &mut out);
+        }
+        DocumentFormat::PlotOutline => {
+            let options = project.outline_options(&document.path);
+            let parsed = plot_outline::parse_with(text, &options);
+            out.extend(parsed.diagnostics.iter().cloned());
+            reference_diagnostics(document, project, false, &mut out);
+            outline_modes(document, project, &parsed, &mut out);
+            ref_modes(document, project, &[], &mut out);
+        }
+        DocumentFormat::Characters => {
+            let parsed = characters_md::parse(text);
+            out.extend(parsed.diagnostics.iter().cloned());
+            out.extend(project.dictionary_diagnostics(SourceFile::Characters));
+            let relations = dictionary::relation_diagnostics(&parsed, project.dictionary());
+            out.extend(relations.into_iter().map(|found| found.diagnostic));
+            reference_diagnostics(document, project, false, &mut out);
+            ref_modes(document, project, &[], &mut out);
+            default_modes(project, &parsed, &mut out);
+        }
+        DocumentFormat::Words => {
+            out.extend(words_md::parse(text).diagnostics);
+            out.extend(project.dictionary_diagnostics(SourceFile::Words));
+            reference_diagnostics(document, project, false, &mut out);
+        }
+        DocumentFormat::Ideas => {
+            out.extend(ideas_md::parse(text).diagnostics);
+            reference_diagnostics(document, project, false, &mut out);
+        }
+        DocumentFormat::MaterialsIndex => {
+            out.extend(materials_index::parse(text).diagnostics);
+            out.extend(project.dictionary_diagnostics(SourceFile::MaterialsIndex));
+        }
+        DocumentFormat::MaterialDoc => {
+            material_heading(document, project, &mut out);
+            reference_diagnostics(document, project, false, &mut out);
+        }
+        DocumentFormat::Prompt | DocumentFormat::SharedPrompt => {
+            out.extend(prompt_md::parse(text).diagnostics);
+        }
+        DocumentFormat::CustomPrompt => {
+            let options = prompt_md::Options { custom: true };
+            out.extend(prompt_md::parse_with(text, &options).diagnostics);
+        }
+        _ => {}
+    }
+    finish(out)
+}
+
+/// 重複を落として §9.5.2 の 9 の順に並べる。
+fn finish(found: Vec<Diagnostic>) -> Vec<Diagnostic> {
+    let mut out: Vec<Diagnostic> = Vec::with_capacity(found.len());
+    for diagnostic in found {
+        if !out.contains(&diagnostic) {
+            out.push(diagnostic);
+        }
+    }
+    // E013（relations の参照不能）と同じ場所の E001 は重ねない（同じ名前の同じ不在を 2 回言う）
+    let relations: Vec<Range<usize>> = out
+        .iter()
+        .filter(|found| found.code == DiagnosticCode::E013)
+        .filter_map(|found| found.range.clone())
+        .collect();
+    out.retain(|found| {
+        found.code != DiagnosticCode::E001
+            || !found.range.as_ref().is_some_and(|range| {
+                relations
+                    .iter()
+                    .any(|other| range.start < other.end && other.start < range.end)
+            })
+    });
+    context_rules::sort_diagnostics(&mut out);
+    out
+}
+
+/// 本文部の `'` 参照の診断（[`materials::scan_line`] を入口にする、B-71）。
+fn reference_diagnostics(
+    document: &Document,
+    project: &Project,
+    in_body: bool,
+    out: &mut Vec<Diagnostic>,
+) {
+    let Some(format) = document.format.text_format() else {
+        return;
+    };
+    let index = project.materials();
+    for line in project::lines_of(&document.text) {
+        let keep = project::scan_ranges(line.text, format);
+        if keep.is_empty() {
+            continue;
+        }
+        let masked = project::mask(line.text, &keep);
+        let scan = materials::scan_line(&masked, line.start, project.dictionary(), &index, in_body);
+        out.extend(scan.diagnostics);
+    }
+}
+
+/// 本文の話者注釈: **E012**（未定義のキャラ）と、モード付きの注釈の E003 / E004（段 1、§6.4.3）。
+fn contents_speakers(
+    document: &Document,
+    project: &Project,
+    parsed: &contents::Contents<'_>,
+    out: &mut Vec<Diagnostic>,
+) {
+    let characters = project.characters();
+    let starts = project::line_starts_of(&document.text);
+    let scenes = contents_scenes(parsed);
+    for (index, line) in parsed.lines.iter().enumerate() {
+        let contents::Line::Text(text) = line else {
+            continue;
+        };
+        let Some(speaker) = &text.speaker else {
+            continue;
+        };
+        let start = starts.get(index).copied().unwrap_or(0);
+        if let Some(found) = dictionary::speaker_diagnostic(speaker, project.dictionary()) {
+            out.push(shifted(found, start));
+            continue;
+        }
+        if speaker.modes.is_empty() {
+            continue;
+        }
+        let (Some(scene), Some(character)) = (
+            scenes.get(index).copied().flatten(),
+            character_index(project, speaker.name),
+        ) else {
+            continue;
+        };
+        let input = modes::Input {
+            characters: &characters,
+            episode: None,
+            chapter: None,
+            all: None,
+            dictionary: project.dictionary(),
+        };
+        let target = modes::Target {
+            scene,
+            character,
+            speaker: Some(speaker),
+            line_start: start,
+        };
+        let assignment = modes::resolve(&input, &target);
+        keep_file(assignment.diagnostics, modes::File::Contents, out);
+    }
+}
+
+/// 話プロットの `mode:` の E003 / E004 と、本文で話しているのにモードが決まらない **W006**。
+///
+/// 対象は (節, キャラ) の組で、キャラは「その場面・節・前文の `mode:` に書かれた人」と
+/// 「対応する本文の同じ節で話している人」（B-79）。後者は話プロットに**同じ場面がある**ときだけ
+/// （節が無ければ W006 の波線は場面全体、`modes::resolve` の段 8）。モードを 1 つも定義して
+/// いないキャラは W006 の対象にしない（端役の台詞ごとに警告が並ぶだけになる）。
+fn episode_modes(
+    document: &Document,
+    project: &Project,
+    parsed: &plot_episode::EpisodePlot<'_>,
+    out: &mut Vec<Diagnostic>,
+) {
+    let characters = project.characters();
+    let episode = project::episode_of_path(&document.path);
+    let chapter_plot = episode.and_then(|(chapter, _)| project.chapter_plot(chapter));
+    let all_plot = project.all_plot();
+    let body = episode.and_then(|(chapter, number)| project.episode_contents(chapter, number));
+    let preamble = mode_characters(
+        project,
+        parsed
+            .preamble
+            .fields
+            .iter()
+            .filter_map(|line| parsed.field(*line))
+            .filter(|field| field.key == FieldKey::Mode),
+    );
+    // (節, キャラ, 本文で話しているか)
+    let mut targets: Vec<(SceneId, usize, bool)> = Vec::new();
+    let mut push = |scene: SceneId, character: usize, spoken: bool| match targets
+        .iter_mut()
+        .find(|(seen, who, _)| *seen == scene && *who == character)
+    {
+        Some(found) => found.2 |= spoken,
+        None => targets.push((scene, character, spoken)),
+    };
+    for (scene_index, scene) in parsed.scenes.iter().enumerate() {
+        let Some(id) = scene.id else {
+            continue;
+        };
+        let mut written = preamble.clone();
+        written.extend(mode_characters(
+            project,
+            parsed.scene_fields(scene_index, FieldKey::Mode).into_iter(),
+        ));
+        for (section_index, section) in scene.sections.iter().enumerate() {
+            let at = SceneId {
+                section: section.number,
+                ..id
+            };
+            let mut here = written.clone();
+            here.extend(mode_characters(
+                project,
+                parsed
+                    .section_fields(scene_index, section_index, FieldKey::Mode)
+                    .into_iter(),
+            ));
+            for character in here {
+                push(at, character, false);
+            }
+        }
+    }
+    if let Some(body) = &body {
+        for (at, character) in speakers_by_section(project, body) {
+            let planned = parsed
+                .scenes
+                .iter()
+                .any(|scene| scene.id.is_some_and(|id| same_scene(&id, &at)));
+            if planned && !modes::definitions(&characters, character).is_empty() {
+                push(at, character, true);
+            }
+        }
+    }
+    let input = modes::Input {
+        characters: &characters,
+        episode: Some(parsed),
+        chapter: chapter_plot.as_ref(),
+        all: all_plot.as_ref(),
+        dictionary: project.dictionary(),
+    };
+    for (scene, character, spoken) in targets {
+        let target = modes::Target {
+            scene,
+            character,
+            speaker: None,
+            line_start: 0,
+        };
+        let mut found = modes::resolve(&input, &target).diagnostics;
+        if !spoken {
+            // 書かれた割り当ての検査だけ。話していない人の W006 は出さない
+            found.retain(|item| item.diagnostic.code != DiagnosticCode::W006);
+        }
+        keep_file(found, modes::File::Episode, out);
+    }
+}
+
+/// `mode:` / `cast:` 以外に書かれた `'名前:モード`（本文中の参照など）の E003 / E004。
+///
+/// `mode:` と `cast:` は 8 段の解決（[`episode_modes`] / [`outline_modes`]）が同じトークンを
+/// 検査するので飛ばす。節の分からない行（A 形式・`*.md`）では E004 は出せないので E003 だけ。
+fn ref_modes(
+    document: &Document,
+    project: &Project,
+    scenes: &[Option<SceneId>],
+    out: &mut Vec<Diagnostic>,
+) {
+    let Some(format) = document.format.text_format() else {
+        return;
+    };
+    let characters = project.characters();
+    let input = modes::Input {
+        characters: &characters,
+        episode: None,
+        chapter: None,
+        all: None,
+        dictionary: project.dictionary(),
+    };
+    let lines: Vec<&str> = document.text.split('\n').collect();
+    for site in project.ref_sites(document) {
+        let Some(ids) = site.token.modifier.as_ref().and_then(|found| found.modes()) else {
+            continue;
+        };
+        let Some(entry) = site.entry().and_then(|id| project.dictionary().entry(id)) else {
+            continue;
+        };
+        let dictionary::Target::Character { index, .. } = &entry.target else {
+            continue;
+        };
+        let raw = lines.get(site.line).copied().unwrap_or_default();
+        if let LineKind::Field(field) = lexer::classify(raw, format) {
+            if matches!(field.key, FieldKey::Mode | FieldKey::Cast) {
+                continue;
+            }
+        }
+        let scene = scenes.get(site.line).copied().flatten();
+        for id in ids {
+            let target = modes::Target {
+                scene: scene.unwrap_or_default(),
+                character: *index,
+                speaker: None,
+                line_start: 0,
+            };
+            let Some(found) = modes::check_id(&input, &target, id, site.range()) else {
+                continue;
+            };
+            if found.code == DiagnosticCode::E004 && scene.is_none() {
+                continue;
+            }
+            out.push(found);
+        }
+    }
+}
+
+/// 章プロット・全体プロットの `cast:` の E003 / E004 / E005（段 5 / 6、§6.4.3）。
+fn outline_modes(
+    document: &Document,
+    project: &Project,
+    parsed: &plot_outline::Outline<'_>,
+    out: &mut Vec<Diagnostic>,
+) {
+    let characters = project.characters();
+    let is_all = document.path == project::ALL_PLOT_PATH;
+    let file = if is_all {
+        modes::File::All
+    } else {
+        modes::File::Chapter
+    };
+    let input = modes::Input {
+        characters: &characters,
+        episode: None,
+        chapter: (!is_all).then_some(parsed),
+        all: is_all.then_some(parsed),
+        dictionary: project.dictionary(),
+    };
+    for (index, block) in parsed.blocks.iter().enumerate() {
+        let Some(id) = block.id else {
+            continue;
+        };
+        let cast = mode_characters(project, parsed.fields_of(index, FieldKey::Cast).into_iter());
+        for character in cast {
+            let target = modes::Target {
+                scene: id,
+                character,
+                speaker: None,
+                line_start: 0,
+            };
+            keep_file(modes::resolve(&input, &target).diagnostics, file, out);
+        }
+    }
+}
+
+/// `characters.md` の `default-mode:` の E003 / E005（段 7、§6.4.3）。
+///
+/// 既定モードはどの節にも効くので、特定の節を前提にする E004（範囲外）は出さない。
+fn default_modes(
+    project: &Project,
+    parsed: &characters_md::Characters<'_>,
+    out: &mut Vec<Diagnostic>,
+) {
+    let input = modes::Input {
+        characters: parsed,
+        episode: None,
+        chapter: None,
+        all: None,
+        dictionary: project.dictionary(),
+    };
+    for (index, _) in parsed.characters.iter().enumerate() {
+        if parsed
+            .character_fields(index, FieldKey::DefaultMode)
+            .is_empty()
+        {
+            continue;
+        }
+        let target = modes::Target {
+            scene: SceneId::default(),
+            character: index,
+            speaker: None,
+            line_start: 0,
+        };
+        let mut found = modes::resolve(&input, &target).diagnostics;
+        found.retain(|item| item.diagnostic.code != DiagnosticCode::E004);
+        keep_file(found, modes::File::Characters, out);
+    }
+}
+
+/// **W030**（§5.4.2「節数が対応する本文の節数と食い違う場合」）。
+///
+/// 比べるのは**本文に同じ場面があるときだけ**（プロットだけ先に書くのは正常、§5.4.2）。
+/// 波線は話プロットの場面見出しの ID。
+fn section_counts(
+    document: &Document,
+    project: &Project,
+    parsed: &plot_episode::EpisodePlot<'_>,
+    out: &mut Vec<Diagnostic>,
+) {
+    let Some((chapter, episode)) = project::episode_of_path(&document.path) else {
+        return;
+    };
+    let Some(body) = project.episode_contents(chapter, episode) else {
+        return;
+    };
+    let starts = project::line_starts_of(&document.text);
+    for scene in &parsed.scenes {
+        let Some(id) = scene.id else {
+            continue;
+        };
+        let written = body
+            .sections
+            .iter()
+            .filter(|section| section.scene.is_some_and(|found| same_scene(&found, &id)))
+            .count();
+        let planned = scene.sections.len();
+        if written == 0 || written == planned {
+            continue;
+        }
+        let Some(plot_episode::Line::Scene(header)) = parsed.lines.get(scene.header) else {
+            continue;
+        };
+        let start = starts.get(scene.header).copied().unwrap_or(0) + header.indent;
+        let range = start..start + 1 + header.id_text.len();
+        out.push(Diagnostic::new(
+            DiagnosticCode::W030,
+            Some(range),
+            vec![Arg::number(planned as i64), Arg::number(written as i64)],
+        ));
+    }
+}
+
+/// **W022**（§5.6「`range` を書くと、その範囲外の節で参照された場合に W022」）。
+///
+/// `scenes[line]` はその行が属する節（C 形式・B 形式の木から作る）。節の分からない行
+/// （見出しより前など）は検査しない。
+fn word_ranges(
+    document: &Document,
+    project: &Project,
+    scenes: &[Option<SceneId>],
+    out: &mut Vec<Diagnostic>,
+) {
+    let words = project.words();
+    for site in project.ref_sites(document) {
+        let Some(entry) = site.entry().and_then(|id| project.dictionary().entry(id)) else {
+            continue;
+        };
+        let dictionary::Target::Word { index, .. } = &entry.target else {
+            continue;
+        };
+        let (Some(scene), Some(range)) = (
+            scenes.get(site.line).copied().flatten(),
+            words.range(*index),
+        ) else {
+            continue;
+        };
+        if range.contains(scene) {
+            continue;
+        }
+        let key = document
+            .text
+            .get(site.key_range())
+            .unwrap_or_default()
+            .to_string();
+        out.push(Diagnostic::new(
+            DiagnosticCode::W022,
+            Some(site.range()),
+            vec![Arg::text(key)],
+        ));
+    }
+}
+
+/// **W025**（§5.8.3「1 行目の H1 は `index.json` の `title` と一致していること」）。
+///
+/// どの資料のファイルかは `index.json` の `path` で引く。比較は §6.1.3 の正規化
+/// （[`materials::same_title`](crate::core::resolve::materials::same_title)）。
+fn material_heading(document: &Document, project: &Project, out: &mut Vec<Diagnostic>) {
+    let index = project.materials();
+    let Some(material) = index.index.as_ref().and_then(|found| {
+        found
+            .items
+            .iter()
+            .find(|item| item.path.trim_start_matches("./") == document.path)
+    }) else {
+        return;
+    };
+    let Some(first) = project::lines_of(&document.text).next() else {
+        return;
+    };
+    let Some(title) = first.text.strip_prefix("# ") else {
+        return;
+    };
+    if materials::same_title(title, &material.title) {
+        return;
+    }
+    let start = first.start + 2;
+    out.push(Diagnostic::simple(
+        DiagnosticCode::W025,
+        Some(start..start + title.len()),
+    ));
+}
+
+/// 行ごとの節（C 形式）。見出しより前・ID の壊れた見出しの下は `None`。
+fn contents_scenes(parsed: &contents::Contents<'_>) -> Vec<Option<SceneId>> {
+    let mut out = vec![None; parsed.lines.len()];
+    for section in &parsed.sections {
+        let Some(scene) = section.scene else {
+            continue;
+        };
+        for line in section.span.clone() {
+            if let Some(slot) = out.get_mut(line) {
+                *slot = Some(SceneId {
+                    section: section.number,
+                    ..scene
+                });
+            }
+        }
+    }
+    out
+}
+
+/// 行ごとの節（B 形式）。場面レベルの行（見出し直下のフィールド）は節 0。
+fn episode_scenes(parsed: &plot_episode::EpisodePlot<'_>) -> Vec<Option<SceneId>> {
+    let mut out = vec![None; parsed.lines.len()];
+    for scene in &parsed.scenes {
+        let Some(id) = scene.id else {
+            continue;
+        };
+        for line in scene.span.clone() {
+            if let Some(slot) = out.get_mut(line) {
+                *slot = Some(id);
+            }
+        }
+        for section in &scene.sections {
+            for line in section.span.clone() {
+                if let Some(slot) = out.get_mut(line) {
+                    *slot = Some(SceneId {
+                        section: section.number,
+                        ..id
+                    });
+                }
+            }
+        }
+    }
+    out
+}
+
+/// 本文の (節, 話者のキャラの添字)。
+fn speakers_by_section(project: &Project, body: &contents::Contents<'_>) -> Vec<(SceneId, usize)> {
+    let scenes = contents_scenes(body);
+    let mut out = Vec::new();
+    for (index, line) in body.lines.iter().enumerate() {
+        let contents::Line::Text(text) = line else {
+            continue;
+        };
+        let (Some(speaker), Some(scene)) = (&text.speaker, scenes.get(index).copied().flatten())
+        else {
+            continue;
+        };
+        if let Some(character) = character_index(project, speaker.name) {
+            if !out.contains(&(scene, character)) {
+                out.push((scene, character));
+            }
+        }
+    }
+    out
+}
+
+/// フィールドの `'名前` に書かれたキャラの添字（重複なし、書かれた順）。
+fn mode_characters<'f, 'a: 'f>(
+    project: &Project,
+    fields: impl Iterator<Item = &'f plot_outline::Field<'a>>,
+) -> Vec<usize> {
+    let mut out = Vec::new();
+    for field in fields {
+        for found in field.refs() {
+            if let Some(index) = character_index(project, found.name) {
+                if !out.contains(&index) {
+                    out.push(index);
+                }
+            }
+        }
+    }
+    out
+}
+
+/// キャラ名（表示名・別名）→ `characters.md` の添字。
+fn character_index(project: &Project, name: &str) -> Option<usize> {
+    let id = project
+        .dictionary()
+        .lookup(name, Some(&[dictionary::EntryKind::Character]))?;
+    match &project.dictionary().entry(id)?.target {
+        dictionary::Target::Character { index, .. } => Some(*index),
+        _ => None,
+    }
+}
+
+/// `modes` の診断のうち `file` に載るものだけを足す。
+fn keep_file(found: Vec<modes::FileDiagnostic>, file: modes::File, out: &mut Vec<Diagnostic>) {
+    out.extend(
+        found
+            .into_iter()
+            .filter(|item| item.file == file)
+            .map(|item| item.diagnostic),
+    );
+}
+
+/// 場面まで（章・話・場面）が同じか。
+fn same_scene(left: &SceneId, right: &SceneId) -> bool {
+    left.chapter == right.chapter && left.episode == right.episode && left.scene == right.scene
+}
+
+/// 行内相対の診断をファイル単位にする。
+fn shifted(found: Diagnostic, by: usize) -> Diagnostic {
+    Diagnostic {
+        range: found.range.map(|range| range.start + by..range.end + by),
+        ..found
     }
 }
