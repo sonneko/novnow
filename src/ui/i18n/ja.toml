@@ -111,6 +111,7 @@ unexpected_argument = "余分な引数です: {0}"
 missing_dir = "novnow {0} にはディレクトリを指定してください"
 not_implemented = "novnow {0} はまだ実装されていません"
 no_gui = "この novnow には GUI が含まれていません"
+gui_failed = "GUI を起動できませんでした: {0}"
 write_failed = "書き込めませんでした: {0}"
 
 [cli.label]
@@ -173,3 +174,90 @@ material_id = "資料 {0}"
 prompt = "プロンプト {0}"
 prompt_section = "プロンプト {0} の {1}"
 settings = "作品の設定"
+
+# ---------------------------------------------------------------- GUI（M7、§8.4・§9・§12.7・§14.4）
+# `status.*` `palette.placeholder` `project.pick.*` の §12.7 の表にある行は表の写し（tests/i18n_catalog.rs）。
+
+[status]
+unsaved = "未保存の変更があります"
+saving = "保存中"
+save_failed = "保存できませんでした"
+dont_close = "書き込みが終わるまで閉じないでください"
+chars_unit = "字"
+pages_unit = "枚"
+conflict = "外部で変更されたファイルがあります（未保存の変更があるため反映していません）"
+font_fallback = "日本語フォントが見つからないため、同梱のフォントを使います"
+
+[palette]
+placeholder = "入力して移動・検索・実行"
+
+[project.pick]
+title = "プロジェクトを選んでください"
+new = "新規作成"
+import = "Zip から読み込む"
+empty = "まだプロジェクトがありません"
+open = "フォルダを開く"
+missing = "(見つかりません)"
+create_here = "ここに新規作成する"
+web_pending = "Web 版のプロジェクト選択は準備中です（デスクトップ版をお使いください）"
+
+[header]
+language = "言語を切り替える"
+theme = "テーマを切り替える"
+"workspace.write" = "本文執筆"
+
+[editor]
+editing = "編集中"
+no_sections = "本文の節がありません。contents/ に場面見出し（@01-01-01 のような行）を書いてください。"
+
+[pane]
+plot = "プロット"
+upper = "上位プロット"
+cast = "配役"
+words = "用語"
+materials = "資料"
+diagnostics = "診断"
+personality = "性格"
+emotion = "感情"
+role = "役割"
+tone = "口調"
+
+[jump]
+not_found = "その構造 ID の節はありません"
+
+[modal]
+retry = "再試行"
+close = "閉じる"
+discard_and_close = "破棄して閉じる"
+cancel = "キャンセル"
+
+[command]
+theme = "テーマを切り替える"
+language = "言語を切り替える"
+save = "今すぐ全部書き出す"
+reload = "プロジェクトを読み直す"
+new_section = "直後に新しい節を作る"
+jump = "構造 ID へジャンプ"
+reference = "参照ペインの表示を切り替える"
+help = "キーボード一覧"
+
+[help]
+title = "キーボード"
+palette = "コマンドパレット"
+jump = "構造 ID へジャンプ"
+save = "今すぐ全部書き出す（任意）"
+section = "前 / 次の節（編集を確定して保存）"
+scene = "前 / 次の場面"
+file = "前 / 次の話"
+confirm_next = "確定して次の節へ（無ければ新しい節）"
+new_section = "直後に新しい節を作って移動"
+focus = "文脈ビュー / 節エディタ / 参照ペインへ"
+reference = "参照ペインの表示"
+swap = "参照ペインの左右入替"
+context_ratio = "文脈ビューと節エディタの比"
+main_ratio = "メインと参照ペインの比"
+font = "文字サイズ 拡大 / 縮小 / 既定"
+language = "言語（ja ⇄ en）"
+theme = "テーマ（system → dark → light）"
+reload = "プロジェクトを読み直す"
+escape = "閉じる / 節エディタへ"

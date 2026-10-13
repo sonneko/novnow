@@ -7,10 +7,20 @@
 pub mod i18n;
 
 #[cfg(feature = "ui")]
+pub mod app;
+#[cfg(feature = "ui")]
+pub mod palette;
+#[cfg(feature = "ui")]
+pub mod save_machine;
+#[cfg(feature = "ui")]
+pub mod settings;
+#[cfg(feature = "ui")]
 pub mod shell;
 #[cfg(feature = "ui")]
 pub mod theme;
 #[cfg(feature = "ui")]
 pub mod widgets;
+#[cfg(feature = "ui")]
+pub mod workbench;
 #[cfg(feature = "ui")]
 pub mod workspaces;

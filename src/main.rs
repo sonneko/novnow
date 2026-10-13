@@ -4,8 +4,10 @@
 //!   起動しても**コンソールウィンドウを作らない**（`AllocConsole` は使わない）。端末から起動された
 //!   ときだけ `AttachConsole(ATTACH_PARENT_PROCESS)` で親のコンソールにつなぎ、CLI として振る舞う。
 //! - 実プロセスの標準入出力・環境変数・カレントディレクトリを `cli::Cli` に渡すのはここだけ。
-//! - Web（trunk の `data-bin="novnow"`、§13.3）も同じ実行ファイルを入口にする。GUI は M7 なので、
-//!   それまでの Web の入口は空。
+//! - Web（trunk の `data-bin="novnow"`、§13.3）も同じ実行ファイルを入口にする（`ui` feature のとき
+//!   `eframe::WebRunner` を起動する。M7）。
+//! - GUI は `ui` feature のビルドだけが持つ（`novnow::cli::GUI_AVAILABLE`）。持たないビルドで GUI を
+//!   求められたら、案内を出して終了コード 2（§14.2.5）。
 
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
@@ -14,8 +16,14 @@ fn main() -> std::process::ExitCode {
     native::main()
 }
 
-/// Web の入口（GUI は M7。`eframe::WebRunner` をここから起動する）。
-#[cfg(target_arch = "wasm32")]
+/// Web の入口（`ui` feature のときだけ GUI を起動する）。
+#[cfg(all(target_arch = "wasm32", feature = "ui"))]
+fn main() {
+    novnow::ui::app::web::start();
+}
+
+/// Web の入口（GUI を含まないビルドでは何もしない）。
+#[cfg(all(target_arch = "wasm32", not(feature = "ui")))]
 fn main() {}
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -41,10 +49,33 @@ mod native {
         let mut cli = Cli::new(&env, &mut out, &mut err, cwd, terminal);
         let exit = match cli::run(&args, &mut cli) {
             Outcome::Exit(exit) => exit,
-            // GUI は M7（`ui` feature）。それまではどのビルドも GUI を含まない
-            Outcome::Gui(_project) => cli.gui_unavailable(),
+            Outcome::Gui(project) => gui(&mut cli, project),
         };
         ExitCode::from(exit.code())
+    }
+
+    /// GUI を起動する（`ui` feature のビルドだけ。§14.3）。
+    #[cfg(feature = "ui")]
+    fn gui<E: novnow::ports::env::Env>(
+        cli: &mut Cli<'_, E>,
+        project: Option<PathBuf>,
+    ) -> cli::Exit {
+        match novnow::ui::app::run(project) {
+            Ok(()) => cli::Exit::Ok,
+            Err(message) => {
+                cli.gui_failed(&message);
+                cli::Exit::Io
+            }
+        }
+    }
+
+    /// GUI を含まないビルド（既定の feature）では案内を出して終了コード 2（§14.2.5）。
+    #[cfg(not(feature = "ui"))]
+    fn gui<E: novnow::ports::env::Env>(
+        cli: &mut Cli<'_, E>,
+        _project: Option<PathBuf>,
+    ) -> cli::Exit {
+        cli.gui_unavailable()
     }
 
     /// 端末から起動されていれば、その（親プロセスの）コンソールに標準入出力をつなぐ（§14.3）。

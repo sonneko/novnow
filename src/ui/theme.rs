@@ -1,1 +1,275 @@
-// Theme
+//! テーマ・配色・タイポグラフィ（§11）。
+//!
+//! **生の色（`Color32::from_rgb`）を書いてよいのはこのファイルだけ**（§11.1 MUST）。ほかは
+//! [`Palette`] のトークンか [`token_style`] を通す。
+
+use egui::{Color32, FontData, FontDefinitions, FontFamily, Stroke, Visuals};
+
+use crate::core::features::semantic_tokens::TokenType;
+use crate::ui::settings::ThemeChoice;
+
+/// 実際に描く配色（`system` を解決した後）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Mode {
+    /// 暗い配色（OS の設定が分からないときの既定、§11.4）。
+    Dark,
+    /// 明るい配色。
+    Light,
+}
+
+impl Mode {
+    /// 設定値と OS の設定から決める（OS の設定が分からなければ dark、§11.4）。
+    pub fn resolve(choice: ThemeChoice, system_dark: Option<bool>) -> Self {
+        match choice {
+            ThemeChoice::Dark => Self::Dark,
+            ThemeChoice::Light => Self::Light,
+            ThemeChoice::System => match system_dark {
+                Some(false) => Self::Light,
+                _ => Self::Dark,
+            },
+        }
+    }
+}
+
+/// セマンティックカラートークン（§11.1）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Palette {
+    /// `bg.base` 画面背景。
+    pub bg_base: Color32,
+    /// `bg.raised` ヘッダ・ステータスバー。
+    pub bg_raised: Color32,
+    /// `bg.inset` 編集中プレースホルダ・入力欄。
+    pub bg_inset: Color32,
+    /// `bg.selection` 選択範囲。
+    pub bg_selection: Color32,
+    /// `fg.primary` 本文。
+    pub fg_primary: Color32,
+    /// `fg.muted` 補助テキスト。
+    pub fg_muted: Color32,
+    /// `fg.faint` 見出し・インレイヒント。
+    pub fg_faint: Color32,
+    /// `border` 必要最小限の区切り。
+    pub border: Color32,
+    /// `accent` フォーカス・リンク・選択中。
+    pub accent: Color32,
+    /// `state.unsaved` 未保存。
+    pub unsaved: Color32,
+    /// `state.error` エラー。
+    pub error: Color32,
+    /// `state.warn` 警告。
+    pub warn: Color32,
+    /// `state.ok` 完了・確定（役割語の緑下線、§11.3）。
+    pub ok: Color32,
+}
+
+const fn hex(rgb: u32) -> Color32 {
+    Color32::from_rgb((rgb >> 16) as u8, (rgb >> 8) as u8, rgb as u8)
+}
+
+/// §11.1 の表。
+pub const fn palette(mode: Mode) -> Palette {
+    match mode {
+        Mode::Dark => Palette {
+            bg_base: hex(0x15171B),
+            bg_raised: hex(0x1D2026),
+            bg_inset: hex(0x111317),
+            bg_selection: hex(0x2D3A4D),
+            fg_primary: hex(0xE6E6E3),
+            fg_muted: hex(0xA6A8AD),
+            fg_faint: hex(0x6E7278),
+            border: hex(0x2A2E35),
+            accent: hex(0x6FA8FF),
+            unsaved: hex(0xE8A33D),
+            error: hex(0xE5484D),
+            warn: hex(0xD8A200),
+            ok: hex(0x49B86B),
+        },
+        Mode::Light => Palette {
+            bg_base: hex(0xFBFBF9),
+            bg_raised: hex(0xFFFFFF),
+            bg_inset: hex(0xF1F1EE),
+            bg_selection: hex(0xD6E4F7),
+            fg_primary: hex(0x1B1C1E),
+            fg_muted: hex(0x55585E),
+            fg_faint: hex(0x87898F),
+            border: hex(0xDEDED9),
+            accent: hex(0x1D5FD0),
+            unsaved: hex(0xB9720A),
+            error: hex(0xC62A2F),
+            warn: hex(0x8F6B00),
+            ok: hex(0x1E7F43),
+        },
+    }
+}
+
+/// トークンの描き方（§11.2）。
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TokenStyle {
+    /// 文字色。
+    pub color: Color32,
+    /// 太字（egui 0.27 に太字の字体は無いので、同じ色の細い下地で代用しない。色だけを使う）。
+    pub bold: bool,
+    /// 斜体。
+    pub italic: bool,
+    /// 文字の大きさの倍率。
+    pub scale: f32,
+}
+
+/// §11.2 の表（表に無い 4 種は近い役割の色を使う。`PLANS.md` §9.2 B-115）。
+pub fn token_style(mode: Mode, kind: TokenType) -> TokenStyle {
+    let dark = mode == Mode::Dark;
+    let pick = |d: u32, l: u32| if dark { hex(d) } else { hex(l) };
+    let plain = |color| TokenStyle {
+        color,
+        bold: false,
+        italic: false,
+        scale: 1.0,
+    };
+    match kind {
+        TokenType::SigilStructure => TokenStyle {
+            bold: true,
+            ..plain(pick(0xC792EA, 0x7A3BA8))
+        },
+        TokenType::SceneId => plain(pick(0x8FB8FF, 0x1D5FD0)),
+        TokenType::SceneTitle => plain(pick(0xA6A8AD, 0x55585E)),
+        TokenType::SigilRef => TokenStyle {
+            bold: true,
+            ..plain(pick(0xF0A05A, 0xA85B14))
+        },
+        // 呼称（§6.1.1 の `Address`）はキャラと同じ色
+        TokenType::RefCharacter | TokenType::RefAddress => plain(pick(0xE7C96B, 0x8A6A00)),
+        TokenType::RefWord => plain(pick(0x7FD1A7, 0x157A52)),
+        // 引用注釈（`^M0137`）は資料と同じ色
+        TokenType::RefMaterial | TokenType::Citation => plain(pick(0x9BB4D6, 0x37567F)),
+        TokenType::RefUnresolved => plain(pick(0xE5484D, 0xC62A2F)),
+        TokenType::ModifierMode => TokenStyle {
+            italic: true,
+            ..plain(pick(0xC792EA, 0x7A3BA8))
+        },
+        TokenType::ModifierTitle => plain(pick(0x7E838A, 0x6B6E73)),
+        TokenType::DialogueBracket => TokenStyle {
+            bold: true,
+            ..plain(pick(0x5FC2D6, 0x0C6A7D))
+        },
+        // ルビの親文字は本文と同じ
+        TokenType::DialogueText | TokenType::RubyBase => plain(pick(0xE6E6E3, 0x1B1C1E)),
+        TokenType::Speaker => TokenStyle {
+            scale: 0.9,
+            ..plain(pick(0xE7C96B, 0x8A6A00))
+        },
+        TokenType::SectionBreak => plain(pick(0x55606E, 0x9AA0A8)),
+        TokenType::FieldKey => plain(pick(0x8C9CB8, 0x425777)),
+        // 挿絵行（`! `）はコメントと同じ（本文に出ない注記）
+        TokenType::Comment | TokenType::Illustration => TokenStyle {
+            italic: true,
+            ..plain(pick(0x5A6068, 0x8B8E93))
+        },
+        TokenType::RubyText => TokenStyle {
+            scale: 0.6,
+            ..plain(pick(0xA6A8AD, 0x55585E))
+        },
+    }
+}
+
+/// egui の配色（§11.1 のトークンから作る）。切替アニメーションはしない（§11.4 MUST）。
+pub fn visuals(mode: Mode) -> Visuals {
+    let colors = palette(mode);
+    let mut visuals = match mode {
+        Mode::Dark => Visuals::dark(),
+        Mode::Light => Visuals::light(),
+    };
+    visuals.override_text_color = Some(colors.fg_primary);
+    visuals.panel_fill = colors.bg_base;
+    visuals.window_fill = colors.bg_raised;
+    visuals.extreme_bg_color = colors.bg_inset;
+    visuals.faint_bg_color = colors.bg_raised;
+    visuals.code_bg_color = colors.bg_inset;
+    visuals.hyperlink_color = colors.accent;
+    visuals.selection.bg_fill = colors.bg_selection;
+    visuals.selection.stroke = Stroke::new(1.0_f32, colors.accent);
+    visuals.window_stroke = Stroke::new(1.0_f32, colors.border);
+    visuals.widgets.noninteractive.bg_stroke = Stroke::new(1.0_f32, colors.border);
+    visuals.widgets.noninteractive.fg_stroke = Stroke::new(1.0_f32, colors.fg_primary);
+    visuals.widgets.inactive.fg_stroke = Stroke::new(1.0_f32, colors.fg_muted);
+    visuals.widgets.hovered.fg_stroke = Stroke::new(1.0_f32, colors.fg_primary);
+    visuals.widgets.active.fg_stroke = Stroke::new(1.0_f32, colors.accent);
+    visuals.error_fg_color = colors.error;
+    visuals.warn_fg_color = colors.warn;
+    visuals.window_shadow = egui::epaint::Shadow::NONE;
+    visuals.popup_shadow = egui::epaint::Shadow::NONE;
+    visuals
+}
+
+/// 同梱フォント（IPA ゴシック。Web は常にこれ、デスクトップは CJK フォントが見つからないときの
+/// 代わり。§11.5）。
+pub const BUNDLED_FONT: &[u8] = include_bytes!("../../assets/ipag.ttf");
+
+/// フォントの名前（egui の `FontDefinitions` の中の）。
+const CJK: &str = "novnow-cjk";
+
+/// デスクトップで探す CJK フォント（先に見つかったもの。§11.5「`fontdb` による自動検出」）。
+#[cfg(not(target_arch = "wasm32"))]
+const CANDIDATES: &[&str] = &[
+    "Noto Sans CJK JP",
+    "Noto Sans JP",
+    "Source Han Sans JP",
+    "Hiragino Sans",
+    "Hiragino Kaku Gothic ProN",
+    "Yu Gothic UI",
+    "Yu Gothic",
+    "Meiryo",
+    "MS Gothic",
+    "IPAexGothic",
+    "IPAGothic",
+    "TakaoGothic",
+    "VL Gothic",
+];
+
+/// 本文のフォントを用意する。戻り値は「同梱フォントに頼ったか」（デスクトップで CJK フォントが
+/// 見つからなかったときの警告用。§11.5 SHOULD）。
+pub fn fonts() -> (FontDefinitions, bool) {
+    let (data, fallback) = system_cjk().map_or_else(
+        || (FontData::from_static(BUNDLED_FONT), true),
+        |found| (found, false),
+    );
+    let mut fonts = FontDefinitions::default();
+    fonts.font_data.insert(CJK.to_owned(), data);
+    for family in [FontFamily::Proportional, FontFamily::Monospace] {
+        // 欧文は egui の既定を先に、CJK を後ろに（既定に無い字だけ CJK で描く）
+        fonts
+            .families
+            .entry(family)
+            .or_default()
+            .push(CJK.to_owned());
+    }
+    (fonts, fallback)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn system_cjk() -> Option<FontData> {
+    let mut db = fontdb::Database::new();
+    db.load_system_fonts();
+    for name in CANDIDATES {
+        let query = fontdb::Query {
+            families: &[fontdb::Family::Name(name)],
+            ..fontdb::Query::default()
+        };
+        let Some(id) = db.query(&query) else {
+            continue;
+        };
+        let found = db.with_face_data(id, |data, index| {
+            let mut font = FontData::from_owned(data.to_vec());
+            font.index = index;
+            font
+        });
+        if found.is_some() {
+            return found;
+        }
+    }
+    None
+}
+
+#[cfg(target_arch = "wasm32")]
+fn system_cjk() -> Option<FontData> {
+    None
+}

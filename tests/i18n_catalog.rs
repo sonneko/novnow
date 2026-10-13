@@ -219,14 +219,22 @@ fn the_cli_rows_of_the_spec_table_are_copied_verbatim() {
             continue;
         };
         let key = key.trim_matches('`');
-        if !key.starts_with("cli.") {
+        // M7 で GUI の行（`status.*` `palette.*` `project.pick.*`）も実装した。
+        // `agent.*`（M10）と `reader.*`（追加仕様 27）はまだ無い
+        if !["cli.", "status.", "palette.", "project.pick."]
+            .iter()
+            .any(|prefix| key.starts_with(prefix))
+        {
             continue;
         }
         assert_eq!(ja.get(key).map(String::as_str), Some(*spec_ja), "ja {key}");
         assert_eq!(en.get(key).map(String::as_str), Some(*spec_en), "en {key}");
         seen += 1;
     }
-    assert_eq!(seen, 4, "§12.7 の cli.* の行の数");
+    assert_eq!(
+        seen, 13,
+        "§12.7 の cli.* / status.* / palette.* / project.pick.* の行の数"
+    );
 }
 
 /// `files` の文字列リテラルに現れる `prefix…` のキー（`prefix` は `cli.` など）。
@@ -288,6 +296,41 @@ fn every_cli_key_used_in_the_source_exists_and_none_is_unused() {
     }
     let unused = unused_keys("cli.", &used);
     assert!(unused.is_empty(), "使われていない cli.* のキー: {unused:?}");
+}
+
+/// GUI（M7）の文言の領域。`src/ui/**`（カタログ自身を除く）の文字列リテラルから引く。
+const GUI_PREFIXES: &[&str] = &[
+    "status.", "palette.", "project.", "header.", "editor.", "pane.", "jump.", "modal.",
+    "command.", "help.",
+];
+
+#[test]
+fn every_gui_key_used_in_the_source_exists_and_none_is_unused() {
+    let ja = flatten(JA, "ja.toml");
+    let en = flatten(EN, "en.toml");
+    let mut files = Vec::new();
+    rust_files(Path::new("src/ui"), &mut files);
+    files.retain(|file| !file.starts_with("src/ui/i18n"));
+    let mut total = 0;
+    for prefix in GUI_PREFIXES {
+        let used = keys_in_source(prefix, &files);
+        total += used.len();
+        for key in &used {
+            assert!(ja.contains_key(key), "ja.toml に {key} が無い");
+            assert!(en.contains_key(key), "en.toml に {key} が無い");
+        }
+        // `project.pick.import`（Zip から読み込む）は §12.7 の表の写しで、Web のプロジェクト選択
+        // （§13.4）が使う。Web の画面からの接続は M7 では入れていない（PLANS.md §9.2 B-118）
+        let unused: Vec<String> = unused_keys(prefix, &used)
+            .into_iter()
+            .filter(|key| key != "project.pick.import")
+            .collect();
+        assert!(
+            unused.is_empty(),
+            "使われていない {prefix}* のキー: {unused:?}"
+        );
+    }
+    assert!(total > 50, "キーが少なすぎる（検査が空振り？）: {total}");
 }
 
 #[test]

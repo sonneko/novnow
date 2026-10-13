@@ -9,7 +9,7 @@
 # 使い方:
 #   bash scripts/verify.sh              # fmt / clippy / test / wasm（既定）
 #   bash scripts/verify.sh --quick      # fmt / clippy / test（wasm を省く。wasm は 15〜40 秒かかる）
-#   bash scripts/verify.sh --ui         # 上に `clippy --features ui` を足す（M7 以降は必須）
+#   bash scripts/verify.sh --ui         # M7 から既定で GUI 込み（`--features ui`）なので何もしない（互換のため残す）
 #   bash scripts/verify.sh --report     # 失敗時に .github/report.py の出力も表示（CI と同じ読み物）
 #   bash scripts/verify.sh --fix        # cargo fmt --all を先に実行する（差分を書く）
 #
@@ -95,14 +95,16 @@ if [ "$FIX" = 1 ]; then
     cargo fmt --all
 fi
 
-run fmt     cargo fmt --all --check
-run clippy  cargo clippy --locked --all-targets -- -D warnings
-run test    cargo test --locked --all-targets --no-fail-fast
-if [ "$UI" = 1 ]; then
-    run clippy-ui cargo clippy --locked --all-targets --features ui -- -D warnings
-fi
+# M7 から CI と同じく GUI 込み（`--features ui`、PLANS.md §5.8 作業項目 0）。GUI を含まない既定の
+# ビルドも clippy と CLI のテスト（GUI を含まないときの振る舞い）で確かめる。
+: "$UI"
+run fmt       cargo fmt --all --check
+run clippy    cargo clippy --locked --all-targets -- -D warnings
+run clippy-ui cargo clippy --locked --all-targets --features ui -- -D warnings
+run test      cargo test --locked --all-targets --no-fail-fast --features ui
+run test-cli  cargo test --locked --test cli --no-fail-fast
 if [ "$WASM" = 1 ]; then
-    run wasm    cargo check --locked --target wasm32-unknown-unknown
+    run wasm      cargo check --locked --target wasm32-unknown-unknown --features ui
 fi
 
 # --- テスト件数（CI の実行サマリと同じ見せ方） -------------------------------

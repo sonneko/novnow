@@ -671,10 +671,16 @@ fn new_creates_the_whole_template_in_an_empty_directory() {
     let ran = run(&root, &env_ja(&dir), &["new"]);
     assert_eq!(ran.exit(), Exit::Ok);
     assert_eq!(ran.err, "");
+    // GUI を含むビルド（`ui` feature）は「開く」、含まないビルドは「検査する」を案内する
+    let next = if novnow::cli::GUI_AVAILABLE {
+        "開く: novnow ."
+    } else {
+        "検査する: novnow check ."
+    };
     assert_eq!(
         ran.out,
         format!(
-            "novnow: 新しいプロジェクトを作りました\n  対象: {}\n\n検査する: novnow check .\n",
+            "novnow: 新しいプロジェクトを作りました\n  対象: {}\n\n{next}\n",
             root.display()
         )
     );
@@ -698,9 +704,12 @@ fn new_creates_a_missing_directory_and_names_it_in_the_hint() {
     assert_eq!(ran.exit(), Exit::Ok);
     let root = dir.join("novels/hoshi");
     assert!(root.join("project.json").is_file());
-    assert!(ran
-        .out
-        .ends_with(&format!("\n検査する: novnow check {}\n", root.display())));
+    let next = if novnow::cli::GUI_AVAILABLE {
+        format!("\n開く: novnow {}\n", root.display())
+    } else {
+        format!("\n検査する: novnow check {}\n", root.display())
+    };
+    assert!(ran.out.ends_with(&next), "{}", ran.out);
     let project: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(root.join("project.json")).expect("read"))
             .expect("json");
@@ -1081,18 +1090,22 @@ fn binary_new_then_check_then_open() {
     assert_eq!(output.status.code(), Some(0), "{output:?}");
     let out = String::from_utf8(output.stdout).expect("utf8");
     assert!(out.ends_with("（エラー 0・警告 0・情報 0）\n"), "{out}");
-    // 検査は通るが、M6 の実行ファイルは GUI を含まないので 2
-    let output = binary(&dir, &root, &["."]);
-    assert_eq!(output.status.code(), Some(2));
-    assert_eq!(
-        String::from_utf8(output.stderr).expect("utf8"),
-        "novnow: この novnow には GUI が含まれていません\n使い方: novnow --help\n"
-    );
+    // 検査は通るが、GUI を含まないビルドでは 2（GUI を含むビルドでは窓を開いてしまうので試さない）
+    if !novnow::cli::GUI_AVAILABLE {
+        let output = binary(&dir, &root, &["."]);
+        assert_eq!(output.status.code(), Some(2));
+        assert_eq!(
+            String::from_utf8(output.stderr).expect("utf8"),
+            "novnow: この novnow には GUI が含まれていません\n使い方: novnow --help\n"
+        );
+    }
     // ここまで履歴にも HOME にも書いていない
     assert!(!dir.join("state").exists());
     assert!(!dir.join("home").exists());
 }
 
+/// GUI を含むビルド（`ui` feature）では窓を開いてしまうので、含まないビルドだけで確かめる。
+#[cfg(not(feature = "ui"))]
 #[test]
 fn binary_without_arguments_and_without_a_terminal_wants_the_gui() {
     let dir = TempDir::new("bin-noargs");

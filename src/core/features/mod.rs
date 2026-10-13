@@ -19,8 +19,12 @@ pub mod inlay_hint;
 /// LSP に対応しない補助（診断の「どこ」を作家の言葉で。§14.2.5・§10.9.2、第 2.11 版）。
 pub mod place;
 pub mod project;
+/// LSP に対応しない補助（参照ペインの中身を集める。§9.5.2、`PLANS.md` §9.2 B-113）。
+pub mod reference;
 pub mod references;
 pub mod rename;
+/// LSP に対応しない補助（節単位の編集と節の並び。§8.1・§9.3・§9.8.2、`PLANS.md` §9.2 B-112）。
+pub mod sections;
 pub mod semantic_tokens;
 
 pub use self::project::Project;

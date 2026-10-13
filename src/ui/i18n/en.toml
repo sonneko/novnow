@@ -112,6 +112,7 @@ unexpected_argument = "unexpected argument: {0}"
 missing_dir = "novnow {0} needs a directory"
 not_implemented = "novnow {0} is not implemented yet"
 no_gui = "this build of novnow does not include the GUI"
+gui_failed = "could not start the GUI: {0}"
 write_failed = "could not write: {0}"
 
 [cli.label]
@@ -175,3 +176,90 @@ material_id = "material {0}"
 prompt = "prompt {0}"
 prompt_section = "prompt {0}, section {1}"
 settings = "project settings"
+
+# ---------------------------------------------------------------- GUI (M7, §8.4, §9, §12.7, §14.4)
+# Rows of the §12.7 table (`status.*`, `palette.placeholder`, `project.pick.*`) are copied verbatim (tests/i18n_catalog.rs).
+
+[status]
+unsaved = "Unsaved changes"
+saving = "Saving"
+save_failed = "Could not save"
+dont_close = "Do not close until writing finishes"
+chars_unit = "ch"
+pages_unit = "pp"
+conflict = "A file was changed outside novnow (not applied because you have unsaved changes)"
+font_fallback = "No Japanese font was found; using the bundled font"
+
+[palette]
+placeholder = "Type to go, search, or run"
+
+[project.pick]
+title = "Choose a project"
+new = "Create new"
+import = "Import from Zip"
+empty = "No projects yet"
+open = "Open folder"
+missing = "(not found)"
+create_here = "Create a project here"
+web_pending = "Choosing a project on the Web is not ready yet (please use the desktop app)"
+
+[header]
+language = "Switch language"
+theme = "Switch theme"
+"workspace.write" = "Writing"
+
+[editor]
+editing = "Editing"
+no_sections = "There are no sections yet. Write a scene heading (a line like @01-01-01) in a file under contents/."
+
+[pane]
+plot = "Plot"
+upper = "Outline"
+cast = "Cast"
+words = "Terms"
+materials = "Materials"
+diagnostics = "Diagnostics"
+personality = "Personality"
+emotion = "Emotion"
+role = "Role"
+tone = "Tone"
+
+[jump]
+not_found = "No section has that structure ID"
+
+[modal]
+retry = "Retry"
+close = "Close"
+discard_and_close = "Discard and close"
+cancel = "Cancel"
+
+[command]
+theme = "Switch theme"
+language = "Switch language"
+save = "Write everything now"
+reload = "Reload the project"
+new_section = "Add a section after this one"
+jump = "Jump to a structure ID"
+reference = "Show or hide the reference pane"
+help = "Keyboard shortcuts"
+
+[help]
+title = "Keyboard"
+palette = "Command palette"
+jump = "Jump to a structure ID"
+save = "Write everything now (optional)"
+section = "Previous / next section (commits and saves)"
+scene = "Previous / next scene"
+file = "Previous / next episode"
+confirm_next = "Commit and go to the next section (adds one at the end)"
+new_section = "Add a section after this one and go there"
+focus = "Context view / section editor / reference pane"
+reference = "Show the reference pane"
+swap = "Swap the reference pane side"
+context_ratio = "Context view vs. section editor"
+main_ratio = "Main column vs. reference pane"
+font = "Text size larger / smaller / default"
+language = "Language (ja ⇄ en)"
+theme = "Theme (system → dark → light)"
+reload = "Reload the project"
+escape = "Close / back to the section editor"

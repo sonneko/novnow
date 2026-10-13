@@ -934,6 +934,39 @@ impl<'ast> Visit<'ast> for CrateRoots {
     }
 }
 
+/// §9.5.1 MUST: 参照ペインはカードにしない。`egui::Frame::group`（と、それを使う `Ui::group`）は
+/// `src/ui/` 全体で 0 件（PLANS.md §5.8 の完了条件「grep で検査、CI に追加」。CI の test ジョブで走る）。
+#[test]
+fn the_gui_never_uses_frame_group() {
+    let mut files = Vec::new();
+    collect_rs(Path::new("src/ui"), &mut files);
+    assert!(files.len() > 10, "src/ui の .rs が見つからない: {files:?}");
+    let mut found = Vec::new();
+    for file in &files {
+        let source = std::fs::read_to_string(file).expect("read");
+        for (number, line) in source.lines().enumerate() {
+            // コメント（`//`・`///`・`//!`）の中の言及は数えない
+            let code = match line.find("//") {
+                Some(at) => &line[..at],
+                None => line,
+            };
+            if code.contains("Frame::group") || code.contains(".group(") {
+                found.push(format!(
+                    "{}:{}: {}",
+                    file.display(),
+                    number + 1,
+                    line.trim()
+                ));
+            }
+        }
+    }
+    assert!(
+        found.is_empty(),
+        "Frame::group / Ui::group を使っている:\n{}",
+        found.join("\n")
+    );
+}
+
 #[test]
 fn the_message_catalog_does_not_use_the_gui_crates() {
     // `ui::i18n` は `ui` feature なしでビルドするので、egui などを使うと既定のビルドが落ちる

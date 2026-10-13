@@ -38,9 +38,9 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// サブコマンド（§14.1）。第 1 引数がこのどれかと**完全一致**したときだけサブコマンドになる。
 pub const SUBCOMMANDS: [&str; 5] = ["new", "check", "export", "migrate", "mcp"];
 
-/// この実行ファイルが GUI を持つか。M6 の時点ではどのビルドも持たない（M7 で `ui` feature の
-/// ビルドが持つようになる）。`novnow new` の案内（開く / 検査する）を切り替えるのに使う。
-pub const GUI_AVAILABLE: bool = false;
+/// この実行ファイルが GUI を持つか（`ui` feature のビルドだけ。M7）。`novnow new` の案内
+/// （開く / 検査する）と、GUI を含まないビルドでの GUI 起動の拒否（§14.2.5）に使う。
+pub const GUI_AVAILABLE: bool = cfg!(feature = "ui");
 
 // ============================================================ 終了コード
 
@@ -344,6 +344,12 @@ impl<'a, E: Env> Cli<'a, E> {
         }
     }
 
+    /// 文言の言語を差し替える（GUI がプロジェクト選択モーダルに §14.2.2 の表示を流用するとき、
+    /// 画面の言語に合わせる。§14.4）。
+    pub fn set_locale(&mut self, locale: Locale) {
+        self.locale = locale;
+    }
+
     /// 文言の言語。
     pub fn locale(&self) -> Locale {
         self.locale
@@ -365,6 +371,12 @@ impl<'a, E: Env> Cli<'a, E> {
         self.headline(Stream::Err, Paint::Error, message);
         self.help_hint();
         Exit::Usage
+    }
+
+    /// GUI（eframe）を起動できなかった（グラフィックスの初期化に失敗したなど）。終了コードは呼び出し側。
+    pub fn gui_failed(&mut self, detail: &str) {
+        let message = self.format("cli.error.gui_failed", &[detail]);
+        self.headline(Stream::Err, Paint::Error, &message);
     }
 
     // ---------------------------------------------------------------- 文言

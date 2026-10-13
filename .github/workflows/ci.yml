@@ -132,18 +132,19 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       # --all-targets: tests/ 配下（layering.rs を含む）も lint する
       # --locked: Cargo.lock と Cargo.toml の乖離を落とす
-      # `--features ui` を付けない: GUI のクレート（egui / eframe / rfd / fontdb）は
-      # optional で既定のビルドに入れない（PLANS.md §2.1 の feature gate・§9.2 B-54）。
-      # TODO(M7): src/ui/** に egui の実コードが入ったら、clippy / test / wasm の 3 コマンドに
-      #           `--features ui` を足す（PLANS.md §5.8 作業項目 0）。
+      # M7 から GUI 込み（`--features ui`、PLANS.md §5.8 作業項目 0）。GUI のクレートは optional の
+      # まま（既定のビルドに入れない、§9.2 B-54）なので、GUI を含まない既定のビルドも続けて lint する。
       - name: cargo clippy
         id: cargo
         shell: bash
         run: |
           set -o pipefail
-          echo "::group::cargo clippy（生ログ）"
-          cargo clippy --locked --all-targets -- -D warnings 2>&1 | tee /tmp/ci.log
-          status=$?
+          status=0
+          echo "::group::cargo clippy --features ui（生ログ）"
+          cargo clippy --locked --all-targets --features ui -- -D warnings 2>&1 | tee /tmp/ci.log || status=$?
+          echo "::endgroup::"
+          echo "::group::cargo clippy（GUI なしの既定のビルド、生ログ）"
+          cargo clippy --locked --all-targets -- -D warnings 2>&1 | tee -a /tmp/ci.log || status=$?
           echo "::endgroup::"
           exit $status
       - name: Report to the run summary
@@ -176,15 +177,19 @@ jobs:
       # マージしない」。
       # --no-fail-fast: 既定だと**最初の失敗ターゲットで止まる**（統合テストはアルファベット順）
       # ので、1 回の CI で全形式の失敗を知るために外す。
-      # `--features ui` は付けない（上の clippy ジョブと同じ理由。PLANS.md §9.2 B-54）。
+      # M7 から GUI 込み（`--features ui`。tests/gui.rs は egui を画面なしで回す）。GUI を含まない
+      # ビルドの振る舞い（GUI 起動の拒否・`novnow new` の案内）は tests/cli.rs を既定のビルドでも回す。
       - name: cargo test
         id: cargo
         shell: bash
         run: |
           set -o pipefail
-          echo "::group::cargo test（生ログ）"
-          cargo test --locked --all-targets --no-fail-fast 2>&1 | tee /tmp/ci.log
-          status=$?
+          status=0
+          echo "::group::cargo test --features ui（生ログ）"
+          cargo test --locked --all-targets --no-fail-fast --features ui 2>&1 | tee /tmp/ci.log || status=$?
+          echo "::endgroup::"
+          echo "::group::cargo test --test cli（GUI なしの既定のビルド、生ログ）"
+          cargo test --locked --test cli --no-fail-fast 2>&1 | tee -a /tmp/ci.log || status=$?
           echo "::endgroup::"
           exit $status
       - name: Report to the run summary
@@ -219,7 +224,7 @@ jobs:
         with:
           targets: wasm32-unknown-unknown,x86_64-pc-windows-msvc
       - uses: Swatinem/rust-cache@v2
-      # `--features ui` は付けない（上の clippy ジョブと同じ理由。PLANS.md §9.2 B-54）。
+      # M7 から GUI 込み（`--features ui`。Web の GUI と、Windows の GUI ビルドの型検査）。
       # RUSTFLAGS は付けない（付けると依存クレートまで作り直しになる）。警告は下の grep で落とす。
       - name: cargo check (wasm32 / windows)
         id: cargo
@@ -228,10 +233,10 @@ jobs:
           set -o pipefail
           status=0
           echo "::group::cargo check --target wasm32-unknown-unknown（生ログ）"
-          cargo check --locked --target wasm32-unknown-unknown 2>&1 | tee /tmp/ci.log || status=$?
+          cargo check --locked --target wasm32-unknown-unknown --features ui 2>&1 | tee /tmp/ci.log || status=$?
           echo "::endgroup::"
           echo "::group::cargo check --target x86_64-pc-windows-msvc（生ログ）"
-          cargo check --locked --target x86_64-pc-windows-msvc 2>&1 | tee -a /tmp/ci.log || status=$?
+          cargo check --locked --target x86_64-pc-windows-msvc --features ui 2>&1 | tee -a /tmp/ci.log || status=$?
           echo "::endgroup::"
           # novnow 自身の警告（Windows でだけ出る未使用など）も赤にする。依存クレートの警告は
           # cargo が抑えるので、`--> src/` を指す診断があれば novnow のもの
