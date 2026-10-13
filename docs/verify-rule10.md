@@ -1,7 +1,7 @@
-# 規則 10 の確認手順 — プロジェクト外に作られるファイルは履歴 1 個だけ
+# 規則 10 の確認手順 — プロジェクト外に作られるファイルは履歴 1 個（と、保存ダイアログで指定した Zip）だけ
 
 > 対象: `SPECIFICATIONS.md` §13.1（規則 10）・§19.10、`PLANS.md` §5.6 の完了条件 2。
-> 最終更新: 2026-10-13（M5）
+> 最終更新: 2026-10-13（M6。§13.1.1 の特例＝仕様 第 2.10 版を反映）
 
 > 「プロジェクトディレクトリ外に存在して良い情報は、プロジェクトディレクトリパスの履歴のみ。
 > これは厳密に守る必要がある。」（開発指示 10）
@@ -9,8 +9,13 @@
 ## 1. 合格条件
 
 novnow を一通り操作したあと、**プロジェクトの外に新しく作られた（または書き換えられた）ファイルが
-パス履歴ファイル 1 個だけ**であること。履歴ファイルの中身は `schema_version` と `items[].path` /
-`items[].opened_at` だけであること（§13.2.2・§19.10）。
+パス履歴ファイル 1 個と、保存ダイアログで指定した Zip だけ**であること。履歴ファイルの中身は
+`schema_version` と `items[].path` / `items[].opened_at` だけであること（§13.2.2・§19.10）。
+
+**特例**（§13.1.1、ユーザー裁定 2026-10-13・仕様 第 2.10 版）: Zip のエクスポートで、保存ダイアログで
+プロジェクトの外の `.zip` を指定したときだけ、その 1 個が外に作られる（上書きされる）。そのとき
+**一時ファイルも親ディレクトリも作られない**こと。ダイアログでプロジェクトの外を指定しなかった回は、
+外に作られるのは履歴だけ。
 
 | OS | 履歴ファイル（§13.2.1。`NOVNOW_RECENT_FILE` で上書きできる） |
 |---|---|
@@ -25,9 +30,10 @@ novnow を一通り操作したあと、**プロジェクトの外に新しく�
 
 | テスト | 確かめること |
 |---|---|
-| `tests/storage_policy.rs` | **全書き込み経路**（本文・設定・エクスポート・提案・ログ・Zip・履歴）にプロジェクト外のパス（絶対パス・`..`・外を指すシンボリックリンク・壊れたリンク・閉じたプロジェクト・前のプロジェクト）を与えて、すべて拒否され何も書かれない。`after_a_full_session_the_only_file_outside_the_project_is_the_history` はストレージ層で一通りの操作をなぞり、砂場全体の差分が「プロジェクト 2 つ ＋ 履歴 1 個」だけであることを見る |
+| `tests/storage_policy.rs` | **全書き込み経路**（本文・設定・エクスポート・提案・ログ・Zip・履歴）にプロジェクト外のパス（絶対パス・`..`・外を指すシンボリックリンク・壊れたリンク・閉じたプロジェクト・前のプロジェクト）を与えて、すべて拒否され何も書かれない。特例は `the_save_dialog_exception_*`（指定した `.zip` 1 個だけ・`.zip` でないパスと履歴は拒否・他の口は使えない・親ディレクトリも一時ファイルも作らない・リンクは行き先で判定）。`after_a_full_session_the_only_files_outside_the_projects_are_the_history_and_the_chosen_zip` はストレージ層で一通りの操作をなぞり、砂場全体の差分が「プロジェクト 2 つ ＋ 履歴 1 個 ＋ 指定した Zip 1 個」だけであることを見る |
 | `tests/layering.rs` | 書き込みの system call（`OpenOptions`・`fs::write`・`fs::rename` 等）が `src/adapters/storage_fs.rs`（書き込みの関門）にしか無い（§13.1.2） |
 | `tests/recent_file.rs` | 履歴ファイルのキーが 2 つだけ・一時ファイルを作らない |
+| `tests/cli.rs` | `novnow check` / `novnow <dir>`（不備）/ `novnow new` が、プロジェクトの外に何も作らない（履歴も書かない、§14.2.3） |
 | `tests/storage_idb.rs` | Web の `app` ストアのキーが `recent_projects` だけ（§13.3.4） |
 
 ここまでは**ストレージ層の約束**。GUI のライブラリ（下の 4.）が勝手に書くものは自動の検査では
@@ -40,12 +46,13 @@ novnow を一通り操作したあと、**プロジェクトの外に新しく�
 
 ### 3.1 操作の一覧（毎回すべて行う）
 
-M6 までは CLI（`novnow check <project>` など）だけ。M7 以降は GUI で次を一通り行う。
+M6 では CLI（`novnow new` / `novnow check` / `novnow <project>`）だけ。M7 以降は GUI で次を一通り行う。
 
 1. 起動 → プロジェクト選択（履歴から / フォルダを開く）
 2. 本文を編集して自動保存させる（節の移動・`Ctrl+S`・ウィンドウの非フォーカス）
 3. ワークスペースを全部切り替える（`ui.json` が書かれる）
-4. テキストのエクスポート（`exports/`）と Zip のエクスポート（`exports/<name>.zip`）
+4. テキストのエクスポート（`exports/`）と Zip のエクスポート（保存ダイアログで 1 回は初期値の
+   `exports/<name>.zip`、もう 1 回は**プロジェクトの外**を指定する。外に増えてよいのはその Zip 1 個だけ）
 5. Zip のインポート（新しいディレクトリへ）
 6. 提案（`agents/proposals/`）・エージェントのログ（`agents/log/`。M10 以降）
 7. 外部のエディタで本文を書き換えて、再読込（I052）を起こす
@@ -62,7 +69,7 @@ find / -xdev \( -path /proc -o -path /sys -o -path /dev \) -prune -o \
 ```
 
 出てきたものから、novnow と無関係なもの（シェルの履歴・システムのログ・同時に動いていた他のプロセスの
-書き込み）を除いて、**履歴ファイル 1 行だけ**なら合格。
+書き込み）を除いて、**履歴ファイルと、保存ダイアログで指定した Zip の行だけ**なら合格。
 
 ### 3.3 Linux: strace（書き込みの system call を全部見る）
 
@@ -75,7 +82,8 @@ grep -E 'O_WRONLY|O_RDWR|O_CREAT|mkdir|rename|unlink|link|truncate' /tmp/novnow.
   | grep -v "^$(realpath <project>)/"
 ```
 
-`/dev/` や `/proc/self/` のような疑似ファイルを除いて、履歴ファイル（とその親ディレクトリ）だけなら合格。
+`/dev/` や `/proc/self/` のような疑似ファイルを除いて、履歴ファイル（とその親ディレクトリ）と、保存ダイアログで
+指定した Zip だけなら合格（その Zip の隣に一時ファイルや新しいディレクトリが出たら不合格）。
 
 ### 3.4 macOS
 
@@ -84,13 +92,13 @@ sudo fs_usage -w -f filesys | grep -i novnow > /tmp/novnow.fs_usage   # 別の�
 ```
 
 `open`（書き込みモード）/ `WrData` / `rename` / `mkdir` の行からプロジェクト外のパスを拾う。
-`~/Library/Application Support/novnow/recent.json` 以外があれば不合格。
+`~/Library/Application Support/novnow/recent.json` と保存ダイアログで指定した Zip 以外があれば不合格。
 
 ### 3.5 Windows
 
 Process Monitor（Sysinternals）で `Process Name is novnow.exe` に絞り、`Operation` が
 `CreateFile`（Disposition が Create / OpenIf / OverwriteIf）・`WriteFile`・`SetRenameInformationFile`
-の行を見る。`%APPDATA%\novnow\recent.json` 以外のプロジェクト外のパスがあれば不合格。
+の行を見る。`%APPDATA%\novnow\recent.json` と保存ダイアログで指定した Zip 以外のプロジェクト外のパスがあれば不合格。
 
 ## 4. GUI で注意する書き込み（M7 で必ず確かめる）
 
@@ -100,7 +108,7 @@ novnow のコードは関門（`FsGate`）を通らないと書けないが、**
 | 出どころ | 書くもの | 対策の候補 |
 |---|---|---|
 | eframe の `persistence` feature | アプリの状態（`~/.local/share/<app>/` 等） | **feature を有効にしない**（`ui.json` が担う、§13.1.1） |
-| GTK のファイル選択（rfd の GTK 実装） | `~/.local/share/recently-used.xbel`（最近使ったファイル） | xdg-desktop-portal 実装を使う・GTK の recent を無効にする |
+| GTK のファイル選択（rfd の GTK 実装） | `~/.local/share/recently-used.xbel`（最近使ったファイル。**保存ダイアログでも書かれうる**） | xdg-desktop-portal 実装を使う・GTK の recent を無効にする |
 | Mesa / GPU ドライバ | シェーダのキャッシュ（`~/.cache/mesa_shader_cache` 等） | 描画バックエンドの選択・環境変数（要相談） |
 | fontconfig | フォントのキャッシュ（`~/.cache/fontconfig`） | システムのキャッシュを使うだけなら書かれない（初回だけ書かれることがある） |
 

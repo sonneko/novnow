@@ -1,13 +1,15 @@
-//! Zip のインポート / エクスポート（§13.5、仕様 第 2.9 版。`PLANS.md` §9.2 B-93）。
+//! Zip のインポート / エクスポート（§13.5、仕様 第 2.10 版。`PLANS.md` §9.2 B-93・B-99）。
 //!
 //! - **何を入れるか・何を取り込むか**は core の `policy::archive`（`.novnow/` とドットファイル、
 //!   単一ルートの剥がし、`..` の拒否）。ここは `zip` クレートでバイト列にするだけ。
 //! - [`export`] / [`import`] はバイト列どうしの変換なので、デスクトップと Web で同じコードが動く
 //!   （Web はエクスポートをダウンロードし、インポートを新しいプロジェクトレコードに書く、§13.5）。
-//! - デスクトップのエクスポートは **`exports/<project-name>.zip`** に書く（[`export_project`]。
-//!   保存ダイアログは出さない。プロジェクトの外へは書けないため、§13.5 第 2.9 版）。書き出し先の
-//!   Zip 自身は中身に入れない。インポートは選ばれたディレクトリを新しいルートにして書き
-//!   （[`import_project`]）、**既存のファイルは上書きしない**。
+//! - デスクトップのエクスポートは **保存ダイアログでユーザーが指定したパス**に書く
+//!   （[`export_to_chosen`]。初期値は `exports/<project-name>.zip` = [`export_path`]。プロジェクトの外を
+//!   指定してもよい＝ §13.1.1 の特例、ユーザー裁定 2026-10-13・第 2.10 版）。ダイアログを通さない
+//!   [`export_project`] は `exports/` に書く。どちらも書き出し先の Zip 自身は中身に入れない。
+//!   インポートは選ばれたディレクトリを新しいルートにして書き（[`import_project`]）、
+//!   **既存のファイルは上書きしない**。
 //! - 展開後の大きさに上限を設ける（壊れた・悪意のある Zip でメモリを使い切らないため）。
 
 use std::io::{Cursor, Read, Write};
@@ -170,25 +172,59 @@ pub struct ImportReport {
     pub kept: Vec<ProjectPath>,
 }
 
-/// デスクトップのエクスポート: プロジェクトを Zip にして `exports/<project-name>.zip` に書く
-/// （§13.5 第 2.9 版）。書き出し先の Zip 自身は中身に入れない。書いた相対パスを返す。
+/// ダイアログを通さないデスクトップのエクスポート: プロジェクトを Zip にして
+/// `exports/<project-name>.zip` に書く（§13.5）。書き出し先の Zip 自身は中身に入れない。
+/// 書いた相対パスを返す。GUI の「エクスポート」は保存ダイアログを出して [`export_to_chosen`] を使う。
 #[cfg(not(target_arch = "wasm32"))]
 pub fn export_project(
     storage: &super::storage_fs::FsStorage,
     project_name: &str,
 ) -> Result<ProjectPath, ArchiveError> {
     let target = export_path(project_name);
+    let zip = export_storage(storage, Some(&target))?;
+    storage.write_bytes(&target, &zip)?;
+    Ok(target)
+}
+
+/// デスクトップのエクスポート（§13.5 第 2.10 版）: プロジェクトを Zip にして、保存ダイアログで
+/// ユーザーが指定したパスに書く。プロジェクトの外でもよい（§13.1.1 の特例）。書いた絶対パスを返す。
+///
+/// 先に panic しない事前判定（`FsGate::check_chosen_export`）を通すので、`.zip` でないパスや
+/// 履歴ファイルは書かずに `ArchiveError::Storage(StorageError::Policy(_))`（E060）を返す（§13.1.2）。
+/// 書き出し先がプロジェクトの中なら、その Zip 自身は中身に入れない。
+#[cfg(not(target_arch = "wasm32"))]
+pub fn export_to_chosen(
+    storage: &super::storage_fs::FsStorage,
+    chosen: crate::ports::dialog::ChosenPath,
+) -> Result<std::path::PathBuf, ArchiveError> {
+    let target = storage
+        .gate()
+        .check_chosen_export(&chosen)
+        .map_err(StorageError::Policy)?;
+    let inside = target
+        .strip_prefix(storage.root())
+        .ok()
+        .and_then(|relative| relative.to_str())
+        .and_then(|relative| ProjectPath::new(&relative.replace('\\', "/")).ok());
+    let zip = export_storage(storage, inside.as_ref())?;
+    Ok(storage.gate().write_chosen_export(chosen, &zip)?)
+}
+
+/// プロジェクトの全ファイル（`policy::archive` が入れるもの）を Zip にする。`except` は書き出し先。
+#[cfg(not(target_arch = "wasm32"))]
+fn export_storage(
+    storage: &super::storage_fs::FsStorage,
+    except: Option<&ProjectPath>,
+) -> Result<Vec<u8>, ArchiveError> {
     let mut files = Vec::new();
     for entry in storage.list_files()? {
-        if entry.path == target || !archive::is_exported(&entry.path) {
+        if Some(&entry.path) == except || !archive::is_exported(&entry.path) {
             continue;
         }
         let bytes = storage.read_bytes(&entry.path)?;
         files.push((entry.path, bytes));
     }
-    let zip = export(&files)?;
-    storage.write_bytes(&target, &zip)?;
-    Ok(target)
+    export(&files)
 }
 
 /// デスクトップのインポート: 取り込むファイルを `storage`（新しいルート。`FsStorage::create`）に

@@ -17,6 +17,11 @@
 //! 履歴ファイルは [`FsGate::write_history`] からしか書けない（他の口は履歴を許さない）。履歴の
 //! 置き場所は [`FsGate::new`] が環境から決める（§13.2.1。引数でパスを渡す口は無い）。
 //!
+//! **特例**（§13.1.1、ユーザー裁定 2026-10-13・第 2.10 版、`PLANS.md` §9.2 B-99）: 保存ダイアログで
+//! 指定された Zip（[`ChosenPath`]）は [`FsGate::write_chosen_export`] からだけ、プロジェクトの外でも
+//! 書ける。`.zip` のファイル 1 個・その 1 回だけ（パスは覚えない）・一時ファイルを使わず直接・
+//! 親ディレクトリは作らない。他の口は特例を使えない（`WritePolicy::check` が特例を知らない）。
+//!
 //! # 原子的書き込み（§8.3）
 //!
 //! 同じディレクトリに `.<name>.novnow-tmp` を作る → 全部書く → `fsync` → `rename`。一時ファイルも
@@ -34,6 +39,7 @@ use crate::core::policy::write_policy::normalize;
 use crate::core::policy::{
     Allowed, FileEntry, PolicyViolation, ProjectPath, Stamp, Violation, WritePolicy,
 };
+use crate::ports::dialog::ChosenPath;
 use crate::ports::env::Env;
 use crate::ports::storage::{Storage, StorageError};
 
@@ -174,7 +180,56 @@ impl FsGate {
         overwrite(&parent, &resolved, bytes).map_err(|error| io_error(&history, &error))
     }
 
+    /// 保存ダイアログで指定された Zip の保存先の事前判定（**panic しない**。§13.1.1 の特例・
+    /// §13.1.2）。書いてよければ解決済みの絶対パスを返す。`.zip` でない・履歴ファイルは
+    /// [`Violation::NotAnExport`]（表示は E060）。
+    pub fn check_chosen_export(&self, chosen: &ChosenPath) -> Result<PathBuf, PolicyViolation> {
+        self.judge_chosen_export(chosen.path())
+            .map(|(resolved, _)| resolved)
+    }
+
+    /// 保存ダイアログで指定された Zip を書く（§13.1.1 の特例、第 2.10 版）。書いた絶対パスを返す。
+    ///
+    /// `chosen` は**消費する**（許可はこの 1 回だけ。関門はパスを覚えない）。プロジェクトの中なら
+    /// ふつうの原子的保存（[`Self::write_atomic`]）。外なら**一時ファイルを使わずに直接上書き**し、
+    /// **親ディレクトリは作らない**（無ければ I/O エラー。ダイアログで選べるのは既存のディレクトリ）。
+    /// 違反は他の口と同じく debug で panic・release で E060 なので、ダイアログの結果は先に
+    /// [`Self::check_chosen_export`] で確かめること（`adapters::zip::export_to_chosen` はそうしている）。
+    pub fn write_chosen_export(
+        &self,
+        chosen: ChosenPath,
+        bytes: &[u8],
+    ) -> Result<PathBuf, StorageError> {
+        let target = chosen.path();
+        let (resolved, allowed) = self.judge_chosen_export(target).map_err(deny)?;
+        if allowed == Allowed::Project {
+            self.write_atomic(&resolved, bytes)?;
+            return Ok(resolved);
+        }
+        let (parent, _) = split(&resolved)?;
+        if !parent.is_dir() {
+            return Err(StorageError::Io {
+                path: target.to_string_lossy().into_owned(),
+                kind: io::ErrorKind::NotFound,
+                message: "the parent directory does not exist".to_owned(),
+            });
+        }
+        write_in_place(&resolved, bytes).map_err(|error| io_error(target, &error))?;
+        Ok(resolved)
+    }
+
     // ---------------------------------------------------------------- 判定
+
+    /// 保存ダイアログで指定された Zip の保存先を解決して判定する（panic しない）。
+    fn judge_chosen_export(&self, target: &Path) -> Result<(PathBuf, Allowed), PolicyViolation> {
+        let resolved = resolve(target).map_err(|_| unresolved(target))?;
+        let allowed = self.read_policy().check_chosen_export(&resolved)?;
+        let normal = normalize(&resolved).ok_or_else(|| PolicyViolation {
+            target: target.to_path_buf(),
+            reason: Violation::Escape,
+        })?;
+        Ok((normal, allowed))
+    }
 
     /// ファイルの書き込み先を解決して判定する（panic しない）。`want` の理由で許されたときだけ通す
     /// （履歴の口からはプロジェクト内を、プロジェクトの口からは履歴を書かせない）。
@@ -293,6 +348,12 @@ fn append_bytes(path: &Path, bytes: &[u8]) -> io::Result<()> {
 /// 親ディレクトリを作り、一時ファイルを使わずに上書きする（履歴ファイル、§13.2.2 第 2.9 版）。
 fn overwrite(parent: &Path, path: &Path, bytes: &[u8]) -> io::Result<()> {
     fs::create_dir_all(parent)?;
+    write_in_place(path, bytes)
+}
+
+/// 一時ファイルを使わずに上書きして `fsync` する（プロジェクトの外には一時ファイルを置けない、
+/// §13.1.1。履歴ファイルと保存ダイアログで指定された Zip）。
+fn write_in_place(path: &Path, bytes: &[u8]) -> io::Result<()> {
     let mut file = OpenOptions::new()
         .write(true)
         .create(true)

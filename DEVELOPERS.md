@@ -452,6 +452,8 @@ let items = completion::at(document, cursor, &project);           // `'` の補�
 
 **規則 10**（§13.1）: 書いてよいのは**今開いているプロジェクトの中**と**パス履歴ファイル 1 個**だけ。
 一時ファイルもキャッシュも例外にならない。M5 はこれを**構造で**守る形にした（判断は `PLANS.md` §9.2 B-88〜B-98）。
+**特例は 1 つだけ**: 保存ダイアログでユーザーが指定した Zip の保存先（§13.1.1、ユーザー裁定 2026-10-13・
+仕様 第 2.10 版、B-99）。
 
 | 規則 | 内容 |
 |---|---|
@@ -463,7 +465,8 @@ let items = completion::at(document, cursor, &project);           // `'` の補�
 | 原子的保存（§8.3） | `FsStorage::write` が `.<name>.novnow-tmp` → `fsync` → `rename`。保存の成否は `Result`、`Ok` は新しいスタンプ（外部変更の検出で自分の保存を候補にしないために `Snapshot::acknowledge` する） |
 | 読み込み（B-94） | `adapters::project_load::load(&storage)` が一覧 → UTF-8 の確認 → `model::project::validate`（§4.3）→ §5.0.4 の正規化 → `features::Project`。設定は `project.json` の文書から集約が読む（B-89）。起動前の軽い検査は `listing` ＋ `validate` |
 | 外部変更（B-95） | `project_load::poll(&storage, &mut snapshot)` を 1,000ms ごと（タイマは UI）。候補は中身を読んで `policy::external_change::react`（Clean は再読込 ＋ I052、Dirty は衝突、辞書の 3 ファイルは常に再読込） |
-| Zip（B-93） | `adapters::zip::{export, import}` はバイト列どうし（デスクトップと Web で共通）。デスクトップの書き出し先は `exports/<name>.zip`（`export_project`）、取り込みは新しいルートへ（`FsStorage::create` ＋ `import_project`。既存のファイルは上書きしない）。何を入れて何を取り込むかは `policy::archive` |
+| Zip（B-93・B-99） | `adapters::zip::{export, import}` はバイト列どうし（デスクトップと Web で共通）。デスクトップの書き出しは **保存ダイアログ**（`Dialog::save_zip`、初期値 `storage.absolute(&zip::export_path(name))`）→ `zip::export_to_chosen(&storage, chosen)`。ダイアログを通さない `export_project` は `exports/<name>.zip`。取り込みは新しいルートへ（`FsStorage::create` ＋ `import_project`。既存のファイルは上書きしない）。何を入れて何を取り込むかは `policy::archive` |
+| 保存ダイアログの特例（B-99） | プロジェクトの外に書けるのは `FsGate::write_chosen_export(ChosenPath, …)` だけ（`.zip` 1 個・1 回・直接・親ディレクトリは作らない）。`ChosenPath::from_save_dialog` を呼んでよいのは **`Dialog::save_zip` の実装とテストだけ**。ダイアログの結果は `FsGate::check_chosen_export`（panic しない）で先に確かめて E060 を出す（`export_to_chosen` は内部でそうしている）。`WritePolicy::check` は特例を知らないので、他の口に外の `.zip` を渡しても拒否される |
 | IndexedDB（B-96） | `adapters::storage_idb`。純粋な部分（レコード・`app` の許可キー・W062・v0 の取り込みの計画）はネイティブでテストし、`wasm32` の接続はコンパイルだけを CI で確かめる（実行の確認は M7）。`app` ストアに書く口は `Idb::push_recent` だけ |
 
 ```rust
