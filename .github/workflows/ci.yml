@@ -168,6 +168,12 @@ jobs:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      # GUI 込みのテストは 47 本のバイナリがそれぞれ egui をリンクするので、既定の debuginfo では
+      # ランナーのディスクを使い切る（2026-10-14 に "No space left on device" で落ちた）。CI では
+      # debuginfo は要らない（panic の位置はデバッグ情報が無くても出る）。手元は
+      # scripts/bootstrap-toolchain.sh が line-tables-only にしている
+      CARGO_PROFILE_DEV_DEBUG: 0
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable

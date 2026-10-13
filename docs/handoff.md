@@ -104,6 +104,9 @@ shallow clone なので `git diff main...HEAD` が使えないことがある。
   マイルストーンが終わったら **ready for review にすると CI が 1 回走る**（緑の証跡）。
 - `paths-ignore`（`**.md` / `.github/**` 等）は PR 全体の diff で判定される。コードを含む PR に docs だけの
   コミットを足しても CI は走る。`scripts/**` は ignore されていない。
+- **CI の Test ジョブはディスクが足りなくなりうる**: GUI 込みのテスト 47 本がそれぞれ egui をリンクするので、既定の debuginfo では
+  ランナーのディスクを使い切った（2026-10-14、"No space left on device"。注釈は `ci-report.sh --run <id>` で読める）。
+  Test ジョブだけ `CARGO_PROFILE_DEV_DEBUG: 0` にした。テストのバイナリを増やすときは思い出すこと。
 - **Actions のログ本体は読めない**（`gh run view --log` は必ず失敗）。読むのは
   `bash scripts/ci-report.sh --run <id>` / `--pr <番号>`（失敗時の PR コメント＝ `.github/report.py` の出力が一番詳しい）。
 - `gh pr edit` と `gh pr view --comments` は Projects(classic) の GraphQL エラーで失敗する → REST で:
