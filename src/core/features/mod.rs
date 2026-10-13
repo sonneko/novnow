@@ -15,7 +15,11 @@ pub mod document_symbol;
 pub mod folding;
 pub mod formatting;
 pub mod hover;
+/// LSP に対応しない補助（アイデアの一覧・即時入力・昇格の転記。§10.4、`PLANS.md` §9.2 B-130）。
+pub mod ideas;
 pub mod inlay_hint;
+/// LSP に対応しない補助（資料の提案・採用・却下と索引の更新。§16、`PLANS.md` §9.2 B-131）。
+pub mod materials_ops;
 /// LSP に対応しない補助（診断の「どこ」を作家の言葉で。§14.2.5・§10.9.2、第 2.11 版）。
 pub mod place;
 /// LSP に対応しない補助（プロットのワークスペースの行の並び・伏線。§10.2・§10.3、`PLANS.md` §9.2 B-127）。

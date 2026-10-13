@@ -667,3 +667,118 @@ fn ctrl_shift_n_in_the_outline_adds_a_block_and_ctrl_alt_arrows_change_the_level
         Some(None)
     );
 }
+
+// ============================================================ 画面（idea・即時入力）
+
+const IDEAS: &str = "# I0007 学院長の動機
+status: keep
+tags: 学院長
+学院長は何を守ろうとしているのか。
+
+# I0008 時計塔の鐘
+status: inbox
+";
+
+fn idea_harness() -> Harness {
+    Harness::start_with(novel::novel_with("ideas.md", IDEAS), true).0
+}
+
+fn written(harness: &Harness, path: &str) -> String {
+    harness
+        .host
+        .files
+        .borrow()
+        .written
+        .get(path)
+        .cloned()
+        .unwrap_or_default()
+}
+
+#[test]
+fn ctrl_shift_i_captures_an_idea_from_anywhere_without_changing_the_screen() {
+    let mut harness = idea_harness();
+    harness.frame(vec![key(Key::Num2, ALT)]);
+    harness.frame(vec![key(Key::I, CTRL_SHIFT)]);
+    harness.frame(Vec::new());
+    assert!(harness.app.overlay_open());
+    harness.frame(vec![Event::Text("鐘が 13 回鳴る".into())]);
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    let output = harness.idle(0.6);
+    assert!(!harness.app.overlay_open());
+    assert_eq!(
+        harness.app.workspace(),
+        Some(Workspace::PlotEpisode),
+        "画面遷移なし（§10.4 MUST）"
+    );
+    let ideas = written(&harness, "ideas.md");
+    assert!(
+        ideas.ends_with(
+            "# I0009 鐘が 13 回鳴る\nstatus: inbox\ncreated: 2026-10-13T21:40:00+09:00\n"
+        ),
+        "{ideas}"
+    );
+    assert!(painted_text(&output).contains("I0009 を ideas.md に積みました"));
+}
+
+#[test]
+fn the_idea_workspace_lists_ideas_drops_without_deleting_and_promotes_to_a_term() {
+    let mut harness = idea_harness();
+    harness.frame(vec![key(Key::Num4, ALT)]);
+    let output = harness.frame(Vec::new());
+    assert_eq!(harness.app.workspace(), Some(Workspace::Idea));
+    let text = painted_text(&output);
+    assert!(text.contains("学院長の動機"), "{text}");
+    assert!(text.contains("時計塔の鐘"), "{text}");
+    assert_eq!(
+        harness
+            .app
+            .spaces()
+            .and_then(|spaces| spaces.idea.selected().map(str::to_owned)),
+        Some("I0007".to_owned())
+    );
+    // 昇格: 用語（2 番目）
+    harness.frame(vec![key(Key::Enter, CTRL)]);
+    harness.frame(Vec::new());
+    assert!(harness.app.overlay_open(), "行き先を選ぶ");
+    harness.frame(vec![key(Key::ArrowDown, Modifiers::NONE)]);
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.idle(0.6);
+    let words = written(&harness, "words.md");
+    assert!(
+        words.ends_with("# 学院長の動機\ndefinition: 学院長は何を守ろうとしているのか。\n"),
+        "{words}"
+    );
+    let ideas = written(&harness, "ideas.md");
+    assert!(
+        ideas.starts_with("# I0007 学院長の動機\nstatus: promoted\ntags: 学院長\npromoted-to: words.md#学院長の動機\n"),
+        "{ideas}"
+    );
+    // 捨てる: 次のアイデアへ。行は残る
+    harness.frame(vec![key(Key::ArrowDown, ALT)]);
+    assert_eq!(
+        harness
+            .app
+            .spaces()
+            .and_then(|spaces| spaces.idea.selected().map(str::to_owned)),
+        Some("I0008".to_owned())
+    );
+    harness.frame(vec![key(Key::Delete, CTRL)]);
+    harness.idle(0.6);
+    let ideas = written(&harness, "ideas.md");
+    assert!(
+        ideas.contains("# I0008 時計塔の鐘\nstatus: dropped\n"),
+        "{ideas}"
+    );
+}
+
+#[test]
+fn ctrl_delete_still_deletes_a_word_in_write() {
+    let mut harness = idea_harness();
+    harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
+    harness.frame(vec![key(Key::Delete, CTRL)]);
+    harness.idle(0.6);
+    assert!(
+        !written(&harness, "ideas.md").contains("dropped"),
+        "write では Ctrl+Delete を取らない"
+    );
+}

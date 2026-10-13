@@ -391,3 +391,31 @@ no_seed = "設置なし"
 closed = "回収済み"
 seed = "設置"
 payoff = "回収"
+
+[idea]
+filter_active = "すべて"
+status_inbox = "inbox"
+status_keep = "keep"
+status_promoted = "promoted"
+status_dropped = "dropped"
+tag_filter = "タグで絞り込む"
+none = "表示するアイデアはありません。Ctrl+Shift+I でどこからでも書き留められます"
+empty = "一覧からアイデアを選ぶと、ここで編集できます"
+keys = "Ctrl+Enter 昇格 · Ctrl+Delete 捨てる（行は残る） · Ctrl+Shift+I 即時入力"
+capture_title = "アイデアを書き留める"
+capture_hint = "1 行で書いて Enter（ideas.md に積みます）"
+# {0} = アイデアの ID
+captured = "{0} を ideas.md に積みました"
+# {0} = アイデアの ID
+dropped = "{0} を捨てました（status: dropped。行は残っています）"
+promote_title = "昇格の行き先"
+# {0} = 場面の ID
+promote_plot = "プロットの節（@{0} の最後に足す）"
+promote_plot_none = "プロットの節（本文で場面を開いてから）"
+promote_term = "用語（words.md）"
+promote_character = "キャラのメモ（characters.md）"
+promote_material = "資料（materials/inbox/ に提案として）"
+no_characters = "characters.md にキャラがいません"
+# {0} = アイデアの ID、{1} = 転記先
+promoted = "{0} を {1} へ昇格しました"
+promote_failed = "昇格できませんでした（転記先の文書を読めません）"

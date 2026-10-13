@@ -40,6 +40,12 @@ pub trait Host {
     fn name(&self) -> String;
     /// 今の日時 `YYYYMMDD-HHMM`（テキストのエクスポートの既定の名前、§17.2）。
     fn stamp(&self) -> String;
+    /// 今の日時（RFC 3339。アイデアの `created`・資料の `saved_at` / `updated_at`）。
+    fn now(&self) -> String;
+    /// プロジェクトの中のファイルを消す（資料の採用で `inbox/` から `docs/` へ動かすとき、§16.1）。
+    fn remove(&mut self, path: &str) -> Result<(), String> {
+        Err(format!("cannot remove {path}"))
+    }
     /// 「名前を付けて保存」の保存ダイアログ（§17.2・§13.1.1 の特例）。`suggested` は既定のファイル名。
     /// 取り消されたとき・ダイアログを持たない環境では `None`。
     fn choose_export(&mut self, suggested: &str) -> Option<ChosenPath> {
@@ -123,6 +129,15 @@ enum Overlay {
         range: String,
         state: Option<ExportState>,
         fresh: bool,
+    },
+    /// `Ctrl+Shift+I` アイデアの即時入力（§10.4。どのワークスペースからでも、画面遷移なし）。
+    Capture {
+        input: String,
+    },
+    /// `idea` の `Ctrl+Enter` 昇格の行き先（§10.4）。`characters` はキャラのメモを選んだ後のキャラ名。
+    Promote {
+        selected: usize,
+        characters: Option<Vec<String>>,
     },
 }
 
@@ -788,6 +803,13 @@ impl NovnowApp {
                 }
                 return true;
             }
+            Command::Capture => {
+                // §10.4 MUST: どこからでも開き、画面は変えない
+                self.overlay = Overlay::Capture {
+                    input: String::new(),
+                };
+                return true;
+            }
             Command::Up => {
                 match current {
                     Workspace::Write => {
@@ -843,6 +865,22 @@ impl NovnowApp {
             }
             (Workspace::PlotOutline, Command::InsertSection) => {
                 spaces.outline.insert(bench, now);
+            }
+            (Workspace::Idea, Command::Nav(nav)) => {
+                spaces.idea.nav(bench, nav);
+            }
+            (Workspace::Idea, Command::Drop) => {
+                if let Some(id) = spaces.idea.drop_selected(bench, now) {
+                    session.notice = Some((i18n::format(locale, "idea.dropped", &[&id]), now));
+                }
+            }
+            (Workspace::Idea, Command::ConfirmNext) => {
+                if spaces.idea.current(bench).is_some() {
+                    self.overlay = Overlay::Promote {
+                        selected: 0,
+                        characters: None,
+                    };
+                }
             }
             (Workspace::PlotOutline, Command::ConfirmNext) => {
                 if let Some(workspaces::plot_outline::Down::Episode(chapter, episode)) =
@@ -1028,6 +1066,7 @@ impl NovnowApp {
                 .spaces
                 .outline
                 .breadcrumb(&session.bench, i18n::text(locale, "outline.all")),
+            Workspace::Idea => session.spaces.idea.selected().map(str::to_owned),
             _ => None,
         };
         egui::TopBottomPanel::top("header")
@@ -1141,6 +1180,9 @@ impl NovnowApp {
                     &mut session.bench,
                     &view,
                 ),
+                Workspace::Idea => {
+                    workspaces::idea::show(ctx, &mut session.spaces.idea, &mut session.bench, &view)
+                }
                 _ => None,
             };
             match request {
@@ -1487,6 +1529,151 @@ impl NovnowApp {
                                 *missed = true;
                             }
                         }
+                    }
+                }
+            }
+            Overlay::Capture { input } => {
+                let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
+                popup(ctx, "capture", colors, |ui| {
+                    ui.label(
+                        RichText::new(i18n::text(locale, "idea.capture_title"))
+                            .color(colors.fg_faint),
+                    );
+                    let edit = ui.add(
+                        egui::TextEdit::singleline(input)
+                            .hint_text(i18n::text(locale, "idea.capture_hint"))
+                            .desired_width(520.0),
+                    );
+                    edit.request_focus();
+                });
+                if enter {
+                    if !input.trim().is_empty() {
+                        let text = session
+                            .bench
+                            .project()
+                            .text(crate::core::features::ideas::PATH)
+                            .to_owned();
+                        let (updated, id) = crate::core::features::ideas::capture(
+                            &text,
+                            input,
+                            &session.host.now(),
+                        );
+                        session.bench.replace_document(
+                            crate::core::features::ideas::PATH,
+                            updated,
+                            now,
+                        );
+                        session.notice = Some((i18n::format(locale, "idea.captured", &[&id]), now));
+                    }
+                    close = true;
+                }
+            }
+            Overlay::Promote {
+                selected,
+                characters,
+            } => {
+                let down = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::ArrowDown));
+                let up = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::ArrowUp));
+                let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
+                let scene = session.bench.current_id();
+                let digits = session.bench.project().digits();
+                let options: Vec<String> = match characters {
+                    Some(names) => names.clone(),
+                    None => {
+                        let plot = match scene {
+                            Some(id) => i18n::format(
+                                locale,
+                                "idea.promote_plot",
+                                &[&crate::core::features::plots::short_id(
+                                    crate::core::id::SceneId { section: 0, ..id },
+                                    digits,
+                                )],
+                            ),
+                            None => i18n::text(locale, "idea.promote_plot_none").to_owned(),
+                        };
+                        vec![
+                            plot,
+                            i18n::text(locale, "idea.promote_term").to_owned(),
+                            i18n::text(locale, "idea.promote_character").to_owned(),
+                            i18n::text(locale, "idea.promote_material").to_owned(),
+                        ]
+                    }
+                };
+                if down && *selected + 1 < options.len() {
+                    *selected += 1;
+                }
+                if up {
+                    *selected = selected.saturating_sub(1);
+                }
+                let mut chosen = enter.then_some(*selected);
+                popup(ctx, "promote", colors, |ui| {
+                    ui.label(
+                        RichText::new(i18n::text(locale, "idea.promote_title"))
+                            .color(colors.fg_faint),
+                    );
+                    ui.add_space(4.0);
+                    for (index, option) in options.iter().enumerate() {
+                        let text = RichText::new(format!("{}  {option}", index + 1)).color(
+                            if index == *selected {
+                                colors.accent
+                            } else {
+                                colors.fg_primary
+                            },
+                        );
+                        if ui.selectable_label(index == *selected, text).clicked() {
+                            chosen = Some(index);
+                        }
+                    }
+                });
+                if let Some(index) = chosen {
+                    let target = match (characters.is_some(), index) {
+                        (true, found) => Some(workspaces::idea::Target::Character(found)),
+                        (false, 0) => scene.map(workspaces::idea::Target::Plot),
+                        (false, 1) => Some(workspaces::idea::Target::Term),
+                        (false, 2) => {
+                            let names: Vec<String> = session
+                                .bench
+                                .project()
+                                .characters()
+                                .characters
+                                .iter()
+                                .map(|found| found.name.to_string())
+                                .collect();
+                            if names.is_empty() {
+                                session.notice = Some((
+                                    i18n::text(locale, "idea.no_characters").to_owned(),
+                                    now,
+                                ));
+                                close = true;
+                            } else {
+                                *characters = Some(names);
+                                *selected = 0;
+                            }
+                            None
+                        }
+                        (false, _) => Some(workspaces::idea::Target::Material),
+                    };
+                    if let Some(target) = target {
+                        let stamp = session.host.now();
+                        match session
+                            .spaces
+                            .idea
+                            .promote(&mut session.bench, target, now, &stamp)
+                        {
+                            Some((id, to)) => {
+                                session.notice =
+                                    Some((i18n::format(locale, "idea.promoted", &[&id, &to]), now));
+                            }
+                            None => {
+                                session.notice = Some((
+                                    i18n::text(locale, "idea.promote_failed").to_owned(),
+                                    now,
+                                ));
+                            }
+                        }
+                        close = true;
+                    } else if index == 0 && characters.is_none() {
+                        close = true;
                     }
                 }
             }
@@ -2842,6 +3029,19 @@ mod native {
             )
         }
 
+        fn now(&self) -> String {
+            crate::adapters::clock_system::now_rfc3339(&SystemClock)
+        }
+
+        fn remove(&mut self, path: &str) -> Result<(), String> {
+            let path = ProjectPath::new(path).map_err(|error| format!("{error:?}"))?;
+            block_on(crate::ports::storage::Storage::remove(&self.storage, &path))
+                .map_err(|error| format!("{error:?}"))?;
+            // 自分で消したものを外部変更として拾わない（§8.5）
+            self.snapshot.forget(&path);
+            Ok(())
+        }
+
         fn choose_export(&mut self, suggested: &str) -> Option<ChosenPath> {
             // 初期値はプロジェクトの `exports/`（まだ無ければプロジェクトのルート）。作りはしない
             let exports = self.storage.root().join("exports");
@@ -3171,6 +3371,9 @@ mod native {
 /// [`MemoryHost`] の時計（`YYYYMMDD-HHMM`。テストで既定のファイル名を決め打ちできるように固定）。
 pub const MEMORY_STAMP: &str = "20261013-2140";
 
+/// [`MemoryHost`] の時計（RFC 3339）。
+pub const MEMORY_NOW: &str = "2026-10-13T21:40:00+09:00";
+
 /// メモリの `Host`（テストと、ファイルを持たない環境の確認用）。中身は `Rc` で共有するので、
 /// `Session` に渡した後も外から読める。
 #[derive(Debug, Default, Clone)]
@@ -3194,6 +3397,8 @@ pub struct MemoryFiles {
     pub chosen: Option<String>,
     /// 「名前を付けて保存」で書かれたもの（パス → 中身）。
     pub exported: std::collections::BTreeMap<String, String>,
+    /// 消したファイル（順に）。
+    pub removed: Vec<String>,
 }
 
 impl Host for MemoryHost {
@@ -3217,6 +3422,17 @@ impl Host for MemoryHost {
 
     fn stamp(&self) -> String {
         MEMORY_STAMP.into()
+    }
+
+    fn now(&self) -> String {
+        MEMORY_NOW.into()
+    }
+
+    fn remove(&mut self, path: &str) -> Result<(), String> {
+        let mut files = self.files.borrow_mut();
+        files.written.remove(path);
+        files.removed.push(path.to_owned());
+        Ok(())
     }
 
     fn choose_export(&mut self, suggested: &str) -> Option<ChosenPath> {

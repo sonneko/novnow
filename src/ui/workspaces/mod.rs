@@ -184,6 +184,8 @@ pub struct Spaces {
     pub episode: plot_episode::State,
     /// `plot-outline`。
     pub outline: plot_outline::State,
+    /// `idea`。
+    pub idea: idea::State,
 }
 
 /// 描画に要る画面の設定（`NovnowApp` から渡す）。

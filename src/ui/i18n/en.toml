@@ -393,3 +393,31 @@ no_seed = "no seed"
 closed = "paid off"
 seed = "seed"
 payoff = "payoff"
+
+[idea]
+filter_active = "All"
+status_inbox = "inbox"
+status_keep = "keep"
+status_promoted = "promoted"
+status_dropped = "dropped"
+tag_filter = "Filter by tag"
+none = "No ideas to show. Press Ctrl+Shift+I anywhere to jot one down"
+empty = "Choose an idea in the list to edit it here"
+keys = "Ctrl+Enter promote · Ctrl+Delete drop (the lines stay) · Ctrl+Shift+I quick capture"
+capture_title = "Jot down an idea"
+capture_hint = "One line, then Enter (stacked in ideas.md)"
+# {0} = idea ID
+captured = "Stacked {0} in ideas.md"
+# {0} = idea ID
+dropped = "Dropped {0} (status: dropped; the lines stay)"
+promote_title = "Promote to"
+# {0} = scene ID
+promote_plot = "Plot section (appended to @{0})"
+promote_plot_none = "Plot section (open a scene in Write first)"
+promote_term = "Term (words.md)"
+promote_character = "Character memo (characters.md)"
+promote_material = "Material (proposed in materials/inbox/)"
+no_characters = "characters.md has no characters"
+# {0} = idea ID, {1} = destination
+promoted = "Promoted {0} to {1}"
+promote_failed = "Could not promote (the destination document cannot be read)"
