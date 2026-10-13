@@ -4,13 +4,24 @@
 
 > **この文書の位置づけ**
 >
-> - 仕様の正本は **[`SPECIFICATIONS.md`](./SPECIFICATIONS.md)**（v1 仕様 第 2.2 版）。
+> - 仕様の正本は **[`SPECIFICATIONS.md`](./SPECIFICATIONS.md)**（v1 仕様 **第 2.7 版**）。
 > - 実装順序と見積りは **[`PLANS.md`](./PLANS.md)**（段階 ① の実装計画）。
 > - 本書は「手を動かすときに開く頁」であり、仕様と食い違った場合は **`SPECIFICATIONS.md` が優先する**。
 >
-> **現在の `src/` は v0（プロトタイプ）であり、v1 仕様とは別物である。**
-> v1 では `src/` を層構造へ作り直す（`PLANS.md` §3「v0 資産の扱い」）。
-> 本書の「モジュール構成」以降は **v1 の目標形** を書いてあり、現在のコードとは一致しない。
+> **現在の `src/` は v1 の層構造のまま、`core` の基盤と構文が入った状態（M2 完了時点）である。**
+> v0（プロトタイプ）の UI コードは M0 で削除し、`v0-final` タグに保存した。
+> **実装済み**: `core/id.rs`・`core/text/*`（字句・位置・rope・増分）・`core/diagnostics.rs`
+> （§7 / §7.1 / §7.2 の **78 コード**）・`core/syntax/*`（**8 形式**のパーサ）・`core/model/*`
+> （10 型）・`core/resolve/dictionary.rs`（辞書と `'` の最短一致、§6.1 / §6.2）・
+> `core/resolve/modes.rs`（モード解決の 8 段、§6.4）・`core/resolve/role_language.rs`
+> （役割語パターン → 正規表現、§6.5）・`core/resolve/materials.rs`（資料 ID とインレイヒント、
+> §6.6）・`core/resolve/context_rules.rs`（参照ペインと ContextPacket の共用ルール、
+> §9.5.2 / §15.4）。**`core/resolve/` は 5 本すべて実装済み（M3 完了）**。
+> **空のまま**: `core/features/*`（M4）・`ports/**`・
+> `adapters/**`（M5 / M6）・`ui/**`（M7 以降）。本書の「モジュール構成」は **v1 の目標形**。
+>
+> **GUI は M7 まで動かない**（`PLANS.md` §3 I3）。M0 時点の `cargo run` は
+> 使用法を表示して終了コード 2 で終了するだけの暫定版である。
 
 ---
 
@@ -42,6 +53,29 @@ cargo build --release    # 生成物: target/release/novnow
 > **v0 からの変更点**: 新規作成は `--init <dir>` ではなく **サブコマンド `new`** になった（`SPECIFICATIONS.md` §14.1）。
 > 「ディレクトリはフラグなし位置引数で指定する」という指示 2 に合わせたため。
 
+> **M0 時点の実態（注意）**: 上のコマンドは **v1 の目標形**であり、まだ実装されていない。
+> 現在の `src/main.rs` は引数に関わらず使用法を stderr に出して終了コード 2 で終了するだけ
+> （`SPECIFICATIONS.md` §14.3 の判定順と §14.1 のサブコマンドは M6 で実装する）。
+
+> **`ui` feature（2026-10-11〜）**: GUI に要るクレート（`egui` / `eframe` / `rfd` / `fontdb` /
+> `toml`）は **`optional = true`** で、`Cargo.toml` の `[features]` の `ui` が引き込む。
+> **既定は `default = []`** なので、素の `cargo build` / `cargo test` / `cargo clippy` /
+> `cargo check --target wasm32-unknown-unknown` は GUI なしで通り、egui・eframe（依存ツリーは
+> 200 クレート規模）をコンパイルしない。GUI 付きでビルドするときは **`--features ui`** を付ける。
+>
+> ```bash
+> cargo build --features ui               # GUI 込み
+> cargo check --features ui               # GUI 込みの型検査
+> cargo run   --release --features ui ./my-novel   # M7 以降の起動形
+> ```
+>
+> `src/lib.rs` の `pub mod ui;` と `src/adapters/mod.rs` の `pub mod dialog_rfd;` は
+> `#[cfg(feature = "ui")]` で守る（**MUST**。守らないと M7 で `src/ui/**` が egui を使い始めた
+> 瞬間に既定のビルド＝ CI の 4 ジョブが落ちる）。`tests/layering.rs` の末尾 2 テストが
+> `Cargo.toml` と `src/lib.rs` を読んでこの形を固定している。判断は `PLANS.md` §9.2 **B-54**。
+> **M7 で `src/ui/**` に実コードが入ったら、`.github/workflows/ci.yml` の 4 コマンドに
+> `--features ui` を足す**（同ファイルに TODO がある）。
+
 ### 1.3 Web
 
 ```bash
@@ -57,11 +91,66 @@ trunk build --release        # 成果物は ./dist/
 ### 1.4 テスト
 
 ```bash
-cargo test                        # すべて
-cargo test --test layering        # 層構造の検査（本書 3 節 / 仕様 §3.2）だけ
+cargo test                        # すべて（GUI なし。速い）
+cargo test --test layering        # 層構造と feature gate の検査（本書 3 節 / 仕様 §3.2・§12.2）だけ
+cargo test --features ui          # M7 以降は GUI 込みでも通すこと
 ```
 
 CI で常設するテストは `PLANS.md` §6 を参照。`tests/layering.rs` は **落ちたらマージしない**（例外なし）。
+
+`cargo test` は **`--no-fail-fast`** で走らせること（CI もそうしている）。既定だと統合テストは
+アルファベット順の**最初の失敗ターゲットで止まる**ので、他の形式の失敗が一度に見えない。
+
+`tests/layering.rs` の中身は次の 3 系統（8 テスト）。
+
+| テスト | 検査内容 |
+|---|---|
+| `core_has_no_forbidden_dependency` | `src/core/**` の AST（`syn`）を訪走し、§3.2 の禁止依存を検出する。`use` 文・`extern crate`・式／型／パターン／マクロ呼び出しのパス・属性・マクロ本体のトークン列が対象。許可リストに無いクレートの `use` も落とす |
+| `core_has_no_user_facing_text` | 同様に日本語の文字列リテラル（§12.2）を検出する。コメント・doc コメント・char リテラルは対象外。**例外は `i18n: format-vocabulary` の doc 行を付けた `const` / `static` の中だけ**（§5.0.6 のフィールドキー別名表のような「ファイル形式の語彙」は UI 言語が `en` でも受理するのでユーザー向け文言ではない。`PLANS.md` §9.2 B-19。§12.2 に「字句データは文言に含まない」と明記されて A-5 は解消済み）。免除が関数に及ばないことは自己テストのフィクスチャで固定してある |
+| `checker_catches_*` / `checker_allows_*`（4 本） | **検査器そのもの**の自己テスト。「違反を書いたら本当に落ちるか」「正当な core コードを誤検出しないか」を固定例で担保する |
+| `the_ui_crates_are_optional_and_behind_the_ui_feature` | `Cargo.toml` を `toml` でパースし、GUI の 5 クレート（`egui` / `eframe` / `rfd` / `fontdb` / `toml`）が `optional = true` で `[features] ui` の `dep:` に並んでいること、`default` に `ui` が入っていないことを見る（§1.2 の feature gate、`PLANS.md` §9.2 B-54）。既定のビルドに egui が戻ると CI の 4 ジョブが数分単位で遅くなるので、ここで機械的に止める |
+| `the_ui_layer_is_compiled_only_with_the_ui_feature` | `src/lib.rs` の `pub mod ui;` と `src/adapters/mod.rs` の `pub mod dialog_rfd;` に `#[cfg(feature = "ui")]` が付いているかを見る |
+
+> 検査器を直すときは、必ず自己テストの固定例（`MUST_CATCH_*` / `MUST_PASS_*`）も一緒に更新すること。
+> 自己テストが無い検査器は、改修で検出漏れが混入しても CI が緑のままになる。
+
+`tests/diagnostics_catalog.rs` は **仕様書そのものを読む**テスト（`include_str!("../SPECIFICATIONS.md")`）。
+§7 / §7.1 / §7.2 の表を Markdown から読み直し、`src/core/diagnostics.rs` の **78 コード**と
+件数・コード文字列・重大度・引数の数・文書位置の有無・既定の有効/無効・実行コスト表・variant の
+doc コメントまで突き合わせる。診断コードを足す／直すときは **先に `SPECIFICATIONS.md` の表**を直すこと
+（`PLANS.md` §6.3「仕様書 → ゴールデン → 実装」）。表に無いコードを enum に足すと
+`the_catalog_has_no_code_the_spec_does_not_list` が、文言の引数を変えると
+`every_spec_row_is_in_the_catalog` が落ちる。
+
+### 1.5 CI の出力（`.github/report.py`）
+
+`.github/workflows/ci.yml` の 4 ジョブは、cargo の出力を `/tmp/ci.log` に tee したうえで
+**`.github/report.py`** に渡す。スクリプトは生ログから「どれが・どこで・何と言って失敗したか」
+だけを抜き出し、次の 3 つを書く（標準ライブラリのみ・追加インストールなし）。
+
+| 出力 | いつ | 内容 |
+|---|---|---|
+| ワークフロー注釈（`::error file=…,line=…,col=…::`） | 失敗時 | コンパイルエラーとテストの panic 位置。**PR の「Files changed」にインラインで出る** |
+| 実行サマリ（`$GITHUB_STEP_SUMMARY`） | **成功時も** | テスト件数の内訳（`469 passed / 0 failed`・ターゲット数）と、失敗があればその一覧 |
+| PR コメント（`gh pr comment`） | 失敗時かつ PR | 上の 2 つと同じ内容を Markdown で。GitHub の上限（65,536 字）に合わせて切り詰める |
+
+`head` / `tail` の切り出しをやめたのは、テスト失敗の本体（`---- <name> stdout ----`）がログの
+**真ん中**にあってちょうど落ちるから（`PLANS.md` §9.2 **B-55**）。解析できなかったときは
+生ログの先頭 120 行と末尾 60 行にフォールバックする（情報を落とさないことを優先）。
+
+**レポート生成は CI の合否に影響しない**（`python3 .github/report.py … || echo "::warning::…"`）。
+レポート側のバグで緑のビルドが赤くなっては本末転倒なので。
+
+ローカルでレポートだけ試すとき（cargo を失敗させる必要はない。既存のログを渡せばよい）:
+
+```bash
+cargo test --locked --all-targets --no-fail-fast 2>&1 | tee /tmp/ci.log
+CI_LOG=/tmp/ci.log CI_JOB=Test CI_KIND=test CI_STATUS=failure CI_SHA=$(git rev-parse HEAD) \
+  python3 .github/report.py /tmp/body.md   # 注釈は stdout、本文は /tmp/body.md
+```
+
+`CI_KIND` は `fmt` / `clippy` / `test` / `wasm`（`fmt` は unified diff を、`test` は
+`test result:` の件数と `---- <name> stdout ----` を、それ以外は rustc の診断を解析する）。
 
 ---
 
@@ -172,6 +261,155 @@ v1 は **8 形式**を解析する。v0 の 2 形式から大きく増えてい�
 `SceneId` は 4 階層（`章-話-場面-節`）。見出しで節を省略した場合は `section = 0`。
 複数行トークンは存在しないので、行単位で完全に分割でき、編集行のみ再トークン化できる。
 
+### 5.1 参照（`'` と `@`）の解決 — `core/resolve/dictionary.rs`
+
+字句（M2）は `'` と `@` の**形**だけを読み、**実体があるかは M3 の辞書**が決める。
+実装を触るときに効いてくる規則だけ抜き出す（正本は §6.1 / §6.2、判断は `PLANS.md` §9.2 B-56〜B-63）。
+
+| 規則 | 内容 |
+|---|---|
+| 正規化（§6.1.3） | **長音統一（`ー` `－` `—` `〜` → `ー`）→ NFKC → 小文字化 → 空白除去**。元テキストは書き換えない。順序を入れ替えているのは、仕様書の順（NFKC が先）だと `－` が ASCII の `-` になって長音統一が発火しないから（§9.1 **A-19**） |
+| 最短一致（§6.2.1） | `'` の後ろを 1 文字ずつトライに進め、**終端に当たった瞬間に確定**。`リリア` と `リリアナ` が両方あれば `リリア` が勝ち、残り `ナ` は地の文。長いほうもあるときは **W029**（クイックフィックスは `'{リリアナ}`） |
+| 未解決（§6.2.1） | 区切り文字（`DELIMITERS` ＋ 空白）までを範囲に **E001**。ASCII の `.` と `,` は区切り**ではない**（仕様どおり） |
+| 明示形（§6.2.3） | `'{…}` は内側全体がキー。閉じ括弧が無ければ **E002**（行末まで） |
+| 修飾子 `:`（§6.2.4） | **半角だけ**。`Character` ならモード式（`B` / `B+D`、3 つ以上は **E005**、形が違えば **E002**）、`Material` なら資料タイトル（**空白を許す**）、`Word` / `MaterialTitle` なら **E026** |
+| アポストロフィ | 直前が ASCII 英数字（`don't`）、または未解決かつ候補が ASCII 英字 2 文字以下（`リリア's`）なら**参照として扱わない**（B-60） |
+| 話者注釈 `@`（§6.2.5） | M2 の `contents::Speaker` が名前を区切っているので**完全一致**で引く。対象は `Character` のみ（§6.1.1 の MUST）。無ければ **E012** |
+| 衝突（§6.1.1） | 優先順位は `Character > Address > Word > Material > MaterialTitle`（① に `Address` は無い）。負けた側に **W027** |
+| 長さ（§6.2.1） | `MAX_KEY_BYTES = 96`（**正規化後**の byte 数）。超えたキーは登録せず **E028** |
+
+```rust
+// 3 ファイルの木（M2）から辞書を作り、1 行を解決する
+let built = Dictionary::from_sources(&characters, &words, &index);   // → Built { dictionary, diagnostics }
+let scan = dictionary::scan_line(line, line_start, &built.dictionary); // → LineScan { tokens, diagnostics }
+```
+
+`scan_line` の**診断はファイル単位の byte 範囲**（`line_start` を足したもの）、
+`RefToken` の範囲は**行内相対**（M2 の `Speaker` / `Pattern` と同じ）。
+走査する範囲（コメントやルビの中を除くか）は**呼び出し側**が決める。
+位置の単位を混ぜると波線がずれるので、M4 の `features/*` はここで変換すること。
+
+---
+
+### 5.2 モード解決 — `core/resolve/modes.rs`
+
+「この節のこのキャラのモードは何か」を決める**純粋関数**（正本は §6.4、判断は `PLANS.md` §9.2 B-64〜B-67）。
+入力は **M2 の木**（`Characters` / `EpisodePlot` / `Outline` / `contents::Speaker`）＋ 辞書で、
+`model::Mode` は**出口でその場で組む**（`to_model`。B-56）。
+
+| 規則 | 内容 |
+|---|---|
+| 8 段（§6.4.3） | 話者注釈（**その行のみ**）→ 節 `mode:` → 場面 `mode:` → preamble `mode:` → 章プロット `cast:` → 全体プロット `cast:` → `default-mode:` → **W006**。上から順に試し、**最初に見つかったもの**を採用する（固定） |
+| 「見つかった」の条件 | その段に**対象キャラのモード ID が 1 つ以上**書かれていること。`mode: 'リリア`（名前だけ）は**見つからなかった**扱いで次の段へ進む（B-65） |
+| 最大 2 モード（§6.4.4） | 3 つ以上は **E005** だが、§7 のクイックフィックスどおり**先頭 2 つで解決を続ける** |
+| E005 の担当（B-67） | B 形式の `mode:` → `plot_episode`（M2）／1 トークンの中の 3 つ以上 → `dictionary::token_diagnostics`／`cast:` の重複と `default-mode:` の 3 つ以上 → `modes`。**同じ形に 2 層が波線を引かない**。M4 で診断を組み立てるときはこの分担を保つこと |
+| 変種選択（§6.4.5） | 同一 `mode_id` の複数定義から `range` が対象 SceneId を**含む**ものを選ぶ。`range:` が壊れていれば**全範囲扱い**（B-66。E004 を重ねない）。ID の比較は **ASCII の大文字小文字を無視**（B-64） |
+| 有効モード（§6.4.6） | `Assignment.definitions` が「有効モード」。**E003 / E004 の ID は入らない**ので、参照ペインと ContextPacket（§15.4.1 の `5 cast`）はこれをそのまま使う |
+| 適用パターン（§6.5.3） | `applicable_patterns` = モード専用 **∪** キャラ共通 `## tone`（**和集合**。上書きではない）。同じパターンは 1 本にする（§6.5.4「二重線にしない」） |
+| 診断の位置 | `FileDiagnostic { file, diagnostic }` で**どのファイルの波線か**を返す（`contents` / `episode` / `chapter` / `all` / `characters`）。範囲はそのファイル内の byte |
+
+```rust
+let input = modes::Input { characters: &characters, episode: Some(&episode),
+                           chapter: None, all: None, dictionary: &built.dictionary };
+let target = modes::Target { scene, character: 0, speaker: line.speaker.as_ref(), line_start };
+let assignment = modes::resolve(&input, &target); // → Assignment { step, ids, definitions, diagnostics }
+```
+
+**`Target.character` は `Characters::characters` の添字**（行 index ではない）。
+`Characters::character_of` は**行 index**を取るので混ぜないこと（M3 で実際に踏んだ。
+`tests/modes.rs` の `definitions_uses_the_character_index_not_a_line_index` が固定している）。
+
+---
+
+### 5.3 役割語 — `core/resolve/role_language.rs`
+
+`「` `」` の中の**小言語**（§6.5.1）を正規表現に変換し、**コンパイル済みで持つ**。
+正本は §6.5 / 付録 B、判断は `PLANS.md` §9.2 B-68〜B-70（仕様の要補正点は §9.1 A-21・A-23・A-24）。
+
+| 規則 | 内容 |
+|---|---|
+| 5 アトム（§6.5.1） | `*` / `〜` → `[^\n]*?`（**非貪欲**）、`…` / `...` / `‥` → `[…‥.。]{1,6}`、`(体言)` 等 → `project.json.lexicon.word_classes`（無ければ §6.5.1 の**既定 3 クラス**）、`?` → `[^\n]`、それ以外 → エスケープしたリテラル |
+| アンカー（§6.5.2） | 先頭・末尾が `*` / `〜` かどうかだけで決まる（`RolePattern::anchor` が M2 で持つ）。`=` 前置は**完全一致** |
+| `^` / `$` の範囲 | **発話全体**の先頭・末尾（「文」単位ではない）。付録 B.3 の 1・2 行目が文単位では成立しないため（§9.1 **A-23**） |
+| 下線（§6.5.4 / B.4） | マッチ全体から **`*` / `〜` が食った範囲だけ**を除く。語クラス・`…`・`?` は**含める**（**A-21**）。実装は「下線に含めるアトムの連続」をキャプチャグループで囲んだ正規表現を別に生成する（**B-68**） |
+| 和集合（§6.5.4） | 複数パターンの一致は 1 本にまとめる（重なり・隣接をマージ）。**一致しなければ何も返さない**（診断も色も出さない、MUST） |
+| 照合対象（§6.5.3） | `「」` / `『』` の**内側だけ**（`dialogue_spans`。地の文は照合しない MUST）。入れ子は内側と外側の両方を返す。**話者不明の台詞を除外するのは呼び出し側** |
+| 計算量（§6.5.5） | `RegexSet` で候補を絞ってから個別検索。`Cache` がキー（例: `"恩田恵:A"`）ごとに `MatcherSet` を覚える。**release 実測 0.68µs / 行（10 パターン）**、100 パターンで 9.8µs |
+
+```rust
+// 適用パターン集合（§6.5.3）= モード専用 ∪ キャラ共通 `## tone`
+let set = MatcherSet::new(&modes::applicable_patterns(&characters, &assignment, 0), cache.lexicon());
+let raw = line.raw();
+let marks: Vec<Range<usize>> = role_language::dialogue_spans(raw)
+    .iter()
+    .flat_map(|span| {
+        set.underlines(&raw[span.clone()])
+            .into_iter()
+            .map(move |found| found.start + span.start..found.end + span.start)
+    })
+    .collect();   // → §11.3 の `syntax.role-language` の装飾（行内相対）
+```
+
+語クラスの正規表現が壊れている（`project.json` の書き間違い）パターンは**黙って捨てる**
+（§7 に対応コードが無い。§9.1 **A-24**）。未知のクラス名 `(ほげ)` は**リテラル扱い**（**B-69**）。
+`MatcherSet` は**編集のたびに作り直さない**こと（正規表現のコンパイルが本体のコスト。§6.5.5）。
+
+---
+
+### 5.4 資料 — `core/resolve/materials.rs`
+
+`'M0137` を `materials/index.json` の実体に当てる（正本は §6.6、判断は `PLANS.md` §9.2 B-71・B-72）。
+`'` トークンは**辞書が既に引いている**ので、ここは実体との照合と表示情報の担当。
+
+| 規則 | 内容 |
+|---|---|
+| 3 経路（§6.6.1） | `'M0137` → `Route::Id`（タイトルはインレイヒント）／`'M0137:タイトル` → `Route::IdWithTitle`（index と照合）／`'タイトル` → `Route::Title`（辞書の `MaterialTitle`。`normalize_to_id` が `'M0137` への置換を提案） |
+| **E006**（§6.6.3） | 明示タイトルが index の `title` と**正規化比較（§6.1.3）で不一致**。波線は `modifier.text_range`（タイトル部分だけ）。クイックフィックスは `TitleFixes` の 3 つ（**中身だけ**。文言は UI/i18n） |
+| **E007**（§6.6.3） | 資料 ID の形（`M` / `S` ＋ 4 桁以上）なのに index に無い。候補は `suggestions` が**近い順に 5 件**（正規化後のレーベンシュタイン距離で、ID とタイトルの近いほう） |
+| **E001 と重ねない**（B-71） | 資料 ID の形の未解決トークンは **E007 だけ**。M4 は `materials::scan_line` を入口にして、辞書の診断（E001 / E002 / E026 / W029）と資料の診断（E006 / E007 / W031）を**1 か所で**組むこと |
+| インレイヒント（§6.6.2） | 位置は**トークン直後**（ファイル単位）。タイトルは **24 字超で 23 字 + `…`**（字は Unicode の文字数）。`⟨⟩` と「提案中」「却下」の添え文言は **UI が組む**（§12.2）。色・サイズ・`Alt+H`・**選択やコピーの対象にしない**・エクスポートで出さない（すべて MUST）は UI 側 |
+| **W031**（§6.6.4） | 本文（C 形式）に書かれた資料参照。`scan_line` の `in_body` で切り替える（**ファイルの形式は呼び出し側が知る**、§3.2） |
+
+```rust
+// M4 の入口（1 行ぶん。辞書と資料の診断が一度に出る）
+let scan = materials::scan_line(line, line_start, &built.dictionary, &index, in_body);
+for resolved in &scan.resolutions {
+    if let Some(hint) = &resolved.hint { /* hint.at に ⟨タイトル⟩（UI が文言を組む） */ }
+}
+```
+
+`index.json` が壊れていても（**E025**）空の索引で続行するので、`resolve` は **E007** を返して止まらない
+（§4.3-4）。`Index::find_by_title` は完全一致なので、E006 とクイックフィックス 3 の照合は
+**`same_title`（正規化）**を使うこと。
+
+---
+
+### 5.5 参照ペインと ContextPacket の共用ルール — `core/resolve/context_rules.rs`
+
+**規則だけ**を持つ（純粋なデータと順位）。中身を集めるのは M4 の `core/features/*`（参照ペイン）と
+M10 の ContextPacket で、**両方がここを引く**ことが §15.4 の MUST の実体（`PLANS.md` §9.2 B-73）。
+
+| 規則 | 内容 |
+|---|---|
+| 優先順位（§9.5.2） | `Scope` = **カーソル行 > 同一節 > 同一場面 > 同一話**。派生した `Ord` がそのまま表示順。`Layout` は**行範囲**の枠で、**呼び出し側が木から作る**（core は形式を問わない、§3.2）。`ranked` は近い順に並べ、**範囲外を捨てる** |
+| ペインの上限 | `PANE_FARTHEST`（同一話まで）。ContextPacket は §15.4.1 のブロックごとの範囲を**上限として渡す**（`6 lexicon` なら `Scope::Section`） |
+| 9 セクション（§9.5.2） | `PaneSection` が固定順で持つ。**5 五感・6 空間・8 挿絵は内容が無ければ見出しごと出さない**（MUST）。1〜4・7・9 は中身だけ省略（「—」も書かない） |
+| 資料の順（§9.5.2 の 7） | 明示参照 → 引用注釈 → 条件一致候補（`MaterialSource`）。**この 3 つだけ**はスコープ順ではなく経路順 |
+| 9 ブロック（§15.4.1） | `PacketBlock` が固定順と Markdown 見出し（`## 1 project` …）を持つ。`project` と `constraints` は**外せない**（§5.9.2 MUST）、`1 project` / `3 plot` / `5 cast` / `8 constraints` は**決して削らない**（§15.4.1 MUST） |
+| 対応表 | `PaneSection::packet_blocks` と `PacketBlock::pane_sections`（逆引き）。9 診断はパケットに対応ブロックが無い（LLM には診断ではなく制約を渡す） |
+| 診断の順（§9.5.2 の 9） | `sort_diagnostics` = `E` → `W` → `I`、同じ重大度なら位置、同じ位置ならコード順 |
+
+```rust
+// B 形式の木から枠を作り、近い順に並べる（範囲外は自動的に落ちる）
+let layout = Layout { cursor_line, section: Some(section.span.clone()),
+                      scene: Some(scene.span.clone()), episode: Some(file_lines) };
+let ranked = layout.ranked(PANE_FARTHEST, occurrences);   // → Vec<(Scope, usize, T)>
+```
+
+見出しの**文言は core が持たない**（§12.2）。`PaneSection::key()` / `Scope::key()` の ascii 名で
+i18n キー（§12.3 `pane.<key>` / `scope.<key>`）を引くこと。§15.4.1 の Markdown 見出しは ascii なので
+`PacketBlock::heading()` がそのまま持つ（**固定**＝LLM 側のパース安定性のため）。
+
 ---
 
 ## 6. 日本語入力（IME）— 実装時にまず読むこと
@@ -231,7 +469,8 @@ v1 の画面は **3 ペイン ＋ ワークスペース切替** になる（v0 �
 
 ## 9. 情報パネル（参照ペイン）
 
-カーソル行に直接含まれる要素 > 同一場面 > 同一話、の順で推論する（`core/resolve/context_rules.rs`）。
+**カーソル行 > 同一節 > 同一場面 > 同一話** の順で推論する（§9.5.2、`core/resolve/context_rules.rs`
+の `Scope` / `Layout`。本書 §5.5）。同じ話より遠い項目は**出さない**。
 用語検出は Aho-Corasick による複数パターン一括マッチ、参照は**最短一致**（§6.1）。
 
 **カード UI にしないこと**（§9.5.1、MUST）。最小限の見出しスタイルを付けたただのテキストとして並べる。

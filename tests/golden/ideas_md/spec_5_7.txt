@@ -1,0 +1,7 @@
+# I0007 学院長の動機
+status: inbox            # inbox | keep | promoted | dropped
+created: 2026-10-09T12:04:11+09:00
+tags: 学院長, 動機
+relates: @02, 'アルス
+promoted-to: plots/02.txt#@02-03      # 昇格時のみ
+本文は自由記述。改行もそのまま保持する。

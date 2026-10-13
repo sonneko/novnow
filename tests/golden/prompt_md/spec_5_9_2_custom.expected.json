@@ -1,0 +1,65 @@
+{
+  "form": "prompt_md",
+  "lines": 18,
+  "tree": {
+    "diagnostics": [],
+    "fields": [
+      "label",
+      "model-hint",
+      "max-chars",
+      "context"
+    ],
+    "role": {
+      "builtin": false,
+      "name": "weapon-advisor",
+      "valid": true
+    },
+    "sections": [
+      {
+        "bullets": 0,
+        "fields": [],
+        "free": 1,
+        "key": "System",
+        "key_text": "system",
+        "span": [
+          6,
+          9
+        ]
+      },
+      {
+        "bullets": 0,
+        "fields": [],
+        "free": 3,
+        "key": "Task",
+        "key_text": "task",
+        "span": [
+          9,
+          14
+        ]
+      },
+      {
+        "bullets": 2,
+        "fields": [],
+        "free": 0,
+        "key": "Output",
+        "key_text": "output",
+        "span": [
+          14,
+          18
+        ]
+      }
+    ],
+    "variables": [
+      {
+        "known": true,
+        "line": 11,
+        "name": "scene_id"
+      },
+      {
+        "known": true,
+        "line": 12,
+        "name": "text_current"
+      }
+    ]
+  }
+}

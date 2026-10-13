@@ -1,0 +1,34 @@
+{
+  "form": "ideas_md",
+  "lines": 8,
+  "tree": {
+    "diagnostics": [],
+    "ideas": [
+      {
+        "fields": [
+          "status",
+          "created",
+          "tags",
+          "relates",
+          "promoted-to"
+        ],
+        "free": 1,
+        "id": "I0007",
+        "number": 7,
+        "span": [
+          0,
+          8
+        ],
+        "title": "学院長の動機",
+        "valid_id": true
+      }
+    ],
+    "preamble": {
+      "fields": [],
+      "span": [
+        0,
+        0
+      ]
+    }
+  }
+}

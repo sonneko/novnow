@@ -1,0 +1,12 @@
+# 星屑の時計
+reading: ほしくずのとけい
+category: 魔導具
+alias: 星屑時計
+definition: 旧校舎の地下遺跡に眠るとされる幻の魔導具。古代錬金術の存在証明とされる。
+range: @01 ..
+note: 第 3 章で贋作であることが判明する。
+
+# 旧校舎
+reading: きゅうこうしゃ
+category: 舞台
+definition: 地下遺跡への入口がある立ち入り制限区域。

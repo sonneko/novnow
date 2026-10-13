@@ -1,0 +1,142 @@
+{
+  "form": "characters_md",
+  "lines": 16,
+  "tree": {
+    "diagnostics": [
+      {
+        "code": "W011",
+        "range": [
+          227,
+          234
+        ],
+        "args": [
+          "address"
+        ]
+      },
+      {
+        "code": "E016",
+        "range": [
+          97,
+          107
+        ],
+        "args": []
+      },
+      {
+        "code": "E002",
+        "range": [
+          143,
+          148
+        ],
+        "args": []
+      },
+      {
+        "code": "E017",
+        "range": [
+          66,
+          76
+        ],
+        "args": [
+          "A"
+        ]
+      }
+    ],
+    "preamble": {
+      "span": [
+        0,
+        0
+      ],
+      "fields": []
+    },
+    "characters": [
+      {
+        "name": "恵",
+        "span": [
+          0,
+          16
+        ],
+        "fields": [],
+        "free": 0,
+        "sections": [
+          {
+            "key": "Modes",
+            "key_text": "modes",
+            "span": [
+              1,
+              16
+            ],
+            "fields": [],
+            "bullets": 0,
+            "patterns": [],
+            "free": 0,
+            "relations": [],
+            "modes": [
+              {
+                "id": "A",
+                "label": "日常",
+                "valid_id": true,
+                "span": [
+                  2,
+                  4
+                ],
+                "fields": [
+                  "range"
+                ],
+                "patterns": [],
+                "free": 0,
+                "range": "@01 .. @02"
+              },
+              {
+                "id": "A",
+                "label": "後半",
+                "valid_id": true,
+                "span": [
+                  4,
+                  6
+                ],
+                "fields": [
+                  "range"
+                ],
+                "patterns": [],
+                "free": 0,
+                "range": "@02 .. @03"
+              },
+              {
+                "id": "C",
+                "label": "逆順",
+                "valid_id": true,
+                "span": [
+                  6,
+                  8
+                ],
+                "fields": [
+                  "range"
+                ],
+                "patterns": [],
+                "free": 0,
+                "range": "@03 .. @01"
+              },
+              {
+                "id": "B",
+                "label": "形が壊れている",
+                "valid_id": true,
+                "span": [
+                  8,
+                  16
+                ],
+                "fields": [
+                  "range",
+                  {
+                    "unknown": "address"
+                  }
+                ],
+                "patterns": [],
+                "free": 3,
+                "range": "01 .."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

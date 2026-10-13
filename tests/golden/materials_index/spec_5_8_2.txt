@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "next_id": 138,
+  "items": [
+    {
+      "id": "M0137",
+      "title": "科学の甲子園 本戦の運営と実技課題",
+      "path": "materials/docs/M0137-kagaku-koshien.md",
+      "source": { "kind": "url", "url": "https://example.org/report/2026", "accessed_at": "2026-10-01T09:12:00+09:00" },
+      "category": "取材",
+      "conditions": [
+        { "kind": "scope", "value": "@02-03 .. @02-08" },
+        { "kind": "ref",   "value": "'科学の甲子園" },
+        { "kind": "text",  "value": "大会運営の手順を描写するとき" }
+      ],
+      "saved_at": "2026-10-01T09:20:33+09:00",
+      "updated_at": "2026-10-02T22:10:00+09:00",
+      "tags": ["大会", "高校", "運営"],
+      "status": "approved",
+      "added_by": "human",
+      "summary": "本戦の 1 日のタイムテーブルと実技課題の採点基準。",
+      "checksum": "sha256:9f2c..."
+    }
+  ]
+}

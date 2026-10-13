@@ -1,0 +1,69 @@
+{
+  "form": "prompt_md",
+  "lines": 17,
+  "tree": {
+    "diagnostics": [],
+    "fields": [
+      "model-hint",
+      "max-chars",
+      "temperature"
+    ],
+    "role": {
+      "builtin": true,
+      "name": "writer",
+      "valid": true
+    },
+    "sections": [
+      {
+        "bullets": 0,
+        "fields": [],
+        "free": 1,
+        "key": "System",
+        "key_text": "system",
+        "span": [
+          5,
+          8
+        ]
+      },
+      {
+        "bullets": 0,
+        "fields": [],
+        "free": 3,
+        "key": "Task",
+        "key_text": "task",
+        "span": [
+          8,
+          13
+        ]
+      },
+      {
+        "bullets": 2,
+        "fields": [],
+        "free": 0,
+        "key": "Output",
+        "key_text": "output",
+        "span": [
+          13,
+          17
+        ]
+      }
+    ],
+    "variables": [
+      {
+        "known": true,
+        "line": 10,
+        "name": "scene_id"
+      },
+      {
+        "known": true,
+        "line": 11,
+        "name": "plot_section"
+      },
+      {
+        "known": true,
+        "line": 15,
+        "name": "role_language"
+      }
+    ]
+  }
+}
