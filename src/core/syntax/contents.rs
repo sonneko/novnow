@@ -59,6 +59,13 @@ const LINE_COMMENT: &str = "//";
 /// C 形式の見出しに書ける最少の階層数（§5.2.1 `scene_id = num "-" num "-" num [ "-" num ]`）。
 const HEADER_DEPTH: usize = 3;
 
+/// 階層数だけが違う見出し（`@01-04`）の **E020** に渡す `{0}`（§6.2.5、第 2.8 版）。
+///
+/// C・B 形式は 3 階層と 4 階層の両方を受け付けるので、数 1 つではなく範囲を渡す
+/// （`{0}` に 3 を入れると「3 階層だけ」と読めて `@01-04-02-03` と矛盾する。`PLANS.md` §9.1 A-10）。
+/// 言語に依らない数字と `-` だけなので core が持ってよい（§12.2 の文言には当たらない）。
+pub const HEADER_DEPTH_RANGE: &str = "3-4";
+
 /// `mode_id = /[A-Za-z][A-Za-z0-9_]{0,15}/`（§5.5）の長さ上限（先頭 1 字＋最大 15 字）。
 const MODE_ID_MAX: usize = 16;
 
@@ -94,7 +101,7 @@ const KANJI_MARKS: &[u32] = &[0x3005, 0x303B];
 pub struct Options {
     /// `A = 00`（未配属ストック章、§5.1.2）を許すか。
     ///
-    /// `false` のとき `@00-…` の見出しは **E020**。§5.1.2「`00` は番号としては正当な値であり、
+    /// `false` のとき `@00-…` の見出しは **E022**（予約番号、第 2.8 版。旧 E020）。§5.1.2「`00` は番号としては正当な値であり、
     /// パースを拒否しない（MUST）」により既定は `true`（ID としては常に有効で、拒否するのは
     /// この設定を `false` にしたプロジェクトだけ）。
     pub allow_chapter_zero: bool,
@@ -218,7 +225,8 @@ pub struct SceneLine<'a> {
     pub indent: usize,
     /// `@` を除いた ID 部分。**壊れていても書かれたまま**（round-trip 用）。
     pub id_text: &'a str,
-    /// パースした場面 ID。3〜4 階層でなければ `None`（診断は E002、§6.2.5）。
+    /// パースした場面 ID。3〜4 階層でなければ `None`（診断は 1〜2 階層なら E020、
+    /// 形が崩れていれば E002。§6.2.5）。
     pub id: Option<SceneId>,
     /// 書かれた階層の数。`01-04` なら 2、形が数字と `-` でなければ 0。
     pub depth: usize,
@@ -330,7 +338,7 @@ pub struct Ruby<'a> {
 pub struct Section {
     /// 節番号（D）。§5.2.2 の規則で確定した値。
     pub number: u16,
-    /// 所属する場面。見出しの ID が壊れていれば `None`（診断は E002）。
+    /// 所属する場面。見出しの ID が壊れていれば `None`（診断は E002 / E020）。
     pub scene: Option<SceneId>,
     /// この節を支配する場面見出しの行 index（`lines` の中）。
     pub scene_header: Option<usize>,
@@ -463,11 +471,15 @@ pub(crate) fn parse_scene<'a>(
     let id_start = offset + sigil;
     let id_range = id_start..id_start + id::SIGIL.len_utf8() + id_text.len();
     match id {
-        None => {
-            // §6.2.5「行頭（空白のみ先行）→ 構造見出し。`scene_id` としてパース → **E002**」
-            out.push(Diagnostic::simple(DiagnosticCode::E002, Some(id_range)));
+        // §6.2.5（第 2.8 版）: ID としては読めるが階層が足りない（`@01-04`）なら E020。
+        // 作者の次の行動は「形を直す」ではなく「対応するファイルへ移す」なので（A-10）
+        None if depth > 0 => {
+            let args = vec![Arg::text(HEADER_DEPTH_RANGE)];
+            out.push(Diagnostic::new(DiagnosticCode::E020, Some(id_range), args));
         }
-        Some(found) => warn_reserved(found, options, &id_range, out),
+        // それ以外の形の崩れ（数字と `-` でない・5 階層以上）は E002
+        None => out.push(Diagnostic::simple(DiagnosticCode::E002, Some(id_range))),
+        Some(found) => warn_reserved(found, id_text, options, &id_range, out),
     }
     SceneLine {
         raw,
@@ -489,17 +501,22 @@ fn parse_scene_id(text: &str) -> (Option<SceneId>, usize) {
     }
 }
 
-/// 予約番号の見出し（§5.1.2）を **E020** で報告する。
+/// 予約番号の見出し（§5.1.2 の `C = 00` と、拒否設定の `A = 00`）を **E022** で報告する。
 ///
-/// E020 の日本語文言は「このファイルには {0} 階層の見出しだけを書けます」で、**予約番号を
-/// 理由として表現できない**（`PLANS.md` §9.1 A-9）。ここでは C 形式の最少階層を渡す。
-fn warn_reserved(id: SceneId, options: &Options, range: &Range<usize>, out: &mut Vec<Diagnostic>) {
+/// `{0}` は書かれたままの ID（`@` を除く）。第 2.8 版で E020 から分けた（`PLANS.md` §9.1 A-9）。
+fn warn_reserved(
+    id: SceneId,
+    id_text: &str,
+    options: &Options,
+    range: &Range<usize>,
+    out: &mut Vec<Diagnostic>,
+) {
     let scene_zero = id.scene == 0;
     let chapter_zero = id.chapter == 0 && !options.allow_chapter_zero;
     if scene_zero || chapter_zero {
-        let args = vec![Arg::number(HEADER_DEPTH as i64)];
+        let args = vec![Arg::text(id_text)];
         out.push(Diagnostic::new(
-            DiagnosticCode::E020,
+            DiagnosticCode::E022,
             Some(range.clone()),
             args,
         ));

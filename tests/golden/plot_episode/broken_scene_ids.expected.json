@@ -4,12 +4,14 @@
   "tree": {
     "diagnostics": [
       {
-        "code": "E002",
+        "code": "E020",
         "range": [
           0,
           6
         ],
-        "args": []
+        "args": [
+          "3-4"
+        ]
       },
       {
         "code": "E002",

@@ -663,11 +663,12 @@ fn a_malformed_heading_id_is_e002() {
 
 #[test]
 fn chapter_zero_is_rejected_only_when_strict() {
-    // §5.1.2「`A = 00` は `structure.allow_chapter_zero = false` にすると E020 で拒否」
+    // §5.1.2「`A = 00` は `structure.allow_chapter_zero = false` にすると **E022** で拒否」
+    // （第 2.8 版で E020 から分離。`PLANS.md` §9.1 A-9）
     assert_eq!(diags_tag("@00 x\nsummary: s\n;\n"), "");
     assert_eq!(
         diags_with("@00 x\nsummary: s\n;\n", &strict()),
-        "E020@0..3(1)"
+        "E022@0..3(00)"
     );
     // `B = 00`（章あらすじ、§5.1.2）は正当
     assert_eq!(

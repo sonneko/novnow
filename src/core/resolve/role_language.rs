@@ -26,16 +26,17 @@
 //! | ワイルドカード無し（`「です。」`） | 末尾固定（既定） |
 //! | `=` 前置（`「=ほう…」`） | 完全一致（`^…$`） |
 //!
-//! # `^` と `$` が指す範囲（**A-23**）
+//! # `^` と `$` が指す範囲（**A-23**、第 2.8 版）
 //!
-//! **発話全体**（`「」` の内側の文字列）の先頭・末尾。§6.5.2 は「発話テキストを `。！？!?…` の
-//! 直後で分割した単位（＝文）」を照合すると書くが、それだと付録 **B.3 の 1 行目の不一致例**
-//! （`「だよ！って何」`）が一致してしまう（先頭の `だよ！` が 1 つの「文」になるため）。
-//! B.3 は**テストの期待値**と明記された表で、`PLANS.md` §5.4 の M3 完了条件 1 なので
-//! **B.3 を正**とした（A-21 と同じ裁定の流儀）。文単位にすると B.3 の 2 行目
-//! （`「…あの…その…」` の `…あの…`）も一致しなくなる。
-//! **仕様書は第 2.7 版でこの読み方に直した**（経緯は `PLANS.md` §9.1 **A-23**＝解消済み）。
-//! 台詞の途中の文末にも当てたいときは `*よ。*` のように両端をワイルドカードにする（位置自由）。
+//! **文**の先頭・末尾。文は発話（`「」` の内側の文字列）を文末記号 `。！？!?…` の**連続の直後**で
+//! 区切った単位で、[`sentences`] が作る。頭にある文末記号の連続は次の文に含め
+//! （`…あの…その…` → `…あの…` / `その…`。B.3 の 2 行目が成り立つのはこのため）、
+//! 文の前後の空白は含めない（`えっ！　ちょっ…` の 2 文目は `ちょっ…`）。
+//! **`=` 前置の完全一致だけは文に分けず発話全体**を見る（§6.5.2 の表「発話全体が一致」）。
+//! 1 つの台詞の複数の文が一致したら、全部に下線を引く（[`Matcher::find_all`]）。
+//! 経緯: 第 2.7 版は B.3 の 1 行目の不一致例「だよ！って何」に合わせて発話全体としていたが、
+//! ユーザー裁定（2026-10-13）で文単位に戻し、不一致例を「本当だよ！？」に差し替えた
+//! （`PLANS.md` §9.1 **A-23**、細部は §9.2 **B-74**）。
 //!
 //! # 下線（§6.5.4 / 付録 B.4、**A-21**）
 //!
@@ -58,9 +59,9 @@
 //!
 //! # 計算量（§6.5.5）
 //!
-//! 1 台詞あたり（適用パターン数 × 一致候補数）回の正規表現検索。パターンは
-//! [`MatcherSet`] に**事前コンパイル**して [`Cache`] でモードごとに持つ（`RegexSet` で
-//! 「そもそも一致しないパターン」を先に落とすので、10 パターンでも全文を検索しない）。
+//! 1 台詞あたり（適用パターン数 × 文数）回の正規表現検索。パターンは
+//! [`MatcherSet`] に**事前コンパイル**して [`Cache`] でモードごとに持つ（文ごとに `RegexSet` で
+//! 「そもそも一致しないパターン」を先に落とすので、10 パターンでも全部を個別には検索しない）。
 //! 目標は 1 行 10 パターンで **20µs 以内** → **release 実測 0.68µs**（同じ台詞に
 //! 100 パターンを当てても 9.8µs）。計測は `tests/role_language.rs` の
 //! `ten_patterns_on_one_line_stay_fast`（debug では緩い上限にしてある）。
@@ -72,6 +73,7 @@ use regex::{Regex, RegexSet};
 
 use crate::core::model::project::Lexicon;
 use crate::core::model::role_pattern::{Anchor, RolePattern, WILDCARDS};
+use crate::core::text::lexer;
 
 /// §6.5.1 のワイルドカード（`*` / `〜`）の変換結果。**非貪欲**（B.3 の 1 行目
 /// `[^\n]*?だよ！$` が「もう行く」を食い過ぎないのはこのため）。
@@ -94,6 +96,12 @@ pub const CLASS_CLOSE: char = ')';
 
 /// 台詞の括弧（§6.5.3「`「」` / `『』` の内側のみ」）。
 pub const QUOTES: &[(char, char)] = &[('「', '」'), ('『', '』')];
+
+/// §6.5.2 の文末記号（第 2.8 版）。この記号の**連続の直後**で発話を文に区切る（[`sentences`]）。
+///
+/// `‥` と `.` は省略記号のアトム（[`ELLIPSIS_REGEX`]）には入るが、文末記号ではない
+/// （§6.5.2 が挙げるのはこの 6 字だけ）。
+pub const SENTENCE_ENDS: &[char] = &['。', '！', '？', '!', '?', '…'];
 
 /// §6.5.1 の**既定の語クラス**（`project.json.lexicon.word_classes` 未指定時）。
 ///
@@ -262,7 +270,7 @@ pub fn to_regex(pattern: &RolePattern, lexicon: &Lexicon) -> String {
 /// 1 回の一致（§6.5.4）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Hit {
-    /// マッチ全体（キャプチャグループ 0）。
+    /// マッチ全体（キャプチャグループ 0）。位置は**発話**の中の byte（文の中ではない）。
     pub whole: Range<usize>,
     /// **下線を引く範囲**。ワイルドカードが食った部分は除く（A-21）。マージ済み・昇順。
     ///
@@ -318,16 +326,46 @@ impl Matcher {
         &self.plain
     }
 
-    /// 発話 1 件を照合する（§6.5.4）。一致しなければ `None`（**何も返さない**のが MUST）。
+    /// 発話 1 件を照合し、**最初に一致した文**の結果を返す（§6.5.4）。一致しなければ `None`
+    /// （**何も返さない**のが MUST）。全部の文の結果が要るなら [`Matcher::find_all`]。
     ///
     /// `utterance` は `「」` の**内側**（[`dialogue_spans`] で取り出す。§6.5.3 の MUST）。
     pub fn find(&self, utterance: &str) -> Option<Hit> {
-        let captures = self.regex.captures(utterance)?;
-        let whole = captures.get(0)?.range();
+        if self.anchor == Anchor::Exact {
+            return self.find_in(utterance, 0..utterance.len());
+        }
+        sentences(utterance)
+            .into_iter()
+            .find_map(|span| self.find_in(utterance, span))
+    }
+
+    /// 発話 1 件を照合し、**一致した文ごと**の結果を文の順に返す（§6.5.2、第 2.8 版）。
+    ///
+    /// `^` / `$` は文の先頭・末尾を指すので、文ごとに正規表現を当てる。**`=` 前置の完全一致だけは
+    /// 発話全体**に 1 回だけ当てる。位置はどちらも `utterance` の中の byte。
+    pub fn find_all(&self, utterance: &str) -> Vec<Hit> {
+        if self.anchor == Anchor::Exact {
+            return self
+                .find_in(utterance, 0..utterance.len())
+                .into_iter()
+                .collect();
+        }
+        sentences(utterance)
+            .into_iter()
+            .filter_map(|span| self.find_in(utterance, span))
+            .collect()
+    }
+
+    /// `utterance[span]` だけを照合する（`^` / `$` は `span` の両端）。位置は `utterance` の byte。
+    fn find_in(&self, utterance: &str, span: Range<usize>) -> Option<Hit> {
+        let part = utterance.get(span.clone())?;
+        let captures = self.regex.captures(part)?;
+        let shift = |found: Range<usize>| found.start + span.start..found.end + span.start;
+        let whole = shift(captures.get(0)?.range());
         let mut underlines = Vec::new();
         for group in captures.iter().skip(1).flatten() {
             if group.start() < group.end() {
-                underlines.push(group.range());
+                underlines.push(shift(group.range()));
             }
         }
         // 下線が 1 本も無い（`「*」` のようにワイルドカードだけのパターン）ときは
@@ -340,6 +378,52 @@ impl Matcher {
             underlines: union(underlines),
         })
     }
+}
+
+/// 発話を §6.5.2 の**文**に区切る（第 2.8 版、`PLANS.md` §9.1 A-23 / §9.2 B-74）。
+///
+/// - 文末記号（[`SENTENCE_ENDS`]）の**連続の直後**で区切る（`！？` も `……` も 1 つの区切り）。
+/// - 文の頭（発話の頭・区切りの直後）にある文末記号の連続は区切りにせず、**次の文に含める**
+///   （`…あの…その…` → `…あの…` / `その…`）。文末記号だけの発話は 1 文になる。
+/// - 前後の空白（[`lexer::is_space`]）は文に含めない。空白だけ・空の発話は文を返さない。
+///
+/// 返すのは `utterance` の中の byte 範囲（昇順・重なりなし）。
+pub fn sentences(utterance: &str) -> Vec<Range<usize>> {
+    let mut out = Vec::new();
+    // 今の文の始まり（最初の空白でない文字）
+    let mut start: Option<usize> = None;
+    // 今の文の最後の空白でない文字の直後
+    let mut end = 0;
+    // 今の文に文末記号でない文字があるか（頭の文末記号の連続は区切りにしない）
+    let mut content = false;
+    // 文を閉じる文末記号の連続の中にいるか
+    let mut closing = false;
+    for (at, character) in utterance.char_indices() {
+        let next = at + character.len_utf8();
+        if SENTENCE_ENDS.contains(&character) {
+            start.get_or_insert(at);
+            closing |= content;
+            end = next;
+            continue;
+        }
+        if closing {
+            if let Some(begin) = start.take() {
+                out.push(begin..end);
+            }
+            content = false;
+            closing = false;
+        }
+        if lexer::is_space(character) {
+            continue;
+        }
+        start.get_or_insert(at);
+        content = true;
+        end = next;
+    }
+    if let Some(begin) = start {
+        out.push(begin..end);
+    }
+    out
 }
 
 /// 1 キャラ（または 1 モード）の**適用パターン集合**（§6.5.3）。
@@ -380,16 +464,34 @@ impl MatcherSet {
         &self.matchers
     }
 
-    /// 一致したパターン全部（書いた順）。`RegexSet` で候補を絞ってから個別に検索する。
+    /// 一致した結果全部（パターンの書いた順、同じパターンの中は文の順）。
+    ///
+    /// 文ごとに `RegexSet` で候補を絞ってから個別に検索する（§6.5.5）。`=` 前置の完全一致は
+    /// 発話全体に 1 回だけ当てる（[`Matcher::find_all`] と同じ結果）。
     pub fn hits(&self, utterance: &str) -> Vec<Hit> {
-        let candidates: Vec<usize> = match &self.set {
-            Some(set) => set.matches(utterance).iter().collect(),
-            None => (0..self.matchers.len()).collect(),
-        };
-        candidates
-            .into_iter()
-            .filter_map(|index| self.matchers.get(index)?.find(utterance))
-            .collect()
+        let spans = sentences(utterance);
+        // 文ごとの候補（`RegexSet` が作れなかったときは全パターンが候補）
+        let candidates: Vec<Option<regex::SetMatches>> = spans
+            .iter()
+            .map(|span| {
+                let part = utterance.get(span.clone()).unwrap_or_default();
+                self.set.as_ref().map(|set| set.matches(part))
+            })
+            .collect();
+        let mut out = Vec::new();
+        for (index, matcher) in self.matchers.iter().enumerate() {
+            if matcher.anchor == Anchor::Exact {
+                out.extend(matcher.find_in(utterance, 0..utterance.len()));
+                continue;
+            }
+            for (span, found) in spans.iter().zip(&candidates) {
+                let candidate = found.as_ref().is_none_or(|set| set.matched(index));
+                if candidate {
+                    out.extend(matcher.find_in(utterance, span.clone()));
+                }
+            }
+        }
+        out
     }
 
     /// **下線の和集合**（§6.5.4「複数パターンが一致したら、一致範囲の和集合に 1 本の

@@ -581,8 +581,8 @@ fn a_comment_line_inside_a_section_is_content() {
 
 #[test]
 fn a_malformed_scene_id_is_e002() {
-    // §6.2.5「行頭（空白のみ先行）→ 構造見出し。`scene_id` としてパース → **E002**」
-    assert_eq!(diags_tag("@01-04 x"), "E002@0..6");
+    // §6.2.5「行頭（空白のみ先行）→ 構造見出し。`scene_id` としてパース」。形が崩れていれば
+    // **E002**。5 階層以上はどの形式のファイルにも置けないので「階層違い」ではなく形の崩れ
     assert_eq!(diags_tag("@01-04-02-03-05 x"), "E002@0..15");
     assert_eq!(diags_tag("@01--02 x"), "E002@0..7");
     assert_eq!(diags_tag("@01-04-xx x"), "E002@0..9");
@@ -599,16 +599,26 @@ fn a_broken_header_still_makes_sections() {
         sections_tag(text),
         "D1|s-|h0|1..2|c1..2 / D2|s-|h0|3..5|c3..4"
     );
-    assert_eq!(diags_tag(text), "E002@0..6");
+    assert_eq!(diags_tag(text), "E020@0..6(3-4)");
 }
 
 #[test]
-fn a_reserved_scene_zero_is_e020() {
-    // §5.1.2「`C = 00` は予約（未使用）。v1 では書いてはならない（**E020**）」
-    assert_eq!(diags_tag("@01-04-00 x"), "E020@0..9(3)");
+fn a_shallow_scene_id_is_e020() {
+    // §6.2.5（第 2.8 版、`PLANS.md` §9.1 A-10）: ID としては読めるが階層が足りない見出しは
+    // E020（「対応ファイルへ移動」）。C 形式は 3〜4 階層なので `{0}` は範囲 `3-4`
+    assert_eq!(diags_tag("@01-04 x"), "E020@0..6(3-4)");
+    assert_eq!(diags_tag("@01 x"), "E020@0..3(3-4)");
+    assert_eq!(contents::HEADER_DEPTH_RANGE, "3-4");
+}
+
+#[test]
+fn a_reserved_scene_zero_is_e022() {
+    // §5.1.2「`C = 00` は予約（未使用）。v1 では書いてはならない（**E022**）」（第 2.8 版で
+    // E020 から分離。`PLANS.md` §9.1 A-9）。`{0}` は書かれたままの ID
+    assert_eq!(diags_tag("@01-04-00 x"), "E022@0..9(01-04-00)");
     // `A = 00` は既定では正当（§5.1.2「パースを拒否しない」MUST）
     assert_eq!(diags_tag("@00-01-02 x"), "");
-    assert_eq!(diags_with("@00-01-02 x", &strict()), "E020@0..9(3)");
+    assert_eq!(diags_with("@00-01-02 x", &strict()), "E022@0..9(00-01-02)");
     // `B = 00`（章あらすじ）は C 形式でも番号としては正当
     assert_eq!(diags_tag("@01-00-02 x"), "");
     assert_eq!(diags_with("@01-00-02 x", &strict()), "");
@@ -622,10 +632,13 @@ fn diagnostics_are_ordered_by_line() {
     let parsed = contents::parse(text);
     // 行の診断が先（行の順）、空の節の W012 が後（節の順）
     let found: Vec<&str> = parsed.diagnostics.iter().map(|d| d.code.as_str()).collect();
-    assert_eq!(found, ["E002", "W002", "W012"]);
+    assert_eq!(found, ["E020", "W002", "W012"]);
     // 位置は text の中の byte range。W012 は節を閉じた 2 つ目の `;` を指す（B-35）。
     // 3 つ目の節は開かない（末尾に本文が無いので W012 も増えない、B-35）
-    assert_eq!(diags_tag(text), "E002@0..6 / W002@16..17 / W012@24..25");
+    assert_eq!(
+        diags_tag(text),
+        "E020@0..6(3-4) / W002@16..17 / W012@24..25"
+    );
 }
 
 // ============================================================ round-trip

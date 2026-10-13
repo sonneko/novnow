@@ -14,7 +14,7 @@
 //! どの表に載っているか・文書位置の有無・既定の有効/無効・実行コスト表を突き合わせる。
 //! 表を変えるときは **先に仕様書**を直すこと（`PLANS.md` §6.3 の「仕様書 → ゴールデン → 実装」）。
 //!
-//! 仕様書に明記の無い属性の決め方は `PLANS.md` §9.2 B-26、仕様側の要補正点は §9.1 A-7・A-8。
+//! 仕様書に明記の無い属性の決め方は `PLANS.md` §9.2 B-26。
 
 use serde::Serialize;
 use std::ops::Range;
@@ -39,9 +39,8 @@ pub enum Group {
     Core,
     /// §7.1 ストレージ・移行・エージェント系。**文書位置を持たない通知**。
     Storage,
-    /// §7.2 執筆支援系（v1 追加仕様）。原則 W / I だが、カスタムロールと接続のエラー
-    /// （E032〜E036・E064）を含む。§7.2 の冒頭文「すべて W または I」と食い違うので
-    /// 仕様側の要補正点として `PLANS.md` §9.1 A-8 に記録した。
+    /// §7.2 執筆支援系（v1 追加仕様）。文章の良し悪しを言うものは W / I で、設定・接続・
+    /// 権限の誤り（E032〜E036・E064）だけが E（§7.2 の冒頭文、第 2.8 版。`PLANS.md` §9.1 A-8）。
     Writing,
 }
 
@@ -95,7 +94,7 @@ pub enum Scope {
     Session,
 }
 
-/// 診断コード（§7 / §7.1 / §7.2 の全 78 件）。
+/// 診断コード（§7 / §7.1 / §7.2 の全 79 件）。
 ///
 /// **variant 名はコード文字列そのもの**（`E001` → `"E001"`）。i18n のキーは
 /// `diag.` を前に付けた形（`diag.E001`、§12.3「キー命名」）で、core は文言を持たない。
@@ -134,11 +133,13 @@ pub enum DiagnosticCode {
     E020,
     /// `words.md` に `definition` 無し（§7）
     E021,
+    /// 予約番号の見出し（§5.1.2）（§7）
+    E022,
     /// `materials` 外を指す `path`（§7）
     E024,
     /// JSON ファイルがパースできない（§4.3-4）（§7）
     E025,
-    /// 用語に修飾子（§7）
+    /// 修飾子を付けられない参照に修飾子（§6.1.1）（§7）
     E026,
     /// 辞書キーが 96 バイト超（§7）
     E028,
@@ -284,6 +285,7 @@ impl DiagnosticCode {
             Self::E018 => "E018",
             Self::E020 => "E020",
             Self::E021 => "E021",
+            Self::E022 => "E022",
             Self::E024 => "E024",
             Self::E025 => "E025",
             Self::E026 => "E026",
@@ -456,7 +458,7 @@ pub type CatalogRow = (DiagnosticCode, u8);
 ///
 /// 引数の数は §7 の **ja 文言**の `{0}` 形式プレースホルダの**最大添字 + 1**。
 /// en 文言のプレースホルダは全件で ja と一致することを `tests/diagnostics_catalog.rs`
-/// が仕様書を読み直して確認している。E004 だけは `{0}` を使わない（§9.1 A-7）。
+/// が仕様書を読み直して確認している。
 pub const CATALOG: &[CatalogRow] = &[
     (DiagnosticCode::E001, 1),
     (DiagnosticCode::E002, 0),
@@ -473,6 +475,7 @@ pub const CATALOG: &[CatalogRow] = &[
     (DiagnosticCode::E018, 0),
     (DiagnosticCode::E020, 1),
     (DiagnosticCode::E021, 0),
+    (DiagnosticCode::E022, 1),
     (DiagnosticCode::E024, 0),
     (DiagnosticCode::E025, 1),
     (DiagnosticCode::E026, 0),

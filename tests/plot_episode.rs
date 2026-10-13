@@ -659,23 +659,24 @@ fn an_unparsable_id_is_e002() {
     assert_eq!(sections_tag(BROKEN_ID, 0), "s0|n1|1..2|c1..2|b2|f-|p1");
 }
 
-/// B 形式の見出しは 3〜4 階層（§5.4.1 `scene_header`）。2 階層は E002（C 形式と同じ）。
+/// B 形式の見出しは 3〜4 階層（§5.4.1 `scene_header`）。2 階層は E020（C 形式と同じ。
+/// 第 2.8 版で E002 から変更、`PLANS.md` §9.1 A-10）。
 #[test]
-fn a_two_level_id_is_e002_because_b_needs_three_levels() {
-    assert_eq!(diags_tag(SHALLOW_ID), "E002@0..6");
+fn a_two_level_id_is_e020_because_b_needs_three_levels() {
+    assert_eq!(diags_tag(SHALLOW_ID), "E020@0..6(3-4)");
     assert_eq!(scenes_tag(SHALLOW_ID), "S0|h0|id-|d2|0..3|f-");
 }
 
 #[test]
-fn a_reserved_scene_number_is_e020() {
-    assert_eq!(diags_tag(RESERVED), "E020@0..9(3)");
+fn a_reserved_scene_number_is_e022() {
+    assert_eq!(diags_tag(RESERVED), "E022@0..9(01-04-00)");
     assert_eq!(scenes_tag(RESERVED), "S0|h0|id1-4-0-0|d3|0..3|f-");
 }
 
 #[test]
 fn chapter_zero_follows_the_project_setting() {
     assert_eq!(diags_tag(CHAPTER_ZERO), "");
-    assert_eq!(diags_with(CHAPTER_ZERO, &strict()), "E020@0..9(3)");
+    assert_eq!(diags_with(CHAPTER_ZERO, &strict()), "E022@0..9(00-01-02)");
 }
 
 #[test]

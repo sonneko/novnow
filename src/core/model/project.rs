@@ -168,7 +168,7 @@ pub struct Structure {
     pub section_digits: u8,
     /// `00` 章（ストック）を許すか（§5.1.2・追加仕様 22）。
     ///
-    /// `false` のとき 0 章を指す見出しは **E020**（`syntax` の `Options::allow_chapter_zero`）。
+    /// `false` のとき 0 章を指す見出しは **E022**（`syntax` の `Options::allow_chapter_zero`）。
     pub allow_chapter_zero: bool,
     /// §4.5 に無いキー。
     #[serde(flatten)]
