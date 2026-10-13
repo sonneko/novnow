@@ -771,7 +771,7 @@ pub fn document(document: &Document, project: &Project) -> Vec<Diagnostic> {
             out.extend(parsed.diagnostics.iter().cloned());
             reference_diagnostics(document, project, true, &mut out);
             contents_speakers(document, project, &parsed, &mut out);
-            let scenes = contents_scenes(&parsed);
+            let scenes = project::contents_scenes(&parsed);
             ref_modes(document, project, &scenes, &mut out);
             word_ranges(document, project, &scenes, &mut out);
         }
@@ -781,7 +781,7 @@ pub fn document(document: &Document, project: &Project) -> Vec<Diagnostic> {
             reference_diagnostics(document, project, false, &mut out);
             episode_modes(document, project, &parsed, &mut out);
             section_counts(document, project, &parsed, &mut out);
-            let scenes = episode_scenes(&parsed);
+            let scenes = project::episode_scenes(&parsed);
             ref_modes(document, project, &scenes, &mut out);
             word_ranges(document, project, &scenes, &mut out);
         }
@@ -889,7 +889,7 @@ fn contents_speakers(
 ) {
     let characters = project.characters();
     let starts = project::line_starts_of(&document.text);
-    let scenes = contents_scenes(parsed);
+    let scenes = project::contents_scenes(parsed);
     for (index, line) in parsed.lines.iter().enumerate() {
         let contents::Line::Text(text) = line else {
             continue;
@@ -1266,54 +1266,9 @@ fn material_heading(document: &Document, project: &Project, out: &mut Vec<Diagno
     ));
 }
 
-/// 行ごとの節（C 形式）。見出しより前・ID の壊れた見出しの下は `None`。
-fn contents_scenes(parsed: &contents::Contents<'_>) -> Vec<Option<SceneId>> {
-    let mut out = vec![None; parsed.lines.len()];
-    for section in &parsed.sections {
-        let Some(scene) = section.scene else {
-            continue;
-        };
-        for line in section.span.clone() {
-            if let Some(slot) = out.get_mut(line) {
-                *slot = Some(SceneId {
-                    section: section.number,
-                    ..scene
-                });
-            }
-        }
-    }
-    out
-}
-
-/// 行ごとの節（B 形式）。場面レベルの行（見出し直下のフィールド）は節 0。
-fn episode_scenes(parsed: &plot_episode::EpisodePlot<'_>) -> Vec<Option<SceneId>> {
-    let mut out = vec![None; parsed.lines.len()];
-    for scene in &parsed.scenes {
-        let Some(id) = scene.id else {
-            continue;
-        };
-        for line in scene.span.clone() {
-            if let Some(slot) = out.get_mut(line) {
-                *slot = Some(id);
-            }
-        }
-        for section in &scene.sections {
-            for line in section.span.clone() {
-                if let Some(slot) = out.get_mut(line) {
-                    *slot = Some(SceneId {
-                        section: section.number,
-                        ..id
-                    });
-                }
-            }
-        }
-    }
-    out
-}
-
 /// 本文の (節, 話者のキャラの添字)。
 fn speakers_by_section(project: &Project, body: &contents::Contents<'_>) -> Vec<(SceneId, usize)> {
-    let scenes = contents_scenes(body);
+    let scenes = project::contents_scenes(body);
     let mut out = Vec::new();
     for (index, line) in body.lines.iter().enumerate() {
         let contents::Line::Text(text) = line else {

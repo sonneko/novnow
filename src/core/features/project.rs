@@ -29,10 +29,13 @@ use std::collections::BTreeMap;
 use std::ops::Range;
 
 use crate::core::diagnostics::Diagnostic;
+use crate::core::features::Location;
 use crate::core::id::{Digits, SceneId};
 use crate::core::model::document::{Document, DocumentFormat};
 use crate::core::model::project::Project as Settings;
-use crate::core::resolve::dictionary::{self, Dictionary, EntryId, RefToken, SourceFile};
+use crate::core::resolve::dictionary::{
+    self, Dictionary, EntryId, EntryKind, RefToken, SourceFile, Target,
+};
 use crate::core::syntax::{
     characters_md, contents, materials_index, plot_episode, plot_outline, words_md,
 };
@@ -310,40 +313,147 @@ impl Project {
 
     /// C 形式・B 形式の文書の `line` 行目が属する節（§5.2.2 / §5.4.1）。
     ///
-    /// 見出しより前の行や、ID が壊れた見出しの下の行は `None`。
+    /// 見出しより前の行や、ID が壊れた見出しの下の行は `None`。B 形式の場面レベルの行
+    /// （見出し直下のフィールド）は節 0。
     pub fn scene_at(&self, document: &Document, line: usize) -> Option<SceneId> {
+        self.scenes_by_line(document).get(line).copied().flatten()
+    }
+
+    /// 行ごとの節（[`Project::scene_at`] を全行ぶん）。C 形式・B 形式以外は空。
+    pub fn scenes_by_line(&self, document: &Document) -> Vec<Option<SceneId>> {
         match document.format {
-            DocumentFormat::Contents => {
-                let parsed = contents::parse_with(&document.text, &self.contents_options());
-                let section = parsed
-                    .sections
-                    .iter()
-                    .find(|found| found.span.contains(&line))?;
-                let scene = section.scene?;
-                Some(SceneId {
-                    section: section.number,
-                    ..scene
-                })
-            }
-            DocumentFormat::PlotEpisode => {
-                let parsed = plot_episode::parse_with(&document.text, &self.contents_options());
-                let scene = parsed
-                    .scenes
-                    .iter()
-                    .find(|found| found.span.contains(&line))?;
-                let id = scene.id?;
-                let number = scene
-                    .sections
-                    .iter()
-                    .find(|found| found.span.contains(&line))
-                    .map_or(id.section, |found| found.number);
-                Some(SceneId {
-                    section: number,
-                    ..id
-                })
-            }
-            _ => None,
+            DocumentFormat::Contents => contents_scenes(&contents::parse_with(
+                &document.text,
+                &self.contents_options(),
+            )),
+            DocumentFormat::PlotEpisode => episode_scenes(&plot_episode::parse_with(
+                &document.text,
+                &self.contents_options(),
+            )),
+            _ => Vec::new(),
         }
+    }
+
+    /// `pos` にある参照（`'` トークンか話者注釈）。トークンの直後（`pos == end`）も含める
+    /// （打鍵した直後のカーソル位置でホバー・定義ジャンプができるように）。
+    pub fn site_at(&self, document: &Document, pos: usize) -> Option<SiteAt> {
+        let line = line_of(&document.text, pos);
+        if let Some(found) = self
+            .ref_sites(document)
+            .into_iter()
+            .filter(|site| site.line == line)
+            .find(|site| {
+                let range = site.range();
+                range.start <= pos && pos <= range.end
+            })
+        {
+            return Some(SiteAt::Ref(found));
+        }
+        self.speaker_sites(document)
+            .into_iter()
+            .filter(|site| site.line == line)
+            .find(|site| site.sigil <= pos && pos <= site.end())
+            .map(SiteAt::Speaker)
+    }
+
+    /// 参照の解決先（辞書のエントリの `Target`）。
+    pub fn target_of(&self, site: &SiteAt) -> Option<&Target> {
+        let id = match site {
+            SiteAt::Ref(found) => found.entry()?,
+            SiteAt::Speaker(found) => found.entry?,
+        };
+        self.dictionary.entry(id).map(|entry| &entry.target)
+    }
+
+    /// 解決先の定義の位置（§3.4 `definition`）。キャラと用語は H1 の名前、資料は資料 MD が
+    /// プロジェクトにあればその 1 行目、無ければ `materials/index.json` の ID。
+    pub fn definition_of(&self, target: &Target) -> Option<Location> {
+        match target {
+            Target::Character { index, .. } => {
+                let tree = self.characters();
+                let found = tree.characters.get(*index)?;
+                let path = SourceFile::Characters.path();
+                let start = line_starts_of(self.text(path))
+                    .get(found.heading)
+                    .copied()?;
+                let at = start + found.name_at;
+                Some(Location {
+                    path: path.to_string(),
+                    range: at..at + found.name.len(),
+                })
+            }
+            Target::Word { index, .. } => {
+                let tree = self.words();
+                let found = tree.words.get(*index)?;
+                let path = SourceFile::Words.path();
+                let start = line_starts_of(self.text(path))
+                    .get(found.heading)
+                    .copied()?;
+                let at = start + found.term_at;
+                Some(Location {
+                    path: path.to_string(),
+                    range: at..at + found.term.len(),
+                })
+            }
+            Target::Material { id } => {
+                let index = self.materials();
+                let material = index
+                    .index
+                    .as_ref()?
+                    .items
+                    .iter()
+                    .find(|item| item.id == *id)?;
+                let path = material.path.trim_start_matches("./");
+                if let Some(found) = self.files.get(path) {
+                    let end = found.text.find('\n').unwrap_or(found.text.len());
+                    return Some(Location {
+                        path: path.to_string(),
+                        range: 0..end,
+                    });
+                }
+                let entry = self.dictionary.entries().iter().find(|entry| {
+                    entry.kind == EntryKind::Material
+                        && matches!(&entry.target, Target::Material { id: found } if found == id)
+                })?;
+                Some(Location {
+                    path: SourceFile::MaterialsIndex.path().to_string(),
+                    range: entry.origin.range.clone()?,
+                })
+            }
+        }
+    }
+
+    /// プロジェクト全体で `target` を指している参照（`'` トークンと話者注釈）。パス → 位置の順。
+    pub fn references_to(&self, target: &Target) -> Vec<Location> {
+        let mut out = Vec::new();
+        for document in self.files.values() {
+            for site in self.ref_sites(document) {
+                let Some(found) = site.entry().and_then(|id| self.dictionary.entry(id)) else {
+                    continue;
+                };
+                if same_target(&found.target, target) {
+                    out.push(Location {
+                        path: document.path.clone(),
+                        range: site.range(),
+                    });
+                }
+            }
+            for site in self.speaker_sites(document) {
+                let Some(found) = site.entry.and_then(|id| self.dictionary.entry(id)) else {
+                    continue;
+                };
+                if same_target(&found.target, target) {
+                    out.push(Location {
+                        path: document.path.clone(),
+                        range: site.sigil..site.end(),
+                    });
+                }
+            }
+        }
+        out.sort_by(|left, right| {
+            (left.path.as_str(), left.range.start).cmp(&(right.path.as_str(), right.range.start))
+        });
+        out
     }
 
     fn rebuild_dictionary(&mut self) {
@@ -412,6 +522,98 @@ pub struct SpeakerSite {
     pub modes: Vec<(String, Range<usize>)>,
     /// 解決できた `Character` エントリ（完全一致、B-61）。
     pub entry: Option<EntryId>,
+}
+
+/// 行ごとの節（C 形式）。見出しより前・ID の壊れた見出しの下は `None`。
+pub fn contents_scenes(parsed: &contents::Contents<'_>) -> Vec<Option<SceneId>> {
+    let mut out = vec![None; parsed.lines.len()];
+    for section in &parsed.sections {
+        let Some(scene) = section.scene else {
+            continue;
+        };
+        for line in section.span.clone() {
+            if let Some(slot) = out.get_mut(line) {
+                *slot = Some(SceneId {
+                    section: section.number,
+                    ..scene
+                });
+            }
+        }
+    }
+    out
+}
+
+/// 行ごとの節（B 形式）。場面レベルの行（見出し直下のフィールド）は節 0。
+pub fn episode_scenes(parsed: &plot_episode::EpisodePlot<'_>) -> Vec<Option<SceneId>> {
+    let mut out = vec![None; parsed.lines.len()];
+    for scene in &parsed.scenes {
+        let Some(id) = scene.id else {
+            continue;
+        };
+        for line in scene.span.clone() {
+            if let Some(slot) = out.get_mut(line) {
+                *slot = Some(id);
+            }
+        }
+        for section in &scene.sections {
+            for line in section.span.clone() {
+                if let Some(slot) = out.get_mut(line) {
+                    *slot = Some(SceneId {
+                        section: section.number,
+                        ..id
+                    });
+                }
+            }
+        }
+    }
+    out
+}
+
+/// [`Project::site_at`] の結果。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SiteAt {
+    /// `'` 参照。
+    Ref(RefSite),
+    /// 話者注釈。
+    Speaker(SpeakerSite),
+}
+
+impl SiteAt {
+    /// 参照全体の範囲（ファイル単位）。
+    pub fn range(&self) -> Range<usize> {
+        match self {
+            Self::Ref(found) => found.range(),
+            Self::Speaker(found) => found.sigil..found.end(),
+        }
+    }
+}
+
+impl SpeakerSite {
+    /// 注釈の終わり（モード式があればその後ろ）。
+    pub fn end(&self) -> usize {
+        self.modes
+            .last()
+            .map_or(self.name_range.end, |(_, range)| range.end)
+    }
+}
+
+/// 同じ実体か（キャラと用語は添字、資料は ID で比べる）。
+pub fn same_target(left: &Target, right: &Target) -> bool {
+    match (left, right) {
+        (Target::Character { index: a, .. }, Target::Character { index: b, .. }) => a == b,
+        (Target::Word { index: a, .. }, Target::Word { index: b, .. }) => a == b,
+        (Target::Material { id: a }, Target::Material { id: b }) => a == b,
+        _ => false,
+    }
+}
+
+/// `pos` を含む行の番号。
+pub fn line_of(text: &str, pos: usize) -> usize {
+    let end = pos.min(text.len());
+    text.as_bytes()[..end]
+        .iter()
+        .filter(|&&byte| byte == b'\n')
+        .count()
 }
 
 /// 辞書の供給元（§6.1.1 の 3 ファイル）か。
