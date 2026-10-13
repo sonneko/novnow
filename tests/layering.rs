@@ -5,9 +5,13 @@
 //! 1. 禁止依存（§3.2）— UI / I/O / 非同期 / 時刻・乱数、および許可リストに無いクレート
 //! 2. ユーザー向け文言（§12.2）— 日本語の文字列リテラル
 //!
-//! 加えて末尾の 2 テストが **`Cargo.toml` の feature gate**（`PLANS.md` §9.2 B-54）を見る:
-//! GUI のクレート（egui / eframe / rfd / fontdb / toml）が `optional = true` で `ui` feature の
-//! 後ろにあり、既定のビルド（＝ CI の fmt / clippy / test / wasm）がそれらをコンパイルしないこと。
+//! 加えて **`Cargo.toml` の feature gate**（`PLANS.md` §9.2 B-54・B-100）を見る: GUI のクレート
+//! （egui / eframe / rfd / fontdb）が `optional = true` で `ui` feature の後ろにあり、既定のビルド
+//! （＝ CI の fmt / clippy / test / wasm）がそれらをコンパイルしないこと。`ui` 層のうち文言カタログ
+//! `ui::i18n` だけは CLI も使うので常にビルドし、GUI のクレートを使わないこと（M6）。
+//!
+//! §12.2 の日本語リテラル検査は `src/core/**` に加えて、M6 から **`src/cli/**`・`src/main.rs`・
+//! `src/ui/i18n/**`** も対象にする（CLI のメッセージも同じカタログを使う、§12.2）。
 //!
 //! テキスト走査ではなく AST を使うので、コメント・文字列リテラル・char リテラルを字句として
 //! 正しく区別できる。`'"'` のような char リテラルや `r#"..."#` の埋め込みデータによって
@@ -793,8 +797,12 @@ const LIB_RS: &str = include_str!("../src/lib.rs");
 /// `src/adapters/mod.rs`（アダプタの宣言の正本）。
 const ADAPTERS_MOD_RS: &str = include_str!("../src/adapters/mod.rs");
 
-/// GUI（§3.3 の `ui` 層）に要るクレート。`PLANS.md` §2.1 の表で層が ui の 5 つ。
-const UI_CRATES: &[&str] = &["eframe", "egui", "rfd", "fontdb", "toml"];
+/// GUI（§3.3 の `ui` 層の egui 部分）に要るクレート。`PLANS.md` §2.1 の表で層が ui のもの
+/// （`toml` は M6 から CLI も使う文言カタログのために通常の依存になった。B-100）。
+const UI_CRATES: &[&str] = &["eframe", "egui", "rfd", "fontdb"];
+
+/// `src/ui/mod.rs`（`ui` 層の宣言の正本）。
+const UI_MOD_RS: &str = include_str!("../src/ui/mod.rs");
 
 #[test]
 fn the_ui_crates_are_optional_and_behind_the_ui_feature() {
@@ -837,16 +845,138 @@ fn the_ui_crates_are_optional_and_behind_the_ui_feature() {
 }
 
 #[test]
-fn the_ui_layer_is_compiled_only_with_the_ui_feature() {
-    // `pub mod ui;` と `pub mod dialog_rfd;` が cfg で守られているか。守られていないと、
-    // M7 で `src/ui/**` が egui を使い始めた瞬間に**既定のビルド（CI の 4 ジョブ）が落ちる**
+fn the_gui_is_compiled_only_with_the_ui_feature() {
+    // GUI のモジュールと `pub mod dialog_rfd;` が cfg で守られているか。守られていないと、
+    // M7 で `src/ui/**` が egui を使い始めた瞬間に**既定のビルド（CI の 4 ジョブ）が落ちる**。
+    // 文言カタログ `ui::i18n` だけは CLI も使うので守らない（B-100）
     assert!(
-        LIB_RS.contains("#[cfg(feature = \"ui\")]\npub mod ui;"),
-        "src/lib.rs の `pub mod ui;` に `#[cfg(feature = \"ui\")]` が付いていない"
+        LIB_RS.contains("\npub mod ui;")
+            && !LIB_RS.contains("#[cfg(feature = \"ui\")]\npub mod ui;"),
+        "src/lib.rs の `pub mod ui;` は cfg なしで宣言する（中の GUI だけを src/ui/mod.rs で守る）"
+    );
+    let file = syn::parse_file(UI_MOD_RS).expect("src/ui/mod.rs がパースできない");
+    let mut names = Vec::new();
+    for item in &file.items {
+        let syn::Item::Mod(module) = item else {
+            continue;
+        };
+        let name = module.ident.to_string();
+        let gated = module.attrs.iter().any(|attr| {
+            attr.path().is_ident("cfg")
+                && match attr.parse_args::<Meta>() {
+                    Ok(Meta::NameValue(pair)) => {
+                        pair.path.is_ident("feature")
+                            && matches!(&pair.value, Expr::Lit(syn::ExprLit { lit: Lit::Str(text), .. }) if text.value() == "ui")
+                    }
+                    _ => false,
+                }
+        });
+        if name == "i18n" {
+            assert!(
+                module.attrs.iter().all(|attr| !attr.path().is_ident("cfg")),
+                "ui::i18n は常にビルドする（CLI が使う）"
+            );
+        } else {
+            assert!(
+                gated,
+                "src/ui/mod.rs の `pub mod {name};` に `#[cfg(feature = \"ui\")]` が付いていない"
+            );
+        }
+        names.push(name);
+    }
+    assert!(
+        names.contains(&"i18n".to_owned()),
+        "ui::i18n が無い: {names:?}"
+    );
+    assert!(
+        names.len() > 1,
+        "GUI のモジュールが見つからない（検査が空振り）: {names:?}"
     );
     assert!(
         ADAPTERS_MOD_RS.contains("#[cfg(feature = \"ui\")]\npub mod dialog_rfd;"),
         "src/adapters/mod.rs の `pub mod dialog_rfd;` に `#[cfg(feature = \"ui\")]` が付いていない"
+    );
+}
+
+/// パスと `use` の先頭のクレート名を集める（GUI のクレートを使っていないかの検査用）。
+#[derive(Default)]
+struct CrateRoots {
+    roots: Vec<String>,
+}
+
+impl<'ast> Visit<'ast> for CrateRoots {
+    fn visit_path(&mut self, node: &'ast syn::Path) {
+        if let Some(first) = node.segments.first() {
+            self.roots.push(first.ident.to_string());
+        }
+        visit::visit_path(self, node);
+    }
+
+    fn visit_item_use(&mut self, node: &'ast ItemUse) {
+        let mut tree = &node.tree;
+        loop {
+            match tree {
+                UseTree::Path(path) if path.ident == "crate" || path.ident == "self" => {
+                    tree = &path.tree;
+                }
+                UseTree::Path(path) => {
+                    self.roots.push(path.ident.to_string());
+                    break;
+                }
+                UseTree::Name(name) => {
+                    self.roots.push(name.ident.to_string());
+                    break;
+                }
+                _ => break,
+            }
+        }
+        visit::visit_item_use(self, node);
+    }
+}
+
+#[test]
+fn the_message_catalog_does_not_use_the_gui_crates() {
+    // `ui::i18n` は `ui` feature なしでビルドするので、egui などを使うと既定のビルドが落ちる
+    let mut files = Vec::new();
+    collect_rs(Path::new("src/ui/i18n"), &mut files);
+    assert!(!files.is_empty(), "src/ui/i18n に .rs が無い");
+    for file in files {
+        let source = read_core(&file);
+        let parsed = syn::parse_file(&source).expect("parse");
+        let mut roots = CrateRoots::default();
+        roots.visit_file(&parsed);
+        let used: Vec<&String> = roots
+            .roots
+            .iter()
+            .filter(|root| UI_CRATES.contains(&root.as_str()))
+            .collect();
+        assert!(
+            used.is_empty(),
+            "{} が GUI のクレートを使っている: {used:?}",
+            file.display()
+        );
+    }
+}
+
+/// §12.2: CLI（`src/cli/**`・`src/main.rs`）と文言カタログ（`src/ui/i18n/**`）にも
+/// ユーザー向け文言（日本語の文字列リテラル）を書かない（CLI も同じカタログを使う）。
+#[test]
+fn cli_has_no_user_facing_text() {
+    let mut files = vec![PathBuf::from("src/main.rs")];
+    collect_rs(Path::new("src/cli"), &mut files);
+    collect_rs(Path::new("src/ui/i18n"), &mut files);
+    assert!(files.len() > 5, "src/cli の .rs が少なすぎる: {files:?}");
+    let mut found = Vec::new();
+    for file in &files {
+        let source = read_core(file);
+        let (_, text) = scan_or_panic(&file.display().to_string(), &source);
+        found.extend(text);
+    }
+    assert!(
+        found.is_empty(),
+        "SPECIFICATIONS.md §12.2 違反（CLI の文言はカタログに置く）が {} 件:\n{}",
+        found.len(),
+        bullets(&found)
     );
 }
 

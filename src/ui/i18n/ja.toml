@@ -5,8 +5,8 @@
 # - `[diag]` は §7 / §7.1 / §7.2 の表の ja 文言の**写し**（正本は仕様書）。
 #   `tests/i18n_catalog.rs` が仕様書と en.toml を読み直して、キー集合・プレースホルダ・文言の
 #   一致を検査する（§12.3 の CI チェック MUST）。文言を変えるときは**先に仕様書の表**を直すこと。
-# - M4 では診断（`diag.*`）だけを置く。ステータスバー・パレット・CLI の文言は M6〜M7 で足す
-#   （PLANS.md §3 I6）。
+# - M4 で診断（`diag.*`）、M6 で CLI（`cli.*`、§14）を置いた。ステータスバー・パレットの文言は M7 で足す
+#   （PLANS.md §3 I6）。`cli.*` のうち §12.7 の表にあるものは表の写し（tests/i18n_catalog.rs が照合する）。
 
 [diag]
 E001 = "辞書にない参照です: {0}"
@@ -89,3 +89,65 @@ I055 = "未分類ストックに {0} 件あります"
 I056 = "未登録のカスタムロールがあります: {0}"
 I057 = "agents/mcp.json にローカル LLM を登録しました"
 I058 = "検索結果を {0} として保存しました"
+
+# ============================================================ CLI（§14、M6）
+#
+# - 1 行目は「novnow: 」に続く（§14.2.2）。en は小文字で始める（§14.2.3）。
+# - §14.2.2 / §14.2.3 / §14.2.4 の出力例は tests/cli.rs が仕様書と一字一句突き合わせる。
+# - `novnow` `new` `check` などのコマンド名・`schema_version` などのキーは翻訳しない（§12.6）。
+
+[cli.error]
+incomplete = "このディレクトリは novnow プロジェクトではありません"
+missing_items = "不足しているもの"
+not_found = "ディレクトリが見つかりません"
+not_a_directory = "ディレクトリではありません"
+unreadable = "読み込めませんでした: {0}"
+legacy_v0 = "このプロジェクトは v0 形式です（{0} を検出）"
+legacy_schema = "このプロジェクトは v0 形式です（project.json の schema_version が無いか 0 です）"
+too_new = "このプロジェクトは新しい版の novnow で作られています（schema_version {0}）"
+encoding = "UTF-8 として読めないファイルがあります"
+unknown_option = "不明なオプションです: {0}"
+unexpected_argument = "余分な引数です: {0}"
+missing_dir = "novnow {0} にはディレクトリを指定してください"
+not_implemented = "novnow {0} はまだ実装されていません"
+no_gui = "この novnow には GUI が含まれていません"
+write_failed = "書き込めませんでした: {0}"
+
+[cli.label]
+target = "対象"
+created = "作成したファイル"
+kept = "上書きしなかったファイル"
+invalid_utf8 = "UTF-8 として読めないファイル"
+
+[cli.hint]
+structure_doc = "プロジェクト構造"
+create_here = "このディレクトリに新規作成する場合"
+migrate = "移行してください"
+update = "novnow を新しい版に更新してください"
+help = "使い方"
+open = "開く"
+check = "検査する"
+
+[cli.new]
+created = "新しいプロジェクトを作りました"
+completed = "足りないファイルを作りました（既存のファイルは上書きしていません）"
+nothing = "作るファイルはありませんでした（すべて揃っています）"
+
+[cli.check]
+summary = "{0} 個の文書を検査しました（エラー {1}・警告 {2}・情報 {3}）"
+
+[cli.usage]
+tagline = "決定論的アルゴリズムによる小説執筆 IDE"
+heading = "使い方"
+open = "既存のプロジェクトを開く"
+new = "新しいプロジェクトを作る（dir の既定は \".\"）"
+check = "検査だけを行い、診断を出して終了する（CI 用）"
+export = "アノテーションを除いて書き出す"
+migrate = "v0 のプロジェクトを v1 に移行する"
+mcp = "MCP サーバとして起動する"
+gui = "引数があっても GUI で起動する"
+help = "この使い方を表示する"
+version = "版を表示する"
+new_dir = "new という名前のディレクトリを開くときは novnow ./new と書いてください。"
+no_args = "端末から引数なしで起動したときは、GUI を出さずにこの使い方を表示します（GUI は novnow --gui）。"
+exit_codes = "終了コード: 0 正常 / 2 使い方の誤り / 3 プロジェクトの不備・v0 形式・新しすぎる版 / 4 読み書きの失敗 / 5 check がエラーを検出"

@@ -7,4 +7,5 @@ pub mod model;
 pub mod policy;
 pub mod resolve;
 pub mod syntax;
+pub mod template;
 pub mod text;

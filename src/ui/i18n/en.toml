@@ -5,8 +5,9 @@
 # - `[diag]` is a **copy** of the en column of the §7 / §7.1 / §7.2 tables (the spec is the source).
 #   `tests/i18n_catalog.rs` re-reads the spec and ja.toml and checks that keys, placeholders and
 #   messages agree (the CI check required by §12.3). Change the spec table **first**.
-# - M4 ships only the diagnostics (`diag.*`). Status bar, palette and CLI messages come in M6–M7
-#   (PLANS.md §3 I6).
+# - M4 added the diagnostics (`diag.*`), M6 the CLI (`cli.*`, §14). Status bar and palette messages come
+#   in M7 (PLANS.md §3 I6). The `cli.*` keys listed in the §12.7 table are copies of that table
+#   (checked by tests/i18n_catalog.rs).
 
 [diag]
 E001 = "Unknown reference: {0}"
@@ -89,3 +90,65 @@ I055 = "{0} items remain in the stock chapter"
 I056 = "Unregistered custom role: {0}"
 I057 = "Registered the local LLM in agents/mcp.json"
 I058 = "Saved the search result as {0}"
+
+# ============================================================ CLI (§14, M6)
+#
+# - The first line follows "novnow: " (§14.2.2), so en messages start in lower case (§14.2.3).
+# - tests/cli.rs compares the §14.2.2 / §14.2.3 / §14.2.4 samples with the spec, character by character.
+# - Command names (`novnow`, `new`, `check`) and keys (`schema_version`) are not translated (§12.6).
+
+[cli.error]
+incomplete = "this directory is not a novnow project"
+missing_items = "Missing items"
+not_found = "directory not found"
+not_a_directory = "not a directory"
+unreadable = "could not read: {0}"
+legacy_v0 = "this project is in the v0 format ({0} found)"
+legacy_schema = "this project is in the v0 format (project.json has no schema_version, or it is 0)"
+too_new = "this project was made by a newer version of novnow (schema_version {0})"
+encoding = "some files are not valid UTF-8"
+unknown_option = "unknown option: {0}"
+unexpected_argument = "unexpected argument: {0}"
+missing_dir = "novnow {0} needs a directory"
+not_implemented = "novnow {0} is not implemented yet"
+no_gui = "this build of novnow does not include the GUI"
+write_failed = "could not write: {0}"
+
+[cli.label]
+target = "target"
+created = "Created files"
+kept = "Kept files (not overwritten)"
+invalid_utf8 = "Files that are not valid UTF-8"
+
+[cli.hint]
+structure_doc = "Project structure"
+create_here = "To create a new project here"
+migrate = "Migrate it"
+update = "Update novnow to a newer version"
+help = "Usage"
+open = "To open it"
+check = "To check it"
+
+[cli.new]
+created = "created a new project"
+completed = "created the missing files (existing files were not overwritten)"
+nothing = "nothing to create (every file already exists)"
+
+[cli.check]
+summary = "checked {0} documents (errors: {1}, warnings: {2}, info: {3})"
+
+[cli.usage]
+tagline = "a novel-writing IDE built on deterministic algorithms"
+heading = "Usage"
+open = "open an existing project"
+new = "create a new project (dir defaults to \".\")"
+check = "check the project, print diagnostics and exit (for CI)"
+export = "export the text without annotations"
+migrate = "migrate a v0 project to v1"
+mcp = "run as an MCP server"
+gui = "start the GUI even when arguments are given"
+help = "show this help"
+version = "show the version"
+new_dir = "To open a directory named new, write novnow ./new."
+no_args = "Started from a terminal without arguments, novnow prints this help instead of starting the GUI (use novnow --gui)."
+exit_codes = "Exit codes: 0 ok / 2 usage error / 3 incomplete, v0 or too-new project / 4 read or write failure / 5 check found errors"

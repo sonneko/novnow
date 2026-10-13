@@ -19,21 +19,22 @@
 | 項目 | 状態 |
 |---|---|
 | `main` | `00a5813`（PR #11 マージ済み。M0〜M3 ＋ 本書と `scripts/`） |
-| 作業ブランチ | セッションが指定したもの固定（2026-10-13 のセッションは `arena/cb878908-novnow`）。**PR #12** に M4 と M5 を積んだ（ユーザー指示「同じ PR で続ける・マージはまだしない」）。**マージはユーザー** |
-| マイルストーン | **M0〜M5 完了**（PR #12 のマージ待ち）。**次は M6「起動」**（`PLANS.md` §5.7） |
-| 仕様書 | **第 2.9 版**（2026-10-13）。診断コード **80 件**（§7:39 + §7.1:14 + §7.2:27） |
-| テスト | **827 件緑**（`bash scripts/verify.sh`） |
+| 作業ブランチ | セッションが指定したもの固定（2026-10-13 のセッションは `arena/cb878908-novnow`）。**PR #12** に M4・M5・M6 を積んだ（ユーザー指示「同じ PR で続ける・マージはまだしない」）。**マージはユーザー** |
+| マイルストーン | **M0〜M6 完了**（PR #12 のマージ待ち。M6 は「Windows でエクスプローラから起動してコンソールが出ない」の手動確認だけが未了）。**次は M7「UI シェル ＋ `write`」**（`PLANS.md` §5.8） |
+| 仕様書 | **第 2.10 版**（2026-10-13。§13.1.1 の特例＝保存ダイアログで指定した Zip と、§14 の補足）。診断コード **80 件**（§7:39 + §7.1:14 + §7.2:27） |
+| テスト | **889 件緑**（`bash scripts/verify.sh`） |
 | 未決の裁定 | なし |
 
-M5 で何を入れたか・決めたか（B-88〜B-98）は `PLANS.md` §5.6 の進捗ノートと §9.2、使い方は `DEVELOPERS.md` §5.7。
+M6 で何を入れたか・決めたか（B-99〜B-108）は `PLANS.md` §5.7 の進捗ノートと §9.2、使い方は `DEVELOPERS.md` §2・§5.8。
 
-### 次の一手（M6 に入る人へ）
+### 次の一手（M7 に入る人へ）
 
-1. `PLANS.md` §5.7（M6）を読む。作業項目 7 に **M5 の部品のつなぎ方**（`FsGate` → `FsStorage` →
-   `project_load::load` → 終了コード）を書いてある。
-2. CLI もファイルを書くとき（`novnow new`）は **`FsGate` / `FsStorage` を通す**（関門の外で書くと
-   `tests/layering.rs` が落ちる。`DEVELOPERS.md` §5.7）。
-3. M7 では `docs/verify-rule10.md` の手順を GUI で実施する（M5 はストレージ層まで。`PLANS.md` §5.8 の完了条件）。
+1. `PLANS.md` §5.8（M7）を読む。作業項目 0（CI に `--features ui`）と 12（`main.rs` の `Outcome::Gui` で GUI を
+   起動・開けたら `RecentFile::push`・`cli::GUI_AVAILABLE` を `cfg!(feature = "ui")` に）が M6 からの引き継ぎ。
+2. GUI の文言は `ui/i18n/{ja,en}.toml` に足す（読み込み・言語の決定は M6 で済み。`Locale::detect(ui.json の language, env)`）。
+   `ui::i18n` だけは GUI なしでもビルドされるので **egui を使わない**（`tests/layering.rs`）。
+3. Zip の書き出しは保存ダイアログ（`Dialog::save_zip`）→ `zip::export_to_chosen`。外に書けるのはこの口だけ（B-99）。
+4. M7 の完了条件に `docs/verify-rule10.md` の GUI での実施と、§19.2 の GUI の項目（M6 から移した）がある。
 
 ---
 
@@ -60,6 +61,9 @@ gh pr list --state open
   （**Actions のログが読めない**）・`static.rust-lang.org`（rustup 不可）・crates.io 系
   （**cargo はオフライン**。vendored sources で動く）・GitHub リリースの asset（trunk 等）。
 - `strace` は無く、`apt` のミラーにも届かない。規則 10 の確認はファイル差分で代用する（`docs/verify-rule10.md` §3.2・§5）。
+- **ツールチェーンに Windows の std が無い**（`x86_64-linux` と `wasm32` だけ）ので `cargo check --target *-windows-*` は
+  手元で回せない。`#[cfg(windows)]` のコードは CI の wasm ジョブ（M6 で Windows の型検査を足した）が見る。手元で型だけ
+  確かめたいときは、その関数を cfg なしで一時的な小さなクレートに写して `cargo check`（リンクしないので通る）。
 - **新しいクレートは仕様書 §3.2 の許可リスト更新が先**（ユーザー指示）。作業環境の cargo はオフラインなので、
   `Cargo.lock` を変えるには `.github/toolchain.env` の `FORCE=1` を push して `toolchain-export.yml` で vendor を
   作り直し、ツールチェーンを取り直す（仕組みは `PLANS.md` §9.3）。
@@ -142,7 +146,10 @@ shallow clone なので `git diff main...HEAD` が使えないことがある。
   触ったら手元で `cargo clippy --locked --target wasm32-unknown-unknown -- -D warnings` も回す。
 - clippy で実際に落ちたもの（M5）: `assert!(cfg!(debug_assertions))`（`assertions_on_constants` → `if` ＋ `panic!`）、
   `(|| { … })()`（`redundant_closure_call` → 関数に出す）。trait に `async fn` を書くと `async_fn_in_trait`
-  （→ 宣言は `fn … -> impl Future`、実装は `async fn` でよい）。
+  （→ 宣言は `fn … -> impl Future`、実装は `async fn` でよい）。M6: `fn f<'a>(x: &'a str) -> &'a str`（`needless_lifetimes`）、
+  `&[x.clone()]`（`cloned_ref_to_slice_refs` → `std::slice::from_ref(&x)`）。
+- **`main.rs` は wasm でもビルドされる**（Web も同じ実行ファイル `data-bin="novnow"` を入口にする）。ネイティブ専用の
+  コード（`novnow::cli` は `cfg(not(wasm32))`）は `main.rs` の中で `#[cfg(not(target_arch = "wasm32"))]` に入れる。
 
 ### 4.2 テストの期待値（最大の欠陥源は自分の期待値）
 
@@ -150,6 +157,9 @@ shallow clone なので `git diff main...HEAD` が使えないことがある。
 - 仕様書のコード例を**そのまま**フィクスチャにする（`PLANS.md` §6.3）。ゴールデンの期待値 JSON は手で書く
   （失敗時は実測 JSON が stderr に出るので、仕様と突き合わせてから貼り替える）。
 - B 形式の節番号: 見出し直下の `;` が 1 節目（空）を作り、その次が 2 節目。
+- CLI のテストは `novnow::cli::run` を `Cli::new(&FakeEnv, &mut Vec<u8>, …)` でプロセス内で走らせる（環境変数も
+  カレントディレクトリも書き換えない）。仕様書の出力例（§14.2.2〜§14.2.4）は `tests/cli.rs` の `spec_block` で読み直して
+  一字一句比べる（コードブロックの開きは「```」の後に言語名があるので、行末まで飛ばしてから本文を取る）。
 - 規則 10 の違反は **debug ビルドで panic** する（§13.1.2）。拒否を確かめるテストは `catch_unwind` で受ける
   （`tests/storage_policy.rs` の `rejected`。panic の表示は hook で黙らせている）。release でも一度
   `cargo test --release --test storage_policy` を回す（E060 を返す側。初回は約 30 秒）。

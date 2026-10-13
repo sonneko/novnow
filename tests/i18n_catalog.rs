@@ -10,10 +10,21 @@
 //! あわせて `diag.*` が §7 / §7.1 / §7.2 の表の文言と**一字一句**一致すること、core の
 //! [`DiagnosticCode`] の全コードが揃っていること、引数の数が [`DiagnosticCode::params`] と
 //! 合うことも見る（文言の正本は仕様書。`PLANS.md` §5.5 の作業項目 1）。
+//!
+//! M6 から: §12.7 の表の `cli.*` の行がカタログの写しであること、CLI のソースが使うキーが
+//! 両方のカタログにあり、使われていない `cli.*` のキーが無いこと、実行時の `ui::i18n`
+//! （読み込み・プレースホルダ・言語の決定 §12.4）が正しいこと。
+
+mod sandbox;
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::{Path, PathBuf};
 
-use novnow::core::diagnostics::{DiagnosticCode, CATALOG};
+use novnow::core::diagnostics::{Arg, Diagnostic, DiagnosticCode, CATALOG};
+use novnow::ports::env::Os;
+use novnow::ui::i18n::{self, Locale};
+
+use sandbox::FakeEnv;
 
 const JA: &str = include_str!("../src/ui/i18n/ja.toml");
 const EN: &str = include_str!("../src/ui/i18n/en.toml");
@@ -182,4 +193,204 @@ fn the_number_of_placeholders_matches_what_core_passes() {
         let want: BTreeSet<usize> = (0..usize::from(code.params())).collect();
         assert_eq!(used, want, "{key}");
     }
+}
+
+// ============================================================ M6: CLI の文言と実行時の i18n
+
+#[test]
+fn the_cli_rows_of_the_spec_table_are_copied_verbatim() {
+    // §12.7 の表（抜粋）のうち、実装済みの `cli.*` の行
+    let start = SPEC.find("### 12.7 主要文言表").expect("§12.7");
+    let end = start + SPEC[start..].find("\n---").expect("§12.7 の終わり");
+    let ja = flatten(JA, "ja.toml");
+    let en = flatten(EN, "en.toml");
+    let mut seen = 0;
+    for line in SPEC[start..end].lines() {
+        let cells: Vec<&str> = line
+            .trim()
+            .trim_matches('|')
+            .split(" | ")
+            .map(str::trim)
+            .collect();
+        let [key, spec_ja, spec_en] = cells.as_slice() else {
+            continue;
+        };
+        let key = key.trim_matches('`');
+        if !key.starts_with("cli.") {
+            continue;
+        }
+        assert_eq!(ja.get(key).map(String::as_str), Some(*spec_ja), "ja {key}");
+        assert_eq!(en.get(key).map(String::as_str), Some(*spec_en), "en {key}");
+        seen += 1;
+    }
+    assert_eq!(seen, 4, "§12.7 の cli.* の行の数");
+}
+
+/// `src/cli/**` と `src/main.rs` の文字列リテラルに現れる `cli.…` のキー。
+fn cli_keys_in_source() -> BTreeSet<String> {
+    fn collect(dir: &Path, out: &mut Vec<PathBuf>) {
+        for entry in std::fs::read_dir(dir).expect("read_dir").flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                collect(&path, out);
+            } else if path.extension().is_some_and(|ext| ext == "rs") {
+                out.push(path);
+            }
+        }
+    }
+    let mut files = vec![PathBuf::from("src/main.rs")];
+    collect(Path::new("src/cli"), &mut files);
+    let mut keys = BTreeSet::new();
+    for file in files {
+        let source = std::fs::read_to_string(&file).expect("read");
+        let mut rest = source.as_str();
+        while let Some(at) = rest.find("\"cli.") {
+            let after = &rest[at + 1..];
+            let end = after.find('"').expect("閉じる引用符");
+            keys.insert(after[..end].to_owned());
+            rest = &after[end..];
+        }
+    }
+    keys
+}
+
+#[test]
+fn every_cli_key_used_in_the_source_exists_and_none_is_unused() {
+    let ja = flatten(JA, "ja.toml");
+    let en = flatten(EN, "en.toml");
+    let used = cli_keys_in_source();
+    assert!(
+        used.len() > 30,
+        "キーが少なすぎる（検査が空振り？）: {used:?}"
+    );
+    for key in &used {
+        assert!(ja.contains_key(key), "ja.toml に {key} が無い");
+        assert!(en.contains_key(key), "en.toml に {key} が無い");
+    }
+    let defined: BTreeSet<String> = ja
+        .keys()
+        .filter(|key| key.starts_with("cli."))
+        .cloned()
+        .collect();
+    let unused: Vec<&String> = defined.difference(&used).collect();
+    assert!(unused.is_empty(), "使われていない cli.* のキー: {unused:?}");
+}
+
+#[test]
+fn the_runtime_catalog_is_the_same_as_the_files() {
+    for (locale, text, label) in [(Locale::Ja, JA, "ja.toml"), (Locale::En, EN, "en.toml")] {
+        let want = flatten(text, label);
+        let catalog = i18n::catalog(locale);
+        let keys: BTreeSet<&str> = catalog.keys().collect();
+        let want_keys: BTreeSet<&str> = want.keys().map(String::as_str).collect();
+        assert_eq!(keys, want_keys, "{label}");
+        for (key, message) in &want {
+            assert_eq!(catalog.get(key), Some(message.as_str()), "{label} {key}");
+            assert_eq!(i18n::text(locale, key), message, "{label} {key}");
+        }
+    }
+}
+
+#[test]
+fn placeholders_are_filled_once_and_positionally() {
+    assert_eq!(i18n::fill("{0} と {1}", &["a", "b"]), "a と b");
+    assert_eq!(i18n::fill("{1}{0}{1}", &["x", "y"]), "yxy");
+    // 値の中の `{0}` は埋め直さない
+    assert_eq!(i18n::fill("{0} / {1}", &["{1}", "b"]), "{1} / b");
+    // 範囲外・数でない・閉じない `{` はそのまま
+    assert_eq!(i18n::fill("{2}", &["a"]), "{2}");
+    assert_eq!(i18n::fill("{name}", &["a"]), "{name}");
+    assert_eq!(i18n::fill("{0", &["a"]), "{0");
+    assert_eq!(
+        i18n::format(Locale::Ja, "cli.error.unknown_option", &["-x"]),
+        "不明なオプションです: -x"
+    );
+}
+
+#[test]
+fn diagnostics_are_rendered_in_both_languages() {
+    let found = Diagnostic::new(
+        DiagnosticCode::E004,
+        Some(0..3),
+        vec![
+            Arg::text("恩田恵"),
+            Arg::text("C"),
+            Arg::text("@03-01-02-01"),
+            Arg::text("@01 .. @02"),
+        ],
+    );
+    assert_eq!(
+        i18n::diagnostic(Locale::Ja, &found),
+        "恩田恵 のモード C は @03-01-02-01 では使用できません（有効範囲: @01 .. @02）"
+    );
+    let counted = Diagnostic::new(
+        DiagnosticCode::W030,
+        Some(0..1),
+        vec![Arg::number(3), Arg::number(4)],
+    );
+    assert_eq!(
+        i18n::diagnostic(Locale::En, &counted),
+        "Plot has 3 sections, prose has 4"
+    );
+}
+
+#[test]
+fn the_language_is_decided_in_the_order_of_section_12_4() {
+    let env = |pairs: &[(&str, &str)]| {
+        pairs
+            .iter()
+            .fold(FakeEnv::new(Os::Linux), |env, (name, value)| {
+                env.var(name, value)
+            })
+    };
+    // 1. ui.json の language（ja / en だけ。system は飛ばす）
+    assert_eq!(
+        Locale::detect(Some("en"), &env(&[("NOVNOW_LANG", "ja")])),
+        Locale::En
+    );
+    assert_eq!(
+        Locale::detect(Some("system"), &env(&[("NOVNOW_LANG", "en")])),
+        Locale::En
+    );
+    // 2. NOVNOW_LANG（ja… / en… 以外は無視して次へ）
+    assert_eq!(
+        Locale::detect(
+            None,
+            &env(&[("NOVNOW_LANG", "en"), ("LANG", "ja_JP.UTF-8")])
+        ),
+        Locale::En
+    );
+    assert_eq!(
+        Locale::detect(None, &env(&[("NOVNOW_LANG", "ja_JP"), ("LANG", "en_US")])),
+        Locale::Ja
+    );
+    assert_eq!(
+        Locale::detect(
+            None,
+            &env(&[("NOVNOW_LANG", "fr"), ("LANG", "ja_JP.UTF-8")])
+        ),
+        Locale::Ja
+    );
+    // 3. OS のロケール（LC_ALL → LC_MESSAGES → LANG。ja* → ja、それ以外 → en）
+    assert_eq!(
+        Locale::detect(None, &env(&[("LANG", "ja_JP.UTF-8")])),
+        Locale::Ja
+    );
+    assert_eq!(
+        Locale::detect(None, &env(&[("LANG", "en_US.UTF-8")])),
+        Locale::En
+    );
+    assert_eq!(Locale::detect(None, &env(&[("LANG", "C")])), Locale::En);
+    assert_eq!(
+        Locale::detect(None, &env(&[("LC_ALL", "ja_JP.UTF-8"), ("LANG", "en_US")])),
+        Locale::Ja
+    );
+    assert_eq!(
+        Locale::detect(None, &env(&[("LC_MESSAGES", "en_GB"), ("LANG", "ja_JP")])),
+        Locale::En
+    );
+    // 4. 既定 ja
+    assert_eq!(Locale::detect(None, &env(&[])), Locale::Ja);
+    assert_eq!(Locale::from_os_locale("ja-JP"), Locale::Ja);
+    assert_eq!(Locale::ALL.map(Locale::code), ["ja", "en"]);
 }

@@ -4,11 +4,11 @@
 
 > **この文書の位置づけ**
 >
-> - 仕様の正本は **[`SPECIFICATIONS.md`](./SPECIFICATIONS.md)**（v1 仕様 **第 2.9 版**）。
+> - 仕様の正本は **[`SPECIFICATIONS.md`](./SPECIFICATIONS.md)**（v1 仕様 **第 2.10 版**）。
 > - 実装順序と見積りは **[`PLANS.md`](./PLANS.md)**（段階 ① の実装計画）。
 > - 本書は「手を動かすときに開く頁」であり、仕様と食い違った場合は **`SPECIFICATIONS.md` が優先する**。
 >
-> **現在の `src/` は v1 の層構造のまま、`core` とストレージが揃った状態（M5 完了時点）である。**
+> **現在の `src/` は v1 の層構造のまま、`core`・ストレージ・CLI が揃った状態（M6 完了時点）である。**
 > v0（プロトタイプ）の UI コードは M0 で削除し、`v0-final` タグに保存した。
 > **実装済み**: `core/id.rs`・`core/text/*`（字句・位置・rope・増分）・`core/diagnostics.rs`
 > （§7 / §7.1 / §7.2 の **80 コード**）・`core/syntax/*`（**8 形式**のパーサ）・`core/model/*`
@@ -21,11 +21,15 @@
 > （文書単位の診断の組み立て）・`ui/i18n/{ja,en}.toml`（`diag.*` の文言 80 件）。本書 §5.6。
 > **M5**: `core/policy/*`（規則 10 の判定・履歴・Zip・外部変更）・`core/syntax/project_json.rs`・
 > `ports/*`（5 本の trait）・`adapters/{storage_fs,recent_file,zip,project_load,storage_idb,env_system,clock_system}.rs`。本書 §5.7。
+> **M6**: `cli/*`（§14 の判定・起動前の検査・`new` / `check`。`export` / `migrate` / `mcp` は枠だけ）・`main.rs`・
+> `ui/i18n/mod.rs`（文言カタログの読み込みと言語の決定。`cli.*` の文言 44 件）・`core/template/`（`novnow new` の雛形と
+> 既定プロンプト）。本書 §2・§5.8。あわせて §13.1.1 の特例（保存ダイアログで指定した Zip）を入れた（§5.7）。
 > **空のまま**: `core/aicontext/*`（M10）・`adapters/mcp_stdio.rs`（M10）・`adapters/dialog_rfd.rs`（M7）・
-> `ui/**`（M7 以降。`ui/i18n/*.toml` を除く）。本書の「モジュール構成」は **v1 の目標形**。
+> `ui/**`（M7 以降。`ui/i18n/` を除く）。本書の「モジュール構成」は **v1 の目標形**。
 >
-> **GUI は M7 まで動かない**（`PLANS.md` §3 I3）。M0 時点の `cargo run` は
-> 使用法を表示して終了コード 2 で終了するだけの暫定版である。
+> **GUI は M7 まで動かない**（`PLANS.md` §3 I3）。M6 の実行ファイルは CLI（`new` / `check` / `--help`）が動き、
+> GUI を求められると（`novnow <有効なプロジェクト>`・引数なしで端末以外から起動）「この novnow には GUI が
+> 含まれていません」で終了コード 2 になる。
 
 ---
 
@@ -57,12 +61,12 @@ cargo build --release    # 生成物: target/release/novnow
 > **v0 からの変更点**: 新規作成は `--init <dir>` ではなく **サブコマンド `new`** になった（`SPECIFICATIONS.md` §14.1）。
 > 「ディレクトリはフラグなし位置引数で指定する」という指示 2 に合わせたため。
 
-> **M0 時点の実態（注意）**: 上のコマンドは **v1 の目標形**であり、まだ実装されていない。
-> 現在の `src/main.rs` は引数に関わらず使用法を stderr に出して終了コード 2 で終了するだけ
-> （`SPECIFICATIONS.md` §14.3 の判定順と §14.1 のサブコマンドは M6 で実装する）。
+> **M6 時点の実態**: `new` と `check` は動く（本書 §2）。`novnow ./my-novel` は §14.2 の検査までで、検査を
+> 通ると「GUI が含まれていません」で終了コード 2（GUI は M7）。
 
-> **`ui` feature（2026-10-11〜）**: GUI に要るクレート（`egui` / `eframe` / `rfd` / `fontdb` /
-> `toml`）は **`optional = true`** で、`Cargo.toml` の `[features]` の `ui` が引き込む。
+> **`ui` feature（2026-10-11〜）**: GUI に要るクレート（`egui` / `eframe` / `rfd` / `fontdb`）は
+> **`optional = true`** で、`Cargo.toml` の `[features]` の `ui` が引き込む（`toml` は M6 から通常の依存。
+> CLI も文言カタログを使うため、`PLANS.md` §9.2 B-100）。
 > **既定は `default = []`** なので、素の `cargo build` / `cargo test` / `cargo clippy` /
 > `cargo check --target wasm32-unknown-unknown` は GUI なしで通り、egui・eframe（依存ツリーは
 > 200 クレート規模）をコンパイルしない。GUI 付きでビルドするときは **`--features ui`** を付ける。
@@ -73,10 +77,11 @@ cargo build --release    # 生成物: target/release/novnow
 > cargo run   --release --features ui ./my-novel   # M7 以降の起動形
 > ```
 >
-> `src/lib.rs` の `pub mod ui;` と `src/adapters/mod.rs` の `pub mod dialog_rfd;` は
-> `#[cfg(feature = "ui")]` で守る（**MUST**。守らないと M7 で `src/ui/**` が egui を使い始めた
-> 瞬間に既定のビルド＝ CI の 4 ジョブが落ちる）。`tests/layering.rs` の末尾 2 テストが
-> `Cargo.toml` と `src/lib.rs` を読んでこの形を固定している。判断は `PLANS.md` §9.2 **B-54**。
+> `src/ui/mod.rs` の GUI のモジュール（`shell` / `theme` / `widgets` / `workspaces`）と `src/adapters/mod.rs` の
+> `pub mod dialog_rfd;` は `#[cfg(feature = "ui")]` で守る（**MUST**。守らないと M7 で `src/ui/**` が egui を
+> 使い始めた瞬間に既定のビルド＝ CI の 4 ジョブが落ちる）。**`ui::i18n` だけは守らない**（CLI が使う。egui を
+> 使ってはいけない）。`src/lib.rs` の `pub mod ui;` は cfg なし。`tests/layering.rs` がこの形を固定している。
+> 判断は `PLANS.md` §9.2 **B-54**・**B-100**。
 > **M7 で `src/ui/**` に実コードが入ったら、`.github/workflows/ci.yml` の 4 コマンドに
 > `--features ui` を足す**（同ファイルに TODO がある）。
 
@@ -105,15 +110,15 @@ CI で常設するテストは `PLANS.md` §6 を参照。`tests/layering.rs` �
 `cargo test` は **`--no-fail-fast`** で走らせること（CI もそうしている）。既定だと統合テストは
 アルファベット順の**最初の失敗ターゲットで止まる**ので、他の形式の失敗が一度に見えない。
 
-`tests/layering.rs` の中身は次の 4 系統（11 テスト）。
+`tests/layering.rs` の中身は次の 5 系統（13 テスト）。
 
 | テスト | 検査内容 |
 |---|---|
 | `core_has_no_forbidden_dependency` | `src/core/**` の AST（`syn`）を訪走し、§3.2 の禁止依存を検出する。`use` 文・`extern crate`・式／型／パターン／マクロ呼び出しのパス・属性・マクロ本体のトークン列が対象。許可リストに無いクレートの `use` も落とす |
-| `core_has_no_user_facing_text` | 同様に日本語の文字列リテラル（§12.2）を検出する。コメント・doc コメント・char リテラルは対象外。**例外は `i18n: format-vocabulary` の doc 行を付けた `const` / `static` の中だけ**（§5.0.6 のフィールドキー別名表のような「ファイル形式の語彙」は UI 言語が `en` でも受理するのでユーザー向け文言ではない。`PLANS.md` §9.2 B-19。§12.2 に「字句データは文言に含まない」と明記されて A-5 は解消済み）。免除が関数に及ばないことは自己テストのフィクスチャで固定してある |
+| `core_has_no_user_facing_text` ／ `cli_has_no_user_facing_text` | 同様に日本語の文字列リテラル（§12.2）を検出する。M6 から `src/cli/**`・`src/main.rs`・`src/ui/i18n/**` も対象（CLI の文言もカタログに置く）。コメント・doc コメント・char リテラルは対象外。**例外は `i18n: format-vocabulary` の doc 行を付けた `const` / `static` の中だけ**（§5.0.6 のフィールドキー別名表のような「ファイル形式の語彙」は UI 言語が `en` でも受理するのでユーザー向け文言ではない。`PLANS.md` §9.2 B-19。§12.2 に「字句データは文言に含まない」と明記されて A-5 は解消済み）。免除が関数に及ばないことは自己テストのフィクスチャで固定してある |
 | `checker_catches_*` / `checker_allows_*`（4 本） | **検査器そのもの**の自己テスト。「違反を書いたら本当に落ちるか」「正当な core コードを誤検出しないか」を固定例で担保する |
-| `the_ui_crates_are_optional_and_behind_the_ui_feature` | `Cargo.toml` を `toml` でパースし、GUI の 5 クレート（`egui` / `eframe` / `rfd` / `fontdb` / `toml`）が `optional = true` で `[features] ui` の `dep:` に並んでいること、`default` に `ui` が入っていないことを見る（§1.2 の feature gate、`PLANS.md` §9.2 B-54）。既定のビルドに egui が戻ると CI の 4 ジョブが数分単位で遅くなるので、ここで機械的に止める |
-| `the_ui_layer_is_compiled_only_with_the_ui_feature` | `src/lib.rs` の `pub mod ui;` と `src/adapters/mod.rs` の `pub mod dialog_rfd;` に `#[cfg(feature = "ui")]` が付いているかを見る |
+| `the_ui_crates_are_optional_and_behind_the_ui_feature` | `Cargo.toml` を `toml` でパースし、GUI の 4 クレート（`egui` / `eframe` / `rfd` / `fontdb`）が `optional = true` で `[features] ui` の `dep:` に並んでいること、`default` に `ui` が入っていないことを見る（§1.2 の feature gate、`PLANS.md` §9.2 B-54・B-100）。既定のビルドに egui が戻ると CI の 4 ジョブが数分単位で遅くなるので、ここで機械的に止める |
+| `the_gui_is_compiled_only_with_the_ui_feature` ／ `the_message_catalog_does_not_use_the_gui_crates` | `src/ui/mod.rs` を `syn` で読み、`i18n` 以外のモジュールに `#[cfg(feature = "ui")]` が付き、`i18n` には付いていないこと。`src/adapters/mod.rs` の `pub mod dialog_rfd;` の cfg。`src/ui/i18n/**` が GUI のクレートを使っていないこと |
 | `only_the_write_gate_touches_the_file_system_for_writing` ＋ `write_checker_*`（2 本） | §13.1.2（第 2.9 版）: `src/` 全体で、書き込みの system call（`OpenOptions`・`File::create`・`fs::write` / `rename` / `remove_file` / `create_dir_all` / `copy`・`symlink`・`tokio::fs`・`use std::fs::*`）が **`src/adapters/storage_fs.rs`（書き込みの関門）にしか無い**ことを AST で見る。読み取り（`fs::read_to_string` / `File::open` / `fs::metadata`）は許す。本書 §5.7 |
 
 > 検査器を直すときは、必ず自己テストの固定例（`MUST_CATCH_*` / `MUST_PASS_*`）も一緒に更新すること。
@@ -181,6 +186,30 @@ novnow --version | -V
 - 必須ファイルが欠けている場合は **stderr にエラー＋解説 URL＋`novnow new` の案内だけを出して終了**し、
   GUI は一切出さない（§14.2、指示 2 の明文）。
 
+**M6 の実装（`src/cli/`、判断は `PLANS.md` §9.2 B-100〜B-108）**
+
+| 場合 | 出力 | 終了コード |
+|---|---|---|
+| `--help` / `-h`（どの位置でも） | 使い方を stdout | 0 |
+| `--version` / `-V` | `novnow 0.1.0` を stdout | 0 |
+| 端末から引数なし | 使い方を stderr（GUI を出さない） | 2 |
+| 知らないオプション・余分な引数・ディレクトリが無い | `novnow: …` と `使い方: novnow --help` を stderr | 2 |
+| 不備・v0・新しすぎる・見つからない・ディレクトリでない | §14.2.2〜§14.2.4 を stderr（何も書かない） | 3 |
+| 読めない（権限）・UTF-8 でない（`check` だけが調べる） | stderr | 4 |
+| `check` が E を検出 | 診断を stdout | 5 |
+| `export` / `migrate` / `mcp`、GUI を求められた（M6） | 「まだ実装されていません」「GUI が含まれていません」を stderr | 2 |
+
+```bash
+novnow new ./my-novel        # 雛形（§14.5）。既存のファイルは上書きしない。v0 / 新しすぎる版には何も書かない
+novnow check ./my-novel      # 1 行 1 件: contents/01-01.txt:3:1: E001 辞書にない参照です: 星屑
+NOVNOW_LANG=en novnow check ./my-novel   # 言語: NOVNOW_LANG → LC_ALL / LC_MESSAGES / LANG → ja（ui.json は読まない）
+NO_COLOR=1 novnow check ./my-novel       # 色は端末のときだけ・Windows では付けない
+```
+
+- **Windows のリリースビルドは GUI サブシステム**なので、`cmd.exe` は終了を待たない（出力がプロンプトの後に出る・
+  `%ERRORLEVEL%` が取れない）。CI では `start /wait novnow check .` か PowerShell の `Start-Process -Wait -PassThru`。
+  debug ビルドは普通のコンソールアプリ。
+
 ---
 
 ## 3. 層構造（`SPECIFICATIONS.md` §3.2）
@@ -198,7 +227,8 @@ main ──→ ui ──→ ports ←── adapters
 | `core/` | `serde` / `serde_json`、`regex`、`aho-corasick`、`ropey`、`anyhow` / `thiserror`、`unicode-normalization`、std の純粋データ構造 | **`std::fs`、`std::net`、`std::time::SystemTime`、`egui`、`tokio`、フォント、ロケール文言** |
 | `ports/` | `core` の型、トレイト定義のみ | 実装 |
 | `adapters/` | `ports` の実装。ここだけが I/O を持つ | `ui` への依存 |
-| `ui/` | `core`（読む）・`ports`（呼ぶ）・`egui` | `adapters` への直接依存 |
+| `ui/` | `core`（読む）・`ports`（呼ぶ）・`egui` | `adapters` への直接依存。`ui/i18n/` は egui も使わない（CLI が使う） |
+| `cli/`（M6） | `core`・`ports`・`adapters`・`ui::i18n`（`main.rs` と並ぶ合成の根） | GUI（egui）。日本語の文字列リテラル（文言はカタログ） |
 
 - **`core` は文言を持たない。** 診断は `E001` のようなコードと引数だけを返し、日本語/英語への変換は `ui/i18n/` が行う（§12）。
 - **`core` は時刻を読まない。** 必要なら `ports::clock` を経由する。
@@ -210,7 +240,9 @@ main ──→ ui ──→ ports ←── adapters
 
 ```
 src/
-  main.rs                  起動のみ（CLI 解析 → GUI or CLI）
+  main.rs                  起動のみ（CLI 解析 → GUI or CLI。Windows のコンソール接続）
+  cli/                     判定・使い方（mod.rs）  起動前の検査と表示（open.rs）
+                           new.rs  check.rs  export.rs  migrate.rs  mcp.rs
   core/
     id.rs                  SceneId / PartialSceneId / RangeExpr
     text/                  rope.rs  position.rs  lexer.rs  incremental.rs
@@ -229,14 +261,16 @@ src/
     policy/                ストレージの規則（純粋）: write_policy  recent  archive
                            external_change（本書 §5.7）
     export.rs              アノテーション除去（§17.1）
+    template/              novnow new の雛形と既定プロンプト（project/ の下のファイルを include_str!）
     aicontext/             packet.rs  budget.rs
   ports/                   storage.rs  clock.rs  mcp.rs  env.rs  dialog.rs
   adapters/                storage_fs.rs（書き込みの関門）  storage_idb.rs  recent_file.rs
                            zip.rs  project_load.rs  env_system.rs  clock_system.rs
                            mcp_stdio.rs  dialog_rfd.rs
   ui/
+    i18n/                  文言カタログ（GUI なしでもビルドする。CLI が使う）
     shell.rs               共通シェル（ステータスバー・パレット・モーダル・IME 状態）
-    theme.rs  i18n/
+    theme.rs
     widgets/               context_view  section_editor  reference_pane
                            syntax_text  inlay
     workspaces/            write  plot_episode  plot_outline  idea
@@ -483,6 +517,22 @@ RecentFile::new(gate).push(storage.root(), &SystemClock)?;       // 開けたら
 テストの共有部品は `tests/sandbox/mod.rs`（一時ディレクトリ・偽の `Env`・固定の `Clock`・木の写し）。
 **テストではプロセスの環境変数を書き換えない**（並列に走る）。履歴の場所は偽の `Env` で渡す。
 規則 10 の手動確認の手順は [`docs/verify-rule10.md`](./docs/verify-rule10.md)。
+
+### 5.8 CLI と文言カタログ — `cli/*` / `ui/i18n` / `core/template`
+
+M6 で入れた（判断は `PLANS.md` §9.2 B-100〜B-108。使い方は本書 §2）。
+
+| 規則 | 内容 |
+|---|---|
+| 文言 | CLI に日本語も英語も**直接書かない**。`ui/i18n/{ja,en}.toml` の `cli.*` にキーを足し、`cli.text("cli.…")` / `cli.format("cli.…", &[…])` で引く。`tests/layering.rs` が日本語の文字列リテラルを、`tests/i18n_catalog.rs` が「ソースのキーが両方のカタログにある・使われていない `cli.*` のキーが無い」を見る。1 行目は `novnow: ` に続くので en は小文字で始める。欠けたキーはデバッグビルドで panic する（§12.3） |
+| 言語 | `Locale::detect(setting, env)`（§12.4）。CLI は `setting = None`（`ui.json` を読まない）。OS のロケールは `Env::locale`（POSIX の環境変数 → Windows / Web の API） |
+| 出力 | `Cli::headline`（`novnow: …`）/ `target`（`  対象: …`）/ `list`（`見出し:` ＋ `  - …`）/ `hint`（`案内: 値`）。失敗は stderr、`check` の診断・`new` の結果・`--help` は stdout。色は `Cli::paint`（端末・`NO_COLOR` なし・Windows 以外） |
+| パス | 引数は `Cli::absolute`（カレントディレクトリ基準・字句）。表示は `display_path`（Windows の `\\?\` を外す）、コマンドの例は `Cli::command_path`（空白や記号があれば引用） |
+| 書き込み | `new` だけ。`FsGate::new(cli.env())` → `FsStorage::create` → `write_bytes`（関門を通る）。§14.2 の検査に落ちたら何も書かない・履歴にも書かない（M6 は履歴に一切書かない。積むのは M7 の GUI が開けたとき） |
+| サブコマンドを足す | `SUBCOMMANDS`・`Command`・`decide` の `subcommand`・`run` の振り分け・使い方の `ROWS` と `cli.usage.*`・`tests/cli.rs` の判定表 |
+| テスト | `Cli::new(&FakeEnv, &mut Vec<u8>, &mut Vec<u8>, cwd, Terminal)` でプロセス内で走らせる（`tests/cli.rs`）。**プロセスの環境変数とカレントディレクトリは書き換えない**（並列に走る）。実行ファイルは `env!("CARGO_BIN_EXE_novnow")` を `env_clear()` した子プロセスで |
+| 雛形 | `core/template/project/` を直したら `novnow check` の 0 件を保つ（`tests/template.rs`）。行頭に `ascii キー:` や §5.0.6 の別名＋コロン（`資料:` `条件:` 等）を書くとフィールド行になる（W011 など）。B 形式・C 形式の末尾に `;` を置くと節が 1 つ増える（W030）。URL は書かない（§14.2.1） |
+| Windows | `#[cfg(windows)]` のコードは作業環境で検査できない（Windows の std が無い）。CI の wasm ジョブの `cargo check --target x86_64-pc-windows-msvc` が見る。FFI は `main.rs` の `AttachConsole` と `env_system.rs` の `GetUserDefaultLocaleName` の 2 つだけ |
 
 ---
 

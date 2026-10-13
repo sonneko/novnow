@@ -24,11 +24,14 @@ path = "src/main.rs"
 # M7 で `src/ui/**` に egui のコードが入ったら、`.github/workflows/ci.yml` の 4 コマンドに
 # `--features ui` を足す（同ファイルの TODO も参照）。GUI 付きのビルドは
 # `cargo build --features ui` / `cargo run --features ui`。
+#
+# `toml`（文言カタログ `ui/i18n/*.toml` の読み込み）は M6 から**常に**入れる: CLI のメッセージも
+# 同じカタログを使う（§12.2）ので、`ui::i18n` は GUI なしのビルドにも要る（`PLANS.md` §9.2 B-100）。
 default = []
-ui = ["dep:eframe", "dep:egui", "dep:rfd", "dep:fontdb", "dep:toml"]
+ui = ["dep:eframe", "dep:egui", "dep:rfd", "dep:fontdb"]
 
 [dependencies]
-# 以下 5 つは `ui` feature のときだけ（上記）。層は `PLANS.md` §2.1 の表のとおり ui。
+# 以下 4 つ（eframe / egui / rfd / fontdb）は `ui` feature のときだけ（上記）。層は `PLANS.md` §2.1 の表のとおり ui。
 eframe = { version = "0.27.2", optional = true }
 egui = { version = "0.27.2", optional = true }
 
@@ -44,7 +47,8 @@ fontdb = { version = "0.16", optional = true }
 anyhow = "1.0"
 thiserror = "1.0"
 unicode-normalization = "0.1"
-toml = { version = "0.8", optional = true }
+# `ui::i18n` が文言カタログを読む（GUI と CLI の両方。上の [features] の注記）。
+toml = "0.8"
 rfd = { version = "0.14", optional = true }
 web-time = "0.2"
 zip = { version = "2.1", default-features = false, features = ["deflate"] }
@@ -72,8 +76,8 @@ console_error_panic_hook = "0.1"
 # 実行時には一切依存しない（dev-dependency）。
 proc-macro2 = "1"
 syn = { version = "2.0", features = ["full", "visit"] }
-# tests/layering.rs が Cargo.toml 自身を読んで feature gate（上の [features]）を検査するのに使う。
-# `ui` feature を立てなくてもテストが Cargo.toml を読めるよう、dev 側にも置く。
+# tests/layering.rs が Cargo.toml 自身を読んで feature gate（上の [features]）を検査するのに使う
+# （`toml` は M6 から通常の依存でもあるが、テストの用途を明示するために dev 側にも残す）。
 toml = "0.8"
 
 [profile.release]

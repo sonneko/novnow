@@ -183,7 +183,7 @@
 |---|---|---|
 | `thiserror` | `ProjectError` 等の定義 | core |
 | `unicode-normalization` | §6.1.3 の NFKC 照合 | core（**§3.2 の許可リストに追加済み・2026-10-09**） |
-| `toml` | `ui/i18n/*.toml` の読み込み | ui |
+| `toml` | `ui/i18n/*.toml` の読み込み（GUI と CLI。**M6 から通常の依存**、§9.2 B-100） | ui（`ui::i18n`） |
 | `directories` | XDG / APPDATA の履歴パス解決（§13.2） | adapters（native のみ） |
 | web-sys の IDB 系 feature | `IdbFactory` `IdbDatabase` `IdbObjectStore` `IdbTransaction` `IdbRequest` `IdbOpenDbRequest` `IdbCursor` `IdbKeyRange` | adapters（wasm のみ） |
 | `syn`（`full` / `visit`）<br>`proc-macro2` | `tests/layering.rs` が `src/core/**` を AST として訪走し、§3.2 の禁止依存と §12.2 の日本語リテラルを検査する | **dev-dependency のみ**（実行時バイナリには入らない。core の許可リスト §3.2 とは無関係） |
@@ -205,6 +205,10 @@
 > `tests/layering.rs` の末尾 2 テストが `Cargo.toml` と `src/lib.rs` を読んで固定する。
 > **M7 で `src/ui/**` に実コードが入ったら CI の 4 コマンドに `--features ui` を足す**
 > （§5.8 の作業項目 0、`.github/workflows/ci.yml` の TODO）。判断は §9.2 **B-54**。
+>
+> **改（M6、§9.2 B-100）**: CLI のメッセージも同じカタログを使う（仕様 §12.2）ので、`toml` は通常の依存にし、
+> feature の後ろは 4 クレート（`eframe` / `egui` / `rfd` / `fontdb`）になった。`src/lib.rs` の `pub mod ui;` は
+> cfg なしで宣言し、`src/ui/mod.rs` が `i18n` 以外を `#[cfg(feature = "ui")]` で守る（`tests/layering.rs` が固定）。
 
 ---
 
@@ -1024,11 +1028,39 @@ tests/layering.rs
    - `novnow new` は `FsStorage::create` で作り、既存のファイルは書かない（`FsStorage::exists` で確かめる、§14.5）。
 8. `novnow migrate` / `export` / `mcp` は**枠だけ**。中身は M11 / M9 / M10。
 
+> **M6 の進捗（2026-10-13）: 起動（CLI）を実装した — M6 完了（Windows の手動確認だけが残る）**
+>
+> 先に M5 の報告へのユーザー裁定を反映した（§13.1.1 の特例＝保存ダイアログで指定した Zip はプロジェクトの外にも
+> 書ける。仕様 第 2.10 版、§9.2 **B-99**）。そのうえで:
+>
+> - **CLI** `src/cli/`: `mod.rs`（§14.3 の判定 `decide` は純粋・使い方・出力・終了コード）／`open.rs`（§14.2 の検査と
+>   §14.2.2〜§14.2.4 の表示）／`new.rs`・`check.rs`／`export.rs`・`migrate.rs`・`mcp.rs`（枠だけ）。`main.rs` は実プロセスの
+>   標準入出力・環境・カレントディレクトリを渡すだけ（**B-102**・**B-103**・**B-105**）。
+> - **文言** `ui::i18n`（カタログの読み込み・`{n}` の埋め込み・診断の文言・§12.4 の言語の決定）と `cli.*` の **44 件**
+>   （ja / en）。`toml` を通常の依存にし、`ui::i18n` だけを GUI なしでビルドする（**B-100**・**B-101**）。
+> - **雛形** `core::template`（§14.5 の 26 ファイル。既定プロンプト 7 本 ＋ `_shared/` 2 本。**診断 0 件**、**B-104**）。
+> - **`novnow new`**（既存のファイルを上書きしない・v0 / 新しすぎる版には何も書かない、**B-106**）と
+>   **`novnow check`**（1 行 1 件・E があれば 5、**B-108**）。M6 は履歴に書かない（積むのは GUI が開けたとき）。
+> - **Windows**: リリースビルドは GUI サブシステム、`AttachConsole` は FFI（クレートを足さない）。作業環境に Windows の
+>   std が無いので、CI の wasm ジョブに `x86_64-pc-windows-msvc` の型検査を足した（**B-107**）。
+> - **検査**: `tests/cli.rs`（37。§14.2.2〜§14.2.4 の例を仕様書と一字一句照合・実行ファイルを子プロセスで）・
+>   `tests/template.rs`（12）・`tests/i18n_catalog.rs`（+6）・`tests/layering.rs`（+2）・`tests/storage_policy.rs`（+5、
+>   §13.1.1 の特例）で **889 件**。
+> - 完了条件 2 の「エラー 3 行」は、§14.2.2 の 3 要素（見出し・構造の解説 URL・`novnow new` の案内）と読んだ
+>   （空ディレクトリでは不足の列挙で 13 行になる。文面は §14.2.2 が正）。
+
 **完了条件**
 
-- [ ] §19.2 のチェックリストが全部通る。
-- [ ] 空ディレクトリで `novnow .` を実行 → エラー 3 行 ＋ exit 3。GUI プロセスが起動しない。
-- [ ] Windows でエクスプローラから .exe を直接起動 → コンソールが**出ない**。
+- [x] §19.2 のチェックリストが全部通る。→ **CLI の項目**（`novnow ./broken` が §14.2.2 の文面を stderr に出して 3 で
+  終わり、GUI を出さない・出力に `PROJECT_STRUCTURE_DOC_URL` と `novnow new` が含まれる）は `tests/cli.rs` が実行ファイル
+  ごと確かめる。**GUI / Web の項目**（`novnow ./valid-project` で GUI が起動・選択モーダル・未選択で背後を描かない・
+  ダブルクリックで GUI が起動・IndexedDB の 3 ストア・LocalStorage・sample の投入）は M7 / M11 の完了条件に移した（**B-105**）。
+- [x] 空ディレクトリで `novnow .` を実行 → エラー（§14.2.2）＋ exit 3。GUI プロセスが起動しない（`tests/cli.rs` の
+  `an_empty_directory_…` と `binary_an_empty_directory_…`。何も書かないことも確かめる）。
+- [ ] Windows でエクスプローラから .exe を直接起動 → コンソールが**出ない**。→ **未確認（手動。作業環境に Windows が無い）**。
+  実装は `#![windows_subsystem = "windows"]`（リリースビルド）＋ `AttachConsole(ATTACH_PARENT_PROCESS)` で、
+  `AllocConsole` は使っていない。型検査は CI（**B-107**）。確かめ方: `cargo build --release` → `target\release\novnow.exe`
+  をエクスプローラからダブルクリック → 黒いウィンドウが一瞬も出ないこと（M6 は GUI が無いので何も起きずに終わる）。
 
 ---
 
@@ -1041,7 +1073,7 @@ tests/layering.rs
 | ファイル | 内容 | 仕様 | 目安 |
 |---|---|---|---|
 | `ui/theme.rs` | セマンティックカラートークン ＋ 3 テーマ | §11 | 1.5 日 |
-| `ui/i18n/{mod.rs,ja.toml,en.toml}` | 2 言語カタログ（**`ja.toml` / `en.toml` の `diag.*`（80 件）と §12.3 の CI 検査は M4 で作成済み**。M7 は `mod.rs` の読み込みとステータス・パレット等の文言） | §12 | 1.5 日 |
+| `ui/i18n/{mod.rs,ja.toml,en.toml}` | 2 言語カタログ（**`diag.*`（80 件）と §12.3 の CI 検査は M4、`mod.rs` の読み込み・言語の決定と `cli.*` は M6 で作成済み**。M7 はステータス・パレット等の文言と、`ui.json` の `language` を `Locale::detect` に渡すこと・`Ctrl+Alt+L` の切替） | §12 | 1 日 |
 | `ui/shell.rs` | メニュー・ステータスバー・モーダル・パレット | §9.6 / §9.7 | 3 日 |
 | `ui/widgets/syntax_text.rs` | セマンティックトークン描画 ＋ 波線 ＋ 緑下線 | §11.2 / §11.3 | 2.5 日 |
 | `ui/widgets/context_view.rs` | 文脈ビュー ＋ 編集中プレースホルダ | §9.3 | 2 日 |
@@ -1087,9 +1119,13 @@ tests/layering.rs
    - 張り付き防止: `WindowFocused(false)` と 2 秒タイムアウトで composing を落とす。
 10. **役割語の緑下線**（§6.5.4）: 一致リテラル部のみ。**不一致時は何も出さない**。
 11. **規則 10 を GUI で崩さない**（M5 の B-91・B-98）: 書き込みは `ports::storage::Storage` と `FsGate` だけ。
-    **eframe の `persistence` feature を有効にしない**（状態は `.novnow/ui.json`）。ファイル選択は開くダイアログだけ
-    （`ports::dialog`）。`docs/verify-rule10.md` §4 の「GUI のライブラリが自分で書くもの」を確かめる。
+    **eframe の `persistence` feature を有効にしない**（状態は `.novnow/ui.json`）。ファイル選択は開くダイアログと、
+    Zip の保存先を選ぶ `Dialog::save_zip`（§13.1.1 の特例。書くのは `zip::export_to_chosen` → `FsGate::write_chosen_export`
+    だけ、B-99）。`docs/verify-rule10.md` §4 の「GUI のライブラリが自分で書くもの」を確かめる。
     外部変更の監視は `adapters::project_load::poll` を 1,000ms ごとに呼ぶ（B-95）。
+12. **起動をつなぐ**（M6 の続き、B-105）: `main.rs` の `Outcome::Gui(project)` で GUI を起動する（`Some` は §14.2 の検査を
+    通ったルート、`None` は §14.4 の選択モーダルから）。プロジェクトを開けたら `RecentFile::push`（§14.4。M6 は履歴に
+    書いていない）。`cli::GUI_AVAILABLE` を `cfg!(feature = "ui")` にする（`novnow new` の案内が「開く」になる）。
 
 **完了条件**
 
@@ -1099,7 +1135,8 @@ tests/layering.rs
 - [ ] **変換候補ウィンドウがキャレットの直下に出る**（`IMEOutput.cursor_rect` が正しい）。
 - [ ] `Frame::group` が `ui/` 全体で 0 件（grep で検査、CI に追加）。
 - [ ] 10 万行のファイルで 1 フレーム 8ms 以内（§18.1）。
-- [ ] `docs/verify-rule10.md` の手順（§3.1 の操作の一覧）を GUI で実施し、プロジェクト外に作られたファイルが**履歴 1 個だけ**であることを同書 §5 に記録する（§19.10。M5 はストレージ層まで、B-98）。
+- [ ] `docs/verify-rule10.md` の手順（§3.1 の操作の一覧）を GUI で実施し、プロジェクト外に作られたファイルが**履歴 1 個と、保存ダイアログで指定した Zip だけ**であることを同書 §5 に記録する（§19.10。M5 はストレージ層まで、B-98。特例は B-99）。
+- [ ] §19.2 の GUI の項目（M6 から移した、B-105）: `novnow ./valid-project` で GUI が起動する・GUI 起動時にプロジェクト選択モーダルが出て履歴とフォルダ選択の両方が使える・未選択では背後の UI を描かない（`Esc` で閉じない）・Windows で `.exe` をダブルクリックするとコンソールを出さずに GUI が起動する。
 - [ ] Web で IndexedDB の接続（`adapters::storage_idb` の `web`）を一通り動かす: DB の作成・保存（`SaveFailed` を含む）・プロジェクトの作成 / 削除・Zip の取り込み / 書き出し・`app` ストアのキーが `recent_projects` だけ（M5 はコンパイルだけを確かめた、B-96）。
 
 ---
@@ -1279,8 +1316,10 @@ tests/layering.rs
 
 | テスト | 内容 | 導入 |
 |---|---|---|
-| `tests/layering.rs` | core の禁止依存（§3.2）＋ core の日本語文字列禁止（§12.2） | **M0** |
-| `tests/storage_policy.rs` | 全書き込み経路でプロジェクト外を拒否（§13.1） | M5 |
+| `tests/layering.rs` | core の禁止依存（§3.2）＋ core・CLI・文言カタログの日本語文字列禁止（§12.2）＋ feature gate ＋ 書き込みの関門（§13.1.2） | **M0** |
+| `tests/storage_policy.rs` | 全書き込み経路でプロジェクト外を拒否（§13.1）。§13.1.1 の特例（保存ダイアログで指定した Zip）の範囲も | M5（特例は M6） |
+| `tests/cli.rs` | §14.3 の判定・§14.2 の検査と表示（§14.2.2〜§14.2.4 を仕様書と照合）・`new` / `check`・終了コード・実行ファイル | M6 |
+| `tests/template.rs` | §14.5 の雛形と既定プロンプト（診断 0 件・§15.5.2 の約束・付録 A の要素） | M6 |
 | `tests/export_invariants.rs` | エクスポート結果の不変条件（§17.1） | M9 |
 | `tests/no_llm_sdk.rs` | `Cargo.toml` に LLM プロバイダ SDK が無い（§15.1 A5） | M10 |
 | `tests/delegation.rs` | 委譲レベル解決・自動適用キュー・上限停止・監査ログ記録（§15.1.1） | M10 |
@@ -1461,7 +1500,7 @@ tests/layering.rs
 | B-51（**2026-10-11**） | E025（JSON がパースできない）の**番号**と位置・引数 | §7.1 に置く（E064 以降の空き）/ §7 の E024 の隣 / 既存コードの流用 | **§7 の E024 の隣（E025）**。E024 が「`materials/index.json` の `path`」で、E025 は同じファイルの**パース失敗**なので隣が最も読める。空き番号の確認は全 docs / src を grep して **E009–E011 / E014 / E015 / E019 / E022 / E023 / E025 / E027 / E029 がどこにも出現しない**ことを確かめたうえで行い、② の予約域（**W080 以降 / E032 以降 / E064 / I054 以降**、本書 §1.5-3）には触れていない。位置は**ファイル全体**（`0..raw.len()`）: serde はトークン位置を持たないので「どのキーが壊れたか」は言えず、§7.1 の「文書位置を持たない通知」にするよりは**ファイルを開いたまま直せる**ほうが作者の行動に合う（Anchor は `STATUS_ANCHOR` 外なので自動的に `Document`）。引数は **1 個**（`{0}` ＝パーサのメッセージ）で、ja / en の両方の文言が `{0}` を使うので `tests/diagnostics_catalog.rs` の引数検査をそのまま通る。`Group::Core`（Error 1..=31）も既存の規則で自動的に正しくなる |
 | B-52（**2026-10-11**） | 仕様の例を直したあと、**消えた診断の網羅**をどう残すか | 例が直ったので検査も消す / 合成入力で検査だけ残す / ゴールデンに壊れたケースを足す | **合成入力で検査だけ残す**。§5.9.2 の例が `{{text_current}}` になったことで E031 のゴールデン網羅が消えるので、`tests/prompt_md.rs` の `an_unknown_variable_reports_e031` に `{{content_section}}` のケースを追加した（**A-16 で直した綴りそのもの**を「閉集合に無い名前」の例として残すので、回帰が起きても気づける）。同様に W011 は §5.5.7 / §5.7 / §5.9.1 / §5.9.2 の例から消えたので、② のキー（`blurb` `icon` `address`）と `foo` を使う unit テストを 4 形式ぶん残した。「ゴールデンに壊れたケースを足す」案は §6.3 の「入力は**仕様書のコード例をそのまま**」に反するので採らない（壊れた入力のゴールデン 3 件は仕様書の例ではないが、いずれも M2 で既存のものを固定した範囲） |
 | B-53（**2026-10-11**） | E025 の**ゴールデンケース**を足すか | `materials_index/broken_json.txt` を足す / unit テストだけにしておく | **unit テストだけ**。E025 の引数 `{0}` は serde_json のエラーメッセージ（`trailing comma at line 6 column 3` のように**行・列を含む**）なので、`.expected.json` に書くと `serde_json` を更新しただけでゴールデンが落ちる（仕様の変更でない理由で赤くなる）。`Index::error` も同じメッセージを写像するので同様。§6.3 の「期待値は仕様と突き合わせられるもの」を守るため、E025 は `tests/materials_index.rs` の 2 テスト（コード・位置・引数の数・`contains("expected value")`・既定値での続行・原文の不変）で固定する |
-| B-54（**2026-10-11・ユーザー承認**） | GUI のクレート（egui / eframe）を既定のビルドに入れるか | 常にビルドする（`Cargo.toml` のまま）/ **`ui` feature にして既定は空** / `default = ["ui"]` にして CI だけ `--no-default-features` | **`ui` feature にして `default = []`**。M7 まで `src/ui/**` は 1 行の stub ばかり（54 行）で egui を一切使わないのに、egui / eframe は依存ツリーが 200 クレート規模あるので、CI の clippy / test / wasm の 3 ジョブが毎回それをビルドしていた（`Swatinem/rust-cache` が効くのは `Cargo.lock` が変わらない間だけ）。ユーザーの「Actions 使用時間をできるだけ抑える」指示にも沿う。対象は §2.1 の表で層が **ui** の 5 クレート（`eframe` / `egui` / `rfd` / `fontdb` / `toml`）で、`zip` / `web-time` / `tokio` / `directories` / wasm 系は **ui ではない**（export・clock・storage・MCP のアダプタが使う）ので既定のまま残した。`default = ["ui"]` ＋ CI だけ `--no-default-features` の案は、手元の `cargo test` が毎回 egui をビルドすることになって開発ループが遅いので採らない（CI の時間だけを問題にすればどちらでもよいが、`cargo build` で GUI が要るのは M7 以降で、そのときは `--features ui` を 1 回付けるだけ）。**回帰の防止**: `tests/layering.rs` の末尾 2 テストが `Cargo.toml`（5 クレートが `optional = true` で `[features] ui` の `dep:` に並ぶ／`default` に `ui` が無い）と `src/lib.rs`・`src/adapters/mod.rs` の `#[cfg(feature = "ui")]` を `include_str!` で読む。`toml` は optional になるとテストからも使えなくなるので **`[dev-dependencies]` にも置いた**（検査のために GUI をビルドしない）。**M7 の作業項目 0** で CI の 3 コマンドに `--features ui` を足す |
+| B-54（**2026-10-11・ユーザー承認**） | GUI のクレート（egui / eframe）を既定のビルドに入れるか | 常にビルドする（`Cargo.toml` のまま）/ **`ui` feature にして既定は空** / `default = ["ui"]` にして CI だけ `--no-default-features` | **`ui` feature にして `default = []`**。M7 まで `src/ui/**` は 1 行の stub ばかり（54 行）で egui を一切使わないのに、egui / eframe は依存ツリーが 200 クレート規模あるので、CI の clippy / test / wasm の 3 ジョブが毎回それをビルドしていた（`Swatinem/rust-cache` が効くのは `Cargo.lock` が変わらない間だけ）。ユーザーの「Actions 使用時間をできるだけ抑える」指示にも沿う。対象は §2.1 の表で層が **ui** の 5 クレート（`eframe` / `egui` / `rfd` / `fontdb` / `toml`）で、`zip` / `web-time` / `tokio` / `directories` / wasm 系は **ui ではない**（export・clock・storage・MCP のアダプタが使う）ので既定のまま残した。`default = ["ui"]` ＋ CI だけ `--no-default-features` の案は、手元の `cargo test` が毎回 egui をビルドすることになって開発ループが遅いので採らない（CI の時間だけを問題にすればどちらでもよいが、`cargo build` で GUI が要るのは M7 以降で、そのときは `--features ui` を 1 回付けるだけ）。**回帰の防止**: `tests/layering.rs` の末尾 2 テストが `Cargo.toml`（5 クレートが `optional = true` で `[features] ui` の `dep:` に並ぶ／`default` に `ui` が無い）と `src/lib.rs`・`src/adapters/mod.rs` の `#[cfg(feature = "ui")]` を `include_str!` で読む。`toml` は optional になるとテストからも使えなくなるので **`[dev-dependencies]` にも置いた**（検査のために GUI をビルドしない）。**M7 の作業項目 0** で CI の 3 コマンドに `--features ui` を足す **改（2026-10-13、M6、B-100）**: `toml` は CLI も使う文言カタログのために通常の依存にした（feature の後ろは 4 クレート）。`src/lib.rs` の `pub mod ui;` は cfg なしで、`src/ui/mod.rs` が `i18n` 以外を守る |
 | B-55（**2026-10-11・ユーザー承認**） | CI の失敗出力をどう出すか | 生ログの `head` / `tail` を PR コメントに貼る（M0 の形）/ Actions のログを読む（`gh run view --log`）/ **生ログを解析して注釈・サマリ・コメントの 3 面構成にする** | **3 面構成にする**。(1) Actions のログ取得先ホスト（`objects.githubusercontent.com`）には作業環境から到達できず `gh run view --log*` は全部失敗するので「ログを読む」案は最初から使えない（本書 §9.3）。(2) M0 の `head -n 120` / `tail -n 60` は、**テスト失敗の本体がログの真ん中にある**（`---- <name> stdout ----` ブロックは全ターゲットの実行後にまとめて出る）ため、ちょうど落ちる。コンパイルエラーも数十行の `Compiling …` に埋もれる。解析は `.github/report.py`（**標準ライブラリのみ**、runner の python3 に何も入れない）で、rustc の診断（`error[E0716]: …` ＋ `--> file:line:col` ＋ 本文 24 行）・テスト失敗（panic 位置とメッセージ 30 行）・rustfmt の差分（`Diff in <path>:<line>:` を**箇所ごとに**分け、runner の絶対パスを `GITHUB_WORKSPACE` で相対化）を拾う。cargo 自身のまとめ行（`could not compile` / `build failed` / `test failed, to rerun` 等）は**拾わない**（件数の水増しになり、情報は `test result:` の行と失敗一覧で足りる）。**解析できなかったときは生ログの先頭と末尾にフォールバックする**（解析器のバグで失敗理由が消えるのが一番悪い）。**レポート生成は合否に影響させない**（`|| echo "::warning::…"`。レポートのバグで緑が赤くなるのを防ぐ）。あわせて `cargo test --no-fail-fast`（1 回の CI で全形式の失敗を知る。失敗時のみ時間が伸びる）と `timeout-minutes`（暴走時の課金を止める）を入れた。実行サマリは**成功時も書く**ので、run のページで「何件通ったか」が緑の証跡としてその場で分かる（PR コメントは失敗時のみ＝ノイズにしない） |
 | B-56（**2026-10-11**） | M3 の `resolve/*` は何を入力にするか | `core/model` の型（`Character` / `Word` / `Mode`）だけ / `core/syntax` の木だけ / 木を正本にし、意味の塊が要るところで model の型をその場で組む | **3 つ目**。`model` は行の位置を持たないので、それだけでは診断の波線を引く場所が決まらない（§7.2「位置は byte range」）。§6.4.3 の 8 段は C 形式の話者注釈・B 形式の節と場面の `mode:`・A 形式の `cast:`・`characters.md` の `default-mode` と**4 ファイルの木を跨ぐ**ので、位置を持つ側を入力にする。`model` を外したわけではなく、`RolePattern::anchor()`（§6.5.2 の固定表）・`Mode::range_expr()`（§5.1）・`MaterialIndex`（JSON そのものがストレージ形式、§5.8.2）は `resolve` がそのまま呼ぶ。`syntax → model` の書き起こし（`model::Character` を埋める関数）は**参照ペイン（§9.5）とストレージ（M5）が要るとき**に回す。位置の単位は M2 と同じで、ファイル単位の木は**ファイル内 byte**、行単位の型（`RefToken` / `Speaker` / `Pattern`）は**行内相対** |
 | B-57（**2026-10-11**） | §6.1.3 の正規化の実装順と `MAX_KEY_BYTES` の測り方 | 仕様書の 1〜4 をそのまま（NFKC → 小文字 → 長音 → 空白）/ **長音統一を NFKC より先に** / NFKC の前後で 2 回長音統一する | **長音統一を先に適用する**。仕様書の順だと `－`（U+FF0D）は NFKC で ASCII の `-` になり、3 の「`－` を `ー` に統一」が**永久に発火しない**（`—` と `〜` は NFKC で形が変わらないので効く）。ASCII の `-` を長音にしてしまうと `M-01` のような ID が壊れるので、4 文字（`ー` `－` `—` `〜`）を先に `ー` へ統一してから NFKC する。あわせて **`MAX_KEY_BYTES = 96` は正規化後の byte 数**で測る（これはトライの深さの上限なので、空白を落とした実体で測らないと §6.6.1 の空白入りタイトルを E028 で落としてしまう）。正規化は**1 文字ずつ**行う（`OffsetMap` で byte 位置を元に戻すため）。代償は結合文字の並び（半角カナ＋濁点）が合成されないことで、辞書キーにそれを書く事例は無いと判断した。性能は NFKC が恒等な文字（ASCII・かな・漢字・CJK 約物）を `String` に集めず直接 push して、5,000 エントリで **release 5.3ms**（§18.1 の目標 10ms 以内、完了条件 4） |
@@ -1504,9 +1543,18 @@ tests/layering.rs
 | B-94（**2026-10-13**） | §4.3 の判定と読み込みの分担 | adapters が判定する ／ **判定は core、材料は adapters** | `core::model::project::validate(&Listing)`（ファイルとディレクトリの集合・`project.json` の中身・UTF-8 として不正なファイルの一覧）。§14.2.4 の表示のため、v0 の目印（`characters.json` があって `characters.md` が無い）を不足の列挙より先に見る。`project.json` が読めない・`schema_version` が数でなければ版の検査を飛ばす（E025 を出して既定値、§4.3-4）。`ProjectError::LegacyV0` は何で分かったか（`detected`）を持ち、`Encoding` はファイルを列挙する（仕様の例より情報を足した）。材料集めと文書の読み込みは `adapters::project_load`（どの `Storage` でも同じ手順。`load` は `.md` / `.txt` / `.json` を全部読んで UTF-8 を確かめ、`.novnow/`・`exports/`・ドットファイルは除く。§4.2 の形式のものだけを §5.0.4 の正規化にかけて `features::Project` に入れる）。§3.3 のツリーに `adapters/project_load.rs` を足した |
 | B-95（**2026-10-13**） | 外部変更の監視の分担 | v0 のように監視スレッドを adapters に置く ／ **規則は core、1 回分は adapters、タイマは UI** | `core::policy::external_change`: スタンプ（更新時刻・長さ）の差分で候補を出し（`Snapshot::diff`）、**中身を比べてから**反応を決める（`react`: 同じなら無視＝自分の保存や `touch`、辞書の 3 ファイルは常に再読込、Clean は再読込 ＋ I052、Dirty は衝突）。自分の保存は `write` が返すスタンプを `acknowledge` する。`.novnow/`・`exports/`・ドットファイルは見ない。1 回分（一覧 → 差分 → 置き換え）は `adapters::project_load::poll`。1,000ms のタイマは M7 の UI（ネイティブはスレッド、Web は `setInterval`） |
 | B-96（**2026-10-13**） | IndexedDB のアダプタの確かめ方と、v0 の取り込み | wasm の実行テストを足す（ブラウザが要る）／ **純粋な部分を分けてネイティブで試し、接続はコンパイルだけ** | `storage_idb.rs` の上半分（レコードの形・`app` の許可キー・W062・v0 の取り込みの計画・ID）は `tests/storage_idb.rs`。`wasm32` だけの `web` は CI の WASM ジョブがコンパイルを確かめ、実行の確認は M7 の Web UI（完了条件に足した）。`app` ストアに書く口は `push_recent` だけ（任意のキーの API を持たない）。トランザクションの境界は §13.3.3 のとおりで、成功は `oncomplete` で判定する（§8.3）。日時は UTC のミリ秒付き RFC 3339（固定幅で文字列の順 = 時刻の順。`by_updated` のため）。§13.3.6 の手順 3（v0 → v1 の変換）は M11 なので、変換は呼び出し側が渡す関数にした（`Idb::import_local_storage_with`）。M5 の既定の `convert_v0` は失敗を返すので、**v0 のデータがあれば E061 になり、LocalStorage は消さず IndexedDB にも書かない**（変換していない v0 を v1 のプロジェクトとして置かないため）。サンプルの投入（§13.3.5）は仕組みだけ（中身の付録 C は M11）。UUID は `crypto.getRandomValues`（§3.1 の図の `Random` ポートは足さない） |
-| B-97（**2026-10-13**） | 残りのポート | — | `Clock`（`now_millis` / `utc_offset_minutes`）・`Env`（`var` / `os` / `home_dir`。M6 で言語・`NO_COLOR`・端末の判定に広げる）・`Dialog`（~~**開くためのダイアログだけ**。プロジェクト外には書けないので、保存先を選ぶダイアログは持たない~~ → **改（2026-10-13、B-99）**: §13.1.1 の特例のため、Zip の保存先を選ぶ `save_zip` と、その結果の型 `ChosenPath` を足した）・`McpClient`（§15.8.1 の 1 回の呼び出し。中身は M10）。実装は `adapters/env_system.rs`（§3.3 のツリーに追加）と `clock_system.rs` |
+| B-97（**2026-10-13**） | 残りのポート | — | `Clock`（`now_millis` / `utc_offset_minutes`）・`Env`（`var` / `os` / `home_dir`。M6 で言語・`NO_COLOR`・端末の判定に広げる → **改（M6、B-101）**: OS のロケール `locale` を足した。端末かどうかは標準入出力の性質なので `cli::Terminal` が持つ）・`Dialog`（~~**開くためのダイアログだけ**。プロジェクト外には書けないので、保存先を選ぶダイアログは持たない~~ → **改（2026-10-13、B-99）**: §13.1.1 の特例のため、Zip の保存先を選ぶ `save_zip` と、その結果の型 `ChosenPath` を足した）・`McpClient`（§15.8.1 の 1 回の呼び出し。中身は M10）。実装は `adapters/env_system.rs`（§3.3 のツリーに追加）と `clock_system.rs` |
 | B-98（**2026-10-13**） | §5.6 の完了条件 2（実機で一通り操作して、プロジェクト外のファイルが履歴 1 個だけ）の扱い | M7 まで保留する ／ **M5 はストレージ層で実施して記録し、GUI での実施を M7 の完了条件にする** | M5 の時点では操作できる実機（CLI は M6・GUI は M7）が無い。`docs/verify-rule10.md` に手順（ファイル差分・strace・fs_usage・Process Monitor）と、GUI のライブラリが勝手に書くもの（eframe の `persistence`・GTK の `recently-used.xbel`・シェーダのキャッシュ）を書いた。ストレージ層で一通りの操作をなぞるテスト（`after_a_full_session_…`）を実プロセスとして走らせ、ファイルシステム全体の差分で確かめた（記録は同書 §5）。GUI での実施は §5.8 の完了条件に足した |
 | B-99（**2026-10-13**） | §13.1.1 の特例（保存ダイアログで指定された Zip はプロジェクトの外にも書ける）の作り | 関門の一般の口に許可を足す ／ 指定されたパスを関門に覚えさせる ／ **専用の判定・専用の口・消費される型** | ユーザー裁定（2026-10-13）「保存ダイアログによりユーザーから指定されたパスへの保存は特例として外部保存を許可する」。仕様 第 2.10 版で §13.1.1 に特例を足し、§13.1.2・§13.5・§19.10（と §0 の表・P6・§15.5.4 の言い回し）を直した。(1) 判定は core の `WritePolicy::check_chosen_export` だけで、`check` は特例を知らない（本文・設定・ログ・提案・履歴の口は従来どおり外を拒否する）。条件はファイル名が `.zip`（大文字小文字を問わない）で終わることと、履歴ファイルでないこと。シンボリックリンクは**行き先で**判定する（`.zip` を装ったリンクで任意のファイルを潰させない）。プロジェクト内を指定したら `Allowed::Project`（ふつうの原子的保存）。(2) 書き込みは `FsGate::write_chosen_export(ChosenPath, &[u8])` だけ。`ports::dialog::ChosenPath` は `Clone` を持たず値で消費される（1 回の指定で 1 回）。関門はパスを覚えない。外へは一時ファイルを使わず直接上書きし（§13.1.1「一時ファイルであっても」）、親ディレクトリは作らない（作ると「指定した 1 個」より多くを外に作る。ダイアログで選べるのは既存のディレクトリ）。(3) ダイアログの結果は panic しない `check_chosen_export` で先に確かめる（§13.1.2）。`zip::export_to_chosen` が内部でそうし、書き出し先がプロジェクト内ならその Zip を中身から除く。(4) `Dialog::save_zip(suggested)` を足した（B-97 を改める）。初期値は `exports/<name>.zip`、上書きの確認は OS のダイアログに任せる。(5) §17.2 の「名前を付けて保存」（テキストのエクスポート）は特例に含めない（裁定は Zip について。広げるならユーザーの判断）。(6) 指定されたパスは履歴にも書かない（§13.1.3）。`tests/storage_policy.rs` に 5 本（core 1・関門 3・リンク 1）を足し、総合テストの期待値を「履歴 ＋ 指定した Zip」にした |
+| B-100（**2026-10-13**） | CLI の文言カタログをどこでビルドするか | `ui` feature の後ろのまま（CLI は別の表を持つ）／ CLI 専用のモジュールに写す ／ **`ui::i18n` だけを常にビルドする** | 仕様 §12.2「CLI のメッセージも同じカタログを使う」を守るには、GUI なしのビルド（既定）でもカタログが要る。`toml` を通常の依存にし（feature の後ろは `eframe` / `egui` / `rfd` / `fontdb` の 4 つ。§2.1・B-54 を改める）、`src/lib.rs` の `pub mod ui;` は cfg なし、`src/ui/mod.rs` が `i18n` 以外を `#[cfg(feature = "ui")]` で守る。`tests/layering.rs` が (1) この形、(2) `ui/i18n` が GUI のクレートを使わないこと、(3) `src/cli/**`・`src/main.rs`・`src/ui/i18n/**` に日本語の文字列リテラルが無いこと（§12.2 の検査を CLI に広げた）を固定する。`Cargo.lock` は変わらない（optional でも lock には載っていた） |
+| B-101（**2026-10-13**） | 実行時の i18n と言語の決定（§12.3・§12.4） | — | `ui::i18n`: カタログは言語ごとに初回に 1 度だけ読む（`OnceLock`）。`text` は欠けたキーを `en` → キーそのものに落とし、**デバッグビルドでは panic**（§12.3 の `debug_assert!`。clippy の `assertions_on_constants` を避けて `if cfg!(debug_assertions) { panic! }`）。`fill` は `{n}` を 1 回の走査で埋める（値の中の `{0}` は埋め直さない・範囲外はそのまま）。言語は `Locale::detect(setting, env)`: (1) `ui.json` の `language` が `ja` / `en`（`system` は飛ばす）(2) `NOVNOW_LANG` が `ja…` / `en…`（他の値は無視して次へ）(3) OS のロケール（`ja…` → ja、`C` を含むそれ以外 → en）(4) ja。OS のロケールは `Env::locale` を足して取る（B-97 を改める）: 既定の実装は POSIX の順（`LC_ALL` → `LC_MESSAGES` → `LANG`）の環境変数、`SystemEnv` は無ければ Windows の `GetUserDefaultLocaleName`（FFI）/ Web の `navigator.language`。**CLI は (1) を読まない**（§14.2.3 が `NOVNOW_LANG` → OS → ja と書いており、壊れたプロジェクトでも同じ言語で出すため）。仕様 §14.2.3 の「`LANG`/`LC_ALL`」を POSIX の順に直した（第 2.10 版） |
+| B-102（**2026-10-13**） | 起動の判定（§14.3）の細部 | — | `cli::decide(args, terminal)` は純粋。順は `--gui` → `--help`/`-h` → `--version`/`-V`（この 3 つは**どの位置にあっても**効く。`novnow check --help` は使い方）→ 第 1 引数がサブコマンドと完全一致 → `-` で始まる知らない引数（2）→ 位置引数 1 つで Open（2 つ目は余分な引数で 2）→ 引数なしは stdin か stdout が端末なら使い方を stderr に出して 2、どちらも端末でなければ GUI（stderr だけが端末でも GUI）。`-` だけはディレクトリ名。`new` は 0〜1 個、`check` / `migrate` / `mcp` はちょうど 1 個、`export` は最初の引数がディレクトリ（`-` で始まれば 2）で残りはそのまま M9 に渡す。§14.2.5 の「未知サブコマンド」は §14.1 の規則（完全一致しない語はディレクトリ）と両立しないので、未知の**オプション**のことと読んだ（`novnow chekc` は「見つからない」で 3） |
+| B-103（**2026-10-13**） | §14.2 の例に無い場合の表示と終了コード | — | 例のあるもの（不足・v0）は一字一句そのまま（`tests/cli.rs` が仕様書を読み直して照合）。見つからない → 見出し「ディレクトリが見つかりません」＋対象＋構造の解説＋`novnow new <対象>`（3。`new` で作れるので案内する）。ディレクトリでない → 見出し＋対象（3）。読めない（権限など。一覧の失敗を含む）→ 見出しに OS のメッセージ（4）。`project.json` の `schema_version` で v0 と分かったとき → 1 行目だけ「project.json の schema_version が無いか 0 です」に替える（`characters.json` を検出、とは書けない）。新しすぎる → 見出しに版＋「novnow を新しい版に更新してください」（3）。UTF-8 の検査は全文を読む `check` だけ（起動前の検査は `listing` で文字コードを読まない、§5.7 作業項目 7）で、該当ファイルを列挙して 4。「対象」は解決済みの絶対パス（Windows の `\\?\` は外して表示）。`novnow new` の案内は対象がカレントディレクトリなら `novnow new`、そうでなければ絶対パス付き（空白や記号を含めば引用符。日本語はそのまま）。色は出力先が端末・`NO_COLOR` なし・Windows でないときだけ（見出しの `novnow:` と `check` のコード）。仕様 §14.2.3〜§14.2.5 に書き足した（第 2.10 版） |
+| B-104（**2026-10-13**） | `novnow new` の雛形の置き場所と中身 | CLI に置く ／ 文字列リテラルで core に書く ／ **`core::template` に、ファイルを `include_str!` で埋め込む** | 雛形と既定プロンプトは CLI（M6）・GUI の「新規作成」（M7）・Web のプロジェクト作成（M11）・`prompts/` 欠落時の I050（§4.2）・`>prompt reset`（M10）が共有するので、I/O を持たない core に**データ**として置く。中身はプロジェクトの内容（§12.6 の「翻訳しない」もの）であって UI の文言ではないので、UI 言語に関わらず日本語・ファイルのまま（`src/core/template/project/`）。§12.2 の日本語リテラル検査は `.rs` の中だけを見るので抵触しない。`project.json` は `schema_version` と `title`（ディレクトリ名）だけ（② のキーを書かない・既定値は書かない）。`ideas.md` は見出しを置くとアイデア 1 件になる（§5.7）ので**書き方のコメント 1 行**にした（仕様 §14.5 の「見出しのみ」を直した）。サンプルは 1 名（モード 2 つ・`## tone` に役割語 2 本）・1 語・本文 1 節（話者注釈つき）・3 つのプロット（`mode:` と `check:` つき）。プロンプトは §5.9.1 の形・§15.5.2 の 8 つの約束・付録 A の要素を全役割に入れ、変数は指示に要るものだけ（文脈の残りは ContextPacket が運ぶ、§15.4）。`novnow check` で**診断 0 件**（`tests/template.rs`。B 形式の末尾に `;` を置くと W030 になるので置かない・行頭の `ascii キー:` と §5.0.6 の別名＋コロンを本文に書かない）。URL は書かない（§14.2.1 の MUST） |
+| B-105（**2026-10-13**） | M6 の時点で中身の無いもの（`export` / `migrate` / `mcp`・GUI）の扱いと、§19.2 の GUI の項目 | 新しい終了コードを作る ／ 0 で終わる ／ **2（使い方の誤り）で説明して終わる** | §14.2.5 に無い番号は作らない。`export` / `mcp` は先に §14.2 の検査をする（不備なら 3）。`migrate` の対象は v0（検査に落ちる側）なので開けるかだけを見る。GUI は M7 なので、`novnow <有効なディレクトリ>` は検査を通ったあと「この novnow には GUI が含まれていません」で 2、引数なし・非端末（GUI からの起動）も同じ。**M6 は履歴に書かない**（積むのは GUI がプロジェクトを開けたとき、§14.4。§5.7 作業項目 7 の「開けたときだけ」は M7 の作業項目 12 で実装する）。§19.2 のうち GUI / Web の項目は M7 / M11 の完了条件に移した |
+| B-106（**2026-10-13**） | `novnow new` の細部（§14.5） | — | 既定は `.`。無いディレクトリは親ごと作る（`FsStorage::create`。Zip の取り込み先と同じ扱い）。既存のディレクトリが **v0 形式・新しすぎる版**なら何も書かずに §14.2.4 などを出して 3（v0 のデータの横にサンプルを並べると半端なプロジェクトになり、`novnow <dir>` は依然 v0 と言う。移行は `migrate`）。対象がファイルなら 4（作れない）。存在するファイルは 1 バイトも変えず（`FsStorage::exists` で確かめて書かない）、競合が無ければ見出し＋対象＋案内、あれば「作成したファイル」と「上書きしなかったファイル」の一覧（雛形の順）を標準出力に。何も作らなかったときは見出しを「作るファイルはありませんでした」にする。案内は GUI があれば `novnow <dir>`、無ければ `novnow check <dir>`（`cli::GUI_AVAILABLE`。M6 は false）。`.gitkeep` も「無いファイル」として作る |
+| B-107（**2026-10-13**） | Windows のコンソール（§14.3）と、その検査 | `windows-sys` を足す ／ **FFI を 2 本だけ自前で宣言** | 新しいクレートを足さない（`AttachConsole` と `GetUserDefaultLocaleName` の 2 関数だけ）。リリースビルドは `#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]`、起動直後に `AttachConsole(ATTACH_PARENT_PROCESS)`（失敗は無視、`AllocConsole` は使わない）。**`cmd.exe` は GUI サブシステムの exe の終了を待たない**（出力がプロンプトの後に出て `%ERRORLEVEL%` が取れない）ので、Windows の CI では `start /wait` か PowerShell の `Start-Process -Wait` を使う（仕様 §14.3 に注意を書いた）。作業環境には Windows の std が無いので、CI の wasm ジョブ（名前は必須チェックのため据え置き）に `cargo check --target x86_64-pc-windows-msvc` を足し、novnow 自身の警告も赤にする。「エクスプローラから起動してもコンソールが出ない」は手動の確認が残る（§5.7 の完了条件 3） |
+| B-108（**2026-10-13**） | `novnow check` の出力 | — | 診断は `diagnostics::document`（M4。GUI の波線と同じもの）を全文書に掛けたもの。標準出力に 1 行 1 件 `パス:行:列: コード 文言`（行と列は 1 始まり・列は文字数＝ `LineTable::char_position_of_byte`。位置を持たない診断は `パス: コード 文言`）。並びはパス → 位置 → コード（文書内は §9.5.2 の順ではなく位置の順にする。CI のログで上から読めるように）。最後に空行と件数の要約（文書数・E / W / I）。E があれば 5、W と I だけなら 0。既定で無効の診断（§7.2）の絞り込みはしない（`document` が出さない）。文書の選び方は `project_load::is_document`（`.gitkeep` などは数えない） |
 
 ### 9.3 環境の前提
 
