@@ -141,9 +141,14 @@ pub fn parse(text: &str) -> Contents<'_> {
 pub fn parse_with<'a>(text: &'a str, options: &Options) -> Contents<'a> {
     let mut lines = Vec::new();
     let mut diagnostics = Vec::new();
+    let mut seen: Vec<(SceneId, usize)> = Vec::new();
     let mut at = 0;
     for raw in text.split('\n') {
-        lines.push(parse_line(raw, at, options, &mut diagnostics));
+        let line = parse_line(raw, at, options, &mut diagnostics);
+        if let Line::Scene(found) = &line {
+            warn_duplicate(found, at, &mut seen, &mut diagnostics);
+        }
+        lines.push(line);
         at += raw.len() + 1;
     }
     let sections = number_sections(&lines, &mut diagnostics);
@@ -521,6 +526,30 @@ fn warn_reserved(
             args,
         ));
     }
+}
+
+/// 見出しの ID が同一ファイル内で重複していないか（**E008**、§7「同一ファイル内の ID 重複」）。
+///
+/// C 形式（本文）と B 形式（話プロット）で共有する（B-40）。比べるのは **ID と階層の組**:
+/// `@01-04-02` の後の `@01-04-02-03` は「同じ場面の 3 節目から」（§5.2.2）で重複ではない。
+/// C 形式は M2 では検査していなかった（M4 で追加。`PLANS.md` §9.2 B-87）。
+pub(crate) fn warn_duplicate(
+    found: &SceneLine<'_>,
+    offset: usize,
+    seen: &mut Vec<(SceneId, usize)>,
+    out: &mut Vec<Diagnostic>,
+) {
+    // ID が壊れているときは E002 / E020 が出ている（[`parse_scene`]）のでここでは何もしない
+    let Some(id) = found.id else {
+        return;
+    };
+    let start = offset + body_start(found.raw);
+    let range = start..start + id::SIGIL.len_utf8() + found.id_text.len();
+    if seen.contains(&(id, found.depth)) {
+        let args = vec![Arg::text(found.id_text)];
+        out.push(Diagnostic::new(DiagnosticCode::E008, Some(range), args));
+    }
+    seen.push((id, found.depth));
 }
 
 pub(crate) fn parse_break<'a>(raw: &'a str) -> BreakLine<'a> {

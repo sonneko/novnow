@@ -33,7 +33,8 @@
 - [x] M3 の取りこぼし: `materials::scan_line` が辞書側の診断（E001 等）に `line_start` を足していなかった（行頭が 0 でない行で波線がずれる）のを修正
 - [x] `core::features::Project`（`features/project.rs`。文書と辞書をまとめた集約＋参照の走査）＋ `diagnostics::document(doc, project)`（`tests/diagnostics_document.rs`、共有フィクスチャは `tests/world/mod.rs`）
 - [x] 11 機能の実装（semantic_tokens / completion / hover / inlay_hint / code_action / definition / references / document_symbol / folding / formatting / rename）。共有の型（`Location` / `TextEdit` / `WorkspaceEdit`）は `features/mod.rs`
-- [ ] 11 機能のテスト（`tests/features.rs`）とシグネチャの検査
+- [x] 11 機能のテスト（`tests/features.rs` / `tests/features_edit.rs`）とシグネチャの検査（`the_eleven_features_have_the_signatures_of_section_3_4`）
+- [x] M2 の取りこぼし: C 形式の見出しの重複（E008）を検査していなかったのを追加（`contents::warn_duplicate` を B 形式と共有）
 - [ ] `PLANS.md` §5.5 の完了条件 3 件のチェック
 
 ### M4 の設計メモ（実装したら `PLANS.md` §9.2 の B 番号に移して、ここは消す）

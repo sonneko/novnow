@@ -284,7 +284,9 @@ impl Context<'_> {
         }
         found.sort();
         // 置き換えるのはキーの部分（`'` と `{}` は残す）。E013 は `'名前` の名前の部分
-        let target = match self.ref_site() {
+        // E001 は走査したトークンのキー（E001 の `{0}` と同じ範囲）、E013 は関係の名前（`{0}`）
+        let from_token = self.diagnostic.code == DiagnosticCode::E001;
+        let target = match self.ref_site().filter(|_| from_token) {
             Some(site) => site.key_range(),
             None => {
                 let text = self
@@ -325,11 +327,13 @@ impl Context<'_> {
         let mut close = None;
         for (at, c) in inner.char_indices() {
             let end = at + c.len_utf8();
-            if self
-                .project
-                .dictionary()
-                .lookup(&inner[..end], None)
-                .is_some()
+            // 正規化（§6.1.3）は空白を落とすので、空白で終わる接頭辞は数えない
+            if !c.is_whitespace()
+                && self
+                    .project
+                    .dictionary()
+                    .lookup(&inner[..end], None)
+                    .is_some()
             {
                 close = Some(end);
             }

@@ -24,6 +24,9 @@ range: @01 ..
 ### B 補習
 range: @02 ..
 
+## tone
+「*だ」
+
 ## relations
 'リリア: 幼馴染。
 
@@ -42,6 +45,9 @@ range: @01 ..
 ### C 好奇心
 range: @01 ..
 「*わよ」
+
+## tone
+「*のね」
 ";
 
 pub const WORDS: &str = include_str!("../golden/words_md/spec_5_6.txt");

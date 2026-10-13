@@ -71,8 +71,8 @@ use std::ops::Range;
 
 use serde::Serialize;
 
-use crate::core::diagnostics::{Arg, Diagnostic, DiagnosticCode};
-use crate::core::id::{self, SceneId};
+use crate::core::diagnostics::{Diagnostic, DiagnosticCode};
+use crate::core::id::SceneId;
 use crate::core::text::lexer::{self, FieldKey, LineKind, TextFormat};
 
 use super::contents;
@@ -325,7 +325,7 @@ fn parse_line<'a>(
         LineKind::Structure(_) => {
             // 見出しの分解と E002 / E020 / E022 は C 形式と完全に同じ（§5.4.1 `scene_header`）
             let found = contents::parse_scene(raw, offset, options, out);
-            warn_duplicate(&found, offset, seen, out);
+            contents::warn_duplicate(&found, offset, seen, out);
             Line::Scene(found)
         }
         LineKind::SectionBreak => Line::Break(contents::parse_break(raw)),
@@ -341,26 +341,6 @@ fn parse_line<'a>(
         // 節の内容（§5.4.1 `point_line`）。② の `# ` も ① では自由文のまま
         LineKind::Text(_) | LineKind::IllustrationMemo(_) => Line::Point(raw),
     }
-}
-
-/// 見出しの ID が同一ファイル内で重複していないか（**E008**、§7「同一ファイル内の ID 重複」）。
-fn warn_duplicate(
-    found: &contents::SceneLine<'_>,
-    offset: usize,
-    seen: &mut Vec<(SceneId, usize)>,
-    out: &mut Vec<Diagnostic>,
-) {
-    // ID が壊れているときは E002 / E020 が出ている（[`contents::parse_scene`]）のでここでは何もしない
-    let Some(id) = found.id else {
-        return;
-    };
-    let start = offset + contents::body_start(found.raw);
-    let range = start..start + id::SIGIL.len_utf8() + found.id_text.len();
-    if seen.contains(&(id, found.depth)) {
-        let args = vec![Arg::text(found.id_text)];
-        out.push(Diagnostic::new(DiagnosticCode::E008, Some(range), args));
-    }
-    seen.push((id, found.depth));
 }
 
 /// フィールド行の診断（**W011** 未知のキー、**E005** `mode:` の形）。
