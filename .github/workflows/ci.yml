@@ -47,6 +47,10 @@ on:
       - 'screenshot.jpeg'
       - 'LICENSE'
   pull_request:
+    # draft の間は 4 ジョブを skip し、ready for review にした時点で 1 回だけ走らせる
+    # （2026-10-13。作業中は push のたびにローカルで 4 ジョブを確認済みなので、CI は
+    # 「緑の証跡」を最後に 1 回残せば足りる。Actions 使用時間を抑えるユーザー指示）。
+    types: [opened, synchronize, reopened, ready_for_review]
     branches:
       - main
       - master
@@ -78,6 +82,7 @@ env:
 jobs:
   fmt:
     name: Rustfmt
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     # 暴走しても課金が伸びないようにする（Actions 使用時間の節約）
     timeout-minutes: 10
@@ -116,6 +121,7 @@ jobs:
 
   clippy:
     name: Clippy
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -158,6 +164,7 @@ jobs:
 
   test:
     name: Test
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -198,6 +205,7 @@ jobs:
 
   wasm:
     name: WASM Build Check
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

@@ -99,6 +99,8 @@ shallow clone なので `git diff main...HEAD` が使えないことがある。
 
 - **CI は `pull_request` でしか走らない**（`on: push` は main だけ）。PR がマージ／クローズされたら、
   次の作業では**新しい PR を立てる**（立てないと CI が一切走らない）。
+- **draft PR の間は 4 ジョブが skip される**（2026-10-13 に `ci.yml` を変更）。作業中は draft で push し、
+  マイルストーンが終わったら **ready for review にすると CI が 1 回走る**（緑の証跡）。
 - `paths-ignore`（`**.md` / `.github/**` 等）は PR 全体の diff で判定される。コードを含む PR に docs だけの
   コミットを足しても CI は走る。`scripts/**` は ignore されていない。
 - **Actions のログ本体は読めない**（`gh run view --log` は必ず失敗）。読むのは
