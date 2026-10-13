@@ -607,6 +607,15 @@ pub fn same_target(left: &Target, right: &Target) -> bool {
     }
 }
 
+/// `pos` を文字境界まで切り下げる（UI から来た位置が文字の途中でもパニックしない、§4.3-4）。
+pub fn floor_boundary(text: &str, pos: usize) -> usize {
+    let mut at = pos.min(text.len());
+    while at > 0 && !text.is_char_boundary(at) {
+        at -= 1;
+    }
+    at
+}
+
 /// `pos` を含む行の番号。
 pub fn line_of(text: &str, pos: usize) -> usize {
     let end = pos.min(text.len());

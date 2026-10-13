@@ -80,6 +80,26 @@ fn the_eleven_features_have_the_signatures_of_section_3_4() {
     plain::<FoldingRange>();
 }
 
+#[test]
+fn no_feature_panics_at_any_byte_offset() {
+    // UI から来た位置が文字の途中でもパニックしない（§4.3-4）。CJK は 1 字 3 byte なので
+    // 文字境界でない位置を全部試す
+    let project = world();
+    for path in [CONTENTS_PATH, EPISODE_PATH, "characters.md"] {
+        let document = doc(&project, path);
+        for pos in 0..=document.text.len() + 2 {
+            let _ = completion::at(&document, pos, &project);
+            let _ = hover::at(&document, pos, &project);
+            let _ = definition::at(&document, pos, &project);
+            let _ = references::at(&document, pos, &project);
+            let _ = rename::prepare(&document, pos, &project);
+            let _ = rename::apply(&document, pos, "新しい名前", &project);
+            let _ = inlay_hint::range(&document, pos..pos + 7, &project);
+            let _ = code_action::at(&document, pos..pos + 7, &project);
+        }
+    }
+}
+
 // ============================================================ 集約と参照の走査
 
 #[test]

@@ -69,7 +69,7 @@ pub struct CompletionItem {
 
 /// `pos` での補完候補（§3.4）。きっかけが無ければ空。
 pub fn at(document: &Document, pos: usize, project: &Project) -> Vec<CompletionItem> {
-    let pos = pos.min(document.text.len());
+    let pos = project::floor_boundary(&document.text, pos);
     let line_index = project::line_of(&document.text, pos);
     let line_start = document.text[..pos].rfind('\n').map_or(0, |at| at + 1);
     let line_end = document.text[pos..]

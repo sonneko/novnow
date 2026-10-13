@@ -19,37 +19,23 @@
 | 項目 | 状態 |
 |---|---|
 | `main` | `00a5813`（PR #11 マージ済み。M0〜M3 ＋ 本書と `scripts/`） |
-| 作業ブランチ | セッションが指定したもの固定（2026-10-13 のセッションは `arena/cb878908-novnow`）。**PR #12（draft）** |
-| マイルストーン | M0〜M3 完了。**M4「診断と features」進行中**（`PLANS.md` §5.5） |
+| 作業ブランチ | セッションが指定したもの固定（2026-10-13 のセッションは `arena/cb878908-novnow`）。**PR #12**（M4。ready for review にして CI を 1 回回した。**マージはユーザー**） |
+| マイルストーン | **M0〜M4 完了**（M4 は PR #12 のマージ待ち）。**次は M5「ストレージ」**（`PLANS.md` §5.6） |
 | 仕様書 | **第 2.8 版**（2026-10-13）。診断コード **79 件**（§7:38 + §7.1:14 + §7.2:27） |
-| テスト | `bash scripts/verify.sh` で 4 ジョブ緑（件数は verify の出力を見る） |
-| 未決の裁定 | **A-24** だけ（語クラスの正規表現が不正なときのコード。M5 まで。`PLANS.md` §9.1） |
+| テスト | **728 件緑**（`bash scripts/verify.sh`） |
+| 未決の裁定 | **A-24** だけ（語クラスの正規表現が不正なときのコード。**M5 の設定読み込みで要る**。`PLANS.md` §9.1） |
 
-### M4 の進み具合
+M4 で何を入れたか・決めたか（B-74〜B-87）は `PLANS.md` §5.5 の進捗ノートと §9.2、使い方は `DEVELOPERS.md` §5.6。
 
-- [x] 第 2.8 版の裁定（A-7・A-8・A-9・A-10・A-18・A-23）を仕様・実装・テストに反映。A-23 は**文単位**に再裁定（`PLANS.md` §9.1、§9.2 B-74・B-75）
-- [x] `deploy.yml` を M7 まで `workflow_dispatch` だけにした（M7 の作業項目 0 で戻す）
-- [x] `ui/i18n/{ja,en}.toml` の `diag.*`（79 件）＋ `tests/i18n_catalog.rs`（§12.3 の CI チェック）
-- [x] M3 の取りこぼし: `materials::scan_line` が辞書側の診断（E001 等）に `line_start` を足していなかった（行頭が 0 でない行で波線がずれる）のを修正
-- [x] `core::features::Project`（`features/project.rs`。文書と辞書をまとめた集約＋参照の走査）＋ `diagnostics::document(doc, project)`（`tests/diagnostics_document.rs`、共有フィクスチャは `tests/world/mod.rs`）
-- [x] 11 機能の実装（semantic_tokens / completion / hover / inlay_hint / code_action / definition / references / document_symbol / folding / formatting / rename）。共有の型（`Location` / `TextEdit` / `WorkspaceEdit`）は `features/mod.rs`
-- [x] 11 機能のテスト（`tests/features.rs` / `tests/features_edit.rs`）とシグネチャの検査（`the_eleven_features_have_the_signatures_of_section_3_4`）
-- [x] M2 の取りこぼし: C 形式の見出しの重複（E008）を検査していなかったのを追加（`contents::warn_duplicate` を B 形式と共有）
-- [ ] `PLANS.md` §5.5 の完了条件 3 件のチェック
+### 次の一手（M5 に入る人へ）
 
-### M4 の設計メモ（実装したら `PLANS.md` §9.2 の B 番号に移して、ここは消す）
-
-- **集約の型は `core::features::Project`**（`src/core/features/mod.rs` に置く）。§3.4 の `&Project` に名前を合わせる。
-  `model::Project`（= `project.json`）とは別物なので doc で区別する。`model/` に置けないのは
-  model が syntax を使えないから（B-29）。新しいファイルを足さないので §3.3 のツリーも変わらない（B-40）。
-- 構文木は原文を借用する（`Characters<'a>` 等）ので、集約は**所有型**（`BTreeMap<String, Document>` ＋
-  構築済みの `Dictionary` ＋ 構築時の診断）にして、木は必要なときにパースし直す。
-  辞書は `characters.md` / `words.md` / `materials/index.json` が変わったときだけ作り直す。
-- 機能の位置引数は **byte オフセット**（B-1）。UTF-16 の `Position` との変換は `text/position.rs` の `LineTable`。
-- 診断の分担（2 重に出さない）は B-67（E005）と B-71（入口は `materials::scan_line`。E001 と E007 を重ねない）。
-  `diagnostics::document` を書いたら、その doc に分担表を置いて本書からは消す。
-- i18n の文言は M4 では `diag.*` だけ（`PLANS.md` §3 I6）。`ui` feature は M7 まで既定で切れているので、
-  カタログのテストは `include_str!` ＋ dev-dependency の `toml` で読み、`ui` feature なしで走らせる。
+1. `PLANS.md` §5.6（M5 の作業項目と完了条件）を読む。
+2. **A-24 をユーザーに裁定してもらう**（`project.json` の `lexicon.word_classes` の正規表現が壊れているとき。
+   今は `role_language::Matcher::new` が黙ってパターンを捨てている）。コードを足すなら**仕様書 §7 が先**
+   （`tests/diagnostics_catalog.rs` と `tests/i18n_catalog.rs` が仕様書を読むので、表・enum・`ja.toml`・
+   `en.toml` を同じコミットで直す）。
+3. M5 のストレージは `features::Project` に文書を `insert` する側。辞書の作り直しは `insert` / `remove` が
+   自動でやるので、ストレージは「読んだ文書を渡す」だけでよい（`DEVELOPERS.md` §5.6）。
 
 ---
 

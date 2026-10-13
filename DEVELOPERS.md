@@ -4,11 +4,11 @@
 
 > **この文書の位置づけ**
 >
-> - 仕様の正本は **[`SPECIFICATIONS.md`](./SPECIFICATIONS.md)**（v1 仕様 **第 2.7 版**）。
+> - 仕様の正本は **[`SPECIFICATIONS.md`](./SPECIFICATIONS.md)**（v1 仕様 **第 2.8 版**）。
 > - 実装順序と見積りは **[`PLANS.md`](./PLANS.md)**（段階 ① の実装計画）。
 > - 本書は「手を動かすときに開く頁」であり、仕様と食い違った場合は **`SPECIFICATIONS.md` が優先する**。
 >
-> **現在の `src/` は v1 の層構造のまま、`core` の基盤と構文が入った状態（M2 完了時点）である。**
+> **現在の `src/` は v1 の層構造のまま、`core` が揃った状態（M4 完了時点）である。**
 > v0（プロトタイプ）の UI コードは M0 で削除し、`v0-final` タグに保存した。
 > **実装済み**: `core/id.rs`・`core/text/*`（字句・位置・rope・増分）・`core/diagnostics.rs`
 > （§7 / §7.1 / §7.2 の **79 コード**）・`core/syntax/*`（**8 形式**のパーサ）・`core/model/*`
@@ -17,8 +17,10 @@
 > （役割語パターン → 正規表現、§6.5）・`core/resolve/materials.rs`（資料 ID とインレイヒント、
 > §6.6）・`core/resolve/context_rules.rs`（参照ペインと ContextPacket の共用ルール、
 > §9.5.2 / §15.4）。**`core/resolve/` は 5 本すべて実装済み（M3 完了）**。
-> **空のまま**: `core/features/*`（M4）・`ports/**`・
-> `adapters/**`（M5 / M6）・`ui/**`（M7 以降）。本書の「モジュール構成」は **v1 の目標形**。
+> **M4**: `core/features/*`（§3.4 の 11 機能と集約 `features::Project`）・`diagnostics::document`
+> （文書単位の診断の組み立て）・`ui/i18n/{ja,en}.toml`（`diag.*` の文言 79 件）。本書 §5.6。
+> **空のまま**: `core/aicontext/*`（M10）・`ports/**`・`adapters/**`（M5 / M6）・
+> `ui/**`（M7 以降。`ui/i18n/*.toml` を除く）。本書の「モジュール構成」は **v1 の目標形**。
 >
 > **GUI は M7 まで動かない**（`PLANS.md` §3 I3）。M0 時点の `cargo run` は
 > 使用法を表示して終了コード 2 で終了するだけの暫定版である。
@@ -217,7 +219,7 @@ src/
     resolve/               dictionary.rs  modes.rs  role_language.rs
                            materials.rs  context_rules.rs
     diagnostics.rs         コード定義と生成（文言は持たない）
-    features/              LSP に 1:1 対応する純粋 API（§3.4）
+    features/              LSP に 1:1 対応する純粋 API（§3.4）と集約 project.rs
                            semantic_tokens  completion  hover  inlay_hint
                            code_action  definition  references  document_symbol
                            formatting  rename  folding
@@ -409,6 +411,36 @@ let ranked = layout.ranked(PANE_FARTHEST, occurrences);   // → Vec<(Scope, usi
 見出しの**文言は core が持たない**（§12.2）。`PaneSection::key()` / `Scope::key()` の ascii 名で
 i18n キー（§12.3 `pane.<key>` / `scope.<key>`）を引くこと。§15.4.1 の Markdown 見出しは ascii なので
 `PacketBlock::heading()` がそのまま持つ（**固定**＝LLM 側のパース安定性のため）。
+
+---
+
+### 5.6 診断の組み立てと 11 機能 — `core/diagnostics.rs` の `document` / `core/features/*`
+
+§3.4 の 11 機能と `diagnostics::document` は、どれも**集約 `features::Project` と文書を受け取る純粋関数**
+（正本は §3.4 / §5.12 / §6.3 / §7 / §9.7.3 / §12、判断は `PLANS.md` §9.2 B-76〜B-87）。
+
+| 規則 | 内容 |
+|---|---|
+| 集約（B-76） | `features::Project` = 設定（`model::Project`＝`project.json`）＋ 文書（**所有**）＋ 構築済みの辞書。構文木は持たず、**呼ぶたびにパースする**。辞書は `characters.md` / `words.md` / `materials/index.json` を `insert` / `remove` したときだけ作り直す（§6.1.2） |
+| 引数と位置（B-78） | 順は §3.4 の表（`full(doc, project)`、`at(doc, pos, project)`）。位置は**ファイル内の byte**。UTF-16 は `LineTable` で変換する（UI・LSP アダプタの仕事）。文字の途中の位置でもパニックしない（`project::floor_boundary`） |
+| `'` の走査範囲（B-77） | `project::scan_ranges`（字句器の行の種類で決める。見出し・節区切り・コメントは除く、フィールドは値だけ、`*.md` の `#` 見出しは除く、`/* */` の中も除く）。範囲の外を空白にしてから辞書で走査する（`Project::ref_sites`）。**参照を自分で探さず、これを使う** |
+| 診断の分担（B-67 / B-71 / B-79） | `diagnostics::document` が各層を 1 か所で呼ぶ（**分担表はその関数の doc**）。辞書と資料の診断の入口は `materials::scan_line`。モードの診断は「その文書に書かれた割り当て」だけをその文書に載せる。同一の診断は 1 つにまとめ、§9.5.2 の 9 の順に並べる |
+| 文言（§12.2） | **core は文言を返さない**。種別は enum（`TokenType` / `ActionKind` / `SymbolKind` / `RenameError` / `InlayKind` …）、名前・ID・タイトルなど**ファイルに書かれた文字列**だけを返す。診断の文言は `src/ui/i18n/{ja,en}.toml` の `diag.<コード>`（仕様書 §7 の写しで、`tests/i18n_catalog.rs` が一字一句照合する） |
+| セマンティックトークン（B-80 / B-81） | 重ならない・昇順の列。`role-language` は種別ではなく `SemanticToken::role_language`。話者は「行末の注釈 → 同じ節の直前の注釈 → 話プロットの `pov`」（§6.5.3） |
+| 編集を返す機能 | `formatting`（§5.12 の 7 項目だけ。改行コードは保存時、B-83）・`rename`（キー単位、B-84）・`code_action`（テキスト編集で決まるクイックフィックスだけ、B-86）は `TextEdit` / `WorkspaceEdit` を返す。当てるのは呼び出し側（テストとプレビューは `features::apply_edits`） |
+
+```rust
+// 文書を集約に入れて、機能を呼ぶ（位置は byte）
+let mut project = Project::with_documents(settings, documents);   // 辞書は 1 回だけ作る
+project.insert(Document::new("contents/01-04.txt", text));       // 本文の更新では辞書は作り直さない
+let document = project.document("contents/01-04.txt").unwrap();
+let diagnostics = diagnostics::document(document, &project);      // 波線（文言は ui/i18n）
+let tokens = semantic_tokens::full(document, &project);           // 構文ハイライト
+let items = completion::at(document, cursor, &project);           // `'` の補完など
+```
+
+テストのフィクスチャは `tests/world/mod.rs`（**仕様書の例でできたプロジェクト**。`characters.md` だけは
+人物を合わせるために差し替え）。期待値は**編集を当てた後の文字列**や `&text[range]` で書く（byte を数えない）。
 
 ---
 
