@@ -44,8 +44,8 @@ pub use self::material::{
 };
 pub use self::mode::Mode;
 pub use self::project::{
-    AgentLimits, Agents, Export, Lexicon, LocalLlm, Newline, Project, SchemaState, Structure,
-    Writing,
+    validate, AgentLimits, Agents, Export, Lexicon, Listing, LocalLlm, Newline, Project,
+    ProjectError, SchemaState, Structure, Writing,
 };
 pub use self::role_pattern::{Anchor, RolePattern};
 pub use self::task::{Initiator, Task, TaskStatus};

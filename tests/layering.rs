@@ -849,3 +849,250 @@ fn the_ui_layer_is_compiled_only_with_the_ui_feature() {
         "src/adapters/mod.rs の `pub mod dialog_rfd;` に `#[cfg(feature = \"ui\")]` が付いていない"
     );
 }
+
+// ---------------------------------------------------------------------------
+// §13.1.2: 書き込みの system call は書き込みの関門（`src/adapters/storage_fs.rs`）だけ
+//
+// 仕様は「`std::fs::write` / `File::create` の直接使用が `adapters/` 以外に無いこと」。第 2.9 版で
+// **関門の 1 ファイル**に絞った（`PLANS.md` §9.2 B-91）。関門の中の書き込みはすべて
+// `WritePolicy` の判定を通るので、ここで「関門の外に書き込み API が無い」ことを固定すれば、
+// 規則 10（プロジェクト外への書き込み禁止）を迂回する経路がソースに現れない。
+// ---------------------------------------------------------------------------
+
+/// 書き込みの関門。書き込み API を直接使ってよい唯一のファイル（§13.1.2 第 2.9 版）。
+const WRITE_GATE: &str = "src/adapters/storage_fs.rs";
+
+/// `fs::<これ>` はファイルシステムへの書き込み。
+const FS_WRITE_FNS: &[&str] = &[
+    "write",
+    "rename",
+    "copy",
+    "create_dir",
+    "create_dir_all",
+    "remove_file",
+    "remove_dir",
+    "remove_dir_all",
+    "hard_link",
+    "soft_link",
+    "symlink",
+    "symlink_file",
+    "symlink_dir",
+    "set_permissions",
+];
+
+/// `File::<これ>` は書き込み用に開く（`File::open` は読み取りなので許可）。
+const FILE_WRITE_FNS: &[&str] = &["create", "create_new", "options"];
+
+/// パス（`::` でつないだ識別子の並び）が書き込み API を指すか。
+fn write_api(segments: &[String]) -> Option<String> {
+    let joined = segments.join("::");
+    if segments.iter().any(|segment| segment == "OpenOptions") {
+        return Some(joined);
+    }
+    for pair in segments.windows(2) {
+        let (head, tail) = (pair[0].as_str(), pair[1].as_str());
+        let hit = (head == "fs" && (FS_WRITE_FNS.contains(&tail) || tail == "*"))
+            || (head == "File" && FILE_WRITE_FNS.contains(&tail))
+            || (head == "tokio" && tail == "fs");
+        if hit {
+            return Some(joined);
+        }
+    }
+    None
+}
+
+/// 書き込み API を探す visitor（`use` 文・式・型・属性・マクロ本体）。
+#[derive(Default)]
+struct WriteApiChecker {
+    label: String,
+    found: Vec<String>,
+}
+
+impl WriteApiChecker {
+    fn check(&mut self, segments: &[String]) {
+        if let Some(path) = write_api(segments) {
+            let message = format!("'{}' in {}", path, self.label);
+            self.found.push(message);
+        }
+    }
+
+    /// `use` の木をパスに展開する（`use std::fs::{self, write};` → `std::fs` と `std::fs::write`）。
+    fn walk_use(&mut self, prefix: &mut Vec<String>, tree: &UseTree) {
+        match tree {
+            UseTree::Path(path) => {
+                prefix.push(path.ident.to_string());
+                self.walk_use(prefix, &path.tree);
+                prefix.pop();
+            }
+            UseTree::Name(name) => {
+                let mut full = prefix.clone();
+                if name.ident != "self" {
+                    full.push(name.ident.to_string());
+                }
+                self.check(&full);
+            }
+            UseTree::Rename(rename) => {
+                let mut full = prefix.clone();
+                full.push(rename.ident.to_string());
+                self.check(&full);
+            }
+            UseTree::Glob(_) => {
+                let mut full = prefix.clone();
+                full.push("*".to_string());
+                self.check(&full);
+            }
+            UseTree::Group(group) => {
+                for item in &group.items {
+                    self.walk_use(prefix, item);
+                }
+            }
+        }
+    }
+
+    /// マクロ本体のトークン列から `a::b::c` の並びを拾う。
+    fn scan_tokens(&mut self, tokens: TokenStream) {
+        let mut run: Vec<String> = Vec::new();
+        let mut colons = 0;
+        for token in tokens {
+            match token {
+                TokenTree::Ident(ident) => {
+                    if colons != 2 {
+                        self.flush(&mut run);
+                    }
+                    run.push(ident.to_string());
+                    colons = 0;
+                }
+                TokenTree::Punct(punct) if punct.as_char() == ':' => colons += 1,
+                TokenTree::Group(group) => {
+                    self.flush(&mut run);
+                    colons = 0;
+                    self.scan_tokens(group.stream());
+                }
+                _ => {
+                    self.flush(&mut run);
+                    colons = 0;
+                }
+            }
+        }
+        self.flush(&mut run);
+    }
+
+    fn flush(&mut self, run: &mut Vec<String>) {
+        if !run.is_empty() {
+            let taken = std::mem::take(run);
+            self.check(&taken);
+        }
+    }
+}
+
+impl<'ast> Visit<'ast> for WriteApiChecker {
+    fn visit_path(&mut self, path: &'ast syn::Path) {
+        let segments: Vec<String> = path
+            .segments
+            .iter()
+            .map(|segment| segment.ident.to_string())
+            .collect();
+        self.check(&segments);
+        visit::visit_path(self, path);
+    }
+
+    fn visit_item_use(&mut self, item: &'ast ItemUse) {
+        let mut prefix = Vec::new();
+        self.walk_use(&mut prefix, &item.tree);
+    }
+
+    fn visit_macro(&mut self, mac: &'ast syn::Macro) {
+        self.scan_tokens(mac.tokens.clone());
+        visit::visit_macro(self, mac);
+    }
+}
+
+fn scan_write_apis(label: &str, source: &str) -> Vec<String> {
+    let file = syn::parse_file(source).unwrap_or_else(|e| panic!("{label}: {e}"));
+    let mut checker = WriteApiChecker {
+        label: label.to_string(),
+        ..Default::default()
+    };
+    checker.visit_file(&file);
+    checker.found
+}
+
+/// §13.1.2: 書き込み API を直接使うのは書き込みの関門だけ。
+#[test]
+fn only_the_write_gate_touches_the_file_system_for_writing() {
+    let mut files = Vec::new();
+    collect_rs(Path::new("src"), &mut files);
+    files.sort();
+    assert!(
+        files.len() > 50,
+        "src/ の .rs が少なすぎる（{}）",
+        files.len()
+    );
+    let gate = Path::new(WRITE_GATE);
+    let mut found = Vec::new();
+    for file in &files {
+        if file == gate {
+            continue;
+        }
+        let source = read_core(file);
+        found.extend(scan_write_apis(&file.display().to_string(), &source));
+    }
+    assert!(
+        found.is_empty(),
+        "SPECIFICATIONS.md §13.1.2 違反（書き込み API は {WRITE_GATE} だけ）が {} 件:\n{}",
+        found.len(),
+        bullets(&found)
+    );
+    // 関門の場所が変わったのに定数が古いまま（＝検査が空振り）にならないように
+    let gate_source = read_core(gate);
+    assert!(
+        !scan_write_apis(WRITE_GATE, &gate_source).is_empty(),
+        "{WRITE_GATE} に書き込み API が無い（関門が移動した？）"
+    );
+}
+
+/// 検出されるべき書き込み（§13.1.2）。
+const MUST_CATCH_WRITES: &[&str] = &[
+    "fn f() { std::fs::write(\"x\", \"y\").ok(); }",
+    "use std::fs; fn f() { fs::write(\"x\", \"y\").ok(); }",
+    "use std::fs::write; fn f() { write(\"x\", \"y\").ok(); }",
+    "use std::fs::{self, write as w};",
+    "use std::fs::*;",
+    "use std::fs::File; fn f() { File::create(\"x\").ok(); }",
+    "fn f() { std::fs::File::options().write(true); }",
+    "use std::fs::OpenOptions;",
+    "fn f() { let _ = std::fs::OpenOptions::new(); }",
+    "fn f() { std::fs::rename(\"a\", \"b\").ok(); }",
+    "fn f() { std::fs::remove_file(\"a\").ok(); }",
+    "fn f() { std::fs::create_dir_all(\"a\").ok(); }",
+    "fn f() { std::fs::copy(\"a\", \"b\").ok(); }",
+    "fn f() { std::os::unix::fs::symlink(\"a\", \"b\").ok(); }",
+    "fn f() { let _ = tokio::fs::write(\"a\", \"b\"); }",
+    "fn f() { println!(\"{:?}\", std::fs::write(\"a\", \"b\")); }",
+];
+
+/// 許されるもの（読み取り・書き込み先の決まった Writer）。
+const MUST_PASS_WRITES: &[&str] = &[
+    "fn f() { let _ = std::fs::read_to_string(\"x\"); }",
+    "use std::fs; fn f() { let _ = fs::read(\"x\"); let _ = fs::metadata(\"x\"); }",
+    "use std::fs::File; fn f() { File::open(\"x\").ok(); }",
+    "use std::io::Write; fn f(out: &mut Vec<u8>) { out.write_all(b\"x\").ok(); writeln!(out).ok(); }",
+    "fn f() { let write = 1; let _ = write; }",
+    "fn f() { let _ = std::fs::canonicalize(\".\"); let _ = std::fs::read_dir(\".\"); }",
+];
+
+#[test]
+fn write_checker_catches_every_write_api() {
+    for (i, source) in MUST_CATCH_WRITES.iter().enumerate() {
+        let found = scan_write_apis(&format!("must_catch_write[{i}]"), source);
+        assert!(!found.is_empty(), "検出漏れ: {source}");
+    }
+}
+
+#[test]
+fn write_checker_allows_reads() {
+    for (i, source) in MUST_PASS_WRITES.iter().enumerate() {
+        let found = scan_write_apis(&format!("must_pass_write[{i}]"), source);
+        assert!(found.is_empty(), "誤検出: {source}: {found:?}");
+    }
+}
