@@ -18,6 +18,10 @@
 //!   作り直す。
 //! - **core は I/O をしない**（§3.2）。文書の読み込みと保存は呼び出し側（M5 のストレージ）。
 //!   ここは渡された文書を覚えるだけ。
+//! - **設定は `project.json` の文書から取る**（M5 の設定読み込み、`PLANS.md` §9.2 B-89）。
+//!   `project.json` を [`Project::insert`] / [`Project::with_documents`] で渡すと
+//!   [`project_json::parse`] の結果で設定を置き換える（JSON として読めなければ既定値、§4.3-4）。
+//!   E025 / E027 はその文書の診断（`diagnostics::document`）に出る。
 //!
 //! # 参照の走査（11 機能の共通部品）
 //!
@@ -37,7 +41,7 @@ use crate::core::resolve::dictionary::{
     self, Dictionary, EntryId, EntryKind, RefToken, SourceFile, Target,
 };
 use crate::core::syntax::{
-    characters_md, contents, materials_index, plot_episode, plot_outline, words_md,
+    characters_md, contents, materials_index, plot_episode, plot_outline, project_json, words_md,
 };
 use crate::core::text::lexer::{self, LineKind, TextFormat};
 use crate::core::text::position::LineTable;
@@ -72,12 +76,15 @@ impl Project {
     }
 
     /// 文書をまとめて渡して作る（辞書は最後に 1 回だけ作る）。
+    ///
+    /// `documents` に `project.json` があれば、`settings` ではなく**その中身**を設定にする（B-89）。
     pub fn with_documents(
         settings: Settings,
         documents: impl IntoIterator<Item = Document>,
     ) -> Self {
         let mut project = Self::new(settings);
         for document in documents {
+            project.adopt_settings(&document);
             project.files.insert(document.path.clone(), document);
         }
         project.rebuild_dictionary();
@@ -85,24 +92,39 @@ impl Project {
     }
 
     /// 文書を足す／置き換える。辞書の供給元（§6.1.1 の 3 ファイル）なら辞書を作り直す。
+    /// `project.json` なら設定をその中身で置き換える（B-89）。
     pub fn insert(&mut self, document: Document) {
         let rebuild = is_dictionary_source(&document.path);
+        self.adopt_settings(&document);
         self.files.insert(document.path.clone(), document);
         if rebuild {
             self.rebuild_dictionary();
         }
     }
 
-    /// 文書を外す。辞書の供給元なら辞書を作り直す。
+    /// 文書を外す。辞書の供給元なら辞書を作り直す。`project.json` なら設定を既定値に戻す。
     pub fn remove(&mut self, path: &str) -> Option<Document> {
         let removed = self.files.remove(path);
-        if removed.is_some() && is_dictionary_source(path) {
-            self.rebuild_dictionary();
+        if let Some(document) = &removed {
+            if document.format == DocumentFormat::ProjectFile {
+                self.settings = Settings::default();
+            }
+            if is_dictionary_source(path) {
+                self.rebuild_dictionary();
+            }
         }
         removed
     }
 
-    /// 設定（`project.json`）を差し替える。
+    /// `project.json` の文書なら、その中身を設定にする（読めなければ既定値、§4.3-4）。
+    fn adopt_settings(&mut self, document: &Document) {
+        if document.format == DocumentFormat::ProjectFile {
+            self.settings = project_json::settings(&document.text);
+        }
+    }
+
+    /// 設定（`project.json`）を差し替える。`project.json` の文書を後から `insert` すると、
+    /// そちらの中身で置き換わる。
     pub fn set_settings(&mut self, settings: Settings) {
         self.settings = settings;
     }

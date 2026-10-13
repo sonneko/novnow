@@ -314,8 +314,10 @@ fn a_word_class_from_the_project_wins_over_the_default() {
 
 #[test]
 fn a_broken_word_class_regex_is_dropped_without_stopping_the_others() {
-    // §7 に対応コードが無いので黙って捨てる（A-24）。§4.3-4「起動失敗にしない」
+    // §6.5.1（第 2.9 版）: そのクラスを使うパターンだけを捨てる。報告は project.json 側の
+    // E027（A-24、tests/project_json.rs）。§4.3-4「起動失敗にしない」
     let broken = lexicon_with("体言", "[");
+    assert_eq!(broken.invalid_word_classes(), vec!["体言"]);
     assert!(Matcher::new(&pattern("(体言)！"), &broken).is_none());
     let set = MatcherSet::new(&[pattern("(体言)！"), pattern("かな")], &broken);
     assert_eq!(set.len(), 1);

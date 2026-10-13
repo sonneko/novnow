@@ -242,6 +242,21 @@ pub struct Lexicon {
     pub unknown: BTreeMap<String, Value>,
 }
 
+impl Lexicon {
+    /// 正規表現として**不正な**語クラスの名前（キーの昇順）。
+    ///
+    /// §6.5.1（第 2.9 版）: 不正かどうかは値を**単独で**コンパイルできるかで決める。
+    /// 報告は `project.json` 側の **E027**（`syntax::project_json`、`PLANS.md` §9.1 A-24）で、
+    /// マッチャ（`resolve::role_language::Matcher::new`）はそのクラスを使うパターンだけを捨てる。
+    pub fn invalid_word_classes(&self) -> Vec<&str> {
+        self.word_classes
+            .iter()
+            .filter(|(_, pattern)| regex::Regex::new(pattern).is_err())
+            .map(|(name, _)| name.as_str())
+            .collect()
+    }
+}
+
 /// `export`（§4.5、§17）。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]

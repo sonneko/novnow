@@ -295,9 +295,10 @@ impl Matcher {
     /// パターンをコンパイルする。
     ///
     /// **`None` になるのは語クラスの正規表現が壊れているときだけ**
-    /// （`project.json.lexicon.word_classes` に不正な値を書いた場合）。§7 に対応する診断コードが
-    /// 無いので黙って捨てる（§9.1 **A-24**）。§6.5.4「一致しない場合は何もしない」と同じく、
-    /// 役割語の色が消えるだけで執筆は止まらない（§4.3-4）。
+    /// （`project.json.lexicon.word_classes` に不正な値を書いた場合）。そのパターンだけを捨てる
+    /// （§6.5.1 第 2.9 版。他のパターンは生かす）。報告は `project.json` 側の **E027**
+    /// （`syntax::project_json`、`PLANS.md` §9.1 A-24）。§6.5.4「一致しない場合は何もしない」と
+    /// 同じく、役割語の色が消えるだけで執筆は止まらない（§4.3-4）。
     pub fn new(pattern: &RolePattern, lexicon: &Lexicon) -> Option<Self> {
         let list = atoms(pattern.body(), lexicon);
         let anchor = pattern.anchor();

@@ -1,9 +1,9 @@
 //! `core::diagnostics` の表を `SPECIFICATIONS.md` §7 と突き合わせるテスト。
 //!
-//! §7（38 件）・§7.1（14 件）・§7.2（27 件）の **79 件**を仕様書の Markdown から直接
+//! §7（39 件）・§7.1（14 件）・§7.2（27 件）の **80 件**を仕様書の Markdown から直接
 //! 読み直し、`CATALOG` と一致するかを見る。`PLANS.md` §6.2 では `tests/diagnostics_catalog.rs`
 //! の導入は M4 だが、§3 I5「診断は先に表を実装」に合わせて**前倒し**した。表を先に作る以上、
-//! 仕様書との一致も先に固定しておく（後から 79 件を照合するのは手でできない）。
+//! 仕様書との一致も先に固定しておく（後から 80 件を照合するのは手でできない）。
 //!
 //! 確認するのは次の 7 つ。
 //!
@@ -49,16 +49,17 @@ struct Row {
 }
 
 #[test]
-fn the_spec_has_79_codes_in_three_tables() {
-    // 第 2.8 版で E022（予約番号の見出し、`PLANS.md` §9.1 A-9）が §7 に増えた
+fn the_spec_has_80_codes_in_three_tables() {
+    // 第 2.8 版で E022（予約番号の見出し、`PLANS.md` §9.1 A-9）、第 2.9 版で E027（語クラスの
+    // 正規表現が不正、A-24）が §7 に増えた
     let rows = all_rows();
     let core = count_group(&rows, Group::Core);
     let storage = count_group(&rows, Group::Storage);
     let writing = count_group(&rows, Group::Writing);
-    assert_eq!(core, 38);
+    assert_eq!(core, 39);
     assert_eq!(storage, 14);
     assert_eq!(writing, 27);
-    assert_eq!(rows.len(), 79);
+    assert_eq!(rows.len(), 80);
     assert_eq!(CATALOG.len(), rows.len());
 }
 

@@ -26,8 +26,8 @@ use crate::core::model::document::{Document, DocumentFormat};
 use crate::core::resolve::dictionary::{self, SourceFile};
 use crate::core::resolve::{context_rules, materials, modes};
 use crate::core::syntax::{
-    characters_md, contents, ideas_md, materials_index, plot_episode, plot_outline, prompt_md,
-    words_md,
+    characters_md, contents, ideas_md, materials_index, plot_episode, plot_outline, project_json,
+    prompt_md, words_md,
 };
 use crate::core::text::lexer::{self, FieldKey, LineKind};
 
@@ -106,7 +106,7 @@ pub enum Scope {
     Session,
 }
 
-/// 診断コード（§7 / §7.1 / §7.2 の全 79 件）。
+/// 診断コード（§7 / §7.1 / §7.2 の全 80 件）。
 ///
 /// **variant 名はコード文字列そのもの**（`E001` → `"E001"`）。i18n のキーは
 /// `diag.` を前に付けた形（`diag.E001`、§12.3「キー命名」）で、core は文言を持たない。
@@ -153,6 +153,8 @@ pub enum DiagnosticCode {
     E025,
     /// 修飾子を付けられない参照に修飾子（§6.1.1）（§7）
     E026,
+    /// `project.json` の `lexicon.word_classes` の正規表現が不正（§6.5.1）（§7）
+    E027,
     /// 辞書キーが 96 バイト超（§7）
     E028,
     /// MCP サーバの環境変数未解決（§7）
@@ -301,6 +303,7 @@ impl DiagnosticCode {
             Self::E024 => "E024",
             Self::E025 => "E025",
             Self::E026 => "E026",
+            Self::E027 => "E027",
             Self::E028 => "E028",
             Self::E030 => "E030",
             Self::E031 => "E031",
@@ -491,6 +494,7 @@ pub const CATALOG: &[CatalogRow] = &[
     (DiagnosticCode::E024, 0),
     (DiagnosticCode::E025, 1),
     (DiagnosticCode::E026, 0),
+    (DiagnosticCode::E027, 1),
     (DiagnosticCode::E028, 0),
     (DiagnosticCode::E030, 1),
     (DiagnosticCode::E031, 1),
@@ -753,6 +757,7 @@ impl Diagnostic {
 /// | 出す層 | コード | 対象の形式 |
 /// |---|---|---|
 /// | `syntax/*` のパーサ（M2） | E002 / E005（B 形式の `mode:`） / E008 / E016 / E017 / E018 / E020 / E021 / E022 / E024 / E025 / E031〜E033 / W002 / W011 / W012 / W019 | 各形式 |
+/// | [`project_json::parse`]（M5、B-88） | E025 / E027 | `project.json` |
 /// | [`materials::scan_line`](crate::core::resolve::materials::scan_line)（M3、B-71） | E001 / E002 / E005（1 トークン） / E006 / E007 / E026 / W029 / W031 | 本文部のある全形式（走査範囲は B-77） |
 /// | [`dictionary::speaker_diagnostic`](crate::core::resolve::dictionary::speaker_diagnostic) | E012 | C |
 /// | 辞書の構築（[`Project::dictionary_diagnostics`]） | E028 / W027 | `characters.md` / `words.md` / `materials/index.json` |
@@ -826,6 +831,9 @@ pub fn document(document: &Document, project: &Project) -> Vec<Diagnostic> {
         DocumentFormat::CustomPrompt => {
             let options = prompt_md::Options { custom: true };
             out.extend(prompt_md::parse_with(text, &options).diagnostics);
+        }
+        DocumentFormat::ProjectFile => {
+            out.extend(project_json::parse(text).diagnostics);
         }
         _ => {}
     }
