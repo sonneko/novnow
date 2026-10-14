@@ -289,6 +289,19 @@ fn typed_prefixes_filter_and_replace_only_the_typed_part() {
 }
 
 #[test]
+fn a_word_that_repeats_a_character_name_is_not_listed_twice() {
+    // §6.1.4（F-24）: `words.md` の用語が `characters.md` の名前と同じでも、
+    // 補完候補は登場人物側の 1 件だけ（用語としては出さない）
+    let words = format!("{WORDS}\n# アルス\ndefinition: 錬金術を学ぶ少年。\n");
+    let mut project = world_with("words.md", &words);
+    let body = "@01-04-02 x\n'アル";
+    project.insert(Document::new(CONTENTS_PATH, body));
+    let items = completion::at(&doc(&project, CONTENTS_PATH), body.len(), &project);
+    assert_eq!(labels(&items, CompletionKind::Character), vec!["アルス"]);
+    assert!(labels(&items, CompletionKind::Word).is_empty());
+}
+
+#[test]
 fn explicit_forms_and_shortest_match_hazards_insert_braces() {
     let text = "@01-04-02 x\n'{星";
     let (_, items) = items_at(CONTENTS_PATH, text, text.len());

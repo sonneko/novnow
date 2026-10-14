@@ -485,9 +485,10 @@ fn w031_is_added_even_when_the_id_does_not_exist() {
 #[test]
 fn w031_is_not_added_for_other_references() {
     let world = World::spec();
-    // 資料でない参照（未解決でも）には W031 を出さない
+    // 資料でない参照（未解決でも）には W031 を出さない。
+    // 赤波線は §6.2.6 により先頭 1 形態素まで（`'しらぬ` の `資料` は巻き込まない）
     let line = "'しらぬ資料";
-    assert_eq!(diags_tag(line, &world.scan(line, true)), "E001@'しらぬ資料");
+    assert_eq!(diags_tag(line, &world.scan(line, true)), "E001@'しらぬ");
 }
 
 #[test]

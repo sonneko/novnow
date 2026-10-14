@@ -465,7 +465,7 @@ fn check_prints_one_line_per_diagnostic_and_exits_5_on_errors() {
     assert_eq!(
         ran.out,
         "contents/01-01.txt:2:5: [本文 @01-01-01-01] E012 登場人物 謎の人 は characters.md にいません\n\
-         contents/01-01.txt:3:1: [本文 @01-01-01-01] E001 辞書にない参照です: 未登録の語が出る\n\
+         contents/01-01.txt:3:1: [本文 @01-01-01-01] E001 辞書にない参照です: 未登録\n\
          contents/01-01.txt:5:1: [本文 @01-01-01-02] W012 空の節です\n\
          \n\
          6 個の文書を検査しました（エラー 2・警告 1・情報 0）\n"

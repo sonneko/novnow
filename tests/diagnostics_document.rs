@@ -72,7 +72,7 @@ fn syntax_and_reference_diagnostics_come_together_sorted() {
     // E → W → I、同じ重大度なら位置の順（§9.5.2 の 9）
     assert_eq!(
         tags(&project, CONTENTS_PATH),
-        "E001@'だれか(だれか) / E012@@ゲスト(ゲスト) / E007@'M9999(M9999) / \
+        "E001@'だれ(だれ) / E012@@ゲスト(ゲスト) / E007@'M9999(M9999) / \
          E003@'リリア:Z(リリア,Z) / E020@@01-04(3-4) / W031@'M9999"
     );
 }

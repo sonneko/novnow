@@ -1078,18 +1078,7 @@ impl NovnowApp {
                         } else {
                             crate::core::resolve::dictionary::EntryKind::Word
                         };
-                        let edit = crate::core::features::code_action::register_edit(
-                            session.bench.project(),
-                            kind,
-                            &name,
-                        );
-                        session.bench.apply_edit(&edit, now);
-                        let key = if character {
-                            "register.character_done"
-                        } else {
-                            "register.word_done"
-                        };
-                        session.notice = Some((i18n::format(locale, key, &[&name]), now));
+                        register_entry(session, kind, &name, locale, now);
                     }
                     None => {
                         session.notice =
@@ -2494,6 +2483,11 @@ impl NovnowApp {
                 Some(workspaces::Request::AppendMaterial(id)) => {
                     self.append_material(ctx, &id, now);
                 }
+                Some(workspaces::Request::Register { kind, name }) => {
+                    if let Stage::Open(session) = &mut self.stage {
+                        register_entry(session, kind, &name, locale, now);
+                    }
+                }
                 None => {}
             }
             if !agent_actions.is_empty() {
@@ -2544,8 +2538,15 @@ impl NovnowApp {
             if self.focus == Pane::Reference {
                 focus_ring(ctx, response.response.rect, colors.accent);
             }
-            if let Some(id) = response.inner {
-                self.append_material(ctx, &id, now);
+            match response.inner {
+                Some(reference_pane::Chosen::Material(id)) => self.append_material(ctx, &id, now),
+                // §6.2.6（F-23）: 診断からの自動回復（1 形態素の登録）
+                Some(reference_pane::Chosen::Register { kind, name }) => {
+                    if let Stage::Open(session) = &mut self.stage {
+                        register_entry(session, kind, &name, locale, now);
+                    }
+                }
+                None => {}
             }
         }
         let Stage::Open(session) = &mut self.stage else {
@@ -4789,6 +4790,27 @@ fn quick_fix(
     }
 }
 
+/// 選択中のテキスト（または診断が指した 1 形態素）を `words.md` / `characters.md` に登録する。
+///
+/// §6.2.6（F-23）の参照ペインのボタンと、`Ctrl+W` / `Ctrl+Shift+W`（[`Command::Register`]）が
+/// 同じ経路を通る。編集の作り方は core の [`register_edit`](crate::core::features::code_action::register_edit)。
+fn register_entry(
+    session: &mut Session,
+    kind: crate::core::resolve::dictionary::EntryKind,
+    name: &str,
+    locale: Locale,
+    now: f64,
+) {
+    let edit =
+        crate::core::features::code_action::register_edit(session.bench.project(), kind, name);
+    session.bench.apply_edit(&edit, now);
+    let key = match kind {
+        crate::core::resolve::dictionary::EntryKind::Character => "register.character_done",
+        _ => "register.word_done",
+    };
+    session.notice = Some((i18n::format(locale, key, &[name]), now));
+}
+
 /// クイックフィックスの名前（`action.<種別>` に引数を埋める）。
 fn action_label(locale: Locale, action: &crate::core::features::code_action::CodeAction) -> String {
     use crate::core::features::code_action::ActionKind;
@@ -5420,6 +5442,11 @@ fn palette_items(
             let words = project.words();
             for (index, word) in words.words.iter().enumerate() {
                 let term = word.term.trim().to_owned();
+                // §6.1.4（F-24）: `characters.md` にもある名前は登場人物側に統合して、
+                // パレットに同じ名前を 2 行出さない
+                if project.dictionary().is_character_word_duplicate(&term) {
+                    continue;
+                }
                 let mut haystack = term.clone();
                 for key in [FieldKey::Reading, FieldKey::Alias] {
                     for field in words.word_fields(index, key) {
