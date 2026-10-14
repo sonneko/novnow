@@ -243,12 +243,13 @@
 
 ### 12.3 カタログ
 
-状態: 未実装・実装計画済み（REF:src/ui/i18n/ja.toml, REF:src/ui/i18n/en.toml, REF:tests/i18n_catalog.rs, REF:docs/plans.md#plan-F-42）
+状態: 実装完了（REF:src/ui/i18n/ja.toml, REF:src/ui/i18n/en.toml, REF:docs/specifications/diagnostics.md, REF:tests/i18n_catalog.rs）
 
 - `REF:src/ui/i18n/ja.toml` と `REF:src/ui/i18n/en.toml` を `include_str!` で埋め込み、キー集合・プレースホルダ番号・ソースコード内の参照キーとの過不足ゼロを `REF:tests/i18n_catalog.rs` で検証する。
 
-- **[F-42] `ja.toml` のプレースホルダ直後の助詞空白禁止と検査テスト（未実装・実装計画済み: `REF:docs/plans.md#plan-F-42`）**:
+- **[F-42] `ja.toml` のプレースホルダ直後の助詞空白禁止と検査テスト（実装完了: `REF:src/ui/i18n/ja.toml`, `REF:tests/i18n_catalog.rs`）**:
   - `REF:src/ui/i18n/ja.toml` の `{0} はこの版ではまだ使えません` 等を `{0}はこの版ではまだ使えません` に修正し、`REF:tests/i18n_catalog.rs` に「`}` の直後に半角空白＋ひらがな助詞が続かないこと」を検証するテストを追加する。
+  - 同じ規則を診断カタログ（`REF:docs/specifications/diagnostics.md` §7）の日本語列にも適用した（人間承認 2026-10-15。経緯は `REF:docs/history.md` の `v2.21`）。
 
 ### 12.4 言語の決定順序
 

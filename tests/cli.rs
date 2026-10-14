@@ -464,7 +464,7 @@ fn check_prints_one_line_per_diagnostic_and_exits_5_on_errors() {
     assert_eq!(ran.err, "");
     assert_eq!(
         ran.out,
-        "contents/01-01.txt:2:5: [本文 @01-01-01-01] E012 登場人物 謎の人 は characters.md にいません\n\
+        "contents/01-01.txt:2:5: [本文 @01-01-01-01] E012 登場人物 謎の人は characters.md にいません\n\
          contents/01-01.txt:3:1: [本文 @01-01-01-01] E001 辞書にない参照です: 未登録\n\
          contents/01-01.txt:5:1: [本文 @01-01-01-02] W012 空の節です\n\
          \n\
@@ -522,7 +522,7 @@ fn check_shows_diagnostics_without_a_position_with_the_path_only() {
     );
     assert!(ran
         .out
-        .contains(" [作品の設定] E027 語クラス a の正規表現が不正です\n"));
+        .contains(" [作品の設定] E027 語クラス aの正規表現が不正です\n"));
 }
 
 #[test]
@@ -991,11 +991,11 @@ fn export_option_errors_are_exit_2_and_empty_selections_write_nothing() {
     let cases: [(&[&str], &str); 7] = [
         (
             &["export", "novel", "--range"],
-            "--range に値を指定してください",
+            "--rangeに値を指定してください",
         ),
         (
             &["export", "novel", "--range", "--state", "fixed"],
-            "--range に値を指定してください",
+            "--rangeに値を指定してください",
         ),
         (
             &["export", "novel", "--range", "@03 .. @01"],
@@ -1007,7 +1007,7 @@ fn export_option_errors_are_exit_2_and_empty_selections_write_nothing() {
         ),
         (
             &["export", "novel", "--out="],
-            "--out に値を指定してください",
+            "--outに値を指定してください",
         ),
         // ② のオプション（`PLANS.md` §1.2）
         (
@@ -1316,10 +1316,7 @@ fn argument_errors_are_exit_2_with_a_pointer_to_the_help() {
     let cases: [(&[&str], &str); 4] = [
         (&["-x"], "不明なオプションです: -x"),
         (&["a", "b"], "余分な引数です: b"),
-        (
-            &["check"],
-            "novnow check にはディレクトリを指定してください",
-        ),
+        (&["check"], "novnow checkにはディレクトリを指定してください"),
         (&["new", "--force"], "不明なオプションです: --force"),
     ];
     for (args, message) in cases {

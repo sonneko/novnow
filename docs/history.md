@@ -122,6 +122,11 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - 実機操作に基づく UI・エディタ・パレット・辞書・ショートカット・性能等の修正 44 件（`F-01`〜`F-44`）および小規模機能追加 18 件（`S-01`〜`S-18`）を `docs/specifications/*.md` と `docs/designs/*.md` に「未実装・実装計画済み」として追加し、`REF:docs/plans.md#planned-fixes-and-features` に実装計画を策定。
 - 既存の本文テキストから `novnow` に移行する手段（`L-01`）を `REF:docs/designs/platform.md` §14.6 および `REF:docs/plans.md#unplanned-large` に「未実装・未計画」として追加。
 
+### [HIST:SPEC-REV:v2.21] 2026-10-15 F-42 の助詞空白規則に合わせた診断カタログの日本語列の修正
+[HIST-TAG: category=SPEC-REV id=v2.21 topics=i18n,spacing,diagnostics,ja_toml]
+- `REF:docs/specifications/diagnostics.md` §7 の日本語メッセージ列 19 行（23 箇所）で、プレースホルダの直後に助詞が続く箇所の半角空白を除去した（`{0} は…` → `{0}は…`）。§12.3 の規則（v2.20 で追加）に合わせる修正で、人間の承認を得て実施（2026-10-15）。
+- `REF:src/ui/i18n/ja.toml` の同じ形の 84 箇所も同時に修正し、`REF:tests/i18n_catalog.rs` に「`}` の直後に半角空白＋助詞が続かないこと」の機械検査を追加した（`F-42`）。
+
 ---
 
 ## 2. アーキテクチャ・仕様の意思決定ログ（`DECISION`）

@@ -10,16 +10,16 @@ severity: `E`=エラー（赤波線） / `W`=警告（黄波線） / `I`=情報�
 |---|---|---|---|---|---|
 | E001 | E | `'` の後が辞書に一致しない | `辞書にない参照です: {0}` | `Unknown reference: {0}` | 用語として登録 / キャラとして登録 / 類似候補に置換 |
 | E002 | E | SceneId・明示形の構文エラー | `構造 ID の形式が不正です` | `Malformed structure id` | 近い形式に修正 |
-| E003 | E | 未定義のモード ID | `{0} にモード {1} は定義されていません` | `Mode {1} is not defined for {0}` | モードを新規定義 / 既存モードに置換 |
-| E004 | E | モードの `range` 外での割り当て | `{0} のモード {1} は {2} では使用できません（有効範囲: {3}）` | `Mode {1} of {0} is not available at {2} (range: {3})` | range 拡張 / 変種を追加 / 他モードへ |
+| E003 | E | 未定義のモード ID | `{0}にモード {1}は定義されていません` | `Mode {1} is not defined for {0}` | モードを新規定義 / 既存モードに置換 |
+| E004 | E | モードの `range` 外での割り当て | `{0}のモード {1}は {2}では使用できません（有効範囲: {3}）` | `Mode {1} of {0} is not available at {2} (range: {3})` | range 拡張 / 変種を追加 / 他モードへ |
 | E005 | E | 1 キャラに 3 つ以上のモード、または 1 節の `mode` に同じキャラを 2 回 | `1 つの節で同じ人物に設定できるモードは 2 つまでです` | `At most two modes per character in a section` | 先頭 2 つを残す |
-| E006 | E | 資料タイトル不一致 | `資料 {0} のタイトルが一致しません` | `Title does not match material {0}` | §6.6.3 の 3 種 |
-| E007 | E | 未知の資料 ID | `資料 {0} は存在しません` | `Material {0} not found` | 近い ID に置換 / 新規資料を作成 |
-| E008 | E | 同一ファイル内の ID 重複 | `{0} が重複しています` | `Duplicate id {0}` | 後続を採番し直す |
-| E012 | E | 話者注釈のキャラが未定義 | `登場人物 {0} は characters.md にいません` | `Character {0} is not defined` | キャラとして登録 |
+| E006 | E | 資料タイトル不一致 | `資料 {0}のタイトルが一致しません` | `Title does not match material {0}` | §6.6.3 の 3 種 |
+| E007 | E | 未知の資料 ID | `資料 {0}は存在しません` | `Material {0} not found` | 近い ID に置換 / 新規資料を作成 |
+| E008 | E | 同一ファイル内の ID 重複 | `{0}が重複しています` | `Duplicate id {0}` | 後続を採番し直す |
+| E012 | E | 話者注釈のキャラが未定義 | `登場人物 {0}は characters.md にいません` | `Character {0} is not defined` | キャラとして登録 |
 | E013 | E | `relations` 等の参照不能 | `参照できません: {0}` | `Cannot resolve: {0}` | 候補に置換 |
 | E016 | E | 範囲式の左端 > 右端 | `範囲の指定が逆です` | `Range start is after range end` | 入れ替え |
-| E017 | E | 同一モード ID の range 重複 | `モード {0} の有効範囲が重複しています` | `Overlapping ranges for mode {0}` | 範囲を分割 |
+| E017 | E | 同一モード ID の range 重複 | `モード {0}の有効範囲が重複しています` | `Overlapping ranges for mode {0}` | 範囲を分割 |
 | E018 | E | A 形式ブロックに `summary` 無し | `summary（要約）は必須です` | `summary is required` | 空の summary を挿入 |
 | E020 | E | 見出し階層の不一致 | `このファイルには {0} 階層の見出しだけを書けます` | `Only level {0} headers are allowed here` | 対応ファイルへ移動 |
 | E021 | E | `words.md` に `definition` 無し | `definition（定義）は必須です` | `definition is required` | 空の definition を挿入 |
@@ -27,20 +27,20 @@ severity: `E`=エラー（赤波線） / `W`=警告（黄波線） / `I`=情報�
 | E024 | E | `materials` 外を指す `path` | `資料ファイルは materials/ 配下に置いてください` | `Material files must live under materials/` | 移動して path 修正 |
 | E025 | E | JSON ファイルがパースできない（§4.3-4） | `JSON として読み込めません: {0}` | `Cannot parse as JSON: {0}` | 既定値で開く / 手動で修正 |
 | E026 | E | 修飾子を付けられない参照に修飾子（§6.1.1） | `この参照に修飾子は付けられません` | `Modifiers are not allowed on this reference` | 修飾子を削除 |
-| E027 | E | `project.json` の `lexicon.word_classes` の正規表現が不正（§6.5.1） | `語クラス {0} の正規表現が不正です` | `Invalid regular expression for word class {0}` | 正規表現を直す / 項目を削除する |
+| E027 | E | `project.json` の `lexicon.word_classes` の正規表現が不正（§6.5.1） | `語クラス {0}の正規表現が不正です` | `Invalid regular expression for word class {0}` | 正規表現を直す / 項目を削除する |
 | E028 | E | 辞書キーが 96 バイト超 | `辞書の項目名が長すぎます` | `Dictionary key is too long` | — |
 | E029 | E | プロンプトに必須のセクション（`## system` / `## task`）が無い（§15.5.4 (2)） | `プロンプトに必須のセクションがありません: {0}` | `The prompt is missing a required section: {0}` | `>prompt reset` で既定に戻す |
-| E030 | E | MCP サーバの環境変数未解決 | `環境変数 {0} が設定されていません` | `Environment variable {0} is not set` | 設定方法を表示 |
+| E030 | E | MCP サーバの環境変数未解決 | `環境変数 {0}が設定されていません` | `Environment variable {0} is not set` | 設定方法を表示 |
 | E031 | E | プロンプトの未知変数 | `使用できない変数です: {0}` | `Unknown prompt variable: {0}` | 変数一覧から選ぶ |
 | W002 | W | 本文中の裸の `@` | `@ は行頭の見出しか行末の話者注釈にのみ使えます` | `@ is only valid as a header or a trailing speaker tag` | `\@` にエスケープ |
 | W006 | W | モード未指定 | `この節のモードが決まっていません` | `No mode assigned for this section` | プロットに `mode:` を追加 |
 | W011 | W | 未知のフィールドキー | `未知のキーです: {0}` | `Unknown key: {0}` | 近いキーに置換 |
 | W012 | W | 空の節 | `空の節です` | `Empty section` | 削除 |
 | W019 | W | `summary` が 120 字超 | `要約が長すぎます（{0} 字）` | `Summary is too long ({0} chars)` | — |
-| W022 | W | 用語の `range` 外での使用 | `{0} はこの時点ではまだ登場していません` | `{0} has not appeared yet at this point` | range 拡張 |
+| W022 | W | 用語の `range` 外での使用 | `{0}はこの時点ではまだ登場していません` | `{0} has not appeared yet at this point` | range 拡張 |
 | W025 | W | 資料 MD の H1 と index の不一致 | `資料ファイルの見出しが index と一致しません` | `Material heading differs from the index` | どちらかに揃える |
 | W027 | W | 辞書キーの種別衝突 | `同じ名前の項目が複数の辞書にあります: {0}` | `{0} exists in multiple dictionaries` | 明示形に変更 |
-| W029 | W | より長い辞書項目にも一致しうる | `より長い項目 {0} にも一致します` | `A longer entry {0} also matches` | 明示形 `'{…}` に変更 |
+| W029 | W | より長い辞書項目にも一致しうる | `より長い項目 {0}にも一致します` | `A longer entry {0} also matches` | 明示形 `'{…}` に変更 |
 | W030 | W | プロットと本文の節数不一致 | `プロット {0} 節 / 本文 {1} 節` | `Plot has {0} sections, prose has {1}` | — |
 | W031 | W | 本文中の資料参照 | `資料参照はプロットに書くことを推奨します` | `Material references belong in the plot` | プロットへ移動 |
 | W033 | W | `mcp.json` に秘密情報が直書き | `秘密情報は環境変数参照にしてください` | `Use an environment variable reference for secrets` | `${{...}}` に変換 |
@@ -56,7 +56,7 @@ severity: `E`=エラー（赤波線） / `W`=警告（黄波線） / `I`=情報�
 |---|---|---|---|---|---|
 | E060 | E | プロジェクト外への書き込みを拒否した（§13.1.2） | `プロジェクトの外には書き込めません: {0}` | `Writing outside the project is not allowed: {0}` | 不具合として報告（通常は起こらない） |
 | E062 | E | IndexedDB が利用できない | `この環境ではデータを保存できません` | `Storage is unavailable in this environment` | 通常ウィンドウで開く / デスクトップ版 |
-| E063 | E | MCP サーバに接続できない | `{0} に接続できませんでした` | `Could not connect to {0}` | 設定を開く / 再試行 |
+| E063 | E | MCP サーバに接続できない | `{0}に接続できませんでした` | `Could not connect to {0}` | 設定を開く / 再試行 |
 | W062 | W | 残容量が 10MB 未満 | `保存領域の空きが少なくなっています` | `Storage space is running low` | 不要プロジェクトを削除 |
 | W064 | W | index に未登録の資料 MD がある | `index.json に未登録の資料があります: {0}` | `Unregistered material file: {0}` | 登録する |
 | W065 | W | 出典のない資料 | `出典が設定されていません: {0}` | `No source for material {0}` | 出典を入力 |
@@ -75,31 +75,31 @@ severity: `E`=エラー（赤波線） / `W`=警告（黄波線） / `I`=情報�
 |---|---|---|---|---|---|
 | W080 | W | 節順に対し `when` が巻き戻る（§5.3.5） | `作中日時が前の節より前に戻っています（{0} → {1}）` | `In-story time goes backwards ({0} → {1})` | `回想` を追記 / `when` を修正 |
 | W081 | W | 1 文に読点が 1 つも無く `long_sentence_chars` を超える | `読点のない長い文です（{0} 字）` | `Long sentence without a comma ({0} chars)` | 句切れ候補を表示（§9.4.3） |
-| W082 | W | 同一話者の台詞行が `max_consecutive_speeches` を超えて連続 | `{0} の台詞が {1} 回続いています` | `{1} consecutive lines by {0}` | 地の文を挿入 / 話者注釈を確認 |
+| W082 | W | 同一話者の台詞行が `max_consecutive_speeches` を超えて連続 | `{0}の台詞が {1} 回続いています` | `{1} consecutive lines by {0}` | 地の文を挿入 / 話者注釈を確認 |
 | W083 | W | 連続 5 節以上で `senses` が視覚系のみ | `五感の宣言が視覚に偏っています（{0} 節連続）` | `Senses are sight-only for {0} sections` | `senses:` を追記 |
-| W084 | W | 台詞内の呼称が `address:` に反する（§5.5.6） | `{0} は {1} を「{2}」とは呼びません` | `{0} does not call {1} "{2}"` | 正しい呼称に置換 / `address:` に追加 |
+| W084 | W | 台詞内の呼称が `address:` に反する（§5.5.6） | `{0}は {1}を「{2}」とは呼びません` | `{0} does not call {1} "{2}"` | 正しい呼称に置換 / `address:` に追加 |
 | W085 | W | 呼称参照 `'先輩` の相手が一意に決まらない | `どの人物への呼称か決められません: {0}` | `Ambiguous appellation: {0}` | 明示形 `'{…}` に置換 |
 | W086 | W | 章あらすじ（`B=00`）の本文が `blurb` と大きく食い違う長さ | `あらすじが長すぎます（{0} 字）` | `Blurb is too long ({0} chars)` | — |
 | W087 | W | 同一段落内で同じ自立語が 3 回以上（§9.4.4） | `同じ語が繰り返されています: {0}（{1} 回）` | `Repeated word: {0} ({1} times)` | 用語辞書で類語を見る |
 | W088 | W | 文頭の接続詞が 3 文連続（§9.4.4） | `接続詞で始まる文が 3 つ続いています` | `Three consecutive sentences start with a conjunction` | — |
 | W089 | W | 1 文が `long_sentence_chars` の 2 倍を超える | `非常に長い文です（{0} 字）` | `Very long sentence ({0} chars)` | 句切れ候補を表示 |
 | W090 | W | 1 節の台詞比率が `dialogue_ratio_target` を大きく外れる | `台詞の比率が {0}% です（目安 {1}%）` | `Dialogue ratio is {0}% (target {1}%)` | — |
-| W091 | W | 節の長さが話内平均の T スコア 35 未満 / 65 超（§10.3.4） | `この {0} は分量が偏っています（偏差値 {1}）` | `Unbalanced length for this {0} (T-score {1})` | — |
+| W091 | W | 節の長さが話内平均の T スコア 35 未満 / 65 超（§10.3.4） | `この {0}は分量が偏っています（偏差値 {1}）` | `Unbalanced length for this {0} (T-score {1})` | — |
 | W092 | W | `icon` / `space` の参照先ファイルが無い | `ファイルが見つかりません: {0}` | `File not found: {0}` | パスを修正 |
-| W093 | W | 提案の `before` が現在の本文と食い違う（§8.7.4） | `提案 {0} は元の本文と一致しません` | `Proposal {0} no longer matches the text` | 並置して確認 / 破棄 |
+| W093 | W | 提案の `before` が現在の本文と食い違う（§8.7.4） | `提案 {0}は元の本文と一致しません` | `Proposal {0} no longer matches the text` | 並置して確認 / 破棄 |
 | W094 | W | 正規表現検索が 1 秒で打ち切られた（§9.7.4） | `検索が複雑すぎます。途中までの結果を表示します` | `The search was too complex; showing partial results` | 条件を絞る |
 | W095 | W | 自律タスクがセッション上限（`agents.limits`）に達して停止した（§15.1.1 A8） | `自律タスクが上限に達したため停止しました（{0}）` | `Autonomous tasks stopped at the session limit ({0})` | 上限を引き上げる / 人間が引き継ぐ |
 | E032 | E | カスタムロール名が不正（§5.9.2） | `ロール名に使えない文字です: {0}` | `Invalid role name: {0}` | 名前を修正 |
-| E033 | E | カスタムロール名が既定ロールと衝突 | `{0} は既定の役割名です` | `{0} is a built-in role name` | 別名にする |
+| E033 | E | カスタムロール名が既定ロールと衝突 | `{0}は既定の役割名です` | `{0} is a built-in role name` | 別名にする |
 | E034 | E | カスタムロールが 16 件を超えた | `カスタムロールは 16 件までです` | `At most 16 custom roles` | 不要なものを外す |
-| E035 | E | 同一 role × 同一 scene のタスク重複（§15.7.5） | `{0} の {1} タスクは既にあります` | `A {0} task for {1} already exists` | 既存を開く |
+| E035 | E | 同一 role × 同一 scene のタスク重複（§15.7.5） | `{0}の {1} タスクは既にあります` | `A {0} task for {1} already exists` | 既存を開く |
 | E036 | E | 委譲レベル不足の書き込みツールを呼んだ（§15.8.3） | `この役割の委譲レベルでは書き込めません: {0}` | `Delegation level too low to write: {0}` | 委譲レベルを上げる（§15.7.6） |
 | E064 | E | ローカル LLM に接続できない（§15.8.4） | `ローカル LLM（{0}）に接続できませんでした` | `Could not reach the local LLM at {0}` | URL を設定 / 無効化 |
 | I054 | I | どの節からも引用されていない採用済み資料（§5.2.4） | `引用されていない資料が {0} 件あります` | `{0} materials are never cited` | 一覧を開く |
 | I055 | I | ストック章（`00`）に本文が残っている（§5.1.2） | `未分類ストックに {0} 件あります` | `{0} items remain in the stock chapter` | 一覧を開く |
 | I056 | I | `prompts/custom/` に未登録のロールがある（§5.9.2） | `未登録のカスタムロールがあります: {0}` | `Unregistered custom role: {0}` | 登録する |
 | I057 | I | ローカル LLM の設定を書き込んだ（§15.8.4） | `agents/mcp.json にローカル LLM を登録しました` | `Registered the local LLM in agents/mcp.json` | 開く |
-| I058 | I | 検索結果を資料化した（§16.3.1） | `検索結果を {0} として保存しました` | `Saved the search result as {0}` | 開く |
+| I058 | I | 検索結果を資料化した（§16.3.1） | `検索結果を {0}として保存しました` | `Saved the search result as {0}` | 開く |
 
 > E032〜E036 はエラーだが文書位置を持たないため、§7.1 と同じくステータスバー通知として扱う。
 

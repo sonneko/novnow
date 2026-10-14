@@ -424,7 +424,7 @@ fn the_reserved_reader_shows_a_notice_and_does_not_switch() {
     harness.frame(vec![key(Key::Num7, ALT)]);
     let output = harness.frame(Vec::new());
     assert_eq!(harness.app.workspace(), Some(Workspace::Write));
-    assert!(painted_text(&output).contains("読者 はこの版ではまだ使えません"));
+    assert!(painted_text(&output).contains("読者はこの版ではまだ使えません"));
     harness.frame(vec![key(Key::Num8, ALT)]);
     assert_eq!(
         harness.app.workspace(),
@@ -456,7 +456,7 @@ fn ctrl_shift_n_creates_the_missing_episode_plot_with_a_scene_header() {
     harness.frame(vec![key(Key::ArrowRight, CTRL_ALT)]);
     harness.frame(vec![key(Key::Num2, ALT)]);
     let output = harness.frame(Vec::new());
-    assert!(painted_text(&output).contains("話プロット plots/01-02.txt はまだありません"));
+    assert!(painted_text(&output).contains("話プロット plots/01-02.txtはまだありません"));
     harness.frame(vec![key(Key::N, CTRL_SHIFT)]);
     harness.frame(Vec::new());
     harness.frame(vec![Event::Text("扉を開ける".into())]);
@@ -648,7 +648,7 @@ fn ctrl_shift_n_in_the_outline_adds_a_block_and_ctrl_alt_arrows_change_the_level
         Some(Some(2))
     );
     let output = harness.frame(Vec::new());
-    assert!(painted_text(&output).contains("plots/02.txt にブロックはまだありません"));
+    assert!(painted_text(&output).contains("plots/02.txtにブロックはまだありません"));
     harness.frame(vec![key(Key::N, CTRL_SHIFT)]);
     harness.frame(Vec::new());
     assert_eq!(outline_selected(&harness), Some(id(2, 1, 0, 0)));
@@ -724,7 +724,7 @@ fn ctrl_shift_i_captures_an_idea_from_anywhere_without_changing_the_screen() {
         ),
         "{ideas}"
     );
-    assert!(painted_text(&output).contains("I0009 を ideas.md に積みました"));
+    assert!(painted_text(&output).contains("I0009を ideas.md に積みました"));
 }
 
 #[test]
@@ -1039,7 +1039,7 @@ fn alt_5_lists_materials_and_ctrl_enter_approves_after_confirming_a_missing_sour
     );
     assert!(index.contains("\"status\": \"approved\""), "{index}");
     assert!(
-        painted_text(&output).contains("M0138 を採用しました"),
+        painted_text(&output).contains("M0138を採用しました"),
         "通知"
     );
     // 保存した資料 MD の checksum が索引に入る（§16.6）
@@ -1082,7 +1082,7 @@ fn ctrl_enter_registers_an_unregistered_file_and_ctrl_delete_rejects_without_del
     assert!(index.contains("\"status\": \"rejected\""), "{index}");
     assert!(removed(&harness).is_empty(), "却下はファイルを消さない");
     assert_ne!(material_selected(&harness).as_deref(), Some("M0140"));
-    assert!(painted_text(&output).contains("M0140 を却下しました"));
+    assert!(painted_text(&output).contains("M0140を却下しました"));
 }
 
 #[test]
@@ -1778,7 +1778,7 @@ fn one_to_four_set_the_delegation_level_and_ctrl_shift_x_stops_all() {
     }
     let text = press(&mut harness, Key::Num3, Modifiers::NONE);
     assert!(
-        text.contains("writer の委譲レベルを apply にしました"),
+        text.contains("writerの委譲レベルを applyにしました"),
         "{text}"
     );
     let level = |harness: &Harness, role: &str| {
@@ -1983,7 +1983,7 @@ fn a_missing_key_blocks_the_run_with_e030() {
     );
     let text = press(&mut harness, Key::R, Modifiers::NONE);
     assert!(
-        text.contains("環境変数 NOVNOW_LLM_KEY が設定されていません"),
+        text.contains("環境変数 NOVNOW_LLM_KEYが設定されていません"),
         "{text}"
     );
     assert!(harness.host.files.borrow().jobs.is_empty());
@@ -1998,7 +1998,7 @@ fn a_failed_call_returns_the_task_to_ready_without_retrying() {
     harness.frame(vec![key(Key::R, Modifiers::NONE)]);
     let text = settle(&mut harness);
     assert!(
-        text.contains("T0001 がタイムアウトしました（ready に戻しました）"),
+        text.contains("T0001がタイムアウトしました（ready に戻しました）"),
         "{text}"
     );
     assert_eq!(board(&harness).tasks[0].status, "ready");
@@ -2084,7 +2084,7 @@ fn the_palette_sets_levels_and_resets_or_compares_prompts() {
         "{listed}"
     );
     assert!(
-        text.contains("writer の委譲レベルを apply にしました"),
+        text.contains("writerの委譲レベルを applyにしました"),
         "{text}"
     );
     let (_, text) = palette(&mut harness, ">agent stop-all");
@@ -2155,7 +2155,7 @@ fn palette_format_and_dictionary_references_and_rename_and_outline_folding_work_
     harness.frame(Vec::new());
     let text = painted_text(&harness.frame(Vec::new()));
     assert!(
-        text.contains("contents/01-01.txt を正規化しました"),
+        text.contains("contents/01-01.txtを正規化しました"),
         "format notice: {text}"
     );
 
