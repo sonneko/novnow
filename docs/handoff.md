@@ -84,7 +84,7 @@ gh pr list --state open
   `CARGO_INCREMENTAL=0` にしている（`scripts/bootstrap-toolchain.sh` が書く）。それでも溢れたら
   `find target/debug/deps -maxdepth 1 -type f -perm -u+x -delete` と `rm -rf target/debug/incremental`（作り直しはリンクだけ）。
 
-### 2.3 ローカル git が基点まで巻き戻る（実際に 6 回起きた）
+### 2.3 ローカル git が基点まで巻き戻る（2026-10-14 までに 9 回起きた）
 
 サンドボックスの再作成で、**ファイルは残るのに `.git` のブランチポインタだけが古いコミットに戻る**ことがある。
 **`git reset --hard` は絶対に使わない**（作業ツリーを壊す）。
@@ -117,7 +117,8 @@ shallow clone なので `git diff main...HEAD` が使えないことがある。
   ```
 - `gh workflow run`（`workflow_dispatch`）・branch protection の API は **403**。
 - Pages（`deploy.yml`）は M7 で `push: branches: [main]` を戻した（`index.html` の `data-cargo-features="ui"`）。
-  作業環境に trunk もブラウザも無いので、Web の GUI は `cargo check --target wasm32-unknown-unknown --features ui` までしか確かめていない。
+  作業環境に trunk は無い（GitHub のリリースの asset に届かない）。Web の動作は `bash scripts/web-smoke.sh`（wasm-bindgen CLI ＋
+  ヘッドレスの Chromium。§4.9）で確かめる。Pages の表示そのものは main に入って deploy が走るまで見られない。
 
 ### 2.5 この環境の速さ（予算の目安）
 
