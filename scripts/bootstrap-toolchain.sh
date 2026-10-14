@@ -38,13 +38,14 @@ done
 
 if [ -z "${FORCE:-}" ] && [ -x "$BUILD_DIR/sysroot/bin/rustc" ]; then
     if PATH="$BUILD_DIR/sysroot/bin:$PATH" rustc --version >/dev/null 2>&1; then
-        if [ -f "$BUILD_DIR/env.sh" ] && [ -f "$BUILD_DIR/cargo-home/config.toml" ] && [ -d "$BUILD_DIR/vendor-src/criterion" ]; then
+        if [ -f "$BUILD_DIR/env.sh" ] && [ -f "$BUILD_DIR/cargo-home/config.toml" ] \
+            && [ -d "$BUILD_DIR/vendor-src/criterion" ] && [ -d "$BUILD_DIR/vendor-src/tiniestsegmenter" ]; then
             say "すでにある: $BUILD_DIR（$(PATH="$BUILD_DIR/sysroot/bin:$PATH" rustc --version)）"
             echo "    使うときは次を各コマンドの前に置く: . $BUILD_DIR/env.sh"
             exit 0
         fi
-        # sysroot は生きているが設定または criterion vendor だけ消えた → 再ダウンロードせずに書き直す
-        say "sysroot はあるので env.sh / cargo-home/config.toml / criterion vendor だけ補う"
+        # sysroot は生きているが設定または追加クレート vendor だけ消えた → 再ダウンロードせずに書き直す
+        say "sysroot はあるので env.sh / cargo-home/config.toml / 追加クレート vendor だけ補う"
         REGENERATE_ONLY=1
     else
         say "$BUILD_DIR/sysroot/bin/rustc が動かないので取り直す"
@@ -118,15 +119,11 @@ ENVS
 rm -rf "$BUILD_DIR/tc.tgz" "$BUILD_DIR/$work"
 fi  # REGENERATE_ONLY
 
-# M11（B-25）: criterion 0.5.1 とその推移的依存 19 クレートを git blob から補う
-if [ ! -d "$BUILD_DIR/vendor-src/criterion" ]; then
-    say "criterion vendor（19 クレート）を git blob から展開"
-    crit_blob="74b3e210ac964dae4e37f5c03a9b1b129e5fee9f"
-    crit_sha="f4592ca89324ef7dad5a3f39421efac078f9a9d77fb2d1c3e3454be5f34dd568"
-    gh api "repos/$REPO/git/blobs/$crit_blob" --jq .content | base64 -d > "$BUILD_DIR/criterion-crates.tar.gz"
-    echo "$crit_sha  $BUILD_DIR/criterion-crates.tar.gz" | sha256sum -c - >/dev/null \
-        || die "criterion-crates.tar.gz の sha256 が合わない"
-    tar xzf "$BUILD_DIR/criterion-crates.tar.gz" -C "$BUILD_DIR"
+# --- 追加クレート（git blob）の展開 ------------------------------------------
+# docs/add-dependencies.md §1.2 パターン B。`$BUILD_DIR/crates/*.crate` を
+# `$BUILD_DIR/vendor-src/<name>/` に展開し、ディレクトリ vendor に必須の
+# `.cargo-checksum.json`（package = .crate の sha256、files = 展開後ファイルの sha256）を書く。
+install_extra_crates() {
     BUILD_DIR="$BUILD_DIR" python3 - <<'PY'
 import glob, hashlib, json, os, shutil, tarfile
 build_dir = os.environ["BUILD_DIR"]
@@ -156,7 +153,34 @@ for crate_path in sorted(glob.glob(os.path.join(build_dir, "crates", "*.crate"))
     with open(os.path.join(dest, ".cargo-checksum.json"), "w") as f:
         json.dump({"files": files, "package": pkg_sha}, f, separators=(",", ":"))
 PY
-    rm -rf "$BUILD_DIR/criterion-crates.tar.gz" "$BUILD_DIR/crates"
+}
+
+# blob を取り出し、sha256 を検証してから `install_extra_crates` に渡す。
+#   $1 = 表示名, $2 = blob sha, $3 = tar.gz の sha256, $4 = tar.gz のファイル名
+install_crates_blob() {
+    say "$1 を git blob から展開"
+    local blob="$2" sha="$3" file="$4"
+    gh api "repos/$REPO/git/blobs/$blob" --jq .content | base64 -d > "$BUILD_DIR/$file"
+    echo "$sha  $BUILD_DIR/$file" | sha256sum -c - >/dev/null || die "$file の sha256 が合わない"
+    tar xzf "$BUILD_DIR/$file" -C "$BUILD_DIR"
+    install_extra_crates
+    rm -rf "$BUILD_DIR/$file" "$BUILD_DIR/crates"
+}
+
+# M11（B-25）: criterion 0.5.1 とその推移的依存 19 クレート（ベンチマーク用 dev-dependency）
+if [ ! -d "$BUILD_DIR/vendor-src/criterion" ]; then
+    install_crates_blob "criterion vendor（19 クレート）" \
+        74b3e210ac964dae4e37f5c03a9b1b129e5fee9f \
+        f4592ca89324ef7dad5a3f39421efac078f9a9d77fb2d1c3e3454be5f34dd568 \
+        criterion-crates.tar.gz
+fi
+
+# S-09 / F-23: tiniestsegmenter 0.3.0（`'` 未解決参照の形態素境界。本体依存）
+if [ ! -d "$BUILD_DIR/vendor-src/tiniestsegmenter" ]; then
+    install_crates_blob "tiniestsegmenter vendor（1 クレート）" \
+        ab68047ca32a40bc5cb4a678b7f6fd62f8711e04 \
+        557df849c79f8087211ee5f18c335ca69f6a6a501a2aa088fd209b0947578aaa \
+        japanese-crates.tar.gz
 fi
 
 say "確認"

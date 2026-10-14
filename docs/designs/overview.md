@@ -90,6 +90,7 @@
 | `ropey` | Rope テキストバッファ（`REF:src/core/text/rope.rs`） |
 | `anyhow` / `thiserror` | エラー型定義 |
 | `unicode-normalization` | NFKC 正規化照合（`REF:src/core/resolve/dictionary.rs`） |
+| `tiniestsegmenter` | 未知の `'` 参照の形態素境界（`REF:src/core/resolve/dictionary.rs`、§6.2.6 / S-09） |
 
 `[dev-dependencies]` には AST 検査用の `syn`（`REF:tests/layering.rs`）とベンチマーク用の `criterion`（`REF:benches/core.rs`）のみを許可する。`core/` 内での `#[cfg(...)]` 条件コンパイルおよび `unsafe` は全面禁止とし、`REF:tests/layering.rs` で常時検査する。
 
