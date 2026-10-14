@@ -1,0 +1,708 @@
+# novnow の UI 文言カタログ（日本語）。SPECIFICATIONS.md §12.3。
+#
+# - キーは `<領域>.<対象>.<語>`（§12.3）。TOML のテーブル `[diag]` の `E004` が `diag.E004`。
+# - プレースホルダは `{0}` `{1}` の位置引数だけ（§12.3）。core が返す `Diagnostic::args` の順。
+# - `[diag]` は §7 / §7.1 / §7.2 の表の ja 文言の**写し**（正本は仕様書）。
+#   `tests/i18n_catalog.rs` が仕様書と en.toml を読み直して、キー集合・プレースホルダ・文言の
+#   一致を検査する（§12.3 の CI チェック MUST）。文言を変えるときは**先に仕様書の表**を直すこと。
+# - M4 で診断（`diag.*`）、M6 で CLI（`cli.*`、§14）を置いた。ステータスバー・パレットの文言は M7 で足す
+#   （PLANS.md §3 I6）。`cli.*` のうち §12.7 の表にあるものは表の写し（tests/i18n_catalog.rs が照合する）。
+
+[diag]
+E001 = "辞書にない参照です: {0}"
+E002 = "構造 ID の形式が不正です"
+E003 = "{0} にモード {1} は定義されていません"
+E004 = "{0} のモード {1} は {2} では使用できません（有効範囲: {3}）"
+E005 = "1 つの節に設定できるモードは 2 つまでです"
+E006 = "資料 {0} のタイトルが一致しません"
+E007 = "資料 {0} は存在しません"
+E008 = "{0} が重複しています"
+E012 = "登場人物 {0} は characters.md にいません"
+E013 = "参照できません: {0}"
+E016 = "範囲の指定が逆です"
+E017 = "モード {0} の有効範囲が重複しています"
+E018 = "summary（要約）は必須です"
+E020 = "このファイルには {0} 階層の見出しだけを書けます"
+E021 = "definition（定義）は必須です"
+E022 = "この番号は予約されています: {0}"
+E024 = "資料ファイルは materials/ 配下に置いてください"
+E025 = "JSON として読み込めません: {0}"
+E026 = "この参照に修飾子は付けられません"
+E027 = "語クラス {0} の正規表現が不正です"
+E028 = "辞書の項目名が長すぎます"
+E029 = "プロンプトに必須のセクションがありません: {0}"
+E030 = "環境変数 {0} が設定されていません"
+E031 = "使用できない変数です: {0}"
+E032 = "ロール名に使えない文字です: {0}"
+E033 = "{0} は既定の役割名です"
+E034 = "カスタムロールは 16 件までです"
+E035 = "{0} の {1} タスクは既にあります"
+E036 = "この役割の委譲レベルでは書き込めません: {0}"
+E060 = "プロジェクトの外には書き込めません: {0}"
+E061 = "以前のデータを移行できませんでした"
+E062 = "この環境ではデータを保存できません"
+E063 = "{0} に接続できませんでした"
+E064 = "ローカル LLM（{0}）に接続できませんでした"
+W002 = "@ は行頭の見出しか行末の話者注釈にのみ使えます"
+W006 = "この節のモードが決まっていません"
+W011 = "未知のキーです: {0}"
+W012 = "空の節です"
+W019 = "要約が長すぎます（{0} 字）"
+W022 = "{0} はこの時点ではまだ登場していません"
+W025 = "資料ファイルの見出しが index と一致しません"
+W027 = "同じ名前の項目が複数の辞書にあります: {0}"
+W029 = "より長い項目 {0} にも一致します"
+W030 = "プロット {0} 節 / 本文 {1} 節"
+W031 = "資料参照はプロットに書くことを推奨します"
+W033 = "秘密情報は環境変数参照にしてください"
+W040 = "{0} は v1 では使われません"
+W041 = "プロジェクトに書き込めません（読み取り専用）"
+W062 = "保存領域の空きが少なくなっています"
+W064 = "index.json に未登録の資料があります: {0}"
+W065 = "出典が設定されていません: {0}"
+W066 = "移行後に確認が必要です: {0}"
+W067 = "参照の位置が括弧の外にあります"
+W068 = "対応していない画像形式です: {0}"
+W069 = "アイコンが大きすぎます: {0}"
+W070 = "アイコンが見つかりません: {0}"
+W080 = "作中日時が前の節より前に戻っています（{0} → {1}）"
+W081 = "読点のない長い文です（{0} 字）"
+W082 = "{0} の台詞が {1} 回続いています"
+W083 = "五感の宣言が視覚に偏っています（{0} 節連続）"
+W084 = "{0} は {1} を「{2}」とは呼びません"
+W085 = "どの人物への呼称か決められません: {0}"
+W086 = "あらすじが長すぎます（{0} 字）"
+W087 = "同じ語が繰り返されています: {0}（{1} 回）"
+W088 = "接続詞で始まる文が 3 つ続いています"
+W089 = "非常に長い文です（{0} 字）"
+W090 = "台詞の比率が {0}% です（目安 {1}%）"
+W091 = "この {0} は分量が偏っています（偏差値 {1}）"
+W092 = "ファイルが見つかりません: {0}"
+W093 = "提案 {0} は元の本文と一致しません"
+W094 = "検索が複雑すぎます。途中までの結果を表示します"
+W095 = "自律タスクが上限に達したため停止しました（{0}）"
+I050 = "prompts/ に既定プロンプトを作成しました"
+I051 = "未保存の変更があります"
+I052 = "外部の変更を読み込みました: {0}"
+I053 = "以前のデータを {0} として移行しました"
+I054 = "引用されていない資料が {0} 件あります"
+I055 = "未分類ストックに {0} 件あります"
+I056 = "未登録のカスタムロールがあります: {0}"
+I057 = "agents/mcp.json にローカル LLM を登録しました"
+I058 = "検索結果を {0} として保存しました"
+
+# ============================================================ CLI（§14、M6）
+#
+# - 1 行目は「novnow: 」に続く（§14.2.2）。en は小文字で始める（§14.2.3）。
+# - §14.2.2 / §14.2.3 / §14.2.4 の出力例は tests/cli.rs が仕様書と一字一句突き合わせる。
+# - `novnow` `new` `check` などのコマンド名・`schema_version` などのキーは翻訳しない（§12.6）。
+
+[cli.error]
+incomplete = "このディレクトリは novnow プロジェクトではありません"
+missing_items = "不足しているもの"
+not_found = "ディレクトリが見つかりません"
+not_a_directory = "ディレクトリではありません"
+unreadable = "読み込めませんでした: {0}"
+legacy_v0 = "このプロジェクトは v0 形式です（{0} を検出）"
+legacy_schema = "このプロジェクトは v0 形式です（project.json の schema_version が無いか 0 です）"
+too_new = "このプロジェクトは新しい版の novnow で作られています（schema_version {0}）"
+encoding = "UTF-8 として読めないファイルがあります"
+unknown_option = "不明なオプションです: {0}"
+unexpected_argument = "余分な引数です: {0}"
+missing_dir = "novnow {0} にはディレクトリを指定してください"
+not_implemented = "novnow {0} はまだ実装されていません"
+no_gui = "この novnow には GUI が含まれていません"
+gui_failed = "GUI を起動できませんでした: {0}"
+write_failed = "書き込めませんでした: {0}"
+missing_value = "{0} に値を指定してください"
+bad_range = "範囲として読めません: {0}（例: @01-04、@01 .. @03, @05）"
+bad_state = "状態は draft / review / fixed のどれかです: {0}"
+
+[cli.label]
+target = "対象"
+created = "作成したファイル"
+kept = "上書きしなかったファイル"
+invalid_utf8 = "UTF-8 として読めないファイル"
+output = "書き出し先"
+
+[cli.hint]
+structure_doc = "プロジェクト構造"
+create_here = "このディレクトリに新規作成する場合"
+migrate = "移行してください"
+update = "novnow を新しい版に更新してください"
+help = "使い方"
+open = "開く"
+check = "検査する"
+
+[cli.new]
+created = "新しいプロジェクトを作りました"
+completed = "足りないファイルを作りました（既存のファイルは上書きしていません）"
+nothing = "作るファイルはありませんでした（すべて揃っています）"
+
+[cli.export]
+written = "書き出しました（{0} 節・{1} 字）"
+empty = "範囲に当てはまる節がありません（何も書き出していません）"
+
+[cli.check]
+summary = "{0} 個の文書を検査しました（エラー {1}・警告 {2}・情報 {3}）"
+
+[cli.mcp]
+unknown_tool = "知らないツールです: {0}"
+argument = "引数 {0} が無いか、読めません"
+missing = "見つかりません: {0}"
+gate = "書くと {1} が増えるので書かず、提案 {0} として残しました"
+
+[cli.usage]
+tagline = "決定論的アルゴリズムによる小説執筆 IDE"
+heading = "使い方"
+open = "既存のプロジェクトを開く"
+new = "新しいプロジェクトを作る（dir の既定は \".\"）"
+check = "検査だけを行い、診断を出して終了する（CI 用）"
+export = "アノテーションを除いて書き出す"
+migrate = "v0 のプロジェクトを v1 に移行する"
+mcp = "MCP サーバとして起動する"
+gui = "引数があっても GUI で起動する"
+help = "この使い方を表示する"
+version = "版を表示する"
+export_options = "export のオプション: --range <範囲>（@01-04 や @01 .. @03, @05。既定は全体）/ --state draft|review|fixed（その状態以上の節だけ）/ --out <パス>（.txt か .md。- なら標準出力。既定はプロジェクトの exports/）"
+new_dir = "new という名前のディレクトリを開くときは novnow ./new と書いてください。"
+no_args = "端末から引数なしで起動したときは、GUI を出さずにこの使い方を表示します（GUI は novnow --gui）。"
+exit_codes = "終了コード: 0 正常 / 2 使い方の誤り / 3 プロジェクトの不備・v0 形式・新しすぎる版 / 4 読み書きの失敗 / 5 check がエラーを検出"
+
+# ============================================================ 診断の「どこ」（§14.2.5・§10.9.2、第 2.11 版）
+#
+# `core::features::place` の各場合。`novnow check` の `[…]` と GUI の診断タブの「位置」が使う。
+# {0} {1} は構造 ID（`@` なし）・名前・ID・タイトルなど、ファイルに書かれたままの文字列。
+
+[place]
+contents = "本文 @{0}"
+episode_plot = "話プロット @{0}"
+chapter_plot = "章プロット @{0}"
+chapter_plot_head = "章プロット"
+whole_plot = "全体プロット @{0}"
+whole_plot_head = "全体プロット"
+character = "登場人物「{0}」"
+character_mode = "登場人物「{0}」のモード {1}"
+word = "用語「{0}」"
+idea = "アイデア {0}「{1}」"
+material = "資料 {0}「{1}」"
+material_id = "資料 {0}"
+prompt = "プロンプト {0}"
+prompt_section = "プロンプト {0} の {1}"
+settings = "作品の設定"
+
+# ---------------------------------------------------------------- GUI（M7、§8.4・§9・§12.7・§14.4）
+# `status.*` `palette.placeholder` `project.pick.*` の §12.7 の表にある行は表の写し（tests/i18n_catalog.rs）。
+
+[status]
+open_review = "点検の診断を開く（Ctrl+Shift+E）"
+unsaved = "未保存の変更があります"
+saving = "保存中"
+save_failed = "保存できませんでした"
+dont_close = "書き込みが終わるまで閉じないでください"
+chars_unit = "字"
+pages_unit = "枚"
+conflict = "外部で変更されたファイルがあります（未保存の変更があるため反映していません）"
+font_fallback = "日本語フォントが見つからないため、同梱のフォントを使います"
+open_agent = "実行中のタスクの一覧を開く（agent ワークスペース）"
+write_failed = "{0} を書き込めませんでした: {1}"
+zip_exported = "Zip を書き出しました: {0}"
+zip_failed = "Zip を書き出せませんでした: {0}"
+zip_canceled = "Zip は書き出しませんでした"
+quota = "保存領域が足りません。Zip でエクスポートしてから、不要なプロジェクトを削除してください"
+
+[palette]
+placeholder = "入力して移動・検索・実行"
+character = "キャラ"
+term = "用語"
+
+[project.pick]
+title = "プロジェクトを選んでください"
+new = "新規作成"
+import = "Zip から読み込む"
+empty = "まだプロジェクトがありません"
+open = "フォルダを開く"
+missing = "(見つかりません)"
+create_here = "ここに新規作成する"
+# Web のプロジェクト選択（§13.4、PLANS.md §9.2 B-156〜B-158）
+search = "検索（/）"
+loading = "読み込んでいます…"
+unavailable = "このブラウザでは IndexedDB を使えません（プライベートブラウズなど）。通常のウィンドウで開くか、デスクトップ版をお使いください。"
+keys = "↑↓ 選択 · Enter 開く · / 検索 · Ctrl+N 新規 · Ctrl+I Zip から読み込む · F2 名前の変更 · Delete 削除"
+working = "処理しています…"
+new_name = "新しいプロジェクトの名前"
+rename = "新しい名前"
+delete_confirm = "{0} を削除します（元に戻せません）。確かめのため、名前を入力してください"
+delete = "削除する"
+ok = "決定"
+deleted = "削除しました: {0}"
+imported = "取り込みました: {0}"
+import_skipped = "取り込まなかったファイル: {0}"
+import_keep = "不備のまま取り込む"
+import_cancel = "取り消す"
+fill = "足りないファイルを補う（あるファイルは上書きしません）"
+incomplete = "ファイルが足りません: {0}"
+legacy = "v0 形式のプロジェクトです（{0} を検出）。移行はデスクトップ版の novnow migrate で行います"
+too_new = "新しい版の novnow で作られたプロジェクトです（schema_version {0}）"
+encoding = "UTF-8 として読めないファイルがあります: {0}"
+failed = "うまくいきませんでした: {0}"
+
+[header]
+# 言語ボタンの記号（今の言語を表す 1 文字。§12.5）
+language_symbol = "あ"
+language = "言語を切り替える"
+theme = "テーマを切り替える"
+# ワークスペースの名前（§10 の表。ヘッダのインジケータのツールチップとアクセシブル名）
+"workspace.write" = "本文"
+"workspace.plot-episode" = "話プロット"
+"workspace.plot-outline" = "構成"
+"workspace.idea" = "アイデア"
+"workspace.material" = "資料"
+"workspace.cast" = "配役"
+"workspace.reader" = "読者"
+"workspace.agent" = "エージェント"
+"workspace.review" = "点検"
+
+[editor]
+editing = "編集中"
+no_sections = "本文の節がありません。contents/ に場面見出し（@01-01-01 のような行）を書いてください。"
+# インレイヒント（§6.6.2）。{0} は資料のタイトル（24 字を超えたら 23 字 + …）、モードは表示名を + でつないだもの
+inlay_title = "⟨{0}⟩"
+inlay_proposed = "⟨{0}・提案中⟩"
+inlay_rejected = "⟨{0}・却下⟩"
+inlay_modes = "⟨{0}⟩"
+
+[pane]
+plot = "プロット"
+upper = "上位プロット"
+cast = "配役"
+words = "用語"
+materials = "資料"
+diagnostics = "診断"
+personality = "性格"
+emotion = "感情"
+role = "役割"
+tone = "口調"
+prose = "本文"
+candidate_hint = "条件が合う資料の候補。ダブルクリックか Enter で、この節のプロットに material: として足します"
+
+[jump]
+not_found = "その構造 ID の節はありません"
+
+[modal]
+retry = "再試行"
+close = "閉じる"
+discard_and_close = "破棄して閉じる"
+cancel = "キャンセル"
+
+[command]
+theme = "テーマを切り替える"
+language = "言語を切り替える"
+save = "今すぐ全部書き出す"
+reload = "プロジェクトを読み直す"
+new_section = "直後に新しい節を作る"
+jump = "構造 ID へジャンプ"
+reference = "参照ペインの表示を切り替える"
+inlay_hints = "インレイヒント（資料のタイトル・モード名）の表示を切り替える"
+help = "キーボード一覧"
+export = "テキストにエクスポートする（アノテーションを除く）"
+agent_delegation = "{0} の委譲レベルを {1} にする"
+agent_stop_all = "エージェントを総停止する（自律のタスクを止め、レベルを propose に戻す）"
+prompt_reset = "{0} を既定のプロンプトに戻す（元に戻せない）"
+prompt_diff = "{0} を既定のプロンプトと並べて見る"
+export_zip = "Zip でエクスポートする"
+
+# `>export` のモーダル（§17.2、M9）。ボタンの文字は §9.2.1 の 1（内容から役割が分からない）
+[export]
+title = "エクスポート（アノテーションを除いたテキスト）"
+range_hint = "範囲（空欄なら全体）: @01-04 / @01 .. @03, @05"
+state_all = "すべて"
+state_review = "review 以上"
+state_fixed = "fixed だけ"
+preview = "{0} 節・{1} 字"
+bad_range = "範囲として読めません（例: @01-04、@01 .. @03, @05）"
+write = "exports/ に保存（Enter）"
+save_as = "名前を付けて保存…（Shift+Enter）"
+copy = "コピー（Ctrl+Shift+C）"
+written = "エクスポートしました: {0}"
+copied = "クリップボードにコピーしました（{0} 字）"
+failed = "エクスポートできませんでした: {0}"
+
+[help]
+title = "キーボード"
+palette = "コマンドパレット"
+jump = "構造 ID へジャンプ"
+save = "今すぐ全部書き出す（任意）"
+section = "前 / 次の節（編集を確定して保存）"
+scene = "前 / 次の場面"
+file = "前 / 次の話"
+confirm_next = "確定して次の節へ（無ければ新しい節）"
+new_section = "直後に新しい節を作って移動"
+focus = "文脈ビュー / 節エディタ / 参照ペインへ"
+reference = "参照ペインの表示"
+swap = "参照ペインの左右入替"
+context_ratio = "文脈ビューと節エディタの比"
+main_ratio = "メインと参照ペインの比"
+font = "文字サイズ 拡大 / 縮小 / 既定"
+language = "言語（ja ⇄ en）"
+theme = "テーマ（system → dark → light）"
+inlay_hints = "インレイヒント（資料のタイトル・モード名）の表示"
+reload = "プロジェクトを読み直す"
+escape = "閉じる / 節エディタへ"
+find = "検索 / 置換（今のファイル）"
+find_next = "次 / 前の一致"
+search = "本文の全体を検索"
+complete = "補完"
+modes = "キャラの全モード"
+term = "用語の全文"
+delete_section = "今の節を削除（確認あり）"
+recent = "最近開いたファイル"
+open = "プロジェクトを開く"
+quick_fix = "クイックフィックス"
+register = "選択を用語 / キャラとして登録"
+diff = "外部変更との差分（衝突時）"
+workspace = "ワークスペースの切替 / 直前のワークスペースへ"
+up = "1 つ上の段へ（本文 → 話プロット → 章プロット → 全体）"
+capture = "アイデアを書き留める（どこからでも）"
+review = "点検の診断へ"
+material = "資料を検索して挿入（どこからでも）"
+insert = "話プロットに節を挿入 / 新しい資料"
+drop = "アイデアを捨てる / 資料を却下"
+tab = "タブの切替（点検・配役）"
+scan = "役割語が一致しなかった台詞（配役）"
+
+[find]
+placeholder = "検索"
+count = "{0} 件"
+replace_placeholder = "置換後の文字列"
+replace = "置換"
+replace_all = "すべて置換"
+
+[search]
+placeholder = "本文の全体から検索"
+
+[delete]
+confirm = "この節を削除しますか？（取り消しは Ctrl+Z ではできません）"
+yes = "削除する"
+
+[quickfix]
+none = "この位置に直せるものはありません"
+
+[register]
+word_done = "words.md に登録しました: {0}"
+character_done = "characters.md に登録しました: {0}"
+no_selection = "登録する文字列を選んでください"
+
+[diff]
+title = "外部で変更されたファイル（未保存の変更と衝突しています）"
+lines = "自分の版 {0} 行 / 外部の版 {1} 行"
+keep_mine = "自分の版を残す（外部の版を上書き）"
+take_theirs = "外部の版を読み込む（自分の変更を破棄）"
+
+[action]
+RegisterWord = "用語として words.md に登録: {0}"
+RegisterCharacter = "キャラとして characters.md に登録: {0}"
+ReplaceWithCandidate = "{0} に置き換える"
+CloseExplicitForm = "明示形を閉じる: {0}"
+ReplaceMode = "モード {0} に置き換える"
+KeepFirstTwoModes = "最初の 2 つのモードだけ残す: {0}"
+ReplaceTitle = "索引のタイトルに揃える: {0}"
+RewriteIndexTitle = "索引のタイトルを書き換える: {0}"
+UseOtherMaterialId = "資料 ID を {0} にする"
+ReplaceMaterialId = "資料 ID {0} に置き換える"
+Renumber = "番号を振り直す: {0}"
+SwapRange = "範囲を入れ替える: {0}"
+InsertSummary = "summary（要約）の行を足す{0}"
+InsertDefinition = "definition（定義）の行を足す{0}"
+RemoveModifier = "修飾子を外す{0}"
+EscapeAt = "@ の前に \\ を入れる{0}"
+ReplaceKey = "キーを {0} にする"
+RemoveSection = "空の節を消す{0}"
+UseExplicitForm = "明示形にする: {0}"
+
+[workspace]
+# {0} = ワークスペースの名前
+unavailable = "{0} はこの版ではまだ使えません"
+
+[episode]
+# {0} = 文字数（3 桁区切り）
+prose_chars = "{0} 字"
+no_prose = "まだ書かれていません"
+# {0} = 本文の構造 ID
+prose_missing = "本文に @{0} はまだありません。近い節を開きました"
+# {0} = 章プロットのパス、{1} = 話の ID
+no_block = "章プロット {0} に @{1} のブロックはまだありません"
+# {0} = 話プロットのパス
+no_plot = "話プロット {0} はまだありません。Ctrl+Shift+N で最初の節を作ります"
+empty = "上の一覧から節を選ぶと、ここで編集できます"
+
+[outline]
+all = "全体"
+empty = "一覧からブロックを選ぶと、ここで編集できます"
+no_parent = "全体プロット plots/all.txt にこの章のブロックはまだありません"
+# {0} = 文書のパス
+no_blocks = "{0} にブロックはまだありません。Ctrl+Shift+N で作ります"
+foreshadow = "伏線"
+no_foreshadow = "seed: / payoff: はまだありません"
+open = "未回収"
+doubled = "二重回収"
+no_seed = "設置なし"
+closed = "回収済み"
+seed = "設置"
+payoff = "回収"
+
+[idea]
+filter_active = "すべて"
+status_inbox = "inbox"
+status_keep = "keep"
+status_promoted = "promoted"
+status_dropped = "dropped"
+tag_filter = "タグで絞り込む"
+none = "表示するアイデアはありません。Ctrl+Shift+I でどこからでも書き留められます"
+empty = "一覧からアイデアを選ぶと、ここで編集できます"
+keys = "Ctrl+Enter 昇格 · Ctrl+Delete 捨てる（行は残る） · Ctrl+Shift+I 即時入力"
+capture_title = "アイデアを書き留める"
+capture_hint = "1 行で書いて Enter（ideas.md に積みます）"
+# {0} = アイデアの ID
+captured = "{0} を ideas.md に積みました"
+# {0} = アイデアの ID
+dropped = "{0} を捨てました（status: dropped。行は残っています）"
+promote_title = "昇格の行き先"
+# {0} = 場面の ID
+promote_plot = "プロットの節（@{0} の最後に足す）"
+promote_plot_none = "プロットの節（本文で場面を開いてから）"
+promote_term = "用語（words.md）"
+promote_character = "キャラのメモ（characters.md）"
+promote_material = "資料（materials/inbox/ に提案として）"
+no_characters = "characters.md にキャラがいません"
+# {0} = アイデアの ID、{1} = 転記先
+promoted = "{0} を {1} へ昇格しました"
+promote_failed = "昇格できませんでした（転記先の文書を読めません）"
+
+[material]
+filter_active = "却下以外"
+status_proposed = "提案"
+status_approved = "採用"
+status_rejected = "却下"
+status_unknown = "状態不明"
+query_hint = "絞り込み（語・#分類・@範囲・'参照・~日付）"
+none = "表示する資料はありません。Ctrl+Shift+N で新しい資料を作れます"
+empty = "一覧から資料を選ぶと、ここで資料 MD を編集できます"
+form_empty = "資料を選ぶと、ここで審査できます"
+keys = "Ctrl+Enter 採用 · Ctrl+Delete 却下 · Ctrl+Shift+N 新しい資料 · Ctrl+M 検索 · Ctrl+3 審査フォーム"
+# {0} = 資料 MD のパス
+missing_file = "{0} はまだありません（書き始めると作ります）"
+field_title = "タイトル"
+field_category = "カテゴリ"
+field_summary = "要約"
+field_tags = "タグ"
+field_conditions = "条件（1 行に 1 つ）"
+field_source = "出典"
+# カテゴリの候補（カンマ区切り。§16.2 の既定）
+categories = "取材,文献,Web,画像,体験,一次資料,二次資料"
+tags_hint = "カンマ区切り"
+conditions_hint = "scope: @02-03 .. @02-08 / ref: '名前 / tag: 語 / text: 自由文"
+source_hint = "URL か、出典の説明"
+approve = "採用（Ctrl+Enter）"
+reject = "却下（Ctrl+Delete）"
+register = "index.json に登録する（Ctrl+Enter）"
+# {0} = 資料 ID
+approved = "{0} を採用しました（materials/docs/ へ移しました）"
+# {0} = 資料 ID
+rejected = "{0} を却下しました（ファイルは残っています。絞り込みの「却下」から採用し直せます）"
+# {0} = 資料 MD のパス、{1} = 資料 ID
+registered = "{0} を {1} として登録しました"
+# {0} = 資料 ID
+already = "{0} はもうその状態です"
+# {0} = 動かす先のパス
+occupied = "{0} が既にあるので動かせません（名前を変えてからもう一度）"
+untitled = "無題の資料"
+index_broken = "materials/index.json を読めないので資料を作れません（E025 を直してください）"
+# {0} = 資料 ID
+created = "{0} を提案として作りました（materials/inbox/）"
+# {0} = 資料 ID
+inserted = "{0} を挿入しました"
+# {0} = 資料 ID、{1} = 節の ID
+appended = "{0} を {1} のプロットに足しました（material:）"
+# {0} = 話プロットのパス
+no_plot_row = "{0} にこの節の場面がないので足せません"
+search_hint = "資料を検索（語・#分類・@範囲・'参照・M0137・!状態・~日付）"
+search_none = "見つかりません。Ctrl+Enter で新しい資料を作れます"
+search_keys = "Enter 挿入 · Shift+Enter 資料を開く · Ctrl+Enter 新しい資料を作って挿入 · Esc 閉じる"
+confirm_approve = "出典がないまま採用しますか？"
+confirm_yes = "採用する"
+new_title = "新しい資料（提案として作ります）"
+new_hint = "タイトル（#分類 も書けます）を書いて Enter"
+
+[review]
+tab_diagnostics = "診断"
+tab_progress = "進捗"
+keys = "Ctrl+Shift+← / → タブ · ↑ / ↓ 選ぶ · Enter 開く · Ctrl+Shift+E 数え直す"
+# {0} = 件数
+errors = "エラー {0}"
+# {0} = 件数
+warnings = "警告 {0}"
+# {0} = 件数
+infos = "情報 {0}"
+sort_position = "場所順"
+sort_severity = "重大度順"
+sort_code = "コード順"
+no_diagnostics = "表示する診断はありません"
+no_progress = "本文もプロットもまだありません"
+# {0} = 文字数
+chars = "{0} 字"
+# {0} = 文字数、{1} = 目標字数、{2} = 割合（%）
+chars_of = "{0} / {1} 字（{2}%）"
+# {0} = パス
+cannot_open = "{0} を開く画面はこの版にはまだありません"
+
+[cast]
+none = "characters.md にキャラがいません"
+empty = "一覧からキャラを選ぶと、ここで編集できます"
+tab_modes = "モード"
+tab_tester = "役割語"
+tab_unmatched = "未一致"
+no_modes = "このキャラには ## modes のモードがありません"
+timeline = "モードタイムライン"
+range_all = "（書かれていない = 全範囲）"
+timeline_keys = "帯をクリックしてから ↑ / ↓ で選び、Shift+← / → で 1 章ずらす（ドラッグも同じ）"
+tester_hint = "台詞を打つと、一致するパターンを示します"
+no_patterns = "このキャラには役割語のパターンがありません"
+common = "キャラ共通"
+all_matched = "役割語が一致しなかった台詞はありません"
+# {0} = 件数
+unmatched_count = "役割語が一致しなかった台詞 {0} 件（ダブルクリックで本文へ）"
+
+# agent ワークスペース（§15.7、M10）
+[agent]
+disabled = "エージェントは無効です"
+llm_unavailable = "この環境では LLM を呼び出せません（タスクの作成とドライランはできます）"
+# {0} = 実行中、{1} = 待機、{2} = 完了
+progress = "実行中 {0} / 待機 {1} / 完了 {2}"
+no_tasks = "タスクはまだありません。N で作ります"
+# {0} = 秒数
+seconds = "{0}秒"
+queued = "待機"
+initiator_agent = "起動: agent"
+new = "新しいタスク"
+no_selection = "タスクを選んでください"
+no_packet = "対象が 1 つの節ではないので、コンテキストを作れません"
+# {0} = 文字数、{1} = 上限
+packet_size = "{0} / {1} 字"
+packet_over = "上限を超えています。ブロックを外すと送れます"
+# {0} = 変数の名前
+unresolved = "値の無い変数: {0}"
+prompt_edited = "編集済"
+servers = "MCP サーバ"
+no_servers = "agents/mcp.json にサーバがありません"
+# {0} = 回数、{1} = 入力の文字数、{2} = 出力の文字数
+totals = "呼び出し {0} 回 · 入力 {1} 字 · 出力 {2} 字"
+# {0} = 止めたタスクの数、{1} = レベルを下げた役割の数
+stop_all_done = "総停止しました（中止 {0} 件・propose に下げた役割 {1}）"
+# {0} = 役割、{1} = レベル
+level_changed = "{0} の委譲レベルを {1} にしました"
+new_title = "新しいタスク"
+new_role = "役割（↑↓ で選ぶ）"
+new_scope = "対象（節の構造 ID。場面・話なら節ごとに作る）"
+new_intent = "目的"
+new_comment = "コメント（任意。プロンプトの人間からのコメントに入る）"
+new_hint = "Enter で作る · Esc で閉じる"
+# {0} = タスク ID
+created = "タスクを作りました: {0}"
+# {0} = 書かれた対象
+new_no_scope = "対象の節が見つかりません: {0}"
+# {0} = 件数
+confirm_title = "{0} 件のタスクを実行します"
+# {0} = 文字数
+confirm_chars = "合計入力 {0} 字"
+# {0} = サーバ名
+confirm_servers = "使用サーバ: {0}"
+confirm_yes = "実行する"
+reject_title = "却下の理由（必須。次の実行の history に入ります）"
+revert_title = "差し戻しの理由（必須。本文を提案の前に戻します）"
+comment_required = "コメントが要ります"
+# {0} = 提案 ID
+accepted = "採用しました: {0}"
+rejected = "却下しました: {0}"
+reverted = "差し戻しました: {0}"
+refused = "{0} を適用できませんでした（対象が見つからないか、提案が空です）"
+fixed_confirm = "確定済み（fixed）の節を書き換える提案です。採用しますか？"
+accept_yes = "採用する"
+# {0} = パス
+dry_run_saved = "ドライランを保存しました: {0}"
+exclude_locked = "ブロックを外せるのは、実行前（draft / ready）のタスクだけです"
+# {0} = 件数
+approved = "メッセージを {0} 件承認しました"
+keys.tasks = "N 新規 · R 実行 · X 中止 · D ドライラン · Space 選択 · Shift+R まとめて実行"
+keys.context = "↑↓ ブロック · Space 外す / 戻す · D ドライラン"
+keys.review = "A 採用 · P 一部採用 · X 却下 · M メッセージを承認"
+keys.revert = "X 差し戻し（本文を提案の前に戻す）"
+keys.settled = "決着済みの提案です"
+keys.delegation = "1 off · 2 propose · 3 apply · 4 autonomous · Ctrl+Shift+X 総停止"
+column.tasks = "① タスク"
+column.context = "② コンテキスト"
+column.review = "③ 結果レビュー"
+column.delegation = "④ 委譲レベル"
+block.excluded = "外した"
+block.trimmed = "切り詰め"
+block.dropped = "落ちたもの"
+block.required = "必須"
+block.locked = "このブロックは外せません（1 project と 8 constraints は必ず送ります）"
+review.running = "実行中です"
+review.queued = "実行待ちです"
+review.canceled = "中止しました"
+review.none = "まだ結果はありません。R で実行、D でドライラン"
+review.stale = "古いコンテキストに基づく提案です（実行の後にコンテキストの元が変わりました）"
+review.drifted = "提案を出した後に、対象が書き換わっています"
+review.fixed = "対象は確定済み（fixed）です"
+review.truncated = "出力は 20,000 字で切られています"
+# {0} = 件数
+review.pending = "未承認のメッセージ {0} 件（M で承認）"
+# {0} = 提案 ID の並び
+review.others = "同じ対象の提案: {0}"
+violation.empty = "契約違反: 本体が空です"
+violation.preamble = "契約違反: 前置きがあります"
+violation.heading = "契約違反: 見出しがあります"
+violation.code_fence = "契約違反: コードブロックがあります"
+violation.annotation = "契約違反: novnow の記法（行頭の @ ;）があります"
+violation.length = "契約違反: 字数が指定の ±20% を外れています"
+status.autonomous = "(自律)"
+# {0} = 件数
+status.count = "{0}件"
+# {0} = タスク ID、{1} = 対象
+notice.auto_applied = "自動適用しました: {0} → {1}"
+notice.fixed_overwrite = "fixed を書き換えました: {0} → {1}"
+# {0} = タスク ID、{1} = 診断のコード
+notice.gate_refused = "{0} は自動適用しませんでした（{1} が増えるため）。提案として残しました"
+# {0} = タスク ID
+notice.missing = "{0} の適用先が見つからないので、提案として残しました"
+notice.truncated = "{0} の出力を 20,000 字で切りました"
+# {0} = タスク ID、{1} = 件数
+notice.questions = "{0} から質問が {1} 件あります"
+# {0} = タスク ID
+blocked.unknown = "{0} は実行できる状態ではありません"
+blocked.off = "{0} の役割は止まっています（委譲レベル off）"
+blocked.role = "{0} の役割はこの版では実行できません"
+blocked.scope = "{0} の対象が 1 つの節ではありません"
+blocked.no_server = "{0} の役割を受け持つ MCP サーバがありません（agents/mcp.json）"
+blocked.fixed = "{0} の対象は確定済み（fixed）です。propose の役割は実行しません"
+blocked.over = "{0} のコンテキストが上限を超えています。ブロックを外してください"
+failed.timeout = "{0} がタイムアウトしました（ready に戻しました）"
+failed.cancelled = "{0} を中止しました"
+# {0} = タスク ID、{1} = 理由
+failed.protocol = "{0} の応答を読めませんでした（ready に戻しました）: {1}"
+
+# `>prompt reset` / `>prompt diff`（§15.5.4）
+[prompt]
+# {0} = 名前（all は全部）
+reset_title = "プロンプトを既定に戻す: {0}"
+reset_warning = "現在の内容は失われます。元に戻せません。"
+reset_current = "現在"
+reset_default = "既定"
+reset_missing = "(ファイルがありません)"
+reset_same = "既定と同じです"
+reset_yes = "既定に戻す"
+# {0} = 件数
+reset_done = "{0} 個のプロンプトを既定に戻しました"
+# {0} = 名前
+diff_title = "既定との比較: {0}"

@@ -108,6 +108,10 @@ export PATH=$BUILD_DIR/sysroot/bin:\$PATH
 export RUSTC=$BUILD_DIR/sysroot/bin/rustc
 export CARGO_HOME=$BUILD_DIR/cargo-home
 export CARGO_NET_OFFLINE=true
+# M7（2026-10-13）: GUI 込み（--features ui）のテストバイナリは debuginfo 付きだと 1 本 200MB を超え、
+# 40 本で作業環境のディスク（21GB）を使い切った。手元では行番号だけにし、incremental も切る（CI には効かない）。
+export CARGO_PROFILE_DEV_DEBUG=line-tables-only
+export CARGO_INCREMENTAL=0
 ENVS
 
 # 中間生成物はディスクを食うので消す（376MB の tarball ＋ 連結した 2 つの tar.gz）

@@ -3,15 +3,16 @@
 //! `PLANS.md` §5.4 の作業項目 3 と**完了条件 1**（付録 B.3 の変換結果表 **8 行**がすべて
 //! テストで一致する）に対応する。B.3 の表は**そのまま期待値**にしてある（§6.3「仕様が正本」）。
 //!
-//! `^` / `$` が発話全体の先頭・末尾を指すこと（文単位に分割しない）は §6.5.2 の「文」の段落と
-//! B.3 の 1・2 行目が両立しないための裁定で、経緯は `PLANS.md` §9.1 **A-23**。
+//! `^` / `$` は**文**（発話を `。！？!?…` の連続の直後で区切った単位）の先頭・末尾を指す
+//! （第 2.8 版のユーザー裁定。B.3 の 1 行目の不一致例も「本当だよ！？」に差し替わった）。
+//! 経緯は `PLANS.md` §9.1 **A-23**、区切り方の細部は §9.2 **B-74**。
 
 use std::ops::Range;
 use std::time::Instant;
 
 use novnow::core::model::project::Lexicon;
 use novnow::core::model::role_pattern::{Anchor, RolePattern};
-use novnow::core::resolve::role_language::{self, Cache, Matcher, MatcherSet};
+use novnow::core::resolve::role_language::{self, sentences, Cache, Matcher, MatcherSet};
 
 // ============================================================ 付録 B.3（テストの期待値）
 
@@ -39,7 +40,7 @@ const B3: &[Row] = &[
         regex: "[^\\n]*?だよ！$",
         hit: "もう行くだよ！",
         underline: "だよ！",
-        miss: "だよ！って何",
+        miss: "本当だよ！？",
     },
     Row {
         pattern: "…あの…*",
@@ -313,8 +314,10 @@ fn a_word_class_from_the_project_wins_over_the_default() {
 
 #[test]
 fn a_broken_word_class_regex_is_dropped_without_stopping_the_others() {
-    // §7 に対応コードが無いので黙って捨てる（A-24）。§4.3-4「起動失敗にしない」
+    // §6.5.1（第 2.9 版）: そのクラスを使うパターンだけを捨てる。報告は project.json 側の
+    // E027（A-24、tests/project_json.rs）。§4.3-4「起動失敗にしない」
     let broken = lexicon_with("体言", "[");
+    assert_eq!(broken.invalid_word_classes(), vec!["体言"]);
     assert!(Matcher::new(&pattern("(体言)！"), &broken).is_none());
     let set = MatcherSet::new(&[pattern("(体言)！"), pattern("かな")], &broken);
     assert_eq!(set.len(), 1);
@@ -367,15 +370,100 @@ fn a_free_pattern_matches_in_the_middle() {
     );
 }
 
-/// §6.5.2 の「文」ではなく**発話全体**の先頭・末尾を見る（**A-23**）。
+/// `^` / `$` は発話全体ではなく**文**の先頭・末尾を見る（第 2.8 版、**A-23**）。
 #[test]
-fn anchors_look_at_the_whole_utterance_not_at_each_sentence() {
-    // §6.5.2 の例の台詞。`*よ。` は 1 文目の文末には**一致しない**（B.3 の 1 行目の
-    // 不一致例「だよ！って何」と同じ理由。文単位にすると B.3 の 2 行目が壊れる）
+fn anchors_look_at_each_sentence() {
+    // §6.5.2 の例の台詞。`*よ。` は 1 文目の文末に一致する
     let utterance = "分かってるよ。でも、これを見てくれ";
-    assert!(matcher("*よ。").find(utterance).is_none());
-    // 発話全体が `よ。` で終われば一致する
-    assert!(matcher("*よ。").find("分かってるよ。").is_some());
+    let hit = matcher("*よ。").find(utterance).expect("1 文目に一致");
+    assert_eq!(slices(utterance, &hit.underlines), vec!["よ。"]);
+    // 第 2.7 版の B.3 の不一致例だった「だよ！って何」は、1 文目が `だよ！` なので一致する
+    assert!(matcher("*だよ！").find("だよ！って何").is_some());
+    // 文頭固定も文ごと: 2 文目の頭に当たる
+    let second = "えっ！ちょっ…待って";
+    let hit = matcher("ちょっ…*").find(second).expect("2 文目の頭");
+    assert_eq!(slices(second, &hit.underlines), vec!["ちょっ…"]);
+}
+
+#[test]
+fn an_exact_pattern_still_looks_at_the_whole_utterance() {
+    // §6.5.2 の表「`=` 前置 → 完全一致（発話全体が一致）」は文に分けない
+    let exact = matcher("=ほう…");
+    assert!(exact.find("ほう…なるほど").is_none());
+    assert!(exact.find_all("ほう…なるほど").is_empty());
+    // `=` の無い `ほう…` は文末固定なので 1 文目（`ほう…`）に一致する
+    assert!(matcher("ほう…").find("ほう…なるほど").is_some());
+    let set = MatcherSet::new(&[pattern("=ほう…")], &lexicon());
+    assert!(set.hits("ほう…なるほど").is_empty());
+    assert_eq!(set.hits("ほう…").len(), 1);
+}
+
+#[test]
+fn every_matching_sentence_is_underlined() {
+    // 1 つの台詞で複数の文が一致したら全部に下線（§6.5.2 第 2.8 版 / §6.5.4 の和集合）
+    let utterance = "行くよ。待ってるよ。";
+    let found = matcher("*よ。");
+    let hits = found.find_all(utterance);
+    assert_eq!(hits.len(), 2);
+    let set = MatcherSet::new(&[pattern("*よ。")], &lexicon());
+    assert_eq!(set.hits(utterance), hits);
+    assert_eq!(
+        slices(utterance, &set.underlines(utterance)),
+        vec!["よ。", "よ。"]
+    );
+}
+
+#[test]
+fn a_pattern_across_a_sentence_end_never_matches() {
+    // 文末記号の後ろにさらに文字が続くパターンは、その記号で文が切れるので一致しない
+    assert!(matcher("*よ。でも*").find("分かってるよ。でも").is_none());
+}
+
+// ============================================================ §6.5.2 の文の区切り（B-74）
+
+fn sentence_texts(utterance: &str) -> Vec<&str> {
+    slices(utterance, &sentences(utterance))
+}
+
+#[test]
+fn sentences_split_after_each_run_of_sentence_ends() {
+    assert_eq!(
+        sentence_texts("分かってるよ。でも、これを見てくれ"),
+        vec!["分かってるよ。", "でも、これを見てくれ"]
+    );
+    // `！？` や `……` の連続は 1 つの区切り
+    assert_eq!(
+        sentence_texts("本当だよ！？そうか……行こう"),
+        vec!["本当だよ！？", "そうか……", "行こう"]
+    );
+    // 半角の `!` `?` も文末記号
+    assert_eq!(sentence_texts("OK!行くよ?"), vec!["OK!", "行くよ?"]);
+}
+
+#[test]
+fn a_leading_run_belongs_to_the_next_sentence() {
+    // B.3 の 2 行目が成り立つ理由（`…` で始まる文が空にならない）
+    assert_eq!(sentence_texts("…あの…その…"), vec!["…あの…", "その…"]);
+    assert_eq!(sentence_texts("……"), vec!["……"]);
+}
+
+#[test]
+fn spaces_around_a_sentence_are_not_part_of_it() {
+    // `！` `？` の後の全角空白（和文の組版慣習）は次の文に含めない
+    assert_eq!(
+        sentence_texts("えっ！　ちょっ…待って"),
+        vec!["えっ！", "ちょっ…", "待って"]
+    );
+    assert_eq!(sentence_texts("  ねえ 君  "), vec!["ねえ 君"]);
+    assert!(sentences("").is_empty());
+    assert!(sentences("　 ").is_empty());
+}
+
+#[test]
+fn dots_and_two_dot_leaders_do_not_end_a_sentence() {
+    // `‥` と `.` は省略記号のアトムには入るが、§6.5.2 の文末記号ではない
+    assert_eq!(sentence_texts("ほう‥なるほど"), vec!["ほう‥なるほど"]);
+    assert_eq!(sentence_texts("v1.0 です"), vec!["v1.0 です"]);
 }
 
 // ============================================================ §6.5.4 の下線

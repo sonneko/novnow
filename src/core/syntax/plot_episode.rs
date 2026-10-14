@@ -41,8 +41,9 @@
 //!
 //! | コード | 条件 | 位置 |
 //! |---|---|---|
-//! | **E002** | 見出しの ID が `scene_id` としてパースできない（§6.2.5） | `@id` |
-//! | **E020** | 見出しが予約番号（`C = 00`、または設定で拒否する `A = 00`、§5.1.2） | `@id` |
+//! | **E002** | 見出しの ID の形が崩れている（§6.2.5） | `@id` |
+//! | **E020** | 見出しの ID は読めるが 1〜2 階層（§6.2.5、第 2.8 版。`{0}` は `3-4`） | `@id` |
+//! | **E022** | 見出しが予約番号（`C = 00`、または設定で拒否する `A = 00`、§5.1.2） | `@id` |
 //! | **E008** | 見出しの ID が同一ファイル内で重複（§7「同一ファイル内の ID 重複」） | 2 件目の `@id` |
 //! | **E005** | 1 つの `mode:` に同じキャラを 2 回、または 1 キャラに 3 つ以上のモード（§5.4.2） | 該当トークン |
 //! | **W011** | 未知のフィールドキー（§5.0.6） | キー |
@@ -62,7 +63,7 @@
 //!
 //! # `.txt` 3 形式の共通部
 //!
-//! 見出し行の分解（E002 / E020 込み）は C 形式の [`contents::parse_scene`] を、行末コメント・
+//! 見出し行の分解（E002 / E020 / E022 込み）は C 形式の [`contents::parse_scene`] を、行末コメント・
 //! 行頭空白の byte 位置・`mode_id` の形は [`super::contents`] のものをそのまま使う。
 //! フィールド行とその診断は A 形式の [`super::plot_outline`] のものを使う（B-40）。
 
@@ -70,8 +71,8 @@ use std::ops::Range;
 
 use serde::Serialize;
 
-use crate::core::diagnostics::{Arg, Diagnostic, DiagnosticCode};
-use crate::core::id::{self, SceneId};
+use crate::core::diagnostics::{Diagnostic, DiagnosticCode};
+use crate::core::id::SceneId;
 use crate::core::text::lexer::{self, FieldKey, LineKind, TextFormat};
 
 use super::contents;
@@ -255,7 +256,7 @@ pub struct Preamble {
 pub struct Scene {
     /// 見出し行の index（`EpisodePlot::lines` の中）。
     pub header: usize,
-    /// 見出しの ID。3〜4 階層のときだけ `Some`。形が壊れていれば `None`（**E002**）。
+    /// 見出しの ID。3〜4 階層のときだけ `Some`。それ以外は `None`（**E002** / **E020**）。
     pub id: Option<SceneId>,
     /// 書かれた階層の数（`@01-04-02` = 3）。壊れていれば 0。
     pub depth: usize,
@@ -293,7 +294,7 @@ pub struct Section {
 
 /// 全行を字句解析し、**行順**に診断を出す。
 ///
-/// 見出しの診断（E002 / E020 / E008）とフィールドの診断（W011 / E005）はどちらも 1 行だけで
+/// 見出しの診断（E002 / E020 / E022 / E008）とフィールドの診断（W011 / E005）はどちらも 1 行だけで
 /// 判定できるので（E008 は既出の ID を覚えるだけ）、A 形式のように後から並べ直さない。
 fn parse_lines<'a>(text: &'a str, options: &Options, out: &mut Vec<Diagnostic>) -> Vec<Line<'a>> {
     let mut lines: Vec<Line<'a>> = Vec::new();
@@ -322,9 +323,9 @@ fn parse_line<'a>(
     // ①（[`Stage::One`]）で B 形式の行を読む。`! ` は C 形式専用（§5.2.5）なので現れない
     match lexer::classify_at_stage(raw, TextFormat::PlotEpisode, lexer::Stage::One) {
         LineKind::Structure(_) => {
-            // 見出しの分解と E002 / E020 は C 形式と完全に同じ（§5.4.1 `scene_header`）
+            // 見出しの分解と E002 / E020 / E022 は C 形式と完全に同じ（§5.4.1 `scene_header`）
             let found = contents::parse_scene(raw, offset, options, out);
-            warn_duplicate(&found, offset, seen, out);
+            contents::warn_duplicate(&found, offset, seen, out);
             Line::Scene(found)
         }
         LineKind::SectionBreak => Line::Break(contents::parse_break(raw)),
@@ -340,26 +341,6 @@ fn parse_line<'a>(
         // 節の内容（§5.4.1 `point_line`）。② の `# ` も ① では自由文のまま
         LineKind::Text(_) | LineKind::IllustrationMemo(_) => Line::Point(raw),
     }
-}
-
-/// 見出しの ID が同一ファイル内で重複していないか（**E008**、§7「同一ファイル内の ID 重複」）。
-fn warn_duplicate(
-    found: &contents::SceneLine<'_>,
-    offset: usize,
-    seen: &mut Vec<(SceneId, usize)>,
-    out: &mut Vec<Diagnostic>,
-) {
-    // ID が壊れているときは E002 が出ている（[`contents::parse_scene`]）のでここでは何もしない
-    let Some(id) = found.id else {
-        return;
-    };
-    let start = offset + contents::body_start(found.raw);
-    let range = start..start + id::SIGIL.len_utf8() + found.id_text.len();
-    if seen.contains(&(id, found.depth)) {
-        let args = vec![Arg::text(found.id_text)];
-        out.push(Diagnostic::new(DiagnosticCode::E008, Some(range), args));
-    }
-    seen.push((id, found.depth));
 }
 
 /// フィールド行の診断（**W011** 未知のキー、**E005** `mode:` の形）。

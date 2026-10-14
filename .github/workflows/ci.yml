@@ -47,6 +47,10 @@ on:
       - 'screenshot.jpeg'
       - 'LICENSE'
   pull_request:
+    # draft の間は 4 ジョブを skip し、ready for review にした時点で 1 回だけ走らせる
+    # （2026-10-13。作業中は push のたびにローカルで 4 ジョブを確認済みなので、CI は
+    # 「緑の証跡」を最後に 1 回残せば足りる。Actions 使用時間を抑えるユーザー指示）。
+    types: [opened, synchronize, reopened, ready_for_review]
     branches:
       - main
       - master
@@ -78,6 +82,7 @@ env:
 jobs:
   fmt:
     name: Rustfmt
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     # 暴走しても課金が伸びないようにする（Actions 使用時間の節約）
     timeout-minutes: 10
@@ -116,6 +121,7 @@ jobs:
 
   clippy:
     name: Clippy
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -126,18 +132,19 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       # --all-targets: tests/ 配下（layering.rs を含む）も lint する
       # --locked: Cargo.lock と Cargo.toml の乖離を落とす
-      # `--features ui` を付けない: GUI のクレート（egui / eframe / rfd / fontdb / toml）は
-      # optional で既定のビルドに入れない（PLANS.md §2.1 の feature gate・§9.2 B-54）。
-      # TODO(M7): src/ui/** に egui の実コードが入ったら、clippy / test / wasm の 3 コマンドに
-      #           `--features ui` を足す（PLANS.md §5.8 作業項目 0）。
+      # M7 から GUI 込み（`--features ui`、PLANS.md §5.8 作業項目 0）。GUI のクレートは optional の
+      # まま（既定のビルドに入れない、§9.2 B-54）なので、GUI を含まない既定のビルドも続けて lint する。
       - name: cargo clippy
         id: cargo
         shell: bash
         run: |
           set -o pipefail
-          echo "::group::cargo clippy（生ログ）"
-          cargo clippy --locked --all-targets -- -D warnings 2>&1 | tee /tmp/ci.log
-          status=$?
+          status=0
+          echo "::group::cargo clippy --features ui（生ログ）"
+          cargo clippy --locked --all-targets --features ui -- -D warnings 2>&1 | tee /tmp/ci.log || status=$?
+          echo "::endgroup::"
+          echo "::group::cargo clippy（GUI なしの既定のビルド、生ログ）"
+          cargo clippy --locked --all-targets -- -D warnings 2>&1 | tee -a /tmp/ci.log || status=$?
           echo "::endgroup::"
           exit $status
       - name: Report to the run summary
@@ -158,8 +165,15 @@ jobs:
 
   test:
     name: Test
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      # GUI 込みのテストは 47 本のバイナリがそれぞれ egui をリンクするので、既定の debuginfo では
+      # ランナーのディスクを使い切る（2026-10-14 に "No space left on device" で落ちた）。CI では
+      # debuginfo は要らない（panic の位置はデバッグ情報が無くても出る）。手元は
+      # scripts/bootstrap-toolchain.sh が line-tables-only にしている
+      CARGO_PROFILE_DEV_DEBUG: 0
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -169,15 +183,19 @@ jobs:
       # マージしない」。
       # --no-fail-fast: 既定だと**最初の失敗ターゲットで止まる**（統合テストはアルファベット順）
       # ので、1 回の CI で全形式の失敗を知るために外す。
-      # `--features ui` は付けない（上の clippy ジョブと同じ理由。PLANS.md §9.2 B-54）。
+      # M7 から GUI 込み（`--features ui`。tests/gui.rs は egui を画面なしで回す）。GUI を含まない
+      # ビルドの振る舞い（GUI 起動の拒否・`novnow new` の案内）は tests/cli.rs を既定のビルドでも回す。
       - name: cargo test
         id: cargo
         shell: bash
         run: |
           set -o pipefail
-          echo "::group::cargo test（生ログ）"
-          cargo test --locked --all-targets --no-fail-fast 2>&1 | tee /tmp/ci.log
-          status=$?
+          status=0
+          echo "::group::cargo test --features ui（生ログ）"
+          cargo test --locked --all-targets --no-fail-fast --features ui 2>&1 | tee /tmp/ci.log || status=$?
+          echo "::endgroup::"
+          echo "::group::cargo test --test cli（GUI なしの既定のビルド、生ログ）"
+          cargo test --locked --test cli --no-fail-fast 2>&1 | tee -a /tmp/ci.log || status=$?
           echo "::endgroup::"
           exit $status
       - name: Report to the run summary
@@ -196,26 +214,42 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh pr comment "${{ github.event.pull_request.number }}" --body-file /tmp/body.md
 
+  # ジョブ名は「WASM Build Check」のまま（必須チェックの名前を変えないため）。M6 から
+  # **Windows（x86_64-pc-windows-msvc）の型検査**も同じジョブで行う: `#[cfg(windows)]` のコード
+  # （main.rs の AttachConsole・env_system.rs のロケール、SPECIFICATIONS.md §14.3）は作業環境に
+  # Windows の std が無くローカルで検査できないため（PLANS.md §9.2 B-107）。`cargo check` は
+  # リンクしないので MSVC のリンカは要らない。どちらかが落ちても両方の結果をログに残す。
   wasm:
     name: WASM Build Check
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: wasm32-unknown-unknown
+          targets: wasm32-unknown-unknown,x86_64-pc-windows-msvc
       - uses: Swatinem/rust-cache@v2
-      # `--features ui` は付けない（上の clippy ジョブと同じ理由。PLANS.md §9.2 B-54）。
-      - name: cargo check (wasm32)
+      # M7 から GUI 込み（`--features ui`。Web の GUI と、Windows の GUI ビルドの型検査）。
+      # RUSTFLAGS は付けない（付けると依存クレートまで作り直しになる）。警告は下の grep で落とす。
+      - name: cargo check (wasm32 / windows)
         id: cargo
         shell: bash
         run: |
           set -o pipefail
+          status=0
           echo "::group::cargo check --target wasm32-unknown-unknown（生ログ）"
-          cargo check --locked --target wasm32-unknown-unknown 2>&1 | tee /tmp/ci.log
-          status=$?
+          cargo check --locked --target wasm32-unknown-unknown --features ui 2>&1 | tee /tmp/ci.log || status=$?
           echo "::endgroup::"
+          echo "::group::cargo check --target x86_64-pc-windows-msvc（生ログ）"
+          cargo check --locked --target x86_64-pc-windows-msvc --features ui 2>&1 | tee -a /tmp/ci.log || status=$?
+          echo "::endgroup::"
+          # novnow 自身の警告（Windows でだけ出る未使用など）も赤にする。依存クレートの警告は
+          # cargo が抑えるので、`--> src/` を指す診断があれば novnow のもの
+          if [ "$status" = 0 ] && grep -q -- '--> src/' /tmp/ci.log; then
+            echo "::error::novnow の警告があります（上のログ）"
+            status=1
+          fi
           exit $status
       - name: Report to the run summary
         if: always() && steps.cargo.outcome != 'skipped'

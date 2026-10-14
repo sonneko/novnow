@@ -282,6 +282,26 @@ pub enum SourceKind {
 }
 
 impl Source {
+    /// 出典が無いか（**W065** の条件、§16.7）。`kind: search`（§16.3.1）は検索語そのものが出典なので
+    /// 無いことにはしない。それ以外は `url` も `text` も空（空白だけを含む）なら無い。
+    pub fn is_missing(&self) -> bool {
+        if self.kind_value() == Some(SourceKind::Search) {
+            return false;
+        }
+        let url = self.url.as_deref().unwrap_or("").trim();
+        let text = self.text.as_deref().unwrap_or("").trim();
+        url.is_empty() && text.is_empty()
+    }
+
+    /// 表示する出典（URL があれば URL、無ければ自由文。どちらも無ければ空）。
+    pub fn shown(&self) -> &str {
+        self.url
+            .as_deref()
+            .filter(|url| !url.trim().is_empty())
+            .or(self.text.as_deref())
+            .unwrap_or("")
+    }
+
     /// `kind` を §5.8.2 の 3 値として読む。表に無ければ `None`。
     pub fn kind_value(&self) -> Option<SourceKind> {
         match self.kind.as_str() {

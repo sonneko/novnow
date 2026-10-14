@@ -1,9 +1,9 @@
 //! `core::diagnostics` の表を `SPECIFICATIONS.md` §7 と突き合わせるテスト。
 //!
-//! §7（37 件）・§7.1（14 件）・§7.2（27 件）の **78 件**を仕様書の Markdown から直接
+//! §7（40 件）・§7.1（14 件）・§7.2（27 件）の **81 件**（第 2.16 版で E029 が増えた）を仕様書の Markdown から直接
 //! 読み直し、`CATALOG` と一致するかを見る。`PLANS.md` §6.2 では `tests/diagnostics_catalog.rs`
 //! の導入は M4 だが、§3 I5「診断は先に表を実装」に合わせて**前倒し**した。表を先に作る以上、
-//! 仕様書との一致も先に固定しておく（後から 78 件を照合するのは手でできない）。
+//! 仕様書との一致も先に固定しておく（後から 81 件を照合するのは手でできない）。
 //!
 //! 確認するのは次の 7 つ。
 //!
@@ -49,15 +49,18 @@ struct Row {
 }
 
 #[test]
-fn the_spec_has_78_codes_in_three_tables() {
+fn the_spec_has_81_codes_in_three_tables() {
+    // 第 2.8 版で E022（予約番号の見出し、`PLANS.md` §9.1 A-9）、第 2.9 版で E027（語クラスの
+    // 正規表現が不正、A-24）が §7 に増えた
     let rows = all_rows();
     let core = count_group(&rows, Group::Core);
     let storage = count_group(&rows, Group::Storage);
     let writing = count_group(&rows, Group::Writing);
-    assert_eq!(core, 37);
+    // 第 2.16 版で E029（壊れたプロンプト、`PLANS.md` §9.2 B-139）が増えた
+    assert_eq!(core, 40);
     assert_eq!(storage, 14);
     assert_eq!(writing, 27);
-    assert_eq!(rows.len(), 78);
+    assert_eq!(rows.len(), 81);
     assert_eq!(CATALOG.len(), rows.len());
 }
 
@@ -124,16 +127,27 @@ fn ja_and_en_use_the_same_placeholders() {
 }
 
 #[test]
-fn e004_skips_the_first_placeholder() {
-    // `PLANS.md` §9.1 A-7: E004 の文言は ja も en も `{0}` を使わない（`{1}`〜`{3}`）。
-    // 引数の数は「最大の添字 + 1」なので 4 になる。番号を振り直すときは仕様書から直す
+fn e004_names_the_character_first() {
+    // `PLANS.md` §9.1 A-7（第 2.8 版で解消）: 旧文言は `{0}` を使わず、`resolve::modes` が
+    // `args[0]` に入れるキャラ名が表示されなかった。いまは ja も en も `{0}`〜`{3}` を全部使う
     let rows = all_rows();
     let row = rows.iter().find(|row| row.code == "E004").expect("E004");
     let ja = placeholders(&row.ja);
-    assert_eq!(ja, vec![1, 2, 3]);
+    assert_eq!(ja, vec![0, 1, 2, 3]);
     assert_eq!(placeholders(&row.en), ja);
     let count = DiagnosticCode::E004.params();
     assert_eq!(count, 4);
+}
+
+#[test]
+fn every_placeholder_index_is_used() {
+    // A-7 の再発防止: 引数の数は「最大の添字 + 1」なので、途中の添字が抜けると
+    // core が渡した引数のどれかが黙って捨てられる
+    for row in all_rows() {
+        let ja = placeholders(&row.ja);
+        let want: Vec<usize> = (0..ja.len()).collect();
+        assert_eq!(ja, want, "{}", row.code);
+    }
 }
 
 #[test]

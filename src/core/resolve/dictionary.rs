@@ -249,7 +249,7 @@ pub fn is_delimiter(c: char) -> bool {
 /// エントリの種別（§6.1.1 の表）。
 ///
 /// 衝突時の優先順位は [`EntryKind::priority`] の昇順（小さいほど強い）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub enum EntryKind {
     /// `characters.md` の H1 と `alias`（§6.1.1）。修飾子はモード ID（`:B` / `:B+D`）。
     Character,

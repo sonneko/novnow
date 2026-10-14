@@ -5,9 +5,13 @@
 //! 1. 禁止依存（§3.2）— UI / I/O / 非同期 / 時刻・乱数、および許可リストに無いクレート
 //! 2. ユーザー向け文言（§12.2）— 日本語の文字列リテラル
 //!
-//! 加えて末尾の 2 テストが **`Cargo.toml` の feature gate**（`PLANS.md` §9.2 B-54）を見る:
-//! GUI のクレート（egui / eframe / rfd / fontdb / toml）が `optional = true` で `ui` feature の
-//! 後ろにあり、既定のビルド（＝ CI の fmt / clippy / test / wasm）がそれらをコンパイルしないこと。
+//! 加えて **`Cargo.toml` の feature gate**（`PLANS.md` §9.2 B-54・B-100）を見る: GUI のクレート
+//! （egui / eframe / rfd / fontdb）が `optional = true` で `ui` feature の後ろにあり、既定のビルド
+//! （＝ CI の fmt / clippy / test / wasm）がそれらをコンパイルしないこと。`ui` 層のうち文言カタログ
+//! `ui::i18n` だけは CLI も使うので常にビルドし、GUI のクレートを使わないこと（M6）。
+//!
+//! §12.2 の日本語リテラル検査は `src/core/**` に加えて、M6 から **`src/cli/**`・`src/main.rs`・
+//! `src/ui/i18n/**`** も対象にする（CLI のメッセージも同じカタログを使う、§12.2）。
 //!
 //! テキスト走査ではなく AST を使うので、コメント・文字列リテラル・char リテラルを字句として
 //! 正しく区別できる。`'"'` のような char リテラルや `r#"..."#` の埋め込みデータによって
@@ -793,8 +797,12 @@ const LIB_RS: &str = include_str!("../src/lib.rs");
 /// `src/adapters/mod.rs`（アダプタの宣言の正本）。
 const ADAPTERS_MOD_RS: &str = include_str!("../src/adapters/mod.rs");
 
-/// GUI（§3.3 の `ui` 層）に要るクレート。`PLANS.md` §2.1 の表で層が ui の 5 つ。
-const UI_CRATES: &[&str] = &["eframe", "egui", "rfd", "fontdb", "toml"];
+/// GUI（§3.3 の `ui` 層の egui 部分）に要るクレート。`PLANS.md` §2.1 の表で層が ui のもの
+/// （`toml` は M6 から CLI も使う文言カタログのために通常の依存になった。B-100）。
+const UI_CRATES: &[&str] = &["eframe", "egui", "rfd", "fontdb"];
+
+/// `src/ui/mod.rs`（`ui` 層の宣言の正本）。
+const UI_MOD_RS: &str = include_str!("../src/ui/mod.rs");
 
 #[test]
 fn the_ui_crates_are_optional_and_behind_the_ui_feature() {
@@ -837,15 +845,463 @@ fn the_ui_crates_are_optional_and_behind_the_ui_feature() {
 }
 
 #[test]
-fn the_ui_layer_is_compiled_only_with_the_ui_feature() {
-    // `pub mod ui;` と `pub mod dialog_rfd;` が cfg で守られているか。守られていないと、
-    // M7 で `src/ui/**` が egui を使い始めた瞬間に**既定のビルド（CI の 4 ジョブ）が落ちる**
+fn the_gui_is_compiled_only_with_the_ui_feature() {
+    // GUI のモジュールと `pub mod dialog_rfd;` が cfg で守られているか。守られていないと、
+    // M7 で `src/ui/**` が egui を使い始めた瞬間に**既定のビルド（CI の 4 ジョブ）が落ちる**。
+    // 文言カタログ `ui::i18n` だけは CLI も使うので守らない（B-100）
     assert!(
-        LIB_RS.contains("#[cfg(feature = \"ui\")]\npub mod ui;"),
-        "src/lib.rs の `pub mod ui;` に `#[cfg(feature = \"ui\")]` が付いていない"
+        LIB_RS.contains("\npub mod ui;")
+            && !LIB_RS.contains("#[cfg(feature = \"ui\")]\npub mod ui;"),
+        "src/lib.rs の `pub mod ui;` は cfg なしで宣言する（中の GUI だけを src/ui/mod.rs で守る）"
+    );
+    let file = syn::parse_file(UI_MOD_RS).expect("src/ui/mod.rs がパースできない");
+    let mut names = Vec::new();
+    for item in &file.items {
+        let syn::Item::Mod(module) = item else {
+            continue;
+        };
+        let name = module.ident.to_string();
+        let gated = module.attrs.iter().any(|attr| {
+            attr.path().is_ident("cfg")
+                && match attr.parse_args::<Meta>() {
+                    Ok(Meta::NameValue(pair)) => {
+                        pair.path.is_ident("feature")
+                            && matches!(&pair.value, Expr::Lit(syn::ExprLit { lit: Lit::Str(text), .. }) if text.value() == "ui")
+                    }
+                    _ => false,
+                }
+        });
+        if name == "i18n" {
+            assert!(
+                module.attrs.iter().all(|attr| !attr.path().is_ident("cfg")),
+                "ui::i18n は常にビルドする（CLI が使う）"
+            );
+        } else {
+            assert!(
+                gated,
+                "src/ui/mod.rs の `pub mod {name};` に `#[cfg(feature = \"ui\")]` が付いていない"
+            );
+        }
+        names.push(name);
+    }
+    assert!(
+        names.contains(&"i18n".to_owned()),
+        "ui::i18n が無い: {names:?}"
+    );
+    assert!(
+        names.len() > 1,
+        "GUI のモジュールが見つからない（検査が空振り）: {names:?}"
     );
     assert!(
         ADAPTERS_MOD_RS.contains("#[cfg(feature = \"ui\")]\npub mod dialog_rfd;"),
         "src/adapters/mod.rs の `pub mod dialog_rfd;` に `#[cfg(feature = \"ui\")]` が付いていない"
     );
+}
+
+/// パスと `use` の先頭のクレート名を集める（GUI のクレートを使っていないかの検査用）。
+#[derive(Default)]
+struct CrateRoots {
+    roots: Vec<String>,
+}
+
+impl<'ast> Visit<'ast> for CrateRoots {
+    fn visit_path(&mut self, node: &'ast syn::Path) {
+        if let Some(first) = node.segments.first() {
+            self.roots.push(first.ident.to_string());
+        }
+        visit::visit_path(self, node);
+    }
+
+    fn visit_item_use(&mut self, node: &'ast ItemUse) {
+        let mut tree = &node.tree;
+        loop {
+            match tree {
+                UseTree::Path(path) if path.ident == "crate" || path.ident == "self" => {
+                    tree = &path.tree;
+                }
+                UseTree::Path(path) => {
+                    self.roots.push(path.ident.to_string());
+                    break;
+                }
+                UseTree::Name(name) => {
+                    self.roots.push(name.ident.to_string());
+                    break;
+                }
+                _ => break,
+            }
+        }
+        visit::visit_item_use(self, node);
+    }
+}
+
+/// §9.5.1 MUST: 参照ペインはカードにしない。`egui::Frame::group`（と、それを使う `Ui::group`）は
+/// `src/ui/` 全体で 0 件（PLANS.md §5.8 の完了条件「grep で検査、CI に追加」。CI の test ジョブで走る）。
+#[test]
+fn the_gui_never_uses_frame_group() {
+    let mut files = Vec::new();
+    collect_rs(Path::new("src/ui"), &mut files);
+    assert!(files.len() > 10, "src/ui の .rs が見つからない: {files:?}");
+    let mut found = Vec::new();
+    for file in &files {
+        let source = std::fs::read_to_string(file).expect("read");
+        for (number, line) in source.lines().enumerate() {
+            // コメント（`//`・`///`・`//!`）の中の言及は数えない
+            let code = match line.find("//") {
+                Some(at) => &line[..at],
+                None => line,
+            };
+            if code.contains("Frame::group") || code.contains(".group(") {
+                found.push(format!(
+                    "{}:{}: {}",
+                    file.display(),
+                    number + 1,
+                    line.trim()
+                ));
+            }
+        }
+    }
+    assert!(
+        found.is_empty(),
+        "Frame::group / Ui::group を使っている:\n{}",
+        found.join("\n")
+    );
+}
+
+#[test]
+fn the_message_catalog_does_not_use_the_gui_crates() {
+    // `ui::i18n` は `ui` feature なしでビルドするので、egui などを使うと既定のビルドが落ちる
+    let mut files = Vec::new();
+    collect_rs(Path::new("src/ui/i18n"), &mut files);
+    assert!(!files.is_empty(), "src/ui/i18n に .rs が無い");
+    for file in files {
+        let source = read_core(&file);
+        let parsed = syn::parse_file(&source).expect("parse");
+        let mut roots = CrateRoots::default();
+        roots.visit_file(&parsed);
+        let used: Vec<&String> = roots
+            .roots
+            .iter()
+            .filter(|root| UI_CRATES.contains(&root.as_str()))
+            .collect();
+        assert!(
+            used.is_empty(),
+            "{} が GUI のクレートを使っている: {used:?}",
+            file.display()
+        );
+    }
+}
+
+/// §12.2: CLI（`src/cli/**`・`src/main.rs`）と文言カタログ（`src/ui/i18n/**`）にも
+/// ユーザー向け文言（日本語の文字列リテラル）を書かない（CLI も同じカタログを使う）。
+#[test]
+fn cli_has_no_user_facing_text() {
+    let mut files = vec![PathBuf::from("src/main.rs")];
+    collect_rs(Path::new("src/cli"), &mut files);
+    collect_rs(Path::new("src/ui/i18n"), &mut files);
+    assert!(files.len() > 5, "src/cli の .rs が少なすぎる: {files:?}");
+    let mut found = Vec::new();
+    for file in &files {
+        let source = read_core(file);
+        let (_, text) = scan_or_panic(&file.display().to_string(), &source);
+        found.extend(text);
+    }
+    assert!(
+        found.is_empty(),
+        "SPECIFICATIONS.md §12.2 違反（CLI の文言はカタログに置く）が {} 件:\n{}",
+        found.len(),
+        bullets(&found)
+    );
+}
+
+#[test]
+fn gui_has_no_user_facing_text() {
+    // §19.1「`ui/` 内に i18n を経由しない日本語リテラルが存在しない（例外は i18n カタログのみ）」。
+    // GUI のコードは `ui` feature の中だけでビルドされるが、ここはソースを読むので既定のビルドでも検査できる
+    let mut files = Vec::new();
+    collect_rs(Path::new("src/ui"), &mut files);
+    assert!(files.len() > 10, "src/ui の .rs が少なすぎる: {files:?}");
+    let mut found = Vec::new();
+    for file in &files {
+        let source = read_core(file);
+        let (_, text) = scan_or_panic(&file.display().to_string(), &source);
+        found.extend(text);
+    }
+    assert!(
+        found.is_empty(),
+        "SPECIFICATIONS.md §12.2 / §19.1 違反（GUI の文言はカタログに置く）が {} 件:\n{}",
+        found.len(),
+        bullets(&found)
+    );
+}
+
+// ---------------------------------------------------------------------------
+// §13.1.2: 書き込みの system call は書き込みの関門（`src/adapters/storage_fs.rs`）だけ
+//
+// 仕様は「`std::fs::write` / `File::create` の直接使用が `adapters/` 以外に無いこと」。第 2.9 版で
+// **関門の 1 ファイル**に絞った（`PLANS.md` §9.2 B-91）。関門の中の書き込みはすべて
+// `WritePolicy` の判定を通るので、ここで「関門の外に書き込み API が無い」ことを固定すれば、
+// 規則 10（プロジェクト外への書き込み禁止）を迂回する経路がソースに現れない。
+// ---------------------------------------------------------------------------
+
+/// 書き込みの関門。書き込み API を直接使ってよい唯一のファイル（§13.1.2 第 2.9 版）。
+const WRITE_GATE: &str = "src/adapters/storage_fs.rs";
+
+/// `fs::<これ>` はファイルシステムへの書き込み。
+const FS_WRITE_FNS: &[&str] = &[
+    "write",
+    "rename",
+    "copy",
+    "create_dir",
+    "create_dir_all",
+    "remove_file",
+    "remove_dir",
+    "remove_dir_all",
+    "hard_link",
+    "soft_link",
+    "symlink",
+    "symlink_file",
+    "symlink_dir",
+    "set_permissions",
+];
+
+/// `File::<これ>` は書き込み用に開く（`File::open` は読み取りなので許可）。
+const FILE_WRITE_FNS: &[&str] = &["create", "create_new", "options"];
+
+/// パス（`::` でつないだ識別子の並び）が書き込み API を指すか。
+fn write_api(segments: &[String]) -> Option<String> {
+    let joined = segments.join("::");
+    if segments.iter().any(|segment| segment == "OpenOptions") {
+        return Some(joined);
+    }
+    for pair in segments.windows(2) {
+        let (head, tail) = (pair[0].as_str(), pair[1].as_str());
+        let hit = (head == "fs" && (FS_WRITE_FNS.contains(&tail) || tail == "*"))
+            || (head == "File" && FILE_WRITE_FNS.contains(&tail))
+            || (head == "tokio" && tail == "fs");
+        if hit {
+            return Some(joined);
+        }
+    }
+    None
+}
+
+/// 書き込み API を探す visitor（`use` 文・式・型・属性・マクロ本体）。
+#[derive(Default)]
+struct WriteApiChecker {
+    label: String,
+    found: Vec<String>,
+}
+
+impl WriteApiChecker {
+    fn check(&mut self, segments: &[String]) {
+        if let Some(path) = write_api(segments) {
+            let message = format!("'{}' in {}", path, self.label);
+            self.found.push(message);
+        }
+    }
+
+    /// `use` の木をパスに展開する（`use std::fs::{self, write};` → `std::fs` と `std::fs::write`）。
+    fn walk_use(&mut self, prefix: &mut Vec<String>, tree: &UseTree) {
+        match tree {
+            UseTree::Path(path) => {
+                prefix.push(path.ident.to_string());
+                self.walk_use(prefix, &path.tree);
+                prefix.pop();
+            }
+            UseTree::Name(name) => {
+                let mut full = prefix.clone();
+                if name.ident != "self" {
+                    full.push(name.ident.to_string());
+                }
+                self.check(&full);
+            }
+            UseTree::Rename(rename) => {
+                let mut full = prefix.clone();
+                full.push(rename.ident.to_string());
+                self.check(&full);
+            }
+            UseTree::Glob(_) => {
+                let mut full = prefix.clone();
+                full.push("*".to_string());
+                self.check(&full);
+            }
+            UseTree::Group(group) => {
+                for item in &group.items {
+                    self.walk_use(prefix, item);
+                }
+            }
+        }
+    }
+
+    /// マクロ本体のトークン列から `a::b::c` の並びを拾う。
+    fn scan_tokens(&mut self, tokens: TokenStream) {
+        let mut run: Vec<String> = Vec::new();
+        let mut colons = 0;
+        for token in tokens {
+            match token {
+                TokenTree::Ident(ident) => {
+                    if colons != 2 {
+                        self.flush(&mut run);
+                    }
+                    run.push(ident.to_string());
+                    colons = 0;
+                }
+                TokenTree::Punct(punct) if punct.as_char() == ':' => colons += 1,
+                TokenTree::Group(group) => {
+                    self.flush(&mut run);
+                    colons = 0;
+                    self.scan_tokens(group.stream());
+                }
+                _ => {
+                    self.flush(&mut run);
+                    colons = 0;
+                }
+            }
+        }
+        self.flush(&mut run);
+    }
+
+    fn flush(&mut self, run: &mut Vec<String>) {
+        if !run.is_empty() {
+            let taken = std::mem::take(run);
+            self.check(&taken);
+        }
+    }
+}
+
+impl<'ast> Visit<'ast> for WriteApiChecker {
+    fn visit_path(&mut self, path: &'ast syn::Path) {
+        let segments: Vec<String> = path
+            .segments
+            .iter()
+            .map(|segment| segment.ident.to_string())
+            .collect();
+        self.check(&segments);
+        visit::visit_path(self, path);
+    }
+
+    fn visit_item_use(&mut self, item: &'ast ItemUse) {
+        let mut prefix = Vec::new();
+        self.walk_use(&mut prefix, &item.tree);
+    }
+
+    fn visit_macro(&mut self, mac: &'ast syn::Macro) {
+        self.scan_tokens(mac.tokens.clone());
+        visit::visit_macro(self, mac);
+    }
+}
+
+fn scan_write_apis(label: &str, source: &str) -> Vec<String> {
+    let file = syn::parse_file(source).unwrap_or_else(|e| panic!("{label}: {e}"));
+    let mut checker = WriteApiChecker {
+        label: label.to_string(),
+        ..Default::default()
+    };
+    checker.visit_file(&file);
+    checker.found
+}
+
+/// §13.1.2: 書き込み API を直接使うのは書き込みの関門だけ。
+#[test]
+fn only_the_write_gate_touches_the_file_system_for_writing() {
+    let mut files = Vec::new();
+    collect_rs(Path::new("src"), &mut files);
+    files.sort();
+    assert!(
+        files.len() > 50,
+        "src/ の .rs が少なすぎる（{}）",
+        files.len()
+    );
+    let gate = Path::new(WRITE_GATE);
+    let mut found = Vec::new();
+    for file in &files {
+        if file == gate {
+            continue;
+        }
+        let source = read_core(file);
+        found.extend(scan_write_apis(&file.display().to_string(), &source));
+    }
+    assert!(
+        found.is_empty(),
+        "SPECIFICATIONS.md §13.1.2 違反（書き込み API は {WRITE_GATE} だけ）が {} 件:\n{}",
+        found.len(),
+        bullets(&found)
+    );
+    // 関門の場所が変わったのに定数が古いまま（＝検査が空振り）にならないように
+    let gate_source = read_core(gate);
+    assert!(
+        !scan_write_apis(WRITE_GATE, &gate_source).is_empty(),
+        "{WRITE_GATE} に書き込み API が無い（関門が移動した？）"
+    );
+}
+
+/// 検出されるべき書き込み（§13.1.2）。
+const MUST_CATCH_WRITES: &[&str] = &[
+    "fn f() { std::fs::write(\"x\", \"y\").ok(); }",
+    "use std::fs; fn f() { fs::write(\"x\", \"y\").ok(); }",
+    "use std::fs::write; fn f() { write(\"x\", \"y\").ok(); }",
+    "use std::fs::{self, write as w};",
+    "use std::fs::*;",
+    "use std::fs::File; fn f() { File::create(\"x\").ok(); }",
+    "fn f() { std::fs::File::options().write(true); }",
+    "use std::fs::OpenOptions;",
+    "fn f() { let _ = std::fs::OpenOptions::new(); }",
+    "fn f() { std::fs::rename(\"a\", \"b\").ok(); }",
+    "fn f() { std::fs::remove_file(\"a\").ok(); }",
+    "fn f() { std::fs::create_dir_all(\"a\").ok(); }",
+    "fn f() { std::fs::copy(\"a\", \"b\").ok(); }",
+    "fn f() { std::os::unix::fs::symlink(\"a\", \"b\").ok(); }",
+    "fn f() { let _ = tokio::fs::write(\"a\", \"b\"); }",
+    "fn f() { println!(\"{:?}\", std::fs::write(\"a\", \"b\")); }",
+];
+
+/// 許されるもの（読み取り・書き込み先の決まった Writer）。
+const MUST_PASS_WRITES: &[&str] = &[
+    "fn f() { let _ = std::fs::read_to_string(\"x\"); }",
+    "use std::fs; fn f() { let _ = fs::read(\"x\"); let _ = fs::metadata(\"x\"); }",
+    "use std::fs::File; fn f() { File::open(\"x\").ok(); }",
+    "use std::io::Write; fn f(out: &mut Vec<u8>) { out.write_all(b\"x\").ok(); writeln!(out).ok(); }",
+    "fn f() { let write = 1; let _ = write; }",
+    "fn f() { let _ = std::fs::canonicalize(\".\"); let _ = std::fs::read_dir(\".\"); }",
+];
+
+#[test]
+fn write_checker_catches_every_write_api() {
+    for (i, source) in MUST_CATCH_WRITES.iter().enumerate() {
+        let found = scan_write_apis(&format!("must_catch_write[{i}]"), source);
+        assert!(!found.is_empty(), "検出漏れ: {source}");
+    }
+}
+
+#[test]
+fn write_checker_allows_reads() {
+    for (i, source) in MUST_PASS_WRITES.iter().enumerate() {
+        let found = scan_write_apis(&format!("must_pass_write[{i}]"), source);
+        assert!(found.is_empty(), "誤検出: {source}: {found:?}");
+    }
+}
+
+/// §19.7「`characters.json` を参照するコードが存在しない（移行コードを除く）」。名前を持ってよいのは
+/// v0 の目印（`core::model::project::V0_MARKER`、§14.2.4）と `cli/migrate.rs`（中身は M11）だけ。
+#[test]
+fn only_the_v0_marker_and_migrate_mention_characters_json() {
+    let mut files = Vec::new();
+    collect_rs(Path::new("src"), &mut files);
+    files.sort();
+    assert!(!files.is_empty(), "No .rs files found in src!");
+    let marker = Path::new("src/core/model/project.rs");
+    let allowed = [marker, Path::new("src/cli/migrate.rs")];
+    let offenders: Vec<String> = files
+        .iter()
+        .filter(|file| !allowed.contains(&file.as_path()))
+        .filter(|file| read_core(file).contains("characters.json"))
+        .map(|file| file.display().to_string())
+        .collect();
+    assert!(
+        offenders.is_empty(),
+        "characters.json を参照している:\n{}",
+        bullets(&offenders)
+    );
+    // 目印の側も、文字列リテラルは定数の 1 か所だけ
+    assert_eq!(read_core(marker).matches("\"characters.json\"").count(), 1);
 }

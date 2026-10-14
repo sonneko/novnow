@@ -38,7 +38,8 @@
 //! | コード | 条件 | 位置 |
 //! |---|---|---|
 //! | **E002** | 見出しの ID が `partial_id` としてパースできない（§6.2.5） | `@id` |
-//! | **E020** | 見出しの階層がこのファイルの許容と違う（§5.3.2）、または `A = 00` を拒否する設定（§5.1.2） | `@id` |
+//! | **E020** | 見出しの階層がこのファイルの許容と違う（§5.3.2） | `@id` |
+//! | **E022** | `A = 00` を拒否する設定で 0 章の見出し（§5.1.2、第 2.8 版で E020 から分離） | `@id` |
 //! | **E008** | 見出しの ID が同一ファイル内で重複（§5.3.2） | 2 件目の `@id` |
 //! | **E018** | ブロックに `summary` が無い（§5.3.2 MUST） | 見出し行 |
 //! | **W011** | 未知のフィールドキー（§5.0.6） | キー |
@@ -99,7 +100,7 @@ pub struct Options {
     pub depth: Option<usize>,
     /// `A = 00`（0 章）を許すか（§5.1.2 `structure.allow_chapter_zero`）。
     ///
-    /// `false` のとき、0 章を指す見出しは **E020**。
+    /// `false` のとき、0 章を指す見出しは **E022**（予約番号、第 2.8 版。旧 E020）。
     pub allow_chapter_zero: bool,
 }
 
@@ -684,7 +685,7 @@ fn warn_missing_summary(
     out.push(Diagnostic::simple(DiagnosticCode::E018, Some(range)));
 }
 
-/// 見出し行の診断（**E002** / **E020** / **E008**）。
+/// 見出し行の診断（**E002** / **E020** / **E022** / **E008**）。
 ///
 /// `expected` はこのファイルの階層で、[`Options::depth`] が `None` のときは最初の見出しで決まる
 /// （§5.3.2「ファイル内の見出し階層は揃っていること」）。
@@ -705,12 +706,20 @@ fn check_header(
         return;
     };
     let depth = *expected.get_or_insert(found.depth);
-    let chapter_zero = id.chapter == 0 && !options.allow_chapter_zero;
-    if depth != found.depth || chapter_zero {
-        // §5.3.2「ファイル内の見出し階層は揃っていること」/ §5.1.2 の `A = 00`
+    if depth != found.depth {
+        // §5.3.2「ファイル内の見出し階層は揃っていること」
         let args = vec![Arg::number(depth as i64)];
         out.push(Diagnostic::new(
             DiagnosticCode::E020,
+            Some(id_range.clone()),
+            args,
+        ));
+    }
+    if id.chapter == 0 && !options.allow_chapter_zero {
+        // §5.1.2 の `A = 00`（予約番号は E022、第 2.8 版。`PLANS.md` §9.1 A-9）
+        let args = vec![Arg::text(found.id_text)];
+        out.push(Diagnostic::new(
+            DiagnosticCode::E022,
             Some(id_range.clone()),
             args,
         ));

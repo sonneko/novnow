@@ -709,37 +709,15 @@ fn finish<'a>(
         candidate.found.truncate(2);
     }
 
-    let name = character_name(input.characters, target.character);
     let mut ids = Vec::with_capacity(candidate.found.len());
     let mut definitions = Vec::with_capacity(candidate.found.len());
     for (id, range) in candidate.found {
         ids.push(id);
-        match variant(input, target, id) {
-            Variant::Found(definition) => definitions.push(definition),
-            Variant::Undefined => diagnostics.push(FileDiagnostic {
+        match judge(input, target, id, range) {
+            Ok(definition) => definitions.push(definition),
+            Err(diagnostic) => diagnostics.push(FileDiagnostic {
                 file: candidate.file,
-                // §7 E003「{0} にモード {1} は定義されていません」
-                diagnostic: Diagnostic::new(
-                    DiagnosticCode::E003,
-                    Some(range),
-                    vec![Arg::text(name.clone()), Arg::text(id)],
-                ),
-            }),
-            Variant::OutOfRange(variants) => diagnostics.push(FileDiagnostic {
-                file: candidate.file,
-                // §7 E004「モード {1} は {2} では使用できません（有効範囲: {3}）」
-                // **引数は 4 つ**で `args[0]` はどの言語でも捨てられる（PLANS §9.1 A-7）。
-                // 仕様を直すまではキャラ名を予約として入れておく
-                diagnostic: Diagnostic::new(
-                    DiagnosticCode::E004,
-                    Some(range),
-                    vec![
-                        Arg::text(name.clone()),
-                        Arg::text(id),
-                        Arg::text(target.scene.display(Digits::default())),
-                        Arg::text(range_text_of(&variants)),
-                    ],
-                ),
+                diagnostic,
             }),
         }
     }
@@ -749,6 +727,51 @@ fn finish<'a>(
         ids,
         definitions,
         diagnostics,
+    }
+}
+
+/// 書かれたモード ID 1 つの検査（**E003** / **E004**、§6.4.4）。問題が無ければ `None`。
+///
+/// 8 段の解決（[`resolve`]）を通らない参照（本文中の `'リリア:B` など）を M4 の
+/// `diagnostics::document` が検査するときに使う。`range` はそのまま診断の範囲になる
+/// （[`resolve`] と同じく**参照トークン全体**を渡す流儀）。`input` で使うのは `characters` だけ。
+pub fn check_id(
+    input: &Input<'_>,
+    target: &Target<'_>,
+    id: &str,
+    range: Range<usize>,
+) -> Option<Diagnostic> {
+    judge(input, target, id, range).err()
+}
+
+/// §6.4.5 の変種選択をして、使える定義か、E003 / E004 の診断を返す。
+fn judge<'a>(
+    input: &Input<'a>,
+    target: &Target<'a>,
+    id: &str,
+    range: Range<usize>,
+) -> Result<Definition<'a>, Diagnostic> {
+    let name = || character_name(input.characters, target.character);
+    match variant(input, target, id) {
+        Variant::Found(definition) => Ok(definition),
+        // §7 E003「{0} にモード {1} は定義されていません」
+        Variant::Undefined => Err(Diagnostic::new(
+            DiagnosticCode::E003,
+            Some(range),
+            vec![Arg::text(name()), Arg::text(id)],
+        )),
+        // §7 E004「{0} のモード {1} は {2} では使用できません（有効範囲: {3}）」
+        // （第 2.8 版で `{0}` ＝キャラ名を使う文言になった。`PLANS.md` §9.1 A-7）
+        Variant::OutOfRange(variants) => Err(Diagnostic::new(
+            DiagnosticCode::E004,
+            Some(range),
+            vec![
+                Arg::text(name()),
+                Arg::text(id),
+                Arg::text(target.scene.display(Digits::default())),
+                Arg::text(range_text_of(&variants)),
+            ],
+        )),
     }
 }
 

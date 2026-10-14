@@ -1,10 +1,11 @@
 name: Deploy to GitHub Pages
 
+# 2026-10-13: M7（GUI の内部 α、PLANS.md §5.8）までは手動実行だけにしていた（ユーザー指示。
+# M0 で v0 の UI を削除してから `trunk build` が通らなかったため）。M7 で GUI（`ui` feature。
+# `index.html` の `data-cargo-features="ui"`）が戻ったので `push: branches: [main]` を戻した。
 on:
   push:
-    branches:
-      - main
-      - master
+    branches: [main]
   workflow_dispatch:
 
 permissions:

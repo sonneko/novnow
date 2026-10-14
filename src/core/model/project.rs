@@ -8,7 +8,8 @@
 //! `#[serde(default)]`（コンテナ単位）を付けてあるので、キーが欠けた `project.json` でも
 //! 既定値で読み込める（§4.3-4「パース失敗を起動失敗にしない」）。
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
+use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -168,7 +169,7 @@ pub struct Structure {
     pub section_digits: u8,
     /// `00` 章（ストック）を許すか（§5.1.2・追加仕様 22）。
     ///
-    /// `false` のとき 0 章を指す見出しは **E020**（`syntax` の `Options::allow_chapter_zero`）。
+    /// `false` のとき 0 章を指す見出しは **E022**（`syntax` の `Options::allow_chapter_zero`）。
     pub allow_chapter_zero: bool,
     /// §4.5 に無いキー。
     #[serde(flatten)]
@@ -240,6 +241,21 @@ pub struct Lexicon {
     /// §4.5 に無いキー。
     #[serde(flatten)]
     pub unknown: BTreeMap<String, Value>,
+}
+
+impl Lexicon {
+    /// 正規表現として**不正な**語クラスの名前（キーの昇順）。
+    ///
+    /// §6.5.1（第 2.9 版）: 不正かどうかは値を**単独で**コンパイルできるかで決める。
+    /// 報告は `project.json` 側の **E027**（`syntax::project_json`、`PLANS.md` §9.1 A-24）で、
+    /// マッチャ（`resolve::role_language::Matcher::new`）はそのクラスを使うパターンだけを捨てる。
+    pub fn invalid_word_classes(&self) -> Vec<&str> {
+        self.word_classes
+            .iter()
+            .filter(|(_, pattern)| regex::Regex::new(pattern).is_err())
+            .map(|(name, _)| name.as_str())
+            .collect()
+    }
 }
 
 /// `export`（§4.5、§17）。
@@ -396,4 +412,139 @@ impl Default for LocalLlm {
             unknown: BTreeMap::new(),
         }
     }
+}
+
+// ============================================================ §4.3 プロジェクト妥当性の判定
+
+/// §4.2 の必須ファイル（表の順）。
+pub const REQUIRED_FILES: &[&str] = &[
+    "project.json",
+    "characters.md",
+    "words.md",
+    "materials/index.json",
+    "plots/all.txt",
+];
+
+/// §4.2 の必須ディレクトリ（表の順）。
+pub const REQUIRED_DIRS: &[&str] = &["contents", "plots"];
+
+/// プロジェクト構造の解説ページ（§14.2.1、指示 2）。URL は**この定数だけ**を参照する（MUST。
+/// `tests/cli.rs` がソース中の出現を 1 か所に固定している）。`GIT_GUIDE_DOC_URL` /
+/// `CICD_GUIDE_DOC_URL` は ② なので定義しない（`PLANS.md` §1.2-14）。
+pub const PROJECT_STRUCTURE_DOC_URL: &str =
+    "https://sonneko.github.io/novnow/guide/project_structure.html";
+
+/// v0 の目印（§14.2.4「v0 形式です（characters.json を検出）」、§4.3 第 2.9 版）。
+pub const V0_MARKER: &str = "characters.json";
+
+/// `project.json`（§4.1）。
+pub const PROJECT_FILE: &str = "project.json";
+
+/// §4.3 の判定に要るもの。**集めるのはストレージ層**（adapters。core は I/O を持たない、§3.2）。
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Listing {
+    /// 存在するファイル（ルートからの相対・`/` 区切り）。
+    pub files: BTreeSet<String>,
+    /// 存在するディレクトリ（同。末尾の `/` は付けない）。
+    pub dirs: BTreeSet<String>,
+    /// ディレクトリを持たないストレージか（Web の IndexedDB、§13.3）。`true` なら必須ディレクトリは
+    /// 常にあるものとして扱う（§4.3 第 2.9 版）。
+    pub dirs_implicit: bool,
+    /// `project.json` の中身（読めたとき）。
+    pub project_json: Option<String>,
+    /// UTF-8 として不正な `.md` / `.txt` / `.json`（§4.3-3）。調べていなければ空。
+    pub invalid_utf8: Vec<String>,
+}
+
+/// §4.3 の判定の失敗（起動失敗にするもの。構文エラーは含めない、§4.3-4）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ProjectError {
+    /// 必須パスが欠けている（§4.2 の表の順に**全部**、§14.2-2）。ディレクトリは末尾に `/` を付ける。
+    Incomplete {
+        /// 欠けているもの。
+        missing: Vec<PathBuf>,
+    },
+    /// v0 形式（移行が必要、§20）。
+    LegacyV0 {
+        /// 何で分かったか（`characters.json`、または `schema_version` が省略・0 の `project.json`）。
+        detected: String,
+    },
+    /// `schema_version` が新しすぎる（novnow 本体の更新が必要）。
+    TooNew {
+        /// 書かれていた値。
+        found: u32,
+    },
+    /// UTF-8 として不正なファイルがある（§4.3-3）。
+    Encoding {
+        /// 該当ファイル（ルートからの相対）。
+        files: Vec<PathBuf>,
+    },
+}
+
+/// §4.3 のプロジェクト妥当性の判定（`core::model::project::validate`）。
+///
+/// 順は §4.3 のとおり: (0) v0 の目印 → (1) 必須パス → (2) `schema_version` → (3) 文字コード。
+/// 最初に失敗した段の理由を返す。(0) は第 2.9 版で足した段で、`characters.json` があって
+/// `characters.md` が無ければ不足の列挙より先に [`ProjectError::LegacyV0`]（§14.2.4 の表示のため）。
+/// (2) は `project.json` が JSON として読めない・`schema_version` が数でないときは飛ばす
+/// （版が読めないことは起動失敗にしない。E025 を出して既定値で開く、§4.3-4）。
+pub fn validate(listing: &Listing) -> Result<(), ProjectError> {
+    if listing.files.contains(V0_MARKER) && !listing.files.contains("characters.md") {
+        return Err(ProjectError::LegacyV0 {
+            detected: V0_MARKER.to_owned(),
+        });
+    }
+    let mut missing: Vec<PathBuf> = REQUIRED_FILES
+        .iter()
+        .filter(|file| !listing.files.contains(**file))
+        .map(PathBuf::from)
+        .collect();
+    if !listing.dirs_implicit {
+        missing.extend(
+            REQUIRED_DIRS
+                .iter()
+                .filter(|dir| !listing.dirs.contains(**dir))
+                .map(|dir| PathBuf::from(format!("{dir}/"))),
+        );
+    }
+    if !missing.is_empty() {
+        return Err(ProjectError::Incomplete { missing });
+    }
+    match listing.project_json.as_deref().and_then(schema_of) {
+        Some(SchemaState::LegacyV0) => {
+            return Err(ProjectError::LegacyV0 {
+                detected: PROJECT_FILE.to_owned(),
+            })
+        }
+        Some(SchemaState::TooNew { found }) => return Err(ProjectError::TooNew { found }),
+        Some(SchemaState::Current) | None => {}
+    }
+    if !listing.invalid_utf8.is_empty() {
+        return Err(ProjectError::Encoding {
+            files: listing.invalid_utf8.iter().map(PathBuf::from).collect(),
+        });
+    }
+    Ok(())
+}
+
+/// `project.json` の `schema_version` だけを読む（§4.3-2）。
+///
+/// `schema_version` が無ければ [`SchemaState::LegacyV0`]（v0 の `project.json` には無い）。
+/// JSON として読めない・オブジェクトでない・`schema_version` が 0 以上の整数でないときは `None`
+/// （§4.3 第 2.9 版: 2. を飛ばす）。設定全体の読み込み（型の合わない値で E025）とは別に、
+/// 版の数だけを見る。
+pub fn schema_of(text: &str) -> Option<SchemaState> {
+    let body = text.strip_prefix('\u{feff}').unwrap_or(text);
+    let value: Value = serde_json::from_str(body).ok()?;
+    let object = value.as_object()?;
+    let Some(found) = object.get("schema_version") else {
+        return Some(SchemaState::LegacyV0);
+    };
+    Some(match found.as_u64()? {
+        1 => SchemaState::Current,
+        0 => SchemaState::LegacyV0,
+        other => SchemaState::TooNew {
+            found: u32::try_from(other).unwrap_or(u32::MAX),
+        },
+    })
 }

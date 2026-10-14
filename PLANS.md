@@ -105,7 +105,7 @@
 
 **横断的に ② へ回すもの**
 
-- **§7.2 の診断カタログ全体**（W080–W094 / E032–E035 / E064 / I054–I058）
+- **§7.2 の診断カタログ全体**（W080–W094 / E032–E034 / E064 / I054–I058。**E035・E036・W095 は M10 の機能そのものなので ①**、§9.2 B-150）
 - **§4.5.1 の追加設定キー全部**（ただし 本書 §1.5 の「未知キー温存」は ① の必須要件）
 - **§19.14 の受け入れ基準全部**
 - §6.3 のトークン種別のうち `ref.address` / `citation` / `illustration`
@@ -183,7 +183,7 @@
 |---|---|---|
 | `thiserror` | `ProjectError` 等の定義 | core |
 | `unicode-normalization` | §6.1.3 の NFKC 照合 | core（**§3.2 の許可リストに追加済み・2026-10-09**） |
-| `toml` | `ui/i18n/*.toml` の読み込み | ui |
+| `toml` | `ui/i18n/*.toml` の読み込み（GUI と CLI。**M6 から通常の依存**、§9.2 B-100） | ui（`ui::i18n`） |
 | `directories` | XDG / APPDATA の履歴パス解決（§13.2） | adapters（native のみ） |
 | web-sys の IDB 系 feature | `IdbFactory` `IdbDatabase` `IdbObjectStore` `IdbTransaction` `IdbRequest` `IdbOpenDbRequest` `IdbCursor` `IdbKeyRange` | adapters（wasm のみ） |
 | `syn`（`full` / `visit`）<br>`proc-macro2` | `tests/layering.rs` が `src/core/**` を AST として訪走し、§3.2 の禁止依存と §12.2 の日本語リテラルを検査する | **dev-dependency のみ**（実行時バイナリには入らない。core の許可リスト §3.2 とは無関係） |
@@ -205,6 +205,10 @@
 > `tests/layering.rs` の末尾 2 テストが `Cargo.toml` と `src/lib.rs` を読んで固定する。
 > **M7 で `src/ui/**` に実コードが入ったら CI の 4 コマンドに `--features ui` を足す**
 > （§5.8 の作業項目 0、`.github/workflows/ci.yml` の TODO）。判断は §9.2 **B-54**。
+>
+> **改（M6、§9.2 B-100）**: CLI のメッセージも同じカタログを使う（仕様 §12.2）ので、`toml` は通常の依存にし、
+> feature の後ろは 4 クレート（`eframe` / `egui` / `rfd` / `fontdb`）になった。`src/lib.rs` の `pub mod ui;` は
+> cfg なしで宣言し、`src/ui/mod.rs` が `i18n` 以外を `#[cfg(feature = "ui")]` で守る（`tests/layering.rs` が固定）。
 
 ---
 
@@ -217,7 +221,7 @@
 | **I3** | **v0 と並走させない** | 途中で「v0 も動く」状態を保とうとしない。M0 で v0 の UI を切り離し、M7 まで GUI が壊れていることを許容する（代わりに CLI の `check` を先に動かす） |
 | **I4** | **パーサはゴールデンテスト駆動** | 仕様書の例（§5.2.3 / §5.3.3 / §5.4.3 / §5.5.7）を `tests/golden/` に入れ、パース結果の構造を snapshot 比較する |
 | **I5** | **診断は先に表を実装** | §7 の表を `diagnostics.rs` の enum として**全件先に定義**し、未使用警告を許容する。後から足すと番号が散らかる |
-| **I6** | **i18n は最初から 2 言語** | 後付けすると文言がコードに埋まる。`ui/i18n/ja.toml` と `en.toml` を M6 の最初に作る（§12.2） |
+| **I6** | **i18n は最初から 2 言語** | 後付けすると文言がコードに埋まる。`ui/i18n/ja.toml` と `en.toml` は **M4 で診断の `diag.*` を先に作り**（§5.5 の作業項目 1）、残りの UI 文言は M6〜M7 で足す（§12.2） |
 | **I7** | **「動くもの」を M7 で一度作る** | M7 完了時点で「本文が書けて保存される」状態にし、思想どおりの体験になっているかを人間が確認する。ここで UI 方針の手戻りを吸収する |
 | **I8** | **エージェントは最後** | §15 の原則 A6（無効化しても全機能動作）が保証するとおり、エージェントは最後に足せる。先に作ると他が遅れる |
 
@@ -805,6 +809,8 @@ tests/layering.rs
 > （同じ台詞に 100 パターンを当てても 9.8µs）。
 > `^` / `$` が指す範囲は §6.5.2 の「文」と付録 B.3 の 1・2 行目が両立しないので **B.3 を正**にした
 > （§9.1 **A-23**。文単位にすると 2 行目 `「…あの…その…」` が一致しなくなる）。
+> **→ 第 2.8 版（2026-10-13）のユーザー裁定で文単位に変更**（B.3 の 1 行目の不一致例を差し替え、2 行目は
+> 頭の文末記号の連続を次の文に含める規則で成り立たせた。§9.1 A-23・§9.2 B-74）。
 > 判断は §9.2 **B-68〜B-70**、仕様側の要補正点は §9.1 **A-23・A-24**。
 > **M3 の完了条件 4 件はすべて満たした**（下のチェックリスト）。**残りは作業項目 4・5**
 > （資料の照合・参照ペインの優先順位）。
@@ -881,23 +887,55 @@ tests/layering.rs
 
 1. ~~**§7 の診断を全件先に定義**（I5）~~ → **前倒しで完了（2026-10-11、M2 の準備）**。
    `src/core/diagnostics.rs` に §7 / §7.1 / §7.2 の **78 件すべて**を定義済み（§9.2 B-27。
-   E025 は第 2.6 版で §7 に追加、§9.1 A-17 解消）。
-   - ① が**検査を実装する**のは **E001–E031 / E060–E063 / W002–W041 / W062–W067 / I050–I053**。
-     W080 以降・E032 以降・E064・I054 以降は **② の予約（本書 §1.5-3）としてコードだけ定義し、
-     検査は実装しない**（未使用 variant の警告は I5 が許容）。
+   E025 は第 2.6 版で §7 に追加、§9.1 A-17 解消）。**第 2.8 版で E022 を足して 79 件**（§9.1 A-9）、**第 2.9 版で E027 を足して 80 件**（§9.1 A-24）、**第 2.16 版で E029 を足して 81 件**（§9.2 B-139）。
+   - ① が**検査を実装する**のは **E001–E031 / E060–E063 / W002–W041 / W062–W067 / I050–I053**、それと M10 の
+     **E035・E036・W095**（§9.2 B-150）。W080 以降・E032 以降・E064・I054 以降のそれ以外は **② の予約（本書 §1.5-3）として
+     コードだけ定義し、検査は実装しない**（未使用 variant の警告は I5 が許容）。
    - 形は `enum DiagnosticCode` ＋ `struct Diagnostic { code, args: Vec<Arg>, range: Option<Range<usize>> }`
      （§9.2 B-28）。**文言は持たない**（MUST）。
    - M4 で残るのは「診断を**出す**側」（`resolve/*` の検査と `diagnostics::document(doc, project)`）と
-     `ui/i18n/*` の `diag.<コード>` 文言（78 件 × ja/en）。
+     `ui/i18n/*` の `diag.<コード>` 文言（79 件 × ja/en）。→ **どちらも完了（2026-10-13、下の進捗ノート）**。
 2. `code_action.rs` は診断コードごとの `Vec<CodeAction>`。各 action は「適用後のテキスト編集」を返す純粋関数。
 3. `folding.rs` は ① では `plot-outline` の章 → 話展開に使う（本書 §1.4）。
-4. シグネチャは §3.4 の表に厳密に従う（`(&Project, &Document, Position)` 等）。
+4. シグネチャは §3.4 の表に厳密に従う（`(&Project, &Document, Position)` 等）。→ 引数の**順**は表のとおり（`full(doc, project)` など、§9.2 B-78）。
+
+> **M4 の進捗（2026-10-13）: 診断の組み立て・文言カタログ・11 機能を実装した — M4 完了**
+>
+> 着手前に仕様書を**第 2.8 版**にした（ユーザー裁定で A-7・A-8・A-9・A-10・A-18・A-23 を解消。
+> 役割語の `^` / `$` は文単位、予約番号に **E022** を新設して 79 コード）。そのうえで:
+>
+> - **文言カタログ**: `src/ui/i18n/ja.toml` / `en.toml` に `diag.*` 79 件（§7 / §7.1 / §7.2 の写し）。
+>   §12.3 の CI チェック（キー集合・プレースホルダ番号集合の一致）と「仕様書と一字一句一致」
+>   「引数の数が `DiagnosticCode::params` と一致」を `tests/i18n_catalog.rs` が**既定の `cargo test`** で
+>   検査する（`ui` feature を立てずに `include_str!` ＋ dev-dependency の `toml`）。
+> - **集約** `core::features::Project`（`features/project.rs`、**B-76**）: 設定・文書（所有）・構築済み辞書。
+>   辞書は 3 ファイルが変わったときだけ作り直す（§6.1.2）。`'` 参照の走査範囲（§5.0.2「全形式の本文部」、
+>   **B-77**）・話者注釈・行の節・カーソル位置の参照・定義の位置・全文書の参照を返す共通部品を持つ。
+> - **`diagnostics::document(doc, project)`**: M2 / M3 の各層の診断を 1 か所で組み、重複を落として
+>   §9.5.2 の 9 の順に並べる（分担表は関数の doc）。M4 で足した検査は **W022**（用語の `range` 外）・
+>   **W025**（資料 MD の H1 と index）・**W030**（プロットと本文の節数）と、8 段を通らない `'名前:モード`
+>   の E003 / E004。モードの診断は「**その文書に書かれた割り当て**」だけをその文書に載せる（**B-79**）。
+> - **11 機能**（§3.4 の表の引数の順、**B-78**）: `semantic_tokens`（重ならないトークン列、`role-language`
+>   は修飾、**B-80**・**B-81**）／`inlay_hint`（資料タイトルとモードの表示名、**B-82**）／`hover`／
+>   `definition`／`references`／`document_symbol`／`folding`（A 形式の章 → 話だけ、§3.4 の A-3）／
+>   `formatting`（§5.12 の 7 項目、**B-83**）／`rename`（キー単位、**B-84**）／`completion`（§9.7.3、
+>   **B-85**）／`code_action`（§7 のクイックフィックスのうちテキスト編集で決まるもの、**B-86**）。
+>   共有の型（`Location` / `TextEdit` / `FileEdit` / `WorkspaceEdit`）は `features/mod.rs`。
+> - **M2 / M3 の取りこぼしを 2 つ直した**: `materials::scan_line` が辞書側の診断に `line_start` を
+>   足していなかった（行頭が 0 でない行で E001 等の波線がずれる）／C 形式の見出しの重複（**E008**）を
+>   検査していなかった（**B-87**。B 形式の `warn_duplicate` を `contents.rs` に移して共有）。
+> - テストは `tests/i18n_catalog.rs`（6）・`tests/diagnostics_document.rs`（13）・`tests/features.rs`（29）・
+>   `tests/features_edit.rs`（28）を足して **728 件**。共有フィクスチャは `tests/world/mod.rs`
+>   （仕様書の例でできたプロジェクト）。全機能を全 byte 位置で呼んでもパニックしないことも固定した。
+> - **実測（release、4,041 行・台詞 2,000 行の本文）**: `semantic_tokens::full` 17.5ms（役割語の下線込み）／
+>   `diagnostics::document` 15.9ms／`completion::at` 7.6ms。全文の再計算なので、UI（M7）は可視範囲と
+>   §6.7 の増分で 1 フレーム 8ms（§3.5）に収める。
 
 **完了条件**
 
 - [x] §7 の表の全コードが enum に存在し、`tests/diagnostics_catalog.rs` が「表の行数 == enum の要素数」を検証する（**2026-10-11 に前倒しで完了**。表の行数だけでなく重大度・引数の数・位置・トグル・実行コスト表も照合している）。
-- [ ] `core/` に日本語文字列リテラルが 1 つも無い（`tests/layering.rs` に検査を追加）。
-- [ ] 11 機能すべてが `(&Project, &Document, ...) -> プレーン型` のシグネチャを持つ。
+- [x] `core/` に日本語文字列リテラルが 1 つも無い（`tests/layering.rs` に検査を追加）。**M0 から `core_has_no_user_facing_text` が AST で検査しており、M4 の `features/*` と `diagnostics::document` も緑**（文言は `ui/i18n/*.toml`、種別は enum で返す）。
+- [x] 11 機能すべてが `(&Project, &Document, ...) -> プレーン型` のシグネチャを持つ。`tests/features.rs` の `the_eleven_features_have_the_signatures_of_section_3_4` が**関数ポインタの型**で固定し、戻り値が `Serialize + Clone + PartialEq` であることも見る。引数の**順**は §3.4 の表（`full(doc, project)` / `at(doc, pos, project)`）に合わせ、`document_symbol::all(doc)` と `folding::ranges(doc)` は表どおりプロジェクトを取らない（**B-78**）。
 
 ---
 
@@ -929,11 +967,41 @@ tests/layering.rs
 4. **履歴ファイル**（§13.2）: `{path, opened_at}` 最大 32 件。`NOVNOW_RECENT_FILE` で上書き可。
 5. 外部変更の監視（§8.5）: ポーリング（v0 の方式を流用）。
 
+> **M5 の進捗（2026-10-13）: 規則 10 の関門・ストレージ・履歴・Zip・IndexedDB を実装した — M5 完了**
+>
+> 着手前に仕様書を**第 2.9 版**にした（A-24 のユーザー裁定で **E027**「語クラスの正規表現が不正」を新設して
+> 80 コード。あわせて規則 10 と食い違っていた書き出し先・履歴の書き方・関門の範囲・Zip の規則・§4.3 の分担を
+> 直した。経緯は仕様書の変更履歴）。そのうえで:
+>
+> - **設定の読み込み**: `core::syntax::project_json`（E025 / E027）。`features::Project` は `project.json` の文書
+>   から設定を取る（§9.2 **B-88**・**B-89**）。`ui.json` / `stats.json` は壊れていても診断を出さない（仕様どおり）。
+> - **規則の層** `core::policy`（純粋関数）: `write_policy`（関門の判定と相対パスの型 `ProjectPath`、**B-91**）／
+>   `recent`（履歴の形と上限、**B-92**）／`archive`（Zip に入れるもの・取り込むもの、**B-93**）／
+>   `external_change`（外部変更の候補と反応、**B-95**）。§4.3 の `validate` は `core::model::project`（**B-94**）。
+> - **ポート**: `Storage`（非同期・相対パス、**B-90**）／`Clock`／`Env`／`Dialog`（開くだけ）／`McpClient`（**B-97**）。
+> - **アダプタ**: `storage_fs`（**書き込みの関門** `FsGate` と `FsStorage`。原子的書き込み・シンボリックリンクの
+>   解決・debug は panic / release は E060）／`recent_file`（§13.2）／`zip`（§13.5）／`project_load`（一覧 →
+>   判定 → 文書、監視の 1 回分）／`storage_idb`（§13.3。純粋な部分と wasm の接続、**B-96**）／`env_system`／
+>   `clock_system`／`block_on`。
+> - **検査**: `tests/layering.rs` に「書き込み API は `src/adapters/storage_fs.rs` だけ」（§13.1.2）。テストは
+>   `storage_policy`（18）・`storage_fs`（11）・`recent_file`（11）・`zip_roundtrip`（13）・`project_load`（19）・
+>   `storage_idb`（12）・`project_json`（12）と `layering` の 3 本を足して **827 件**。`storage_policy` は
+>   リリースビルド（E060 を返す側）でも緑を確かめた。共有部品は `tests/sandbox/mod.rs`。
+> - **M5 の完了時に動くもの**（§4.1）: ディスク上のプロジェクトを読み、M4 の診断がメモリ上と同じ結果になる
+>   （`tests/project_load.rs`）。コマンドとしての `novnow check` は M6 がこれを呼ぶ。
+>
+> **追記（2026-10-13、M5 の報告への回答）**: ユーザー裁定で §13.1.1 に「**保存ダイアログで指定した Zip は
+> プロジェクトの外にも書ける**」特例を足した（仕様 第 2.10 版、§9.2 **B-99**。B-93・B-97 を改めた）。下の
+> 完了条件 1・2 の「すべて拒否」「履歴 1 個だけ」は、この特例を除いた意味になる（`tests/storage_policy.rs` は
+> 特例の範囲も検査する: 指定した `.zip` 1 個だけ・他の口は使えない・一時ファイルも親ディレクトリも作らない）。
+> 同日の M6 の報告への裁定で、特例をテキストのエクスポート（`.txt` / `.md`。保存ダイアログと `novnow export --out`）にも
+> 広げた（第 2.11 版、**B-109**）。
+
 **完了条件**
 
-- [ ] `tests/storage_policy.rs`: 全書き込み経路（本文・設定・エクスポート・提案・ログ・Zip）にプロジェクト外パスを与えて、**すべて拒否される**。
-- [ ] 実機で一通り操作した後、プロジェクト外に作られたファイルが**履歴 1 個だけ**（手動確認手順を `docs/verify-rule10.md` に記載）。
-- [ ] Zip エクスポート → 別環境でインポート → 内容一致。
+- [x] `tests/storage_policy.rs`: 全書き込み経路（本文・設定・エクスポート・提案・ログ・Zip）にプロジェクト外パスを与えて、**すべて拒否される**。履歴（`write_history` 以外の口から履歴ファイルは書けない）・閉じたプロジェクト・前のプロジェクト・外を指すシンボリックリンク（ディレクトリ・ファイル・壊れたリンク・一時ファイルの名前）・`..`・絶対パス・カレントディレクトリ基準の相対パスも含めて 18 本。debug（panic）と release（E060）の両方で緑。
+- [x] 実機で一通り操作した後、プロジェクト外に作られたファイルが**履歴 1 個だけ**（手動確認手順を `docs/verify-rule10.md` に記載）。**M5 はストレージ層で実施**（一通りの操作をなぞるテストを実プロセスとして走らせ、ファイルシステム全体の差分で確認。記録は同書 §5）。GUI での実施は §5.8 の完了条件に移した（§9.2 **B-98**）。
+- [x] Zip エクスポート → 別環境でインポート → 内容一致。`tests/zip_roundtrip.rs` がデスクトップから書き出した Zip を (1) 別のディレクトリ（デスクトップ）と (2) Web の取り込み経路（テキストのみ）の両方で読み直し、`.novnow/`・`.git/`・OS の不要ファイル・一時ファイル・書き出し先の Zip 自身を除いた全ファイルがバイト単位で一致することを確かめる（ブラウザでの実行は M7）。
 
 ---
 
@@ -954,13 +1022,56 @@ tests/layering.rs
 6. `novnow new`（§14.5）: 必須ファイル一式 ＋ `.gitignore`（`.novnow/` と `exports/`）＋ 既定プロンプト 7 本。
    - **`prompts/custom/` と `assets/` は作らない**（本書 §1.2）。
 7. `novnow check`: M4 の診断を走らせて一覧を出す（**ここで core の成果が初めて目に見える**）。
+   - 部品は M5 で揃っている（`DEVELOPERS.md` §5.7）: `FsGate::new(&SystemEnv)` をプロセスに 1 つ →
+     `FsStorage::open` → `block_on(project_load::load(&storage))` → `validation`（`Incomplete` / `LegacyV0` /
+     `TooNew` は終了コード 3、`Encoding` は 4、§14.2.5）→ 全文書に `diagnostics::document`（E が 1 件でもあれば 5）。
+     §14.2 の起動前の検査は文字コードを読まない `project_load::listing` ＋ `validate` で足りる。
+   - 履歴（`RecentFile::push`）に積むのはプロジェクトを**開けたとき**だけ（§14.4）。`check` や失敗時は書かない（§14.2.3）。
+   - `novnow new` は `FsStorage::create` で作り、既存のファイルは書かない（`FsStorage::exists` で確かめる、§14.5）。
 8. `novnow migrate` / `export` / `mcp` は**枠だけ**。中身は M11 / M9 / M10。
+
+> **M6 の進捗（2026-10-13）: 起動（CLI）を実装した — M6 完了（Windows はユーザーが実機で確認した）**
+>
+> 先に M5 の報告へのユーザー裁定を反映した（§13.1.1 の特例＝保存ダイアログで指定した Zip はプロジェクトの外にも
+> 書ける。仕様 第 2.10 版、§9.2 **B-99**）。そのうえで:
+>
+> - **CLI** `src/cli/`: `mod.rs`（§14.3 の判定 `decide` は純粋・使い方・出力・終了コード）／`open.rs`（§14.2 の検査と
+>   §14.2.2〜§14.2.4 の表示）／`new.rs`・`check.rs`／`export.rs`・`migrate.rs`・`mcp.rs`（枠だけ）。`main.rs` は実プロセスの
+>   標準入出力・環境・カレントディレクトリを渡すだけ（**B-102**・**B-103**・**B-105**）。
+> - **文言** `ui::i18n`（カタログの読み込み・`{n}` の埋め込み・診断の文言・§12.4 の言語の決定）と `cli.*` の **44 件**
+>   （ja / en）。`toml` を通常の依存にし、`ui::i18n` だけを GUI なしでビルドする（**B-100**・**B-101**）。
+> - **雛形** `core::template`（§14.5 の 26 ファイル。既定プロンプト 7 本 ＋ `_shared/` 2 本。**診断 0 件**、**B-104**）。
+> - **`novnow new`**（既存のファイルを上書きしない・v0 / 新しすぎる版には何も書かない、**B-106**）と
+>   **`novnow check`**（1 行 1 件・E があれば 5、**B-108**）。M6 は履歴に書かない（積むのは GUI が開けたとき）。
+> - **Windows**: リリースビルドは GUI サブシステム、`AttachConsole` は FFI（クレートを足さない）。作業環境に Windows の
+>   std が無いので、CI の wasm ジョブに `x86_64-pc-windows-msvc` の型検査を足した（**B-107**）。
+> - **検査**: `tests/cli.rs`（37。§14.2.2〜§14.2.4 の例を仕様書と一字一句照合・実行ファイルを子プロセスで）・
+>   `tests/template.rs`（12）・`tests/i18n_catalog.rs`（+6）・`tests/layering.rs`（+2）・`tests/storage_policy.rs`（+5、
+>   §13.1.1 の特例）で **889 件**。
+> - 完了条件 2 の「エラー 3 行」は、§14.2.2 の 3 要素（見出し・構造の解説 URL・`novnow new` の案内）と読んだ
+>   （空ディレクトリでは不足の列挙で 13 行になる。文面は §14.2.2 が正）。
+>
+> **M6 の報告へのユーザー裁定（2026-10-13）を反映した（仕様 第 2.11 版）**:
+>
+> - **テキストのエクスポートも、ユーザーが明示的に指定した書き出し先には外でも書ける**（§13.1.1 の特例を広げた。
+>   デスクトップの「名前を付けて保存」の保存ダイアログと `novnow export --out <パス>`。`.txt` / `.md` の 1 ファイル・1 回）。
+>   `ExportKind`（Zip / Text）で種類ごとの拡張子を決め、`ChosenPath` が種類を持つ（**B-109**）。
+> - **`novnow check` の 1 行に作家の言葉での「どこ」**（`パス:行:列: [本文 @01-04-02-03] コード 文言`。資料は
+>   `[資料 M0137「…」]` など）。`core::features::place` と `place.*` の文言。GUI の診断タブも同じ表記を使う（**B-110**）。
+> - Windows のコンソールが出ないことはユーザーが実機で確かめた（完了条件 3）。
 
 **完了条件**
 
-- [ ] §19.2 のチェックリストが全部通る。
-- [ ] 空ディレクトリで `novnow .` を実行 → エラー 3 行 ＋ exit 3。GUI プロセスが起動しない。
-- [ ] Windows でエクスプローラから .exe を直接起動 → コンソールが**出ない**。
+- [x] §19.2 のチェックリストが全部通る。→ **CLI の項目**（`novnow ./broken` が §14.2.2 の文面を stderr に出して 3 で
+  終わり、GUI を出さない・出力に `PROJECT_STRUCTURE_DOC_URL` と `novnow new` が含まれる）は `tests/cli.rs` が実行ファイル
+  ごと確かめる。**GUI / Web の項目**（`novnow ./valid-project` で GUI が起動・選択モーダル・未選択で背後を描かない・
+  ダブルクリックで GUI が起動・IndexedDB の 3 ストア・LocalStorage・sample の投入）は M7 / M11 の完了条件に移した（**B-105**）。
+- [x] 空ディレクトリで `novnow .` を実行 → エラー（§14.2.2）＋ exit 3。GUI プロセスが起動しない（`tests/cli.rs` の
+  `an_empty_directory_…` と `binary_an_empty_directory_…`。何も書かないことも確かめる）。
+- [x] Windows でエクスプローラから .exe を直接起動 → コンソールが**出ない**。→ **ユーザーが実機で確認した（2026-10-13）**。
+  実装は `#![windows_subsystem = "windows"]`（リリースビルド）＋ `AttachConsole(ATTACH_PARENT_PROCESS)` で、
+  `AllocConsole` は使っていない。型検査は CI（**B-107**）。確かめ方: `cargo build --release` → `target\release\novnow.exe`
+  をエクスプローラからダブルクリック → 黒いウィンドウが一瞬も出ないこと（M6 は GUI が無いので何も起きずに終わる）。
 
 ---
 
@@ -973,7 +1084,7 @@ tests/layering.rs
 | ファイル | 内容 | 仕様 | 目安 |
 |---|---|---|---|
 | `ui/theme.rs` | セマンティックカラートークン ＋ 3 テーマ | §11 | 1.5 日 |
-| `ui/i18n/{mod.rs,ja.toml,en.toml}` | 2 言語カタログ | §12 | 1.5 日 |
+| `ui/i18n/{mod.rs,ja.toml,en.toml}` | 2 言語カタログ（**`diag.*`（80 件）と §12.3 の CI 検査は M4、`mod.rs` の読み込み・言語の決定と `cli.*` は M6 で作成済み**。M7 はステータス・パレット等の文言と、`ui.json` の `language` を `Locale::detect` に渡すこと・`Ctrl+Alt+L` の切替） | §12 | 1 日 |
 | `ui/shell.rs` | メニュー・ステータスバー・モーダル・パレット | §9.6 / §9.7 | 3 日 |
 | `ui/widgets/syntax_text.rs` | セマンティックトークン描画 ＋ 波線 ＋ 緑下線 | §11.2 / §11.3 | 2.5 日 |
 | `ui/widgets/context_view.rs` | 文脈ビュー ＋ 編集中プレースホルダ | §9.3 | 2 日 |
@@ -988,6 +1099,8 @@ tests/layering.rs
    `--features ui` 付きにする（fmt は feature に依存しない）。`tests/layering.rs` の feature gate の
    2 テストはそのまま残す（既定のビルドが GUI を引き込まないことの検査は M7 以降も意味を持つ。
    GUI 込みの検査は `--features ui` のジョブが担う）。
+   あわせて **`.github/workflows/deploy.yml` の `push: branches: [main]` を戻す**（2026-10-13 のユーザー指示で
+   M7 までは `workflow_dispatch` だけにした。v0 の UI を消した M0 以降は `trunk build` が失敗していたため）。
 1. **ラベル撤廃**（§9.2、指示 1）: 「ファイル」「エディタ」「情報」等のペイン名を全廃。§9.2.2 の撤廃一覧を消し込む。
 2. **テーマ**（§11.4）: `system | dark | light`。v0 の `dark_mode = true` 固定を撤廃。`Ctrl+Alt+T` で切替。
 3. **i18n**（§12）: `Ctrl+Alt+L` で ja ⇄ en。**core に文字列を置かない**（I6）。
@@ -1016,15 +1129,65 @@ tests/layering.rs
      出さないと native で IME 自体が無効のままになる。**最初の疎通で真っ先に確認すること。**
    - 張り付き防止: `WindowFocused(false)` と 2 秒タイムアウトで composing を落とす。
 10. **役割語の緑下線**（§6.5.4）: 一致リテラル部のみ。**不一致時は何も出さない**。
+11. **規則 10 を GUI で崩さない**（M5 の B-91・B-98）: 書き込みは `ports::storage::Storage` と `FsGate` だけ。
+    **eframe の `persistence` feature を有効にしない**（状態は `.novnow/ui.json`）。ファイル選択は開くダイアログと、
+    Zip の保存先を選ぶ `Dialog::save_zip` と、テキストの「名前を付けて保存」の `Dialog::save_text`（§13.1.1 の特例。書くのは
+    `zip::export_to_chosen` / テキストのエクスポート → `FsGate::write_chosen_export` だけ、B-99・B-109）。`docs/verify-rule10.md` §4 の「GUI のライブラリが自分で書くもの」を確かめる。
+    外部変更の監視は `adapters::project_load::poll` を 1,000ms ごとに呼ぶ（B-95）。
+12. **起動をつなぐ**（M6 の続き、B-105）: `main.rs` の `Outcome::Gui(project)` で GUI を起動する（`Some` は §14.2 の検査を
+    通ったルート、`None` は §14.4 の選択モーダルから）。プロジェクトを開けたら `RecentFile::push`（§14.4。M6 は履歴に
+    書いていない）。`cli::GUI_AVAILABLE` を `cfg!(feature = "ui")` にする（`novnow new` の案内が「開く」になる）。
+
+> **M7 の進捗（2026-10-13）: GUI のシェルと `write` を実装した — 自動で確かめられる項目は通った。残りは人の確認と Web の選択モーダル**
+>
+> - **起動**（作業項目 12）: `--features ui` のビルドで `novnow ./my-novel`（§14.2 の検査を通ったルート）と、`novnow --gui`・
+>   ダブルクリック（§14.4 の選択モーダル。履歴と OS のフォルダ選択・`novnow new` 相当の作成。未選択では背後を描かず `Esc` で
+>   閉じない）。開けたら `RecentFile::push`。`cli::GUI_AVAILABLE = cfg!(feature = "ui")`。
+> - **節単位編集**（§8.1・§9.3・§9.4.1）: 規則は `core::features::sections`（純粋）と `ui::workbench`（I/O なし）。ファイル・場面の
+>   末尾に作った節は、書き始めるまで文書に無い節として持つ（**B-112**）。文脈ビューは前後 3 節・44 字で、編集中の節の位置には
+>   プレースホルダだけ（MUST）。節エディタは `TextEdit` ＋ 構文ハイライトの layouter（**B-111**）。
+> - **保存**（§8.2〜§8.6）: `ui::save_machine`（400ms の idle・節の移動と `Ctrl+S` で即時・1→2→4→8 秒の再試行・0.3 秒未満は
+>   スピナーなし・未保存なら閉じない）。書き込みは `ui::app::Host::write` だけ（デスクトップは `FsStorage` ＝ `FsGate`）。外部変更は
+>   1,000ms ごとの `poll`（未保存の変更が無ければ読み直し、あれば差分モーダル `Ctrl+Shift+D`。行単位のマージは無し）。
+>   `ui.json` は保存と一緒に書く（`autosave_ms` を足した。**B-114**）。
+> - **参照ペイン**（§9.5）: ① の 6 セクション（`core::features::reference`、**B-113**）。`Frame::group` は使わない。
+> - **キー・パレット・検索・補完**（§9.7・§9.8）: write ワークスペースで閉じる範囲（**B-116**・**B-117**・**B-119**）。IME の変換中は
+>   `Event::Key` をフレームの最初に全部捨てる（`ui::shell::ImeState` / `take_commands`。`TextEdit` にも届かない）。
+>   クイックフィックス（`Ctrl+.`）と辞書への登録（`Ctrl+T` / `Ctrl+Shift+T`）は M4 の `code_action` を使う。
+> - **テーマ・文言・フォント**（§11・§12）: §11 の色（表に無い 4 種は **B-115**）。検収でコントラスト比の食い違いが見つかり、
+>   `fg.faint` などの値を直した（仕様 第 2.13 版、**B-121**）。`Ctrl+Alt+T` / `Ctrl+Alt+L`。フォントは `fontdb` で OS の CJK フォント →
+>   無ければ同梱の IPA ゴシック（ステータスバーに 1 回だけ知らせる）。
+> - **CI**（作業項目 0）: clippy は GUI あり・なしの両方、test は `--features ui` ＋ GUI なしの `tests/cli.rs`、wasm / Windows の型検査は
+>   `--features ui`。Pages の `push: branches: [main]` を戻した。手元のディスク対策（`CARGO_PROFILE_DEV_DEBUG=line-tables-only`）は
+>   `docs/handoff.md` §2.2。
+> - **検査**: `tests/gui.rs`（36。egui を画面なしで 1 フレームずつ回す。画面のソフトウェア描画 `screenshot` は手動用）・
+>   `tests/sections.rs`（8）・`tests/layering.rs`（+2、`Frame::group` と GUI の日本語リテラル）・`tests/i18n_catalog.rs`（GUI の文言キー）で **947 件**。
+> - **残り**: 10 万行の計測・下の人の確認。Web の選択モーダルと IndexedDB の接続（**B-118**）は 2026-10-14 に入れた（**B-156**〜**B-158**）。`Alt+H`（**B-119**）は M8 で入れた（**B-137**）。
 
 **完了条件**
 
-- [ ] §19.1 / §19.3 / §19.4 のチェックリストが通る。
-- [ ] 実際に 2,000 字以上の本文を書いて、保存を意識せずに済むことを人間が確認する（I7 のレビュー）。
-- [ ] **日本語を IME で 2,000 字入力して、変換中にショートカットが誤爆しない**（§19.4、native と Web の両方）。
-- [ ] **変換候補ウィンドウがキャレットの直下に出る**（`IMEOutput.cursor_rect` が正しい）。
-- [ ] `Frame::group` が `ui/` 全体で 0 件（grep で検査、CI に追加）。
-- [ ] 10 万行のファイルで 1 フレーム 8ms 以内（§18.1）。
+- [ ] §19.1 / §19.3 / §19.4 のチェックリストが通る。→ **自動の項目は通る**: ペイン名のラベルが無い・`ja` / `en` のキーと
+  プレースホルダが一致・`ui/` に i18n を経ない日本語が無い・コントラスト比（`tests/gui.rs` が §11 の表と §9.9 の基準を照合）・
+  文脈ビューに編集中の本文を描かない・節の移動で即保存・保存の文言はインジケータだけ・`Frame::group` なし・最短一致・シジルの色・
+  E001 の波線・変換中にショートカット / `Enter` / `Esc` が効かない（`tests/gui.rs`・`tests/layering.rs`・`tests/i18n_catalog.rs`）。
+  **人の確認が要る項目**: `Ctrl+Alt+L` / `Ctrl+Alt+T` の見た目と OS の配色への 1 秒以内の追従・1280px で 44 字・マウスを使わない
+  往復のシナリオ・Web での IME。
+- [ ] 実際に 2,000 字以上の本文を書いて、保存を意識せずに済むことを人間が確認する（I7 のレビュー）。→ **人の確認待ち**。
+- [ ] **日本語を IME で 2,000 字入力して、変換中にショートカットが誤爆しない**（§19.4、native と Web の両方）。→ **人の確認待ち**
+  （規則そのものは `tests/gui.rs` の `while_composing_every_key_event_is_dropped_before_shortcuts`・`shortcuts_do_nothing_while_composing`）。
+- [ ] **変換候補ウィンドウがキャレットの直下に出る**（`IMEOutput.cursor_rect` が正しい）。→ **人の確認待ち**（毎フレーム
+  `IMEOutput` を出すことは `the_editor_asks_the_platform_for_ime_every_frame`）。
+- [x] `Frame::group` が `ui/` 全体で 0 件（grep で検査、CI に追加）。→ `tests/layering.rs` の `the_gui_never_uses_frame_group`。
+- [ ] 10 万行のファイルで 1 フレーム 8ms 以内（§18.1）。→ **未計測**（節エディタは今の節だけ、文脈ビューは前後 3 節だけを
+  レイアウトする作り）。
+- [ ] `docs/verify-rule10.md` の手順（§3.1 の操作の一覧）を GUI で実施し、プロジェクト外に作られたファイルが**履歴 1 個と、ユーザーが指定した書き出し先（保存ダイアログの Zip・テキスト、`novnow export --out`）だけ**であることを同書 §5 に記録する（§19.10。M5 はストレージ層まで、B-98。特例は B-99・B-109）。
+- [ ] §19.2 の GUI の項目（M6 から移した、B-105）: `novnow ./valid-project` で GUI が起動する・GUI 起動時にプロジェクト選択モーダルが出て履歴とフォルダ選択の両方が使える・未選択では背後の UI を描かない（`Esc` で閉じない）・Windows で `.exe` をダブルクリックするとコンソールを出さずに GUI が起動する。→ **実装済み・人の確認待ち**（作業環境に画面が無い）。
+- [x] Web で IndexedDB の接続（`adapters::storage_idb` の `web`）を一通り動かす: DB の作成・保存（`SaveFailed` を含む）・プロジェクトの作成 / 削除・Zip の取り込み / 書き出し・`app` ストアのキーが `recent_projects` だけ（M5 はコンパイルだけを確かめた、B-96）。→ **2026-10-14 に接続した（B-156〜B-158）**。`scripts/web-smoke.sh` が
+  release の wasm をヘッドレスの Chromium 153 で開き、IndexedDB を直接読んで確かめる（19 項目）: 初回の `sample` だけ・
+  `app` のキーは `recent_projects` だけ・打った本文と IME の確定の保存・読み直し・`Ctrl+O` で選択画面・新規作成・`>zip` の
+  ダウンロード・テキストの名前を付けて保存・`F2`・Zip の取り込み・`Delete`（ファイルも消える）・`QuotaExceededError` の
+  `SaveFailed` と再試行・IndexedDB が無いときの E062（LocalStorage に書かない）・v0 の LocalStorage は E061 で消さない。
+  実際のブラウザでの IME（変換候補の位置）は上の §19.4 の人の確認に残る。CI は `34f361b` で 4 ジョブ緑（run 38507612752）。
 
 ---
 
@@ -1053,11 +1216,63 @@ tests/layering.rs
    - 役割語テスターは **M3 の成果を可視化する最良の場**。ここで役割語の仕様解釈を検証する。
 5. ワークスペース切替で **SceneId を維持**（§10 冒頭の MUST）。状態オブジェクトは破棄しない（本書 §1.5-5）。
 
+> **M8 の進捗（2026-10-14）: 7 種のワークスペースを実装した — 自動で確かめられる項目は通った。残りは人の確認（実機で触るレビュー）**
+>
+> M9 の後に入った（**B-120**）。
+>
+> - **切替**（§10.0）: `Alt+1..9`（`Alt+7` reader と `Alt+8` agent は欠番の案内だけ）・`Alt+0` で直前へ。初回は今の節に着地し、
+>   2 回目からはそのワークスペースの前の位置（**B-126**）。切り替える前に書き戻して保存する（確認なし）。本文以外の文書の編集は
+>   `Workbench` の Slice（**B-126**）。
+> - **plot-episode / plot-outline**（§10.2・§10.3）: 上段に親プロット（常に見える）、中段に節 / ブロックの一覧、下段にエディタ。
+>   `Ctrl+B` / `Ctrl+Enter` で 4 段階を上下（**B-127**〜**B-129**）。
+> - **idea**（§10.4）: `Ctrl+Shift+I` でどこからでも 1 行（画面は変えない）・`Ctrl+Delete` は `status: dropped`・`Ctrl+Enter` で昇格
+>   （**B-130**）。
+> - **material**（§10.5・§16）: 一覧（未登録の MD が先頭）・MD 全体のエディタ・審査フォーム。`Ctrl+Enter` 採用（出典が無ければ確認）・
+>   `Ctrl+Delete` 却下（ファイルは残す）・`Ctrl+Shift+N` 作成・W064 / W065（**B-131**・**B-134**・**B-135**）。`Ctrl+M` はどこからでも
+>   検索して挿入。条件一致の候補は参照ペインに薄く出し、`Enter` でプロットに足す（**B-136**）。
+> - **インレイヒント**（§6.6.2）: 資料 ID の直後に `⟨タイトル⟩`（提案中・却下は添える）、モード修飾・話者注釈の直後にモードの表示名。
+>   エディタだけ・`Alt+H` で切り替え。話プロットなど M8 のエディタでも `Ctrl+.` が効く（**B-137**）。
+> - **cast**（§10.6）: タイムライン（`Shift+←/→` で帯を章単位で動かす）・役割語テスター・未一致の台詞（`Ctrl+Shift+V`）（**B-133**）。
+> - **review**（§10.9）: 診断（`Ctrl+Shift+E`）と進捗の 2 タブ（**B-132**）。
+> - **検査**: `tests/workspaces.rs`（40）・`tests/materials_ops.rs`（13）・`tests/plots.rs`・`tests/ideas_ops.rs`・`tests/cast.rs` などと、
+>   §19 の項目を埋める 5 件（下の「完了条件」に書いた「今回」）で **1,057 件**。
+> - **残り**: 下の人の確認。①での削り（上の表）と、他のマイルストーンの項目（§19.7-4 `novnow migrate` は M11、§19.11-4 writer の
+>   ContextPacket は M10）は M8 の外。
+
 **完了条件**
 
-- [ ] §19.5 / §19.6 / §19.7 / §19.9 / §19.11 のチェックリストが通る。
-- [ ] 9 ワークスペースのうち **8 つ**が動く（`agent` は M10、`reader` は ② ＝ 追加仕様 #27）。
-- [ ] 切替で SceneId が失われない。
+- [x] §19.5 / §19.6 / §19.7 / §19.9 / §19.11 のチェックリストが通る（**M8 の担当分**）。根拠のテスト（「今回」は M8 の検収で足したもの）:
+  - §19.5: 1 `workspaces_are_numbered_like_the_spec_table_and_reader_is_reserved`・`alt_2_opens_the_episode_plot_at_the_same_scene_id_with_its_parent_visible`
+    （9 種のうち reader は ②、agent は M10 で、番号の予約と案内だけ）／2 同・`ctrl_enter_goes_down_to_write_and_ctrl_b_comes_back_up`／
+    3 `ctrl_shift_i_captures_an_idea_from_anywhere_without_changing_the_screen`／4 `the_cast_workspace_shows_the_timeline_and_moves_a_band_with_shift_arrows`・
+    `the_role_language_tester_and_the_unmatched_dialogue_list`（以上 `tests/workspaces.rs`）。
+  - §19.6: 1 `tests/characters_md.rs` の `the_spec_example_reads_the_five_modes_in_order`・`tests/modes.rs` の `the_first_variant_is_chosen_in_chapter_01` /
+    `the_second_variant_is_chosen_in_chapter_03`／2 `the_section_mode_wins_over_the_scene_mode`・`the_scene_mode_is_used_when_the_section_has_none`／
+    3 `tests/sections.rs` の `the_reference_pane_shows_only_the_personality_of_the_effective_mode`（今回）／4 `tests/plot_episode.rs` の
+    `three_modes_on_one_character_is_e005`・`tests/dictionary.rs` の `three_modes_in_one_expression_is_e005`・`tests/modes.rs` の
+    `a_mode_outside_every_variant_range_is_e004`／5 `tests/role_language.rs` の `b3_hit_examples_underline_exactly_the_literal_part`・`tests/features.rs` の
+    `role_language_underlines_follow_the_speaker_rules_of_6_5_3`／6 `tests/features.rs` の
+    `a_dialogue_that_matches_no_pattern_gets_no_underline_no_color_and_no_diagnostic`（今回）・`a_miss_returns_nothing_at_all`／7 `b3_*`（付録 B.3 の表駆動）。
+  - §19.7: 1 `tests/layering.rs` の `only_the_v0_marker_and_migrate_mention_characters_json`（今回）／2 `lines_are_classified_one_by_one`・
+    `the_spec_example_round_trips_byte_for_byte`／3 `broken_input_does_not_panic`・`a_reversed_range_reports_e016`・
+    `an_unparsable_range_reports_e002_and_is_not_compared`（以上 `tests/characters_md.rs`）／4 `novnow migrate` は **M11**（§5.12）。
+  - §19.9: 1 `tests/materials_index.rs` の `issue_hands_out_the_next_number_and_moves_next_id`・`tests/ideas_ops.rs` の
+    `proposing_a_material_issues_the_next_id_and_never_reuses_one`・`tests/materials_ops.rs` の `register_issues_a_new_id_and_writes_the_id_comment`／
+    2 `a_material_id_in_the_episode_plot_shows_its_title_as_an_inlay_hint_and_the_file_keeps_the_id`（今回、B-137）／3 `tests/materials.rs` の
+    `a_differing_explicit_title_is_e006`・`tests/features_edit.rs` の `e006_offers_all_three_fixes_when_another_material_has_the_written_title`（今回）・
+    `ctrl_period_in_the_episode_plot_offers_the_e006_fixes_and_enter_applies_the_first`（今回）／4 `tests/materials_ops.rs` の
+    `search_follows_the_query_language_of_16_3`（タイトル・`#カテゴリ`・条件の `@範囲` / `'参照`・ID）・`ctrl_m_searches_materials_and_inserts_a_reference_at_the_caret_in_write`／
+    5 `condition_matches_follow_the_explicit_references_and_are_marked_as_candidates`・`a_condition_match_in_the_reference_pane_is_added_to_the_plot_with_enter`。
+  - §19.11: 1 `tests/plot_outline.rs` の `the_spec_example_for_all_txt_has_two_blocks`・`the_spec_example_for_a_chapter_plot_parses`（同じ A 形式のパーサ）／
+    2 `tests/plot_episode.rs` の `the_spec_example_round_trips_byte_for_byte`（B）・`tests/contents.rs` の `the_spec_example_round_trips_and_has_no_diagnostics`（C）／
+    3 `alt_2_opens_the_episode_plot_at_the_same_scene_id_with_its_parent_visible`・`alt_3_opens_the_chapter_plot_with_the_parent_block_and_foreshadows`・
+    `the_four_levels_go_up_with_ctrl_b_and_down_with_ctrl_enter`／4 writer の ContextPacket は **M10**（§5.11）。
+- [x] 9 ワークスペースのうち **7 つ**が動く（`write` は M7、ほかに plot-episode / plot-outline / idea / material / cast / review。`agent` は M10、
+  `reader` は ② ＝ 追加仕様 #27）。→ 旧版の「8 つ」は reader を ② に移す前の数え方だったので直した（目的の行の「7 種」と同じ）。
+- [x] 切替で SceneId が失われない。→ `alt_2_opens_the_episode_plot_at_the_same_scene_id_with_its_parent_visible`・
+  `each_workspace_keeps_its_own_position_after_switching_back`・`ctrl_enter_goes_down_to_write_and_ctrl_b_comes_back_up`。
+- [ ] **人の確認**（実機で触るレビュー）: キーボードだけで 4 段階を往復できる・資料の収集 → 審査 → 参照が一通りできる・インレイヒントが
+  邪魔にならない・`Ctrl+M` / `Ctrl+Shift+I` がどこからでも使える。→ **人の確認待ち**。
 
 ---
 
@@ -1086,11 +1301,35 @@ tests/layering.rs
    「エクスポート → 外部の縦書きビューア / 投稿サイトのプレビュー」が正規の経路になる。
    この導線が実用になることを M11 の受け入れ確認で見る（§19.12）。
 
+> **M9 の進捗（2026-10-13）: エクスポートを実装した — 自動で確かめられる項目は通った。残りは外部ビューアでの通読（人の確認）**
+>
+> M7 の後、M8 より先に入った（**B-120**）。
+>
+> - **パイプライン**（§17.1）: `core::export::run(project, range, options) -> String`（純粋関数）。14 段のうち ① の 10 段
+>   （3b / 3c / 5b / 10b は ②）。表が決めていない細部（場面・話・章の境目も 1 回の区切り・名前の無い `'` を消す・未解決の
+>   参照のモード式・資料 ID の形の未解決参照・先頭の空行・二重の字下げ）は **B-124**、仕様 第 2.14 版の §17.1。
+> - **範囲と状態**（§17.2）: `core::export::parse_range`（`@` の省略も可）・`select`・`effective_state`（節 → 場面 → 話の
+>   ブロック → 章のブロック → `draft`、`--state s` は `s` 以上。**B-122**）。ストック章の除外は ②（**B-123**）。
+> - **CLI**（§17.2）: `novnow export <dir> [--range …] [--state …] [--out <パス>|-]`。`-` は標準出力（本文だけ）、
+>   `--out <パス>` は `ChosenPath::from_command_line` ＋ `FsGate::check_chosen_export` → `write_chosen_export`（外でもよい・
+>   `.txt` / `.md` だけ・親は作らない）、省略は `exports/<title>-<範囲>-<YYYYMMDD-HHMM>.txt`（デスクトップの時刻は UTC）。
+>   使い方の誤りは 2、当てはまる節が無ければ何も書かずに 0（**B-123**）。
+> - **GUI**（§17.2）: パレットの `>export` でモーダル。`Enter` = `exports/` に保存・`Shift+Enter` = 名前を付けて保存
+>   （`Dialog::save_text` → 関門の特例の口）・`Ctrl+Shift+C` = クリップボード・`Tab` = 状態（**B-125**）。Web は B-118 と一緒に後で。
+> - **検査**: `tests/export.rs`（19。1 段ずつ・範囲・状態・名前）・`tests/export_invariants.rs`（3。サンプル＝雛形・仕様書の例・
+>   実プロジェクト `tests/novel` を `export` の全組み合わせ 144 通りと範囲 × 状態で）・`tests/cli.rs`（+4）・`tests/gui.rs`（+3）で
+>   **976 件**。
+> - **残り**: 1 話（約 6,000 字）を外部の縦書きビューアで通読する人の確認。
+
 **完了条件**
 
-- [ ] `tests/export_invariants.rs` がサンプルと実プロジェクトで通る。
-- [ ] §19.12 のチェックリストが通る（**読者モードの 3 項目は §19.14-27 へ移動済み**）。
-- [ ] 1 話（約 6,000 字）をエクスポートして外部ビューアで通読できる。
+- [x] `tests/export_invariants.rs` がサンプルと実プロジェクトで通る。→ 雛形・仕様書の例・`tests/novel` の 3 つで、
+  `@` 行・`;` 行・`'` のシジル・`//` が残らない（`# ` / `! ` / `^M` は ②）。
+- [ ] §19.12 のチェックリストが通る（**読者モードの 3 項目は §19.14-27 へ移動済み**）。→ **自動の 3 項目は通る**: 不変条件・
+  範囲指定（全体 / 章 / 話 / 場面 / 節 / 範囲式 / 状態）・`keep_ruby`（`tests/export.rs`）。**人の確認が要る項目**: 外部の
+  縦書きビューアで読み返せること。
+- [ ] 1 話（約 6,000 字）をエクスポートして外部ビューアで通読できる。→ **人の確認待ち**（10 万字 200ms の目安は §18.1 の
+  ベンチで、M11 でまとめて測る）。
 
 ---
 
@@ -1142,15 +1381,64 @@ tests/layering.rs
      `autonomous` では連鎖を許可し、各ホップをスレッドと監査ログに記録する。
    - **ローカル LLM 簡易モード（§15.8.4）は ②**。
 
+> **実装の記録（2026-10-14、PR #12 に「M10 (1/n)」〜「M10 (5/n)」として積んだ）**
+>
+> - **仕様 第 2.16 版**で M10 の細部を書き足し（E029 の新設・`exclude:`・提案の `note` 種別・パケットの中身・上限の見方・
+>   agent ワークスペースのキー・stdio だけの MCP）、裁定は **B-138**〜**B-155**。
+> - **core**（I/O なし）: `core/aicontext/{packet,budget}.rs`（9 ブロック・予算・2 段の切り詰め・要求の組み立て。情報源は
+>   参照ペインと同じ `context_rules`）・`core/agents/*`（タスク / 提案 / スレッド / 監査ログの読み書き・既定プロンプト・出力の
+>   分解と契約・採用 / 却下 / 差し戻し・自動適用の関門・委譲レベル・総停止・並列の選び方・`novnow mcp` の 14 ツール）。
+>   書き込みはすべて `Plan` で返す。
+> - **MCP**: `ports/mcp.rs`・`adapters/mcp_stdio.rs`（stdio の JSON-RPC。`sampling/createMessage` と `tools` だけのサーバ、
+>   タイムアウト・取消・2 万字の上限）・`cli/mcp.rs`（`novnow mcp`）。LLM の SDK と HTTP クライアントは依存に無い。
+> - **GUI**: `Alt+8` の agent ワークスペース（4 列・委譲パネル・ドライラン・除外・部分採用・差し戻し）・ステータスバーの `⟳`・
+>   パレットの `>agent` / `>prompt`（**B-151**〜**B-154**）。プロンプトの読み込み元の担保は **B-155**。
+> - **検査**: `tests/aicontext.rs`（13）・`tests/agents_files.rs`（15）・`tests/delegation.rs`（24）・`tests/mcp_stdio.rs`（9）・
+>   `tests/no_llm_sdk.rs`（2）・`tests/workspaces.rs` の agent の 18 件・`tests/storage_policy.rs` / `tests/cli.rs` の追加で **1,143 件**。
+>   CI は `4acd11a` で 4 ジョブ緑（run 38498620189）。
+> - **残り**: 下の人の確認。①での削り（カスタムロール・ローカル LLM・§19.14）は M10 の外。
+
 **完了条件**
 
-- [ ] §19.8 のチェックリストが通る。
-- [ ] ContextPacket の切り詰めが決定論である（同じ入力 → 同じ出力のテスト）。
-- [ ] エージェント機能を無効化して全ワークスペースが動く（A6 の実機確認）。
-- [ ] 委譲レベル `apply` で自動適用が動き、before/after 記録と監査ログが残る。
-- [ ] 委譲レベル `autonomous` で連鎖が起き、セッション上限で自動停止する（W095）。
-- [ ] `tests/delegation.rs` が通る（レベル解決・自動適用キュー・上限停止・監査ログ記録）。
-- [ ] U-8: 5 件同時実行で ID が衝突せず、同一節のタスクが直列化される。
+- [x] §19.8 のチェックリストが通る。根拠のテスト（ファイル名の無いものは `tests/workspaces.rs`）:
+  1 `alt_8_opens_the_agent_workspace_and_n_creates_a_task_for_the_current_section`（開くと 7 本と I050）・`tests/agents_files.rs` の
+  `missing_prompts_are_listed_and_only_an_absent_directory_is_i050`・`tests/cli.rs` の `mcp_serves_the_tools_over_json_lines_and_writes_only_inside_the_project`／
+  2 `the_palette_sets_levels_and_resets_or_compares_prompts`（書き換えたものは開いても残る）・同じ `tests/cli.rs` の 2 回目／
+  3 `tests/storage_policy.rs` の `prompts_are_read_only_from_the_project`・`symlinks::files_behind_links_to_outside_are_not_part_of_the_project`・
+  `tests/cli.rs` の `mcp_leaves_prompts_that_are_links_to_outside_alone`・`a_prompt_path_taken_on_disk_is_not_written_and_its_role_cannot_run`（**B-155**）／
+  4 `tests/aicontext.rs` の `the_packet_has_the_header_and_the_nine_fixed_headings_in_order`・
+  `over_budget_blocks_are_trimmed_from_the_end_with_a_marker_and_the_never_trimmed_parts_stay`・`the_packet_is_deterministic_and_the_hash_ignores_generated_at`／
+  5 同じ `over_budget_…`・`a_packet_that_cannot_fit_is_over_and_cannot_be_sent`／6 `tests/delegation.rs` の `a_dry_run_writes_only_the_packet`・
+  `tests/aicontext.rs` の `excluded_blocks_keep_only_their_heading_and_mandatory_blocks_cannot_be_excluded`・
+  `space_in_the_context_column_excludes_a_block_but_never_project_or_constraints`・`without_an_llm_r_explains_why_and_d_still_saves_a_dry_run`／
+  7 `tests/delegation.rs` の `propose_leaves_a_proposal_for_review_and_logs_the_run_without_bodies`・`r_runs_the_task_through_mcp_and_a_accepts_the_proposal_with_an_audit_log`／
+  8 `tests/delegation.rs` の `apply_auto_applies_with_a_record_and_the_audit_log`・`apply_auto_applies_and_x_reverts_with_a_comment`／
+  9・10 `one_to_four_set_the_delegation_level_and_ctrl_shift_x_stops_all`・`the_palette_sets_levels_and_resets_or_compares_prompts`
+  （`>agent delegation` / `>agent stop-all`）・`tests/delegation.rs` の `delegation_changes_are_written_to_project_json_and_logged`・
+  `stop_all_lowers_every_writing_level_to_propose`／11 `tests/delegation.rs` の `direct_writes_need_a_role_with_apply_or_autonomous_otherwise_e036`・
+  `tests/cli.rs` の `mcp_direct_writes_follow_the_role_level_and_leave_the_audit_trail`／12 `tests/delegation.rs` の
+  `auto_applying_a_fixed_section_is_logged_and_notified`・`auto_applying_a_fixed_section_says_so_in_the_status_bar`／
+  13 **コードレビュー**: タスクを起こすのは `runner::chain`（`finish` から呼ぶ）だけで、integrator が `autonomous` でなければ
+  何もしない。出力に書かれた次のタスクを使うのは integrator の出力だけで、ほかの役割の完了で起きるのは integrator のタスク
+  （**B-148**）。`tests/delegation.rs` の `without_an_autonomous_integrator_nothing_chains`／14 `tests/no_llm_sdk.rs` の 2 件／
+  15 `tests/delegation.rs` の `messages_wait_for_approval_unless_both_roles_are_autonomous`／16 `tests/delegation.rs` の
+  `an_autonomous_integrator_chains_tasks_until_the_hop_limit_with_w095`・`session_limits_stop_automatic_starts_and_zero_means_unlimited`。
+  M8 から回した §19.11-4（writer のパケットで全体プロットが 1 行）は `tests/aicontext.rs` の `the_writer_sees_the_whole_plot_as_one_summary_line`。
+- [x] ContextPacket の切り詰めが決定論である（同じ入力 → 同じ出力のテスト）。→ `tests/aicontext.rs` の
+  `the_packet_is_deterministic_and_the_hash_ignores_generated_at`（同じ入力を 2 回組んで全文とハッシュが一致）・
+  `over_budget_blocks_are_trimmed_from_the_end_with_a_marker_and_the_never_trimmed_parts_stay`（切り詰めの起きる予算でも同じ切り詰め）。
+- [ ] エージェント機能を無効化して全ワークスペースが動く（A6 の実機確認）。→ **自動の確認は済み**: `with_agents_disabled_nothing_is_written_and_the_other_workspaces_still_work`
+  （プロンプトを書かない・agent は「エージェントは無効です」だけ・ほかの 7 つに切り替えられる）。**実機での確認待ち**。
+- [x] 委譲レベル `apply` で自動適用が動き、before/after 記録と監査ログが残る。→ `apply_auto_applies_with_a_record_and_the_audit_log`・
+  `apply_auto_applies_and_x_reverts_with_a_comment`（提案 `applied` に before / after、ログに `auto_applied`、③ から差し戻せる）。
+- [x] 委譲レベル `autonomous` で連鎖が起き、セッション上限で自動停止する（W095）。→ `an_autonomous_integrator_chains_tasks_until_the_hop_limit_with_w095`・
+  `session_limits_stop_automatic_starts_and_zero_means_unlimited`。
+- [x] `tests/delegation.rs` が通る（レベル解決・自動適用キュー・上限停止・監査ログ記録）。→ 24 件。
+- [x] U-8: 5 件同時実行で ID が衝突せず、同一節のタスクが直列化される。→ `tests/delegation.rs` の
+  `five_parallel_tasks_run_two_at_a_time_without_id_collisions_and_same_sections_wait`・`shift_r_confirms_runs_two_at_a_time_and_the_status_bar_shows_them`。
+- [ ] **人の確認**（実機で触るレビュー）: 実際の MCP サーバ（stdio）につないで 1 節を頼み、採用 / 一部採用 / 却下 / 差し戻しを
+  一通り行う・委譲パネルだけで README の使い方（「計画の管理だけ AI に任せる」「この役割だけ止める」など）が完結する。
+  → **人の確認待ち**（作業環境には LLM も画面も無い。stdio の往復は `tests/mcp_stdio.rs` の偽サーバで確かめた）。
 
 ---
 
@@ -1170,8 +1458,12 @@ tests/layering.rs
 1. **移行**（§20.1）: バックアップ → 変換 → 検査 → **E が 1 件でもあれば全巻き戻し**。
    - 変換表（§20.1）の 12 行を実装。`speech` → 役割語は**人手確認**（W066）。
    - `'『星屑の時計』` → `『'星屑の時計』` の自動修正と W067。
+   - **Web の移行**（§13.3.6・§20.2）: 取り込みの経路は M5 で作ってある（`adapters::storage_idb` の
+     `Idb::import_local_storage_with`。変換を引数で受ける）。`storage_idb::convert_v0`（M5 では失敗を返して E061）を
+     この移行器に差し替える（§9.2 B-96）。
 2. **sample**（付録 C）: 「機能を一通り踏んだ最小例」。モード併用・range 変種・役割語の一致/不一致・資料参照・未回収伏線・`state: fixed`・アイデアを各 1 回ずつ。
    - **① の範囲の機能のみ**。`when` / `senses` / `address` 等は入れない。
+   - Web の初回投入は `Idb::seed_sample` に中身を渡すだけ（仕組みは M5、§9.2 B-96）。
 3. **性能**（§18.1）: 10 万行 / 5,000 辞書エントリ / 500 節のプロジェクトで目標値を計測。
 4. **受け入れ基準**: §19.1–19.13 を 1 項目ずつチェックし、`docs/acceptance-v1.md` に証跡を残す。**§19.14 は ② のため対象外**。
    あわせて CI に `spec` ジョブ（§18.4。受け入れ基準に対応するテスト名の存在確認スクリプト）を追加する（本書 §9.4 B-14）。
@@ -1199,12 +1491,14 @@ tests/layering.rs
 
 | テスト | 内容 | 導入 |
 |---|---|---|
-| `tests/layering.rs` | core の禁止依存（§3.2）＋ core の日本語文字列禁止（§12.2） | **M0** |
-| `tests/storage_policy.rs` | 全書き込み経路でプロジェクト外を拒否（§13.1） | M5 |
+| `tests/layering.rs` | core の禁止依存（§3.2）＋ core・CLI・文言カタログの日本語文字列禁止（§12.2）＋ feature gate ＋ 書き込みの関門（§13.1.2） | **M0** |
+| `tests/storage_policy.rs` | 全書き込み経路でプロジェクト外を拒否（§13.1）。§13.1.1 の特例（保存ダイアログ・`--out` で指定した Zip / テキスト）の範囲も | M5（特例は M6、テキストは B-109） |
+| `tests/cli.rs` | §14.3 の判定・§14.2 の検査と表示（§14.2.2〜§14.2.4 を仕様書と照合）・`new` / `check`・終了コード・実行ファイル | M6 |
+| `tests/template.rs` | §14.5 の雛形と既定プロンプト（診断 0 件・§15.5.2 の約束・付録 A の要素） | M6 |
 | `tests/export_invariants.rs` | エクスポート結果の不変条件（§17.1） | M9 |
 | `tests/no_llm_sdk.rs` | `Cargo.toml` に LLM プロバイダ SDK が無い（§15.1 A5） | M10 |
 | `tests/delegation.rs` | 委譲レベル解決・自動適用キュー・上限停止・監査ログ記録（§15.1.1） | M10 |
-| `tests/diagnostics_catalog.rs` | §7 / §7.1 / §7.2 の表（**78 件** = 37 + 14 + 27）と enum / `CATALOG` の一致。件数だけでなく重大度・引数の数・文書位置・既定の有効/無効・実行コスト表・variant の doc コメントも、`SPECIFICATIONS.md` を `include_str!` で読み直して照合する | ~~M4~~ → **M2 準備で前倒し（I5、2026-10-11）** |
+| `tests/diagnostics_catalog.rs` | §7 / §7.1 / §7.2 の表（**81 件** = 40 + 14 + 27。第 2.16 版）と enum / `CATALOG` の一致。件数だけでなく重大度・引数の数・文書位置・既定の有効/無効・実行コスト表・variant の doc コメントも、`SPECIFICATIONS.md` を `include_str!` で読み直して照合する | ~~M4~~ → **M2 準備で前倒し（I5、2026-10-11）** |
 | `tests/golden/**` | 8 形式のパース結果 snapshot | M2 |
 | `tests/roundtrip.rs` | 未知キーを含むファイルの読み書きでバイト一致（本書 §1.5-1,2） | M2 |
 
@@ -1314,24 +1608,24 @@ tests/layering.rs
 | ~~**A-3**~~ | §3.4 と §9.3.3 | `folding` は ① の 11 機能に含まれるが、折りたたみ UI は追加仕様 9 | **解消（2026-10-09 / 仕様第 2.2 版）**。§3.4 の `folding` 行を「`plot-outline` の章→話展開（§10.3.1）」に修正し、本文折りたたみ UI が追加仕様 9 である旨を注記した | 済 |
 | ~~**A-5**~~ | §12.2 コア層の文字列禁止 | 「ユーザー向け文言」の定義が、**ファイル形式の語彙**（§5.0.6 の日本語別名表）と区別できない。別名は UI 言語が `en` でも受理する（§12）のでロケール表 `ui/i18n/` には置けず、字句解析を持つ core が持つしかない | §12.2 に「**字句データ（シジル文字・フィールドキー別名など、ファイル形式の語彙）は文言に含まない**」の 1 文を足す。実装側は `tests/layering.rs` の狭い免除（`i18n: format-vocabulary` の doc 行を付けた `const` / `static` の中だけ）で担保し、検査器の自己テストも足した（§9.2 B-19）。**解消（2026-10-11 / 仕様第 2.5 版）**: ユーザー承認のもと §12.2 に「字句データ（シジル文字・フィールドキー別名など、**ファイル形式の語彙**）は文言に含まない」の 1 文と、免除の書き方（`i18n: format-vocabulary`）を追記した | 済 |
 | ~~**A-6**~~ | §5.0.5 フィールド行の ebnf | (1) `ws (value | "")` は `:` の直後に**必ず空白**を要求するが、§5.0.4 は保存時に行末の空白を削除する（MUST）ので、空の値のフィールド行 `summary:` は保存のたびにフィールド行でなくなる。(2) 全角コロン＋空白なし（`要約：あらすじ`）は日本語の自然な書き方だが、この ebnf では通常テキストになる | (1) 行末（値が空）は `ws` を満たすと読む。実装はこれで、§5.0.5 に注記を足せば済む。(2) 別名＋全角コロンでは空白を必須にしない／仕様どおりにして UI が「フィールド行にしますか」を提案する、のどちらか。**ユーザーの裁定が要る**（実装は仕様どおり＝通常テキスト）。**解消（2026-10-11 / 仕様第 2.5 版）**: ユーザー裁定は「(1) 空の値はフィールド行のまま。(2) **全角コロンは空白なしでもフィールド行**。半角コロンは URL かどうかを判断して賢く決める仕組みを入れる」。§5.0.5 を**7 段の判定手順**に書き換え、判定の根拠を「§5.0.6 のキー表に載っているか」に置いた（＝**URL の除外リストを持たない**、MUST）。あわせて §5.0.2 に「`://` は行内コメントにしない（MUST）」を追加し、§5.0.5 に「§5.0.6 のキーは URL scheme と衝突してはいけない（MUST）」の不変条件を足した。設計の経緯は §9.2 B-24 | 済 |
-| **A-7** | §7 の E004 の文言 | ja も en も `{0}` を使わず `{1}`〜`{3}` だけを使う（`モード {1} は {2} では使用できません（有効範囲: {3}）`）。引数の数を「最大の添字 + 1」で数えると **4** になり、`args[0]` はどの言語でも捨てられる | (1) `{0}`〜`{2}` に振り直す（文言の修正だけで済む）、(2) `{0}` に入れる予定だったもの（節 ID か）を書いて予約のままにする、のどちらか。**実装は現状の仕様どおり 4 引数**で、`tests/diagnostics_catalog.rs` の `e004_skips_the_first_placeholder` が固定している（仕様書を直すとテストが落ちる）。**M3 の `resolve/modes.rs` は `args[0]` にキャラ名を入れて予約している**（§6.4.4 の E004 を出す実装。裁定まで表示は変わらない） | M4（診断の文言）まで |
-| **A-8** | §7.2 の冒頭文と表 | 冒頭は「すべて **W（警告）または I（情報）** であり、エラーにしない（P4）」と言うが、表には **E032〜E036・E064 の 6 件のエラー**がある（カスタムロール・委譲レベル・ローカル LLM 接続） | 冒頭文を「**文章の良し悪し**を言うものは W / I にする（P4）。設定・接続・権限の誤りは E にする」に直す。実装は表に従っており、`Group::Writing` に E が 6 件入っている | M4 まで |
-| **A-9** | §5.1.2 の予約番号と §7.2 の E020 の文言 | §5.1.2 は「`C = 00` は予約（未使用）。v1 では書いてはならない（**E020**）」「`A = 00` は `structure.allow_chapter_zero = false` にすると **E020** で拒否」と定めるが、E020 の ja 文言は `このファイルには {0} 階層の見出しだけを書けます`（quickfix「対応ファイルへ移動」）で、**番号が予約であること**を表現できない。C 形式は 3 階層と 4 階層の両方を受け付ける（§5.2.1 `scene_id`）ので、`{0}` に 3 を入れると「3 階層だけ」と読めて正当な `@01-04-02-03` と矛盾する | (1) E020 の文言に理由の枠を足す（`このファイルに書ける見出しは {0} 階層です（{1}）` など）、(2) 予約番号用に別コードを新設する（例 **E021「この番号は予約されています」**、quickfix「番号をずらす」）、のどちらか。**実装は現状の仕様どおり E020 ＋ `{0} = 3`**（`core/syntax/contents.rs` の `warn_reserved`。`tests/contents.rs` の `a_reserved_scene_zero_is_e020` が固定しているので、仕様を直すとテストも直す） | M4（診断の文言）まで |
-| **A-10** | §6.2.5 の `@` の解決表と §5.3 の見出し階層 | §6.2.5 は「行頭（空白のみ先行）→ 構造見出し。`scene_id` としてパース → **E002**」と一律に定めるが、§5.3（A 形式）は「ファイル内の見出し階層は揃っていること（`all.txt` に `@01-04` が現れたら **E020**）」と、**階層数の違いだけ**を E020 にしている。C 形式に `@01-04`（2 階層）を書いたとき、§6.2.5 どおりなら E002（quickfix「近い形式に修正」）、§5.3 と揃えるなら E020（quickfix「対応ファイルへ移動」＝ `plots/01-04.txt`）で、**後者のほうが作者の次の行動に合う** | §6.2.5 の表の「行頭」行を「`scene_id` としてパース。**階層数がその形式の許容と違えば E020**、それ以外の形の不整合は E002」に分ける。**実装は §6.2.5 どおり E002**（`contents.rs` の `parse_scene`。`tests/contents.rs` の `a_malformed_scene_id_is_e002` が固定） | M4 まで |
+| ~~**A-7**~~ | §7 の E004 の文言 | ja も en も `{0}` を使わず `{1}`〜`{3}` だけを使う（`モード {1} は {2} では使用できません（有効範囲: {3}）`）。引数の数を「最大の添字 + 1」で数えると **4** になり、`args[0]` はどの言語でも捨てられる | (1) `{0}`〜`{2}` に振り直す（文言の修正だけで済む）、(2) `{0}` に入れる予定だったもの（節 ID か）を書いて予約のままにする、のどちらか。**実装は現状の仕様どおり 4 引数**で、`tests/diagnostics_catalog.rs` の `e004_skips_the_first_placeholder` が固定している（仕様書を直すとテストが落ちる）。**M3 の `resolve/modes.rs` は `args[0]` にキャラ名を入れて予約している**（§6.4.4 の E004 を出す実装。裁定まで表示は変わらない）。**解消（2026-10-13 / 仕様 第 2.8 版）**: ユーザー裁定は「`{0}` をキャラ名として使う」。§7 の E004 を ja `{0} のモード {1} は {2} では使用できません（有効範囲: {3}）` / en `Mode {1} of {0} is not available at {2} (range: {3})` にした（`resolve/modes.rs` が `args[0]` に入れていたキャラ名がそのまま出る）。テストは `e004_names_the_character_first` に置き換え、添字の抜けを全件で禁じる `every_placeholder_index_is_used` を足した | 済 |
+| ~~**A-8**~~ | §7.2 の冒頭文と表 | 冒頭は「すべて **W（警告）または I（情報）** であり、エラーにしない（P4）」と言うが、表には **E032〜E036・E064 の 6 件のエラー**がある（カスタムロール・委譲レベル・ローカル LLM 接続） | 冒頭文を「**文章の良し悪し**を言うものは W / I にする（P4）。設定・接続・権限の誤りは E にする」に直す。実装は表に従っており、`Group::Writing` に E が 6 件入っている。**解消（2026-10-13 / 仕様 第 2.8 版）**: 冒頭文を提案どおりに直した（文章の良し悪しを言うものは W / I、設定・接続・権限の誤り＝E032〜E036・E064 だけ E）。`Group::Writing` の doc も合わせた | 済 |
+| ~~**A-9**~~ | §5.1.2 の予約番号と §7.2 の E020 の文言 | §5.1.2 は「`C = 00` は予約（未使用）。v1 では書いてはならない（**E020**）」「`A = 00` は `structure.allow_chapter_zero = false` にすると **E020** で拒否」と定めるが、E020 の ja 文言は `このファイルには {0} 階層の見出しだけを書けます`（quickfix「対応ファイルへ移動」）で、**番号が予約であること**を表現できない。C 形式は 3 階層と 4 階層の両方を受け付ける（§5.2.1 `scene_id`）ので、`{0}` に 3 を入れると「3 階層だけ」と読めて正当な `@01-04-02-03` と矛盾する | (1) E020 の文言に理由の枠を足す（`このファイルに書ける見出しは {0} 階層です（{1}）` など）、(2) 予約番号用に別コードを新設する（例 **E021「この番号は予約されています」**、quickfix「番号をずらす」）、のどちらか。**実装は現状の仕様どおり E020 ＋ `{0} = 3`**（`core/syntax/contents.rs` の `warn_reserved`。`tests/contents.rs` の `a_reserved_scene_zero_is_e020` が固定しているので、仕様を直すとテストも直す）。**解消（2026-10-13 / 仕様 第 2.8 版）**: ユーザー裁定は「別コードを新設」。E021 は使用済みなので **E022「予約番号の見出し（§5.1.2）」**（ja `この番号は予約されています: {0}` / en `This number is reserved: {0}` / 処置「番号をずらす」）を §7 に足した。コード数は 78 → **79**（§7 = 38）。`{0}` は書かれたままの ID（`@` を除く）。実装は `contents.rs` の `warn_reserved`（C・B 形式）と `plot_outline.rs` の `check_header`（A 形式の `A = 00`。階層違いと重なれば E020 と E022 を両方出す）。テストは `a_reserved_scene_zero_is_e022` ほか（§9.2 **B-75**） | 済 |
+| ~~**A-10**~~ | §6.2.5 の `@` の解決表と §5.3 の見出し階層 | §6.2.5 は「行頭（空白のみ先行）→ 構造見出し。`scene_id` としてパース → **E002**」と一律に定めるが、§5.3（A 形式）は「ファイル内の見出し階層は揃っていること（`all.txt` に `@01-04` が現れたら **E020**）」と、**階層数の違いだけ**を E020 にしている。C 形式に `@01-04`（2 階層）を書いたとき、§6.2.5 どおりなら E002（quickfix「近い形式に修正」）、§5.3 と揃えるなら E020（quickfix「対応ファイルへ移動」＝ `plots/01-04.txt`）で、**後者のほうが作者の次の行動に合う** | §6.2.5 の表の「行頭」行を「`scene_id` としてパース。**階層数がその形式の許容と違えば E020**、それ以外の形の不整合は E002」に分ける。**実装は §6.2.5 どおり E002**（`contents.rs` の `parse_scene`。`tests/contents.rs` の `a_malformed_scene_id_is_e002` が固定）。**解消（2026-10-13 / 仕様 第 2.8 版）**: 提案どおり。§6.2.5 の「行頭」行を「形が崩れていれば E002、ID としては読めるが階層数が違えば E020、予約番号は E022」に分けた。C・B 形式の E020 の `{0}` は範囲 `3-4`（`contents::HEADER_DEPTH_RANGE`）で、en 文言は範囲でも読めるよう `Only level {0} headers are allowed here` にした。5 階層以上はどのファイルにも置けないので E002 のまま。テストは `a_shallow_scene_id_is_e020` ほか、ゴールデン 2 件（`contents/broken_unclosed_ref`・`plot_episode/broken_scene_ids`）の期待値も E020 に直した（§9.2 **B-75**） | 済 |
 | ~~**A-11**~~ | §5.0.2 のシジル表の `;` と §5.3.1 の `block_end` | 表の「出現場所」は `;`（SectionBreak）を「C 形式 / B 形式」としていたが、§5.3.1（A 形式）は `block_end = ws? , ";" , eol` を持ち、§5.3.3・§5.3.4 の**例はどちらも `;` でブロックを閉じている**（4 箇所が要求し、表の 1 箇所だけが否定する）。M1 の字句器は表どおりに実装したので、A 形式では `;` が通常テキストになり**ブロックが閉じなかった** | **解消（2026-10-11）**。§5.0.2 の `;` の行を「節区切り・ブロック終わり（行全体が `;` のときのみ）／A / B / C 形式（`.txt`）」に直した。実装も `Formats::CB` を廃止して `Formats::TXT` に統一し（`core/text/lexer.rs` の `SIGIL_TABLE` と `TextFormat::allows_section_break`）、`tests/lexer.rs` の 4 テストを「`.txt` 3 形式で節区切り／`.md` では通常テキスト」に直した。`.md` の挙動は変わらない | 済 |
 | ~~**A-12**~~ | §5.3.3 の例と §5.0.6 のキー表 | §5.3.3（`plots/all.txt` の例）は前文に `title: 星屑の時計` を書くが、§5.0.6 の 36 行のキー表に **`title` は無い**。仕様どおりに実装すると**仕様書自身の例が W011（未知のキー）を出す**（`tests/plot_outline.rs` の `the_spec_example_for_all_txt_warns_about_the_unknown_title_key` が固定している）。作品の題は `project.json`（§4.5）にも入るので、前文の `title:` が要るのかも不明 | **解消（2026-10-11 / 仕様第 2.6 版）**。ユーザー裁定は「**`title` キーも正式追加する**」（＝上記 (1)）。§5.0.6 の表に `title`（別名「題」、使用形式＝A 形式）を足し、実装は `FieldKey::Title` ＋ `FIELD_KEYS` の 1 行（`Formats::PLOT_OUTLINE`）。§5.3.3 の例は**診断 0 件**になり、`tests/plot_outline.rs` の `the_spec_example_for_all_txt_reads_the_title_key` と `tests/golden/plot_outline/spec_5_3_3.expected.json` が固定する。題は `project.json`（§4.5）にも入るが、前文の `title:` は「このファイルが対象とする作品の題」として両立する（§5.3.3 の前文）。別名の割り当ては §9.2 **B-50** | 済 |
 | ~~**A-13**~~ | §5.4.2 の制約と §7.2 の E005 の行 | §5.4.2（B 形式）は「1 節の `mode` に**同じキャラを 2 回**書くのは **E005**。1 キャラに 3 つ以上のモード（`A+B+C`）も **E005**」と **2 つの条件**を E005 に割り当てるが、§7.2 の E005 の行は条件が「1 節に 3 つ以上のモード」、ja 文言が `1 つの節に設定できるモードは 2 つまでです`、処置が「先頭 2 つを残す」だけで、**「同じキャラを 2 回」を言い表せない**（文言も処置も 3 モード前提）。§6.4.4 も「1 キャラ 1 節につき最大 2 モード」しか書いていない | (1) §7.2 の E005 の条件を「1 節に 3 つ以上のモード、**または** 1 節の `mode` に同じキャラを 2 回」に広げ、ja 文言を両方に効くもの（例: `1 つの節に設定できるモードは 2 つまでです（同じキャラに 3 つ以上のモードは付けられません）`）にする、(2)「同じキャラを 2 回」に別のコードを新設する（コードの新設は仕様更新が先、MUST）、のいずれか。**実装は §5.4.2 を採ってどちらも E005**（文言は §7.2 のまま。`tests/plot_episode.rs` の `the_same_character_twice_in_one_mode_is_e005` と `e005_is_reported_once_per_offending_token` が固定している）。**裁定（2026-10-11）: §5.4.2 を優先。今の実装で確定**（＝上記 (1) の方針。§7.2 の E005 の行の条件・ja 文言を §5.4.2 に合わせる仕様書側の追記は**未実施**、指示があれば行う） | ~~M3 まで~~ 裁定済み |
 | ~~**A-14**~~ | §5.0.2 の行内コメントと §5.4.3 の例（フィールド値の後ろの `//`） | §5.0.2 は「未エスケープの `//` 以降、行末までコメント」を**行内でも**有効なものとして定義し、§5.4.3（B 形式）の例は `mode: 'リリア:B+C          // 呆れモードと好奇心モードの併用（2 つまで）` と**フィールド行の値の後ろに行内コメント**を書く。ところが §5.0.5 のフィールド行の 7 段の手順に行末コメントの除去は無く、仕様どおりに実装すると**コメントが値の一部になる**（§9.2 B-36）。このままだと `length: 500 // 目標` の値が `500 // 目標` になって `Field::number()` が `None` を返す（§6.2 の参照走査も `//` の中まで `'` を探しに行く。実害は無いが無駄） | (1) §5.0.5 の手順に「値は未エスケープの `//` より前（`://` は URL なので除く、§5.0.2）」を足し、`Field` に `comment: Option<Comment>` を持たせて round-trip を保つ（字句器 1 箇所の変更で A/B 形式に効く）、(2) §5.4.3 の例のコメントを**次の行の行コメント**（`// …`）に直す、のいずれか。**実装はどちらも採らず B-36 のまま**（値に行末コメントを含む。A 形式はこれで緑、B 形式は `two_modes_on_one_character_are_allowed` が固定）。**裁定（2026-10-11）: 今の実装（B-36）で確定**。§5.0.5 にコメント除去は足さず、`Field` に `comment` も持たせない。値を数値として読む層（M3）は行末コメントを自分で落としてから解釈する | ~~M3 まで~~ 裁定済み |
 | ~~**A-15**~~ | §5.0.6 のキー表と §5.5.3 / §5.7 / §5.9.1 / §5.9.2 | 各形式の節が**自分で定義しているフィールドキー**が §5.0.6 の 36 行の表に無い。該当は **9 キー**: §5.5.3 の `color`、§5.7 の `status` `created` `relates` `promoted-to`、§5.9.1 の `model-hint` `max-chars` `temperature`、§5.9.2 の `label`。仕様どおりに実装すると**仕様書自身の例が W011（未知のキー）を出す**（§5.5.7 の恩田恵の例で `color` 1 件、§5.7 の例で 4 件、§5.9.1 の例で 3 件、§5.9.2 の例で 3 件。A-12 の `title` と同じ構図で、こちらは 4 形式ぶん）。`status` は §5.0.6 の `state`（別名「状態」）と**意味が近いが別物**（アイデアの inbox / keep / promoted / dropped）なので、別名の追加では解決しない | **解消（2026-10-11 / 仕様第 2.6 版）**。ユーザー裁定は「**すべてのキーを正式追加する**」（＝上記 (1)。A-12 の `title` と合わせて **10 キー**）。§5.0.6 の表は 36 → **46 行**（① の実装は 28 → **38 キー**）で、`color`（色）・`status`（状況）・`created`（作成日時）・`relates`（関連）・`promoted-to`（昇格先）・`model-hint`（モデル指定）・`max-chars`（最大文字数）・`temperature`（温度）・`label`（表示名）を足した。**別名は双方向 1:1（MUST）なので `state`＝状態 と衝突しないよう `status`＝状況 とした**（§9.2 **B-50**）。`materials/index.json` の JSON キーは表の対象外である旨も注記した。② の 8 キー（本書 §1.2）は表に足さないので ① では W011 のまま。実装は `FieldKey` に 10 variant・`FIELD_KEYS` に 10 行（`title` だけ `Formats::PLOT_OUTLINE`、残り 9 は `Formats::MARKDOWN`）で、`tests/lexer.rs` の `every_key_in_the_table_resolves_both_ways`（38 件）と `the_alias_table_is_one_to_one_in_both_directions` が固定する。W011 が消えた 4 形式の検査は ② のキーと `foo` で残した。仕様書の例 4 件（§5.5.7 / §5.7 / §5.9.1 / §5.9.2）は**診断 0 件**になり、ゴールデン 4 ケースの期待値を更新した | 済 |
 | ~~**A-16**~~ | §5.9.2 の例と §15.5.3 の変数表 | §5.9.2（カスタムロールの例）は `本文: {{content_section}}` を使うが、§15.5.3 の**閉じた集合**（19 変数）に `content_section` は無い。本文は `text_current` なので、仕様書自身の例が **E031（使用できない変数）** を出す（`tests/prompt_md.rs` と `tests/golden/prompt_md/spec_5_9_2_custom.expected.json` が固定） | **解消（2026-10-11 / 仕様第 2.6 版）**。ユーザー裁定は「**サンプルの記述ミスとみなす**」（＝上記 (1)。§15.5.3 の閉じた 19 変数が正本で、`content_section` は足さない）。§5.9.2 の例を `本文: {{text_current}}` に直し、`tests/prompt_md.rs` の `SPEC_CUSTOM` とゴールデンのフィクスチャ `tests/golden/prompt_md/spec_5_9_2_custom.txt` は仕様書から**再抽出**した。例の E031 は消え、`the_custom_role_example_uses_only_variables_of_the_closed_set` が「閉集合の変数だけ」を固定する。**E031 の検査は残す**: `an_unknown_variable_reports_e031` に `{{content_section}}` のケースを追加した（§9.2 **B-52**） | 済 |
-| ~~**A-17**~~ | §7 の診断コード表と §5.8.2 / §4.3-4 | `materials/index.json` が **JSON として壊れている**ときの診断コードが §7 の 77 件に無い（`project.json` / `ui.json` / `stats.json` も同じ）。§4.3-4 は「壊れていても開ける。診断として表示し、既定値で続行する（MUST）」と**診断として表示する**ことを要求しているので、コードが無いと MUST を満たせない | **解消（2026-10-11 / 仕様第 2.6 版）**。ユーザー裁定は「**新しいエラーコードを追加する**」（＝上記 (1)）。§7 に **E025「JSON ファイルがパースできない（§4.3-4）」**を新設した（ja `JSON として読み込めません: {0}` / en `Cannot parse as JSON: {0}` / 処置「既定値で開く / 手動で修正」）。コード数は 77 → **78**（§7 = 37）。番号は E024 の隣で、② の予約域（W080 以降 / E032 以降 / E064 / I054 以降）に触れない空き（§9.2 **B-51**）。§4.3-4 に「JSON がパースできないときは E025」と「**原文は書き換えない**（MUST）」を、§5.8.2 に「E025 のときは空索引の既定値で続行し、E024 / E008 は報告しない」を追記した。実装は `core::syntax::materials_index::parse` が E025（位置＝ファイル全体 `0..raw.len()`、引数 `{0}` ＝パーサのメッセージ）を出し、`Index::error` も残す（呼び出し側がログに書きやすい）。既定値での続行は `Index::index_or_default()`（`tests/materials_index.rs` の 2 テストが固定）。`project.json` / `ui.json` / `stats.json` のパース失敗も**同じ E025** を使う（M5 でストレージ層が出す） | 済 |
-| **A-18** | §7 の E026 の文言 | ja「`用語に修飾子は付けられません`」/ en「`Modifiers are not allowed on terms`」は**用語専用**の文言だが、§6.1.1 の表は `MaterialTitle`（資料タイトル）にも「（不可。付ければ **E026**）」を割り当てている。資料タイトルに修飾子を付けたときに「用語に…」と出るのは誤り | 文言を種別に触れない形にする（例: ja「`この参照に修飾子は付けられません`」/ en「`Modifiers are not allowed here`」）か、資料タイトル用に別コードを新設する。実装は §9.2 **B-63** で §6.1.1 の表を優先して E026 を出しているので、**M4 の i18n カタログ（§12.3）着手までに裁定** | M4 |
+| ~~**A-17**~~ | §7 の診断コード表と §5.8.2 / §4.3-4 | `materials/index.json` が **JSON として壊れている**ときの診断コードが §7 の 77 件に無い（`project.json` / `ui.json` / `stats.json` も同じ）。§4.3-4 は「壊れていても開ける。診断として表示し、既定値で続行する（MUST）」と**診断として表示する**ことを要求しているので、コードが無いと MUST を満たせない | **解消（2026-10-11 / 仕様第 2.6 版）**。ユーザー裁定は「**新しいエラーコードを追加する**」（＝上記 (1)）。§7 に **E025「JSON ファイルがパースできない（§4.3-4）」**を新設した（ja `JSON として読み込めません: {0}` / en `Cannot parse as JSON: {0}` / 処置「既定値で開く / 手動で修正」）。コード数は 77 → **78**（§7 = 37）。番号は E024 の隣で、② の予約域（W080 以降 / E032 以降 / E064 / I054 以降）に触れない空き（§9.2 **B-51**）。§4.3-4 に「JSON がパースできないときは E025」と「**原文は書き換えない**（MUST）」を、§5.8.2 に「E025 のときは空索引の既定値で続行し、E024 / E008 は報告しない」を追記した。実装は `core::syntax::materials_index::parse` が E025（位置＝ファイル全体 `0..raw.len()`、引数 `{0}` ＝パーサのメッセージ）を出し、`Index::error` も残す（呼び出し側がログに書きやすい）。既定値での続行は `Index::index_or_default()`（`tests/materials_index.rs` の 2 テストが固定）。`project.json` / `ui.json` / `stats.json` のパース失敗も**同じ E025** を使う（M5 でストレージ層が出す）〔**M5 で訂正**: `ui.json` / `stats.json` は §4.4.1 の MUST「エラーを出さない」と §4.4.2 により診断を出さない。E025 は `project.json` と `materials/index.json` だけ。§9.2 B-89〕 | 済 |
+| ~~**A-18**~~ | §7 の E026 の文言 | ja「`用語に修飾子は付けられません`」/ en「`Modifiers are not allowed on terms`」は**用語専用**の文言だが、§6.1.1 の表は `MaterialTitle`（資料タイトル）にも「（不可。付ければ **E026**）」を割り当てている。資料タイトルに修飾子を付けたときに「用語に…」と出るのは誤り | 文言を種別に触れない形にする（例: ja「`この参照に修飾子は付けられません`」/ en「`Modifiers are not allowed here`」）か、資料タイトル用に別コードを新設する。実装は §9.2 **B-63** で §6.1.1 の表を優先して E026 を出しているので、**M4 の i18n カタログ（§12.3）着手までに裁定**。**解消（2026-10-13 / 仕様 第 2.8 版）**: ユーザー裁定は「汎用の文言」。ja `この参照に修飾子は付けられません` / en `Modifiers are not allowed on this reference`、条件列は「修飾子を付けられない参照に修飾子（§6.1.1）」 | 済 |
 | ~~**A-19**~~ | §6.1.3 の正規化の並び | 1 が NFKC、3 が「長音符 `ー` / `－` / `—` / `〜` を `ー` に統一」。`－`（U+FF0D）は **NFKC で ASCII の `-` になる**ので 3 の `－` は永久に発火しない（効くのは `—` と `〜` だけ） | 3（長音統一）を 1（NFKC）より**前**に移す。ASCII の `-` を長音にすると `M-01` のような ID が壊れるので「NFKC のあとにもう一度」ではなく**順序の入れ替え**が正解。実装は §9.2 **B-57** でその順にしてある | **解消（2026-10-11 / 仕様 第 2.7 版）** |
 | ~~**A-20**~~ | §6.2.4 の `material_title` の EBNF | `material_title = /[^\s「」。、;]+/` は**空白を含まない**が、§6.6.1 の例は `'M0137:科学の甲子園 本戦の運営と実技課題`（タイトルに空白）、§6.2.4 の文脈例外表の例も `'M0137:取材: 甲子園本戦`。EBNF どおりだとタイトルが `科学の甲子園` で切れて **E006**（タイトル不一致）になる | EBNF を空白を許す形（`/[^「」。、;\n]+/`）に直す。§6.6.1 のタイトルは §5.8.2 の index.json の例と同じ文字列なので、**例ではなく EBNF 側を直す**のが妥当。実装は §9.2 **B-59** で空白を許してある | **解消（2026-10-11 / 仕様 第 2.7 版）** |
 | ~~**A-21**~~ | 付録 B.4・§6.5.4 と付録 B.3 の下線範囲 | B.4 は「**ワイルドカード（`[^\n]*?` / 語クラス）が消費した範囲を除いた部分**に下線を引く」と言い、§6.5.4 も「一致した**リテラル部分のみ**に緑の下線」と言う。ところが B.3 の表（**テストの期待値**）は `(体言)！` → `[\p{Han}…]{1,24}！$` の一致例を「`静粛に！`」全体の下線としており、**語クラスが食った部分も下線に含まれる** | **B.3 を正**とし、下線から除外するのは **`*` / `〜`（`[^\n]*?`）だけ**にする（語クラス `(体言)` と `…` `?` は下線に含める）。B.4 と §6.5.4 の字句を「ワイルドカード（`*` / `〜`）が食った範囲」に直す。理由: `(体言)！` で `！` だけに下線しても作家に何も伝わらない（パターンを書いた意図は「体言＋！」という塊）。実装は `role_language.rs` で B.3 の 8 行をそのまま期待値にする（M3 完了条件 1） | **解消（2026-10-11 / 仕様 第 2.7 版）** |
 | ~~**A-22**~~ | §5.5.3 の `default-mode` の値 | 表は値を `mode_id`（**1 つ**）としている。ところが §6.4.4 は「1 キャラ 1 節につき**最大 2 モード**（`A+B`）」を認めていて、既定モードだけ 1 つに制限する理由が書かれていない。実装（`core/resolve/modes.rs`、§9.2 **B-65**）は `A+B` を受け付け、3 つ以上は **E005** にしている | §5.5.3 の値を §5.1 の `mode_expr`（`mode_id , [ "+" , mode_id ]`）に直す。診断は §6.4.4 の **E005** が既にあるので新しいコードは要らない。`tests/modes.rs` の `two_modes_in_the_default_mode_are_accepted` と `three_modes_in_the_default_mode_are_e005_here` が実装側の挙動を固定している | **解消（2026-10-11 / 仕様 第 2.7 版）** |
-| ~~**A-23**~~ | §6.5.2 の「文」と付録 B.3 の 1・2 行目 | §6.5.2 は「発話テキストを `。！？!?…` の直後で分割した単位（＝文）」を照合し「どちらの文末も照合対象になる」と定める。ところが B.3 の 1 行目は `*だよ！` の**不一致例**を「だよ！って何」としていて、文単位にすると先頭の「だよ！」が 1 文になって**一致してしまう**。2 行目も `…あの…*` の一致例を「__…あの…__その…」としていて、文単位にすると「…」/「あの…」/「その…」に割れて `^[…‥.。]{1,6}あの` が**一致しなくなる** | **B.3 を正**とする（A-21 と同じ裁定の流儀。B.3 は「テストの期待値」と明記された表で、本書 §5.4 の M3 完了条件 1）。`^` / `$` は**発話全体**（`「」` の内側）の先頭・末尾を指す。§6.5.2 の「文」の段落を「`^` / `$` は発話全体の先頭・末尾。複数の文を含む台詞でも、文末のパターンが当たるのは**台詞の末尾**だけ」に書き換える（第 2.7 版）。文単位の照合を望むなら B.3 の 1・2 行目の例を直す必要があり、実装側は `role_language.rs` の `anchored` 1 関数＋テスト 2 件の変更で切り替えられる | **解消（2026-10-11 / 仕様 第 2.7 版）** |
-| **A-24** | §7 に「語クラスの正規表現が不正」のコードが無い | §6.5.1 の語クラスは `project.json.lexicon.word_classes` に**正規表現で**書くので、作家が壊れた値（`[` など）を書きうる。§7 の 78 コードに対応するものが無い（W094 は ② の検索打ち切り）。実装（`core/resolve/role_language.rs`）は `Matcher::new` が `None` を返して**そのパターンだけを黙って捨てる**（§6.5.4「一致しない場合は何もしない」と §4.3-4 に従い、役割語の色が消えるだけで執筆は止まらない） | (1) `project.json` の検証（M5 の設定読み込み）で診断を 1 つ新設して「語クラスの正規表現が不正」と報告する、(2) ② の予約域（W080 以降 / E032 以降）を避けて §7.1 に置く、のどちらか。**黙って捨てるだけの現状は M5 までに直す**（設定の書き間違いが UI に一切出ないのは「誤りはその場で示す」に反する） | M5（設定の読み込み）まで |
+| ~~**A-23**~~ | §6.5.2 の「文」と付録 B.3 の 1・2 行目 | §6.5.2 は「発話テキストを `。！？!?…` の直後で分割した単位（＝文）」を照合し「どちらの文末も照合対象になる」と定める。ところが B.3 の 1 行目は `*だよ！` の**不一致例**を「だよ！って何」としていて、文単位にすると先頭の「だよ！」が 1 文になって**一致してしまう**。2 行目も `…あの…*` の一致例を「__…あの…__その…」としていて、文単位にすると「…」/「あの…」/「その…」に割れて `^[…‥.。]{1,6}あの` が**一致しなくなる** | **B.3 を正**とする（A-21 と同じ裁定の流儀。B.3 は「テストの期待値」と明記された表で、本書 §5.4 の M3 完了条件 1）。`^` / `$` は**発話全体**（`「」` の内側）の先頭・末尾を指す。§6.5.2 の「文」の段落を「`^` / `$` は発話全体の先頭・末尾。複数の文を含む台詞でも、文末のパターンが当たるのは**台詞の末尾**だけ」に書き換える（第 2.7 版）。文単位の照合を望むなら B.3 の 1・2 行目の例を直す必要があり、実装側は `role_language.rs` の `anchored` 1 関数＋テスト 2 件の変更で切り替えられる | ~~**解消（2026-10-11 / 仕様 第 2.7 版）**~~ → **再裁定（2026-10-13 / 仕様 第 2.8 版）**: ユーザー裁定で**文単位**に変更（第 2.7 版の「発話全体」を撤回）。発話全体だと §6.5.2 の例 `分かってるよ。でも、これを見てくれ` のような台詞の途中の文末が拾えないため。B.3 の 1 行目の不一致例を「本当だよ！？」に差し替え、2 行目は「頭の文末記号の連続は次の文に含める」規則で成り立たせた。`role_language.rs` は `sentences` で区切って文ごとに照合する（`=` 前置だけは発話全体）。区切り方の細部は §9.2 **B-74** |
+| ~~**A-24**~~ | §7 に「語クラスの正規表現が不正」のコードが無い | §6.5.1 の語クラスは `project.json.lexicon.word_classes` に**正規表現で**書くので、作家が壊れた値（`[` など）を書きうる。§7 の 78 コードに対応するものが無い（W094 は ② の検索打ち切り）。実装（`core/resolve/role_language.rs`）は `Matcher::new` が `None` を返して**そのパターンだけを黙って捨てる**（§6.5.4「一致しない場合は何もしない」と §4.3-4 に従い、役割語の色が消えるだけで執筆は止まらない） | (1) `project.json` の検証（M5 の設定読み込み）で診断を 1 つ新設して「語クラスの正規表現が不正」と報告する、(2) ② の予約域（W080 以降 / E032 以降）を避けて §7.1 に置く、のどちらか。**黙って捨てるだけの現状は M5 までに直す**（設定の書き間違いが UI に一切出ないのは「誤りはその場で示す」に反する）。**解消（2026-10-13 / 仕様 第 2.9 版）**: ユーザー裁定は (1)「診断を追加する」。§7 に **E027**「`project.json` の `lexicon.word_classes` の正規表現が不正（§6.5.1）」を新設し（ja `語クラス {0} の正規表現が不正です` / en `Invalid regular expression for word class {0}`、`{0}` はクラス名）、`syntax::project_json` が `project.json` の値の位置に出す。マッチャはそのクラスを使うパターンだけを捨てる（§6.5.1 に追記）。コードは 80 件（§7 = 39）。§9.2 **B-88**・**B-89** | 済 |
 | ~~**A-4**~~ | §14.1 | サブコマンド一覧に `lsp` が無い（U-3 保留の帰結）が、`DEVELOPERS.md` との整合が未確認 | **解消（2026-10-09）**。`DEVELOPERS.md` を全面改訂。`--init` → `new`、層構造、8 形式、IME（§9.8.5）、`Alt+7` 欠番、保存の考え方、`lsp` 不在の理由を反映。**M11 では sample と実装の実態に合わせた微修正だけでよい** | 済（M11 で再確認） |
 
 ### 9.2 設計判断（実装者が決めてよいが、決めてから書く）
@@ -1381,7 +1675,7 @@ tests/layering.rs
 | B-51（**2026-10-11**） | E025（JSON がパースできない）の**番号**と位置・引数 | §7.1 に置く（E064 以降の空き）/ §7 の E024 の隣 / 既存コードの流用 | **§7 の E024 の隣（E025）**。E024 が「`materials/index.json` の `path`」で、E025 は同じファイルの**パース失敗**なので隣が最も読める。空き番号の確認は全 docs / src を grep して **E009–E011 / E014 / E015 / E019 / E022 / E023 / E025 / E027 / E029 がどこにも出現しない**ことを確かめたうえで行い、② の予約域（**W080 以降 / E032 以降 / E064 / I054 以降**、本書 §1.5-3）には触れていない。位置は**ファイル全体**（`0..raw.len()`）: serde はトークン位置を持たないので「どのキーが壊れたか」は言えず、§7.1 の「文書位置を持たない通知」にするよりは**ファイルを開いたまま直せる**ほうが作者の行動に合う（Anchor は `STATUS_ANCHOR` 外なので自動的に `Document`）。引数は **1 個**（`{0}` ＝パーサのメッセージ）で、ja / en の両方の文言が `{0}` を使うので `tests/diagnostics_catalog.rs` の引数検査をそのまま通る。`Group::Core`（Error 1..=31）も既存の規則で自動的に正しくなる |
 | B-52（**2026-10-11**） | 仕様の例を直したあと、**消えた診断の網羅**をどう残すか | 例が直ったので検査も消す / 合成入力で検査だけ残す / ゴールデンに壊れたケースを足す | **合成入力で検査だけ残す**。§5.9.2 の例が `{{text_current}}` になったことで E031 のゴールデン網羅が消えるので、`tests/prompt_md.rs` の `an_unknown_variable_reports_e031` に `{{content_section}}` のケースを追加した（**A-16 で直した綴りそのもの**を「閉集合に無い名前」の例として残すので、回帰が起きても気づける）。同様に W011 は §5.5.7 / §5.7 / §5.9.1 / §5.9.2 の例から消えたので、② のキー（`blurb` `icon` `address`）と `foo` を使う unit テストを 4 形式ぶん残した。「ゴールデンに壊れたケースを足す」案は §6.3 の「入力は**仕様書のコード例をそのまま**」に反するので採らない（壊れた入力のゴールデン 3 件は仕様書の例ではないが、いずれも M2 で既存のものを固定した範囲） |
 | B-53（**2026-10-11**） | E025 の**ゴールデンケース**を足すか | `materials_index/broken_json.txt` を足す / unit テストだけにしておく | **unit テストだけ**。E025 の引数 `{0}` は serde_json のエラーメッセージ（`trailing comma at line 6 column 3` のように**行・列を含む**）なので、`.expected.json` に書くと `serde_json` を更新しただけでゴールデンが落ちる（仕様の変更でない理由で赤くなる）。`Index::error` も同じメッセージを写像するので同様。§6.3 の「期待値は仕様と突き合わせられるもの」を守るため、E025 は `tests/materials_index.rs` の 2 テスト（コード・位置・引数の数・`contains("expected value")`・既定値での続行・原文の不変）で固定する |
-| B-54（**2026-10-11・ユーザー承認**） | GUI のクレート（egui / eframe）を既定のビルドに入れるか | 常にビルドする（`Cargo.toml` のまま）/ **`ui` feature にして既定は空** / `default = ["ui"]` にして CI だけ `--no-default-features` | **`ui` feature にして `default = []`**。M7 まで `src/ui/**` は 1 行の stub ばかり（54 行）で egui を一切使わないのに、egui / eframe は依存ツリーが 200 クレート規模あるので、CI の clippy / test / wasm の 3 ジョブが毎回それをビルドしていた（`Swatinem/rust-cache` が効くのは `Cargo.lock` が変わらない間だけ）。ユーザーの「Actions 使用時間をできるだけ抑える」指示にも沿う。対象は §2.1 の表で層が **ui** の 5 クレート（`eframe` / `egui` / `rfd` / `fontdb` / `toml`）で、`zip` / `web-time` / `tokio` / `directories` / wasm 系は **ui ではない**（export・clock・storage・MCP のアダプタが使う）ので既定のまま残した。`default = ["ui"]` ＋ CI だけ `--no-default-features` の案は、手元の `cargo test` が毎回 egui をビルドすることになって開発ループが遅いので採らない（CI の時間だけを問題にすればどちらでもよいが、`cargo build` で GUI が要るのは M7 以降で、そのときは `--features ui` を 1 回付けるだけ）。**回帰の防止**: `tests/layering.rs` の末尾 2 テストが `Cargo.toml`（5 クレートが `optional = true` で `[features] ui` の `dep:` に並ぶ／`default` に `ui` が無い）と `src/lib.rs`・`src/adapters/mod.rs` の `#[cfg(feature = "ui")]` を `include_str!` で読む。`toml` は optional になるとテストからも使えなくなるので **`[dev-dependencies]` にも置いた**（検査のために GUI をビルドしない）。**M7 の作業項目 0** で CI の 3 コマンドに `--features ui` を足す |
+| B-54（**2026-10-11・ユーザー承認**） | GUI のクレート（egui / eframe）を既定のビルドに入れるか | 常にビルドする（`Cargo.toml` のまま）/ **`ui` feature にして既定は空** / `default = ["ui"]` にして CI だけ `--no-default-features` | **`ui` feature にして `default = []`**。M7 まで `src/ui/**` は 1 行の stub ばかり（54 行）で egui を一切使わないのに、egui / eframe は依存ツリーが 200 クレート規模あるので、CI の clippy / test / wasm の 3 ジョブが毎回それをビルドしていた（`Swatinem/rust-cache` が効くのは `Cargo.lock` が変わらない間だけ）。ユーザーの「Actions 使用時間をできるだけ抑える」指示にも沿う。対象は §2.1 の表で層が **ui** の 5 クレート（`eframe` / `egui` / `rfd` / `fontdb` / `toml`）で、`zip` / `web-time` / `tokio` / `directories` / wasm 系は **ui ではない**（export・clock・storage・MCP のアダプタが使う）ので既定のまま残した。`default = ["ui"]` ＋ CI だけ `--no-default-features` の案は、手元の `cargo test` が毎回 egui をビルドすることになって開発ループが遅いので採らない（CI の時間だけを問題にすればどちらでもよいが、`cargo build` で GUI が要るのは M7 以降で、そのときは `--features ui` を 1 回付けるだけ）。**回帰の防止**: `tests/layering.rs` の末尾 2 テストが `Cargo.toml`（5 クレートが `optional = true` で `[features] ui` の `dep:` に並ぶ／`default` に `ui` が無い）と `src/lib.rs`・`src/adapters/mod.rs` の `#[cfg(feature = "ui")]` を `include_str!` で読む。`toml` は optional になるとテストからも使えなくなるので **`[dev-dependencies]` にも置いた**（検査のために GUI をビルドしない）。**M7 の作業項目 0** で CI の 3 コマンドに `--features ui` を足す **改（2026-10-13、M6、B-100）**: `toml` は CLI も使う文言カタログのために通常の依存にした（feature の後ろは 4 クレート）。`src/lib.rs` の `pub mod ui;` は cfg なしで、`src/ui/mod.rs` が `i18n` 以外を守る |
 | B-55（**2026-10-11・ユーザー承認**） | CI の失敗出力をどう出すか | 生ログの `head` / `tail` を PR コメントに貼る（M0 の形）/ Actions のログを読む（`gh run view --log`）/ **生ログを解析して注釈・サマリ・コメントの 3 面構成にする** | **3 面構成にする**。(1) Actions のログ取得先ホスト（`objects.githubusercontent.com`）には作業環境から到達できず `gh run view --log*` は全部失敗するので「ログを読む」案は最初から使えない（本書 §9.3）。(2) M0 の `head -n 120` / `tail -n 60` は、**テスト失敗の本体がログの真ん中にある**（`---- <name> stdout ----` ブロックは全ターゲットの実行後にまとめて出る）ため、ちょうど落ちる。コンパイルエラーも数十行の `Compiling …` に埋もれる。解析は `.github/report.py`（**標準ライブラリのみ**、runner の python3 に何も入れない）で、rustc の診断（`error[E0716]: …` ＋ `--> file:line:col` ＋ 本文 24 行）・テスト失敗（panic 位置とメッセージ 30 行）・rustfmt の差分（`Diff in <path>:<line>:` を**箇所ごとに**分け、runner の絶対パスを `GITHUB_WORKSPACE` で相対化）を拾う。cargo 自身のまとめ行（`could not compile` / `build failed` / `test failed, to rerun` 等）は**拾わない**（件数の水増しになり、情報は `test result:` の行と失敗一覧で足りる）。**解析できなかったときは生ログの先頭と末尾にフォールバックする**（解析器のバグで失敗理由が消えるのが一番悪い）。**レポート生成は合否に影響させない**（`|| echo "::warning::…"`。レポートのバグで緑が赤くなるのを防ぐ）。あわせて `cargo test --no-fail-fast`（1 回の CI で全形式の失敗を知る。失敗時のみ時間が伸びる）と `timeout-minutes`（暴走時の課金を止める）を入れた。実行サマリは**成功時も書く**ので、run のページで「何件通ったか」が緑の証跡としてその場で分かる（PR コメントは失敗時のみ＝ノイズにしない） |
 | B-56（**2026-10-11**） | M3 の `resolve/*` は何を入力にするか | `core/model` の型（`Character` / `Word` / `Mode`）だけ / `core/syntax` の木だけ / 木を正本にし、意味の塊が要るところで model の型をその場で組む | **3 つ目**。`model` は行の位置を持たないので、それだけでは診断の波線を引く場所が決まらない（§7.2「位置は byte range」）。§6.4.3 の 8 段は C 形式の話者注釈・B 形式の節と場面の `mode:`・A 形式の `cast:`・`characters.md` の `default-mode` と**4 ファイルの木を跨ぐ**ので、位置を持つ側を入力にする。`model` を外したわけではなく、`RolePattern::anchor()`（§6.5.2 の固定表）・`Mode::range_expr()`（§5.1）・`MaterialIndex`（JSON そのものがストレージ形式、§5.8.2）は `resolve` がそのまま呼ぶ。`syntax → model` の書き起こし（`model::Character` を埋める関数）は**参照ペイン（§9.5）とストレージ（M5）が要るとき**に回す。位置の単位は M2 と同じで、ファイル単位の木は**ファイル内 byte**、行単位の型（`RefToken` / `Speaker` / `Pattern`）は**行内相対** |
 | B-57（**2026-10-11**） | §6.1.3 の正規化の実装順と `MAX_KEY_BYTES` の測り方 | 仕様書の 1〜4 をそのまま（NFKC → 小文字 → 長音 → 空白）/ **長音統一を NFKC より先に** / NFKC の前後で 2 回長音統一する | **長音統一を先に適用する**。仕様書の順だと `－`（U+FF0D）は NFKC で ASCII の `-` になり、3 の「`－` を `ー` に統一」が**永久に発火しない**（`—` と `〜` は NFKC で形が変わらないので効く）。ASCII の `-` を長音にしてしまうと `M-01` のような ID が壊れるので、4 文字（`ー` `－` `—` `〜`）を先に `ー` へ統一してから NFKC する。あわせて **`MAX_KEY_BYTES = 96` は正規化後の byte 数**で測る（これはトライの深さの上限なので、空白を落とした実体で測らないと §6.6.1 の空白入りタイトルを E028 で落としてしまう）。正規化は**1 文字ずつ**行う（`OffsetMap` で byte 位置を元に戻すため）。代償は結合文字の並び（半角カナ＋濁点）が合成されないことで、辞書キーにそれを書く事例は無いと判断した。性能は NFKC が恒等な文字（ASCII・かな・漢字・CJK 約物）を `String` に集めず直接 push して、5,000 エントリで **release 5.3ms**（§18.1 の目標 10ms 以内、完了条件 4） |
@@ -1401,6 +1695,91 @@ tests/layering.rs
 | B-71（**2026-10-11**） | **E007**（未知の資料 ID）と **E001**（未解決の参照）の分担。辞書は index から作るので「ID が辞書に無い」＝「index に無い」 | 辞書が E001、`materials` が E007（両方出る）/ 形を見て**どちらか 1 つ** | **資料 ID の形（§5.8.2 `M` / `S` ＋ 4 桁以上の数字）をした未解決トークンは E007 だけ**、それ以外は E001 のまま。両方出ると同じ `'M9999` に 2 本の波線が重なる（B-67 と同じ問題）。判定は `materials::unknown_material_id`（`model::material::MaterialId::parse` をそのまま使う）。**M4 の入口は `materials::scan_line`** にして、辞書の診断（E001 / E002 / E026 / W029）と資料の診断（E006 / E007 / W031）を**1 か所で**組む（呼び出し側が 2 つの関数を別々に呼んで重ねないようにするため） |
 | B-72（**2026-10-11**） | §6.6.2 のインレイヒントの文言（`⟨タイトル・提案中⟩`）と §6.6.3 のクイックフィックス 3 種を core が作るか | core が完成した文字列を返す / **中身だけ返して文言は UI/i18n** | **中身だけ返す**。§12.2「core にユーザー向け文言を置かない」ため（`en` では `⟨title · proposed⟩` になる）。`Hint` は「位置・切り詰めたタイトル・`status`」だけを持ち、括弧と「提案中」「却下」の添え文言は `ui/i18n`（§12.3）が組む。**24 字 / 23 字 + `…`** の切り詰めは言語に依存しないので core が行う（`hint_title`。字は Unicode の文字数で数える）。`TitleFixes` も「index のタイトル・書かれたタイトル・別 ID」の 3 つの中身だけで、文字列は**所有する**（借用だと参照トークンと index の 2 つの生存期間を 1 本のライフタイムに縛るため）。§6.6.1 の 3 行目の「ID へ正規化するクイックフィックス」は `Resolved.normalize_to_id`（置換後のトークン全体 `'M0137`）で返す。**診断は出さない**（書き方としては正しいので、E006 と混ぜない） |
 | B-73（**2026-10-11**） | §15.4 の MUST「UI と LLM で**情報源と優先順位を一致させる**」をどう機械的に担保するか | 参照ペイン（§9.5.2）と ContextPacket（§15.4.1）がそれぞれ順番を持つ / **1 枚の対応表を両方が引く** | **`context_rules.rs` に 1 枚の対応表を置く**（`PaneSection::packet_blocks` と逆引きの `PacketBlock::pane_sections`）。§9.5.2 の 9 セクションと §15.4.1 の 9 ブロックは**別の並び**なので「同じもの」とは言えないが、**情報源**は重なる（例: ペインの 5 五感・6 空間・8 挿絵はどれもパケットの `3 plot` に入る。9 診断はパケットに対応ブロックが無い）。対応表を 1 か所に置けば、M4（ペイン）と M10（パケット）が食い違わない。**優先順位の枠（`Layout`）も共用**で、ペインは §9.5.2 の「同一話」まで（`PANE_FARTHEST`）、パケットは §15.4.1 のブロックごとの範囲（`6 lexicon` は当該節など）を**上限として渡す**だけ。`Layout` の行範囲は**呼び出し側が木から作る**（core は I/O をせず形式も問わない、§3.2・B-56） |
+| B-74（**2026-10-13**） | §6.5.2 の**文**の区切り方（第 2.8 版で `^` / `$` を文単位にした、§9.1 A-23） | (a) 文末記号 1 字ごとに区切る / (b) 文末記号の**連続**の直後で区切る。あわせて、頭の文末記号・前後の空白・`=` 前置・複数の一致をどう扱うか | **(b)**。`！？` も `……` も 1 つの区切り。**頭（発話の頭・区切りの直後）の文末記号の連続は区切りにせず次の文に含める**（`…あの…その…` → `…あの…` / `その…`。付録 B.3 の 2 行目がこれで成り立つ）。**前後の空白（`lexer::is_space`）は文に含めない**（`えっ！　ちょっ…` の全角空白は和文の組版慣習で、含めると文頭固定が当たらない）。**`=` 前置だけは発話全体**（§6.5.2 の表「発話全体が一致」）。`‥` と `.` は省略記号のアトムには入るが文末記号にしない（§6.5.2 が挙げる 6 字だけ）。1 つの台詞で複数の文が一致したら**全部**返す（`Matcher::find_all`。`find` は最初の 1 件）。`RegexSet` の前置フィルタは文ごとに当てる。実装は `core/resolve/role_language.rs` の `sentences`、テストは `tests/role_language.rs` の「§6.5.2 の文の区切り」の節 |
+| B-75（**2026-10-13**） | E020 / E022 の引数（第 2.8 版、§9.1 A-9・A-10） | C・B 形式の E020 の `{0}` に (a) 最少の 3 / (b) 範囲 `3-4` / (c) 書かれた階層数。5 階層以上を E020 にするか。E022 の `{0}` に ID 全体か番号だけか | E020 は **(b) `Arg::text("3-4")`**（C・B 形式は 3 と 4 の両方を受け付けるので、1 つの数だと「3 階層だけ」と読めて A-9 の矛盾が再発する。A 形式はこれまでどおり `Arg::number(期待する階層)`）。en 文言は範囲でも読めるよう `Only level {0} headers are allowed here` に直した（仕様 第 2.8 版）。**5 階層以上**はどの形式のファイルにも置けず「対応ファイルへ移動」できないので **E002** のまま。E022 の `{0}` は**書かれたままの ID**（`@` を除く。E008 と同じ流儀） |
+| B-76（**2026-10-13**） | §3.4 の `&Project`（11 機能が受け取るプロジェクト全体）の形と置き場所 | `model::Project`（`project.json`）を使う / 構文木を持つ集約 / **文書を所有し、木は呼ぶたびにパースする集約** | **`core::features::Project`（`features/project.rs`）で、設定・文書（`path → Document`）・構築済みの辞書を所有する**。構文木（`Characters<'a>` 等）は原文を借用するので持つと自己参照になる（unsafe が要る）。木は機能を呼ぶたびにパースし直す（M2 のパーサは速く、打鍵ごとの再解析は §6.7 の増分が担う）。辞書だけは §6.1.2 どおり 3 ファイルが変わったときに作り直して持ち続ける。`model/` に置かないのは `model` が `syntax` を使えないから（B-29）。§3.3 のツリーに `features/project.rs` を足した（仕様 第 2.8 版） |
+| B-77（**2026-10-13**） | `'` を走査する範囲（§5.0.2「全形式の本文部」） | 行全体 / 形式ごとの木から決める / **字句器の行の種類で決める** | **字句器（`lexer::classify`）の行の種類で決める**（`features::project::scan_ranges`）。見出し・節区切り・行頭コメントは走査しない。フィールド行は値（行末コメントの手前まで。B-36 で値に残るコメントは除く）、継続行は字下げの後ろ、通常の行は行末コメントの手前まで。`*.md` の `#` 見出し行は項目名そのものなので走査しない。行内コメント `/* */` の中も除く。範囲の外は空白（§6.2.1 の区切り文字）に置き換えてから辞書で走査するので、位置は元の行と同じ |
+| B-78（**2026-10-13**） | 11 機能の引数の順と位置の単位 | §3.4 の本文「`(&Project, &Document, Position)` 等」の順 / **§3.4 の表の順**。位置は UTF-16 の `Position` / byte | **§3.4 の表の順**（`semantic_tokens::full(doc, project)`、`completion::at(doc, pos, project)` など）。本文の括弧は「引数の種類」の列挙と読む（仕様 第 2.8 版で本文を表に合わせた）。`document_symbol::all(doc)` と `folding::ranges(doc)` はプロジェクトを取らない。位置は**ファイル内の byte**（B-1・§3.4「core は内部的に byte offset」）で、UTF-16 との変換は `LineTable`（アダプタと UI の仕事）。`rename` は `prepare(doc, pos, project)` / `apply(doc, pos, new_name, project)` |
+| B-79（**2026-10-13**） | `diagnostics::document` でモードの診断（E003 / E004 / W006）をどの文書に載せるか | 解決に関わった全ファイルに載せる / **その文書に書かれた割り当てだけ** | **その文書に書かれた割り当てだけ**（本文を開いて話プロットの `mode:` の E003 が出ることはない）。本文: 話者注釈の修飾子（段 1）と本文中の `'名前:モード`。話プロット: (節, キャラ) の組ごとに 8 段を解いて話プロットの診断だけ残す。キャラは「その場面・節・前文の `mode:` に書かれた人」と「対応する本文の同じ節で話している人」で、**W006 は後者だけ**、しかも**モードを 1 つも定義していないキャラは対象外**（端役の台詞ごとに警告が並ぶ）。章・全体プロット: `cast:`。`characters.md`: `default-mode:` の E003 / E005（どの節にも効くので E004 は出さない）。`mode:` / `cast:` 以外の `'名前:モード` は 8 段を通らないので `modes::check_id`（M4 で公開）で直接見る |
+| B-80（**2026-10-13**） | セマンティックトークンの形と `role-language` | 重なりを許す / **重ならない列**。`role-language` を種別にする / **修飾にする** | **重ならない・位置の昇順の列**（LSP の `semanticTokens/full` は重なりを表せない）。内側が外側を切り欠き、優先順位は「台詞 < ルビ < 参照 < 話者注釈 < コメント」。§6.3 の `role-language` は「下線専用、色は変えない」ので**種別ではなく `SemanticToken::role_language`**（LSP の tokenModifiers）。`ref.address` / `citation` / `illustration` は enum にあるが ① では出さない（PLANS §5.5 の表） |
+| B-81（**2026-10-13**） | §6.5.3「直前の話者注釈の継続」の及ぶ範囲 | ファイルの終わりまで / 場面の終わりまで / **節の中だけ** | **節の中だけ**（`;` を跨がない）。節が変われば話者も変わるのが普通で、跨ぐと別の人の台詞に下線が付く。継続した行では話者注釈の修飾子（段 1「その行のみ」）は効かないので、プロット側のモードで解く。それでも決まらなければ話プロットの `pov`（節 → 場面） |
+| B-82（**2026-10-13**） | §3.4 の表の「モード名の薄表示」 | 出さない（§6.6.2 は資料だけ）/ **モードの表示名を出す** | **出す**。`'リリア:B` と話者注釈 `@リリア:B` の直後に、`### B 呆れ（強）` の表示名を書かれた順に（`B+C` なら 2 つ）。同じ ID の変種はその行の節を含むものの表示名。未定義（E003）と表示名の無いモードは出さない。括弧と文言は UI（§12.2） |
+| B-83（**2026-10-13**） | §5.12 の 2（改行コードの統一）と 6（`: ` の後は空白 1 個）の細部 | 文書の中で CRLF にする / **保存時に任せる**。全角 `：` も `： 値` にする / **全角の後ろは触らない** | 改行は**保存時**（`lexer::normalize_for_save`）。文書はメモリ上では常に LF（§5.0.4）なので、`formatting` は行末の `\r` を落とすだけ。全角 `：` は §5.0.5 が空白を求めないので**後ろは触らず**、key との間だけ詰める（和文の書き方を変えない）。編集は変わった行ごと |
+| B-84（**2026-10-13**） | 改名の単位と、最短一致を壊す名前 | 実体（キャラ）の全キーを改名 / **カーソルの下のキー 1 つ** | **キー 1 つ**（H1 の表示名か `alias:` の 1 項目）。そのキーで解決された参照と、キャラなら完全一致の話者注釈を書き換える（別名で書いた参照は別名のまま）。資料は index が正本なので対象外。新しい名前の**真の接頭辞が別のキー**なら最短一致で短いほうに解決されるので（§6.2.2）、参照を**明示形 `'{…}`** で書く。正規化して既存のキーと同じ名前は `Duplicate` |
+| B-85（**2026-10-13**） | §9.7.3 の並び順の「直近使用」 | core に使用履歴を渡す引数を足す / **core は飛ばす** | **飛ばす**（使用履歴は UI の状態で、§3.4 のシグネチャ `(doc, pos, project)` に入らない）。core は「現在の節 > 同じ話（＝この文書） > 五十音（`reading` 優先、無ければキーの文字コード順）」で返し、UI が直近使用で安定ソートし直せば仕様の順になる。挿入する文字列は、最短一致で別の項目になる・区切り文字を含むキーなら明示形 `{キー}` |
+| B-86（**2026-10-13**） | ① の `code_action` が返すクイックフィックス | §7 の列を全部 / **テキスト編集だけで決まるもの** | **テキスト編集だけで決まるもの**（一覧は `code_action.rs` の doc）。ファイルをまたぐ移動（E020・E024・W031）と、作家がどこへ・どの範囲にを選ぶ操作（E025「既定値で開く」・W022 / E004「range 拡張」・E004「変種を追加」・E003「モードを新規定義」・E007「新規資料を作成」・E017「範囲を分割」）は UI の対話が要るので返さない。E006 の「index 側を書き換える」は原文に同じ書き方のタイトルが 1 か所だけあるときに限り、JSON を整形し直さない |
+| B-87（**2026-10-13**） | C 形式（本文）の見出しの重複 | 検査しない（M2 のまま）/ **E008** | **E008**。§7 の E008 は「同一ファイル内の ID 重複」で形式を限らず、B 形式（話プロット）は M2 から検査していた。B 形式の `warn_duplicate` を `contents.rs` に移して共有する（B-40）。比べるのは ID と階層の組（`@01-04-02` の後の `@01-04-02-03` は §5.2.2 の「D 節目から」で重複ではない） |
+| B-88（**2026-10-13**） | §9.1 A-24 の診断コード（語クラスの正規表現が不正） | §7 に置く / §7.1 に置く / W にする | **§7 の E027**（ユーザー裁定は「診断を足す」＝ A-24 の (1)。番号・表・重大度は実装側に任された）。`project.json` の中に位置を持つので §7.1（位置を持たない通知）ではなく §7。設定の誤りなので E（E025 と同じ扱い）。番号は E025（JSON）の近くの空き番号で、② の予約域（W080 以降 / E032 以降 / E064 / I054 以降）に触れない。不正かどうかは値を**単独で**コンパイルできるか（`Lexicon::invalid_word_classes`）で決める。パターンに埋め込んだときだけ壊れる値（同じ名前付きグループを 2 回使う等）は E027 を出さず、従来どおりそのパターンだけ捨てる（まれで、単独の検査で取りこぼしても執筆は止まらない）。位置は値の文字列リテラル（B-45 と同じく原文から探す）。見つからない書き方（`\u` エスケープ）ならキー → `"word_classes"` → ファイル全体に広げる。仕様 第 2.9 版 |
+| B-89（**2026-10-13**） | M5 の「設定の読み込み」の置き場所 | ストレージが `model::Project` を作って渡す / **`project.json` の文書から集約が自分で読む** | `features::Project` が `project.json` の文書を `insert` / `with_documents` で受け取ったときに `syntax::project_json::parse` で設定を置き換える（読めなければ既定値、§4.3-4）。文書を外せば既定値。ストレージは「読んだ文書を渡す」だけで済み、エディタで `project.json` を直したときも同じ経路で設定が変わる（実効値は常に `project.json` の原文の関数）。E025 / E027 は `diagnostics::document` が `project.json` の上に出す。**`.novnow/ui.json` と `stats.json` は壊れていても診断を出さない**（§4.4.1 の MUST「エラーを出さない」と §4.4.2。§9.1 A-17 の解消欄の「`ui.json` / `stats.json` のパース失敗も同じ E025」は仕様と食い違うので取り消した。E025 を出すのは `project.json` と `materials/index.json` だけ） |
+| B-90（**2026-10-13**） | ストレージのポートの形 | 同期の trait ／ Web だけ別の API ／ **非同期の trait 1 つ** | `ports::storage::Storage` の `list` / `dirs` / `read` / `write` / `append` / `remove` は `impl Future` を返す（RPITIT。trait に `async fn` と書くと `async_fn_in_trait` の警告で `-D warnings` に落ちるので、宣言は `fn … -> impl Future`、実装は `async fn`）。IndexedDB は非同期の API しか持たないので、両方を 1 つの trait にするにはこれしかない。`Send` は要求しない（Web の Future は `JsValue` を持つ）。ネイティブの実装は即座に完了する Future を返し、CLI とテストは `adapters::block_on`（std だけの 20 行。ネイティブ専用）で待つ。パスは `core::policy::ProjectPath`（ルートからの相対・`/` 区切り。空・絶対・`\`・`.` / `..`・空の要素・`:`・制御文字を作る時点で拒否）なので、trait から字句的にルートの外へは書けない。`dirs()` は §4.3 の必須ディレクトリの判定用で、ディレクトリを持たない IndexedDB は `None` |
+| B-91（**2026-10-13**） | 規則 10 の関門の作り | core が I/O 込みで判定する ／ adapters 全体で書く ／ **関門 1 ファイル ＋ core の字句判定** | `core::policy::WritePolicy` は**解決済みの絶対パス**を字句で判定するだけ（`..` を正規化してルートより上は `Escape`、要素単位の前方一致でプロジェクト内、履歴はそのファイルだけ、履歴の祖先はディレクトリの作成だけ＝`check_dir`）。シンボリックリンクの解決は `adapters::storage_fs::resolve`（存在する最も深い祖先を `canonicalize` し、無い残りを字句のままつなぐ）。書き込みの system call は `storage_fs.rs` の `FsGate` にしか無く、`tests/layering.rs` が `src/` 全体を検査する（§13.1.2 の「`adapters/` 以外」より狭い。仕様 第 2.9 版）。違反は debug で panic・release で E060（`PolicyViolation::diagnostic`）。ユーザーが選んだパスは panic しない `FsGate::check` で先に確かめる。判定はロックを外してから panic する（毒にしない）。履歴の置き場所は `FsGate::new(&impl Env)` が §13.2.1 の規則で決め、パスを渡す口は無い。履歴は `write_history` からしか書けず、他の口は `Allowed::Project` だけを通す。関門が別のプロジェクトを開くと古い `FsStorage` は書けない（§13.1.1「現在開いている」）。解決できないパス（壊れたリンク等）は `Violation::Unresolved` で書かない。削除はリンク自身を消すのでリンクの置き場所で判定する。原子的保存の一時ファイルは前回の残り（リンクを含む）を消してから `create_new` で作り、置き換える前のファイルの権限を引き継ぐ |
+| B-92（**2026-10-13**） | 履歴ファイルの書き方と時刻 | §8.3 の原子的書き込み ／ **直接上書き** | §13.1.1 は一時ファイルであってもプロジェクト外への書き込みを禁じるので、§8.3 の一時ファイル方式は使えない（仕様 第 2.9 版で §8.3・§13.2.2 に明記）。壊れても §13.2.2 の「空として扱い上書き」で回復する。親ディレクトリの作成は許す。`opened_at` は RFC 3339 の UTC（`Z`）: 標準ライブラリにローカル時差の API が無く、クレートも足せない（`Clock::utc_offset_minutes` はネイティブで 0、Web は `Date#getTimezoneOffset`）。暦の計算は `clock_system` に自前で持つ（Hinnant の算法）。場所は `Env`（`var` / `os` / `home_dir`）から決める純粋な関数（`recent_file::location`）で、`XDG_STATE_HOME` が相対パスなら無視（XDG の規則）、`HOME` が無ければ `directories` の既定。形は `core::policy::recent`（デスクトップの `{path, opened_at}` と Web の `{id, opened_at}` が同じ規則。手で足されたキーは読むときに落ちる＝温存しない、重複は新しいほうを残す、`schema_version` が 1 以外は空）。置き場所が決まらない環境では書かない |
+| B-93（**2026-10-13**） | Zip の書き出し先と取り込みの規則 | §13.5 の保存ダイアログ ／ **`exports/<name>.zip`** | 規則 10 と §5.6 の完了条件 1（エクスポートと Zip にプロジェクト外のパスを与えたら拒否）を優先し、デスクトップは `exports/<project-name>.zip` に書く（§13.5・§17.2 を仕様 第 2.9 版で修正。§17.2 の「名前を付けて保存」もデスクトップはプロジェクト内に限る）。書き出し先の Zip 自身は入れない（入れると毎回入れ子になる）。ドットで始まる名前は入れず取り込まないが、`novnow new` が作る `.gitignore` / `.gitkeep` は例外（落とすと往復で消え、完了条件 3 の「内容一致」が崩れる）。単一のルートを剥がすのは「全エントリが同じ 1 つのディレクトリの下」のときで、その名前が構成のディレクトリ名（`contents` 等）なら `<root>/project.json` があるときだけ。`..` のようなルートは剥がさない（剥がして安全にはしない）。絶対パス・`..`・`:` を含む名前は取り込まずに一覧で返す（zip slip の防止）。展開後の上限は 1 エントリ 256MiB・合計 1GiB。デスクトップの取り込みは既存のファイルを上書きしない。Web はテキストのみ（UTF-8 でないものは `NotText` で一覧） **改（2026-10-13、仕様 第 2.10 版）**: ユーザー裁定で、デスクトップの書き出し先は「**保存ダイアログで指定したパス**（プロジェクトの外でもよい＝ §13.1.1 の特例）」になった（**B-99**）。`exports/<project-name>.zip` はダイアログの初期値と、ダイアログを通さない `export_project` に残る。取り込みの規則は変わらない |
+| B-94（**2026-10-13**） | §4.3 の判定と読み込みの分担 | adapters が判定する ／ **判定は core、材料は adapters** | `core::model::project::validate(&Listing)`（ファイルとディレクトリの集合・`project.json` の中身・UTF-8 として不正なファイルの一覧）。§14.2.4 の表示のため、v0 の目印（`characters.json` があって `characters.md` が無い）を不足の列挙より先に見る。`project.json` が読めない・`schema_version` が数でなければ版の検査を飛ばす（E025 を出して既定値、§4.3-4）。`ProjectError::LegacyV0` は何で分かったか（`detected`）を持ち、`Encoding` はファイルを列挙する（仕様の例より情報を足した）。材料集めと文書の読み込みは `adapters::project_load`（どの `Storage` でも同じ手順。`load` は `.md` / `.txt` / `.json` を全部読んで UTF-8 を確かめ、`.novnow/`・`exports/`・ドットファイルは除く。§4.2 の形式のものだけを §5.0.4 の正規化にかけて `features::Project` に入れる）。§3.3 のツリーに `adapters/project_load.rs` を足した |
+| B-95（**2026-10-13**） | 外部変更の監視の分担 | v0 のように監視スレッドを adapters に置く ／ **規則は core、1 回分は adapters、タイマは UI** | `core::policy::external_change`: スタンプ（更新時刻・長さ）の差分で候補を出し（`Snapshot::diff`）、**中身を比べてから**反応を決める（`react`: 同じなら無視＝自分の保存や `touch`、辞書の 3 ファイルは常に再読込、Clean は再読込 ＋ I052、Dirty は衝突）。自分の保存は `write` が返すスタンプを `acknowledge` する。`.novnow/`・`exports/`・ドットファイルは見ない。1 回分（一覧 → 差分 → 置き換え）は `adapters::project_load::poll`。1,000ms のタイマは M7 の UI（ネイティブはスレッド、Web は `setInterval`） |
+| B-96（**2026-10-13**） | IndexedDB のアダプタの確かめ方と、v0 の取り込み | wasm の実行テストを足す（ブラウザが要る）／ **純粋な部分を分けてネイティブで試し、接続はコンパイルだけ** | `storage_idb.rs` の上半分（レコードの形・`app` の許可キー・W062・v0 の取り込みの計画・ID）は `tests/storage_idb.rs`。`wasm32` だけの `web` は CI の WASM ジョブがコンパイルを確かめ、実行の確認は M7 の Web UI（完了条件に足した）。`app` ストアに書く口は `push_recent` だけ（任意のキーの API を持たない）。トランザクションの境界は §13.3.3 のとおりで、成功は `oncomplete` で判定する（§8.3）。日時は UTC のミリ秒付き RFC 3339（固定幅で文字列の順 = 時刻の順。`by_updated` のため）。§13.3.6 の手順 3（v0 → v1 の変換）は M11 なので、変換は呼び出し側が渡す関数にした（`Idb::import_local_storage_with`）。M5 の既定の `convert_v0` は失敗を返すので、**v0 のデータがあれば E061 になり、LocalStorage は消さず IndexedDB にも書かない**（変換していない v0 を v1 のプロジェクトとして置かないため）。サンプルの投入（§13.3.5）は仕組みだけ（中身の付録 C は M11）。UUID は `crypto.getRandomValues`（§3.1 の図の `Random` ポートは足さない） |
+| B-97（**2026-10-13**） | 残りのポート | — | `Clock`（`now_millis` / `utc_offset_minutes`）・`Env`（`var` / `os` / `home_dir`。M6 で言語・`NO_COLOR`・端末の判定に広げる → **改（M6、B-101）**: OS のロケール `locale` を足した。端末かどうかは標準入出力の性質なので `cli::Terminal` が持つ）・`Dialog`（~~**開くためのダイアログだけ**。プロジェクト外には書けないので、保存先を選ぶダイアログは持たない~~ → **改（2026-10-13、B-99）**: §13.1.1 の特例のため、Zip の保存先を選ぶ `save_zip` と、その結果の型 `ChosenPath` を足した → さらに **改（B-109）**: テキストの「名前を付けて保存」の `save_text` も足した）・`McpClient`（§15.8.1 の 1 回の呼び出し。中身は M10）。実装は `adapters/env_system.rs`（§3.3 のツリーに追加）と `clock_system.rs` |
+| B-98（**2026-10-13**） | §5.6 の完了条件 2（実機で一通り操作して、プロジェクト外のファイルが履歴 1 個だけ）の扱い | M7 まで保留する ／ **M5 はストレージ層で実施して記録し、GUI での実施を M7 の完了条件にする** | M5 の時点では操作できる実機（CLI は M6・GUI は M7）が無い。`docs/verify-rule10.md` に手順（ファイル差分・strace・fs_usage・Process Monitor）と、GUI のライブラリが勝手に書くもの（eframe の `persistence`・GTK の `recently-used.xbel`・シェーダのキャッシュ）を書いた。ストレージ層で一通りの操作をなぞるテスト（`after_a_full_session_…`）を実プロセスとして走らせ、ファイルシステム全体の差分で確かめた（記録は同書 §5）。GUI での実施は §5.8 の完了条件に足した |
+| B-99（**2026-10-13**） | §13.1.1 の特例（保存ダイアログで指定された Zip はプロジェクトの外にも書ける）の作り | 関門の一般の口に許可を足す ／ 指定されたパスを関門に覚えさせる ／ **専用の判定・専用の口・消費される型** | ユーザー裁定（2026-10-13）「保存ダイアログによりユーザーから指定されたパスへの保存は特例として外部保存を許可する」。仕様 第 2.10 版で §13.1.1 に特例を足し、§13.1.2・§13.5・§19.10（と §0 の表・P6・§15.5.4 の言い回し）を直した。(1) 判定は core の `WritePolicy::check_chosen_export` だけで、`check` は特例を知らない（本文・設定・ログ・提案・履歴の口は従来どおり外を拒否する）。条件はファイル名が `.zip`（大文字小文字を問わない）で終わることと、履歴ファイルでないこと。シンボリックリンクは**行き先で**判定する（`.zip` を装ったリンクで任意のファイルを潰させない）。プロジェクト内を指定したら `Allowed::Project`（ふつうの原子的保存）。(2) 書き込みは `FsGate::write_chosen_export(ChosenPath, &[u8])` だけ。`ports::dialog::ChosenPath` は `Clone` を持たず値で消費される（1 回の指定で 1 回）。関門はパスを覚えない。外へは一時ファイルを使わず直接上書きし（§13.1.1「一時ファイルであっても」）、親ディレクトリは作らない（作ると「指定した 1 個」より多くを外に作る。ダイアログで選べるのは既存のディレクトリ）。(3) ダイアログの結果は panic しない `check_chosen_export` で先に確かめる（§13.1.2）。`zip::export_to_chosen` が内部でそうし、書き出し先がプロジェクト内ならその Zip を中身から除く。(4) `Dialog::save_zip(suggested)` を足した（B-97 を改める）。初期値は `exports/<name>.zip`、上書きの確認は OS のダイアログに任せる。(5) ~~§17.2 の「名前を付けて保存」（テキストのエクスポート）は特例に含めない（裁定は Zip について。広げるならユーザーの判断）~~ → **改（2026-10-13、B-109）**: ユーザー裁定でテキストにも広げた。(6) 指定されたパスは履歴にも書かない（§13.1.3）。`tests/storage_policy.rs` に 5 本（core 1・関門 3・リンク 1）を足し、総合テストの期待値を「履歴 ＋ 指定した Zip」にした |
+| B-100（**2026-10-13**） | CLI の文言カタログをどこでビルドするか | `ui` feature の後ろのまま（CLI は別の表を持つ）／ CLI 専用のモジュールに写す ／ **`ui::i18n` だけを常にビルドする** | 仕様 §12.2「CLI のメッセージも同じカタログを使う」を守るには、GUI なしのビルド（既定）でもカタログが要る。`toml` を通常の依存にし（feature の後ろは `eframe` / `egui` / `rfd` / `fontdb` の 4 つ。§2.1・B-54 を改める）、`src/lib.rs` の `pub mod ui;` は cfg なし、`src/ui/mod.rs` が `i18n` 以外を `#[cfg(feature = "ui")]` で守る。`tests/layering.rs` が (1) この形、(2) `ui/i18n` が GUI のクレートを使わないこと、(3) `src/cli/**`・`src/main.rs`・`src/ui/i18n/**` に日本語の文字列リテラルが無いこと（§12.2 の検査を CLI に広げた）を固定する。`Cargo.lock` は変わらない（optional でも lock には載っていた） |
+| B-101（**2026-10-13**） | 実行時の i18n と言語の決定（§12.3・§12.4） | — | `ui::i18n`: カタログは言語ごとに初回に 1 度だけ読む（`OnceLock`）。`text` は欠けたキーを `en` → キーそのものに落とし、**デバッグビルドでは panic**（§12.3 の `debug_assert!`。clippy の `assertions_on_constants` を避けて `if cfg!(debug_assertions) { panic! }`）。`fill` は `{n}` を 1 回の走査で埋める（値の中の `{0}` は埋め直さない・範囲外はそのまま）。言語は `Locale::detect(setting, env)`: (1) `ui.json` の `language` が `ja` / `en`（`system` は飛ばす）(2) `NOVNOW_LANG` が `ja…` / `en…`（他の値は無視して次へ）(3) OS のロケール（`ja…` → ja、`C` を含むそれ以外 → en）(4) ja。OS のロケールは `Env::locale` を足して取る（B-97 を改める）: 既定の実装は POSIX の順（`LC_ALL` → `LC_MESSAGES` → `LANG`）の環境変数、`SystemEnv` は無ければ Windows の `GetUserDefaultLocaleName`（FFI）/ Web の `navigator.language`。**CLI は (1) を読まない**（§14.2.3 が `NOVNOW_LANG` → OS → ja と書いており、壊れたプロジェクトでも同じ言語で出すため）。仕様 §14.2.3 の「`LANG`/`LC_ALL`」を POSIX の順に直した（第 2.10 版） |
+| B-102（**2026-10-13**） | 起動の判定（§14.3）の細部 | — | `cli::decide(args, terminal)` は純粋。順は `--gui` → `--help`/`-h` → `--version`/`-V`（この 3 つは**どの位置にあっても**効く。`novnow check --help` は使い方）→ 第 1 引数がサブコマンドと完全一致 → `-` で始まる知らない引数（2）→ 位置引数 1 つで Open（2 つ目は余分な引数で 2）→ 引数なしは stdin か stdout が端末なら使い方を stderr に出して 2、どちらも端末でなければ GUI（stderr だけが端末でも GUI）。`-` だけはディレクトリ名。`new` は 0〜1 個、`check` / `migrate` / `mcp` はちょうど 1 個、`export` は最初の引数がディレクトリ（`-` で始まれば 2）で残りはそのまま M9 に渡す。§14.2.5 の「未知サブコマンド」は §14.1 の規則（完全一致しない語はディレクトリ）と両立しないので、未知の**オプション**のことと読んだ（`novnow chekc` は「見つからない」で 3） |
+| B-103（**2026-10-13**） | §14.2 の例に無い場合の表示と終了コード | — | 例のあるもの（不足・v0）は一字一句そのまま（`tests/cli.rs` が仕様書を読み直して照合）。見つからない → 見出し「ディレクトリが見つかりません」＋対象＋構造の解説＋`novnow new <対象>`（3。`new` で作れるので案内する）。ディレクトリでない → 見出し＋対象（3）。読めない（権限など。一覧の失敗を含む）→ 見出しに OS のメッセージ（4）。`project.json` の `schema_version` で v0 と分かったとき → 1 行目だけ「project.json の schema_version が無いか 0 です」に替える（`characters.json` を検出、とは書けない）。新しすぎる → 見出しに版＋「novnow を新しい版に更新してください」（3）。UTF-8 の検査は全文を読む `check` だけ（起動前の検査は `listing` で文字コードを読まない、§5.7 作業項目 7）で、該当ファイルを列挙して 4。「対象」は解決済みの絶対パス（Windows の `\\?\` は外して表示）。`novnow new` の案内は対象がカレントディレクトリなら `novnow new`、そうでなければ絶対パス付き（空白や記号を含めば引用符。日本語はそのまま）。色は出力先が端末・`NO_COLOR` なし・Windows でないときだけ（見出しの `novnow:` と `check` のコード）。仕様 §14.2.3〜§14.2.5 に書き足した（第 2.10 版） |
+| B-104（**2026-10-13**） | `novnow new` の雛形の置き場所と中身 | CLI に置く ／ 文字列リテラルで core に書く ／ **`core::template` に、ファイルを `include_str!` で埋め込む** | 雛形と既定プロンプトは CLI（M6）・GUI の「新規作成」（M7）・Web のプロジェクト作成（M11）・`prompts/` 欠落時の I050（§4.2）・`>prompt reset`（M10）が共有するので、I/O を持たない core に**データ**として置く。中身はプロジェクトの内容（§12.6 の「翻訳しない」もの）であって UI の文言ではないので、UI 言語に関わらず日本語・ファイルのまま（`src/core/template/project/`）。§12.2 の日本語リテラル検査は `.rs` の中だけを見るので抵触しない。`project.json` は `schema_version` と `title`（ディレクトリ名）だけ（② のキーを書かない・既定値は書かない）。`ideas.md` は見出しを置くとアイデア 1 件になる（§5.7）ので**書き方のコメント 1 行**にした（仕様 §14.5 の「見出しのみ」を直した）。サンプルは 1 名（モード 2 つ・`## tone` に役割語 2 本）・1 語・本文 1 節（話者注釈つき）・3 つのプロット（`mode:` と `check:` つき）。プロンプトは §5.9.1 の形・§15.5.2 の 8 つの約束・付録 A の要素を全役割に入れ、変数は指示に要るものだけ（文脈の残りは ContextPacket が運ぶ、§15.4）。`novnow check` で**診断 0 件**（`tests/template.rs`。B 形式の末尾に `;` を置くと W030 になるので置かない・行頭の `ascii キー:` と §5.0.6 の別名＋コロンを本文に書かない）。URL は書かない（§14.2.1 の MUST） |
+| B-105（**2026-10-13**） | M6 の時点で中身の無いもの（`export` / `migrate` / `mcp`・GUI）の扱いと、§19.2 の GUI の項目 | 新しい終了コードを作る ／ 0 で終わる ／ **2（使い方の誤り）で説明して終わる** | §14.2.5 に無い番号は作らない。`export` / `mcp` は先に §14.2 の検査をする（不備なら 3）。`migrate` の対象は v0（検査に落ちる側）なので開けるかだけを見る。GUI は M7 なので、`novnow <有効なディレクトリ>` は検査を通ったあと「この novnow には GUI が含まれていません」で 2、引数なし・非端末（GUI からの起動）も同じ。**M6 は履歴に書かない**（積むのは GUI がプロジェクトを開けたとき、§14.4。§5.7 作業項目 7 の「開けたときだけ」は M7 の作業項目 12 で実装する）。§19.2 のうち GUI / Web の項目は M7 / M11 の完了条件に移した |
+| B-106（**2026-10-13**） | `novnow new` の細部（§14.5） | — | 既定は `.`。無いディレクトリは親ごと作る（`FsStorage::create`。Zip の取り込み先と同じ扱い）。既存のディレクトリが **v0 形式・新しすぎる版**なら何も書かずに §14.2.4 などを出して 3（v0 のデータの横にサンプルを並べると半端なプロジェクトになり、`novnow <dir>` は依然 v0 と言う。移行は `migrate`）。対象がファイルなら 4（作れない）。存在するファイルは 1 バイトも変えず（`FsStorage::exists` で確かめて書かない）、競合が無ければ見出し＋対象＋案内、あれば「作成したファイル」と「上書きしなかったファイル」の一覧（雛形の順）を標準出力に。何も作らなかったときは見出しを「作るファイルはありませんでした」にする。案内は GUI があれば `novnow <dir>`、無ければ `novnow check <dir>`（`cli::GUI_AVAILABLE`。M6 は false）。`.gitkeep` も「無いファイル」として作る |
+| B-107（**2026-10-13**） | Windows のコンソール（§14.3）と、その検査 | `windows-sys` を足す ／ **FFI を 2 本だけ自前で宣言** | 新しいクレートを足さない（`AttachConsole` と `GetUserDefaultLocaleName` の 2 関数だけ）。リリースビルドは `#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]`、起動直後に `AttachConsole(ATTACH_PARENT_PROCESS)`（失敗は無視、`AllocConsole` は使わない）。**`cmd.exe` は GUI サブシステムの exe の終了を待たない**（出力がプロンプトの後に出て `%ERRORLEVEL%` が取れない）ので、Windows の CI では `start /wait` か PowerShell の `Start-Process -Wait` を使う（仕様 §14.3 に注意を書いた）。作業環境には Windows の std が無いので、CI の wasm ジョブ（名前は必須チェックのため据え置き）に `cargo check --target x86_64-pc-windows-msvc` を足し、novnow 自身の警告も赤にする。「エクスプローラから起動してもコンソールが出ない」は手動の確認が残る（§5.7 の完了条件 3） |
+| B-108（**2026-10-13**） | `novnow check` の出力 | — | 診断は `diagnostics::document`（M4。GUI の波線と同じもの）を全文書に掛けたもの。標準出力に 1 行 1 件 `パス:行:列: コード 文言`（行と列は 1 始まり・列は文字数＝ `LineTable::char_position_of_byte`。位置を持たない診断は `パス: コード 文言`）。並びはパス → 位置 → コード（文書内は §9.5.2 の順ではなく位置の順にする。CI のログで上から読めるように）。最後に空行と件数の要約（文書数・E / W / I）。E があれば 5、W と I だけなら 0。既定で無効の診断（§7.2）の絞り込みはしない（`document` が出さない）。文書の選び方は `project_load::is_document`（`.gitkeep` などは数えない） → **改（2026-10-13、B-110）**: 位置の後に作家の言葉での「どこ」`[場所]` を足した |
+| B-109（**2026-10-13**） | テキストのエクスポートの書き出し先（§13.1.1 の特例を広げる） | 特例を「保存ダイアログの結果」のまま広げる ／ **書き出しの種類（`ExportKind`）ごとに拡張子を決め、保存ダイアログと `--out` の両方から作る** | ユーザー裁定（2026-10-13）「ユーザーが保存を明示的に指示したときは、ユーザーが指定したパスにだけ保存を許可する」。仕様 第 2.11 版で §13.1.1 を表にし、§13.1.2・§17.2・§19.10・§0 の表・P6 を直した。(1) `core::policy::ExportKind::{Zip, Text}`。書ける拡張子は Zip が `.zip`、Text が `.txt` / `.md`（大文字小文字を問わない）。種類に合わない拡張子（Zip の書き出しで `.txt` を指定する、など）と履歴ファイルは `Violation::NotAnExport`（E060）。種類で縛るのは、「明示した 1 ファイル」の許可で原稿や設定ファイル（`.json` など）を潰させないため。(2) `WritePolicy::check_chosen_export(target, kind)`・`FsGate::{check_chosen_export, write_chosen_export}` は `ChosenPath` の種類を使う。`ChosenPath` は `from_save_dialog(path, kind)`（保存ダイアログの実装とテスト）と `from_command_line(path, kind)`（`novnow export --out`。M9）だけで作る。`Clone` を持たず、1 回の指定で 1 回だけ書ける。(3) `Dialog::save_text(suggested)` を足した（デスクトップの「名前を付けて保存」。初期値は既定の `exports/…`）。(4) `zip::export_to_chosen` は Zip 以外の種類を E060 で拒む。(5) 条件は Zip と同じ（一時ファイルを作らず直接・親ディレクトリは作らない・パスを覚えない・履歴に書かない）。`--out` の親ディレクトリが無ければ I/O エラー（CLI は 4）。`tests/storage_policy.rs` に 2 本（テキストの外への書き出し、種類の取り違え）を足した |
+| B-110（**2026-10-13**） | `novnow check` の「どこ」を作家の言葉で（§14.2.5・§10.9.2） | 行の末尾に足す ／ **`パス:行:列:` の直後に `[場所]`** ／ 別の行にする | ユーザー裁定（2026-10-13）「`パス:行:列:` に加えて、エンジニアでなくても分かる場所（本文・プロットは `@A-B-C-D`、資料は ID とタイトルなど）を出す」。(1) 判定は core の `core::features::place::at(document, byte, project) -> Option<Place>`（文言を持たない）。本文・話プロットは行の節（`;` の行はそれが閉じる節、見出しの行と B 形式の場面のフィールドは場面、最初の見出しより前と位置の無い診断はファイル名の話）。章・全体プロットはブロック。`characters.md` は人物（モードの中ならモード）、`words.md` は用語、`ideas.md` は ID とタイトル、資料は索引の項目（原文から `"M0137"` を探す。JSON は位置を持たないため）か、本体なら索引の `path`（無ければファイル名の ID）、プロンプトは役割と `## ` の節、`project.json` は「作品の設定」。それ以外（`agents/` など）は `None` で、`[場所]` ごと省く。(2) 文言は `place.*`（ja / en、15 件）。`ui::i18n::place(locale, &Place)` が GUI と CLI の両方で使う。(3) 並び（パス → 位置 → コード）と件数の要約は変えない。`[…]` は `grep` しやすいように行の先頭のパス・位置を崩さず、その直後に置いた。`tests/place.rs`（9）・`tests/cli.rs`（+1）・`tests/i18n_catalog.rs`（+1。`place.*` の過不足） |
+| B-111（**2026-10-13**） | 節エディタの作り（§8.1 と §9.8.5 (5) の食い違い） | 自前の編集ウィジェット ／ **`egui::TextEdit` ＋ 構文ハイライトの layouter** | §8.1 は「複数行の `TextEdit`」、§9.8.5 (5) は「`TextEdit` をそのまま使わない」と書いていた。`TextEdit` は 0.27.2 で編集中のフレームに `IMEOutput` を出し、undo（§8.6）・選択・IME の確定処理も持つので、作り直す理由が無い。layouter で §11.2 の色、描いた後に `Galley` の行から波線（§11.3）と節内の行番号（§9.4.1）を重ねる。節ごとに `Id` を分けるので undo は節ごとに残る。**§9.8.5 (5) を「`TextEdit` を使わない編集領域だけの規約」に直した（仕様 第 2.12 版）**。§9.8.5 (3) の「変換中は Key を全部捨てる」は `ui::shell::take_commands` が `TextEdit` より先に `InputState::events` から消す |
+| B-112（**2026-10-13**） | 節単位編集の置き場所と、末尾の新しい節 | UI に持つ ／ **`core::features::sections`（純粋）＋ `ui::workbench`（egui に依存しない状態）** | 節の並び（ファイル名順 → ファイル内の順）・節の本文（`Section::content` = 末尾の空行を除く。末尾の空行は書き戻しても残る）・書き戻し・新しい節・場面/話の移動・SceneId ジャンプを core の純粋関数にし、テストを既定のビルドで回せるようにした。**ファイル・場面の末尾に作った新しい節**は、`;` の後に本文が無いと節にならない（§5.2.2）ので、**書き始めるまで文書に無い節として持つ**（`;` だけ先に入れ、書き戻すとその位置に行が入る）。文字数（§9.6.1）は**空白を除いた生の文字数**（コメント・注釈の記号も数える。M9 のアノテーション除去と揃えるかは M9 で判断） |
+| B-113（**2026-10-13**） | 参照ペインの中身（§9.5.2 の ① の 6 セクション）を集める場所 | UI で集める ／ **`core::features::reference`（純粋。文言なし）** | M10 の ContextPacket と情報源を揃える（§15.4 の MUST）ため core に置いた。1 プロット = 話プロットの当該節の内容行（`point_line`。フィールド行は除く。無ければ場面の `summary`）、2 上位プロット = 章 → 全体の `summary` の 1 行目、3 配役 = 節に出るキャラ（話者注釈 → `'` 参照の出現順）と §6.4 の解決で有効なモード（話者注釈の修飾子は「その行のみ」なので、ペインは**節の既定**で決める）と性格・感情・役割・口調、4 用語 = `term` と `definition` の 1 行目、7 資料 = 明示参照のみ（**引用注釈 `^M` は ②**、条件一致候補 §16.4 は M8）、9 診断 = 節に掛かる E → W。80ms のデバウンスは `ui::widgets::reference_pane` |
+| B-114（**2026-10-13**） | 保存の I/O の分け方と `ui.json` の書き込み | ウィジェットが直接書く ／ **`SaveMachine`・`Workbench` は I/O をせず、`ui::app::Host` が書く** | 状態機械を egui と I/O から切り離してテストした（`tests/gui.rs`）。デスクトップの `Host` は `FsStorage`（`FsGate` を通る）で、書いたファイルは外部変更の監視（`Snapshot::acknowledge`）に覚えさせる。**`ui.json` は保存のときに一緒に書き、設定だけの変更（テーマ・言語・比）は Clean ならすぐ書く**。§8.2 の「`ui.json` で 200–2000ms」のキー名が §4.4.1 に無かったので **`autosave_ms`** にした（仕様 第 2.12 版）。eframe の `persistence` は使わず、`persist_window: false`（規則 10） |
+| B-115（**2026-10-13**） | §11.2 の表に無いトークンの色と太字 | 色を足す ／ **近い役割の色を流用** | `ref.address` = キャラの色、`citation` = 資料の色、`illustration` = コメントの色、`ruby.base` = 本文の色（`address`・`citation`・`illustration` は ② のトークンで、① の本文には出ない）。**太字**は egui 0.27 に太字の字体が無いので色だけで示す（同梱フォントも 1 ウェイト） |
+| B-116（**2026-10-13**） | キー割当の衝突（§9.1 と §9.8.2）と macOS の読み替え | §9.1 を正 ／ **§9.8 を正** | §9.1 の「`Ctrl+Alt+←/→` でメイン/参照の比」は §9.8.2 の「前 / 次の話」と衝突する。§9.8 は「v1 確定版」なので、**比を `Ctrl+Alt+Shift+←/→`** にした（仕様 第 2.12 版）。§9.8.4 の「macOS では `Alt` 系を `Ctrl+Alt` に読み替える」は**矢印以外**に限った（`Option+矢印` は文字を入力しないうえ、読み替えると `Ctrl+Alt+←/→`（話の移動）と衝突するため） |
+| B-117（**2026-10-13**） | M7 のパレットとショートカットの範囲 | 全部 M7 ／ **write ワークスペースで閉じるものだけ M7** | パレットは「なし / `@`」= 節（場面タイトル込み）、`>` = コマンド 8 つ、`?` = ヘルプ。**`'`（辞書）と `M` / `#`（資料）は M8**（material / cast ワークスペースと一緒に）。ワークスペースを持つ操作（`Alt+1..9`・`Ctrl+B`・`Ctrl+Shift+B`・`Ctrl+Shift+E`・`Ctrl+Shift+I`・`Ctrl+M`）は M8。`Ctrl+\` / `Ctrl+Shift+\` は ② の一覧（本書 §1.2）にあるが、`ui.json` の `reference_pane_side` は §0 の MUST で、キーも 1 行で済むので入れた |
+| B-118（**2026-10-13**） | Web の GUI（§13.4 のプロジェクト選択と IndexedDB） | M7 で全部 ／ **起動とシェルは M7、選択モーダルの接続は後で** | Web でも同じ `NovnowApp` を `eframe::WebRunner` で起動し、Pages の deploy を戻した（`index.html` に `data-cargo-features="ui"`）。IndexedDB は非同期（`Storage` の Future）で、`Host::write` を同期で返す今の形には「書き込みの結果を後のフレームで受け取る」口が要る。作業環境にブラウザが無く確かめられないので、**M7 では選択モーダルに「準備中」を出す**。M7 の完了条件「Web で IndexedDB の接続を一通り動かす」は未達として残す。→ **2026-10-14 に接続した（B-156〜B-158。ヘッドレスの Chromium で確かめた）** |
+| B-119（**2026-10-13**） | M7 の検索・置換・補完・ポップアップの範囲 | 仕様の全部 ／ **write ワークスペースで閉じる形** | `Ctrl+F` / `Ctrl+H` / `F3` は**今のファイルの文字どおりの一致**（大小文字を区別。正規表現と大小文字無視は ② の §9.7.4）。一致が見出し行など節の外にあれば、その後ろの節へ移るだけ（選択しない）。`Ctrl+Shift+F` は**本文（`contents/`）の全ファイル**（プロット・辞書は M8 のワークスペースで開くので、M7 では移動先が無い）。補完（§9.7.3）は `'` `:` `@` の直後と `Ctrl+Space` で `core::features::completion::at` の候補を出し、`↑/↓` と `Enter` / `Tab` で確定（変換中は §9.8.5 で Key が来ない）。`Ctrl+Shift+M` / `Ctrl+Shift+W` は `hover::at` の中身（この節で使えないモードは `×`）。`Ctrl+Shift+;` は確認のうえ節と区切り `;` を消す（**ファイル単位の削除なので `Ctrl+Z` では戻らない**と確認文に書いた。§8.6 の undo は節エディタの中だけ）。`Ctrl+Tab` は直前に開いていたファイル、`Ctrl+Shift+Tab` は最も古いファイル（押し続けての循環はしない）。`Ctrl+O` は今のプロジェクトを書き終えてから、フォルダを選んで §14.2 の検査を通ったら切り替える。`Ctrl+.`（クイックフィックス、19 種の名前は `action.*`）・`Ctrl+T` / `Ctrl+Shift+T`（`code_action::register_edit` を E001 の登録と共有）・`Ctrl+Shift+D`（差分モーダル。**「自分の版を残す / 外部の版を読み込む」の 2 択で、§8.5 の行単位マージは入れていない**）も M7 で入れた。**`Alt+H`（インレイヒント §6.6）は M7 では入れていない**（`TextEdit` の `Galley` に仮想の文字を差し込む口が egui 0.27 に無い。文脈ビューだけに出すか M8 で決める）。→ **M8 で入れた**（エディタに隙間を空けて描く。**B-137**） |
+| B-120（**2026-10-13**） | M7 の後の順番（M8 と M9） | §4.1 の順（M8 → M9） ／ **M9（エクスポート）を先に** | §4.3 の依存では M8・M9・M10 はどれも M7 の後で互いに独立。M9 は core の純粋関数（§17.1）・`novnow export`（§17.2）・GUI の「名前を付けて保存」で閉じる 5 日の段で、M6 の報告へのユーザー裁定（テキストのエクスポートの書き出し先、B-109）をそのまま使える形にできる。M8（18 日）は M7 の `write` の上に 6 つのワークスペースを積む大きな段なので、先に閉じられる M9 を済ませてから入る。§4.2 の「見せられる状態」の順（M8 完了 → M9 完了 = β）は入れ替わるが、β の中身（エージェント以外すべて）は変わらない |
+| B-121（**2026-10-13**） | §11 の色のコントラスト比（§19.1）| 表の値のまま ／ 文字を大きくする ／ **色の明るさだけを直す** | §11.1 の注記は `fg.faint / bg.base` を dark 4.6:1・light 4.5:1 としていたが、表の値（`#6E7278` / `#87898F`）を WCAG 2.x の式で測ると 3.7:1 / 3.4:1 だった。`fg.faint` は 10〜11px の見出し（§9.2.2・§9.3.1）に使うので §9.9 の「本文 4.5:1」が要る。§11.2 の `comment`（dark 2.8:1）と `section.break`（2.8 / 2.5:1）は「補助 3:1」も満たしていなかった。色相を変えずに明るさだけを動かし、`fg.faint` = `#82878E` / `#727479`、`section.break` = `#596574` / `#8D929A`、`comment`（dark）= `#60666E` にした（仕様 第 2.13 版）。どの色をどちらの基準で測るか（文字の色は `bg.base` に 4.5:1、`fg.*` と `accent` は `bg.raised` にも 4.5:1、本文の大きさの注記と `state.*` は 3:1、`border` は対象外）を §11.1 に書き、`tests/gui.rs` が §11.1 / §11.2 の表と `ui::theme` の一致、と比を検査する |
+| B-122（**2026-10-13**） | エクスポートの状態の絞り込み（§17.2 `--state`）の意味 | 節の `state` だけを見る ／ **近いものから順に引き、`s` 以上を出す** | §17.2 は「`--state fixed`（`draft` を除外して公開分だけ出す）」とだけ書く。`state` は A 形式（章・話のブロック）にも B 形式（節）にも書けるので、節の実効の状態を **話プロットの節 → 同じ場面の場面レベル（最初の要点より前。§5.4.2 では節だけのキーだが、書かれていれば場面の既定として読む）→ 章プロットの話のブロック → 全体プロットの章のブロック → `draft`** の順に引く（章を `fixed` にしたら中の節が全部 `fixed` になる、が自然）。順序は `draft` < `review` < `fixed` で、`--state s` は **実効の状態が `s` 以上**の節（`review` なら `review` と `fixed`）。読めない値（`done` など）は書かれていないのと同じ。`core::export::effective_state` / `select`。仕様 第 2.14 版の §17.2 に書いた |
+| B-123（**2026-10-13**） | エクスポートの範囲・出力の細部（§17.2） | — | (1) 範囲は §5.1 の範囲式に加えて **`@` を省いた書き方**（`01-04`、`01 .. 03, 05`）も受け付ける（PowerShell では `@` で始まる引数が特別な意味を持つ）。左端 > 右端は誤り。(2) 既定の名前の `<範囲>` は全体 `all`・項 `01-04` / `01~03` / `~03` / `03~`・複数は `_` でつなぐ。`<title>` は `title`（空ならディレクトリ名）で、`/ \ : * ? " < > |` と制御文字は `_`。(3) `<YYYYMMDD-HHMM>` はデスクトップでは **UTC**（B-92 と同じ。標準ライブラリにタイムゾーンが無く、クレートも足さない）。(4) `.md` は書き出し先の名前（`--out` / 保存ダイアログ）で決まる。(5) CLI は `--range` / `--state` / `--out` を次の引数か `--name=value` で読み、同じオプションは後のほう、値が無ければ 2。当てはまる節が無ければ**何も書かずに 0**（標準エラーに知らせる。`--state fixed` で fixed がまだ無いのは誤りではない）。(6) **ストック章（`@00`）の除外と `--include-stock` は ②**（本書 §1.2・§5.10）なので、① の「全体」は `@00` も含み、`--include-stock` は知らないオプション（2）。仕様 第 2.14 版の §17.2 に書いた |
+| B-124（**2026-10-13**） | §17.1 の表が決めていない変換の細部 | — | (1) **区切り**: 出す節と節のあいだ 1 か所につき 1 回。`;` だけでなく**場面・話・章の境目**（見出し行を除いたところ）も 1 回にする（見出しを消すだけだと場面の切れ目が消えて本文がつながる）。範囲・状態で節が飛んでも 1 回。`insert_headings` で見出しを入れたところには区切りを入れない（見出しの前後に空行）。見出しのタイトルが空なら入れない。(2) **参照**: 名前部が資料 ID の形（`M0137` / `S0042`）なら未解決でも修飾子ごと消す。未解決の参照は名前部を残し、`:` の後ろがモード式なら消す。**直後が区切り文字か行末の `'`**（仕様書 §5.2.3 の例の `'『星屑の時計』`）は `dictionary::scan_line` では「ただの引用符」だが、本文の `'` はシジルで、リテラルの `'` は `\'` で書く約束（§5.0.3）なので消す。英語の短縮形（直前が英数字）と `リリア's`（B-63）は残す。(3) エスケープを解いた文字（`\@` → `@` など）は作家のリテラルなので、不変条件の対象外（結果に `@` で始まる行が出ることはある）。(4) 書き換えが重なったら先に始まるものを採る（参照の名前の中のルビなど）。(5) 先頭の空行も削る。(6) 字下げは本文の 1 行を段落とし、既に空白で始まる行には足さない。(7) フィールド行（4）は C 形式に無い（§5.0.5）ので何もしない。仕様 第 2.14 版の §17.1 に書いた |
+| B-125（**2026-10-13**） | デスクトップのエクスポートの操作（§17.2） | ショートカットを足す ／ **パレットの `>export` からモーダル** | §9.8 にエクスポートのキーは無いので、パレットのコマンド `>export` でモーダルを開く。範囲の欄（空欄なら全体）・状態（`Tab` で すべて → review 以上 → fixed だけ）・節の数と字数（文書の世代・範囲・状態が変わったときだけ作り直す）。`Enter` で既定の `exports/…`（`Host::write`）、`Shift+Enter` で名前を付けて保存（`Host::choose_export` → `Host::write_export`。デスクトップは `RfdDialog::save_text` → `FsGate::check_chosen_export` → `write_chosen_export`。初期値は `exports/`、無ければルート。ディレクトリは作らない）、`Ctrl+Shift+C` でクリップボード（`egui::Context::copy_text`）。3 つのボタンの文字は §9.2.1 の 1（アイコンだけでは役割が分からない）。結果はステータスバーの通知、失敗はモーダル。「エクスポート完了ダイアログの CI/CD のリンク」（§17.2 の末尾）は `CICD_GUIDE_DOC_URL` が ② なので出さない（本書 §1.2-14）。Web の Host は B-118 と一緒に後で |
+| B-126（**2026-10-13**） | ワークスペースの切替の細部（§10.0）と、本文以外の文書の編集 | 切替のたびに今の節へ着地 ／ **初回だけ着地、2 回目からは自分の最後の位置** | (1) `Alt+1..9`（macOS は `Ctrl+Option`）で切り替え、`Alt+0` で直前のワークスペースへ（続けて押すと 2 つを行き来する）。§10.0 の「SceneId は維持」と「各ワークスペースが最後に居た位置を復元」を両立させるため、**初めて開くワークスペースだけ今の節（write の SceneId）の対応物に着地**し、2 回目からは自分の最後の位置に戻る。位置を持ち越すのは `Ctrl+B`（上へ）・`Ctrl+Enter`（下へ）だけ（`Ctrl+Shift+1..9` の強制持ち越しは ②）。write の今の節（`ui.json.last_scene`）は他のワークスペースでは変わらない。(2) **`reader`（`Alt+7`）は ②、`agent`（`Alt+8`）は M10 まで欠番**で、押すとステータスバーに「〜はこの版ではまだ使えません」を出して切り替えない。ヘッダのインジケータは開ける 7 つの図形を並べ、今のものを `accent`（ツールチップとアクセシブル名はカタログ）。(3) 切替は保存のきっかけ（§8.2）で、確認は出さない。(4) **4 段階の上下**: `Ctrl+B` と `Ctrl+Shift+B` は同じ「1 つ上へ」（write → plot-episode → plot-outline の章 → 全体）、`Ctrl+Enter` は「1 つ下へ」（ワークスペースごとに意味が変わる。write では従来どおり確定して次の節）。(5) 本文以外の文書（話プロット・全体 / 章プロット・`ideas.md`・`characters.md`・資料）は `Workbench` の **Slice**（文書の行の範囲）で開いて編集する。書き戻し・保存・外部変更・衝突の規則は節エディタと同じ（書き戻しは節の移動・保存・切替の直前）。外部変更で読み直したとき・ワークスペースの操作で文書を丸ごと置き換えたときは Slice を閉じ、開いた側が鍵から開き直す。(6) `Ctrl+Delete`（idea の破棄）と `Ctrl+Shift+←/→`（review のタブ）はテキストの編集のキーと重なるので、**そのワークスペースの中だけ**で取る |
+| B-127（**2026-10-13**） | プロットのワークスペースの行の並び（§10.2・§10.3）| — | `core::features::plots`（LSP に対応しない補助）: 話プロットの節リストは**場面見出しの行**（見出しと場面レベルのフィールドを編集）と**節の行**（節の内容。`;` と末尾の空行を含まない）の並び。節の要約は最初の要点の行、状態は §17.2 と同じ実効の状態（B-122）。節が 1 つも無い場面（見出しだけ）には見出しの直後に空の節の行を置く（書けば最初の節になる）。`Ctrl+Shift+N` は選んだ節の後ろに**空の節**を入れる（閉じる `;` の次に `;` を 1 行。場面の最後の閉じていない節なら `;` を 2 行）。場面の行なら最初の節の前、話プロットが無ければ今の場面の見出し（`@AA-BB-CC`）を書いて作る |
+| B-128（**2026-10-13**） | plot-episode から write へ降りたときの着地（§10.0）| — | 本文にその節があればそこへ（場面の行なら場面の最初の節）。本文のファイルはあるが節が無ければ近い節へ行き、ステータスバーに「本文に @… はまだありません」（§10.0「空の節を作らず」）。**本文のファイルが無ければ**、場面見出しだけの新しい節として開き（`Workbench::start_file`）、**書き始めるまでファイルは作らない**。書くと `@AA-BB-CC タイトル`（話プロットの場面見出しのタイトル）と本文でファイルを作る |
+| B-129（**2026-10-13**） | plot-outline の操作（§10.3。① は単一ビュー）| — | 左のレベル切替（全体 / 各章。章は全体プロットのブロック・章プロット・本文と話プロットのファイルのどれかに現れるもの）をクリックか `Ctrl+Alt+←/→`（前 / 次のレベル）で選ぶ。中央はブロックの一覧（見出しの ID とタイトル・`summary:` の 1 行目・`state:` の縦線）と、選んだブロックのエディタ（見出しから `;` の前まで）。章のときは上段に**親（全体プロットの章のブロック）**を出す（§19.11）。`Ctrl+B` / `Ctrl+Shift+B` で章 → 全体、`Ctrl+Enter` で全体の章 → その章・章の話 → plot-episode（話の最初の行）。§10.3 にキーの無い「ブロックを足す」は plot-episode と同じ `Ctrl+Shift+N`（次の番号の見出しだけを書いて `;` で閉じる。文書が無ければ作る）。右は伏線（`seed:` / `payoff:` を全体・章・話プロットから集めて伏線 ID で突き合わせ、未回収 → 二重回収 → その他の順）。タイムライン・分量・ストックのタブと折りたたみは ② |
+| B-130（**2026-10-13**） | idea ワークスペースの細部（§10.4・§5.7）| — | (1) 一覧は `status` の絞り込み（既定「すべて」= `dropped` 以外、§5.7）とタグの部分一致。`status` が無い・読めない値は `inbox`。(2) **即時入力** `Ctrl+Shift+I` はどのワークスペースからでも開く 1 行の重ね物で、`Enter` で `ideas.md` の**末尾**に `# I####（最大値 + 1）タイトル` / `status: inbox` / `created:`（RFC 3339。デスクトップは UTC、B-92）を積む。画面は変えず、ステータスバーに知らせる。(3) `Ctrl+Delete`（idea の中だけ。B-126）は `status: dropped` にするだけで行を消さない。(4) **昇格** `Ctrl+Enter` の行き先は 4 つ: プロットの節（write の今の場面の最後に、タイトルと本文を要点として足す。場面が無ければ見出しを書く）・用語（`words.md` の末尾に `# タイトル` / `definition:`。本文が無ければタイトル。E021 を出さないため）・キャラのメモ（選んだキャラの最後に自由記述の行として。§5.5.1）・資料（`materials/inbox/` に提案として作る、B-131）。転記の後 `status: promoted` と `promoted-to: <パス>#<場所>` を書く（`status` / `promoted-to` は §5.0.6 の表に無いキーなので、書かれたままのキーで探して書き換え、無ければ最後のフィールド行の後ろに足す） |
+| B-131（**2026-10-13**） | 資料の作成・審査の細部（§16.1・§5.8.2）| — | 人間が作る資料も §16.1 の流れどおり**提案**（`materials/inbox/M####.md`・`status: proposed`・`added_by: human`・`source: {kind: custom}`・カテゴリは空）として作り、material ワークスペースで整えて採用する。ファイル名は ID だけ（`M0142.md`。タイトルをローマ字にするクレートは足さない）。ID は `MaterialIndex::issue`（`next_id` と既存の最大値 + 1 の大きいほう）なので、`next_id` が壊れていても再利用しない。採用は `docs/` へ動かして `approved`、却下は `rejected`（ファイルは inbox に残す）で、どちらも `updated_at` を書く。`index.json` が読めない（E025）ときは何もしない（原文を書き換えない、§5.8.2 MUST）。`items` の順は追加順のまま（§16.2）。索引は serde で書き直す（2 スペースの字下げ）。**追記（M8 の資料の仕上げ）**: (1) `checksum` は `sha256:` ＋ 本文（UTF-8）の 16 進。SHA-256 は自前（`core::text::sha256`、FIPS 180-4 の例とブロックの境目で検査。クレートは足さない、§3.2）。(2) 資料 MD を書く保存のたびに、その MD の `updated_at` と `checksum` を書き直す（`Workbench::touch_materials`、保存の直前）。(3) 採用で inbox → docs に動かすとき、古いファイルは書き込みが全部済んでから消す（既に無ければそれでよい）。(4) 検索（§16.3）: 却下は `!` の語が無ければ出さない。語は §6.1.3 の正規化 ＋ 小文字の部分一致、重みはタイトル 4・タグ 3・summary 2・本文 1、並びは点の高い順 → `saved_at` の新しい順 → ID。(5) 審査フォームは打鍵ごとに索引を書くので、`update` は出典の種類が変わっても `accessed_at` と知らないキーを残す |
+| B-132（**2026-10-13**） | review の 2 タブの細部（§10.9。① は診断と進捗）| — | (1) **診断**はプロジェクトの全文書の `diagnostics::document`（`novnow check` と同じもの・同じ並び）に `パス:行:列` と作家の言葉での「どこ」（`core::features::place`）を添える。重大度の絞り込み（E / W / I）と並べ替え（場所順・重大度順・コード順）。文書の世代か言語が変わったときだけ数え直し、`Ctrl+Shift+E`（どこからでも。ステータスバーの `⚑` のクリックも同じ）は review の診断タブへ移って数え直す。§10.9.2 の一括実行の項目のうち、M4 までに診断があるもの（W030・E004・E006・W022・E012 など）はこの一覧に入る。伏線の未回収 / 二重回収は plot-outline の伏線ペインに出す。W080・W084・I054・I055 は ②（診断そのものが未実装）。(2) `Enter`（`Ctrl+Enter`・ダブルクリックも）で該当箇所へ: 本文 → write の節、話プロット → plot-episode、全体 / 章プロット → plot-outline、`ideas.md` → idea。`characters.md`・`words.md`・資料は開く画面が無ければ知らせるだけ（cast・material の段で足す）。(3) **進捗**は本文の節と話プロットの節の和（計画だけの節も 0 字で出す）を章 → 話 → 場面 → 節に積み、文字数（空白除外）・目標比（節は話プロットの `length:`、上の階層は下の目標の合計）・状態（節は実効の状態 B-122、上の階層は下の**最も遅い**状態）を出す。折りたたみ（§9.3.3）は ②。(4) review には編集欄が無いので、素の `↑` / `↓` / `Enter` も効く（テキストにフォーカスが無いとき） |
+| B-133（**2026-10-13**） | cast ワークスペースの細部（§10.6）| — | (1) 左はキャラ一覧（`reading:` の順、無ければ名前の順）、中央は `characters.md` のそのキャラの部分（H1 から次の H1 の前まで）のエディタ。(2) 右のタブ（モード / 役割語 / 未一致）は `Ctrl+Shift+→/←`（cast の中だけ取る。中央の編集欄の単語選択より優先する、B-126）で、キーで切り替えるとタブの中身にフォーカスが移る（`Esc` で編集欄へ戻る）。(3) **モードタイムライン**: 横軸はプロジェクトにある章（全体プロット・章プロット・本文と話プロットのファイル）、縦軸は `## modes` のモード、帯はモードの `range:` と章が交わる列（`range:` が無ければ全部）。帯の操作は**タイムラインにフォーカスがあるときだけ**（クリック・ドラッグ・キーでのタブ切替で移る）: `↑/↓` で帯を選び `Shift+←/→` で 1 章ずらす。ドラッグは列の幅で丸めた章数だけずらす。ずらすのは `range:` の値の各 ID の**章の番号だけ**（下の階層と桁数は保つ。章 0 になるなら動かさない）で、`range:` が無い（全範囲）モードは動かさない。(4) **役割語テスター**: キャラ共通（`## tone`）→ モード専用の順に全パターンを並べ、一致 / 不一致と §6.5.1 の正規表現を出す。一致部分は本文と同じ `state.ok` の 2px 下線。(5) **未一致**（`Ctrl+Shift+V`、cast の中だけ）: 本文の台詞のうち、話者が決まり（行末の話者注釈 → 直前の注釈 → `pov:`、§6.5.3）適用パターンがあるのに**どれも一致しなかった**もの（§6.5.4 の例外として一覧だけ。診断は出さない）。ダブルクリックで本文のその台詞へ。呼称タブ（§10.6.1）とアイコン（§5.5.3 `icon:`）は ② |
+| B-134（**2026-10-13**） | 資料の診断と登録（W064・W065、§5.8.3・§16.1） | — | **W065** は「提案中（`proposed`）で出典が無い」資料（`index.json` の、その項目の `id` の値の位置）。**W064** は索引に無い資料 MD（`materials/**/*.md`、1 行目）。登録は material ワークスペースの `Ctrl+Enter`: 必ず新しい ID（`MaterialIndex::issue`）、タイトルは H1（無ければファイル名の語幹）、`docs/` の下なら `approved`・それ以外は `proposed`、ID のコメント `<!-- novnow:M0137 -->` は書き換えるか H1 の下に入れる。§7 の「登録する」「出典を入力」は `code_action` ではなくワークスペースの操作として出す（索引と MD を一緒に書くため。`Ctrl+.` には出ない） |
+| B-135（**2026-10-13**） | material ワークスペースの細部（§10.5・§16.1・§16.3） | — | (1) 左は一覧: チップ「却下以外（既定）/ 提案 / 採用 / 却下」と §16.3 の書式の絞り込み欄。未登録の MD を先頭（赤い帯・ID は「—」）、あとは `saved_at` の新しい順。(2) 中央は MD 全体の Slice、右は審査フォーム（カテゴリはカタログのチップ。打鍵ごとに索引を書き、H1 が古いタイトルと同じならタイトルに追従させる。✓ / ✕ はその状態でないときだけ）。(3) キー: `Ctrl+Enter` 採用（W065 なら確認のオーバーレイ）・`Ctrl+Delete` 却下（ファイルは残し、選択は次の行へ）・`Ctrl+Shift+N` 作成（`draft_of`。空なら「無題の資料」）・`Ctrl+3` フォーム・`Ctrl+2` エディタ。着地は 明示参照 → 条件一致の候補 → 一覧の先頭。(4) `Ctrl+M` はどこからでも: `Enter` は挿入（write = キャレットに `'ID`、plot-episode = 節の最後に `material: 'ID` の行、idea / outline / cast = Slice のキャレット、material / review = 開く）、`Shift+Enter` は開く、`Ctrl+Enter` は作ってから挿入、もう一度 `Ctrl+M` で閉じる。(5) パレット: `#` / `M` は資料検索、`'` はキャラと用語（`Enter` = cast で選ぶ / 用語の情報、`Shift+Enter` = 使用箇所の検索）。(6) review の行のうち資料 MD と `index.json` は material ワークスペースで開く。(7) ボタンだけのオーバーレイ（確認など）は開いたフレームでキーボードのフォーカスを手放す（後ろのエディタに `Enter` が入らない） |
+| B-136（**2026-10-13**） | 資料の明示参照と条件一致（§16.4・§9.5） | — | **明示参照** = 本文の参照 ∪ 話プロットの場面見出しの行と節の `material:`。**条件一致の候補** = 採用済みで、`scope` がその節を含むか、`ref` / タグ（B 形式の `tags:` / `タグ:`）が合うもの。参照ペインでは明示参照の後に薄く出す。ダブルクリックか `Ctrl+3` → `Enter` で足す（write は `plots::append_line` で話プロットのその節に、plot-episode は Slice に足して書き戻す） |
+| B-137（**2026-10-14**） | インレイヒントの描き方（§6.6.2）と、M8 のエディタでの `Ctrl+.` | 行末にまとめて描く ／ **トークンの直後に隙間を空けて描く** | egui 0.27 の `TextEdit` は文字ではない表示を挟めないので、ヒントの位置から始まるレイアウトのセクションに `leading_space`（ヒントの幅 + 余白 3px × 2）を足して隙間を空け、`TextEdit` の後にそこへ描く（`ui::widgets::inlay`）。文字と `Galley` の対応は変わらない（カーソル・選択・IME はそのまま。トークンの直後のキャレットはヒントの後ろに出る）。行末・末尾のヒントは隙間を空けずに描く。文字は `fg.faint`・本文の 0.85 倍・ベースラインを揃える。文言はカタログ（`editor.inlay_*`。`en` は `⟨{0} · proposed⟩` / `⟨{0} · rejected⟩`、モードは表示名を `+` でつなぐ）。出すのは**エディタだけ**（節エディタと M8 のワークスペースのエディタ）で、文脈ビューなど読むだけの表示には出さない。`Alt+H`（macOS は `Ctrl+Option+H`、§9.8.4）とパレットの `>inlay-hints` で切り替え、`ui.json.inlay_hints` に残す。括弧 `⟨⟩`（U+27E8 / U+27E9）は Ubuntu-Light にも同梱の IPA ゴシックにも無いので、比例フォントの最後に egui 既定の Hack を受け皿として足した。診断の波線の右端は「範囲の最後の字の右端」にした（隙間の下に線を引かない）。**`Ctrl+.`**: 資料 ID はプロットに書く（§6.6.4）ので、M8 のワークスペースでも Slice の中身とキャレットからクイックフィックスを出す（ポップアップは Slice のキャレットの下） |
+| B-138（**2026-10-14**） | 「このブロックを外す」トグル（§15.7.2）の置き場所 | セッションだけ ／ **タスクのファイル** | タスクに `exclude:`（ブロック名を `,` 区切り）を足した。ドライランと実行で同じパケットになり、後から何を外したかが分かる。`project` / `constraints` は外せない（書いても無視）。外せるのは `draft` / `ready` のタスクだけ（第 2.16 版 §5.10.1） |
+| B-139（**2026-10-14**） | 壊れたプロンプトのコード（§15.5.4 (2) は「E030」） | E030 のまま ／ **新しいコード E029** | E030 は「MCP サーバの環境変数未解決」と重なるので、空いていた E029「プロンプトに必須のセクションがありません: {0}」を足した（① の §7 の表、文書位置あり＝1 行目）。必須は `## system` と `## task`。`diagnostics::document` が既定役割のプロンプトに出し、その役割だけ実行できない（`runner::Blocker::Prompt`。E031 も同じ）。§7 は 81 コードになった |
+| B-140（**2026-10-14**） | ContextPacket の中身と予算の細部（§15.4） | — | (1) 9 つの見出しは中身が無くても出す。中身は `ラベル: 値` か `- ` の 1 件。(2) integrator の予算の列 300 / 1,200 / 600 / 300 / 300 / 200 / 200 / 600 / 2,300（計 6,000）。(3) `max-chars` は合計を上書きし、ブロックは表の比率で伸縮。上限は `min(合計, max_chars_per_request)`。(4) 切り詰めは「ブロックごとに予算まで → まだ超えれば全体で」の 2 段、どちらも §15.4.3 の順位 → 同じ順位の中は後ろから。`current` も削らない。削らない部分だけで超えたら送れない（`Packet::over`）。(5) 文字数はブロックの本文（ラベルと改行を含む）の Unicode スカラー値。(6) `4 target` の前後は節の並び。本文に無い節は ID の前後。空なら `(未執筆)`。(7) `5 cast` は節の本文と場面のプロットに出るキャラ（有効モードだけ。`reference::cast_of` を共有）。(8) `6 lexicon` は本文と節のプロットの用語を出現回数順。(9) `7 materials` は明示参照（本文 ∪ 話プロットの `material:`）。ideator には既存のアイデアの一覧。(10) `9 history` は同じ節の直近 3 タスクの状態と却下のコメント＋届いたメッセージ。integrator は全体の直近 10 タスク。(11) `context-hash` は `generated_at:` を除いた SHA-256。(12) 要求は system = `## system`（＋ `## refuse`）、メッセージ = `## task` → パケット → `## examples`。ドライランはパケットだけ。`project.json` に `genre` があれば `1 project` に入れる |
+| B-141（**2026-10-14**） | stylist / logician / integrator の出力の提案（§5.10.3 の `kind` に無い） | どれかに寄せる ／ **`note` を足す** | `kind: note` を足した。ファイルには適用しない（`apply` でも自動適用しない）。本体が空（`## question` だけ）の出力も `note`。採用は「読んだ」の記録 |
+| B-142（**2026-10-14**） | 適用の細部と「undo 可能」（§15.7.3） | — | (1) 本文: 節があれば置き換え、無ければ同じ場面の前の節の後ろ（`sections::insert_after`）、節 1 で場面も無ければファイルの末尾に `@場面` ごと足す。それ以外は提案のまま。(2) プロット: 話プロットの節の内容の行を置き換える。(3) アイデア: 1 行 1 件（`- ` などの印を落とす・最大 20 件）を `ideas::capture` で足す。(4) 資料: `materials_ops::propose_as`（`added_by: agent:<role>`）。(5) 自動適用・直接書き込みの前の検証は「E 系の数が増えるか」。(6) 採用すると同じ `target` と `kind` の他の `open` は `superseded`（その `review` のタスクは `rejected`）。(7) 一部採用は `partial: true`（`after` は提案のまま）。(8) 適用はエディタの編集ではなくファイルの書き換えなので、「undo」は**差し戻し**（`before` に戻して `rejected`、コメント必須、監査ログの `reject` に `detail: revert`） |
+| B-143（**2026-10-14**） | 自律の上限の数え方（§4.5.1 `agents.limits`） | — | 見るのは**自動で起こす直前だけ**（人間の実行は止めない）。`max_tasks_per_session` は自動で起こした数、`max_chain_hops` は人間が起こしたタスクを 0 として自動で起こすたびに +1、`max_input_chars_per_session` はセッションで送った文字数の合計。`0` は無制限。超えたら起こさず W095 と `limit_stop` |
+| B-144（**2026-10-14**） | タスクの状態の動き（§15.3・§15.7.1） | — | `N` で `draft`、`R` で `ready`（実行待ちの列に入る）、走ると `running`、終わると `review` / `applied`。失敗は `ready`（再試行しない）、`X` は `canceled`。E035 が数えるのは `draft` / `ready` / `running` だけ（`review` は人間の番なので、同じ節に新しいタスクを作って提案を並べて比べられる）。場面・話のスコープは本文と話プロットの節の和に展開する（節タスクの束）。`propose` の役割（`note` 以外）は確定済みの節では走らない（A7）。`apply` / `autonomous` の自動適用が確定済みを書き換えたら `fixed_overwrite` とステータスバーの通知 |
+| B-145（**2026-10-14**） | メッセージの承認（§15.6・§5.10.4） | — | `## message`（`to:` / `kind:` / `refs:` と本文）は節のスコープのスレッドに積む。送り手（実行時のレベル）と宛先（今のレベル）が両方 `autonomous` なら `approved_by: auto`、それ以外は `pending`（第 2.16 版で値を足した）。人間が agent ワークスペースで承認すると `human`。宛先の役割の `9 history` に載るのは `human` / `auto` だけ。`novnow.mail.send` の送り手は `mcp` |
+| B-146（**2026-10-14**） | 監査ログのキー（§5.10.5） | — | 10 キーは常に書き、値が無ければ `null`。提案に関わるイベントには `proposal`、`delegation_changed` / `chain_hop` / `limit_stop` / 差し戻しには `detail` を足す（値があるときだけ）。ファイルの日付はイベントの `ts` の日付 |
+| B-147（**2026-10-14**） | MCP クライアントの細部（§15.8.1・§5.11） | — | `stdio` だけ（`http` / `sse` は v1 で持たない）。`servers` は定義順（`serde_json` の `Map` は並べ替えるので自前の訪問者で読む）。`roles` の `*` は全役割。`initialize`（protocolVersion `2024-11-05`）→ `notifications/initialized` → `sampling/createMessage`（`systemPrompt`・`maxTokens` 16,000・`modelPreferences` は `model-hint` から・`metadata.novnow`）。サーバからの `ping` には答え、他の要求には -32601。`sampling` が無く `tools` があるサーバには `allow_tools` の先頭のツールを `{system, prompt, role, scope}` で呼ぶ。stderr は捨てる。環境変数は引き継ぎ＋解決した `env`（解決できなければ E030 で走らない）。タイムアウトは `timeout_ms`（既定 60 秒）、出力は 20,000 字で切って `truncated: true` |
+| B-148（**2026-10-14**） | 自律の連鎖（§15.1.1・§15.3） | — | integrator が `autonomous` のときだけ。(1) integrator 以外のタスクが終わるたびに、その節の integrator のタスク（`initiator: agent`・`intent` は「次の 1 手」・`ready`）を起こして走らせる（同じ節に生きている integrator のタスクがあれば起こさない）。(2) integrator の出力の `## task`（`role:` / `scope:` / `intent:`）から、`off` でない integrator 以外の役割の 1 節のタスクを起こして走らせる（E035 の重複は飛ばす）。(3) 起こすたびに 1 ホップ、`chain_hop` を書く。既定の integrator のプロンプトにこの書き方を足した（行頭に `key:` を書かない、B-104） |
+| B-149（**2026-10-14**） | `novnow mcp` の細部（§15.8.3） | — | 呼び出しのたびにプロジェクトを読み直す。結果は JSON のテキスト 1 つ、失敗は `isError: true` と文言（E036 などは診断の文言）。`scene` は 4 階層。`novnow.plot.write` の `level` は `episode` だけ。直接書き込みも自動適用と同じ検証を通し、E 系が増えるなら `open` の提案として残して失敗を返す。提案の `origin` は `mcp`（直接書き込みは `mcp:<role>`）。`novnow.materials.propose` の `added_by` は `agent:<role>`（無ければ `agent:mcp`）。起動時に `prompts/` の欠けた既定ファイルを書き出す（`novnow check` は書かない） |
+| B-150（**2026-10-14**） | §7.2 のうち M10 が使う診断（§1.2 の ② の一覧との関係） | ② のまま予約 ／ **M10 の分だけ ① に** | **E035**（同じ役割 × 同じ節のタスクの重複）・**E036**（`novnow mcp` の委譲レベル不足の書き込み）・**W095**（セッション上限での停止）は M10 の完了条件と §19.8 が求める機能そのものなので ① で実装する（§1.2 の「横断的に ② へ回すもの」と §5.5 の作業項目 1 の範囲を直した）。E032–E034（カスタムロール）・E064（ローカル LLM）・I056 / I057 は ② のまま |
+| B-151（**2026-10-14**） | agent ワークスペースの操作の細部（§15.7。キーの表は仕様 第 2.16 版） | — | (1) 4 列のうち 1 つにフォーカスがある（`←` / `→`。列のクリックでも移る）。修飾キーなしの文字キーは、テキストの入力欄にフォーカスが無く、**オーバーレイ（ダイアログ・パレット）も開いていない**ときだけ効く。オーバーレイを閉じたらフォーカスを手放す。(2) ① は新しい順。`N` の対象の初期値は今の節。`Shift+R` の確認には件数・入力文字数の合計・使うサーバ・走れないものとその理由を出す。`Enter` は ③ へ。(3) ② の除外は `draft` / `ready` で走っていないタスクだけ。`1 project` と `8 constraints` は外せない（「このブロックは外せません」）。ダブルクリックは `Space` と同じ。外したブロックも予算の表示は残す。(4) ドライランは `agents/results/T####.dryrun.md` に全文を書き、監査ログには書かない（送っていないので）。(5) ステータスバーの `⟳` は 1 件ならタスク ID と役割（自律なら「（自律）」）、複数なら件数。クリックで agent の ① へ移り、その行を選ぶ |
+| B-152（**2026-10-14**） | 実行の仕組み（`Host` と毎フレームの見回り） | 非同期ランタイム ／ **スレッドと毎フレームの見回り** | `Host` に `append`（監査ログ）・`mcp_available` / `mcp_start` / `mcp_poll` / `mcp_cancel`・`env_var` を足す。デスクトップは呼び出しごとに 1 スレッド（結果は mpsc、取消は `AtomicBool`。tokio の process / io-util は使わない）、Web は呼べない（「この環境では LLM を呼び出せません」）。毎フレームの `ui::agents::tick` が終わった呼び出しを 1 件ずつ UI スレッドで処理し（**本文への適用はここで逐次**、U-8）、待ち行列から `max_parallel`・同じ節・同じサーバ 2 本の制約で次を出す。実行中は 250ms ごとに再描画。失敗とタイムアウトは `ready` に戻して知らせ、自動で再試行しない。テストの `MemoryHost` は台本（`replies`）を返す |
+| B-153（**2026-10-14**） | 総停止とパレットの項目 | — | `Ctrl+Shift+X` / `>agent stop-all` は、自律で走っているタスク（委譲レベルが `autonomous` か、エージェントが起こしたもの）を待ち行列と実行中から取り消し、`apply` / `autonomous` の役割（既定のレベルによるものも）をすべて `propose` に下げて役割ごとに `delegation_changed` を記録する。人が始めた `propose` / `apply` の実行中のタスクは止めない（§15.7.6「レベル変更は実行中のタスクには影響しない」）。止めた件数と変えた役割の数を知らせる。パレットに `>agent delegation <role> <level>`（7 役割 × 4）・`>agent stop-all`・`>prompt reset <名前 / all>`（並置表示 → 確認）・`>prompt diff <名前>` を足す。④ は既定から変わったプロンプトに「編集済」を出す |
+| B-154（**2026-10-14**） | 既定プロンプトを書き出す時期と、無効のときの画面 | 初めて agent を開いたとき ／ **プロジェクトを開いたとき** | GUI はプロジェクトを開いたとき（`Session::prepare_agents`）に、`agents.enabled` なら欠けたファイルだけ書く（`prompts/` 自体が無かったときだけ I050）。フォントのフォールバックの通知は I050 を上書きせず「{I050} / {フォント}」とつなぐ。`agents.enabled = false` のときは何も書かず、agent ワークスペースは「エージェントは無効です」**とだけ**出す（§15.7）。ほかのワークスペースはそのまま動く（A6） |
+| B-155（**2026-10-14**） | §19.8「プロンプトがプロジェクト外から読み込まれない」の担保 | プロンプトだけ特別扱い ／ **ファイル全体に広げる** | 読み込み元は `prompts/` の文書だけで、埋め込みの既定は生成元（§15.5.4 (1)）。**ファイルが無い役割は E029（`## system` と `## task` が無い）で走らない**（埋め込みの既定や空のプロンプトで代わりに走らない。④ に印）。M5 の読み込みは外を指すファイルのリンクを辿っていた（§13.1.3「読み取りは明示的に選んだパスに限りプロジェクト外でも許可」に反していた）ので、**行き先がルートの外のファイルのリンクは一覧に出さず、名前で読んでも無いもの**とした（ディレクトリのリンクは M5 から辿らない。仕様 §13.1.3 に追記）。書けないもの（規則 10）をプロジェクトに含めないためで、プロンプト以外も同じ（Zip のエクスポートにも外の中身が入らない）。一覧に無いのにディスクに何かあるパスには既定のプロンプトを書かない（GUI は `Host::occupied`、`novnow mcp` は `FsStorage::exists`。書けば規則 10 の違反）。`tests/storage_policy.rs` の `prompts_are_read_only_from_the_project`・`symlinks::files_behind_links_to_outside_are_not_part_of_the_project`、`tests/cli.rs` の `mcp_leaves_prompts_that_are_links_to_outside_alone` |
+| B-156（**2026-10-14**） | 非同期の保存（Web の IndexedDB。B-118 で残した「書き込みの結果を後のフレームで受け取る口」） | `Host::write` を Web だけ書いたことにする ／ **保存 1 回分を Host に渡し、結果を後で受け取る** | `Host::save(writes, removals) -> Option<SaveOutcome>`（既定はその場で書いて返す＝デスクトップとテストは今までどおり）と `Host::save_finished()` を足した。Web は `None` を返し、終わったら結果を返す。保存の状態は書き終わるまで `Saving`（§8.3「トランザクション成功 = 保存成功」）。**書いているあいだに文書に入った打鍵**（節を移ったなど）は、渡した中身と今の中身が違えば未保存のまま残して次の保存で書く（比べないと消える。`tests/gui.rs` の `an_asynchronous_save_keeps_what_was_committed_while_it_was_writing`）。保存の外の書き込み（`ui.json`・監査ログ・`exports/`）は列に積んで `Ok` を返し、失敗は `Host::take_events` で後から知らせる。Web の書き込みは **1 本の列で順に**行う（監査ログの追記が重ならない・保存の後に頼んだ Zip が保存後の中身を読む）。`Ctrl+O`（Web は選択画面へ戻る）・Zip のエクスポートは、書き終わってから。容量不足（`QuotaExceededError`）は `SaveFailed` として赤い印と、Zip でエクスポートしてから不要なプロジェクトを消す導線のモーダル（§13.3.7）。W062 は保存の前に `navigator.storage.estimate()`（1 分に 1 回まで） |
+| B-157（**2026-10-14**） | Web のプロジェクト選択（§13.4）の細部 | — | (1) 一覧は「開いた日時（`recent_projects`）と更新日時の新しいほう」の新しい順。名前・更新日（ローカル時刻の日付）・大きさ（全ファイルの byte の和。後から数える）。選択行は accent の背景。(2) 新規作成（`Ctrl+N`・`＋`）は名前を入れて `novnow new` と同じ雛形（`core::template`。`project.json` の題 = 名前）で作り、そのまま開く。(3) 初回の `sample`（§13.3.5）の中身は、付録 C の v1 版ができる M11 までは同じ雛形（自動では開かない）。(4) Zip の取り込み（`Ctrl+I`・`📥`。§13.4 の図の `⇪` は同梱のフォントにも egui のフォントにも無いので `📥`）の名前は Zip のファイル名（`.zip` を除く）、新しいレコードに入れる。読めないエントリは知らせに並べる。§4.3 の不備があれば「不備のまま取り込む / 取り消す」、開くときの不足（`Incomplete`）は「足りないファイルを補う」（雛形のうち無いものだけ書く。あるものは上書きしない）。(5) 名前の変更（`F2`）はレコードの表示名だけ（`project.json` の題は変えない）。削除（`Delete`）は名前の入力が一致したら（§13.4）。(6) `Esc` は入力中の操作をやめるだけで、選択画面は閉じない。(7) 別のタブでの変更は見ない（Web は 1 つのタブで使う前提。外部変更の監視 §8.5 はデスクトップだけ）。(8) ブラウザがページに渡さないキー（Chrome の `Ctrl+N` など）は `＋` ボタンで代える（仕様 §13.4 に追記） |
+| B-158（**2026-10-14**） | ブラウザとのつなぎ（eframe 0.27 の Web の足りないところ） | — | (1) **キーの既定の動作を止める**: 修飾キー付きのキー（印刷・ページの保存・検索バー・`Alt+←` の「戻る」など）と `F2` / `F3`。止めないのはコピー / 貼り付け / 切り取り・再読み込み・開発者ツール・`AltGr` の字・macOS の `Option` の字・修飾キーの無い字（`shell::browser_default_blocked`）。(2) **IME**: eframe はマウスで入力欄をクリックしたときだけ IME の隠れた入力欄を出すので、キーボードで節エディタに移ると日本語を打てなかった。入力欄にフォーカスがあるあいだは出しておく（`ui::web::sync_text_agent`）。`index.html` の canvas は eframe の前提（`left: 50%` ＋ `translate(-50%)`）に合わせた（変換候補が左に canvas の幅の半分ずれていた）。(3) **コピー / 切り取り**: eframe は `web_sys_unstable_apis` の cfg のときだけ行うが、その cfg は今の web-sys では eframe がコンパイルできないので、`Ctrl+C` / `Ctrl+X` を egui の `Copy` / `Cut` に読み替え、egui がコピーした字を `navigator.clipboard.writeText` で書く。(4) 未保存の変更があるままタブを閉じようとしたら、ブラウザの確認を出す。(5) ダウンロードは `<a download>` を文書に入れて押し、URL は後で捨てる（すぐ捨てると名前が `download` になるブラウザがある）。(6) 確かめは `scripts/web-smoke.sh`（wasm-bindgen CLI は `.github/workflows/sandbox-tools.yml` が git の blob にして PR にコメントしたものを取る。作業環境から GitHub のリリースの asset に届かないため。ブランチもタグも作らない） |
 
 ### 9.3 環境の前提
 
@@ -1417,11 +1796,11 @@ tests/layering.rs
   - 設定: `.github/toolchain.env`（`ENABLED` / `CHUNK_MB` / `COMPONENTS` / `TARGETS` / `SMOKE` /
     `SMOKE_CMD` / `SALT` / `FORCE`）。`cache_key`（toolchain.env + rust-toolchain.toml + Cargo.lock + SALT
     のハッシュ）が一致し `status=ready` の生成物が既にあれば**何もしない**ので、push しても Actions 分を消費しない。
-    依存を変えて `Cargo.lock` が更新되면自動的に再生成される。
+    依存を変えて `Cargo.lock` が更新されると自動的に再生成される。
   - 実測（作業環境: 2 CPU / 3.9GB RAM）: コールドビルド込み `cargo test --all-targets` が **1 分 46 秒（261 テスト緑）**。
     温まったあとは fmt 0.1 秒 / clippy 0.9 秒 / test 1.5 秒 / wasm check 36 秒。
     **CI を待たずに 4 ジョブ全部をローカルで確認できる**（CI は「緑の証跡」用に残す）。
-  - 注意: 展開先（既定 `/home/user/build`）はスナップショット対象外なので、サンドボックス再作成後は取得からやり直す
+  - 注意: 展開先（既定 `$HOME/build`）はスナップショット対象外なので、サンドボックス再作成後は取得からやり直す
     （約 40 秒 ＋ 展開 10 秒）。`target/` も消えるのでコールドビルド（約 2 分）が 1 回走る。
   - 撤去: `.github/toolchain.env` を `ENABLED=0` にする（または 2 ファイルを削除）＋
     `git push origin --delete cache/rust-toolchain`。孤立ブランチなので main にも作業ブランチにも影響しない。
