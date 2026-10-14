@@ -21,30 +21,42 @@
 
 ### 13.3 Web: IndexedDB
 
-状態: 実装完了（REF:src/adapters/storage_idb.rs, REF:tests/storage_idb.rs）
+状態: 未実装・実装計画済み（REF:src/adapters/storage_idb.rs, REF:tests/storage_idb.rs, REF:docs/plans.md#plan-S-03）
 
 - DB 名 `novnow`（version 1）の 3 オブジェクトストア（`projects`, `files`, `app`）と `APP_KEYS`（`recent_projects` のみ許可）、残容量 10MB 未満の `W063`、IndexedDB 利用不可時の `E062`、初回 `sample` プロジェクト投入は `REF:src/adapters/storage_idb.rs` に実装する。
 - スキーマ定数と仕様表の一致は `REF:tests/storage_idb.rs` が `include_str!` で検証し、ブラウザ実機動作は `REF:scripts/web-smoke.mjs` で検証する。
 
+- **[S-03] Web 版の PWA 化とオフライン動作（未実装・実装計画済み: `REF:docs/plans.md#plan-S-03`）**:
+  - `REF:index.html` に Web App Manifest と Service Worker 登録を追加し、オフラインキャッシュと `REF:README.md` への PWA 案内を実装する。
+
 ### 13.4 プロジェクト選択モーダル（Web）
 
-状態: 実装完了（REF:src/ui/web.rs, REF:scripts/web-smoke.mjs）
+状態: 未実装・実装計画済み（REF:src/ui/web.rs, REF:scripts/web-smoke.mjs, REF:docs/plans.md#plan-F-33）
 
 - Web 起動時および `Ctrl+O` 時のプロジェクト選択モーダル（一覧・検索 `/`・新規作成 `Ctrl+N`・Zip 取込 `Ctrl+I`・改名 `F2`・削除 `Delete`・単一タブ利用の注記 `project.pick.single_tab`）は `WebPicker`（`REF:src/ui/web.rs`）に実装する（検証: `REF:scripts/web-smoke.mjs`）。
 
+- **[F-33 / S-02] Web 版の同名プロジェクト作成禁止と初回起動ウェルカム案内（未実装・実装計画済み: `REF:docs/plans.md#plan-F-33`, `REF:docs/plans.md#plan-S-02`）**:
+  - `REF:src/ui/web.rs` と `REF:src/adapters/storage_idb.rs` で既存プロジェクトと同一タイトルの作成・改名を拒否し（F-33）、履歴が空の初回起動時およびパレットからウェルカム案内モーダルを表示する（S-02）。
+
 ### 13.5 Zip インポート / エクスポート
 
-状態: 実装完了（REF:src/core/policy/archive.rs, REF:src/adapters/zip.rs, REF:tests/zip_roundtrip.rs）
+状態: 未実装・実装計画済み（REF:src/core/policy/archive.rs, REF:src/adapters/zip.rs, REF:tests/zip_roundtrip.rs, REF:docs/plans.md#plan-S-10）
 
 - アーカイブ対象の選別（ドット始まりファイルの除外と `.gitignore` / `.gitkeep` の例外許可、パストラバーサル `..` の拒否）は `core::policy::archive`（`REF:src/core/policy/archive.rs`）が担い、Deflate 圧縮・展開は `adapters::zip`（`REF:src/adapters/zip.rs`）が担う（検証: `REF:tests/zip_roundtrip.rs`）。
+
+- **[S-10 / S-16] デスクトップ Zip インポートと Web⇔デスクトップ移行ヘルプ（未実装・実装計画済み: `REF:docs/plans.md#plan-S-10`, `REF:docs/plans.md#plan-S-16`）**:
+  - `REF:src/cli/mod.rs` と `REF:src/ui/app.rs` にデスクトップでの Zip 導入を追加し（S-10）、Zip を使った Web⇔デスクトップ移行手順のヘルプ画面を追加する（S-16）。
 
 ## 14. 起動仕様
 
 ### 14.1 CLI 文法
 
-状態: 実装完了（REF:src/cli/mod.rs, REF:src/main.rs, REF:tests/cli.rs）
+状態: 未実装・実装計画済み（REF:src/cli/mod.rs, REF:src/main.rs, REF:tests/cli.rs, REF:docs/plans.md#plan-S-10）
 
 - 引数解析とサブコマンド（`<dir>`, `new`, `check`, `export`, `mcp`）およびフラグ（`--gui`, `-h`/`--help`, `-V`/`--version`）の振り分けは `REF:src/cli/mod.rs` に実装する（検証: `REF:tests/cli.rs`）。
+
+- **[S-10] `novnow import <zip> <dir>` サブコマンド（未実装・実装計画済み: `REF:docs/plans.md#plan-S-10`）**:
+  - `REF:src/cli/mod.rs` に `import <zip> <dir>` を追加し、`REF:src/adapters/zip.rs` で展開・検証を行う。
 
 ### 14.2 起動時のスキャンとエラー出力
 
@@ -62,12 +74,23 @@
 
 ### 14.4 GUI 起動時のプロジェクト選択モーダル（デスクトップ）
 
-状態: 実装完了（REF:src/ui/app.rs, REF:tests/gui.rs）
+状態: 未実装・実装計画済み（REF:src/ui/app.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-40）
 
 - デスクトップで `<dir>` なしに GUI 起動した際のプロジェクト選択画面（`recent.json` の履歴一覧、存在しないパスの灰色表示と履歴削除、フォルダ選択ダイアログ、新規作成）は `NativePicker`（`REF:src/ui/app.rs`）に実装する。
+
+- **[F-40 / S-11 / S-17] デスクトップ選択画面の `Ctrl+O` 2 段化・日付表示・履歴削除（未実装・実装計画済み: `REF:docs/plans.md#plan-F-40`, `REF:docs/plans.md#plan-S-11`, `REF:docs/plans.md#plan-S-17`）**:
+  - `REF:src/ui/app.rs` の `NativePicker` で、`Ctrl+O` 押下時は保存して履歴一覧画面へ戻り、そこから「フォルダを開く」を選ぶ 2 段構成に統一する（F-40）。
+  - 各履歴項目に最終利用日付 `opened_at` を表示し（S-11）、「データは消さず履歴のみを一覧から削除する」旨を明示した履歴削除機能を追加する（S-17）。
 
 ### 14.5 `novnow new` の生成物
 
 状態: 実装完了（REF:src/core/template/mod.rs, REF:src/cli/new.rs, REF:tests/template.rs, REF:tests/cli.rs）
 
 - 初期ファイル一式の生成と既存ファイル保護（上書きせず `kept` / `created` を表示）、生成直後の `novnow check` 診断 0 件保証は `REF:src/core/template/mod.rs` と `REF:src/cli/new.rs` に実装し、`REF:tests/template.rs` と `REF:tests/cli.rs` で検証する。
+
+### 14.6 既存本文テキストからの移行支援
+
+状態: 未実装・未計画（REF:docs/plans.md#unplanned-large）
+
+- **[L-01] 既存の本文テキストから `novnow` に移行するための手段の提供（未実装・未計画: `REF:docs/plans.md#unplanned-large`）**:
+  - 比較的大規模な機能追加であり、現時点では実装および詳細計画の対象外（未実装・未計画）とする。

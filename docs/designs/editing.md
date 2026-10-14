@@ -6,10 +6,13 @@
 
 ### 8.1 節単位編集
 
-状態: 実装完了（REF:src/core/features/sections.rs, REF:src/ui/workbench.rs, REF:src/ui/widgets/section_editor.rs, REF:tests/gui.rs）
+状態: 未実装・実装計画済み（REF:src/core/features/sections.rs, REF:src/ui/workbench.rs, REF:src/ui/widgets/section_editor.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-10）
 
 - 文書内の各節のスライス抽出と単一節の差し替え・分割（`Ctrl+Enter` / `Ctrl+;`）・削除（`Ctrl+Shift+;`）は `core::features::sections`（`REF:src/core/features/sections.rs`）と `Workbench`（`REF:src/ui/workbench.rs`）が担う。
 - 節エディタウィジェット（`REF:src/ui/widgets/section_editor.rs`）は選択中の 1 節のテキストのみを `egui::TextEdit::multiline` に渡し、コミット時にファイル全体のテキストを再構成する（検証: `REF:tests/gui.rs`）。
+
+- **[F-10] 複数行および `;` を含むペースト時の自動節分割（未実装・実装計画済み: `REF:docs/plans.md#plan-F-10`）**:
+  - `REF:src/core/features/sections.rs` に `split_pasted_sections(current: &str, cursor: usize, pasted: &str)` を追加し、`REF:src/ui/widgets/section_editor.rs` / `REF:src/ui/workbench.rs` で `egui::Event::Paste` を処理する際、改行を保持するとともに単独 `;` 行や `@A-B-C` 行が含まれていれば自動的に複数節へ分割・一括挿入する。
 
 ### 8.2 保存ステートマシン
 
@@ -27,9 +30,12 @@
 
 ### 8.4 保存状態の表示
 
-状態: 実装完了（REF:src/ui/app.rs, REF:src/ui/theme.rs, REF:tests/gui.rs）
+状態: 未実装・実装計画済み（REF:src/ui/app.rs, REF:src/ui/theme.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-39）
 
 - ステータスバー右端の保存状態インジケータ（`Clean` 無表示 / `Dirty` 琥珀色 `●` / `Saving` 点滅 `●` / `Failed` 赤 `✕` + 通知）は `NovnowApp`（`REF:src/ui/app.rs`）が `SaveMachine::state()` を参照して描画する。
+
+- **[F-39] 未保存ドット（オレンジ点）のサイズ拡大（未実装・実装計画済み: `REF:docs/plans.md#plan-F-39`）**:
+  - `REF:src/ui/widgets/context_view.rs` と `REF:src/ui/app.rs` における未保存インジケータ（`state.unsaved`）の円半径を拡大（直径 8〜10px）し、視認性を高める。
 
 ### 8.5 外部変更との競合
 

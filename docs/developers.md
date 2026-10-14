@@ -40,6 +40,8 @@ docs/
    - `docs/designs/**.md` の各 `### ` 節の冒頭には、必ず次のいずれかの形式で実装状態を 1 行で記載する。
      - `状態: 実装完了（REF:src/...）`
      - `状態: 実装中（REF:src/...）`
+     - `状態: 未実装・実装計画済み（REF:src/..., REF:docs/plans.md#...）`
+     - `状態: 未実装・未計画（REF:docs/plans.md#unplanned-large）`
      - `状態: 実装待ち（段階 ② 対象: REF:docs/plans.md#stage-2）`
 2. **重複許可ブロック（`SYNC` マーカー）**:
    - `REF:docs/handoff.md` と `REF:docs/plans.md` の間で共有するマイルストーン達成状況など、重複が避けられない箇所は `<!-- SYNC:START <id> -->` と `<!-- SYNC:END <id> -->` で囲み、`REF:docs/script/duplicate.py` でバイト単位の一致を検証する。

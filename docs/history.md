@@ -117,6 +117,11 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - `[dev-dependencies]` の許可リストに `criterion` を追加。
 - 単一ファイルだった旧 `SPECIFICATIONS.md` を廃止し、`docs/specifications/*.md`（純粋仕様 10 ファイル）と `docs/designs/*.md`（設計 10 ファイル）に分離。
 
+### [HIST:SPEC-REV:v2.20] 2026-10-14 実機レビューに基づく修正 44 件・小規模機能追加 18 件・大規模機能追加 1 件の仕様追加
+[HIST-TAG: category=SPEC-REV id=v2.20 topics=ui_refinements,palette,morpheme,pwa,zip_import,performance,plans]
+- 実機操作に基づく UI・エディタ・パレット・辞書・ショートカット・性能等の修正 44 件（`F-01`〜`F-44`）および小規模機能追加 18 件（`S-01`〜`S-18`）を `docs/specifications/*.md` と `docs/designs/*.md` に「未実装・実装計画済み」として追加し、`REF:docs/plans.md#planned-fixes-and-features` に実装計画を策定。
+- 既存の本文テキストから `novnow` に移行する手段（`L-01`）を `REF:docs/designs/platform.md` §14.6 および `REF:docs/plans.md#unplanned-large` に「未実装・未計画」として追加。
+
 ---
 
 ## 2. アーキテクチャ・仕様の意思決定ログ（`DECISION`）

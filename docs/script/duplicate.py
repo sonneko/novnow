@@ -200,8 +200,16 @@ def main() -> int:
                 )
 
     # 5. specifications と designs の見出し一致 & 実装状態の検査
-    status_counts = {"実装完了": 0, "実装中": 0, "実装待ち": 0}
-    status_re = re.compile(r"^状態:\s*(実装完了|実装中|実装待ち)（(.+)）$")
+    status_counts = {
+        "実装完了": 0,
+        "実装中": 0,
+        "未実装・実装計画済み": 0,
+        "未実装・未計画": 0,
+        "実装待ち": 0,
+    }
+    status_re = re.compile(
+        r"^状態:\s*(実装完了|実装中|未実装・実装計画済み|未実装・未計画|実装待ち)（(.+)）$"
+    )
 
     for name in spec_files:
         sp = spec_dir / name
@@ -347,6 +355,8 @@ def main() -> int:
             expected_fragment = (
                 f"実装完了 {status_counts['実装完了']} 節 / "
                 f"実装中 {status_counts['実装中']} 節 / "
+                f"未実装・実装計画済み {status_counts['未実装・実装計画済み']} 節 / "
+                f"未実装・未計画 {status_counts['未実装・未計画']} 節 / "
                 f"実装待ち {status_counts['実装待ち']} 節"
             )
             expected_total = f"合計 {total} 節"
@@ -386,7 +396,8 @@ def main() -> int:
     print(
         f"OK: docs rules verified (10 specifications, 10 designs, "
         f"{status_counts['実装完了']} completed / {status_counts['実装中']} in-progress / "
-        f"{status_counts['実装待ち']} waiting sections, SYNC blocks & REF links valid)."
+        f"{status_counts['未実装・実装計画済み']} planned / {status_counts['未実装・未計画']} unplanned / "
+        f"{status_counts['実装待ち']} stage2-waiting sections, SYNC blocks & REF links valid)."
     )
     return 0
 

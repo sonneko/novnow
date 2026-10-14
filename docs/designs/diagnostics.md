@@ -21,8 +21,11 @@
 
 ### 7.2 執筆支援系の診断
 
-状態: 実装完了（REF:src/core/diagnostics.rs, REF:src/core/features/project.rs, REF:src/core/features/project.rs, REF:tests/diagnostics_document.rs）
+状態: 未実装・実装計画済み（REF:src/core/diagnostics.rs, REF:src/core/features/project.rs, REF:src/core/features/project.rs, REF:tests/diagnostics_document.rs, REF:docs/plans.md#plan-S-15）
 
 - 執筆支援系の 27 コード（`W080`〜`W099`, `E032`〜`E036`, `E064`, `I054`）は `Group::Writing` として `REF:src/core/diagnostics.rs` に定義する。
 - 既定の有効（`TOGGLE_ON`: 11 件）/ 無効（`TOGGLE_OFF`: 7 件）および実行コスト制御テーブル（`COST`: 16 件の `Trigger` × `Scope`）は `REF:src/core/diagnostics.rs` に定数表として持ち、`REF:tests/diagnostics_catalog.rs` で仕様表との完全一致を検証する。
 - 段階 ① 対象の執筆支援診断（`W081` 文長、`W082` 連続文末、`W083` 話者不明会話、`W084` 非定義視点、`W085` 助詞連続、`W086` 指示語過多、`W087` 漢字率、`W094` 台詞長、`W098` 表記揺れ、`E032`〜`E036` / `E064` / `I054` エージェント系）は `REF:src/core/features/project.rs` および `REF:src/core/agents/runner.rs` で実装済みであり、段階 ② の構文（`when:` / `senses:` / `space:` 等）に依存するコードは縫い代 3 に従いカタログ定義と設定トグルを保持している。
+
+- **[S-15] 全診断コードの Web サイト解説と CI 網羅検査（未実装・実装計画済み: `REF:docs/plans.md#plan-S-15`）**:
+  - `CATALOG`（`REF:src/core/diagnostics.rs`）の全 76 コードそれぞれに対する原因・例・対処法の解説ドキュメントを整備し、`REF:tests/diagnostics_catalog.rs` および `REF:.github/workflows/ci.yml` で全コードの解説が存在することを機械検査する。
