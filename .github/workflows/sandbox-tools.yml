@@ -1,16 +1,15 @@
 name: sandbox-tools
 
-# 目的（Web 版をブラウザで確かめるための道具の搬入）
+# 目的（Web 版をブラウザで確かめるための道具や追加クレートを git blob に退避する）
 # ---------------------------------------------------------------------
-# Arena の開発サンドボックスからは GitHub のリリースの asset（objects.githubusercontent.com）に
-# 届かないので、Web 版の JS の糊を作る wasm-bindgen CLI（Cargo.lock の wasm-bindgen と同じ版）を
-# ここで取り、**どのブランチからも参照しない git の blob** として置いて、その SHA を PR にコメントする。
-# サンドボックスは api.github.com の blobs API で取り出す（`scripts/web-smoke.sh`）。
-# ブランチもタグも作らない（参照の無い blob はいずれ GitHub の GC で消える。消えたら作り直す）。
+# Arena の開発サンドボックスからは GitHub のリリースの asset（objects.githubusercontent.com）や
+# static.crates.io に届かないため、必要なアーカイブをここで取得して git blob として保存し、
+# その SHA を PR にコメントする（取り出しは scripts/web-smoke.sh / scripts/bootstrap-toolchain.sh）。
 #
-# 走るのは `.github/sandbox-tools.env` を変えて push したときだけ（Actions の使用時間を抑える）。
+# 走るのは `.github/sandbox-tools.env` を `ENABLED=1` にして push したとき、または手動実行時のみ。
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - "arena/**"
@@ -18,8 +17,8 @@ on:
       - .github/sandbox-tools.env
 
 permissions:
-  contents: write # blob の作成
-  pull-requests: write # SHA のコメント
+  contents: write
+  pull-requests: write
 
 concurrency:
   group: sandbox-tools-${{ github.ref }}
@@ -29,6 +28,7 @@ jobs:
   wasm-bindgen:
     name: wasm-bindgen CLI to a git blob
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
@@ -40,6 +40,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # shellcheck source=/dev/null
+          . ./.github/sandbox-tools.env
+          if [ "${ENABLED:-0}" != "1" ] && [ "${GITHUB_EVENT_NAME}" != "workflow_dispatch" ]; then
+            echo "ENABLED=0 のためスキップします。"
+            exit 0
+          fi
           version="$(awk '/^name = "wasm-bindgen"$/ { getline; gsub(/version = |"/, ""); print; exit }' Cargo.lock)"
           name="wasm-bindgen-${version}-x86_64-unknown-linux-musl"
           curl -fsSL --retry 3 -o tool.tar.gz \
@@ -62,6 +68,7 @@ jobs:
   criterion-crates:
     name: criterion .crate files to a git blob
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
@@ -73,6 +80,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # shellcheck source=/dev/null
+          . ./.github/sandbox-tools.env
+          if [ "${ENABLED:-0}" != "1" ] && [ "${GITHUB_EVENT_NAME}" != "workflow_dispatch" ]; then
+            echo "ENABLED=0 のためスキップします。"
+            exit 0
+          fi
           mkdir -p crates
           for item in \
             anes:0.1.6 \
@@ -115,5 +128,3 @@ jobs:
           if [ -n "$pr" ]; then
             gh pr comment "$pr" --repo "${GITHUB_REPOSITORY}" --body "$body"
           fi
-
-
