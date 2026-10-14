@@ -693,6 +693,13 @@ impl NovnowApp {
         for command in commands {
             self.run(ctx, command, now);
         }
+        if matches!(self.stage, Stage::Open(_))
+            && self.overlay == Overlay::None
+            && !self.ime.composing()
+            && ctx.input_mut(|input| input.consume_key(Modifiers::NONE, Key::F2))
+        {
+            self.run(ctx, Command::Rename, now);
+        }
         // 入力欄を持たない重ね物（確認・行き先の選択）が出ている間は、下のエディタにキーを渡さない
         // （`Enter` や矢印が、重ね物と同時にエディタの改行・カーソル移動にもなるため）。閉じたら戻す
         if matches!(

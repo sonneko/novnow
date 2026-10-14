@@ -81,6 +81,12 @@ syn = { version = "2.0", features = ["full", "visit"] }
 # tests/layering.rs が Cargo.toml 自身を読んで feature gate（上の [features]）を検査するのに使う
 # （`toml` は M6 から通常の依存でもあるが、テストの用途を明示するために dev 側にも残す）。
 toml = "0.8"
+# §18.1 / §18.4 の性能ベンチマーク（B-25）。描画バックエンド（plotters）・並列（rayon）は不要なので落とす。
+criterion = { version = "0.5.1", default-features = false, features = ["cargo_bench_support"] }
+
+[[bench]]
+name = "core"
+harness = false
 
 [profile.release]
 opt-level = 3

@@ -58,3 +58,62 @@ jobs:
           if [ -n "$pr" ]; then
             gh pr comment "$pr" --repo "${GITHUB_REPOSITORY}" --body "$body"
           fi
+
+  criterion-crates:
+    name: criterion .crate files to a git blob
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: fetch .crate files, store as a blob, comment
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p crates
+          for item in \
+            anes:0.1.6 \
+            anstyle:1.0.14 \
+            cast:0.3.0 \
+            ciborium:0.2.2 \
+            ciborium-io:0.2.2 \
+            ciborium-ll:0.2.2 \
+            clap:4.6.7 \
+            clap_builder:4.6.7 \
+            clap_lex:1.0.1 \
+            criterion:0.5.1 \
+            criterion-plot:0.5.0 \
+            crunchy:0.2.4 \
+            either:1.15.0 \
+            half:2.4.1 \
+            is-terminal:0.4.17 \
+            itertools:0.10.5 \
+            num-traits:0.2.19 \
+            oorandom:11.1.5 \
+            tinytemplate:1.1.0
+          do
+            name="${item%:*}"
+            ver="${item#*:}"
+            curl -fsSL --retry 3 -o "crates/${name}-${ver}.crate" \
+              "https://static.crates.io/crates/${name}/${name}-${ver}.crate"
+          done
+          tar czf criterion-crates.tar.gz crates
+          sha="$(sha256sum criterion-crates.tar.gz | cut -d' ' -f1)"
+          python3 - <<'PY'
+          import base64, json
+          data = base64.b64encode(open("criterion-crates.tar.gz", "rb").read()).decode()
+          json.dump({"content": data, "encoding": "base64"}, open("blob.json", "w"))
+          PY
+          blob="$(gh api -X POST "repos/${GITHUB_REPOSITORY}/git/blobs" --input blob.json --jq .sha)"
+          pr="$(gh pr list --repo "${GITHUB_REPOSITORY}" --head "${GITHUB_REF_NAME}" --state all --json number --jq '.[0].number')"
+          body="sandbox-tools: criterion-crates=0.5.1 blob=${blob} sha256=${sha} file=criterion-crates.tar.gz"
+          echo "$body"
+          echo "$body" >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$pr" ]; then
+            gh pr comment "$pr" --repo "${GITHUB_REPOSITORY}" --body "$body"
+          fi
+
+

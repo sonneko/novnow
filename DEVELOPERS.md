@@ -121,6 +121,7 @@ wasm-bindgen CLI は `.github/workflows/sandbox-tools.yml` が git の blob に�
 cargo test                        # すべて（GUI なし。速い）
 cargo test --test layering        # 層構造と feature gate の検査（本書 3 節 / 仕様 §3.2・§12.2）だけ
 cargo test --features ui          # M7 以降は GUI 込みでも通すこと
+cargo bench --locked --bench core -- --quick   # §18.1 の core ベンチマーク 5 本（B-25）
 ```
 
 CI で常設するテストは `PLANS.md` §6 を参照。`tests/layering.rs` は **落ちたらマージしない**（例外なし）。
@@ -155,7 +156,7 @@ doc コメントまで突き合わせる。診断コードを足す／直すと�
 
 ### 1.5 CI の出力（`.github/report.py`）
 
-`.github/workflows/ci.yml` の 4 ジョブは、cargo の出力を `/tmp/ci.log` に tee したうえで
+`.github/workflows/ci.yml` の 5 ジョブ（`fmt` / `clippy` / `test` / `wasm`（`trunk build --release` と 8MiB サイズ検査込み）/ `bench`）は、cargo の出力を `/tmp/ci.log` に tee したうえで
 **`.github/report.py`** に渡す。スクリプトは生ログから「どれが・どこで・何と言って失敗したか」
 だけを抜き出し、次の 3 つを書く（標準ライブラリのみ・追加インストールなし）。
 

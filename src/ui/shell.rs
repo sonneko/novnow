@@ -230,7 +230,6 @@ pub fn command_of(
         Key::F if ctrl && !alt => Command::Find,
         Key::H if ctrl && !alt && !shift => Command::Replace,
         Key::H if plain_alt && !shift => Command::InlayHints,
-        Key::F2 if !ctrl && !alt && !shift => Command::Rename,
         Key::F3 if !ctrl && !alt => Command::FindNext(!shift),
         Key::F12 if !ctrl && !alt && !shift => Command::Definition,
         Key::F12 if !ctrl && !alt && shift => Command::References,

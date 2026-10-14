@@ -230,9 +230,17 @@ jobs:
         with:
           targets: wasm32-unknown-unknown,x86_64-pc-windows-msvc
       - uses: Swatinem/rust-cache@v2
+      - name: Install trunk
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 https://github.com/trunk-rs/trunk/releases/download/v0.21.5/trunk-x86_64-unknown-linux-gnu.tar.gz \
+            | tar xzf - -C "$HOME/.cargo/bin"
+          trunk --version
       # M7 から GUI 込み（`--features ui`。Web の GUI と、Windows の GUI ビルドの型検査）。
+      # M11 から §18.4 の `trunk build --release` と gzip 後 wasm サイズ検査（§18.1: 8MiB 以下）も実施。
       # RUSTFLAGS は付けない（付けると依存クレートまで作り直しになる）。警告は下の grep で落とす。
-      - name: cargo check (wasm32 / windows)
+      - name: trunk build --release & cargo check (wasm32 / windows)
         id: cargo
         shell: bash
         run: |
@@ -240,6 +248,25 @@ jobs:
           status=0
           echo "::group::cargo check --target wasm32-unknown-unknown（生ログ）"
           cargo check --locked --target wasm32-unknown-unknown --features ui 2>&1 | tee /tmp/ci.log || status=$?
+          echo "::endgroup::"
+          echo "::group::trunk build --release & wasm サイズ検査（§18.1 / §18.4）"
+          trunk build --release 2>&1 | tee -a /tmp/ci.log || status=$?
+          if [ "$status" = 0 ]; then
+            wasm_file="$(ls dist/*_bg.wasm 2>/dev/null | head -1)"
+            if [ -z "$wasm_file" ]; then
+              echo "::error::dist/*_bg.wasm が生成されていません" | tee -a /tmp/ci.log
+              status=1
+            else
+              raw_bytes="$(wc -c < "$wasm_file")"
+              gz_bytes="$(gzip -c "$wasm_file" | wc -c)"
+              limit_bytes=$((8 * 1024 * 1024))
+              echo "wasm size: raw=${raw_bytes} bytes, gzip=${gz_bytes} bytes (limit=${limit_bytes} bytes)" | tee -a /tmp/ci.log
+              if [ "$gz_bytes" -gt "$limit_bytes" ]; then
+                echo "::error::gzip 後の wasm サイズ (${gz_bytes} bytes) が §18.1 の上限 8MiB (${limit_bytes} bytes) を超えています" | tee -a /tmp/ci.log
+                status=1
+              fi
+            fi
+          fi
           echo "::endgroup::"
           echo "::group::cargo check --target x86_64-pc-windows-msvc（生ログ）"
           cargo check --locked --target x86_64-pc-windows-msvc --features ui 2>&1 | tee -a /tmp/ci.log || status=$?
@@ -257,6 +284,46 @@ jobs:
         env:
           CI_LOG: /tmp/ci.log
           CI_JOB: WASM Build Check
+          CI_KIND: wasm
+          CI_STATUS: ${{ steps.cargo.outcome }}
+        run: python3 .github/report.py /tmp/body.md || echo "::warning::レポートの生成に失敗しました（合否には影響しません）"
+      - name: Comment on the PR
+        if: failure() && github.event_name == 'pull_request'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr comment "${{ github.event.pull_request.number }}" --body-file /tmp/body.md
+
+  bench:
+    name: Benchmarks
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: cargo bench (§18.1 / §18.4)
+        id: cargo
+        shell: bash
+        run: |
+          set -o pipefail
+          status=0
+          echo "::group::cargo bench --no-run（生ログ）"
+          cargo bench --locked --no-run 2>&1 | tee /tmp/ci.log || status=$?
+          echo "::endgroup::"
+          if [ "$status" = 0 ]; then
+            echo "::group::cargo bench --bench core -- --quick（生ログ）"
+            cargo bench --locked --bench core -- --quick 2>&1 | tee -a /tmp/ci.log || status=$?
+            echo "::endgroup::"
+          fi
+          exit $status
+      - name: Report to the run summary
+        if: always() && steps.cargo.outcome != 'skipped'
+        shell: bash
+        env:
+          CI_LOG: /tmp/ci.log
+          CI_JOB: Benchmarks
           CI_KIND: wasm
           CI_STATUS: ${{ steps.cargo.outcome }}
         run: python3 .github/report.py /tmp/body.md || echo "::warning::レポートの生成に失敗しました（合否には影響しません）"
