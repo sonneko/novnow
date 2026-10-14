@@ -4,7 +4,7 @@
 
 > **この文書の位置づけ**
 >
-> - 仕様の正本は **[`SPECIFICATIONS.md`](./SPECIFICATIONS.md)**（v1 仕様 **第 2.10 版**）。
+> - 仕様の正本は **[`SPECIFICATIONS.md`](./SPECIFICATIONS.md)**（v1 仕様 **第 2.16 版**）。
 > - 実装順序と見積りは **[`PLANS.md`](./PLANS.md)**（段階 ① の実装計画）。
 > - 本書は「手を動かすときに開く頁」であり、仕様と食い違った場合は **`SPECIFICATIONS.md` が優先する**。
 >
@@ -18,15 +18,18 @@
 > §6.6）・`core/resolve/context_rules.rs`（参照ペインと ContextPacket の共用ルール、
 > §9.5.2 / §15.4）。**`core/resolve/` は 5 本すべて実装済み（M3 完了）**。
 > **M4**: `core/features/*`（§3.4 の 11 機能と集約 `features::Project`）・`diagnostics::document`
-> （文書単位の診断の組み立て）・`ui/i18n/{ja,en}.toml`（`diag.*` の文言 80 件）。本書 §5.6。
+> （文書単位の診断の組み立て）・`ui/i18n/{ja,en}.toml`（`diag.*` の文言 81 件）。本書 §5.6。
 > **M5**: `core/policy/*`（規則 10 の判定・履歴・Zip・外部変更）・`core/syntax/project_json.rs`・
 > `ports/*`（5 本の trait）・`adapters/{storage_fs,recent_file,zip,project_load,storage_idb,env_system,clock_system}.rs`。本書 §5.7。
 > **M6**: `cli/*`（§14 の判定・起動前の検査・`new` / `check`。`export` / `migrate` / `mcp` は枠だけ）・`main.rs`・
 > `ui/i18n/mod.rs`（文言カタログの読み込みと言語の決定。`cli.*` の文言 44 件）・`core/template/`（`novnow new` の雛形と
 > 既定プロンプト）。本書 §2・§5.8。あわせて §13.1.1 の特例（ユーザーが明示的に指定したエクスポートの書き出し先。
 > Zip とテキスト）を入れた（§5.7）。`core/features/place.rs`（診断の「どこ」を作家の言葉で、§14.2.5）も M6 の後に足した。
-> **空のまま**: `core/aicontext/*`（M10）・`adapters/mcp_stdio.rs`（M10）・`adapters/dialog_rfd.rs`（M7）・
-> `ui/**`（M7 以降。`ui/i18n/` を除く）。本書の「モジュール構成」は **v1 の目標形**。
+> **M7〜M9**: `ui/**`（GUI。本書 §6）・`adapters/dialog_rfd.rs`・`core/features/{sections,reference,plots,ideas,materials_ops,cast}.rs`・
+> エクスポート（`core/export.rs`・`cli/export.rs`）。
+> **M10**: `core/agents/*`（タスク・提案・スレッド・監査ログ・プロンプト・出力の分解・採否と自動適用・実行の段取り・
+> `novnow mcp` のツール）・`core/aicontext/*`（ContextPacket と予算）・`ports/mcp.rs`・`adapters/mcp_stdio.rs`・`cli/mcp.rs`・
+> `ui/agents.rs`（実行の状態）・`ui/workspaces/agent.rs`。本書 §6.2・§10。本書の「モジュール構成」は **v1 の目標形**。
 >
 > **GUI は M7 まで動かない**（`PLANS.md` §3 I3）。M6 の実行ファイルは CLI（`new` / `check` / `--help`）が動き、
 > GUI を求められると（`novnow <有効なプロジェクト>`・引数なしで端末以外から起動）「この novnow には GUI が
@@ -270,6 +273,7 @@ src/
                            external_change（本書 §5.7）
     export.rs              アノテーション除去（§17.1）
     template/              novnow new の雛形と既定プロンプト（project/ の下のファイルを include_str!）
+    agents/                files  mcp_config  prompts  output  apply  runner  server（M10。I/O なし）
     aicontext/             packet.rs  budget.rs
   ports/                   storage.rs  clock.rs  mcp.rs  env.rs  dialog.rs
   adapters/                storage_fs.rs（書き込みの関門）  storage_idb.rs  recent_file.rs
@@ -277,6 +281,7 @@ src/
                            mcp_stdio.rs  dialog_rfd.rs
   ui/
     i18n/                  文言カタログ（GUI なしでもビルドする。CLI が使う）
+    agents.rs              エージェントの実行の状態（待ち行列・実行中・累計）
     shell.rs               共通シェル（ステータスバー・パレット・モーダル・IME 状態）
     theme.rs
     widgets/               context_view  section_editor  reference_pane
@@ -505,7 +510,7 @@ let items = completion::at(document, cursor, &project);           // `'` の補�
 | 非同期（B-90） | `ports::storage::Storage` のメソッドは `Future` を返す（IndexedDB が非同期のため）。ネイティブは即座に完了するので CLI とテストは `adapters::block_on` で待つ |
 | 履歴（B-92） | 場所は §13.2.1（`recent_file::location`、`NOVNOW_RECENT_FILE` で上書き）。書くのは `RecentFile::push` / `remove` → `FsGate::write_history` だけ（一時ファイルを使わず直接上書き）。キーは `path` / `opened_at` だけ・32 件（`policy::recent`） |
 | 原子的保存（§8.3） | `FsStorage::write` が `.<name>.novnow-tmp` → `fsync` → `rename`。保存の成否は `Result`、`Ok` は新しいスタンプ（外部変更の検出で自分の保存を候補にしないために `Snapshot::acknowledge` する） |
-| 読み込み（B-94） | `adapters::project_load::load(&storage)` が一覧 → UTF-8 の確認 → `model::project::validate`（§4.3）→ §5.0.4 の正規化 → `features::Project`。設定は `project.json` の文書から集約が読む（B-89）。起動前の軽い検査は `listing` ＋ `validate` |
+| 読み込み（B-94） | `adapters::project_load::load(&storage)` が一覧 → UTF-8 の確認 → `model::project::validate`（§4.3）→ §5.0.4 の正規化 → `features::Project`。設定は `project.json` の文書から集約が読む（B-89）。起動前の軽い検査は `listing` ＋ `validate`。**行き先がルートの外のシンボリックリンクは一覧に出さず、`read_bytes` でも `NotFound`**（§13.1.3、B-155。ディレクトリのリンクは辿らない） |
 | 外部変更（B-95） | `project_load::poll(&storage, &mut snapshot)` を 1,000ms ごと（タイマは UI）。候補は中身を読んで `policy::external_change::react`（Clean は再読込 ＋ I052、Dirty は衝突、辞書の 3 ファイルは常に再読込） |
 | Zip（B-93・B-99） | `adapters::zip::{export, import}` はバイト列どうし（デスクトップと Web で共通）。デスクトップの書き出しは **保存ダイアログ**（`Dialog::save_zip`、初期値 `storage.absolute(&zip::export_path(name))`）→ `zip::export_to_chosen(&storage, chosen)`。ダイアログを通さない `export_project` は `exports/<name>.zip`。取り込みは新しいルートへ（`FsStorage::create` ＋ `import_project`。既存のファイルは上書きしない）。何を入れて何を取り込むかは `policy::archive` |
 | 明示された書き出し先の特例（B-99・B-109） | プロジェクトの外に書けるのは `FsGate::write_chosen_export(ChosenPath, …)` だけ（ファイル 1 個・1 回・直接・親ディレクトリは作らない）。`ChosenPath` は書き出しの種類 `ExportKind` を持ち、書ける拡張子は Zip が `.zip`、Text が `.txt` / `.md`（種類に合わなければ E060）。`ChosenPath::from_save_dialog(path, kind)` を呼んでよいのは **`Dialog::save_zip` / `save_text` の実装とテストだけ**、`ChosenPath::from_command_line(path, kind)` は **`novnow export --out` だけ**。結果は `FsGate::check_chosen_export`（panic しない）で先に確かめて E060 を出す（`zip::export_to_chosen` は内部でそうしている。テキストの書き出しも同じにする）。`WritePolicy::check` は特例を知らないので、他の口に外のパスを渡しても拒否される |
@@ -584,20 +589,29 @@ M6 で入れた（判断は `PLANS.md` §9.2 B-100〜B-108。使い方は本書 
 | `core/features/plots.rs` / `ideas.rs` / `materials_ops.rs` / `cast.rs` | M8 のワークスペースの規則（プロットの行の並び・アイデアの操作・資料の索引の操作と検索・モードの帯の移動）。純粋（B-127・B-130・B-131・B-133〜B-136） |
 | `ui/workspaces/*` | M8 の 7 種のワークスペース。`mod.rs` に切替（`Switcher`）と `View` / `Request`。本文以外の文書は `Workbench` の Slice で編集する（B-126） |
 | `ui/widgets/slice_editor.rs` / `inlay.rs` | M8 のエディタ（Slice。節エディタと同じ `section_editor::area`）／インレイヒントの隙間と描画（B-137） |
+| `core/aicontext/{packet,budget}.rs` | M10 の ContextPacket（9 ブロック・予算・切り詰め・要求の組み立て）。情報源は参照ペインと同じ `core/resolve/context_rules.rs`（B-140） |
+| `core/agents/*` | M10 の純粋な部品。`files`（`agents/` の読み書き・`Board`）・`prompts`（既定の書き出し・E029・変数の展開）・`output`（出力の分解と契約）・`apply`（採用 / 却下 / 差し戻し）・`runner`（タスクの作成・実行前の検査・結果の処理・委譲レベル・総停止・並列の選び方）・`server`（`novnow mcp` の 14 ツール）。どれも書き込みを `Plan`（書くファイル・ログ・知らせ）で返し、I/O はしない |
+| `ports/mcp.rs` / `adapters/mcp_stdio.rs` | MCP クライアント（stdio だけ、B-147）。LLM に届く経路はここだけ（`tests/no_llm_sdk.rs`） |
+| `ui/agents.rs` / `ui/workspaces/agent.rs` | M10 の実行の状態（待ち行列・実行中・累計。毎フレームの `tick`）／agent ワークスペースの 4 列（B-151〜B-153） |
 
 書き込みは `ui::app::Host::write` だけ（デスクトップは `FsStorage` ＝ `FsGate` を通る）。eframe の `persistence` は使わない。
+M10 で `Host` に `append`（監査ログの追記）・`mcp_available` / `mcp_start` / `mcp_poll` / `mcp_cancel`（デスクトップは呼び出しごとに
+1 スレッド、結果は mpsc、取消は `AtomicBool`）・`env_var`・`occupied` を足した（B-152・B-155）。
 
 ### 6.3 テスト
 
 `tests/gui.rs` と `tests/workspaces.rs`（M8。どちらも `#![cfg(feature = "ui")]`）が `NovnowApp` を `egui::Context::run` で 1 フレームずつ回す。
 `RawInput { events, time, focused: true, .. }` を渡し、`FullOutput.shapes` の文字列（「文脈ビューに編集中の本文を描かない」）や
 `platform_output.ime`、`MemoryHost`（書いた中身を `Rc` で外から読める）を見る。
+agent の画面は `Harness::start_agents(project, |files| …)` で開く（デスクトップと同じく欠けたプロンプトを書く）。`MemoryFiles` の
+`mcp`（LLM を呼べるか）・`replies`（LLM の答えの台本。先頭から順に返す）・`hold`（答えを止めておく）・`env`・`occupied`・`fail` で
+環境を作り、`jobs` / `canceled` / `appended`（監査ログ）で結果を見る。
 
 ### 6.4 画面なしで見た目を確かめる
 
 ```bash
 NOVNOW_SHOT=/tmp/shot.rgba cargo test --features ui --test gui screenshot -- --ignored
-# NOVNOW_SHOT_SCENE=inlay|completion|palette|find|help|episode|outline|idea|material|material-search|cast|review、
+# NOVNOW_SHOT_SCENE=inlay|completion|palette|find|help|episode|outline|idea|material|material-search|cast|review|agent、
 # NOVNOW_SHOT_LIGHT=1 で場面と配色を変えられる
 python3 - <<'PY'
 import zlib, struct
@@ -610,7 +624,8 @@ open('/tmp/shot.png', 'wb').write(b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.p
 PY
 ```
 
-egui のテッセレーション結果を三角形ごとにソフトウェアで塗るだけの道具（`screenshot` テスト）。`docs/screenshot-m7.png` と `docs/screenshot-m8.png` はこれで作った。
+egui のテッセレーション結果を三角形ごとにソフトウェアで塗るだけの道具（`screenshot` テスト）。`docs/screenshot-m7.png`・`docs/screenshot-m8.png`・
+`docs/screenshot-m10.png`（`agent`。README に貼るものは `zlib.compress(raw, 9)` で縮めた）はこれで作った。
 
 ---
 
@@ -674,7 +689,11 @@ v0 の `panes/info_panel.rs` はこの規約に反するので流用しない。
 - 委譲モデルの個別判断（次タスク起票は integrator のみ、MCP 書き込みツールの `role` 引数必須、
   キー操作など）は `PLANS.md` §9.4（B-6〜B-15）にユーザー決定済みで記録している。
 - メタ指示（プロンプト）は**ユーザーが自由に書き換えられる**。プロジェクトごとに持ち、プロジェクト間で共有しない。
-  既定プロンプトはプロジェクト外の「一切変更されない場所」に置き、いつでも復元できるようにする（裁定 U-7）。
+  既定プロンプトはバイナリに埋め込み（`core::template::DEFAULT_PROMPTS`、`include_str!`）、欠けたファイルだけを開いたときに
+  書き出す。`>prompt reset` でいつでも復元できる（裁定 U-7）。**読み込み元は `prompts/` の文書だけ**で、埋め込みの既定は
+  生成元（ファイルが無い役割は E029 で走らない）。外を指すシンボリックリンクのファイルはプロジェクトに含めない（B-155）。
+- 実行は 1 フレームごとの `ui::agents::tick`: 終わった呼び出しを 1 件ずつ UI スレッドで処理し（本文への適用はここで逐次）、
+  待ち行列から `max_parallel`・同じ節・同じサーバ 2 本の制約で次を出す（`core::agents::runner::pick`）。
 - **プロジェクトディレクトリ外に置いてよい情報は「プロジェクトディレクトリパスの履歴」だけ**（規則 10、MUST）。
   `tests/storage_policy.rs` が検査する。
 

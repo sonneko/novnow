@@ -875,6 +875,42 @@ fn a_failed_save_shows_the_red_indicator_and_keeps_the_text() {
 
 // ============================================================ 目視用のスクリーンショット（手動）
 
+/// スクリーンショットの agent の場面: 委譲の設定・MCP の定義・writer のタスク 2 つ。
+fn shot_agent_project(project: &mut novnow::core::features::Project) {
+    use novnow::core::agents::runner;
+    use novnow::core::model::document::Document;
+    // 仕様書の例の全体プロットは第 1 章を確定済みにしているので、節 4 だけにする（propose の writer が走れるように）
+    project.insert(Document::new(
+        world::ALL_PATH,
+        world::ALL.replacen("state: fixed", "state: draft", 1),
+    ));
+    project.insert(Document::new(
+        "project.json",
+        "{\n  \"schema_version\": 1,\n  \"title\": \"星屑\",\n  \"agents\": { \"roles\": { \"ideator\": \"apply\" } }\n}\n",
+    ));
+    project.insert(Document::new(
+        "agents/mcp.json",
+        "{\n  \"schema_version\": 1,\n  \"servers\": {\n    \"llm-main\": {\n      \"transport\": \"stdio\",\n      \"command\": \"my-llm-mcp\",\n      \"env\": { \"API_KEY\": \"${NOVNOW_LLM_KEY}\" },\n      \"capabilities\": [\"sampling\"],\n      \"roles\": [\"*\"]\n    }\n  }\n}\n",
+    ));
+    for scope in ["@01-04-02-02", "@01-04-02-03"] {
+        let plan = runner::new_tasks(
+            project,
+            &runner::Draft {
+                role: "writer",
+                scope,
+                intent: "テンポを上げる",
+                comment: "",
+                initiator: "human",
+                status: "draft",
+            },
+            "2026-10-13T21:00:00+09:00",
+        );
+        for change in &plan.writes {
+            project.insert(Document::new(change.path.clone(), change.text.clone()));
+        }
+    }
+}
+
 /// egui の出力をソフトウェアで描いて RGBA を書き出す（`cargo test --features ui --test gui
 /// screenshot -- --ignored`）。作業環境に画面が無いので、配置と配色を目で確かめるための道具。
 /// 書き出し先は環境変数 `NOVNOW_SHOT`（無ければ何もしない）。PNG への変換は呼び出し側。
@@ -909,7 +945,26 @@ fn screenshot() {
             "# 取材メモ\n",
         ));
     }
-    let (mut harness, first) = Harness::start_with(project, !light);
+    let (mut harness, first) = if scene == "agent" {
+        // M10 の agent ワークスペース: 節 2 と 3 の writer のタスクを作っておき、LLM の答えを 1 つ用意する
+        shot_agent_project(&mut project);
+        Harness::start_agents(project, |files| {
+            files.mcp = true;
+            files
+                .env
+                .insert("NOVNOW_LLM_KEY".to_owned(), "secret".to_owned());
+            files
+                .replies
+                .push_back(Ok(novnow::ports::mcp::McpReply {
+                    text: "「……付き合ってあげるわよ。今日だけね」\n彼女はそう言って、図面から目を離さなかった。"
+                        .to_owned(),
+                    model: "model-x".to_owned(),
+                    truncated: false,
+                }));
+        })
+    } else {
+        Harness::start_with(project, !light)
+    };
     let mut textures: std::collections::HashMap<
         egui::TextureId,
         (usize, usize, Vec<egui::Color32>),
@@ -948,13 +1003,26 @@ fn screenshot() {
         }
     };
     // `NOVNOW_SHOT_SCENE`: edit（既定）/ inlay / completion / palette / find / help / episode /
-    // outline / idea / material / material-search / cast / review
-    let mut steps: Vec<Vec<Event>> = vec![
-        vec![key(Key::Num2, Modifiers::CTRL)],
-        vec![Event::Text("ここで一文を書き足す。".into())],
-        vec![],
-        vec![],
-    ];
+    // outline / idea / material / material-search / cast / review / agent
+    let mut steps: Vec<Vec<Event>> = if scene == "agent" {
+        // Alt+8 → 選択中のタスクを R で走らせ → Enter で結果レビューへ
+        vec![
+            vec![key(Key::Num8, Modifiers::ALT)],
+            vec![],
+            vec![],
+            vec![key(Key::R, Modifiers::NONE)],
+            vec![],
+            vec![],
+            vec![key(Key::Enter, Modifiers::NONE)],
+        ]
+    } else {
+        vec![
+            vec![key(Key::Num2, Modifiers::CTRL)],
+            vec![Event::Text("ここで一文を書き足す。".into())],
+            vec![],
+            vec![],
+        ]
+    };
     match scene.as_str() {
         "completion" => steps.push(vec![Event::Text("'".into())]),
         "palette" => steps.push(vec![key(Key::P, Modifiers::CTRL)]),

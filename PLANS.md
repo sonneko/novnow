@@ -105,7 +105,7 @@
 
 **横断的に ② へ回すもの**
 
-- **§7.2 の診断カタログ全体**（W080–W094 / E032–E035 / E064 / I054–I058）
+- **§7.2 の診断カタログ全体**（W080–W094 / E032–E034 / E064 / I054–I058。**E035・E036・W095 は M10 の機能そのものなので ①**、§9.2 B-150）
 - **§4.5.1 の追加設定キー全部**（ただし 本書 §1.5 の「未知キー温存」は ① の必須要件）
 - **§19.14 の受け入れ基準全部**
 - §6.3 のトークン種別のうち `ref.address` / `citation` / `illustration`
@@ -887,10 +887,10 @@ tests/layering.rs
 
 1. ~~**§7 の診断を全件先に定義**（I5）~~ → **前倒しで完了（2026-10-11、M2 の準備）**。
    `src/core/diagnostics.rs` に §7 / §7.1 / §7.2 の **78 件すべて**を定義済み（§9.2 B-27。
-   E025 は第 2.6 版で §7 に追加、§9.1 A-17 解消）。**第 2.8 版で E022 を足して 79 件**（§9.1 A-9）、**第 2.9 版で E027 を足して 80 件**（§9.1 A-24）。
-   - ① が**検査を実装する**のは **E001–E031 / E060–E063 / W002–W041 / W062–W067 / I050–I053**。
-     W080 以降・E032 以降・E064・I054 以降は **② の予約（本書 §1.5-3）としてコードだけ定義し、
-     検査は実装しない**（未使用 variant の警告は I5 が許容）。
+   E025 は第 2.6 版で §7 に追加、§9.1 A-17 解消）。**第 2.8 版で E022 を足して 79 件**（§9.1 A-9）、**第 2.9 版で E027 を足して 80 件**（§9.1 A-24）、**第 2.16 版で E029 を足して 81 件**（§9.2 B-139）。
+   - ① が**検査を実装する**のは **E001–E031 / E060–E063 / W002–W041 / W062–W067 / I050–I053**、それと M10 の
+     **E035・E036・W095**（§9.2 B-150）。W080 以降・E032 以降・E064・I054 以降のそれ以外は **② の予約（本書 §1.5-3）として
+     コードだけ定義し、検査は実装しない**（未使用 variant の警告は I5 が許容）。
    - 形は `enum DiagnosticCode` ＋ `struct Diagnostic { code, args: Vec<Arg>, range: Option<Range<usize>> }`
      （§9.2 B-28）。**文言は持たない**（MUST）。
    - M4 で残るのは「診断を**出す**側」（`resolve/*` の検査と `diagnostics::document(doc, project)`）と
@@ -1376,15 +1376,63 @@ tests/layering.rs
      `autonomous` では連鎖を許可し、各ホップをスレッドと監査ログに記録する。
    - **ローカル LLM 簡易モード（§15.8.4）は ②**。
 
+> **実装の記録（2026-10-14、PR #12 に「M10 (1/n)」〜「M10 (5/n)」として積んだ）**
+>
+> - **仕様 第 2.16 版**で M10 の細部を書き足し（E029 の新設・`exclude:`・提案の `note` 種別・パケットの中身・上限の見方・
+>   agent ワークスペースのキー・stdio だけの MCP）、裁定は **B-138**〜**B-155**。
+> - **core**（I/O なし）: `core/aicontext/{packet,budget}.rs`（9 ブロック・予算・2 段の切り詰め・要求の組み立て。情報源は
+>   参照ペインと同じ `context_rules`）・`core/agents/*`（タスク / 提案 / スレッド / 監査ログの読み書き・既定プロンプト・出力の
+>   分解と契約・採用 / 却下 / 差し戻し・自動適用の関門・委譲レベル・総停止・並列の選び方・`novnow mcp` の 14 ツール）。
+>   書き込みはすべて `Plan` で返す。
+> - **MCP**: `ports/mcp.rs`・`adapters/mcp_stdio.rs`（stdio の JSON-RPC。`sampling/createMessage` と `tools` だけのサーバ、
+>   タイムアウト・取消・2 万字の上限）・`cli/mcp.rs`（`novnow mcp`）。LLM の SDK と HTTP クライアントは依存に無い。
+> - **GUI**: `Alt+8` の agent ワークスペース（4 列・委譲パネル・ドライラン・除外・部分採用・差し戻し）・ステータスバーの `⟳`・
+>   パレットの `>agent` / `>prompt`（**B-151**〜**B-154**）。プロンプトの読み込み元の担保は **B-155**。
+> - **検査**: `tests/aicontext.rs`（13）・`tests/agents_files.rs`（15）・`tests/delegation.rs`（24）・`tests/mcp_stdio.rs`（9）・
+>   `tests/no_llm_sdk.rs`（2）・`tests/workspaces.rs` の agent の 18 件・`tests/storage_policy.rs` / `tests/cli.rs` の追加で **1,143 件**。
+> - **残り**: 下の人の確認。①での削り（カスタムロール・ローカル LLM・§19.14）は M10 の外。
+
 **完了条件**
 
-- [ ] §19.8 のチェックリストが通る。
-- [ ] ContextPacket の切り詰めが決定論である（同じ入力 → 同じ出力のテスト）。
-- [ ] エージェント機能を無効化して全ワークスペースが動く（A6 の実機確認）。
-- [ ] 委譲レベル `apply` で自動適用が動き、before/after 記録と監査ログが残る。
-- [ ] 委譲レベル `autonomous` で連鎖が起き、セッション上限で自動停止する（W095）。
-- [ ] `tests/delegation.rs` が通る（レベル解決・自動適用キュー・上限停止・監査ログ記録）。
-- [ ] U-8: 5 件同時実行で ID が衝突せず、同一節のタスクが直列化される。
+- [x] §19.8 のチェックリストが通る。根拠のテスト（ファイル名の無いものは `tests/workspaces.rs`）:
+  1 `alt_8_opens_the_agent_workspace_and_n_creates_a_task_for_the_current_section`（開くと 7 本と I050）・`tests/agents_files.rs` の
+  `missing_prompts_are_listed_and_only_an_absent_directory_is_i050`・`tests/cli.rs` の `mcp_serves_the_tools_over_json_lines_and_writes_only_inside_the_project`／
+  2 `the_palette_sets_levels_and_resets_or_compares_prompts`（書き換えたものは開いても残る）・同じ `tests/cli.rs` の 2 回目／
+  3 `tests/storage_policy.rs` の `prompts_are_read_only_from_the_project`・`symlinks::files_behind_links_to_outside_are_not_part_of_the_project`・
+  `tests/cli.rs` の `mcp_leaves_prompts_that_are_links_to_outside_alone`・`a_prompt_path_taken_on_disk_is_not_written_and_its_role_cannot_run`（**B-155**）／
+  4 `tests/aicontext.rs` の `the_packet_has_the_header_and_the_nine_fixed_headings_in_order`・
+  `over_budget_blocks_are_trimmed_from_the_end_with_a_marker_and_the_never_trimmed_parts_stay`・`the_packet_is_deterministic_and_the_hash_ignores_generated_at`／
+  5 同じ `over_budget_…`・`a_packet_that_cannot_fit_is_over_and_cannot_be_sent`／6 `tests/delegation.rs` の `a_dry_run_writes_only_the_packet`・
+  `tests/aicontext.rs` の `excluded_blocks_keep_only_their_heading_and_mandatory_blocks_cannot_be_excluded`・
+  `space_in_the_context_column_excludes_a_block_but_never_project_or_constraints`・`without_an_llm_r_explains_why_and_d_still_saves_a_dry_run`／
+  7 `tests/delegation.rs` の `propose_leaves_a_proposal_for_review_and_logs_the_run_without_bodies`・`r_runs_the_task_through_mcp_and_a_accepts_the_proposal_with_an_audit_log`／
+  8 `tests/delegation.rs` の `apply_auto_applies_with_a_record_and_the_audit_log`・`apply_auto_applies_and_x_reverts_with_a_comment`／
+  9・10 `one_to_four_set_the_delegation_level_and_ctrl_shift_x_stops_all`・`the_palette_sets_levels_and_resets_or_compares_prompts`
+  （`>agent delegation` / `>agent stop-all`）・`tests/delegation.rs` の `delegation_changes_are_written_to_project_json_and_logged`・
+  `stop_all_lowers_every_writing_level_to_propose`／11 `tests/delegation.rs` の `direct_writes_need_a_role_with_apply_or_autonomous_otherwise_e036`・
+  `tests/cli.rs` の `mcp_direct_writes_follow_the_role_level_and_leave_the_audit_trail`／12 `tests/delegation.rs` の
+  `auto_applying_a_fixed_section_is_logged_and_notified`・`auto_applying_a_fixed_section_says_so_in_the_status_bar`／
+  13 **コードレビュー**: タスクを起こすのは `runner::chain`（`finish` から呼ぶ）だけで、integrator が `autonomous` でなければ
+  何もしない。出力に書かれた次のタスクを使うのは integrator の出力だけで、ほかの役割の完了で起きるのは integrator のタスク
+  （**B-148**）。`tests/delegation.rs` の `without_an_autonomous_integrator_nothing_chains`／14 `tests/no_llm_sdk.rs` の 2 件／
+  15 `tests/delegation.rs` の `messages_wait_for_approval_unless_both_roles_are_autonomous`／16 `tests/delegation.rs` の
+  `an_autonomous_integrator_chains_tasks_until_the_hop_limit_with_w095`・`session_limits_stop_automatic_starts_and_zero_means_unlimited`。
+  M8 から回した §19.11-4（writer のパケットで全体プロットが 1 行）は `tests/aicontext.rs` の `the_writer_sees_the_whole_plot_as_one_summary_line`。
+- [x] ContextPacket の切り詰めが決定論である（同じ入力 → 同じ出力のテスト）。→ `tests/aicontext.rs` の
+  `the_packet_is_deterministic_and_the_hash_ignores_generated_at`（同じ入力を 2 回組んで全文とハッシュが一致）・
+  `over_budget_blocks_are_trimmed_from_the_end_with_a_marker_and_the_never_trimmed_parts_stay`（切り詰めの起きる予算でも同じ切り詰め）。
+- [ ] エージェント機能を無効化して全ワークスペースが動く（A6 の実機確認）。→ **自動の確認は済み**: `with_agents_disabled_nothing_is_written_and_the_other_workspaces_still_work`
+  （プロンプトを書かない・agent は「エージェントは無効です」だけ・ほかの 7 つに切り替えられる）。**実機での確認待ち**。
+- [x] 委譲レベル `apply` で自動適用が動き、before/after 記録と監査ログが残る。→ `apply_auto_applies_with_a_record_and_the_audit_log`・
+  `apply_auto_applies_and_x_reverts_with_a_comment`（提案 `applied` に before / after、ログに `auto_applied`、③ から差し戻せる）。
+- [x] 委譲レベル `autonomous` で連鎖が起き、セッション上限で自動停止する（W095）。→ `an_autonomous_integrator_chains_tasks_until_the_hop_limit_with_w095`・
+  `session_limits_stop_automatic_starts_and_zero_means_unlimited`。
+- [x] `tests/delegation.rs` が通る（レベル解決・自動適用キュー・上限停止・監査ログ記録）。→ 24 件。
+- [x] U-8: 5 件同時実行で ID が衝突せず、同一節のタスクが直列化される。→ `tests/delegation.rs` の
+  `five_parallel_tasks_run_two_at_a_time_without_id_collisions_and_same_sections_wait`・`shift_r_confirms_runs_two_at_a_time_and_the_status_bar_shows_them`。
+- [ ] **人の確認**（実機で触るレビュー）: 実際の MCP サーバ（stdio）につないで 1 節を頼み、採用 / 一部採用 / 却下 / 差し戻しを
+  一通り行う・委譲パネルだけで README の使い方（「計画の管理だけ AI に任せる」「この役割だけ止める」など）が完結する。
+  → **人の確認待ち**（作業環境には LLM も画面も無い。stdio の往復は `tests/mcp_stdio.rs` の偽サーバで確かめた）。
 
 ---
 
@@ -1444,7 +1492,7 @@ tests/layering.rs
 | `tests/export_invariants.rs` | エクスポート結果の不変条件（§17.1） | M9 |
 | `tests/no_llm_sdk.rs` | `Cargo.toml` に LLM プロバイダ SDK が無い（§15.1 A5） | M10 |
 | `tests/delegation.rs` | 委譲レベル解決・自動適用キュー・上限停止・監査ログ記録（§15.1.1） | M10 |
-| `tests/diagnostics_catalog.rs` | §7 / §7.1 / §7.2 の表（**80 件** = 39 + 14 + 27。第 2.9 版）と enum / `CATALOG` の一致。件数だけでなく重大度・引数の数・文書位置・既定の有効/無効・実行コスト表・variant の doc コメントも、`SPECIFICATIONS.md` を `include_str!` で読み直して照合する | ~~M4~~ → **M2 準備で前倒し（I5、2026-10-11）** |
+| `tests/diagnostics_catalog.rs` | §7 / §7.1 / §7.2 の表（**81 件** = 40 + 14 + 27。第 2.16 版）と enum / `CATALOG` の一致。件数だけでなく重大度・引数の数・文書位置・既定の有効/無効・実行コスト表・variant の doc コメントも、`SPECIFICATIONS.md` を `include_str!` で読み直して照合する | ~~M4~~ → **M2 準備で前倒し（I5、2026-10-11）** |
 | `tests/golden/**` | 8 形式のパース結果 snapshot | M2 |
 | `tests/roundtrip.rs` | 未知キーを含むファイルの読み書きでバイト一致（本書 §1.5-1,2） | M2 |
 
@@ -1717,6 +1765,12 @@ tests/layering.rs
 | B-147（**2026-10-14**） | MCP クライアントの細部（§15.8.1・§5.11） | — | `stdio` だけ（`http` / `sse` は v1 で持たない）。`servers` は定義順（`serde_json` の `Map` は並べ替えるので自前の訪問者で読む）。`roles` の `*` は全役割。`initialize`（protocolVersion `2024-11-05`）→ `notifications/initialized` → `sampling/createMessage`（`systemPrompt`・`maxTokens` 16,000・`modelPreferences` は `model-hint` から・`metadata.novnow`）。サーバからの `ping` には答え、他の要求には -32601。`sampling` が無く `tools` があるサーバには `allow_tools` の先頭のツールを `{system, prompt, role, scope}` で呼ぶ。stderr は捨てる。環境変数は引き継ぎ＋解決した `env`（解決できなければ E030 で走らない）。タイムアウトは `timeout_ms`（既定 60 秒）、出力は 20,000 字で切って `truncated: true` |
 | B-148（**2026-10-14**） | 自律の連鎖（§15.1.1・§15.3） | — | integrator が `autonomous` のときだけ。(1) integrator 以外のタスクが終わるたびに、その節の integrator のタスク（`initiator: agent`・`intent` は「次の 1 手」・`ready`）を起こして走らせる（同じ節に生きている integrator のタスクがあれば起こさない）。(2) integrator の出力の `## task`（`role:` / `scope:` / `intent:`）から、`off` でない integrator 以外の役割の 1 節のタスクを起こして走らせる（E035 の重複は飛ばす）。(3) 起こすたびに 1 ホップ、`chain_hop` を書く。既定の integrator のプロンプトにこの書き方を足した（行頭に `key:` を書かない、B-104） |
 | B-149（**2026-10-14**） | `novnow mcp` の細部（§15.8.3） | — | 呼び出しのたびにプロジェクトを読み直す。結果は JSON のテキスト 1 つ、失敗は `isError: true` と文言（E036 などは診断の文言）。`scene` は 4 階層。`novnow.plot.write` の `level` は `episode` だけ。直接書き込みも自動適用と同じ検証を通し、E 系が増えるなら `open` の提案として残して失敗を返す。提案の `origin` は `mcp`（直接書き込みは `mcp:<role>`）。`novnow.materials.propose` の `added_by` は `agent:<role>`（無ければ `agent:mcp`）。起動時に `prompts/` の欠けた既定ファイルを書き出す（`novnow check` は書かない） |
+| B-150（**2026-10-14**） | §7.2 のうち M10 が使う診断（§1.2 の ② の一覧との関係） | ② のまま予約 ／ **M10 の分だけ ① に** | **E035**（同じ役割 × 同じ節のタスクの重複）・**E036**（`novnow mcp` の委譲レベル不足の書き込み）・**W095**（セッション上限での停止）は M10 の完了条件と §19.8 が求める機能そのものなので ① で実装する（§1.2 の「横断的に ② へ回すもの」と §5.5 の作業項目 1 の範囲を直した）。E032–E034（カスタムロール）・E064（ローカル LLM）・I056 / I057 は ② のまま |
+| B-151（**2026-10-14**） | agent ワークスペースの操作の細部（§15.7。キーの表は仕様 第 2.16 版） | — | (1) 4 列のうち 1 つにフォーカスがある（`←` / `→`。列のクリックでも移る）。修飾キーなしの文字キーは、テキストの入力欄にフォーカスが無く、**オーバーレイ（ダイアログ・パレット）も開いていない**ときだけ効く。オーバーレイを閉じたらフォーカスを手放す。(2) ① は新しい順。`N` の対象の初期値は今の節。`Shift+R` の確認には件数・入力文字数の合計・使うサーバ・走れないものとその理由を出す。`Enter` は ③ へ。(3) ② の除外は `draft` / `ready` で走っていないタスクだけ。`1 project` と `8 constraints` は外せない（「このブロックは外せません」）。ダブルクリックは `Space` と同じ。外したブロックも予算の表示は残す。(4) ドライランは `agents/results/T####.dryrun.md` に全文を書き、監査ログには書かない（送っていないので）。(5) ステータスバーの `⟳` は 1 件ならタスク ID と役割（自律なら「（自律）」）、複数なら件数。クリックで agent の ① へ移り、その行を選ぶ |
+| B-152（**2026-10-14**） | 実行の仕組み（`Host` と毎フレームの見回り） | 非同期ランタイム ／ **スレッドと毎フレームの見回り** | `Host` に `append`（監査ログ）・`mcp_available` / `mcp_start` / `mcp_poll` / `mcp_cancel`・`env_var` を足す。デスクトップは呼び出しごとに 1 スレッド（結果は mpsc、取消は `AtomicBool`。tokio の process / io-util は使わない）、Web は呼べない（「この環境では LLM を呼び出せません」）。毎フレームの `ui::agents::tick` が終わった呼び出しを 1 件ずつ UI スレッドで処理し（**本文への適用はここで逐次**、U-8）、待ち行列から `max_parallel`・同じ節・同じサーバ 2 本の制約で次を出す。実行中は 250ms ごとに再描画。失敗とタイムアウトは `ready` に戻して知らせ、自動で再試行しない。テストの `MemoryHost` は台本（`replies`）を返す |
+| B-153（**2026-10-14**） | 総停止とパレットの項目 | — | `Ctrl+Shift+X` / `>agent stop-all` は、自律で走っているタスク（委譲レベルが `autonomous` か、エージェントが起こしたもの）を待ち行列と実行中から取り消し、`apply` / `autonomous` の役割（既定のレベルによるものも）をすべて `propose` に下げて役割ごとに `delegation_changed` を記録する。人が始めた `propose` / `apply` の実行中のタスクは止めない（§15.7.6「レベル変更は実行中のタスクには影響しない」）。止めた件数と変えた役割の数を知らせる。パレットに `>agent delegation <role> <level>`（7 役割 × 4）・`>agent stop-all`・`>prompt reset <名前 / all>`（並置表示 → 確認）・`>prompt diff <名前>` を足す。④ は既定から変わったプロンプトに「編集済」を出す |
+| B-154（**2026-10-14**） | 既定プロンプトを書き出す時期と、無効のときの画面 | 初めて agent を開いたとき ／ **プロジェクトを開いたとき** | GUI はプロジェクトを開いたとき（`Session::prepare_agents`）に、`agents.enabled` なら欠けたファイルだけ書く（`prompts/` 自体が無かったときだけ I050）。フォントのフォールバックの通知は I050 を上書きせず「{I050} / {フォント}」とつなぐ。`agents.enabled = false` のときは何も書かず、agent ワークスペースは「エージェントは無効です」**とだけ**出す（§15.7）。ほかのワークスペースはそのまま動く（A6） |
+| B-155（**2026-10-14**） | §19.8「プロンプトがプロジェクト外から読み込まれない」の担保 | プロンプトだけ特別扱い ／ **ファイル全体に広げる** | 読み込み元は `prompts/` の文書だけで、埋め込みの既定は生成元（§15.5.4 (1)）。**ファイルが無い役割は E029（`## system` と `## task` が無い）で走らない**（埋め込みの既定や空のプロンプトで代わりに走らない。④ に印）。M5 の読み込みは外を指すファイルのリンクを辿っていた（§13.1.3「読み取りは明示的に選んだパスに限りプロジェクト外でも許可」に反していた）ので、**行き先がルートの外のファイルのリンクは一覧に出さず、名前で読んでも無いもの**とした（ディレクトリのリンクは M5 から辿らない。仕様 §13.1.3 に追記）。書けないもの（規則 10）をプロジェクトに含めないためで、プロンプト以外も同じ（Zip のエクスポートにも外の中身が入らない）。一覧に無いのにディスクに何かあるパスには既定のプロンプトを書かない（GUI は `Host::occupied`、`novnow mcp` は `FsStorage::exists`。書けば規則 10 の違反）。`tests/storage_policy.rs` の `prompts_are_read_only_from_the_project`・`symlinks::files_behind_links_to_outside_are_not_part_of_the_project`、`tests/cli.rs` の `mcp_leaves_prompts_that_are_links_to_outside_alone` |
 
 ### 9.3 環境の前提
 

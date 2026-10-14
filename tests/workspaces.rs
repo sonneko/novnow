@@ -1876,15 +1876,23 @@ fn with_agents_disabled_nothing_is_written_and_the_other_workspaces_still_work()
     let text = painted_text(&harness.frame(Vec::new()));
     assert!(text.contains("エージェントは無効です"), "{text}");
     assert!(!text.contains("① タスク"), "「無効です」とだけ出す: {text}");
-    // A6: ほかのワークスペースはそのまま
+    // A6: ほかのワークスペースはすべてそのまま（読者モードの Alt+7 は ② の欠番）
     for (number, workspace) in [
         (Key::Num1, Workspace::Write),
         (Key::Num2, Workspace::PlotEpisode),
+        (Key::Num3, Workspace::PlotOutline),
+        (Key::Num4, Workspace::Idea),
+        (Key::Num5, Workspace::Material),
+        (Key::Num6, Workspace::Cast),
         (Key::Num9, Workspace::Review),
     ] {
         harness.frame(vec![key(number, ALT)]);
-        harness.frame(Vec::new());
+        let text = painted_text(&harness.frame(Vec::new()));
         assert_eq!(harness.app.workspace(), Some(workspace));
+        assert!(
+            !text.contains("エージェントは無効です"),
+            "{workspace:?}: {text}"
+        );
     }
 }
 

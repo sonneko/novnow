@@ -69,6 +69,27 @@ fn the_packet_has_the_header_and_the_nine_fixed_headings_in_order() {
 }
 
 #[test]
+fn the_writer_sees_the_whole_plot_as_one_summary_line() {
+    // §19.11-4: writer のパケットでは全体プロットが 1 行（当該章の `summary`）に縮む。goal / turn / 伏線などは入らない
+    let project = project();
+    let packet = build(&project, "writer", id(1, 4, 2, 2), &[]);
+    let outline = body(&packet, PacketBlock::Outline);
+    let all: Vec<&str> = outline
+        .lines()
+        .filter(|line| line.starts_with("all:"))
+        .collect();
+    assert_eq!(
+        all,
+        ["all: 'アルス が地下遺跡に惹かれ、'リリア を巻き込んで探索を始める導入章。"],
+        "{outline}"
+    );
+    for absent in ["二人の関係性と", "渋々ながら同行", "地下遺跡の封印紋様"]
+    {
+        assert!(!outline.contains(absent), "{outline}");
+    }
+}
+
+#[test]
 fn the_blocks_hold_the_section_its_neighbors_the_cast_the_lexicon_and_the_materials() {
     let project = project();
     let packet = build(&project, "writer", id(1, 4, 2, 2), &[]);
