@@ -2075,3 +2075,101 @@ fn the_palette_sets_levels_and_resets_or_compares_prompts() {
         "`.bak-*` を作らない"
     );
 }
+
+#[test]
+fn palette_format_and_dictionary_references_and_rename_and_outline_folding_work_in_ui() {
+    let mut harness = novel_harness();
+
+    // 1. `'` パレットの Shift+Enter で使用箇所一覧（`references::at`）が開き、Enter で該当箇所へ移動
+    harness.frame(vec![key(Key::P, CTRL)]);
+    harness.frame(Vec::new());
+    harness.frame(vec![Event::Text("'リリア".into())]);
+    harness.frame(Vec::new());
+    harness.frame(vec![key(Key::Enter, Modifiers::SHIFT)]);
+    harness.frame(Vec::new());
+    let text = painted_text(&harness.frame(Vec::new()));
+    assert!(
+        text.contains("「リリア」の使用箇所"),
+        "references overlay: {text}"
+    );
+    assert!(text.contains("plots/01-01.txt"), "references list: {text}");
+    harness.frame(vec![key(Key::Escape, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+
+    // 2. `>format`（`formatting::document`）で今の文書を正規化
+    harness.frame(vec![key(Key::End, Modifiers::NONE)]);
+    harness.frame(vec![Event::Text("   ".into())]);
+    harness.frame(vec![key(Key::P, CTRL)]);
+    harness.frame(Vec::new());
+    harness.frame(vec![Event::Text(">format".into())]);
+    harness.frame(Vec::new());
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+    let text = painted_text(&harness.frame(Vec::new()));
+    assert!(
+        text.contains("contents/01-01.txt を正規化しました"),
+        "format notice: {text}"
+    );
+
+    // 3. `F2`（`rename::prepare` + `rename::apply`）でキャラ名を一括改名
+    harness.frame(vec![key(Key::Num6, ALT)]);
+    harness.frame(Vec::new());
+    harness.frame(vec![key(Key::F2, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+    let text = painted_text(&harness.frame(Vec::new()));
+    assert!(text.contains("アルス"), "rename modal placeholder: {text}");
+    harness.frame(vec![key(Key::End, Modifiers::NONE)]);
+    harness.frame(vec![Event::Text("太郎".into())]);
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+    let text = painted_text(&harness.frame(Vec::new()));
+    assert!(
+        text.contains("「アルス太郎」へ変更しました"),
+        "rename notice: {text}"
+    );
+    assert!(
+        project_text(&harness, "characters.md").contains("# アルス太郎"),
+        "characters.md updated"
+    );
+    assert!(
+        project_text(&harness, "contents/01-01.txt").contains("'{アルス太郎}"),
+        "contents/01-01.txt references updated"
+    );
+
+    // 4. `plot-outline`（Alt+3）で `Ctrl+Shift+]` / `Ctrl+Shift+[` による章→話の展開・折り畳み（`folding::ranges`）
+    harness.frame(vec![key(Key::Num3, ALT)]);
+    harness.frame(Vec::new());
+    assert_eq!(
+        harness
+            .app
+            .spaces()
+            .map(|spaces| spaces.outline.is_expanded(1)),
+        Some(false)
+    );
+    harness.frame(vec![key(Key::CloseBracket, CTRL_SHIFT)]);
+    let text = painted_text(&harness.frame(Vec::new()));
+    assert_eq!(
+        harness
+            .app
+            .spaces()
+            .map(|spaces| spaces.outline.is_expanded(1)),
+        Some(true)
+    );
+    assert!(
+        text.contains("▾ 01") && text.contains("01-01") && text.contains("01-02"),
+        "expanded episodes in outline tree: {text}"
+    );
+    harness.frame(vec![key(Key::OpenBracket, CTRL_SHIFT)]);
+    let text = painted_text(&harness.frame(Vec::new()));
+    assert_eq!(
+        harness
+            .app
+            .spaces()
+            .map(|spaces| spaces.outline.is_expanded(1)),
+        Some(false)
+    );
+    assert!(
+        text.contains("▸ 01"),
+        "folded chapter in outline tree: {text}"
+    );
+}

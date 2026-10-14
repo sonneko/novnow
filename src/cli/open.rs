@@ -10,7 +10,6 @@
 //! | 見つからない | 見出し・対象・構造の解説・`novnow new <dir>` | 3 |
 //! | ディレクトリでない | 見出し・対象 | 3 |
 //! | 必須のものが欠けている | §14.2.2 / §14.2.3 そのまま | 3 |
-//! | v0 形式 | §14.2.4 | 3 |
 //! | 版が新しすぎる | 見出し・対象・更新の案内 | 3 |
 //! | 読めない（権限など） | 見出し（OS のメッセージ）・対象 | 4 |
 //! | UTF-8 として読めない（`check` だけが調べる） | 見出し・対象・ファイルの一覧 | 4 |
@@ -23,9 +22,7 @@ use std::sync::Arc;
 use crate::adapters::block_on;
 use crate::adapters::project_load;
 use crate::adapters::storage_fs::{FsGate, FsStorage};
-use crate::core::model::project::{
-    validate, ProjectError, PROJECT_FILE, PROJECT_STRUCTURE_DOC_URL,
-};
+use crate::core::model::project::{validate, ProjectError, PROJECT_STRUCTURE_DOC_URL};
 use crate::ports::env::Env;
 use crate::ports::storage::StorageError;
 use crate::ui::i18n;
@@ -120,20 +117,6 @@ pub fn report<E: Env>(cli: &mut Cli<'_, E>, target: &Path, problem: Problem<'_>)
                 format!("novnow new {}", cli.command_path(target))
             };
             cli.hint(err, "cli.hint.create_here", &new);
-            Exit::Project
-        }
-        Problem::Project(ProjectError::LegacyV0 { detected }) => {
-            // §14.2.4
-            let message = if detected == PROJECT_FILE {
-                cli.text("cli.error.legacy_schema").to_owned()
-            } else {
-                cli.format("cli.error.legacy_v0", &[detected])
-            };
-            headline(cli, &message, target);
-            cli.blank(err);
-            let migrate = format!("novnow migrate {}", cli.command_path(target));
-            cli.hint(err, "cli.hint.migrate", &migrate);
-            cli.hint(err, "cli.hint.structure_doc", PROJECT_STRUCTURE_DOC_URL);
             Exit::Project
         }
         Problem::Project(ProjectError::TooNew { found }) => {

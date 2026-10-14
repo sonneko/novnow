@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# CI の 4 ジョブ（fmt / clippy / test / wasm）を手元で回す。
+# ドキュメント検査（duplicate.py）と CI ジョブ（fmt / clippy / test / wasm）を手元で回す。
 #
-# 背景（DEVELOPERS.md §1.4・§1.5、PLANS.md §9.3）:
+# 背景（docs/developers.md §2・§4）:
 #   2026-10-11 以降、作業環境に CI と同一のツールチェーン（rustc 1.99.0）があるので、
-#   **CI を待たずに 4 ジョブ全部をローカルで確認できる**。CI は「緑の証跡」として残す。
+#   **CI を待たずに全ジョブをローカルで確認できる**。CI は「緑の証跡」として残す。
 #   Actions の使用時間を節約するためにも、push 前は必ずこれで確認すること。
 #
 # 使い方:
@@ -53,7 +53,7 @@ error: cargo が無い。作業環境には Rust ツールチェーンが入っ�
 
     bash scripts/bootstrap-toolchain.sh        # 376MB / 約 40 秒（GitHub への到達が必要）
 
-（PLANS.md §9.3、docs/handoff.md §2）
+（docs/developers.md §2.2）
 MSG
         exit 2
     fi
@@ -95,9 +95,9 @@ if [ "$FIX" = 1 ]; then
     cargo fmt --all
 fi
 
-# M7 から CI と同じく GUI 込み（`--features ui`、PLANS.md §5.8 作業項目 0）。GUI を含まない既定の
-# ビルドも clippy と CLI のテスト（GUI を含まないときの振る舞い）で確かめる。
+# GUI 込み（`--features ui`）と GUI を含まない既定のビルドの双方を clippy とテストで確かめる。
 : "$UI"
+run docs      python3 "$ROOT/docs/script/duplicate.py"
 run fmt       cargo fmt --all --check
 run clippy    cargo clippy --locked --all-targets -- -D warnings
 run clippy-ui cargo clippy --locked --all-targets --features ui -- -D warnings

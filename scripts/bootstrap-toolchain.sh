@@ -38,13 +38,13 @@ done
 
 if [ -z "${FORCE:-}" ] && [ -x "$BUILD_DIR/sysroot/bin/rustc" ]; then
     if PATH="$BUILD_DIR/sysroot/bin:$PATH" rustc --version >/dev/null 2>&1; then
-        if [ -f "$BUILD_DIR/env.sh" ] && [ -f "$BUILD_DIR/cargo-home/config.toml" ]; then
+        if [ -f "$BUILD_DIR/env.sh" ] && [ -f "$BUILD_DIR/cargo-home/config.toml" ] && [ -d "$BUILD_DIR/vendor-src/criterion" ]; then
             say "すでにある: $BUILD_DIR（$(PATH="$BUILD_DIR/sysroot/bin:$PATH" rustc --version)）"
             echo "    使うときは次を各コマンドの前に置く: . $BUILD_DIR/env.sh"
             exit 0
         fi
-        # sysroot は生きているが設定だけ消えた → 再ダウンロードせずに書き直す
-        say "sysroot はあるので env.sh と cargo-home/config.toml だけ書き直す"
+        # sysroot は生きているが設定または criterion vendor だけ消えた → 再ダウンロードせずに書き直す
+        say "sysroot はあるので env.sh / cargo-home/config.toml / criterion vendor だけ補う"
         REGENERATE_ONLY=1
     else
         say "$BUILD_DIR/sysroot/bin/rustc が動かないので取り直す"
@@ -117,6 +117,47 @@ ENVS
 # 中間生成物はディスクを食うので消す（376MB の tarball ＋ 連結した 2 つの tar.gz）
 rm -rf "$BUILD_DIR/tc.tgz" "$BUILD_DIR/$work"
 fi  # REGENERATE_ONLY
+
+# M11（B-25）: criterion 0.5.1 とその推移的依存 19 クレートを git blob から補う
+if [ ! -d "$BUILD_DIR/vendor-src/criterion" ]; then
+    say "criterion vendor（19 クレート）を git blob から展開"
+    crit_blob="74b3e210ac964dae4e37f5c03a9b1b129e5fee9f"
+    crit_sha="f4592ca89324ef7dad5a3f39421efac078f9a9d77fb2d1c3e3454be5f34dd568"
+    gh api "repos/$REPO/git/blobs/$crit_blob" --jq .content | base64 -d > "$BUILD_DIR/criterion-crates.tar.gz"
+    echo "$crit_sha  $BUILD_DIR/criterion-crates.tar.gz" | sha256sum -c - >/dev/null \
+        || die "criterion-crates.tar.gz の sha256 が合わない"
+    tar xzf "$BUILD_DIR/criterion-crates.tar.gz" -C "$BUILD_DIR"
+    BUILD_DIR="$BUILD_DIR" python3 - <<'PY'
+import glob, hashlib, json, os, shutil, tarfile
+build_dir = os.environ["BUILD_DIR"]
+vendor_root = os.path.join(build_dir, "vendor-src")
+for crate_path in sorted(glob.glob(os.path.join(build_dir, "crates", "*.crate"))):
+    base = os.path.basename(crate_path)[:-6]
+    name, _ = base.rsplit("-", 1)
+    pkg_sha = hashlib.sha256(open(crate_path, "rb").read()).hexdigest()
+    dest = os.path.join(vendor_root, name)
+    if os.path.exists(dest):
+        shutil.rmtree(dest)
+    os.makedirs(dest, exist_ok=True)
+    with tarfile.open(crate_path, "r:gz") as tf:
+        for member in tf.getmembers():
+            parts = member.name.split("/", 1)
+            if len(parts) == 2 and parts[1]:
+                member.name = parts[1]
+                tf.extract(member, dest)
+    files = {}
+    for root, _, fnames in os.walk(dest):
+        for fn in fnames:
+            if fn == ".cargo-checksum.json":
+                continue
+            full = os.path.join(root, fn)
+            rel = os.path.relpath(full, dest).replace(os.sep, "/")
+            files[rel] = hashlib.sha256(open(full, "rb").read()).hexdigest()
+    with open(os.path.join(dest, ".cargo-checksum.json"), "w") as f:
+        json.dump({"files": files, "package": pkg_sha}, f, separators=(",", ":"))
+PY
+    rm -rf "$BUILD_DIR/criterion-crates.tar.gz" "$BUILD_DIR/crates"
+fi
 
 say "確認"
 # shellcheck disable=SC1091

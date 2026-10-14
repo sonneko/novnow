@@ -26,7 +26,7 @@ use novnow::core::diagnostics::{
 };
 
 /// 仕様書そのもの（正本）。
-const SPEC: &str = include_str!("../SPECIFICATIONS.md");
+const SPEC: &str = include_str!("../docs/specifications/diagnostics.md");
 
 /// 実装そのもの。variant の doc コメントが §7 の「条件」列と一致するかを見るのに使う。
 const SOURCE: &str = include_str!("../src/core/diagnostics.rs");
@@ -49,18 +49,16 @@ struct Row {
 }
 
 #[test]
-fn the_spec_has_81_codes_in_three_tables() {
-    // 第 2.8 版で E022（予約番号の見出し、`PLANS.md` §9.1 A-9）、第 2.9 版で E027（語クラスの
-    // 正規表現が不正、A-24）が §7 に増えた
+fn the_spec_has_76_codes_in_three_tables() {
+    // 第 2.17 版で v0 移行系の 5 件（W040 / E061 / W066 / W067 / I053）を削除した
     let rows = all_rows();
     let core = count_group(&rows, Group::Core);
     let storage = count_group(&rows, Group::Storage);
     let writing = count_group(&rows, Group::Writing);
-    // 第 2.16 版で E029（壊れたプロンプト、`PLANS.md` §9.2 B-139）が増えた
-    assert_eq!(core, 40);
-    assert_eq!(storage, 14);
+    assert_eq!(core, 39);
+    assert_eq!(storage, 10);
     assert_eq!(writing, 27);
-    assert_eq!(rows.len(), 81);
+    assert_eq!(rows.len(), 76);
     assert_eq!(CATALOG.len(), rows.len());
 }
 
@@ -288,7 +286,11 @@ fn lookup(code: &str) -> DiagnosticCode {
 fn all_rows() -> Vec<Row> {
     let mut rows = rows_of(Group::Core, "## 7. 診断カタログ", "### 7.1");
     rows.extend(rows_of(Group::Storage, "### 7.1", "### 7.2"));
-    rows.extend(rows_of(Group::Writing, "### 7.2", "## 8. 編集モデルと保存"));
+    rows.extend(rows_of(
+        Group::Writing,
+        "### 7.2",
+        "**実行コストの制御（MUST）**",
+    ));
     rows
 }
 
@@ -300,6 +302,9 @@ fn count_group(rows: &[Row], group: Group) -> usize {
 fn section(start: &str, end: &str) -> &'static str {
     let from = SPEC.find(start).expect("start marker");
     let rest = &SPEC[from..];
+    if end.is_empty() {
+        return rest;
+    }
     let to = rest.find(end).expect("end marker");
     &rest[..to]
 }
@@ -405,7 +410,7 @@ fn stated_as_status(row: &Row) -> bool {
 
 /// §7.2「実行コストの制御（MUST）」以降の部分。
 fn cost_section() -> &'static str {
-    let writing = section("### 7.2", "## 8. 編集モデルと保存");
+    let writing = section("### 7.2", "");
     let marker = "**実行コストの制御（MUST）**";
     let at = writing.find(marker).expect("cost table");
     &writing[at..]

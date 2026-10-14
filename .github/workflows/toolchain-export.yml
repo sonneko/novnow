@@ -29,7 +29,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - arena/acb80002-novnow
+      - "arena/**"
     paths:
       - .github/workflows/toolchain-export.yml
       - .github/toolchain.env

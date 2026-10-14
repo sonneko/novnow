@@ -521,11 +521,14 @@ fn continuation_text<'a>(line: &Line<'a>) -> Option<&'a str> {
     }
 }
 
-/// 継続行のインデントから **2 文字だけ**落とした残り（B-37）。
+/// 継続行のインデントから **先頭 1 タブまたは 2 文字だけ**落とした残り（B-21・B-37）。
 ///
-/// §5.3.6 の `space-mode: ascii` は「整形なし」で形を保つ MUST なので、2 文字を超える字下げは
-/// 相対的な形として残す。2 文字は「値の続き」を示す印なので落とす。
+/// §5.3.6 の `space-mode: ascii` は「整形なし」で形を保つ MUST なので、それ以上の字下げは
+/// 相対的な形として残す。先頭 1 タブまたは 2 文字は「値の続き」を示す印なので落とす。
 pub(crate) fn drop_indent(raw: &str) -> &str {
+    if let Some(rest) = raw.strip_prefix('\t') {
+        return rest;
+    }
     match raw.char_indices().nth(lexer::CONTINUATION_INDENT) {
         Some((at, _)) => &raw[at..],
         None => "",

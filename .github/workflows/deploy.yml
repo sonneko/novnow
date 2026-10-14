@@ -1,11 +1,21 @@
 name: Deploy to GitHub Pages
 
-# 2026-10-13: M7（GUI の内部 α、PLANS.md §5.8）までは手動実行だけにしていた（ユーザー指示。
-# M0 で v0 の UI を削除してから `trunk build` が通らなかったため）。M7 で GUI（`ui` feature。
-# `index.html` の `data-cargo-features="ui"`）が戻ったので `push: branches: [main]` を戻した。
+# main ブランチのうち Web 版ビルドに影響するファイルが更新されたとき、または手動実行時のみ走らせる。
+# ドキュメント（docs/**, README.md）や CLI 専用コード（src/cli/**）、テスト・ベンチマークのみの
+# 変更では不要な WASM リリースビルドをスキップする。
 on:
   push:
     branches: [main]
+    paths:
+      - 'src/**'
+      - '!src/cli/**'
+      - 'assets/**'
+      - 'examples/sample-novel/**'
+      - 'index.html'
+      - 'Trunk.toml'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/deploy.yml'
   workflow_dispatch:
 
 permissions:
@@ -15,14 +25,17 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -31,11 +44,22 @@ jobs:
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+
+      - name: Cache Trunk binary
+        id: trunk-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/trunk
+          key: trunk-v0.21.5-x86_64-unknown-linux-gnu
 
       - name: Download Trunk
+        if: steps.trunk-cache.outputs.cache-hit != 'true'
         run: |
-          wget -qO- https://github.com/trunk-rs/trunk/releases/download/v0.21.5/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
-          sudo mv trunk /usr/local/bin/
+          set -euo pipefail
+          curl -fsSL --retry 3 https://github.com/trunk-rs/trunk/releases/download/v0.21.5/trunk-x86_64-unknown-linux-gnu.tar.gz \
+            | tar -xzf - -C "$HOME/.cargo/bin"
           trunk --version
 
       - name: Build with Trunk
@@ -50,6 +74,7 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

@@ -1,98 +1,125 @@
 name: CI
 
-# PLANS.md §5.1 作業項目 4 / §6.2、SPECIFICATIONS.md §18.4 の 4 ジョブ。
-# `spec` ジョブは PLANS.md §9.4 B-14 の決定により M11 で追加する。
-# `wasm` ジョブを `trunk build` にしない判断は PLANS.md §9.2 B-16 を参照。
+# docs/specifications/workflows.md §18.4 の継続的検証ワークフロー。
 #
-# ## 失敗の読み方（2026-10-11 に改善）
-#
-# 各ジョブは cargo の出力を `/tmp/ci.log` に tee し、**`.github/report.py` が生ログから
-# 「どれが・どこで・何と言って失敗したか」だけを抜き出す**。出力は 3 つ。
-#
-# 1. **ワークフロー注釈**（`::error file=…,line=…::`）— コンパイルエラーとテストの panic 位置が
-#    PR の「Files changed」とチェック画面にインラインで出る。
-# 2. **実行サマリ**（`$GITHUB_STEP_SUMMARY`）— 成功時も書く。テスト件数の内訳が出るので、
-#    run のページを開けば緑の証跡（何件通ったか）がその場で分かる。
-# 3. **PR コメント**（失敗時のみ）— Actions のログ取得先ホスト（`objects.githubusercontent.com`）に
-#    作業環境から到達できないため、**失敗の中身を読む経路はこれしかない**（PLANS.md §9.3）。
-#    `gh api repos/:owner/:repo/issues/:number/comments` で取得できる。
-#
-# `head` / `tail` の切り出しをやめた理由: テスト失敗の本体（`---- <name> stdout ----`）はログの
-# **真ん中**にあり、切り出しではちょうど落ちる。判断は PLANS.md §9.2 B-55。
-#
-# `cargo test` は **`--no-fail-fast`**: 既定だと最初の失敗ターゲットで止まり、残りの形式の
-# 失敗が一度に見えない（1 回の CI で全部知るための変更。失敗時のみ実行時間が伸びる）。
-#
-# レポート生成自体は CI の合否に影響させない（`|| echo "::warning::…"`）。レポートのバグで
-# 緑のビルドが赤くなっては本末転倒なので。
-#
-# 2026-10-11 以降は作業環境側に Rust ツールチェーンがあり（PLANS.md §9.3、
-# `.github/workflows/toolchain-export.yml` が生成）、fmt / clippy / test / wasm の 4 つは
-# すべてローカルで実行できる。CI は「緑の証跡」として残す。
-# 不要になったら「Comment on the PR」ステップと `pull-requests: write` を外す。
+# ジョブ構成:
+# 1. `docs` (Docs & Change Filter):
+#    - `python3 docs/script/duplicate.py` を実行し、ドキュメント管理規則・REF 整合性・SYNC ブロックを検証する。
+#    - 変更ファイルを判定し、開発者文書（docs/{developers,plans,handoff,history}.md, docs/designs/**, README.md 等）
+#      のみの変更であれば `rust_changed=false` を出力して後続の重い Rust ジョブ 5 本を自動スキップする。
+#    - 注意: `docs/specifications/**` および `examples/sample-novel/**` は `include_str!` でテスト・本体に
+#      埋め込まれているため、これらが変更された場合は `rust_changed=true` として Rust ジョブも実行する。
+# 2. `fmt` (Rustfmt)
+# 3. `clippy` (Clippy: GUI あり + GUI なし)
+# 4. `test` (Test: GUI あり全ターゲット + GUI なし CLI)
+# 5. `wasm` (WASM Build Check: wasm32 check + trunk build --release & 8MiB サイズ検査 + windows check)
+# 6. `bench` (Benchmarks: criterion ベンチマーク §18.1)
 
-# paths-ignore: 4 ジョブはどれも Rust のソースと Cargo.* しか見ないので、ドキュメントと
-# ワークフローだけの commit では走らせない（Actions 使用時間の節約）。
-# 状態チェックを必須にしている場合は両方の paths-ignore を外すこと。
-# （GitHub Actions は YAML アンカーを使えないので同じ一覧を 2 か所に書いている。）
 on:
   push:
     branches:
       - main
       - master
     paths-ignore:
-      - '**.md'
-      - '.github/**'
-      - 'assets/**'
       - 'screenshot.jpeg'
       - 'LICENSE'
+      - '.github/toolchain.env'
+      - '.github/sandbox-tools.env'
+      - '.github/workflows/toolchain-export.yml'
+      - '.github/workflows/sandbox-tools.yml'
   pull_request:
-    # draft の間は 4 ジョブを skip し、ready for review にした時点で 1 回だけ走らせる
-    # （2026-10-13。作業中は push のたびにローカルで 4 ジョブを確認済みなので、CI は
-    # 「緑の証跡」を最後に 1 回残せば足りる。Actions 使用時間を抑えるユーザー指示）。
+    # draft の間はジョブを skip し、ready for review にした時点で走らせる（Actions 使用時間の節約）。
     types: [opened, synchronize, reopened, ready_for_review]
     branches:
       - main
       - master
     paths-ignore:
-      - '**.md'
-      - '.github/**'
-      - 'assets/**'
       - 'screenshot.jpeg'
       - 'LICENSE'
+      - '.github/toolchain.env'
+      - '.github/sandbox-tools.env'
+      - '.github/workflows/toolchain-export.yml'
+      - '.github/workflows/sandbox-tools.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
   pull-requests: write
 
-# PR のときは新しい push で古い実行を取り消す。main への push は最後まで走らせる
-# （マージ結果の検証が途中で消えると、緑の証跡が残らないため）。
+# PR のときは新しい push で古い実行を取り消す。main への push は最後まで走らせる。
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-# 4 ジョブ共通の環境変数。
 env:
-  # レポートの見出しに載せる commit（`.github/report.py` が読む）
   CI_SHA: ${{ github.sha }}
-  # backtrace はレポートを埋めるだけで、失敗の理由は panic メッセージで足りる（読みやすさ優先）
   RUST_BACKTRACE: 0
 
 jobs:
-  fmt:
-    name: Rustfmt
+  docs:
+    name: Docs & Change Filter
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
-    # 暴走しても課金が伸びないようにする（Actions 使用時間の節約）
+    timeout-minutes: 5
+    outputs:
+      rust_changed: ${{ steps.filter.outputs.rust_changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify documentation rules (duplicate.py)
+        run: python3 docs/script/duplicate.py
+
+      - name: Detect whether Rust build/test inputs changed
+        id: filter
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "rust_changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+          else
+            base="${{ github.event.before }}"
+          fi
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            echo "rust_changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed="$(git diff --name-only "$base" HEAD)"
+          echo "Changed files:"
+          echo "$changed"
+          rust_changed=false
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            case "$file" in
+              docs/developers.md|docs/plans.md|docs/handoff.md|docs/history.md|docs/designs/*|docs/script/*|README.md|LICENSE|screenshot.jpeg|.github/workflows/deploy.yml|.github/workflows/sandbox-tools.yml|.github/workflows/toolchain-export.yml|.github/*.env)
+                ;;
+              *)
+                rust_changed=true
+                break
+                ;;
+            esac
+          done <<< "$changed"
+          echo "rust_changed=$rust_changed"
+          echo "rust_changed=$rust_changed" >> "$GITHUB_OUTPUT"
+
+  fmt:
+    name: Rustfmt
+    needs: docs
+    if: needs.docs.outputs.rust_changed == 'true' && (github.event_name != 'pull_request' || !github.event.pull_request.draft)
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
-      # pipefail: パイプ先の tee が成功しても cargo の失敗でステップを落とす
-      # ::group:: で生ログを折りたたむ（読むのはレポートのほう）
       - name: cargo fmt --check
         id: cargo
         shell: bash
@@ -121,19 +148,20 @@ jobs:
 
   clippy:
     name: Clippy
-    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    needs: docs
+    if: needs.docs.outputs.rust_changed == 'true' && (github.event_name != 'pull_request' || !github.event.pull_request.draft)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
-      # --all-targets: tests/ 配下（layering.rs を含む）も lint する
-      # --locked: Cargo.lock と Cargo.toml の乖離を落とす
-      # M7 から GUI 込み（`--features ui`、PLANS.md §5.8 作業項目 0）。GUI のクレートは optional の
-      # まま（既定のビルドに入れない、§9.2 B-54）なので、GUI を含まない既定のビルドも続けて lint する。
+        with:
+          cache-all-crates: true
       - name: cargo clippy
         id: cargo
         shell: bash
@@ -165,26 +193,20 @@ jobs:
 
   test:
     name: Test
-    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    needs: docs
+    if: needs.docs.outputs.rust_changed == 'true' && (github.event_name != 'pull_request' || !github.event.pull_request.draft)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      # GUI 込みのテストは 47 本のバイナリがそれぞれ egui をリンクするので、既定の debuginfo では
-      # ランナーのディスクを使い切る（2026-10-14 に "No space left on device" で落ちた）。CI では
-      # debuginfo は要らない（panic の位置はデバッグ情報が無くても出る）。手元は
-      # scripts/bootstrap-toolchain.sh が line-tables-only にしている
       CARGO_PROFILE_DEV_DEBUG: 0
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      # tests/layering.rs（§3.2 の禁止依存 + §12.2 の日本語リテラル + feature gate + 検査器の
-      # 自己テスト）を含む全ターゲットを実行する。DEVELOPERS.md §1.4「layering が落ちたら
-      # マージしない」。
-      # --no-fail-fast: 既定だと**最初の失敗ターゲットで止まる**（統合テストはアルファベット順）
-      # ので、1 回の CI で全形式の失敗を知るために外す。
-      # M7 から GUI 込み（`--features ui`。tests/gui.rs は egui を画面なしで回す）。GUI を含まない
-      # ビルドの振る舞い（GUI 起動の拒否・`novnow new` の案内）は tests/cli.rs を既定のビルドでも回す。
+        with:
+          cache-all-crates: true
       - name: cargo test
         id: cargo
         shell: bash
@@ -214,25 +236,37 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh pr comment "${{ github.event.pull_request.number }}" --body-file /tmp/body.md
 
-  # ジョブ名は「WASM Build Check」のまま（必須チェックの名前を変えないため）。M6 から
-  # **Windows（x86_64-pc-windows-msvc）の型検査**も同じジョブで行う: `#[cfg(windows)]` のコード
-  # （main.rs の AttachConsole・env_system.rs のロケール、SPECIFICATIONS.md §14.3）は作業環境に
-  # Windows の std が無くローカルで検査できないため（PLANS.md §9.2 B-107）。`cargo check` は
-  # リンクしないので MSVC のリンカは要らない。どちらかが落ちても両方の結果をログに残す。
   wasm:
     name: WASM Build Check
-    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    needs: docs
+    if: needs.docs.outputs.rust_changed == 'true' && (github.event_name != 'pull_request' || !github.event.pull_request.draft)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown,x86_64-pc-windows-msvc
       - uses: Swatinem/rust-cache@v2
-      # M7 から GUI 込み（`--features ui`。Web の GUI と、Windows の GUI ビルドの型検査）。
-      # RUSTFLAGS は付けない（付けると依存クレートまで作り直しになる）。警告は下の grep で落とす。
-      - name: cargo check (wasm32 / windows)
+        with:
+          cache-all-crates: true
+      - name: Cache Trunk binary
+        id: trunk-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/trunk
+          key: trunk-v0.21.5-x86_64-unknown-linux-gnu
+      - name: Install trunk
+        if: steps.trunk-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 https://github.com/trunk-rs/trunk/releases/download/v0.21.5/trunk-x86_64-unknown-linux-gnu.tar.gz \
+            | tar xzf - -C "$HOME/.cargo/bin"
+          trunk --version
+      - name: trunk build --release & cargo check (wasm32 / windows)
         id: cargo
         shell: bash
         run: |
@@ -241,11 +275,28 @@ jobs:
           echo "::group::cargo check --target wasm32-unknown-unknown（生ログ）"
           cargo check --locked --target wasm32-unknown-unknown --features ui 2>&1 | tee /tmp/ci.log || status=$?
           echo "::endgroup::"
+          echo "::group::trunk build --release & wasm サイズ検査（§18.1 / §18.4）"
+          trunk build --release 2>&1 | tee -a /tmp/ci.log || status=$?
+          if [ "$status" = 0 ]; then
+            wasm_file="$(ls dist/*_bg.wasm 2>/dev/null | head -1)"
+            if [ -z "$wasm_file" ]; then
+              echo "::error::dist/*_bg.wasm が生成されていません" | tee -a /tmp/ci.log
+              status=1
+            else
+              raw_bytes="$(wc -c < "$wasm_file")"
+              gz_bytes="$(gzip -c "$wasm_file" | wc -c)"
+              limit_bytes=$((8 * 1024 * 1024))
+              echo "wasm size: raw=${raw_bytes} bytes, gzip=${gz_bytes} bytes (limit=${limit_bytes} bytes)" | tee -a /tmp/ci.log
+              if [ "$gz_bytes" -gt "$limit_bytes" ]; then
+                echo "::error::gzip 後の wasm サイズ (${gz_bytes} bytes) が §18.1 の上限 8MiB (${limit_bytes} bytes) を超えています" | tee -a /tmp/ci.log
+                status=1
+              fi
+            fi
+          fi
+          echo "::endgroup::"
           echo "::group::cargo check --target x86_64-pc-windows-msvc（生ログ）"
           cargo check --locked --target x86_64-pc-windows-msvc --features ui 2>&1 | tee -a /tmp/ci.log || status=$?
           echo "::endgroup::"
-          # novnow 自身の警告（Windows でだけ出る未使用など）も赤にする。依存クレートの警告は
-          # cargo が抑えるので、`--> src/` を指す診断があれば novnow のもの
           if [ "$status" = 0 ] && grep -q -- '--> src/' /tmp/ci.log; then
             echo "::error::novnow の警告があります（上のログ）"
             status=1
@@ -257,6 +308,53 @@ jobs:
         env:
           CI_LOG: /tmp/ci.log
           CI_JOB: WASM Build Check
+          CI_KIND: wasm
+          CI_STATUS: ${{ steps.cargo.outcome }}
+        run: python3 .github/report.py /tmp/body.md || echo "::warning::レポートの生成に失敗しました（合否には影響しません）"
+      - name: Comment on the PR
+        if: failure() && github.event_name == 'pull_request'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr comment "${{ github.event.pull_request.number }}" --body-file /tmp/body.md
+
+  bench:
+    name: Benchmarks
+    needs: docs
+    if: needs.docs.outputs.rust_changed == 'true' && (github.event_name != 'pull_request' || !github.event.pull_request.draft)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CARGO_PROFILE_BENCH_DEBUG: 0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+      - name: cargo bench (§18.1 / §18.4)
+        id: cargo
+        shell: bash
+        run: |
+          set -o pipefail
+          status=0
+          echo "::group::cargo bench --no-run（生ログ）"
+          cargo bench --locked --no-run 2>&1 | tee /tmp/ci.log || status=$?
+          echo "::endgroup::"
+          if [ "$status" = 0 ]; then
+            echo "::group::cargo bench --bench core -- --quick（生ログ）"
+            cargo bench --locked --bench core -- --quick 2>&1 | tee -a /tmp/ci.log || status=$?
+            echo "::endgroup::"
+          fi
+          exit $status
+      - name: Report to the run summary
+        if: always() && steps.cargo.outcome != 'skipped'
+        shell: bash
+        env:
+          CI_LOG: /tmp/ci.log
+          CI_JOB: Benchmarks
           CI_KIND: wasm
           CI_STATUS: ${{ steps.cargo.outcome }}
         run: python3 .github/report.py /tmp/body.md || echo "::warning::レポートの生成に失敗しました（合否には影響しません）"

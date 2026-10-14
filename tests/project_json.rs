@@ -11,7 +11,7 @@ use novnow::core::model::project::Project as Settings;
 use novnow::core::resolve::role_language::MatcherSet;
 use novnow::core::syntax::project_json;
 
-const SPEC: &str = include_str!("../SPECIFICATIONS.md");
+const SPEC: &str = include_str!("../docs/specifications/project.md");
 
 /// §4.5 の `project.json` の例（仕様書から切り出す）。
 fn spec_example() -> &'static str {

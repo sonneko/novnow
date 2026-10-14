@@ -480,9 +480,17 @@ impl Host for WebHost {
     }
 }
 
-/// 雛形（§14.5）のファイル一式（新規作成・サンプルの投入・足りないファイルの補充）。
+/// 雛形（§14.5）のファイル一式（新規作成・足りないファイルの補充）。
 fn template_files(title: &str) -> Vec<(ProjectPath, String)> {
     crate::core::template::new_project(title)
+        .into_iter()
+        .filter_map(|file| Some((ProjectPath::new(file.path).ok()?, file.text)))
+        .collect()
+}
+
+/// 付録 C の `sample` プロジェクト一式（§13.3.5 初回投入）。
+fn sample_files() -> Vec<(ProjectPath, String)> {
+    crate::core::template::sample_project()
         .into_iter()
         .filter_map(|file| Some((ProjectPath::new(file.path).ok()?, file.text)))
         .collect()
@@ -587,7 +595,7 @@ struct Shared {
     phase: Phase,
     idb: Option<Idb>,
     rows: Vec<Row>,
-    /// 一覧の下に出す知らせ（I053・E061・取り込みの結果・失敗）。
+    /// 一覧の下に出す知らせ（取り込みの結果・失敗）。
     notice: Option<String>,
     /// 開き終えたプロジェクト（次のフレームで `show` が返す）。
     opened: Option<(Session, UiSettings)>,
@@ -666,7 +674,7 @@ impl WebPicker {
         });
     }
 
-    /// 起動（DB を開く → 永続化の要求 → v0 の取り込み → サンプルの投入 → 一覧）。
+    /// 起動（DB を開く → 永続化の要求 → サンプルの投入 → 一覧）。
     fn start(&self, locale: Locale) {
         let shared = Rc::clone(&self.shared);
         let ctx = self.ctx.clone();
@@ -680,13 +688,9 @@ impl WebPicker {
                 }
             };
             storage_idb::request_persist().await;
-            // §13.3.6: LocalStorage（v0）の取り込み。変換は M11 まで失敗する（E061。v0 のデータは消さない）
-            let legacy = idb.import_local_storage(&SystemClock).await;
-            let mut notice = legacy
-                .diagnostic()
-                .map(|diagnostic| i18n::diagnostic(locale, &diagnostic));
-            // §13.3.5: 空なら `sample` を 1 つだけ作る（自動では開かない）
-            if let Err(error) = idb.seed_sample(&template_files("sample")).await {
+            let mut notice = None;
+            // §13.3.5: 空なら `sample`（付録 C）を 1 つだけ作る（自動では開かない）
+            if let Err(error) = idb.seed_sample(&sample_files()).await {
                 notice = Some(i18n::format(
                     locale,
                     "project.pick.failed",
@@ -995,9 +999,6 @@ fn invalid_text(locale: Locale, error: &ProjectError) -> String {
                 .collect();
             i18n::format(locale, "project.pick.incomplete", &[&names.join(", ")])
         }
-        ProjectError::LegacyV0 { detected } => {
-            i18n::format(locale, "project.pick.legacy", &[detected])
-        }
         ProjectError::TooNew { found } => {
             i18n::format(locale, "project.pick.too_new", &[&found.to_string()])
         }
@@ -1276,6 +1277,12 @@ impl WebPicker {
         ui.add_space(8.0);
         ui.label(
             RichText::new(i18n::text(locale, "project.pick.keys"))
+                .small()
+                .color(colors.fg_faint),
+        );
+        ui.add_space(4.0);
+        ui.label(
+            RichText::new(i18n::text(locale, "project.pick.single_tab"))
                 .small()
                 .color(colors.fg_faint),
         );

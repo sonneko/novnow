@@ -106,7 +106,7 @@ pub enum Scope {
     Session,
 }
 
-/// 診断コード（§7 / §7.1 / §7.2 の全 80 件）。
+/// 診断コード（§7 / §7.1 / §7.2 の全 76 件）。
 ///
 /// **variant 名はコード文字列そのもの**（`E001` → `"E001"`）。i18n のキーは
 /// `diag.` を前に付けた形（`diag.E001`、§12.3「キー命名」）で、core は文言を持たない。
@@ -123,7 +123,7 @@ pub enum DiagnosticCode {
     E003,
     /// モードの `range` 外での割り当て（§7）
     E004,
-    /// 1 節に 3 つ以上のモード（§7）
+    /// 1 キャラに 3 つ以上のモード、または 1 節の `mode` に同じキャラを 2 回（§7）
     E005,
     /// 資料タイトル不一致（§7）
     E006,
@@ -157,7 +157,7 @@ pub enum DiagnosticCode {
     E027,
     /// 辞書キーが 96 バイト超（§7）
     E028,
-    /// プロンプトに必須のセクション（`## system` / `## task`）が無い（§15.5.4 (2)。第 2.16 版）（§7）
+    /// プロンプトに必須のセクション（`## system` / `## task`）が無い（§15.5.4 (2)）（§7）
     E029,
     /// MCP サーバの環境変数未解決（§7）
     E030,
@@ -175,8 +175,6 @@ pub enum DiagnosticCode {
     E036,
     /// プロジェクト外への書き込みを拒否した（§13.1.2）（§7.1）
     E060,
-    /// LocalStorage からの移行に失敗（§7.1）
-    E061,
     /// IndexedDB が利用できない（§7.1）
     E062,
     /// MCP サーバに接続できない（§7.1）
@@ -207,8 +205,6 @@ pub enum DiagnosticCode {
     W031,
     /// `mcp.json` に秘密情報が直書き（§7）
     W033,
-    /// 廃止ファイルの存在（§7）
-    W040,
     /// 書き込み不可のプロジェクト（§7）
     W041,
     /// 残容量が 10MB 未満（§7.1）
@@ -217,10 +213,6 @@ pub enum DiagnosticCode {
     W064,
     /// 出典のない資料（§7.1）
     W065,
-    /// 移行で人手確認が必要（`speech` → 役割語など）（§7.1）
-    W066,
-    /// `'` の直後が括弧で参照が解決できない（§7.1）
-    W067,
     /// アイコンの形式が PNG/JPEG でない（§5.5.3）（§7.1）
     W068,
     /// アイコンが大きすぎる（長辺 256px 超 / 256KB 超）（§7.1）
@@ -265,8 +257,6 @@ pub enum DiagnosticCode {
     I051,
     /// 外部変更を取り込んだ（§7.1）
     I052,
-    /// 旧データを移行した（§7.1）
-    I053,
     /// どの節からも引用されていない採用済み資料（§5.2.4）（§7.2）
     I054,
     /// ストック章（`00`）に本文が残っている（§5.1.2）（§7.2）
@@ -316,7 +306,6 @@ impl DiagnosticCode {
             Self::E035 => "E035",
             Self::E036 => "E036",
             Self::E060 => "E060",
-            Self::E061 => "E061",
             Self::E062 => "E062",
             Self::E063 => "E063",
             Self::E064 => "E064",
@@ -332,13 +321,10 @@ impl DiagnosticCode {
             Self::W030 => "W030",
             Self::W031 => "W031",
             Self::W033 => "W033",
-            Self::W040 => "W040",
             Self::W041 => "W041",
             Self::W062 => "W062",
             Self::W064 => "W064",
             Self::W065 => "W065",
-            Self::W066 => "W066",
-            Self::W067 => "W067",
             Self::W068 => "W068",
             Self::W069 => "W069",
             Self::W070 => "W070",
@@ -361,7 +347,6 @@ impl DiagnosticCode {
             Self::I050 => "I050",
             Self::I051 => "I051",
             Self::I052 => "I052",
-            Self::I053 => "I053",
             Self::I054 => "I054",
             Self::I055 => "I055",
             Self::I056 => "I056",
@@ -412,7 +397,7 @@ impl DiagnosticCode {
             },
             Severity::Info => match n {
                 50..=51 => Group::Core,
-                52..=53 => Group::Storage,
+                52 => Group::Storage,
                 _ => Group::Writing,
             },
         }
@@ -508,7 +493,6 @@ pub const CATALOG: &[CatalogRow] = &[
     (DiagnosticCode::E035, 2),
     (DiagnosticCode::E036, 1),
     (DiagnosticCode::E060, 1),
-    (DiagnosticCode::E061, 0),
     (DiagnosticCode::E062, 0),
     (DiagnosticCode::E063, 1),
     (DiagnosticCode::E064, 1),
@@ -524,13 +508,10 @@ pub const CATALOG: &[CatalogRow] = &[
     (DiagnosticCode::W030, 2),
     (DiagnosticCode::W031, 0),
     (DiagnosticCode::W033, 0),
-    (DiagnosticCode::W040, 1),
     (DiagnosticCode::W041, 0),
     (DiagnosticCode::W062, 0),
     (DiagnosticCode::W064, 1),
     (DiagnosticCode::W065, 1),
-    (DiagnosticCode::W066, 1),
-    (DiagnosticCode::W067, 0),
     (DiagnosticCode::W068, 1),
     (DiagnosticCode::W069, 1),
     (DiagnosticCode::W070, 1),
@@ -553,7 +534,6 @@ pub const CATALOG: &[CatalogRow] = &[
     (DiagnosticCode::I050, 0),
     (DiagnosticCode::I051, 0),
     (DiagnosticCode::I052, 1),
-    (DiagnosticCode::I053, 1),
     (DiagnosticCode::I054, 1),
     (DiagnosticCode::I055, 1),
     (DiagnosticCode::I056, 1),
@@ -565,7 +545,7 @@ pub const CATALOG: &[CatalogRow] = &[
 ///
 /// 内訳は 3 つ。
 ///
-/// 1. **§7.1 の全 14 件**。表の見出しが「文書位置を持たない通知」で、波線ではなく
+/// 1. **§7.1 の全 10 件**。表の見出しが「文書位置を持たない通知」で、波線ではなく
 ///    ステータスバーの通知とレビュー一覧に出す（仕様書の明記）。
 /// 2. **§7.2 の E032〜E036**。§7.2 の注「エラーだが文書位置を持たないため、
 ///    §7.1 と同じくステータスバー通知として扱う」（仕様書の明記）。
@@ -580,17 +560,13 @@ pub const STATUS_ANCHOR: &[DiagnosticCode] = &[
     DiagnosticCode::E035,
     DiagnosticCode::E036,
     DiagnosticCode::E060,
-    DiagnosticCode::E061,
     DiagnosticCode::E062,
     DiagnosticCode::E063,
     DiagnosticCode::E064,
-    DiagnosticCode::W040,
     DiagnosticCode::W041,
     DiagnosticCode::W062,
     DiagnosticCode::W064,
     DiagnosticCode::W065,
-    DiagnosticCode::W066,
-    DiagnosticCode::W067,
     DiagnosticCode::W068,
     DiagnosticCode::W069,
     DiagnosticCode::W070,
@@ -599,7 +575,6 @@ pub const STATUS_ANCHOR: &[DiagnosticCode] = &[
     DiagnosticCode::I050,
     DiagnosticCode::I051,
     DiagnosticCode::I052,
-    DiagnosticCode::I053,
     DiagnosticCode::I054,
     DiagnosticCode::I055,
     DiagnosticCode::I056,

@@ -15,8 +15,12 @@
 //! - 下位へ降りても**親が常に見える**（章のときは全体プロットの章のブロックを上段に出す。§19.11）。
 //! - 右は伏線（§10.3 の既定のタブ）。`seed` / `payoff` を伏線 ID で突き合わせ、未回収を上に並べる。
 
+use std::collections::BTreeSet;
+
 use egui::{Align, Context, FontFamily, FontId, Frame, Margin, RichText, Ui, Vec2};
 
+use crate::core::features::document_symbol::{self, SymbolKind};
+use crate::core::features::folding;
 use crate::core::features::plots::{self, Foreshadow, OutlineBlock};
 use crate::core::features::project::line_starts_of;
 use crate::core::id::SceneId;
@@ -37,6 +41,15 @@ pub type Level = Option<u16>;
 /// 親のブロックの中身（文字列・色分け）。
 type Parent = (String, Highlight);
 
+/// 左の構成ツリーの 1 章ぶん（§10.3.1: `folding::ranges` と `document_symbol::all` で章→話を展開）。
+#[derive(Debug, Clone)]
+struct ChapterNode {
+    chapter: u16,
+    title: String,
+    foldable: bool,
+    episodes: Vec<(u16, String)>,
+}
+
 /// `plot-outline` の状態（切替で破棄しない、§10.0）。
 #[derive(Debug, Default)]
 pub struct State {
@@ -45,9 +58,11 @@ pub struct State {
     /// 選んでいるブロックの ID。
     selected: Option<SceneId>,
     blocks: Option<(u64, Level, Vec<OutlineBlock>)>,
-    chapters: Option<(u64, Vec<(u16, String)>)>,
+    chapters: Option<(u64, Vec<ChapterNode>)>,
     foreshadows: Option<(u64, Vec<Foreshadow>)>,
     parent: Option<(u64, Level, Option<Parent>)>,
+    /// 構成ツリーで話を展開している章（`Ctrl+Shift+]` で展開、`Ctrl+Shift+[` で畳む）。
+    expanded: BTreeSet<u16>,
     editor: slice_editor::Cache,
     reveal: bool,
 }
@@ -125,12 +140,39 @@ impl State {
             .map_or(&[], |(_, _, blocks)| blocks.as_slice())
     }
 
-    fn chapters(&mut self, bench: &Workbench) -> &[(u16, String)] {
+    /// 章 `chapter` の話一覧を展開しているか。
+    pub fn is_expanded(&self, chapter: u16) -> bool {
+        self.expanded.contains(&chapter)
+    }
+
+    /// 今の章（全体なら選んでいる章）の話一覧を畳む（`fold == true`）/ 展開する（`false`、§10.3.1）。
+    pub fn set_folded(&mut self, bench: &Workbench, fold: bool) -> bool {
+        let target = self
+            .level
+            .flatten()
+            .or_else(|| self.selected.map(|id| id.chapter))
+            .or_else(|| self.chapters(bench).first().map(|node| node.chapter));
+        let Some(chapter) = target else {
+            return false;
+        };
+        if fold {
+            self.expanded.remove(&chapter)
+        } else {
+            self.expanded.insert(chapter)
+        }
+    }
+
+    fn chapters(&mut self, bench: &Workbench) -> &[ChapterNode] {
         let fresh =
             matches!(&self.chapters, Some((generation, _)) if *generation == bench.generation());
         if !fresh {
-            let titles = plots::outline_blocks(bench.project(), None);
-            let list = plots::chapters(bench.project())
+            let project = bench.project();
+            let all_folds = project
+                .document("plots/all.txt")
+                .map(folding::ranges)
+                .unwrap_or_default();
+            let titles = plots::outline_blocks(project, None);
+            let list = plots::chapters(project)
                 .into_iter()
                 .map(|chapter| {
                     let title = titles
@@ -138,7 +180,36 @@ impl State {
                         .find(|block| block.id.chapter == chapter && block.id.episode == 0)
                         .map(|block| block.title.clone())
                         .unwrap_or_default();
-                    (chapter, title)
+                    let path = project.chapter_plot_path(chapter);
+                    let (ranges, symbols) = project
+                        .document(&path)
+                        .map(|doc| (folding::ranges(doc), document_symbol::all(doc)))
+                        .unwrap_or_default();
+                    let mut episodes: Vec<(u16, String)> = symbols
+                        .into_iter()
+                        .filter(|symbol| symbol.kind == SymbolKind::Episode)
+                        .filter_map(|symbol| {
+                            let id = SceneId::parse(&symbol.name).ok()?;
+                            (id.chapter == chapter && id.episode > 0)
+                                .then_some((id.episode, symbol.detail))
+                        })
+                        .collect();
+                    if episodes.is_empty() {
+                        episodes = plots::outline_blocks(project, Some(chapter))
+                            .into_iter()
+                            .filter(|block| block.id.chapter == chapter && block.id.episode > 0)
+                            .map(|block| (block.id.episode, block.title))
+                            .collect();
+                    }
+                    let foldable = !episodes.is_empty()
+                        || ranges.iter().any(|item| item.depth == 2)
+                        || all_folds.iter().any(|item| item.depth == 1);
+                    ChapterNode {
+                        chapter,
+                        title,
+                        foldable,
+                        episodes,
+                    }
                 })
                 .collect();
             self.chapters = Some((bench.generation(), list));
@@ -230,11 +301,7 @@ impl State {
     /// 前 / 次のレベル（全体 → 01 → 02 …）。
     fn step_level(&mut self, bench: &mut Workbench, forward: bool) -> bool {
         let mut levels: Vec<Level> = vec![None];
-        levels.extend(
-            self.chapters(bench)
-                .iter()
-                .map(|(chapter, _)| Some(*chapter)),
-        );
+        levels.extend(self.chapters(bench).iter().map(|node| Some(node.chapter)));
         let current = self.level.unwrap_or(None);
         let at = levels
             .iter()
@@ -364,6 +431,7 @@ pub fn show(
     .show(ctx, |ui| {
         let current = state.level.unwrap_or(None);
         let mut chosen: Option<Level> = None;
+        let mut chosen_episode: Option<(u16, u16)> = None;
         let all = i18n::text(locale, "outline.all");
         if list_row(
             ui,
@@ -381,15 +449,27 @@ pub fn show(
         }
         let chapters = state.chapters(bench).to_vec();
         let digits = bench.project().digits();
-        for (chapter, title) in chapters {
-            let label = plots::short_id(
-                SceneId {
-                    chapter,
-                    episode: 0,
-                    scene: 0,
-                    section: 0,
-                },
-                digits,
+        for node in chapters {
+            let chapter = node.chapter;
+            let expanded = state.expanded.contains(&chapter);
+            let arrow = if !node.foldable || node.episodes.is_empty() {
+                ""
+            } else if expanded {
+                "▾ "
+            } else {
+                "▸ "
+            };
+            let label = format!(
+                "{arrow}{}",
+                plots::short_id(
+                    SceneId {
+                        chapter,
+                        episode: 0,
+                        scene: 0,
+                        section: 0,
+                    },
+                    digits,
+                )
             );
             if list_row(
                 ui,
@@ -398,25 +478,64 @@ pub fn show(
                 Row {
                     selected: current == Some(chapter),
                     label: &label,
-                    text: &title,
+                    text: &node.title,
                     ..Row::default()
                 },
             )
             .clicked()
             {
+                if current == Some(chapter) && !node.episodes.is_empty() {
+                    if expanded {
+                        state.expanded.remove(&chapter);
+                    } else {
+                        state.expanded.insert(chapter);
+                    }
+                }
                 chosen = Some(Some(chapter));
             }
+            if expanded {
+                for (episode, ep_title) in &node.episodes {
+                    let ep_id = SceneId {
+                        chapter,
+                        episode: *episode,
+                        scene: 0,
+                        section: 0,
+                    };
+                    let ep_label = format!("  {}", plots::short_id(ep_id, digits));
+                    if list_row(
+                        ui,
+                        view.mode,
+                        scale,
+                        Row {
+                            selected: current == Some(chapter) && state.selected == Some(ep_id),
+                            label: &ep_label,
+                            text: ep_title,
+                            muted: true,
+                            ..Row::default()
+                        },
+                    )
+                    .clicked()
+                    {
+                        chosen_episode = Some((chapter, *episode));
+                    }
+                }
+            }
         }
-        match chosen {
-            Some(None) => {
-                bench.commit();
-                state.land_all(bench, current.unwrap_or(0));
+        if let Some((chapter, episode)) = chosen_episode {
+            bench.commit();
+            state.land_chapter(bench, chapter, episode);
+        } else {
+            match chosen {
+                Some(None) => {
+                    bench.commit();
+                    state.land_all(bench, current.unwrap_or(0));
+                }
+                Some(Some(chapter)) => {
+                    bench.commit();
+                    state.land_chapter(bench, chapter, 0);
+                }
+                None => {}
             }
-            Some(Some(chapter)) => {
-                bench.commit();
-                state.land_chapter(bench, chapter, 0);
-            }
-            None => {}
         }
     });
     // 右: 伏線

@@ -493,6 +493,11 @@ fn a_continuation_line_joins_the_field_value() {
         full_tag_of("summary: 一行目\n  二行目\n", 0),
         "full[一行目⏎二行目]|n2"
     );
+    // 1 タブのインデントも継続行として結合され、先頭 1 タブが落とされる（B-21）
+    assert_eq!(
+        full_tag_of("summary: 一行目\n\t二行目\n\t\t三行目\n", 0),
+        "full[一行目⏎二行目⏎\t三行目]|n3"
+    );
     // 2 文字を超える字下げは**形として残る**（§5.3.6 `space-mode: ascii` は整形なし MUST、B-37）
     assert_eq!(
         full_tag_of(&space_memo(), 1),

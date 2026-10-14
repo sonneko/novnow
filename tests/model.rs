@@ -527,14 +527,12 @@ fn the_spec_example_of_4_5_parses_into_the_defaults() {
 fn schema_version_follows_4_3_2() {
     let mut found = Project::default();
     assert_eq!(found.schema_state(), SchemaState::Current);
-    found.schema_version = 0;
-    assert_eq!(found.schema_state(), SchemaState::LegacyV0);
     found.schema_version = 2;
     assert_eq!(found.schema_state(), SchemaState::TooNew { found: 2 });
-    // 省略されても 0 になり v0 扱い（§4.3-2「省略 or 0」）
+    // 省略時は 1 として扱う（§4.3-2、第 2.17 版）
     let omitted: Project = serde_json::from_str("{}").unwrap();
-    assert_eq!(omitted.schema_version, 0);
-    assert_eq!(omitted.schema_state(), SchemaState::LegacyV0);
+    assert_eq!(omitted.schema_version, 1);
+    assert_eq!(omitted.schema_state(), SchemaState::Current);
 }
 
 #[test]

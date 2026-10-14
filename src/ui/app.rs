@@ -301,6 +301,19 @@ enum Overlay {
     PromptDiff {
         name: String,
     },
+    /// `F2` / `>rename` キャラ名・用語の一括改名（§3.4）。
+    Rename {
+        document: crate::core::model::document::Document,
+        pos: usize,
+        input: String,
+        error: Option<crate::core::features::rename::RenameError>,
+    },
+    /// `'名前` の `Shift+Enter` / `Shift+F12` / `>references` 使用箇所の一覧（§3.4・§9.7.1）。
+    References {
+        name: String,
+        locations: Vec<crate::core::features::Location>,
+        selected: usize,
+    },
 }
 
 /// `Ctrl+M` で選んだ資料をどうするか（§9.8.3・§16.3、`PLANS.md` §9.2 B-134）。
@@ -679,6 +692,13 @@ impl NovnowApp {
         });
         for command in commands {
             self.run(ctx, command, now);
+        }
+        if matches!(self.stage, Stage::Open(_))
+            && self.overlay == Overlay::None
+            && !self.ime.composing()
+            && ctx.input_mut(|input| input.consume_key(Modifiers::NONE, Key::F2))
+        {
+            self.run(ctx, Command::Rename, now);
         }
         // 入力欄を持たない重ね物（確認・行き先の選択）が出ている間は、下のエディタにキーを渡さない
         // （`Enter` や矢印が、重ね物と同時にエディタの改行・カーソル移動にもなるため）。閉じたら戻す
@@ -1190,6 +1210,159 @@ impl NovnowApp {
                 }
                 return true;
             }
+            Command::Format => {
+                session.bench.commit();
+                let document = if current == Workspace::Write {
+                    session.bench.spliced_document().map(|(doc, _)| doc)
+                } else {
+                    session.bench.slice_document().map(|(doc, _)| doc)
+                };
+                if let Some(document) = document {
+                    let edits = crate::core::features::formatting::document(
+                        &document,
+                        session.bench.project(),
+                    );
+                    if edits.is_empty() {
+                        session.notice = Some((
+                            i18n::format(locale, "format.unchanged", &[&document.path]),
+                            now,
+                        ));
+                    } else {
+                        let mut edit = crate::core::features::WorkspaceEdit::default();
+                        for item in edits {
+                            edit.push(&document.path, item);
+                        }
+                        session.bench.apply_edit(&edit, now);
+                        session.notice =
+                            Some((i18n::format(locale, "format.done", &[&document.path]), now));
+                    }
+                }
+                return true;
+            }
+            Command::Rename => {
+                session.bench.commit();
+                let target = active_document_and_caret(session, current)
+                    .and_then(|(document, caret)| {
+                        let prepared = crate::core::features::rename::prepare(
+                            &document,
+                            caret,
+                            session.bench.project(),
+                        )?;
+                        Some((document, caret, prepared))
+                    })
+                    .or_else(|| {
+                        if current != Workspace::Cast {
+                            return None;
+                        }
+                        let index = session.spaces.cast.selected()?;
+                        let pos = character_definition_pos(session.bench.project(), index)?;
+                        let document = session.bench.project().document("characters.md")?.clone();
+                        let prepared = crate::core::features::rename::prepare(
+                            &document,
+                            pos,
+                            session.bench.project(),
+                        )?;
+                        Some((document, pos, prepared))
+                    });
+                match target {
+                    Some((document, pos, prepared)) => {
+                        self.overlay = Overlay::Rename {
+                            document,
+                            pos,
+                            input: prepared.placeholder,
+                            error: None,
+                        };
+                    }
+                    None => {
+                        session.notice =
+                            Some((i18n::text(locale, "rename.not_renamable").to_owned(), now));
+                    }
+                }
+                return true;
+            }
+            Command::Definition => {
+                session.bench.commit();
+                let location =
+                    active_document_and_caret(session, current).and_then(|(document, caret)| {
+                        crate::core::features::definition::at(
+                            &document,
+                            caret,
+                            session.bench.project(),
+                        )
+                    });
+                match location {
+                    Some(loc) if loc.path == "words.md" => {
+                        let line = session
+                            .bench
+                            .project()
+                            .document("words.md")
+                            .map_or(0, |doc| {
+                                crate::core::features::project::line_of(&doc.text, loc.range.start)
+                            });
+                        let index = session
+                            .bench
+                            .project()
+                            .words()
+                            .words
+                            .iter()
+                            .position(|word| word.heading == line)
+                            .unwrap_or(0);
+                        let lines = term_lines(session.bench.project(), index);
+                        self.overlay = Overlay::Info { lines };
+                    }
+                    Some(loc) => {
+                        self.review_jump(
+                            ctx,
+                            workspaces::review::Target::Document(loc.path, Some(loc.range.start)),
+                            now,
+                        );
+                    }
+                    None => {
+                        session.notice =
+                            Some((i18n::text(locale, "definition.none").to_owned(), now));
+                    }
+                }
+                return true;
+            }
+            Command::References => {
+                session.bench.commit();
+                let found =
+                    active_document_and_caret(session, current).and_then(|(document, caret)| {
+                        let def = crate::core::features::definition::at(
+                            &document,
+                            caret,
+                            session.bench.project(),
+                        )?;
+                        let name = session
+                            .bench
+                            .project()
+                            .document(&def.path)
+                            .and_then(|doc| doc.text.get(def.range.clone()))
+                            .unwrap_or("")
+                            .trim()
+                            .to_owned();
+                        let locations = crate::core::features::references::at(
+                            &document,
+                            caret,
+                            session.bench.project(),
+                        );
+                        Some((name, locations))
+                    });
+                match found {
+                    Some((name, locations)) => {
+                        self.overlay = Overlay::References {
+                            name,
+                            locations,
+                            selected: 0,
+                        };
+                    }
+                    None => {
+                        session.notice =
+                            Some((i18n::text(locale, "definition.none").to_owned(), now));
+                    }
+                }
+                return true;
+            }
             _ => {}
         }
         if current == Workspace::Write {
@@ -1215,6 +1388,9 @@ impl NovnowApp {
             }
             (Workspace::PlotOutline, Command::InsertSection) => {
                 spaces.outline.insert(bench, now);
+            }
+            (Workspace::PlotOutline, Command::Fold(fold)) => {
+                spaces.outline.set_folded(bench, fold);
             }
             (Workspace::Review, Command::Nav(nav)) => {
                 spaces.review.nav(bench, locale, nav);
@@ -2585,6 +2761,7 @@ impl NovnowApp {
         let mut to_write = false;
         let mut material = None;
         let mut confirm_approve = false;
+        let mut jump_target = None;
         let workspace = session.spaces.switcher.current();
         match &mut self.overlay {
             Overlay::None => {}
@@ -2593,9 +2770,9 @@ impl NovnowApp {
                 let items = palette_items(&session.bench, locale, mode_kind, query, input);
                 let down = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::ArrowDown));
                 let up = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::ArrowUp));
-                let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
                 // §9.7.1「`Shift+Enter` は別の意味で開く」（辞書なら使用箇所の一覧）
                 let other = ctx.input_mut(|i| i.consume_key(Modifiers::SHIFT, Key::Enter));
+                let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
                 if down && *selected + 1 < items.len() {
                     *selected += 1;
                 }
@@ -2650,24 +2827,101 @@ impl NovnowApp {
                             PaletteAction::Material(id) => {
                                 material = Some(MaterialAction::Open(id.clone()));
                             }
-                            PaletteAction::Character(_) | PaletteAction::Term(_) if other => {
-                                // 使用箇所の一覧 = 全体検索（§9.7.4）
-                                self.overlay = Overlay::Search {
-                                    query: item.key.clone(),
+                            PaletteAction::Character(index) if other => {
+                                // §9.7.1: Shift+Enter は使用箇所の一覧（`references::at`）
+                                let pos = character_definition_pos(session.bench.project(), *index)
+                                    .unwrap_or(0);
+                                let locations = session
+                                    .bench
+                                    .project()
+                                    .document("characters.md")
+                                    .map(|doc| {
+                                        crate::core::features::references::at(
+                                            doc,
+                                            pos,
+                                            session.bench.project(),
+                                        )
+                                    })
+                                    .unwrap_or_default();
+                                self.overlay = Overlay::References {
+                                    name: item.key.clone(),
+                                    locations,
+                                    selected: 0,
+                                };
+                                return;
+                            }
+                            PaletteAction::Term(index) if other => {
+                                // §9.7.1: Shift+Enter は使用箇所の一覧（`references::at`）
+                                let pos = word_definition_pos(session.bench.project(), *index)
+                                    .unwrap_or(0);
+                                let locations = session
+                                    .bench
+                                    .project()
+                                    .document("words.md")
+                                    .map(|doc| {
+                                        crate::core::features::references::at(
+                                            doc,
+                                            pos,
+                                            session.bench.project(),
+                                        )
+                                    })
+                                    .unwrap_or_default();
+                                self.overlay = Overlay::References {
+                                    name: item.key.clone(),
+                                    locations,
                                     selected: 0,
                                 };
                                 return;
                             }
                             PaletteAction::Character(index) => {
+                                // §9.7.1: Enter は定義へ（`definition::at` → `characters.md`）
                                 let index = *index;
+                                let pos = character_definition_pos(session.bench.project(), index)
+                                    .unwrap_or(0);
+                                let def =
+                                    session.bench.project().document("characters.md").and_then(
+                                        |doc| {
+                                            crate::core::features::definition::at(
+                                                doc,
+                                                pos,
+                                                session.bench.project(),
+                                            )
+                                        },
+                                    );
                                 session.bench.commit();
-                                session.spaces.cast.select(index);
+                                if let Some(loc) = def {
+                                    if let Some(doc) = session.bench.project().document(&loc.path) {
+                                        let line = crate::core::features::project::line_of(
+                                            &doc.text,
+                                            loc.range.start,
+                                        );
+                                        session.spaces.cast.select_line(&session.bench, line);
+                                    } else {
+                                        session.spaces.cast.select(index);
+                                    }
+                                } else {
+                                    session.spaces.cast.select(index);
+                                }
                                 session.spaces.switcher.mark_visited(Workspace::Cast);
                                 self.overlay = Overlay::None;
                                 self.switch_to(ctx, Workspace::Cast, now);
                                 return;
                             }
                             PaletteAction::Term(index) => {
+                                let pos = word_definition_pos(session.bench.project(), *index)
+                                    .unwrap_or(0);
+                                let _ =
+                                    session
+                                        .bench
+                                        .project()
+                                        .document("words.md")
+                                        .and_then(|doc| {
+                                            crate::core::features::definition::at(
+                                                doc,
+                                                pos,
+                                                session.bench.project(),
+                                            )
+                                        });
                                 let lines = term_lines(session.bench.project(), *index);
                                 self.overlay = Overlay::Info { lines };
                                 return;
@@ -3816,6 +4070,132 @@ impl NovnowApp {
                     });
                 });
             }
+            Overlay::Rename {
+                document,
+                pos,
+                input,
+                error,
+            } => {
+                use crate::core::features::rename::RenameError;
+                let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
+                popup(ctx, "rename", colors, |ui| {
+                    let edit = ui.add(
+                        egui::TextEdit::singleline(input)
+                            .hint_text(i18n::text(locale, "rename.placeholder"))
+                            .desired_width(320.0),
+                    );
+                    edit.request_focus();
+                    if edit.changed() {
+                        *error = None;
+                    }
+                    if let Some(err) = error {
+                        let key = match err {
+                            RenameError::NotRenamable => "rename.not_renamable",
+                            RenameError::Empty => "rename.empty",
+                            RenameError::Invalid => "rename.invalid",
+                            RenameError::Duplicate => "rename.duplicate",
+                        };
+                        ui.label(RichText::new(i18n::text(locale, key)).color(colors.error));
+                    }
+                });
+                if enter {
+                    match crate::core::features::rename::apply(
+                        document,
+                        *pos,
+                        input,
+                        session.bench.project(),
+                    ) {
+                        Ok(edit) => {
+                            let count: usize =
+                                edit.changes.iter().map(|change| change.edits.len()).sum();
+                            session.bench.apply_edit(&edit, now);
+                            session.notice = Some((
+                                i18n::format(
+                                    locale,
+                                    "rename.done",
+                                    &[input.trim(), &count.to_string()],
+                                ),
+                                now,
+                            ));
+                            close = true;
+                        }
+                        Err(err) => {
+                            *error = Some(err);
+                        }
+                    }
+                }
+            }
+            Overlay::References {
+                name,
+                locations,
+                selected,
+            } => {
+                let down = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::ArrowDown));
+                let up = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::ArrowUp));
+                let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
+                if down && *selected + 1 < locations.len() {
+                    *selected += 1;
+                }
+                if up {
+                    *selected = selected.saturating_sub(1);
+                }
+                let mut chosen = enter.then_some(*selected);
+                popup(ctx, "references", colors, |ui| {
+                    let title = if locations.is_empty() {
+                        i18n::format(locale, "references.none", &[name.as_str()])
+                    } else {
+                        i18n::format(
+                            locale,
+                            "references.title",
+                            &[name.as_str(), &locations.len().to_string()],
+                        )
+                    };
+                    ui.label(RichText::new(title).color(colors.fg_faint));
+                    ui.add_space(4.0);
+                    egui::ScrollArea::vertical()
+                        .max_height(360.0)
+                        .show(ui, |ui| {
+                            for (index, loc) in locations.iter().enumerate() {
+                                let (line_num, snippet) = session
+                                    .bench
+                                    .project()
+                                    .document(&loc.path)
+                                    .map(|doc| {
+                                        let starts = crate::core::features::project::line_starts_of(
+                                            &doc.text,
+                                        );
+                                        let line = crate::core::features::project::line_of(
+                                            &doc.text,
+                                            loc.range.start,
+                                        );
+                                        let start = starts.get(line).copied().unwrap_or(0);
+                                        let end = doc.text[start..]
+                                            .find('\n')
+                                            .map_or(doc.text.len(), |at| start + at);
+                                        let shown: String =
+                                            doc.text[start..end].trim().chars().take(80).collect();
+                                        (line + 1, shown)
+                                    })
+                                    .unwrap_or((1, String::new()));
+                                let color = if index == *selected {
+                                    colors.accent
+                                } else {
+                                    colors.fg_primary
+                                };
+                                let label =
+                                    RichText::new(format!("{}:{line_num}  {snippet}", loc.path))
+                                        .color(color);
+                                if ui.selectable_label(index == *selected, label).clicked() {
+                                    chosen = Some(index);
+                                }
+                            }
+                        });
+                });
+                if let Some(loc) = chosen.and_then(|index| locations.get(index)).cloned() {
+                    jump_target = Some((loc.path, loc.range));
+                    close = true;
+                }
+            }
         }
         if close {
             self.overlay = Overlay::None;
@@ -3833,6 +4213,18 @@ impl NovnowApp {
         }
         if let Some(action) = material {
             self.material_action(ctx, action, now);
+        }
+        if let Some((path, range)) = jump_target {
+            if let Stage::Open(session) = &mut self.stage {
+                if let Some(offset) = session.bench.reveal(&path, range.start) {
+                    session.pending_selection = Some(offset..offset + range.len());
+                }
+            }
+            self.review_jump(
+                ctx,
+                workspaces::review::Target::Document(path, Some(range.start)),
+                now,
+            );
         }
     }
 
@@ -4849,6 +5241,48 @@ fn material_id_before(text: &str, at: usize) -> Option<String> {
     (!value.is_empty()).then_some(value)
 }
 
+/// `characters.md` の `index` 番目のキャラの H1 名前の先頭 byte。
+fn character_definition_pos(
+    project: &crate::core::features::project::Project,
+    index: usize,
+) -> Option<usize> {
+    project
+        .definition_of(&crate::core::resolve::dictionary::Target::Character {
+            index,
+            name: String::new(),
+        })
+        .map(|loc| loc.range.start)
+}
+
+/// `words.md` の `index` 番目の用語の H1 の先頭 byte。
+fn word_definition_pos(
+    project: &crate::core::features::project::Project,
+    index: usize,
+) -> Option<usize> {
+    project
+        .definition_of(&crate::core::resolve::dictionary::Target::Word {
+            index,
+            term: String::new(),
+        })
+        .map(|loc| loc.range.start)
+}
+
+/// 今のワークスペースの編集対象の文書とカーソル位置（byte）。
+fn active_document_and_caret(
+    session: &Session,
+    workspace: Workspace,
+) -> Option<(crate::core::model::document::Document, usize)> {
+    if workspace == Workspace::Write {
+        let (document, start) = session.bench.spliced_document()?;
+        let caret = start + session.selection.as_ref().map_or(0, |range| range.start);
+        Some((document, caret))
+    } else {
+        let (document, start) = session.bench.slice_document()?;
+        let caret = start + session.bench.slice_caret().map_or(0, |range| range.start);
+        Some((document, caret))
+    }
+}
+
 /// パレットのコマンド（`>`）。キーは英語の固定名（§9.7.1 の例 `>theme`）。
 const PALETTE_COMMANDS: &[(&str, &str, Command)] = &[
     ("theme", "command.theme", Command::CycleTheme),
@@ -4860,6 +5294,10 @@ const PALETTE_COMMANDS: &[(&str, &str, Command)] = &[
     ("reference", "command.reference", Command::ToggleReference),
     ("inlay-hints", "command.inlay_hints", Command::InlayHints),
     ("export", "command.export", Command::Export),
+    ("format", "command.format", Command::Format),
+    ("rename", "command.rename", Command::Rename),
+    ("definition", "command.definition", Command::Definition),
+    ("references", "command.references", Command::References),
     ("help", "command.help", Command::Help),
 ];
 
@@ -5060,6 +5498,8 @@ const HELP_KEYS: &[(&str, &str)] = &[
     ("Ctrl+Delete", "help.drop"),
     ("Ctrl+Shift+← / →", "help.tab"),
     ("Ctrl+Shift+V", "help.scan"),
+    ("F2", "help.rename"),
+    ("Ctrl+Shift+[ / ]", "help.fold"),
     ("Esc", "help.escape"),
 ];
 

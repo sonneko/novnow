@@ -204,14 +204,14 @@ async function main() {
     const opened = await db(tab);
     check(opened.app.length === 1 && opened.app[0].key === 'recent_projects', 'app ストアのキーは recent_projects だけ（§13.3.4）');
     check(opened.app[0]?.value?.items?.[0]?.id === 'sample', '履歴の先頭が sample');
-    const before = file(opened, 'sample', 'contents/01-01.txt');
-    check(before !== null, 'sample の本文 contents/01-01.txt がある');
+    const before = file(opened, 'sample', 'contents/01-04.txt');
+    check(before !== null, 'sample の本文 contents/01-04.txt がある');
     await key(tab, 'Control+2');
     await key(tab, 'End');
     await key(tab, 'Enter');
     await tab.keyboard.type('Web で書き足した一文。');
     const saved = await until('打った本文の保存', async () => {
-      const text = file(await db(tab), 'sample', 'contents/01-01.txt');
+      const text = file(await db(tab), 'sample', 'contents/01-04.txt');
       return text && text.includes('Web で書き足した一文。') ? text : null;
     });
     check(saved !== null, '打った本文が IndexedDB に保存された（§8.3）');
@@ -222,7 +222,7 @@ async function main() {
     await shot(tab, '02a-composing');
     await ime.send('Input.insertText', { text: '変換した。' });
     const composed = await until('IME で確定した字の保存', async () => {
-      const text = file(await db(tab), 'sample', 'contents/01-01.txt');
+      const text = file(await db(tab), 'sample', 'contents/01-04.txt');
       return text && text.includes('一文。変換した。') ? text : null;
     });
     check(composed !== null && !composed.includes('へんかん'), 'IME の確定だけが本文に入った（変換中の字は入らない、§9.8.5）');
@@ -350,19 +350,6 @@ async function main() {
     const localKeys = await tab.evaluate(() => Object.keys(localStorage));
     check(localKeys.length === 0, 'IndexedDB が無くても LocalStorage に書かない（§13.3.7）');
     await tab.close();
-
-    // 11. v0 の LocalStorage があれば取り込みを試み、失敗（M11 まで）なら E061 を出して消さない（§13.3.6）
-    tab = await page(browser, () => {
-      if (!localStorage.getItem('novnow_file_index')) {
-        localStorage.setItem('novnow_file_index', JSON.stringify(['my-novel/characters.json']));
-        localStorage.setItem('novnow_file:my-novel/characters.json', '{}');
-      }
-    });
-    await sleep(3000);
-    await shot(tab, '14-legacy');
-    const legacy = await tab.evaluate(() => localStorage.getItem('novnow_file_index'));
-    check(legacy !== null, 'v0 の LocalStorage は消していない（E061）');
-    await tab.evaluate(() => localStorage.clear());
   } finally {
     await browser.close();
     server.close();

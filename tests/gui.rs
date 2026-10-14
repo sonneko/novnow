@@ -243,7 +243,7 @@ fn theme_colors_are_the_spec_tables() {
     // §11.1 / §11.2 の表が正（色を変えるときは仕様書から）。表に無い 4 種（B-115）は近い役割の色なので比べない
     use novnow::core::features::semantic_tokens::TokenType;
     use novnow::ui::theme::{palette, token_style, Mode};
-    let spec = include_str!("../SPECIFICATIONS.md");
+    let spec = include_str!("../docs/specifications/ui.md");
     let row = |name: &str| -> (egui::Color32, egui::Color32) {
         let prefix = format!("| `{name}`");
         let line = spec
