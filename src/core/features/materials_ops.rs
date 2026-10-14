@@ -100,6 +100,28 @@ pub fn propose_with(
     source: &str,
     saved_at: &str,
 ) -> Option<Created> {
+    propose_as(
+        index_text,
+        title,
+        category,
+        body,
+        source,
+        saved_at,
+        ADDED_BY_HUMAN,
+    )
+}
+
+/// [`propose_with`] の `added_by` 指定版（researcher の提案・`novnow.materials.propose` は
+/// `agent:<role>`、§5.8.2）。
+pub fn propose_as(
+    index_text: &str,
+    title: &str,
+    category: &str,
+    body: &str,
+    source: &str,
+    saved_at: &str,
+    added_by: &str,
+) -> Option<Created> {
     let mut index = read(index_text)?;
     let id = index.issue(PREFIX_MATERIAL).to_string();
     let path = format!("{INBOX_DIR}{id}.md");
@@ -113,7 +135,7 @@ pub fn propose_with(
         conditions: Vec::new(),
         saved_at: saved_at.to_owned(),
         status: "proposed".to_owned(),
-        added_by: ADDED_BY_HUMAN.to_owned(),
+        added_by: added_by.to_owned(),
         ..Material::default()
     });
     let mut text = format!("# {title}\n{ID_COMMENT}{id} -->\n");

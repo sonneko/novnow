@@ -263,38 +263,74 @@ fn cast(
     scene: SceneId,
     project: &Project,
 ) -> Vec<Cast> {
-    let dictionary = project.dictionary();
     let mut order: Vec<usize> = Vec::new();
+    characters_in(
+        document,
+        Some(parsed),
+        std::slice::from_ref(lines),
+        project,
+        &mut order,
+    );
+    let starts = project::line_starts_of(&document.text);
+    let line_start = starts.get(lines.start).copied().unwrap_or(0);
+    cast_of(project, &document.path, scene, line_start, order)
+}
+
+/// `document` の行 `lines` に出るキャラ（話者注釈 → `'` 参照の出現順、重複なし）を `order` に足す。
+/// `parsed` は本文（C 形式）のときだけ渡す（話者注釈は本文にしか無い）。
+pub(crate) fn characters_in(
+    document: &Document,
+    parsed: Option<&contents::Contents<'_>>,
+    lines: &[Range<usize>],
+    project: &Project,
+    order: &mut Vec<usize>,
+) {
+    let dictionary = project.dictionary();
     let mut push = |index: usize| {
         if !order.contains(&index) {
             order.push(index);
         }
     };
-    // 話者注釈 → `'` 参照の順（出現順）
-    for line in lines.clone() {
-        if let Some(contents::Line::Text(text)) = parsed.lines.get(line) {
-            if let Some(found) = text.speaker.as_ref() {
-                if let Some(index) = character_index(project, found.name) {
-                    push(index);
+    let sites = project.ref_sites(document);
+    for range in lines {
+        for line in range.clone() {
+            if let Some(contents::Line::Text(text)) = parsed.and_then(|found| found.lines.get(line))
+            {
+                if let Some(found) = text.speaker.as_ref() {
+                    if let Some(index) = character_index(project, found.name) {
+                        push(index);
+                    }
                 }
             }
-        }
-        for site in project.ref_sites(document) {
-            if site.line != line {
-                continue;
-            }
-            if let Some(entry) = site.entry().and_then(|id| dictionary.entry(id)) {
-                if let Target::Character { index, .. } = &entry.target {
-                    push(*index);
+            for site in &sites {
+                if site.line != line {
+                    continue;
+                }
+                if let Some(entry) = site.entry().and_then(|id| dictionary.entry(id)) {
+                    if let Target::Character { index, .. } = &entry.target {
+                        push(*index);
+                    }
                 }
             }
         }
     }
+}
+
+/// キャラ `order` の配役（§6.4 の解決で有効なモードだけ、§15.4.4）。`path` は本文のパス
+/// （話の決定に使う）、`line_start` はモードを解決する位置（節の先頭）。
+pub(crate) fn cast_of(
+    project: &Project,
+    path: &str,
+    scene: SceneId,
+    line_start: usize,
+    order: Vec<usize>,
+) -> Vec<Cast> {
     if order.is_empty() {
         return Vec::new();
     }
+    let dictionary = project.dictionary();
     let characters = project.characters();
-    let episode = episode_of_path(&document.path);
+    let episode = episode_of_path(path);
     let plot = episode.and_then(|(chapter, number)| project.episode_plot(chapter, number));
     let chapter_plot = episode.and_then(|(chapter, _)| project.chapter_plot(chapter));
     let all_plot = project.all_plot();
@@ -305,8 +341,6 @@ fn cast(
         all: all_plot.as_ref(),
         dictionary,
     };
-    let starts = project::line_starts_of(&document.text);
-    let line_start = starts.get(lines.start).copied().unwrap_or(0);
     order
         .into_iter()
         .filter_map(|index| {
@@ -458,7 +492,7 @@ fn materials(
 
 /// `document` の行 `lines`（どれかに入る行）の `'` 参照: 資料なら `ids` に、名前は全部 `names` に
 /// （重複なし、出た順）。
-fn collect_refs(
+pub(crate) fn collect_refs(
     document: &Document,
     lines: &[Range<usize>],
     project: &Project,
@@ -491,7 +525,7 @@ fn collect_refs(
 /// そのまま読む。W011 は表に無いキーだけ）で、§16.4 の `tag` の一致判定に使う。場面レベルのタグは
 /// 場面の全部の節に効く。
 /// 話プロットか場面が無ければ `None`。
-fn plot_scope(
+pub(crate) fn plot_scope(
     project: &Project,
     scene: SceneId,
 ) -> Option<(String, Vec<Range<usize>>, Vec<String>)> {

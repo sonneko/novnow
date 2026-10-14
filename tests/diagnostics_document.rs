@@ -201,9 +201,18 @@ fn custom_prompts_check_the_role_name() {
     );
     let found = tags(&project, "prompts/custom/writer.md");
     assert!(found.starts_with("E033@writer"), "{found}");
-    // 既定役割のプロンプト（`prompts/writer.md`）では名前を検査しない
+    // 既定役割のプロンプト（`prompts/writer.md`）では名前を検査しない（必須のセクションが無いので
+    // E029 だけが出る。第 2.16 版、`PLANS.md` §9.2 B-139）
     let builtin = world_with("prompts/writer.md", "# writer\n本文: {{text_current}}\n");
-    assert_eq!(tags(&builtin, "prompts/writer.md"), "");
+    assert_eq!(
+        tags(&builtin, "prompts/writer.md"),
+        "E029@# writer(system, task)"
+    );
+    let whole = world_with(
+        "prompts/writer.md",
+        "# writer\n\n## system\nあなたは本文担当です。\n\n## task\n本文: {{text_current}}\n",
+    );
+    assert_eq!(tags(&whole, "prompts/writer.md"), "");
 }
 
 #[test]

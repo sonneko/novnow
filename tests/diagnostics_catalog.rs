@@ -49,17 +49,18 @@ struct Row {
 }
 
 #[test]
-fn the_spec_has_80_codes_in_three_tables() {
+fn the_spec_has_81_codes_in_three_tables() {
     // 第 2.8 版で E022（予約番号の見出し、`PLANS.md` §9.1 A-9）、第 2.9 版で E027（語クラスの
     // 正規表現が不正、A-24）が §7 に増えた
     let rows = all_rows();
     let core = count_group(&rows, Group::Core);
     let storage = count_group(&rows, Group::Storage);
     let writing = count_group(&rows, Group::Writing);
-    assert_eq!(core, 39);
+    // 第 2.16 版で E029（壊れたプロンプト、`PLANS.md` §9.2 B-139）が増えた
+    assert_eq!(core, 40);
     assert_eq!(storage, 14);
     assert_eq!(writing, 27);
-    assert_eq!(rows.len(), 80);
+    assert_eq!(rows.len(), 81);
     assert_eq!(CATALOG.len(), rows.len());
 }
 

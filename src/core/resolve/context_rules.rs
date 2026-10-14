@@ -365,6 +365,19 @@ impl PacketBlock {
         }
     }
 
+    /// ブロックの名前（見出しの番号の後ろ。§5.10.1 の `exclude:` と §5.9.2 の `context:` に書く名前）。
+    pub fn name(self) -> &'static str {
+        let heading = self.heading();
+        heading.rsplit(' ').next().unwrap_or(heading)
+    }
+
+    /// 名前から（[`PacketBlock::name`] の逆）。
+    pub fn parse(name: &str) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|found| found.name() == name.trim())
+    }
+
     /// §5.9.2「`context:` は 9 ブロックから部分集合を選ぶ。**`constraints` と `project` は
     /// 常に含まれる（外せない、MUST）**」。
     pub fn is_mandatory(self) -> bool {

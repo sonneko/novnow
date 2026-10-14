@@ -1,3 +1,4 @@
+pub mod agents;
 pub mod aicontext;
 pub mod diagnostics;
 pub mod export;

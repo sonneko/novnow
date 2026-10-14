@@ -157,6 +157,8 @@ pub enum DiagnosticCode {
     E027,
     /// 辞書キーが 96 バイト超（§7）
     E028,
+    /// プロンプトに必須のセクション（`## system` / `## task`）が無い（§15.5.4 (2)。第 2.16 版）（§7）
+    E029,
     /// MCP サーバの環境変数未解決（§7）
     E030,
     /// プロンプトの未知変数（§7）
@@ -305,6 +307,7 @@ impl DiagnosticCode {
             Self::E026 => "E026",
             Self::E027 => "E027",
             Self::E028 => "E028",
+            Self::E029 => "E029",
             Self::E030 => "E030",
             Self::E031 => "E031",
             Self::E032 => "E032",
@@ -496,6 +499,7 @@ pub const CATALOG: &[CatalogRow] = &[
     (DiagnosticCode::E026, 0),
     (DiagnosticCode::E027, 1),
     (DiagnosticCode::E028, 0),
+    (DiagnosticCode::E029, 1),
     (DiagnosticCode::E030, 1),
     (DiagnosticCode::E031, 1),
     (DiagnosticCode::E032, 1),
@@ -825,8 +829,15 @@ pub fn document(document: &Document, project: &Project) -> Vec<Diagnostic> {
             material_heading(document, project, &mut out);
             reference_diagnostics(document, project, false, &mut out);
         }
-        DocumentFormat::Prompt | DocumentFormat::SharedPrompt => {
+        DocumentFormat::Prompt => {
             out.extend(prompt_md::parse(text).diagnostics);
+            out.extend(crate::core::agents::prompts::diagnostics(text));
+        }
+        DocumentFormat::SharedPrompt => {
+            out.extend(prompt_md::parse(text).diagnostics);
+        }
+        DocumentFormat::McpConfig => {
+            out.extend(crate::core::agents::mcp_config::diagnostics(text));
         }
         DocumentFormat::CustomPrompt => {
             let options = prompt_md::Options { custom: true };
