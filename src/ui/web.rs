@@ -480,9 +480,17 @@ impl Host for WebHost {
     }
 }
 
-/// 雛形（§14.5）のファイル一式（新規作成・サンプルの投入・足りないファイルの補充）。
+/// 雛形（§14.5）のファイル一式（新規作成・足りないファイルの補充）。
 fn template_files(title: &str) -> Vec<(ProjectPath, String)> {
     crate::core::template::new_project(title)
+        .into_iter()
+        .filter_map(|file| Some((ProjectPath::new(file.path).ok()?, file.text)))
+        .collect()
+}
+
+/// 付録 C の `sample` プロジェクト一式（§13.3.5 初回投入）。
+fn sample_files() -> Vec<(ProjectPath, String)> {
+    crate::core::template::sample_project()
         .into_iter()
         .filter_map(|file| Some((ProjectPath::new(file.path).ok()?, file.text)))
         .collect()
@@ -681,8 +689,8 @@ impl WebPicker {
             };
             storage_idb::request_persist().await;
             let mut notice = None;
-            // §13.3.5: 空なら `sample` を 1 つだけ作る（自動では開かない）
-            if let Err(error) = idb.seed_sample(&template_files("sample")).await {
+            // §13.3.5: 空なら `sample`（付録 C）を 1 つだけ作る（自動では開かない）
+            if let Err(error) = idb.seed_sample(&sample_files()).await {
                 notice = Some(i18n::format(
                     locale,
                     "project.pick.failed",

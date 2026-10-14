@@ -4,36 +4,32 @@
 
 > **この文書の位置づけ**
 >
-> - 仕様の正本は **[`SPECIFICATIONS.md`](./SPECIFICATIONS.md)**（v1 仕様 **第 2.16 版**）。
+> - 仕様の正本は **[`SPECIFICATIONS.md`](./SPECIFICATIONS.md)**（v1 仕様 **第 2.17 版**）。
 > - 実装順序と見積りは **[`PLANS.md`](./PLANS.md)**（段階 ① の実装計画）。
 > - 本書は「手を動かすときに開く頁」であり、仕様と食い違った場合は **`SPECIFICATIONS.md` が優先する**。
 >
-> **現在の `src/` は v1 の層構造のまま、`core`・ストレージ・CLI が揃った状態（M6 完了時点）である。**
-> v0（プロトタイプ）の UI コードは M0 で削除し、`v0-final` タグに保存した。
+> **現在の `src/` は v1（段階 ①）の全層（`core`・`ports`・`adapters`・`cli`・`ui`）が揃った状態である。**
+> v0（プロトタイプ）のコードは M0 で削除し、v0→v1 の移行・検知ロジックも M11 で全面破棄した（`PLANS.md` §9.2 B-159）。
 > **実装済み**: `core/id.rs`・`core/text/*`（字句・位置・rope・増分）・`core/diagnostics.rs`
-> （§7 / §7.1 / §7.2 の **80 コード**）・`core/syntax/*`（**8 形式**のパーサ）・`core/model/*`
+> （§7 / §7.1 / §7.2 の **76 コード**）・`core/syntax/*`（**8 形式**のパーサ）・`core/model/*`
 > （10 型）・`core/resolve/dictionary.rs`（辞書と `'` の最短一致、§6.1 / §6.2）・
 > `core/resolve/modes.rs`（モード解決の 8 段、§6.4）・`core/resolve/role_language.rs`
 > （役割語パターン → 正規表現、§6.5）・`core/resolve/materials.rs`（資料 ID とインレイヒント、
 > §6.6）・`core/resolve/context_rules.rs`（参照ペインと ContextPacket の共用ルール、
 > §9.5.2 / §15.4）。**`core/resolve/` は 5 本すべて実装済み（M3 完了）**。
 > **M4**: `core/features/*`（§3.4 の 11 機能と集約 `features::Project`）・`diagnostics::document`
-> （文書単位の診断の組み立て）・`ui/i18n/{ja,en}.toml`（`diag.*` の文言 81 件）。本書 §5.6。
+> （文書単位の診断の組み立て）・`ui/i18n/{ja,en}.toml`（`diag.*` の文言 76 件）。本書 §5.6。
 > **M5**: `core/policy/*`（規則 10 の判定・履歴・Zip・外部変更）・`core/syntax/project_json.rs`・
 > `ports/*`（5 本の trait）・`adapters/{storage_fs,recent_file,zip,project_load,storage_idb,env_system,clock_system}.rs`。本書 §5.7。
-> **M6**: `cli/*`（§14 の判定・起動前の検査・`new` / `check`。`export` / `migrate` / `mcp` は枠だけ）・`main.rs`・
-> `ui/i18n/mod.rs`（文言カタログの読み込みと言語の決定。`cli.*` の文言 44 件）・`core/template/`（`novnow new` の雛形と
+> **M6**: `cli/*`（§14 の判定・起動前の検査・`new` / `check` / `export` / `mcp`）・`main.rs`・
+> `ui/i18n/mod.rs`（文言カタログの読み込みと言語の決定）・`core/template/`（`novnow new` の雛形・付録 C の `sample`・
 > 既定プロンプト）。本書 §2・§5.8。あわせて §13.1.1 の特例（ユーザーが明示的に指定したエクスポートの書き出し先。
 > Zip とテキスト）を入れた（§5.7）。`core/features/place.rs`（診断の「どこ」を作家の言葉で、§14.2.5）も M6 の後に足した。
 > **M7〜M9**: `ui/**`（GUI。本書 §6）・`adapters/dialog_rfd.rs`・`core/features/{sections,reference,plots,ideas,materials_ops,cast}.rs`・
 > エクスポート（`core/export.rs`・`cli/export.rs`）。
 > **M10**: `core/agents/*`（タスク・提案・スレッド・監査ログ・プロンプト・出力の分解・採否と自動適用・実行の段取り・
 > `novnow mcp` のツール）・`core/aicontext/*`（ContextPacket と予算）・`ports/mcp.rs`・`adapters/mcp_stdio.rs`・`cli/mcp.rs`・
-> `ui/agents.rs`（実行の状態）・`ui/workspaces/agent.rs`。本書 §6.2・§10。本書の「モジュール構成」は **v1 の目標形**。
->
-> **GUI は M7 まで動かない**（`PLANS.md` §3 I3）。M6 の実行ファイルは CLI（`new` / `check` / `--help`）が動き、
-> GUI を求められると（`novnow <有効なプロジェクト>`・引数なしで端末以外から起動）「この novnow には GUI が
-> 含まれていません」で終了コード 2 になる。
+> `ui/agents.rs`（実行の状態）・`ui/workspaces/agent.rs`。本書 §6.2・§10。
 
 ---
 
@@ -142,12 +138,14 @@ CI で常設するテストは `PLANS.md` §6 を参照。`tests/layering.rs` �
 | `the_ui_crates_are_optional_and_behind_the_ui_feature` | `Cargo.toml` を `toml` でパースし、GUI の 4 クレート（`egui` / `eframe` / `rfd` / `fontdb`）が `optional = true` で `[features] ui` の `dep:` に並んでいること、`default` に `ui` が入っていないことを見る（§1.2 の feature gate、`PLANS.md` §9.2 B-54・B-100）。既定のビルドに egui が戻ると CI の 4 ジョブが数分単位で遅くなるので、ここで機械的に止める |
 | `the_gui_is_compiled_only_with_the_ui_feature` ／ `the_message_catalog_does_not_use_the_gui_crates` | `src/ui/mod.rs` を `syn` で読み、`i18n` 以外のモジュールに `#[cfg(feature = "ui")]` が付き、`i18n` には付いていないこと。`src/adapters/mod.rs` の `pub mod dialog_rfd;` の cfg。`src/ui/i18n/**` が GUI のクレートを使っていないこと |
 | `only_the_write_gate_touches_the_file_system_for_writing` ＋ `write_checker_*`（2 本） | §13.1.2（第 2.9 版）: `src/` 全体で、書き込みの system call（`OpenOptions`・`File::create`・`fs::write` / `rename` / `remove_file` / `create_dir_all` / `copy`・`symlink`・`tokio::fs`・`use std::fs::*`）が **`src/adapters/storage_fs.rs`（書き込みの関門）にしか無い**ことを AST で見る。読み取り（`fs::read_to_string` / `File::open` / `fs::metadata`）は許す。本書 §5.7 |
+| `no_code_mentions_characters_json` / `no_code_touches_local_storage` | `src/` 全体で v0 固有の `characters.json` や `localStorage` / `local_storage` に触れていないこと（§19.7-1・§19.9-6） |
+| `unsafe_is_restricted_to_the_two_windows_ffi_sites` | §18.3（第 2.17 版）: `src/` 全体で `unsafe` ブロックが Windows FFI 2 箇所（`main.rs` の `AttachConsole`、`adapters/env_system.rs` の `GetUserDefaultLocaleName`）のみであり、`unsafe fn` / `unsafe impl` / `unsafe trait` が一切無いこと |
 
 > 検査器を直すときは、必ず自己テストの固定例（`MUST_CATCH_*` / `MUST_PASS_*`）も一緒に更新すること。
 > 自己テストが無い検査器は、改修で検出漏れが混入しても CI が緑のままになる。
 
 `tests/diagnostics_catalog.rs` は **仕様書そのものを読む**テスト（`include_str!("../SPECIFICATIONS.md")`）。
-§7 / §7.1 / §7.2 の表を Markdown から読み直し、`src/core/diagnostics.rs` の **80 コード**と
+§7 / §7.1 / §7.2 の表を Markdown から読み直し、`src/core/diagnostics.rs` の **76 コード**と
 件数・コード文字列・重大度・引数の数・文書位置の有無・既定の有効/無効・実行コスト表・variant の
 doc コメントまで突き合わせる。診断コードを足す／直すときは **先に `SPECIFICATIONS.md` の表**を直すこと
 （`PLANS.md` §6.3「仕様書 → ゴールデン → 実装」）。表に無いコードを enum に足すと
@@ -163,7 +161,7 @@ doc コメントまで突き合わせる。診断コードを足す／直すと�
 | 出力 | いつ | 内容 |
 |---|---|---|
 | ワークフロー注釈（`::error file=…,line=…,col=…::`） | 失敗時 | コンパイルエラーとテストの panic 位置。**PR の「Files changed」にインラインで出る** |
-| 実行サマリ（`$GITHUB_STEP_SUMMARY`） | **成功時も** | テスト件数の内訳（`469 passed / 0 failed`・ターゲット数）と、失敗があればその一覧 |
+| 実行サマリ（`$GITHUB_STEP_SUMMARY`） | **成功時も** | テスト件数の内訳と、失敗があればその一覧 |
 | PR コメント（`gh pr comment`） | 失敗時かつ PR | 上の 2 つと同じ内容を Markdown で。GitHub の上限（65,536 字）に合わせて切り詰める |
 
 `head` / `tail` の切り出しをやめたのは、テスト失敗の本体（`---- <name> stdout ----`）がログの
@@ -193,14 +191,13 @@ novnow <dir>                    既存プロジェクトを開く（フラグな
 novnow new [dir]                dir（既定 "."）に新規プロジェクトを作る
 novnow check <dir>              妥当性検査のみ行い、診断を出して終了（CI 用）
 novnow export <dir> [options]   アノテーション除去エクスポート（§17）
-novnow migrate <dir>            v0 → v1 移行（§20）
 novnow mcp <dir>                MCP サーバとして起動（§15.8.3）
 novnow --gui                    引数があっても GUI 起動を強制
 novnow --help | -h
 novnow --version | -V
 ```
 
-- 第 1 位置引数が `new` / `check` / `export` / `migrate` / `mcp` と**完全一致**したときのみサブコマンド。
+- 第 1 位置引数が `new` / `check` / `export` / `mcp` と**完全一致**したときのみサブコマンド。
   それ以外はプロジェクトディレクトリとして解釈する（`new` という名前のディレクトリは `novnow ./new`）。
 - フラグを取るのは `export` だけ。
 - **`lsp` サブコマンドは v1 には無い**（裁定 U-3 は保留）。ただし `core/features/*` は LSP のメソッドと
@@ -208,7 +205,7 @@ novnow --version | -V
 - 必須ファイルが欠けている場合は **stderr にエラー＋解説 URL＋`novnow new` の案内だけを出して終了**し、
   GUI は一切出さない（§14.2、指示 2 の明文）。
 
-**M6 の実装（`src/cli/`、判断は `PLANS.md` §9.2 B-100〜B-108）**
+**CLI の実装（`src/cli/`、判断は `PLANS.md` §9.2 B-100〜B-108・B-149・B-159）**
 
 | 場合 | 出力 | 終了コード |
 |---|---|---|
@@ -216,19 +213,21 @@ novnow --version | -V
 | `--version` / `-V` | `novnow 0.1.0` を stdout | 0 |
 | 端末から引数なし | 使い方を stderr（GUI を出さない） | 2 |
 | 知らないオプション・余分な引数・ディレクトリが無い | `novnow: …` と `使い方: novnow --help` を stderr | 2 |
-| 不備・v0・新しすぎる・見つからない・ディレクトリでない | §14.2.2〜§14.2.4 を stderr（何も書かない） | 3 |
+| 不備・新しすぎる・見つからない・ディレクトリでない | §14.2.2〜§14.2.3 を stderr（何も書かない） | 3 |
 | 読めない（権限）・UTF-8 でない（`check` だけが調べる） | stderr | 4 |
 | `check` が E を検出 | 診断を stdout | 5 |
-| `migrate` / `mcp`、GUI を含まないビルドで GUI を求められた | 「まだ実装されていません」「GUI が含まれていません」を stderr | 2 |
+| GUI を含まないビルドで GUI を求められた | 「GUI が含まれていません」を stderr | 2 |
+| `mcp <dir>`（M10、§15.8.3） | stdio で JSON-RPC 2.0 要求を処理（EOF で終了） | 0（起動前の検査失敗は 3 / 4） |
 | `export` の値の無いオプション・読めない範囲 / 状態（M9） | `novnow: …` と `使い方: novnow --help` を stderr | 2 |
 | `export --out` が `.txt` / `.md` でない・親ディレクトリが無い・書けない | `novnow: 書き込めませんでした: …` を stderr（何も書かない） | 4 |
 
 ```bash
-novnow new ./my-novel        # 雛形（§14.5）。既存のファイルは上書きしない。v0 / 新しすぎる版には何も書かない
+novnow new ./my-novel        # 雛形（§14.5）。既存のファイルは上書きしない。新しすぎる版には何も書かない
 novnow check ./my-novel      # 1 行 1 件: contents/01-01.txt:3:1: [本文 @01-01-01-02] E001 辞書にない参照です: 星屑
 NOVNOW_LANG=en novnow check ./my-novel   # 言語: NOVNOW_LANG → LC_ALL / LC_MESSAGES / LANG → ja（ui.json は読まない）
 NO_COLOR=1 novnow check ./my-novel       # 色は端末のときだけ・Windows では付けない
 novnow export ./my-novel --range @01-04 --state fixed --out -   # §17。- は stdout（本文だけ）。--out 省略は exports/…
+novnow mcp ./my-novel        # §15.8.3。stdio で JSON-RPC 2.0（14 ツール）
 ```
 
 エクスポート（M9）の中身は `core::export`（純粋。`run` = `select` ＋ `render`）。CLI と GUI は書き出し先を決めて書くだけ
@@ -270,7 +269,7 @@ main ──→ ui ──→ ports ←── adapters
 src/
   main.rs                  起動のみ（CLI 解析 → GUI or CLI。Windows のコンソール接続）
   cli/                     判定・使い方（mod.rs）  起動前の検査と表示（open.rs）
-                           new.rs  check.rs  export.rs  migrate.rs  mcp.rs
+                           new.rs  check.rs  export.rs  mcp.rs
   core/
     id.rs                  SceneId / PartialSceneId / RangeExpr
     text/                  rope.rs  position.rs  lexer.rs  incremental.rs
@@ -531,14 +530,14 @@ let items = completion::at(document, cursor, &project);           // `'` の補�
 | 外部変更（B-95） | `project_load::poll(&storage, &mut snapshot)` を 1,000ms ごと（タイマは UI）。候補は中身を読んで `policy::external_change::react`（Clean は再読込 ＋ I052、Dirty は衝突、辞書の 3 ファイルは常に再読込） |
 | Zip（B-93・B-99） | `adapters::zip::{export, import}` はバイト列どうし（デスクトップと Web で共通）。デスクトップの書き出しは **保存ダイアログ**（`Dialog::save_zip`、初期値 `storage.absolute(&zip::export_path(name))`）→ `zip::export_to_chosen(&storage, chosen)`。ダイアログを通さない `export_project` は `exports/<name>.zip`。取り込みは新しいルートへ（`FsStorage::create` ＋ `import_project`。既存のファイルは上書きしない）。何を入れて何を取り込むかは `policy::archive` |
 | 明示された書き出し先の特例（B-99・B-109） | プロジェクトの外に書けるのは `FsGate::write_chosen_export(ChosenPath, …)` だけ（ファイル 1 個・1 回・直接・親ディレクトリは作らない）。`ChosenPath` は書き出しの種類 `ExportKind` を持ち、書ける拡張子は Zip が `.zip`、Text が `.txt` / `.md`（種類に合わなければ E060）。`ChosenPath::from_save_dialog(path, kind)` を呼んでよいのは **`Dialog::save_zip` / `save_text` の実装とテストだけ**、`ChosenPath::from_command_line(path, kind)` は **`novnow export --out` だけ**。結果は `FsGate::check_chosen_export`（panic しない）で先に確かめて E060 を出す（`zip::export_to_chosen` は内部でそうしている。テキストの書き出しも同じにする）。`WritePolicy::check` は特例を知らないので、他の口に外のパスを渡しても拒否される |
-| IndexedDB（B-96） | `adapters::storage_idb`。純粋な部分（レコード・`app` の許可キー・W062・v0 の取り込みの計画）はネイティブでテストし、`wasm32` の接続はコンパイルだけを CI で確かめる（実行の確認は M7）。`app` ストアに書く口は `Idb::push_recent` だけ |
+| IndexedDB（B-96） | `adapters::storage_idb`。純粋な部分（レコード・`app` の許可キー・W062）はネイティブでテストし、`wasm32` の接続はコンパイルと `scripts/web-smoke.sh` で確かめる。`app` ストアに書く口は `Idb::push_recent` だけ |
 
 ```rust
 // ネイティブ（M6 の CLI・M7 の GUI）。関門はプロセスに 1 つ
 let gate = Arc::new(FsGate::new(&SystemEnv));                    // 履歴の置き場所は環境から決まる
 let storage = FsStorage::open(gate.clone(), Path::new(dir))?;    // 関門の許可をこのプロジェクトに切り替える
 let loaded = block_on(project_load::load(&storage))?;            // §4.3 の判定 ＋ 文書
-loaded.validation?;                                              // Incomplete / LegacyV0 / TooNew / Encoding
+loaded.validation?;                                              // Incomplete / TooNew / Encoding
 let path = ProjectPath::new("contents/01-04.txt")?;
 let stamp = block_on(storage.write(&path, &text))?;              // 原子的に保存
 RecentFile::new(gate).push(storage.root(), &SystemClock)?;       // 開けたら履歴の先頭へ（§14.4）

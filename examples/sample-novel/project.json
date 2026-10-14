@@ -1,6 +1,4 @@
 {
-  "scene_id_format": "A-B-C-D",
-  "content_encoding": "utf-8",
-  "newline": "lf",
-  "plot_file_extension": "txt"
+  "schema_version": 1,
+  "title": "星屑の時計"
 }

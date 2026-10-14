@@ -107,6 +107,50 @@ pub fn default_prompt(path: &str) -> Option<&'static str> {
         .map(|(_, text)| *text)
 }
 
+/// 付録 C の `sample` プロジェクト（Web 版の初期投入 / `examples/sample-novel` の v1 版）。
+const SAMPLE_NOVEL: &[(&str, &str)] = &[
+    (
+        "project.json",
+        include_str!("../../../examples/sample-novel/project.json"),
+    ),
+    (
+        "characters.md",
+        include_str!("../../../examples/sample-novel/characters.md"),
+    ),
+    (
+        "words.md",
+        include_str!("../../../examples/sample-novel/words.md"),
+    ),
+    (
+        "ideas.md",
+        include_str!("../../../examples/sample-novel/ideas.md"),
+    ),
+    (
+        "contents/01-04.txt",
+        include_str!("../../../examples/sample-novel/contents/01-04.txt"),
+    ),
+    (
+        "plots/all.txt",
+        include_str!("../../../examples/sample-novel/plots/all.txt"),
+    ),
+    (
+        "plots/01.txt",
+        include_str!("../../../examples/sample-novel/plots/01.txt"),
+    ),
+    (
+        "plots/01-04.txt",
+        include_str!("../../../examples/sample-novel/plots/01-04.txt"),
+    ),
+    (
+        "materials/index.json",
+        include_str!("../../../examples/sample-novel/materials/index.json"),
+    ),
+    (
+        "materials/docs/M0001-kyukousha.md",
+        include_str!("../../../examples/sample-novel/materials/docs/M0001-kyukousha.md"),
+    ),
+];
+
 /// §14.5 の生成物一式（表の順）。`title` は `project.json` の題（`novnow new` はディレクトリ名）。
 pub fn new_project(title: &str) -> Vec<TemplateFile> {
     let file = |path: &'static str, text: &str| TemplateFile {
@@ -126,6 +170,28 @@ pub fn new_project(title: &str) -> Vec<TemplateFile> {
     files.extend(DEFAULT_PROMPTS.iter().map(|(path, text)| file(path, text)));
     files.push(file("agents/mcp.json", MCP_CONFIG));
     files.extend(agents.into_iter().map(|path| file(path, "")));
+    files.push(file(".gitignore", GITIGNORE));
+    files
+}
+
+/// 付録 C の `sample` プロジェクト一式（Web 版の初期投入 §13.3.5 / `examples/sample-novel`）。
+pub fn sample_project() -> Vec<TemplateFile> {
+    let file = |path: &'static str, text: &str| TemplateFile {
+        path,
+        text: text.to_owned(),
+    };
+    let mut files: Vec<TemplateFile> = SAMPLE_NOVEL
+        .iter()
+        .map(|(path, text)| file(path, text))
+        .collect();
+    files.extend(DEFAULT_PROMPTS.iter().map(|(path, text)| file(path, text)));
+    files.push(file("agents/mcp.json", MCP_CONFIG));
+    files.extend(
+        GITKEEPS
+            .iter()
+            .filter(|path| path.starts_with("agents/"))
+            .map(|path| file(path, "")),
+    );
     files.push(file(".gitignore", GITIGNORE));
     files
 }

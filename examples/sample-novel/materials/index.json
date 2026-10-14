@@ -1,3 +1,36 @@
-[
-    { "path": "events/01.md", "abs": "イベント感想記。20代男性による、詳細な実際のイベント情報含む", "status": "approval", "url": "https://note.com/***" }
-]
+{
+  "schema_version": 1,
+  "next_id": 2,
+  "items": [
+    {
+      "id": "M0001",
+      "title": "旧校舎の構造メモ",
+      "path": "materials/docs/M0001-kyukousha.md",
+      "source": {
+        "kind": "custom",
+        "text": "世界観設定メモ"
+      },
+      "category": "一次資料",
+      "conditions": [
+        {
+          "kind": "scope",
+          "value": "@01-04 .."
+        },
+        {
+          "kind": "ref",
+          "value": "旧校舎"
+        }
+      ],
+      "saved_at": "2026-10-09T10:00:00+09:00",
+      "updated_at": "2026-10-09T10:00:00+09:00",
+      "tags": [
+        "旧校舎",
+        "地下遺跡"
+      ],
+      "status": "approved",
+      "added_by": "human",
+      "summary": "東棟の地下階段の奥に古い錬金術工房への扉があり、十七時前後に通用口の鍵が外れる。",
+      "checksum": "sha256:8046021c0cb7a083f78507edaab4de6dbab1125923b87802eb5eca56e248a779"
+    }
+  ]
+}

@@ -363,3 +363,121 @@ fn the_spec_lists_the_same_template() {
         assert!(block.contains(name), "§14.5 に {name} が無い");
     }
 }
+
+#[test]
+fn sample_project_covers_appendix_c_with_no_diagnostics() {
+    use novnow::core::export::{self, State};
+    use novnow::core::features::{cast, plots, reference, sections};
+
+    let files = template::sample_project();
+    let mut listing = Listing::default();
+    for file in &files {
+        listing.files.insert(file.path.to_owned());
+        let mut dir = file.path;
+        while let Some((parent, _)) = dir.rsplit_once('/') {
+            listing.dirs.insert(parent.to_owned());
+            dir = parent;
+        }
+    }
+    listing.project_json = files
+        .iter()
+        .find(|file| file.path == "project.json")
+        .map(|file| file.text.clone());
+    assert_eq!(validate(&listing), Ok(()));
+
+    let documents: Vec<Document> = files
+        .into_iter()
+        .filter(|file| is_document(&ProjectPath::new(file.path).expect("path")))
+        .map(|file| Document::new(file.path, file.text))
+        .collect();
+    let project = Project::with_documents(Default::default(), documents.clone());
+
+    // 1. 診断が 0 件（① の範囲のみ・未知キー無し）
+    for document in &documents {
+        let found = diagnostics::document(document, &project);
+        assert!(
+            found.is_empty(),
+            "{} に診断が出た: {found:?}",
+            document.path
+        );
+    }
+
+    // 2. モードの併用（'リリア:B+C）と range 変種（リリアの ### B が 2 回）
+    assert!(project
+        .text("plots/01-04.txt")
+        .contains("mode: 'リリア:B+C"));
+    assert_eq!(
+        project
+            .text("characters.md")
+            .lines()
+            .filter(|line| line.starts_with("### B 呆れ"))
+            .count(),
+        2
+    );
+
+    // 3. 役割語の一致例と不一致例（一致した台詞は未一致一覧に出ず、不一致の台詞が出る）
+    let unmatched = cast::unmatched_dialogue(&project);
+    assert!(
+        unmatched
+            .iter()
+            .any(|item| item.speaker == "リリア" && item.text.contains("眉唾な噂話")),
+        "unmatched: {unmatched:?}"
+    );
+    for matched in [
+        "ここにいたのね",
+        "言ってたでしょ",
+        "これを見てくれ",
+        "設計図だ。",
+        "行くつもりなの？",
+        "来るだろ？",
+        "付き合ってあげるわよ。",
+    ] {
+        assert!(
+            !unmatched.iter().any(|item| item.text.contains(matched)),
+            "一致する台詞が未一致に入った ({matched}): {unmatched:?}"
+        );
+    }
+
+    // 4. 資料 ID 参照（明示参照）と条件一致による資料候補
+    use novnow::core::id::SceneId;
+    let all_sections = sections::all(&project);
+    let doc = project.document("contents/01-04.txt").expect("01-04.txt");
+    let sec2 = all_sections
+        .iter()
+        .find(|sec| sec.id == SceneId::parse("01-04-02-02").unwrap())
+        .expect("01-04-02-02");
+    let pane2 = reference::at(doc, sec2.lines.clone(), sec2.id, &project);
+    assert!(
+        pane2
+            .materials
+            .iter()
+            .any(|mat| mat.id == "M0001" && !mat.candidate),
+        "01-04-02-02 に M0001 の明示参照がある: {:?}",
+        pane2.materials
+    );
+    let sec4 = all_sections
+        .iter()
+        .find(|sec| sec.id == SceneId::parse("01-04-02-04").unwrap())
+        .expect("01-04-02-04");
+    let pane4 = reference::at(doc, sec4.lines.clone(), sec4.id, &project);
+    assert!(
+        pane4
+            .materials
+            .iter()
+            .any(|mat| mat.id == "M0001" && mat.candidate),
+        "01-04-02-04 に M0001 の条件一致候補がある: {:?}",
+        pane4.materials
+    );
+
+    // 5. 未回収の伏線 1 件（F01）
+    let foreshadows = plots::foreshadows(&project);
+    assert_eq!(foreshadows.len(), 1);
+    assert_eq!(foreshadows[0].tag, "F01");
+    assert!(foreshadows[0].open());
+
+    // 6. state: fixed の節 1 つ
+    assert_eq!(export::effective_state(&project, sec4.id), State::Fixed);
+
+    // 7. アイデア 1 件（I0001）
+    assert!(project.text("ideas.md").contains("# I0001 学院長の動機"));
+}
