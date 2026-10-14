@@ -1479,3 +1479,49 @@ fn unsafe_checker_catches_unsafe_constructs() {
         );
     }
 }
+
+/// §19.13-2: `core::features` の 11 機能（§3.4 の表）がすべて `ui` から直接呼ばれている。
+#[test]
+fn ui_calls_all_eleven_lsp_feature_modules() {
+    let expected = [
+        ("semantic_tokens", "full"),
+        ("completion", "at"),
+        ("hover", "at"),
+        ("inlay_hint", "range"),
+        ("diagnostics", "document"),
+        ("code_action", "at"),
+        ("definition", "at"),
+        ("references", "at"),
+        ("document_symbol", "all"),
+        ("formatting", "document"),
+        ("rename", "prepare"),
+        ("rename", "apply"),
+        ("folding", "ranges"),
+    ];
+    let mut ui_files = Vec::new();
+    collect_rs(Path::new("src/ui"), &mut ui_files);
+    ui_files.sort();
+    let mut all_calls = Vec::new();
+    for file in &ui_files {
+        let source = read_core(file);
+        let parsed = syn::parse_file(&source).unwrap_or_else(|e| panic!("{}: {e}", file.display()));
+        let mut collector = CallCollector::default();
+        collector.visit_file(&parsed);
+        all_calls.extend(collector.calls);
+    }
+    let mut missing = Vec::new();
+    for (module, func) in expected {
+        let suffix = format!("{module}::{func}");
+        let called = all_calls
+            .iter()
+            .any(|call| call == &suffix || call.ends_with(&format!("::{suffix}")));
+        if !called {
+            missing.push(suffix);
+        }
+    }
+    assert!(
+        missing.is_empty(),
+        "SPECIFICATIONS.md §19.13-2 違反（ui から呼ばれていない core::features 関数）:\n{}",
+        bullets(&missing)
+    );
+}

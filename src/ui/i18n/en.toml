@@ -298,6 +298,10 @@ reference = "Show or hide the reference pane"
 inlay_hints = "Show or hide inlay hints (material titles, mode names)"
 help = "Keyboard shortcuts"
 export = "Export the text (without annotations)"
+format = "Format the current file"
+rename = "Rename the character or term at the cursor"
+definition = "Go to the definition at the cursor"
+references = "Find references at the cursor"
 agent_delegation = "Set the delegation level of {0} to {1}"
 agent_stop_all = "Stop all agents (cancel autonomous tasks and go back to propose)"
 prompt_reset = "Reset {0} to the default prompt (cannot be undone)"
@@ -362,6 +366,27 @@ insert = "Insert a plot section / new material"
 drop = "Drop an idea / reject a material"
 tab = "Switch tabs (Review, Cast)"
 scan = "Lines whose role words did not match (Cast)"
+rename = "Rename a character or term across the project"
+fold = "Fold / unfold chapter episodes (Plot Outline)"
+
+[format]
+done = "Formatted {0}"
+unchanged = "No formatting changes in {0}"
+
+[rename]
+placeholder = "New name"
+done = "Renamed to \"{0}\" ({1} places)"
+not_renamable = "No renamable character or term here"
+empty = "Enter a new name"
+invalid = "Names cannot contain spaces, punctuation, or symbols"
+duplicate = "A character or term already has that name"
+
+[references]
+title = "References to \"{0}\" ({1})"
+none = "No references to \"{0}\""
+
+[definition]
+none = "No definition here"
 
 [find]
 placeholder = "Find"

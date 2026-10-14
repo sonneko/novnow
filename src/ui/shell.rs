@@ -167,6 +167,16 @@ pub enum Command {
     InlayHints,
     /// `Ctrl+Shift+X` エージェントの総停止（§15.7.4。`agent` の中だけ）。
     StopAll,
+    /// `>format` 今のファイルの正規化（§5.12）。
+    Format,
+    /// `F2` / `>rename` キャラ名・用語の一括改名（§3.4）。
+    Rename,
+    /// `F12` / `>definition` 定義へ移動（§3.4）。
+    Definition,
+    /// `Shift+F12` / `>references` 使用箇所の一覧（§3.4）。
+    References,
+    /// `Ctrl+Shift+[` / `Ctrl+Shift+]` 構成ツリーの章→話展開・折り畳み（§10.3.1。`plot-outline` の中だけ）。
+    Fold(bool),
 }
 
 /// キー 1 つをショートカットに読む。`text_focused` は入力欄にフォーカスがあるか（`?` の判定）。
@@ -220,7 +230,10 @@ pub fn command_of(
         Key::F if ctrl && !alt => Command::Find,
         Key::H if ctrl && !alt && !shift => Command::Replace,
         Key::H if plain_alt && !shift => Command::InlayHints,
+        Key::F2 if !ctrl && !alt && !shift => Command::Rename,
         Key::F3 if !ctrl && !alt => Command::FindNext(!shift),
+        Key::F12 if !ctrl && !alt && !shift => Command::Definition,
+        Key::F12 if !ctrl && !alt && shift => Command::References,
         Key::Space if ctrl && !alt && !shift => Command::Complete,
         Key::M if ctrl && !alt && shift => Command::Modes,
         Key::M if ctrl && !alt => Command::MaterialSearch,
@@ -288,6 +301,12 @@ pub fn local_command_of(
         (Workspace::Cast, Key::ArrowLeft) if ctrl && shift && !alt => Some(Command::Tab(false)),
         (Workspace::Cast, Key::V) if ctrl && shift && !alt => Some(Command::Scan),
         (Workspace::Agent, Key::X) if ctrl && shift && !alt => Some(Command::StopAll),
+        (Workspace::PlotOutline, Key::OpenBracket) if ctrl && shift && !alt => {
+            Some(Command::Fold(true))
+        }
+        (Workspace::PlotOutline, Key::CloseBracket) if ctrl && shift && !alt => {
+            Some(Command::Fold(false))
+        }
         _ => None,
     }
 }

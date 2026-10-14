@@ -140,6 +140,7 @@ CI で常設するテストは `PLANS.md` §6 を参照。`tests/layering.rs` �
 | `only_the_write_gate_touches_the_file_system_for_writing` ＋ `write_checker_*`（2 本） | §13.1.2（第 2.9 版）: `src/` 全体で、書き込みの system call（`OpenOptions`・`File::create`・`fs::write` / `rename` / `remove_file` / `create_dir_all` / `copy`・`symlink`・`tokio::fs`・`use std::fs::*`）が **`src/adapters/storage_fs.rs`（書き込みの関門）にしか無い**ことを AST で見る。読み取り（`fs::read_to_string` / `File::open` / `fs::metadata`）は許す。本書 §5.7 |
 | `no_code_mentions_characters_json` / `no_code_touches_local_storage` | `src/` 全体で v0 固有の `characters.json` や `localStorage` / `local_storage` に触れていないこと（§19.7-1・§19.9-6） |
 | `unsafe_is_restricted_to_the_two_windows_ffi_sites` | §18.3（第 2.17 版）: `src/` 全体で `unsafe` ブロックが Windows FFI 2 箇所（`main.rs` の `AttachConsole`、`adapters/env_system.rs` の `GetUserDefaultLocaleName`）のみであり、`unsafe fn` / `unsafe impl` / `unsafe trait` が一切無いこと |
+| `ui_calls_all_eleven_lsp_feature_modules` | §19.13-2: `core::features` の 11 機能（§3.4 の表）がすべて `src/ui/**` から直接呼ばれていること |
 
 > 検査器を直すときは、必ず自己テストの固定例（`MUST_CATCH_*` / `MUST_PASS_*`）も一緒に更新すること。
 > 自己テストが無い検査器は、改修で検出漏れが混入しても CI が緑のままになる。
