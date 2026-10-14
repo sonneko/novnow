@@ -585,18 +585,23 @@ fn one_space_of_indent_is_not_a_continuation() {
 }
 
 #[test]
-fn indent_counts_chars_including_tabs_and_full_width_space() {
-    // §5.0.5 の「2 スペース以上」は文字数で数える。タブ 1 文字は 2 未満
-    // （`PLANS.md` §9.2 B-20）
+fn indent_counts_chars_and_a_single_tab_is_a_continuation() {
+    // §5.0.5 の継続行は「2 文字以上の空白、または 1 文字以上のタブ」（`PLANS.md` §9.2 B-20・B-21）
     assert_eq!(lexer::leading_indent("  x"), 2);
     assert_eq!(lexer::leading_indent("\tx"), 1);
     assert_eq!(lexer::leading_indent("　x"), 1);
     assert_eq!(lexer::leading_indent(" \t　x"), 3);
     assert_eq!(lexer::leading_indent("x"), 0);
     assert_eq!(lexer::after_indent(" \t　x"), "x");
+    assert!(lexer::is_continuation_indent("  x"));
+    assert!(lexer::is_continuation_indent("\tx"));
+    assert!(!lexer::is_continuation_indent(" x"));
+    assert!(!lexer::is_continuation_indent("　x"));
 
     let tab = tag("\t二行目", A);
-    assert_eq!(tab, "text[\t二行目]");
+    assert_eq!(tab, "continuation(1)[二行目]");
+    let tab_field = tag("\tsummary: x", A);
+    assert_eq!(tab_field, "continuation(1)[summary: x]");
     let tabs = tag("\t\t二行目", A);
     assert_eq!(tabs, "continuation(2)[二行目]");
     let wide = tag("　　二行目", A);

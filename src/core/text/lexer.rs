@@ -508,7 +508,7 @@ pub fn classify_at_stage(line: &str, format: TextFormat, stage: Stage) -> LineKi
     }
 
     let indent = leading_indent(line);
-    if indent >= CONTINUATION_INDENT {
+    if is_continuation_indent(line) {
         return LineKind::Continuation {
             indent,
             text: after_indent(line),
@@ -521,8 +521,8 @@ pub fn classify_at_stage(line: &str, format: TextFormat, stage: Stage) -> LineKi
 /// シジルが行頭に一致するかを調べ、一致したらシジルの直後を返す。
 ///
 /// - **行頭の前に 0〜1 文字の空白を許す**（§5.2.1 の `scene_header` / `section_break` /
-///   `comment_line` / `illust_line` / `blank` はいずれも `ws?` で始まり、§5.0.5 の
-///   フィールド行も 0〜1 文字）。2 文字以上は継続行のために予約されているので
+///   `comment_line` / `illust_line` / `blank` はいずれも `ws?` で始まり、§5.0.2 の判定順で
+///   シジルはフィールド行・継続行より先）。2 文字以上は継続行のために予約されているので
 ///   シジルを見ない（`PLANS.md` §9.2 B-18・B-31）。
 /// - `whole_line`（`;`）は、残りが空か **行コメントだけ**のときに一致する
 ///   （§5.2.1 `section_break = ws? , ";" , [ comment ] , eol`。§5.0.2 の表の
@@ -559,6 +559,12 @@ pub fn leading_indent(line: &str) -> usize {
     line.chars().take_while(|&c| is_space(c)).count()
 }
 
+/// 行頭が継続行のインデント（2 文字以上の空白、または 1 文字以上のタブ）か（§5.0.5、`PLANS.md` §9.2 B-21）。
+pub fn is_continuation_indent(line: &str) -> bool {
+    let prefix = &line[..line.len() - after_indent(line).len()];
+    prefix.chars().count() >= CONTINUATION_INDENT || prefix.contains('\t')
+}
+
 /// 行頭の空白を除いた残り。
 pub fn after_indent(line: &str) -> &str {
     line.trim_start_matches(is_space)
@@ -566,11 +572,11 @@ pub fn after_indent(line: &str) -> &str {
 
 /// フィールド行をパースする（§5.0.5 の 7 段の手順）。フィールド行でなければ `None`。
 fn parse_field_line(line: &str) -> Option<FieldLine<'_>> {
-    // 手順 1: 2 文字以上のインデントは継続行のために予約されている（`PLANS.md` §9.2 B-18）
-    let indent = leading_indent(line);
-    if indent >= CONTINUATION_INDENT {
+    // 手順 1: 2 文字以上のインデントまたはタブは継続行のために予約されている（`PLANS.md` §9.2 B-18・B-21）
+    if is_continuation_indent(line) {
         return None;
     }
+    let indent = leading_indent(line);
     // 手順 2・3: 最初のコロンで切り、キー候補が `field_key` かを見る
     let body = after_indent(line);
     let body_at = line.len() - body.len();

@@ -350,19 +350,6 @@ async function main() {
     const localKeys = await tab.evaluate(() => Object.keys(localStorage));
     check(localKeys.length === 0, 'IndexedDB が無くても LocalStorage に書かない（§13.3.7）');
     await tab.close();
-
-    // 11. v0 の LocalStorage があれば取り込みを試み、失敗（M11 まで）なら E061 を出して消さない（§13.3.6）
-    tab = await page(browser, () => {
-      if (!localStorage.getItem('novnow_file_index')) {
-        localStorage.setItem('novnow_file_index', JSON.stringify(['my-novel/characters.json']));
-        localStorage.setItem('novnow_file:my-novel/characters.json', '{}');
-      }
-    });
-    await sleep(3000);
-    await shot(tab, '14-legacy');
-    const legacy = await tab.evaluate(() => localStorage.getItem('novnow_file_index'));
-    check(legacy !== null, 'v0 の LocalStorage は消していない（E061）');
-    await tab.evaluate(() => localStorage.clear());
   } finally {
     await browser.close();
     server.close();

@@ -69,8 +69,6 @@ impl Newline {
 pub enum SchemaState {
     /// `1`（今の版）。
     Current,
-    /// 省略 or `0`（v0 の名残。**移行が必要**、§20）。
-    LegacyV0,
     /// `> 1`（novnow 本体の更新が必要）。
     TooNew {
         /// 書かれていた値。
@@ -82,10 +80,7 @@ pub enum SchemaState {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Project {
-    /// スキーマの版（§4.3-2）。**省略時は 0** になり [`Project::schema_state`] が
-    /// [`SchemaState::LegacyV0`] を返す（新しいプロジェクトを作る側の既定は 1。
-    /// [`Default`] と serde の既定が食い違うのでフィールド単位で指定している）。
-    #[serde(default = "missing_schema_version")]
+    /// スキーマの版（§4.3-2、既定 `1`）。
     pub schema_version: u32,
     /// 作品名（§4.5「空文字のときは表示上のタイトルにディレクトリ名を使う」）。
     pub title: String,
@@ -128,21 +123,11 @@ impl Default for Project {
     }
 }
 
-/// `project.json` に `schema_version` が無いときの値。
-///
-/// §4.3-2「省略 or `0` → `ProjectError::LegacyV0`（移行が必要、§20）」なので **0**。
-/// [`Default for Project`] の 1 は `novnow new` が新しいプロジェクトを作るときの値で、
-/// 意味が違う（読み込み時に 1 を既定にすると v0 のプロジェクトを見逃す）。
-fn missing_schema_version() -> u32 {
-    0
-}
-
 impl Project {
     /// §4.3-2 の `schema_version` 検査。
     pub fn schema_state(&self) -> SchemaState {
         match self.schema_version {
-            1 => SchemaState::Current,
-            0 => SchemaState::LegacyV0,
+            0 | 1 => SchemaState::Current,
             found => SchemaState::TooNew { found },
         }
     }
@@ -434,9 +419,6 @@ pub const REQUIRED_DIRS: &[&str] = &["contents", "plots"];
 pub const PROJECT_STRUCTURE_DOC_URL: &str =
     "https://sonneko.github.io/novnow/guide/project_structure.html";
 
-/// v0 の目印（§14.2.4「v0 形式です（characters.json を検出）」、§4.3 第 2.9 版）。
-pub const V0_MARKER: &str = "characters.json";
-
 /// `project.json`（§4.1）。
 pub const PROJECT_FILE: &str = "project.json";
 
@@ -464,11 +446,6 @@ pub enum ProjectError {
         /// 欠けているもの。
         missing: Vec<PathBuf>,
     },
-    /// v0 形式（移行が必要、§20）。
-    LegacyV0 {
-        /// 何で分かったか（`characters.json`、または `schema_version` が省略・0 の `project.json`）。
-        detected: String,
-    },
     /// `schema_version` が新しすぎる（novnow 本体の更新が必要）。
     TooNew {
         /// 書かれていた値。
@@ -483,17 +460,10 @@ pub enum ProjectError {
 
 /// §4.3 のプロジェクト妥当性の判定（`core::model::project::validate`）。
 ///
-/// 順は §4.3 のとおり: (0) v0 の目印 → (1) 必須パス → (2) `schema_version` → (3) 文字コード。
-/// 最初に失敗した段の理由を返す。(0) は第 2.9 版で足した段で、`characters.json` があって
-/// `characters.md` が無ければ不足の列挙より先に [`ProjectError::LegacyV0`]（§14.2.4 の表示のため）。
-/// (2) は `project.json` が JSON として読めない・`schema_version` が数でないときは飛ばす
-/// （版が読めないことは起動失敗にしない。E025 を出して既定値で開く、§4.3-4）。
+/// 順は §4.3 のとおり: (1) 必須パス → (2) `schema_version` → (3) 文字コード。
+/// 最初に失敗した段の理由を返す。(2) は `project.json` が JSON として読めない・`schema_version` が
+/// 数でないときは飛ばす（版が読めないことは起動失敗にしない。E025 を出して既定値で開く、§4.3-4）。
 pub fn validate(listing: &Listing) -> Result<(), ProjectError> {
-    if listing.files.contains(V0_MARKER) && !listing.files.contains("characters.md") {
-        return Err(ProjectError::LegacyV0 {
-            detected: V0_MARKER.to_owned(),
-        });
-    }
     let mut missing: Vec<PathBuf> = REQUIRED_FILES
         .iter()
         .filter(|file| !listing.files.contains(**file))
@@ -510,14 +480,9 @@ pub fn validate(listing: &Listing) -> Result<(), ProjectError> {
     if !missing.is_empty() {
         return Err(ProjectError::Incomplete { missing });
     }
-    match listing.project_json.as_deref().and_then(schema_of) {
-        Some(SchemaState::LegacyV0) => {
-            return Err(ProjectError::LegacyV0 {
-                detected: PROJECT_FILE.to_owned(),
-            })
-        }
-        Some(SchemaState::TooNew { found }) => return Err(ProjectError::TooNew { found }),
-        Some(SchemaState::Current) | None => {}
+    if let Some(SchemaState::TooNew { found }) = listing.project_json.as_deref().and_then(schema_of)
+    {
+        return Err(ProjectError::TooNew { found });
     }
     if !listing.invalid_utf8.is_empty() {
         return Err(ProjectError::Encoding {
@@ -529,7 +494,7 @@ pub fn validate(listing: &Listing) -> Result<(), ProjectError> {
 
 /// `project.json` の `schema_version` だけを読む（§4.3-2）。
 ///
-/// `schema_version` が無ければ [`SchemaState::LegacyV0`]（v0 の `project.json` には無い）。
+/// `schema_version` が省略されているときは [`SchemaState::Current`]。
 /// JSON として読めない・オブジェクトでない・`schema_version` が 0 以上の整数でないときは `None`
 /// （§4.3 第 2.9 版: 2. を飛ばす）。設定全体の読み込み（型の合わない値で E025）とは別に、
 /// 版の数だけを見る。
@@ -538,11 +503,10 @@ pub fn schema_of(text: &str) -> Option<SchemaState> {
     let value: Value = serde_json::from_str(body).ok()?;
     let object = value.as_object()?;
     let Some(found) = object.get("schema_version") else {
-        return Some(SchemaState::LegacyV0);
+        return Some(SchemaState::Current);
     };
     Some(match found.as_u64()? {
-        1 => SchemaState::Current,
-        0 => SchemaState::LegacyV0,
+        0 | 1 => SchemaState::Current,
         other => SchemaState::TooNew {
             found: u32::try_from(other).unwrap_or(u32::MAX),
         },

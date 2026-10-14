@@ -1281,19 +1281,15 @@ fn write_checker_allows_reads() {
     }
 }
 
-/// §19.7「`characters.json` を参照するコードが存在しない（移行コードを除く）」。名前を持ってよいのは
-/// v0 の目印（`core::model::project::V0_MARKER`、§14.2.4）と `cli/migrate.rs`（中身は M11）だけ。
+/// §19.7「`characters.json` を参照するコードが存在しない」。
 #[test]
-fn only_the_v0_marker_and_migrate_mention_characters_json() {
+fn no_code_mentions_characters_json() {
     let mut files = Vec::new();
     collect_rs(Path::new("src"), &mut files);
     files.sort();
     assert!(!files.is_empty(), "No .rs files found in src!");
-    let marker = Path::new("src/core/model/project.rs");
-    let allowed = [marker, Path::new("src/cli/migrate.rs")];
     let offenders: Vec<String> = files
         .iter()
-        .filter(|file| !allowed.contains(&file.as_path()))
         .filter(|file| read_core(file).contains("characters.json"))
         .map(|file| file.display().to_string())
         .collect();
@@ -1302,6 +1298,184 @@ fn only_the_v0_marker_and_migrate_mention_characters_json() {
         "characters.json を参照している:\n{}",
         bullets(&offenders)
     );
-    // 目印の側も、文字列リテラルは定数の 1 か所だけ
-    assert_eq!(read_core(marker).matches("\"characters.json\"").count(), 1);
+}
+
+/// §19.2「Web 版が LocalStorage を使っていない」。
+#[test]
+fn no_code_touches_local_storage() {
+    let mut files = Vec::new();
+    collect_rs(Path::new("src"), &mut files);
+    files.sort();
+    let offenders: Vec<String> = files
+        .iter()
+        .filter(|file| {
+            let source = read_core(file);
+            source.contains("local_storage") || source.contains("localStorage")
+        })
+        .map(|file| file.display().to_string())
+        .collect();
+    assert!(
+        offenders.is_empty(),
+        "LocalStorage を参照している:\n{}",
+        bullets(&offenders)
+    );
+}
+
+// ---------------------------------------------------------------------------
+// §18.3: `unsafe` は Windows OS FFI の 2 箇所のみ許可
+// ---------------------------------------------------------------------------
+
+#[derive(Default)]
+struct UnsafeChecker {
+    label: String,
+    unsafe_blocks: Vec<String>,
+    other_unsafe: Vec<String>,
+}
+
+impl<'ast> Visit<'ast> for UnsafeChecker {
+    fn visit_expr_unsafe(&mut self, node: &'ast syn::ExprUnsafe) {
+        let body = quote_tokens(&node.block);
+        self.unsafe_blocks.push(format!("{}: {body}", self.label));
+        visit::visit_expr_unsafe(self, node);
+    }
+
+    fn visit_item_fn(&mut self, node: &'ast syn::ItemFn) {
+        if node.sig.unsafety.is_some() {
+            self.other_unsafe
+                .push(format!("{}: unsafe fn {}", self.label, node.sig.ident));
+        }
+        visit::visit_item_fn(self, node);
+    }
+
+    fn visit_impl_item_fn(&mut self, node: &'ast syn::ImplItemFn) {
+        if node.sig.unsafety.is_some() {
+            self.other_unsafe
+                .push(format!("{}: unsafe fn {}", self.label, node.sig.ident));
+        }
+        visit::visit_impl_item_fn(self, node);
+    }
+
+    fn visit_trait_item_fn(&mut self, node: &'ast syn::TraitItemFn) {
+        if node.sig.unsafety.is_some() {
+            self.other_unsafe
+                .push(format!("{}: unsafe fn {}", self.label, node.sig.ident));
+        }
+        visit::visit_trait_item_fn(self, node);
+    }
+
+    fn visit_item_impl(&mut self, node: &'ast syn::ItemImpl) {
+        if node.unsafety.is_some() {
+            self.other_unsafe
+                .push(format!("{}: unsafe impl", self.label));
+        }
+        visit::visit_item_impl(self, node);
+    }
+
+    fn visit_item_trait(&mut self, node: &'ast syn::ItemTrait) {
+        if node.unsafety.is_some() {
+            self.other_unsafe
+                .push(format!("{}: unsafe trait {}", self.label, node.ident));
+        }
+        visit::visit_item_trait(self, node);
+    }
+}
+
+#[derive(Default)]
+struct CallCollector {
+    calls: Vec<String>,
+}
+
+impl<'ast> Visit<'ast> for CallCollector {
+    fn visit_expr_call(&mut self, node: &'ast syn::ExprCall) {
+        if let syn::Expr::Path(path) = &*node.func {
+            let name = path
+                .path
+                .segments
+                .iter()
+                .map(|seg| seg.ident.to_string())
+                .collect::<Vec<_>>()
+                .join("::");
+            self.calls.push(name);
+        } else {
+            self.calls.push("<expr>".to_string());
+        }
+        visit::visit_expr_call(self, node);
+    }
+}
+
+fn quote_tokens(block: &syn::Block) -> String {
+    let mut collector = CallCollector::default();
+    collector.visit_block(block);
+    collector.calls.join(", ")
+}
+
+fn scan_unsafe(label: &str, source: &str) -> UnsafeChecker {
+    let file = syn::parse_file(source).unwrap_or_else(|e| panic!("{label}: {e}"));
+    let mut checker = UnsafeChecker {
+        label: label.to_string(),
+        ..Default::default()
+    };
+    checker.visit_file(&file);
+    checker
+}
+
+/// §18.3: `unsafe` は Windows のコンソール接続 `AttachConsole`（`src/main.rs`）と
+/// OS の既定ロケール取得 `GetUserDefaultLocaleName`（`src/adapters/env_system.rs`）の
+/// 2 箇所を除き使わない（MUST）。`core/` は `unsafe` 0 件。
+#[test]
+fn unsafe_is_restricted_to_the_two_windows_ffi_sites() {
+    let mut files = Vec::new();
+    collect_rs(Path::new("src"), &mut files);
+    files.sort();
+    let allowed = [
+        (Path::new("src/main.rs"), "AttachConsole"),
+        (
+            Path::new("src/adapters/env_system.rs"),
+            "GetUserDefaultLocaleName",
+        ),
+    ];
+    let mut unexpected = Vec::new();
+    for file in &files {
+        let label = file.display().to_string();
+        let source = read_core(file);
+        let checked = scan_unsafe(&label, &source);
+        unexpected.extend(checked.other_unsafe);
+        if let Some((_, expected_symbol)) = allowed.iter().find(|(path, _)| *path == file.as_path())
+        {
+            assert_eq!(
+                checked.unsafe_blocks.len(),
+                1,
+                "{label} の unsafe ブロックは 1 箇所のみのはず: {:?}",
+                checked.unsafe_blocks
+            );
+            assert!(
+                checked.unsafe_blocks[0].contains(expected_symbol),
+                "{label} の unsafe ブロックが {expected_symbol} ではない: {}",
+                checked.unsafe_blocks[0]
+            );
+        } else {
+            unexpected.extend(checked.unsafe_blocks);
+        }
+    }
+    assert!(
+        unexpected.is_empty(),
+        "SPECIFICATIONS.md §18.3 違反（許可された 2 箇所外の unsafe）:\n{}",
+        bullets(&unexpected)
+    );
+}
+
+#[test]
+fn unsafe_checker_catches_unsafe_constructs() {
+    for sample in [
+        "fn f() { unsafe { let _ = 1; } }",
+        "unsafe fn f() {}",
+        "struct S; unsafe impl Send for S {}",
+        "unsafe trait T {}",
+    ] {
+        let checked = scan_unsafe("sample", sample);
+        assert!(
+            !checked.unsafe_blocks.is_empty() || !checked.other_unsafe.is_empty(),
+            "検出漏れ: {sample}"
+        );
+    }
 }

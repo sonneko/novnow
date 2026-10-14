@@ -75,36 +75,13 @@ fn every_missing_path_is_listed_in_the_order_of_the_table() {
 }
 
 #[test]
-fn the_v0_marker_comes_before_the_missing_list() {
-    // §14.2.4 の「v0 形式です（characters.json を検出）」を出すため（§4.3 第 2.9 版）
-    let mut v0 = complete();
-    v0.files.remove("characters.md");
-    v0.files.remove("words.md");
-    v0.files.insert("characters.json".to_owned());
-    v0.files.insert("words.json".to_owned());
-    assert_eq!(
-        validate(&v0),
-        Err(ProjectError::LegacyV0 {
-            detected: "characters.json".to_owned()
-        })
-    );
-    // characters.md もあれば目印にしない（v1 として判定を続ける）
-    let mut both = complete();
-    both.files.insert("characters.json".to_owned());
-    assert_eq!(validate(&both), Ok(()));
-}
-
-#[test]
 fn the_schema_version_is_checked_after_the_paths() {
     let with = |json: &str| Listing {
         project_json: Some(json.to_owned()),
         ..complete()
     };
-    let legacy = Err(ProjectError::LegacyV0 {
-        detected: "project.json".to_owned(),
-    });
-    assert_eq!(validate(&with("{}")), legacy);
-    assert_eq!(validate(&with("{\"schema_version\":0}")), legacy);
+    assert_eq!(validate(&with("{}")), Ok(()));
+    assert_eq!(validate(&with("{\"schema_version\":1}")), Ok(()));
     assert_eq!(
         validate(&with("{\"schema_version\":2}")),
         Err(ProjectError::TooNew { found: 2 })
@@ -132,7 +109,7 @@ fn schema_of_reads_only_the_version() {
         schema_of("\u{feff}{\"schema_version\":1}"),
         Some(SchemaState::Current)
     );
-    assert_eq!(schema_of("{\"title\":\"x\"}"), Some(SchemaState::LegacyV0));
+    assert_eq!(schema_of("{\"title\":\"x\"}"), Some(SchemaState::Current));
     assert_eq!(
         schema_of("{\"schema_version\":5000000000}"),
         Some(SchemaState::TooNew { found: u32::MAX })
@@ -307,28 +284,6 @@ fn an_empty_contents_directory_still_counts() {
     assert!(found.dirs.contains("contents"));
     assert_eq!(validate(&found), Ok(()));
     assert!(found.project_json.is_some());
-}
-
-#[test]
-fn a_v0_directory_is_detected() {
-    let dir = TempDir::new("load-v0");
-    dir.write("v0/project.json", "{\"scene_id_format\":\"A-B-C-D\"}\n");
-    dir.write("v0/characters.json", "[]\n");
-    dir.write("v0/words.json", "[]\n");
-    dir.write("v0/materials/index.json", "[]\n");
-    dir.write("v0/plots/all.txt", "@00-00-00\n");
-    dir.mkdir("v0/contents");
-    let (_, storage) = open(
-        &FakeEnv::with_history(&dir.join("state/recent.json")),
-        &dir.join("v0"),
-    );
-    let loaded = block_on(load(&storage)).expect("load");
-    assert_eq!(
-        loaded.validation,
-        Err(ProjectError::LegacyV0 {
-            detected: "characters.json".to_owned()
-        })
-    );
 }
 
 #[test]

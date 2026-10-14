@@ -166,7 +166,7 @@ fn every_diagnostic_code_has_a_message_in_both_languages() {
         .cloned()
         .collect();
     assert_eq!(have, want);
-    assert_eq!(want.len(), 81);
+    assert_eq!(want.len(), 76);
     assert!(want.iter().all(|key| en.contains_key(key)));
 }
 
@@ -176,7 +176,7 @@ fn diag_messages_are_copied_verbatim_from_the_spec() {
     let ja = flatten(JA, "ja.toml");
     let en = flatten(EN, "en.toml");
     let rows = spec_rows();
-    assert_eq!(rows.len(), 81);
+    assert_eq!(rows.len(), 76);
     for (code, spec_ja, spec_en) in rows {
         let key = format!("diag.{code}");
         assert_eq!(ja.get(&key), Some(&spec_ja), "ja {key}");

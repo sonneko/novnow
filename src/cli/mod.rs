@@ -20,7 +20,6 @@
 pub mod check;
 pub mod export;
 pub mod mcp;
-pub mod migrate;
 pub mod new;
 pub mod open;
 
@@ -37,7 +36,7 @@ use crate::ui::i18n::{self, Locale};
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// サブコマンド（§14.1）。第 1 引数がこのどれかと**完全一致**したときだけサブコマンドになる。
-pub const SUBCOMMANDS: [&str; 5] = ["new", "check", "export", "migrate", "mcp"];
+pub const SUBCOMMANDS: [&str; 4] = ["new", "check", "export", "mcp"];
 
 /// この実行ファイルが GUI を持つか（`ui` feature のビルドだけ。M7）。`novnow new` の案内
 /// （開く / 検査する）と、GUI を含まないビルドでの GUI 起動の拒否（§14.2.5）に使う。
@@ -50,10 +49,9 @@ pub const GUI_AVAILABLE: bool = cfg!(feature = "ui");
 pub enum Exit {
     /// 0: 正常終了。
     Ok,
-    /// 2: 使い方の誤り（引数不足・未知のオプション）。M6 では「まだ実装されていないサブコマンド」と
-    /// 「GUI を含まないビルドで GUI を求められた」もここ（`PLANS.md` §9.2 B-105）。
+    /// 2: 使い方の誤り（引数不足・未知のオプション・GUI を含まないビルドで GUI を求められた）。
     Usage,
-    /// 3: プロジェクトが不完全 / v0 形式 / スキーマが新しすぎる（見つからない・ディレクトリでないも含む）。
+    /// 3: プロジェクトが不完全 / スキーマが新しすぎる（見つからない・ディレクトリでないも含む）。
     Project,
     /// 4: I/O エラー（権限・不正 UTF-8・書き込みの失敗）。
     Io,
@@ -132,8 +130,6 @@ pub enum Command {
         /// `<dir>` より後ろの引数（§17.2 のオプション）。
         options: Vec<OsString>,
     },
-    /// `novnow migrate <dir>`（中身は M11）。
-    Migrate(PathBuf),
     /// `novnow mcp <dir>`（中身は M10）。
     Mcp(PathBuf),
 }
@@ -145,7 +141,6 @@ impl Command {
             Self::New(_) => "new",
             Self::Check(_) => "check",
             Self::Export { .. } => "export",
-            Self::Migrate(_) => "migrate",
             Self::Mcp(_) => "mcp",
         }
     }
@@ -227,7 +222,6 @@ fn subcommand(name: &'static str, rest: &[OsString]) -> Launch {
         ("new", dir) => Command::New(dir.unwrap_or_else(|| PathBuf::from("."))),
         (_, None) => return Launch::Error(ArgError::MissingDir(name)),
         ("check", Some(dir)) => Command::Check(dir),
-        ("migrate", Some(dir)) => Command::Migrate(dir),
         (_, Some(dir)) => Command::Mcp(dir),
     };
     Launch::Command(command)
@@ -326,7 +320,6 @@ pub fn run<E: Env>(args: &[OsString], cli: &mut Cli<'_, E>) -> Outcome {
             Command::New(dir) => new::run(cli, dir),
             Command::Check(dir) => check::run(cli, dir),
             Command::Export { dir, options } => export::run(cli, dir, options),
-            Command::Migrate(dir) => migrate::run(cli, dir),
             Command::Mcp(dir) => mcp::run(cli, dir),
         }),
         Launch::Error(error) => Outcome::Exit(cli.arg_error(&error)),
@@ -414,12 +407,11 @@ impl<'a, E: Env> Cli<'a, E> {
     /// 使い方（`--help` と、端末から引数なしで起動されたとき）。`new` という名前のディレクトリの
     /// 開き方を必ず書く（§14.1）。
     pub fn usage(&self) -> String {
-        const ROWS: [(&str, &str); 9] = [
+        const ROWS: [(&str, &str); 8] = [
             ("novnow <dir>", "cli.usage.open"),
             ("novnow new [dir]", "cli.usage.new"),
             ("novnow check <dir>", "cli.usage.check"),
             ("novnow export <dir> [options]", "cli.usage.export"),
-            ("novnow migrate <dir>", "cli.usage.migrate"),
             ("novnow mcp <dir>", "cli.usage.mcp"),
             ("novnow --gui", "cli.usage.gui"),
             ("novnow --help | -h", "cli.usage.help"),
@@ -559,14 +551,6 @@ impl<'a, E: Env> Cli<'a, E> {
             ArgError::BadRange(value) => self.format("cli.error.bad_range", &[value]),
             ArgError::BadState(value) => self.format("cli.error.bad_state", &[value]),
         };
-        self.headline(Stream::Err, Paint::Error, &message);
-        self.help_hint();
-        Exit::Usage
-    }
-
-    /// まだ実装されていないサブコマンド（`migrate` / `mcp`）。説明して 2 を返す。
-    fn not_implemented(&mut self, name: &str) -> Exit {
-        let message = self.format("cli.error.not_implemented", &[name]);
         self.headline(Stream::Err, Paint::Error, &message);
         self.help_hint();
         Exit::Usage

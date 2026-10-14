@@ -7,12 +7,11 @@
 
 use novnow::adapters::clock_system::{parse_utc, rfc3339, rfc3339_millis};
 use novnow::adapters::storage_idb::{
-    convert_v0, is_low_space, low_space_notice, migrated_id, read_legacy, unavailable_notice,
-    uuid_v4, AppRecord, FileRecord, LegacyError, LegacyOutcome, Origin, ProjectRecord, APP,
-    APP_KEYS, BY_PROJECT, BY_UPDATED, DB_NAME, DB_VERSION, FILES, LEGACY_FILE_PREFIX,
-    LEGACY_INDEX_KEY, LOW_SPACE_BYTES, PROJECTS, RECENT_PROJECTS_KEY, SAMPLE_ID,
+    is_low_space, low_space_notice, unavailable_notice, uuid_v4, AppRecord, FileRecord, Origin,
+    ProjectRecord, APP, APP_KEYS, BY_PROJECT, BY_UPDATED, DB_NAME, DB_VERSION, FILES,
+    LOW_SPACE_BYTES, PROJECTS, RECENT_PROJECTS_KEY, SAMPLE_ID,
 };
-use novnow::core::diagnostics::{Arg, DiagnosticCode};
+use novnow::core::diagnostics::DiagnosticCode;
 use novnow::core::policy::recent::{ProjectItem, RecentProjects};
 use novnow::core::policy::ProjectPath;
 
@@ -43,9 +42,6 @@ fn the_names_match_the_schema_table() {
         SAMPLE_ID,
     ] {
         assert!(spec.contains(&format!("`{name}`")), "{name}");
-    }
-    for key in [LEGACY_INDEX_KEY, LEGACY_FILE_PREFIX] {
-        assert!(spec.contains(key), "{key}");
     }
 }
 
@@ -115,18 +111,13 @@ fn records_have_exactly_the_fields_of_the_schema_table() {
 }
 
 #[test]
-fn origins_are_the_four_of_the_schema() {
-    let origins: Vec<&str> = [
-        Origin::Sample,
-        Origin::New,
-        Origin::Import,
-        Origin::Migrated,
-    ]
-    .into_iter()
-    .map(Origin::as_str)
-    .collect();
-    assert_eq!(origins, vec!["sample", "new", "import", "migrated"]);
-    assert!(section_13_3().contains(r#"`"sample" | "new" | "import" | "migrated"`"#));
+fn origins_are_the_three_of_the_schema() {
+    let origins: Vec<&str> = [Origin::Sample, Origin::New, Origin::Import]
+        .into_iter()
+        .map(Origin::as_str)
+        .collect();
+    assert_eq!(origins, vec!["sample", "new", "import"]);
+    assert!(section_13_3().contains(r#"`"sample" | "new" | "import"`"#));
 }
 
 #[test]
@@ -147,90 +138,11 @@ fn low_space_is_under_ten_megabytes() {
 }
 
 #[test]
-fn migrated_ids_do_not_collide() {
-    assert_eq!(migrated_id("20261013", &[]), "migrated-20261013");
-    let taken = vec![
-        "migrated-20261013".to_owned(),
-        "migrated-20261013-2".to_owned(),
-    ];
-    assert_eq!(migrated_id("20261013", &taken), "migrated-20261013-3");
-}
-
-#[test]
 fn uuids_are_version_4() {
     let id = uuid_v4([0xff; 16]);
     assert_eq!(id, "ffffffff-ffff-4fff-bfff-ffffffffffff");
     let id = uuid_v4([0; 16]);
     assert_eq!(id, "00000000-0000-4000-8000-000000000000");
-}
-
-// ============================================================ LocalStorage（v0）の取り込み（§13.3.6）
-
-/// v0 の Web 版の LocalStorage（全ファイルが `my-novel/` の下）。
-fn v0_local_storage(key: &str) -> Option<String> {
-    match key {
-        "novnow_file:my-novel/characters.json" => Some("[]".to_owned()),
-        "novnow_file:my-novel/contents/01-01.txt" => Some("@01-01-01\n本文\n".to_owned()),
-        "novnow_file:my-novel/project.json" => Some("{}".to_owned()),
-        _ => None,
-    }
-}
-
-#[test]
-fn the_v0_layout_is_read_with_its_root_stripped() {
-    let index =
-        r#"["my-novel/characters.json","my-novel/contents/01-01.txt","my-novel/project.json"]"#;
-    let legacy = read_legacy(index, v0_local_storage).expect("read");
-    let files: Vec<(&str, &str)> = legacy
-        .files
-        .iter()
-        .map(|(found, text)| (found.as_str(), text.as_str()))
-        .collect();
-    assert_eq!(
-        files,
-        vec![
-            ("characters.json", "[]"),
-            ("contents/01-01.txt", "@01-01-01\n本文\n"),
-            ("project.json", "{}"),
-        ]
-    );
-    // 成功したときに消すキー（一覧と全ファイル）
-    assert_eq!(
-        legacy.keys,
-        vec![
-            "novnow_file_index",
-            "novnow_file:my-novel/characters.json",
-            "novnow_file:my-novel/contents/01-01.txt",
-            "novnow_file:my-novel/project.json",
-        ]
-    );
-}
-
-#[test]
-fn broken_or_incomplete_legacy_data_fails() {
-    assert_eq!(
-        read_legacy("{", v0_local_storage),
-        Err(LegacyError::BrokenIndex)
-    );
-    assert_eq!(
-        read_legacy(r#"["my-novel/words.json"]"#, v0_local_storage),
-        Err(LegacyError::MissingFile("my-novel/words.json".to_owned()))
-    );
-}
-
-#[test]
-fn until_m11_the_conversion_fails_and_reports_e061() {
-    // §13.3.6 の手順 3（v0 → v1 移行）は M11。それまでは E061 で LocalStorage を消さない（B-96）
-    let failed = convert_v0(vec![(path("characters.json"), "[]".to_owned())]);
-    assert!(matches!(failed, Err(LegacyError::Convert(_))));
-    let outcome = LegacyOutcome::Failed(failed.expect_err("M11 まで失敗"));
-    let found = outcome.diagnostic().expect("E061");
-    assert_eq!(found.code, DiagnosticCode::E061);
-    let migrated = LegacyOutcome::Migrated("migrated-20261013".to_owned());
-    let found = migrated.diagnostic().expect("I053");
-    assert_eq!(found.code, DiagnosticCode::I053);
-    assert_eq!(found.args, vec![Arg::text("migrated-20261013")]);
-    assert_eq!(LegacyOutcome::Nothing.diagnostic(), None);
 }
 
 // ============================================================ 時刻（IndexedDB のレコードの日時）

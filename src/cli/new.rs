@@ -3,9 +3,7 @@
 //! - `dir` の既定は `.`。無ければ作る（親ディレクトリごと。`FsStorage::create`）。
 //! - **既存のファイルは絶対に上書きしない**（MUST）。無いファイルだけを作る（`FsStorage::exists`）。
 //!   競合が 1 件でもあれば、作ったファイルと上書きしなかったファイルの一覧を標準出力に出す。
-//! - 既存のディレクトリが **v0 形式**なら何も書かずに §14.2.4 を出す（足すと v0 のデータの横に
-//!   サンプルが並ぶ半端な状態になる。移行は `novnow migrate`、§20）。**版が新しすぎる**ときも
-//!   何も書かない（`PLANS.md` §9.2 B-106）。
+//! - 既存のディレクトリが **版が新しすぎる**ときは何も書かない（`PLANS.md` §9.2 B-106）。
 //! - 書くのは関門（`FsGate`）を通る `FsStorage` だけ（§13.1.2）。履歴には書かない。
 
 use std::fs;
@@ -73,7 +71,7 @@ pub fn run<E: Env>(cli: &mut Cli<'_, E>, dir: &Path) -> Exit {
     Exit::Ok
 }
 
-/// 既存のディレクトリが v0 形式・版が新しすぎるなら、何も書かずに表示して終了コードを返す。
+/// 既存のディレクトリが版が新しすぎるなら、何も書かずに表示して終了コードを返す。
 fn refuse_legacy<E: Env>(
     cli: &mut Cli<'_, E>,
     gate: &Arc<FsGate>,
@@ -94,7 +92,7 @@ fn refuse_legacy<E: Env>(
         }
     };
     match validate(&listing) {
-        Err(error @ (ProjectError::LegacyV0 { .. } | ProjectError::TooNew { .. })) => {
+        Err(error @ ProjectError::TooNew { .. }) => {
             Err(report(cli, storage.root(), Problem::Project(&error)))
         }
         _ => Ok(()),

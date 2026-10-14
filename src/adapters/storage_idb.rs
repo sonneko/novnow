@@ -4,8 +4,8 @@
 //!
 //! | 部分 | 中身 | どこで動くか・どう確かめるか |
 //! |---|---|---|
-//! | 純粋な部分（このファイルの上半分） | レコードの形（§13.3.2）・`app` ストアの許可キー（§13.3.4）・残容量の判定（W062）・LocalStorage（v0）の取り込みの計画（§13.3.6）・ID の採番 | どこでも。`tests/storage_idb.rs` |
-//! | ブラウザとの接続（`web`、`wasm32` だけ） | `IndexedDB` の DB `novnow` v1・ストア 3 つ・トランザクション境界（§13.3.3）・[`Storage`](crate::ports::storage::Storage) の実装・`navigator.storage`・ダウンロード | ブラウザ。CI の WASM ジョブはコンパイルだけを確かめる（実行の確認は M7 の Web UI で行う） |
+//! | 純粋な部分（このファイルの上半分） | レコードの形（§13.3.2）・`app` ストアの許可キー（§13.3.4）・残容量の判定（W062）・ID の採番 | どこでも。`tests/storage_idb.rs` |
+//! | ブラウザとの接続（`web`、`wasm32` だけ） | `IndexedDB` の DB `novnow` v1・ストア 3 つ・トランザクション境界（§13.3.3）・[`Storage`](crate::ports::storage::Storage) の実装・`navigator.storage`・ダウンロード | ブラウザ。CI の WASM ジョブはコンパイルだけを確かめる |
 //!
 //! # 規則 10 の Web 版（§13.3.4）
 //!
@@ -13,22 +13,13 @@
 //!   （[`IdbStorage`](self) は 1 つの `project_id` に縛られる。パスは `ProjectPath`）。
 //! - `app` ストアのキーは **`recent_projects` だけ**（[`APP_KEYS`]）。書く口は履歴の口
 //!   （`Idb::push_recent`）しか無く、任意のキーを書く API を持たない。
-//! - IndexedDB が使えないときは **LocalStorage へフォールバックしない**（MUST、§13.3.7）。E062。
-//!
-//! # LocalStorage（v0）からの取り込み（§13.3.6）
-//!
-//! 手順 3 の「v0 → v1 移行（§20）」は M11 の仕事なので、変換は**呼び出し側が渡す関数**にした。
-//! M11 までは [`convert_v0`] が失敗を返すので、v0 のデータがあれば **E061**（LocalStorage は消さず、
-//! IndexedDB にも何も書かない）。変換・書き込みが成功したときだけ LocalStorage の該当キーを消して
-//! **I053** を出す。
+//! - IndexedDB が使えないときは **LocalStorage へフォールバックしない**（MUST、§13.3.6）。E062。
 
 use serde::{Deserialize, Serialize};
 
-use crate::core::diagnostics::{Arg, Diagnostic, DiagnosticCode};
-use crate::core::policy::archive::{self, ArchiveEntry, Skipped};
+use crate::core::diagnostics::{Diagnostic, DiagnosticCode};
 use crate::core::policy::recent::RecentProjects;
 use crate::core::policy::{ProjectPath, Stamp};
-use crate::ports::storage::StorageError;
 
 use super::clock_system::parse_utc;
 
@@ -52,12 +43,8 @@ pub const RECENT_PROJECTS_KEY: &str = "recent_projects";
 pub const APP_KEYS: &[&str] = &[RECENT_PROJECTS_KEY];
 /// サンプルプロジェクトの ID（§13.3.5）。
 pub const SAMPLE_ID: &str = "sample";
-/// 残容量の警告の閾値（§13.3.7「残り 10MB 未満なら W062」）。
+/// 残容量の警告の閾値（§13.3.6「残り 10MB 未満なら W062」）。
 pub const LOW_SPACE_BYTES: f64 = 10.0 * 1024.0 * 1024.0;
-/// v0 の LocalStorage のファイル一覧のキー（§13.3.6）。
-pub const LEGACY_INDEX_KEY: &str = "novnow_file_index";
-/// v0 の LocalStorage のファイルのキーの接頭辞（§13.3.6）。
-pub const LEGACY_FILE_PREFIX: &str = "novnow_file:";
 /// プロジェクトの形式の版（`projects.schema_version`）。
 pub const PROJECT_SCHEMA_VERSION: u32 = 1;
 
@@ -72,8 +59,6 @@ pub enum Origin {
     New,
     /// Zip の取り込み（§13.5）。
     Import,
-    /// LocalStorage（v0）からの移行（§13.3.6）。
-    Migrated,
 }
 
 impl Origin {
@@ -83,7 +68,6 @@ impl Origin {
             Self::Sample => "sample",
             Self::New => "new",
             Self::Import => "import",
-            Self::Migrated => "migrated",
         }
     }
 }
@@ -91,7 +75,7 @@ impl Origin {
 /// `projects` のレコード。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProjectRecord {
-    /// UUIDv4 か `sample`（`migrated-YYYYMMDD` も）。
+    /// UUIDv4 か `sample`。
     pub id: String,
     /// 表示名（選択モーダルの一覧、§13.4）。
     pub name: String,
@@ -188,21 +172,9 @@ pub fn low_space_notice() -> Diagnostic {
     Diagnostic::simple(DiagnosticCode::W062, None)
 }
 
-/// E062「この環境ではデータを保存できません」（§7.1・§13.3.7。起動を中止して全画面で示す）。
+/// E062「この環境ではデータを保存できません」（§7.1・§13.3.6。起動を中止して全画面で示す）。
 pub fn unavailable_notice() -> Diagnostic {
     Diagnostic::simple(DiagnosticCode::E062, None)
-}
-
-/// `migrated-YYYYMMDD`（§13.3.6）。同じ日に 2 回目があれば `-2`, `-3`… を付ける。
-pub fn migrated_id(yyyymmdd: &str, taken: &[String]) -> String {
-    let base = format!("migrated-{yyyymmdd}");
-    if !taken.contains(&base) {
-        return base;
-    }
-    (2..)
-        .map(|n| format!("{base}-{n}"))
-        .find(|candidate| !taken.contains(candidate))
-        .unwrap_or(base)
 }
 
 /// 乱数 16 byte から UUIDv4 の文字列を作る（§13.3.2 の `id`。乱数は `crypto.getRandomValues`）。
@@ -218,105 +190,6 @@ pub fn uuid_v4(mut bytes: [u8; 16]) -> String {
         &hex[16..20],
         &hex[20..32]
     )
-}
-
-// ============================================================ LocalStorage（v0）の取り込み（§13.3.6）
-
-/// 取り込みの失敗（**E061**）。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum LegacyError {
-    /// `novnow_file_index` が JSON の文字列配列として読めない。
-    BrokenIndex,
-    /// 一覧にあるファイルのキーが無い。
-    MissingFile(String),
-    /// v0 → v1 の変換に失敗した（M11 までは常にこれ）。
-    Convert(String),
-    /// IndexedDB への書き込みに失敗した。
-    Storage(StorageError),
-}
-
-/// LocalStorage から読んだ v0 のデータ。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LegacyData {
-    /// ファイル（v0 の Web 版のルート `my-novel/` は剥がしてある）。
-    pub files: Vec<(ProjectPath, String)>,
-    /// 成功したときに消すキー（一覧のキーと全ファイルのキー）。
-    pub keys: Vec<String>,
-    /// 取り込まないもの（相対パスにできない名前など）。
-    pub skipped: Vec<Skipped>,
-}
-
-/// 取り込みの結果。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum LegacyOutcome {
-    /// v0 のデータが無い。
-    Nothing,
-    /// 取り込んだ（新しいプロジェクトの ID。**I053**）。
-    Migrated(String),
-    /// 失敗した（LocalStorage は消していない。**E061**）。
-    Failed(LegacyError),
-}
-
-impl LegacyOutcome {
-    /// 出す通知（I053 / E061）。
-    pub fn diagnostic(&self) -> Option<Diagnostic> {
-        match self {
-            Self::Nothing => None,
-            Self::Migrated(id) => Some(Diagnostic::new(
-                DiagnosticCode::I053,
-                None,
-                vec![Arg::text(id.as_str())],
-            )),
-            Self::Failed(_) => Some(Diagnostic::simple(DiagnosticCode::E061, None)),
-        }
-    }
-}
-
-/// v0 の LocalStorage を読む（§13.3.6 の手順 1・2）。`get` は LocalStorage の `getItem`。
-///
-/// ファイルの名前は Zip の取り込みと同じ規則（`policy::archive::plan_import`）で相対パスにする
-/// （v0 の Web 版は全ファイルを `my-novel/` の下に置いていたので、単一ルートとして剥がれる）。
-pub fn read_legacy(
-    index_json: &str,
-    get: impl Fn(&str) -> Option<String>,
-) -> Result<LegacyData, LegacyError> {
-    let index: Vec<String> =
-        serde_json::from_str(index_json).map_err(|_| LegacyError::BrokenIndex)?;
-    let mut keys = vec![LEGACY_INDEX_KEY.to_owned()];
-    let mut texts = Vec::with_capacity(index.len());
-    for path in &index {
-        let key = format!("{LEGACY_FILE_PREFIX}{path}");
-        let text = get(&key).ok_or_else(|| LegacyError::MissingFile(path.clone()))?;
-        keys.push(key);
-        texts.push(text);
-    }
-    let entries: Vec<ArchiveEntry> = index
-        .iter()
-        .map(|path| ArchiveEntry::file(path.as_str()))
-        .collect();
-    let plan = archive::plan_import(&entries);
-    let files = plan
-        .entries
-        .into_iter()
-        .map(|planned| (planned.path, texts[planned.index].clone()))
-        .collect();
-    Ok(LegacyData {
-        files,
-        keys,
-        skipped: plan.skipped,
-    })
-}
-
-/// v0 → v1 の変換（§13.3.6 の手順 3、§20）。**M11 で実装する**（`PLANS.md` §5.12）。
-///
-/// それまでは失敗を返す。取り込みは全体が失敗し（E061）、LocalStorage は消えず、IndexedDB にも
-/// 何も書かない（変換していない v0 のファイルを v1 のプロジェクトとして置かないため。B-96）。
-pub fn convert_v0(
-    _files: Vec<(ProjectPath, String)>,
-) -> Result<Vec<(ProjectPath, String)>, LegacyError> {
-    Err(LegacyError::Convert(
-        "v0 -> v1 conversion is implemented in M11 (SPECIFICATIONS.md section 20)".to_owned(),
-    ))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -339,11 +212,10 @@ mod web {
     };
 
     use super::{
-        convert_v0, migrated_id, read_legacy, uuid_v4, AppRecord, FileRecord, LegacyError,
-        LegacyOutcome, Origin, ProjectRecord, APP, BY_PROJECT, BY_UPDATED, DB_NAME, DB_VERSION,
-        FILES, LEGACY_INDEX_KEY, PROJECTS, RECENT_PROJECTS_KEY, SAMPLE_ID,
+        uuid_v4, AppRecord, FileRecord, Origin, ProjectRecord, APP, BY_PROJECT, BY_UPDATED,
+        DB_NAME, DB_VERSION, FILES, PROJECTS, RECENT_PROJECTS_KEY, SAMPLE_ID,
     };
-    use crate::adapters::clock_system::{rfc3339_millis, yyyymmdd, SystemClock};
+    use crate::adapters::clock_system::{rfc3339_millis, SystemClock};
     use crate::adapters::zip::{self as archive_io, ArchiveError};
     use crate::core::policy::archive::Skipped;
     use crate::core::policy::recent::{ProjectItem, RecentProjects};
@@ -707,51 +579,6 @@ mod web {
                 .map_err(js_error)?;
             commit(&transaction).await?;
             Ok(recent)
-        }
-
-        /// LocalStorage（v0）からの取り込み（§13.3.6）。変換は M11 まで失敗する（[`convert_v0`]）。
-        pub async fn import_local_storage(&self, clock: &impl Clock) -> LegacyOutcome {
-            self.import_local_storage_with(clock, convert_v0).await
-        }
-
-        /// 変換を渡して取り込む（M11 で `convert_v0` の代わりに移行器を渡す）。
-        pub async fn import_local_storage_with(
-            &self,
-            clock: &impl Clock,
-            convert: impl FnOnce(
-                Vec<(ProjectPath, String)>,
-            ) -> Result<Vec<(ProjectPath, String)>, LegacyError>,
-        ) -> LegacyOutcome {
-            let Some(storage) =
-                web_sys::window().and_then(|window| window.local_storage().ok().flatten())
-            else {
-                return LegacyOutcome::Nothing;
-            };
-            let Some(index) = storage.get_item(LEGACY_INDEX_KEY).ok().flatten() else {
-                return LegacyOutcome::Nothing;
-            };
-            let legacy = match read_legacy(&index, |key| storage.get_item(key).ok().flatten()) {
-                Ok(legacy) => legacy,
-                Err(error) => return LegacyOutcome::Failed(error),
-            };
-            let files = match convert(legacy.files) {
-                Ok(files) => files,
-                Err(error) => return LegacyOutcome::Failed(error),
-            };
-            let taken: Vec<String> = match self.projects().await {
-                Ok(records) => records.into_iter().map(|record| record.id).collect(),
-                Err(error) => return LegacyOutcome::Failed(LegacyError::Storage(error)),
-            };
-            let date = yyyymmdd(clock.now_millis(), clock.utc_offset_minutes());
-            let id = migrated_id(&date, &taken);
-            let record = ProjectRecord::new(&id, &id, Origin::Migrated, &now());
-            if let Err(error) = self.create_project(&record, &files).await {
-                return LegacyOutcome::Failed(LegacyError::Storage(error));
-            }
-            for key in &legacy.keys {
-                let _ = storage.remove_item(key);
-            }
-            LegacyOutcome::Migrated(id)
         }
     }
 

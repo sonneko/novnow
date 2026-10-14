@@ -176,11 +176,6 @@ fn the_launch_decision_follows_the_fixed_order() {
             command(Command::Check(PathBuf::from("a"))),
         ),
         (
-            &["migrate", "a"],
-            none,
-            command(Command::Migrate(PathBuf::from("a"))),
-        ),
-        (
             &["mcp", "a"],
             none,
             command(Command::Mcp(PathBuf::from("a"))),
@@ -201,7 +196,6 @@ fn the_launch_decision_follows_the_fixed_order() {
         (&["./novel"], tty, open("./novel")),
         // 引数の誤り（2）
         (&["check"], none, error(ArgError::MissingDir("check"))),
-        (&["migrate"], none, error(ArgError::MissingDir("migrate"))),
         (&["mcp"], none, error(ArgError::MissingDir("mcp"))),
         (&["export"], none, error(ArgError::MissingDir("export"))),
         (
@@ -357,35 +351,8 @@ fn a_file_is_not_a_project() {
 }
 
 #[test]
-fn a_v0_project_is_the_example_of_section_14_2_4() {
-    let dir = TempDir::new("cli-v0");
-    dir.write("hoshikuzu/characters.json", "{\"characters\":[]}\n");
-    dir.write("hoshikuzu/project.json", "{\"title\":\"星屑\"}\n");
-    let root = dir.join("hoshikuzu");
-    let before = tree(dir.path());
-    let ran = run(dir.path(), &env_ja(&dir), &["hoshikuzu"]);
-    assert_eq!(ran.exit(), Exit::Project);
-    let want = spec_block("#### 14.2.4 v0 プロジェクトを指した場合")
-        .replace("/home/user/novels/hoshikuzu", &display_path(&root));
-    assert_eq!(ran.err, want);
-    assert_eq!(tree(dir.path()), before);
-}
-
-#[test]
-fn a_v0_project_json_and_a_newer_schema_are_exit_3() {
+fn a_newer_schema_is_exit_3() {
     let dir = TempDir::new("cli-schema");
-    let root = minimal_project(&dir, "old");
-    std::fs::write(root.join("project.json"), "{\"title\":\"古い\"}\n").expect("write");
-    let ran = run(dir.path(), &env_ja(&dir), &["old"]);
-    assert_eq!(ran.exit(), Exit::Project);
-    assert!(ran.err.starts_with(
-        "novnow: このプロジェクトは v0 形式です（project.json の schema_version が無いか 0 です）\n"
-    ));
-    assert!(ran.err.contains(&format!(
-        "移行してください: novnow migrate {}\n",
-        root.display()
-    )));
-
     let root = minimal_project(&dir, "new");
     std::fs::write(root.join("project.json"), "{\"schema_version\":2}\n").expect("write");
     let ran = run(dir.path(), &env_en(&dir), &["new/"]);
@@ -803,17 +770,8 @@ fn new_on_a_complete_project_creates_nothing() {
 }
 
 #[test]
-fn new_refuses_a_v0_project_and_a_newer_one_without_writing() {
-    let dir = TempDir::new("cli-new-v0");
-    dir.write("old/characters.json", "{}\n");
-    let before = tree(dir.path());
-    let ran = run(dir.path(), &env_ja(&dir), &["new", "old"]);
-    assert_eq!(ran.exit(), Exit::Project);
-    assert!(ran
-        .err
-        .starts_with("novnow: このプロジェクトは v0 形式です（characters.json を検出）\n"));
-    assert_eq!(tree(dir.path()), before);
-
+fn new_refuses_a_newer_project_without_writing() {
+    let dir = TempDir::new("cli-new-too-new");
     let root = minimal_project(&dir, "newer");
     std::fs::write(root.join("project.json"), "{\"schema_version\":3}\n").expect("write");
     let before = tree(dir.path());
@@ -1096,10 +1054,10 @@ fn export_option_errors_are_exit_2_and_empty_selections_write_nothing() {
     );
 }
 
-// ============================================================ 枠だけのサブコマンド
+// ============================================================ novnow mcp
 
 #[test]
-fn migrate_is_a_frame_only_and_mcp_checks_the_project_first() {
+fn mcp_checks_the_project_first() {
     let dir = TempDir::new("cli-frames");
     // mcp は先に §14.2 の検査をする
     spec_like_incomplete(&dir, "broken");
@@ -1109,17 +1067,6 @@ fn migrate_is_a_frame_only_and_mcp_checks_the_project_first() {
     );
     assert_eq!(
         run_mcp(dir.path(), &env_ja(&dir), "nope", "").exit(),
-        Exit::Project
-    );
-    // migrate の対象は v0（§14.2 の検査に落ちる側）なので、開けるかだけを見る
-    dir.write("old/characters.json", "{}\n");
-    let ran = run(dir.path(), &env_ja(&dir), &["migrate", "old"]);
-    assert_eq!(ran.exit(), Exit::Usage);
-    assert!(ran
-        .err
-        .starts_with("novnow: novnow migrate はまだ実装されていません\n"));
-    assert_eq!(
-        run(dir.path(), &env_ja(&dir), &["migrate", "nope"]).exit(),
         Exit::Project
     );
 }
@@ -1324,7 +1271,6 @@ fn help_goes_to_stdout_and_explains_how_to_open_a_directory_named_new() {
             "novnow new [dir]",
             "novnow check <dir>",
             "novnow export <dir> [options]",
-            "novnow migrate <dir>",
             "novnow mcp <dir>",
             "novnow --gui",
             "novnow --help | -h",
