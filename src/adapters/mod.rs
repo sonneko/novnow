@@ -8,7 +8,7 @@
 //! | [`zip`] | Zip のインポート / エクスポート（§13.5） | 両方 |
 //! | [`project_load`] | 一覧 → §4.3 の判定 → 文書の読み込み（どの `Storage` でも同じ手順） | 両方 |
 //! | [`env_system`] / [`clock_system`] | `Env` / `Clock` | 両方 |
-//! | [`mcp_stdio`] | `McpClient`（M10） | ネイティブ |
+//! | [`mcp_stdio`] | `McpClient`（M10。`std::process` とスレッド） | ネイティブ |
 //! | `dialog_rfd` | `Dialog`（`ui` feature、M7） | ネイティブ |
 
 pub mod clock_system;
@@ -18,6 +18,7 @@ pub mod clock_system;
 #[cfg(feature = "ui")]
 pub mod dialog_rfd;
 pub mod env_system;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod mcp_stdio;
 pub mod project_load;
 #[cfg(not(target_arch = "wasm32"))]

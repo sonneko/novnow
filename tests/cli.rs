@@ -1099,19 +1099,16 @@ fn export_option_errors_are_exit_2_and_empty_selections_write_nothing() {
 // ============================================================ 枠だけのサブコマンド
 
 #[test]
-fn mcp_and_migrate_are_frames_only() {
+fn migrate_is_a_frame_only_and_mcp_checks_the_project_first() {
     let dir = TempDir::new("cli-frames");
-    minimal_project(&dir, "novel");
-    let ran = run(dir.path(), &env_ja(&dir), &["mcp", "novel"]);
-    assert_eq!(ran.exit(), Exit::Usage);
-    assert_eq!(
-        ran.err,
-        "novnow: novnow mcp はまだ実装されていません\n使い方: novnow --help\n"
-    );
     // mcp は先に §14.2 の検査をする
     spec_like_incomplete(&dir, "broken");
     assert_eq!(
         run(dir.path(), &env_ja(&dir), &["mcp", "broken"]).exit(),
+        Exit::Project
+    );
+    assert_eq!(
+        run_mcp(dir.path(), &env_ja(&dir), "nope", "").exit(),
         Exit::Project
     );
     // migrate の対象は v0（§14.2 の検査に落ちる側）なので、開けるかだけを見る
@@ -1124,6 +1121,149 @@ fn mcp_and_migrate_are_frames_only() {
     assert_eq!(
         run(dir.path(), &env_ja(&dir), &["migrate", "nope"]).exit(),
         Exit::Project
+    );
+}
+
+/// `novnow mcp` を、標準入力の代わりに `input` を渡して走らせる。
+fn run_mcp(cwd: &Path, env: &FakeEnv, dir: &str, input: &str) -> Ran {
+    let mut out = Vec::new();
+    let mut err = Vec::new();
+    let mut reader = std::io::Cursor::new(input.as_bytes().to_vec());
+    let outcome = {
+        let mut cli = Cli::new(
+            env,
+            &mut out,
+            &mut err,
+            cwd.to_path_buf(),
+            Terminal::default(),
+        );
+        cli.set_input(&mut reader);
+        cli::run(&os_args(&["mcp", dir]), &mut cli)
+    };
+    Ran {
+        outcome,
+        out: String::from_utf8(out).expect("stdout は UTF-8"),
+        err: String::from_utf8(err).expect("stderr は UTF-8"),
+    }
+}
+
+fn mcp_lines(requests: &[serde_json::Value]) -> String {
+    let mut out: String = requests
+        .iter()
+        .map(|request| request.to_string())
+        .collect::<Vec<_>>()
+        .join("\n");
+    out.push('\n');
+    out
+}
+
+#[test]
+fn mcp_serves_the_tools_over_json_lines_and_writes_only_inside_the_project() {
+    use serde_json::{json, Value};
+    let dir = TempDir::new("cli-mcp");
+    let root = minimal_project(&dir, "novel");
+    let input = mcp_lines(&[
+        json!({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2024-11-05", "capabilities": {}, "clientInfo": {"name": "t", "version": "0"}}}),
+        json!({"jsonrpc": "2.0", "method": "notifications/initialized"}),
+        json!({"jsonrpc": "2.0", "id": 2, "method": "tools/list"}),
+        json!({"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "novnow.project.info", "arguments": {}}}),
+        json!({"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": {"name": "novnow.section.write", "arguments": {"scene": "@01-01-01-01", "text": "x"}}}),
+        json!({"jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": {"name": "novnow.section.propose", "arguments": {"scene": "@01-01-01-01", "text": "「やあ」"}}}),
+        json!({"jsonrpc": "2.0", "id": 6, "method": "resources/list"}),
+        json!({"jsonrpc": "2.0", "id": 7, "method": "ping"}),
+    ]);
+    let ran = run_mcp(dir.path(), &env_ja(&dir), "novel", &input);
+    assert_eq!(ran.exit(), Exit::Ok, "{}", ran.err);
+    let lines: Vec<Value> = ran
+        .out
+        .lines()
+        .map(|line| serde_json::from_str(line).expect("一行 1 メッセージの JSON"))
+        .collect();
+    assert_eq!(lines.len(), 7, "{}", ran.out);
+    assert_eq!(lines[0]["id"], 1);
+    assert_eq!(lines[0]["result"]["serverInfo"]["name"], "novnow");
+    assert_eq!(lines[0]["result"]["protocolVersion"], "2024-11-05");
+    assert_eq!(lines[1]["result"]["tools"].as_array().unwrap().len(), 14);
+    assert_eq!(lines[2]["result"]["isError"], false);
+    let info: Value =
+        serde_json::from_str(lines[2]["result"]["content"][0]["text"].as_str().unwrap()).unwrap();
+    assert_eq!(info["title"], "星屑の時計");
+    assert_eq!(info["sections"], 1);
+    // role が無い直接書き込みは E036（文言はカタログ）
+    assert_eq!(lines[3]["result"]["isError"], true);
+    assert_eq!(
+        lines[3]["result"]["content"][0]["text"],
+        "この役割の委譲レベルでは書き込めません: -"
+    );
+    assert_eq!(lines[4]["result"]["isError"], false);
+    assert!(root.join("agents/proposals/P0001.md").exists());
+    let proposal = std::fs::read_to_string(root.join("agents/proposals/P0001.md")).unwrap();
+    assert!(proposal.contains("origin: mcp\n"), "{proposal}");
+    assert!(
+        proposal.contains("## before\n「こんにちは」\n"),
+        "{proposal}"
+    );
+    // 本文は変わらない
+    assert_eq!(
+        std::fs::read_to_string(root.join("contents/01-01.txt")).unwrap(),
+        "@01-01-01\n「こんにちは」\n"
+    );
+    assert_eq!(lines[5]["error"]["code"], -32601);
+    assert_eq!(lines[6]["result"], json!({}));
+    // 起動時に既定のプロンプトを書き出した（prompts/ が無かったので I050）
+    assert!(root.join("prompts/writer.md").exists());
+    assert!(root.join("prompts/_shared/style.md").exists());
+    assert!(
+        ran.err.contains("prompts/ に既定プロンプトを作成しました"),
+        "{}",
+        ran.err
+    );
+    // 二度目は何も書かず、通知もしない
+    let again = run_mcp(dir.path(), &env_ja(&dir), "novel", "");
+    assert_eq!(again.exit(), Exit::Ok);
+    assert_eq!(again.err, "");
+}
+
+#[test]
+fn mcp_direct_writes_follow_the_role_level_and_leave_the_audit_trail() {
+    use serde_json::{json, Value};
+    let dir = TempDir::new("cli-mcp-write");
+    let root = minimal_project(&dir, "novel");
+    dir.write(
+        "novel/project.json",
+        "{\n  \"schema_version\": 1,\n  \"title\": \"星屑の時計\",\n  \"agents\": { \"roles\": { \"writer\": \"apply\" } }\n}\n",
+    );
+    let input = mcp_lines(&[
+        json!({"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "novnow.section.write", "arguments": {"role": "writer", "scene": "@01-01-01-01", "text": "「さようなら」"}}}),
+        json!({"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "novnow.section.write", "arguments": {"role": "stylist", "scene": "@01-01-01-01", "text": "x"}}}),
+    ]);
+    let ran = run_mcp(dir.path(), &env_en(&dir), "novel", &input);
+    let lines: Vec<Value> = ran
+        .out
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect();
+    assert_eq!(lines[0]["result"]["isError"], false, "{}", ran.out);
+    assert_eq!(
+        std::fs::read_to_string(root.join("contents/01-01.txt")).unwrap(),
+        "@01-01-01\n「さようなら」\n"
+    );
+    let proposal = std::fs::read_to_string(root.join("agents/proposals/P0001.md")).unwrap();
+    assert!(
+        proposal.contains("status: applied\n") && proposal.contains("origin: mcp:writer\n"),
+        "{proposal}"
+    );
+    let logs: Vec<_> = std::fs::read_dir(root.join("agents/log"))
+        .unwrap()
+        .collect();
+    assert_eq!(logs.len(), 1);
+    let log = std::fs::read_to_string(logs[0].as_ref().unwrap().path()).unwrap();
+    assert!(log.contains("\"event\":\"direct_write\""), "{log}");
+    assert!(!log.contains("さようなら"), "{log}");
+    assert_eq!(lines[1]["result"]["isError"], true);
+    assert_eq!(
+        lines[1]["result"]["content"][0]["text"],
+        "Delegation level too low to write: stylist"
     );
 }
 
@@ -1295,6 +1435,38 @@ fn binary(dir: &TempDir, cwd: &Path, args: &[&str]) -> std::process::Output {
         .stdin(Stdio::null())
         .output()
         .expect("novnow を起動できない")
+}
+
+#[test]
+fn binary_mcp_speaks_json_lines_on_stdio() {
+    use std::io::Write as _;
+    let dir = TempDir::new("cli-binary-mcp");
+    minimal_project(&dir, "novel");
+    let mut child = Process::new(env!("CARGO_BIN_EXE_novnow"))
+        .args(["mcp", "novel"])
+        .current_dir(dir.path())
+        .env_clear()
+        .env("HOME", dir.join("home"))
+        .env("NOVNOW_RECENT_FILE", dir.join("state/recent.json"))
+        .env("NOVNOW_LANG", "ja")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("novnow を起動できない");
+    {
+        let mut stdin = child.stdin.take().expect("stdin");
+        stdin
+            .write_all(b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}\n{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\"}\n")
+            .expect("write");
+    }
+    let output = child.wait_with_output().expect("wait");
+    assert_eq!(output.status.code(), Some(0));
+    let stdout = String::from_utf8(output.stdout).expect("utf8");
+    let lines: Vec<&str> = stdout.lines().collect();
+    assert_eq!(lines.len(), 2, "{stdout}");
+    assert!(lines[0].contains("\"serverInfo\""), "{stdout}");
+    assert!(lines[1].contains("novnow.mail.send"), "{stdout}");
 }
 
 #[test]

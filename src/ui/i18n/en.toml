@@ -147,6 +147,12 @@ empty = "no section matches the range (nothing was exported)"
 [cli.check]
 summary = "checked {0} documents (errors: {1}, warnings: {2}, info: {3})"
 
+[cli.mcp]
+unknown_tool = "Unknown tool: {0}"
+argument = "Missing or invalid argument: {0}"
+missing = "Not found: {0}"
+gate = "Not written because it would add {1}; kept as proposal {0}"
+
 [cli.usage]
 tagline = "a novel-writing IDE built on deterministic algorithms"
 heading = "Usage"

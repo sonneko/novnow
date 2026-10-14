@@ -293,6 +293,8 @@ pub struct Cli<'a, E: Env> {
     env: &'a E,
     out: &'a mut dyn Write,
     err: &'a mut dyn Write,
+    /// 標準入力の代わり（`novnow mcp` のテスト。無ければ標準入力を読む）。
+    input: Option<&'a mut dyn std::io::BufRead>,
     cwd: PathBuf,
     terminal: Terminal,
     locale: Locale,
@@ -345,10 +347,21 @@ impl<'a, E: Env> Cli<'a, E> {
             env,
             out,
             err,
+            input: None,
             cwd,
             terminal,
             locale,
         }
+    }
+
+    /// 標準入力の代わりを渡す（`novnow mcp` をプロセスの中で試すとき）。
+    pub fn set_input(&mut self, input: &'a mut dyn std::io::BufRead) {
+        self.input = Some(input);
+    }
+
+    /// 標準入力の代わり（一度だけ取れる）。
+    pub fn take_input(&mut self) -> Option<&'a mut dyn std::io::BufRead> {
+        self.input.take()
     }
 
     /// 文言の言語を差し替える（GUI がプロジェクト選択モーダルに §14.2.2 の表示を流用するとき、
