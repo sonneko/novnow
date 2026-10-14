@@ -211,6 +211,11 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
   1. v0→v1 マイグレーションのコード・仕様・診断 5 件を全面撤去した。
   2. ルートの 3 ドキュメントを廃止し、`docs/specifications/*.md`（純粋仕様）、`docs/designs/*.md`（実装設計・状態・`REF:`）、`REF:docs/developers.md`、`REF:docs/plans.md`、`REF:docs/handoff.md`、`REF:docs/history.md` に分離し、`REF:docs/script/duplicate.py` で機械検査する体制へ移行した。
 
+### [HIST:DECISION:D-017] 2026-10-15 規則原文ブロックと duplicate.py の食い違い解消
+[HIST-TAG: category=DECISION id=D-017 topics=docs_reorg,duplicate_py,verbatim]
+- **背景**: `REF:docs/developers.md` §1 の規則原文（フェンス内）と `REF:docs/script/duplicate.py` の `VERBATIM_RULES_BLOCK` が 2 行食い違っており、`docs` 検査（rule-3）が赤になっていた。`REF:docs/add-dependencies.md` の追加時に片側だけが更新されたまま残っていたのが原因。
+- **決定**: ユーザーの裁定（2026-10-15）により `REF:docs/developers.md` の原文を正とし、`REF:docs/script/duplicate.py` の `VERBATIM_RULES_BLOCK` を実ディレクトリ構成に合わせた（`├ add-dependencies.md` 行を追加し、廃止済みルート 3 ファイルに触れる文を削除）。
+
 ---
 
 ## 3. 達成済みマイルストーン履歴（`MILESTONE`）
