@@ -235,6 +235,13 @@ pub enum Request {
     Notice(String),
     /// 参照ペインの資料の候補を、今の節のプロットの `material:` に足す（§10.2・§16.4、B-136）。
     AppendMaterial(String),
+    /// 参照ペインの診断からの自動回復（§6.2.6 / §9.5.4、F-23）: 1 形態素を登録する。
+    Register {
+        /// 登録先（`words.md` / `characters.md`）。
+        kind: crate::core::resolve::dictionary::EntryKind,
+        /// 登録する名前。
+        name: String,
+    },
 }
 
 /// 状態の縦線の色（§10.2: draft = 灰 / review = 橙 / fixed = 緑）。

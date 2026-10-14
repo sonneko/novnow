@@ -277,6 +277,10 @@ role = "Role"
 tone = "Tone"
 prose = "Prose"
 candidate_hint = "A material whose conditions match. Double-click or press Enter to add it to this section's plot as material:"
+# F-23 (§9.5.4): recovery from a diagnostic. `{0}` is the name to register, `{1}` the button label
+add_word = "Add to words.md"
+add_character = "Add to characters.md"
+add_hint = "Register \"{0}\" ({1})"
 
 [jump]
 not_found = "No section has that structure ID"

@@ -1,6 +1,51 @@
+//! 画面をまたいで使う小部品（§9.1「全体レイアウト」・§9.9「押せる要素」）。
+//!
+//! 押せる要素の見た目と当たり判定をここに集める。
+//!
+//! - 薄い下線を引き、ホバーで背景（`bg.selection` を 60% で塗る）とポインタを出す（F-30 / F-32）。
+//! - `interact` の矩形は**最低 24×24px**（見た目の寸法は変えない。F-32）。
+
 pub mod context_view;
 pub mod inlay;
 pub mod reference_pane;
 pub mod section_editor;
 pub mod slice_editor;
 pub mod syntax_text;
+
+use egui::{FontId, Response, Sense, Stroke, Ui, Vec2};
+
+use crate::ui::theme::Palette;
+
+/// 押せる要素の当たり判定の下限（§9.9、F-32。「24×24px 以上」）。
+pub const MIN_HIT: f32 = 24.0;
+
+/// クリックできるテキスト（下線つきリンク風）。
+///
+/// 見た目は文字と下線だけ（枠線は引かない、§9.5.1）。当たり判定は [`MIN_HIT`] まで広げる。
+/// 文字色は `fg.primary`、ホバー中の背景は `bg.selection` の 60%。
+pub fn link_button(ui: &mut Ui, text: &str, font: FontId, colors: &Palette) -> Response {
+    let galley = ui.fonts(|fonts| fonts.layout_no_wrap(text.to_owned(), font, colors.fg_primary));
+    let size = galley.size();
+    let (rect, response) = ui.allocate_exact_size(
+        Vec2::new(size.x.max(MIN_HIT), size.y.max(MIN_HIT)),
+        Sense::click(),
+    );
+    let at = egui::pos2(rect.min.x, rect.center().y - size.y / 2.0);
+    let text_rect = egui::Rect::from_min_size(at, size);
+    let painter = ui.painter();
+    if response.hovered() {
+        painter.rect_filled(rect, 2.0, colors.bg_selection.gamma_multiply(0.6));
+    }
+    painter.galley(at, galley, colors.fg_primary);
+    painter.line_segment(
+        [
+            text_rect.left_bottom() + Vec2::new(0.0, 1.0),
+            text_rect.right_bottom() + Vec2::new(0.0, 1.0),
+        ],
+        Stroke::new(1.0_f32, colors.border),
+    );
+    if response.hovered() {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    response
+}

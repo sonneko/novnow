@@ -8,14 +8,32 @@
 use egui::text::{LayoutJob, TextFormat};
 use egui::{FontFamily, FontId, RichText, Sense, Stroke, Ui};
 
+use crate::core::diagnostics::{Arg, Diagnostic, DiagnosticCode};
 use crate::core::features::reference::{self, Reference};
 use crate::core::resolve::context_rules::PaneSection;
+use crate::core::resolve::dictionary::EntryKind;
 use crate::ui::i18n::{self, Locale};
 use crate::ui::theme::{self, Mode};
 use crate::ui::workbench::Workbench;
 
 /// デバウンス（§9.5.4）。
 pub const DEBOUNCE_SECS: f64 = 0.08;
+
+/// 参照ペインで選ばれたもの（クリック・`Enter` の結果。呼び出し側が適用する）。
+///
+/// 参照ペイン自身は編集を持たない（§3.4 の層構造）。文言も持たない（§12.2）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Chosen {
+    /// 条件一致の資料候補。その ID を今の節のプロットの `material:` に足す（§16.4）。
+    Material(String),
+    /// 診断からの自動回復（§6.2.6 / §9.5.4、F-23）。1 形態素を辞書へ登録する。
+    Register {
+        /// 登録先（`words.md` = [`EntryKind::Word`] / `characters.md` = [`EntryKind::Character`]）。
+        kind: EntryKind,
+        /// 登録する名前（形態素解析で切り出した 1 形態素）。
+        name: String,
+    },
+}
 
 /// 参照ペインの中身と、更新待ち。
 #[derive(Debug, Default)]
@@ -64,8 +82,8 @@ impl Cache {
     }
 }
 
-/// 参照ペインを描く。資料の候補が選ばれたら（ダブルクリック・フォーカスして `Enter`）その ID。
-pub fn show(ui: &mut Ui, cache: &Cache, locale: Locale, mode: Mode, scale: f32) -> Option<String> {
+/// 参照ペインを描く。何かが選ばれたら（ダブルクリック・`Enter`・登録ボタン）その [`Chosen`]。
+pub fn show(ui: &mut Ui, cache: &Cache, locale: Locale, mode: Mode, scale: f32) -> Option<Chosen> {
     let mut chosen = None;
     egui::ScrollArea::vertical()
         .id_source("reference-pane")
@@ -104,7 +122,7 @@ pub fn sections(
     locale: Locale,
     mode: Mode,
     scale: f32,
-) -> Option<String> {
+) -> Option<Chosen> {
     let mut chosen = None;
     let colors = theme::palette(mode);
     let heading = |ui: &mut Ui, key: &str| {
@@ -210,7 +228,7 @@ pub fn sections(
                         }
                         for material in content.materials.iter().filter(|found| found.candidate) {
                             if candidate(ui, material, locale, mode, scale) {
-                                chosen = Some(material.id.clone());
+                                chosen = Some(Chosen::Material(material.id.clone()));
                             }
                         }
                     }
@@ -241,6 +259,41 @@ pub fn sections(
                                 },
                             );
                             ui.label(job);
+                            // §6.2.6 / §9.5.4（F-23）: 形態素解析で切った 1 形態素をその場で登録する
+                            let recovery = recovery(found);
+                            if !recovery.is_empty() {
+                                ui.horizontal(|ui| {
+                                    ui.spacing_mut().item_spacing.x = 8.0;
+                                    for (kind, name) in recovery {
+                                        let key = match kind {
+                                            EntryKind::Word => "pane.add_word",
+                                            _ => "pane.add_character",
+                                        };
+                                        let label = i18n::text(locale, key);
+                                        let button = super::link_button(
+                                            ui,
+                                            label,
+                                            FontId::new(11.0 * scale, FontFamily::Proportional),
+                                            &colors,
+                                        );
+                                        let hint =
+                                            i18n::format(locale, "pane.add_hint", &[name, label]);
+                                        // アクセシブル名にも「何を登録するか」を入れる（§9.1）
+                                        button.widget_info(|| {
+                                            egui::WidgetInfo::labeled(
+                                                egui::WidgetType::Button,
+                                                &hint,
+                                            )
+                                        });
+                                        if button.on_hover_text(hint).clicked() {
+                                            chosen = Some(Chosen::Register {
+                                                kind,
+                                                name: name.to_owned(),
+                                            });
+                                        }
+                                    }
+                                });
+                            }
                         }
                     }
                     _ => {}
@@ -283,6 +336,26 @@ fn candidate(
     }
     let response = response.on_hover_text(i18n::text(locale, "pane.candidate_hint"));
     response.double_clicked() || (response.clicked() && response.fake_primary_click)
+}
+
+/// §6.2.6 / §9.5.4（F-23）の自動回復: 診断から「登録できる 1 形態素」と登録先を組む。
+///
+/// - **E001**（辞書にない参照）は用語（`words.md`）と登場人物（`characters.md`）の両方。
+/// - **E012**（`characters.md` にいない話者）は登場人物だけ。
+///
+/// 名前は診断の第 1 引数（E001 は §6.2.6 の先頭 1 形態素、E012 は書かれた話者名）。
+fn recovery(found: &Diagnostic) -> Vec<(EntryKind, &str)> {
+    let Some(name) = found.args.iter().find_map(|arg| match arg {
+        Arg::Text(text) if !text.is_empty() => Some(text.as_str()),
+        _ => None,
+    }) else {
+        return Vec::new();
+    };
+    match found.code {
+        DiagnosticCode::E001 => vec![(EntryKind::Word, name), (EntryKind::Character, name)],
+        DiagnosticCode::E012 => vec![(EntryKind::Character, name)],
+        _ => Vec::new(),
+    }
 }
 
 fn first_line(text: &str) -> &str {

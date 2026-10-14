@@ -19,7 +19,7 @@ use novnow::ui::shell::{self, Command};
 use novnow::ui::workbench::{Nav, Reaction, Workbench};
 use novnow::ui::workspaces::{Switcher, Workspace};
 
-use harness::{key, painted_text, Harness};
+use harness::{key, painted_text, painted_texts, Harness};
 
 fn id(chapter: u16, episode: u16, scene: u16, section: u16) -> SceneId {
     SceneId {
@@ -1190,6 +1190,54 @@ fn a_condition_match_in_the_reference_pane_is_added_to_the_plot_with_enter() {
         ),
         "{plot}"
     );
+}
+
+/// 本文の先頭の節に辞書にない参照（`'未登録の紋様`）が 1 つだけあるプロジェクト。
+fn unresolved_harness() -> Harness {
+    let mut project = novel::novel();
+    project.insert(Document::new(
+        "contents/01-01.txt",
+        "@01-01-01 放課後\n'未登録の紋様 が描かれていた。\n",
+    ));
+    Harness::start_with(project, true).0
+}
+
+#[test]
+fn a_diagnostic_in_the_reference_pane_registers_the_first_morpheme() {
+    // §6.2.6 / §9.5.4（F-23）: 参照ペインの診断から、形態素解析で切った 1 形態素を
+    // その場のボタンで `words.md` へ登録して自動回復できる
+    let mut harness = unresolved_harness();
+    harness.idle(0.5);
+    let output = harness.frame(Vec::new());
+    let text = painted_text(&output);
+    // `'未登録の紋様` の赤波線は先頭 1 形態素（`未登録`）まで
+    assert!(text.contains("辞書にない参照です: 未登録"), "{text}");
+    let at = {
+        let found = painted_texts(&output)
+            .into_iter()
+            .find(|(painted, _)| painted == "words.md に追加")
+            .expect("words.md に追加 ボタン");
+        found.1.center()
+    };
+    harness.click_at(at);
+    harness.idle(0.6);
+    let words = written(&harness, "words.md");
+    assert!(words.ends_with("# 未登録\ndefinition: \n"), "{words}");
+    // `characters.md` へも同じ 1 形態素を登録できる
+    let mut harness = unresolved_harness();
+    harness.idle(0.5);
+    let output = harness.frame(Vec::new());
+    let at = {
+        let found = painted_texts(&output)
+            .into_iter()
+            .find(|(painted, _)| painted == "characters.md に追加")
+            .expect("characters.md に追加 ボタン");
+        found.1.center()
+    };
+    harness.click_at(at);
+    harness.idle(0.6);
+    let characters = written(&harness, "characters.md");
+    assert!(characters.ends_with("# 未登録\n"), "{characters}");
 }
 
 #[test]

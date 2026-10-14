@@ -32,7 +32,7 @@ use crate::ui::i18n;
 use crate::ui::settings::PaneSide;
 use crate::ui::theme;
 use crate::ui::widgets::context_view;
-use crate::ui::widgets::reference_pane;
+use crate::ui::widgets::reference_pane::{self, Chosen};
 use crate::ui::widgets::slice_editor;
 use crate::ui::widgets::syntax_text::{self, Highlight, Metrics};
 use crate::ui::workbench::{Nav, Workbench};
@@ -367,10 +367,14 @@ pub fn show(
                                     .color(colors.fg_primary),
                             );
                             let content = content.clone();
-                            if let Some(id) =
-                                reference_pane::sections(ui, &content, locale, view.mode, scale)
-                            {
-                                request = Some(Request::AppendMaterial(id));
+                            match reference_pane::sections(ui, &content, locale, view.mode, scale) {
+                                Some(Chosen::Material(id)) => {
+                                    request = Some(Request::AppendMaterial(id));
+                                }
+                                Some(Chosen::Register { kind, name }) => {
+                                    request = Some(Request::Register { kind, name });
+                                }
+                                None => {}
                             }
                         }
                     });

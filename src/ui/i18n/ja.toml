@@ -275,6 +275,10 @@ role = "役割"
 tone = "口調"
 prose = "本文"
 candidate_hint = "条件が合う資料の候補。ダブルクリックか Enter で、この節のプロットに material: として足します"
+# F-23（§9.5.4）: 診断からの自動回復。`pane.add_hint` の {0} は登録する名前、{1} はボタンの文言
+add_word = "words.md に追加"
+add_character = "characters.md に追加"
+add_hint = "「{0}」を登録します（{1}）"
 
 [jump]
 not_found = "その構造 ID の節はありません"
