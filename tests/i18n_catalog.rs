@@ -343,12 +343,7 @@ fn every_gui_key_used_in_the_source_exists_and_none_is_unused() {
             assert!(ja.contains_key(key), "ja.toml に {key} が無い");
             assert!(en.contains_key(key), "en.toml に {key} が無い");
         }
-        // `project.pick.import`（Zip から読み込む）は §12.7 の表の写しで、Web のプロジェクト選択
-        // （§13.4）が使う。Web の画面からの接続は M7 では入れていない（PLANS.md §9.2 B-118）
-        let unused: Vec<String> = unused_keys(prefix, &used)
-            .into_iter()
-            .filter(|key| key != "project.pick.import")
-            .collect();
+        let unused: Vec<String> = unused_keys(prefix, &used);
         assert!(
             unused.is_empty(),
             "使われていない {prefix}* のキー: {unused:?}"

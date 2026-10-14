@@ -358,3 +358,49 @@ pub fn take_commands_in(
     }
     out
 }
+
+/// Web でのキーの押され方（[`browser_default_blocked`] の入力。`KeyboardEvent` から作る）。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct BrowserKeys {
+    /// `Ctrl` か `Cmd`。
+    pub command: bool,
+    /// `Alt`（macOS の `Option`）。
+    pub alt: bool,
+    /// `Shift`。
+    pub shift: bool,
+    /// `AltGr`（欧州の配列で `@` `{` などを打つ。字の入力なので止めない）。
+    pub alt_graph: bool,
+    /// macOS か。
+    pub mac: bool,
+}
+
+/// Web で、このキーのブラウザの既定の動作（印刷・ページの保存・検索バー・戻る など）を止めるか
+/// （novnow のショートカットに使うため。`PLANS.md` §9.2 B-158）。`key` は `KeyboardEvent.key`。
+///
+/// 止めないもの: コピー / 貼り付け / 切り取り（`Ctrl+C` / `V` / `X`。貼り付けはブラウザのイベントで
+/// 受ける）・再読み込み（`Ctrl+R` / `F5`）・開発者ツール（`Ctrl+Shift+I` / `J`・`F12`）・全画面（`F11`）・
+/// `AltGr` の字・修飾キーの無い字（打った字は入力欄へ）・macOS の `Option` の字（novnow は `Ctrl+Option`
+/// で受ける）。ブラウザがページに渡さないもの（Chrome の `Ctrl+N` / `Ctrl+T` / `Ctrl+W`）は止められない。
+pub fn browser_default_blocked(key: &str, keys: BrowserKeys) -> bool {
+    if keys.alt_graph {
+        return false;
+    }
+    let lower = key.to_ascii_lowercase();
+    if keys.command {
+        let browser = match lower.as_str() {
+            "c" | "v" | "x" | "r" => !keys.shift && !keys.alt,
+            "i" | "j" => keys.shift && !keys.alt,
+            _ => false,
+        };
+        return !browser;
+    }
+    if keys.alt {
+        // 戻る / 進む（`Alt+←/→`）とメニュー（`Alt+字`）を奪われないように、novnow の形（`Alt+数字`・
+        // `Alt+矢印`・`Alt+H`）だけ止める
+        let single =
+            lower.chars().count() == 1 && lower.chars().all(|ch| ch.is_ascii_alphanumeric());
+        return !keys.mac && (single || key.starts_with("Arrow"));
+    }
+    // F2（名前の変更、§13.4）・F3（次を検索）。F1（ヘルプ）・F7（キャレットブラウズ）も奪われないように
+    matches!(key, "F1" | "F2" | "F3" | "F7")
+}

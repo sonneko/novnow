@@ -67,7 +67,9 @@ web-sys = { version = "0.3", features = [
   "Window", "Document", "Element", "HtmlElement", "Storage", "Blob", "BlobPropertyBag", "Url", "console",
   "IdbFactory", "IdbDatabase", "IdbObjectStore", "IdbTransaction", "IdbRequest", "IdbOpenDbRequest", "IdbCursor", "IdbKeyRange",
   "IdbIndex", "IdbObjectStoreParameters", "IdbTransactionMode", "DomException", "DomStringList", "Event",
-  "Navigator", "StorageManager", "StorageEstimate"
+  "Navigator", "StorageManager", "StorageEstimate",
+  # Web のプロジェクト選択（§13.4）とキーの既定動作の抑止・離脱の確認（`src/ui/web.rs`）
+  "KeyboardEvent", "BeforeUnloadEvent", "HtmlInputElement", "FileList", "File", "EventTarget", "Clipboard"
 ] }
 console_error_panic_hook = "0.1"
 

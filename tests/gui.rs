@@ -16,7 +16,7 @@ use novnow::ui::i18n::Locale;
 use novnow::ui::palette;
 use novnow::ui::save_machine::{Indicator, SaveMachine, State};
 use novnow::ui::settings::{LanguageChoice, ThemeChoice, UiSettings};
-use novnow::ui::shell::{self, Command, ImeState};
+use novnow::ui::shell::{self, BrowserKeys, Command, ImeState};
 use novnow::ui::widgets::inlay;
 use novnow::ui::workbench::{Nav, Reaction, Workbench};
 
@@ -871,6 +871,115 @@ fn a_failed_save_shows_the_red_indicator_and_keeps_the_text() {
         Some(State::Clean),
         "再試行で保存できる"
     );
+}
+
+#[test]
+fn an_asynchronous_save_keeps_what_was_committed_while_it_was_writing() {
+    // Web の IndexedDB のように保存の結果が後のフレームで来るとき（B-156）: 書いているあいだに節を移って
+    // 文書に入った打鍵は、書き終わった後も未保存のまま残り、次の保存で書かれる
+    let mut harness = Harness::new();
+    harness.host.files.borrow_mut().async_saves = true;
+    harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text("一".into())]);
+    harness.idle(0.6);
+    assert!(
+        harness.host.files.borrow().held_save.is_some(),
+        "保存を始めた"
+    );
+    assert_eq!(
+        harness.app.workbench().map(|bench| bench.save.state()),
+        Some(State::Saving)
+    );
+    // 書いているあいだに打って、節を移る（打鍵が文書に入る）
+    harness.frame(vec![Event::Text("二".into())]);
+    harness.frame(vec![key(Key::ArrowDown, Modifiers::ALT)]);
+    harness.host.files.borrow_mut().release_save();
+    harness.idle(0.6);
+    let first = harness
+        .host
+        .files
+        .borrow()
+        .written
+        .get(CONTENTS_PATH)
+        .cloned();
+    let first = first.expect("1 回目の保存");
+    assert!(first.contains('一') && !first.contains('二'), "{first}");
+    assert!(
+        harness.host.files.borrow().held_save.is_some(),
+        "書いているあいだの打鍵は次の保存で書く"
+    );
+    harness.host.files.borrow_mut().release_save();
+    harness.idle(0.6);
+    let second = harness
+        .host
+        .files
+        .borrow()
+        .written
+        .get(CONTENTS_PATH)
+        .cloned();
+    assert!(second.expect("2 回目の保存").contains("一二"));
+    assert_eq!(
+        harness.app.workbench().map(|bench| bench.save.state()),
+        Some(State::Clean)
+    );
+}
+
+#[test]
+fn on_the_web_only_browser_defaults_that_novnow_needs_are_blocked() {
+    // B-158: 印刷・ページの保存・検索バー・戻るなどは止め、コピー / 貼り付け・再読み込み・開発者ツール・
+    // AltGr の字・macOS の Option の字・修飾キーの無い字は止めない
+    let command = BrowserKeys {
+        command: true,
+        ..BrowserKeys::default()
+    };
+    for key in [
+        "p", "o", "s", "f", "h", "g", "m", "b", "1", ";", "Enter", "Home",
+    ] {
+        assert!(shell::browser_default_blocked(key, command), "Ctrl+{key}");
+    }
+    for key in ["c", "v", "x", "r"] {
+        assert!(!shell::browser_default_blocked(key, command), "Ctrl+{key}");
+    }
+    let devtools = BrowserKeys {
+        shift: true,
+        ..command
+    };
+    assert!(!shell::browser_default_blocked("I", devtools));
+    assert!(
+        shell::browser_default_blocked("F", devtools),
+        "Ctrl+Shift+F は全体検索"
+    );
+    let alt = BrowserKeys {
+        alt: true,
+        ..BrowserKeys::default()
+    };
+    assert!(
+        shell::browser_default_blocked("1", alt),
+        "Alt+1 はワークスペース"
+    );
+    assert!(
+        shell::browser_default_blocked("ArrowLeft", alt),
+        "Alt+← は場面（戻るではない）"
+    );
+    assert!(!shell::browser_default_blocked(
+        "1",
+        BrowserKeys { mac: true, ..alt }
+    ));
+    assert!(!shell::browser_default_blocked(
+        "@",
+        BrowserKeys {
+            alt_graph: true,
+            ..command
+        }
+    ));
+    for key in ["a", "あ", "/", "Enter", "F5", "F12"] {
+        assert!(
+            !shell::browser_default_blocked(key, BrowserKeys::default()),
+            "{key}"
+        );
+    }
+    assert!(shell::browser_default_blocked("F2", BrowserKeys::default()));
+    assert!(shell::browser_default_blocked("F3", BrowserKeys::default()));
 }
 
 // ============================================================ 目視用のスクリーンショット（手動）

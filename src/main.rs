@@ -19,7 +19,7 @@ fn main() -> std::process::ExitCode {
 /// Web の入口（`ui` feature のときだけ GUI を起動する）。
 #[cfg(all(target_arch = "wasm32", feature = "ui"))]
 fn main() {
-    novnow::ui::app::web::start();
+    novnow::ui::web::start();
 }
 
 /// Web の入口（GUI を含まないビルドでは何もしない）。

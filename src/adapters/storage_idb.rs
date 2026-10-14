@@ -320,7 +320,7 @@ pub fn convert_v0(
 }
 
 #[cfg(target_arch = "wasm32")]
-pub use self::web::{download, estimate, request_persist, Idb, IdbStorage};
+pub use self::web::{download, download_as, estimate, request_persist, Idb, IdbStorage};
 
 /// ブラウザとの接続（`wasm32` だけ）。
 #[cfg(target_arch = "wasm32")]
@@ -552,6 +552,29 @@ mod web {
                 store.put(&to_js(&file)?).map_err(js_error)?;
             }
             commit(&transaction).await
+        }
+
+        /// 新しい ID（UUIDv4）でプロジェクトを作る（選択モーダルの新規作成、§13.4）。
+        pub async fn new_project(
+            &self,
+            name: &str,
+            origin: Origin,
+            files: &[(ProjectPath, String)],
+        ) -> Result<ProjectRecord, StorageError> {
+            let record = ProjectRecord::new(&random_id()?, name, origin, &now());
+            self.create_project(&record, files).await?;
+            Ok(record)
+        }
+
+        /// プロジェクトの大きさ（全ファイルの中身の byte 数の和。選択モーダルの一覧、§13.4）。
+        pub async fn project_size(&self, project_id: &str) -> Result<usize, StorageError> {
+            Ok(self
+                .storage(project_id)
+                .records()
+                .await?
+                .iter()
+                .map(|record| record.text.len())
+                .sum())
         }
 
         /// プロジェクトを消す（`by_project` で全ファイル ＋ `projects` を 1 トランザクション、§13.3.3）。
@@ -923,11 +946,16 @@ mod web {
 
     /// バイト列をダウンロードさせる（Zip のエクスポート、§13.5。保存先はブラウザが決める）。
     pub fn download(file_name: &str, bytes: &[u8]) -> Result<(), StorageError> {
+        download_as(file_name, bytes, "application/zip")
+    }
+
+    /// 種類を指定してダウンロードさせる（テキストのエクスポートの「名前を付けて保存」も、§17.2）。
+    pub fn download_as(file_name: &str, bytes: &[u8], mime: &str) -> Result<(), StorageError> {
         let array = js_sys::Uint8Array::from(bytes);
         let parts = Array::new();
         parts.push(&array.buffer());
         let options = web_sys::BlobPropertyBag::new();
-        options.set_type("application/zip");
+        options.set_type(mime);
         let blob = web_sys::Blob::new_with_u8_array_sequence_and_options(&parts, &options)
             .map_err(js_error)?;
         let url = web_sys::Url::create_object_url_with_blob(&blob).map_err(js_error)?;
@@ -943,8 +971,24 @@ mod web {
         anchor
             .set_attribute("download", file_name)
             .map_err(js_error)?;
+        let _ = anchor.set_attribute("style", "display:none");
+        // 文書に入れてから押す（Firefox は文書の外の <a> のダウンロードを始めない）
+        if let Some(body) = document.body() {
+            let _ = body.append_child(&anchor);
+        }
         anchor.click();
-        let _ = web_sys::Url::revoke_object_url(&url);
+        anchor.remove();
+        // URL はダウンロードが始まってから捨てる（すぐ捨てると名前が `download` になるブラウザがある）
+        let revoke = Closure::once(move || {
+            let _ = web_sys::Url::revoke_object_url(&url);
+        });
+        if let Some(window) = web_sys::window() {
+            let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+                revoke.as_ref().unchecked_ref(),
+                10_000,
+            );
+        }
+        revoke.forget();
         Ok(())
     }
 }

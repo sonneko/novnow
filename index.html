@@ -14,9 +14,17 @@
             overflow: hidden;
             background-color: #1a1a1a;
         }
+        /* eframe の Web が前提にする置き方（eframe_template と同じ）。eframe は IME の変換候補を出す隠れた
+           入力欄の位置を「canvas が横に 50% ずらしてある」前提で計算するので、left: 50% と translate(-50%) が
+           要る（無いと変換候補が左に canvas の幅の半分ずれる）。display: block は行の下の隙間を無くす。 */
         canvas {
-            margin: 0;
-            padding: 0;
+            margin-right: auto;
+            margin-left: auto;
+            display: block;
+            position: absolute;
+            top: 0%;
+            left: 50%;
+            transform: translate(-50%, 0%);
             width: 100%;
             height: 100%;
         }

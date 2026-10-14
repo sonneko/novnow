@@ -92,6 +92,86 @@ pub trait Host {
         let _ = path;
         false
     }
+    /// 保存 1 回分（§8.3）: `writes` を書き、全部書けたら `removals` を消す。同期の Host（デスクトップ・
+    /// テスト）は既定のまま、その場で書いて結果を返す。非同期の Host（Web の IndexedDB）は始めるだけで
+    /// `None` を返し、終わったら [`Host::save_finished`] が結果を返す（`PLANS.md` §9.2 B-156）。
+    fn save(
+        &mut self,
+        writes: Vec<(String, String)>,
+        removals: Vec<String>,
+    ) -> Option<SaveOutcome> {
+        Some(save_now(self, writes, removals))
+    }
+    /// 非同期の保存（[`Host::save`] が `None` を返したもの）の結果。終わっていなければ `None`。
+    fn save_finished(&mut self) -> Option<SaveOutcome> {
+        None
+    }
+    /// 後から分かったこと（Web の非同期の書き込みの失敗・Zip の書き出しの結果など）。毎フレーム読む。
+    fn take_events(&mut self) -> Vec<HostEvent> {
+        Vec::new()
+    }
+    /// 未保存の変更があるか（毎フレーム。Web はタブを閉じるときの確認に使う）。
+    fn unsaved_changed(&mut self, unsaved: bool) {
+        let _ = unsaved;
+    }
+    /// Zip でエクスポートする（§13.5）。`name` は既定のファイル名（`<題>.zip`）。デスクトップは保存
+    /// ダイアログで選んだ場所に書いてその場で結果を返す（取り消したら `Some(Ok(None))`）。Web は
+    /// ダウンロードを始めるだけで `None` を返し、結果は [`Host::take_events`] で知らせる。
+    fn export_zip(&mut self, name: &str) -> Option<Result<Option<String>, String>> {
+        let _ = name;
+        Some(Err("zip export is not available here".to_owned()))
+    }
+}
+
+/// 保存 1 回分をその場で行う（[`Host::save`] の既定）: `writes` を書き、全部書けたら `removals` を消す
+/// （動かした文書の元は、新しい側を書けてから消す）。
+pub fn save_now<H: Host + ?Sized>(
+    host: &mut H,
+    writes: Vec<(String, String)>,
+    removals: Vec<String>,
+) -> SaveOutcome {
+    let mut outcome = SaveOutcome::default();
+    for (path, text) in writes {
+        match host.write(&path, &text) {
+            Ok(()) => outcome.written.push(path),
+            Err(message) => outcome.failures.push((path, message)),
+        }
+    }
+    if !outcome.failures.is_empty() {
+        outcome.removals_left = removals;
+        return outcome;
+    }
+    for path in removals {
+        if let Err(message) = host.remove(&path) {
+            outcome.failures.push((path.clone(), message));
+            outcome.removals_left.push(path);
+        }
+    }
+    outcome
+}
+
+/// 保存 1 回分の結果（[`Host::save`]）。
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SaveOutcome {
+    /// 書けたファイル。
+    pub written: Vec<String>,
+    /// 書けなかった（消せなかった）ファイルと、その理由。
+    pub failures: Vec<(String, String)>,
+    /// まだ消していない元のファイル（次の保存でもう一度）。
+    pub removals_left: Vec<String>,
+}
+
+/// Host が後から知らせること（[`Host::take_events`]。文言は `NovnowApp` がカタログで引く）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HostEvent {
+    /// 保存の外で書いたもの（`ui.json`・監査ログ・`exports/`）が書けなかった。
+    WriteFailed(String, String),
+    /// Zip を書き出した（Web はダウンロードを始めた）。
+    ZipExported(String),
+    /// Zip を書き出せなかった。
+    ZipFailed(String),
+    /// 保存領域の空きが少ない（W062、§13.3.7）。
+    LowSpace,
 }
 
 /// 「名前を付けて保存」に失敗した理由（文言は `NovnowApp` がカタログで引く）。
@@ -272,6 +352,10 @@ pub struct Session {
     agents: crate::ui::agents::Runtime,
     /// ステータスバーの `⟳` が押された（次に agent ワークスペースを開く。§15.7.4）。
     open_agent: bool,
+    /// 書き込み中の保存で渡した中身（非同期の保存のあいだも編集できるので、終わったときに比べる。B-156）。
+    saving: Option<std::collections::BTreeMap<String, String>>,
+    /// 保存領域が足りないことを知らせた（同じ失敗のあいだは何度も出さない、§13.3.7）。
+    quota_shown: bool,
 }
 
 /// エクスポートの下書き（`>export` のモーダルが毎フレーム作り直さないため）。
@@ -317,6 +401,8 @@ impl Session {
             open_review: false,
             agents: crate::ui::agents::Runtime::default(),
             open_agent: false,
+            saving: None,
+            quota_shown: false,
         }
     }
 
@@ -426,6 +512,15 @@ pub trait Picker {
         let _ = locale;
         None
     }
+    /// `Ctrl+O`（プロジェクトを開いている間）で、書き終えてから選択画面に戻るか（Web、§13.4
+    /// 「2 回目以降は `Ctrl+O` でいつでも開ける」）。デスクトップはフォルダの選択（[`Picker::open_dialog`]）。
+    fn returns_to_list(&self) -> bool {
+        false
+    }
+    /// 選択画面に戻ってきた（一覧を読み直す）。
+    fn refresh(&mut self) {}
+    /// 選択画面での `Esc`（入力中の名前などをやめる。選択画面そのものは閉じない、§13.4）。
+    fn escape(&mut self) {}
 }
 
 enum Stage {
@@ -448,6 +543,8 @@ pub struct NovnowApp {
     mac: bool,
     /// 次のフレームの頭で戻すフォーカス（矢印のショートカットの後。`frame` の注記）。
     refocus: Option<egui::Id>,
+    /// 書き終えたら選択画面に戻る（Web の `Ctrl+O`。[`Picker::returns_to_list`]）。
+    leaving: bool,
 }
 
 impl NovnowApp {
@@ -477,6 +574,7 @@ impl NovnowApp {
             allow_close: false,
             mac: ctx.os() == egui::os::OperatingSystem::Mac,
             refocus: None,
+            leaving: false,
         }
     }
 
@@ -608,6 +706,25 @@ impl NovnowApp {
                     ctx.request_repaint();
                 }
             }
+            Stage::Open(session) if self.leaving && session.saving.is_none() => {
+                // Web の `Ctrl+O`: 書き終えたら選択画面へ（書けなければ戻らずに知らせる）
+                self.leaving = false;
+                match session.bench.save.state() {
+                    State::Clean => {
+                        self.stage = Stage::Picker;
+                        self.overlay = Overlay::None;
+                        self.picker.refresh();
+                        ctx.request_repaint();
+                    }
+                    State::Failed => self.overlay = Overlay::SaveError,
+                    // まだ書くものがある（保存中に打った分）: もう一度書いてから
+                    State::Dirty | State::Saving => {
+                        session.bench.save.request_now();
+                        self.leaving = true;
+                        self.workbench_frame(ctx, mode, locale, now, focus_lost);
+                    }
+                }
+            }
             Stage::Open(session) => {
                 if self.font_warning {
                     // §11.5 SHOULD: 起動エラーにせず、警告を出して同梱フォントで続ける
@@ -711,6 +828,9 @@ impl NovnowApp {
                 };
             }
             Command::Escape => {
+                if matches!(self.stage, Stage::Picker) {
+                    self.picker.escape();
+                }
                 if self.overlay != Overlay::None {
                     self.overlay = Overlay::None;
                 }
@@ -728,6 +848,12 @@ impl NovnowApp {
                         session.bench.edited(now);
                         session.bench.save.request_now();
                         save_if_due(session, &mut self.settings, now);
+                        if self.picker.returns_to_list() {
+                            // 非同期の保存（Web）は終わってから戻る（`frame` の `leaving`）
+                            self.leaving = true;
+                            self.overlay = Overlay::None;
+                            return;
+                        }
                         if session.bench.save.state() != State::Clean {
                             self.overlay = Overlay::SaveError;
                             return;
@@ -1379,6 +1505,27 @@ impl NovnowApp {
 
     /// パレットのエージェントのコマンド（§15.7.6 `>agent delegation` / `>agent stop-all`、
     /// §15.5.4 `>prompt reset` / `>prompt diff`）。
+    /// Zip でエクスポートする（§13.5）。編集中の中身を先に書く（Web の書き込みは列の順なので、Zip は
+    /// その保存の後の中身になる）。デスクトップで書けなければ書き出さずに知らせる。
+    fn export_zip(&mut self, now: f64) {
+        let locale = self.locale();
+        let Stage::Open(session) = &mut self.stage else {
+            return;
+        };
+        session.bench.commit();
+        session.bench.edited(now);
+        session.bench.save.request_now();
+        save_if_due(session, &mut self.settings, now);
+        if session.saving.is_none() && session.bench.save.state() != State::Clean {
+            self.overlay = Overlay::SaveError;
+            return;
+        }
+        let name = zip_name(session);
+        if let Some(result) = session.host.export_zip(&name) {
+            session.notice = Some((zip_result_text(locale, result), now));
+        }
+    }
+
     fn agent_command(&mut self, command: AgentCommand, now: f64) {
         let locale = self.locale();
         let Stage::Open(session) = &mut self.stage else {
@@ -2389,6 +2536,25 @@ impl NovnowApp {
         if let Some(at) = session.bench.save.next_wakeup(now) {
             ctx.request_repaint_after(std::time::Duration::from_secs_f64((at - now).max(0.0)));
         }
+        // 後から分かったこと（Web の非同期の書き込み・Zip の書き出し）
+        for event in session.host.take_events() {
+            session.notice = Some((host_event_text(locale, &event), now));
+        }
+        let unsaved = session.saving.is_some() || session.bench.save.state() != State::Clean;
+        session.host.unsaved_changed(unsaved);
+        // 保存領域が足りない（§13.3.7）: Zip でエクスポートしてから不要なプロジェクトを消す導線を出す
+        let quota = session.bench.save.state() == State::Failed
+            && session
+                .bench
+                .save
+                .error()
+                .is_some_and(|error| error.contains(QUOTA_EXCEEDED));
+        if quota && !session.quota_shown && self.overlay == Overlay::None {
+            session.quota_shown = true;
+            self.overlay = Overlay::SaveError;
+        } else if !quota {
+            session.quota_shown = false;
+        }
         // 外部変更の監視（1,000ms、§8.5）
         if now - session.last_poll >= 1.0 {
             session.last_poll = now;
@@ -2510,6 +2676,11 @@ impl NovnowApp {
                                 let command = command.clone();
                                 self.overlay = Overlay::None;
                                 self.agent_command(command, now);
+                                return;
+                            }
+                            PaletteAction::ExportZip => {
+                                self.overlay = Overlay::None;
+                                self.export_zip(now);
                                 return;
                             }
                         }
@@ -2741,11 +2912,18 @@ impl NovnowApp {
             }
             Overlay::SaveError => {
                 let message = session.bench.save.error().unwrap_or_default().to_owned();
+                let quota = message.contains(QUOTA_EXCEEDED);
+                let mut zip = false;
                 popup(ctx, "save-error", colors, |ui| {
                     ui.label(
                         RichText::new(i18n::text(locale, "status.save_failed")).color(colors.error),
                     );
                     ui.label(i18n::text(locale, "status.dont_close"));
+                    if quota {
+                        // §13.3.7: Zip でエクスポートしてから不要なプロジェクトを削除する導線
+                        ui.add_space(4.0);
+                        ui.label(i18n::text(locale, "status.quota"));
+                    }
                     ui.add_space(4.0);
                     ui.label(RichText::new(&message).color(colors.fg_muted));
                     ui.add_space(8.0);
@@ -2754,11 +2932,25 @@ impl NovnowApp {
                             session.bench.save.request_now();
                             close = true;
                         }
+                        if quota
+                            && ui
+                                .button(i18n::text(locale, "command.export_zip"))
+                                .clicked()
+                        {
+                            zip = true;
+                            close = true;
+                        }
                         if ui.button(i18n::text(locale, "modal.close")).clicked() {
                             close = true;
                         }
                     });
                 });
+                if zip {
+                    let name = zip_name(session);
+                    if let Some(result) = session.host.export_zip(&name) {
+                        session.notice = Some((zip_result_text(locale, result), now));
+                    }
+                }
             }
             Overlay::Find {
                 query,
@@ -3684,35 +3876,89 @@ impl NovnowApp {
 }
 
 /// 保存の時刻なら書く（§8.2）。`ui.json` の変更も一緒に書く。
+/// 保存領域が足りないときの失敗の文言に含まれる語（`StorageError::QuotaExceeded` の `Debug`、§13.3.7）。
+const QUOTA_EXCEEDED: &str = "QuotaExceeded";
+
+/// Host が後から知らせたことの文言。
+fn host_event_text(locale: Locale, event: &HostEvent) -> String {
+    match event {
+        HostEvent::WriteFailed(path, message) => {
+            i18n::format(locale, "status.write_failed", &[path, message])
+        }
+        HostEvent::ZipExported(name) => i18n::format(locale, "status.zip_exported", &[name]),
+        HostEvent::ZipFailed(message) => i18n::format(locale, "status.zip_failed", &[message]),
+        HostEvent::LowSpace => i18n::diagnostic(
+            locale,
+            &crate::core::diagnostics::Diagnostic::simple(
+                crate::core::diagnostics::DiagnosticCode::W062,
+                None,
+            ),
+        ),
+    }
+}
+
+/// Zip の既定の名前の元（`project.json` の題、無ければプロジェクトの名前）。
+fn zip_name(session: &Session) -> String {
+    match session.bench.project().settings().title.trim() {
+        "" => session.host.name(),
+        title => title.to_owned(),
+    }
+}
+
+/// [`Host::export_zip`] がその場で返した結果の文言（取り消したときは「書き出しませんでした」）。
+fn zip_result_text(locale: Locale, result: Result<Option<String>, String>) -> String {
+    match result {
+        Ok(Some(written)) => i18n::format(locale, "status.zip_exported", &[&written]),
+        Ok(None) => i18n::text(locale, "status.zip_canceled").to_owned(),
+        Err(message) => i18n::format(locale, "status.zip_failed", &[&message]),
+    }
+}
+
 fn save_if_due(session: &mut Session, settings: &mut UiSettings, now: f64) {
+    if session.saving.is_some() {
+        // 非同期の保存（Web の IndexedDB）の結果を待つ（B-156）
+        if let Some(outcome) = session.host.save_finished() {
+            finish_save(session, settings, now, outcome);
+        }
+        return;
+    }
     if session.bench.save.due(now) {
         // 書き込む資料 MD の `updated_at` と `checksum` を索引に（§16.6）
         let stamp = session.host.now();
         session.bench.touch_materials(&stamp);
         let writes = session.bench.take_writes();
+        // 動かした文書の元（資料の採用 `inbox/` → `docs/`）は、新しい側を書けてから消す（Host::save）
+        let removals = session.bench.take_removals();
         session.bench.save.begin(now);
-        let mut written = Vec::new();
-        let mut failures = Vec::new();
-        for (path, text) in writes {
-            match session.host.write(&path, &text) {
-                Ok(()) => written.push(path),
-                Err(message) => failures.push((path, message)),
-            }
-        }
-        // 動かした文書の元を消す（資料の採用 `inbox/` → `docs/`）。新しい側を書けてから
-        if failures.is_empty() {
-            for path in session.bench.take_removals() {
-                if let Err(message) = session.host.remove(&path) {
-                    session.bench.removal_failed(&path);
-                    failures.push((path, message));
-                }
-            }
-        }
-        session.bench.write_finished(now, &written, &failures);
-        if failures.is_empty() {
-            flush_settings(session, settings);
+        session.saving = Some(writes.iter().cloned().collect());
+        if let Some(outcome) = session.host.save(writes, removals) {
+            finish_save(session, settings, now, outcome);
         }
     } else if session.settings_dirty && session.bench.save.state() == State::Clean {
+        flush_settings(session, settings);
+    }
+}
+
+/// 保存 1 回分の結果を受け取る（同期ならその場、非同期なら後のフレーム）。
+fn finish_save(session: &mut Session, settings: &mut UiSettings, now: f64, outcome: SaveOutcome) {
+    let handed = session.saving.take().unwrap_or_default();
+    // 書いているあいだに変わったファイルは未保存のまま残す（次の保存で書く）
+    let written: Vec<String> = outcome
+        .written
+        .into_iter()
+        .filter(|path| {
+            handed
+                .get(path)
+                .is_none_or(|text| session.bench.project().text(path) == text)
+        })
+        .collect();
+    for path in &outcome.removals_left {
+        session.bench.removal_failed(path);
+    }
+    session
+        .bench
+        .write_finished(now, &written, &outcome.failures);
+    if outcome.failures.is_empty() {
         flush_settings(session, settings);
     }
 }
@@ -4491,6 +4737,8 @@ enum PaletteAction {
     Term(usize),
     /// エージェントのコマンド（`>agent …` / `>prompt …`）。
     Agent(AgentCommand),
+    /// `>zip`: Zip でエクスポートする（§13.5）。
+    ExportZip,
 }
 
 /// パレットのエージェントのコマンド（§15.7.6・§15.5.4）。
@@ -4632,6 +4880,11 @@ fn palette_items(
                     action: PaletteAction::Command(*command),
                 })
                 .collect();
+            all.push(PaletteItem {
+                key: "zip".to_owned(),
+                label: format!(">zip  {}", i18n::text(locale, "command.export_zip")),
+                action: PaletteAction::ExportZip,
+            });
             all.extend(agent_palette_items(locale));
             let ranked = palette::rank(query, &all, |item| (item.key.as_str(), item.key.as_str()));
             ranked
@@ -5064,6 +5317,21 @@ mod native {
         fn occupied(&self, path: &str) -> bool {
             ProjectPath::new(path).is_ok_and(|path| self.storage.exists(&path))
         }
+
+        fn export_zip(&mut self, name: &str) -> Option<Result<Option<String>, String>> {
+            // 保存ダイアログの初期値は `exports/<名前>.zip`（§13.5。プロジェクトの外も選べる＝ §13.1.1 の特例）
+            let initial = self
+                .storage
+                .absolute(&crate::adapters::zip::export_path(name));
+            let Some(chosen) = block_on(RfdDialog.save_zip(&initial)) else {
+                return Some(Ok(None));
+            };
+            Some(
+                crate::adapters::zip::export_to_chosen(&self.storage, chosen)
+                    .map(|path| Some(cli::display_path(&path)))
+                    .map_err(|error| format!("{error:?}")),
+            )
+        }
     }
 
     /// ディレクトリを開く。開けなければ §14.2.2 と同じ表示の文字列。
@@ -5427,6 +5695,41 @@ pub struct MemoryFiles {
     pub env: std::collections::BTreeMap<String, String>,
     /// 一覧に無いがディスクにあることにするパス（外を指すシンボリックリンクの代わり）。
     pub occupied: Vec<String>,
+    /// 保存を非同期にする（Web の IndexedDB の代わり。`save` は始めるだけで、[`MemoryFiles::release_save`]
+    /// で終わらせる。B-156）。
+    pub async_saves: bool,
+    /// 始まったまま終わっていない保存（`async_saves`）。
+    pub held_save: Option<HeldSave>,
+    /// 終わった保存の結果（次のフレームで `save_finished` が返す）。
+    pub finished_save: Option<SaveOutcome>,
+}
+
+/// [`MemoryFiles::held_save`] の中身（書くものと、消すもの）。
+pub type HeldSave = (Vec<(String, String)>, Vec<String>);
+
+impl MemoryFiles {
+    /// 止めておいた保存を終わらせる（書き込みは `fail` に従う）。
+    pub fn release_save(&mut self) {
+        let Some((writes, removals)) = self.held_save.take() else {
+            return;
+        };
+        let mut outcome = SaveOutcome::default();
+        for (path, text) in writes {
+            if self.fail {
+                outcome.failures.push((path, "disk full".to_owned()));
+            } else {
+                self.writes += 1;
+                self.written.insert(path.clone(), text);
+                outcome.written.push(path);
+            }
+        }
+        if outcome.failures.is_empty() {
+            self.removed.extend(removals);
+        } else {
+            outcome.removals_left = removals;
+        }
+        self.finished_save = Some(outcome);
+    }
 }
 
 impl Host for MemoryHost {
@@ -5442,6 +5745,22 @@ impl Host for MemoryHost {
 
     fn poll(&mut self) -> Vec<(String, Option<String>)> {
         std::mem::take(&mut self.files.borrow_mut().changes)
+    }
+
+    fn save(
+        &mut self,
+        writes: Vec<(String, String)>,
+        removals: Vec<String>,
+    ) -> Option<SaveOutcome> {
+        if self.files.borrow().async_saves {
+            self.files.borrow_mut().held_save = Some((writes, removals));
+            return None;
+        }
+        Some(save_now(self, writes, removals))
+    }
+
+    fn save_finished(&mut self) -> Option<SaveOutcome> {
+        self.files.borrow_mut().finished_save.take()
     }
 
     fn name(&self) -> String {
@@ -5594,94 +5913,3 @@ impl Picker for NoPicker {
 
 /// `PathBuf` を使う公開 API の型を固定する（`main.rs` から呼ぶ）。
 pub type StartPath = Option<PathBuf>;
-
-// ============================================================ Web
-
-/// Web の入口（trunk の `index.html` の `the_canvas_id`）。
-#[cfg(target_arch = "wasm32")]
-pub mod web {
-    use egui::{Context, FontFamily, FontId, Frame, Margin, RichText};
-
-    use super::{NovnowApp, Picker, Session};
-    use crate::adapters::env_system::SystemEnv;
-    use crate::ui::i18n::{self, Locale};
-    use crate::ui::settings::UiSettings;
-    use crate::ui::theme::{self, Mode};
-
-    /// GUI を起動する（`main.rs` の wasm の `main`）。
-    pub fn start() {
-        console_error_panic_hook::set_once();
-        let runner = eframe::WebRunner::new();
-        wasm_bindgen_futures::spawn_local(async move {
-            let locale = Locale::detect(None, &SystemEnv);
-            let started = runner
-                .start(
-                    "the_canvas_id",
-                    eframe::WebOptions::default(),
-                    Box::new(move |cc| {
-                        Box::new(App(NovnowApp::new(
-                            &cc.egui_ctx,
-                            locale,
-                            Box::new(WebPicker),
-                            None,
-                        )))
-                    }),
-                )
-                .await;
-            if let Err(error) = started {
-                web_sys::console::error_1(&error);
-            }
-        });
-    }
-
-    struct App(NovnowApp);
-
-    impl eframe::App for App {
-        fn update(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
-            let system_dark = frame
-                .info()
-                .system_theme
-                .map(|theme| theme == eframe::Theme::Dark);
-            self.0.frame(ctx, system_dark);
-        }
-    }
-
-    /// Web のプロジェクト選択（§13.4）。IndexedDB への接続（`adapters::storage_idb`）は M5 で作ってあるが、
-    /// 画面からの接続は M7 では入れていない（`PLANS.md` §9.2 B-118）。
-    struct WebPicker;
-
-    impl Picker for WebPicker {
-        fn show(
-            &mut self,
-            ctx: &Context,
-            locale: Locale,
-            mode: Mode,
-        ) -> Option<(Session, UiSettings)> {
-            let colors = theme::palette(mode);
-            egui::CentralPanel::default()
-                .frame(
-                    Frame::none()
-                        .fill(colors.bg_base)
-                        .inner_margin(Margin::same(32.0)),
-                )
-                .show(ctx, |ui| {
-                    ui.vertical_centered(|ui| {
-                        ui.add_space(40.0);
-                        ui.label(
-                            RichText::new(i18n::text(locale, "project.pick.title"))
-                                .font(FontId::new(18.0, FontFamily::Proportional))
-                                .color(colors.fg_primary),
-                        );
-                        ui.add_space(12.0);
-                        ui.label(
-                            RichText::new(i18n::text(locale, "project.pick.web_pending"))
-                                .color(colors.fg_muted),
-                        );
-                    });
-                });
-            None
-        }
-
-        fn open_folder(&mut self) {}
-    }
-}

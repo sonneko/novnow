@@ -22,6 +22,10 @@ pub mod settings;
 pub mod shell;
 #[cfg(feature = "ui")]
 pub mod theme;
+/// Web の GUI（§13.3〜§13.5。IndexedDB のプロジェクト選択と、開いたプロジェクトの Host）。
+#[cfg(feature = "ui")]
+#[cfg(target_arch = "wasm32")]
+pub mod web;
 #[cfg(feature = "ui")]
 pub mod widgets;
 #[cfg(feature = "ui")]
