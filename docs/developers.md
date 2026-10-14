@@ -11,11 +11,11 @@
 ```text
 1. ドキュメント整理
 ドキュメントが肥大化してきたため、整理を行う。「最初はXだったが、Yに変更した」のような歴史的情報は読む際のノイズになるため、現行の仕様や設計からは分離し、`docs/history.md` に移動する。この際、`docs/history.md` は先頭から全文を読まなくても `grep` 等で機械的に該当箇所を特定できる構造にすること。
-また、現在ルートディレクトリにある `DEVELOPERS.md`、`PLANS.md`、`SPECIFICATIONS.md` は廃止し、以下の構成に移行する。
 
 docs/
 ├ script/ : ドキュメントのルールが守られているか確認するスクリプト群（`duplicate.py` を含む）
 ├ handoff.md : 開発を始めるにあたって必要な最小限の流動的情報（現在の進捗など）。毎セッション更新する
+├ add-dependencies.md : 依存関係を追加する際に見るべき内容。基本変更しない。
 ├ specifications/
 │ └ **.md : 複数のマークダウンファイルに分類された純粋な仕様書（DSLのEBNF、プロジェクトのディレクトリ構造、novnowの応答など、ユーザーから見える仕様のみを記述する。将来的に公開リファレンスとして利用する可能性がある）
 ├ designs/
@@ -102,6 +102,7 @@ novnow/
 ├── docs/
 │   ├── developers.md          # 本書（固定の開発者情報・ドキュメント規則）
 │   ├── handoff.md             # セッション引き継ぎ情報（REF:docs/handoff.md）
+│   ├── add-dependencies.md    # 依存追加時用ドキュメント
 │   ├── plans.md               # 段階 ② 計画・進行中マイルストーン（REF:docs/plans.md）
 │   ├── history.md             # 過去の仕様改訂・意思決定・完了履歴（追記専用、REF:docs/history.md）
 │   ├── script/
