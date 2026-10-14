@@ -31,7 +31,8 @@ use sandbox::FakeEnv;
 
 const JA: &str = include_str!("../src/ui/i18n/ja.toml");
 const EN: &str = include_str!("../src/ui/i18n/en.toml");
-const SPEC: &str = include_str!("../SPECIFICATIONS.md");
+const SPEC_DIAG: &str = include_str!("../docs/specifications/diagnostics.md");
+const SPEC_UI: &str = include_str!("../docs/specifications/ui.md");
 
 /// TOML を `diag.E001` のような**ドット区切りのキー → 文言**に平らにする。
 fn flatten(text: &str, label: &str) -> BTreeMap<String, String> {
@@ -83,10 +84,13 @@ fn placeholders(text: &str) -> BTreeSet<usize> {
 
 /// §7 / §7.1 / §7.2 の表の 1 行（コード, ja, en）。
 fn spec_rows() -> Vec<(String, String, String)> {
-    let start = SPEC.find("## 7. 診断カタログ").expect("§7");
-    let end = start + SPEC[start..].find("\n## 8.").expect("§8");
+    let start = SPEC_DIAG.find("## 7. 診断カタログ").expect("§7");
+    let end = start
+        + SPEC_DIAG[start..]
+            .find("**実行コストの制御（MUST）**")
+            .expect("§7 end");
     let mut rows = Vec::new();
-    for line in SPEC[start..end].lines() {
+    for line in SPEC_DIAG[start..end].lines() {
         let cells: Vec<&str> = line
             .trim()
             .trim_matches('|')
@@ -203,12 +207,12 @@ fn the_number_of_placeholders_matches_what_core_passes() {
 #[test]
 fn the_cli_rows_of_the_spec_table_are_copied_verbatim() {
     // §12.7 の表（抜粋）のうち、実装済みの `cli.*` の行
-    let start = SPEC.find("### 12.7 主要文言表").expect("§12.7");
-    let end = start + SPEC[start..].find("\n---").expect("§12.7 の終わり");
+    let start = SPEC_UI.find("### 12.7 主要文言表").expect("§12.7");
+    let end = SPEC_UI.len();
     let ja = flatten(JA, "ja.toml");
     let en = flatten(EN, "en.toml");
     let mut seen = 0;
-    for line in SPEC[start..end].lines() {
+    for line in SPEC_UI[start..end].lines() {
         let cells: Vec<&str> = line
             .trim()
             .trim_matches('|')

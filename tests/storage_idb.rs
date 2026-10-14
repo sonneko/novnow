@@ -15,7 +15,7 @@ use novnow::core::diagnostics::DiagnosticCode;
 use novnow::core::policy::recent::{ProjectItem, RecentProjects};
 use novnow::core::policy::ProjectPath;
 
-const SPEC: &str = include_str!("../SPECIFICATIONS.md");
+const SPEC: &str = include_str!("../docs/specifications/platform.md");
 
 /// §13.3 の本文（§13.3 から §13.4 の手前まで）。
 fn section_13_3() -> &'static str {

@@ -26,7 +26,7 @@ use novnow::core::diagnostics::{
 };
 
 /// 仕様書そのもの（正本）。
-const SPEC: &str = include_str!("../SPECIFICATIONS.md");
+const SPEC: &str = include_str!("../docs/specifications/diagnostics.md");
 
 /// 実装そのもの。variant の doc コメントが §7 の「条件」列と一致するかを見るのに使う。
 const SOURCE: &str = include_str!("../src/core/diagnostics.rs");
@@ -286,7 +286,11 @@ fn lookup(code: &str) -> DiagnosticCode {
 fn all_rows() -> Vec<Row> {
     let mut rows = rows_of(Group::Core, "## 7. 診断カタログ", "### 7.1");
     rows.extend(rows_of(Group::Storage, "### 7.1", "### 7.2"));
-    rows.extend(rows_of(Group::Writing, "### 7.2", "## 8. 編集モデルと保存"));
+    rows.extend(rows_of(
+        Group::Writing,
+        "### 7.2",
+        "**実行コストの制御（MUST）**",
+    ));
     rows
 }
 
@@ -298,6 +302,9 @@ fn count_group(rows: &[Row], group: Group) -> usize {
 fn section(start: &str, end: &str) -> &'static str {
     let from = SPEC.find(start).expect("start marker");
     let rest = &SPEC[from..];
+    if end.is_empty() {
+        return rest;
+    }
     let to = rest.find(end).expect("end marker");
     &rest[..to]
 }
@@ -403,7 +410,7 @@ fn stated_as_status(row: &Row) -> bool {
 
 /// §7.2「実行コストの制御（MUST）」以降の部分。
 fn cost_section() -> &'static str {
-    let writing = section("### 7.2", "## 8. 編集モデルと保存");
+    let writing = section("### 7.2", "");
     let marker = "**実行コストの制御（MUST）**";
     let at = writing.find(marker).expect("cost table");
     &writing[at..]

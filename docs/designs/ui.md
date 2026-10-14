@@ -1,0 +1,211 @@
+# novnow 設計書 — 画面・ワークスペース・テーマ・国際化
+
+本書は `REF:docs/specifications/ui.md` の各節に対応する実装設計を記述する。
+
+## 9. 画面仕様（共通シェル）
+
+### 9.1 全体レイアウト
+
+状態: 実装完了（REF:src/ui/app.rs, REF:src/ui/settings.rs, REF:tests/gui.rs）
+
+- 共通シェル（上端 28px アイコンバー、下端 22px ステータスバー、中央のメインカラム＋参照ペイン 2 カラム分割）は `NovnowApp`（`REF:src/ui/app.rs`）が描画する。
+- メイン/参照の比率（既定 `62 : 38`、`Ctrl+Alt+Shift+←/→`）と文脈/節エディタの比率（既定 `45 : 55`、`Ctrl+Alt+↑/↓`）は `UiSettings`（`REF:src/ui/settings.rs`）に保持する。
+
+### 9.2 ラベル撤廃規則
+
+状態: 実装完了（REF:src/ui/app.rs, REF:tests/layering.rs, REF:tests/gui.rs）
+
+- ペイン見出しラベルや装飾枠線を一切置かず、余白とタイポグラフィで構造を表現する。
+- 禁止ラベル文字列（「ファイル」「エディタ」「情報」等）および `Frame::group` が `src/ui/**` に存在しないことを `REF:tests/layering.rs` と `REF:tests/gui.rs`（`no_pane_is_labelled_files_editor_or_information`）で常時検査する。
+
+### 9.3 文脈ビュー（メインカラム上段）
+
+状態: 実装完了（REF:src/ui/widgets/context_view.rs, REF:tests/gui.rs）
+
+- 前後最大 3 節の読み取り専用表示と、編集中の節の位置に本文を重複描画せず 1 行プレースホルダ `─── @01-04-02-03 ───` のみを置く処理は `ui::widgets::context_view`（`REF:src/ui/widgets/context_view.rs`）に実装する（検証: `REF:tests/gui.rs` の `the_context_view_never_paints_the_section_being_edited`）。
+- ※§9.3.3 の折りたたみ UI は段階 ②（追加仕様 9、`REF:docs/plans.md#stage-2`）対象。
+
+### 9.4 節エディタ（メインカラム下段）
+
+状態: 実装完了（REF:src/ui/widgets/section_editor.rs, REF:src/ui/widgets/syntax_text.rs, REF:tests/gui.rs）
+
+- 1 行ミニヘッダー（パンくず `01 › 04 › 02 › 03` と有効モードバッジ）および構文ハイライト・インレイヒント・ベースライン基準の下線/波線描画を伴う複数行エディタは `REF:src/ui/widgets/section_editor.rs` と `REF:src/ui/widgets/syntax_text.rs` に実装する。
+- ※§9.4.2 の台詞比率バー、§9.4.3 のゴーストテキスト、§9.4.4 のタイプライタスクロールは段階 ②（`REF:docs/plans.md#stage-2`）対象。
+
+### 9.5 参照ペイン
+
+状態: 実装完了（REF:src/core/features/reference.rs, REF:src/ui/widgets/reference_pane.rs, REF:tests/context_rules.rs）
+
+- 段階 ① の 6 セクション（プロット・上位プロット・配役・用語・資料・診断）のデータ組み立ては `core::features::reference::build`（`REF:src/core/features/reference.rs`）が `Vec<Section>` として返し（縫い代 6）、`REF:src/ui/widgets/reference_pane.rs` が枠線なしで描画する（80ms デバウンス）。
+- ※五感・空間・挿絵の 3 セクションは段階 ②（`REF:docs/plans.md#stage-2`）対象。
+
+### 9.6 ステータスバー
+
+状態: 実装完了（REF:src/ui/app.rs, REF:tests/gui.rs）
+
+- 左側（位置 `01›04›02›03`、節/話/全体の空白除外文字数、400 字詰め原稿用紙換算）と右側（エラー・警告・情報件数、エージェント実行状態、保存状態アイコン）は `NovnowApp`（`REF:src/ui/app.rs`）に実装する（検証: `REF:tests/gui.rs` の `counts_are_section_episode_and_project_without_whitespace`）。
+- ※§9.6.2 のセッション統計モードは段階 ②（`REF:docs/plans.md#stage-2`）対象。
+
+### 9.7 ナビゲーション
+
+状態: 実装完了（REF:src/ui/palette.rs, REF:src/ui/assist.rs, REF:src/ui/app.rs, REF:tests/gui.rs, REF:tests/gui.rs）
+
+- 統一パレット（`Ctrl+P` / `Ctrl+G` / `Ctrl+Shift+P`）の先頭文字によるモード切替（通常 / `@` 構造 / `'` 辞書 / `#` 資料 / `>` コマンド）と決定論的ファジースコアリング（完全一致 +1000、先頭一致 +500、連続一致 +200、頭文字 +100、50 件上限）は `ui::palette`（`REF:src/ui/palette.rs`）に実装する。
+- `'名前` パレットでの `Enter`（`core::features::definition::at` による定義ジャンプ）と `Shift+Enter`（`core::features::references::find` による使用箇所一覧）、および入力中補完ポップアップ（`REF:src/ui/assist.rs`）は `REF:src/ui/app.rs` で接続されている（検証: `REF:tests/gui.rs`, `REF:tests/workspaces.rs`）。
+
+### 9.8 キーボード一覧（v1 確定版）
+
+状態: 実装完了（REF:src/ui/shell.rs, REF:src/ui/web.rs, REF:tests/gui.rs, REF:tests/gui.rs）
+
+- 全ショートカットの解釈と macOS での `Alt` → `Ctrl+Alt` 読み替えは `ui::shell`（`REF:src/ui/shell.rs`）に実装する。
+- **egui 0.27.2 における IME 実装規約**:
+  - `egui::TextEditState::has_ime` は非公開のため、`ui::shell::ImeState`（`REF:src/ui/shell.rs`）で `egui::Event::CompositionStart` / `CompositionUpdate` / `CompositionEnd` を追跡する。
+  - 1 フレームの処理順序は `ImeState::update() → composing なら Event::Key をすべて破棄 → ショートカット解釈 → テキスト編集` とする。
+  - フェイルセーフとして `Event::WindowFocused(false)` または最後の変換イベントから 2 秒無入力で `composing = false` に戻す。
+  - デスクトップで IME を有効化するため、編集領域フォーカス中は毎フレーム `PlatformOutput.ime = Some(IMEOutput { rect, cursor_rect })` を出力する。Web 版でキーボード移動時にも IME hidden input を同期する処理は `sync_text_agent`（`REF:src/ui/web.rs`）が担う（検証: `REF:tests/gui.rs`, `REF:tests/gui.rs`）。
+
+### 9.9 アクセシビリティ
+
+状態: 実装完了（REF:src/ui/theme.rs, REF:src/ui/app.rs, REF:tests/gui.rs）
+
+- アイコンボタンへの i18n 済みツールチップ/アクセシブル名付与、色＋形状の併用、WCAG コントラスト比基準（本文 4.5:1 以上、補助テキスト 3.0:1 以上）は `REF:src/ui/theme.rs` と `REF:src/ui/app.rs` で実装し、`REF:tests/gui.rs` の `every_token_meets_the_contrast_minimums` で全カラートークンのコントラスト比を機械検証する。
+
+## 10. ワークスペース
+
+### 10.0 切替の挙動
+
+状態: 実装完了（REF:src/ui/workspaces/mod.rs, REF:src/ui/app.rs, REF:tests/workspaces.rs）
+
+- ワークスペース識別子 `WorkspaceId` は `REF:src/ui/workspaces/mod.rs` に定義し、各ワークスペースのスクロール・選択状態は破棄せず `Session`（`REF:src/ui/app.rs`）に常時保持する（縫い代 5）。切替時も現在の `SceneId` を維持する。
+
+### 10.1 `write` — 本文執筆（§9 の基本レイアウトそのもの）
+
+状態: 実装完了（REF:src/ui/workspaces/write.rs, REF:src/ui/app.rs, REF:tests/gui.rs）
+
+- 共通シェル（文脈ビュー＋節エディタ＋参照ペイン）による本文執筆ワークスペースは `REF:src/ui/workspaces/write.rs` および `REF:src/ui/app.rs` に実装する。
+
+### 10.2 `plot-episode` — 話プロット
+
+状態: 実装完了（REF:src/core/features/plots.rs, REF:src/ui/workspaces/plot_episode.rs, REF:tests/plots.rs, REF:tests/workspaces.rs）
+
+- 場面・節のカード一覧と本文冒頭 1 行プレビュー・文字数集計・状態バッジは `core::features::plots`（`REF:src/core/features/plots.rs`）が計算し、`REF:src/ui/workspaces/plot_episode.rs` が描画・編集（`Enter` で `write` へ移動、`Space` で `state` 巡回、`M` でモード選択）を担う。
+
+### 10.3 `plot-outline` — 全体 / 章プロット
+
+状態: 実装完了（REF:src/core/features/plots.rs, REF:src/core/features/folding.rs, REF:src/ui/workspaces/plot_outline.rs, REF:tests/workspaces.rs）
+
+- 左ペインの構成ツリー（章→話展開に `core::features::folding::ranges` を使用）と中央ペインのブロックエディタ・進捗バーは `REF:src/ui/workspaces/plot_outline.rs` に実装する。
+- ※タイムライン・伏線マトリクス・章話番号リナンバは段階 ②（`REF:docs/plans.md#stage-2`）対象。
+
+### 10.4 `idea` — アイデア
+
+状態: 実装完了（REF:src/core/features/ideas.rs, REF:src/ui/workspaces/idea.rs, REF:tests/ideas_ops.rs, REF:tests/workspaces.rs）
+
+- タグ・状態フィルタ、一覧、MD エディタ、新規採番（`N`）、状態変更（`1`〜`3`）、プロットへの昇格（`P`）は `REF:src/core/features/ideas.rs` と `REF:src/ui/workspaces/idea.rs` に実装する。
+
+### 10.5 `material` — 資料（§16 に詳細）
+
+状態: 実装完了（REF:src/core/features/reference.rs, REF:src/ui/workspaces/material.rs, REF:tests/materials_ops.rs, REF:tests/workspaces.rs）
+
+- 分類ツリー・資料一覧・MD 本文エディタ・インデックスメタデータ表示・状態変更（`A` 承認 / `X` 却下）は `REF:src/ui/workspaces/material.rs` に実装する。
+
+### 10.6 `cast` — 配役・モード・役割語
+
+状態: 実装完了（REF:src/core/features/cast.rs, REF:src/ui/workspaces/cast.rs, REF:tests/cast.rs, REF:tests/workspaces.rs）
+
+- キャラ一覧、属性・モード一覧・役割語パターン表示、および役割語テスター（入力文に対する `role_language::MatcherSet` のリアルタイム緑下線プレビュー）と節別モード割当マトリクスは `REF:src/core/features/cast.rs` と `REF:src/ui/workspaces/cast.rs` に実装する。
+
+### 10.7 `reader` — 読者モード（§17.3 に詳細）
+
+状態: 実装待ち（段階 ② 対象: REF:docs/plans.md#stage-2）
+
+- 縦書き読者モードは追加仕様 27（段階 ②）として予約されており、`Alt+7` は段階 ① では無操作とする（`REF:src/ui/workspaces/mod.rs`）。
+
+### 10.8 `agent` — エージェント管制（§15.7 に詳細。委譲レベルの確認・変更は §15.7.6）
+
+状態: 実装完了（REF:src/ui/workspaces/agent.rs, REF:src/ui/agents.rs, REF:tests/workspaces.rs）
+
+- 4 ペイン構成（タスク一覧・コンテキストプレビュー・結果/提案差分レビュー・委譲レベル管制と MCP 状態）は `REF:src/ui/workspaces/agent.rs` と `REF:src/ui/agents.rs` に実装する。
+
+### 10.9 `review` — 点検
+
+状態: 実装完了（REF:src/core/features/project.rs, REF:src/ui/workspaces/review.rs, REF:tests/workspaces.rs）
+
+- 診断一覧タブ（重大度・コード・位置・クイックフィックス適用）と進捗ツリータブ（章・話・節ごとの `state` と文字数集計）は `REF:src/core/features/project.rs` と `REF:src/ui/workspaces/review.rs` に実装する。
+- ※伏線一覧・文体・統計の 3 タブは段階 ②（`REF:docs/plans.md#stage-2`）対象。
+
+## 11. テーマ・配色・タイポグラフィ
+
+### 11.1 セマンティックカラートークン
+
+状態: 実装完了（REF:src/ui/theme.rs, REF:tests/gui.rs）
+
+- `Palette`（`REF:src/ui/theme.rs`）が Dark / Light の全セマンティックカラートークンを保持する。仕様表の 16 進カラーコードとの完全一致は `REF:tests/gui.rs` の `theme_colors_are_the_spec_tables` で検証する。
+
+### 11.2 構文ハイライト割当
+
+状態: 実装完了（REF:src/ui/theme.rs, REF:tests/gui.rs）
+
+- `token_style`（`REF:src/ui/theme.rs`）が `TokenType` ごとの Dark / Light 配色と下線有無を返す（検証: `REF:tests/gui.rs`）。
+
+### 11.3 下線の描画仕様
+
+状態: 実装完了（REF:src/ui/widgets/syntax_text.rs, REF:tests/gui.rs）
+
+- 役割語一致（1px 実線）、Error（2px 波線）、Warning（1.5px 波線）、Info（1px 点線）は `egui::TextFormat::underline` を使わず、`Galley` のグリフベースライン座標から `REF:src/ui/widgets/syntax_text.rs` が直接ペイントする。
+
+### 11.4 テーマ切替
+
+状態: 実装完了（REF:src/ui/theme.rs, REF:src/ui/settings.rs, REF:tests/gui.rs）
+
+- `ThemePreference`（`System` / `Dark` / `Light`）は `REF:src/ui/settings.rs` で `.novnow/ui.json` に永続化し、`Ctrl+Alt+T` または `>theme` で即時切り替える。
+
+### 11.5 タイポグラフィ
+
+状態: 実装完了（REF:src/ui/theme.rs, REF:tests/gui.rs）
+
+- デスクトップでは `fontdb` でシステムの CJK フォントを探索し、見つからない場合および Web 版では `assets/ipag.ttf`（同梱 IPA ゴシック）にフォールバックする（`REF:src/ui/theme.rs`）。また `⟨⟩`（U+27E8 / U+27E9）表示のため egui 既定の Hack フォントをフォールバック末尾に連結する。
+
+## 12. 国際化
+
+### 12.1 対象言語
+
+状態: 実装完了（REF:src/ui/i18n/mod.rs, REF:src/ui/i18n/ja.toml, REF:src/ui/i18n/en.toml）
+
+- `Locale::Ja` と `Locale::En` を `REF:src/ui/i18n/mod.rs` に定義し、全 UI・CLI・診断メッセージを 2 言語で提供する。
+
+### 12.2 ドメイン処理と表示文言の分離（MUST）
+
+状態: 実装完了（REF:src/core/diagnostics.rs, REF:src/ui/i18n/mod.rs, REF:tests/layering.rs）
+
+- `src/core/**`・`src/cli/**`・`src/main.rs`・`src/ui/**` に日本語文字列リテラルが存在しないことを `REF:tests/layering.rs`（`core_has_no_user_facing_text`, `cli_has_no_user_facing_text`, `gui_has_no_user_facing_text`）で AST 検査する。
+
+### 12.3 カタログ
+
+状態: 実装完了（REF:src/ui/i18n/ja.toml, REF:src/ui/i18n/en.toml, REF:tests/i18n_catalog.rs）
+
+- `REF:src/ui/i18n/ja.toml` と `REF:src/ui/i18n/en.toml` を `include_str!` で埋め込み、キー集合・プレースホルダ番号・ソースコード内の参照キーとの過不足ゼロを `REF:tests/i18n_catalog.rs` で検証する。
+
+### 12.4 言語の決定順序
+
+状態: 実装完了（REF:src/ui/i18n/mod.rs, REF:src/adapters/env_system.rs, REF:tests/i18n_catalog.rs）
+
+- `.novnow/ui.json` → `NOVNOW_LANG` → OS/ブラウザロケール（`REF:src/adapters/env_system.rs`）→ 既定 `ja` の優先順位は `Locale::resolve`（`REF:src/ui/i18n/mod.rs`）に実装する（検証: `REF:tests/i18n_catalog.rs`）。
+
+### 12.5 言語切替 UI
+
+状態: 実装完了（REF:src/ui/app.rs, REF:tests/gui.rs）
+
+- ヘッダ右端の `あ` / `A` トグルボタンとアクセシブル名は `NovnowApp`（`REF:src/ui/app.rs`）に実装する。
+
+### 12.6 翻訳しないもの
+
+状態: 実装完了（REF:src/core/text/lexer.rs, REF:tests/lexer.rs）
+
+- 原稿データおよびファイル形式のフィールドキー別名（`REF:src/core/text/lexer.rs`）は UI 言語設定に依存せず常に同一に処理する。
+
+### 12.7 主要文言表
+
+状態: 実装完了（REF:src/ui/i18n/ja.toml, REF:src/ui/i18n/en.toml, REF:tests/i18n_catalog.rs）
+
+- 仕様書 §12.7 の文言表と `ja.toml` / `en.toml` の完全一致は `REF:tests/i18n_catalog.rs` の `the_cli_rows_of_the_spec_table_are_copied_verbatim` で検証する。

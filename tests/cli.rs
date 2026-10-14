@@ -29,7 +29,7 @@ use novnow::ports::env::Os;
 
 use sandbox::{minimal_project, tree, FakeEnv, TempDir};
 
-const SPEC: &str = include_str!("../SPECIFICATIONS.md");
+const SPEC: &str = include_str!("../docs/specifications/platform.md");
 
 // ============================================================ 共通
 

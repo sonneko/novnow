@@ -17,7 +17,7 @@ use novnow::core::policy::ProjectPath;
 use novnow::core::syntax::prompt_md::{self, PromptSectionKey, BUILTIN_ROLES, VARIABLES};
 use novnow::core::template::{self, DEFAULT_PROMPTS};
 
-const SPEC: &str = include_str!("../SPECIFICATIONS.md");
+const SPEC: &str = include_str!("../docs/specifications/platform.md");
 
 /// 雛形の文書（`Document` になるものだけ）を集約に入れる。
 fn template_project() -> (Vec<Document>, Project) {

@@ -1,4 +1,4 @@
-//! `core` 層の性能目標ベンチマーク（SPECIFICATIONS.md §18.1 / §18.4、`PLANS.md` §9.2 B-25）。
+//! `core` 層の性能目標ベンチマーク（`docs/specifications/workflows.md` §18.1 / §18.4）。
 //!
 //! CI の `bench` ジョブでは `cargo bench --locked --bench core -- --quick` で全ベンチマークが
 //! パニックせず完走することを検証する。
