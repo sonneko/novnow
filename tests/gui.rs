@@ -689,6 +689,85 @@ fn ctrl_enter_at_the_end_of_a_file_makes_a_new_section() {
 }
 
 #[test]
+fn pasting_a_break_line_splits_the_section_and_the_file() {
+    let mut bench = Workbench::new(world(), None, 400);
+    let at = bench.buffer().len();
+    assert!(bench.paste(at..at, "追記。\nつぎの行。\n;\n新しい節。", 1.0));
+    assert_eq!(
+        bench.buffer(),
+        "「やっぱり'アルス、ここにいたのね」@リリア:A\n\n呆れたような声とともに、'リリアが隣の椅子を引き寄せた。追記。\nつぎの行。",
+        "§8.1.3: エディタに残るのは先頭の節だけ"
+    );
+    assert_eq!(
+        bench.current_id(),
+        Some(id(1, 4, 2, 1)),
+        "編集中の節は動かない"
+    );
+    assert_eq!(bench.sections().len(), 4, "分けた後ろは続きの節になる");
+    let writes = bench.take_writes();
+    assert_eq!(writes[0].0, CONTENTS_PATH);
+    assert!(
+        writes[0]
+            .1
+            .contains("引き寄せた。追記。\nつぎの行。\n;\n新しい節。\n;\n「旧校舎"),
+        "{}",
+        writes[0].1
+    );
+    assert!(bench.save.due(1.5), "貼り付けも保存のタイマを回す");
+}
+
+#[test]
+fn a_paste_without_breaks_is_left_to_the_editor() {
+    let mut bench = Workbench::new(world(), None, 400);
+    let at = bench.buffer().len();
+    assert!(!bench.paste(at..at, "追記。\n次の行。", 1.0));
+    assert_eq!(bench.sections().len(), 3, "節は増えない");
+    assert!(!bench.save.due(10.0), "何も変えない");
+}
+
+#[test]
+fn a_paste_with_a_break_line_becomes_a_new_section_in_the_file() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Paste("追記。\n;\nあたらしい節。".into())]);
+    harness.idle(0.6);
+    let written = harness
+        .host
+        .files
+        .borrow()
+        .written
+        .get(CONTENTS_PATH)
+        .cloned()
+        .expect("400ms の idle の後に本文を書く");
+    assert!(
+        written.contains("引き寄せた。追記。\n;\nあたらしい節。\n;\n「旧校舎"),
+        "{written}"
+    );
+    assert!(painted_text(&harness.frame(Vec::new())).contains("追記。"));
+}
+
+#[test]
+fn a_pasted_crlf_becomes_lf() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Paste("CR の行。\r\nつぎの行。\r".into())]);
+    harness.idle(0.6);
+    let written = harness
+        .host
+        .files
+        .borrow()
+        .written
+        .get(CONTENTS_PATH)
+        .cloned()
+        .expect("400ms の idle の後に本文を書く");
+    assert!(
+        written.contains("引き寄せた。CR の行。\nつぎの行。\n"),
+        "{written}"
+    );
+    assert!(!written.contains('\r'), "§5.0.4 MUST: 内部表現は LF");
+}
+
+#[test]
 fn external_changes_reload_clean_files_and_conflict_with_dirty_ones() {
     let mut bench = Workbench::new(world(), None, 400);
     let changed = bench

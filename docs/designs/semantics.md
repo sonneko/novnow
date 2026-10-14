@@ -6,23 +6,23 @@
 
 ### 6.1 辞書
 
-状態: 未実装・実装計画済み（REF:src/core/resolve/dictionary.rs, REF:tests/dictionary.rs, REF:benches/core.rs, REF:docs/plans.md#plan-F-24）
+状態: 実装完了（REF:src/core/resolve/dictionary.rs, REF:src/core/features/completion.rs, REF:src/ui/palette.rs, REF:tests/dictionary.rs, REF:tests/features_edit.rs, REF:benches/core.rs）
 
 - `characters.md`・`words.md`・`materials/index.json` の 3 供給元から `Dictionary`（`REF:src/core/resolve/dictionary.rs`）を構築する。
 - 正規化関数 `normalize` は長音記号（`ー` `−` `―` `─` `ｰ` → `ー`）の統一を行った後に Unicode NFKC 正規化（`unicode-normalization`）を適用し、正規化後文字列から原文バイト位置への対応表を用いてトライ木（`Trie`）と `aho-corasick` オートマトンを構築する。
 - 同名衝突の診断（`E014` / `E015` / `W027`）と長すぎるキー（`E028`）は辞書構築時に生成する（検証: `REF:tests/dictionary.rs`、ベンチマーク: `REF:benches/core.rs` の `dictionary_trie_5000`）。
 
-- **[F-24] 登場人物の透過的な辞書統合と重複抑止（未実装・実装計画済み: `REF:docs/plans.md#plan-F-24`）**:
+- **[F-24] 登場人物の透過的な辞書統合と重複抑止（実装完了: `REF:src/core/resolve/dictionary.rs`, `REF:src/ui/palette.rs`）**:
   - `REF:src/core/resolve/dictionary.rs` で `characters.md` の見出し名と `alias:` を無条件に統合辞書へ登録し（`words.md` ファイル自体は書き換えない）、`words.md` に同名の見出しが存在する場合は `Character` 定義へマージして `REF:src/core/features/reference.rs` や `REF:src/ui/palette.rs` に重複エントリが出ないようにする。
 
 ### 6.2 `'` の最短一致
 
-状態: 未実装・実装計画済み（REF:src/core/resolve/dictionary.rs, REF:tests/dictionary.rs, REF:docs/plans.md#plan-S-09）
+状態: 実装完了（REF:src/core/resolve/dictionary.rs, REF:src/ui/widgets/reference_pane.rs, REF:src/ui/app.rs, REF:tests/dictionary.rs, REF:tests/workspaces.rs）
 
 - `core::resolve::dictionary`（`REF:src/core/resolve/dictionary.rs`）が `'` トークンを走査し、明示境界 `'{…}` と通常形 `'名前[:修飾子]` を解析する。
 - 通常形ではトライ木を 1 文字ずつ辿り、**最初に終端に達したキー**で確定する（最短一致）。終端に一度も達しない場合は助詞・句読点・空白・括弧・改行までを未解決キーとして切り出し、`E001`（または資料 ID 形なら `E012`）を生成する（検証: `REF:tests/dictionary.rs`）。
 
-- **[S-09 / F-23] 未知の `'` 参照の形態素解析境界と自動回復（未実装・実装計画済み: `REF:docs/plans.md#plan-S-09`, `REF:docs/plans.md#plan-F-23`）**:
+- **[S-09 / F-23] 未知の `'` 参照の形態素解析境界と自動回復（実装完了: `REF:src/core/resolve/dictionary.rs`, `REF:src/ui/widgets/reference_pane.rs`）**:
   - `REF:src/core/resolve/dictionary.rs` に文字種遷移（漢字・カタカナ・ひらがな・ASCII 英数字）および日本語助詞テーブルに基づく簡易形態素境界関数 `first_morpheme_end(text: &str) -> usize` を実装し、未解決参照 `E001` のスパン（赤波線範囲）を先頭 1 形態素に限定する。
   - `REF:src/core/features/code_action.rs` と `REF:src/ui/widgets/reference_pane.rs` で、切り出された 1 形態素を `words.md`（用語）または `characters.md`（登場人物）へワンクリック追加するアクションを提供する。
 

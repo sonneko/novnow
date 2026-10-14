@@ -7,13 +7,15 @@
 //! - 行番号は**節内のローカル行番号**（1 始まり、§9.4.1）。折り返した行には番号を振らない。
 //! - ソフトラップ有り・横スクロール無し。
 //! - 節ごとに別の `Id` を使うので、undo の履歴は節ごとに残る（§8.6。戻ってくると復元される）。
+//! - 貼り付け（`Event::Paste`）は改行をそのまま入れる。単独 `;` 行・場面見出し行（`@A-B-C`）が
+//!   含まれていれば [`apply_paste`] が節に分けて文書へ一括で反映する（§8.1.3）。
 //! - インレイヒント（§6.6.2）は [`crate::ui::widgets::inlay`] が隙間を空けて上から描く（B-137）。
 
 use std::ops::Range;
 use std::sync::Arc;
 
 use egui::text::{CCursor, CCursorRange};
-use egui::{FontFamily, FontId, Galley, Id, Pos2, Rect, TextEdit, Ui, Vec2};
+use egui::{Event, FontFamily, FontId, Galley, Id, Pos2, Rect, TextEdit, Ui, Vec2};
 
 use crate::core::features::project::line_starts_of;
 use crate::core::features::sections;
@@ -101,6 +103,60 @@ fn byte_of(text: &str, char_index: usize) -> usize {
         .map_or(text.len(), |(at, _)| at)
 }
 
+/// 貼り付けを処理する（§8.1.3。`TextEdit` を描く**前**に呼ぶ）。
+///
+/// - 改行は内部表現の LF に直す（§5.0.4 MUST。貼り付けはファイル読み込みを通らない）。
+/// - 選択（無ければキャレット）に貼って節区切り行・場面見出し行が含まれるときだけ、こちらで節に分けて
+///   文書へ入れる。そのときはイベントを消費して `TextEdit` に二重に入れさせない。
+/// - 分ける必要が無ければ、直した LF の `Event::Paste` をそのまま残す（[`egui::TextEdit`] が入れる）。
+pub(crate) fn apply_paste(ui: &Ui, bench: &mut Workbench, id: Id) {
+    if !ui.memory(|memory| memory.has_focus(id)) {
+        return;
+    }
+    let now = ui.input(|input| input.time);
+    // 選択（無ければキャレット。`TextEdit` はカーソルをまだ持たない間、末尾に入れる。egui の
+    // `cursor_at_end` の既定と同じ）
+    let selection = egui::text_edit::TextEditState::load(ui.ctx(), id)
+        .and_then(|state| state.cursor.char_range())
+        .map(|range| {
+            let (low, high) = if range.primary.index <= range.secondary.index {
+                (range.primary.index, range.secondary.index)
+            } else {
+                (range.secondary.index, range.primary.index)
+            };
+            let text = bench.buffer();
+            byte_of(text, low)..byte_of(text, high)
+        })
+        .unwrap_or_else(|| {
+            let end = bench.buffer().len();
+            end..end
+        });
+    let mut done = false;
+    ui.input_mut(|input| {
+        let mut kept = Vec::with_capacity(input.events.len());
+        for event in input.events.drain(..) {
+            match event {
+                // CRLF・CR は LF に直す（§5.0.4 MUST）
+                Event::Paste(text) => {
+                    let text = text.replace("\r\n", "\n").replace('\r', "\n");
+                    if !done && bench.paste(selection.clone(), &text, now) {
+                        done = true;
+                        continue;
+                    }
+                    kept.push(Event::Paste(text));
+                }
+                other => kept.push(other),
+            }
+        }
+        input.events = kept;
+    });
+    if done {
+        // キャレットは先頭の節（エディタに残る本文）の末尾へ
+        let end = bench.buffer().len();
+        select(ui.ctx(), bench, end..end);
+    }
+}
+
 /// エディタの見た目（配色・文字の倍率・インレイヒント）。
 #[derive(Debug, Clone, Copy)]
 pub struct Look {
@@ -115,6 +171,7 @@ pub struct Look {
 /// 節エディタを描く。
 pub fn show(ui: &mut Ui, bench: &mut Workbench, cache: &mut Cache, look: Look) -> EditorOutput {
     let id = editor_id(bench);
+    apply_paste(ui, bench, id);
     let mut buffer = std::mem::take(bench.buffer_mut());
     let bench_ref: &Workbench = bench;
     let hints = look.inlay.is_some();

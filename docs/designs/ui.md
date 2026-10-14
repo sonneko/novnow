@@ -57,9 +57,12 @@
 - 段階 ① の 6 セクション（プロット・上位プロット・配役・用語・資料・診断）のデータ組み立ては `core::features::reference::build`（`REF:src/core/features/reference.rs`）が `Vec<Section>` として返し（縫い代 6）、`REF:src/ui/widgets/reference_pane.rs` が枠線なしで描画する（80ms デバウンス）。
 - ※五感・空間・挿絵の 3 セクションは段階 ②（`REF:docs/plans.md#stage-2`）対象。
 
-- **[F-04 / F-23 / F-28 / F-34] 参照ペインのアコーディオン・自動回復・境界線・「続き...」表示（未実装・実装計画済み: `REF:docs/plans.md#plan-F-04`）**:
-  - `REF:src/ui/widgets/reference_pane.rs` で同一診断コードが 4 件以上のときは 1 行アコーディオンに集約し（F-04）、未解決参照診断には形態素解析で区切った 1 形態素を `words.md` / `characters.md` へ登録するボタンを配置する（F-23）。
+- **[F-04 / F-28 / F-34] 参照ペインのアコーディオン・境界線・「続き...」表示（未実装・実装計画済み: `REF:docs/plans.md#plan-F-04`）**:
+  - `REF:src/ui/widgets/reference_pane.rs` で同一診断コードが 4 件以上のときは 1 行アコーディオンに集約する（F-04）。
   - 各セクション間に 1px の薄い横線を引き（F-28）、要約切り詰め時は末尾にクリック可能な「`続き...`」行を表示する（F-34）。
+
+- **[F-23] 参照ペインの診断からの自動回復（実装完了: `REF:src/ui/widgets/reference_pane.rs`, `REF:src/ui/app.rs`）**:
+  - 未解決参照診断には、形態素解析で区切った 1 形態素を `words.md` / `characters.md` へ登録するボタンを配置する。
 
 ### 9.6 ステータスバー
 
