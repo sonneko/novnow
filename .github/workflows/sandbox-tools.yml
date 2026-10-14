@@ -1,0 +1,60 @@
+name: sandbox-tools
+
+# 目的（Web 版をブラウザで確かめるための道具の搬入）
+# ---------------------------------------------------------------------
+# Arena の開発サンドボックスからは GitHub のリリースの asset（objects.githubusercontent.com）に
+# 届かないので、Web 版の JS の糊を作る wasm-bindgen CLI（Cargo.lock の wasm-bindgen と同じ版）を
+# ここで取り、**どのブランチからも参照しない git の blob** として置いて、その SHA を PR にコメントする。
+# サンドボックスは api.github.com の blobs API で取り出す（`scripts/web-smoke.sh`）。
+# ブランチもタグも作らない（参照の無い blob はいずれ GitHub の GC で消える。消えたら作り直す）。
+#
+# 走るのは `.github/sandbox-tools.env` を変えて push したときだけ（Actions の使用時間を抑える）。
+
+on:
+  push:
+    branches:
+      - "arena/**"
+    paths:
+      - .github/sandbox-tools.env
+
+permissions:
+  contents: write # blob の作成
+  pull-requests: write # SHA のコメント
+
+concurrency:
+  group: sandbox-tools-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  wasm-bindgen:
+    name: wasm-bindgen CLI to a git blob
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: fetch, store as a blob, comment
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(awk '/^name = "wasm-bindgen"$/ { getline; gsub(/version = |"/, ""); print; exit }' Cargo.lock)"
+          name="wasm-bindgen-${version}-x86_64-unknown-linux-musl"
+          curl -fsSL --retry 3 -o tool.tar.gz \
+            "https://github.com/wasm-bindgen/wasm-bindgen/releases/download/${version}/${name}.tar.gz"
+          sha="$(sha256sum tool.tar.gz | cut -d' ' -f1)"
+          python3 - <<'PY'
+          import base64, json
+          data = base64.b64encode(open("tool.tar.gz", "rb").read()).decode()
+          json.dump({"content": data, "encoding": "base64"}, open("blob.json", "w"))
+          PY
+          blob="$(gh api -X POST "repos/${GITHUB_REPOSITORY}/git/blobs" --input blob.json --jq .sha)"
+          pr="$(gh pr list --repo "${GITHUB_REPOSITORY}" --head "${GITHUB_REF_NAME}" --state all --json number --jq '.[0].number')"
+          body="sandbox-tools: wasm-bindgen=${version} blob=${blob} sha256=${sha} file=${name}.tar.gz"
+          echo "$body"
+          echo "$body" >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$pr" ]; then
+            gh pr comment "$pr" --repo "${GITHUB_REPOSITORY}" --body "$body"
+          fi
