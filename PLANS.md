@@ -1187,7 +1187,7 @@ tests/layering.rs
   `app` のキーは `recent_projects` だけ・打った本文と IME の確定の保存・読み直し・`Ctrl+O` で選択画面・新規作成・`>zip` の
   ダウンロード・テキストの名前を付けて保存・`F2`・Zip の取り込み・`Delete`（ファイルも消える）・`QuotaExceededError` の
   `SaveFailed` と再試行・IndexedDB が無いときの E062（LocalStorage に書かない）・v0 の LocalStorage は E061 で消さない。
-  実際のブラウザでの IME（変換候補の位置）は上の §19.4 の人の確認に残る。
+  実際のブラウザでの IME（変換候補の位置）は上の §19.4 の人の確認に残る。CI は `34f361b` で 4 ジョブ緑（run 38507612752）。
 
 ---
 
