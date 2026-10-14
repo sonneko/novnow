@@ -204,6 +204,7 @@ chars_unit = "字"
 pages_unit = "枚"
 conflict = "外部で変更されたファイルがあります（未保存の変更があるため反映していません）"
 font_fallback = "日本語フォントが見つからないため、同梱のフォントを使います"
+open_agent = "実行中のタスクの一覧を開く（agent ワークスペース）"
 
 [palette]
 placeholder = "入力して移動・検索・実行"
@@ -279,6 +280,10 @@ reference = "参照ペインの表示を切り替える"
 inlay_hints = "インレイヒント（資料のタイトル・モード名）の表示を切り替える"
 help = "キーボード一覧"
 export = "テキストにエクスポートする（アノテーションを除く）"
+agent_delegation = "{0} の委譲レベルを {1} にする"
+agent_stop_all = "エージェントを総停止する（自律のタスクを止め、レベルを propose に戻す）"
+prompt_reset = "{0} を既定のプロンプトに戻す（元に戻せない）"
+prompt_diff = "{0} を既定のプロンプトと並べて見る"
 
 # `>export` のモーダル（§17.2、M9）。ボタンの文字は §9.2.1 の 1（内容から役割が分からない）
 [export]
@@ -540,3 +545,138 @@ common = "キャラ共通"
 all_matched = "役割語が一致しなかった台詞はありません"
 # {0} = 件数
 unmatched_count = "役割語が一致しなかった台詞 {0} 件（ダブルクリックで本文へ）"
+
+# agent ワークスペース（§15.7、M10）
+[agent]
+disabled = "エージェントは無効です（project.json の agents.enabled が false）"
+disabled_hint = "agents.enabled を true にすると使えます。ほかのワークスペースはそのまま使えます"
+llm_unavailable = "この環境では LLM を呼び出せません（タスクの作成とドライランはできます）"
+# {0} = 実行中、{1} = 待機、{2} = 完了
+progress = "実行中 {0} / 待機 {1} / 完了 {2}"
+no_tasks = "タスクはまだありません。N で作ります"
+# {0} = 秒数
+seconds = "{0}秒"
+queued = "待機"
+initiator_agent = "起動: agent"
+new = "新しいタスク"
+no_selection = "タスクを選んでください"
+no_packet = "対象が 1 つの節ではないので、コンテキストを作れません"
+# {0} = 文字数、{1} = 上限
+packet_size = "{0} / {1} 字"
+packet_over = "上限を超えています。ブロックを外すと送れます"
+# {0} = 変数の名前
+unresolved = "値の無い変数: {0}"
+prompt_edited = "編集済"
+servers = "MCP サーバ"
+no_servers = "agents/mcp.json にサーバがありません"
+# {0} = 回数、{1} = 入力の文字数、{2} = 出力の文字数
+totals = "呼び出し {0} 回 · 入力 {1} 字 · 出力 {2} 字"
+# {0} = 止めたタスクの数、{1} = レベルを下げた役割の数
+stop_all_done = "総停止しました（中止 {0} 件・propose に下げた役割 {1}）"
+# {0} = 役割、{1} = レベル
+level_changed = "{0} の委譲レベルを {1} にしました"
+new_title = "新しいタスク"
+new_role = "役割（↑↓ で選ぶ）"
+new_scope = "対象（節の構造 ID。場面・話なら節ごとに作る）"
+new_intent = "目的"
+new_comment = "コメント（任意。プロンプトの人間からのコメントに入る）"
+new_hint = "Enter で作る · Esc で閉じる"
+# {0} = タスク ID
+created = "タスクを作りました: {0}"
+# {0} = 書かれた対象
+new_no_scope = "対象の節が見つかりません: {0}"
+# {0} = 件数
+confirm_title = "{0} 件のタスクを実行します"
+# {0} = 文字数
+confirm_chars = "合計入力 {0} 字"
+# {0} = サーバ名
+confirm_servers = "使用サーバ: {0}"
+confirm_yes = "実行する"
+reject_title = "却下の理由（必須。次の実行の history に入ります）"
+revert_title = "差し戻しの理由（必須。本文を提案の前に戻します）"
+comment_required = "コメントが要ります"
+# {0} = 提案 ID
+accepted = "採用しました: {0}"
+rejected = "却下しました: {0}"
+reverted = "差し戻しました: {0}"
+refused = "{0} を適用できませんでした（対象が見つからないか、提案が空です）"
+fixed_confirm = "確定済み（fixed）の節を書き換える提案です。採用しますか？"
+accept_yes = "採用する"
+# {0} = パス
+dry_run_saved = "ドライランを保存しました: {0}"
+exclude_locked = "ブロックを外せるのは、実行前（draft / ready）のタスクだけです"
+# {0} = 件数
+approved = "メッセージを {0} 件承認しました"
+keys.tasks = "N 新規 · R 実行 · X 中止 · D ドライラン · Space 選択 · Shift+R まとめて実行"
+keys.context = "↑↓ ブロック · Space 外す / 戻す · D ドライラン"
+keys.review = "A 採用 · P 一部採用 · X 却下 · M メッセージを承認"
+keys.revert = "X 差し戻し（本文を提案の前に戻す）"
+keys.settled = "決着済みの提案です"
+keys.delegation = "1 off · 2 propose · 3 apply · 4 autonomous · Ctrl+Shift+X 総停止"
+column.tasks = "① タスク"
+column.context = "② コンテキスト"
+column.review = "③ 結果レビュー"
+column.delegation = "④ 委譲レベル"
+block.excluded = "外した"
+block.trimmed = "切り詰め"
+block.dropped = "落ちたもの"
+block.required = "必須"
+block.locked = "このブロックは外せません（1 project と 8 constraints は必ず送ります）"
+review.running = "実行中です"
+review.queued = "実行待ちです"
+review.canceled = "中止しました"
+review.none = "まだ結果はありません。R で実行、D でドライラン"
+review.stale = "古いコンテキストに基づく提案です（実行の後にコンテキストの元が変わりました）"
+review.drifted = "提案を出した後に、対象が書き換わっています"
+review.fixed = "対象は確定済み（fixed）です"
+review.truncated = "出力は 20,000 字で切られています"
+# {0} = 件数
+review.pending = "未承認のメッセージ {0} 件（M で承認）"
+# {0} = 提案 ID の並び
+review.others = "同じ対象の提案: {0}"
+violation.empty = "契約違反: 本体が空です"
+violation.preamble = "契約違反: 前置きがあります"
+violation.heading = "契約違反: 見出しがあります"
+violation.code_fence = "契約違反: コードブロックがあります"
+violation.annotation = "契約違反: novnow の記法（行頭の @ ;）があります"
+violation.length = "契約違反: 字数が指定の ±20% を外れています"
+status.autonomous = "(自律)"
+# {0} = 件数
+status.count = "{0}件"
+# {0} = タスク ID、{1} = 対象
+notice.auto_applied = "自動適用しました: {0} → {1}"
+notice.fixed_overwrite = "fixed を書き換えました: {0} → {1}"
+# {0} = タスク ID、{1} = 診断のコード
+notice.gate_refused = "{0} は自動適用しませんでした（{1} が増えるため）。提案として残しました"
+# {0} = タスク ID
+notice.missing = "{0} の適用先が見つからないので、提案として残しました"
+notice.truncated = "{0} の出力を 20,000 字で切りました"
+# {0} = タスク ID、{1} = 件数
+notice.questions = "{0} から質問が {1} 件あります"
+# {0} = タスク ID
+blocked.unknown = "{0} は実行できる状態ではありません"
+blocked.off = "{0} の役割は止まっています（委譲レベル off）"
+blocked.role = "{0} の役割はこの版では実行できません"
+blocked.scope = "{0} の対象が 1 つの節ではありません"
+blocked.no_server = "{0} の役割を受け持つ MCP サーバがありません（agents/mcp.json）"
+blocked.fixed = "{0} の対象は確定済み（fixed）です。propose の役割は実行しません"
+blocked.over = "{0} のコンテキストが上限を超えています。ブロックを外してください"
+failed.timeout = "{0} がタイムアウトしました（ready に戻しました）"
+failed.cancelled = "{0} を中止しました"
+# {0} = タスク ID、{1} = 理由
+failed.protocol = "{0} の応答を読めませんでした（ready に戻しました）: {1}"
+
+# `>prompt reset` / `>prompt diff`（§15.5.4）
+[prompt]
+# {0} = 名前（all は全部）
+reset_title = "プロンプトを既定に戻す: {0}"
+reset_warning = "現在の内容は失われます。元に戻せません。"
+reset_current = "現在"
+reset_default = "既定"
+reset_missing = "(ファイルがありません)"
+reset_same = "既定と同じです"
+reset_yes = "既定に戻す"
+# {0} = 件数
+reset_done = "{0} 個のプロンプトを既定に戻しました"
+# {0} = 名前
+diff_title = "既定との比較: {0}"

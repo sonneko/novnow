@@ -7,6 +7,8 @@
 pub mod i18n;
 
 #[cfg(feature = "ui")]
+pub mod agents;
+#[cfg(feature = "ui")]
 pub mod app;
 #[cfg(feature = "ui")]
 pub mod assist;

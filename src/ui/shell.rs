@@ -165,6 +165,8 @@ pub enum Command {
     MaterialSearch,
     /// `Alt+H` インレイヒントの表示トグル（§6.6.2・§9.8.1。`ui.json.inlay_hints`、B-137）。
     InlayHints,
+    /// `Ctrl+Shift+X` エージェントの総停止（§15.7.4。`agent` の中だけ）。
+    StopAll,
 }
 
 /// キー 1 つをショートカットに読む。`text_focused` は入力欄にフォーカスがあるか（`?` の判定）。
@@ -265,6 +267,7 @@ pub fn command_of(
 /// - `review`: `Ctrl+Shift+→` / `←` でタブ（§10.9.1。`review` には編集欄が無い）。
 /// - `cast`: `Ctrl+Shift+→` / `←` でタブ（§10.6。中央の編集欄の単語選択より優先する）、
 ///   `Ctrl+Shift+V` で未一致の台詞（§10.6）。
+/// - `agent`: `Ctrl+Shift+X` で総停止（§15.7.4）。
 pub fn local_command_of(
     key: Key,
     modifiers: Modifiers,
@@ -284,6 +287,7 @@ pub fn local_command_of(
         (Workspace::Cast, Key::ArrowRight) if ctrl && shift && !alt => Some(Command::Tab(true)),
         (Workspace::Cast, Key::ArrowLeft) if ctrl && shift && !alt => Some(Command::Tab(false)),
         (Workspace::Cast, Key::V) if ctrl && shift && !alt => Some(Command::Scan),
+        (Workspace::Agent, Key::X) if ctrl && shift && !alt => Some(Command::StopAll),
         _ => None,
     }
 }

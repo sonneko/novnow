@@ -59,6 +59,33 @@ pub trait Host {
             chosen.path().to_string_lossy().into_owned(),
         ))
     }
+    /// プロジェクトの中のファイルに追記する（監査ログ `agents/log/*.jsonl`、§5.10.5）。
+    fn append(&mut self, path: &str, text: &str) -> Result<(), String> {
+        let _ = text;
+        Err(format!("cannot append to {path}"))
+    }
+    /// LLM（stdio の MCP サーバ）を呼べるか（Web は呼べない、§15.8.2）。
+    fn mcp_available(&self) -> bool {
+        false
+    }
+    /// MCP の呼び出しを始める（別のスレッドで走る）。番号を返す。呼べなければ `None`。
+    fn mcp_start(&mut self, job: crate::ui::agents::Job) -> Option<u64> {
+        let _ = job;
+        None
+    }
+    /// 終わった呼び出し（[`crate::ui::agents::Finished`]）。
+    fn mcp_poll(&mut self) -> Vec<crate::ui::agents::Finished> {
+        Vec::new()
+    }
+    /// 呼び出しを取り消す。
+    fn mcp_cancel(&mut self, job: u64) {
+        let _ = job;
+    }
+    /// 環境変数（`agents/mcp.json` の `${NAME}` を解決する。値は画面にもログにも出さない）。
+    fn env_var(&self, name: &str) -> Option<String> {
+        let _ = name;
+        None
+    }
 }
 
 /// 「名前を付けて保存」に失敗した理由（文言は `NovnowApp` がカタログで引く）。
@@ -153,6 +180,41 @@ enum Overlay {
     NewMaterial {
         input: String,
     },
+    /// agent の `N` 新しいタスク（§15.7.1。役割は `↑` / `↓`、対象・目的・コメントは入力欄）。
+    AgentNew {
+        role: usize,
+        scope: String,
+        intent: String,
+        comment: String,
+        fresh: bool,
+    },
+    /// agent の `Shift+R` の確認（§15.7.5 (1)「n 件 / 合計入力 m 文字 / 使用サーバ」）。
+    AgentConfirm {
+        ids: Vec<String>,
+        chars: usize,
+        servers: Vec<String>,
+        blocked: Vec<String>,
+    },
+    /// 却下・差し戻しのコメント（必須、§15.7.3）。
+    AgentComment {
+        proposal: String,
+        revert: bool,
+        input: String,
+        missing: bool,
+    },
+    /// 確定済みの節への提案の採用の確認（§15.9「採用ボタンに確認を 1 段挟む」）。
+    AgentFixed {
+        proposal: String,
+        text: Option<String>,
+    },
+    /// `>prompt reset <name>`（§15.5.4 (3)。現行版と既定版を並べ、元に戻せないことを書く）。
+    PromptReset {
+        name: String,
+    },
+    /// `>prompt diff <name>`（§15.5.4 (4)。並べて見るだけ）。
+    PromptDiff {
+        name: String,
+    },
 }
 
 /// `Ctrl+M` で選んだ資料をどうするか（§9.8.3・§16.3、`PLANS.md` §9.2 B-134）。
@@ -200,6 +262,10 @@ pub struct Session {
     spaces: workspaces::Spaces,
     /// ステータスバーの `⚑` が押された（次に点検の診断を開く。§9.6.1）。
     open_review: bool,
+    /// エージェントの実行の状態（§15.7.4・§15.7.5）。
+    agents: crate::ui::agents::Runtime,
+    /// ステータスバーの `⟳` が押された（次に agent ワークスペースを開く。§15.7.4）。
+    open_agent: bool,
 }
 
 /// エクスポートの下書き（`>export` のモーダルが毎フレーム作り直さないため）。
@@ -243,7 +309,22 @@ impl Session {
             export_cache: None,
             spaces: workspaces::Spaces::default(),
             open_review: false,
+            agents: crate::ui::agents::Runtime::default(),
+            open_agent: false,
         }
+    }
+
+    /// 開いたときのエージェントの準備（U-7・§15.5.4）: `prompts/` の欠けた既定ファイルを書き出す。
+    /// `prompts/` が丸ごと無かったら I050 を知らせる。エージェントが無効なら何もしない。
+    pub fn prepare_agents(&mut self, locale: Locale) {
+        if let Some(message) = crate::ui::agents::write_prompts(&mut self.bench, 0.0, locale) {
+            self.notice = Some((message, 0.0));
+        }
+    }
+
+    /// エージェントの実行の状態（テスト用の読み口）。
+    pub fn agents(&self) -> &crate::ui::agents::Runtime {
+        &self.agents
     }
 
     /// エクスポートの下書きを（必要なら作り直して）返す（§17.2）。
@@ -415,6 +496,14 @@ impl NovnowApp {
         }
     }
 
+    /// エージェントの実行の状態（テスト用の読み口）。
+    pub fn agents(&self) -> Option<&crate::ui::agents::Runtime> {
+        match &self.stage {
+            Stage::Open(session) => Some(&session.agents),
+            Stage::Picker => None,
+        }
+    }
+
     /// 何か重ねて出しているか（パレット・ヘルプ・モーダル）。
     pub fn overlay_open(&self) -> bool {
         self.overlay != Overlay::None
@@ -489,7 +578,13 @@ impl NovnowApp {
         // （`Enter` や矢印が、重ね物と同時にエディタの改行・カーソル移動にもなるため）。閉じたら戻す
         if matches!(
             self.overlay,
-            Overlay::ConfirmDelete | Overlay::ConfirmApprove { .. } | Overlay::Promote { .. }
+            Overlay::ConfirmDelete
+                | Overlay::ConfirmApprove { .. }
+                | Overlay::Promote { .. }
+                | Overlay::AgentConfirm { .. }
+                | Overlay::AgentFixed { .. }
+                | Overlay::PromptReset { .. }
+                | Overlay::PromptDiff { .. }
         ) {
             if let Some(id) = ctx.memory(|memory| memory.focused()) {
                 ctx.memory_mut(|memory| memory.surrender_focus(id));
@@ -509,8 +604,13 @@ impl NovnowApp {
                 if self.font_warning {
                     // §11.5 SHOULD: 起動エラーにせず、警告を出して同梱フォントで続ける
                     self.font_warning = false;
-                    session.notice =
-                        Some((i18n::text(locale, "status.font_fallback").to_owned(), now));
+                    // 開いたときの知らせ（I050 など）は消さずに並べる
+                    let font = i18n::text(locale, "status.font_fallback");
+                    let text = match session.notice.take() {
+                        Some((before, _)) => format!("{before} / {font}"),
+                        None => font.to_owned(),
+                    };
+                    session.notice = Some((text, now));
                 }
                 self.workbench_frame(ctx, mode, locale, now, focus_lost);
             }
@@ -608,11 +708,7 @@ impl NovnowApp {
                 }
                 self.focus = Pane::Editor;
                 if let Stage::Open(session) = &self.stage {
-                    let id = match session.spaces.switcher.current() {
-                        Workspace::Write => section_editor::editor_id(&session.bench),
-                        _ => slice_editor::editor_id(&session.bench),
-                    };
-                    ctx.memory_mut(|memory| memory.request_focus(id));
+                    focus_workspace(ctx, session);
                 }
             }
             Command::Open => {
@@ -1057,6 +1153,19 @@ impl NovnowApp {
                     self.switch_to(ctx, Workspace::PlotEpisode, now);
                 }
             }
+            (Workspace::Agent, Command::StopAll) => {
+                let message = crate::ui::agents::stop_all(
+                    bench,
+                    session.host.as_mut(),
+                    &mut session.agents,
+                    now,
+                    locale,
+                );
+                session.notice = Some((message, now));
+            }
+            (Workspace::Agent, Command::Escape) => {
+                spaces.agent.escape();
+            }
             (_, Command::QuickFix) => {
                 // M8 のエディタ（Slice）でも `Ctrl+.`。資料 ID はプロットに書く（§6.6.4）ので、E006 の
                 // クイックフィックス（§6.6.3）は話プロットで要る（`PLANS.md` §9.2 B-137）
@@ -1096,6 +1205,209 @@ impl NovnowApp {
             }
         }
         true
+    }
+
+    // ============================================================ エージェント（§15）
+
+    /// agent ワークスペースからの頼みを実行する（§15.7）。
+    fn agent_actions(&mut self, actions: Vec<workspaces::agent::Action>, now: f64) {
+        use crate::core::agents::files::{self, Board};
+        use workspaces::agent::Action;
+        let locale = self.locale();
+        for action in actions {
+            let Stage::Open(session) = &mut self.stage else {
+                return;
+            };
+            let mut notices: Vec<String> = Vec::new();
+            match action {
+                Action::New => {
+                    let digits = session.bench.project().digits();
+                    let scope = session
+                        .bench
+                        .current_id()
+                        .map(|id| format!("@{}", id.display(digits)))
+                        .unwrap_or_default();
+                    self.overlay = Overlay::AgentNew {
+                        role: 0,
+                        scope,
+                        intent: String::new(),
+                        comment: String::new(),
+                        fresh: true,
+                    };
+                }
+                Action::Run(ids) => {
+                    notices = crate::ui::agents::enqueue(
+                        &ids,
+                        &mut session.bench,
+                        session.host.as_mut(),
+                        &mut session.agents,
+                        now,
+                        locale,
+                    );
+                }
+                Action::Confirm(ids) => {
+                    let (chars, servers, blocked) = confirm_summary(session, &ids, locale);
+                    self.overlay = Overlay::AgentConfirm {
+                        ids,
+                        chars,
+                        servers,
+                        blocked,
+                    };
+                }
+                Action::Cancel(id) => {
+                    crate::ui::agents::cancel(
+                        &id,
+                        &mut session.bench,
+                        session.host.as_mut(),
+                        &mut session.agents,
+                        now,
+                    );
+                    session.spaces.agent.marked.retain(|found| found != &id);
+                }
+                Action::DryRun(ids) => {
+                    let stamp = session.host.now();
+                    let title = session.host.name();
+                    session.bench.commit();
+                    let mut saved = Vec::new();
+                    for id in &ids {
+                        if let Some((path, text)) = crate::core::agents::runner::dry_run(
+                            session.bench.project(),
+                            id,
+                            &stamp,
+                            &title,
+                        ) {
+                            session.bench.replace_document(&path, text, now);
+                            saved.push(path);
+                        }
+                    }
+                    if !saved.is_empty() {
+                        notices.push(i18n::format(
+                            locale,
+                            "agent.dry_run_saved",
+                            &[&saved.join(", ")],
+                        ));
+                    }
+                }
+                Action::Exclude { task, block } => {
+                    session.bench.commit();
+                    let board = Board::of(session.bench.project());
+                    if block.is_mandatory() {
+                        notices.push(i18n::text(locale, "agent.block.locked").to_owned());
+                    } else if let Some(found) = board.task(&task) {
+                        if matches!(found.status.as_str(), "draft" | "ready")
+                            && !session.agents.holds(&task)
+                        {
+                            let mut blocks = files::excluded_blocks(found);
+                            match blocks.iter().position(|seen| *seen == block) {
+                                Some(at) => {
+                                    blocks.remove(at);
+                                }
+                                None => blocks.push(block),
+                            }
+                            let mut updated = found.clone();
+                            updated.exclude = files::exclude_value(&blocks);
+                            session.bench.replace_document(
+                                &files::task_path(&task),
+                                files::write_task(&updated),
+                                now,
+                            );
+                        } else {
+                            notices.push(i18n::text(locale, "agent.exclude_locked").to_owned());
+                        }
+                    }
+                }
+                Action::Accept { proposal, text } => {
+                    session.bench.commit();
+                    let project = session.bench.project();
+                    let fixed = Board::of(project)
+                        .proposal(&proposal)
+                        .is_some_and(|found| crate::core::agents::apply::is_fixed(project, found));
+                    if fixed {
+                        self.overlay = Overlay::AgentFixed { proposal, text };
+                    } else {
+                        notices.push(accept_proposal(
+                            session,
+                            &proposal,
+                            text.as_deref(),
+                            now,
+                            locale,
+                        ));
+                    }
+                }
+                Action::Reject { proposal, revert } => {
+                    self.overlay = Overlay::AgentComment {
+                        proposal,
+                        revert,
+                        input: String::new(),
+                        missing: false,
+                    };
+                }
+                Action::Approve(task) => {
+                    let count = crate::ui::agents::approve(&task, &mut session.bench, now);
+                    notices.push(i18n::format(
+                        locale,
+                        "agent.approved",
+                        &[&count.to_string()],
+                    ));
+                }
+                Action::Level { role, level } => {
+                    if let Some(message) = crate::ui::agents::set_level(
+                        &role,
+                        level,
+                        &mut session.bench,
+                        session.host.as_mut(),
+                        now,
+                        locale,
+                    ) {
+                        notices.push(message);
+                    }
+                }
+            }
+            if !notices.is_empty() {
+                session.notice = Some((notices.join(" / "), now));
+            }
+        }
+    }
+
+    /// パレットのエージェントのコマンド（§15.7.6 `>agent delegation` / `>agent stop-all`、
+    /// §15.5.4 `>prompt reset` / `>prompt diff`）。
+    fn agent_command(&mut self, command: AgentCommand, now: f64) {
+        let locale = self.locale();
+        let Stage::Open(session) = &mut self.stage else {
+            return;
+        };
+        match command {
+            AgentCommand::Level(role, level) => {
+                if let Some(message) = crate::ui::agents::set_level(
+                    &role,
+                    level,
+                    &mut session.bench,
+                    session.host.as_mut(),
+                    now,
+                    locale,
+                ) {
+                    session.notice = Some((message, now));
+                }
+            }
+            AgentCommand::StopAll => {
+                let message = crate::ui::agents::stop_all(
+                    &mut session.bench,
+                    session.host.as_mut(),
+                    &mut session.agents,
+                    now,
+                    locale,
+                );
+                session.notice = Some((message, now));
+            }
+            AgentCommand::PromptReset(name) => {
+                session.bench.commit();
+                self.overlay = Overlay::PromptReset { name };
+            }
+            AgentCommand::PromptDiff(name) => {
+                session.bench.commit();
+                self.overlay = Overlay::PromptDiff { name };
+            }
+        }
     }
 
     /// ワークスペースを切り替える（§10.0）。切替は保存のきっかけ（§8.2）。確認は出さない。
@@ -1693,6 +2005,38 @@ impl NovnowApp {
                 self.run(ctx, Command::Review, now);
             }
         }
+        // エージェント: 終わった呼び出しを 1 件ずつ処理し、待っているものを走らせる（§15.7.5）
+        let mut open_agent = false;
+        if let Stage::Open(session) = &mut self.stage {
+            let notices = crate::ui::agents::tick(
+                &mut session.bench,
+                session.host.as_mut(),
+                &mut session.agents,
+                now,
+                locale,
+            );
+            if !notices.is_empty() {
+                session.notice = Some((notices.join(" / "), now));
+            }
+            if session.agents.busy() {
+                ctx.request_repaint_after(std::time::Duration::from_millis(250));
+            }
+            open_agent = std::mem::take(&mut session.open_agent);
+            if open_agent {
+                if let Some(task) = session
+                    .agents
+                    .running
+                    .first()
+                    .map(|found| found.task.clone())
+                {
+                    session.spaces.agent.select(&task);
+                }
+                session.spaces.agent.column = workspaces::agent::Column::Tasks;
+            }
+        }
+        if open_agent {
+            self.switch_to(ctx, Workspace::Agent, now);
+        }
         let Stage::Open(session) = &mut self.stage else {
             return;
         };
@@ -1736,6 +2080,8 @@ impl NovnowApp {
             };
             let mut jump = None;
             let mut cast_jump = None;
+            let mut agent_actions = Vec::new();
+            let overlay_open = self.overlay != Overlay::None;
             let request = match workspace {
                 Workspace::Cast => {
                     let (request, target) = workspaces::cast::show(
@@ -1782,6 +2128,28 @@ impl NovnowApp {
                         &stamp,
                     )
                 }
+                Workspace::Agent => {
+                    let servers = crate::ui::agents::servers(&session.bench, session.host.as_ref());
+                    let stamp = session.host.now();
+                    let title = session.host.name();
+                    let available = session.host.mcp_available();
+                    let info = workspaces::agent::Info {
+                        runtime: &session.agents,
+                        available,
+                        servers: &servers,
+                        stamp: &stamp,
+                        title: &title,
+                        overlay: overlay_open,
+                    };
+                    agent_actions = workspaces::agent::show(
+                        ctx,
+                        &mut session.spaces.agent,
+                        &mut session.bench,
+                        &view,
+                        &info,
+                    );
+                    None
+                }
                 _ => None,
             };
             match request {
@@ -1796,6 +2164,9 @@ impl NovnowApp {
                     self.append_material(ctx, &id, now);
                 }
                 None => {}
+            }
+            if !agent_actions.is_empty() {
+                self.agent_actions(agent_actions, now);
             }
             if let Some(target) = jump {
                 self.review_jump(ctx, target, now);
@@ -2125,6 +2496,12 @@ impl NovnowApp {
                             PaletteAction::Term(index) => {
                                 let lines = term_lines(session.bench.project(), *index);
                                 self.overlay = Overlay::Info { lines };
+                                return;
+                            }
+                            PaletteAction::Agent(command) => {
+                                let command = command.clone();
+                                self.overlay = Overlay::None;
+                                self.agent_command(command, now);
                                 return;
                             }
                         }
@@ -2723,6 +3100,277 @@ impl NovnowApp {
                     close = true;
                 }
             }
+            Overlay::AgentNew {
+                role,
+                scope,
+                intent,
+                comment,
+                fresh,
+            } => {
+                let roles = crate::core::agents::BUILTIN_ROLES;
+                let down = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::ArrowDown));
+                let up = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::ArrowUp));
+                let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
+                if down {
+                    *role = (*role + 1).min(roles.len() - 1);
+                }
+                if up {
+                    *role = role.saturating_sub(1);
+                }
+                popup(ctx, "agent-new", colors, |ui| {
+                    ui.label(
+                        RichText::new(i18n::text(locale, "agent.new_title")).color(colors.fg_faint),
+                    );
+                    ui.add_space(4.0);
+                    ui.label(
+                        RichText::new(i18n::text(locale, "agent.new_role")).color(colors.fg_muted),
+                    );
+                    ui.horizontal_wrapped(|ui| {
+                        for (index, name) in roles.iter().enumerate() {
+                            if ui.selectable_label(index == *role, *name).clicked() {
+                                *role = index;
+                            }
+                        }
+                    });
+                    ui.label(
+                        RichText::new(i18n::text(locale, "agent.new_scope")).color(colors.fg_muted),
+                    );
+                    ui.add(egui::TextEdit::singleline(scope).desired_width(520.0));
+                    ui.label(
+                        RichText::new(i18n::text(locale, "agent.new_intent"))
+                            .color(colors.fg_muted),
+                    );
+                    let edit = ui.add(egui::TextEdit::singleline(intent).desired_width(520.0));
+                    if *fresh {
+                        edit.request_focus();
+                        *fresh = false;
+                    }
+                    ui.label(
+                        RichText::new(i18n::text(locale, "agent.new_comment"))
+                            .color(colors.fg_muted),
+                    );
+                    ui.add(egui::TextEdit::singleline(comment).desired_width(520.0));
+                    ui.add_space(4.0);
+                    ui.label(
+                        RichText::new(i18n::text(locale, "agent.new_hint")).color(colors.fg_faint),
+                    );
+                });
+                if enter {
+                    let stamp = session.host.now();
+                    session.bench.commit();
+                    let plan = crate::core::agents::runner::new_tasks(
+                        session.bench.project(),
+                        &crate::core::agents::runner::Draft {
+                            role: roles[*role],
+                            scope,
+                            intent,
+                            comment,
+                            initiator: "human",
+                            status: "draft",
+                        },
+                        &stamp,
+                    );
+                    crate::ui::agents::execute(
+                        &plan,
+                        &mut session.bench,
+                        session.host.as_mut(),
+                        now,
+                    );
+                    let created: Vec<String> = plan
+                        .writes
+                        .iter()
+                        .filter_map(|change| {
+                            change
+                                .path
+                                .strip_prefix(crate::core::agents::files::TASKS_DIR)
+                                .map(|name| name.trim_end_matches(".md").to_owned())
+                        })
+                        .collect();
+                    let mut notices: Vec<String> = plan
+                        .notices
+                        .iter()
+                        .map(|notice| crate::ui::agents::notice_text(locale, notice))
+                        .collect();
+                    if let Some(last) = created.last() {
+                        session.spaces.agent.select(last);
+                        notices.insert(
+                            0,
+                            i18n::format(locale, "agent.created", &[&created.join(", ")]),
+                        );
+                    } else if notices.is_empty() {
+                        notices.push(i18n::format(
+                            locale,
+                            "agent.new_no_scope",
+                            &[scope.as_str()],
+                        ));
+                    }
+                    session.notice = Some((notices.join(" / "), now));
+                    close = true;
+                }
+            }
+            Overlay::AgentConfirm {
+                ids,
+                chars,
+                servers,
+                blocked,
+            } => {
+                let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
+                let mut run = enter;
+                popup(ctx, "agent-confirm", colors, |ui| {
+                    ui.label(
+                        RichText::new(i18n::format(
+                            locale,
+                            "agent.confirm_title",
+                            &[&ids.len().to_string()],
+                        ))
+                        .color(colors.fg_primary),
+                    );
+                    ui.label(i18n::format(
+                        locale,
+                        "agent.confirm_chars",
+                        &[&chars.to_string()],
+                    ));
+                    ui.label(i18n::format(
+                        locale,
+                        "agent.confirm_servers",
+                        &[&servers.join(", ")],
+                    ));
+                    for line in blocked.iter() {
+                        ui.label(RichText::new(line).color(colors.warn));
+                    }
+                    ui.add_space(8.0);
+                    ui.horizontal(|ui| {
+                        if ui.button(i18n::text(locale, "agent.confirm_yes")).clicked() {
+                            run = true;
+                        }
+                        if ui.button(i18n::text(locale, "modal.cancel")).clicked() {
+                            close = true;
+                        }
+                    });
+                });
+                if run {
+                    let ids = ids.clone();
+                    let notices = crate::ui::agents::enqueue(
+                        &ids,
+                        &mut session.bench,
+                        session.host.as_mut(),
+                        &mut session.agents,
+                        now,
+                        locale,
+                    );
+                    session.spaces.agent.marked.clear();
+                    if !notices.is_empty() {
+                        session.notice = Some((notices.join(" / "), now));
+                    }
+                    close = true;
+                }
+            }
+            Overlay::AgentComment {
+                proposal,
+                revert,
+                input,
+                missing,
+            } => {
+                let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
+                popup(ctx, "agent-comment", colors, |ui| {
+                    let title = if *revert {
+                        i18n::text(locale, "agent.revert_title")
+                    } else {
+                        i18n::text(locale, "agent.reject_title")
+                    };
+                    ui.label(RichText::new(title).color(colors.fg_faint));
+                    let edit = ui.add(egui::TextEdit::singleline(input).desired_width(520.0));
+                    edit.request_focus();
+                    if *missing {
+                        ui.label(
+                            RichText::new(i18n::text(locale, "agent.comment_required"))
+                                .color(colors.error),
+                        );
+                    }
+                });
+                if enter {
+                    if input.trim().is_empty() {
+                        *missing = true;
+                    } else {
+                        let message =
+                            reject_proposal(session, proposal, input, *revert, now, locale);
+                        session.notice = Some((message, now));
+                        close = true;
+                    }
+                }
+            }
+            Overlay::AgentFixed { proposal, text } => {
+                let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
+                let mut accept = enter;
+                popup(ctx, "agent-fixed", colors, |ui| {
+                    ui.label(
+                        RichText::new(i18n::text(locale, "agent.fixed_confirm")).color(colors.warn),
+                    );
+                    ui.add_space(8.0);
+                    ui.horizontal(|ui| {
+                        if ui.button(i18n::text(locale, "agent.accept_yes")).clicked() {
+                            accept = true;
+                        }
+                        if ui.button(i18n::text(locale, "modal.cancel")).clicked() {
+                            close = true;
+                        }
+                    });
+                });
+                if accept {
+                    let message = accept_proposal(session, proposal, text.as_deref(), now, locale);
+                    session.notice = Some((message, now));
+                    close = true;
+                }
+            }
+            Overlay::PromptReset { name } => {
+                let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
+                let mut reset = enter;
+                let targets = crate::core::agents::prompts::reset_targets(name);
+                popup(ctx, "prompt-reset", colors, |ui| {
+                    ui.label(
+                        RichText::new(i18n::format(locale, "prompt.reset_title", &[name.as_str()]))
+                            .color(colors.fg_primary),
+                    );
+                    ui.label(
+                        RichText::new(i18n::text(locale, "prompt.reset_warning"))
+                            .color(colors.error),
+                    );
+                    ui.add_space(4.0);
+                    prompt_pairs(ui, session.bench.project(), &targets, locale, colors);
+                    ui.add_space(8.0);
+                    ui.horizontal(|ui| {
+                        if ui.button(i18n::text(locale, "prompt.reset_yes")).clicked() {
+                            reset = true;
+                        }
+                        if ui.button(i18n::text(locale, "modal.cancel")).clicked() {
+                            close = true;
+                        }
+                    });
+                });
+                if reset {
+                    let count = crate::ui::agents::reset_prompts(name, &mut session.bench, now);
+                    session.notice = Some((
+                        i18n::format(locale, "prompt.reset_done", &[&count.to_string()]),
+                        now,
+                    ));
+                    close = true;
+                }
+            }
+            Overlay::PromptDiff { name } => {
+                let targets = crate::core::agents::prompts::reset_targets(name);
+                popup(ctx, "prompt-diff", colors, |ui| {
+                    ui.label(
+                        RichText::new(i18n::format(locale, "prompt.diff_title", &[name.as_str()]))
+                            .color(colors.fg_primary),
+                    );
+                    ui.add_space(4.0);
+                    prompt_pairs(ui, session.bench.project(), &targets, locale, colors);
+                    ui.add_space(8.0);
+                    if ui.button(i18n::text(locale, "modal.close")).clicked() {
+                        close = true;
+                    }
+                });
+            }
             Overlay::Diff => {
                 let conflicts: Vec<String> = session.bench.conflicts().map(str::to_owned).collect();
                 if conflicts.is_empty() {
@@ -2966,11 +3614,7 @@ impl NovnowApp {
         }
         if close {
             self.overlay = Overlay::None;
-            let id = match workspace {
-                Workspace::Write => section_editor::editor_id(&session.bench),
-                _ => slice_editor::editor_id(&session.bench),
-            };
-            ctx.memory_mut(|memory| memory.request_focus(id));
+            focus_workspace(ctx, session);
         }
         if to_write {
             self.switch_to(ctx, Workspace::Write, now);
@@ -3154,6 +3798,19 @@ fn status_bar(
             ui.label(dot());
             ui.label(RichText::new("⇄").font(mono.clone()).color(colors.error))
                 .on_hover_text(i18n::text(locale, "status.conflict"));
+        }
+        // 稼働表示（§15.7.4: `⟳ T0042 writer` / `⟳ 3件`、自律なら `(自律)`。クリックで一覧）
+        if let Some(label) = crate::ui::agents::status_label(&session.agents, locale) {
+            ui.label(dot());
+            let running = ui
+                .add(
+                    egui::Label::new(RichText::new(label).font(mono.clone()).color(colors.accent))
+                        .sense(Sense::click()),
+                )
+                .on_hover_text(i18n::text(locale, "status.open_agent"));
+            if running.clicked() {
+                session.open_agent = true;
+            }
         }
         if let Some((message, at)) = &session.notice {
             if now - at < 4.0 {
@@ -3560,6 +4217,154 @@ fn theme_symbol(choice: ThemeChoice) -> &'static str {
 }
 
 /// 画面上部の中央に出す小窓（パレット・ジャンプ・ヘルプ・モーダル）。背景を暗くする。
+/// 重ね物を閉じた後・`Esc` のフォーカス: write は節エディタ、M8 のワークスペースは Slice のエディタ。
+/// agent にはエディタが無いので、フォーカスを手放す（素のキーが agent の列に届くように）。
+fn focus_workspace(ctx: &Context, session: &Session) {
+    let id = match session.spaces.switcher.current() {
+        Workspace::Write => section_editor::editor_id(&session.bench),
+        Workspace::Agent => {
+            if let Some(id) = ctx.memory(|memory| memory.focused()) {
+                ctx.memory_mut(|memory| memory.surrender_focus(id));
+            }
+            return;
+        }
+        _ => slice_editor::editor_id(&session.bench),
+    };
+    ctx.memory_mut(|memory| memory.request_focus(id));
+}
+
+/// 提案を採用する（§15.7.3 `A`。`text` は一部採用のテキスト）。知らせる文言を返す。
+fn accept_proposal(
+    session: &mut Session,
+    id: &str,
+    text: Option<&str>,
+    now: f64,
+    locale: Locale,
+) -> String {
+    session.bench.commit();
+    let stamp = session.host.now();
+    match crate::core::agents::apply::accept(session.bench.project(), id, text, &stamp) {
+        Ok(plan) => {
+            crate::ui::agents::execute(&plan, &mut session.bench, session.host.as_mut(), now);
+            i18n::format(locale, "agent.accepted", &[id])
+        }
+        Err(_) => i18n::format(locale, "agent.refused", &[id]),
+    }
+}
+
+/// 却下・差し戻し（§15.7.3 `X`。コメント必須）。知らせる文言を返す。
+fn reject_proposal(
+    session: &mut Session,
+    id: &str,
+    comment: &str,
+    revert: bool,
+    now: f64,
+    locale: Locale,
+) -> String {
+    session.bench.commit();
+    let stamp = session.host.now();
+    let project = session.bench.project();
+    let result = if revert {
+        crate::core::agents::apply::revert(project, id, comment, &stamp)
+    } else {
+        crate::core::agents::apply::reject(project, id, comment, &stamp)
+    };
+    match result {
+        Ok(plan) => {
+            crate::ui::agents::execute(&plan, &mut session.bench, session.host.as_mut(), now);
+            if revert {
+                i18n::format(locale, "agent.reverted", &[id])
+            } else {
+                i18n::format(locale, "agent.rejected", &[id])
+            }
+        }
+        Err(_) => i18n::format(locale, "agent.refused", &[id]),
+    }
+}
+
+/// `Shift+R` の確認の中身（§15.7.5 (1)）: 合計入力・使用サーバ・走れないものの理由。
+fn confirm_summary(
+    session: &Session,
+    ids: &[String],
+    locale: Locale,
+) -> (usize, Vec<String>, Vec<String>) {
+    let stamp = session.host.now();
+    let title = session.host.name();
+    let mut chars = 0;
+    let mut servers: Vec<String> = Vec::new();
+    let mut blocked = Vec::new();
+    for id in ids {
+        let env = |name: &str| session.host.env_var(name);
+        match crate::core::agents::runner::prepare(
+            session.bench.project(),
+            id,
+            &stamp,
+            &title,
+            &env,
+        ) {
+            Ok(start) => {
+                chars += start.input_chars;
+                if !servers.contains(&start.server.name) {
+                    servers.push(start.server.name.clone());
+                }
+            }
+            Err(blocker) => blocked.push(crate::ui::agents::blocker_text(locale, id, &blocker)),
+        }
+    }
+    (chars, servers, blocked)
+}
+
+/// `>prompt reset` / `>prompt diff` の左右 2 ペイン（現行版と既定版の全文。色分けしない、§15.5.4 (3)）。
+fn prompt_pairs(
+    ui: &mut egui::Ui,
+    project: &crate::core::features::project::Project,
+    targets: &[(&'static str, &'static str)],
+    locale: Locale,
+    colors: theme::Palette,
+) {
+    let font = FontId::new(11.0, FontFamily::Monospace);
+    egui::ScrollArea::vertical()
+        .max_height(440.0)
+        .show(ui, |ui| {
+            ui.set_width(760.0);
+            for (path, default) in targets {
+                let current = project.document(path).map(|found| found.text.clone());
+                ui.label(RichText::new(*path).color(colors.fg_primary));
+                if current.as_deref() == Some(*default) {
+                    ui.label(
+                        RichText::new(i18n::text(locale, "prompt.reset_same"))
+                            .color(colors.fg_faint),
+                    );
+                    ui.add_space(6.0);
+                    continue;
+                }
+                ui.columns(2, |columns| {
+                    columns[0].label(
+                        RichText::new(i18n::text(locale, "prompt.reset_current"))
+                            .color(colors.fg_faint),
+                    );
+                    columns[0].label(
+                        RichText::new(current.unwrap_or_else(|| {
+                            i18n::text(locale, "prompt.reset_missing").to_owned()
+                        }))
+                        .font(font.clone())
+                        .color(colors.fg_muted),
+                    );
+                    columns[1].label(
+                        RichText::new(i18n::text(locale, "prompt.reset_default"))
+                            .color(colors.fg_faint),
+                    );
+                    columns[1].label(
+                        RichText::new(*default)
+                            .font(font.clone())
+                            .color(colors.fg_muted),
+                    );
+                });
+                ui.add_space(6.0);
+            }
+        });
+}
+
 fn popup(ctx: &Context, id: &str, colors: theme::Palette, add: impl FnOnce(&mut egui::Ui)) {
     let screen = ctx.screen_rect();
     ctx.layer_painter(egui::LayerId::new(egui::Order::Middle, Id::new("dim")))
@@ -3671,6 +4476,86 @@ enum PaletteAction {
     Character(usize),
     /// `'` の用語（`words.md` の H1 の順。全文を出す）。
     Term(usize),
+    /// エージェントのコマンド（`>agent …` / `>prompt …`）。
+    Agent(AgentCommand),
+}
+
+/// パレットのエージェントのコマンド（§15.7.6・§15.5.4）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum AgentCommand {
+    /// `>agent delegation <role> <level>`。
+    Level(String, crate::core::model::delegation::Delegation),
+    /// `>agent stop-all`。
+    StopAll,
+    /// `>prompt reset <name>`（`all` は全部）。
+    PromptReset(String),
+    /// `>prompt diff <name>`。
+    PromptDiff(String),
+}
+
+/// `>prompt reset` / `>prompt diff` の名前（既定の役割・共有の 2 つ）。
+fn prompt_names() -> Vec<&'static str> {
+    crate::core::template::DEFAULT_PROMPTS
+        .iter()
+        .map(|(path, _)| crate::core::agents::prompts::file_name(path))
+        .collect()
+}
+
+/// パレットのエージェントのコマンドの候補（`>agent delegation <role> <level>` は 7 × 4 件）。
+fn agent_palette_items(locale: Locale) -> Vec<PaletteItem> {
+    use crate::core::model::delegation::Delegation;
+    let mut out = Vec::new();
+    for role in crate::core::agents::BUILTIN_ROLES {
+        for level in [
+            Delegation::Off,
+            Delegation::Propose,
+            Delegation::Apply,
+            Delegation::Autonomous,
+        ] {
+            let key = format!("agent delegation {role} {}", level.as_str());
+            out.push(PaletteItem {
+                label: format!(
+                    ">{key}  {}",
+                    i18n::format(locale, "command.agent_delegation", &[role, level.as_str()])
+                ),
+                key,
+                action: PaletteAction::Agent(AgentCommand::Level((*role).to_owned(), level)),
+            });
+        }
+    }
+    out.push(PaletteItem {
+        key: "agent stop-all".to_owned(),
+        label: format!(
+            ">agent stop-all  {}",
+            i18n::text(locale, "command.agent_stop_all")
+        ),
+        action: PaletteAction::Agent(AgentCommand::StopAll),
+    });
+    let mut names = prompt_names();
+    names.push("all");
+    for name in names {
+        let key = format!("prompt reset {name}");
+        out.push(PaletteItem {
+            label: format!(
+                ">{key}  {}",
+                i18n::format(locale, "command.prompt_reset", &[name])
+            ),
+            key,
+            action: PaletteAction::Agent(AgentCommand::PromptReset(name.to_owned())),
+        });
+    }
+    for name in prompt_names() {
+        let key = format!("prompt diff {name}");
+        out.push(PaletteItem {
+            label: format!(
+                ">{key}  {}",
+                i18n::format(locale, "command.prompt_diff", &[name])
+            ),
+            key,
+            action: PaletteAction::Agent(AgentCommand::PromptDiff(name.to_owned())),
+        });
+    }
+    out
 }
 
 /// 用語の全文（パレットの `'用語` の `Enter`。`Ctrl+Shift+W` と同じ形: 1 行目が用語）。
@@ -3726,7 +4611,7 @@ fn palette_items(
 ) -> Vec<PaletteItem> {
     match mode {
         palette::Mode::Command => {
-            let all: Vec<PaletteItem> = PALETTE_COMMANDS
+            let mut all: Vec<PaletteItem> = PALETTE_COMMANDS
                 .iter()
                 .map(|(name, key, command)| PaletteItem {
                     key: (*name).to_owned(),
@@ -3734,6 +4619,7 @@ fn palette_items(
                     action: PaletteAction::Command(*command),
                 })
                 .collect();
+            all.extend(agent_palette_items(locale));
             let ranked = palette::rank(query, &all, |item| (item.key.as_str(), item.key.as_str()));
             ranked
                 .into_iter()
@@ -3916,7 +4802,8 @@ const HELP_KEYS: &[(&str, &str)] = &[
 #[cfg(not(target_arch = "wasm32"))]
 mod native {
     use std::path::{Path, PathBuf};
-    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::{mpsc, Arc};
 
     use egui::{Context, FontFamily, FontId, Frame, Key, Margin, Modifiers, RichText, Vec2};
 
@@ -3925,6 +4812,7 @@ mod native {
     use crate::adapters::clock_system::SystemClock;
     use crate::adapters::dialog_rfd::RfdDialog;
     use crate::adapters::env_system::SystemEnv;
+    use crate::adapters::mcp_stdio::StdioClient;
     use crate::adapters::project_load;
     use crate::adapters::recent_file::RecentFile;
     use crate::adapters::storage_fs::{FsGate, FsStorage};
@@ -3934,8 +4822,11 @@ mod native {
     use crate::core::policy::ProjectPath;
     use crate::ports::clock::Clock;
     use crate::ports::dialog::{ChosenPath, Dialog};
+    use crate::ports::env::Env;
+    use crate::ports::mcp::McpClient;
+    use crate::ui::agents::{Finished, Job};
     use crate::ui::i18n::{self, Locale};
-    use crate::ui::settings::{UiSettings, UI_JSON};
+    use crate::ui::settings::{LanguageChoice, UiSettings, UI_JSON};
     use crate::ui::theme::{self, Mode};
 
     /// GUI を起動する（`main.rs` の `Outcome::Gui`）。`project` は起動前の検査を通ったディレクトリ。
@@ -3981,10 +4872,31 @@ mod native {
         }
     }
 
-    /// デスクトップのプロジェクト（`FsStorage` と外部変更の監視）。
+    /// デスクトップのプロジェクト（`FsStorage` と外部変更の監視・MCP の呼び出し）。
     struct FsHost {
         storage: FsStorage,
         snapshot: Snapshot,
+        mcp: Calls,
+    }
+
+    /// MCP の呼び出し（1 回 1 スレッド。結果は通り道で UI のスレッドへ返す、§15.7.5）。
+    struct Calls {
+        next: u64,
+        cancels: Vec<(u64, Arc<AtomicBool>)>,
+        sender: mpsc::Sender<Finished>,
+        receiver: mpsc::Receiver<Finished>,
+    }
+
+    impl Default for Calls {
+        fn default() -> Self {
+            let (sender, receiver) = mpsc::channel();
+            Self {
+                next: 1,
+                cancels: Vec::new(),
+                sender,
+                receiver,
+            }
+        }
     }
 
     impl Host for FsHost {
@@ -4081,6 +4993,60 @@ mod native {
                 .map(|path| cli::display_path(&path))
                 .map_err(|error| super::ExportFailure::Failed(format!("{error:?}")))
         }
+
+        fn append(&mut self, path: &str, text: &str) -> Result<(), String> {
+            let path = ProjectPath::new(path).map_err(|error| format!("{error:?}"))?;
+            block_on(crate::ports::storage::Storage::append(
+                &self.storage,
+                &path,
+                text,
+            ))
+            .map(|_| ())
+            .map_err(|error| format!("{error:?}"))
+        }
+
+        fn mcp_available(&self) -> bool {
+            true
+        }
+
+        fn mcp_start(&mut self, job: Job) -> Option<u64> {
+            let number = self.mcp.next;
+            self.mcp.next += 1;
+            let cancel = Arc::new(AtomicBool::new(false));
+            let flag = Arc::clone(&cancel);
+            let sender = self.mcp.sender.clone();
+            let spawned = std::thread::Builder::new()
+                .name(format!("novnow-mcp-{number}"))
+                .spawn(move || {
+                    let started = std::time::Instant::now();
+                    let result = StdioClient.call(&job.server, &job.call, &flag);
+                    let elapsed = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+                    let _ = sender.send((number, result, elapsed));
+                });
+            if spawned.is_err() {
+                return None;
+            }
+            self.mcp.cancels.push((number, cancel));
+            Some(number)
+        }
+
+        fn mcp_poll(&mut self) -> Vec<Finished> {
+            let done: Vec<Finished> = self.mcp.receiver.try_iter().collect();
+            self.mcp
+                .cancels
+                .retain(|(number, _)| !done.iter().any(|(finished, _, _)| finished == number));
+            done
+        }
+
+        fn mcp_cancel(&mut self, job: u64) {
+            if let Some((_, flag)) = self.mcp.cancels.iter().find(|(number, _)| *number == job) {
+                flag.store(true, Ordering::Relaxed);
+            }
+        }
+
+        fn env_var(&self, name: &str) -> Option<String> {
+            SystemEnv.var(name)
+        }
     }
 
     /// ディレクトリを開く。開けなければ §14.2.2 と同じ表示の文字列。
@@ -4101,8 +5067,19 @@ mod native {
         let snapshot = Snapshot::from_entries(storage.list_files().unwrap_or_default());
         // パス履歴（§13.2。失敗しても開くのは止めない）
         let _ = RecentFile::new(gate).push(storage.root(), &SystemClock);
-        let host = FsHost { storage, snapshot };
-        let session = Session::new(Box::new(host), loaded.project, &settings);
+        let host = FsHost {
+            storage,
+            snapshot,
+            mcp: Calls::default(),
+        };
+        let mut session = Session::new(Box::new(host), loaded.project, &settings);
+        // `prompts/` の欠けた既定ファイルを書き出す（U-7・§15.5.4。I050 は `prompts/` が無かったとき）
+        let locale = match settings.language {
+            LanguageChoice::Ja => Locale::Ja,
+            LanguageChoice::En => Locale::En,
+            LanguageChoice::System => Locale::detect(None, &SystemEnv),
+        };
+        session.prepare_agents(locale);
         Ok((session, settings))
     }
 
@@ -4413,6 +5390,24 @@ pub struct MemoryFiles {
     pub exported: std::collections::BTreeMap<String, String>,
     /// 消したファイル（順に）。
     pub removed: Vec<String>,
+    /// 追記されたもの（監査ログ。パス → 中身）。
+    pub appended: std::collections::BTreeMap<String, String>,
+    /// LLM を呼べる環境にする（MCP の台本を使う）。
+    pub mcp: bool,
+    /// MCP の台本: 呼び出しが終わるたびに先頭から 1 つずつ返す（無ければ `text.`）。
+    pub replies: std::collections::VecDeque<
+        Result<crate::ports::mcp::McpReply, crate::ports::mcp::McpError>,
+    >,
+    /// 始まった呼び出し（順に。番号は 1 から）。
+    pub jobs: Vec<crate::ui::agents::Job>,
+    /// まだ終わっていない呼び出しの番号。
+    pub pending: Vec<u64>,
+    /// 呼び出しを終わらせずに止めておく（実行中の表示・並列の確かめ）。
+    pub hold: bool,
+    /// 取り消された呼び出しの番号。
+    pub canceled: Vec<u64>,
+    /// 環境変数。
+    pub env: std::collections::BTreeMap<String, String>,
 }
 
 impl Host for MemoryHost {
@@ -4475,6 +5470,65 @@ impl Host for MemoryHost {
         }
         files.exported.insert(name.clone(), text.to_owned());
         Ok(name)
+    }
+
+    fn append(&mut self, path: &str, text: &str) -> Result<(), String> {
+        let mut files = self.files.borrow_mut();
+        if files.fail {
+            return Err("disk full".into());
+        }
+        files
+            .appended
+            .entry(path.to_owned())
+            .or_default()
+            .push_str(text);
+        Ok(())
+    }
+
+    fn mcp_available(&self) -> bool {
+        self.files.borrow().mcp
+    }
+
+    fn mcp_start(&mut self, job: crate::ui::agents::Job) -> Option<u64> {
+        let mut files = self.files.borrow_mut();
+        if !files.mcp {
+            return None;
+        }
+        files.jobs.push(job);
+        let number = files.jobs.len() as u64;
+        files.pending.push(number);
+        Some(number)
+    }
+
+    fn mcp_poll(&mut self) -> Vec<crate::ui::agents::Finished> {
+        let mut files = self.files.borrow_mut();
+        if files.hold {
+            return Vec::new();
+        }
+        let pending = std::mem::take(&mut files.pending);
+        pending
+            .into_iter()
+            .map(|number| {
+                let reply = files.replies.pop_front().unwrap_or_else(|| {
+                    Ok(crate::ports::mcp::McpReply {
+                        text: "text.".to_owned(),
+                        model: "memory".to_owned(),
+                        truncated: false,
+                    })
+                });
+                (number, reply, 10)
+            })
+            .collect()
+    }
+
+    fn mcp_cancel(&mut self, job: u64) {
+        let mut files = self.files.borrow_mut();
+        files.pending.retain(|number| *number != job);
+        files.canceled.push(job);
+    }
+
+    fn env_var(&self, name: &str) -> Option<String> {
+        self.files.borrow().env.get(name).cloned()
     }
 }
 

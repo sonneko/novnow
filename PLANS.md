@@ -1237,7 +1237,7 @@ tests/layering.rs
 **完了条件**
 
 - [x] §19.5 / §19.6 / §19.7 / §19.9 / §19.11 のチェックリストが通る（**M8 の担当分**）。根拠のテスト（「今回」は M8 の検収で足したもの）:
-  - §19.5: 1 `workspaces_are_numbered_like_the_spec_table_and_reader_agent_are_reserved`・`alt_2_opens_the_episode_plot_at_the_same_scene_id_with_its_parent_visible`
+  - §19.5: 1 `workspaces_are_numbered_like_the_spec_table_and_reader_is_reserved`・`alt_2_opens_the_episode_plot_at_the_same_scene_id_with_its_parent_visible`
     （9 種のうち reader は ②、agent は M10 で、番号の予約と案内だけ）／2 同・`ctrl_enter_goes_down_to_write_and_ctrl_b_comes_back_up`／
     3 `ctrl_shift_i_captures_an_idea_from_anywhere_without_changing_the_screen`／4 `the_cast_workspace_shows_the_timeline_and_moves_a_band_with_shift_arrows`・
     `the_role_language_tester_and_the_unmatched_dialogue_list`（以上 `tests/workspaces.rs`）。

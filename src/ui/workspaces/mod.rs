@@ -110,9 +110,9 @@ impl Workspace {
         }
     }
 
-    /// v1 のこの版で開けるか（`reader` は ②、`agent` は M10。B-126）。
+    /// v1 のこの版で開けるか（`reader` は ②。B-126。`agent` は M10 で開けるようになった）。
     pub fn available(self) -> bool {
-        !matches!(self, Self::Reader | Self::Agent)
+        !matches!(self, Self::Reader)
     }
 
     /// 開けるワークスペース（ヘッダのインジケータに並べる順）。
@@ -192,6 +192,8 @@ pub struct Spaces {
     pub review: review::State,
     /// `cast`。
     pub cast: cast::State,
+    /// `agent`。
+    pub agent: agent::State,
 }
 
 /// 描画に要る画面の設定（`NovnowApp` から渡す）。

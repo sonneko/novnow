@@ -10,8 +10,11 @@ mod world;
 
 use egui::{Event, Key, Modifiers};
 
+use novnow::core::agents::files::Board;
+use novnow::core::agents::runner;
 use novnow::core::id::SceneId;
 use novnow::core::model::document::Document;
+use novnow::ports::mcp::{McpError, McpReply};
 use novnow::ui::shell::{self, Command};
 use novnow::ui::workbench::{Nav, Reaction, Workbench};
 use novnow::ui::workspaces::{Switcher, Workspace};
@@ -62,7 +65,7 @@ const CTRL_SHIFT: Modifiers = Modifiers {
 // ============================================================ 切替の規則（§10.0）
 
 #[test]
-fn workspaces_are_numbered_like_the_spec_table_and_reader_agent_are_reserved() {
+fn workspaces_are_numbered_like_the_spec_table_and_reader_is_reserved() {
     let ids: Vec<&str> = Workspace::ALL.iter().map(|found| found.id()).collect();
     assert_eq!(
         ids,
@@ -85,8 +88,8 @@ fn workspaces_are_numbered_like_the_spec_table_and_reader_agent_are_reserved() {
     assert_eq!(Workspace::of_number(0), None);
     assert_eq!(Workspace::of_number(10), None);
     assert!(!Workspace::Reader.available(), "追加仕様 #27 で ②");
-    assert!(!Workspace::Agent.available(), "M10 まで欠番");
-    assert_eq!(Workspace::available_all().count(), 7);
+    assert!(Workspace::Agent.available(), "M10 で入った");
+    assert_eq!(Workspace::available_all().count(), 8);
 }
 
 #[test]
@@ -416,14 +419,18 @@ fn each_workspace_keeps_its_own_position_after_switching_back() {
 }
 
 #[test]
-fn reserved_workspaces_show_a_notice_and_do_not_switch() {
+fn the_reserved_reader_shows_a_notice_and_does_not_switch() {
     let mut harness = novel_harness();
     harness.frame(vec![key(Key::Num7, ALT)]);
     let output = harness.frame(Vec::new());
     assert_eq!(harness.app.workspace(), Some(Workspace::Write));
     assert!(painted_text(&output).contains("読者 はこの版ではまだ使えません"));
     harness.frame(vec![key(Key::Num8, ALT)]);
-    assert_eq!(harness.app.workspace(), Some(Workspace::Write));
+    assert_eq!(
+        harness.app.workspace(),
+        Some(Workspace::Agent),
+        "agent は M10 で入った"
+    );
 }
 
 #[test]
@@ -1374,5 +1381,650 @@ fn ctrl_period_in_the_episode_plot_offers_the_e006_fixes_and_enter_applies_the_f
     assert!(
         slice.ends_with("material: 'M0137:科学の甲子園 本戦の運営と実技課題"),
         "{slice}"
+    );
+}
+
+// ============================================================ agent（§15.7、M10）
+
+const AGENT_MCP: &str = r#"{
+  "schema_version": 1,
+  "servers": {
+    "llm-main": {
+      "transport": "stdio",
+      "command": "my-llm-mcp",
+      "env": { "API_KEY": "${NOVNOW_LLM_KEY}" },
+      "capabilities": ["sampling"],
+      "roles": ["*"]
+    }
+  }
+}"#;
+
+/// 監査ログ（`MemoryHost::now` の日）。
+const AGENT_LOG: &str = "agents/log/2026-10-13.jsonl";
+
+/// 仕様書の例 + `project.json`（`agents` の中身を渡す）+ サーバ 1 つ + 先に作ったタスク。
+/// プロンプトは開くときに書かれる（`Session::prepare_agents`）。
+fn agent_project(agents: &str, tasks: &[&str]) -> novnow::core::features::Project {
+    let mut project = world::world();
+    // 仕様書の例の全体プロットは第 1 章を確定済みにしている。節 4（話プロットの state: fixed）だけにする
+    project.insert(Document::new(
+        world::ALL_PATH,
+        world::ALL.replacen("state: fixed", "state: draft", 1),
+    ));
+    project.insert(Document::new(
+        "project.json",
+        format!(
+            "{{\n  \"schema_version\": 1,\n  \"title\": \"星屑\",\n  \"agents\": {agents}\n}}\n"
+        ),
+    ));
+    project.insert(Document::new("agents/mcp.json", AGENT_MCP));
+    for scope in tasks {
+        let plan = runner::new_tasks(
+            &project,
+            &runner::Draft {
+                role: "writer",
+                scope,
+                intent: "テンポを上げる",
+                comment: "",
+                initiator: "human",
+                status: "draft",
+            },
+            "2026-10-13T21:00:00+09:00",
+        );
+        for change in &plan.writes {
+            project.insert(Document::new(change.path.clone(), change.text.clone()));
+        }
+    }
+    project
+}
+
+fn reply(text: &str) -> Result<McpReply, McpError> {
+    Ok(McpReply {
+        text: text.to_owned(),
+        model: "model-x".to_owned(),
+        truncated: false,
+    })
+}
+
+/// LLM を呼べて鍵もある環境で開き（`setup` で台本を足す）、`Alt+8` で agent へ。開いた最初の画面の文字も返す。
+fn agent_harness(
+    project: novnow::core::features::Project,
+    setup: impl FnOnce(&mut novnow::ui::app::MemoryFiles),
+) -> (Harness, String) {
+    let (mut harness, first) = Harness::start_agents(project, |files| {
+        files.mcp = true;
+        files
+            .env
+            .insert("NOVNOW_LLM_KEY".to_owned(), "secret".to_owned());
+        setup(files);
+    });
+    let opened = painted_text(&first);
+    harness.frame(vec![key(Key::Num8, ALT)]);
+    harness.frame(Vec::new());
+    harness.frame(Vec::new());
+    (harness, opened)
+}
+
+fn board(harness: &Harness) -> Board {
+    Board::of(harness.app.workbench().expect("open").project())
+}
+
+fn project_text(harness: &Harness, path: &str) -> String {
+    harness
+        .app
+        .workbench()
+        .expect("open")
+        .project()
+        .text(path)
+        .to_owned()
+}
+
+fn agent_log(harness: &Harness) -> String {
+    harness
+        .host
+        .files
+        .borrow()
+        .appended
+        .get(AGENT_LOG)
+        .cloned()
+        .unwrap_or_default()
+}
+
+fn press(harness: &mut Harness, pressed: Key, modifiers: Modifiers) -> String {
+    harness.frame(vec![key(pressed, modifiers)]);
+    painted_text(&harness.frame(Vec::new()))
+}
+
+/// 実行待ち → 実行中 → 結果の処理まで回す。
+fn settle(harness: &mut Harness) -> String {
+    let mut last = String::new();
+    for _ in 0..4 {
+        last = painted_text(&harness.frame(Vec::new()));
+    }
+    last
+}
+
+#[test]
+fn alt_8_opens_the_agent_workspace_and_n_creates_a_task_for_the_current_section() {
+    let (mut harness, opened) = agent_harness(agent_project("{}", &[]), |_| {});
+    assert!(
+        opened.contains("prompts/ に既定プロンプトを作成しました"),
+        "I050（U-7）: {opened}"
+    );
+    assert!(
+        project_text(&harness, "prompts/writer.md").contains("## system"),
+        "欠けた既定のプロンプトを開くときに書く"
+    );
+    assert_eq!(harness.app.workspace(), Some(Workspace::Agent));
+    let text = painted_text(&harness.frame(Vec::new()));
+    for heading in [
+        "① タスク",
+        "② コンテキスト",
+        "③ 結果レビュー",
+        "④ 委譲レベル",
+    ] {
+        assert!(text.contains(heading), "{heading}: {text}");
+    }
+    assert!(text.contains("タスクはまだありません"), "{text}");
+    assert!(text.contains("llm-main"), "④ のサーバ: {text}");
+    let text = press(&mut harness, Key::N, Modifiers::NONE);
+    assert!(
+        text.contains("新しいタスク") && text.contains("役割（↑↓ で選ぶ）"),
+        "{text}"
+    );
+    harness.frame(vec![Event::Text("テンポを上げる".into())]);
+    let text = press(&mut harness, Key::Enter, Modifiers::NONE);
+    let board = board(&harness);
+    assert_eq!(board.tasks.len(), 1);
+    let task = &board.tasks[0];
+    assert_eq!(
+        (
+            task.id.as_str(),
+            task.role.as_str(),
+            task.scope.as_str(),
+            task.intent.as_str(),
+            task.status.as_str(),
+            task.initiator.as_str()
+        ),
+        (
+            "T0001",
+            "writer",
+            "@01-04-02-01",
+            "テンポを上げる",
+            "draft",
+            "human"
+        ),
+        "対象は今の節"
+    );
+    assert!(text.contains("タスクを作りました: T0001"), "{text}");
+    assert!(text.contains("T0001  writer  01-04-02-01  draft"), "{text}");
+    assert_eq!(
+        harness
+            .app
+            .spaces()
+            .and_then(|spaces| spaces.agent.task.clone())
+            .as_deref(),
+        Some("T0001"),
+        "作ったタスクを選ぶ"
+    );
+}
+
+#[test]
+fn r_runs_the_task_through_mcp_and_a_accepts_the_proposal_with_an_audit_log() {
+    let (mut harness, _) = agent_harness(agent_project("{}", &["@01-04-02-02"]), |files| {
+        files.replies.push_back(reply("書き直した本文。"));
+    });
+    harness.frame(vec![key(Key::R, Modifiers::NONE)]);
+    let text = settle(&mut harness);
+    {
+        let files = harness.host.files.borrow();
+        assert_eq!(files.jobs.len(), 1);
+        let job = &files.jobs[0];
+        assert_eq!(job.server.name, "llm-main");
+        assert_eq!(job.server.command, "my-llm-mcp");
+        assert_eq!(
+            job.server.env,
+            vec![("API_KEY".to_owned(), "secret".to_owned())],
+            "環境変数は送る直前に解決する"
+        );
+    }
+    let board = board(&harness);
+    assert_eq!(board.tasks[0].status, "review");
+    let proposal = board.proposal_of("T0001").expect("a proposal");
+    assert_eq!(
+        (proposal.id.as_str(), proposal.status.as_str()),
+        ("P0001", "open")
+    );
+    assert!(text.contains("書き直した本文。"), "③ に差分が出る: {text}");
+    assert!(
+        project_text(&harness, world::CONTENTS_PATH).contains("「旧校舎の地下遺跡"),
+        "propose では本文は変わらない（A2）"
+    );
+    // ① の Enter で ③ へ、A で採用
+    press(&mut harness, Key::Enter, Modifiers::NONE);
+    let text = press(&mut harness, Key::A, Modifiers::NONE);
+    assert!(text.contains("採用しました: P0001"), "{text}");
+    let contents = project_text(&harness, world::CONTENTS_PATH);
+    assert!(contents.contains("書き直した本文。"), "{contents}");
+    assert!(!contents.contains("「旧校舎の地下遺跡"), "{contents}");
+    let board = Board::of(harness.app.workbench().unwrap().project());
+    assert_eq!(board.proposal("P0001").unwrap().status, "accepted");
+    assert_eq!(board.tasks[0].status, "accepted");
+    let log = agent_log(&harness);
+    assert!(log.contains("\"event\":\"run\""), "{log}");
+    assert!(log.contains("\"event\":\"accept\""), "{log}");
+    assert!(
+        !log.contains("書き直した本文") && !log.contains("secret"),
+        "ログに本文と秘密を書かない: {log}"
+    );
+}
+
+#[test]
+fn p_accepts_only_the_chosen_lines_of_a_proposal() {
+    let after = "「旧校舎の地下遺跡に眠っているっていう'『星屑の時計』の設計図だ」@アルス\n\n書き足した一行。";
+    let (mut harness, _) = agent_harness(agent_project("{}", &["@01-04-02-02"]), |files| {
+        files.replies.push_back(reply(after));
+    });
+    harness.frame(vec![key(Key::R, Modifiers::NONE)]);
+    settle(&mut harness);
+    press(&mut harness, Key::Enter, Modifiers::NONE);
+    // 変更の行は「消える 1 行」と「足す 1 行」。足す行だけを選ぶ
+    press(&mut harness, Key::P, Modifiers::NONE);
+    assert!(harness.app.spaces().unwrap().agent.partial());
+    press(&mut harness, Key::ArrowDown, Modifiers::NONE);
+    press(&mut harness, Key::Space, Modifiers::NONE);
+    press(&mut harness, Key::Enter, Modifiers::NONE);
+    let contents = project_text(&harness, world::CONTENTS_PATH);
+    assert!(
+        contents.contains("図面の精巧な書き込みに目を奪われた。\n書き足した一行。"),
+        "消える行は残り、足す行だけが入る: {contents}"
+    );
+    let proposal = Board::of(harness.app.workbench().unwrap().project())
+        .proposal("P0001")
+        .cloned()
+        .unwrap();
+    assert_eq!(proposal.status, "accepted");
+    assert!(proposal.partial, "一部採用の印");
+}
+
+#[test]
+fn x_rejects_a_proposal_only_with_a_comment_for_the_next_history() {
+    let (mut harness, _) = agent_harness(agent_project("{}", &["@01-04-02-02"]), |files| {
+        files.replies.push_back(reply("案。"));
+    });
+    harness.frame(vec![key(Key::R, Modifiers::NONE)]);
+    settle(&mut harness);
+    press(&mut harness, Key::Enter, Modifiers::NONE);
+    let text = press(&mut harness, Key::X, Modifiers::NONE);
+    assert!(text.contains("却下の理由（必須"), "{text}");
+    let text = press(&mut harness, Key::Enter, Modifiers::NONE);
+    assert!(
+        text.contains("コメントが要ります"),
+        "空では却下しない: {text}"
+    );
+    assert_eq!(board(&harness).proposal("P0001").unwrap().status, "open");
+    harness.frame(vec![Event::Text("語尾が違う".into())]);
+    let text = press(&mut harness, Key::Enter, Modifiers::NONE);
+    assert!(text.contains("却下しました: P0001"), "{text}");
+    let board = board(&harness);
+    let proposal = board.proposal("P0001").unwrap();
+    assert_eq!(
+        (proposal.status.as_str(), proposal.comment.as_str()),
+        ("rejected", "語尾が違う")
+    );
+    assert_eq!(board.tasks[0].status, "rejected");
+    assert!(agent_log(&harness).contains("\"event\":\"reject\""));
+}
+
+#[test]
+fn space_in_the_context_column_excludes_a_block_but_never_project_or_constraints() {
+    let (mut harness, _) = agent_harness(agent_project("{}", &["@01-04-02-02"]), |_| {});
+    let text = press(&mut harness, Key::ArrowRight, Modifiers::NONE);
+    assert!(
+        text.contains("1 project") && text.contains("必須"),
+        "{text}"
+    );
+    // 1 project は外せない
+    let text = press(&mut harness, Key::Space, Modifiers::NONE);
+    assert!(text.contains("このブロックは外せません"), "{text}");
+    assert_eq!(board(&harness).tasks[0].exclude, "");
+    // 2 outline は外せて、もう一度で戻る
+    press(&mut harness, Key::ArrowDown, Modifiers::NONE);
+    let text = press(&mut harness, Key::Space, Modifiers::NONE);
+    assert_eq!(board(&harness).tasks[0].exclude, "outline");
+    assert!(
+        text.lines()
+            .any(|line| line.starts_with("2 outline  0 / ") && line.ends_with("外した")),
+        "{text}"
+    );
+    press(&mut harness, Key::Space, Modifiers::NONE);
+    assert_eq!(board(&harness).tasks[0].exclude, "");
+}
+
+#[test]
+fn one_to_four_set_the_delegation_level_and_ctrl_shift_x_stops_all() {
+    let (mut harness, _) = agent_harness(agent_project("{}", &[]), |_| {});
+    for _ in 0..3 {
+        press(&mut harness, Key::ArrowRight, Modifiers::NONE);
+    }
+    let text = press(&mut harness, Key::Num3, Modifiers::NONE);
+    assert!(
+        text.contains("writer の委譲レベルを apply にしました"),
+        "{text}"
+    );
+    let level = |harness: &Harness, role: &str| {
+        harness
+            .app
+            .workbench()
+            .unwrap()
+            .project()
+            .settings()
+            .agents
+            .roles
+            .get(role)
+            .cloned()
+    };
+    assert_eq!(level(&harness, "writer").as_deref(), Some("apply"));
+    assert!(
+        project_text(&harness, "project.json").contains("\"writer\": \"apply\""),
+        "project.json に書く"
+    );
+    press(&mut harness, Key::ArrowDown, Modifiers::NONE);
+    press(&mut harness, Key::Num4, Modifiers::NONE);
+    assert_eq!(level(&harness, "plotter").as_deref(), Some("autonomous"));
+    let log = agent_log(&harness);
+    assert!(
+        log.contains("\"event\":\"delegation_changed\"")
+            && log.contains("writer: propose -> apply"),
+        "{log}"
+    );
+    // 総停止: 書き込めるレベルを propose に戻す
+    let text = press(&mut harness, Key::X, CTRL_SHIFT);
+    assert!(text.contains("総停止しました"), "{text}");
+    assert_eq!(level(&harness, "writer").as_deref(), Some("propose"));
+    assert_eq!(level(&harness, "plotter").as_deref(), Some("propose"));
+    assert!(agent_log(&harness).contains("plotter: autonomous -> propose"));
+}
+
+#[test]
+fn shift_r_confirms_runs_two_at_a_time_and_the_status_bar_shows_them() {
+    let (mut harness, _) = agent_harness(
+        agent_project("{}", &["@01-04-02-01", "@01-04-02-02", "@01-04-02-03"]),
+        |files| files.hold = true,
+    );
+    // 新しい順に T0003 / T0002 / T0001。全部に印を付けて Shift+R
+    for _ in 0..2 {
+        press(&mut harness, Key::Space, Modifiers::NONE);
+        press(&mut harness, Key::ArrowDown, Modifiers::NONE);
+    }
+    press(&mut harness, Key::Space, Modifiers::NONE);
+    let shift = Modifiers {
+        shift: true,
+        ..Modifiers::NONE
+    };
+    let text = press(&mut harness, Key::R, shift);
+    assert!(text.contains("3 件のタスクを実行します"), "{text}");
+    assert!(text.contains("使用サーバ: llm-main"), "{text}");
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    let text = settle(&mut harness);
+    let runtime = harness.app.agents().unwrap();
+    assert_eq!(runtime.running.len(), 2, "並列度の既定は 2（§15.7.5）");
+    assert_eq!(runtime.queue.len(), 1);
+    assert!(
+        text.contains("\u{27f3} 2件"),
+        "ステータスバー（§15.7.4）: {text}"
+    );
+    assert!(text.contains("実行中 2 / 待機 1 / 完了 0"), "{text}");
+    // 待っている T0001 を中止
+    let text = press(&mut harness, Key::X, Modifiers::NONE);
+    assert_eq!(board(&harness).task("T0001").unwrap().status, "canceled");
+    assert!(
+        text.contains("T0001  writer  01-04-02-01  canceled"),
+        "{text}"
+    );
+    // 呼び出しが返ると、提案の ID はぶつからない
+    harness.host.files.borrow_mut().hold = false;
+    harness
+        .host
+        .files
+        .borrow_mut()
+        .replies
+        .extend([reply("案その一。"), reply("案その二。")]);
+    settle(&mut harness);
+    let board = board(&harness);
+    let ids: Vec<&str> = board
+        .proposals
+        .iter()
+        .map(|found| found.id.as_str())
+        .collect();
+    assert_eq!(ids, ["P0001", "P0002"]);
+    assert!(harness.app.agents().unwrap().running.is_empty());
+}
+
+#[test]
+fn the_status_bar_label_names_a_single_running_task_and_x_cancels_it() {
+    let (mut harness, _) = agent_harness(agent_project("{}", &["@01-04-02-02"]), |files| {
+        files.hold = true;
+    });
+    harness.frame(vec![key(Key::R, Modifiers::NONE)]);
+    let text = settle(&mut harness);
+    assert!(text.contains("\u{27f3} T0001 writer"), "{text}");
+    assert_eq!(board(&harness).tasks[0].status, "running");
+    // 書いている間（write）も出る。クリックの代わりに Alt+8 で戻る
+    harness.frame(vec![key(Key::Num1, ALT)]);
+    let text = settle(&mut harness);
+    assert!(text.contains("\u{27f3} T0001 writer"), "{text}");
+    harness.frame(vec![key(Key::Num8, ALT)]);
+    settle(&mut harness);
+    press(&mut harness, Key::X, Modifiers::NONE);
+    assert_eq!(harness.host.files.borrow().canceled, vec![1]);
+    assert_eq!(board(&harness).tasks[0].status, "canceled");
+    let text = settle(&mut harness);
+    assert!(!text.contains("\u{27f3} T0001"), "{text}");
+}
+
+#[test]
+fn autonomous_levels_show_in_the_status_bar() {
+    let (mut harness, _) = agent_harness(
+        agent_project(
+            r#"{ "roles": { "writer": "autonomous" } }"#,
+            &["@01-04-02-02"],
+        ),
+        |files| files.hold = true,
+    );
+    harness.frame(vec![key(Key::R, Modifiers::NONE)]);
+    let text = settle(&mut harness);
+    assert!(text.contains("\u{27f3} T0001 writer (自律)"), "{text}");
+}
+
+#[test]
+fn with_agents_disabled_nothing_is_written_and_the_other_workspaces_still_work() {
+    let (mut harness, opened) =
+        agent_harness(agent_project(r#"{ "enabled": false }"#, &[]), |_| {});
+    assert!(!opened.contains("prompts/"), "{opened}");
+    assert!(
+        harness
+            .app
+            .workbench()
+            .unwrap()
+            .project()
+            .document("prompts/writer.md")
+            .is_none(),
+        "無効ならプロンプトも書かない"
+    );
+    let text = painted_text(&harness.frame(Vec::new()));
+    assert!(text.contains("エージェントは無効です"), "{text}");
+    assert!(
+        text.contains("ほかのワークスペースはそのまま使えます"),
+        "{text}"
+    );
+    // A6: ほかのワークスペースはそのまま
+    for (number, workspace) in [
+        (Key::Num1, Workspace::Write),
+        (Key::Num2, Workspace::PlotEpisode),
+        (Key::Num9, Workspace::Review),
+    ] {
+        harness.frame(vec![key(number, ALT)]);
+        harness.frame(Vec::new());
+        assert_eq!(harness.app.workspace(), Some(workspace));
+    }
+}
+
+#[test]
+fn without_an_llm_r_explains_why_and_d_still_saves_a_dry_run() {
+    let (mut harness, _) = agent_harness(agent_project("{}", &["@01-04-02-02"]), |files| {
+        files.mcp = false;
+    });
+    let text = painted_text(&harness.frame(Vec::new()));
+    assert!(text.contains("この環境では LLM を呼び出せません"), "{text}");
+    let text = press(&mut harness, Key::R, Modifiers::NONE);
+    assert!(text.contains("この環境では LLM を呼び出せません"), "{text}");
+    assert_eq!(board(&harness).tasks[0].status, "draft");
+    assert!(harness.host.files.borrow().jobs.is_empty());
+    let text = press(&mut harness, Key::D, Modifiers::NONE);
+    assert!(
+        text.contains("ドライランを保存しました: agents/results/T0001.dryrun.md"),
+        "{text}"
+    );
+    let packet = project_text(&harness, "agents/results/T0001.dryrun.md");
+    assert!(
+        packet.contains("## 1 project") && packet.contains("## 9 history"),
+        "{packet}"
+    );
+    assert!(
+        harness.host.files.borrow().appended.is_empty(),
+        "ドライランはログに書かない"
+    );
+}
+
+#[test]
+fn a_missing_key_blocks_the_run_with_e030() {
+    let (mut harness, _) = agent_harness(agent_project("{}", &["@01-04-02-02"]), |files| {
+        files.env.clear();
+    });
+    let text = painted_text(&harness.frame(Vec::new()));
+    assert!(
+        text.contains("NOVNOW_LLM_KEY"),
+        "④ に解決できない変数: {text}"
+    );
+    let text = press(&mut harness, Key::R, Modifiers::NONE);
+    assert!(
+        text.contains("環境変数 NOVNOW_LLM_KEY が設定されていません"),
+        "{text}"
+    );
+    assert!(harness.host.files.borrow().jobs.is_empty());
+    assert_eq!(board(&harness).tasks[0].status, "draft");
+}
+
+#[test]
+fn a_failed_call_returns_the_task_to_ready_without_retrying() {
+    let (mut harness, _) = agent_harness(agent_project("{}", &["@01-04-02-02"]), |files| {
+        files.replies.push_back(Err(McpError::Timeout));
+    });
+    harness.frame(vec![key(Key::R, Modifiers::NONE)]);
+    let text = settle(&mut harness);
+    assert!(
+        text.contains("T0001 がタイムアウトしました（ready に戻しました）"),
+        "{text}"
+    );
+    assert_eq!(board(&harness).tasks[0].status, "ready");
+    assert_eq!(
+        harness.host.files.borrow().jobs.len(),
+        1,
+        "自動再試行しない"
+    );
+    assert!(agent_log(&harness).contains("\"error\""));
+}
+
+#[test]
+fn apply_auto_applies_and_x_reverts_with_a_comment() {
+    let (mut harness, _) = agent_harness(
+        agent_project(r#"{ "roles": { "writer": "apply" } }"#, &["@01-04-02-02"]),
+        |files| files.replies.push_back(reply("書き換えた本文。")),
+    );
+    harness.frame(vec![key(Key::R, Modifiers::NONE)]);
+    let text = settle(&mut harness);
+    assert!(
+        text.contains("自動適用しました: T0001 → 01-04-02-02"),
+        "{text}"
+    );
+    assert!(project_text(&harness, world::CONTENTS_PATH).contains("書き換えた本文。"));
+    assert_eq!(board(&harness).proposal("P0001").unwrap().status, "applied");
+    assert!(agent_log(&harness).contains("\"event\":\"auto_applied\""));
+    press(&mut harness, Key::Enter, Modifiers::NONE);
+    let text = press(&mut harness, Key::X, Modifiers::NONE);
+    assert!(text.contains("差し戻しの理由（必須"), "{text}");
+    harness.frame(vec![Event::Text("語尾が違う".into())]);
+    let text = press(&mut harness, Key::Enter, Modifiers::NONE);
+    assert!(text.contains("差し戻しました: P0001"), "{text}");
+    let contents = project_text(&harness, world::CONTENTS_PATH);
+    assert!(
+        contents.contains("「旧校舎の地下遺跡") && !contents.contains("書き換えた本文。"),
+        "本文を before に戻す（§15.7.3 MUST）: {contents}"
+    );
+    assert_eq!(
+        board(&harness).proposal("P0001").unwrap().status,
+        "rejected"
+    );
+}
+
+#[test]
+fn the_palette_sets_levels_and_resets_or_compares_prompts() {
+    let mut project = agent_project("{}", &[]);
+    project.insert(Document::new("prompts/writer.md", "# writer\n\n## system\n書き換えた。\n\n## task\n節 {{scene_id}} の本文を書いてください。\n"));
+    let (mut harness, _) = agent_harness(project, |_| {});
+    let palette = |harness: &mut Harness, query: &str| {
+        harness.frame(vec![key(Key::P, CTRL)]);
+        harness.frame(Vec::new());
+        harness.frame(vec![Event::Text(query.into())]);
+        let listed = painted_text(&harness.frame(Vec::new()));
+        harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+        // パレットから開いた重ね物は次のフレームで大きさを測り、その次から見える
+        harness.frame(Vec::new());
+        (listed, painted_text(&harness.frame(Vec::new())))
+    };
+    let (listed, text) = palette(&mut harness, ">agent delegation writer apply");
+    assert!(
+        listed.contains(">agent delegation writer apply"),
+        "{listed}"
+    );
+    assert!(
+        text.contains("writer の委譲レベルを apply にしました"),
+        "{text}"
+    );
+    let (_, text) = palette(&mut harness, ">agent stop-all");
+    assert!(text.contains("総停止しました"), "{text}");
+    assert!(project_text(&harness, "project.json").contains("\"writer\": \"propose\""));
+    // diff は並べるだけ
+    let (listed, text) = palette(&mut harness, ">prompt diff writer");
+    assert!(listed.contains(">prompt diff writer"), "{listed}");
+    assert!(text.contains("既定との比較: writer"), "{text}");
+    assert!(
+        text.contains("書き換えた。") && text.contains("既定"),
+        "{text}"
+    );
+    press(&mut harness, Key::Escape, Modifiers::NONE);
+    // reset は確認してから既定に戻す（退避しない）
+    let (_, text) = palette(&mut harness, ">prompt reset writer");
+    assert!(text.contains("プロンプトを既定に戻す: writer"), "{text}");
+    assert!(text.contains("元に戻せません"), "{text}");
+    let text = press(&mut harness, Key::Enter, Modifiers::NONE);
+    assert!(
+        text.contains("1 個のプロンプトを既定に戻しました"),
+        "{text}"
+    );
+    assert_eq!(
+        project_text(&harness, "prompts/writer.md"),
+        novnow::core::template::default_prompt("prompts/writer.md").unwrap()
+    );
+    assert!(
+        !harness
+            .app
+            .workbench()
+            .unwrap()
+            .project()
+            .documents()
+            .any(|document| document.path.contains(".bak")),
+        "`.bak-*` を作らない"
     );
 }

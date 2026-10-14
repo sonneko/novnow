@@ -9,7 +9,7 @@ use super::world::world;
 
 use egui::{Event, Key, Modifiers, Pos2, RawInput, Rect, Vec2};
 
-use novnow::ui::app::{MemoryHost, NoPicker, NovnowApp, Session};
+use novnow::ui::app::{MemoryFiles, MemoryHost, NoPicker, NovnowApp, Session};
 use novnow::ui::i18n::Locale;
 use novnow::ui::settings::UiSettings;
 
@@ -35,10 +35,32 @@ impl Harness {
         project: novnow::core::features::Project,
         dark: bool,
     ) -> (Self, egui::FullOutput) {
-        let ctx = egui::Context::default();
+        Self::open(project, dark, MemoryHost::default(), false)
+    }
+
+    /// エージェントの画面のテスト: `setup` で `MemoryHost`（LLM の台本・環境変数）を整えてから開き、
+    /// デスクトップの `open_project` と同じく `Session::prepare_agents` を呼ぶ（欠けたプロンプトを書く）。
+    pub fn start_agents(
+        project: novnow::core::features::Project,
+        setup: impl FnOnce(&mut MemoryFiles),
+    ) -> (Self, egui::FullOutput) {
         let host = MemoryHost::default();
+        setup(&mut host.files.borrow_mut());
+        Self::open(project, true, host, true)
+    }
+
+    fn open(
+        project: novnow::core::features::Project,
+        dark: bool,
+        host: MemoryHost,
+        agents: bool,
+    ) -> (Self, egui::FullOutput) {
+        let ctx = egui::Context::default();
         let settings = UiSettings::default();
-        let session = Session::new(Box::new(host.clone()), project, &settings);
+        let mut session = Session::new(Box::new(host.clone()), project, &settings);
+        if agents {
+            session.prepare_agents(Locale::Ja);
+        }
         let app = NovnowApp::new(
             &ctx,
             Locale::Ja,
