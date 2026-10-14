@@ -1,0 +1,143 @@
+---
+import { translations, type Language } from "../data/i18n";
+import styles from "./Hero.module.scss";
+
+interface Props {
+  lang: Language;
+}
+
+const { lang } = Astro.props;
+const t = translations[lang].hero;
+const installT = translations[lang].installNotice;
+
+const ideContent = {
+  ja: {
+    title: "novnow v1 - [星屑の時計 / 01-04-02-03]",
+    treeHeader: "構造ツリー",
+    editorHeader: "節エディタ (01-04-02-03)",
+    contextHeader: "連動コンテキスト (配役・プロット)",
+    line1Title: "@01-04-02 図書室の放課後",
+    line2Text: "「やっぱり",
+    line2Ref1: "'アーリア",
+    line2Text2: "、ここにいたのね」",
+    line2Speaker: "@リヴィア:A",
+    line3Text: "安堵したような声とともに、",
+    line3Ref: "'リヴィア",
+    line3Text2: "が隣の椅子を引き寄せた。",
+    line5Text: "「旧校舎の地下遺跡に眠る、",
+    line5Ref: "'『星屑の時計』",
+    line5Text2: "の設計図だ」",
+    line5Speaker: "@アーリア",
+    charName: "👤 リヴィア・ヴァンス [モード A: 日常]",
+    charDesc: "性格: 温厚で物静か。アーリアを陰から支える。",
+    charRole: "役割語: 「〜かしら」「えへへ、*」",
+    plotTitle: "📌 場面プロット (01-04-02)",
+    plotDesc: "図書室でアーリアがリヴィアに設計図を見せ、放課後の旧校舎探索を約束する。",
+  },
+  en: {
+    title: "novnow v1 - [The Stardust Clock / 01-04-02-03]",
+    treeHeader: "File Structure",
+    editorHeader: "Section Editor (01-04-02-03)",
+    contextHeader: "Context Reference (Character & Plot)",
+    line1Title: "@01-04-02 Library After School",
+    line2Text: '"I knew I\'d find you here, ',
+    line2Ref1: "'Aria",
+    line2Text2: '."',
+    line2Speaker: "@Livia:A",
+    line3Text: "With a gentle sigh of relief, ",
+    line3Ref: "'Livia",
+    line3Text2: " pulled up a chair beside him.",
+    line5Text: '"This is the blueprint for the ',
+    line5Ref: "'Stardust Clock",
+    line5Text2: ' hidden in the ruins."',
+    line5Speaker: "@Aria",
+    charName: "👤 Livia Vance [Mode A: Normal]",
+    charDesc: "Personality: Gentle and quiet. Always supports Aria.",
+    charRole: "Speech Style: '...I suppose', 'Hehe, *'",
+    plotTitle: "📌 Scene Plot (01-04-02)",
+    plotDesc: "Aria shows Livia the ancient blueprint in the library and agrees to explore after school.",
+  },
+};
+
+const c = ideContent[lang];
+---
+
+<section class={styles.heroSection}>
+  <div class:list={["container", styles.container]}>
+    <div class={styles.badge}>
+      <span class={styles.badgeDot}></span>
+      {t.badge}
+    </div>
+
+    <h1 class={styles.title}>{t.title}</h1>
+
+    <p class={styles.description}>{t.description}</p>
+
+    <div class={styles.ctaGroup}>
+      <a href={`/${lang}/guide`} class={styles.primaryBtn}>
+        {t.ctaGuide}
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <path fill-rule="evenodd" d="M6.22 3.22a.75.75 0 011.06 0l4.25 4.25a.75.75 0 010 1.06l-4.25 4.25a.75.75 0 01-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 010-1.06z"></path>
+        </svg>
+      </a>
+
+      <a href="https://github.com/sonneko/novnow" target="_blank" rel="noopener noreferrer" class={styles.secondaryBtn}>
+        <svg height="18" width="18" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+        </svg>
+        {t.ctaGitHub}
+      </a>
+    </div>
+
+    <!-- Installation status notice -->
+    <div class={styles.installNoticeBox}>
+      <div class={styles.installNoticeHeader}>
+        <span class={styles.noticeTag}>{installT.status}</span>
+        <strong>{installT.title}</strong>
+      </div>
+      <p>{installT.desc}</p>
+    </div>
+
+    <!-- IDE Screen Placeholder Artwork -->
+    <div class={styles.idePreview}>
+      <div class={styles.ideHeader}>
+        <span class={styles.dotRed}></span>
+        <span class={styles.dotYellow}></span>
+        <span class={styles.dotGreen}></span>
+        <span class={styles.ideTitle}>{c.title}</span>
+      </div>
+      <div class={styles.ideBody}>
+        <div class={styles.paneLeftTree}>
+          <div class={styles.paneLabel}>{c.treeHeader}</div>
+          <div class={styles.treeItem}>📁 contents/</div>
+          <div class={styles.treeItemActive}>  📄 01-04.txt</div>
+          <div class={styles.treeItem}>📁 plots/</div>
+          <div class={styles.treeItem}>  📄 all.txt</div>
+          <div class={styles.treeItem}>  📄 01.txt</div>
+        </div>
+
+        <div class={styles.paneCenterEditor}>
+          <div class={styles.paneLabel}>{c.editorHeader}</div>
+          <div class={styles.codeLine}><span class={styles.sigil}>{c.line1Title}</span></div>
+          <div class={styles.codeLine}>{c.line2Text}<span class={styles.ref}>{c.line2Ref1}</span>{c.line2Text2} <span class={styles.speaker}>{c.line2Speaker}</span></div>
+          <div class={styles.codeLine}>{c.line3Text}<span class={styles.ref}>{c.line3Ref}</span>{c.line3Text2}</div>
+          <div class={styles.codeLine}><span class={styles.sigil}>;</span></div>
+          <div class={styles.codeLine}>{c.line5Text}<span class={styles.ref}>{c.line5Ref}</span>{c.line5Text2} <span class={styles.speaker}>{c.line5Speaker}</span></div>
+        </div>
+
+        <div class={styles.paneRightRef}>
+          <div class={styles.paneLabel}>{c.contextHeader}</div>
+          <div class={styles.refCard}>
+            <div class={styles.refCardTitle}>{c.charName}</div>
+            <p>{c.charDesc}</p>
+            <div class={styles.roleTag}>{c.charRole}</div>
+          </div>
+          <div class={styles.refCard}>
+            <div class={styles.refCardTitle}>{c.plotTitle}</div>
+            <p>{c.plotDesc}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

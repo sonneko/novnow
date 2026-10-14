@@ -1,0 +1,27 @@
+---
+import type { FeatureItem } from "../data/features";
+import type { Language } from "../data/i18n";
+import styles from "./FeatureCard.module.scss";
+
+interface Props {
+  feature: FeatureItem;
+  lang: Language;
+}
+
+const { feature, lang } = Astro.props;
+---
+
+<div class={styles.card}>
+  <div class={styles.header}>
+    <span class={styles.badge}>{feature.id}</span>
+    <h3 class={styles.title}>{feature.title[lang]}</h3>
+  </div>
+
+  <p class={styles.summary}>{feature.summary[lang]}</p>
+
+  <div class={styles.viewpoints}>
+    <div class={styles.viewpointNonEngineer}>
+      <p>{feature.nonEngineerSummary[lang]}</p>
+    </div>
+  </div>
+</div>

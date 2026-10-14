@@ -1,0 +1,37 @@
+---
+import styles from "./LanguageSwitcher.module.scss";
+
+interface Props {
+  currentLang: "ja" | "en";
+  currentPath: string;
+}
+
+const { currentLang, currentPath } = Astro.props;
+
+// Convert path between languages
+const getTargetUrl = (targetLang: "ja" | "en") => {
+  if (currentLang === targetLang) return currentPath;
+  if (currentPath.startsWith("/ja")) {
+    return currentPath.replace("/ja", "/en");
+  } else if (currentPath.startsWith("/en")) {
+    return currentPath.replace("/en", "/ja");
+  }
+  return `/${targetLang}`;
+};
+---
+
+<div class={styles.switcher}>
+  <a
+    href={getTargetUrl("ja")}
+    class:list={[styles.langBtn, { [styles.active]: currentLang === "ja" }]}
+  >
+    日本語
+  </a>
+  <span class={styles.divider}>|</span>
+  <a
+    href={getTargetUrl("en")}
+    class:list={[styles.langBtn, { [styles.active]: currentLang === "en" }]}
+  >
+    English
+  </a>
+</div>

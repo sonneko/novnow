@@ -1,0 +1,25 @@
+---
+import type { FeatureItem } from "../data/features";
+import type { Language } from "../data/i18n";
+import styles from "./GuideSection.module.scss";
+
+interface Props {
+  feature: FeatureItem;
+  lang: Language;
+}
+
+const { feature, lang } = Astro.props;
+---
+
+<div class={styles.guideBlock} id={feature.id}>
+  <div class={styles.guideHeader}>
+    <span class={styles.idBadge}>{feature.id}</span>
+    <h2>{feature.title[lang]}</h2>
+  </div>
+
+  <p class={styles.guideSummary}>{feature.summary[lang]}</p>
+
+  <div class={styles.contentCard}>
+    <p>{feature.nonEngineerSummary[lang]}</p>
+  </div>
+</div>

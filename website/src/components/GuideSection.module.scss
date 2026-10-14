@@ -1,0 +1,56 @@
+@use "../styles/variables.scss" as *;
+
+.guideBlock {
+  background-color: $bg-card;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
+  padding: 1.75rem;
+  margin-bottom: 2rem;
+  scroll-margin-top: 100px;
+}
+
+.guideHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+
+  h2 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: $text-primary;
+    margin: 0;
+  }
+}
+
+.idBadge {
+  background-color: rgba($accent-blue, 0.15);
+  color: $accent-blue;
+  border: 1px solid rgba($accent-blue, 0.3);
+  font-family: $font-family-mono;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+
+.guideSummary {
+  color: $text-secondary;
+  font-size: 1rem;
+  line-height: 1.6;
+  margin-bottom: 1.25rem;
+}
+
+.contentCard {
+  background-color: $bg-subtle;
+  border: 1px solid $border-color;
+  border-radius: $radius-sm;
+  padding: 1.25rem;
+
+  p {
+    color: $text-primary;
+    font-size: 0.95rem;
+    line-height: 1.7;
+    margin: 0;
+  }
+}

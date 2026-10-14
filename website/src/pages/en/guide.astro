@@ -1,0 +1,54 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Header from "../../components/Header.astro";
+import GuideSection from "../../components/GuideSection.astro";
+import Footer from "../../components/Footer.astro";
+import { featuresData } from "../../data/features";
+
+const lang = "en";
+---
+
+<BaseLayout title="Feature Guide & Reference" lang={lang}>
+  <Header lang={lang} currentPath="/en/guide" />
+
+  <div class="container" style="display: grid; grid-template-columns: 260px 1fr; gap: 2.5rem; margin-top: 3rem; margin-bottom: 5rem; align-items: start;">
+    <!-- Sticky Sidebar Navigation (Starlight Style) -->
+    <aside style="position: sticky; top: 90px; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.25rem; max-height: calc(100vh - 120px); overflow-y: auto;">
+      <h3 style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+        Feature Reference
+      </h3>
+      <nav style="display: flex; flex-direction: column; gap: 0.5rem;">
+        {featuresData.map((f) => (
+          <a
+            href={`#${f.id}`}
+            style="font-size: 0.88rem; color: var(--text-secondary); text-decoration: none; padding: 0.35rem 0.6rem; border-radius: 4px; transition: all 0.15s ease;"
+            onmouseover="this.style.color='var(--accent-purple)'; this.style.backgroundColor='var(--bg-subtle)';"
+            onmouseout="this.style.color='var(--text-secondary)'; this.style.backgroundColor='transparent';"
+          >
+            {f.title[lang]}
+          </a>
+        ))}
+      </nav>
+    </aside>
+
+    <!-- Main Content Panel -->
+    <main>
+      <div style="margin-bottom: 2.5rem;">
+        <h1 style="font-size: 2.25rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.75rem;">
+          NovNow Feature Reference
+        </h1>
+        <p style="color: var(--text-secondary); line-height: 1.6; font-size: 1.05rem;">
+          Detailed reference documentation for all core features supporting structured novel writing in NovNow.
+        </p>
+      </div>
+
+      <div>
+        {featuresData.map((feature) => (
+          <GuideSection feature={feature} lang={lang} />
+        ))}
+      </div>
+    </main>
+  </div>
+
+  <Footer lang={lang} />
+</BaseLayout>

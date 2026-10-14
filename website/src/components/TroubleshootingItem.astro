@@ -1,0 +1,53 @@
+---
+import type { TroubleshootingItem } from "../data/troubleshooting";
+import type { Language } from "../data/i18n";
+import styles from "./TroubleshootingItem.module.scss";
+
+interface Props {
+  item: TroubleshootingItem;
+  lang: Language;
+}
+
+const { item, lang } = Astro.props;
+
+const labels = {
+  ja: {
+    problem: "症状・事象",
+    cause: "原因",
+    solution: "解決方法",
+  },
+  en: {
+    problem: "Symptoms & Issue",
+    cause: "Root Cause",
+    solution: "Resolution",
+  },
+};
+
+const l = labels[lang];
+---
+
+<div class={styles.itemCard} id={item.id}>
+  <div class={styles.header}>
+    <span class={styles.category}>{item.category[lang]}</span>
+    <h3 class={styles.title}>{item.title[lang]}</h3>
+  </div>
+
+  <div class={styles.section}>
+    <strong class={styles.sectionLabelProblem}>{l.problem}</strong>
+    <p>{item.problem[lang]}</p>
+  </div>
+
+  <div class={styles.section}>
+    <strong class={styles.sectionLabelCause}>{l.cause}</strong>
+    <p>{item.cause[lang]}</p>
+  </div>
+
+  <div class={styles.solutionBox}>
+    <strong class={styles.sectionLabelSolution}>{l.solution}</strong>
+    <p>{item.solution[lang]}</p>
+
+    {item.code && (
+      <pre class={styles.codeBlock}><code>{item.code}</code></pre>
+    )}
+  </div>
+</div>

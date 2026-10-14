@@ -1,0 +1,70 @@
+@use "../styles/variables.scss" as *;
+
+.itemCard {
+  background-color: $bg-card;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
+  padding: 1.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.header {
+  margin-bottom: 1.25rem;
+}
+
+.category {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: $accent-orange;
+  background-color: rgba($accent-orange, 0.12);
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+}
+
+.title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: $text-primary;
+  margin-top: 0.5rem;
+  line-height: 1.4;
+}
+
+.section {
+  margin-bottom: 1rem;
+
+  p {
+    color: $text-secondary;
+    font-size: 0.95rem;
+    margin-top: 0.2rem;
+  }
+}
+
+.sectionLabelProblem { color: $accent-pink; font-size: 0.85rem; }
+.sectionLabelCause { color: $accent-orange; font-size: 0.85rem; }
+.sectionLabelSolution { color: $accent-green; font-size: 0.85rem; }
+
+.solutionBox {
+  background-color: rgba($accent-green, 0.06);
+  border-left: 3px solid $accent-green;
+  padding: 1rem;
+  border-radius: $radius-sm;
+
+  p {
+    color: $text-primary;
+    font-size: 0.95rem;
+    margin-top: 0.25rem;
+  }
+}
+
+.codeBlock {
+  margin-top: 0.75rem;
+  background-color: $bg-dark;
+  border: 1px solid $border-color;
+  padding: 0.75rem;
+  border-radius: $radius-sm;
+  color: $text-primary;
+  font-family: $font-family-mono;
+  font-size: 0.85rem;
+  overflow-x: auto;
+}
