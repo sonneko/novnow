@@ -1570,6 +1570,27 @@ fn alt_8_opens_the_agent_workspace_and_n_creates_a_task_for_the_current_section(
 }
 
 #[test]
+fn a_prompt_path_taken_on_disk_is_not_written_and_its_role_cannot_run() {
+    // 外を指すシンボリックリンクの代わり（B-155）: 書かず、その役割は E029 で走らない
+    let (mut harness, opened) = agent_harness(agent_project("{}", &["@01-04-02-02"]), |files| {
+        files.occupied.push("prompts/writer.md".to_owned());
+    });
+    assert!(
+        opened.contains("prompts/ に既定プロンプトを作成しました"),
+        "{opened}"
+    );
+    let project = harness.app.workbench().unwrap().project();
+    assert!(project.document("prompts/writer.md").is_none());
+    assert!(project.document("prompts/plotter.md").is_some());
+    let text = press(&mut harness, Key::R, Modifiers::NONE);
+    assert!(
+        text.contains("プロンプトに必須のセクションがありません"),
+        "{text}"
+    );
+    assert!(harness.host.files.borrow().jobs.is_empty());
+}
+
+#[test]
 fn r_runs_the_task_through_mcp_and_a_accepts_the_proposal_with_an_audit_log() {
     let (mut harness, _) = agent_harness(agent_project("{}", &["@01-04-02-02"]), |files| {
         files.replies.push_back(reply("書き直した本文。"));
@@ -1854,10 +1875,7 @@ fn with_agents_disabled_nothing_is_written_and_the_other_workspaces_still_work()
     );
     let text = painted_text(&harness.frame(Vec::new()));
     assert!(text.contains("エージェントは無効です"), "{text}");
-    assert!(
-        text.contains("ほかのワークスペースはそのまま使えます"),
-        "{text}"
-    );
+    assert!(!text.contains("① タスク"), "「無効です」とだけ出す: {text}");
     // A6: ほかのワークスペースはそのまま
     for (number, workspace) in [
         (Key::Num1, Workspace::Write),
@@ -1969,10 +1987,31 @@ fn apply_auto_applies_and_x_reverts_with_a_comment() {
 }
 
 #[test]
+fn auto_applying_a_fixed_section_says_so_in_the_status_bar() {
+    // A7（§19.8）: 確定済みの節を自動で書き換えたらステータスバーに 1 行出し、監査ログに fixed_overwrite
+    let (mut harness, _) = agent_harness(
+        agent_project(r#"{ "roles": { "writer": "apply" } }"#, &["@01-04-02-04"]),
+        |files| files.replies.push_back(reply("確定済みを書き換えた。")),
+    );
+    harness.frame(vec![key(Key::R, Modifiers::NONE)]);
+    let text = settle(&mut harness);
+    assert!(
+        text.contains("fixed を書き換えました: T0001 → 01-04-02-04"),
+        "{text}"
+    );
+    assert!(project_text(&harness, world::CONTENTS_PATH).contains("確定済みを書き換えた。"));
+    assert!(agent_log(&harness).contains("\"event\":\"fixed_overwrite\""));
+}
+
+#[test]
 fn the_palette_sets_levels_and_resets_or_compares_prompts() {
     let mut project = agent_project("{}", &[]);
     project.insert(Document::new("prompts/writer.md", "# writer\n\n## system\n書き換えた。\n\n## task\n節 {{scene_id}} の本文を書いてください。\n"));
     let (mut harness, _) = agent_harness(project, |_| {});
+    assert!(
+        project_text(&harness, "prompts/writer.md").contains("書き換えた。"),
+        "既存のプロンプトは開いても上書きしない（§19.8）"
+    );
     let palette = |harness: &mut Harness, query: &str| {
         harness.frame(vec![key(Key::P, CTRL)]);
         harness.frame(Vec::new());

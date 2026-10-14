@@ -227,17 +227,12 @@ pub fn show(
                     .inner_margin(Margin::same(32.0)),
             )
             .show(ctx, |ui| {
+                // §15.7「エージェントは無効です」とだけ出す（他のワークスペースはそのまま、A6）
                 super::hint(
                     ui,
                     view.mode,
                     view.scale,
                     i18n::text(locale, "agent.disabled"),
-                );
-                super::hint(
-                    ui,
-                    view.mode,
-                    view.scale,
-                    i18n::text(locale, "agent.disabled_hint"),
                 );
             });
         return actions;

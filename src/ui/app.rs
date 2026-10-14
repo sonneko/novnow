@@ -86,6 +86,12 @@ pub trait Host {
         let _ = name;
         None
     }
+    /// ディスク上にその名前の何か（ファイル・ディレクトリ・リンク）がある。一覧に無いのにあるもの（外を指す
+    /// シンボリックリンク）には既定のプロンプトを書かない（`PLANS.md` §9.2 B-155）。
+    fn occupied(&self, path: &str) -> bool {
+        let _ = path;
+        false
+    }
 }
 
 /// 「名前を付けて保存」に失敗した理由（文言は `NovnowApp` がカタログで引く）。
@@ -317,7 +323,9 @@ impl Session {
     /// 開いたときのエージェントの準備（U-7・§15.5.4）: `prompts/` の欠けた既定ファイルを書き出す。
     /// `prompts/` が丸ごと無かったら I050 を知らせる。エージェントが無効なら何もしない。
     pub fn prepare_agents(&mut self, locale: Locale) {
-        if let Some(message) = crate::ui::agents::write_prompts(&mut self.bench, 0.0, locale) {
+        if let Some(message) =
+            crate::ui::agents::write_prompts(&mut self.bench, self.host.as_ref(), 0.0, locale)
+        {
             self.notice = Some((message, 0.0));
         }
     }
@@ -3348,7 +3356,12 @@ impl NovnowApp {
                     });
                 });
                 if reset {
-                    let count = crate::ui::agents::reset_prompts(name, &mut session.bench, now);
+                    let count = crate::ui::agents::reset_prompts(
+                        name,
+                        &mut session.bench,
+                        session.host.as_ref(),
+                        now,
+                    );
                     session.notice = Some((
                         i18n::format(locale, "prompt.reset_done", &[&count.to_string()]),
                         now,
@@ -5047,6 +5060,10 @@ mod native {
         fn env_var(&self, name: &str) -> Option<String> {
             SystemEnv.var(name)
         }
+
+        fn occupied(&self, path: &str) -> bool {
+            ProjectPath::new(path).is_ok_and(|path| self.storage.exists(&path))
+        }
     }
 
     /// ディレクトリを開く。開けなければ §14.2.2 と同じ表示の文字列。
@@ -5408,6 +5425,8 @@ pub struct MemoryFiles {
     pub canceled: Vec<u64>,
     /// 環境変数。
     pub env: std::collections::BTreeMap<String, String>,
+    /// 一覧に無いがディスクにあることにするパス（外を指すシンボリックリンクの代わり）。
+    pub occupied: Vec<String>,
 }
 
 impl Host for MemoryHost {
@@ -5529,6 +5548,14 @@ impl Host for MemoryHost {
 
     fn env_var(&self, name: &str) -> Option<String> {
         self.files.borrow().env.get(name).cloned()
+    }
+
+    fn occupied(&self, path: &str) -> bool {
+        self.files
+            .borrow()
+            .occupied
+            .iter()
+            .any(|found| found == path)
     }
 }
 

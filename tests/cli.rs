@@ -1224,6 +1224,37 @@ fn mcp_serves_the_tools_over_json_lines_and_writes_only_inside_the_project() {
     assert_eq!(again.err, "");
 }
 
+#[cfg(unix)]
+#[test]
+fn mcp_leaves_prompts_that_are_links_to_outside_alone() {
+    // 一覧に無くてもディスクにあるもの（外を指すリンク）には既定を書かない（B-155。書けば規則 10 の違反）
+    let dir = TempDir::new("cli-mcp-prompt-link");
+    let root = minimal_project(&dir, "novel");
+    dir.write("outside/writer.md", "外のプロンプト\n");
+    std::fs::create_dir_all(root.join("prompts")).expect("mkdir");
+    std::os::unix::fs::symlink(
+        dir.join("outside/writer.md"),
+        root.join("prompts/writer.md"),
+    )
+    .expect("ln");
+    let ran = run_mcp(dir.path(), &env_ja(&dir), "novel", "");
+    assert_eq!(ran.exit(), Exit::Ok, "{}", ran.err);
+    assert_eq!(
+        std::fs::read_to_string(dir.join("outside/writer.md")).expect("read"),
+        "外のプロンプト\n"
+    );
+    assert!(root
+        .join("prompts/writer.md")
+        .symlink_metadata()
+        .expect("link")
+        .file_type()
+        .is_symlink());
+    assert!(
+        root.join("prompts/plotter.md").is_file(),
+        "ほかの欠けたものは書く"
+    );
+}
+
 #[test]
 fn mcp_direct_writes_follow_the_role_level_and_leave_the_audit_trail() {
     use serde_json::{json, Value};

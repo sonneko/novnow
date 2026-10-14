@@ -548,8 +548,7 @@ unmatched_count = "役割語が一致しなかった台詞 {0} 件（ダブル�
 
 # agent ワークスペース（§15.7、M10）
 [agent]
-disabled = "エージェントは無効です（project.json の agents.enabled が false）"
-disabled_hint = "agents.enabled を true にすると使えます。ほかのワークスペースはそのまま使えます"
+disabled = "エージェントは無効です"
 llm_unavailable = "この環境では LLM を呼び出せません（タスクの作成とドライランはできます）"
 # {0} = 実行中、{1} = 待機、{2} = 完了
 progress = "実行中 {0} / 待機 {1} / 完了 {2}"

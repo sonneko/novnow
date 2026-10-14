@@ -372,6 +372,11 @@ fn a_prompt_without_system_or_task_is_e029_and_blocks_only_that_role() {
         DiagnosticCode::E029
     );
     assert!(prompts::blockers(&project, "plotter").is_empty());
+    // ファイルが無ければ E029（埋め込みの既定は読み込み元ではない、§15.5.4 (1)）
+    assert_eq!(
+        prompts::blockers(&project, "ideator")[0].code,
+        DiagnosticCode::E029
+    );
     let document = project.document("prompts/writer.md").unwrap();
     assert!(diagnostics::document(document, &project)
         .iter()

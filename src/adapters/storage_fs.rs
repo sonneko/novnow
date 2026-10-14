@@ -519,9 +519,19 @@ impl FsStorage {
         self.walk().map(|(_, dirs)| dirs)
     }
 
-    /// バイト列を読む（Zip のエクスポート・バイナリの資料）。
+    /// バイト列を読む（Zip のエクスポート・バイナリの資料）。行き先がルートの外のもの（外を指す
+    /// シンボリックリンク）は無いものとして扱う（`PLANS.md` §9.2 B-155）。
     pub fn read_bytes(&self, path: &ProjectPath) -> Result<Vec<u8>, StorageError> {
-        fs::read(self.absolute(path)).map_err(|error| self.map_read_error(path, &error))
+        let absolute = self.absolute(path);
+        if !self.inside(&absolute) {
+            return Err(StorageError::NotFound(path.clone()));
+        }
+        fs::read(&absolute).map_err(|error| self.map_read_error(path, &error))
+    }
+
+    /// 行き先（リンクを解決した実体）がルートの中か。解決できないものは `true`（読み込みのエラーに任せる）。
+    fn inside(&self, absolute: &Path) -> bool {
+        fs::canonicalize(absolute).map_or(true, |real| real.starts_with(&self.root))
     }
 
     /// バイト列を原子的に書く（Zip のエクスポートの書き出し先 `exports/<name>.zip` 等）。
@@ -543,7 +553,7 @@ impl FsStorage {
     }
 
     /// ルートの下を歩く（`.git/` には入らない・シンボリックリンクのディレクトリは辿らない・
-    /// 一時ファイルは除く・相対パスにできない名前は除く）。
+    /// ルートの外を指すシンボリックリンクのファイルは除く・一時ファイルは除く・相対パスにできない名前は除く）。
     fn walk(&self) -> Result<(Vec<FileEntry>, Vec<ProjectPath>), StorageError> {
         let mut files = Vec::new();
         let mut dirs = Vec::new();
@@ -569,8 +579,10 @@ impl FsStorage {
                     dirs.push(path);
                     pending.push((entry.path(), format!("{relative}/")));
                 } else if let Ok(metadata) = fs::metadata(entry.path()) {
-                    // シンボリックリンクはファイルを指すときだけ（ディレクトリは辿らない）
-                    if metadata.is_file() {
+                    // シンボリックリンクはファイルを指すときだけ（ディレクトリは辿らない）。行き先がルートの
+                    // 外なら読まない（書けないものはプロジェクトに含めない。§19.8「プロンプトがプロジェクト外から
+                    // 読み込まれない」を全ファイルに。`PLANS.md` §9.2 B-155）
+                    if metadata.is_file() && (!kind.is_symlink() || self.inside(&entry.path())) {
                         files.push(FileEntry {
                             path,
                             stamp: stamp_from(&metadata),

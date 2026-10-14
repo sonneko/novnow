@@ -20,9 +20,11 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Once};
 
 use novnow::adapters::block_on;
+use novnow::adapters::project_load;
 use novnow::adapters::recent_file::RecentFile;
 use novnow::adapters::storage_fs::{FsGate, FsStorage};
 use novnow::adapters::zip;
+use novnow::core::agents::prompts;
 use novnow::core::diagnostics::{Anchor, Arg, DiagnosticCode};
 use novnow::core::policy::{
     Allowed, ExportKind, PathError, PolicyViolation, ProjectPath, Violation, WritePolicy,
@@ -703,6 +705,69 @@ mod symlinks {
     }
 
     #[test]
+    fn files_behind_links_to_outside_are_not_part_of_the_project() {
+        // §19.8 をファイル全体に（B-155）: 外を指すファイルのリンクは一覧に出さず、名前で読んでも無い。
+        // 中を指すリンクはそのまま読む
+        let world = World::new("policy-read-link");
+        world.dir.write("outside/prompts/writer.md", OUTSIDE_PROMPT);
+        std::fs::create_dir_all(world.root.join("prompts")).expect("mkdir");
+        symlink(
+            world.outside.join("prompts/writer.md"),
+            world.root.join("prompts/writer.md"),
+        )
+        .expect("ln");
+        symlink(
+            world.outside.join("prompts"),
+            world.root.join("prompts/_shared"),
+        )
+        .expect("ln");
+        symlink(
+            world.root.join("characters.md"),
+            world.root.join("prompts/inside.md"),
+        )
+        .expect("ln");
+        let before = tree(&world.outside);
+        let listed: Vec<String> = block_on(world.storage.list())
+            .expect("list")
+            .into_iter()
+            .map(|entry| entry.path.as_str().to_owned())
+            .collect();
+        assert!(
+            !listed.iter().any(|name| name.starts_with("prompts/writer")),
+            "{listed:?}"
+        );
+        assert!(
+            !listed
+                .iter()
+                .any(|name| name.starts_with("prompts/_shared")),
+            "{listed:?}"
+        );
+        assert!(
+            listed.iter().any(|name| name == "prompts/inside.md"),
+            "{listed:?}"
+        );
+        assert!(matches!(
+            block_on(world.storage.read(&path("prompts/writer.md"))),
+            Err(StorageError::NotFound(_))
+        ));
+        assert!(matches!(
+            world.storage.read_bytes(&path("prompts/_shared/writer.md")),
+            Err(StorageError::NotFound(_))
+        ));
+        let project = block_on(project_load::load(&world.storage))
+            .expect("load")
+            .project;
+        assert!(project
+            .documents()
+            .all(|document| !document.text.contains("外のプロンプト")));
+        assert_eq!(
+            prompts::blockers(&project, "writer")[0].code,
+            DiagnosticCode::E029
+        );
+        world.outside_untouched(&before);
+    }
+
+    #[test]
     fn a_dangling_symlink_is_not_followed() {
         let world = World::new("policy-dangling");
         let before = tree(&world.outside);
@@ -784,6 +849,44 @@ mod symlinks {
             other => panic!("{other:?}"),
         }
     }
+}
+
+// ============================================================ プロンプトの読み込み元（§19.8、M10）
+
+/// 外に置いた同じ名前のプロンプト（目印の文）。
+const OUTSIDE_PROMPT: &str = "# writer\n\n## system\n外のプロンプト\n\n## task\n外\n";
+
+/// §19.8「プロンプトがプロジェクト外から読み込まれない」: 使われるのは `prompts/` の文書だけで、隣の
+/// ディレクトリやホームの下に同じ名前のファイルがあっても読まない。埋め込みの既定も読み込み元ではない
+/// （ファイルが無ければ E029 で走らない、§15.5.4 (1)）。
+#[test]
+fn prompts_are_read_only_from_the_project() {
+    let world = World::new("policy-prompts");
+    world.dir.write("prompts/writer.md", OUTSIDE_PROMPT);
+    world.dir.write("outside/prompts/writer.md", OUTSIDE_PROMPT);
+    world
+        .dir
+        .write("home/.config/novnow/prompts/writer.md", OUTSIDE_PROMPT);
+    let project = block_on(project_load::load(&world.storage))
+        .expect("load")
+        .project;
+    assert!(project.document("prompts/writer.md").is_none());
+    assert!(project
+        .documents()
+        .all(|document| !document.text.contains("外のプロンプト")));
+    let blockers = prompts::blockers(&project, "writer");
+    assert_eq!(
+        blockers[0].code,
+        DiagnosticCode::E029,
+        "既定で代わりに走らない"
+    );
+    // プロジェクトの中に置けば、それが使われる
+    world.dir.write("project/prompts/writer.md", OUTSIDE_PROMPT);
+    let project = block_on(project_load::load(&world.storage))
+        .expect("load")
+        .project;
+    assert_eq!(project.text("prompts/writer.md"), OUTSIDE_PROMPT);
+    assert!(prompts::blockers(&project, "writer").is_empty());
 }
 
 // ============================================================ 規則 10 の総合（§19.10 の機械化）

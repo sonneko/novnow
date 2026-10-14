@@ -66,8 +66,11 @@ fn write_prompts<E: Env>(cli: &mut Cli<'_, E>, storage: &FsStorage) {
     let (missing, absent) = prompts::missing(&loaded.project);
     let mut written = false;
     for (path, text) in missing {
+        // 一覧に無くてもディスクに何かある（外を指すシンボリックリンク）なら触れない（B-155）
         if let Ok(path) = ProjectPath::new(path) {
-            written |= block_on(storage.write(&path, text)).is_ok();
+            if !storage.exists(&path) {
+                written |= block_on(storage.write(&path, text)).is_ok();
+            }
         }
     }
     if written && absent {

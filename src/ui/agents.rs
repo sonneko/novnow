@@ -501,24 +501,35 @@ pub fn set_level(
 
 /// 開いたときに欠けた既定のプロンプトを書き出す（U-7・§15.5.4）。`prompts/` が丸ごと無かったら
 /// I050 の文言を返す。エージェントが無効なら何もしない。
-pub fn write_prompts(bench: &mut Workbench, now: f64, locale: Locale) -> Option<String> {
+pub fn write_prompts(
+    bench: &mut Workbench,
+    host: &dyn Host,
+    now: f64,
+    locale: Locale,
+) -> Option<String> {
     if !bench.project().settings().agents.enabled {
         return None;
     }
     let (missing, absent) = prompts::missing(bench.project());
-    if missing.is_empty() {
-        return None;
-    }
+    let mut written = false;
     for (path, text) in missing {
-        bench.replace_document(path, text.to_owned(), now);
+        // 一覧に無くてもディスクに何かある（外を指すシンボリックリンク）なら触れない（B-155）
+        if !host.occupied(path) {
+            written |= bench.replace_document(path, text.to_owned(), now);
+        }
     }
-    absent.then(|| i18n::diagnostic(locale, &Diagnostic::simple(DiagnosticCode::I050, None)))
+    (written && absent)
+        .then(|| i18n::diagnostic(locale, &Diagnostic::simple(DiagnosticCode::I050, None)))
 }
 
 /// プロンプトを既定に戻す（`>prompt reset`。退避しない・undo できない、§15.5.4 (3)）。
-pub fn reset_prompts(name: &str, bench: &mut Workbench, now: f64) -> usize {
+pub fn reset_prompts(name: &str, bench: &mut Workbench, host: &dyn Host, now: f64) -> usize {
     let mut count = 0;
     for (path, text) in prompts::reset_targets(name) {
+        // 一覧に無いのにディスクにあるもの（外を指すシンボリックリンク）は書かない（B-155）
+        if bench.project().document(path).is_none() && host.occupied(path) {
+            continue;
+        }
         if bench.replace_document(path, text.to_owned(), now) {
             count += 1;
         }

@@ -92,11 +92,12 @@ pub fn diagnostics(text: &str) -> Vec<Diagnostic> {
     )]
 }
 
-/// 実行できない理由（E029 / E031）。ファイルが無いときは空（開くと書き出されるので）。
+/// 実行できない理由（E029 / E031）。ファイルが無いときは `## system` と `## task` の両方が無い E029
+/// （埋め込みの既定は読み込み元ではない、§15.5.4 (1)。開いたときに書き出されるので、ふつうは起きない）。
 pub fn blockers(project: &Project, role: &str) -> Vec<Diagnostic> {
     let path = crate::core::agents::files::prompt_path(role);
     let Some(document) = project.document(&path) else {
-        return Vec::new();
+        return diagnostics("");
     };
     let mut out = diagnostics(&document.text);
     out.extend(
