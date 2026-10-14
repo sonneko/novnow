@@ -102,6 +102,23 @@ trunk build --release        # 成果物は ./dist/
 
 `./dist/` はディレクトリをルートパスとして配信すること（相対パス解決のため）。
 
+Web の作り（`src/ui/web.rs`、`PLANS.md` §9.2 B-156〜B-158）: プロジェクト選択（§13.4）は IndexedDB
+（`adapters::storage_idb`）の一覧・新規・Zip の取り込み・名前の変更・削除。開いたプロジェクトの `Host`（`WebHost`）は
+書き込みを 1 本の列で IndexedDB へ送り、保存の結果は後のフレームで `Host::save_finished` が返す（非同期の保存）。
+eframe 0.27 の Web の足りないところ（キーの既定の動作・キーボードで入力欄に移ったときの IME・コピー / 切り取り）は
+`web.rs` で補っている。`index.html` の canvas の置き方は eframe の前提（IME の変換候補の位置の計算）に合わせてある。
+
+**ブラウザで確かめる**（作業環境でも回せる。CI では回さない）:
+
+```bash
+bash scripts/web-smoke.sh            # release の wasm → wasm-bindgen → ヘッドレスの Chromium で筋書き（19 項目）
+bash scripts/web-smoke.sh --no-build # dist を作り直さずに筋書きだけ
+```
+
+スクリーンショットとダウンロードは `/tmp/novnow-web/`。Chromium は npm の `@sparticuz/chromium`（バイナリを同梱）、
+wasm-bindgen CLI は `.github/workflows/sandbox-tools.yml` が git の blob にして PR にコメントしたものを取る
+（作業環境から GitHub のリリースの asset に届かないため。`.github/sandbox-tools.env` を変えて push すると作り直す）。
+
 ### 1.4 テスト
 
 ```bash
@@ -593,10 +610,13 @@ M6 で入れた（判断は `PLANS.md` §9.2 B-100〜B-108。使い方は本書 
 | `core/agents/*` | M10 の純粋な部品。`files`（`agents/` の読み書き・`Board`）・`prompts`（既定の書き出し・E029・変数の展開）・`output`（出力の分解と契約）・`apply`（採用 / 却下 / 差し戻し）・`runner`（タスクの作成・実行前の検査・結果の処理・委譲レベル・総停止・並列の選び方）・`server`（`novnow mcp` の 14 ツール）。どれも書き込みを `Plan`（書くファイル・ログ・知らせ）で返し、I/O はしない |
 | `ports/mcp.rs` / `adapters/mcp_stdio.rs` | MCP クライアント（stdio だけ、B-147）。LLM に届く経路はここだけ（`tests/no_llm_sdk.rs`） |
 | `ui/agents.rs` / `ui/workspaces/agent.rs` | M10 の実行の状態（待ち行列・実行中・累計。毎フレームの `tick`）／agent ワークスペースの 4 列（B-151〜B-153） |
+| `ui/web.rs` | Web（`wasm32` だけ）: プロジェクト選択（§13.4）・IndexedDB の `WebHost`（非同期の保存）・ブラウザとのつなぎ（B-156〜B-158） |
 
 書き込みは `ui::app::Host::write` だけ（デスクトップは `FsStorage` ＝ `FsGate` を通る）。eframe の `persistence` は使わない。
 M10 で `Host` に `append`（監査ログの追記）・`mcp_available` / `mcp_start` / `mcp_poll` / `mcp_cancel`（デスクトップは呼び出しごとに
-1 スレッド、結果は mpsc、取消は `AtomicBool`）・`env_var`・`occupied` を足した（B-152・B-155）。
+1 スレッド、結果は mpsc、取消は `AtomicBool`）・`env_var`・`occupied` を足した（B-152・B-155）。Web のために `save` / `save_finished`
+（非同期の保存。既定はその場で書く）・`take_events`・`unsaved_changed`・`export_zip` を足した（B-156）。`MemoryHost` は
+`async_saves` と `release_save` で非同期の保存を真似できる。
 
 ### 6.3 テスト
 

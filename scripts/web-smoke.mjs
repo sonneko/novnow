@@ -215,6 +215,17 @@ async function main() {
       return text && text.includes('Web で書き足した一文。') ? text : null;
     });
     check(saved !== null, '打った本文が IndexedDB に保存された（§8.3）');
+    // IME の変換（compositionstart / update / end）。キーボードで節エディタに移っただけで受けられる（B-158）
+    const ime = await tab.target().createCDPSession();
+    await ime.send('Input.imeSetComposition', { text: 'へんかん', selectionStart: 4, selectionEnd: 4 });
+    await sleep(300);
+    await shot(tab, '02a-composing');
+    await ime.send('Input.insertText', { text: '変換した。' });
+    const composed = await until('IME で確定した字の保存', async () => {
+      const text = file(await db(tab), 'sample', 'contents/01-01.txt');
+      return text && text.includes('一文。変換した。') ? text : null;
+    });
+    check(composed !== null && !composed.includes('へんかん'), 'IME の確定だけが本文に入った（変換中の字は入らない、§9.8.5）');
     await shot(tab, '02-typed');
 
     // 3. 読み直しても残る・Ctrl+O で選択画面へ戻る（§13.4）

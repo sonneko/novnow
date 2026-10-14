@@ -20,9 +20,9 @@
 |---|---|
 | `main` | `00a5813`（PR #11 マージ済み。M0〜M3 ＋ 本書と `scripts/`） |
 | 作業ブランチ | セッションが指定したもの固定（2026-10-13 のセッションは `arena/cb878908-novnow`）。**PR #12** に M4〜M10 を積んだ（ユーザー指示「同じ PR で続ける・マージはまだしない」）。**マージはユーザー** |
-| マイルストーン | **M0〜M6 完了**（PR #12 のマージ待ち）。**M7「UI シェル ＋ `write`」・M8「ワークスペース」・M9「エクスポート」・M10「エージェント」は実装済み・人の確認待ち**（`PLANS.md` §5.8〜§5.11 の完了条件の消し込み状況を参照。Web の選択モーダルは未接続＝ B-118）。M10 はユーザー指示（2026-10-13「M10を丸ごとお願いします」）で進めた。残りは M11「仕上げ」（§5.12）で、**着手はユーザーの指示を待つ** |
+| マイルストーン | **M0〜M6 完了**（PR #12 のマージ待ち）。**M7「UI シェル ＋ `write`」・M8「ワークスペース」・M9「エクスポート」・M10「エージェント」は実装済み・人の確認待ち**（`PLANS.md` §5.8〜§5.11 の完了条件の消し込み状況を参照）。**Web 版も 2026-10-14 に動くようにした**（ユーザーの質問「Web で動くようになってる？」への対応。B-156〜B-158、`bash scripts/web-smoke.sh` で確かめる）。M10 はユーザー指示（2026-10-13「M10を丸ごとお願いします」）で進めた。残りは M11「仕上げ」（§5.12）で、**着手はユーザーの指示を待つ** |
 | 仕様書 | **第 2.16 版**（2026-10-14。2.12 は M7 に合わせた補正、2.13 は §11 の色のコントラスト比、2.14 は §17 のエクスポートの細部、2.15 は §10.5・§16・§6.6.2 の M8 の細部、2.16 は §15 の M10 の細部）。診断コード **81 件**（§7:40 + §7.1:14 + §7.2:27） |
-| テスト | **1,143 件緑**（`bash scripts/verify.sh`。M7 から既定で `--features ui`）。CI は `4acd11a` で 4 ジョブ緑（run 38498620189。PR を一時的に ready にして回し、draft に戻した） |
+| テスト | **1,145 件緑**（`bash scripts/verify.sh`。M7 から既定で `--features ui`）＋ Web の筋書き 19 項目（`scripts/web-smoke.sh`）。CI は `4acd11a`（M10）で 4 ジョブ緑（run 38498620189。PR を一時的に ready にして回し、draft に戻した）。Web の分の CI はまだ |
 | 未決の裁定 | なし |
 
 M7 で何を入れたか・決めたか（B-111〜B-121）は `PLANS.md` §5.8 の進捗ノートと §9.2、M9（B-122〜B-125）は §5.10、
@@ -31,8 +31,8 @@ M8（B-126〜B-137）は §5.9、M10（B-138〜B-155）は §5.11、GUI の作�
 ### 次の一手
 
 1. **ユーザーの実機レビュー（M8・M10）の結果を待つ**。指摘はその場で直して PR #12 に積む。M11 はユーザーの指示があってから。
-2. M7 の残り（`PLANS.md` §5.8 の未チェックの完了条件）: 人の確認（2,000 字の執筆・IME・Windows のダブルクリック・
-   `docs/verify-rule10.md` の GUI での実施）と、Web の選択モーダル（§13.4、B-118）。`Alt+H` は M8 で入った（B-137）。
+2. M7 の残り（`PLANS.md` §5.8 の未チェックの完了条件）: 人の確認（2,000 字の執筆・IME（Web の変換候補の位置も）・Windows の
+   ダブルクリック・`docs/verify-rule10.md` の GUI での実施）。Web の選択モーダルは B-156〜B-158 で入った。
 3. M9 の残り: 1 話（約 6,000 字）を外部の縦書きビューアで通読する人の確認（`PLANS.md` §5.10）。M10 の残り: A6 の実機確認と、
    実際の MCP サーバにつないだ一通りの操作（§5.11）。
 4. 外に書けるのは `FsGate::write_chosen_export(ChosenPath)` だけ（Zip は `Dialog::save_zip` → `zip::export_to_chosen`、テキストは
@@ -61,7 +61,8 @@ gh pr list --state open
   `github.com`（git push / fetch）・`pypi.org`・`registry.npmjs.org`。
 - **到達できない**: `objects.githubusercontent.com` / `results-receiver.actions.githubusercontent.com`
   （**Actions のログが読めない**）・`static.rust-lang.org`（rustup 不可）・crates.io 系
-  （**cargo はオフライン**。vendored sources で動く）・GitHub リリースの asset（trunk 等）。
+  （**cargo はオフライン**。vendored sources で動く）・GitHub リリースの asset（trunk 等。要るものは Actions で取って git の blob に
+  する＝ `sandbox-tools.yml`、§4.9）。
 - `strace` は無く、`apt` のミラーにも届かない。規則 10 の確認はファイル差分で代用する（`docs/verify-rule10.md` §3.2・§5）。
 - **ツールチェーンに Windows の std が無い**（`x86_64-linux` と `wasm32` だけ）ので `cargo check --target *-windows-*` は
   手元で回せない。`#[cfg(windows)]` のコードは CI の wasm ジョブ（M6 で Windows の型検査を足した）が見る。手元で型だけ
@@ -211,6 +212,23 @@ shallow clone なので `git diff main...HEAD` が使えないことがある。
 - `InputState::consume_key(mods, key)` は `matches_logically` で比べるので、**`Modifiers::NONE` は Shift / Alt 付きにも当たる**。
   `Shift+Enter` と `Enter` を分けるときは Shift のほうを先に消費する。`Modifiers::COMMAND` を要求する組み合わせは、テストの
   イベントでも `command: true` を立てる（実機の egui-winit は Windows / Linux の Ctrl で ctrl と command の両方を立てる）。
+
+### 4.9 Web（2026-10-14）で踏んだもの
+
+- **作業環境でブラウザを動かせる**: npm の `@sparticuz/chromium` はバイナリを npm の tarball に同梱しているので届く
+  （`scripts/web-smoke.sh` が展開する。`LD_LIBRARY_PATH` に同梱の `lib/` が要る）。wasm-bindgen CLI は GitHub のリリースの
+  asset（objects.githubusercontent.com）に届かないので、`sandbox-tools.yml` が git の blob にして PR にコメントする。
+  blobs API は `Accept: application/vnd.github.raw` だと 404 のことがあるので、JSON（base64）で取る。
+- **IndexedDB を外から覗くときに DB を作らない**: 確かめる側が先に `indexedDB.open('novnow', 1)` すると、空の版 1 ができて
+  novnow の `onupgradeneeded` が走らず、ストアが無いまま全部失敗した。`indexedDB.databases()` で有無を見てから開く。
+- **eframe 0.27 の Web は、マウスで入力欄をクリックしたときだけ IME の隠れた入力欄を出す**。キーボードで移ると日本語が
+  入らなかった（`sync_text_agent` で直した）。`--cfg=web_sys_unstable_apis`（コピー / 切り取りを入れる cfg）は今の web-sys と
+  組み合わせると eframe がコンパイルできない。`App::raw_input_hook` は Web では呼ばれない（`update` の頭で `input_mut`）。
+- **このヘッドレスの Chromium は日本語を含むダウンロードの名前を `download` にする**（`data:` のページでも同じ。普通の Chrome は
+  日本語のまま保存する）。筋書きは `Browser.downloadWillBegin` の名前と中身で見分ける。ダウンロードの置き場はブラウザの CDP
+  セッションで設定する（ページのセッションだと名前が崩れた）。ヘッドレスは `--lang` を無視するので `navigator.language` を上書きする。
+- **マクロの中の `///` は文字列リテラル**（`#[doc = "…"]`）になり、`tests/layering.rs` の「GUI の文言」の検査に掛かる
+  （`thread_local!` の中で踏んだ）。ふつうのコメントにする。
 
 ### 4.7 ワークスペース（M8）で踏んだもの
 
