@@ -1390,6 +1390,7 @@ tests/layering.rs
 >   パレットの `>agent` / `>prompt`（**B-151**〜**B-154**）。プロンプトの読み込み元の担保は **B-155**。
 > - **検査**: `tests/aicontext.rs`（13）・`tests/agents_files.rs`（15）・`tests/delegation.rs`（24）・`tests/mcp_stdio.rs`（9）・
 >   `tests/no_llm_sdk.rs`（2）・`tests/workspaces.rs` の agent の 18 件・`tests/storage_policy.rs` / `tests/cli.rs` の追加で **1,143 件**。
+>   CI は `4acd11a` で 4 ジョブ緑（run 38498620189）。
 > - **残り**: 下の人の確認。①での削り（カスタムロール・ローカル LLM・§19.14）は M10 の外。
 
 **完了条件**
