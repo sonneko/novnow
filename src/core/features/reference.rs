@@ -101,6 +101,8 @@ pub struct MaterialRef {
     pub title: String,
     /// `summary`（無ければ空）。
     pub summary: String,
+    /// 出典（URL の場合は参照ペインから外部ブラウザへ開ける）。
+    pub source: String,
     /// 条件一致の候補か（§16.4。明示参照の後に薄い色で並べる。`false` = 明示参照）。
     pub candidate: bool,
 }
@@ -482,6 +484,9 @@ fn materials(
                 title: found.map(|item| item.title.clone()).unwrap_or_default(),
                 summary: found
                     .and_then(|item| item.summary.clone())
+                    .unwrap_or_default(),
+                source: found
+                    .map(|item| item.source.shown().to_owned())
                     .unwrap_or_default(),
                 id,
                 candidate: at >= explicit,

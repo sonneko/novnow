@@ -79,3 +79,7 @@ novnow --gui
 - **開発者ガイド**: [`docs/developers.md`](./docs/developers.md)
 - **開発計画（段階 ② ロードマップ）**: [`docs/plans.md`](./docs/plans.md)
 - **変更履歴・意思決定アーカイブ**: [`docs/history.md`](./docs/history.md)
+
+## オフライン利用（Web）
+
+ブラウザ版は初回オンライン起動後、PWA としてホーム画面へ追加できます。Service Worker が読み込んだアプリ資産をキャッシュし、以後はオフラインでも起動できます。プロジェクトはブラウザの IndexedDB に保存されるため、定期的に Zip エクスポートでバックアップしてください。初回読み込みや更新には通信が必要です。

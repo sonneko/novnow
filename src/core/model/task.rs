@@ -98,6 +98,8 @@ pub struct Task {
     pub role: String,
     /// 対象（`@01-04-02-03`。**書かれたまま**。解決は `core::id`）。
     pub scope: String,
+    /// 参考例（`<範囲式> [contents|plot|both]`）。複数指定可。
+    pub examples: Vec<String>,
     /// 意図（`初稿生成` 等）。
     pub intent: String,
     /// `status:`。文字列で持つのは未知の値で道連れにしないため（§4.3-4）。

@@ -1,0 +1,37 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import Header from "../../../components/Header.astro";
+import Footer from "../../../components/Footer.astro";
+import { diagnostics } from "../../../data/diagnostics";
+import diagnosticEnglish from "../../../data/diagnostics-en.json";
+import examples from "../../../data/diagnostics-examples.json";
+
+export function getStaticPaths() {
+  return (["ja", "en"] as const).flatMap((lang) =>
+    diagnostics.map((row) => ({ params: { lang, code: row.code }, props: { row } }))
+  );
+}
+
+const { lang, code } = Astro.params;
+const { row } = Astro.props;
+const japanese = lang === "ja";
+const [causeEn, actionEn] = diagnosticEnglish[row.code];
+const [exampleJa, exampleEn] = examples[row.code];
+const actionJa = row.action === "—" ? "自動修正なし。該当箇所を確認してください。" : row.action;
+---
+<BaseLayout title={`${code} — ${japanese ? "診断コード解説" : "Diagnostic explanation"}`} lang={lang}>
+  <Header lang={lang} currentPath={`/${lang}/diagnostics`} />
+  <main class="container" style="max-width: 900px; margin: 3rem auto 5rem;">
+    <p><a href={`/${lang}/diagnostics/`}>{japanese ? "← 診断コード一覧" : "← All diagnostic codes"}</a></p>
+    <h1><code>{code}</code> — {japanese ? row.ja : row.en}</h1>
+    <p>{japanese ? "重大度: " : "Severity: "}{row.severity === "E" ? (japanese ? "エラー" : "Error") : row.severity === "W" ? (japanese ? "警告" : "Warning") : (japanese ? "情報" : "Info")}</p>
+    <h2>{japanese ? "発生条件" : "Cause"}</h2>
+    <p>{japanese ? row.condition : causeEn}</p>
+    <h2>{japanese ? "具体例" : "Example"}</h2>
+    <p>{japanese ? exampleJa : exampleEn}</p>
+    <h2>{japanese ? "解消手順" : "What to do"}</h2>
+    <p>{japanese ? actionJa : actionEn}</p>
+    <p><a href={`/${japanese ? "en" : "ja"}/diagnostics/${code}/`}>{japanese ? "English" : "日本語"}</a></p>
+  </main>
+  <Footer lang={lang} />
+</BaseLayout>

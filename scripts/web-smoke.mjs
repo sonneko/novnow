@@ -206,6 +206,30 @@ async function main() {
     check(opened.app[0]?.value?.items?.[0]?.id === 'sample', '履歴の先頭が sample');
     const before = file(opened, 'sample', 'contents/01-04.txt');
     check(before !== null, 'sample の本文 contents/01-04.txt がある');
+    // F-01: photograph the glyph-free dark crescent and return to the
+    // original system preference before checking the remaining workflows.
+    await key(tab, 'Control+Alt+t');
+    await shot(tab, '01b-dark-theme-icon');
+    await key(tab, 'Control+Alt+t');
+    await key(tab, 'Control+Alt+t');
+    // F-17: exercise the actual installed Web keydown listener, not just the
+    // Rust shortcut table. DevTools' reserved chord stays free; its alternate
+    // and ordinary app navigation are prevented before the browser handles them.
+    const blocked = await tab.evaluate(() => {
+      const dispatch = (key, options) => {
+        const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...options });
+        document.dispatchEvent(event);
+        return event.defaultPrevented;
+      };
+      return {
+        devtools: dispatch('I', { ctrlKey: true, shiftKey: true }),
+        alternate: dispatch('I', { ctrlKey: true, altKey: true, shiftKey: true }),
+        workspace: dispatch('1', { altKey: true }),
+        text: dispatch('あ', {}),
+      };
+    });
+    check(!blocked.devtools && blocked.alternate && blocked.workspace && !blocked.text,
+      'F-17: Web 予約キーは維持し、代替キーと移動キーだけ preventDefault');
     await key(tab, 'Control+2');
     await key(tab, 'End');
     await key(tab, 'Enter');
@@ -227,6 +251,29 @@ async function main() {
     });
     check(composed !== null && !composed.includes('へんかん'), 'IME の確定だけが本文に入った（変換中の字は入らない、§9.8.5）');
     await shot(tab, '02-typed');
+    // S-14/F-02/F-03: capture a narrow layout for manual caret and status-bar inspection.
+    await tab.setViewport({ width: 620, height: 720 });
+    await shot(tab, '02b-narrow');
+    await tab.keyboard.type('追');
+    await sleep(70); // before the 400ms autosave, while the status indicator is unsaved
+    await tab.screenshot({ path: path.join(OUT, '02c-narrow-unsaved.png') });
+    await tab.setViewport({ width: 1280, height: 800 });
+    await until('狭幅で打った字の保存', async () => {
+      const text = file(await db(tab), 'sample', 'contents/01-04.txt');
+      return text?.includes('変換した。追') ? text : null;
+    });
+    // F-36: on a real browser canvas, Ctrl+3 exposes the shared reference
+    // pane from material; Tab remains available to cycle the form controls.
+    const materialBefore = file(await db(tab), 'sample', 'materials/index.json');
+    await key(tab, 'Alt+5');
+    await shot(tab, '02d-material');
+    await key(tab, 'Control+3');
+    await shot(tab, '02e-material-reference');
+    await key(tab, 'Tab');
+    await shot(tab, '02f-material-tab');
+    check(file(await db(tab), 'sample', 'materials/index.json') === materialBefore,
+      'F-36: 資料で Ctrl+3 と Tab を使っても内容は変更されない');
+    await key(tab, 'Alt+1');
 
     // 3. 読み直しても残る・Ctrl+O で選択画面へ戻る（§13.4）
     await tab.reload({ waitUntil: 'load' });
@@ -234,9 +281,47 @@ async function main() {
     await key(tab, 'Enter');
     await sleep(1500);
     await shot(tab, '03-reloaded');
+    // PWA: a controlled online reload caches the hashed JS/WASM. The next
+    // navigation must boot from the service worker with the network disabled.
+    await tab.evaluate(() => navigator.serviceWorker.ready);
+    await tab.waitForFunction(() => navigator.serviceWorker.controller !== null, { timeout: 15000 });
+    await tab.reload({ waitUntil: 'load' });
+    await sleep(2500);
+    const cached = await tab.evaluate(async () => {
+      const keys = await caches.keys();
+      const urls = (await Promise.all(keys.map(async (key) => (await (await caches.open(key)).keys()).map((req) => req.url)))).flat();
+      return urls.some((url) => url.endsWith('.wasm')) && urls.some((url) => url.endsWith('.js'));
+    });
+    check(cached, 'PWA の JS と WASM がキャッシュされた');
+    const network = await tab.target().createCDPSession();
+    await network.send('Network.enable');
+    await network.send('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: 0, uploadThroughput: 0 });
+    try {
+      await tab.reload({ waitUntil: 'load' });
+      const offlineStarted = await until('オフライン起動', async () =>
+        tab.evaluate(() => document.querySelector('canvas')?.width > 0).catch(() => false), 15000);
+      check(!!offlineStarted && (await db(tab))?.projects?.some((p) => p.id === 'sample'),
+        'オフライン再起動でも IndexedDB の作品が残る');
+    } finally {
+      await network.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+      await network.detach();
+    }
+    await key(tab, 'Enter');
+    await sleep(900);
     await key(tab, 'Control+o');
     await sleep(1200);
     await shot(tab, '04-back-to-list');
+
+    // F-33: the title check must run against IndexedDB, not just the
+    // currently filtered picker rows. A failed create must not open a project.
+    await key(tab, 'Control+n');
+    await tab.keyboard.type(first.projects[0].name);
+    await key(tab, 'Enter');
+    await sleep(900);
+    const afterDuplicateCreate = await db(tab);
+    check(afterDuplicateCreate.projects.length === 1 &&
+      afterDuplicateCreate.projects[0].id === 'sample',
+      'F-33: 既存タイトルの新規作成を拒否し IndexedDB を保持');
 
     // 4. Ctrl+N で新規 → 名前 → 開く
     await key(tab, 'Control+n');
@@ -281,6 +366,15 @@ async function main() {
     // 8. 選択画面: F2 で名前の変更・Zip の取り込み・Delete で削除
     await key(tab, 'Control+o');
     await sleep(1200);
+    await key(tab, 'F2');
+    await key(tab, 'Control+a');
+    await tab.keyboard.type(first.projects[0].name);
+    await key(tab, 'Enter');
+    await sleep(900);
+    const afterDuplicateRename = await db(tab);
+    check(afterDuplicateRename.projects.find((project) => project.id === created?.id)?.name === '星屑の時計' &&
+      afterDuplicateRename.projects.length === 2,
+      'F-33: 既存タイトルへの改名を拒否し IndexedDB を保持');
     await key(tab, 'F2');
     await key(tab, 'Control+a');
     await tab.keyboard.type('改名した');

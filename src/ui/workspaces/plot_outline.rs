@@ -65,6 +65,10 @@ pub struct State {
     expanded: BTreeSet<u16>,
     editor: slice_editor::Cache,
     reveal: bool,
+    /// List highlight moved without opening/committing its text slice.
+    preview: bool,
+    /// Scroll the list once after a keyboard-only selection change.
+    scroll_list: bool,
 }
 
 /// `Ctrl+Enter` の結果。
@@ -104,6 +108,7 @@ impl State {
             .or(blocks.first())
             .map(|block| block.id)
             .or(Some(wanted));
+        self.preview = false;
         self.reveal = true;
     }
 
@@ -116,6 +121,7 @@ impl State {
             .find(|block| block.id.chapter == chapter)
             .or(blocks.first())
             .map(|block| block.id);
+        self.preview = false;
         self.reveal = true;
     }
 
@@ -254,6 +260,9 @@ impl State {
 
     /// 選んだブロックをエディタ（Slice）に開く。
     pub fn sync(&mut self, bench: &mut Workbench) {
+        if self.preview {
+            return;
+        }
         let index = self.selected_index(bench);
         let found = index.and_then(|at| self.blocks(bench).get(at).cloned());
         match found {
@@ -271,9 +280,34 @@ impl State {
         }
     }
 
+    /// Highlight the adjacent block without committing/changing the Slice editor.
+    pub fn preview_row(&mut self, bench: &Workbench, forward: bool) -> bool {
+        let at = self.selected_index(bench);
+        let blocks = self.blocks(bench);
+        let next = if forward {
+            at.map_or(Some(0), |index| {
+                (index + 1 < blocks.len()).then_some(index + 1)
+            })
+        } else {
+            at.and_then(|index| index.checked_sub(1))
+        };
+        let Some(id) = next
+            .and_then(|index| blocks.get(index))
+            .map(|block| block.id)
+        else {
+            return false;
+        };
+        self.selected = Some(id);
+        self.preview = true;
+        self.scroll_list = true;
+        self.reveal = false;
+        true
+    }
+
     /// 構造移動（`Alt+↑/↓`・`Alt+←/→` = 前 / 次のブロック、`Ctrl+Alt+←/→` = 前 / 次のレベル、
     /// `Ctrl+Home/End`）。
     pub fn nav(&mut self, bench: &mut Workbench, nav: Nav) -> bool {
+        self.preview = false;
         bench.commit();
         if matches!(nav, Nav::PrevFile | Nav::NextFile) {
             return self.step_level(bench, nav == Nav::NextFile);
@@ -356,6 +390,7 @@ impl State {
         let (Some(level), Some(path)) = (self.level, self.path(bench)) else {
             return false;
         };
+        self.preview = false;
         bench.commit();
         let index = self.selected_index(bench);
         let blocks = self.blocks(bench).to_vec();
@@ -416,6 +451,9 @@ pub fn show(
     let scale = view.scale;
     let locale = view.locale;
     state.sync(bench);
+    if let Some(forward) = super::browse_keys(ctx, view) {
+        state.preview_row(bench, forward);
+    }
     let mut request = None;
     // 左: レベル切替
     super::fixed_width(
@@ -629,7 +667,7 @@ fn parent(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) {
 fn block_list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) -> Option<Request> {
     let digits = bench.project().digits();
     let selected = state.selected_index(bench);
-    let reveal = state.reveal;
+    let reveal = state.reveal || std::mem::take(&mut state.scroll_list);
     let blocks = state.blocks(bench).to_vec();
     if blocks.is_empty() {
         let path = state.path(bench).unwrap_or_default();
@@ -639,6 +677,9 @@ fn block_list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) ->
             view.scale,
             &i18n::format(view.locale, "outline.no_blocks", &[&path]),
         );
+        if super::action_button(ui, i18n::text(view.locale, "outline.new_button")).clicked() {
+            return Some(Request::Shortcut(crate::ui::shell::Command::InsertSection));
+        }
         return None;
     }
     let colors = theme::palette(view.mode);
@@ -687,6 +728,7 @@ fn block_list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) ->
         });
     if let Some(id) = clicked {
         state.selected = Some(id);
+        state.preview = false;
         state.reveal = true;
     }
     request

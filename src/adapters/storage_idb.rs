@@ -89,6 +89,15 @@ pub struct ProjectRecord {
     pub origin: String,
 }
 
+/// New and renamed Web projects cannot share a visible name with another project.
+pub fn name_available(records: &[ProjectRecord], name: &str, except_id: Option<&str>) -> bool {
+    let wanted = name.trim();
+    !wanted.is_empty()
+        && !records
+            .iter()
+            .any(|record| Some(record.id.as_str()) != except_id && record.name.trim() == wanted)
+}
+
 impl ProjectRecord {
     /// 新しいレコード（作成日時 = 更新日時 = `now`）。
     pub fn new(id: &str, name: &str, origin: Origin, now: &str) -> Self {
@@ -212,8 +221,8 @@ mod web {
     };
 
     use super::{
-        uuid_v4, AppRecord, FileRecord, Origin, ProjectRecord, APP, BY_PROJECT, BY_UPDATED,
-        DB_NAME, DB_VERSION, FILES, PROJECTS, RECENT_PROJECTS_KEY, SAMPLE_ID,
+        name_available, uuid_v4, AppRecord, FileRecord, Origin, ProjectRecord, APP, BY_PROJECT,
+        BY_UPDATED, DB_NAME, DB_VERSION, FILES, PROJECTS, RECENT_PROJECTS_KEY, SAMPLE_ID,
     };
     use crate::adapters::clock_system::{rfc3339_millis, SystemClock};
     use crate::adapters::zip::{self as archive_io, ArchiveError};
@@ -417,6 +426,17 @@ mod web {
             let transaction =
                 self.transaction(&[PROJECTS, FILES], IdbTransactionMode::Readwrite)?;
             let projects = transaction.object_store(PROJECTS).map_err(js_error)?;
+            // Check inside the same write transaction as the insert. IndexedDB
+            // serializes overlapping write transactions across tabs, so another
+            // tab cannot create the same title between the check and the add.
+            let existing: Vec<ProjectRecord> =
+                from_js(&wait(&projects.get_all().map_err(js_error)?).await?)?;
+            if !name_available(&existing, &record.name, None) {
+                return Err(other(format!(
+                    "project name already exists: {}",
+                    record.name
+                )));
+            }
             let store = transaction.object_store(FILES).map_err(js_error)?;
             projects.add(&to_js(record)?).map_err(js_error)?;
             for (path, text) in files {
@@ -477,6 +497,11 @@ mod web {
         ) -> Result<(), StorageError> {
             let transaction = self.transaction(&[PROJECTS], IdbTransactionMode::Readwrite)?;
             let projects = transaction.object_store(PROJECTS).map_err(js_error)?;
+            let existing: Vec<ProjectRecord> =
+                from_js(&wait(&projects.get_all().map_err(js_error)?).await?)?;
+            if !name_available(&existing, name, Some(project_id)) {
+                return Err(other(format!("project name already exists: {name}")));
+            }
             let request = projects
                 .get(&JsValue::from_str(project_id))
                 .map_err(js_error)?;

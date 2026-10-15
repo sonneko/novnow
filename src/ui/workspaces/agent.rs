@@ -64,6 +64,10 @@ impl Column {
 pub enum Action {
     /// `N`: 新しいタスク（重ね物）。
     New,
+    /// MCP configuration editor.
+    EditMcp,
+    /// Stop every active agent task (same as Ctrl+Shift+X).
+    StopAll,
     /// `R`: 実行。
     Run(Vec<String>),
     /// `Shift+R`: まとめて実行（確認の重ね物）。
@@ -321,9 +325,9 @@ fn keys(
     proposal: Option<&Proposal>,
     actions: &mut Vec<Action>,
 ) {
-    if ctx.memory(|memory| memory.focused().is_some()) {
-        return;
-    }
+    // The agent workspace has no in-place text editor. A focused header
+    // button must not suppress list navigation; editing happens in an overlay
+    // and the caller does not invoke `keys` while that overlay is open.
     let pressed =
         |key: Key, modifiers: Modifiers| ctx.input_mut(|input| input.consume_key(modifiers, key));
     let ctrl = if ctx.os() == egui::os::OperatingSystem::Mac {
@@ -602,8 +606,17 @@ fn tasks_column(
                 .color(colors.warn),
         );
     }
+    if super::action_button(ui, i18n::text(locale, "help.edit_mcp")).clicked() {
+        actions.push(Action::EditMcp);
+    }
+    if super::action_button(ui, i18n::text(locale, "agent.stop_all_button")).clicked() {
+        actions.push(Action::StopAll);
+    }
     super::separator(ui, view.mode);
     if tasks.is_empty() {
+        if super::action_button(ui, i18n::text(locale, "agent.new_button")).clicked() {
+            actions.push(Action::New);
+        }
         super::hint(
             ui,
             view.mode,
@@ -669,11 +682,29 @@ fn tasks_column(
                 .font(small(view))
                 .color(colors.fg_faint),
         );
-        if ui
-            .add(egui::Button::new(i18n::text(locale, "agent.new")).small())
-            .clicked()
-        {
+        if super::action_button(ui, i18n::text(locale, "agent.new")).clicked() {
             actions.push(Action::New);
+        }
+        if let Some(id) = state.task.as_ref() {
+            let targets = if state.marked.is_empty() {
+                vec![id.clone()]
+            } else {
+                state.marked.clone()
+            };
+            ui.horizontal_wrapped(|ui| {
+                if super::action_button(ui, i18n::text(locale, "agent.run_button")).clicked() {
+                    actions.push(Action::Run(vec![id.clone()]));
+                }
+                if super::action_button(ui, i18n::text(locale, "agent.confirm_button")).clicked() {
+                    actions.push(Action::Confirm(targets.clone()));
+                }
+                if super::action_button(ui, i18n::text(locale, "agent.dry_run_button")).clicked() {
+                    actions.push(Action::DryRun(targets));
+                }
+                if super::action_button(ui, i18n::text(locale, "agent.cancel_button")).clicked() {
+                    actions.push(Action::Cancel(id.clone()));
+                }
+            });
         }
     });
 }
@@ -757,7 +788,7 @@ fn context_column(
         };
         let selected = column_focused && index == selected_block;
         let (rect, response) = ui.allocate_exact_size(
-            Vec2::new(ui.available_width(), 18.0 * view.scale),
+            Vec2::new(ui.available_width(), (18.0 * view.scale).max(24.0)),
             Sense::click(),
         );
         if response.clicked() {
@@ -773,7 +804,16 @@ fn context_column(
         let painter = ui.painter_at(rect);
         if selected {
             painter.rect_filled(rect, 0.0, colors.bg_selection);
+        } else if response.hovered() {
+            painter.rect_filled(rect, 0.0, colors.bg_selection.gamma_multiply(0.6));
         }
+        if response.hovered() {
+            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+        }
+        painter.line_segment(
+            [rect.left_bottom(), rect.right_bottom()],
+            egui::Stroke::new(0.6_f32, colors.border),
+        );
         let label = block.kind.heading().trim_start_matches("## ");
         let mut text = format!("{label}  {size} / {}", block.budget);
         if block.kind.is_mandatory() {
@@ -1126,11 +1166,21 @@ fn delegation_column(
             state.column = Column::Delegation;
         }
     }
-    ui.label(
-        RichText::new(i18n::text(locale, "agent.keys.delegation"))
-            .font(small(view))
-            .color(colors.fg_faint),
-    );
+    ui.horizontal_wrapped(|ui| {
+        for (label, level) in [
+            ("1 off", Delegation::Off),
+            ("2 propose", Delegation::Propose),
+            ("3 apply", Delegation::Apply),
+            ("4 autonomous", Delegation::Autonomous),
+        ] {
+            if super::action_button(ui, label).clicked() {
+                actions.push(Action::Level {
+                    role: BUILTIN_ROLES[state.role].to_owned(),
+                    level,
+                });
+            }
+        }
+    });
     super::separator(ui, view.mode);
     let counters = &info.runtime.counters;
     ui.label(
