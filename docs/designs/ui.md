@@ -93,11 +93,14 @@
 状態: 実装完了（REF:src/ui/shell.rs, REF:src/ui/web.rs, REF:tests/gui.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-17）
 
 - 全ショートカットの解釈と macOS での `Alt` → `Ctrl+Alt` 読み替えは `ui::shell`（`REF:src/ui/shell.rs`）に実装する。
-- **egui 0.27.2 における IME 実装規約**:
-  - `egui::TextEditState::has_ime` は非公開のため、`ui::shell::ImeState`（`REF:src/ui/shell.rs`）で `egui::Event::CompositionStart` / `CompositionUpdate` / `CompositionEnd` を追跡する。
-  - 1 フレームの処理順序は `ImeState::update() → composing なら Event::Key をすべて破棄 → ショートカット解釈 → テキスト編集` とする。
-  - フェイルセーフとして `Event::WindowFocused(false)` または最後の変換イベントから 2 秒無入力で `composing = false` に戻す。
-  - デスクトップで IME を有効化するため、編集領域フォーカス中は毎フレーム `PlatformOutput.ime = Some(IMEOutput { rect, cursor_rect })` を出力する。Web 版でキーボード移動時にも IME hidden input を同期する処理は `sync_text_agent`（`REF:src/ui/web.rs`）が担う（検証: `REF:tests/gui.rs`, `REF:tests/gui.rs`）。
+- **egui 0.27.2 における IME 実装規約（6 原則、`B-132`, `B-152`）**:
+  1. `egui::TextEditState::has_ime` は `pub(crate)` で外部から参照できないため、アプリ独自の `ui::shell::ImeState { composing: bool, preedit: String, last_event_ms: u64 }`（`REF:src/ui/shell.rs`）を保持する。
+  2. 毎フレーム先頭で `ctx.input(|i| ...)` の `i.events` を走査し、`egui::Event::CompositionStart` / `CompositionUpdate(s)` で `composing = true`、`CompositionEnd(_)` で `composing = false` に遷移させる。
+  3. 1 フレームの処理順序は「`ImeState::update()` → `composing == true` なら `Event::Key` をすべて破棄（`Enter` / `Escape` / `Tab` / 矢印等がパレット確定や節分割に誤爆するのを防止）→ ショートカット解釈 → テキスト編集」を厳守する。
+  4. `CompositionEnd` が欠落する OS / ブラウザ実装に対するフェイルセーフとして、`Event::WindowFocused(false)` または最後の変換イベントから 2,000ms 無入力で `composing = false` に自動復帰させる。
+  5. デスクトップ（`eframe` / `winit`）で OS の IME を有効化するため、テキスト入力欄にフォーカスがあるフレームでは `ctx.output_mut(|o| o.ime = Some(egui::output::IMEOutput { rect, cursor_rect }))` を毎フレーム出力する。
+  6. Web 版（`eframe` Web ランナー）では `text_agent.rs` の `move_text_cursor` がクリック時しか呼ばれない制約があるため、`ui::web::sync_text_agent`（`REF:src/ui/web.rs`）がキーボード移動時にも `#egui_text_agent` の座標と `focus()` を毎フレーム同期する（検証: `REF:tests/gui.rs`）。
+- `consume_key` を呼ぶ際は、より具体的な修飾キー組み合わせ（`Ctrl+Shift+...` や `Ctrl+Alt+...`）を単一修飾（`Ctrl+...`）より必ず先に検査する（`B-132`）。
 
 - **[F-17 / F-35 / F-36 / F-37 / F-40] キー割当の統一とブラウザ非衝突化（実装完了: `REF:docs/plans.md#plan-F-17`）**:
   - `REF:src/ui/shell.rs` は Web の予約キーに `Ctrl+Alt+Shift+I/N/T/W` を代替割当にし、ブラウザの開発者ツール等を妨げない。`REF:src/ui/web.rs` の key guard と `REF:tests/gui.rs` で確認する。
@@ -209,7 +212,8 @@
 
 状態: 実装完了（REF:src/ui/widgets/syntax_text.rs, REF:tests/gui.rs）
 
-- 役割語一致（1px 実線）、Error（2px 波線）、Warning（1.5px 波線）、Info（1px 点線）は `egui::TextFormat::underline` を使わず、`Galley` のグリフベースライン座標から `REF:src/ui/widgets/syntax_text.rs` が直接ペイントする。
+- 役割語一致（1px 実線、ベースライン `+2px`）、Error（2px 波線、周期 4px・振幅 1.5px、ベースライン `+3px`）、Warning（1.5px 波線、周期 4px・振幅 1.5px、ベースライン `+3px`）、Info（1px 点線、2px on / 2px off、ベースライン `+2px`）は `egui::TextFormat::underline` を使わず、`Galley` のグリフ座標から `REF:src/ui/widgets/syntax_text.rs` が直接ペイントする（`B-136`）。
+- 折り返し行を跨ぐスパンであっても、各 `PlacedRow` のグリフ境界（終端 X は直前グリフの右端 `g.pos.x + g.size.x` を使い、次の節先頭へ折り返した `cursor_from_ccursor(end)` で幅 0 になるのを防ぐ）ごとに行単位で分割描画する。また同一範囲で役割語一致と診断波線が重なる場合はベースライン `+2px` と `+3px` の二段で両方描画する。
 
 ### 11.4 テーマ切替
 
@@ -224,7 +228,12 @@
 
 状態: 実装完了（REF:src/ui/theme.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-11）
 
-- デスクトップでは `fontdb` でシステムの CJK フォントを探索し、見つからない場合および Web 版では `assets/ipag.ttf`（同梱 IPA ゴシック）にフォールバックする（`REF:src/ui/theme.rs`）。また `⟨⟩`（U+27E8 / U+27E9）表示のため egui 既定の Hack フォントをフォールバック末尾に連結する。
+- デスクトップでは `fontdb` でシステムの CJK フォントを以下の優先順（`B-134`）で探索し、見つからない場合および Web 版では `assets/ipag.ttf`（同梱 IPA ゴシック、IPA Font License v1.0）にフォールバックする（`REF:src/ui/theme.rs`）:
+  1. macOS: ヒラギノ角ゴ ProN / ヒラギノ明朝 ProN
+  2. Windows: 游ゴシック Regular・Medium / 游明朝 Regular / メイリオ
+  3. Linux / 共通: Noto Sans CJK JP / Noto Serif CJK JP / BIZ UDPGothic / BIZ UDPMincho / IPAexゴシック / IPAex明朝 / VL ゴシック
+  4. 同梱フォールバック: `assets/ipag.ttf`
+- インレイヒントの数学山括弧 `⟨⟩`（U+27E8 / U+27E9）は IPA ゴシックに含まれないため、egui 既定の `Hack` 等幅フォントを `FontDefinitions` のフォールバック末尾に連結して豆腐（`□`）化を防ぐ。
 
 - **[F-11 / S-18] 全角「？」「！」「＊」の太さ統一と `max_line_chars` 対応（実装完了: `REF:src/ui/theme.rs`, `REF:src/ui/settings.rs`, `REF:tests/gui.rs`）**:
   - `REF:src/ui/theme.rs` のフォント設定で全角約物が CJK フォントからグリフ解決される順序を保証し（F-11）、`REF:src/ui/settings.rs` の `max_line_chars`（`ja`=44, `en`=70）に応じて本文折り返し幅を計算する（S-18）。
@@ -242,6 +251,7 @@
 状態: 実装完了（REF:src/core/diagnostics.rs, REF:src/ui/i18n/mod.rs, REF:tests/layering.rs）
 
 - `src/core/**`・`src/cli/**`・`src/main.rs`・`src/ui/**` に日本語文字列リテラルが存在しないことを `REF:tests/layering.rs`（`core_has_no_user_facing_text`, `cli_has_no_user_facing_text`, `gui_has_no_user_facing_text`）で AST 検査する。
+- 例外として、ファイル形式の語彙そのものである日本語フィールドキー別名表や語クラス規定値、日本語助詞テーブルを定義する定数には直前に `/// i18n: format-vocabulary` doc コメントを付与することで AST 検査の許可対象とする（注意: `macro_rules!` 内のアイテムに付けた `///` は展開先アイテムの属性になり外側の関数属性にはならないため、マクロ呼び出しを含む関数自身に `/// i18n: format-vocabulary` を付与する）。
 
 ### 12.3 カタログ
 

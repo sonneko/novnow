@@ -441,51 +441,269 @@
 <a id="stage-2"></a>
 ## 4. 段階 ② 実装計画（追加仕様 1〜27）
 
-段階 ① で整備した 10 個の拡張点（縫い代、`REF:docs/designs/overview.md` §3.3）を土台として、以下の 27 項目を段階 ② で実装する。
+段階 ① で整備した 10 個の拡張点（縫い代、`REF:docs/designs/overview.md` §3.3）を土台として、第 2 次指示の 26 件と段階 ② へ移管した読者モード（#27）の計 **27 項目**を段階 ② で実装する。
 
-### 4.1 文脈・世界観・プロット拡張（追加仕様 1〜8）
+### 4.1 追加仕様 1〜27 の完全リストと仕様・設計書対応表（旧 §0.6・旧計画書 §1.2 統合）
 
-| 番号 | 項目 | 主な変更対象 | 関連する診断・縫い代 |
+| # | 追加仕様 | 統合先の仕様・設計書 | 段階 ② で実装する対象箇所・設定キー・診断コード | 検収基準 |
+|---|---|---|---|---|
+| 1 | ワークスペース・参照ペインの瞬時切替 | `REF:docs/designs/ui.md`（§9.8.1, §10.0） | `Ctrl+Shift+1..9`（強制位置持ち越し）、16ms 切替要件、着地点表、`Ctrl+\`（参照ペイン開閉） | §4.5 `19.14-1` |
+| 2 | ステータスバーの執筆セッション情報 | `REF:docs/designs/ui.md`（§9.6.2） | ステータスバーの `+n字 m分` 表示、30 分無操作でのセッション区切り | §4.5 `19.14-2` |
+| 3 | タイムライン・作中日時（`when:`） | `REF:docs/designs/syntax.md`（§5.0.6, §5.3.2, §5.3.5, §5.4.2）, `REF:docs/designs/ui.md`（§10.3.2） | `when:` フィールド解釈、`plot-outline` のタイムラインタブ、診断 `W080` | §4.5 `19.14-3` |
+| 4 | 自動句切れ提案（決定論・既定オフ） | `REF:docs/designs/ui.md`（§9.4.3）, `REF:docs/designs/project.md`（§4.4.1） | `ui.json.suggest_comma`、`Ctrl+Alt+,` トグル、地の文の読点候補縦線表示 | §4.5 `19.14-4` |
+| 5 | 同一話者の連続台詞検出 | `REF:docs/designs/project.md`（§4.5.1）, `REF:docs/designs/diagnostics.md`（§7.2） | `writing.max_consecutive_speeches` 設定キー、診断 `W082` | §4.5 `19.14-5` |
+| 6 | 台詞 / 地の文 比率のリアルタイム表示 | `REF:docs/designs/ui.md`（§9.4.2, §10.2）, `REF:docs/designs/diagnostics.md`（§7.2） | 節エディタミニヘッダの比率バー、`plot-episode` 節リスト右端バー、診断 `W090` | §4.5 `19.14-6` |
+| 7 | 五感チェック（`senses:`） | `REF:docs/designs/syntax.md`（§5.4.2, §5.4.4）, `REF:docs/designs/ui.md`（§9.5.2, §10.9.3） | `senses:` フィールド、参照ペイン 5 五感セクション、`review` 五感タブ、診断 `W083` | §4.5 `19.14-7` |
+| 8 | 呼称マトリクス（`address:`） | `REF:docs/designs/syntax.md`（§5.5.6）, `REF:docs/designs/semantics.md`（§6.1.1, §6.2.4）, `REF:docs/designs/ui.md`（§10.6.1） | `address:` 定義、辞書の `Address` 種別、文脈例外行、`cast` 呼称タブ、診断 `W084` / `W085` | §4.5 `19.14-8` |
+| 9 | 構造の折りたたみ（章→話→場面 UI） | `REF:docs/designs/ui.md`（§9.3.3, §9.7.1, §10.3.1）, `REF:docs/designs/project.md`（§4.4.1） | 文脈ビューの章/話/場面折りたたみ UI、`ui.json.folded` 永続化、`Ctrl+Shift+[` / `]` / `Ctrl+K` 系（※`REF:src/core/features/folding.rs` 自体は段階 ① で実装済み） | §4.5 `19.14-9` |
+| 10 | 資料引用追跡（`^M0137`） | `REF:docs/designs/syntax.md`（§5.0.2, §5.2.4, §5.4.2）, `REF:docs/designs/ui.md`（§9.5.2）, `REF:docs/designs/workflows.md`（§17.1） | `^M0137` 引用注釈トークン、エクスポート除去規則 5b、未引用資料の診断 `I054` | §4.5 `19.14-10` |
+| 11 | 検索結果の資料化（`S####`） | `REF:docs/designs/syntax.md`（§5.8.2）, `REF:docs/designs/workflows.md`（§16.3.1） | `S####` 接頭辞発行、`category: 検索結果`、`source.kind: search`、`[再検索]` 差分、診断 `I058` | §4.5 `19.14-11` |
+| 12 | エージェントのカスタムロール | `REF:docs/designs/syntax.md`（§5.9.2）, `REF:docs/designs/agent.md`（§15.2.1） | `prompts/custom/`、`agents.custom_roles`、診断 `E032`–`E034` / `I056` | §4.5 `19.14-12` |
+| 13 | ローカル LLM 簡易モード | `REF:docs/designs/agent.md`（§15.8.4）, `REF:docs/designs/project.md`（§4.5.1） | `agents.local_llm` 設定、`managed_by: "novnow-local-llm"` 自動生成、診断 `E064` / `I057` | §4.5 `19.14-13` |
+| 14 | Web 解説ドキュメント（Git / CI・CD） | `REF:docs/designs/platform.md`（§14.2.1）, `REF:docs/designs/workflows.md`（§17.2） | `GIT_GUIDE_DOC_URL` / `CICD_GUIDE_DOC_URL` 定数と外部ブラウザ導線 | §4.5 `19.14-14` |
+| 15 | `# ` 行コメント | `REF:docs/designs/syntax.md`（§5.0.2, §5.0.7, §5.0.8）, `REF:docs/designs/workflows.md`（§17.1） | `.txt` 3 形式での `# ` 行コメント字句化、エクスポート除去規則 3b | §4.5 `19.14-15` |
+| 16 | 人間用トラックチェンジ（提案モード） | `REF:docs/designs/editing.md`（§8.7）, `REF:docs/designs/agent.md`（§15.7.3） | `Ctrl+Alt+P` 提案モードトグル、`H####` 差分と `before` 不一致診断 `W093` | §4.5 `19.14-16` |
+| 17 | あらすじ（`@A-00` / `blurb:`） | `REF:docs/designs/syntax.md`（§5.1.2, §5.3.2, §5.3.7）, `REF:docs/designs/workflows.md`（§17.2） | `blurb:` フィールド、`B=00` 章あらすじ、`--include-blurb` / `--blurb-only`、読者モード章表紙、診断 `W086` | §4.5 `19.14-17` |
+| 18 | 文体・品質分析ダッシュボード | `REF:docs/designs/ui.md`（§9.4.4, §10.9.4）, `REF:docs/designs/diagnostics.md`（§7.2） | `review` の文体タブ、一文長・同語反復・文頭接続詞連続の観測、診断 `W081` / `W087` / `W088` / `W089` | §4.5 `19.14-18` |
+| 19 | 全体検索の正規表現対応 | `REF:docs/designs/ui.md`（§9.7.4）, `REF:docs/designs/diagnostics.md`（§7.2） | `Alt+R` 正規表現モード、`Alt+C` 大小文字区別、1 秒タイムアウト打ち切り診断 `W094` | §4.5 `19.14-19` |
+| 20 | 執筆データ統計ダッシュボード | `REF:docs/designs/project.md`（§4.4.2）, `REF:docs/designs/ui.md`（§9.6.3, §10.9.5） | `.novnow/stats.json` 日次集計、`review` 統計タブ、`Ctrl+Alt+S` 統計モード | §4.5 `19.14-20` |
+| 21 | 空間設計メモ（`space:`） | `REF:docs/designs/syntax.md`（§5.3.2, §5.3.6, §5.4.2）, `REF:docs/designs/ui.md`（§9.5.2, §9.5.3） | `space:` / `space-mode: ascii`、参照ペイン 6 空間セクション、外部参照欠落診断 `W092` | §4.5 `19.14-21` |
+| 22 | 「00 章」ストック | `REF:docs/designs/syntax.md`（§5.1.2）, `REF:docs/designs/project.md`（§4.1, §4.5.1）, `REF:docs/designs/ui.md`（§10.3.3） | `structure.allow_chapter_zero`、`@00-..` ストック章管理と原子的配属、`--include-stock`、診断 `I055` | §4.5 `19.14-22` |
+| 23 | 挿絵メモ（`illustration:` / `! `） | `REF:docs/designs/syntax.md`（§5.0.2, §5.2.5, §5.4.2, §5.4.5）, `REF:docs/designs/ui.md`（§9.5.2, §10.9.1）, `REF:docs/designs/workflows.md`（§17.1, §17.2） | `! ` 行と `illustration:`、参照ペイン 8 挿絵セクション、`review` 挿絵一覧タブ、エクスポート 3c と `--keep-illustration-memo` | §4.5 `19.14-23` |
+| 24 | キャラアイコン（`icon:`） | `REF:docs/designs/syntax.md`（§5.5.3）, `REF:docs/designs/ui.md`（§9.5.2）, `REF:docs/designs/diagnostics.md`（§7.1, §7.2） | `characters.md` の `icon:` 行、`assets/` 画像読み込みと検証、診断 `W068`–`W070` / `W092` | §4.5 `19.14-24` |
+| 25 | キャラ別・節長の統計強化 | `REF:docs/designs/ui.md`（§9.6.3, §10.9.5） | キャラ別台詞数・台詞字数（話者不明 `（不明）` 集計含む）、節長ヒストグラム | §4.5 `19.14-25` |
+| 26 | 話の長さバランス偏差値 | `REF:docs/designs/ui.md`（§10.3.4）, `REF:docs/designs/diagnostics.md`（§7.2） | `plot-outline` 分量タブでの T スコア（偏差値）算出、外れ値診断 `W091` | §4.5 `19.14-26` |
+| 27 | 読者モード（縦書きプレビュー） | `REF:docs/designs/ui.md`（§10.7）, `REF:docs/designs/workflows.md`（§17.3, §18.1）, `REF:docs/designs/project.md`（§4.4.3, §4.5.1） | `Alt+7`（`reader` ワークスペース）、`core/reader.rs`（純粋組版関数 `layout`）と `ui/workspaces/reader.rs`（段階 ② で新設予定）、`.novnow/reader.json`、`project.json.reader`、`reader.exit` 文言、1 ページ 3ms 以内目標 | §4.5 `19.14-27` |
+| U-7 | 既定プロンプトの不変保管と復元 | `REF:docs/designs/agent.md`（§15.5.4） | **段階 ①（M10）で実装完了**（`REF:src/core/agents/prompts.rs`、`>prompt reset` / `>prompt diff`） | §4.5 `19.14-U7` |
+| U-8 | エージェントの並列実行 | `REF:docs/designs/agent.md`（§15.7.5） | **段階 ①（M10）で実装完了**（`REF:src/core/agents/runner.rs`、`REF:src/ui/agents.rs`、`Shift+R`） | §4.5 `19.14-U8` |
+
+---
+
+### 4.2 横断的に段階 ② へ回している要素一覧（旧計画書 §1.2）
+
+- **診断カタログ（`REF:docs/designs/diagnostics.md` §7.2）のうち段階 ② 対象の検査実装**:
+  - コード定義と日英カタログ自体は段階 ①（M1）で全件登録済み（`REF:src/core/diagnostics.rs`）。
+  - 検査ロジックが段階 ② 対象のもの: `W068`–`W070`（キャラアイコン）、`W080`–`W094`（作中日時・文体・連続台詞・五感・呼称・あらすじ・偏差値・リンク切れ・提案不一致・正規表現タイムアウト）、`E032`–`E034`（カスタムロール）、`E064`（ローカル LLM 接続）、`I054`–`I058`（未引用資料・ストック章・未登録ロール・ローカル LLM 登録・検索結果資料化）。
+  - ※`E035`（タスク重複）・`E036`（MCP 委譲レベル不足）・`W095`（自律タスク上限停止）の 3 件は段階 ①（M10）で実装済み。
+- **追加設定キー（`REF:docs/designs/project.md` §4.4 / §4.5.1）**:
+  - `project.json`: `structure.allow_chapter_zero`、`writing.max_consecutive_speeches` / `long_sentence_chars` / `dialogue_ratio_target`、`export.include_blurb` / `keep_illustration_memo`、`agents.custom_roles` / `local_llm`、`reader.*`。
+  - `.novnow/ui.json`: `suggest_comma`、`folded`。
+  - `.novnow/stats.json`（§4.4.2）および `.novnow/reader.json`（§4.4.3）。
+  - ※段階 ① では `#[serde(flatten)]` による未知キー温存（縫い代 1）を実装済み。
+- **セマンティックトークン種別（`REF:docs/designs/semantics.md` §6.3）**:
+  - `ref.address`（呼称参照）、`citation`（`^M0137` 引用注釈）、`illustration`（`! ` 挿絵メモ行）。
+- **参照ペインのセクション（`REF:docs/designs/ui.md` §9.5.2）**:
+  - 表示順 1〜9 のうち `5 五感`・`6 空間`・`8 挿絵` の 3 セクション（段階 ① は 1, 2, 3, 4, 7, 9 の 6 セクションを `Vec<Section>` で構築）。
+- **ショートカット（`REF:docs/designs/ui.md` §9.8）**:
+  - `Ctrl+Shift+1..9`（強制位置持ち越し切替）、`Ctrl+Alt+S`（統計モード）、`Ctrl+Alt+,`（自動句切れ提案）、`Ctrl+Shift+[` / `]`（本文文脈ビューの折りたたみ）、`Ctrl+K Ctrl+0` / `Ctrl+K Ctrl+J`（全折りたたみ / 全展開）、`Ctrl+Shift+Space`（五感パレット）、`Alt+,`（ローカル LLM 簡易設定）、`Alt+R` / `Alt+C`（全体検索の正規表現 / 大小文字区別）、`Alt+7`（読者モード）。
+- **ワークスペースの追加タブ構造（`REF:docs/designs/ui.md` §10.3 / §10.6 / §10.9）**:
+  - `plot-outline`（§10.3）のタイムライン・分量・ストックタブ、`cast`（§10.6）の呼称マトリクスタブ、`review`（§10.9）の五感・文体・挿絵・統計タブ。
+- **CLI `novnow export` の追加オプション（`REF:docs/designs/workflows.md` §17.2）**:
+  - `--include-blurb`、`--blurb-only`、`--keep-illustration-memo`、`--include-stock`。
+
+---
+
+### 4.3 段階 ①・② の境界裁定（旧計画書 §1.3・§1.4）
+
+| 論点 | 裁定 | 理由と現在の状態 |
+|---|---|---|
+| `core::features::folding` | **段階 ① で実装済み** | §19.13 が「§3.4 の 11 機能が `core::features::*` に存在し UI から呼ばれている」を要求するため、段階 ① で `REF:src/core/features/folding.rs` を実装し `plot-outline` の章→話展開に接続済み。本文文脈ビュー（§9.3.3）の折りたたみ UI と `ui.json.folded` 永続化が段階 ②（#9）。 |
+| 全体検索（`Ctrl+Shift+F`） | **通常検索は ①、正規表現は ②** | リテラル全体検索は段階 ① で実装済み（`REF:src/ui/assist.rs`）。§9.7.4 の正規表現モード（`Alt+R`）と 1 秒打ち切り（`W094`）が段階 ②（#19）。 |
+| §10.3 / §10.6 / §10.9 のタブ | **段階 ① は基本ビュー、段階 ② で拡張タブ追加** | 段階 ② の追加機能（タイムライン・呼称・五感・文体・統計）が入る時点でタブを増やす。 |
+| `project.json` の追加キー | **段階 ① から読み飛ばして温存** | `#[serde(flatten)]` によりパースで落とさず保存時も保持する（`REF:tests/roundtrip.rs` で検証済み）。 |
+| 読者モード（#27） | **段階 ② へ移管** | 縦書き組版の工数・技術的不確実性と `FontMetrics` 注入設計のため段階 ② へ移管。アノテーション除去エクスポート（§17.1 / §17.2）は段階 ① で実装済み。 |
+| `materials/inbox/` | **段階 ① で実装済み** | 資料の提案→承認ワークフロー（§5.8.1 / §16.1）として段階 ① で実装済み（`REF:src/core/features/materials_ops.rs`）。 |
+| `prompts/custom/` | **段階 ②（#12）で導入** | カスタムロール（追加仕様 #12）に完全に閉じているため、段階 ① の雛形ではディレクトリを作らない。 |
+
+---
+
+### 4.4 段階 ② のための必須制約（5 原則）と縫い代（10 項目）の確認表（旧計画書 §1.5・§7）
+
+段階 ② の 27 項目を全面改修なしに追加できるよう、段階 ① の実装時点で以下の 10 項目の「縫い代」を仕込み済みであり、今後の変更でもこれを壊してはならない（MUST）。
+
+| # | 縫い代 | 段階 ① での具体的な実装箇所 | 違反したときの段階 ② の手戻りコスト |
 |---|---|---|---|
-| 1 | 物語内時計・タイムライン（`when:` フィールドとタイムラインタブ） | `REF:src/core/syntax/plot_episode.rs`, `REF:src/ui/workspaces/plot_outline.rs` | `E031`, `W088`, `W089`（縫い代 2, 3, 8） |
-| 2 | キャラの節単位状態スナップショット（`cast-state:`） | `REF:src/core/syntax/plot_episode.rs`, `REF:src/ui/widgets/reference_pane.rs` | `W090`（縫い代 2, 6） |
-| 3 | 読者/キャラの知識境界と劇的アイロニー（`knows:`） | `REF:src/core/syntax/plot_episode.rs`, `REF:src/core/features/project.rs` | `W091`（縫い代 2, 3） |
-| 4 | 伏線レジストリの一次市民化（`# F####` と回収率マトリクス） | `REF:src/core/syntax/plot_episode.rs`, `REF:src/ui/workspaces/review.rs` | `W092`, `I053`（縫い代 2, 3） |
-| 5 | 五感パレット（`senses:` と参照ペイン五感セクション） | `REF:src/core/features/reference.rs`, `REF:src/ui/widgets/reference_pane.rs` | `W093`（縫い代 2, 6） |
-| 6 | 場面の空間・小道具スケッチ（`space:` と参照ペイン空間セクション） | `REF:src/core/features/reference.rs`, `REF:src/ui/widgets/reference_pane.rs` | 縫い代 2, 6 |
-| 7 | 挿絵・ビジュアル資料（`S####` と参照ペイン挿絵セクション） | `REF:src/core/model/material.rs`, `REF:src/ui/widgets/reference_pane.rs` | 縫い代 6, 7 |
-| 8 | 声紋カード・台詞比率メーター（文長ヒストグラム・一人称検査） | `REF:src/ui/widgets/section_editor.rs`, `REF:src/ui/workspaces/cast.rs` | `W094`, `W095`（縫い代 3, 8） |
+| 1 | 未知キーの温存 | `project.json`（`REF:src/core/model/project.rs`）・`ui.json`（`REF:src/ui/settings.rs`）・`index.json`（`REF:src/core/model/material.rs`）を `#[serde(flatten)]` で受け、`REF:tests/roundtrip.rs` で検証 | 設定ファイルの前後互換が切れる |
+| 2 | 未知フィールド行の温存 | A/B/MD 形式のパーサ（`REF:src/core/syntax/plot_outline.rs` 等）が未知 `key:` に `W011` を出しつつ行を無損失保持 | `when:` `senses:` `space:` `blurb:` `illustration:` を書いたファイルが壊れる |
+| 3 | 診断コードの予約 | `W080`+ / `E032`+ / `E064` / `I054`+ を `REF:src/core/diagnostics.rs` に先行定義し別用途に使わない | 診断番号の振り直しが全体に波及する |
+| 4 | 行頭シジルの表駆動 | `REF:src/core/text/lexer.rs` の `const SIGIL_TABLE: &[SigilSpec]` を走査して判定 | `# ` や `! ` の追加で字句器を書き直すことになる |
+| 5 | ワークスペース状態の非破棄 | `REF:src/ui/workspaces/mod.rs` の `Switcher` が全ワークスペースの状態構造体を常時保持 | 16ms 切替要件（追加仕様 #1）が達成不能になる |
+| 6 | 参照ペインのセクション配列化 | `REF:src/core/features/reference.rs` が `Vec<Section>` を返し、`REF:src/core/resolve/context_rules.rs` の `PaneSection` が全 9 種を定義 | 五感・空間・挿絵セクションの挿入で再構成が必要になる |
+| 7 | 資料 ID 接頭辞の 1 文字化 | `REF:src/core/model/material.rs` の `MaterialId` が `M` と `S` の双方を受理 | `S####`（検索結果資料化 #11）導入で既存データの再採番が必要になる |
+| 8 | 診断の実行コスト属性の分離 | `REF:src/core/diagnostics.rs` のカタログが `Cost`（常時 / アイドル / 明示）と既定 ON/OFF を保持 | §7.2 の文体診断（既定オフ・明示実行）の制御が入らなくなる |
+| 9 | 文字数計測点の集約 | 空白除外文字数・原稿用紙枚数の計算を共通関数に集約 | 台詞比率・統計・偏差値で文字数算法が割れる |
+| 10 | ロール一覧の配列管理 | 既定 7 役割を `BUILTIN_ROLES` 配列と `Role` で扱い、`REF:src/core/syntax/prompt_md.rs` に `Options::custom` を用意 | カスタムロール（#12）追加で全分岐を書き直すことになる |
 
-### 4.2 エディタ・執筆体験拡張（追加仕様 9〜16）
+---
 
-| 番号 | 項目 | 主な変更対象 | 関連する診断・縫い代 |
-|---|---|---|---|
-| 9 | 文脈ビューの粒度切替（全文 ↔ 1 行要約 ↔ 見出しのみ、`Alt+-` / `Alt+=`） | `REF:src/ui/widgets/context_view.rs`, `REF:src/ui/shell.rs` | `REF:docs/designs/ui.md` §9.3 |
-| 10 | 節内ブランチ（別案テイク `=== take: <name> ===` と `Alt+[` / `Alt+]`） | `REF:src/core/text/lexer.rs`, `REF:src/core/syntax/contents.rs` | `I002`（縫い代 4） |
-| 11 | インライン下書きメモ（`??` / `？？` と未解決メモ集計） | `REF:src/core/text/lexer.rs`, `REF:src/core/export.rs` | `W080`（縫い代 3, 4） |
-| 12 | ゴーストテキスト（プロット要点の薄字オーバーレイ、`Alt+G`） | `REF:src/ui/widgets/section_editor.rs`, `REF:src/ui/shell.rs` | `REF:docs/designs/ui.md` §9.4 |
-| 13 | タイプライタスクロールとフォーカス調光（`Ctrl+Alt+Z`） | `REF:src/ui/widgets/section_editor.rs`, `REF:src/ui/settings.rs` | 縫い代 1 |
-| 14 | 節の結合・移動・章話リナンバ（`Ctrl+Shift+M` 等） | `REF:src/core/features/sections.rs`, `REF:src/ui/workspaces/plot_outline.rs` | `REF:docs/designs/ui.md` §10.3 |
-| 15 | 原稿用紙換算・セッション統計・締め切りペース表示 | `REF:src/core/features/project.rs`, `REF:src/ui/app.rs` | 縫い代 1, 9 |
-| 16 | スナップショット（マイルストーン凍結 `.novnow/snapshots/`） | `REF:src/core/policy/write_policy.rs`, `REF:src/ui/app.rs` | `REF:docs/designs/editing.md` §8.6 |
+### 4.5 段階 ②（追加仕様 1〜27 および U-7 / U-8）の受け入れ基準（旧仕様書 §19.14 完全収録）
 
-### 4.3 日本語組版・文体点検拡張（追加仕様 17〜21）
+**19.14-1 ワークスペース瞬時切替**
+- [ ] `Alt+1..9` の切替が 16ms 以内に完了し、ローディング表示・アニメーションが出ない。
+- [ ] `Ctrl+Shift+1..9` が §10.0 の対応表どおりの節に着地する。
+- [ ] `Ctrl+\` で参照ペインが即座に消え、メインカラムが全幅になる。隠している間も内容の計算が続いている。
+- [ ] `Alt+0` で直前のワークスペースに戻る。
 
-| 番号 | 項目 | 主な変更対象 | 関連する診断・縫い代 |
-|---|---|---|---|
-| 17 | リズム・文体ヒートマップ（`review` の「文体」タブ） | `REF:src/core/features/project.rs`, `REF:src/ui/workspaces/review.rs` | `W081`, `W082`, `W085`, `W086`, `W087` |
-| 18 | 視点（POV）漏れ検査の精密化 | `REF:src/core/features/project.rs` | `W084` |
-| 19 | 表記揺れ・誤用辞書・組版規則の拡張 | `REF:src/core/features/project.rs`, `REF:src/core/model/project.rs` | `W096`, `W097`, `W098`, `W099`（縫い代 1, 3, 8） |
-| 20 | ルビ一貫性ポリシー（`first_in_chapter` / `first_in_work` 等） | `REF:src/core/export.rs`, `REF:src/core/features/project.rs` | `I001`（縫い代 1） |
-| 21 | 台詞話者の逆引き・無標識会話の検出強化 | `REF:src/core/features/project.rs` | `W083` |
+**19.14-2 セッション情報**
+- [ ] ステータスバーに `+n字 m分` が出る。削ったときマイナス表示になる。
+- [ ] 30 分の無操作でセッションが切れ、次の打鍵から新しいセッションが始まる。
+- [ ] 既定で「毎分の速度」が表示されていない。
 
-### 4.4 AI エージェント・出力拡張（追加仕様 22〜27）
+**19.14-3 タイムライン**
+- [ ] `when: 405 春分 09:15` / `when: +1` / `when: 12 .. 14` / `when: ?` が仕様どおり解釈される。
+- [ ] 作中時間が巻き戻る箇所に W080 が出る。`回想` を含む場合は出ない。
+- [ ] `when` が 1 つも無いプロジェクトでタイムラインタブが表示されない。
+- [ ] タイムラインビューから `when` を編集できない。
 
-| 番号 | 項目 | 主な変更対象 | 関連する診断・縫い代 |
-|---|---|---|---|
-| 22 | 選択範囲インライン指示（`Ctrl+K` と `P####.diff` 即時プレビュー） | `REF:src/ui/app.rs`, `REF:src/ui/agents.rs` | `REF:docs/designs/agent.md` §15.3 |
-| 23 | ロールプレイ対話モード（キャラ憑依インタビュー `@char`） | `REF:src/core/agents/runner.rs`, `REF:src/ui/workspaces/agent.rs` | `REF:docs/designs/agent.md` §15.6 |
-| 24 | 7 番目の専門ロール `continuity`（設定考証・時系列監査） | `REF:src/core/syntax/prompt_md.rs`, `REF:src/core/template/mod.rs` | 縫い代 10 |
-| 25 | コンテキスト予算の可視化とピン留め | `REF:src/core/aicontext/budget.rs`, `REF:src/ui/workspaces/agent.rs` | `REF:docs/designs/agent.md` §15.4 |
-| 26 | 投稿サイト別エクスポートプリセット（`kakuyomu` / `narou` / `aozora`） | `REF:src/core/export.rs`, `REF:src/cli/export.rs`, `REF:src/ui/app.rs` | `REF:docs/designs/workflows.md` §17.1 |
-| 27 | 縦書き・ページ組版プレビュー（`reader` ワークスペース、`Alt+7`） | `REF:src/ui/workspaces/mod.rs`, `REF:src/ui/app.rs` | `REF:docs/designs/ui.md` §10.7, `REF:docs/designs/workflows.md` §17.3 |
+**19.14-4 句切れ提案**
+- [ ] 既定でオフ。`Ctrl+Alt+,` でオン。
+- [ ] 候補位置に縦線だけが出て、文字が挿入されない。
+- [ ] `「…」` の内側に候補が出ない。
+- [ ] 同じ入力に対して常に同じ候補が出る（決定論）。
+
+**19.14-5 連続台詞**
+- [ ] `max_consecutive_speeches` を超えた連続で W082 が出る。
+- [ ] 地の文を 1 行挟むとカウントがリセットされる。
+
+**19.14-6 台詞比率**
+- [ ] ミニヘッダーのバーが §9.4.2 の算法どおりの値を示す。
+- [ ] 目標から外れても色が変わらない。
+- [ ] 話プロットの節リストにも同じバーが出る。
+
+**19.14-7 五感**
+- [ ] `senses:` を書いた節だけが集計対象になる。
+- [ ] 本文を解析して感覚を推定する処理が存在しない（コードレビュー項目）。
+- [ ] 文体タブの文言が「指摘」ではなく「観測」の語で書かれている。
+
+**19.14-8 呼称**
+- [ ] `address:` の `=>` 右側に `:` を含めても呼称の一部として読まれる。
+- [ ] `address` 未定義のキャラでは W084 が出ない。
+- [ ] 呼称マトリクスでセルを編集すると `characters.md` に書き戻る。
+- [ ] 登場人物 25 人以上で表形式が自動的に 1 行表示に切り替わる。
+
+**19.14-9 折りたたみ**
+- [ ] 章・話・場面の単位で畳める。現在の節を含む単位は畳めない。
+- [ ] 状態が `.novnow/ui.json` に保存され、再起動後に復元される。
+- [ ] 検索ヒットのある単位が自動展開される。
+- [ ] エクスポート結果が折りたたみ状態に影響されない。
+
+**19.14-10 資料引用追跡**
+- [ ] `^M0137` が本文文字数に数えられない。
+- [ ] 未知の ID で E012 が出る。
+- [ ] エクスポート結果に `^M` が残らない（`REF:tests/export_invariants.rs`）。
+- [ ] どこからも引用されていない資料が I054 で通知される。
+
+**19.14-11 検索結果の資料化**
+- [ ] `S####` が `M####` と同じ `next_id` から採番される。
+- [ ] 保存後に本文を書き換えても資料の内容が変わらない。
+- [ ] `[再検索]` が差分を表示し、自動では更新しない。
+
+**19.14-12 カスタムロール**
+- [ ] `agents.custom_roles` に登録したものだけが UI に出る。
+- [ ] 委譲レベル `propose` では、カスタムロールの出力が `agents/proposals/` にしか書かれない。
+- [ ] `context:` で `project` と `constraints` を外せない。
+- [ ] 既定ロール名と同名で E033 が出る。
+
+**19.14-13 ローカル LLM**
+- [ ] 設定すると `agents/mcp.json` に `managed_by: "novnow-local-llm"` 付きのサーバが書かれる。
+- [ ] 手書きのサーバ定義が書き換えられない。
+- [ ] localhost 以外の URL が拒否される。
+- [ ] `REF:Cargo.toml` に LLM プロバイダ SDK が無い（`REF:tests/no_llm_sdk.rs`）。
+
+**19.14-14 Web 解説ドキュメント**
+- [ ] `GIT_GUIDE_DOC_URL` / `CICD_GUIDE_DOC_URL` がハードコードされず定数経由である。
+- [ ] リンクが外部ブラウザで開く。
+- [ ] novnow が `.git/` を読まず、`git` コマンドを実行しない（コードレビュー項目）。
+
+**19.14-15 `# ` 行コメント**
+- [ ] `.txt` で行頭 `# ` がコメントになり、`.md` では見出しのままである。
+- [ ] `#1` のように空白が無い場合はコメントにならない。
+- [ ] エクスポート結果に `# ` 行が残らない。
+
+**19.14-16 提案モード**
+- [ ] 提案モード中、本文ファイルが 1 バイトも変わらない。
+- [ ] `agents/proposals/H####.md` に `before` / `after` が節全文で書かれる。
+- [ ] エディタ上に差分が重ねて表示されない。
+- [ ] 提案の文字数が統計・進捗に含まれない。
+
+**19.14-17 あらすじ**
+- [ ] `blurb` が本文文字数に含まれない。
+- [ ] `export.include_blurb = false` のときエクスポートに現れない。
+- [ ] 読者モードの章表紙に表示される。
+- [ ] `blurb` が無くても警告が出ない。
+
+**19.14-18 文体・品質分析**
+- [ ] 総合点・スコア・評価が表示されない。
+- [ ] 各指標を個別にオフにできる。
+- [ ] 既定で W081/W087/W088/W089/W090 が編集中に出ない。
+- [ ] 各指摘から `Enter` で該当箇所へ飛べる。
+
+**19.14-19 正規表現検索**
+- [ ] 1 秒のタイムアウトで中断し、部分結果が出る。
+- [ ] 構文エラーが 1 行で説明される。
+- [ ] 置換がプレビュー必須で、1 つの undo 単位になる。
+- [ ] `.novnow/` と `exports/` が検索対象外である。
+
+**19.14-20 統計ダッシュボード**
+- [ ] `.novnow/stats.json` に日次集計のみが書かれ、イベントログが作られない。
+- [ ] ファイルを削除しても他の機能に影響が無い。
+- [ ] 完成予測・達成率・締切が表示されない。
+- [ ] `Ctrl+Alt+S` で統計モードに切り替わり、パンくず・診断・保存表示が消えない。
+
+**19.14-21 空間設計メモ**
+- [ ] `space-mode: ascii` で等幅・折り返し無しで表示される。
+- [ ] 外部ファイル参照がプロジェクト外を指すと E062 になる。
+- [ ] 図の内容を解釈する処理が存在しない（コードレビュー項目）。
+
+**19.14-22 00 章ストック**
+- [ ] `@00-01-02-03` が正当な SceneId としてパースされる。
+- [ ] ツリーでストック章が最後に表示される。
+- [ ] 配属操作が原子的に行われ、途中失敗で全巻き戻しされる。
+- [ ] 範囲「全体」のエクスポートにストック章が含まれない。
+
+**19.14-23 挿絵メモ**
+- [ ] `! ` 行が本文文字数に数えられない。
+- [ ] エクスポートで行ごと消える。`--keep-illustration-memo` では `［挿絵: …］` になる。
+- [ ] `! ` 行と `illustration:` が §10.9 の一覧に統合され、出典欄で区別される。
+
+**19.14-24 キャラアイコン**
+- [ ] `assets/` 外を指すと E062 になる。
+- [ ] 本文エディタ内にアイコンが出ない。
+- [ ] `icon` を 1 件も定義していないプロジェクトでアイコン用の余白が無い。
+- [ ] ファイルが無くてもエラーにならず W070 が出る。
+
+**19.14-25 キャラ別・節長統計**
+- [ ] 話者不明の台詞が `（不明）` として計上され、総和が本文の台詞総量と一致する。
+- [ ] 節長のヒストグラムと T スコア外れ値が出る。
+
+**19.14-26 分量偏差値**
+- [ ] 母集団が 3 未満のとき計算されず `—` と表示される。
+- [ ] 標準偏差 0 のとき全単位が T 50 になる。
+- [ ] 文字数 0 の単位が母集団から除外される。
+- [ ] `⚠` が赤ではなく橙である。
+
+**19.14-27 読者モード（縦書きプレビュー）**
+- [ ] 縦書き（右上から左下へ、行は右から左へ）で表示される。
+- [ ] 禁則処理・縦中横・ラテン文字 90° 回転・句読点の右上寄せ・モノルビが §17.3.3 のとおり動く。
+- [ ] `core::reader::layout()` が純粋関数であり、フォント実測値は引数で注入されている（§3.2 を破っていない）。
+- [ ] 読者モードで注釈・診断・ヒントが一切表示されない。
+- [ ] どのキー操作でもファイルが変更されない。
+- [ ] 1 ページのレイアウト計算が 3ms 以内（§18.1）。
+- [ ] `Alt+7` が読者モードに割り当てられる（段階 ① で欠番にしていた枠が埋まる）。
+
+**19.14-U7 既定プロンプトの復元（段階 ① M10 で達成済み）**
+- [x] 既定プロンプトがバイナリに埋め込まれ、ディスク上のどこにも恒久的に存在しない。
+- [x] 本体を更新しても `prompts/` が上書きされない。
+- [x] `>prompt reset` が `.bak-*` を作らない。
+- [x] 復元前に現行版と既定版が並置表示され、「元に戻せません」と明示される。
+- [x] プロンプトのバージョン・世代・履歴を保持する仕組みが存在しない（コードレビュー項目）。
+
+**19.14-U8 並列実行（段階 ① M10 で達成済み）**
+- [x] `Shift+R` で選択した複数タスクが `max_parallel` 件ずつ走る。
+- [x] 同一 SceneId のタスクが同時に走らない。
+- [x] 同一 MCP サーバへの同時接続が 2 を超えない。
+- [x] 提案 ID と資料 ID が並列実行でも衝突しない。
+- [x] 1 件失敗しても他が続行し、自動再試行されない。
+- [x] integrator 以外の役割は、委譲レベルが `autonomous` でも他のタスクを起動する経路が存在しない（コードレビュー項目）。
+- [x] `autonomous` で自動起動されたタスクが `起動: agent` と記録され、セッション上限で止まる。
+- [x] 本文への適用（採用でも自動適用でも）が逐次である。

@@ -9,25 +9,26 @@
 状態: 実装完了（REF:src/core/model/delegation.rs, REF:src/core/agents/runner.rs, REF:src/core/agents/apply.rs, REF:tests/delegation.rs）
 
 - 4 段階の委譲レベル（`off`, `propose`, `apply`, `autonomous`）と安全装置 A1〜A8（自動適用前の E 系診断検証ゲート、直前スナップショット `P####.diff` 保存、`state: fixed` 書き換え拒否と通知、連鎖上限・文字数上限・総停止）は `REF:src/core/model/delegation.rs`, `REF:src/core/agents/apply.rs`, `REF:src/core/agents/runner.rs` に実装する（検証: `REF:tests/delegation.rs`）。
+- 自動適用ゲート（`apply::validate`）は対象ファイルを仮想的に書き換えた上で E 系診断件数が適用前より増加しないことを必須条件とし、1 件でも増加する場合は自動適用を拒否して `awaiting_review`（`E035`）へフォールバックさせる（`B-10`, `B-91`）。
 
 ### 15.2 役割（6 + 統合）
 
 状態: 実装完了（REF:src/core/syntax/prompt_md.rs, REF:src/core/agents/runner.rs, REF:tests/agents_files.rs）
 
-- 組み込み 7 役割（`writer`, `plotter`, `ideator`, `researcher`, `stylist`, `logician`, `integrator`）は `BUILTIN_ROLES`（`REF:src/core/syntax/prompt_md.rs`）に配列として定義し（縫い代 10）、役割ごとの既定委譲レベルと書き込み可能スコープ検査を `REF:src/core/agents/runner.rs` が担う。
+- 組み込み 7 役割（`writer`, `plotter`, `ideator`, `researcher`, `stylist`, `logician`, `integrator`）は `BUILTIN_ROLES`（`REF:src/core/syntax/prompt_md.rs`）に配列として定義し（縫い代 10）、役割ごとの既定委譲レベルと書き込み可能スコープ検査を `REF:src/core/agents/runner.rs` が担う（範囲外のファイル変更を含む提案は `E034` で拒否する、`B-90`）。
 
 ### 15.3 タスクモデル
 
 状態: 実装完了（REF:src/core/model/task.rs, REF:src/core/agents/files.rs, REF:src/core/agents/runner.rs, REF:tests/agents_files.rs）
 
-- タスクの状態遷移（`queued`, `running`, `awaiting_review`, `applied`, `rejected`, `failed`, `cancelled`）と `T####.md` / `T####.result.md` / `P####.diff` の生成・更新は `REF:src/core/model/task.rs`, `REF:src/core/agents/files.rs`, `REF:src/core/agents/runner.rs` に実装する。
+- タスクの状態遷移（`queued`, `running`, `awaiting_review`, `applied`, `rejected`, `failed`, `cancelled`）と `T####.md` / `T####.result.md` / `P####.diff` の生成・更新は `REF:src/core/model/task.rs`, `REF:src/core/agents/files.rs`, `REF:src/core/agents/runner.rs` に実装する（`B-88`, `B-89`）。
 
 ### 15.4 コンテキスト設計
 
 状態: 実装完了（REF:src/core/aicontext/packet.rs, REF:src/core/aicontext/budget.rs, REF:tests/aicontext.rs, REF:docs/plans.md#plan-S-01）
 
 - 固定 9 セクション（`1 project` 〜 `9 history`）の組み立ては `core::aicontext::packet`（`REF:src/core/aicontext/packet.rs`）が `core::resolve::context_rules` と同じ優先順位規則を用いて生成する。
-- 役割別のトークン予算配分と優先順位に基づく決定論的切り詰めは `core::aicontext::budget`（`REF:src/core/aicontext/budget.rs`）が担う（検証: `REF:tests/aicontext.rs`）。
+- 役割別のトークン予算配分と優先順位に基づく決定論的切り詰め（トークン数概算は CJK 1 文字 ≒ 1.5 トークン、ASCII 4 文字 ≒ 1 トークンの純粋関数で行い外部トークナイザに依存しない、`B-87`）は `core::aicontext::budget`（`REF:src/core/aicontext/budget.rs`）が担う（検証: `REF:tests/aicontext.rs`）。
 
 - **[S-01] 指定した話の本文・プロットを「例」としてコンテキストに付与（実装完了: `REF:src/core/aicontext/packet.rs`, `REF:tests/aicontext.rs`）**:
   - `REF:src/core/aicontext/packet.rs` と `REF:src/core/aicontext/budget.rs` で、タスクに指定された `examples` 範囲の本文またはプロットを抽出し、コンテキストパケットおよび `{{examples}}` 変数へ組み込む。
