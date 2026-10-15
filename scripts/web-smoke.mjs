@@ -206,6 +206,24 @@ async function main() {
     check(opened.app[0]?.value?.items?.[0]?.id === 'sample', '履歴の先頭が sample');
     const before = file(opened, 'sample', 'contents/01-04.txt');
     check(before !== null, 'sample の本文 contents/01-04.txt がある');
+    // F-17: exercise the actual installed Web keydown listener, not just the
+    // Rust shortcut table. DevTools' reserved chord stays free; its alternate
+    // and ordinary app navigation are prevented before the browser handles them.
+    const blocked = await tab.evaluate(() => {
+      const dispatch = (key, options) => {
+        const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...options });
+        document.dispatchEvent(event);
+        return event.defaultPrevented;
+      };
+      return {
+        devtools: dispatch('I', { ctrlKey: true, shiftKey: true }),
+        alternate: dispatch('I', { ctrlKey: true, altKey: true, shiftKey: true }),
+        workspace: dispatch('1', { altKey: true }),
+        text: dispatch('あ', {}),
+      };
+    });
+    check(!blocked.devtools && blocked.alternate && blocked.workspace && !blocked.text,
+      'F-17: Web 予約キーは維持し、代替キーと移動キーだけ preventDefault');
     await key(tab, 'Control+2');
     await key(tab, 'End');
     await key(tab, 'Enter');
@@ -238,6 +256,18 @@ async function main() {
       const text = file(await db(tab), 'sample', 'contents/01-04.txt');
       return text?.includes('変換した。追') ? text : null;
     });
+    // F-36: on a real browser canvas, Ctrl+3 exposes the shared reference
+    // pane from material; Tab remains available to cycle the form controls.
+    const materialBefore = file(await db(tab), 'sample', 'materials/index.json');
+    await key(tab, 'Alt+5');
+    await shot(tab, '02d-material');
+    await key(tab, 'Control+3');
+    await shot(tab, '02e-material-reference');
+    await key(tab, 'Tab');
+    await shot(tab, '02f-material-tab');
+    check(file(await db(tab), 'sample', 'materials/index.json') === materialBefore,
+      'F-36: 資料で Ctrl+3 と Tab を使っても内容は変更されない');
+    await key(tab, 'Alt+1');
 
     // 3. 読み直しても残る・Ctrl+O で選択画面へ戻る（§13.4）
     await tab.reload({ waitUntil: 'load' });

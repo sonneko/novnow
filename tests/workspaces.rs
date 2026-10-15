@@ -1090,7 +1090,17 @@ fn material_tab_traverses_to_the_review_form_after_ctrl_three() {
     let mut harness = material_harness();
     harness.frame(vec![key(Key::Num5, ALT)]);
     harness.frame(vec![key(Key::ArrowUp, ALT)]);
-    harness.frame(vec![key(Key::Num3, CTRL)]);
+    let output = harness.frame(vec![key(Key::Num3, CTRL)]);
+    // The shortcut guide in the central pane must not force the right form
+    // offscreen: the title label and source label remain within the viewport.
+    for label in ["タイトル", "出典"] {
+        let rect = painted_texts(&output)
+            .into_iter()
+            .find(|(text, _)| text == label)
+            .map(|(_, rect)| rect)
+            .expect("material review form label");
+        assert!(rect.right() <= 1280.0, "{label} is clipped: {rect:?}");
+    }
     let title = egui::Id::new(("material-title", "M0138"));
     let mut reached = false;
     for _ in 0..40 {

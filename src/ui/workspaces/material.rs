@@ -491,17 +491,22 @@ pub fn show(
         )
         .show(ctx, |ui| {
             ui.horizontal(|ui| {
-                ui.label(
-                    RichText::new(i18n::text(locale, "material.keys"))
-                        .font(FontId::new(11.0 * scale, FontFamily::Proportional))
-                        .color(colors.fg_faint),
-                );
                 if ui
                     .button(i18n::text(locale, "material.new_button"))
                     .clicked()
                 {
                     request = Some(Request::Shortcut(crate::ui::shell::Command::InsertSection));
                 }
+                // Do not let the long keyboard guide expand the central panel
+                // and steal the width reserved for the material review form.
+                ui.add(
+                    egui::Label::new(
+                        RichText::new(i18n::text(locale, "material.keys"))
+                            .font(FontId::new(11.0 * scale, FontFamily::Proportional))
+                            .color(colors.fg_faint),
+                    )
+                    .truncate(true),
+                );
             });
             super::separator(ui, view.mode);
             match bench.slice().map(|slice| slice.path.clone()) {
