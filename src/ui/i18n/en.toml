@@ -351,6 +351,7 @@ failed = "Could not export: {0}"
 [help]
 save_mcp = "Save"
 edit_mcp = "Edit MCP server configuration"
+mcp_transport = "Unsupported transport {0} in server {1} (only stdio is available)"
 welcome = "Welcome to novnow. Write your novel section by section and organize its plot and sources. Open the sample or create a new project to get started."
 migration = "To migrate Web → desktop: export a Zip in Web and import it on desktop. For desktop → Web: export a Zip on desktop and import it in Web. Verify the destination after importing."
 welcome_title = "Welcome"

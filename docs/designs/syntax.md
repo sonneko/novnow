@@ -82,12 +82,12 @@
 
 ### 5.11 `agents/mcp.json`
 
-状態: 実装中（REF:src/core/agents/mcp_config.rs, REF:tests/agents_files.rs, REF:docs/plans.md#plan-F-19）
+状態: 実装完了（REF:src/core/agents/mcp_config.rs, REF:src/ui/app.rs, REF:tests/agents_files.rs, REF:tests/gui.rs）
 
-- `agents/mcp.json` のパース、サーバ定義順の保持、`env` 内の `${VAR}` 環境変数展開と未定義エラー（`E030`）、非 `stdio` トランスポートや絶対パスコマンドの警告（`W033`）は `core::agents::mcp_config`（`REF:src/core/agents/mcp_config.rs`）に実装する（検証: `REF:tests/agents_files.rs`）。
+- `agents/mcp.json` のパース、サーバ定義順の保持、`env` 内の `${VAR}` 環境変数展開と未定義エラー（`E030`）、リテラルの秘密情報の警告（`W033`）は `core::agents::mcp_config`（`REF:src/core/agents/mcp_config.rs`）に実装する（検証: `REF:tests/agents_files.rs`）。
 
-- **[F-19] アプリ内 `mcp.json` 編集モーダル（未実装・実装計画済み: `REF:docs/plans.md#plan-F-19`）**:
-  - `REF:src/ui/app.rs` の `Overlay` に `McpJsonModal` を追加し、`REF:src/core/agents/mcp_config.rs` の `parse` を用いて編集中テキストをリアルタイム検証した上で `agents/mcp.json` へ原子的に保存する。
+- **[F-19] アプリ内 `mcp.json` 編集モーダル（実装完了: `REF:docs/plans.md#plan-F-19`）**:
+  - `REF:src/ui/app.rs` の `Overlay` に `McpConfig` を追加し、`REF:src/core/agents/mcp_config.rs` の `parse` を用いて編集中テキストをリアルタイム検証した上で `agents/mcp.json` へ原子的に保存する。
 
 ### 5.12 フォーマッタ（正規化）仕様
 

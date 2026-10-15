@@ -13,7 +13,7 @@
 
 - **[S-05] ヘッダ右端への `?` と `Ctrl+P` ボタン常設（実装完了: `REF:src/ui/app.rs`, `REF:tests/gui.rs`）**:
   - `REF:src/ui/app.rs` のトップバー右側に `Ctrl+P` ボタンと `?` ボタンを常設する。
-- **[F-20] エラー・警告時の `review` アイコン変化（未実装・実装計画済み: `REF:docs/plans.md#plan-F-20`）**:
+- **[F-20] エラー・警告時の `review` アイコン変化（実装完了: `REF:docs/plans.md#plan-F-20`）**:
   - `REF:src/ui/app.rs` でエラーまたは警告が 1 件以上あるとき、`WorkspaceId::Review` アイコンに `state.error` / `state.warn` 色のドットバッジと強調色を付与する。
 - **[F-16 / F-29 / F-30] 視覚的アクションボタン・押せる要素の下線・静的ラベルの非選択化（実装中: `REF:docs/plans.md#plan-F-16`, `REF:docs/plans.md#plan-F-29`, `REF:docs/plans.md#plan-F-30`）**:
   - F-29 は実装完了。`REF:src/ui/app.rs` で `style.interaction.selectable_labels = false` を設定し、押せないラベルのダブルクリック青選択を防ぐ（検証: `REF:tests/gui.rs`）。
@@ -78,12 +78,12 @@
 
 ### 9.7 ナビゲーション
 
-状態: 実装中（REF:src/ui/palette.rs, REF:src/ui/assist.rs, REF:src/ui/app.rs, REF:tests/gui.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-06）
+状態: 実装完了（REF:src/ui/palette.rs, REF:src/ui/assist.rs, REF:src/ui/app.rs, REF:tests/gui.rs）
 
 - 統一パレット（`Ctrl+P` / `Ctrl+G` / `Ctrl+Shift+P`）の先頭文字によるモード切替（通常 / `@` 構造 / `'` 辞書 / `#` 資料 / `>` コマンド）と決定論的ファジースコアリング（完全一致 +1000、先頭一致 +500、連続一致 +200、頭文字 +100、50 件上限）は `ui::palette`（`REF:src/ui/palette.rs`）に実装する。
 - `'名前` パレットでの `Enter`（`core::features::definition::at` による定義ジャンプ）と `Shift+Enter`（`core::features::references::find` による使用箇所一覧）、および入力中補完ポップアップ（`REF:src/ui/assist.rs`）は `REF:src/ui/app.rs` で接続されている（検証: `REF:tests/gui.rs`, `REF:tests/workspaces.rs`）。
 
-- **[F-06〜F-09 / F-12〜F-15 / F-25〜F-27 / S-08 / S-13] パレットの UX 全面改善（一部実装完了: `REF:docs/plans.md#plan-F-06`）**:
+- **[F-06〜F-09 / F-12〜F-15 / F-25〜F-27 / S-08 / S-13] パレットの UX 全面改善（実装完了: `REF:docs/plans.md#plan-F-06`）**:
   - `REF:src/ui/app.rs` と `REF:src/ui/palette.rs` でパレットを画面水平中央・上端に固定し（F-06）、`Order::Foreground` で青枠より前面に描画し（F-08）、背面シールドでパレット外クリック時は背面要素を発火させずにパレットのみを閉じる（F-27）。
   - パレット幅を固定して長文候補を `...` で省略し（F-12）、候補に「パレットを閉じる」を追加し（F-07）、未入力時の下部ガイド（F-13）と 0 件時の「ない」表示（F-14）を追加する。
   - `>` でエージェント系を `>agent ` 階層にまとめ（F-09）、全ショートカット操作を `>` から実行可能にし（F-15）、`?` をショートカット選択実行モードにし（F-25）、`@` を広さ優先の階層ドリルダウン（`@01-* 章タイトル` → `@01-01-* 話タイトル` → …）に変更し（F-26）、`Tab` によるトークン単位補完（S-13）を実装する。
@@ -183,12 +183,12 @@
 
 ### 10.9 `review` — 点検
 
-状態: 実装中（REF:src/core/features/project.rs, REF:src/ui/workspaces/review.rs, REF:tests/workspaces.rs, REF:docs/plans.md#plan-F-20）
+状態: 実装完了（REF:src/core/features/project.rs, REF:src/ui/workspaces/review.rs, REF:src/ui/workspaces/mod.rs, REF:tests/workspaces.rs, REF:tests/gui.rs）
 
 - 診断一覧タブ（重大度・コード・位置・クイックフィックス適用）と進捗ツリータブ（章・話・節ごとの `state` と文字数集計）は `REF:src/core/features/project.rs` と `REF:src/ui/workspaces/review.rs` に実装する。
 - ※伏線一覧・文体・統計の 3 タブは段階 ②（`REF:docs/plans.md#stage-2`）対象。
 
-- **[F-20] エラー・警告発生時の `review` アイコン変化（未実装・実装計画済み: `REF:docs/plans.md#plan-F-20`）**:
+- **[F-20] エラー・警告発生時の `review` アイコン変化（実装完了: `REF:docs/plans.md#plan-F-20`）**:
   - `REF:src/ui/app.rs` のヘッダアイコン描画でエラー/警告件数に応じたバッジ・色変化を表示する。
 
 ## 11. テーマ・配色・タイポグラフィ

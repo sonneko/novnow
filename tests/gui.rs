@@ -2625,3 +2625,134 @@ fn palette_long_cjk_label_truncates_in_pixels_without_resizing() {
         "candidate remains in centered fixed-width palette: {rect:?}"
     );
 }
+
+#[test]
+fn shortcut_palette_search_executes_selected_workspace_command() {
+    use novnow::ui::workspaces::Workspace;
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text("?workspace-material".into())]);
+    let output = painted_text(&harness.frame(Vec::new()));
+    assert!(output.contains("? workspace-material  Alt+5"), "{output}");
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    assert_eq!(harness.app.workspace(), Some(Workspace::Material));
+    assert!(!harness.app.overlay_open());
+    // The same shortcut must also be available in the command palette (F-15).
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text(">workspace-idea".into())]);
+    let output = painted_text(&harness.frame(Vec::new()));
+    assert!(output.contains(">workspace-idea"), "{output}");
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    assert_eq!(harness.app.workspace(), Some(Workspace::Idea));
+}
+
+#[test]
+fn scene_palette_drills_from_chapter_to_episode_scene_and_section() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text("@".into())]);
+    for label in ["@01-*", "@01-04-*", "@01-04-02-*", "@01-04-02-01"] {
+        let output = painted_text(&harness.frame(Vec::new()));
+        assert!(output.contains(label), "missing {label}: {output}");
+        harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    }
+    assert!(!harness.app.overlay_open());
+}
+
+#[test]
+fn mcp_config_palette_modal_validates_before_saving() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text(">mcp".into())]);
+    assert!(painted_text(&harness.frame(Vec::new())).contains(">mcp"));
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+    let output = harness.frame(Vec::new());
+    assert!(painted_text(&output).contains("agents/mcp.json"));
+    assert!(harness.app.overlay_open());
+    let title = harness.rect_of("agents/mcp.json").unwrap();
+    harness.click_at(Pos2::new(title.min.x + 50.0, title.max.y + 26.0));
+    harness.frame(vec![Event::Text("invalid json".into())]);
+    assert!(
+        painted_text(&harness.frame(Vec::new())).contains("expected value"),
+        "invalid input must be diagnosed while typing"
+    );
+    let save = harness.rect_of("保存").expect("MCP modal save button");
+    harness.click_at(save.center());
+    assert!(
+        harness.app.overlay_open(),
+        "invalid JSON cannot close the modal"
+    );
+    assert_eq!(
+        harness
+            .app
+            .workbench()
+            .unwrap()
+            .project()
+            .text("agents/mcp.json"),
+        ""
+    );
+    harness.click_at(Pos2::new(title.min.x + 50.0, title.max.y + 26.0));
+    harness.frame(vec![key(Key::A, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text(r#"{"servers":{}}"#.into())]);
+    let save = harness.rect_of("保存").unwrap();
+    harness.click_at(save.center());
+    assert!(!harness.app.overlay_open(), "valid JSON closes the modal");
+    assert_eq!(
+        harness
+            .app
+            .workbench()
+            .unwrap()
+            .project()
+            .text("agents/mcp.json"),
+        r#"{"servers":{}}"#
+    );
+}
+
+#[test]
+fn agent_workspace_mcp_button_opens_the_shared_edit_modal() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::Num8, Modifiers::ALT)]);
+    let title = novnow::ui::i18n::text(Locale::Ja, "help.edit_mcp");
+    let button = harness
+        .rect_of(title)
+        .expect("MCP editor action on agent screen");
+    harness.click_at(button.center());
+    let output = harness.frame(Vec::new());
+    assert!(harness.app.overlay_open());
+    assert!(painted_text(&output).contains("agents/mcp.json"));
+}
+
+#[test]
+fn warning_or_error_changes_review_header_glyph_and_adds_a_badge() {
+    use novnow::ui::workspaces::{indicator, ReviewProblem, Workspace};
+    let draw = |problem| {
+        let ctx = egui::Context::default();
+        ctx.run(egui::RawInput::default(), |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                indicator(
+                    ui,
+                    novnow::ui::theme::Mode::Dark,
+                    Locale::Ja,
+                    Workspace::Write,
+                    problem,
+                );
+            });
+        })
+    };
+    let colors = novnow::ui::theme::palette(novnow::ui::theme::Mode::Dark);
+    let count_badges = |output: egui::FullOutput, color| {
+        output.shapes.iter().filter(|item| matches!(
+            &item.shape, egui::Shape::Circle(circle) if circle.radius == 2.5 && circle.fill == color
+        )).count()
+    };
+    assert_eq!(count_badges(draw(None), colors.warn), 0);
+    assert_eq!(
+        count_badges(draw(Some(ReviewProblem::Warning)), colors.warn),
+        1
+    );
+    assert_eq!(
+        count_badges(draw(Some(ReviewProblem::Error)), colors.error),
+        1
+    );
+}

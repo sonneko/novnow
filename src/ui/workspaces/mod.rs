@@ -443,12 +443,19 @@ pub fn hint(ui: &mut Ui, mode: Mode, scale: f32, text: &str) {
 /// ヘッダのワークスペースインジケータ（§9.2.1「ワークスペース名はアイコン」）。開けるワークスペースの
 /// 図形を並べ、今のものを `accent`、他を `fg.faint` で描く。ラベルは置かず、ツールチップと
 /// アクセシブル名（カタログの `header.workspace.<id>`）だけ。クリックされたものを返す。
+/// Highest outstanding diagnostic severity for the review header badge.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReviewProblem {
+    Error,
+    Warning,
+}
+
 pub fn indicator(
     ui: &mut Ui,
     mode: Mode,
     locale: Locale,
     current: Workspace,
-    problems: bool,
+    problem: Option<ReviewProblem>,
 ) -> Option<Workspace> {
     let colors = theme::palette(mode);
     let mut clicked = None;
@@ -485,14 +492,25 @@ pub fn indicator(
             &painter,
             rect,
             workspace,
-            if workspace == Workspace::Review && problems {
-                colors.warn
+            if workspace == Workspace::Review {
+                match problem {
+                    Some(ReviewProblem::Error) => colors.error,
+                    Some(ReviewProblem::Warning) => colors.warn,
+                    None => color,
+                }
             } else {
                 color
             },
         );
-        if workspace == Workspace::Review && problems {
-            painter.circle_filled(rect.right_top() + Vec2::new(-1.0, 2.0), 2.5, colors.warn);
+        if workspace == Workspace::Review {
+            let badge = match problem {
+                Some(ReviewProblem::Error) => Some(colors.error),
+                Some(ReviewProblem::Warning) => Some(colors.warn),
+                None => None,
+            };
+            if let Some(badge) = badge {
+                painter.circle_filled(rect.right_top() + Vec2::new(-1.0, 2.0), 2.5, badge);
+            }
         }
         ui.add_space(2.0);
     }

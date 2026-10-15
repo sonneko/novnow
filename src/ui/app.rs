@@ -2299,7 +2299,7 @@ impl NovnowApp {
                         mode,
                         locale,
                         current,
-                        project_has_problems(session, locale),
+                        project_problem(session, locale),
                     ) {
                         switch_to = Some(target);
                     }
@@ -3167,12 +3167,17 @@ impl NovnowApp {
                 popup(ctx, "mcp-config", colors, |ui| {
                     ui.set_width(620.0);
                     ui.label("agents/mcp.json");
-                    ui.add(
-                        egui::TextEdit::multiline(input)
-                            .code_editor()
-                            .desired_rows(18)
-                            .desired_width(f32::INFINITY),
-                    );
+                    if ui
+                        .add(
+                            egui::TextEdit::multiline(input)
+                                .code_editor()
+                                .desired_rows(18)
+                                .desired_width(f32::INFINITY),
+                        )
+                        .changed()
+                    {
+                        *error = validate_mcp_editor(input, locale).err();
+                    }
                     if let Some(message) = error {
                         ui.colored_label(colors.error, message);
                     }
@@ -3193,8 +3198,8 @@ impl NovnowApp {
                     });
                 });
                 if save {
-                    match crate::core::agents::mcp_config::parse(input) {
-                        Ok(_) => {
+                    match validate_mcp_editor(input, locale) {
+                        Ok(()) => {
                             session.bench.replace_document(
                                 crate::core::agents::mcp_config::PATH,
                                 input.clone(),
@@ -5093,6 +5098,15 @@ mod status_tests {
     use super::*;
 
     #[test]
+    fn mcp_editor_rejects_unknown_transport_before_save() {
+        let input = r#"{"servers":{"remote":{"transport":"ftp","command":"run"}}}"#;
+        assert!(validate_mcp_editor(input, Locale::Ja)
+            .unwrap_err()
+            .contains("ftp"));
+        assert!(validate_mcp_editor(r#"{"servers":{}}"#, Locale::Ja).is_ok());
+    }
+
+    #[test]
     fn mac_modifiers_use_command_not_control_in_the_status_bar() {
         let command = Modifiers {
             mac_cmd: true,
@@ -5376,15 +5390,20 @@ fn action_label(locale: Locale, action: &crate::core::features::code_action::Cod
 /// The header badge reflects the whole project (not just the current document).
 /// Reuse the previous scan while typing; scanning every file on every keystroke
 /// would violate the editor's latency budget. Recalculate after the save settles.
-fn project_has_problems(session: &mut Session, locale: Locale) -> bool {
+fn project_problem(session: &mut Session, locale: Locale) -> Option<workspaces::ReviewProblem> {
     use crate::core::diagnostics::Severity;
     let rows = if matches!(session.bench.save.state(), State::Dirty | State::Saving) {
         session.spaces.review.cached().unwrap_or_default()
     } else {
         session.spaces.review.diagnostics(&session.bench, locale)
     };
-    rows.iter()
-        .any(|row| matches!(row.severity, Severity::Error | Severity::Warning))
+    if rows.iter().any(|row| row.severity == Severity::Error) {
+        Some(workspaces::ReviewProblem::Error)
+    } else if rows.iter().any(|row| row.severity == Severity::Warning) {
+        Some(workspaces::ReviewProblem::Warning)
+    } else {
+        None
+    }
 }
 
 fn diagnostic_count(session: &mut Session) -> usize {
@@ -5593,6 +5612,24 @@ fn prompt_pairs(
                 ui.add_space(6.0);
             }
         });
+}
+
+/// Validate as the MCP modal is edited, not only on Save. v1 supports only
+/// stdio servers; unsupported transports must never be silently accepted.
+fn validate_mcp_editor(input: &str, locale: Locale) -> Result<(), String> {
+    let config = crate::core::agents::mcp_config::parse(input)?;
+    if let Some(server) = config
+        .servers
+        .iter()
+        .find(|server| !server.transport.is_empty() && server.transport != "stdio")
+    {
+        return Err(i18n::format(
+            locale,
+            "help.mcp_transport",
+            &[&server.transport, &server.name],
+        ));
+    }
+    Ok(())
 }
 
 /// Truncate by painted pixels rather than Unicode scalar count: CJK glyphs are
@@ -6141,7 +6178,7 @@ fn palette_items(
                 .collect()
         }
         palette::Mode::Help => {
-            let all: Vec<_> = PALETTE_COMMANDS
+            let mut all: Vec<_> = PALETTE_COMMANDS
                 .iter()
                 .map(|(name, key, command)| PaletteItem {
                     key: (*name).to_owned(),
@@ -6149,6 +6186,15 @@ fn palette_items(
                     action: PaletteAction::Command(*command),
                 })
                 .collect();
+            all.extend(
+                SHORTCUT_PALETTE_COMMANDS
+                    .iter()
+                    .map(|(name, shortcut, command)| PaletteItem {
+                        key: (*name).to_owned(),
+                        label: format!("? {name}  {shortcut}"),
+                        action: PaletteAction::Command(*command),
+                    }),
+            );
             palette::rank(query, &all, |item| (&item.key, &item.label))
                 .into_iter()
                 .map(|item| PaletteItem {
