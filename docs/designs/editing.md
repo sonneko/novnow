@@ -30,12 +30,12 @@
 
 ### 8.4 保存状態の表示
 
-状態: 実装中（REF:src/ui/app.rs, REF:src/ui/theme.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-39）
+状態: 実装完了（REF:src/ui/app.rs, REF:src/ui/widgets/context_view.rs, REF:src/ui/theme.rs, REF:tests/gui.rs）
 
 - ステータスバー右端の保存状態インジケータ（`Clean` 無表示 / `Dirty` 琥珀色 `●` / `Saving` 点滅 `●` / `Failed` 赤 `✕` + 通知）は `NovnowApp`（`REF:src/ui/app.rs`）が `SaveMachine::state()` を参照して描画する。
 
-- **[F-39] 未保存ドット（オレンジ点）のサイズ拡大（未実装・実装計画済み: `REF:docs/plans.md#plan-F-39`）**:
-  - `REF:src/ui/widgets/context_view.rs` と `REF:src/ui/app.rs` における未保存インジケータ（`state.unsaved`）の円半径を拡大（直径 8〜10px）し、視認性を高める。
+- **[F-39] 未保存ドット（オレンジ点）のサイズ拡大（実装完了: `REF:src/ui/widgets/context_view.rs`, `REF:tests/gui.rs`）**:
+  - `REF:src/ui/widgets/context_view.rs` の編集中プレースホルダの未保存ドットは半径 5px（直径 10px）。ステータスバーの保存インジケータは半径 4px（直径 8px、`REF:src/ui/app.rs`）。`REF:tests/gui.rs` で描画形状を確認する。
 
 ### 8.5 外部変更との競合
 

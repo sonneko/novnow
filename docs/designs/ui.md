@@ -35,7 +35,7 @@
 
 - **[F-21 / F-22 / F-39 / F-41 / S-04 / S-12] 文脈ビューの視認性・ガイド・可視範囲レイアウト改善（未実装・実装計画済み: `REF:docs/plans.md#plan-F-21`）**:
   - `REF:src/ui/widgets/context_view.rs` で各節境界に `border` 色の横線を描画し（F-21）、節見出しを章省略なしの `@AA-BB-CC-DD`（`A-B-C-D`）に統一する（F-22）。
-  - 編集中プレースホルダ行の左端に 3px の `accent` 縦線を描画して節エディタと対にし（F-41）、未保存ドットを直径 8〜10px に拡大する（F-39）。
+  - 編集中プレースホルダ行の左端に 3px の `accent` 縦線を描画して節エディタと対にし（F-41）、未保存ドットを直径 10px で描く（F-39、`REF:src/ui/widgets/context_view.rs`・`REF:tests/gui.rs` で検証済み）。
   - 本文が 0 文字のときは `fg.faint` で 3 行ガイド（`Alt+数字=画面 / Alt+矢印=節移動 / Ctrl+P=一覧`）を描画し（S-04）、スクロール可視範囲内の節のみ `Galley` レイアウトを行う（S-12）。`REF:src/ui/widgets/context_view.rs` ではビューポート外を文字数からの高さ推定で確保し、可視節の実測高さを世代・幅・フォントサイズごとにキャッシュする（検証: `REF:src/ui/widgets/context_view.rs` の `viewport_tests`）。
 
 ### 9.4 節エディタ（メインカラム下段）

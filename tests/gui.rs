@@ -2000,3 +2000,27 @@ fn static_labels_are_not_text_selectable_in_the_app() {
     let (harness, _) = Harness::start();
     assert!(!harness.ctx.style().interaction.selectable_labels);
 }
+
+#[test]
+fn context_unsaved_indicator_has_a_ten_pixel_diameter() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text("追".into())]);
+    let output = harness.frame(Vec::new());
+    let color = novnow::ui::theme::palette(novnow::ui::theme::Mode::Dark).unsaved;
+    let circles: Vec<_> = output
+        .shapes
+        .iter()
+        .filter_map(|shape| match &shape.shape {
+            egui::Shape::Circle(circle) => Some((circle.fill, circle.radius)),
+            _ => None,
+        })
+        .collect();
+    assert!(
+        circles
+            .iter()
+            .any(|&(fill, radius)| fill == color && radius == 5.0),
+        "state={:?} circles={circles:?} wanted={color:?}",
+        harness.app.workbench().map(|b| b.save.state())
+    );
+}
