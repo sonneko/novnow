@@ -56,14 +56,14 @@
 
 ### 6.7 インクリメンタル再解析
 
-状態: 実装中（REF:src/core/text/incremental.rs, REF:tests/incremental.rs, REF:benches/core.rs, REF:docs/plans.md#plan-F-43）
+状態: 実装完了（REF:src/core/text/incremental.rs, REF:src/ui/widgets/section_editor.rs, REF:tests/editor_performance.rs）
 
 - ファイル全体の行種別キャッシュ `LineIndex` と 1 行編集時の再解析 `relex_line` / `relex_text` は `core::text::incremental`（`REF:src/core/text/incremental.rs`）に実装する。
 - 構造見出し `@` または節区切り `;` に関わる変更のみ `Renumber::From(line)` を返し、10 万行規模でも O(1) で 1 行再字句解析を完了する（検証: `REF:tests/incremental.rs`、ベンチマーク: `REF:benches/core.rs` の `single_line_relex`）。
 
-- **[F-43] 打鍵時の編集中節のみの同期解析と他節デバウンス（未実装・実装計画済み: `REF:docs/plans.md#plan-F-43`）**:
+- **[F-43] 打鍵時の編集中節のみの同期解析と他節デバウンス（実装完了: `REF:src/ui/widgets/section_editor.rs`, `REF:tests/editor_performance.rs`）**:
   - `REF:src/ui/workbench.rs` と `REF:src/core/features/project.rs` で、打鍵フレーム内では編集中の 1 節スライスのみを対象にトークン化・ローカル診断・インレイヒント計算を行い、ファイル内他節の再構築とプロジェクト横断診断は 300ms デバウンス後に実行する。
-  - `REF:tests/incremental.rs` および `REF:benches/core.rs` に「10 万字のファイルで 1 打鍵 16ms 以内」を検査するテストを追加する。
+  - `REF:tests/editor_performance.rs` に 10 万字ファイルでの節解析と egui 画面全体の 1 打鍵 16ms 以内を release ビルドで検査するテストを追加し、`REF:.github/workflows/ci.yml` の bench ジョブで実行する。
 
 ## 付録 B: 役割語パターン言語と、提示された例の変換表
 
