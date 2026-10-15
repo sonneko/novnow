@@ -2584,3 +2584,38 @@ fn material_creation_button_opens_the_same_dialog() {
     harness.click_at(rect.center());
     assert!(harness.app.overlay_open());
 }
+
+#[test]
+fn material_category_chips_and_condition_hint_match_the_metadata_form() {
+    let mut harness = material_harness();
+    harness.frame(vec![key(Key::Num5, ALT)]);
+    harness.frame(Vec::new());
+    let output = harness.frame(Vec::new());
+    let text = painted_text(&output);
+    assert!(text.contains("この資料のカテゴリ"), "{text}");
+    for chip in [
+        "取材",
+        "文献",
+        "Web",
+        "画像",
+        "体験",
+        "一次資料",
+        "二次資料",
+        "その他",
+    ] {
+        assert!(text.contains(chip), "chip {chip}: {text}");
+    }
+    assert!(
+        output.shapes.iter().any(|shape| matches!(
+            &shape.shape,
+            egui::Shape::Rect(rect) if rect.stroke.width == 1.5
+        )),
+        "selected category has a visible outline"
+    );
+    // M0138 has an empty conditions list, so the examples belong to the
+    // TextEdit hint rather than a permanent explanatory paragraph.
+    harness.frame(vec![key(Key::ArrowUp, ALT)]);
+    let empty = painted_text(&harness.frame(Vec::new()));
+    assert_eq!(material_selected(&harness).as_deref(), Some("M0138"));
+    assert!(empty.contains("scope: @02-03"), "condition hint: {empty}");
+}

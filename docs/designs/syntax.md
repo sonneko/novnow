@@ -19,11 +19,11 @@
 
 ### 5.2 本文形式（C 形式）— `contents/AA-BB.txt`
 
-状態: 実装中（REF:src/core/syntax/contents.rs, REF:tests/contents.rs, REF:tests/golden.rs, REF:docs/plans.md#plan-S-08）
+状態: 実装完了（REF:src/core/syntax/contents.rs, REF:src/core/features/completion.rs, REF:tests/contents.rs, REF:tests/golden.rs, REF:tests/features_edit.rs）
 
 - 場面見出し `@A-B-C[-D]`、節区切り `;` による節番号 `D` の自動採番、空節の `W012`、行末話者注釈 `@char[:mode]`、会話スパン `「」` / `『』`、ルビ 2 形式、コメント範囲の解析と無損失 `to_text()` は `core::syntax::contents`（`REF:src/core/syntax/contents.rs`）に実装する（検証: `REF:tests/contents.rs`, `REF:tests/golden.rs`）。
 
-- **[S-08] 会話閉じ括弧直後の `@` による話者予測補完（未実装・実装計画済み: `REF:docs/plans.md#plan-S-08`）**:
+- **[S-08] 会話閉じ括弧直後の `@` による話者予測補完（実装完了: `REF:src/core/features/completion.rs`, `REF:tests/features_edit.rs`）**:
   - `REF:src/core/features/completion.rs` のトリガー判定に「同一行のカーソル前に `」` または `』` があり、その後に `@`（および入力途中のキャラ名/モード）が続く」ケースを追加し、`characters.md` の登場人物名と `:モードID` を候補として返す。
 
 ### 5.3 アウトライン形式（A 形式）— `plots/all.txt`, `plots/AA.txt`
