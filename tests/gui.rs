@@ -2824,3 +2824,74 @@ fn tab_inside_editor_stays_in_one_focus_target_and_header_tabs_cycle() {
         "the next focusable header control is focused"
     );
 }
+
+#[test]
+fn editor_text_gutter_and_caret_stay_clipped_inside_the_border() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
+    harness.frame(Vec::new());
+    for width in [620.0, 380.0] {
+        let output = harness.frame_at(width, Modifiers::NONE);
+        let colors = novnow::ui::theme::palette(novnow::ui::theme::Mode::Dark);
+        let border = output
+            .shapes
+            .iter()
+            .find_map(|item| match &item.shape {
+                egui::Shape::Rect(shape)
+                    if shape.stroke.width == 1.0
+                        && shape.stroke.color == colors.border
+                        && shape.rect.height() > 150.0 =>
+                {
+                    Some(shape.rect)
+                }
+                _ => None,
+            })
+            .expect("editor frame");
+        let text_clip = output
+            .shapes
+            .iter()
+            .find_map(|item| match &item.shape {
+                egui::Shape::Text(text) if text.galley.text().contains("やっぱり") => {
+                    Some(item.clip_rect)
+                }
+                _ => None,
+            })
+            .expect("section text");
+        assert!(
+            border.contains_rect(text_clip),
+            "text clip inside border: {border:?} {text_clip:?}"
+        );
+        let number = harness::painted_texts(&output)
+            .into_iter()
+            .find(|(text, rect)| text == "3" && border.contains_rect(*rect))
+            .expect("third line number")
+            .1;
+        // egui's original full-line-height caret is invisible. Our custom
+        // caret is font-sized and aligned with that logical line's gutter.
+        let caret = output
+            .shapes
+            .iter()
+            .find_map(|item| match &item.shape {
+                egui::Shape::LineSegment { points, stroke }
+                    if stroke.width > 0.0
+                        && (points[0].x - points[1].x).abs() < 0.1
+                        && item.clip_rect.intersects(text_clip)
+                        && (points[0].y - points[1].y).abs() > 13.0
+                        && (points[0].y - points[1].y).abs() < 20.0 =>
+                {
+                    Some((points, item.clip_rect))
+                }
+                _ => None,
+            })
+            .expect("font-sized custom caret");
+        let center = (caret.0[0].y + caret.0[1].y) * 0.5;
+        if width == 620.0 {
+            assert!(
+                (center - number.center().y).abs() < 1.0,
+                "caret/line number baseline: {center} {number:?}"
+            );
+        }
+        assert!(border.contains(caret.0[0]) && border.contains(caret.0[1]));
+        assert!(caret.1.intersects(border));
+    }
+}

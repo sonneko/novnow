@@ -40,12 +40,12 @@
 
 ### 9.4 節エディタ（メインカラム下段）
 
-状態: 未実装・実装計画済み（REF:src/ui/widgets/section_editor.rs, REF:src/ui/widgets/syntax_text.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-02）
+状態: 実装完了（REF:src/ui/widgets/section_editor.rs, REF:src/ui/widgets/syntax_text.rs, REF:tests/gui.rs）
 
 - 1 行ミニヘッダー（パンくず `01 › 04 › 02 › 03` と有効モードバッジ）および構文ハイライト・インレイヒント・ベースライン基準の下線/波線描画を伴う複数行エディタは `REF:src/ui/widgets/section_editor.rs` と `REF:src/ui/widgets/syntax_text.rs` に実装する。
 - ※§9.4.2 の台詞比率バー、§9.4.3 のゴーストテキスト、§9.4.4 のタイプライタスクロールは段階 ②（`REF:docs/plans.md#stage-2`）対象。
 
-- **[F-02 / F-03 / F-37 / F-41] 節エディタの枠内パディング・カーソル/行番号調整・フォーカス表現分離・`lock_focus(true)`（一部実装完了: `REF:docs/plans.md#plan-F-02`）**:
+- **[F-02 / F-03 / F-37 / F-41] 節エディタの枠内パディング・カーソル/行番号調整・フォーカス表現分離・`lock_focus(true)`（実装完了: `REF:docs/plans.md#plan-F-02`）**:
   - `REF:src/ui/widgets/section_editor.rs` で枠内パディングとクリップ矩形を整えてテキストのはみ出しを解消し（F-02）、行番号の Y 座標とキャレット高さを `Galley` の行メトリクスに一致させる（F-03）。
   - ペインのフォーカス表示は左端 3px 縦線、編集中の節は常時 1px 枠線に分離する（F-41 は実装完了。`REF:src/ui/app.rs`, `REF:src/ui/widgets/context_view.rs`, `REF:tests/gui.rs`）。
   - `TextEdit::multiline` に `.lock_focus(true)` を付け、入力欄外での 入力欄外の `Tab` 巡回と明瞭なフォーカス表示を実装する（F-37）。
