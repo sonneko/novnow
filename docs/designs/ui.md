@@ -149,7 +149,7 @@
 
 - タグ・状態フィルタ、一覧、MD エディタ、新規採番（`N`）、状態変更（`1`〜`3`）、プロットへの昇格（`P`）は `REF:src/core/features/ideas.rs` と `REF:src/ui/workspaces/idea.rs` に実装する。
 
-- **[F-38] アイデア 1,000 件時の可視行仮想スクロール描画（未実装・実装計画済み: `REF:docs/plans.md#plan-F-38`）**:
+- **[F-38] アイデア 1,000 件時の可視行仮想スクロール描画（実装完了: `REF:src/ui/workspaces/idea.rs`, `REF:tests/editor_performance.rs`）**:
   - `REF:src/ui/workspaces/idea.rs` の一覧を `ScrollArea::show_rows` による可視行限定描画に変更し、1,000 件でも 60fps を維持する。
 
 ### 10.5 `material` — 資料（§16 に詳細）

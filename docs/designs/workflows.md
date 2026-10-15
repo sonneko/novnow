@@ -83,7 +83,7 @@
 - Web リリースビルドの gzip 後 wasm サイズ（上限 8MiB、実測約 6.75MiB）は `REF:.github/workflows/ci.yml` の `wasm` ジョブで検査する。
 
 - **[F-38 / F-43 / S-12] 10 万字打鍵 16ms 以内・アイデア 1,000 件 60fps・文脈ビュー可視範囲レイアウト（未実装・実装計画済み: `REF:docs/plans.md#plan-F-43`）**:
-  - 打鍵時の編集中節限定解析（F-43）、一覧の `show_rows` 仮想スクロール（F-38）、文脈ビューのビューポートカリング（S-12）を実装し、`REF:tests/editor_performance.rs`（release で画面全体の打鍵 16ms を確認）、`REF:tests/incremental.rs` と `REF:benches/core.rs` で計測・検証する。
+  - 打鍵時の編集中節限定解析（F-43）、一覧の `show_rows` 仮想スクロール（F-38）、文脈ビューのビューポートカリング（S-12）を実装し、`REF:tests/editor_performance.rs`（release で画面全体の打鍵 16ms とアイデア 1,000 件の一覧移動 16ms を確認）、`REF:tests/incremental.rs` と `REF:benches/core.rs` で計測・検証する。
 
 ### 18.2 メモリ
 

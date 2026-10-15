@@ -352,9 +352,8 @@ jobs:
             echo "::endgroup::"
           fi
           if [ "$status" = 0 ]; then
-            echo "::group::100k-character whole-frame typing budget (release, §18.1)"
-            cargo test --locked --release --test editor_performance --features ui \
-              a_keystroke_in_a_100k_character_file_fits_the_frame_budget -- --nocapture 2>&1 | tee -a /tmp/ci.log || status=$?
+            echo "::group::typing and 1,000-idea navigation frame budgets (release, §18.1)"
+            cargo test --locked --release --test editor_performance --features ui -- --nocapture 2>&1 | tee -a /tmp/ci.log || status=$?
             echo "::endgroup::"
           fi
           exit $status
