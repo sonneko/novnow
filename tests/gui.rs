@@ -2487,3 +2487,65 @@ fn editor_focus_stripe_and_context_placeholder_match_the_thin_editor_border() {
         egui::Shape::Rect(shape) if shape.stroke.width == 1.0 && shape.stroke.color == colors.border
     )), "editor outline remains a 1px border rather than a thick focus frame");
 }
+
+#[test]
+fn held_modifier_prefixes_appear_in_the_status_bar() {
+    let mut harness = Harness::new();
+    let ctrl = Modifiers {
+        ctrl: true,
+        command: true,
+        ..Modifiers::NONE
+    };
+    for (mods, expected) in [
+        (ctrl, "Ctrl: P"),
+        (ctrl | Modifiers::SHIFT, "Ctrl+Shift:"),
+        (ctrl | Modifiers::ALT, "Ctrl+Alt:"),
+    ] {
+        let output = harness.frame_at(1280.0, mods);
+        assert!(
+            painted_text(&output).contains(expected),
+            "{expected}: {}",
+            painted_text(&output)
+        );
+    }
+    let normal = harness.frame_at(1280.0, Modifiers::NONE);
+    assert!(!painted_text(&normal).contains("Ctrl: P"));
+}
+
+#[test]
+fn bundled_font_notification_is_a_temporary_bottom_left_toast() {
+    let mut harness = Harness::new();
+    let fallback = novnow::ui::i18n::text(Locale::Ja, "status.font_fallback");
+    let initial = harness.frame(Vec::new());
+    let rect = harness::painted_texts(&initial)
+        .into_iter()
+        .find(|(text, _)| text == fallback)
+        .expect("bundled font notification")
+        .1;
+    assert!(
+        rect.min.x < 200.0 && rect.min.y > 650.0,
+        "bottom-left toast: {rect:?}"
+    );
+    assert!(!painted_text(&harness.idle(4.2)).contains(fallback));
+}
+
+#[test]
+fn narrow_status_folds_secondary_details_without_hiding_save_state() {
+    let mut harness = Harness::new();
+    let full = painted_text(&harness.frame_at(1280.0, Modifiers::NONE));
+    assert!(full.contains("枚") && full.contains("字"));
+    let medium = painted_text(&harness.frame_at(620.0, Modifiers::NONE));
+    assert!(medium.contains('…') && !medium.contains("枚"), "{medium}");
+    let narrow = painted_text(&harness.frame_at(380.0, Modifiers::NONE));
+    assert!(narrow.contains('…') && !narrow.contains("枚"), "{narrow}");
+    harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text("追".into())]);
+    let dirty = harness.frame_at(620.0, Modifiers::NONE);
+    let amber = novnow::ui::theme::palette(novnow::ui::theme::Mode::Dark).unsaved;
+    assert!(
+        dirty.shapes.iter().any(|item| matches!(
+            &item.shape, egui::Shape::Circle(circle) if circle.fill == amber && circle.radius == 4.0
+        )),
+        "save state remains visible at narrow widths"
+    );
+}

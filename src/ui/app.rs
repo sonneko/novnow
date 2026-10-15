@@ -4926,14 +4926,7 @@ fn status_bar(
                 // F-05: live modifier-prefix completion, without displacing the save indicator.
                 let mods = ui.ctx().input(|input| input.modifiers);
                 let mac = ui.ctx().os() == egui::os::OperatingSystem::Mac;
-                if mods.command || (mac && mods.mac_cmd) {
-                    let key = if mods.shift {
-                        "status.shortcut_shift"
-                    } else if mods.alt {
-                        "status.shortcut_alt"
-                    } else {
-                        "status.shortcut_ctrl"
-                    };
+                if let Some(key) = modifier_hint_key(mods, mac) {
                     let detail = i18n::text(locale, key);
                     if ui.available_width() > 230.0 {
                         ui.label(dot());
@@ -5078,6 +5071,48 @@ fn status_bar(
         });
     });
     clicked
+}
+
+/// The platform's primary modifier is Command on macOS, Control elsewhere.
+fn modifier_hint_key(mods: Modifiers, mac: bool) -> Option<&'static str> {
+    if !mods.command && !(mac && mods.mac_cmd) {
+        return None;
+    }
+    Some(match (mac, mods.shift, mods.alt) {
+        (true, true, _) => "status.shortcut_cmd_shift",
+        (true, false, true) => "status.shortcut_cmd_alt",
+        (true, false, false) => "status.shortcut_cmd",
+        (false, true, _) => "status.shortcut_shift",
+        (false, false, true) => "status.shortcut_alt",
+        (false, false, false) => "status.shortcut_ctrl",
+    })
+}
+
+#[cfg(test)]
+mod status_tests {
+    use super::*;
+
+    #[test]
+    fn mac_modifiers_use_command_not_control_in_the_status_bar() {
+        let command = Modifiers {
+            mac_cmd: true,
+            command: true,
+            ..Modifiers::NONE
+        };
+        assert_eq!(
+            modifier_hint_key(command, true),
+            Some("status.shortcut_cmd")
+        );
+        assert_eq!(
+            modifier_hint_key(command | Modifiers::SHIFT, true),
+            Some("status.shortcut_cmd_shift")
+        );
+        assert_eq!(
+            modifier_hint_key(command | Modifiers::ALT, true),
+            Some("status.shortcut_cmd_alt")
+        );
+        assert_eq!(modifier_hint_key(Modifiers::NONE, true), None);
+    }
 }
 
 /// 節エディタのミニヘッダー（§9.4.2 の ① の部分: パンくず ＋ 有効モードのバッジ。比率バーは ②）。
