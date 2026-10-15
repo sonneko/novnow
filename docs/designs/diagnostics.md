@@ -21,7 +21,7 @@
 
 ### 7.2 執筆支援系の診断
 
-状態: 未実装・実装計画済み（REF:src/core/diagnostics.rs, REF:src/core/features/project.rs, REF:src/core/features/project.rs, REF:tests/diagnostics_document.rs, REF:docs/plans.md#plan-S-15）
+状態: 実装中（REF:src/core/diagnostics.rs, REF:src/core/features/project.rs, REF:src/core/features/project.rs, REF:tests/diagnostics_document.rs, REF:docs/plans.md#plan-S-15）
 
 - 執筆支援系の 27 コード（`W080`〜`W099`, `E032`〜`E036`, `E064`, `I054`）は `Group::Writing` として `REF:src/core/diagnostics.rs` に定義する。
 - 既定の有効（`TOGGLE_ON`: 11 件）/ 無効（`TOGGLE_OFF`: 7 件）および実行コスト制御テーブル（`COST`: 16 件の `Trigger` × `Scope`）は `REF:src/core/diagnostics.rs` に定数表として持ち、`REF:tests/diagnostics_catalog.rs` で仕様表との完全一致を検証する。

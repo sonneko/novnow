@@ -377,8 +377,8 @@ fn list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) {
     egui::ScrollArea::vertical()
         .id_source("idea-list-scroll")
         .auto_shrink([false, false])
-        .show(ui, |ui| {
-            for row in &visible {
+        .show_rows(ui, 24.0 * scale, visible.len(), |ui, rows| {
+            for row in &visible[rows] {
                 let is_selected = selected.as_deref() == Some(row.id.as_str());
                 let response = list_row(
                     ui,

@@ -1474,6 +1474,7 @@ fn agent_project(agents: &str, tasks: &[&str]) -> novnow::core::features::Projec
                 scope,
                 intent: "テンポを上げる",
                 comment: "",
+                examples: "",
                 initiator: "human",
                 status: "draft",
             },

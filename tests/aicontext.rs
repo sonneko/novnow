@@ -40,6 +40,7 @@ fn build(project: &Project, role: &str, scene: SceneId, excluded: &[PacketBlock]
         excluded,
         task: None,
         comment: "",
+        examples: &[],
     })
 }
 
@@ -189,6 +190,7 @@ fn the_packet_is_deterministic_and_the_hash_ignores_generated_at() {
         excluded: &[],
         task: None,
         comment: "",
+        examples: &[],
     });
     assert_ne!(first.text(), later.text());
     assert_eq!(first.hash(), later.hash());
@@ -386,4 +388,36 @@ fn the_request_puts_the_task_before_the_packet_and_the_system_prompt_apart() {
     let at = request.user.find("# novnow context").unwrap();
     assert!(at > 0);
     assert_eq!(request.temperature, Some(0.7));
+}
+
+#[test]
+fn task_examples_are_in_the_packet_and_prompt_variable() {
+    let mut project = project();
+    project.insert(Document::new(
+        "prompts/writer.md",
+        "# writer\n## system\nExamples: {{examples}}\n## task\nWrite prose.\n## output\nBody only.\n",
+    ));
+    let example = vec!["@01-04-02-02 both".to_owned()];
+    let packet = packet::build(&Inputs {
+        project: &project,
+        role: "writer",
+        scene: id(1, 4, 2, 3),
+        delegation: Delegation::Propose,
+        generated_at: NOW,
+        title: "星屑",
+        excluded: &[],
+        task: None,
+        comment: "",
+        examples: &example,
+    });
+    assert!(
+        packet.examples.contains("@01-04-02-02"),
+        "{}",
+        packet.examples
+    );
+    assert!(packet.examples.contains("contents"), "{}", packet.examples);
+    assert!(packet.examples.contains("plot"), "{}", packet.examples);
+    assert!(packet.request().system.contains("Examples: "));
+    assert!(packet.text().contains("## examples"));
+    assert!(packet.size() <= packet.cap);
 }

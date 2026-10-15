@@ -64,6 +64,8 @@ impl Column {
 pub enum Action {
     /// `N`: 新しいタスク（重ね物）。
     New,
+    /// MCP configuration editor.
+    EditMcp,
     /// `R`: 実行。
     Run(Vec<String>),
     /// `Shift+R`: まとめて実行（確認の重ね物）。
@@ -601,6 +603,9 @@ fn tasks_column(
                 .font(small(view))
                 .color(colors.warn),
         );
+    }
+    if ui.button(i18n::text(locale, "help.edit_mcp")).clicked() {
+        actions.push(Action::EditMcp);
     }
     super::separator(ui, view.mode);
     if tasks.is_empty() {

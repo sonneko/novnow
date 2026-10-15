@@ -17,8 +17,6 @@ use std::sync::Arc;
 use egui::text::{CCursor, CCursorRange};
 use egui::{Event, FontFamily, FontId, Galley, Id, Pos2, Rect, TextEdit, Ui, Vec2};
 
-use crate::core::features::project::line_starts_of;
-use crate::core::features::sections;
 use crate::core::model::document::Document;
 use crate::ui::i18n::Locale;
 use crate::ui::theme::{self, Mode};
@@ -164,6 +162,8 @@ pub struct Look {
     pub mode: Mode,
     /// 文字の倍率（`ui.json.font_scale`）。
     pub scale: f32,
+    /// 本文の折り返し幅（全角相当）。
+    pub max_line_chars: usize,
     /// インレイヒントを出すなら、その文言の言語（`None` = 出さない。`Alt+H`、§6.6.2）。
     pub inlay: Option<Locale>,
 }
@@ -198,7 +198,12 @@ pub(crate) fn area(
     highlight: &mut dyn FnMut(&str) -> Highlight,
     look: Look,
 ) -> EditorOutput {
-    let Look { mode, scale, inlay } = look;
+    let Look {
+        mode,
+        scale,
+        inlay,
+        max_line_chars,
+    } = look;
     let colors = theme::palette(mode);
     let metrics = Metrics {
         size: 15.0 * scale,
@@ -215,10 +220,12 @@ pub(crate) fn area(
                     Vec2::new(gutter, ui.available_height()),
                     egui::Sense::hover(),
                 );
-                let width = ui.available_width();
+                let width = ui
+                    .available_width()
+                    .min(metrics.size * max_line_chars as f32);
                 let mut layouter = |ui: &Ui, text: &str, wrap: f32| -> Arc<Galley> {
                     let found = highlight(text);
-                    let mut job = syntax_text::job(text, &found, mode, metrics, wrap);
+                    let mut job = syntax_text::job(text, &found, mode, metrics, wrap.min(width));
                     if let Some(locale) = inlay {
                         // ヒントの幅の隙間を空ける（描くのは `TextEdit` の後）
                         let gaps: Vec<(usize, f32)> =
@@ -309,26 +316,30 @@ fn paint_line_numbers(
     }
 }
 
-/// 今の節の本文 `text` のハイライト（ファイル全体に書き戻した形で解析し、節の部分だけを取る。
-/// 役割語・モードの解決には場面の文脈が要るため）。`hints` ならインレイヒントも入れる。
+/// Only the active section is analyzed synchronously while typing. Other sections
+/// retain their cached rendering until the workbench commits after the debounce.
 pub fn highlight_of(bench: &Workbench, text: &str, hints: bool) -> Highlight {
     let Some(current) = bench.current() else {
         return Highlight::default();
     };
-    let Some(document) = bench.project().document(&current.path) else {
-        return Highlight::default();
-    };
-    let spliced = sections::splice(&document.text, current, text);
-    let starts = line_starts_of(&spliced);
-    let start = starts
-        .get(current.lines.start)
-        .copied()
-        .unwrap_or(spliced.len());
-    let range: Range<usize> = start..(start + text.len()).min(spliced.len());
-    let whole = Document::new(current.path.clone(), spliced);
-    let mut out = Highlight::of_range(&whole, range.clone(), bench.project());
+    // A standalone scene with the same structural id provides the resolver with the
+    // correct plot context without rescanning a 100,000-character neighboring section.
+    // Empty preceding sections preserve the section number for mode/range resolution.
+    let displayed = current.id.display(bench.project().digits());
+    let scene = displayed
+        .rsplit_once('-')
+        .map_or(displayed.as_str(), |(scene, _)| scene);
+    let mut body = format!("@{scene}\n");
+    for _ in 1..current.id.section {
+        body.push_str(";\n");
+    }
+    let start = body.len();
+    body.push_str(text);
+    let range = start..body.len();
+    let scoped = Document::new(current.path.clone(), body);
+    let mut out = Highlight::of_range(&scoped, range.clone(), bench.project());
     if hints {
-        out.hints = inlay::of_range(&whole, range, bench.project());
+        out.hints = inlay::of_range(&scoped, range, bench.project());
     }
     out
 }

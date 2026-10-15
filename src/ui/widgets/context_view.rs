@@ -1,7 +1,7 @@
 //! 文脈ビュー（§9.3。メインカラム上段・読み取り専用）。
 //!
 //! - 今の節を中心に前後 `context_sections` 節（既定 3）。1 行の最大幅は全角 44 字。
-//! - 節の境界は水平線ではなく 8px の余白と、薄い節番号（`04-02-02` 形式・`fg.faint`・10px・右寄せ）。
+//! - 節の境界には横線を引き、完全形の節番号を表示する。
 //! - **今の節の位置には本文を一切描かず**、プレースホルダだけを置く（§9.3.2 MUST）。
 //! - 今の節が変わったら、プレースホルダが画面の上から 38% に来るようにスクロールする。
 
@@ -12,6 +12,7 @@ use egui::{Align, Color32, FontFamily, FontId, Pos2, Rect, Sense, Stroke, Ui, Ve
 
 use crate::core::features::project::line_starts_of;
 use crate::core::features::sections::SectionRef;
+use crate::ui::i18n::{self, Locale};
 use crate::ui::save_machine::Indicator;
 use crate::ui::theme::{self, Mode};
 use crate::ui::widgets::syntax_text::{self, Highlight, Metrics};
@@ -61,6 +62,7 @@ pub struct Placeholder<'a> {
 }
 
 /// 文脈ビューを描く。クリックされた節の並びの位置を返す。
+#[allow(clippy::too_many_arguments)] // UI の描画設定と表示中の節をそれぞれ明示的に渡す
 pub fn show(
     ui: &mut Ui,
     bench: &Workbench,
@@ -68,6 +70,8 @@ pub fn show(
     mode: Mode,
     scale: f32,
     count: usize,
+    max_columns: usize,
+    locale: Locale,
     placeholder: &Placeholder<'_>,
 ) -> Option<usize> {
     let colors = theme::palette(mode);
@@ -87,7 +91,7 @@ pub fn show(
         .id_source("context-view")
         .auto_shrink([false, false])
         .show(ui, |ui| {
-            let width = ui.available_width().min(metrics.size * MAX_COLUMNS);
+            let width = ui.available_width().min(metrics.size * max_columns as f32);
             let (before, after) = neighbours(list, split, editing.as_ref(), count);
             for index in before {
                 if let Some(found) =
@@ -99,7 +103,7 @@ pub fn show(
                 }
             }
             if editing.is_some() {
-                let rect = draw_placeholder(ui, placeholder, mode, width, scale);
+                let rect = draw_placeholder(ui, placeholder, mode, width, scale, locale);
                 if need_scroll {
                     // 上から 38% に来るように（中央合わせの基準を 12% 上へずらす）
                     let height = ui.clip_rect().height();
@@ -178,9 +182,15 @@ fn draw_section(
     let text = &document.text[range.clone()];
     let highlight = slice(file_highlight, &range);
     ui.add_space(8.0);
+    let (rule, _) = ui.allocate_exact_size(Vec2::new(width, 1.0), Sense::hover());
+    ui.painter().line_segment(
+        [rule.left_top(), rule.right_top()],
+        Stroke::new(1.0_f32, colors.border),
+    );
+    ui.add_space(8.0);
     // 節番号（右寄せ・10px・fg.faint）
     let digits = bench.project().digits();
-    let label = short_id(&section.id.display(digits));
+    let label = format!("@{}", section.id.display(digits));
     ui.allocate_ui_with_layout(
         Vec2::new(width, 12.0),
         egui::Layout::right_to_left(Align::Center),
@@ -211,6 +221,7 @@ fn draw_placeholder(
     mode: Mode,
     width: f32,
     scale: f32,
+    locale: Locale,
 ) -> Rect {
     let colors = theme::palette(mode);
     ui.add_space(8.0);
@@ -248,9 +259,19 @@ fn draw_placeholder(
         font,
         colors.fg_muted,
     );
+    if placeholder.chars == 0 {
+        ui.add_space(6.0);
+        for key in [
+            "context.guide_workspace",
+            "context.guide_section",
+            "context.guide_palette",
+        ] {
+            ui.label(egui::RichText::new(i18n::text(locale, key)).color(colors.fg_faint));
+        }
+    }
     match placeholder.indicator {
         Indicator::Unsaved => {
-            painter.circle_filled(Pos2::new(dot_x, center_y), 4.0, colors.unsaved);
+            painter.circle_filled(Pos2::new(dot_x, center_y), 5.0, colors.unsaved);
         }
         Indicator::Failed => {
             painter.circle_filled(Pos2::new(dot_x, center_y), 4.0, colors.error);
@@ -270,14 +291,6 @@ fn pencil(painter: &egui::Painter, at: Pos2, color: Color32) {
         stroke,
     );
     painter.line_segment([tip, tip + Vec2::new(3.0, 0.0)], stroke);
-}
-
-/// `01-04-02-03` → `04-02-03`（章を落とした 3 階層、§9.3.1 の `04-02-02` 形式）。
-fn short_id(full: &str) -> String {
-    match full.split_once('-') {
-        Some((_, rest)) => rest.to_owned(),
-        None => full.to_owned(),
-    }
 }
 
 /// 3 桁ごとのカンマ（`5,842`）。

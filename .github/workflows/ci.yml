@@ -71,6 +71,9 @@ jobs:
       - name: Verify documentation rules (duplicate.py)
         run: python3 docs/script/duplicate.py
 
+      - name: Verify website diagnostic catalog covers all codes
+        run: python3 scripts/diagnostics-site.py --check
+
       - name: Detect whether Rust build/test inputs changed
         id: filter
         shell: bash

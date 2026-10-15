@@ -104,6 +104,7 @@ if [ "$BUILD" = 1 ] || [ ! -f "$DIST/novnow_bg.wasm" ]; then
     rm -rf "$DIST" && mkdir -p "$DIST"
     "$WB" --target web --no-typescript --out-dir "$DIST" --out-name novnow \
         "$ROOT/target/wasm32-unknown-unknown/release/novnow.wasm"
+    cp "$ROOT/sw.js" "$ROOT/manifest.webmanifest" "$ROOT/icon.svg" "$DIST/"
     python3 - "$ROOT/index.html" "$DIST/index.html" <<'PY'
 import re, sys
 source = open(sys.argv[1], encoding="utf-8").read()

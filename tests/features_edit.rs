@@ -374,6 +374,15 @@ fn an_at_sign_offers_nearby_scene_ids_or_speakers() {
     let speaker = "@01-04-02 x\n「待って」@リ";
     let (_, items) = items_at(CONTENTS_PATH, speaker, speaker.len());
     assert_eq!(labels(&items, CompletionKind::Character), vec!["リリア"]);
+    // S-08: closing Japanese quotation marks must not swallow the speaker trigger.
+    for close in ['」', '』'] {
+        let text = format!("@01-04-02 x\n「待って{close}@リ");
+        let (_, items) = items_at(CONTENTS_PATH, &text, text.len());
+        assert_eq!(labels(&items, CompletionKind::Character), vec!["リリア"]);
+        let text = format!("@01-04-02 x\n「待って{close}@リリア:");
+        let (_, items) = items_at(CONTENTS_PATH, &text, text.len());
+        assert!(!labels(&items, CompletionKind::Mode).is_empty());
+    }
 }
 
 #[test]
@@ -684,4 +693,20 @@ fn only_diagnostics_in_the_range_get_actions() {
     let actions = code_action::at(&document, second..second + 1, &project);
     assert!(!actions.is_empty());
     assert!(actions.iter().all(|action| action.arg != "だれか"));
+}
+
+#[test]
+fn closing_japanese_quotes_offer_speaker_and_mode_completion() {
+    // S-08: dialogue closing marks, including a separating space, open speaker suggestions.
+    for ending in ["」@", "』@", "」 @", "』 @"] {
+        let text = format!("@01-04-02 x\n「行くぞ{ending}");
+        let (_, items) = items_at(CONTENTS_PATH, &text, text.len());
+        assert!(
+            labels(&items, CompletionKind::Character).contains(&"アルス".to_owned()),
+            "{ending}: {items:?}"
+        );
+    }
+    let text = "@01-04-02 x\n「行くぞ」@アルス:";
+    let (_, items) = items_at(CONTENTS_PATH, text, text.len());
+    assert!(labels(&items, CompletionKind::Mode).contains(&"A".to_owned()));
 }

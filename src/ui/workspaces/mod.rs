@@ -219,6 +219,11 @@ impl View {
         crate::ui::widgets::section_editor::Look {
             mode: self.mode,
             scale: self.scale,
+            max_line_chars: if self.locale == crate::ui::i18n::Locale::En {
+                70
+            } else {
+                44
+            },
             inlay: self.inlay_hints.then_some(self.locale),
         }
     }
@@ -235,6 +240,8 @@ pub enum Request {
     Notice(String),
     /// 参照ペインの資料の候補を、今の節のプロットの `material:` に足す（§10.2・§16.4、B-136）。
     AppendMaterial(String),
+    /// Open the full source material instead of modifying a plot.
+    OpenMaterial(String),
     /// 参照ペインの診断からの自動回復（§6.2.6 / §9.5.4、F-23）: 1 形態素を登録する。
     Register {
         /// 登録先（`words.md` / `characters.md`）。
@@ -299,15 +306,20 @@ pub fn list_row(ui: &mut Ui, mode: Mode, scale: f32, row: Row<'_>) -> egui::Resp
         muted,
     } = row;
     let colors = theme::palette(mode);
-    let height = 24.0 * scale;
-    let width = ui.available_width();
+    let height = (24.0 * scale).max(24.0);
+    let width = ui.available_width().max(24.0);
     let (rect, response) = ui.allocate_exact_size(Vec2::new(width, height), Sense::click());
+    if response.hovered() {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
     response.widget_info(|| {
         egui::WidgetInfo::selected(egui::WidgetType::SelectableLabel, selected, text)
     });
     let painter = ui.painter_at(rect);
     if selected {
         painter.rect_filled(rect, 0.0, colors.bg_selection);
+    } else if response.hovered() {
+        painter.rect_filled(rect, 0.0, colors.bg_selection.linear_multiply(0.6));
     }
     if let Some(color) = bar {
         painter.rect_filled(
@@ -346,11 +358,22 @@ pub fn list_row(ui: &mut Ui, mode: Mode, scale: f32, row: Row<'_>) -> egui::Resp
             rect.max.x - x - 6.0,
         ))
     });
+    let text_width = galley.size().x;
     painter.galley(
         egui::pos2(x, rect.center().y - galley.size().y / 2.0),
         galley,
         color,
     );
+    if response.hovered() {
+        let end = (x + text_width).min(rect.max.x - 6.0);
+        painter.line_segment(
+            [
+                egui::pos2(x, rect.center().y + 8.0 * scale),
+                egui::pos2(end, rect.center().y + 8.0 * scale),
+            ],
+            Stroke::new(0.6_f32, color),
+        );
+    }
     response
 }
 
@@ -386,7 +409,13 @@ pub fn hint(ui: &mut Ui, mode: Mode, scale: f32, text: &str) {
 /// ヘッダのワークスペースインジケータ（§9.2.1「ワークスペース名はアイコン」）。開けるワークスペースの
 /// 図形を並べ、今のものを `accent`、他を `fg.faint` で描く。ラベルは置かず、ツールチップと
 /// アクセシブル名（カタログの `header.workspace.<id>`）だけ。クリックされたものを返す。
-pub fn indicator(ui: &mut Ui, mode: Mode, locale: Locale, current: Workspace) -> Option<Workspace> {
+pub fn indicator(
+    ui: &mut Ui,
+    mode: Mode,
+    locale: Locale,
+    current: Workspace,
+    problems: bool,
+) -> Option<Workspace> {
     let colors = theme::palette(mode);
     let mut clicked = None;
     for workspace in Workspace::available_all() {
@@ -408,7 +437,20 @@ pub fn indicator(ui: &mut Ui, mode: Mode, locale: Locale, current: Workspace) ->
         } else {
             colors.fg_faint
         };
-        glyph(&ui.painter_at(rect.expand(2.0)), rect, workspace, color);
+        let painter = ui.painter_at(rect.expand(2.0));
+        glyph(
+            &painter,
+            rect,
+            workspace,
+            if workspace == Workspace::Review && problems {
+                colors.warn
+            } else {
+                color
+            },
+        );
+        if workspace == Workspace::Review && problems {
+            painter.circle_filled(rect.right_top() + Vec2::new(-1.0, 2.0), 2.5, colors.warn);
+        }
         ui.add_space(2.0);
     }
     clicked

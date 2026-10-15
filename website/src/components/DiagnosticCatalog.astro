@@ -1,0 +1,27 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Header from "./Header.astro";
+import Footer from "./Footer.astro";
+import { diagnostics } from "../data/diagnostics";
+const { lang } = Astro.props as { lang: "ja" | "en" };
+const japanese = lang === "ja";
+---
+<BaseLayout title={japanese ? "診断コード一覧" : "Diagnostic code reference"} lang={lang}>
+  <Header lang={lang} currentPath={`/${lang}/diagnostics`} />
+  <main class="container" style="max-width: 900px; margin: 3rem auto 5rem;">
+    <h1>{japanese ? "診断コード一覧" : "Diagnostic code reference"}</h1>
+    <p>{japanese ? "診断のコードを選ぶと発生条件と対応方法を確認できます。" : "Find a diagnostic code to see its cause and available action."}</p>
+    <nav aria-label={japanese ? "診断コード" : "Diagnostic codes"} style="display:flex;gap:.6rem;flex-wrap:wrap;margin:2rem 0;">
+      {diagnostics.map(({code}) => <a href={`#${code}`}>{code}</a>)}
+    </nav>
+    {diagnostics.map(({code, severity, condition, ja, en, action}) => (
+      <section id={code} style="scroll-margin-top:6rem;border-top:1px solid var(--border-color);padding:1.5rem 0;">
+        <h2><code>{code}</code> <small>{severity === "E" ? (japanese ? "エラー" : "Error") : severity === "W" ? (japanese ? "警告" : "Warning") : (japanese ? "情報" : "Info")}</small></h2>
+        <p><strong>{japanese ? ja : en}</strong></p>
+        <p>{japanese ? "発生条件: " : "Cause (Japanese specification): "}{condition}</p>
+        <p>{japanese ? "対応: " : "Available action (Japanese specification): "}{action === "—" ? (japanese ? "自動修正なし。該当箇所を確認してください。" : "No automatic fix; review the affected location.") : action}</p>
+      </section>
+    ))}
+  </main>
+  <Footer lang={lang} />
+</BaseLayout>

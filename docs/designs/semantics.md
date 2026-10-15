@@ -56,7 +56,7 @@
 
 ### 6.7 インクリメンタル再解析
 
-状態: 未実装・実装計画済み（REF:src/core/text/incremental.rs, REF:tests/incremental.rs, REF:benches/core.rs, REF:docs/plans.md#plan-F-43）
+状態: 実装中（REF:src/core/text/incremental.rs, REF:tests/incremental.rs, REF:benches/core.rs, REF:docs/plans.md#plan-F-43）
 
 - ファイル全体の行種別キャッシュ `LineIndex` と 1 行編集時の再解析 `relex_line` / `relex_text` は `core::text::incremental`（`REF:src/core/text/incremental.rs`）に実装する。
 - 構造見出し `@` または節区切り `;` に関わる変更のみ `Renumber::From(line)` を返し、10 万行規模でも O(1) で 1 行再字句解析を完了する（検証: `REF:tests/incremental.rs`、ベンチマーク: `REF:benches/core.rs` の `single_line_relex`）。

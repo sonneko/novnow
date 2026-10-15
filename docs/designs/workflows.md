@@ -6,7 +6,7 @@
 
 ### 16.1 ワークフロー
 
-状態: 未実装・実装計画済み（REF:src/core/features/reference.rs, REF:src/ui/workspaces/material.rs, REF:tests/materials_ops.rs, REF:docs/plans.md#plan-F-31）
+状態: 実装中（REF:src/core/features/reference.rs, REF:src/ui/workspaces/material.rs, REF:tests/materials_ops.rs, REF:docs/plans.md#plan-F-31）
 
 - 資料の新規作成（提案 `proposed` / 承認 `approved`）、採番（`M####`）、索引登録、MD テンプレート生成は `core::features::reference`（`REF:src/core/features/reference.rs`）および `REF:src/ui/workspaces/material.rs` に実装する。
 
@@ -33,7 +33,7 @@
 
 ### 16.5 プロットからの参照と表示
 
-状態: 未実装・実装計画済み（REF:src/core/features/reference.rs, REF:src/ui/widgets/reference_pane.rs, REF:tests/context_rules.rs, REF:docs/plans.md#plan-F-34）
+状態: 実装中（REF:src/core/features/reference.rs, REF:src/ui/widgets/reference_pane.rs, REF:tests/context_rules.rs, REF:docs/plans.md#plan-F-34）
 
 - 話プロット・章プロットの `material:` フィールドから解決された資料のタイトル・要点（最大 5 行）の抽出は `REF:src/core/features/reference.rs` が担い、`REF:src/ui/widgets/reference_pane.rs` が描画する。
 
@@ -77,7 +77,7 @@
 
 ### 18.1 性能目標（既定のリファレンス環境: 4 コア / 8GB / 統合 GPU）
 
-状態: 未実装・実装計画済み（REF:benches/core.rs, REF:tests/incremental.rs, REF:tests/role_language.rs, REF:.github/workflows/ci.yml, REF:docs/plans.md#plan-F-43）
+状態: 実装中（REF:benches/core.rs, REF:tests/incremental.rs, REF:tests/role_language.rs, REF:.github/workflows/ci.yml, REF:docs/plans.md#plan-F-43）
 
 - 主要 5 処理の `criterion` ベンチマークは `REF:benches/core.rs` に実装している（リリース実測値: `single_line_relex` 約 462ns、`role_language_10_patterns` 約 1.89µs、`dictionary_trie_5000` 約 1.14ms、`reference_pane_rebuild` 約 38.7µs、`export_100k_chars` 約 7.37ms）。
 - Web リリースビルドの gzip 後 wasm サイズ（上限 8MiB、実測約 6.75MiB）は `REF:.github/workflows/ci.yml` の `wasm` ジョブで検査する。
@@ -100,7 +100,7 @@
 
 ### 18.4 継続的検証要件
 
-状態: 未実装・実装計画済み（REF:tests/layering.rs, REF:.github/workflows/ci.yml, REF:scripts/verify.sh, REF:docs/script/duplicate.py, REF:docs/plans.md#plan-S-15）
+状態: 実装中（REF:tests/layering.rs, REF:.github/workflows/ci.yml, REF:scripts/verify.sh, REF:docs/script/duplicate.py, REF:docs/plans.md#plan-S-15）
 
 - CI ワークフロー（`REF:.github/workflows/ci.yml`）の 5 ジョブ（`fmt`, `clippy`, `test`, `wasm`, `bench`）およびローカル検証スクリプト `REF:scripts/verify.sh`、ドキュメント規約検査スクリプト `REF:docs/script/duplicate.py` により全変更を機械的に検証する。
 

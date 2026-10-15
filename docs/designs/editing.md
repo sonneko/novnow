@@ -30,7 +30,7 @@
 
 ### 8.4 保存状態の表示
 
-状態: 未実装・実装計画済み（REF:src/ui/app.rs, REF:src/ui/theme.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-39）
+状態: 実装中（REF:src/ui/app.rs, REF:src/ui/theme.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-39）
 
 - ステータスバー右端の保存状態インジケータ（`Clean` 無表示 / `Dirty` 琥珀色 `●` / `Saving` 点滅 `●` / `Failed` 赤 `✕` + 通知）は `NovnowApp`（`REF:src/ui/app.rs`）が `SaveMachine::state()` を参照して描画する。
 

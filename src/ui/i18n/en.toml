@@ -152,6 +152,7 @@ new = "create a new project (dir defaults to \".\")"
 check = "check the project, print diagnostics and exit (for CI)"
 export = "export the text without annotations"
 mcp = "run as an MCP server"
+import = "import a Zip archive as a project"
 gui = "start the GUI even when arguments are given"
 help = "show this help"
 version = "show the version"
@@ -187,6 +188,9 @@ settings = "project settings"
 # Rows of the §12.7 table (`status.*`, `palette.placeholder`, `project.pick.*`) are copied verbatim (tests/i18n_catalog.rs).
 
 [status]
+shortcut_ctrl = "Ctrl: P palette · S save · F find · O open"
+shortcut_shift = "Ctrl+Shift: N new source · F search all · X stop agents"
+shortcut_alt = "Ctrl+Alt: L language · T theme"
 open_review = "Open the diagnostics in Review (Ctrl+Shift+E)"
 unsaved = "Unsaved changes"
 saving = "Saving"
@@ -207,8 +211,20 @@ quota = "Storage is full. Export as Zip, then delete projects you no longer need
 placeholder = "Type to go, search, or run"
 character = "Character"
 term = "Term"
+no_materials = "No materials registered"
+no_matches = "No matches"
+guide = "> Commands / @ Sections / ' Dictionary / M・# Materials / ? Shortcuts"
+close = "Close palette (Esc)"
+line_width = "Text line width"
+line_width_hint = "Enter 20–120 characters; leave blank for the language default"
+
+[context]
+guide_workspace = "Alt+number: workspace"
+guide_section = "Alt+arrows: section"
+guide_palette = "Ctrl+P: list"
 
 [project.pick]
+remove_history = "Remove from history only (project data is kept)"
 title = "Choose a project"
 new = "Create new"
 import = "Import from Zip"
@@ -265,6 +281,7 @@ inlay_rejected = "⟨{0} · rejected⟩"
 inlay_modes = "⟨{0}⟩"
 
 [pane]
+more = "More..."
 plot = "Plot"
 upper = "Outline"
 cast = "Cast"
@@ -329,6 +346,14 @@ copied = "Copied to the clipboard ({0} characters)"
 failed = "Could not export: {0}"
 
 [help]
+save_mcp = "Save"
+edit_mcp = "Edit MCP server configuration"
+welcome = "Welcome to novnow. Write your novel section by section and organize its plot and sources. Open the sample or create a new project to get started."
+migration = "To migrate Web → desktop: export a Zip in Web and import it on desktop. For desktop → Web: export a Zip on desktop and import it in Web. Verify the destination after importing."
+welcome_title = "Welcome"
+migration_title = "Web / desktop migration"
+website = "Online documentation"
+close = "Close"
 title = "Keyboard"
 palette = "Command palette"
 jump = "Jump to a structure ID"
@@ -520,7 +545,7 @@ field_tags = "Tags"
 field_conditions = "Conditions (one per line)"
 field_source = "Source"
 # Category suggestions (comma separated; the defaults of §16.2)
-categories = "Interview,Literature,Web,Image,Experience,Primary,Secondary"
+categories = "Interview,Literature,Web,Image,Experience,Primary,Secondary,Other"
 tags_hint = "Comma separated"
 conditions_hint = "scope: @02-03 .. @02-08 / ref: 'name / tag: word / text: free text"
 source_hint = "A URL or a description of the source"
@@ -596,6 +621,8 @@ unmatched_count = "{0} lines of dialogue matched no speech pattern (double-click
 
 # The agent workspace (§15.7, M10)
 [agent]
+new_examples = "Reference examples (one per line)"
+new_examples_hint = "@01-02 both"
 disabled = "Agents are disabled"
 llm_unavailable = "LLM calls are not available here (you can still create tasks and dry-run)"
 progress = "Running {0} / waiting {1} / done {2}"
@@ -700,3 +727,9 @@ reset_same = "Same as the default"
 reset_yes = "Reset"
 reset_done = "Reset {0} prompt(s)"
 diff_title = "Compared with the default: {0}"
+
+[cli.import]
+completed = "Zip import completed"
+failed = "Could not read Zip archive: {0}"
+incomplete = "Imported project is incomplete: {0}"
+skipped = "Skipped entries"

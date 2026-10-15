@@ -1529,3 +1529,54 @@ fn binary_help_version_and_check_errors() {
         .expect("utf8")
         .contains(" E001 Unknown reference: 未登録\n"));
 }
+
+#[test]
+fn zip_import_writes_only_safe_new_files_and_preserves_existing_data() {
+    use novnow::adapters::zip as archive;
+    let dir = TempDir::new("cli-zip-import");
+    let zip = archive::export(
+        &template::new_project("小説")
+            .into_iter()
+            .map(|item| (ProjectPath::new(item.path).unwrap(), item.text.into_bytes()))
+            .collect::<Vec<_>>(),
+    )
+    .unwrap();
+    std::fs::write(dir.join("novel.zip"), zip).unwrap();
+    let env = env_ja(&dir);
+    let first = run(dir.path(), &env, &["import", "novel.zip", "book"]);
+    assert_eq!(first.exit(), Exit::Ok, "{}", first.err);
+    assert!(dir.join("book/project.json").exists());
+    dir.write("book/words.md", "# 自分の用語\n");
+    let second = run(dir.path(), &env, &["import", "novel.zip", "book"]);
+    assert_eq!(second.exit(), Exit::Ok, "{}", second.err);
+    assert_eq!(
+        std::fs::read_to_string(dir.join("book/words.md")).unwrap(),
+        "# 自分の用語\n"
+    );
+    assert!(second.out.contains("words.md"));
+    assert!(!dir.join("state").exists());
+    assert_eq!(
+        decide(&os_args(&["import", "one.zip", "out"]), Terminal::default()),
+        Launch::Command(Command::Import {
+            zip: PathBuf::from("one.zip"),
+            dir: PathBuf::from("out")
+        })
+    );
+}
+
+#[test]
+fn zip_import_rejects_bad_archive_without_creating_destination() {
+    let dir = TempDir::new("cli-import-broken");
+    dir.write("bad.zip", "not a zip");
+    let result = run(
+        dir.path(),
+        &env_ja(&dir),
+        &["import", "bad.zip", "destination"],
+    );
+    assert_eq!(result.exit(), Exit::Io);
+    assert!(!dir.join("destination").exists());
+    assert_eq!(
+        decide(&os_args(&["import", "file.zip"]), Terminal::default()),
+        Launch::Error(ArgError::MissingDir("import"))
+    );
+}

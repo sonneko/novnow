@@ -20,7 +20,7 @@ use crate::ports::dialog::ChosenPath;
 use crate::ui::i18n::{self, Locale};
 use crate::ui::palette;
 use crate::ui::save_machine::{Indicator, State};
-use crate::ui::settings::{LanguageChoice, PaneSide, ThemeChoice, UiSettings};
+use crate::ui::settings::{LanguageChoice, PaneSide, UiSettings};
 use crate::ui::shell::{self, Command, ImeState};
 use crate::ui::theme::{self, Mode};
 use crate::ui::widgets::{context_view, reference_pane, section_editor, slice_editor};
@@ -204,6 +204,12 @@ enum Overlay {
         missed: bool,
     },
     Help,
+    Welcome,
+    Migration,
+    McpConfig {
+        input: String,
+        error: Option<String>,
+    },
     SaveError,
     CloseGuard,
     /// `Ctrl+F` / `Ctrl+H`（`replace` が `Some` なら置換も）。背景を暗くしない。
@@ -243,6 +249,10 @@ enum Overlay {
         state: Option<ExportState>,
         fresh: bool,
     },
+    /// 本文の最大幅設定。
+    LineWidth {
+        input: String,
+    },
     /// `Ctrl+Shift+I` アイデアの即時入力（§10.4。どのワークスペースからでも、画面遷移なし）。
     Capture {
         input: String,
@@ -272,6 +282,7 @@ enum Overlay {
         scope: String,
         intent: String,
         comment: String,
+        examples: String,
         fresh: bool,
     },
     /// agent の `Shift+R` の確認（§15.7.5 (1)「n 件 / 合計入力 m 文字 / 使用サーバ」）。
@@ -339,6 +350,8 @@ pub struct Session {
     reference_cache: reference_pane::Cache,
     diag_count: Option<(u64, String, usize)>,
     notice: Option<(String, f64)>,
+    font_toast: Option<(String, f64)>,
+    workspace_switched_at: Option<f64>,
     /// 節エディタの選択範囲（節の本文の中の byte。前のフレームの）。
     selection: Option<std::ops::Range<usize>>,
     /// キャレットの矩形（前のフレームの）。
@@ -401,6 +414,8 @@ impl Session {
             reference_cache: reference_pane::Cache::default(),
             diag_count: None,
             notice: None,
+            font_toast: None,
+            workspace_switched_at: None,
             selection: None,
             caret: None,
             pending_selection: None,
@@ -528,7 +543,7 @@ pub trait Picker {
     /// `Ctrl+O`（プロジェクトを開いている間）で、書き終えてから選択画面に戻るか（Web、§13.4
     /// 「2 回目以降は `Ctrl+O` でいつでも開ける」）。デスクトップはフォルダの選択（[`Picker::open_dialog`]）。
     fn returns_to_list(&self) -> bool {
-        false
+        true
     }
     /// 選択画面に戻ってきた（一覧を読み直す）。
     fn refresh(&mut self) {}
@@ -749,15 +764,32 @@ impl NovnowApp {
                 if self.font_warning {
                     // §11.5 SHOULD: 起動エラーにせず、警告を出して同梱フォントで続ける
                     self.font_warning = false;
-                    // 開いたときの知らせ（I050 など）は消さずに並べる
-                    let font = i18n::text(locale, "status.font_fallback");
-                    let text = match session.notice.take() {
-                        Some((before, _)) => format!("{before} / {font}"),
-                        None => font.to_owned(),
-                    };
-                    session.notice = Some((text, now));
+                    session.font_toast =
+                        Some((i18n::text(locale, "status.font_fallback").to_owned(), now));
                 }
                 self.workbench_frame(ctx, mode, locale, now, focus_lost);
+            }
+        }
+        if let Stage::Open(session) = &self.stage {
+            if let Some((text, started)) = &session.font_toast {
+                if now - started < 4.0 {
+                    let colors = theme::palette(mode);
+                    egui::Area::new(Id::new("font-toast"))
+                        .order(egui::Order::Foreground)
+                        .anchor(Align2::LEFT_BOTTOM, Vec2::new(12.0, -32.0))
+                        .interactable(false)
+                        .show(ctx, |ui| {
+                            Frame::none()
+                                .fill(colors.bg_raised)
+                                .inner_margin(Margin::same(8.0))
+                                .show(ui, |ui| {
+                                    ui.label(text);
+                                });
+                        });
+                    ctx.request_repaint_after(std::time::Duration::from_secs_f64(
+                        (started + 4.0 - now).max(0.0),
+                    ));
+                }
             }
         }
         self.close_guard(ctx, now);
@@ -788,6 +820,7 @@ impl NovnowApp {
             }
             // 切替アニメーションはしない（§11.4 MUST）
             style.animation_time = 0.0;
+            style.interaction.selectable_labels = false;
         });
         self.applied = Some((mode, scale_key));
     }
@@ -1519,6 +1552,16 @@ impl NovnowApp {
             };
             let mut notices: Vec<String> = Vec::new();
             match action {
+                Action::EditMcp => {
+                    self.overlay = Overlay::McpConfig {
+                        input: session
+                            .bench
+                            .project()
+                            .text(crate::core::agents::mcp_config::PATH)
+                            .to_owned(),
+                        error: None,
+                    };
+                }
                 Action::New => {
                     let digits = session.bench.project().digits();
                     let scope = session
@@ -1531,6 +1574,7 @@ impl NovnowApp {
                         scope,
                         intent: String::new(),
                         comment: String::new(),
+                        examples: String::new(),
                         fresh: true,
                     };
                 }
@@ -1748,6 +1792,7 @@ impl NovnowApp {
         if !session.spaces.switcher.switch(target) {
             return false;
         }
+        session.workspace_switched_at = Some(now);
         if session.spaces.switcher.first_visit(target) {
             // 初めて開くワークスペースは今の節の対応物に着地する（SceneId の維持、§10 MUST）
             let id = session.bench.current_id();
@@ -2235,6 +2280,8 @@ impl NovnowApp {
         }
         // ① ヘッダ（28px・ラベル無し）
         let mut switch_to = None;
+        let mut open_palette = false;
+        let mut open_help = false;
         let crumb = match session.spaces.switcher.current() {
             Workspace::Write => session.bench.breadcrumb(),
             Workspace::PlotEpisode => session.spaces.episode.breadcrumb(&session.bench),
@@ -2267,7 +2314,13 @@ impl NovnowApp {
                 ui.horizontal_centered(|ui| {
                     // ワークスペースインジケータ（§9.2.1。図形だけ、今のものを accent）
                     let current = session.spaces.switcher.current();
-                    if let Some(target) = workspaces::indicator(ui, mode, locale, current) {
+                    if let Some(target) = workspaces::indicator(
+                        ui,
+                        mode,
+                        locale,
+                        current,
+                        project_has_problems(session, locale),
+                    ) {
                         switch_to = Some(target);
                     }
                     ui.add_space(8.0);
@@ -2284,9 +2337,40 @@ impl NovnowApp {
                                 .color(colors.fg_muted),
                         );
                     }
+                    if session
+                        .workspace_switched_at
+                        .is_some_and(|at| now - at < 1.0)
+                    {
+                        ui.label(
+                            RichText::new(i18n::text(
+                                locale,
+                                session.spaces.switcher.current().label_key(),
+                            ))
+                            .color(colors.fg_faint),
+                        );
+                        ctx.request_repaint_after(std::time::Duration::from_secs(1));
+                    }
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        if ui
+                            .small_button("?")
+                            .on_hover_text(i18n::text(locale, "command.help"))
+                            .clicked()
+                        {
+                            open_help = true;
+                        }
+                        if ui
+                            .small_button("Ctrl+P")
+                            .on_hover_text(i18n::text(locale, "help.palette"))
+                            .clicked()
+                        {
+                            open_palette = true;
+                        }
                         let theme_button = ui
-                            .add(egui::Button::new(theme_symbol(self.settings.theme)).frame(false))
+                            .add(
+                                egui::Button::new(" ")
+                                    .frame(false)
+                                    .min_size(Vec2::new(24.0, 20.0)),
+                            )
                             .on_hover_text(i18n::text(locale, "header.theme"));
                         theme_button.widget_info(|| {
                             egui::WidgetInfo::labeled(
@@ -2294,6 +2378,13 @@ impl NovnowApp {
                                 i18n::text(locale, "header.theme"),
                             )
                         });
+                        theme::paint_theme_icon(
+                            ui.painter(),
+                            theme_button.rect.center(),
+                            self.settings.theme,
+                            colors.fg_primary,
+                            colors.bg_raised,
+                        );
                         if theme_button.clicked() {
                             self.settings.theme = self.settings.theme.next();
                             session.settings_dirty = true;
@@ -2319,6 +2410,12 @@ impl NovnowApp {
             });
         if let Some(target) = switch_to {
             self.switch_to(ctx, target, now);
+        }
+        if open_help {
+            self.run(ctx, Command::Help, now);
+        }
+        if open_palette {
+            self.run(ctx, Command::Palette, now);
         }
         if let Stage::Open(session) = &mut self.stage {
             if std::mem::take(&mut session.open_review) {
@@ -2483,6 +2580,12 @@ impl NovnowApp {
                 Some(workspaces::Request::AppendMaterial(id)) => {
                     self.append_material(ctx, &id, now);
                 }
+                Some(workspaces::Request::OpenMaterial(id)) => {
+                    self.switch_to(ctx, Workspace::Material, now);
+                    if let Stage::Open(session) = &mut self.stage {
+                        session.spaces.material.select(&session.bench, &id);
+                    }
+                }
                 Some(workspaces::Request::Register { kind, name }) => {
                     if let Stage::Open(session) = &mut self.stage {
                         register_entry(session, kind, &name, locale, now);
@@ -2540,6 +2643,12 @@ impl NovnowApp {
             }
             match response.inner {
                 Some(reference_pane::Chosen::Material(id)) => self.append_material(ctx, &id, now),
+                Some(reference_pane::Chosen::OpenMaterial(id)) => {
+                    self.switch_to(ctx, Workspace::Material, now);
+                    if let Stage::Open(session) = &mut self.stage {
+                        session.spaces.material.select(&session.bench, &id);
+                    }
+                }
                 // §6.2.6（F-23）: 診断からの自動回復（1 形態素の登録）
                 Some(reference_pane::Chosen::Register { kind, name }) => {
                     if let Stage::Open(session) = &mut self.stage {
@@ -2614,12 +2723,14 @@ impl NovnowApp {
                             mode,
                             scale,
                             self.settings.context_sections,
+                            self.settings.line_chars(locale == Locale::En),
+                            locale,
                             &placeholder,
                         )
                     });
                 clicked = context.inner;
                 if self.focus == Pane::Context {
-                    focus_ring(ctx, context.response.rect, colors.accent);
+                    focus_stripe(ctx, context.response.rect, colors.accent);
                 }
                 ui.add_space(6.0);
                 mini_header(ui, session, mode, scale);
@@ -2631,14 +2742,20 @@ impl NovnowApp {
                         section_editor::Look {
                             mode,
                             scale,
+                            max_line_chars: self.settings.line_chars(locale == Locale::En),
                             inlay: self.settings.inlay_hints.then_some(locale),
                         },
                     )
                 });
                 editor_output = editor.inner;
+                ui.painter().rect_stroke(
+                    editor.response.rect.shrink(0.5),
+                    0.0,
+                    Stroke::new(1.0_f32, colors.border),
+                );
                 changed = editor_output.changed;
                 if self.focus == Pane::Editor {
-                    focus_ring(ctx, editor.response.rect, colors.accent);
+                    focus_stripe(ctx, editor.response.rect, colors.accent);
                 }
             });
         if editor_output.selection.is_some() {
@@ -2769,6 +2886,7 @@ impl NovnowApp {
             Overlay::Palette { input, selected } => {
                 let (mode_kind, query) = palette::split(input);
                 let items = palette_items(&session.bench, locale, mode_kind, query, input);
+                let tab = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Tab));
                 let down = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::ArrowDown));
                 let up = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::ArrowUp));
                 // §9.7.1「`Shift+Enter` は別の意味で開く」（辞書なら使用箇所の一覧）
@@ -2780,8 +2898,16 @@ impl NovnowApp {
                 if up {
                     *selected = selected.saturating_sub(1);
                 }
+                if tab {
+                    if let Some(item) = items.get(*selected) {
+                        if let Some(next) = palette::complete_token(input, &item.key) {
+                            *input = next;
+                            *selected = 0;
+                        }
+                    }
+                }
                 let mut chosen = None;
-                popup(ctx, "palette", colors, |ui| {
+                let outside = popup(ctx, "palette", colors, |ui| {
                     let edit = ui.add(
                         egui::TextEdit::singleline(input)
                             .hint_text(i18n::text(locale, "palette.placeholder"))
@@ -2791,23 +2917,43 @@ impl NovnowApp {
                     if edit.changed() {
                         *selected = 0;
                     }
+                    ui.set_width(540.0);
                     ui.add_space(4.0);
+                    if items.is_empty() {
+                        ui.label(
+                            RichText::new(if mode_kind == palette::Mode::Material {
+                                i18n::text(locale, "palette.no_materials")
+                            } else {
+                                i18n::text(locale, "palette.no_matches")
+                            })
+                            .color(colors.fg_faint),
+                        );
+                    }
                     egui::ScrollArea::vertical()
                         .max_height(360.0)
                         .show(ui, |ui| {
                             for (index, item) in items.iter().enumerate() {
-                                let text =
-                                    RichText::new(&item.label).color(if index == *selected {
-                                        colors.accent
-                                    } else {
-                                        colors.fg_primary
-                                    });
+                                let label = palette::ellipsize(&item.label, 70);
+                                let text = RichText::new(label).color(if index == *selected {
+                                    colors.accent
+                                } else {
+                                    colors.fg_primary
+                                });
                                 if ui.selectable_label(index == *selected, text).clicked() {
                                     chosen = Some(index);
                                 }
                             }
                         });
+                    if input.is_empty() {
+                        ui.label(
+                            RichText::new(i18n::text(locale, "palette.guide"))
+                                .color(colors.fg_faint),
+                        );
+                    }
                 });
+                if outside {
+                    close = true;
+                }
                 if enter || other {
                     chosen = Some(*selected);
                 }
@@ -2818,6 +2964,13 @@ impl NovnowApp {
                                 session.bench.go_to(*at);
                                 session.settings_dirty = true;
                                 to_write = workspace != Workspace::Write;
+                            }
+                            PaletteAction::SceneDrill(prefix) => {
+                                self.overlay = Overlay::Palette {
+                                    input: format!("@{prefix}-"),
+                                    selected: 0,
+                                };
+                                return;
                             }
                             PaletteAction::Command(command) => {
                                 let command = *command;
@@ -2933,6 +3086,42 @@ impl NovnowApp {
                                 self.agent_command(command, now);
                                 return;
                             }
+                            PaletteAction::Welcome => {
+                                self.overlay = Overlay::Welcome;
+                                return;
+                            }
+                            PaletteAction::Migration => {
+                                self.overlay = Overlay::Migration;
+                                return;
+                            }
+                            PaletteAction::McpConfig => {
+                                let path = crate::core::agents::mcp_config::PATH;
+                                self.overlay = Overlay::McpConfig {
+                                    input: session.bench.project().text(path).to_owned(),
+                                    error: None,
+                                };
+                                return;
+                            }
+                            PaletteAction::LineWidth => {
+                                self.overlay = Overlay::LineWidth {
+                                    input: self
+                                        .settings
+                                        .max_line_chars
+                                        .map_or(String::new(), |n| n.to_string()),
+                                };
+                                return;
+                            }
+                            PaletteAction::Close => {
+                                self.overlay = Overlay::None;
+                                return;
+                            }
+                            PaletteAction::AgentRoot => {
+                                self.overlay = Overlay::Palette {
+                                    input: ">agent ".into(),
+                                    selected: 0,
+                                };
+                                return;
+                            }
                             PaletteAction::ExportZip => {
                                 self.overlay = Overlay::None;
                                 self.export_zip(now);
@@ -2941,6 +3130,86 @@ impl NovnowApp {
                         }
                     }
                     close = true;
+                }
+            }
+            Overlay::McpConfig { input, error } => {
+                let mut save = false;
+                popup(ctx, "mcp-config", colors, |ui| {
+                    ui.set_width(620.0);
+                    ui.label("agents/mcp.json");
+                    ui.add(
+                        egui::TextEdit::multiline(input)
+                            .code_editor()
+                            .desired_rows(18)
+                            .desired_width(f32::INFINITY),
+                    );
+                    if let Some(message) = error {
+                        ui.colored_label(colors.error, message);
+                    }
+                    ui.horizontal(|ui| {
+                        if ui.button(i18n::text(locale, "help.save_mcp")).clicked() {
+                            save = true;
+                        }
+                        if ui.button(i18n::text(locale, "help.close")).clicked() {
+                            close = true;
+                        }
+                    });
+                });
+                if save {
+                    match crate::core::agents::mcp_config::parse(input) {
+                        Ok(_) => {
+                            session.bench.replace_document(
+                                crate::core::agents::mcp_config::PATH,
+                                input.clone(),
+                                now,
+                            );
+                            close = true;
+                        }
+                        Err(message) => *error = Some(message),
+                    }
+                }
+            }
+            Overlay::Welcome | Overlay::Migration => {
+                let migration = self.overlay == Overlay::Migration;
+                popup(
+                    ctx,
+                    if migration { "migration" } else { "welcome" },
+                    colors,
+                    |ui| {
+                        let key = if migration {
+                            "help.migration"
+                        } else {
+                            "help.welcome"
+                        };
+                        ui.set_width(500.0);
+                        ui.label(i18n::text(locale, key));
+                        ui.hyperlink_to(
+                            i18n::text(locale, "help.website"),
+                            crate::core::model::project::PROJECT_STRUCTURE_DOC_URL,
+                        );
+                        if ui.button(i18n::text(locale, "help.close")).clicked() {
+                            close = true;
+                        }
+                    },
+                );
+            }
+            Overlay::LineWidth { input } => {
+                let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
+                popup(ctx, "line-width", colors, |ui| {
+                    ui.label(i18n::text(locale, "palette.line_width_hint"));
+                    ui.add(egui::TextEdit::singleline(input).desired_width(160.0))
+                        .request_focus();
+                });
+                if enter {
+                    if input.trim().is_empty() {
+                        self.settings.max_line_chars = None;
+                        session.settings_dirty = true;
+                        close = true;
+                    } else if let Ok(value) = input.trim().parse::<i64>() {
+                        self.settings.max_line_chars = Some(value.clamp(20, 120) as usize);
+                        session.settings_dirty = true;
+                        close = true;
+                    }
                 }
             }
             Overlay::Jump { input, missed } => {
@@ -3560,6 +3829,7 @@ impl NovnowApp {
                 scope,
                 intent,
                 comment,
+                examples,
                 fresh,
             } => {
                 let roles = crate::core::agents::BUILTIN_ROLES;
@@ -3605,6 +3875,13 @@ impl NovnowApp {
                             .color(colors.fg_muted),
                     );
                     ui.add(egui::TextEdit::singleline(comment).desired_width(520.0));
+                    ui.label(i18n::text(locale, "agent.new_examples"));
+                    ui.add(
+                        egui::TextEdit::multiline(examples)
+                            .hint_text(i18n::text(locale, "agent.new_examples_hint"))
+                            .desired_rows(2)
+                            .desired_width(520.0),
+                    );
                     ui.add_space(4.0);
                     ui.label(
                         RichText::new(i18n::text(locale, "agent.new_hint")).color(colors.fg_faint),
@@ -3620,6 +3897,7 @@ impl NovnowApp {
                             scope,
                             intent,
                             comment,
+                            examples,
                             initiator: "human",
                             status: "draft",
                         },
@@ -4474,6 +4752,28 @@ fn status_bar(
                 );
             }
         }
+        // F-05: live modifier-prefix completion, without displacing the save indicator.
+        let mods = ui.ctx().input(|input| input.modifiers);
+        let mac = ui.ctx().os() == egui::os::OperatingSystem::Mac;
+        if mods.command || (mac && mods.mac_cmd) {
+            let key = if mods.shift {
+                "status.shortcut_shift"
+            } else if mods.alt {
+                "status.shortcut_alt"
+            } else {
+                "status.shortcut_ctrl"
+            };
+            let detail = i18n::text(locale, key);
+            if ui.available_width() > 230.0 {
+                ui.label(dot());
+                ui.label(
+                    RichText::new(palette::ellipsize(detail, 23))
+                        .font(font.clone())
+                        .color(colors.fg_faint),
+                )
+                .on_hover_text(detail);
+            }
+        }
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             let (rect, response) = ui.allocate_exact_size(Vec2::new(14.0, 14.0), Sense::click());
             let painter = ui.painter_at(rect.expand(2.0));
@@ -4842,15 +5142,37 @@ fn action_label(locale: Locale, action: &crate::core::features::code_action::Cod
     )
 }
 
+/// The header badge reflects the whole project (not just the current document).
+/// Reuse the previous scan while typing; scanning every file on every keystroke
+/// would violate the editor's latency budget. Recalculate after the save settles.
+fn project_has_problems(session: &mut Session, locale: Locale) -> bool {
+    use crate::core::diagnostics::Severity;
+    let rows = if matches!(session.bench.save.state(), State::Dirty | State::Saving) {
+        session.spaces.review.cached().unwrap_or_default()
+    } else {
+        session.spaces.review.diagnostics(&session.bench, locale)
+    };
+    rows.iter()
+        .any(|row| matches!(row.severity, Severity::Error | Severity::Warning))
+}
+
 fn diagnostic_count(session: &mut Session) -> usize {
     let Some(current) = session.bench.current() else {
         return 0;
     };
     let key_path = current.path.clone();
     if let Some((generation, path, count)) = &session.diag_count {
-        if *generation == session.bench.generation() && path == &key_path {
+        if path == &key_path
+            && (*generation == session.bench.generation()
+                || matches!(session.bench.save.state(), State::Dirty | State::Saving))
+        {
             return *count;
         }
+    }
+    // Diagnostics on the whole document are deliberately deferred until save;
+    // the immediate typing path must not reparse a 100k-character file.
+    if matches!(session.bench.save.state(), State::Dirty | State::Saving) {
+        return 0;
     }
     let count = session
         .bench
@@ -4881,12 +5203,16 @@ fn focus_ring(ctx: &Context, rect: Rect, color: Color32) {
     .rect_stroke(rect.shrink(1.0), 0.0, Stroke::new(2.0_f32, color));
 }
 
-fn theme_symbol(choice: ThemeChoice) -> &'static str {
-    match choice {
-        ThemeChoice::System => "◐",
-        ThemeChoice::Dark => "☾",
-        ThemeChoice::Light => "☀",
-    }
+fn focus_stripe(ctx: &Context, rect: Rect, color: Color32) {
+    ctx.layer_painter(egui::LayerId::new(
+        egui::Order::Foreground,
+        Id::new("focus-stripe"),
+    ))
+    .rect_filled(
+        Rect::from_min_size(rect.min, Vec2::new(3.0, rect.height())),
+        0.0,
+        color,
+    );
 }
 
 /// 画面上部の中央に出す小窓（パレット・ジャンプ・ヘルプ・モーダル）。背景を暗くする。
@@ -5038,8 +5364,19 @@ fn prompt_pairs(
         });
 }
 
-fn popup(ctx: &Context, id: &str, colors: theme::Palette, add: impl FnOnce(&mut egui::Ui)) {
+fn popup(ctx: &Context, id: &str, colors: theme::Palette, add: impl FnOnce(&mut egui::Ui)) -> bool {
     let screen = ctx.screen_rect();
+    // Catch clicks outside the foreground area; never let a click through to an
+    // editor or destructive control beneath it (F-27).
+    let outside = egui::Area::new(Id::new((id, "shield")))
+        .order(egui::Order::Foreground)
+        .fixed_pos(screen.min)
+        .show(ctx, |ui| {
+            ui.allocate_exact_size(screen.size(), Sense::click())
+                .1
+                .clicked()
+        })
+        .inner;
     ctx.layer_painter(egui::LayerId::new(egui::Order::Middle, Id::new("dim")))
         .rect_filled(screen, 0.0, Color32::from_black_alpha(96));
     egui::Area::new(Id::new(id))
@@ -5056,6 +5393,7 @@ fn popup(ctx: &Context, id: &str, colors: theme::Palette, add: impl FnOnce(&mut 
                     add(ui);
                 });
         });
+    outside
 }
 
 /// `>export` のモーダルでの操作（§17.2）。
@@ -5142,6 +5480,8 @@ struct PaletteItem {
 #[derive(Debug, Clone)]
 enum PaletteAction {
     Section(usize),
+    /// Open the next level of the @ chapter → episode → scene → section tree.
+    SceneDrill(String),
     Command(Command),
     /// `M` / `#` の資料（material ワークスペースで開く）。
     Material(String),
@@ -5153,6 +5493,14 @@ enum PaletteAction {
     Agent(AgentCommand),
     /// `>zip`: Zip でエクスポートする（§13.5）。
     ExportZip,
+    /// パレットを閉じる。
+    Close,
+    /// `>agent` 階層の入口。
+    AgentRoot,
+    LineWidth,
+    Welcome,
+    Migration,
+    McpConfig,
 }
 
 /// パレットのエージェントのコマンド（§15.7.6・§15.5.4）。
@@ -5198,6 +5546,11 @@ fn agent_palette_items(locale: Locale) -> Vec<PaletteItem> {
             });
         }
     }
+    out.push(PaletteItem {
+        key: "agent mcp".into(),
+        label: format!(">agent mcp  {}", i18n::text(locale, "help.edit_mcp")),
+        action: PaletteAction::McpConfig,
+    });
     out.push(PaletteItem {
         key: "agent stop-all".to_owned(),
         label: format!(
@@ -5323,6 +5676,129 @@ const PALETTE_COMMANDS: &[(&str, &str, Command)] = &[
     ("help", "command.help", Command::Help),
 ];
 
+/// All remaining keyboard commands are also reachable through `>` (F-15).
+const SHORTCUT_PALETTE_COMMANDS: &[(&str, &str, Command)] = &[
+    ("palette", "Ctrl+P", Command::Palette),
+    ("open", "Ctrl+O", Command::Open),
+    ("font-up", "Ctrl++", Command::FontUp),
+    ("font-down", "Ctrl+-", Command::FontDown),
+    ("font-reset", "Ctrl+0", Command::FontReset),
+    ("focus-context", "Ctrl+1", Command::FocusContext),
+    ("focus-editor", "Ctrl+2", Command::FocusEditor),
+    ("focus-reference", "Ctrl+3", Command::FocusReference),
+    ("swap-reference", "Ctrl+Shift+\\", Command::SwapReference),
+    ("confirm-next", "Ctrl+Enter", Command::ConfirmNext),
+    ("delete-section", "Ctrl+Shift+;", Command::DeleteSection),
+    ("find", "Ctrl+F", Command::Find),
+    ("replace", "Ctrl+H", Command::Replace),
+    ("search", "Ctrl+Shift+F", Command::Search),
+    ("find-next", "F3", Command::FindNext(true)),
+    ("find-previous", "Shift+F3", Command::FindNext(false)),
+    ("complete", "Ctrl+Space", Command::Complete),
+    ("modes", "Ctrl+Shift+M", Command::Modes),
+    ("term", "Ctrl+Shift+W", Command::Term),
+    ("recent-next", "Ctrl+Tab", Command::RecentFile(true)),
+    (
+        "recent-previous",
+        "Ctrl+Shift+Tab",
+        Command::RecentFile(false),
+    ),
+    ("quick-fix", "Ctrl+.", Command::QuickFix),
+    (
+        "register-term",
+        "Ctrl+T",
+        Command::Register { character: false },
+    ),
+    (
+        "register-character",
+        "Ctrl+Shift+T",
+        Command::Register { character: true },
+    ),
+    ("diff", "Ctrl+Shift+D", Command::Diff),
+    (
+        "ratio-context-up",
+        "Ctrl+Alt+Up",
+        Command::ContextRatio(true),
+    ),
+    (
+        "ratio-context-down",
+        "Ctrl+Alt+Down",
+        Command::ContextRatio(false),
+    ),
+    (
+        "ratio-main-left",
+        "Ctrl+Alt+Shift+Left",
+        Command::MainRatio(false),
+    ),
+    (
+        "ratio-main-right",
+        "Ctrl+Alt+Shift+Right",
+        Command::MainRatio(true),
+    ),
+    (
+        "previous-section",
+        "Alt+Up",
+        Command::Nav(crate::ui::workbench::Nav::PrevSection),
+    ),
+    (
+        "next-section",
+        "Alt+Down",
+        Command::Nav(crate::ui::workbench::Nav::NextSection),
+    ),
+    (
+        "previous-scene",
+        "Alt+Left",
+        Command::Nav(crate::ui::workbench::Nav::PrevScene),
+    ),
+    (
+        "next-scene",
+        "Alt+Right",
+        Command::Nav(crate::ui::workbench::Nav::NextScene),
+    ),
+    (
+        "previous-file",
+        "Ctrl+Alt+Left",
+        Command::Nav(crate::ui::workbench::Nav::PrevFile),
+    ),
+    (
+        "next-file",
+        "Ctrl+Alt+Right",
+        Command::Nav(crate::ui::workbench::Nav::NextFile),
+    ),
+    (
+        "file-start",
+        "Ctrl+Home",
+        Command::Nav(crate::ui::workbench::Nav::FileStart),
+    ),
+    (
+        "file-end",
+        "Ctrl+End",
+        Command::Nav(crate::ui::workbench::Nav::FileEnd),
+    ),
+    ("previous-workspace", "Alt+0", Command::PreviousWorkspace),
+    ("up", "Ctrl+B", Command::Up),
+    ("new-item", "Ctrl+Shift+N", Command::InsertSection),
+    ("capture", "Ctrl+Shift+I", Command::Capture),
+    ("review", "Ctrl+Shift+E", Command::Review),
+    ("drop", "Ctrl+Delete", Command::Drop),
+    ("next-tab", "Ctrl+Shift+Right", Command::Tab(true)),
+    ("previous-tab", "Ctrl+Shift+Left", Command::Tab(false)),
+    ("scan", "Ctrl+Shift+V", Command::Scan),
+    ("material-search", "Ctrl+M", Command::MaterialSearch),
+    ("stop-all", "Ctrl+Shift+X", Command::StopAll),
+    ("fold", "Ctrl+Shift+LeftBracket", Command::Fold(true)),
+    ("unfold", "Ctrl+Shift+RightBracket", Command::Fold(false)),
+    ("workspace-write", "Alt+1", Command::Workspace(1)),
+    ("workspace-episode", "Alt+2", Command::Workspace(2)),
+    ("workspace-outline", "Alt+3", Command::Workspace(3)),
+    ("workspace-idea", "Alt+4", Command::Workspace(4)),
+    ("workspace-material", "Alt+5", Command::Workspace(5)),
+    ("workspace-cast", "Alt+6", Command::Workspace(6)),
+    ("workspace-reader", "Alt+7", Command::Workspace(7)),
+    ("workspace-agent", "Alt+8", Command::Workspace(8)),
+    ("workspace-review", "Alt+9", Command::Workspace(9)),
+];
+
 fn palette_items(
     bench: &Workbench,
     locale: Locale,
@@ -5330,7 +5806,7 @@ fn palette_items(
     query: &str,
     input: &str,
 ) -> Vec<PaletteItem> {
-    match mode {
+    let mut result: Vec<PaletteItem> = match mode {
         palette::Mode::Command => {
             let mut all: Vec<PaletteItem> = PALETTE_COMMANDS
                 .iter()
@@ -5340,12 +5816,49 @@ fn palette_items(
                     action: PaletteAction::Command(*command),
                 })
                 .collect();
+            all.extend(
+                SHORTCUT_PALETTE_COMMANDS
+                    .iter()
+                    .map(|(name, shortcut, command)| PaletteItem {
+                        key: (*name).to_owned(),
+                        label: format!(">{name}  {shortcut}"),
+                        action: PaletteAction::Command(*command),
+                    }),
+            );
+            all.push(PaletteItem {
+                key: "welcome".into(),
+                label: format!(">welcome  {}", i18n::text(locale, "help.welcome_title")),
+                action: PaletteAction::Welcome,
+            });
+            all.push(PaletteItem {
+                key: "migration".into(),
+                label: format!(">migration  {}", i18n::text(locale, "help.migration_title")),
+                action: PaletteAction::Migration,
+            });
+            all.push(PaletteItem {
+                key: "mcp".into(),
+                label: format!(">mcp  {}", i18n::text(locale, "help.edit_mcp")),
+                action: PaletteAction::McpConfig,
+            });
+            all.push(PaletteItem {
+                key: "line-width".into(),
+                label: format!(">line-width  {}", i18n::text(locale, "palette.line_width")),
+                action: PaletteAction::LineWidth,
+            });
             all.push(PaletteItem {
                 key: "zip".to_owned(),
                 label: format!(">zip  {}", i18n::text(locale, "command.export_zip")),
                 action: PaletteAction::ExportZip,
             });
-            all.extend(agent_palette_items(locale));
+            if (query.starts_with("agent") && query != "agent") || query.starts_with("prompt") {
+                all.extend(agent_palette_items(locale));
+            } else {
+                all.push(PaletteItem {
+                    key: "agent".into(),
+                    label: ">agent  Agent settings ›".into(),
+                    action: PaletteAction::AgentRoot,
+                });
+            }
             let ranked = palette::rank(query, &all, |item| (item.key.as_str(), item.key.as_str()));
             ranked
                 .into_iter()
@@ -5356,12 +5869,92 @@ fn palette_items(
                 })
                 .collect()
         }
-        palette::Mode::Help => vec![PaletteItem {
-            key: "help".into(),
-            label: format!("?  {}", i18n::text(locale, "command.help")),
-            action: PaletteAction::Command(Command::Help),
-        }],
-        palette::Mode::Fuzzy | palette::Mode::Scene => {
+        palette::Mode::Help => {
+            let all: Vec<_> = PALETTE_COMMANDS
+                .iter()
+                .map(|(name, key, command)| PaletteItem {
+                    key: (*name).to_owned(),
+                    label: format!("? {name}  {}", i18n::text(locale, key)),
+                    action: PaletteAction::Command(*command),
+                })
+                .collect();
+            palette::rank(query, &all, |item| (&item.key, &item.label))
+                .into_iter()
+                .map(|item| PaletteItem {
+                    key: item.key.clone(),
+                    label: item.label.clone(),
+                    action: item.action.clone(),
+                })
+                .collect()
+        }
+        palette::Mode::Scene => {
+            // Broadest level first. Choosing a branch appends '-' and narrows the
+            // next frame; a leaf jumps to the section. Typed prefixes still filter.
+            let depth = query.split('-').count().saturating_sub(1).min(3);
+            let digits = bench.project().digits();
+            let mut nodes = std::collections::BTreeMap::<String, PaletteItem>::new();
+            for (index, section) in bench.sections().iter().enumerate() {
+                let full = section.id.display(digits);
+                let prefix = full
+                    .split('-')
+                    .take(depth + 1)
+                    .collect::<Vec<_>>()
+                    .join("-");
+                if !prefix.starts_with(query) {
+                    continue;
+                }
+                let branch = depth < 3;
+                let title = match depth {
+                    0 => bench.project().all_plot().and_then(|plot| {
+                        plot.blocks
+                            .iter()
+                            .find(|block| {
+                                block.id.is_some_and(|id| id.chapter == section.id.chapter)
+                            })
+                            .and_then(|block| plot.lines.get(block.header))
+                            .map(|line| {
+                                line.raw()
+                                    .split_once(char::is_whitespace)
+                                    .map_or("", |(_, title)| title)
+                            })
+                    }),
+                    1 => bench
+                        .project()
+                        .chapter_plot(section.id.chapter)
+                        .and_then(|plot| {
+                            plot.blocks
+                                .iter()
+                                .find(|block| {
+                                    block.id.is_some_and(|id| id.episode == section.id.episode)
+                                })
+                                .and_then(|block| plot.lines.get(block.header))
+                                .map(|line| {
+                                    line.raw()
+                                        .split_once(char::is_whitespace)
+                                        .map_or("", |(_, title)| title)
+                                })
+                        }),
+                    _ => Some(section.scene_title.as_str()),
+                }
+                .unwrap_or("");
+                let label = if branch {
+                    format!("@{prefix}-*  {title}")
+                } else {
+                    format!("@{prefix}  {}", section.scene_title)
+                };
+                nodes.entry(prefix.clone()).or_insert(PaletteItem {
+                    key: prefix.clone(),
+                    label,
+                    action: if branch {
+                        PaletteAction::SceneDrill(prefix)
+                    } else {
+                        PaletteAction::Section(index)
+                    },
+                });
+            }
+            nodes.into_values().take(palette::LIMIT).collect()
+        }
+        palette::Mode::Fuzzy => {
             let digits = bench.project().digits();
             let all: Vec<PaletteItem> = bench
                 .sections()
@@ -5481,7 +6074,13 @@ fn palette_items(
                 })
                 .collect()
         }
-    }
+    };
+    result.push(PaletteItem {
+        key: "~close".into(),
+        label: i18n::text(locale, "palette.close").into(),
+        action: PaletteAction::Close,
+    });
+    result
 }
 
 /// キーボードヘルプ（§9.8 のうち M7・M8 で動くもの）。左はキー、右はカタログのキー。
@@ -5890,11 +6489,12 @@ mod native {
 
     /// §14.4 のプロジェクト選択（デスクトップ）。
     struct NativePicker {
-        recent: Vec<(String, bool)>,
+        recent: Vec<(String, bool, String)>,
         selected: usize,
         problem: Option<(PathBuf, String, bool)>,
         want_folder: bool,
         want_new: bool,
+        want_import: bool,
         locale: Locale,
     }
 
@@ -5907,7 +6507,7 @@ mod native {
                 .into_iter()
                 .map(|item| {
                     let exists = Path::new(&item.path).is_dir();
-                    (item.path, exists)
+                    (item.path, exists, item.opened_at)
                 })
                 .collect();
             Self {
@@ -5916,6 +6516,7 @@ mod native {
                 problem: None,
                 want_folder: false,
                 want_new: false,
+                want_import: false,
                 locale,
             }
         }
@@ -5942,6 +6543,10 @@ mod native {
             self.want_folder = true;
         }
 
+        fn refresh(&mut self) {
+            *self = Self::new(self.locale);
+        }
+
         fn open_dialog(&mut self, locale: Locale) -> Option<Result<(Session, UiSettings), String>> {
             let dir = block_on(RfdDialog.pick_folder())?;
             Some(match precheck_report(&dir, locale) {
@@ -5959,6 +6564,39 @@ mod native {
             self.locale = locale;
             let colors = theme::palette(mode);
             let mut opened = None;
+            if self.want_import {
+                self.want_import = false;
+                if let Some(zip_file) = block_on(RfdDialog.pick_zip()) {
+                    if let Some(dir) = block_on(RfdDialog.pick_folder()) {
+                        match crate::adapters::zip::import(&zip_file.bytes) {
+                            Ok(imported) => {
+                                let gate = Arc::new(FsGate::new(&SystemEnv));
+                                match FsStorage::create(gate, &dir).and_then(|storage| {
+                                    crate::adapters::zip::import_project(&storage, &imported)
+                                        .map_err(|error| {
+                                            crate::ports::storage::StorageError::Io {
+                                                path: dir.display().to_string(),
+                                                kind: std::io::ErrorKind::Other,
+                                                message: format!("{error:?}"),
+                                            }
+                                        })?;
+                                    Ok(())
+                                }) {
+                                    Ok(()) => {
+                                        if let Some(opened) = self.try_open(&dir) {
+                                            return Some(opened);
+                                        }
+                                    }
+                                    Err(error) => {
+                                        self.problem = Some((dir, format!("{error:?}"), false))
+                                    }
+                                }
+                            }
+                            Err(error) => self.problem = Some((dir, format!("{error:?}"), false)),
+                        }
+                    }
+                }
+            }
             if self.want_folder || self.want_new {
                 let new = self.want_new;
                 self.want_folder = false;
@@ -5989,11 +6627,12 @@ mod native {
             }
             let mut choose: Option<PathBuf> = None;
             if enter {
-                if let Some((path, true)) = self.recent.get(self.selected) {
+                if let Some((path, true, _)) = self.recent.get(self.selected) {
                     choose = Some(PathBuf::from(path));
                 }
             }
             let mut create_at: Option<PathBuf> = None;
+            let mut remove_history: Option<String> = None;
             egui::CentralPanel::default()
                 .frame(
                     Frame::none()
@@ -6011,18 +6650,26 @@ mod native {
                         );
                         ui.add_space(16.0);
                         if self.recent.is_empty() {
+                            ui.label(i18n::text(locale, "help.welcome"));
+                            ui.hyperlink_to(
+                                i18n::text(locale, "help.website"),
+                                crate::core::model::project::PROJECT_STRUCTURE_DOC_URL,
+                            );
                             ui.label(
                                 RichText::new(i18n::text(locale, "project.pick.empty"))
                                     .color(colors.fg_faint),
                             );
                         }
-                        for (index, (path, exists)) in self.recent.iter().enumerate() {
+                        for (index, (path, exists, opened_at)) in self.recent.iter().enumerate() {
                             let name = Path::new(path)
                                 .file_name()
                                 .map(|name| name.to_string_lossy().into_owned())
                                 .unwrap_or_else(|| path.clone());
                             let shown = if *exists {
-                                format!("{name}    {path}")
+                                format!(
+                                    "{name}    {path}    {}",
+                                    opened_at.get(..10).unwrap_or(opened_at)
+                                )
                             } else {
                                 format!("{}    {path}", i18n::text(locale, "project.pick.missing"))
                             };
@@ -6033,13 +6680,25 @@ mod native {
                             } else {
                                 colors.fg_primary
                             };
-                            let response = ui.selectable_label(
-                                index == self.selected,
-                                RichText::new(shown).color(color),
-                            );
-                            if response.clicked() && *exists {
-                                choose = Some(PathBuf::from(path));
-                            }
+                            ui.horizontal(|ui| {
+                                let response = ui.selectable_label(
+                                    index == self.selected,
+                                    RichText::new(shown).color(color),
+                                );
+                                if response.clicked() && *exists {
+                                    choose = Some(PathBuf::from(path));
+                                }
+                                if ui
+                                    .small_button("×")
+                                    .on_hover_text(i18n::text(
+                                        locale,
+                                        "project.pick.remove_history",
+                                    ))
+                                    .clicked()
+                                {
+                                    remove_history = Some(path.clone());
+                                }
+                            });
                         }
                         ui.add_space(20.0);
                         ui.horizontal(|ui| {
@@ -6056,6 +6715,13 @@ mod native {
                                 .clicked()
                             {
                                 self.want_new = true;
+                            }
+                            ui.add_space(12.0);
+                            if ui
+                                .button(i18n::text(locale, "project.pick.import"))
+                                .clicked()
+                            {
+                                self.want_import = true;
                             }
                         });
                         if let Some((dir, report, incomplete)) = &self.problem {
@@ -6093,6 +6759,13 @@ mod native {
                         }
                     });
                 });
+            if let Some(path) = remove_history {
+                let gate = Arc::new(FsGate::new(&SystemEnv));
+                if RecentFile::new(gate).remove(&path).is_ok() {
+                    self.recent.retain(|(entry, _, _)| entry != &path);
+                    self.selected = self.selected.min(self.recent.len().saturating_sub(1));
+                }
+            }
             if let Some(dir) = create_at {
                 match create_here(&dir, locale) {
                     Ok(()) => {
@@ -6102,7 +6775,7 @@ mod native {
                     Err(report) => self.problem = Some((dir, report, false)),
                 }
             }
-            if self.want_folder || self.want_new {
+            if self.want_folder || self.want_new || self.want_import {
                 ctx.request_repaint();
             }
             let _ = Vec2::ZERO;

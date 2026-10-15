@@ -26,6 +26,8 @@ pub const DEBOUNCE_SECS: f64 = 0.08;
 pub enum Chosen {
     /// 条件一致の資料候補。その ID を今の節のプロットの `material:` に足す（§16.4）。
     Material(String),
+    /// Open the full source when a summary is truncated.
+    OpenMaterial(String),
     /// 診断からの自動回復（§6.2.6 / §9.5.4、F-23）。1 形態素を辞書へ登録する。
     Register {
         /// 登録先（`words.md` = [`EntryKind::Word`] / `characters.md` = [`EntryKind::Character`]）。
@@ -125,7 +127,17 @@ pub fn sections(
 ) -> Option<Chosen> {
     let mut chosen = None;
     let colors = theme::palette(mode);
-    let heading = |ui: &mut Ui, key: &str| {
+    let mut first_heading = true;
+    let mut heading = |ui: &mut Ui, key: &str| {
+        if !first_heading {
+            let (rule, _) =
+                ui.allocate_exact_size(egui::vec2(ui.available_width(), 1.0), Sense::hover());
+            ui.painter().line_segment(
+                [rule.left_top(), rule.right_top()],
+                Stroke::new(1.0_f32, colors.border),
+            );
+        }
+        first_heading = false;
         ui.add_space(12.0);
         ui.label(
             RichText::new(i18n::text(locale, key))
@@ -223,7 +235,19 @@ pub fn sections(
                         for material in content.materials.iter().filter(|found| !found.candidate) {
                             muted(ui, &material.id, &material.title);
                             if !material.summary.is_empty() {
-                                body(ui, &material.summary);
+                                let short: String = material.summary.chars().take(120).collect();
+                                body(ui, &short);
+                                if short.chars().count() < material.summary.chars().count() {
+                                    let button = super::link_button(
+                                        ui,
+                                        i18n::text(locale, "pane.more"),
+                                        body_font.clone(),
+                                        &colors,
+                                    );
+                                    if button.clicked() {
+                                        chosen = Some(Chosen::OpenMaterial(material.id.clone()));
+                                    }
+                                }
                             }
                         }
                         for material in content.materials.iter().filter(|found| found.candidate) {
@@ -234,7 +258,7 @@ pub fn sections(
                     }
                     PaneSection::Diagnostics if !content.diagnostics.is_empty() => {
                         heading(ui, "pane.diagnostics");
-                        for found in &content.diagnostics {
+                        let mut draw = |ui: &mut Ui, found: &Diagnostic| {
                             let color = match found.severity() {
                                 crate::core::diagnostics::Severity::Error => colors.error,
                                 _ => colors.warn,
@@ -293,6 +317,37 @@ pub fn sections(
                                         }
                                     }
                                 });
+                            }
+                        };
+                        for (index, found) in content.diagnostics.iter().enumerate() {
+                            let count = content
+                                .diagnostics
+                                .iter()
+                                .filter(|item| item.code == found.code)
+                                .count();
+                            if count >= 4 {
+                                if content.diagnostics[..index]
+                                    .iter()
+                                    .any(|item| item.code == found.code)
+                                {
+                                    continue;
+                                }
+                                egui::CollapsingHeader::new(format!(
+                                    "{} ({count})",
+                                    found.code.as_str()
+                                ))
+                                .id_source(("diagnostic-group", found.code.as_str()))
+                                .show(ui, |ui| {
+                                    for item in content
+                                        .diagnostics
+                                        .iter()
+                                        .filter(|item| item.code == found.code)
+                                    {
+                                        draw(ui, item);
+                                    }
+                                });
+                            } else {
+                                draw(ui, found);
                             }
                         }
                     }

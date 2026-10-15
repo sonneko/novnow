@@ -24,7 +24,7 @@
 
 ### 15.4 コンテキスト設計
 
-状態: 未実装・実装計画済み（REF:src/core/aicontext/packet.rs, REF:src/core/aicontext/budget.rs, REF:tests/aicontext.rs, REF:docs/plans.md#plan-S-01）
+状態: 実装中（REF:src/core/aicontext/packet.rs, REF:src/core/aicontext/budget.rs, REF:tests/aicontext.rs, REF:docs/plans.md#plan-S-01）
 
 - 固定 9 セクション（`1 project` 〜 `9 history`）の組み立ては `core::aicontext::packet`（`REF:src/core/aicontext/packet.rs`）が `core::resolve::context_rules` と同じ優先順位規則を用いて生成する。
 - 役割別のトークン予算配分と優先順位に基づく決定論的切り詰めは `core::aicontext::budget`（`REF:src/core/aicontext/budget.rs`）が担う（検証: `REF:tests/aicontext.rs`）。
@@ -36,7 +36,7 @@
 
 状態: 実装完了（REF:src/core/syntax/prompt_md.rs, REF:src/core/agents/prompts.rs, REF:src/core/template/mod.rs, REF:tests/prompt_md.rs, REF:tests/template.rs）
 
-- 既定プロンプトの埋め込み（`REF:src/core/template/mod.rs`）、欠落ファイルの自動補完と `I050` 通知、`{{include:...}}` 展開、閉じた 19 変数の展開、プロンプト診断（`E029` / `W015`）および `>prompt reset` / `>prompt diff` は `REF:src/core/agents/prompts.rs` と `REF:src/ui/app.rs` に実装する。
+- 既定プロンプトの埋め込み（`REF:src/core/template/mod.rs`）、欠落ファイルの自動補完と `I050` 通知、`{{include:...}}` 展開、閉じた 20 変数の展開、プロンプト診断（`E029` / `W015`）および `>prompt reset` / `>prompt diff` は `REF:src/core/agents/prompts.rs` と `REF:src/ui/app.rs` に実装する。
 
 ### 15.6 エージェント間通信
 
@@ -46,7 +46,7 @@
 
 ### 15.7 人間向け管制 UI（`agent` ワークスペース）
 
-状態: 未実装・実装計画済み（REF:src/ui/workspaces/agent.rs, REF:src/ui/agents.rs, REF:src/ui/app.rs, REF:tests/workspaces.rs, REF:docs/plans.md#plan-F-19）
+状態: 実装中（REF:src/ui/workspaces/agent.rs, REF:src/ui/agents.rs, REF:src/ui/app.rs, REF:tests/workspaces.rs, REF:docs/plans.md#plan-F-19）
 
 - `agent` ワークスペース（`Alt+8`）の 4 ペイン描画、タスク起票・ドライラン・提案の節単位採否（`A` / `X` / `E`）・差し戻し（`U`）・役割別委譲レベル変更（`1`〜`4`）・総停止（`Ctrl+Shift+X`）は `REF:src/ui/workspaces/agent.rs` と `REF:src/ui/agents.rs` に実装する。
 

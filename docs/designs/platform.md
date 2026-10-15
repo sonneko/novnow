@@ -21,7 +21,7 @@
 
 ### 13.3 Web: IndexedDB
 
-状態: 未実装・実装計画済み（REF:src/adapters/storage_idb.rs, REF:tests/storage_idb.rs, REF:docs/plans.md#plan-S-03）
+状態: 実装中（REF:src/adapters/storage_idb.rs, REF:tests/storage_idb.rs, REF:docs/plans.md#plan-S-03）
 
 - DB 名 `novnow`（version 1）の 3 オブジェクトストア（`projects`, `files`, `app`）と `APP_KEYS`（`recent_projects` のみ許可）、残容量 10MB 未満の `W063`、IndexedDB 利用不可時の `E062`、初回 `sample` プロジェクト投入は `REF:src/adapters/storage_idb.rs` に実装する。
 - スキーマ定数と仕様表の一致は `REF:tests/storage_idb.rs` が `include_str!` で検証し、ブラウザ実機動作は `REF:scripts/web-smoke.mjs` で検証する。
@@ -31,7 +31,7 @@
 
 ### 13.4 プロジェクト選択モーダル（Web）
 
-状態: 未実装・実装計画済み（REF:src/ui/web.rs, REF:scripts/web-smoke.mjs, REF:docs/plans.md#plan-F-33）
+状態: 実装中（REF:src/ui/web.rs, REF:scripts/web-smoke.mjs, REF:docs/plans.md#plan-F-33）
 
 - Web 起動時および `Ctrl+O` 時のプロジェクト選択モーダル（一覧・検索 `/`・新規作成 `Ctrl+N`・Zip 取込 `Ctrl+I`・改名 `F2`・削除 `Delete`・単一タブ利用の注記 `project.pick.single_tab`）は `WebPicker`（`REF:src/ui/web.rs`）に実装する（検証: `REF:scripts/web-smoke.mjs`）。
 
@@ -40,7 +40,7 @@
 
 ### 13.5 Zip インポート / エクスポート
 
-状態: 未実装・実装計画済み（REF:src/core/policy/archive.rs, REF:src/adapters/zip.rs, REF:tests/zip_roundtrip.rs, REF:docs/plans.md#plan-S-10）
+状態: 実装中（REF:src/core/policy/archive.rs, REF:src/adapters/zip.rs, REF:tests/zip_roundtrip.rs, REF:docs/plans.md#plan-S-10）
 
 - アーカイブ対象の選別（ドット始まりファイルの除外と `.gitignore` / `.gitkeep` の例外許可、パストラバーサル `..` の拒否）は `core::policy::archive`（`REF:src/core/policy/archive.rs`）が担い、Deflate 圧縮・展開は `adapters::zip`（`REF:src/adapters/zip.rs`）が担う（検証: `REF:tests/zip_roundtrip.rs`）。
 
@@ -51,7 +51,7 @@
 
 ### 14.1 CLI 文法
 
-状態: 未実装・実装計画済み（REF:src/cli/mod.rs, REF:src/main.rs, REF:tests/cli.rs, REF:docs/plans.md#plan-S-10）
+状態: 実装中（REF:src/cli/mod.rs, REF:src/main.rs, REF:tests/cli.rs, REF:docs/plans.md#plan-S-10）
 
 - 引数解析とサブコマンド（`<dir>`, `new`, `check`, `export`, `mcp`）およびフラグ（`--gui`, `-h`/`--help`, `-V`/`--version`）の振り分けは `REF:src/cli/mod.rs` に実装する（検証: `REF:tests/cli.rs`）。
 
@@ -74,7 +74,7 @@
 
 ### 14.4 GUI 起動時のプロジェクト選択モーダル（デスクトップ）
 
-状態: 未実装・実装計画済み（REF:src/ui/app.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-40）
+状態: 実装中（REF:src/ui/app.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-40）
 
 - デスクトップで `<dir>` なしに GUI 起動した際のプロジェクト選択画面（`recent.json` の履歴一覧、存在しないパスの灰色表示と履歴削除、フォルダ選択ダイアログ、新規作成）は `NativePicker`（`REF:src/ui/app.rs`）に実装する。
 

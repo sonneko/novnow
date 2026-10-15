@@ -6,7 +6,7 @@
 
 ### 9.1 全体レイアウト
 
-状態: 未実装・実装計画済み（REF:src/ui/app.rs, REF:src/ui/settings.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-16）
+状態: 実装中（REF:src/ui/app.rs, REF:src/ui/settings.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-16）
 
 - 共通シェル（上端 28px アイコンバー、下端 22px ステータスバー、中央のメインカラム＋参照ペイン 2 カラム分割）は `NovnowApp`（`REF:src/ui/app.rs`）が描画する。
 - メイン/参照の比率（既定 `62 : 38`、`Ctrl+Alt+Shift+←/→`）と文脈/節エディタの比率（既定 `45 : 55`、`Ctrl+Alt+↑/↓`）は `UiSettings`（`REF:src/ui/settings.rs`）に保持する。
@@ -28,7 +28,7 @@
 
 ### 9.3 文脈ビュー（メインカラム上段）
 
-状態: 未実装・実装計画済み（REF:src/ui/widgets/context_view.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-21）
+状態: 実装中（REF:src/ui/widgets/context_view.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-21）
 
 - 前後最大 3 節の読み取り専用表示と、編集中の節の位置に本文を重複描画せず 1 行プレースホルダ `─── @01-04-02-03 ───` のみを置く処理は `ui::widgets::context_view`（`REF:src/ui/widgets/context_view.rs`）に実装する（検証: `REF:tests/gui.rs` の `the_context_view_never_paints_the_section_being_edited`）。
 - ※§9.3.3 の折りたたみ UI は段階 ②（追加仕様 9、`REF:docs/plans.md#stage-2`）対象。
@@ -52,7 +52,7 @@
 
 ### 9.5 参照ペイン
 
-状態: 未実装・実装計画済み（REF:src/core/features/reference.rs, REF:src/ui/widgets/reference_pane.rs, REF:tests/context_rules.rs, REF:docs/plans.md#plan-F-04）
+状態: 実装中（REF:src/core/features/reference.rs, REF:src/ui/widgets/reference_pane.rs, REF:tests/context_rules.rs, REF:docs/plans.md#plan-F-04）
 
 - 段階 ① の 6 セクション（プロット・上位プロット・配役・用語・資料・診断）のデータ組み立ては `core::features::reference::build`（`REF:src/core/features/reference.rs`）が `Vec<Section>` として返し（縫い代 6）、`REF:src/ui/widgets/reference_pane.rs` が枠線なしで描画する（80ms デバウンス）。
 - ※五感・空間・挿絵の 3 セクションは段階 ②（`REF:docs/plans.md#stage-2`）対象。
@@ -66,7 +66,7 @@
 
 ### 9.6 ステータスバー
 
-状態: 未実装・実装計画済み（REF:src/ui/app.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-05）
+状態: 実装中（REF:src/ui/app.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-05）
 
 - 左側（位置 `01›04›02›03`、節/話/全体の空白除外文字数、400 字詰め原稿用紙換算）と右側（エラー・警告・情報件数、エージェント実行状態、保存状態アイコン）は `NovnowApp`（`REF:src/ui/app.rs`）に実装する（検証: `REF:tests/gui.rs` の `counts_are_section_episode_and_project_without_whitespace`）。
 - ※§9.6.2 のセッション統計モードは段階 ②（`REF:docs/plans.md#stage-2`）対象。
@@ -78,7 +78,7 @@
 
 ### 9.7 ナビゲーション
 
-状態: 未実装・実装計画済み（REF:src/ui/palette.rs, REF:src/ui/assist.rs, REF:src/ui/app.rs, REF:tests/gui.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-06）
+状態: 実装中（REF:src/ui/palette.rs, REF:src/ui/assist.rs, REF:src/ui/app.rs, REF:tests/gui.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-06）
 
 - 統一パレット（`Ctrl+P` / `Ctrl+G` / `Ctrl+Shift+P`）の先頭文字によるモード切替（通常 / `@` 構造 / `'` 辞書 / `#` 資料 / `>` コマンド）と決定論的ファジースコアリング（完全一致 +1000、先頭一致 +500、連続一致 +200、頭文字 +100、50 件上限）は `ui::palette`（`REF:src/ui/palette.rs`）に実装する。
 - `'名前` パレットでの `Enter`（`core::features::definition::at` による定義ジャンプ）と `Shift+Enter`（`core::features::references::find` による使用箇所一覧）、および入力中補完ポップアップ（`REF:src/ui/assist.rs`）は `REF:src/ui/app.rs` で接続されている（検証: `REF:tests/gui.rs`, `REF:tests/workspaces.rs`）。
@@ -104,7 +104,7 @@
 
 ### 9.9 アクセシビリティ
 
-状態: 未実装・実装計画済み（REF:src/ui/theme.rs, REF:src/ui/app.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-30）
+状態: 実装中（REF:src/ui/theme.rs, REF:src/ui/app.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-30）
 
 - アイコンボタンへの i18n 済みツールチップ/アクセシブル名付与、色＋形状の併用、WCAG コントラスト比基準（本文 4.5:1 以上、補助テキスト 3.0:1 以上）は `REF:src/ui/theme.rs` と `REF:src/ui/app.rs` で実装し、`REF:tests/gui.rs` の `every_token_meets_the_contrast_minimums` で全カラートークンのコントラスト比を機械検証する。
 
@@ -115,7 +115,7 @@
 
 ### 10.0 切替の挙動
 
-状態: 未実装・実装計画済み（REF:src/ui/workspaces/mod.rs, REF:src/ui/app.rs, REF:tests/workspaces.rs, REF:docs/plans.md#plan-S-06）
+状態: 実装中（REF:src/ui/workspaces/mod.rs, REF:src/ui/app.rs, REF:tests/workspaces.rs, REF:docs/plans.md#plan-S-06）
 
 - ワークスペース識別子 `WorkspaceId` は `REF:src/ui/workspaces/mod.rs` に定義し、各ワークスペースのスクロール・選択状態は破棄せず `Session`（`REF:src/ui/app.rs`）に常時保持する（縫い代 5）。切替時も現在の `SceneId` を維持する。
 
@@ -143,7 +143,7 @@
 
 ### 10.4 `idea` — アイデア
 
-状態: 未実装・実装計画済み（REF:src/core/features/ideas.rs, REF:src/ui/workspaces/idea.rs, REF:tests/ideas_ops.rs, REF:tests/workspaces.rs, REF:docs/plans.md#plan-F-38）
+状態: 実装中（REF:src/core/features/ideas.rs, REF:src/ui/workspaces/idea.rs, REF:tests/ideas_ops.rs, REF:tests/workspaces.rs, REF:docs/plans.md#plan-F-38）
 
 - タグ・状態フィルタ、一覧、MD エディタ、新規採番（`N`）、状態変更（`1`〜`3`）、プロットへの昇格（`P`）は `REF:src/core/features/ideas.rs` と `REF:src/ui/workspaces/idea.rs` に実装する。
 
@@ -152,7 +152,7 @@
 
 ### 10.5 `material` — 資料（§16 に詳細）
 
-状態: 未実装・実装計画済み（REF:src/core/features/reference.rs, REF:src/ui/workspaces/material.rs, REF:tests/materials_ops.rs, REF:tests/workspaces.rs, REF:docs/plans.md#plan-F-31）
+状態: 実装中（REF:src/core/features/reference.rs, REF:src/ui/workspaces/material.rs, REF:tests/materials_ops.rs, REF:tests/workspaces.rs, REF:docs/plans.md#plan-F-31）
 
 - 分類ツリー・資料一覧・MD 本文エディタ・インデックスメタデータ表示・状態変更（`A` 承認 / `X` 却下）は `REF:src/ui/workspaces/material.rs` に実装する。
 
@@ -181,7 +181,7 @@
 
 ### 10.9 `review` — 点検
 
-状態: 未実装・実装計画済み（REF:src/core/features/project.rs, REF:src/ui/workspaces/review.rs, REF:tests/workspaces.rs, REF:docs/plans.md#plan-F-20）
+状態: 実装中（REF:src/core/features/project.rs, REF:src/ui/workspaces/review.rs, REF:tests/workspaces.rs, REF:docs/plans.md#plan-F-20）
 
 - 診断一覧タブ（重大度・コード・位置・クイックフィックス適用）と進捗ツリータブ（章・話・節ごとの `state` と文字数集計）は `REF:src/core/features/project.rs` と `REF:src/ui/workspaces/review.rs` に実装する。
 - ※伏線一覧・文体・統計の 3 タブは段階 ②（`REF:docs/plans.md#stage-2`）対象。
@@ -211,7 +211,7 @@
 
 ### 11.4 テーマ切替
 
-状態: 未実装・実装計画済み（REF:src/ui/theme.rs, REF:src/ui/settings.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-01）
+状態: 実装中（REF:src/ui/theme.rs, REF:src/ui/settings.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-01）
 
 - `ThemePreference`（`System` / `Dark` / `Light`）は `REF:src/ui/settings.rs` で `.novnow/ui.json` に永続化し、`Ctrl+Alt+T` または `>theme` で即時切り替える。
 
@@ -220,7 +220,7 @@
 
 ### 11.5 タイポグラフィ
 
-状態: 未実装・実装計画済み（REF:src/ui/theme.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-11）
+状態: 実装中（REF:src/ui/theme.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-11）
 
 - デスクトップでは `fontdb` でシステムの CJK フォントを探索し、見つからない場合および Web 版では `assets/ipag.ttf`（同梱 IPA ゴシック）にフォールバックする（`REF:src/ui/theme.rs`）。また `⟨⟩`（U+27E8 / U+27E9）表示のため egui 既定の Hack フォントをフォールバック末尾に連結する。
 

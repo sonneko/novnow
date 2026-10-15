@@ -1088,6 +1088,7 @@ fn shot_agent_project(project: &mut novnow::core::features::Project) {
                 scope,
                 intent: "テンポを上げる",
                 comment: "",
+                examples: "",
                 initiator: "human",
                 status: "draft",
             },

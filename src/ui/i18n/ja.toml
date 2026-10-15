@@ -151,6 +151,7 @@ new = "新しいプロジェクトを作る（dir の既定は \".\"）"
 check = "検査だけを行い、診断を出して終了する（CI 用）"
 export = "アノテーションを除いて書き出す"
 mcp = "MCP サーバとして起動する"
+import = "Zip を新規プロジェクトとして導入する"
 gui = "引数があっても GUI で起動する"
 help = "この使い方を表示する"
 version = "版を表示する"
@@ -185,6 +186,9 @@ settings = "作品の設定"
 # `status.*` `palette.placeholder` `project.pick.*` の §12.7 の表にある行は表の写し（tests/i18n_catalog.rs）。
 
 [status]
+shortcut_ctrl = "Ctrl: P パレット · S 保存 · F 検索 · O 開く"
+shortcut_shift = "Ctrl+Shift: N 新規資料 · F 全体検索 · X 総停止"
+shortcut_alt = "Ctrl+Alt: L 言語 · T テーマ"
 open_review = "点検の診断を開く（Ctrl+Shift+E）"
 unsaved = "未保存の変更があります"
 saving = "保存中"
@@ -205,8 +209,20 @@ quota = "保存領域が足りません。Zip でエクスポートしてから�
 placeholder = "入力して移動・検索・実行"
 character = "キャラ"
 term = "用語"
+no_materials = "登録されている資料がありません"
+no_matches = "一致する項目がありません"
+guide = "> コマンド / @ 節 / ' 辞書 / M・# 資料 / ? ショートカット"
+close = "パレットを閉じる (Esc)"
+line_width = "本文の最大幅"
+line_width_hint = "20〜120 字を入力。空欄で言語別既定値に戻す"
+
+[context]
+guide_workspace = "Alt+数字=画面"
+guide_section = "Alt+矢印=節移動"
+guide_palette = "Ctrl+P=一覧"
 
 [project.pick]
+remove_history = "履歴からのみ削除（プロジェクトのデータは消えません）"
 title = "プロジェクトを選んでください"
 new = "新規作成"
 import = "Zip から読み込む"
@@ -263,6 +279,7 @@ inlay_rejected = "⟨{0}・却下⟩"
 inlay_modes = "⟨{0}⟩"
 
 [pane]
+more = "続き..."
 plot = "プロット"
 upper = "上位プロット"
 cast = "配役"
@@ -327,6 +344,14 @@ copied = "クリップボードにコピーしました（{0} 字）"
 failed = "エクスポートできませんでした: {0}"
 
 [help]
+save_mcp = "保存"
+edit_mcp = "MCP サーバー設定を編集"
+welcome = "novnow へようこそ。節単位で小説を書き、資料とプロットを管理できます。はじめにサンプルを開くか、新しい作品を作成してください。"
+migration = "移行方法: Web → デスクトップは Web の Zip 書き出し → デスクトップの Zip 読み込み、デスクトップ → Web はデスクトップの Zip 書き出し → Web の Zip 読み込みです。書き出し後は保存先のデータを確認してください。"
+welcome_title = "ウェルカム案内"
+migration_title = "Web・デスクトップ移行ヘルプ"
+website = "オンラインのドキュメント"
+close = "閉じる"
 title = "キーボード"
 palette = "コマンドパレット"
 jump = "構造 ID へジャンプ"
@@ -518,7 +543,7 @@ field_tags = "タグ"
 field_conditions = "条件（1 行に 1 つ）"
 field_source = "出典"
 # カテゴリの候補（カンマ区切り。§16.2 の既定）
-categories = "取材,文献,Web,画像,体験,一次資料,二次資料"
+categories = "取材,文献,Web,画像,体験,一次資料,二次資料,その他"
 tags_hint = "カンマ区切り"
 conditions_hint = "scope: @02-03 .. @02-08 / ref: '名前 / tag: 語 / text: 自由文"
 source_hint = "URL か、出典の説明"
@@ -594,6 +619,8 @@ unmatched_count = "役割語が一致しなかった台詞 {0} 件（ダブル�
 
 # agent ワークスペース（§15.7、M10）
 [agent]
+new_examples = "参考例（1 行に 1 指定）"
+new_examples_hint = "@01-02 both"
 disabled = "エージェントは無効です"
 llm_unavailable = "この環境では LLM を呼び出せません（タスクの作成とドライランはできます）"
 # {0} = 実行中、{1} = 待機、{2} = 完了
@@ -725,3 +752,9 @@ reset_yes = "既定に戻す"
 reset_done = "{0} 個のプロンプトを既定に戻しました"
 # {0} = 名前
 diff_title = "既定との比較: {0}"
+
+[cli.import]
+completed = "Zip の導入が完了しました"
+failed = "Zip を読み込めません: {0}"
+incomplete = "導入したプロジェクトは不完全です: {0}"
+skipped = "スキップしたファイル"

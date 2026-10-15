@@ -683,12 +683,6 @@ fn form(
         view.mode,
         scale,
     );
-    ui.add(
-        egui::TextEdit::singleline(&mut form.draft.category)
-            .id(Id::new(("material-category", &id)))
-            .font(font.clone())
-            .desired_width(f32::INFINITY),
-    );
     ui.horizontal_wrapped(|ui| {
         for category in i18n::text(locale, "material.categories").split(',') {
             let category = category.trim();
@@ -700,11 +694,21 @@ fn form(
                 } else {
                     colors.fg_faint
                 });
-            if ui.selectable_label(chosen, text).clicked() {
+            let response = ui.add(egui::Button::new(text).stroke(Stroke::new(
+                if chosen { 1.5_f32 } else { 0.5_f32 },
+                if chosen { colors.accent } else { colors.border },
+            )));
+            if response.clicked() {
                 form.draft.category = category.to_owned();
             }
         }
     });
+    ui.add(
+        egui::TextEdit::singleline(&mut form.draft.category)
+            .id(Id::new(("material-category", &id)))
+            .font(font.clone())
+            .desired_width(f32::INFINITY),
+    );
     reference_pane::heading(
         ui,
         i18n::text(locale, "material.field_summary"),
@@ -758,6 +762,17 @@ fn form(
             .hint_text(i18n::text(locale, "material.source_hint"))
             .desired_width(f32::INFINITY),
     );
+    // Open only explicit web URLs. The source field itself remains editable.
+    let source = form.draft.source.trim();
+    if source.starts_with("https://") || source.starts_with("http://") {
+        let link = egui::Hyperlink::from_label_and_url(
+            RichText::new(format!("↗ {source}"))
+                .color(colors.fg_muted)
+                .underline(),
+            source,
+        );
+        ui.add(link);
+    }
     ui.add_space(12.0);
     let mut request = None;
     ui.horizontal(|ui| {

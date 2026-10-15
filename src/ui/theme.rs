@@ -238,12 +238,12 @@ pub fn fonts() -> (FontDefinitions, bool) {
     let mut fonts = FontDefinitions::default();
     fonts.font_data.insert(CJK.to_owned(), data);
     for family in [FontFamily::Proportional, FontFamily::Monospace] {
-        // 欧文は egui の既定を先に、CJK を後ろに（既定に無い字だけ CJK で描く）
+        // CJK の全角約物は本文と同じ字体で描き、Hack は数学記号の受け皿に残す。
         fonts
             .families
             .entry(family)
             .or_default()
-            .push(CJK.to_owned());
+            .insert(0, CJK.to_owned());
     }
     // 記号の最後の受け皿に egui 既定の等幅フォント（Hack）を置く。インレイヒントの括弧 `⟨⟩`
     // （U+27E8 / U+27E9、§6.6.2）は Ubuntu-Light にも同梱の IPA ゴシックにも無い（`PLANS.md` §9.2 B-137）
@@ -284,4 +284,53 @@ fn system_cjk() -> Option<FontData> {
 #[cfg(target_arch = "wasm32")]
 fn system_cjk() -> Option<FontData> {
     None
+}
+
+/// フォントの収録字に依存しないテーマアイコン。
+#[cfg(feature = "ui")]
+pub fn paint_theme_icon(
+    painter: &egui::Painter,
+    center: egui::Pos2,
+    choice: crate::ui::settings::ThemeChoice,
+    ink: Color32,
+    background: Color32,
+) {
+    use crate::ui::settings::ThemeChoice;
+    use egui::{Stroke, Vec2};
+    match choice {
+        ThemeChoice::System => {
+            painter.circle_stroke(center, 7.0, Stroke::new(1.5_f32, ink));
+            let points = (0..=16)
+                .map(|step| {
+                    let angle =
+                        std::f32::consts::FRAC_PI_2 + step as f32 * std::f32::consts::PI / 16.0;
+                    center + Vec2::new(angle.cos(), angle.sin()) * 6.0
+                })
+                .collect::<Vec<_>>();
+            painter.add(egui::Shape::convex_polygon(
+                {
+                    let mut p = vec![center];
+                    p.extend(points);
+                    p
+                },
+                ink,
+                Stroke::NONE,
+            ));
+        }
+        ThemeChoice::Dark => {
+            painter.circle_filled(center, 7.0, ink);
+            painter.circle_filled(center + Vec2::new(3.0, -3.0), 6.0, background);
+        }
+        ThemeChoice::Light => {
+            painter.circle_filled(center, 4.0, ink);
+            for i in 0..8 {
+                let angle = i as f32 * std::f32::consts::TAU / 8.0;
+                let v = Vec2::new(angle.cos(), angle.sin());
+                painter.line_segment(
+                    [center + v * 6.0, center + v * 8.0],
+                    Stroke::new(1.5_f32, ink),
+                );
+            }
+        }
+    }
 }

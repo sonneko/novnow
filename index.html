@@ -4,6 +4,11 @@
     <meta charset="utf-8">
     <title>novnow — 小説プロジェクト向け執筆 IDE</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#1a1a1a">
+    <link data-trunk rel="copy-file" href="sw.js">
+    <link data-trunk rel="copy-file" href="manifest.webmanifest">
+    <link data-trunk rel="copy-file" href="icon.svg">
     <link rel="rust" data-trunk href="Cargo.toml" data-bin="novnow" data-cargo-features="ui" />
     <style>
         html, body {
@@ -32,5 +37,10 @@
 </head>
 <body>
     <canvas id="the_canvas_id"></canvas>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(console.warn));
+      }
+    </script>
 </body>
 </html>

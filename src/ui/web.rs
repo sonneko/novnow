@@ -602,6 +602,7 @@ struct Shared {
     /// 仕事中（重ねて始めない）。
     busy: bool,
     invalid: Option<Invalid>,
+    first_visit: bool,
     /// 次に一覧で選ぶプロジェクト（作った・取り込んだもの）。
     select: Option<String>,
 }
@@ -688,6 +689,10 @@ impl WebPicker {
                 }
             };
             storage_idb::request_persist().await;
+            let first_visit = idb
+                .recent()
+                .await
+                .is_ok_and(|recent| recent.items.is_empty());
             let mut notice = None;
             // §13.3.5: 空なら `sample`（付録 C）を 1 つだけ作る（自動では開かない）
             if let Err(error) = idb.seed_sample(&sample_files()).await {
@@ -702,6 +707,7 @@ impl WebPicker {
                 state.idb = Some(idb.clone());
                 state.notice = notice;
                 state.phase = Phase::Ready;
+                state.first_visit = first_visit;
             }
             refresh(&shared, &idb, &ctx, locale).await;
         });
@@ -890,6 +896,7 @@ async fn refresh(shared: &Rc<RefCell<Shared>>, idb: &Idb, ctx: &Context, locale:
         }
     };
     let recent = idb.recent().await.unwrap_or_default();
+    shared.borrow_mut().first_visit = recent.items.is_empty();
     let mut rows: Vec<Row> = records
         .into_iter()
         .map(|record| {
@@ -1202,6 +1209,13 @@ impl WebPicker {
             self.selected = 0;
         }
         ui.add_space(12.0);
+        if self.shared.borrow().first_visit {
+            ui.label(i18n::text(locale, "help.welcome"));
+            ui.hyperlink_to(
+                i18n::text(locale, "help.website"),
+                crate::core::model::project::PROJECT_STRUCTURE_DOC_URL,
+            );
+        }
         if rows.is_empty() {
             ui.label(
                 RichText::new(i18n::text(locale, "project.pick.empty")).color(colors.fg_faint),

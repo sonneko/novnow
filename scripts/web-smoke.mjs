@@ -234,6 +234,33 @@ async function main() {
     await key(tab, 'Enter');
     await sleep(1500);
     await shot(tab, '03-reloaded');
+    // PWA: a controlled online reload caches the hashed JS/WASM. The next
+    // navigation must boot from the service worker with the network disabled.
+    await tab.evaluate(() => navigator.serviceWorker.ready);
+    await tab.waitForFunction(() => navigator.serviceWorker.controller !== null, { timeout: 15000 });
+    await tab.reload({ waitUntil: 'load' });
+    await sleep(2500);
+    const cached = await tab.evaluate(async () => {
+      const keys = await caches.keys();
+      const urls = (await Promise.all(keys.map(async (key) => (await (await caches.open(key)).keys()).map((req) => req.url)))).flat();
+      return urls.some((url) => url.endsWith('.wasm')) && urls.some((url) => url.endsWith('.js'));
+    });
+    check(cached, 'PWA の JS と WASM がキャッシュされた');
+    const network = await tab.target().createCDPSession();
+    await network.send('Network.enable');
+    await network.send('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: 0, uploadThroughput: 0 });
+    try {
+      await tab.reload({ waitUntil: 'load' });
+      const offlineStarted = await until('オフライン起動', async () =>
+        tab.evaluate(() => document.querySelector('canvas')?.width > 0).catch(() => false), 15000);
+      check(!!offlineStarted && (await db(tab))?.projects?.some((p) => p.id === 'sample'),
+        'オフライン再起動でも IndexedDB の作品が残る');
+    } finally {
+      await network.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+      await network.detach();
+    }
+    await key(tab, 'Enter');
+    await sleep(900);
     await key(tab, 'Control+o');
     await sleep(1200);
     await shot(tab, '04-back-to-list');

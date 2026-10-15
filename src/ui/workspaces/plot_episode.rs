@@ -371,6 +371,9 @@ pub fn show(
                                 Some(Chosen::Material(id)) => {
                                     request = Some(Request::AppendMaterial(id));
                                 }
+                                Some(Chosen::OpenMaterial(id)) => {
+                                    request = Some(Request::OpenMaterial(id));
+                                }
                                 Some(Chosen::Register { kind, name }) => {
                                     request = Some(Request::Register { kind, name });
                                 }
