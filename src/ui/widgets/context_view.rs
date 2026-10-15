@@ -1,7 +1,7 @@
 //! 文脈ビュー（§9.3。メインカラム上段・読み取り専用）。
 //!
 //! - 今の節を中心に前後 `context_sections` 節（既定 3）。1 行の最大幅は全角 44 字。
-//! - 節の境界は水平線ではなく 8px の余白と、薄い節番号（`04-02-02` 形式・`fg.faint`・10px・右寄せ）。
+//! - 節の境界には横線を引き、完全形の節番号を表示する。
 //! - **今の節の位置には本文を一切描かず**、プレースホルダだけを置く（§9.3.2 MUST）。
 //! - 今の節が変わったら、プレースホルダが画面の上から 38% に来るようにスクロールする。
 
@@ -12,6 +12,7 @@ use egui::{Align, Color32, FontFamily, FontId, Pos2, Rect, Sense, Stroke, Ui, Ve
 
 use crate::core::features::project::line_starts_of;
 use crate::core::features::sections::SectionRef;
+use crate::ui::i18n::{self, Locale};
 use crate::ui::save_machine::Indicator;
 use crate::ui::theme::{self, Mode};
 use crate::ui::widgets::syntax_text::{self, Highlight, Metrics};
@@ -25,6 +26,9 @@ pub const MAX_COLUMNS: f32 = 44.0;
 pub struct Cache {
     generation: u64,
     files: HashMap<String, (Highlight, Vec<usize>)>,
+    // Actual text heights for visible sections; off-screen sections use a cheap
+    // character-count estimate until they first enter the scroll viewport.
+    heights: HashMap<(String, usize, usize, u32, u32, u8), f32>,
     scrolled_to: Option<(String, usize)>,
 }
 
@@ -32,6 +36,7 @@ impl Cache {
     fn file(&mut self, bench: &Workbench, path: &str) -> &(Highlight, Vec<usize>) {
         if self.generation != bench.generation() {
             self.files.clear();
+            self.heights.clear();
             self.generation = bench.generation();
         }
         self.files
@@ -61,6 +66,7 @@ pub struct Placeholder<'a> {
 }
 
 /// 文脈ビューを描く。クリックされた節の並びの位置を返す。
+#[allow(clippy::too_many_arguments)] // UI の描画設定と表示中の節をそれぞれ明示的に渡す
 pub fn show(
     ui: &mut Ui,
     bench: &Workbench,
@@ -68,6 +74,8 @@ pub fn show(
     mode: Mode,
     scale: f32,
     count: usize,
+    max_columns: usize,
+    locale: Locale,
     placeholder: &Placeholder<'_>,
 ) -> Option<usize> {
     let colors = theme::palette(mode);
@@ -87,7 +95,7 @@ pub fn show(
         .id_source("context-view")
         .auto_shrink([false, false])
         .show(ui, |ui| {
-            let width = ui.available_width().min(metrics.size * MAX_COLUMNS);
+            let width = ui.available_width().min(metrics.size * max_columns as f32);
             let (before, after) = neighbours(list, split, editing.as_ref(), count);
             for index in before {
                 if let Some(found) =
@@ -99,7 +107,7 @@ pub fn show(
                 }
             }
             if editing.is_some() {
-                let rect = draw_placeholder(ui, placeholder, mode, width, scale);
+                let rect = draw_placeholder(ui, placeholder, mode, width, scale, locale);
                 if need_scroll {
                     // 上から 38% に来るように（中央合わせの基準を 12% 上へずらす）
                     let height = ui.clip_rect().height();
@@ -173,14 +181,48 @@ fn draw_section(
 ) -> Option<bool> {
     let colors = theme::palette(mode);
     let document = bench.project().document(&section.path)?;
-    let (file_highlight, starts) = cache.file(bench, &section.path);
-    let range = byte_range(starts, document.text.len(), &section.lines);
+    let range = {
+        let (_, starts) = cache.file(bench, &section.path);
+        byte_range(starts, document.text.len(), &section.lines)
+    };
     let text = &document.text[range.clone()];
+    let height_key = (
+        section.path.clone(),
+        section.lines.start,
+        section.lines.end,
+        width.to_bits(),
+        metrics.size.to_bits(),
+        mode as u8,
+    );
+    let text_height = cache.heights.get(&height_key).copied().unwrap_or_else(|| {
+        let columns = (width / metrics.size).floor().max(1.0) as usize;
+        let lines: usize = text
+            .split('\n')
+            .map(|line| line.chars().count().div_ceil(columns).max(1))
+            .sum();
+        lines as f32 * metrics.size * metrics.line_height
+    });
+    // Keep an estimated slot in the scroll layout, without shaping or painting
+    // glyphs in sections outside the visible viewport (§9.3.4 / S-12).
+    let block_height = 29.0 + text_height.max(metrics.size) + 4.0 * ui.spacing().item_spacing.y;
+    let probe = Rect::from_min_size(ui.cursor().min, Vec2::new(width, block_height));
+    if !ui.is_rect_visible(probe) {
+        ui.allocate_exact_size(Vec2::new(width, block_height), Sense::hover());
+        return None;
+    }
+    // Extract token/squiggle spans only for sections entering the viewport.
+    let (file_highlight, _) = cache.file(bench, &section.path);
     let highlight = slice(file_highlight, &range);
+    ui.add_space(8.0);
+    let (rule, _) = ui.allocate_exact_size(Vec2::new(width, 1.0), Sense::hover());
+    ui.painter().line_segment(
+        [rule.left_top(), rule.right_top()],
+        Stroke::new(1.0_f32, colors.border),
+    );
     ui.add_space(8.0);
     // 節番号（右寄せ・10px・fg.faint）
     let digits = bench.project().digits();
-    let label = short_id(&section.id.display(digits));
+    let label = format!("@{}", section.id.display(digits));
     ui.allocate_ui_with_layout(
         Vec2::new(width, 12.0),
         egui::Layout::right_to_left(Align::Center),
@@ -194,12 +236,26 @@ fn draw_section(
     );
     let job = syntax_text::job(text, &highlight, mode, metrics, width);
     let galley = ui.fonts(|fonts| fonts.layout_job(job));
+    cache
+        .heights
+        .insert(height_key, galley.size().y.max(metrics.size));
     let (rect, response) = ui.allocate_exact_size(
-        Vec2::new(width, galley.size().y.max(metrics.size)),
+        Vec2::new(width.max(24.0), galley.size().y.max(metrics.size).max(24.0)),
         Sense::click(),
     );
     let painter = ui.painter_at(rect.expand(4.0));
+    if response.hovered() {
+        painter.rect_filled(rect, 2.0, colors.bg_selection.gamma_multiply(0.6));
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
     painter.galley(rect.min, galley.clone(), colors.fg_primary);
+    painter.line_segment(
+        [
+            rect.left_bottom(),
+            egui::pos2((rect.min.x + galley.size().x).min(rect.max.x), rect.max.y),
+        ],
+        egui::Stroke::new(0.6_f32, colors.border),
+    );
     syntax_text::paint_squiggles(&painter, rect.min, &galley, text, &highlight, mode);
     Some(response.clicked())
 }
@@ -211,6 +267,7 @@ fn draw_placeholder(
     mode: Mode,
     width: f32,
     scale: f32,
+    locale: Locale,
 ) -> Rect {
     let colors = theme::palette(mode);
     ui.add_space(8.0);
@@ -248,9 +305,19 @@ fn draw_placeholder(
         font,
         colors.fg_muted,
     );
+    if placeholder.chars == 0 {
+        ui.add_space(6.0);
+        for key in [
+            "context.guide_workspace",
+            "context.guide_section",
+            "context.guide_palette",
+        ] {
+            ui.label(egui::RichText::new(i18n::text(locale, key)).color(colors.fg_faint));
+        }
+    }
     match placeholder.indicator {
         Indicator::Unsaved => {
-            painter.circle_filled(Pos2::new(dot_x, center_y), 4.0, colors.unsaved);
+            painter.circle_filled(Pos2::new(dot_x, center_y), 5.0, colors.unsaved);
         }
         Indicator::Failed => {
             painter.circle_filled(Pos2::new(dot_x, center_y), 4.0, colors.error);
@@ -270,14 +337,6 @@ fn pencil(painter: &egui::Painter, at: Pos2, color: Color32) {
         stroke,
     );
     painter.line_segment([tip, tip + Vec2::new(3.0, 0.0)], stroke);
-}
-
-/// `01-04-02-03` → `04-02-03`（章を落とした 3 階層、§9.3.1 の `04-02-02` 形式）。
-fn short_id(full: &str) -> String {
-    match full.split_once('-') {
-        Some((_, rest)) => rest.to_owned(),
-        None => full.to_owned(),
-    }
 }
 
 /// 3 桁ごとのカンマ（`5,842`）。
@@ -325,5 +384,63 @@ pub fn slice(highlight: &Highlight, range: &Range<usize>) -> Highlight {
             .filter_map(|(at, severity)| cut(at).map(|clipped| (clipped, *severity)))
             .collect(),
         hints: Vec::new(),
+    }
+}
+
+#[cfg(test)]
+mod viewport_tests {
+    use super::*;
+    use crate::core::features::Project;
+    use crate::core::model::document::Document;
+    use crate::core::model::project::Project as Settings;
+
+    #[test]
+    fn only_visible_sections_are_shaped_in_a_small_scroll_viewport() {
+        let mut prose = String::from("@01-01-01 First scene\nfirst\n");
+        for _ in 0..12 {
+            prose.push_str(";\n");
+            prose.push_str(&"文".repeat(400));
+            prose.push('\n');
+        }
+        let project = Project::with_documents(
+            Settings::default(),
+            [Document::new("contents/01-01.txt", prose)],
+        );
+        let bench = Workbench::new(project, None, 400);
+        assert!(bench.sections().len() > 9);
+        let mut cache = Cache::default();
+        let ctx = egui::Context::default();
+        let placeholder = Placeholder {
+            scene: "01-01-01-01",
+            chars: 5,
+            target: None,
+            indicator: Indicator::Nothing,
+            accessible: "編集中",
+        };
+        let _ = ctx.run(
+            egui::RawInput {
+                screen_rect: Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(360.0, 180.0))),
+                ..Default::default()
+            },
+            |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    show(
+                        ui,
+                        &bench,
+                        &mut cache,
+                        Mode::Dark,
+                        1.0,
+                        9,
+                        44,
+                        Locale::Ja,
+                        &placeholder,
+                    );
+                });
+            },
+        );
+        assert!(
+            cache.heights.len() < 9,
+            "invisible sections should reserve height without producing galleys"
+        );
     }
 }

@@ -65,6 +65,10 @@ pub struct State {
     unmatched_selected: usize,
     editor: slice_editor::Cache,
     reveal: bool,
+    /// Browse the cast list without replacing the open editor Slice.
+    preview: bool,
+    /// Scroll the list once after a keyboard-only selection change.
+    scroll_list: bool,
     /// ドラッグ中の帯と、ずらした量（px）。
     drag: Option<(usize, f32)>,
     /// キーでタブを切り替えた直後（タブの中身にフォーカスを移す）。
@@ -100,6 +104,7 @@ impl State {
     pub fn select(&mut self, index: usize) {
         self.selected = Some(index);
         self.band = 0;
+        self.preview = false;
         self.reveal = true;
     }
 
@@ -115,12 +120,16 @@ impl State {
         if let Some(index) = found {
             self.selected = Some(index);
             self.band = 0;
+            self.preview = false;
             self.reveal = true;
         }
     }
 
     /// 選んだキャラをエディタ（Slice）に開く。
     pub fn sync(&mut self, bench: &mut Workbench) {
+        if self.preview {
+            return;
+        }
         match self.current(bench) {
             Some(row) => {
                 let tag = format!("cast:{}:{}", row.index, row.name);
@@ -131,8 +140,31 @@ impl State {
         }
     }
 
+    /// Browse the adjacent character without committing the editor.
+    pub fn preview_row(&mut self, bench: &Workbench, forward: bool) -> bool {
+        let selected = self.selected;
+        let rows = self.rows(bench);
+        let at = selected.and_then(|index| rows.iter().position(|row| row.index == index));
+        let next = if forward {
+            at.map_or(Some(0), |index| {
+                (index + 1 < rows.len()).then_some(index + 1)
+            })
+        } else {
+            at.and_then(|index| index.checked_sub(1))
+        };
+        let Some(index) = next.and_then(|index| rows.get(index)).map(|row| row.index) else {
+            return false;
+        };
+        self.selected = Some(index);
+        self.preview = true;
+        self.scroll_list = true;
+        self.reveal = false;
+        true
+    }
+
     /// 前 / 次のキャラ（`Alt+↑/↓`）。
     pub fn nav(&mut self, bench: &mut Workbench, nav: Nav) -> bool {
+        self.preview = false;
         bench.commit();
         let rows = self.rows(bench).to_vec();
         let at = self
@@ -245,7 +277,17 @@ pub fn show(
     let scale = view.scale;
     let locale = view.locale;
     state.sync(bench);
+    // The right-hand timeline owns unmodified arrows while focused.
+    let timeline_focus = state.tab == Tab::Modes
+        && (state.focus_tab
+            || ctx.memory(|memory| memory.has_focus(egui::Id::new("cast-timeline"))));
+    if !timeline_focus {
+        if let Some(forward) = super::browse_keys(ctx, view) {
+            state.preview_row(bench, forward);
+        }
+    }
     let mut jump = None;
+    let mut request = None;
     super::fixed_width(
         egui::SidePanel::left("cast-list"),
         200.0 * scale.min(1.2),
@@ -263,6 +305,7 @@ pub fn show(
             return;
         }
         let mut clicked = None;
+        let scroll_list = std::mem::take(&mut state.scroll_list);
         egui::ScrollArea::vertical()
             .id_source("cast-list-scroll")
             .auto_shrink([false, false])
@@ -279,6 +322,9 @@ pub fn show(
                             ..Row::default()
                         },
                     );
+                    if scroll_list && state.selected == Some(row.index) {
+                        response.scroll_to_me(Some(egui::Align::Center));
+                    }
                     if response.clicked() {
                         clicked = Some(row.index);
                     }
@@ -287,6 +333,7 @@ pub fn show(
         if let Some(index) = clicked {
             state.selected = Some(index);
             state.band = 0;
+            state.preview = false;
             state.reveal = true;
         }
     });
@@ -322,6 +369,9 @@ pub fn show(
                 .inner_margin(Margin::symmetric(16.0, 8.0)),
         )
         .show(ctx, |ui| {
+            if super::action_button(ui, i18n::text(locale, "cast.scan_button")).clicked() {
+                request = Some(Request::Shortcut(crate::ui::shell::Command::Scan));
+            }
             if bench.slice().is_some() {
                 if state.reveal {
                     let id = slice_editor::editor_id(bench);
@@ -336,7 +386,7 @@ pub fn show(
             }
             state.reveal = false;
         });
-    (None, jump)
+    (request, jump)
 }
 
 fn tabs(ui: &mut Ui, state: &mut State, view: &View) {
@@ -355,7 +405,7 @@ fn tabs(ui: &mut Ui, state: &mut State, view: &View) {
                 } else {
                     colors.fg_muted
                 });
-            if ui.selectable_label(selected, text).clicked() {
+            if super::selectable_action(ui, selected, text).clicked() {
                 state.tab = tab;
             }
         }
@@ -408,7 +458,7 @@ fn modes_tab(ui: &mut Ui, state: &mut State, bench: &mut Workbench, view: &View)
         }
     }
     let label_width = 96.0 * scale;
-    let row_height = 22.0 * scale;
+    let row_height = (22.0 * scale).max(24.0);
     let columns = timeline.chapters.len().max(1);
     let width = ui.available_width();
     let column = ((width - label_width) / columns as f32).max(18.0);
@@ -452,8 +502,19 @@ fn modes_tab(ui: &mut Ui, state: &mut State, bench: &mut Workbench, view: &View)
         );
     }
     // どの帯の上でクリック・ドラッグしたか
-    let pointer = response.interact_pointer_pos();
-    if let Some(at) = pointer {
+    let hover = ui
+        .ctx()
+        .input(|input| input.pointer.hover_pos())
+        .filter(|at| rect.contains(*at));
+    if response.hovered()
+        && hover.is_some_and(|at| {
+            at.y >= rect.min.y + row_height
+                && at.y < rect.min.y + row_height * (timeline.bands.len() as f32 + 1.0)
+        })
+    {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    if let Some(at) = response.interact_pointer_pos() {
         let row = ((at.y - rect.min.y) / row_height).floor() as isize - 1;
         if row >= 0 && (row as usize) < timeline.bands.len() && response.drag_started() {
             state.band = row as usize;
@@ -477,13 +538,20 @@ fn modes_tab(ui: &mut Ui, state: &mut State, bench: &mut Workbench, view: &View)
     }
     for (row, band) in timeline.bands.iter().enumerate() {
         let y = rect.min.y + row_height * (row as f32 + 1.0);
+        if response.hovered() && hover.is_some_and(|at| at.y >= y && at.y < y + row_height) {
+            painter.rect_filled(
+                Rect::from_min_size(Pos2::new(rect.min.x, y), Vec2::new(width, row_height)),
+                2.0,
+                colors.bg_selection.gamma_multiply(0.6),
+            );
+        }
         let selected = row == state.band;
         let label = if band.label.is_empty() {
             band.id.clone()
         } else {
             format!("{} {}", band.id, band.label)
         };
-        painter.text(
+        let label_rect = painter.text(
             Pos2::new(rect.min.x, y + row_height / 2.0),
             egui::Align2::LEFT_CENTER,
             label,
@@ -493,6 +561,13 @@ fn modes_tab(ui: &mut Ui, state: &mut State, bench: &mut Workbench, view: &View)
             } else {
                 colors.fg_primary
             },
+        );
+        painter.line_segment(
+            [
+                label_rect.left_bottom() + Vec2::Y,
+                label_rect.right_bottom() + Vec2::Y,
+            ],
+            Stroke::new(0.6_f32, colors.border),
         );
         let offset = match state.drag {
             Some((dragged, moved)) if dragged == row => moved,

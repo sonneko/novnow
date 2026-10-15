@@ -151,6 +151,7 @@ new = "新しいプロジェクトを作る（dir の既定は \".\"）"
 check = "検査だけを行い、診断を出して終了する（CI 用）"
 export = "アノテーションを除いて書き出す"
 mcp = "MCP サーバとして起動する"
+import = "Zip を新規プロジェクトとして導入する"
 gui = "引数があっても GUI で起動する"
 help = "この使い方を表示する"
 version = "版を表示する"
@@ -185,6 +186,12 @@ settings = "作品の設定"
 # `status.*` `palette.placeholder` `project.pick.*` の §12.7 の表にある行は表の写し（tests/i18n_catalog.rs）。
 
 [status]
+shortcut_ctrl = "Ctrl: P パレット · S 保存 · F 検索 · O 開く"
+shortcut_shift = "Ctrl+Shift: N 新規資料 · F 全体検索 · X 総停止"
+shortcut_alt = "Ctrl+Alt: L 言語 · T テーマ"
+shortcut_cmd = "Cmd: P パレット · S 保存 · F 検索 · O 開く"
+shortcut_cmd_shift = "Cmd+Shift: N 新規資料 · F 全体検索 · X 総停止"
+shortcut_cmd_alt = "Cmd+Alt: L 言語 · T テーマ"
 open_review = "点検の診断を開く（Ctrl+Shift+E）"
 unsaved = "未保存の変更があります"
 saving = "保存中"
@@ -205,8 +212,20 @@ quota = "保存領域が足りません。Zip でエクスポートしてから�
 placeholder = "入力して移動・検索・実行"
 character = "キャラ"
 term = "用語"
+no_materials = "登録されている資料がありません"
+no_matches = "一致する項目がありません"
+guide = "> コマンド / @ 節 / ' 辞書 / M・# 資料 / ? ショートカット"
+close = "パレットを閉じる (Esc)"
+line_width = "本文の最大幅"
+line_width_hint = "20〜120 字を入力。空欄で言語別既定値に戻す"
+
+[context]
+guide_workspace = "Alt+数字=画面"
+guide_section = "Alt+矢印=節移動"
+guide_palette = "Ctrl+P=一覧"
 
 [project.pick]
+remove_history = "履歴からのみ削除（プロジェクトのデータは消えません）"
 title = "プロジェクトを選んでください"
 new = "新規作成"
 import = "Zip から読み込む"
@@ -263,6 +282,7 @@ inlay_rejected = "⟨{0}・却下⟩"
 inlay_modes = "⟨{0}⟩"
 
 [pane]
+more = "続き..."
 plot = "プロット"
 upper = "上位プロット"
 cast = "配役"
@@ -327,6 +347,15 @@ copied = "クリップボードにコピーしました（{0} 字）"
 failed = "エクスポートできませんでした: {0}"
 
 [help]
+save_mcp = "保存"
+edit_mcp = "MCP サーバー設定を編集"
+mcp_transport = "サーバー {1}の未対応トランスポート: {0} (stdio のみ使用できます)"
+welcome = "novnow へようこそ。節単位で小説を書き、資料とプロットを管理できます。はじめにサンプルを開くか、新しい作品を作成してください。"
+migration = "移行方法: Web → デスクトップは Web の Zip 書き出し → デスクトップの Zip 読み込み、デスクトップ → Web はデスクトップの Zip 書き出し → Web の Zip 読み込みです。書き出し後は保存先のデータを確認してください。"
+welcome_title = "ウェルカム案内"
+migration_title = "Web・デスクトップ移行ヘルプ"
+website = "オンラインのドキュメント"
+close = "閉じる"
 title = "キーボード"
 palette = "コマンドパレット"
 jump = "構造 ID へジャンプ"
@@ -444,6 +473,7 @@ UseExplicitForm = "明示形にする: {0}"
 unavailable = "{0}はこの版ではまだ使えません"
 
 [episode]
+new_button = "Ctrl+Shift+N 最初の節を作る"
 # {0} = 文字数（3 桁区切り）
 prose_chars = "{0} 字"
 no_prose = "まだ書かれていません"
@@ -456,6 +486,7 @@ no_plot = "話プロット {0}はまだありません。Ctrl+Shift+N で最初�
 empty = "上の一覧から節を選ぶと、ここで編集できます"
 
 [outline]
+new_button = "Ctrl+Shift+N ブロックを作る"
 all = "全体"
 empty = "一覧からブロックを選ぶと、ここで編集できます"
 no_parent = "全体プロット plots/all.txt にこの章のブロックはまだありません"
@@ -471,6 +502,7 @@ seed = "設置"
 payoff = "回収"
 
 [idea]
+capture_button = "Ctrl+Shift+I 即時入力"
 filter_active = "すべて"
 status_inbox = "inbox"
 status_keep = "keep"
@@ -499,6 +531,7 @@ promoted = "{0}を {1}へ昇格しました"
 promote_failed = "昇格できませんでした（転記先の文書を読めません）"
 
 [material]
+new_button = "Ctrl+Shift+N 新しい資料"
 filter_active = "却下以外"
 status_proposed = "提案"
 status_approved = "採用"
@@ -512,13 +545,13 @@ keys = "Ctrl+Enter 採用 · Ctrl+Delete 却下 · Ctrl+Shift+N 新しい資料 
 # {0} = 資料 MD のパス
 missing_file = "{0}はまだありません（書き始めると作ります）"
 field_title = "タイトル"
-field_category = "カテゴリ"
+field_category = "この資料のカテゴリ"
 field_summary = "要約"
 field_tags = "タグ"
 field_conditions = "条件（1 行に 1 つ）"
 field_source = "出典"
 # カテゴリの候補（カンマ区切り。§16.2 の既定）
-categories = "取材,文献,Web,画像,体験,一次資料,二次資料"
+categories = "取材,文献,Web,画像,体験,一次資料,二次資料,その他"
 tags_hint = "カンマ区切り"
 conditions_hint = "scope: @02-03 .. @02-08 / ref: '名前 / tag: 語 / text: 自由文"
 source_hint = "URL か、出典の説明"
@@ -554,6 +587,7 @@ new_title = "新しい資料（提案として作ります）"
 new_hint = "タイトル（#分類 も書けます）を書いて Enter"
 
 [review]
+rerun_button = "Ctrl+Shift+E 数え直す"
 tab_diagnostics = "診断"
 tab_progress = "進捗"
 keys = "Ctrl+Shift+← / → タブ · ↑ / ↓ 選ぶ · Enter 開く · Ctrl+Shift+E 数え直す"
@@ -576,6 +610,7 @@ chars_of = "{0} / {1} 字（{2}%）"
 cannot_open = "{0}を開く画面はこの版にはまだありません"
 
 [cast]
+scan_button = "Ctrl+Shift+V 未一致の台詞を走査"
 none = "characters.md にキャラがいません"
 empty = "一覧からキャラを選ぶと、ここで編集できます"
 tab_modes = "モード"
@@ -594,6 +629,14 @@ unmatched_count = "役割語が一致しなかった台詞 {0} 件（ダブル�
 
 # agent ワークスペース（§15.7、M10）
 [agent]
+run_button = "R 実行"
+confirm_button = "Shift+R まとめて実行"
+dry_run_button = "D ドライラン"
+cancel_button = "X 中止"
+stop_all_button = "Ctrl+Shift+X 総停止"
+new_button = "N タスクを作る"
+new_examples = "参考例（1 行に 1 指定）"
+new_examples_hint = "@01-02 both"
 disabled = "エージェントは無効です"
 llm_unavailable = "この環境では LLM を呼び出せません（タスクの作成とドライランはできます）"
 # {0} = 実行中、{1} = 待機、{2} = 完了
@@ -657,7 +700,6 @@ keys.context = "↑↓ ブロック · Space 外す / 戻す · D ドライラ�
 keys.review = "A 採用 · P 一部採用 · X 却下 · M メッセージを承認"
 keys.revert = "X 差し戻し（本文を提案の前に戻す）"
 keys.settled = "決着済みの提案です"
-keys.delegation = "1 off · 2 propose · 3 apply · 4 autonomous · Ctrl+Shift+X 総停止"
 column.tasks = "① タスク"
 column.context = "② コンテキスト"
 column.review = "③ 結果レビュー"
@@ -725,3 +767,9 @@ reset_yes = "既定に戻す"
 reset_done = "{0} 個のプロンプトを既定に戻しました"
 # {0} = 名前
 diff_title = "既定との比較: {0}"
+
+[cli.import]
+completed = "Zip の導入が完了しました"
+failed = "Zip を読み込めません: {0}"
+incomplete = "導入したプロジェクトは不完全です: {0}"
+skipped = "スキップしたファイル"

@@ -129,6 +129,7 @@ pub const VARIABLES: &[&str] = &[
     "history",
     "delegation",
     "user_comment",
+    "examples",
 ];
 
 /// 解析の設定。既定は `prompts/<role>.md`（既定役割）。

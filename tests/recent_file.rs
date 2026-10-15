@@ -235,3 +235,25 @@ fn rfc3339_and_dates() {
     assert_eq!(yyyymmdd(1_798_731_000_000, 0), "20261231");
     assert_eq!(yyyymmdd(1_798_731_000_000, 540), "20270101");
 }
+
+#[test]
+fn removing_a_history_row_keeps_the_project_directory_untouched() {
+    let dir = TempDir::new("recent-delete-keeps-project");
+    let project = dir.join("novel");
+    std::fs::create_dir_all(&project).expect("project dir");
+    let manuscript = project.join("project.json");
+    std::fs::write(&manuscript, "original manuscript").expect("project data");
+    let history = dir.join("state/novnow/recent.json");
+    let gate = Arc::new(FsGate::new(&FakeEnv::with_history(&history)));
+    let recent = RecentFile::new(gate);
+    recent.push(&project, &NOW).expect("store row");
+    assert_eq!(recent.load().items.len(), 1);
+    recent
+        .remove(&project.to_string_lossy())
+        .expect("remove row");
+    assert!(recent.load().items.is_empty());
+    assert_eq!(
+        std::fs::read_to_string(manuscript).expect("project exists"),
+        "original manuscript"
+    );
+}

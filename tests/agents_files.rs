@@ -24,6 +24,7 @@ fn a_task_round_trips_in_the_spec_order_and_keeps_unknown_keys() {
         id: "T0042".to_owned(),
         role: "writer".to_owned(),
         scope: "@01-04-02-03".to_owned(),
+        examples: vec![],
         intent: "初稿生成".to_owned(),
         status: "ready".to_owned(),
         initiator: "human".to_owned(),
@@ -487,4 +488,19 @@ fn outputs_are_capped_at_twenty_thousand_chars() {
     let (kept, truncated) = cap_output("短い");
     assert!(!truncated);
     assert_eq!(kept, "短い");
+}
+
+#[test]
+fn multiple_examples_round_trip_without_becoming_unknown_fields() {
+    let task = Task {
+        id: "T0001".to_owned(),
+        examples: vec!["@01-02 contents".into(), "@02 plot".into()],
+        ..Task::default()
+    };
+    let written = files::write_task(&task);
+    assert_eq!(written.matches("examples:").count(), 2);
+    assert_eq!(
+        files::parse_task("agents/tasks/T0001.md", &written).unwrap(),
+        task
+    );
 }

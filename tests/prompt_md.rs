@@ -297,7 +297,7 @@ fn the_custom_role_example_reads_the_meta_keys_from_the_table() {
 #[test]
 fn the_custom_role_example_uses_only_variables_of_the_closed_set() {
     // §5.9.2 の例は第 2.6 版で `{{content_section}}` → `{{text_current}}` に直った
-    // （§15.5.3 の閉じた 19 変数が正本。PLANS.md §9.1 A-16 の裁定＝サンプルの記述ミス）
+    // （§15.5.3 の当時の閉じた 19 変数が正本。PLANS.md §9.1 A-16 の裁定＝サンプルの記述ミス）
     let parsed = prompt_md::parse_with(SPEC_CUSTOM, &custom());
     assert!(
         parsed.unknown_variables().is_empty(),
@@ -319,7 +319,7 @@ fn the_custom_role_example_round_trips() {
 
 #[test]
 fn every_variable_of_the_closed_set_is_known() {
-    assert_eq!(VARIABLES.len(), 19);
+    assert_eq!(VARIABLES.len(), 20);
     for name in VARIABLES {
         let text = format!("# writer\n## task\n前 {{{{{name}}}}} 後\n");
         let parsed = prompt_md::parse(&text);

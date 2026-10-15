@@ -107,6 +107,8 @@ pub struct UiSettings {
     pub context_ratio: f32,
     /// `font_scale`（0.8–1.6）。
     pub font_scale: f32,
+    /// `max_line_chars`（20–120）。None は表示言語ごとの既定値。
+    pub max_line_chars: Option<usize>,
     /// `context_sections`（1–9）。
     pub context_sections: usize,
     /// `autosave_ms`（200–2000。§8.2、第 2.12 版で §4.4.1 に足した）。
@@ -130,6 +132,7 @@ impl Default for UiSettings {
             context_ratio: 0.55,
             font_scale: 1.0,
             context_sections: 3,
+            max_line_chars: None,
             autosave_ms: 400,
             inlay_hints: true,
             reference_visible: true,
@@ -166,6 +169,9 @@ impl UiSettings {
         }
         if let Some(scale) = raw.get("font_scale").and_then(Value::as_f64) {
             out.font_scale = clamp_ratio(scale as f32, 0.8, 1.6, 1.0);
+        }
+        if let Some(chars) = raw.get("max_line_chars").and_then(Value::as_i64) {
+            out.max_line_chars = Some(chars.clamp(20, 120) as usize);
         }
         if let Some(count) = raw.get("context_sections").and_then(Value::as_u64) {
             if (1..=9).contains(&count) {
@@ -205,11 +211,24 @@ impl UiSettings {
         );
         raw.insert("font_scale".into(), json!(round2(self.font_scale)));
         raw.insert("context_sections".into(), json!(self.context_sections));
+        match self.max_line_chars {
+            Some(chars) => {
+                raw.insert("max_line_chars".into(), json!(chars.clamp(20, 120)));
+            }
+            None => {
+                raw.remove("max_line_chars");
+            }
+        }
         raw.insert("autosave_ms".into(), json!(self.autosave_ms));
         raw.insert("inlay_hints".into(), json!(self.inlay_hints));
         let mut text = serde_json::to_string_pretty(&Value::Object(raw)).unwrap_or_default();
         text.push('\n');
         text
+    }
+
+    /// 表示言語に合わせた本文の折り返し文字数。
+    pub fn line_chars(&self, english: bool) -> usize {
+        self.max_line_chars.unwrap_or(if english { 70 } else { 44 })
     }
 
     /// 文字サイズを 1 段階変える（§9.8.1 `Ctrl+Plus` / `Ctrl+Minus`、0.1 刻み・0.8–1.6）。

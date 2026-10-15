@@ -71,6 +71,9 @@ jobs:
       - name: Verify documentation rules (duplicate.py)
         run: python3 docs/script/duplicate.py
 
+      - name: Verify website diagnostic catalog covers all codes
+        run: python3 scripts/diagnostics-site.py --check
+
       - name: Detect whether Rust build/test inputs changed
         id: filter
         shell: bash
@@ -346,6 +349,11 @@ jobs:
           if [ "$status" = 0 ]; then
             echo "::group::cargo bench --bench core -- --quick（生ログ）"
             cargo bench --locked --bench core -- --quick 2>&1 | tee -a /tmp/ci.log || status=$?
+            echo "::endgroup::"
+          fi
+          if [ "$status" = 0 ]; then
+            echo "::group::typing and 1,000-idea navigation frame budgets (release, §18.1)"
+            cargo test --locked --release --test editor_performance --features ui -- --nocapture 2>&1 | tee -a /tmp/ci.log || status=$?
             echo "::endgroup::"
           fi
           exit $status

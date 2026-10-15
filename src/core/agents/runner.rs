@@ -103,6 +103,8 @@ pub struct Draft<'a> {
     pub intent: &'a str,
     /// 人間のコメント。
     pub comment: &'a str,
+    /// Optional reference examples, one per line.
+    pub examples: &'a str,
     /// 起動者（`human` / `agent`）。
     pub initiator: &'a str,
     /// 状態（人間の `N` は `draft`、連鎖は `ready`）。
@@ -137,6 +139,13 @@ pub fn new_tasks(project: &Project, draft: &Draft<'_>, now: &str) -> Plan {
             created_at: now.to_owned(),
             updated_at: now.to_owned(),
             human_comment: crate::core::agents::one_line(draft.comment),
+            examples: draft
+                .examples
+                .lines()
+                .map(str::trim)
+                .filter(|line| !line.is_empty())
+                .map(str::to_owned)
+                .collect(),
             ..Task::default()
         };
         let path = files::task_path(&id);
@@ -204,6 +213,7 @@ pub fn packet_for(project: &Project, task: &Task, now: &str, title: &str) -> Opt
         excluded: &excluded,
         task: Some(&task.id),
         comment: &task.human_comment,
+        examples: &task.examples,
     }))
 }
 

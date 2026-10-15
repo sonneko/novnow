@@ -192,6 +192,8 @@ pub fn visuals(mode: Mode) -> Visuals {
     visuals.widgets.noninteractive.fg_stroke = Stroke::new(1.0_f32, colors.fg_primary);
     visuals.widgets.inactive.fg_stroke = Stroke::new(1.0_f32, colors.fg_muted);
     visuals.widgets.hovered.fg_stroke = Stroke::new(1.0_f32, colors.fg_primary);
+    visuals.widgets.hovered.bg_fill = colors.bg_selection.gamma_multiply(0.6);
+    visuals.widgets.hovered.weak_bg_fill = colors.bg_selection.gamma_multiply(0.6);
     visuals.widgets.active.fg_stroke = Stroke::new(1.0_f32, colors.accent);
     visuals.error_fg_color = colors.error;
     visuals.warn_fg_color = colors.warn;
@@ -238,12 +240,12 @@ pub fn fonts() -> (FontDefinitions, bool) {
     let mut fonts = FontDefinitions::default();
     fonts.font_data.insert(CJK.to_owned(), data);
     for family in [FontFamily::Proportional, FontFamily::Monospace] {
-        // 欧文は egui の既定を先に、CJK を後ろに（既定に無い字だけ CJK で描く）
+        // CJK の全角約物は本文と同じ字体で描き、Hack は数学記号の受け皿に残す。
         fonts
             .families
             .entry(family)
             .or_default()
-            .push(CJK.to_owned());
+            .insert(0, CJK.to_owned());
     }
     // 記号の最後の受け皿に egui 既定の等幅フォント（Hack）を置く。インレイヒントの括弧 `⟨⟩`
     // （U+27E8 / U+27E9、§6.6.2）は Ubuntu-Light にも同梱の IPA ゴシックにも無い（`PLANS.md` §9.2 B-137）
@@ -284,4 +286,68 @@ fn system_cjk() -> Option<FontData> {
 #[cfg(target_arch = "wasm32")]
 fn system_cjk() -> Option<FontData> {
     None
+}
+
+/// フォントの収録字に依存しないテーマアイコン。
+#[cfg(feature = "ui")]
+pub fn paint_theme_icon(
+    painter: &egui::Painter,
+    center: egui::Pos2,
+    choice: crate::ui::settings::ThemeChoice,
+    ink: Color32,
+) {
+    use crate::ui::settings::ThemeChoice;
+    use egui::{epaint::CubicBezierShape, Stroke, Vec2};
+    let point = |x: f32, y: f32| center + Vec2::new(x, y);
+    let curve = |points: [egui::Pos2; 4]| {
+        CubicBezierShape::from_points_stroke(points, false, Color32::TRANSPARENT, Stroke::NONE)
+            .flatten(Some(0.1))
+    };
+    match choice {
+        ThemeChoice::System => {
+            painter.circle_stroke(center, 7.0, Stroke::new(1.5_f32, ink));
+            // Left half-disc, curved with a cubic Bézier instead of a font glyph.
+            let mut points = curve([
+                point(0.0, -6.0),
+                point(-8.0, -6.0),
+                point(-8.0, 6.0),
+                point(0.0, 6.0),
+            ]);
+            points.push(center);
+            painter.add(egui::Shape::convex_polygon(points, ink, Stroke::NONE));
+        }
+        ThemeChoice::Dark => {
+            // A filled crescent made from two cubic Bézier arcs. In particular,
+            // this does not paint a background-colored circle over adjacent UI.
+            let mut points = curve([
+                point(3.0, -7.0),
+                point(-9.0, -9.0),
+                point(-9.0, 9.0),
+                point(3.0, 7.0),
+            ]);
+            points.extend(curve([
+                point(3.0, 7.0),
+                point(-2.0, 4.0),
+                point(-2.0, -4.0),
+                point(3.0, -7.0),
+            ]));
+            painter.add(egui::Shape::Path(egui::epaint::PathShape {
+                points,
+                closed: true,
+                fill: ink,
+                stroke: Stroke::NONE,
+            }));
+        }
+        ThemeChoice::Light => {
+            painter.circle_filled(center, 4.0, ink);
+            for i in 0..8 {
+                let angle = i as f32 * std::f32::consts::TAU / 8.0;
+                let v = Vec2::new(angle.cos(), angle.sin());
+                painter.line_segment(
+                    [center + v * 6.0, center + v * 8.0],
+                    Stroke::new(1.5_f32, ink),
+                );
+            }
+        }
+    }
 }

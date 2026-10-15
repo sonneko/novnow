@@ -92,6 +92,21 @@ impl Harness {
         self.ctx.run(input, |ctx| app.frame(ctx, Some(dark)))
     }
 
+    /// One frame at a specified viewport and with a held modifier prefix.
+    pub fn frame_at(&mut self, width: f32, modifiers: Modifiers) -> egui::FullOutput {
+        self.time += 0.05;
+        let input = RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(width, 800.0))),
+            time: Some(self.time),
+            modifiers,
+            focused: true,
+            ..Default::default()
+        };
+        let app = &mut self.app;
+        let dark = self.dark;
+        self.ctx.run(input, |ctx| app.frame(ctx, Some(dark)))
+    }
+
     /// `pos` を押す（`PointerButton` の down と up を別のフレームで送る）。
     pub fn click_at(&mut self, pos: Pos2) {
         self.frame(vec![

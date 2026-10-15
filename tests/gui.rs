@@ -126,6 +126,21 @@ fn a_broken_or_missing_ui_json_gives_the_defaults() {
 }
 
 #[test]
+fn localized_maximum_line_width_round_trips_and_is_bounded() {
+    let default = UiSettings::default();
+    assert_eq!(default.line_chars(false), 44);
+    assert_eq!(default.line_chars(true), 70);
+    assert!(!default.to_json().contains("max_line_chars"));
+    for (input, expected) in [("5", 20), ("90", 90), ("999", 120)] {
+        let settings = UiSettings::parse(&format!(r#"{{"max_line_chars":{input}}}"#));
+        assert_eq!(settings.line_chars(false), expected);
+        assert_eq!(settings.line_chars(true), expected);
+        let restored = UiSettings::parse(&settings.to_json());
+        assert_eq!(restored.line_chars(false), expected);
+    }
+}
+
+#[test]
 fn ui_json_keeps_unknown_keys_and_clamps_values() {
     let text = r#"{"schema_version":1,"theme":"light","language":"en","font_scale":9,
         "pane_ratio":{"main":0.1,"context_view":0.5},"context_sections":12,"autosave_ms":50,
@@ -357,6 +372,23 @@ fn no_pane_is_labelled_files_editor_or_information() {
 
 #[test]
 fn the_first_character_chooses_the_palette_mode() {
+    assert_eq!(
+        palette::complete_token(">ag", "agent "),
+        Some(">agent ".into())
+    );
+    assert_eq!(
+        palette::complete_token(">agent de", "agent delegation writer 2"),
+        Some(">agent delegation ".into())
+    );
+    assert_eq!(
+        palette::complete_token(">agent delegation w", "agent delegation writer 2"),
+        Some(">agent delegation writer ".into())
+    );
+    assert_eq!(
+        palette::complete_token(">the", "theme"),
+        Some(">theme".into())
+    );
+    assert_eq!(palette::complete_token(">bad", "agent "), None);
     assert_eq!(palette::split(">theme"), (palette::Mode::Command, "theme"));
     assert_eq!(palette::split("@01-04"), (palette::Mode::Scene, "01-04"));
     assert_eq!(
@@ -368,6 +400,18 @@ fn the_first_character_chooses_the_palette_mode() {
     assert_eq!(palette::split("?"), (palette::Mode::Help, ""));
     assert_eq!(palette::split("Meiryo"), (palette::Mode::Fuzzy, "Meiryo"));
     assert_eq!(palette::split("0104"), (palette::Mode::Fuzzy, "0104"));
+}
+
+#[test]
+fn tab_completes_the_agent_group_then_opens_its_commands() {
+    let (mut harness, _) = Harness::start_with(world(), true);
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text(">ag".into())]);
+    let before = painted_text(&harness.frame(Vec::new()));
+    assert!(before.contains("Agent settings"), "{before}");
+    harness.frame(vec![key(Key::Tab, Modifiers::NONE)]);
+    let after = painted_text(&harness.frame(Vec::new()));
+    assert!(after.contains(">agent delegation"), "{after}");
 }
 
 #[test]
@@ -1024,6 +1068,31 @@ fn on_the_web_only_browser_defaults_that_novnow_needs_are_blocked() {
         ..command
     };
     assert!(!shell::browser_default_blocked("I", devtools));
+    // F-17: Browser-owned keys have actionable alternate chords.
+    let alternate = egui::Modifiers {
+        ctrl: true,
+        shift: true,
+        alt: true,
+        ..Default::default()
+    };
+    for (key, command) in [
+        (egui::Key::I, Command::Capture),
+        (egui::Key::N, Command::InsertSection),
+        (egui::Key::W, Command::Term),
+        (egui::Key::T, Command::Register { character: true }),
+    ] {
+        assert_eq!(
+            shell::command_of(key, alternate, false, false),
+            Some(command)
+        );
+    }
+    assert!(shell::browser_default_blocked(
+        "I",
+        BrowserKeys {
+            alt: true,
+            ..devtools
+        }
+    ));
     assert!(
         shell::browser_default_blocked("F", devtools),
         "Ctrl+Shift+F は全体検索"
@@ -1088,6 +1157,7 @@ fn shot_agent_project(project: &mut novnow::core::features::Project) {
                 scope,
                 intent: "テンポを上げる",
                 comment: "",
+                examples: "",
                 initiator: "human",
                 status: "draft",
             },
@@ -1695,4 +1765,1248 @@ fn save_as_goes_through_the_dialog_and_copy_fills_the_clipboard() {
     let output = harness.frame(vec![key(Key::C, ctrl_shift)]);
     assert_eq!(output.platform_output.copied_text, exported(&world(), None));
     assert!(!harness.app.overlay_open());
+}
+
+#[test]
+fn theme_icons_are_vector_shapes_including_bezier_crescent() {
+    let ctx = egui::Context::default();
+    for choice in [ThemeChoice::System, ThemeChoice::Dark, ThemeChoice::Light] {
+        let output = ctx.run(egui::RawInput::default(), |ctx| {
+            novnow::ui::theme::paint_theme_icon(
+                &ctx.debug_painter(),
+                egui::pos2(30.0, 30.0),
+                choice,
+                egui::Color32::WHITE,
+            );
+        });
+        assert!(
+            output
+                .shapes
+                .iter()
+                .all(|clipped| !matches!(clipped.shape, egui::Shape::Text(_))),
+            "theme icon must not require a font glyph: {choice:?}"
+        );
+        if choice == ThemeChoice::Dark {
+            assert!(
+                output
+                    .shapes
+                    .iter()
+                    .any(|clipped| matches!(clipped.shape, egui::Shape::Path(_))),
+                "dark icon must use a curved vector crescent"
+            );
+        }
+    }
+}
+
+#[test]
+fn fullwidth_punctuation_uses_the_cjk_font_before_the_generic_fallback() {
+    let (definitions, _) = novnow::ui::theme::fonts();
+    for family in [egui::FontFamily::Proportional, egui::FontFamily::Monospace] {
+        assert_eq!(
+            definitions
+                .families
+                .get(&family)
+                .and_then(|names| names.first())
+                .map(String::as_str),
+            Some("novnow-cjk"),
+            "？！＊ should use the same CJK face as surrounding prose"
+        );
+    }
+}
+
+#[test]
+fn link_buttons_have_a_24px_target_hover_fill_underline_and_pointer() {
+    let ctx = egui::Context::default();
+    let colors = novnow::ui::theme::palette(novnow::ui::theme::Mode::Light);
+    let mut rect = egui::Rect::NOTHING;
+    let render = |events: Vec<Event>, rect: &mut egui::Rect| {
+        ctx.run(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::Vec2::new(300.0, 150.0),
+                )),
+                events,
+                ..Default::default()
+            },
+            |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    *rect = novnow::ui::widgets::link_button(
+                        ui,
+                        "続き...",
+                        egui::FontId::proportional(13.0),
+                        &colors,
+                    )
+                    .rect;
+                });
+            },
+        )
+    };
+    render(Vec::new(), &mut rect);
+    assert!(rect.width() >= 24.0 && rect.height() >= 24.0, "{rect:?}");
+    let output = render(vec![Event::PointerMoved(rect.center())], &mut rect);
+    assert_eq!(
+        output.platform_output.cursor_icon,
+        egui::CursorIcon::PointingHand
+    );
+    assert!(output.shapes.iter().any(|item| matches!(
+        &item.shape,
+        egui::Shape::Rect(shape) if shape.fill == colors.bg_selection.gamma_multiply(0.6)
+    )));
+    assert!(output
+        .shapes
+        .iter()
+        .any(|item| matches!(&item.shape, egui::Shape::LineSegment { .. })));
+}
+
+#[test]
+fn action_buttons_share_a_minimum_hit_area_underline_and_pointer_cursor() {
+    let ctx = egui::Context::default();
+    ctx.set_visuals(novnow::ui::theme::visuals(novnow::ui::theme::Mode::Light));
+    let mut rect = egui::Rect::NOTHING;
+    let draw = |events: Vec<Event>, rect: &mut egui::Rect| {
+        ctx.run(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::Vec2::new(300.0, 150.0),
+                )),
+                events,
+                ..Default::default()
+            },
+            |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    *rect = novnow::ui::widgets::action_button(ui, "実行").rect;
+                });
+            },
+        )
+    };
+    let first = draw(Vec::new(), &mut rect);
+    assert!(rect.width() >= 24.0 && rect.height() >= 24.0, "{rect:?}");
+    assert!(first.shapes.iter().any(|item| matches!(
+        &item.shape,
+        egui::Shape::Text(text) if text.galley.job.sections.iter().any(|section| section.format.underline.width > 0.0)
+    )));
+    let hovered = draw(vec![Event::PointerMoved(rect.center())], &mut rect);
+    assert_eq!(
+        hovered.platform_output.cursor_icon,
+        egui::CursorIcon::PointingHand
+    );
+}
+
+#[test]
+fn input_rect_expands_without_changing_the_painted_bounds() {
+    let painted = egui::Rect::from_min_size(egui::pos2(10.0, 20.0), egui::Vec2::new(8.0, 10.0));
+    let hit = novnow::ui::widgets::hit_rect(painted);
+    assert_eq!(hit.center(), painted.center());
+    assert_eq!(hit.size(), egui::Vec2::splat(24.0));
+    assert_eq!(
+        novnow::ui::widgets::hit_rect(egui::Rect::from_min_size(
+            egui::Pos2::ZERO,
+            egui::Vec2::new(80.0, 30.0)
+        ))
+        .size(),
+        egui::Vec2::new(80.0, 30.0)
+    );
+}
+
+#[test]
+fn selectable_actions_have_underlines_and_24px_hit_targets() {
+    let ctx = egui::Context::default();
+    ctx.set_visuals(novnow::ui::theme::visuals(novnow::ui::theme::Mode::Light));
+    let mut rect = egui::Rect::NOTHING;
+    let draw = |events: Vec<Event>, rect: &mut egui::Rect| {
+        ctx.run(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::Vec2::new(300.0, 150.0),
+                )),
+                events,
+                ..Default::default()
+            },
+            |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    *rect = novnow::ui::widgets::selectable_action(
+                        ui,
+                        false,
+                        egui::RichText::new("短").small(),
+                    )
+                    .rect;
+                });
+            },
+        )
+    };
+    let first = draw(Vec::new(), &mut rect);
+    assert!(rect.width() >= 24.0 && rect.height() >= 24.0, "{rect:?}");
+    assert!(first.shapes.iter().any(|item| matches!(
+        &item.shape,
+        egui::Shape::Text(text) if text.galley.job.sections.iter().any(|section| section.format.underline.width > 0.0)
+    )));
+    let hovered = draw(vec![Event::PointerMoved(rect.center())], &mut rect);
+    assert_eq!(
+        hovered.platform_output.cursor_icon,
+        egui::CursorIcon::PointingHand
+    );
+}
+
+#[test]
+fn clickable_status_label_expands_hit_area_and_has_hover_affordance() {
+    let ctx = egui::Context::default();
+    ctx.set_visuals(novnow::ui::theme::visuals(novnow::ui::theme::Mode::Light));
+    let mut rect = egui::Rect::NOTHING;
+    let draw = |events: Vec<Event>, rect: &mut egui::Rect| {
+        ctx.run(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::Vec2::new(300.0, 150.0),
+                )),
+                events,
+                ..Default::default()
+            },
+            |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    *rect = novnow::ui::widgets::clickable_label(
+                        ui,
+                        egui::RichText::new("⚑").small(),
+                        egui::Id::new("test-status-label"),
+                    )
+                    .rect;
+                });
+            },
+        )
+    };
+    let first = draw(Vec::new(), &mut rect);
+    assert!(rect.width() >= 24.0 && rect.height() >= 24.0, "{rect:?}");
+    assert!(first.shapes.iter().any(|item| matches!(
+        &item.shape,
+        egui::Shape::Text(text) if text.galley.job.sections.iter().any(|section| section.format.underline.width > 0.0)
+    )));
+    let hovered = draw(vec![Event::PointerMoved(rect.center())], &mut rect);
+    assert_eq!(
+        hovered.platform_output.cursor_icon,
+        egui::CursorIcon::PointingHand
+    );
+    let fill = ctx.style().visuals.selection.bg_fill.gamma_multiply(0.6);
+    assert!(hovered.shapes.iter().any(|item| matches!(
+        &item.shape,
+        egui::Shape::Rect(shape) if shape.fill == fill
+    )));
+}
+
+#[test]
+fn static_labels_are_not_text_selectable_in_the_app() {
+    let (harness, _) = Harness::start();
+    assert!(!harness.ctx.style().interaction.selectable_labels);
+}
+
+#[test]
+fn context_unsaved_indicator_has_a_ten_pixel_diameter() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text("追".into())]);
+    let output = harness.frame(Vec::new());
+    let color = novnow::ui::theme::palette(novnow::ui::theme::Mode::Dark).unsaved;
+    let circles: Vec<_> = output
+        .shapes
+        .iter()
+        .filter_map(|shape| match &shape.shape {
+            egui::Shape::Circle(circle) => Some((circle.fill, circle.radius)),
+            _ => None,
+        })
+        .collect();
+    assert!(
+        circles
+            .iter()
+            .any(|&(fill, radius)| fill == color && radius == 5.0),
+        "state={:?} circles={circles:?} wanted={color:?}",
+        harness.app.workbench().map(|b| b.save.state())
+    );
+}
+
+#[test]
+fn reference_sections_have_one_pixel_separator_between_headings() {
+    use novnow::core::features::reference::{Reference, Upper};
+    let ctx = egui::Context::default();
+    let colors = novnow::ui::theme::palette(novnow::ui::theme::Mode::Light);
+    let reference = Reference {
+        plot: vec!["A short plot".into()],
+        upper: vec![Upper {
+            id: "01".into(),
+            summary: "Chapter".into(),
+        }],
+        ..Default::default()
+    };
+    let output = ctx.run(
+        egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                egui::Vec2::new(500.0, 300.0),
+            )),
+            ..Default::default()
+        },
+        |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                novnow::ui::widgets::reference_pane::sections(
+                    ui,
+                    &reference,
+                    Locale::Ja,
+                    novnow::ui::theme::Mode::Light,
+                    1.0,
+                );
+            });
+        },
+    );
+    assert_eq!(
+        output.shapes.iter().filter(|item| matches!(
+            &item.shape,
+            egui::Shape::LineSegment { stroke, .. } if stroke.color == colors.border && stroke.width == 1.0
+        )).count(),
+        1,
+        "two nonempty sections have exactly one border rule"
+    );
+}
+
+#[test]
+fn context_view_draws_section_rules_full_ids_and_the_empty_guide() {
+    use novnow::ui::widgets::context_view::{self, Cache, Placeholder};
+    let ctx = egui::Context::default();
+    let bench = Workbench::new(world(), None, 400);
+    let mut cache = Cache::default();
+    let mode = novnow::ui::theme::Mode::Light;
+    let colors = novnow::ui::theme::palette(mode);
+    let placeholder = Placeholder {
+        scene: "01-04-02-01",
+        chars: 0,
+        target: None,
+        indicator: Indicator::Nothing,
+        accessible: "editing",
+    };
+    let mut draw = || {
+        ctx.run(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::Vec2::new(700.0, 600.0),
+                )),
+                ..Default::default()
+            },
+            |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    context_view::show(
+                        ui,
+                        &bench,
+                        &mut cache,
+                        mode,
+                        1.0,
+                        3,
+                        44,
+                        Locale::Ja,
+                        &placeholder,
+                    );
+                });
+            },
+        )
+    };
+    draw();
+    let output = draw();
+    let text = painted_text(&output);
+    assert!(
+        text.contains("@01-04-02-02"),
+        "full 4-part section id: {text}"
+    );
+    for key in [
+        "context.guide_workspace",
+        "context.guide_section",
+        "context.guide_palette",
+    ] {
+        assert!(
+            text.contains(novnow::ui::i18n::text(Locale::Ja, key)),
+            "{key}: {text}"
+        );
+    }
+    assert!(output.shapes.iter().any(|item| matches!(
+        &item.shape,
+        egui::Shape::LineSegment { stroke, .. } if stroke.color == colors.border && stroke.width == 1.0
+    )), "a separator should appear between context sections");
+}
+
+#[test]
+fn external_urls_have_hover_blue_underline_24px_target_and_open_on_click() {
+    let ctx = egui::Context::default();
+    let mode = novnow::ui::theme::Mode::Light;
+    let colors = novnow::ui::theme::palette(mode);
+    ctx.set_visuals(novnow::ui::theme::visuals(mode));
+    let url = "https://example.org/source";
+    let mut rect = egui::Rect::NOTHING;
+    let draw = |events: Vec<Event>, rect: &mut egui::Rect| {
+        ctx.run(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::Vec2::new(300.0, 150.0),
+                )),
+                events,
+                ..Default::default()
+            },
+            |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    ui.set_max_width(180.0);
+                    *rect =
+                        novnow::ui::widgets::external_link(ui, &format!("↗ {url}"), url, &colors)
+                            .rect;
+                });
+            },
+        )
+    };
+    let first = draw(Vec::new(), &mut rect);
+    assert!(rect.width() >= 24.0 && rect.height() >= 24.0);
+    assert!(first.shapes.iter().any(|item| matches!(
+        &item.shape,
+        egui::Shape::Text(text) if text.galley.job.sections.iter().any(|section| section.format.underline.width > 0.0)
+    )));
+    let hovered = draw(vec![Event::PointerMoved(rect.center())], &mut rect);
+    assert_eq!(
+        hovered.platform_output.cursor_icon,
+        egui::CursorIcon::PointingHand
+    );
+    assert!(hovered.shapes.iter().any(|item| matches!(
+        &item.shape,
+        egui::Shape::Text(text) if text.galley.job.sections.iter().any(|section| section.format.color == colors.accent)
+    )));
+    let fill = colors.bg_selection.gamma_multiply(0.6);
+    assert!(hovered.shapes.iter().any(|item| matches!(
+        &item.shape,
+        egui::Shape::Rect(shape) if shape.fill == fill
+    )));
+    draw(
+        vec![Event::PointerButton {
+            pos: rect.center(),
+            button: egui::PointerButton::Primary,
+            pressed: true,
+            modifiers: Modifiers::NONE,
+        }],
+        &mut rect,
+    );
+    let clicked = draw(
+        vec![Event::PointerButton {
+            pos: rect.center(),
+            button: egui::PointerButton::Primary,
+            pressed: false,
+            modifiers: Modifiers::NONE,
+        }],
+        &mut rect,
+    );
+    assert_eq!(
+        clicked.platform_output.open_url.map(|open| open.url),
+        Some(url.to_owned())
+    );
+}
+
+#[test]
+fn four_matching_diagnostics_collapse_but_three_stay_expanded() {
+    use novnow::core::diagnostics::{Diagnostic, DiagnosticCode};
+    use novnow::core::features::reference::Reference;
+    use novnow::ui::widgets::reference_pane;
+    let ctx = egui::Context::default();
+    ctx.style_mut(|style| style.animation_time = 0.0);
+    let mut content = Reference {
+        diagnostics: (0..4)
+            .map(|index| Diagnostic::simple(DiagnosticCode::W012, Some(index..index + 1)))
+            .collect(),
+        ..Default::default()
+    };
+    let render = |events: Vec<Event>, content: &Reference| {
+        ctx.run(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::Vec2::new(500.0, 450.0),
+                )),
+                events,
+                ..Default::default()
+            },
+            |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    reference_pane::sections(
+                        ui,
+                        content,
+                        Locale::Ja,
+                        novnow::ui::theme::Mode::Light,
+                        1.0,
+                    );
+                });
+            },
+        )
+    };
+    let collapsed = render(vec![], &content);
+    let group = harness::painted_texts(&collapsed)
+        .into_iter()
+        .find(|(text, _)| text.contains("W012 (4)"))
+        .expect("group header");
+    assert_eq!(painted_text(&collapsed).matches("W012").count(), 1);
+    render(
+        vec![
+            Event::PointerMoved(group.1.center()),
+            Event::PointerButton {
+                pos: group.1.center(),
+                button: egui::PointerButton::Primary,
+                pressed: true,
+                modifiers: Modifiers::NONE,
+            },
+        ],
+        &content,
+    );
+    let expanded = render(
+        vec![Event::PointerButton {
+            pos: group.1.center(),
+            button: egui::PointerButton::Primary,
+            pressed: false,
+            modifiers: Modifiers::NONE,
+        }],
+        &content,
+    );
+    assert_eq!(
+        painted_text(&expanded).matches("W012").count(),
+        5,
+        "{}",
+        painted_text(&expanded)
+    );
+    content.diagnostics.pop();
+    let fewer = render(vec![], &content);
+    assert_eq!(painted_text(&fewer).matches("W012").count(), 3);
+}
+
+#[test]
+fn truncated_material_summary_has_a_link_to_the_full_material() {
+    use novnow::core::features::reference::{MaterialRef, Reference};
+    use novnow::ui::widgets::reference_pane::{self, Chosen};
+    let ctx = egui::Context::default();
+    let content = Reference {
+        materials: vec![MaterialRef {
+            id: "M0001".into(),
+            title: "Archive".into(),
+            summary: "要".repeat(121),
+            source: String::new(),
+            candidate: false,
+        }],
+        ..Default::default()
+    };
+    let mut chosen = None;
+    let draw = |events: Vec<Event>, chosen: &mut Option<Chosen>| {
+        ctx.run(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::Vec2::new(500.0, 400.0),
+                )),
+                events,
+                ..Default::default()
+            },
+            |ctx| {
+                *chosen = egui::CentralPanel::default()
+                    .show(ctx, |ui| {
+                        reference_pane::sections(
+                            ui,
+                            &content,
+                            Locale::Ja,
+                            novnow::ui::theme::Mode::Light,
+                            1.0,
+                        )
+                    })
+                    .inner;
+            },
+        )
+    };
+    let first = draw(vec![], &mut chosen);
+    let text = painted_text(&first);
+    let label = novnow::ui::i18n::text(Locale::Ja, "pane.more");
+    let more = harness::painted_texts(&first)
+        .iter()
+        .find(|(text, _)| text == label)
+        .expect("continuation line")
+        .1;
+    assert!(text.contains(label) && !text.contains(&"要".repeat(121)));
+    draw(
+        vec![
+            Event::PointerMoved(more.center()),
+            Event::PointerButton {
+                pos: more.center(),
+                button: egui::PointerButton::Primary,
+                pressed: true,
+                modifiers: Modifiers::NONE,
+            },
+        ],
+        &mut chosen,
+    );
+    let clicked = draw(
+        vec![Event::PointerButton {
+            pos: more.center(),
+            button: egui::PointerButton::Primary,
+            pressed: false,
+            modifiers: Modifiers::NONE,
+        }],
+        &mut chosen,
+    );
+    // The paint-only closure cannot retrieve Chosen; verify the app path in a
+    // dedicated assertion below instead of treating a drawn link as navigation.
+    assert!(painted_text(&clicked).contains(label));
+}
+
+#[test]
+fn material_summary_truncated_after_five_lines_shows_continuation() {
+    use novnow::core::features::reference::{MaterialRef, Reference};
+    let content = Reference {
+        materials: vec![MaterialRef {
+            id: "M0001".into(),
+            title: "Archive".into(),
+            summary: (1..=6)
+                .map(|index| format!("line {index}"))
+                .collect::<Vec<_>>()
+                .join("\n"),
+            source: String::new(),
+            candidate: false,
+        }],
+        ..Default::default()
+    };
+    let ctx = egui::Context::default();
+    let output = ctx.run(
+        egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                egui::Vec2::new(400.0, 400.0),
+            )),
+            ..Default::default()
+        },
+        |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                novnow::ui::widgets::reference_pane::sections(
+                    ui,
+                    &content,
+                    Locale::Ja,
+                    novnow::ui::theme::Mode::Light,
+                    1.0,
+                );
+            });
+        },
+    );
+    let painted = painted_text(&output);
+    assert!(
+        painted.contains("line 5") && !painted.contains("line 6"),
+        "{painted}"
+    );
+    assert!(painted.contains(novnow::ui::i18n::text(Locale::Ja, "pane.more")));
+}
+
+#[test]
+fn header_shortcut_buttons_open_help_and_palette() {
+    let mut harness = Harness::new();
+    let first = harness.frame(Vec::new());
+    let header = |text: &str, output: &egui::FullOutput| {
+        harness::painted_texts(output)
+            .into_iter()
+            .find(|(painted, rect)| painted == text && rect.min.y < 30.0)
+            .map(|(_, rect)| rect.center())
+            .unwrap_or_else(|| panic!("no header button: {text}"))
+    };
+    let help = header("?", &first);
+    let palette = header("Ctrl+P", &first);
+    harness.click_at(help);
+    assert!(harness.app.overlay_open());
+    harness.frame(vec![key(Key::Escape, Modifiers::NONE)]);
+    assert!(!harness.app.overlay_open());
+    harness.click_at(palette);
+    assert!(harness.app.overlay_open());
+}
+
+#[test]
+fn workspace_name_fades_from_the_header_after_one_second() {
+    let mut harness = Harness::new();
+    let name = novnow::ui::i18n::text(Locale::Ja, "header.workspace.material");
+    let header_has_name = |output: &egui::FullOutput| {
+        harness::painted_texts(output)
+            .iter()
+            .any(|(painted, rect)| painted == name && rect.min.y < 30.0)
+    };
+    assert!(!header_has_name(&harness.frame(Vec::new())));
+    let switched = harness.frame(vec![key(Key::Num5, Modifiers::ALT)]);
+    assert!(header_has_name(&switched));
+    assert!(header_has_name(&harness.idle(0.5)));
+    assert!(!header_has_name(&harness.idle(0.7)));
+}
+
+#[test]
+fn palette_can_reopen_welcome_and_show_bidirectional_migration_help() {
+    let mut harness = Harness::new();
+    for (command, label_key) in [("welcome", "help.welcome"), ("migration", "help.migration")] {
+        harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+        harness.frame(vec![Event::Text(format!(">{command}"))]);
+        let options = painted_text(&harness.frame(Vec::new()));
+        assert!(
+            options.contains(&format!(">{command}")),
+            "palette: {options}"
+        );
+        harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+        harness.frame(Vec::new());
+        let output = harness.frame(Vec::new());
+        assert!(harness.app.overlay_open(), "{command} dialog is open");
+        assert!(
+            painted_text(&output).contains(novnow::ui::i18n::text(Locale::Ja, label_key)),
+            "{command} help should appear: {}",
+            painted_text(&output)
+        );
+        harness.frame(vec![key(Key::Escape, Modifiers::NONE)]);
+    }
+}
+
+#[test]
+fn editor_focus_stripe_and_context_placeholder_match_the_thin_editor_border() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
+    let output = harness.frame(Vec::new());
+    let colors = novnow::ui::theme::palette(novnow::ui::theme::Mode::Dark);
+    let stripes: Vec<_> = output
+        .shapes
+        .iter()
+        .filter_map(|item| match &item.shape {
+            egui::Shape::Rect(shape)
+                if shape.rect.width() == 3.0 && shape.fill == colors.accent =>
+            {
+                Some(shape.rect)
+            }
+            _ => None,
+        })
+        .collect();
+    assert!(
+        stripes.len() >= 2,
+        "editor focus and context editing placeholder both have a 3px stripe: {stripes:?}"
+    );
+    assert!(output.shapes.iter().any(|item| matches!(
+        &item.shape,
+        egui::Shape::Rect(shape) if shape.stroke.width == 1.0 && shape.stroke.color == colors.border
+    )), "editor outline remains a 1px border rather than a thick focus frame");
+}
+
+#[test]
+fn held_modifier_prefixes_appear_in_the_status_bar() {
+    let mut harness = Harness::new();
+    let ctrl = Modifiers {
+        ctrl: true,
+        command: true,
+        ..Modifiers::NONE
+    };
+    for (mods, expected) in [
+        (ctrl, "Ctrl: P"),
+        (ctrl | Modifiers::SHIFT, "Ctrl+Shift:"),
+        (ctrl | Modifiers::ALT, "Ctrl+Alt:"),
+    ] {
+        let output = harness.frame_at(1280.0, mods);
+        assert!(
+            painted_text(&output).contains(expected),
+            "{expected}: {}",
+            painted_text(&output)
+        );
+    }
+    let normal = harness.frame_at(1280.0, Modifiers::NONE);
+    assert!(!painted_text(&normal).contains("Ctrl: P"));
+}
+
+#[test]
+fn bundled_font_notification_is_a_temporary_bottom_left_toast() {
+    let mut harness = Harness::new();
+    let fallback = novnow::ui::i18n::text(Locale::Ja, "status.font_fallback");
+    let initial = harness.frame(Vec::new());
+    let rect = harness::painted_texts(&initial)
+        .into_iter()
+        .find(|(text, _)| text == fallback)
+        .expect("bundled font notification")
+        .1;
+    assert!(
+        rect.min.x < 200.0 && rect.min.y > 650.0,
+        "bottom-left toast: {rect:?}"
+    );
+    assert!(!painted_text(&harness.idle(4.2)).contains(fallback));
+}
+
+#[test]
+fn narrow_status_folds_secondary_details_without_hiding_save_state() {
+    let mut harness = Harness::new();
+    let full = painted_text(&harness.frame_at(1280.0, Modifiers::NONE));
+    assert!(full.contains("枚") && full.contains("字"));
+    let medium = painted_text(&harness.frame_at(620.0, Modifiers::NONE));
+    assert!(medium.contains('…') && !medium.contains("枚"), "{medium}");
+    let narrow = painted_text(&harness.frame_at(380.0, Modifiers::NONE));
+    assert!(narrow.contains('…') && !narrow.contains("枚"), "{narrow}");
+    harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text("追".into())]);
+    let dirty = harness.frame_at(620.0, Modifiers::NONE);
+    let amber = novnow::ui::theme::palette(novnow::ui::theme::Mode::Dark).unsaved;
+    assert!(
+        dirty.shapes.iter().any(|item| matches!(
+            &item.shape, egui::Shape::Circle(circle) if circle.fill == amber && circle.radius == 4.0
+        )),
+        "save state remains visible at narrow widths"
+    );
+}
+
+#[test]
+fn palette_stays_on_top_at_the_center_and_closes_without_click_through() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    let output = harness.frame(Vec::new());
+    let close = harness::painted_texts(&output)
+        .into_iter()
+        .find(|(text, _)| text == "パレットを閉じる (Esc)")
+        .expect("permanent close choice")
+        .1;
+    assert!(
+        (close.center().x - 640.0).abs() < 275.0,
+        "centered: {close:?}"
+    );
+    assert!(close.min.y > 72.0 && close.min.y < 600.0, "top: {close:?}");
+    assert!(
+        painted_text(&output).contains("M・# 資料"),
+        "empty-input guide"
+    );
+    // The palette is painted after the editor, not behind its border or text.
+    let text = harness::painted_texts(&output);
+    let editor = text
+        .iter()
+        .position(|(s, _)| s.contains("旧校舎の地下遺跡"));
+    let palette = text.iter().position(|(s, _)| s == "パレットを閉じる (Esc)");
+    assert!(
+        editor < palette,
+        "palette foreground should paint after the editor"
+    );
+    harness.click_at(Pos2::new(20.0, 155.0));
+    assert!(
+        !harness.app.overlay_open(),
+        "outside click closes the palette"
+    );
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    let close = harness.rect_of("パレットを閉じる (Esc)").unwrap();
+    harness.click_at(close.center());
+    assert!(!harness.app.overlay_open(), "the close choice also works");
+}
+
+#[test]
+fn palette_agent_subcommands_and_empty_material_results_are_visible() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text(">agent".into())]);
+    let output = painted_text(&harness.frame(Vec::new()));
+    assert!(output.contains(">agent delegation"), "{output}");
+    harness.frame(vec![key(Key::Escape, Modifiers::NONE)]);
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text("#そんな資料はない".into())]);
+    let output = painted_text(&harness.frame(Vec::new()));
+    assert!(
+        output.contains("登録されている資料がありません"),
+        "{output}"
+    );
+    assert!(output.contains("パレットを閉じる"));
+}
+
+#[test]
+fn palette_long_cjk_label_truncates_in_pixels_without_resizing() {
+    let long = "長".repeat(120);
+    let content = world::CONTENTS.replace("図書室の攻防", &long);
+    let (mut harness, _) = Harness::start_with(world_with(CONTENTS_PATH, &content), true);
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    let output = harness.frame(Vec::new());
+    let rect = harness::painted_texts(&output)
+        .into_iter()
+        .find(|(text, _)| text.contains("長長長") && text.ends_with("..."))
+        .expect("long CJK candidate truncated with ellipsis")
+        .1;
+    assert!(
+        rect.max.x < 930.0,
+        "candidate remains in centered fixed-width palette: {rect:?}"
+    );
+}
+
+#[test]
+fn shortcut_palette_search_executes_selected_workspace_command() {
+    use novnow::ui::workspaces::Workspace;
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text("?workspace-material".into())]);
+    let output = painted_text(&harness.frame(Vec::new()));
+    assert!(output.contains("? workspace-material  Alt+5"), "{output}");
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    assert_eq!(harness.app.workspace(), Some(Workspace::Material));
+    assert!(!harness.app.overlay_open());
+    // The same shortcut must also be available in the command palette (F-15).
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text(">workspace-idea".into())]);
+    let output = painted_text(&harness.frame(Vec::new()));
+    assert!(output.contains(">workspace-idea"), "{output}");
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    assert_eq!(harness.app.workspace(), Some(Workspace::Idea));
+}
+
+#[test]
+fn scene_palette_drills_from_chapter_to_episode_scene_and_section() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text("@".into())]);
+    for label in ["@01-*", "@01-04-*", "@01-04-02-*", "@01-04-02-01"] {
+        let output = painted_text(&harness.frame(Vec::new()));
+        assert!(output.contains(label), "missing {label}: {output}");
+        harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    }
+    assert!(!harness.app.overlay_open());
+}
+
+#[test]
+fn mcp_config_palette_modal_validates_before_saving() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text(">mcp".into())]);
+    assert!(painted_text(&harness.frame(Vec::new())).contains(">mcp"));
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+    let output = harness.frame(Vec::new());
+    assert!(painted_text(&output).contains("agents/mcp.json"));
+    assert!(harness.app.overlay_open());
+    let title = harness.rect_of("agents/mcp.json").unwrap();
+    harness.click_at(Pos2::new(title.min.x + 50.0, title.max.y + 26.0));
+    harness.frame(vec![Event::Text("invalid json".into())]);
+    assert!(
+        painted_text(&harness.frame(Vec::new())).contains("expected value"),
+        "invalid input must be diagnosed while typing"
+    );
+    let save = harness.rect_of("保存").expect("MCP modal save button");
+    harness.click_at(save.center());
+    assert!(
+        harness.app.overlay_open(),
+        "invalid JSON cannot close the modal"
+    );
+    assert_eq!(
+        harness
+            .app
+            .workbench()
+            .unwrap()
+            .project()
+            .text("agents/mcp.json"),
+        ""
+    );
+    harness.click_at(Pos2::new(title.min.x + 50.0, title.max.y + 26.0));
+    harness.frame(vec![key(Key::A, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text(r#"{"servers":{}}"#.into())]);
+    let save = harness.rect_of("保存").unwrap();
+    harness.click_at(save.center());
+    assert!(!harness.app.overlay_open(), "valid JSON closes the modal");
+    assert_eq!(
+        harness
+            .app
+            .workbench()
+            .unwrap()
+            .project()
+            .text("agents/mcp.json"),
+        r#"{"servers":{}}"#
+    );
+}
+
+#[test]
+fn agent_workspace_mcp_button_opens_the_shared_edit_modal() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::Num8, Modifiers::ALT)]);
+    let title = novnow::ui::i18n::text(Locale::Ja, "help.edit_mcp");
+    let button = harness
+        .rect_of(title)
+        .expect("MCP editor action on agent screen");
+    harness.click_at(button.center());
+    let output = harness.frame(Vec::new());
+    assert!(harness.app.overlay_open());
+    assert!(painted_text(&output).contains("agents/mcp.json"));
+}
+
+#[test]
+fn warning_or_error_changes_review_header_glyph_and_adds_a_badge() {
+    use novnow::ui::workspaces::{indicator, ReviewProblem, Workspace};
+    let draw = |problem| {
+        let ctx = egui::Context::default();
+        ctx.run(egui::RawInput::default(), |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                indicator(
+                    ui,
+                    novnow::ui::theme::Mode::Dark,
+                    Locale::Ja,
+                    Workspace::Write,
+                    problem,
+                );
+            });
+        })
+    };
+    let colors = novnow::ui::theme::palette(novnow::ui::theme::Mode::Dark);
+    let count_badges = |output: egui::FullOutput, color| {
+        output.shapes.iter().filter(|item| matches!(
+            &item.shape, egui::Shape::Circle(circle) if circle.radius == 2.5 && circle.fill == color
+        )).count()
+    };
+    assert_eq!(count_badges(draw(None), colors.warn), 0);
+    assert_eq!(
+        count_badges(draw(Some(ReviewProblem::Warning)), colors.warn),
+        1
+    );
+    assert_eq!(
+        count_badges(draw(Some(ReviewProblem::Error)), colors.error),
+        1
+    );
+}
+
+#[test]
+fn ctrl_o_saves_before_showing_the_picker_and_never_opens_folder_directly() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text("先に保存".into())]);
+    harness.frame(vec![key(Key::O, Modifiers::CTRL)]);
+    let output = harness.frame(Vec::new());
+    assert!(
+        harness.app.workbench().is_none(),
+        "leaves the open project after saving"
+    );
+    assert!(
+        painted_text(&output).contains("プロジェクト"),
+        "shows the picker"
+    );
+    assert!(harness
+        .host
+        .files
+        .borrow()
+        .written
+        .get(CONTENTS_PATH)
+        .is_some_and(|text| text.contains("先に保存")));
+}
+
+#[test]
+fn failed_save_keeps_the_project_open_when_ctrl_o_is_pressed() {
+    let mut harness = Harness::new();
+    harness.host.files.borrow_mut().fail = true;
+    harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text("保存不能".into())]);
+    harness.frame(vec![key(Key::O, Modifiers::CTRL)]);
+    harness.frame(Vec::new());
+    assert!(
+        harness.app.workbench().is_some(),
+        "must not discard unsaved writing"
+    );
+    assert!(harness.app.overlay_open(), "shows the save error");
+}
+
+#[test]
+fn tab_inside_editor_stays_in_one_focus_target_and_header_tabs_cycle() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
+    harness.frame(Vec::new());
+    let editor = novnow::ui::widgets::section_editor::editor_id(harness.app.workbench().unwrap());
+    assert_eq!(harness.ctx.memory(|memory| memory.focused()), Some(editor));
+    harness.frame(vec![key(Key::Tab, Modifiers::NONE)]);
+    assert_eq!(harness.ctx.memory(|memory| memory.focused()), Some(editor));
+    let output = harness.frame(Vec::new());
+    let header = harness::painted_texts(&output)
+        .into_iter()
+        .find(|(s, rect)| s == "memory" && rect.min.y < 28.0)
+        .expect("header label")
+        .1;
+    harness.click_at(header.center());
+    harness.frame(vec![key(Key::Tab, Modifiers::NONE)]);
+    let after = harness.ctx.memory(|memory| memory.focused());
+    assert_ne!(
+        after,
+        Some(editor),
+        "Tab outside the editor must reach header controls"
+    );
+    assert!(
+        after.is_some(),
+        "the next focusable header control is focused"
+    );
+}
+
+#[test]
+fn editor_text_gutter_and_caret_stay_clipped_inside_the_border() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
+    harness.frame(Vec::new());
+    for width in [620.0, 380.0] {
+        let output = harness.frame_at(width, Modifiers::NONE);
+        let colors = novnow::ui::theme::palette(novnow::ui::theme::Mode::Dark);
+        let border = output
+            .shapes
+            .iter()
+            .find_map(|item| match &item.shape {
+                egui::Shape::Rect(shape)
+                    if shape.stroke.width == 1.0
+                        && shape.stroke.color == colors.border
+                        && shape.rect.height() > 150.0 =>
+                {
+                    Some(shape.rect)
+                }
+                _ => None,
+            })
+            .expect("editor frame");
+        let text_clip = output
+            .shapes
+            .iter()
+            .find_map(|item| match &item.shape {
+                egui::Shape::Text(text) if text.galley.text().contains("やっぱり") => {
+                    Some(item.clip_rect)
+                }
+                _ => None,
+            })
+            .expect("section text");
+        assert!(
+            border.contains_rect(text_clip),
+            "text clip inside border: {border:?} {text_clip:?}"
+        );
+        let number = harness::painted_texts(&output)
+            .into_iter()
+            .find(|(text, rect)| text == "3" && border.contains_rect(*rect))
+            .expect("third line number")
+            .1;
+        // egui's original full-line-height caret is invisible. Our custom
+        // caret is font-sized and aligned with that logical line's gutter.
+        let caret = output
+            .shapes
+            .iter()
+            .find_map(|item| match &item.shape {
+                egui::Shape::LineSegment { points, stroke }
+                    if stroke.width > 0.0
+                        && (points[0].x - points[1].x).abs() < 0.1
+                        && item.clip_rect.intersects(text_clip)
+                        && (points[0].y - points[1].y).abs() > 13.0
+                        && (points[0].y - points[1].y).abs() < 20.0 =>
+                {
+                    Some((points, item.clip_rect))
+                }
+                _ => None,
+            })
+            .expect("font-sized custom caret");
+        let center = (caret.0[0].y + caret.0[1].y) * 0.5;
+        if width == 620.0 {
+            assert!(
+                (center - number.center().y).abs() < 1.0,
+                "caret/line number baseline: {center} {number:?}"
+            );
+        }
+        assert!(border.contains(caret.0[0]) && border.contains(caret.0[1]));
+        assert!(caret.1.intersects(border));
+    }
+}
+
+#[test]
+fn mac_browser_reserved_shortcuts_have_usable_nonconflicting_alternates() {
+    let mac = Modifiers {
+        mac_cmd: true,
+        command: true,
+        alt: true,
+        shift: true,
+        ..Modifiers::NONE
+    };
+    for (key, expected) in [
+        (Key::I, Command::Capture),
+        (Key::N, Command::InsertSection),
+        (Key::T, Command::Register { character: true }),
+        (Key::W, Command::Term),
+    ] {
+        assert_eq!(shell::command_of(key, mac, true, false), Some(expected));
+    }
+    let browser = BrowserKeys {
+        command: true,
+        alt: true,
+        shift: true,
+        mac: true,
+        ..BrowserKeys::default()
+    };
+    for key in ["I", "N", "T", "W"] {
+        assert!(
+            shell::browser_default_blocked(key, browser),
+            "Cmd+Option+Shift+{key}"
+        );
+    }
+    assert!(
+        !shell::browser_default_blocked(
+            "I",
+            BrowserKeys {
+                alt: false,
+                ..browser
+            }
+        ),
+        "browser DevTools remains available"
+    );
+    assert!(
+        !shell::browser_default_blocked(
+            "I",
+            BrowserKeys {
+                command: false,
+                ..browser
+            }
+        ),
+        "Option text input remains available"
+    );
+}
+
+#[test]
+fn workspace_action_and_list_row_share_underline_hover_and_minimum_hit_target() {
+    use novnow::ui::workspaces::{list_row, Row};
+    let ctx = egui::Context::default();
+    let mode = novnow::ui::theme::Mode::Dark;
+    ctx.set_visuals(novnow::ui::theme::visuals(mode));
+    let mut buttons = (egui::Rect::NOTHING, egui::Rect::NOTHING);
+    let draw = |pos: Option<Pos2>, buttons: &mut (egui::Rect, egui::Rect)| {
+        ctx.run(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    Pos2::ZERO,
+                    egui::vec2(300.0, 180.0),
+                )),
+                events: pos
+                    .map(|point| vec![Event::PointerMoved(point)])
+                    .unwrap_or_default(),
+                ..Default::default()
+            },
+            |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    buttons.0 = novnow::ui::widgets::action_button(ui, "押す").rect;
+                    buttons.1 = list_row(
+                        ui,
+                        mode,
+                        1.0,
+                        Row {
+                            selected: false,
+                            text: "一覧",
+                            ..Row::default()
+                        },
+                    )
+                    .rect;
+                });
+            },
+        )
+    };
+    let normal = draw(None, &mut buttons);
+    for rect in [buttons.0, buttons.1] {
+        assert!(rect.width() >= 24.0 && rect.height() >= 24.0, "{rect:?}");
+    }
+    assert!(normal.shapes.iter().any(|item| matches!(&item.shape,
+        egui::Shape::Text(text) if text.galley.text() == "押す"
+            && text.galley.job.sections.iter().any(|section| section.format.underline.width > 0.0)
+    )));
+    for rect in [buttons.0, buttons.1] {
+        let hovered = draw(Some(rect.center()), &mut buttons);
+        assert_eq!(
+            hovered.platform_output.cursor_icon,
+            egui::CursorIcon::PointingHand
+        );
+        let fill = novnow::ui::theme::palette(mode)
+            .bg_selection
+            .gamma_multiply(0.6);
+        assert!(
+            hovered.shapes.iter().any(|item| matches!(&item.shape,
+                egui::Shape::Rect(shape) if shape.fill == fill && shape.rect.intersects(rect)
+            )),
+            "hover highlight for {rect:?}"
+        );
+    }
 }

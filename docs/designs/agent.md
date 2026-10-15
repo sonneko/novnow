@@ -25,19 +25,19 @@
 
 ### 15.4 コンテキスト設計
 
-状態: 未実装・実装計画済み（REF:src/core/aicontext/packet.rs, REF:src/core/aicontext/budget.rs, REF:tests/aicontext.rs, REF:docs/plans.md#plan-S-01）
+状態: 実装完了（REF:src/core/aicontext/packet.rs, REF:src/core/aicontext/budget.rs, REF:tests/aicontext.rs, REF:docs/plans.md#plan-S-01）
 
 - 固定 9 セクション（`1 project` 〜 `9 history`）の組み立ては `core::aicontext::packet`（`REF:src/core/aicontext/packet.rs`）が `core::resolve::context_rules` と同じ優先順位規則を用いて生成する。
 - 役割別のトークン予算配分と優先順位に基づく決定論的切り詰め（トークン数概算は CJK 1 文字 ≒ 1.5 トークン、ASCII 4 文字 ≒ 1 トークンの純粋関数で行い外部トークナイザに依存しない、`B-87`）は `core::aicontext::budget`（`REF:src/core/aicontext/budget.rs`）が担う（検証: `REF:tests/aicontext.rs`）。
 
-- **[S-01] 指定した話の本文・プロットを「例」としてコンテキストに付与（未実装・実装計画済み: `REF:docs/plans.md#plan-S-01`）**:
+- **[S-01] 指定した話の本文・プロットを「例」としてコンテキストに付与（実装完了: `REF:src/core/aicontext/packet.rs`, `REF:tests/aicontext.rs`）**:
   - `REF:src/core/aicontext/packet.rs` と `REF:src/core/aicontext/budget.rs` で、タスクに指定された `examples` 範囲の本文またはプロットを抽出し、コンテキストパケットおよび `{{examples}}` 変数へ組み込む。
 
 ### 15.5 プロンプト設計
 
 状態: 実装完了（REF:src/core/syntax/prompt_md.rs, REF:src/core/agents/prompts.rs, REF:src/core/template/mod.rs, REF:tests/prompt_md.rs, REF:tests/template.rs）
 
-- 既定プロンプトの埋め込み（`REF:src/core/template/mod.rs`）、欠落ファイルの自動補完と `I050` 通知、`{{include:...}}` 展開、閉じた 19 変数の展開、プロンプト診断（`E029` / `W015`）および `>prompt reset` / `>prompt diff` は `REF:src/core/agents/prompts.rs` と `REF:src/ui/app.rs` に実装する。
+- 既定プロンプトの埋め込み（`REF:src/core/template/mod.rs`）、欠落ファイルの自動補完と `I050` 通知、`{{include:...}}` 展開、閉じた 20 変数の展開、プロンプト診断（`E029` / `W015`）および `>prompt reset` / `>prompt diff` は `REF:src/core/agents/prompts.rs` と `REF:src/ui/app.rs` に実装する。
 
 ### 15.6 エージェント間通信
 
@@ -47,11 +47,11 @@
 
 ### 15.7 人間向け管制 UI（`agent` ワークスペース）
 
-状態: 未実装・実装計画済み（REF:src/ui/workspaces/agent.rs, REF:src/ui/agents.rs, REF:src/ui/app.rs, REF:tests/workspaces.rs, REF:docs/plans.md#plan-F-19）
+状態: 実装完了（REF:src/ui/workspaces/agent.rs, REF:src/ui/agents.rs, REF:src/ui/app.rs, REF:tests/workspaces.rs, REF:tests/gui.rs）
 
 - `agent` ワークスペース（`Alt+8`）の 4 ペイン描画、タスク起票・ドライラン・提案の節単位採否（`A` / `X` / `E`）・差し戻し（`U`）・役割別委譲レベル変更（`1`〜`4`）・総停止（`Ctrl+Shift+X`）は `REF:src/ui/workspaces/agent.rs` と `REF:src/ui/agents.rs` に実装する。
 
-- **[F-19 / S-01] `mcp.json` 編集モーダルへの移行と起票時の「例」指定 UI（未実装・実装計画済み: `REF:docs/plans.md#plan-F-19`, `REF:docs/plans.md#plan-S-01`）**:
+- **[F-19 / S-01] `mcp.json` 編集モーダルへの移行と起票時の「例」指定 UI（実装完了: `REF:docs/plans.md#plan-F-19`, `REF:docs/plans.md#plan-S-01`）**:
   - `REF:src/ui/workspaces/agent.rs` と `REF:src/ui/app.rs` に `agents/mcp.json` 編集モーダル呼び出し（F-19）およびタスク起票時の参考例範囲入力欄（S-01）を追加する。
 
 ### 15.8 MCP

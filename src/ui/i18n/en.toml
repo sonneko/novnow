@@ -152,6 +152,7 @@ new = "create a new project (dir defaults to \".\")"
 check = "check the project, print diagnostics and exit (for CI)"
 export = "export the text without annotations"
 mcp = "run as an MCP server"
+import = "import a Zip archive as a project"
 gui = "start the GUI even when arguments are given"
 help = "show this help"
 version = "show the version"
@@ -187,6 +188,12 @@ settings = "project settings"
 # Rows of the §12.7 table (`status.*`, `palette.placeholder`, `project.pick.*`) are copied verbatim (tests/i18n_catalog.rs).
 
 [status]
+shortcut_ctrl = "Ctrl: P palette · S save · F find · O open"
+shortcut_shift = "Ctrl+Shift: N new source · F search all · X stop agents"
+shortcut_alt = "Ctrl+Alt: L language · T theme"
+shortcut_cmd = "Cmd: P palette · S save · F find · O open"
+shortcut_cmd_shift = "Cmd+Shift: N new source · F search all · X stop agents"
+shortcut_cmd_alt = "Cmd+Alt: L language · T theme"
 open_review = "Open the diagnostics in Review (Ctrl+Shift+E)"
 unsaved = "Unsaved changes"
 saving = "Saving"
@@ -207,8 +214,20 @@ quota = "Storage is full. Export as Zip, then delete projects you no longer need
 placeholder = "Type to go, search, or run"
 character = "Character"
 term = "Term"
+no_materials = "No materials registered"
+no_matches = "No matches"
+guide = "> Commands / @ Sections / ' Dictionary / M・# Materials / ? Shortcuts"
+close = "Close palette (Esc)"
+line_width = "Text line width"
+line_width_hint = "Enter 20–120 characters; leave blank for the language default"
+
+[context]
+guide_workspace = "Alt+number: workspace"
+guide_section = "Alt+arrows: section"
+guide_palette = "Ctrl+P: list"
 
 [project.pick]
+remove_history = "Remove from history only (project data is kept)"
 title = "Choose a project"
 new = "Create new"
 import = "Import from Zip"
@@ -265,6 +284,7 @@ inlay_rejected = "⟨{0} · rejected⟩"
 inlay_modes = "⟨{0}⟩"
 
 [pane]
+more = "More..."
 plot = "Plot"
 upper = "Outline"
 cast = "Cast"
@@ -329,6 +349,15 @@ copied = "Copied to the clipboard ({0} characters)"
 failed = "Could not export: {0}"
 
 [help]
+save_mcp = "Save"
+edit_mcp = "Edit MCP server configuration"
+mcp_transport = "Unsupported transport {0} in server {1} (only stdio is available)"
+welcome = "Welcome to novnow. Write your novel section by section and organize its plot and sources. Open the sample or create a new project to get started."
+migration = "To migrate Web → desktop: export a Zip in Web and import it on desktop. For desktop → Web: export a Zip on desktop and import it in Web. Verify the destination after importing."
+welcome_title = "Welcome"
+migration_title = "Web / desktop migration"
+website = "Online documentation"
+close = "Close"
 title = "Keyboard"
 palette = "Command palette"
 jump = "Jump to a structure ID"
@@ -446,6 +475,7 @@ UseExplicitForm = "Use the explicit form: {0}"
 unavailable = "{0} is not available in this version yet"
 
 [episode]
+new_button = "Ctrl+Shift+N Create the first section"
 # {0} = character count (grouped)
 prose_chars = "{0} characters"
 no_prose = "Not written yet"
@@ -458,6 +488,7 @@ no_plot = "The episode plot {0} does not exist yet. Press Ctrl+Shift+N to create
 empty = "Choose a section in the list above to edit it here"
 
 [outline]
+new_button = "Ctrl+Shift+N Create a block"
 all = "All"
 empty = "Choose a block in the list above to edit it here"
 no_parent = "The overall plot plots/all.txt has no block for this chapter yet"
@@ -473,6 +504,7 @@ seed = "seed"
 payoff = "payoff"
 
 [idea]
+capture_button = "Ctrl+Shift+I Capture idea"
 filter_active = "All"
 status_inbox = "inbox"
 status_keep = "keep"
@@ -501,6 +533,7 @@ promoted = "Promoted {0} to {1}"
 promote_failed = "Could not promote (the destination document cannot be read)"
 
 [material]
+new_button = "Ctrl+Shift+N New source"
 filter_active = "All but rejected"
 status_proposed = "Proposed"
 status_approved = "Approved"
@@ -514,13 +547,13 @@ keys = "Ctrl+Enter approve · Ctrl+Delete reject · Ctrl+Shift+N new material ·
 # {0} = material file path
 missing_file = "{0} does not exist yet (it is created when you start writing)"
 field_title = "Title"
-field_category = "Category"
+field_category = "This material’s category"
 field_summary = "Summary"
 field_tags = "Tags"
 field_conditions = "Conditions (one per line)"
 field_source = "Source"
 # Category suggestions (comma separated; the defaults of §16.2)
-categories = "Interview,Literature,Web,Image,Experience,Primary,Secondary"
+categories = "Interview,Literature,Web,Image,Experience,Primary,Secondary,Other"
 tags_hint = "Comma separated"
 conditions_hint = "scope: @02-03 .. @02-08 / ref: 'name / tag: word / text: free text"
 source_hint = "A URL or a description of the source"
@@ -556,6 +589,7 @@ new_title = "New material (created as a proposal)"
 new_hint = "Type a title (you may add #category), then Enter"
 
 [review]
+rerun_button = "Ctrl+Shift+E Rerun checks"
 tab_diagnostics = "Diagnostics"
 tab_progress = "Progress"
 keys = "Ctrl+Shift+← / → tabs · ↑ / ↓ select · Enter open · Ctrl+Shift+E recount"
@@ -578,6 +612,7 @@ chars_of = "{0} / {1} characters ({2}%)"
 cannot_open = "This version has no screen that opens {0} yet"
 
 [cast]
+scan_button = "Ctrl+Shift+V Scan unmatched speech"
 none = "characters.md has no characters"
 empty = "Choose a character in the list to edit it here"
 tab_modes = "Modes"
@@ -596,6 +631,14 @@ unmatched_count = "{0} lines of dialogue matched no speech pattern (double-click
 
 # The agent workspace (§15.7, M10)
 [agent]
+run_button = "R Run"
+confirm_button = "Shift+R Run selected"
+dry_run_button = "D Dry run"
+cancel_button = "X Cancel"
+stop_all_button = "Ctrl+Shift+X Stop all"
+new_button = "N New task"
+new_examples = "Reference examples (one per line)"
+new_examples_hint = "@01-02 both"
 disabled = "Agents are disabled"
 llm_unavailable = "LLM calls are not available here (you can still create tasks and dry-run)"
 progress = "Running {0} / waiting {1} / done {2}"
@@ -644,7 +687,6 @@ keys.context = "↑↓ block · Space exclude / include · D dry run"
 keys.review = "A accept · P partial · X reject · M approve messages"
 keys.revert = "X revert (restore the text before the proposal)"
 keys.settled = "This proposal is settled"
-keys.delegation = "1 off · 2 propose · 3 apply · 4 autonomous · Ctrl+Shift+X stop all"
 column.tasks = "① Tasks"
 column.context = "② Context"
 column.review = "③ Review"
@@ -700,3 +742,9 @@ reset_same = "Same as the default"
 reset_yes = "Reset"
 reset_done = "Reset {0} prompt(s)"
 diff_title = "Compared with the default: {0}"
+
+[cli.import]
+completed = "Zip import completed"
+failed = "Could not read Zip archive: {0}"
+incomplete = "Imported project is incomplete: {0}"
+skipped = "Skipped entries"

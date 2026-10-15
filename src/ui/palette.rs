@@ -105,3 +105,29 @@ pub fn rank<'a, T>(
         .map(|(_, _, item)| item)
         .collect()
 }
+
+/// 候補名の次のトークンまで補完する（空白が階層の境界）。
+pub fn complete_token(input: &str, candidate: &str) -> Option<String> {
+    let (prefix, typed) = input.split_once('>')?;
+    if !prefix.is_empty() || !candidate.starts_with(typed.trim()) {
+        return None;
+    }
+    let rest = &candidate[typed.trim().len()..];
+    let next = rest
+        .find(' ')
+        .map_or(candidate.len(), |at| typed.trim().len() + at + 1);
+    Some(format!(">{}", &candidate[..next]))
+}
+
+/// 固定幅リストの長いラベルを省略する（Unicode の途中で切らない）。
+pub fn ellipsize(text: &str, max_chars: usize) -> String {
+    if text.chars().count() <= max_chars {
+        return text.to_owned();
+    }
+    format!(
+        "{}...",
+        text.chars()
+            .take(max_chars.saturating_sub(3))
+            .collect::<String>()
+    )
+}
