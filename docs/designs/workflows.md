@@ -37,8 +37,8 @@
 
 - 話プロット・章プロットの `material:` フィールドから解決された資料のタイトル・要点（最大 5 行）の抽出は `REF:src/core/features/reference.rs` が担い、`REF:src/ui/widgets/reference_pane.rs` が描画する。
 
-- **[F-34 / S-07] 要約の「続き...」表示と資料 URL の外部リンク化（未実装・実装計画済み: `REF:docs/plans.md#plan-F-34`, `REF:docs/plans.md#plan-S-07`）**:
-  - `REF:src/ui/widgets/reference_pane.rs` と `REF:src/ui/workspaces/material.rs` に切り詰め時の「`続き...`」行表示（F-34）および URL の外部リンクアイコン＋下線＋ホバー青色表示（S-07）を追加する。
+- **[F-34 / S-07] 要約の「続き...」表示と資料 URL の外部リンク化（実装中: `REF:docs/plans.md#plan-F-34`, `REF:docs/plans.md#plan-S-07`）**:
+  - `REF:src/ui/widgets/reference_pane.rs` と `REF:src/ui/workspaces/material.rs` に切り詰め時の「`続き...`」行表示（F-34）および URL の外部リンクアイコン＋下線＋ホバー青色表示（S-07）を設ける。後者は `REF:src/ui/widgets/mod.rs` と `REF:tests/gui.rs` で実装・検証済み。
 
 ### 16.6 資料 MD の編集
 

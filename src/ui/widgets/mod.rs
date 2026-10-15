@@ -82,6 +82,39 @@ pub fn clickable_label(ui: &mut Ui, text: RichText, id: egui::Id) -> Response {
     response
 }
 
+/// A wrapped external URL with an explicit click target. Only callers with an
+/// approved http(s) URL should invoke this; ordinary prose remains static.
+pub fn external_link(ui: &mut Ui, label: &str, url: &str, colors: &Palette) -> Response {
+    use egui::text::{LayoutJob, TextFormat};
+    let format = |color| TextFormat {
+        font_id: FontId::proportional(13.0),
+        color,
+        underline: Stroke::new(0.6_f32, colors.border),
+        ..Default::default()
+    };
+    let mut job = LayoutJob::single_section(label.to_owned(), format(colors.fg_muted));
+    job.wrap.max_width = ui.available_width().max(MIN_HIT);
+    let galley = ui.fonts(|fonts| fonts.layout_job(job));
+    let (rect, response) =
+        ui.allocate_exact_size(galley.size().max(Vec2::splat(MIN_HIT)), Sense::click());
+    let painter = ui.painter_at(rect);
+    if response.hovered() {
+        painter.rect_filled(rect, 2.0, colors.bg_selection.gamma_multiply(0.6));
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+        let mut job = LayoutJob::single_section(label.to_owned(), format(colors.accent));
+        job.wrap.max_width = ui.available_width().max(MIN_HIT);
+        let highlighted = ui.fonts(|fonts| fonts.layout_job(job));
+        painter.galley(rect.min, highlighted, colors.accent);
+    } else {
+        painter.galley(rect.min, galley, colors.fg_muted);
+    }
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, label));
+    if response.clicked() {
+        ui.ctx().open_url(egui::OpenUrl::new_tab(url));
+    }
+    response
+}
+
 /// クリックできるテキスト（下線つきリンク風）。
 ///
 /// 見た目は文字と下線だけ（枠線は引かない、§9.5.1）。当たり判定は [`MIN_HIT`] まで広げる。

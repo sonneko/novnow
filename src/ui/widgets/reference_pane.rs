@@ -238,12 +238,12 @@ pub fn sections(
                             if material.source.starts_with("https://")
                                 || material.source.starts_with("http://")
                             {
-                                ui.add(egui::Hyperlink::from_label_and_url(
-                                    RichText::new(format!("↗ {}", material.source))
-                                        .color(colors.fg_muted)
-                                        .underline(),
+                                super::external_link(
+                                    ui,
+                                    &format!("↗ {}", material.source),
                                     &material.source,
-                                ));
+                                    &colors,
+                                );
                             }
                             if !material.summary.is_empty() {
                                 let short: String = material.summary.chars().take(120).collect();

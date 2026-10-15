@@ -2131,3 +2131,75 @@ fn context_view_draws_section_rules_full_ids_and_the_empty_guide() {
         egui::Shape::LineSegment { stroke, .. } if stroke.color == colors.border && stroke.width == 1.0
     )), "a separator should appear between context sections");
 }
+
+#[test]
+fn external_urls_have_hover_blue_underline_24px_target_and_open_on_click() {
+    let ctx = egui::Context::default();
+    let mode = novnow::ui::theme::Mode::Light;
+    let colors = novnow::ui::theme::palette(mode);
+    ctx.set_visuals(novnow::ui::theme::visuals(mode));
+    let url = "https://example.org/source";
+    let mut rect = egui::Rect::NOTHING;
+    let draw = |events: Vec<Event>, rect: &mut egui::Rect| {
+        ctx.run(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::Vec2::new(300.0, 150.0),
+                )),
+                events,
+                ..Default::default()
+            },
+            |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    ui.set_max_width(180.0);
+                    *rect =
+                        novnow::ui::widgets::external_link(ui, &format!("↗ {url}"), url, &colors)
+                            .rect;
+                });
+            },
+        )
+    };
+    let first = draw(Vec::new(), &mut rect);
+    assert!(rect.width() >= 24.0 && rect.height() >= 24.0);
+    assert!(first.shapes.iter().any(|item| matches!(
+        &item.shape,
+        egui::Shape::Text(text) if text.galley.job.sections.iter().any(|section| section.format.underline.width > 0.0)
+    )));
+    let hovered = draw(vec![Event::PointerMoved(rect.center())], &mut rect);
+    assert_eq!(
+        hovered.platform_output.cursor_icon,
+        egui::CursorIcon::PointingHand
+    );
+    assert!(hovered.shapes.iter().any(|item| matches!(
+        &item.shape,
+        egui::Shape::Text(text) if text.galley.job.sections.iter().any(|section| section.format.color == colors.accent)
+    )));
+    let fill = colors.bg_selection.gamma_multiply(0.6);
+    assert!(hovered.shapes.iter().any(|item| matches!(
+        &item.shape,
+        egui::Shape::Rect(shape) if shape.fill == fill
+    )));
+    draw(
+        vec![Event::PointerButton {
+            pos: rect.center(),
+            button: egui::PointerButton::Primary,
+            pressed: true,
+            modifiers: Modifiers::NONE,
+        }],
+        &mut rect,
+    );
+    let clicked = draw(
+        vec![Event::PointerButton {
+            pos: rect.center(),
+            button: egui::PointerButton::Primary,
+            pressed: false,
+            modifiers: Modifiers::NONE,
+        }],
+        &mut rect,
+    );
+    assert_eq!(
+        clicked.platform_output.open_url.map(|open| open.url),
+        Some(url.to_owned())
+    );
+}

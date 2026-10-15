@@ -3220,9 +3220,11 @@ impl NovnowApp {
                         };
                         ui.set_width(500.0);
                         ui.label(i18n::text(locale, key));
-                        ui.hyperlink_to(
+                        crate::ui::widgets::external_link(
+                            ui,
                             i18n::text(locale, "help.website"),
                             crate::core::model::project::PROJECT_STRUCTURE_DOC_URL,
+                            &colors,
                         );
                         if crate::ui::widgets::action_button(ui, i18n::text(locale, "help.close"))
                             .clicked()
@@ -6847,9 +6849,11 @@ mod native {
                         ui.add_space(16.0);
                         if self.recent.is_empty() {
                             ui.label(i18n::text(locale, "help.welcome"));
-                            ui.hyperlink_to(
+                            crate::ui::widgets::external_link(
+                                ui,
                                 i18n::text(locale, "help.website"),
                                 crate::core::model::project::PROJECT_STRUCTURE_DOC_URL,
+                                &colors,
                             );
                             ui.label(
                                 RichText::new(i18n::text(locale, "project.pick.empty"))
@@ -6946,7 +6950,9 @@ mod native {
                                                     RichText::new(&line[..start])
                                                         .color(colors.fg_muted),
                                                 );
-                                                ui.hyperlink(url);
+                                                crate::ui::widgets::external_link(
+                                                    ui, url, url, &colors,
+                                                );
                                             });
                                         } else {
                                             ui.label(RichText::new(line).color(colors.fg_muted));

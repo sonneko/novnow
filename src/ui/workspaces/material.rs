@@ -812,13 +812,7 @@ fn form(
     // Open only explicit web URLs. The source field itself remains editable.
     let source = form.draft.source.trim();
     if source.starts_with("https://") || source.starts_with("http://") {
-        let link = egui::Hyperlink::from_label_and_url(
-            RichText::new(format!("↗ {source}"))
-                .color(colors.fg_muted)
-                .underline(),
-            source,
-        );
-        ui.add(link);
+        crate::ui::widgets::external_link(ui, &format!("↗ {source}"), source, &colors);
     }
     ui.add_space(12.0);
     let mut request = None;

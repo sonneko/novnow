@@ -1207,9 +1207,11 @@ impl WebPicker {
         ui.add_space(12.0);
         if self.shared.borrow().first_visit {
             ui.label(i18n::text(locale, "help.welcome"));
-            ui.hyperlink_to(
+            crate::ui::widgets::external_link(
+                ui,
                 i18n::text(locale, "help.website"),
                 crate::core::model::project::PROJECT_STRUCTURE_DOC_URL,
+                &colors,
             );
         }
         if rows.is_empty() {
