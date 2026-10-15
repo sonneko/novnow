@@ -1427,10 +1427,6 @@ impl NovnowApp {
                     input: String::new(),
                 };
             }
-            (Workspace::Material, Command::FocusReference) => {
-                spaces.material.focus_form();
-                self.settings.reference_visible = true;
-            }
             (Workspace::Material, Command::FocusEditor) => {
                 spaces.material.focus_editor();
             }
@@ -5870,11 +5866,14 @@ fn palette_items(
                 label: format!(">zip  {}", i18n::text(locale, "command.export_zip")),
                 action: PaletteAction::ExportZip,
             });
-            if (query.starts_with("agent") && query != "agent") || query.starts_with("prompt") {
+            if (query.starts_with("agent") && (query != "agent" || input.ends_with(' ')))
+                || query.starts_with("prompt")
+            {
                 all.extend(agent_palette_items(locale));
             } else {
                 all.push(PaletteItem {
-                    key: "agent".into(),
+                    // The trailing space marks a subcommand boundary for Tab completion.
+                    key: "agent ".into(),
                     label: ">agent  Agent settings ›".into(),
                     action: PaletteAction::AgentRoot,
                 });

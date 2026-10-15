@@ -26,6 +26,9 @@ pub const MAX_COLUMNS: f32 = 44.0;
 pub struct Cache {
     generation: u64,
     files: HashMap<String, (Highlight, Vec<usize>)>,
+    // Actual text heights for visible sections; off-screen sections use a cheap
+    // character-count estimate until they first enter the scroll viewport.
+    heights: HashMap<(String, usize, usize, u32, u32, u8), f32>,
     scrolled_to: Option<(String, usize)>,
 }
 
@@ -33,6 +36,7 @@ impl Cache {
     fn file(&mut self, bench: &Workbench, path: &str) -> &(Highlight, Vec<usize>) {
         if self.generation != bench.generation() {
             self.files.clear();
+            self.heights.clear();
             self.generation = bench.generation();
         }
         self.files
@@ -181,6 +185,30 @@ fn draw_section(
     let range = byte_range(starts, document.text.len(), &section.lines);
     let text = &document.text[range.clone()];
     let highlight = slice(file_highlight, &range);
+    let height_key = (
+        section.path.clone(),
+        section.lines.start,
+        section.lines.end,
+        width.to_bits(),
+        metrics.size.to_bits(),
+        mode as u8,
+    );
+    let text_height = cache.heights.get(&height_key).copied().unwrap_or_else(|| {
+        let columns = (width / metrics.size).floor().max(1.0) as usize;
+        let lines: usize = text
+            .split('\n')
+            .map(|line| line.chars().count().div_ceil(columns).max(1))
+            .sum();
+        lines as f32 * metrics.size * metrics.line_height
+    });
+    // Keep an estimated slot in the scroll layout, without shaping or painting
+    // glyphs in sections outside the visible viewport (§9.3.4 / S-12).
+    let block_height = 29.0 + text_height.max(metrics.size) + 4.0 * ui.spacing().item_spacing.y;
+    let probe = Rect::from_min_size(ui.cursor().min, Vec2::new(width, block_height));
+    if !ui.is_rect_visible(probe) {
+        ui.allocate_exact_size(Vec2::new(width, block_height), Sense::hover());
+        return None;
+    }
     ui.add_space(8.0);
     let (rule, _) = ui.allocate_exact_size(Vec2::new(width, 1.0), Sense::hover());
     ui.painter().line_segment(
@@ -204,6 +232,9 @@ fn draw_section(
     );
     let job = syntax_text::job(text, &highlight, mode, metrics, width);
     let galley = ui.fonts(|fonts| fonts.layout_job(job));
+    cache
+        .heights
+        .insert(height_key, galley.size().y.max(metrics.size));
     let (rect, response) = ui.allocate_exact_size(
         Vec2::new(width, galley.size().y.max(metrics.size)),
         Sense::click(),
@@ -338,5 +369,63 @@ pub fn slice(highlight: &Highlight, range: &Range<usize>) -> Highlight {
             .filter_map(|(at, severity)| cut(at).map(|clipped| (clipped, *severity)))
             .collect(),
         hints: Vec::new(),
+    }
+}
+
+#[cfg(test)]
+mod viewport_tests {
+    use super::*;
+    use crate::core::features::Project;
+    use crate::core::model::document::Document;
+    use crate::core::model::project::Project as Settings;
+
+    #[test]
+    fn only_visible_sections_are_shaped_in_a_small_scroll_viewport() {
+        let mut prose = String::from("@01-01-01 First scene\nfirst\n");
+        for _ in 0..12 {
+            prose.push_str(";\n");
+            prose.push_str(&"文".repeat(400));
+            prose.push('\n');
+        }
+        let project = Project::with_documents(
+            Settings::default(),
+            [Document::new("contents/01-01.txt", prose)],
+        );
+        let bench = Workbench::new(project, None, 400);
+        assert!(bench.sections().len() > 9);
+        let mut cache = Cache::default();
+        let ctx = egui::Context::default();
+        let placeholder = Placeholder {
+            scene: "01-01-01-01",
+            chars: 5,
+            target: None,
+            indicator: Indicator::Nothing,
+            accessible: "編集中",
+        };
+        let _ = ctx.run(
+            egui::RawInput {
+                screen_rect: Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(360.0, 180.0))),
+                ..Default::default()
+            },
+            |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    show(
+                        ui,
+                        &bench,
+                        &mut cache,
+                        Mode::Dark,
+                        1.0,
+                        9,
+                        44,
+                        Locale::Ja,
+                        &placeholder,
+                    );
+                });
+            },
+        );
+        assert!(
+            cache.heights.len() < 9,
+            "invisible sections should reserve height without producing galleys"
+        );
     }
 }

@@ -126,6 +126,21 @@ fn a_broken_or_missing_ui_json_gives_the_defaults() {
 }
 
 #[test]
+fn localized_maximum_line_width_round_trips_and_is_bounded() {
+    let default = UiSettings::default();
+    assert_eq!(default.line_chars(false), 44);
+    assert_eq!(default.line_chars(true), 70);
+    assert!(!default.to_json().contains("max_line_chars"));
+    for (input, expected) in [("5", 20), ("90", 90), ("999", 120)] {
+        let settings = UiSettings::parse(&format!(r#"{{"max_line_chars":{input}}}"#));
+        assert_eq!(settings.line_chars(false), expected);
+        assert_eq!(settings.line_chars(true), expected);
+        let restored = UiSettings::parse(&settings.to_json());
+        assert_eq!(restored.line_chars(false), expected);
+    }
+}
+
+#[test]
 fn ui_json_keeps_unknown_keys_and_clamps_values() {
     let text = r#"{"schema_version":1,"theme":"light","language":"en","font_scale":9,
         "pane_ratio":{"main":0.1,"context_view":0.5},"context_sections":12,"autosave_ms":50,
@@ -357,6 +372,23 @@ fn no_pane_is_labelled_files_editor_or_information() {
 
 #[test]
 fn the_first_character_chooses_the_palette_mode() {
+    assert_eq!(
+        palette::complete_token(">ag", "agent "),
+        Some(">agent ".into())
+    );
+    assert_eq!(
+        palette::complete_token(">agent de", "agent delegation writer 2"),
+        Some(">agent delegation ".into())
+    );
+    assert_eq!(
+        palette::complete_token(">agent delegation w", "agent delegation writer 2"),
+        Some(">agent delegation writer ".into())
+    );
+    assert_eq!(
+        palette::complete_token(">the", "theme"),
+        Some(">theme".into())
+    );
+    assert_eq!(palette::complete_token(">bad", "agent "), None);
     assert_eq!(palette::split(">theme"), (palette::Mode::Command, "theme"));
     assert_eq!(palette::split("@01-04"), (palette::Mode::Scene, "01-04"));
     assert_eq!(
@@ -368,6 +400,18 @@ fn the_first_character_chooses_the_palette_mode() {
     assert_eq!(palette::split("?"), (palette::Mode::Help, ""));
     assert_eq!(palette::split("Meiryo"), (palette::Mode::Fuzzy, "Meiryo"));
     assert_eq!(palette::split("0104"), (palette::Mode::Fuzzy, "0104"));
+}
+
+#[test]
+fn tab_completes_the_agent_group_then_opens_its_commands() {
+    let (mut harness, _) = Harness::start_with(world(), true);
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text(">ag".into())]);
+    let before = painted_text(&harness.frame(Vec::new()));
+    assert!(before.contains("Agent settings"), "{before}");
+    harness.frame(vec![key(Key::Tab, Modifiers::NONE)]);
+    let after = painted_text(&harness.frame(Vec::new()));
+    assert!(after.contains(">agent delegation"), "{after}");
 }
 
 #[test]

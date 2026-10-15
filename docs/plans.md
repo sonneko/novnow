@@ -10,7 +10,7 @@
 | 区分 | 状態 | 対象範囲 | 参照 |
 |---|---|---|---|
 | 段階 ①（M0〜M11） | 完了 | コア仕様・全 8 ワークスペース・MCP・CLI・Web 版・ベンチマーク・サンプル一式 | `REF:docs/history.md` |
-| 設計書セクション実装状況 | 実装完了 90 節 / 実装中 30 節 / 未実装・実装計画済み 3 節 / 未実装・未計画 1 節 / 実装待ち 2 節 | 全 10 設計書（`docs/designs/*.md`）の `### ` 節（合計 126 節） | `REF:docs/plans.md#planned-fixes-and-features` |
+| 設計書セクション実装状況 | 実装完了 91 節 / 実装中 30 節 / 未実装・実装計画済み 2 節 / 未実装・未計画 1 節 / 実装待ち 2 節 | 全 10 設計書（`docs/designs/*.md`）の `### ` 節（合計 126 節） | `REF:docs/plans.md#planned-fixes-and-features` |
 | 仕様変更・修正（F-01〜F-44） | 実装中（F-10, F-23, F-24, F-42 は既に完了） | UI・エディタ・パレット・辞書・ショートカット・性能等の修正 44 項目 | `REF:docs/plans.md#planned-fixes` |
 | 機能追加（小規模：S-01〜S-18） | 実装中（S-09 は既に完了） | エージェント例指定・PWA・Zip 導入・形態素波線等の小規模機能追加 18 項目 | `REF:docs/plans.md#planned-small-features` |
 | 機能追加（比較的大規模：L-01） | 未実装・未計画 | 既存の本文テキストから `novnow` に移行するための手段の提供 | `REF:docs/plans.md#unplanned-large` |
@@ -261,7 +261,7 @@
   - 計画内容: エディタにフォーカスがないときは素の `↑`/`↓` をどの画面でも一覧・タイムライン移動に効かせる。
 
 <a id="plan-F-36"></a>
-- **F-36（未実装・実装計画済み）**: 資料ワークスペースのフォーカス移動を `Tab` に移し `Ctrl+3` を参照ペイン移動に統一
+- **F-36（実装中）**: 資料ワークスペースのフォーカス移動を `Tab` に移し `Ctrl+3` を参照ペイン移動に統一
   - 仕様・設計: `REF:docs/designs/ui.md`（§9.8, §10.5）
   - 変更対象: `REF:src/ui/workspaces/material.rs`, `REF:src/ui/shell.rs`
   - 計画内容: `material` 内の `Ctrl+3` 独自バインドを撤去して `Tab` に移し、`Ctrl+3` の意味を共通シェルと統一する。
@@ -386,13 +386,13 @@
   - 計画内容: `NativePicker` の各履歴行に `opened_at` の日付を表示する。
 
 <a id="plan-S-12"></a>
-- **S-12（未実装・実装計画済み）**: 文脈ビューを可視範囲だけレイアウトする
+- **S-12（実装中）**: 文脈ビューを可視範囲だけレイアウトする
   - 仕様・設計: `REF:docs/designs/ui.md`（§9.3）, `REF:docs/designs/workflows.md`（§18.1）
   - 変更対象: `REF:src/ui/widgets/context_view.rs`
   - 計画内容: ビューポート外の節は高さ推定のみでスキップし、可視範囲の節のみレイアウトする。
 
 <a id="plan-S-13"></a>
-- **S-13（未実装・実装計画済み）**: パレットで個別単位（例: `">ag"` => `">agent "`）の `Tab` 補完
+- **S-13（実装完了: `REF:src/ui/palette.rs`, `REF:src/ui/app.rs`, `REF:tests/gui.rs`）**: パレットで個別単位（例: `">ag"` => `">agent "`）の `Tab` 補完
   - 仕様・設計: `REF:docs/designs/ui.md`（§9.7）
   - 変更対象: `REF:src/ui/palette.rs`, `REF:src/ui/app.rs`
   - 計画内容: パレットでの `Tab` キー押下時に次のトークン単位まで補完する。
@@ -422,7 +422,7 @@
   - 計画内容: デスクトップの履歴一覧から、実データを消さずに履歴エントリのみを削除する操作と明示説明を追加する。
 
 <a id="plan-S-18"></a>
-- **S-18（未実装・実装計画済み）**: 本文の最大幅を `.novnow/ui.json` の設定にし、`ja` は 44 字、`en` は 70 字前後を既定にする
+- **S-18（実装完了: `REF:src/ui/settings.rs`, `REF:src/ui/widgets/section_editor.rs`, `REF:src/ui/widgets/context_view.rs`, `REF:tests/gui.rs`）**: 本文の最大幅を `.novnow/ui.json` の設定にし、`ja` は 44 字、`en` は 70 字前後を既定にする
   - 仕様・設計: `REF:docs/designs/project.md`（§4.4）, `REF:docs/designs/ui.md`（§11.5）
   - 変更対象: `REF:src/ui/settings.rs`, `REF:src/ui/widgets/section_editor.rs`, `REF:src/ui/widgets/context_view.rs`
   - 計画内容: `ui.json` に `max_line_chars` を追加し、言語別既定値（`ja`=44, `en`=70）で折り返し幅を制御する。

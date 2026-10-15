@@ -11,7 +11,7 @@
 | 区分 | 状態 | 対象範囲 | 参照 |
 |---|---|---|---|
 | 段階 ①（M0〜M11） | 完了 | コア仕様・全 8 ワークスペース・MCP・CLI・Web 版・ベンチマーク・サンプル一式 | `REF:docs/history.md` |
-| 設計書セクション実装状況 | 実装完了 90 節 / 実装中 30 節 / 未実装・実装計画済み 3 節 / 未実装・未計画 1 節 / 実装待ち 2 節 | 全 10 設計書（`docs/designs/*.md`）の `### ` 節（合計 126 節） | `REF:docs/plans.md#planned-fixes-and-features` |
+| 設計書セクション実装状況 | 実装完了 91 節 / 実装中 30 節 / 未実装・実装計画済み 2 節 / 未実装・未計画 1 節 / 実装待ち 2 節 | 全 10 設計書（`docs/designs/*.md`）の `### ` 節（合計 126 節） | `REF:docs/plans.md#planned-fixes-and-features` |
 | 仕様変更・修正（F-01〜F-44） | 実装中（F-10, F-23, F-24, F-42 は既に完了） | UI・エディタ・パレット・辞書・ショートカット・性能等の修正 44 項目 | `REF:docs/plans.md#planned-fixes` |
 | 機能追加（小規模：S-01〜S-18） | 実装中（S-09 は既に完了） | エージェント例指定・PWA・Zip 導入・形態素波線等の小規模機能追加 18 項目 | `REF:docs/plans.md#planned-small-features` |
 | 機能追加（比較的大規模：L-01） | 未実装・未計画 | 既存の本文テキストから `novnow` に移行するための手段の提供 | `REF:docs/plans.md#unplanned-large` |
@@ -24,10 +24,11 @@
 
 - **現在のブランチ**: `arena/75c027a6-novnow`。
 - **PR**: PR #18（Draft、base は前セッションの Draft PR #17 の作業ブランチ）。
-- **現在の状態**: `REF:docs/plans.md#planned-fixes-and-features` の 62 項目を実装中。実装中という表示は達成を意味しない。未着手・未完了項目（特に F-02・F-03 の視覚検証, F-16 の一部, F-17 の OS 別検証, F-35, F-36）と横断的な検査が残っている。
+- **現在の状態**: `REF:docs/plans.md#planned-fixes-and-features` の 62 項目を実装中。実装中という表示は達成を意味しない。未着手・未完了項目（特に F-02・F-03 の視覚検証, F-16 の一部, F-17 の OS 別検証, F-35, F-36 の視覚検証）と横断的な検査が残っている。
 - **本ブランチの作業**: `REF:src/ui/app.rs` ほかのパレット・共通シェル・参照ペイン、`REF:src/cli/import.rs` の CLI Zip 導入、`REF:src/adapters/storage_idb.rs` の Web 同名制限、`REF:src/core/aicontext/packet.rs` の参考例、`REF:sw.js` の PWA、`REF:website/src/data/diagnostics.ts` の診断一覧を実装中。
-- **検証**: `bash scripts/verify.sh` は 1167 件のテストで全ジョブ成功。`REF:scripts/web-smoke.sh` は Web の既存シナリオと PWA のオフライン再起動を含め成功（最新の未コミット変更を含め再検証済み）。`npm run build`（`website/`）も成功。
-- **直近の追加作業**: F-02 のテキスト/ガター描画クリップ、F-03 のキャレット、F-16 の資料/アイデア/エージェントのボタン化、F-17 の Web 代替キー、F-40 の一覧へ戻る 2 段導線と履歴 Delete、S-07 の出典リンク、S-14 の幅不足時のステータス省略。視覚・OS 別検証は残る。
+- **検証**: `bash scripts/verify.sh` は 1171 件のテストで全ジョブ成功。`REF:scripts/web-smoke.sh` は Web の既存シナリオと PWA のオフライン再起動を含め成功（F-36 / S-13 / S-18 の追加後は `bash scripts/verify.sh` 済み。release Web スモークはその前のコードに対するもの）。`npm run build`（`website/`）も成功。
+- **直近の追加作業**: S-13 の `>agent ` トークン単位 Tab 補完を GUI テスト、F-36 の資料専用 `Ctrl+3` 上書きを廃止して `Tab` によるフォーム移動を GUI テスト、S-18 のロケール別最大行幅設定をテスト。S-12 は可視範囲外の節の高さを概算して Galley 構築を省く処理とユニットテストを追加（スクロール中の視覚検証は残る）。
+- **前回までの追加作業**: F-02 のテキスト/ガター描画クリップ、F-03 のキャレット、F-16 の資料/アイデア/エージェントのボタン化、F-17 の Web 代替キー、F-40 の一覧へ戻る 2 段導線と履歴 Delete、S-07 の出典リンク、S-14 の幅不足時のステータス省略。視覚・OS 別検証は残る。
 - **留意点**: F-43 は 10 万字の節単位解析の予算テストのみで、egui の 1 打鍵全体時間の測定はまだない。S-01 は参考例を上限 8,000 字に切り、パケット上限で切り詰めたときの `{{examples}}` との整合をテスト済み。章プロットの抽出と UI 経路は追加確認が必要。S-07 は資料フォームと参照ペインの URL リンクを追加済み。S-15 の英語サイトでは仕様表の「発生条件」「対応」は日本語のまま。完了と扱わないこと。
 
 ---

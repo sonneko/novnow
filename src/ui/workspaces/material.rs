@@ -129,7 +129,6 @@ pub struct State {
     editor: slice_editor::Cache,
     form: Option<Form>,
     reveal: bool,
-    focus_form: bool,
 }
 
 impl State {
@@ -211,11 +210,6 @@ impl State {
                 return;
             }
         }
-    }
-
-    /// 審査フォームの最初の欄にフォーカスを移す（`Ctrl+3`）。
-    pub fn focus_form(&mut self) {
-        self.focus_form = true;
     }
 
     /// 資料 MD のエディタにフォーカスを移す（`Ctrl+2`）。
@@ -634,7 +628,6 @@ fn form(
             applied: fresh,
         });
     }
-    let focus = std::mem::take(&mut state.focus_form);
     let form = state.form.as_mut()?;
     // 見出し: ID・状態・日付・追加者
     let status = item.status_kind();
@@ -676,15 +669,12 @@ fn form(
         view.mode,
         scale,
     );
-    let title = ui.add(
+    ui.add(
         egui::TextEdit::singleline(&mut form.draft.title)
             .id(Id::new(("material-title", &id)))
             .font(font.clone())
             .desired_width(f32::INFINITY),
     );
-    if focus {
-        title.request_focus();
-    }
     reference_pane::heading(
         ui,
         i18n::text(locale, "material.field_category"),

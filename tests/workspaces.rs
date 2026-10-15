@@ -1086,14 +1086,40 @@ fn ctrl_enter_registers_an_unregistered_file_and_ctrl_delete_rejects_without_del
 }
 
 #[test]
+fn material_tab_traverses_to_the_review_form_after_ctrl_three() {
+    let mut harness = material_harness();
+    harness.frame(vec![key(Key::Num5, ALT)]);
+    harness.frame(vec![key(Key::ArrowUp, ALT)]);
+    harness.frame(vec![key(Key::Num3, CTRL)]);
+    let title = egui::Id::new(("material-title", "M0138"));
+    let mut reached = false;
+    for _ in 0..40 {
+        harness.frame(vec![key(Key::Tab, Modifiers::NONE)]);
+        if harness.ctx.memory(|memory| memory.has_focus(title)) {
+            reached = true;
+            break;
+        }
+    }
+    assert!(reached, "Tab must traverse to the material title field");
+}
+
+#[test]
 fn the_review_form_writes_the_index_and_keeps_the_h1_in_step() {
     let mut harness = material_harness();
     harness.frame(vec![key(Key::Num5, ALT)]);
     harness.frame(vec![key(Key::ArrowUp, ALT)]);
     assert_eq!(material_selected(&harness).as_deref(), Some("M0138"));
-    // Ctrl+3 で審査フォームのタイトルへ
+    // Ctrl+3 reveals the shared reference pane, without taking a
+    // material-specific form shortcut. The form uses ordinary focus traversal.
     harness.frame(vec![key(Key::Num3, CTRL)]);
-    harness.frame(Vec::new());
+    let title = egui::Id::new(("material-title", "M0138"));
+    for _ in 0..40 {
+        if harness.ctx.memory(|memory| memory.has_focus(title)) {
+            break;
+        }
+        harness.frame(vec![key(Key::Tab, Modifiers::NONE)]);
+    }
+    assert!(harness.ctx.memory(|memory| memory.has_focus(title)));
     harness.frame(vec![key(Key::End, Modifiers::NONE)]);
     harness.frame(vec![Event::Text("（増補）".into())]);
     harness.idle(1.0);
