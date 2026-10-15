@@ -38,18 +38,24 @@
 
 - 委譲レベル `DelegationLevel`（`Off` / `Propose` / `Apply` / `Autonomous`）と役割別設定は `REF:src/core/model/delegation.rs` で定義する。
 - タスク起票・自動連鎖上限・`state: fixed` 保護・監査ログ記録は `REF:src/core/agents/runner.rs` および `REF:src/core/agents/apply.rs` が純粋関数として判定し、`REF:src/ui/agents.rs` が非同期実行を制御する（検証: `REF:tests/delegation.rs`）。
+- 委譲モデルの設計不変条件（`REF:docs/history.md` の `B-6`〜`B-13`）:
+  - 粒度は「全体既定＋役割ごと」のみとし、セッション一時上書きやタスク単位上書きは持たず `project.json` に永続化する。
+  - 自律連鎖で次タスクを起票できるのは `integrator` のみとし、自動適用の検証ゲートは E 系診断の増加有無で判定する。
+  - プロンプトの自動学習・自動書き換えは P5 に反するため実装しない（`REF:docs/history.md` の `F11`）。
 
 ### P6. プロジェクトは自己完結する
 
 状態: 実装完了（REF:src/core/policy/write_policy.rs, REF:src/adapters/storage_fs.rs, REF:tests/storage_policy.rs）
 
 - 書き込み先の検査は `WritePolicy`（`REF:src/core/policy/write_policy.rs`）が行い、実ファイルシステムへの書き込みシステムコールは `FsGate`（`REF:src/adapters/storage_fs.rs`）の 1 ファイルのみに閉じ込める（`REF:tests/layering.rs` の `only_the_write_gate_touches_the_file_system_for_writing` および `REF:tests/storage_policy.rs` で強制）。
+- プロンプトや原稿の版管理機構（`.bak-*` 等）は一切持たず Git に委ねる（`REF:docs/history.md` の `U-7`, `F10`）。
 
 ### P7. ドメインは UI を知らない
 
 状態: 実装完了（REF:src/core/mod.rs, REF:tests/layering.rs）
 
 - `src/core/**` は `egui`・I/O・非同期ランタイム・時刻・乱数を一切 import しない。`REF:tests/layering.rs` が `syn` による AST 走査で機械的に検証する。
+- 共同編集機能（`U-2`）およびモバイル・タッチ・ペン向け UI（`U-6`）は将来にわたり実装しない設計方針とする（`REF:docs/history.md` の `U-2`, `U-6`）。
 
 ## 2. 用語
 

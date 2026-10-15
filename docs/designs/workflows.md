@@ -58,20 +58,24 @@
 
 状態: 実装完了（REF:src/core/export.rs, REF:tests/export.rs, REF:tests/export_invariants.rs）
 
-- 14 段のアノテーション除去パイプライン（対象節収集、構造見出し除去/挿入、コメント除去、行末話者注釈除去、`'` 参照の平文化、資料参照の完全除去、エスケープ解除、ルビ処理、節区切り変換、連続空行圧縮、行頭字下げ、改行コード変換、末尾整形）は純粋関数 `core::export::run`（`REF:src/core/export.rs`）に実装する。
+- 14 段のアノテーション除去パイプライン（対象節収集、構造見出し除去/挿入、コメント除去、行末話者注釈除去、`'` 参照の平文化、資料参照の完全除去、エスケープ解除、ルビ処理、節区切り変換、連続空行圧縮、行頭字下げ、改行コード変換、末尾整形）は純粋関数 `core::export::run`（`REF:src/core/export.rs`）に実装する（`B-98`, `B-99`）。
 - エクスポート不変条件（出力に `@` 見出し・`//`・`/* */`・解決済み `'`・資料 ID・単独 `;` 行が残らないこと）は `REF:tests/export_invariants.rs` で検証する。
 
 ### 17.2 範囲指定と出力
 
 状態: 実装完了（REF:src/core/export.rs, REF:src/cli/export.rs, REF:src/ui/app.rs, REF:tests/export.rs, REF:tests/cli.rs）
 
-- 範囲式（`@` 省略形を含む `parse_range`）と確定度フィルタ（`effective_state` による `draft` / `review` / `fixed` 絞り込み）、既定ファイル名生成 `file_name` は `REF:src/core/export.rs` に実装し、CLI `novnow export`（`REF:src/cli/export.rs`）および GUI `>export` モーダル（`REF:src/ui/app.rs`）から呼び出す。
+- 範囲式（`@` 省略形を含む `parse_range`）と確定度フィルタ（`effective_state` による `draft` / `review` / `fixed` 絞り込み）、既定ファイル名生成 `file_name` は `REF:src/core/export.rs` に実装し、CLI `novnow export`（`REF:src/cli/export.rs`）および GUI `>export` モーダル（`REF:src/ui/app.rs`）から呼び出す（`B-100`, `B-101`）。
 
 ### 17.3 読者モード（`reader` ワークスペース）
 
 状態: 実装待ち（段階 ② 対象: REF:docs/plans.md#stage-2）
 
 - 縦書き読者モードは追加仕様 27（段階 ②）として予約されている。`project.json` の `reader` 設定セクションは未知キー温存（縫い代 1）により段階 ① でも無損失に保持される（`REF:tests/project_json.rs`）。
+- **段階 ② 実装時のアーキテクチャ境界（`REF:docs/plans.md#stage-2`）**:
+  - `egui` 標準の `TextEdit` / `Label` は横書き専用であるため、読者モードは `egui::Painter` による自前グリフ配置で実装する。
+  - 禁則処理・縦中横・ルビ配置・回転グリフ判定・改行および段組み（1 段 / 2 段）の座標計算は GUI に依存しない純粋関数 `core::reader::layout(blocks: &[ReaderBlock], config: &ReaderConfig, metrics: &dyn FontMetrics) -> Vec<Page>` として `src/core/` に実装し（P7 遵守）、`ui::workspaces::reader` は `Page` 内の `PlacedGlyph` 列を `Painter` に描くだけの薄い層とする。
+  - 約物の縦書き置換は `ttf-parser` でフォントの GSUB `vert` / `vrt2` テーブルを参照できない環境でも破綻しないよう、Unicode 縦書き形（U+FE10–U+FE19, U+FE30–U+FE4F）へのコードポイント置換表と 90 度時計回り回転描画（`ー` `〜` `…` `‥` `—` 等）の二段構えとする。
 
 ## 18. 性能・品質要件
 
@@ -79,7 +83,7 @@
 
 状態: 未実装・実装計画済み（REF:benches/core.rs, REF:tests/incremental.rs, REF:tests/role_language.rs, REF:.github/workflows/ci.yml, REF:docs/plans.md#plan-F-43）
 
-- 主要 5 処理の `criterion` ベンチマークは `REF:benches/core.rs` に実装している（リリース実測値: `single_line_relex` 約 462ns、`role_language_10_patterns` 約 1.89µs、`dictionary_trie_5000` 約 1.14ms、`reference_pane_rebuild` 約 38.7µs、`export_100k_chars` 約 7.37ms）。
+- 主要 5 処理の `criterion` ベンチマークは `REF:benches/core.rs` に実装している（リリース実測値: `single_line_relex` 約 462ns、`role_language_10_patterns` 約 1.89µs、`dictionary_trie_5000` 約 1.14ms、`reference_pane_rebuild` 約 38.7µs、`export_100k_chars` 約 7.37ms、`B-155`）。
 - Web リリースビルドの gzip 後 wasm サイズ（上限 8MiB、実測約 6.75MiB）は `REF:.github/workflows/ci.yml` の `wasm` ジョブで検査する。
 
 - **[F-38 / F-43 / S-12] 10 万字打鍵 16ms 以内・アイデア 1,000 件 60fps・文脈ビュー可視範囲レイアウト（未実装・実装計画済み: `REF:docs/plans.md#plan-F-43`）**:

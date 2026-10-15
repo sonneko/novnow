@@ -9,8 +9,8 @@
 状態: 実装完了（REF:src/core/resolve/dictionary.rs, REF:src/core/features/completion.rs, REF:src/ui/palette.rs, REF:tests/dictionary.rs, REF:tests/features_edit.rs, REF:benches/core.rs）
 
 - `characters.md`・`words.md`・`materials/index.json` の 3 供給元から `Dictionary`（`REF:src/core/resolve/dictionary.rs`）を構築する。
-- 正規化関数 `normalize` は長音記号（`ー` `−` `―` `─` `ｰ` → `ー`）の統一を行った後に Unicode NFKC 正規化（`unicode-normalization`）を適用し、正規化後文字列から原文バイト位置への対応表を用いてトライ木（`Trie`）と `aho-corasick` オートマトンを構築する。
-- 同名衝突の診断（`E014` / `E015` / `W027`）と長すぎるキー（`E028`）は辞書構築時に生成する（検証: `REF:tests/dictionary.rs`、ベンチマーク: `REF:benches/core.rs` の `dictionary_trie_5000`）。
+- 正規化関数 `normalize` は長音記号（`ー` `−` `―` `─` `ｰ` → `ー`）の統一を行った後に Unicode NFKC 正規化（`unicode-normalization`）を適用し、正規化後文字列から原文バイト位置への対応表を用いてトライ木（`Trie`）と `aho-corasick` オートマトンを構築する。NFKC より先に長音統一を行うのは、全角マイナス `－`（U+FF0D）が NFKC で ASCII `-` に変わった後では長音統一が発火しないためである（`A-19`, `B-57`）。
+- 同名衝突の診断（優先順位 `Character > Address > Word > Material > MaterialTitle`、負けた側に `W027`）と長すぎるキー（正規化後 `MAX_KEY_BYTES = 96` バイト超で `E028`）は辞書構築時に生成する（検証: `REF:tests/dictionary.rs`、ベンチマーク: `REF:benches/core.rs` の `dictionary_trie_5000`）。
 
 - **[F-24] 登場人物の透過的な辞書統合と重複抑止（実装完了: `REF:src/core/resolve/dictionary.rs`, `REF:src/ui/palette.rs`）**:
   - `REF:src/core/resolve/dictionary.rs` で `characters.md` の見出し名と `alias:` を無条件に統合辞書へ登録し（`words.md` ファイル自体は書き換えない）、`words.md` に同名の見出しが存在する場合は `Character` 定義へマージして `REF:src/core/features/reference.rs` や `REF:src/ui/palette.rs` に重複エントリが出ないようにする。
@@ -20,7 +20,11 @@
 状態: 実装完了（REF:src/core/resolve/dictionary.rs, REF:src/ui/widgets/reference_pane.rs, REF:src/ui/app.rs, REF:tests/dictionary.rs, REF:tests/workspaces.rs）
 
 - `core::resolve::dictionary`（`REF:src/core/resolve/dictionary.rs`）が `'` トークンを走査し、明示境界 `'{…}` と通常形 `'名前[:修飾子]` を解析する。
-- 通常形ではトライ木を 1 文字ずつ辿り、**最初に終端に達したキー**で確定する（最短一致）。終端に一度も達しない場合は助詞・句読点・空白・括弧・改行までを未解決キーとして切り出し、`E001`（または資料 ID 形なら `E012`）を生成する（検証: `REF:tests/dictionary.rs`）。
+- 通常形ではトライ木を 1 文字ずつ辿り、**最初に終端に達したキー**で確定する（最短一致。より長い辞書項目も存在する場合は `W029` と明示形 `'{…}` へのクイックフィックスを出す）。終端に一度も達しない場合は助詞・句読点・空白・括弧・改行までを未解決キーとして切り出し、`E001`（または資料 ID 形なら `E012`）を生成する（検証: `REF:tests/dictionary.rs`）。
+- **参照走査の内部規約（`REF:docs/history.md` の `B-56`, `B-59`〜`B-63`）**:
+  - アポストロフィ除外: 直前が ASCII 英数字（`don't`）、または未解決かつ候補が ASCII 英字 2 文字以下（`リリア's`）の場合は参照として扱わない（`B-60`）。
+  - 修飾子 `:` は半角コロンに限定し、`Character` ならモード式（3 つ以上は `E005`、構文不正は `E002`）、`Material` なら空白を許容する資料タイトル（`A-20`, `B-59`）、`Word` / `MaterialTitle` なら `E026` とする。
+  - 位置の単位境界（`B-56`）: `scan_line` が返す `RefToken` の範囲は**行内相対 byte range**、診断 `Diagnostic` の範囲は `line_start` を加算した**ファイル単位の byte range** とする。
 
 - **[S-09 / F-23] 未知の `'` 参照の形態素解析境界と自動回復（実装完了: `REF:src/core/resolve/dictionary.rs`, `REF:src/ui/widgets/reference_pane.rs`）**:
   - `REF:src/core/resolve/dictionary.rs` に文字種遷移（漢字・カタカナ・ひらがな・ASCII 英数字）および日本語助詞テーブルに基づく簡易形態素境界関数 `first_morpheme_end(text: &str) -> usize` を実装し、未解決参照 `E001` のスパン（赤波線範囲）を先頭 1 形態素に限定する。
@@ -30,15 +34,19 @@
 
 状態: 実装完了（REF:src/core/features/semantic_tokens.rs, REF:src/ui/theme.rs, REF:tests/features.rs）
 
-- 文書全体のトークン分類は `core::features::semantic_tokens::tokenize`（`REF:src/core/features/semantic_tokens.rs`）が行い、`TokenType`（構造見出し、節区切り、キャラ参照、別名参照、用語参照、資料参照、未解決参照、モード修飾、会話、話者注釈、役割語一致下線、コメント、フィールドキー、ルビ）の列を返す。
+- 文書全体のトークン分類は `core::features::semantic_tokens::tokenize`（`REF:src/core/features/semantic_tokens.rs`）が行い、`TokenType`（構造見出し、節区切り、キャラ参照、別名参照、用語参照、資料参照、未解決参照、モード修飾、会話、話者注釈、役割語一致下線、コメント、フィールドキー、ルビ）の重ならない昇順列を返す（`B-80`, `B-81`）。
 - 各 `TokenType` から色・スタイルへの変換は `ui::theme::token_style`（`REF:src/ui/theme.rs`）が担う（検証: `REF:tests/features.rs`, `REF:tests/gui.rs`）。
 
 ### 6.4 モード解決
 
 状態: 実装完了（REF:src/core/resolve/modes.rs, REF:tests/modes.rs）
 
-- 優先順位（行内明示 `'キャラ:モード` > 行末 `@キャラ:モード` > B 形式節 `mode:` > B 形式場面 `mode:` > A 形式話 `mode:` > A 形式章 `mode:` > `characters.md` の `default-mode:`）と同名 `mode_id` の `range:` 変種選択は `core::resolve::modes`（`REF:src/core/resolve/modes.rs`）に実装する。
+- 優先順位（行内明示 `'キャラ:モード` > 行末 `@キャラ:モード` > B 形式節 `mode:` > B 形式場面 `mode:` > B 形式前文 `mode:` > A 形式章 `cast:` > A 形式全体 `cast:` > `characters.md` の `default-mode:` > `W006`）と同名 `mode_id` の `range:` 変種選択は `core::resolve::modes`（`REF:src/core/resolve/modes.rs`）に実装する。
 - 未定義モード（`E003`）、範囲外モード（`E004`）、3 個以上のモード併用または同一節 `mode:` での同一キャラ重複指定（`E005`）、複数変種重複一致（`E017`）、全変種範囲外（`W006`）を検出する（検証: `REF:tests/modes.rs`）。
+- **モード解決の内部規約（`REF:docs/history.md` の `B-64`〜`B-67`）**:
+  - 各段で「見つかった」と判定するのは対象キャラにモード ID が 1 つ以上書かれている場合のみとし、`mode: 'リリア`（名前のみでモード省略）は未指定扱いで次の段へ進む（`B-65`）。
+  - `E005` の検出分担は、B 形式の `mode:` 行が `plot_episode`、1 トークン内の 3 モード以上が `dictionary`、`cast:` の重複と `default-mode:` の 3 モード以上が `modes` とし、同じ箇所に複数の層が重複して診断を出さない（`B-67`）。
+  - `modes::Target.character` は `Characters::characters` ベクタの添字であり、行インデックス（`Characters::character_of` の引数）と混同してはならない。
 
 ### 6.5 役割語の照合
 
@@ -46,13 +54,17 @@
 
 - パターン文字列とアンカー種別（`SentenceEnd`, `SentenceStart`, `Anywhere`, `Exact`）は `RolePattern`（`REF:src/core/model/role_pattern.rs`）が保持する。
 - 5 アトム（`*`/`〜`, `…`/`...`/`‥`, `(語クラス)`, `?`, リテラル）から正規表現および下線算出用キャプチャグループ付き正規表現へのコンパイルと、`RegexSet` を用いた高速一括照合は `Matcher` / `MatcherSet` / `Cache`（`REF:src/core/resolve/role_language.rs`）に実装する（検証: `REF:tests/role_language.rs`、ベンチマーク: `REF:benches/core.rs` の `role_language_10_patterns`）。
+- **役割語照合の内部規約（`REF:docs/history.md` の `A-21`, `A-23`, `B-68`〜`B-70`, `B-74`）**:
+  - `^` / `$` の境界は発話を `。！？!?…` の連続の直後で区切った「文」（先頭の文末記号の連続は次の文に含め、前後空白は除く `role_language::sentences`）の先頭・末尾とし、`=` 前置パターンのみ発話全体とする（`A-23`, `B-74`）。
+  - 緑下線から除外するのはワイルドカード `*` / `〜`（`[^\n]*?`）が消費した範囲のみとし、語クラス `(体言)` や `…`、`?` は下線範囲に含める（`A-21`, `B-68`）。
+  - 未定義の語クラス名 `(未知)` はリテラル文字列として扱い（`B-69`）、正規表現が不正な語クラス定義は `project_json` が `E027` を報告した上でマッチャから除外する（`A-24`）。
 
 ### 6.6 資料 ID の解決とインレイヒント
 
 状態: 実装完了（REF:src/core/resolve/materials.rs, REF:src/core/features/inlay_hint.rs, REF:src/ui/widgets/inlay.rs, REF:tests/materials.rs）
 
-- 資料参照（`'M0137` / `'M0137:ラベル` / `'{資料タイトル}`）の解決と未解決診断（`E012`）は `core::resolve::materials`（`REF:src/core/resolve/materials.rs`）が担う。
-- インレイヒント（`⟨タイトル⟩` の 12 字省略表示およびモード表示名 `:⟨日常⟩`）の算出は `core::features::inlay_hint::inlay_hints`（`REF:src/core/features/inlay_hint.rs`）が行い、エディタ上の隙間確保とオーバーレイ描画は `ui::widgets::inlay`（`REF:src/ui/widgets/inlay.rs`）が担う（検証: `REF:tests/materials.rs`, `REF:tests/gui.rs`）。
+- 資料参照（`'M0137` → `Route::Id` / `'M0137:ラベル` → `Route::IdWithTitle` / `'資料タイトル` → `Route::Title`）の解決と、明示タイトル不一致（`E006`、正規化比較 `same_title` と 3 種クイックフィックス `TitleFixes`）・未知の資料 ID（`E007`、レーベンシュタイン距離上位 5 件提案。`E001` とは重複させない `B-71`）・本文中の資料参照警告（`W031`）は `core::resolve::materials`（`REF:src/core/resolve/materials.rs`）が担う。
+- インレイヒント（`⟨タイトル⟩` の省略表示およびモード表示名 `:⟨日常⟩`）の算出は `core::features::inlay_hint::inlay_hints`（`REF:src/core/features/inlay_hint.rs`）が行い、エディタ上の `LayoutSection::leading_space` による隙間確保とオーバーレイ描画は `ui::widgets::inlay`（`REF:src/ui/widgets/inlay.rs`）が担う（`B-137`、検証: `REF:tests/materials.rs`, `REF:tests/gui.rs`）。
 
 ### 6.7 インクリメンタル再解析
 

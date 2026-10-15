@@ -9,19 +9,31 @@
 状態: 実装完了（REF:src/core/text/lexer.rs, REF:tests/lexer.rs）
 
 - 行頭シジル判定（`SIGIL_TABLE`）・7 種のエスケープ解除・フィールド行の 7 段判定・継続行インデント判定（2 空白以上または先頭タブ 1 文字以上）・BOM/CRLF 正規化は `core::text::lexer`（`REF:src/core/text/lexer.rs`）に実装する。
-- 日本語フィールドキー別名表は `/// i18n: format-vocabulary` を付与した定数配列として保持し、URI スキームとの非交差と合わせて `REF:tests/lexer.rs` で検証する。
+- 日本語フィールドキー別名表は `/// i18n: format-vocabulary` を付与した定数配列として保持し、URI スキームとの非交差（`no_field_key_collides_with_a_url_scheme`）と双方向 1:1 対応（`the_alias_table_is_one_to_one_in_both_directions`）を `REF:tests/lexer.rs` で検証する。
+- **字句解析の内部不変条件（`REF:docs/history.md` の `B-18`, `B-21`〜`B-24`, `B-36`, `B-37`）**:
+  - `SIGIL_TABLE: &[SigilSpec]` は `(prefix, sigil, requires_space, whole_line, formats, stage)` を保持し、配列の並び順そのものが優先順位を表す（`match` 直書き禁止）。
+  - インデント 0〜1 文字の行のみシジルおよびフィールド行として判定し、2 文字以上の空白または 1 文字以上のタブで始まる行は継続行（C 形式では段落字下げの通常本文）を優先する（`B-18`, `B-21`, `B-31`）。
+  - 半角コロンのフィールド行判定は §5.0.6 のキー表を許可リストとして用い、表にない ASCII キーは `:` 直後の空白を必須とすることで URL（`https://...`）・時刻（`10:30`）・Windows パスを誤認しない。また直前が `:` の `//` は行内コメントにしない（`B-24`）。
+  - フィールド値の後ろに書かれた `//` は無損失往復変換を保つため値の一部として保持し、数値等として解釈する層が行末コメントを除去する（`A-14`, `B-36`）。
+  - 空文書は保存時に改行 1 個を追加せず 0 バイトのまま保持する（`B-22`）。
 
 ### 5.1 SceneId と範囲式
 
 状態: 実装完了（REF:src/core/id.rs, REF:tests/id_range.rs）
 
 - `SceneId`・`PartialSceneId`・`RangeTerm`・`RangeExpr` のパース、階層比較、閉区間判定（`contains`）、逆転範囲や予約番号 `00` の検出（`E016` / `E020` / `E022`）は `REF:src/core/id.rs` に実装し、`REF:tests/id_range.rs` で検証する。
+- `IdError` / `RangeError` は `core` に文言を持たせないため `Display` を実装しない純粋な型 enum とし、`REF:src/core/diagnostics.rs` で診断コードへ写像する（`B-17`）。
 
 ### 5.2 本文形式（C 形式）— `contents/AA-BB.txt`
 
 状態: 未実装・実装計画済み（REF:src/core/syntax/contents.rs, REF:tests/contents.rs, REF:tests/golden.rs, REF:docs/plans.md#plan-S-08）
 
 - 場面見出し `@A-B-C[-D]`、節区切り `;` による節番号 `D` の自動採番、空節の `W012`、行末話者注釈 `@char[:mode]`、会話スパン `「」` / `『』`、ルビ 2 形式、コメント範囲の解析と無損失 `to_text()` は `core::syntax::contents`（`REF:src/core/syntax/contents.rs`）に実装する（検証: `REF:tests/contents.rs`, `REF:tests/golden.rs`）。
+- **C 形式パーサの境界規則（`REF:docs/history.md` の `B-32`〜`B-35`, `B-40`）**:
+  - 最初の場面見出しより前の行はどの節にも属させず `Contents::lines` にのみ保持して無損失往復を保つ（`B-32`）。
+  - ルビの親文字 `kanji_run` は CJK 統合漢字・拡張 A・互換漢字および反復記号 `々`（U+3005）・`〻`（U+303B）とし、話者注釈の `char_name` は空白と `:` を含まない 1 文字以上とする（`B-33`）。
+  - 空の節（`W012`）の診断スパンはクイックフィックスで削除できるよう「節を閉じた `;` 行または次の見出し行」を指し、ファイル末尾の `;` の後ろに本文がない場合は空節を作らない（`B-35`）。
+  - `.txt` 3 形式の見出し・コメント・区切り行の共通ヘルパは `REF:src/core/syntax/contents.rs` から `pub(crate)` で共有する（`B-40`）。
 
 - **[S-08] 会話閉じ括弧直後の `@` による話者予測補完（未実装・実装計画済み: `REF:docs/plans.md#plan-S-08`）**:
   - `REF:src/core/features/completion.rs` のトリガー判定に「同一行のカーソル前に `」` または `』` があり、その後に `@`（および入力途中のキャラ名/モード）が続く」ケースを追加し、`characters.md` の登場人物名と `:モードID` を候補として返す。
@@ -31,18 +43,21 @@
 状態: 実装完了（REF:src/core/syntax/plot_outline.rs, REF:tests/plot_outline.rs, REF:tests/golden.rs）
 
 - 章ブロック `@AA` / 話ブロック `@AA-BB`、フィールド行と継続行（`drop_indent` で先頭タブ 1 文字または空白 2 文字を除去）、未知フィールド温存、無損失往復変換 `Outline::to_text` は `core::syntax::plot_outline`（`REF:src/core/syntax/plot_outline.rs`）に実装する（検証: `REF:tests/plot_outline.rs`, `REF:tests/roundtrip.rs`）。
+- ブロック外（`;` の後から次の見出しの前）の行はどのブロックにも入れず `lines` に保持して `W011` / `W019` のみ検査し、`state` や `length` が不正形式のときは診断を出さず `Field::number()` 等が `None` を返して原文を温存する（`B-38`, `B-39`）。
 
 ### 5.4 話プロット形式（B 形式）— `plots/AA-BB.txt`
 
 状態: 実装完了（REF:src/core/syntax/plot_episode.rs, REF:tests/plot_episode.rs, REF:tests/golden.rs）
 
 - 場面見出し `@A-B-C` と `;` で区切られる節ブロック、場面レベル・節レベルのフィールド（`pov`, `mode`, `state`, `material`, `foreshadow`, `payoff`, `note`）、自由記述行、無損失往復変換 `EpisodePlot::to_text` は `core::syntax::plot_episode`（`REF:src/core/syntax/plot_episode.rs`）に実装する（検証: `REF:tests/plot_episode.rs`, `REF:tests/roundtrip.rs`）。
+- 場面レベルフィールド（`scene_field`）と最初の節（`section`）の境界は「最初の `point_line`（自由記述の要点行）が現れた位置（1 行もなければ最初の `;`）」で切る（コメント行と空行は場面フィールド領域を終わらせない、`B-41`）。
 
 ### 5.5 `characters.md`
 
 状態: 実装完了（REF:src/core/syntax/characters_md.rs, REF:tests/characters_md.rs, REF:tests/golden.rs）
 
 - H1 キャラ定義、固定 5 セクション（`attributes`, `tone`, `modes`, `relations`, `notes`）、H3 モード定義（`### <mode_id> <label>`）と同名 `mode_id` の `range:` 変種、役割語パターン行 `「...」` の抽出と無損失往復変換は `core::syntax::characters_md`（`REF:src/core/syntax/characters_md.rs`）に実装する（検証: `REF:tests/characters_md.rs`）。
+- MD 方言 4 形式（`characters.md`, `words.md`, `ideas.md`, `prompts/*.md`）の共通パーサ部品は `REF:src/core/syntax/characters_md.rs` を正本として `pub(crate)` で共有する（`B-42`）。入れ子の外にある見出しやモード内の箇条書きは診断を出さず `lines` に保持し、`range:` の検査は「行順の `W011` → モード順の `E002` / `E016` → 最後に重複 `E017`」の順で行う（`B-43`, `B-44`）。
 
 ### 5.6 `words.md`
 
@@ -61,12 +76,14 @@
 状態: 実装完了（REF:src/core/model/material.rs, REF:src/core/syntax/materials_index.rs, REF:tests/materials_index.rs）
 
 - `MaterialId`（接頭辞 `M` / `S` + 4 桁番号）と `MaterialRecord` は `REF:src/core/model/material.rs` に定義し、`materials/index.json` のパース・未知キー温存・重複 ID 検査（`E026`）・整形出力は `core::syntax::materials_index`（`REF:src/core/syntax/materials_index.rs`）が担う（検証: `REF:tests/materials_index.rs`）。
+- `serde_json` の `Value` はバイト位置を持たないため、`E024`（`path` の範囲外）や `E008`（重複 `id`）の診断位置は原文 JSON からキー名と値の文字列リテラルを検索する `literal_ranges` で算出し、閉じた集合の値（`status` 等）は未知値でデシリアライズ全体が失敗しないよう `String` で受けて `*_kind()` メソッドで enum へ変換する（`B-45`, `B-46`）。
 
 ### 5.9 `prompts/*.md`
 
 状態: 未実装・実装計画済み（REF:src/core/syntax/prompt_md.rs, REF:src/core/agents/prompts.rs, REF:tests/prompt_md.rs, REF:docs/plans.md#plan-S-01）
 
 - H1 ロール名、フィールド行（`version`）、H2 セクション（`system`, `task`, `output`）、`{{include:...}}` と 19 個の閉じた変数 `{{...}}` の検査（`W015` / `E029` / `E030`）は `core::syntax::prompt_md`（`REF:src/core/syntax/prompt_md.rs`）および `core::agents::prompts`（`REF:src/core/agents/prompts.rs`）に実装する（検証: `REF:tests/prompt_md.rs`）。
+- `{{variable}}` の走査は行コメント（`//`）と空行を除く全行を対象とし、AST 上の `Variable::range` は行内相対、診断 `E031` のスパンは `line_offsets` を加算したファイル内絶対 byte range とする（`B-47`）。
 
 - **[S-01] 参考例展開変数 `{{examples}}`（未実装・実装計画済み: `REF:docs/plans.md#plan-S-01`）**:
   - `REF:src/core/syntax/prompt_md.rs` の `VARIABLES` 定数配列に `"examples"` を追加し、`REF:src/core/agents/prompts.rs` の変数展開でタスクの参考例テキストを注入する。
