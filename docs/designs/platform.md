@@ -51,7 +51,7 @@
 
 ### 14.1 CLI 文法
 
-状態: 実装中（REF:src/cli/mod.rs, REF:src/main.rs, REF:tests/cli.rs, REF:docs/plans.md#plan-S-10）
+状態: 実装完了（REF:src/cli/mod.rs, REF:src/main.rs, REF:tests/cli.rs）
 
 - 引数解析とサブコマンド（`<dir>`, `new`, `check`, `export`, `mcp`）およびフラグ（`--gui`, `-h`/`--help`, `-V`/`--version`）の振り分けは `REF:src/cli/mod.rs` に実装する（検証: `REF:tests/cli.rs`）。
 
@@ -74,11 +74,11 @@
 
 ### 14.4 GUI 起動時のプロジェクト選択モーダル（デスクトップ）
 
-状態: 実装中（REF:src/ui/app.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-40）
+状態: 実装完了（REF:src/ui/app.rs, REF:tests/gui.rs）
 
 - デスクトップで `<dir>` なしに GUI 起動した際のプロジェクト選択画面（`recent.json` の履歴一覧、存在しないパスの灰色表示と履歴削除、フォルダ選択ダイアログ、新規作成）は `NativePicker`（`REF:src/ui/app.rs`）に実装する。
 
-- **[F-40 / S-11 / S-17] デスクトップ選択画面の `Ctrl+O` 2 段化・日付表示・履歴削除（実装中: `REF:docs/plans.md#plan-F-40`, `REF:docs/plans.md#plan-S-11`, `REF:docs/plans.md#plan-S-17`）**:
+- **[F-40 / S-11 / S-17] デスクトップ選択画面の `Ctrl+O` 2 段化・日付表示・履歴削除（実装完了: `REF:docs/plans.md#plan-F-40`, `REF:docs/plans.md#plan-S-11`, `REF:docs/plans.md#plan-S-17`）**:
   - `REF:src/ui/app.rs` の `NativePicker` で、`Ctrl+O` 押下時は保存して履歴一覧画面へ戻り、そこから「フォルダを開く」を選ぶ 2 段構成に統一する（F-40）。
   - 各履歴項目に最終利用日付 `opened_at` を表示する（S-11、`REF:src/ui/app.rs` の native picker テストで確認）。「データは消さず履歴のみを一覧から削除する」旨を明示した履歴削除機能を提供する（S-17、`REF:tests/recent_file.rs` で実データ不変を確認）。
 

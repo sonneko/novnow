@@ -181,10 +181,11 @@ fn draw_section(
 ) -> Option<bool> {
     let colors = theme::palette(mode);
     let document = bench.project().document(&section.path)?;
-    let (file_highlight, starts) = cache.file(bench, &section.path);
-    let range = byte_range(starts, document.text.len(), &section.lines);
+    let range = {
+        let (_, starts) = cache.file(bench, &section.path);
+        byte_range(starts, document.text.len(), &section.lines)
+    };
     let text = &document.text[range.clone()];
-    let highlight = slice(file_highlight, &range);
     let height_key = (
         section.path.clone(),
         section.lines.start,
@@ -209,6 +210,9 @@ fn draw_section(
         ui.allocate_exact_size(Vec2::new(width, block_height), Sense::hover());
         return None;
     }
+    // Extract token/squiggle spans only for sections entering the viewport.
+    let (file_highlight, _) = cache.file(bench, &section.path);
+    let highlight = slice(file_highlight, &range);
     ui.add_space(8.0);
     let (rule, _) = ui.allocate_exact_size(Vec2::new(width, 1.0), Sense::hover());
     ui.painter().line_segment(

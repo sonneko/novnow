@@ -2756,3 +2756,71 @@ fn warning_or_error_changes_review_header_glyph_and_adds_a_badge() {
         1
     );
 }
+
+#[test]
+fn ctrl_o_saves_before_showing_the_picker_and_never_opens_folder_directly() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text("先に保存".into())]);
+    harness.frame(vec![key(Key::O, Modifiers::CTRL)]);
+    let output = harness.frame(Vec::new());
+    assert!(
+        harness.app.workbench().is_none(),
+        "leaves the open project after saving"
+    );
+    assert!(
+        painted_text(&output).contains("プロジェクト"),
+        "shows the picker"
+    );
+    assert!(harness
+        .host
+        .files
+        .borrow()
+        .written
+        .get(CONTENTS_PATH)
+        .is_some_and(|text| text.contains("先に保存")));
+}
+
+#[test]
+fn failed_save_keeps_the_project_open_when_ctrl_o_is_pressed() {
+    let mut harness = Harness::new();
+    harness.host.files.borrow_mut().fail = true;
+    harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text("保存不能".into())]);
+    harness.frame(vec![key(Key::O, Modifiers::CTRL)]);
+    harness.frame(Vec::new());
+    assert!(
+        harness.app.workbench().is_some(),
+        "must not discard unsaved writing"
+    );
+    assert!(harness.app.overlay_open(), "shows the save error");
+}
+
+#[test]
+fn tab_inside_editor_stays_in_one_focus_target_and_header_tabs_cycle() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
+    harness.frame(Vec::new());
+    let editor = novnow::ui::widgets::section_editor::editor_id(harness.app.workbench().unwrap());
+    assert_eq!(harness.ctx.memory(|memory| memory.focused()), Some(editor));
+    harness.frame(vec![key(Key::Tab, Modifiers::NONE)]);
+    assert_eq!(harness.ctx.memory(|memory| memory.focused()), Some(editor));
+    let output = harness.frame(Vec::new());
+    let header = harness::painted_texts(&output)
+        .into_iter()
+        .find(|(s, rect)| s == "memory" && rect.min.y < 28.0)
+        .expect("header label")
+        .1;
+    harness.click_at(header.center());
+    harness.frame(vec![key(Key::Tab, Modifiers::NONE)]);
+    let after = harness.ctx.memory(|memory| memory.focused());
+    assert_ne!(
+        after,
+        Some(editor),
+        "Tab outside the editor must reach header controls"
+    );
+    assert!(
+        after.is_some(),
+        "the next focusable header control is focused"
+    );
+}

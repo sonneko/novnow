@@ -28,12 +28,12 @@
 
 ### 9.3 文脈ビュー（メインカラム上段）
 
-状態: 実装中（REF:src/ui/widgets/context_view.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-21）
+状態: 実装完了（REF:src/ui/widgets/context_view.rs, REF:tests/gui.rs）
 
 - 前後最大 3 節の読み取り専用表示と、編集中の節の位置に本文を重複描画せず 1 行プレースホルダ `─── @01-04-02-03 ───` のみを置く処理は `ui::widgets::context_view`（`REF:src/ui/widgets/context_view.rs`）に実装する（検証: `REF:tests/gui.rs` の `the_context_view_never_paints_the_section_being_edited`）。
 - ※§9.3.3 の折りたたみ UI は段階 ②（追加仕様 9、`REF:docs/plans.md#stage-2`）対象。
 
-- **[F-21 / F-22 / F-39 / F-41 / S-04 / S-12] 文脈ビューの視認性・ガイド・可視範囲レイアウト改善（実装中: `REF:docs/plans.md#plan-F-21`）**:
+- **[F-21 / F-22 / F-39 / F-41 / S-04 / S-12] 文脈ビューの視認性・ガイド・可視範囲レイアウト改善（実装完了: `REF:docs/plans.md#plan-F-21`）**:
   - `REF:src/ui/widgets/context_view.rs` で各節境界に `border` 色の横線を描画し（F-21）、節見出しを章省略なしの `@AA-BB-CC-DD`（`A-B-C-D`）に統一する（F-22）。両項目とも `REF:tests/gui.rs` で検証済み。
   - 編集中プレースホルダ行の左端に 3px の `accent` 縦線を描画して節エディタと対にし（F-41）、未保存ドットを直径 10px で描く（F-39、`REF:src/ui/widgets/context_view.rs`・`REF:tests/gui.rs` で検証済み）。
   - 本文が 0 文字のときは `fg.faint` で 3 行ガイド（`Alt+数字=画面 / Alt+矢印=節移動 / Ctrl+P=一覧`）を描画する（S-04 は `REF:tests/gui.rs` で検証済み）。スクロール可視範囲内の節のみ `Galley` レイアウトを行う（S-12）。`REF:src/ui/widgets/context_view.rs` ではビューポート外を文字数からの高さ推定で確保し、可視節の実測高さを世代・幅・フォントサイズごとにキャッシュする（検証: `REF:src/ui/widgets/context_view.rs` の `viewport_tests`）。
@@ -45,10 +45,10 @@
 - 1 行ミニヘッダー（パンくず `01 › 04 › 02 › 03` と有効モードバッジ）および構文ハイライト・インレイヒント・ベースライン基準の下線/波線描画を伴う複数行エディタは `REF:src/ui/widgets/section_editor.rs` と `REF:src/ui/widgets/syntax_text.rs` に実装する。
 - ※§9.4.2 の台詞比率バー、§9.4.3 のゴーストテキスト、§9.4.4 のタイプライタスクロールは段階 ②（`REF:docs/plans.md#stage-2`）対象。
 
-- **[F-02 / F-03 / F-37 / F-41] 節エディタの枠内パディング・カーソル/行番号調整・フォーカス表現分離・`lock_focus(true)`（未実装・実装計画済み: `REF:docs/plans.md#plan-F-02`）**:
+- **[F-02 / F-03 / F-37 / F-41] 節エディタの枠内パディング・カーソル/行番号調整・フォーカス表現分離・`lock_focus(true)`（一部実装完了: `REF:docs/plans.md#plan-F-02`）**:
   - `REF:src/ui/widgets/section_editor.rs` で枠内パディングとクリップ矩形を整えてテキストのはみ出しを解消し（F-02）、行番号の Y 座標とキャレット高さを `Galley` の行メトリクスに一致させる（F-03）。
   - ペインのフォーカス表示は左端 3px 縦線、編集中の節は常時 1px 枠線に分離する（F-41 は実装完了。`REF:src/ui/app.rs`, `REF:src/ui/widgets/context_view.rs`, `REF:tests/gui.rs`）。
-  - `TextEdit::multiline` に `.lock_focus(true)` を付け、入力欄外での `Tab` 巡回と 2px フォーカス枠描画を実装する（F-37）。
+  - `TextEdit::multiline` に `.lock_focus(true)` を付け、入力欄外での 入力欄外の `Tab` 巡回と明瞭なフォーカス表示を実装する（F-37）。
 
 ### 9.5 参照ペイン
 
@@ -66,7 +66,7 @@
 
 ### 9.6 ステータスバー
 
-状態: 実装中（REF:src/ui/app.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-05）
+状態: 実装完了（REF:src/ui/app.rs, REF:tests/gui.rs）
 
 - 左側（位置 `01›04›02›03`、節/話/全体の空白除外文字数、400 字詰め原稿用紙換算）と右側（エラー・警告・情報件数、エージェント実行状態、保存状態アイコン）は `NovnowApp`（`REF:src/ui/app.rs`）に実装する（検証: `REF:tests/gui.rs` の `counts_are_section_episode_and_project_without_whitespace`）。
 - ※§9.6.2 のセッション統計モードは段階 ②（`REF:docs/plans.md#stage-2`）対象。
