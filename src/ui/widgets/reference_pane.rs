@@ -246,9 +246,10 @@ pub fn sections(
                                 );
                             }
                             if !material.summary.is_empty() {
-                                let short: String = material.summary.chars().take(120).collect();
+                                let lines = material.summary.lines().take(5).collect::<Vec<_>>();
+                                let short: String = lines.join("\n").chars().take(120).collect();
                                 body(ui, &short);
-                                if short.chars().count() < material.summary.chars().count() {
+                                if short != material.summary {
                                     let button = super::link_button(
                                         ui,
                                         i18n::text(locale, "pane.more"),
@@ -343,10 +344,10 @@ pub fn sections(
                                 {
                                     continue;
                                 }
-                                egui::CollapsingHeader::new(format!(
-                                    "{} ({count})",
-                                    found.code.as_str()
-                                ))
+                                let group = egui::CollapsingHeader::new(
+                                    RichText::new(format!("{} ({count})", found.code.as_str()))
+                                        .underline(),
+                                )
                                 .id_source(("diagnostic-group", found.code.as_str()))
                                 .show(ui, |ui| {
                                     for item in content
@@ -357,6 +358,9 @@ pub fn sections(
                                         draw(ui, item);
                                     }
                                 });
+                                if group.header_response.hovered() {
+                                    ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                                }
                             } else {
                                 draw(ui, found);
                             }

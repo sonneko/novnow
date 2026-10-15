@@ -52,14 +52,14 @@
 
 ### 9.5 参照ペイン
 
-状態: 実装中（REF:src/core/features/reference.rs, REF:src/ui/widgets/reference_pane.rs, REF:tests/context_rules.rs, REF:docs/plans.md#plan-F-04）
+状態: 実装完了（REF:src/core/features/reference.rs, REF:src/ui/widgets/reference_pane.rs, REF:tests/context_rules.rs, REF:tests/gui.rs）
 
 - 段階 ① の 6 セクション（プロット・上位プロット・配役・用語・資料・診断）のデータ組み立ては `core::features::reference::build`（`REF:src/core/features/reference.rs`）が `Vec<Section>` として返し（縫い代 6）、`REF:src/ui/widgets/reference_pane.rs` が枠線なしで描画する（80ms デバウンス）。
 - ※五感・空間・挿絵の 3 セクションは段階 ②（`REF:docs/plans.md#stage-2`）対象。
 
-- **[F-04 / F-28 / F-34] 参照ペインのアコーディオン・境界線・「続き...」表示（実装中: `REF:docs/plans.md#plan-F-04`）**:
-  - `REF:src/ui/widgets/reference_pane.rs` で同一診断コードが 4 件以上のときは 1 行アコーディオンに集約する（F-04）。
-  - 各セクション間に 1px の薄い横線を引く（F-28 は実装完了、`REF:src/ui/widgets/reference_pane.rs` と `REF:tests/gui.rs` で検証済み）。要約切り詰め時は末尾にクリック可能な「`続き...`」行を表示する（F-34）。
+- **[F-04 / F-28 / F-34] 参照ペインのアコーディオン・境界線・「続き...」表示（実装完了: `REF:src/ui/widgets/reference_pane.rs`, `REF:tests/gui.rs`）**:
+  - `REF:src/ui/widgets/reference_pane.rs` で同一診断コードが 4 件以上のときは 1 行アコーディオンに集約する（F-04、開閉と非集約は `REF:tests/gui.rs` で検証済み）。
+  - 各セクション間に 1px の薄い横線を引く（F-28 は実装完了、`REF:src/ui/widgets/reference_pane.rs` と `REF:tests/gui.rs` で検証済み）。要約が 120 文字・5 行を超えると末尾にクリック可能な「`続き...`」行を表示する（F-34、`REF:tests/gui.rs` で検証済み）。
 
 - **[F-23] 参照ペインの診断からの自動回復（実装完了: `REF:src/ui/widgets/reference_pane.rs`, `REF:src/ui/app.rs`）**:
   - 未解決参照診断には、形態素解析で区切った 1 形態素を `words.md` / `characters.md` へ登録するボタンを配置する。

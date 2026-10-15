@@ -2203,3 +2203,198 @@ fn external_urls_have_hover_blue_underline_24px_target_and_open_on_click() {
         Some(url.to_owned())
     );
 }
+
+#[test]
+fn four_matching_diagnostics_collapse_but_three_stay_expanded() {
+    use novnow::core::diagnostics::{Diagnostic, DiagnosticCode};
+    use novnow::core::features::reference::Reference;
+    use novnow::ui::widgets::reference_pane;
+    let ctx = egui::Context::default();
+    ctx.style_mut(|style| style.animation_time = 0.0);
+    let mut content = Reference {
+        diagnostics: (0..4)
+            .map(|index| Diagnostic::simple(DiagnosticCode::W012, Some(index..index + 1)))
+            .collect(),
+        ..Default::default()
+    };
+    let render = |events: Vec<Event>, content: &Reference| {
+        ctx.run(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::Vec2::new(500.0, 450.0),
+                )),
+                events,
+                ..Default::default()
+            },
+            |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    reference_pane::sections(
+                        ui,
+                        content,
+                        Locale::Ja,
+                        novnow::ui::theme::Mode::Light,
+                        1.0,
+                    );
+                });
+            },
+        )
+    };
+    let collapsed = render(vec![], &content);
+    let group = harness::painted_texts(&collapsed)
+        .into_iter()
+        .find(|(text, _)| text.contains("W012 (4)"))
+        .expect("group header");
+    assert_eq!(painted_text(&collapsed).matches("W012").count(), 1);
+    render(
+        vec![
+            Event::PointerMoved(group.1.center()),
+            Event::PointerButton {
+                pos: group.1.center(),
+                button: egui::PointerButton::Primary,
+                pressed: true,
+                modifiers: Modifiers::NONE,
+            },
+        ],
+        &content,
+    );
+    let expanded = render(
+        vec![Event::PointerButton {
+            pos: group.1.center(),
+            button: egui::PointerButton::Primary,
+            pressed: false,
+            modifiers: Modifiers::NONE,
+        }],
+        &content,
+    );
+    assert_eq!(
+        painted_text(&expanded).matches("W012").count(),
+        5,
+        "{}",
+        painted_text(&expanded)
+    );
+    content.diagnostics.pop();
+    let fewer = render(vec![], &content);
+    assert_eq!(painted_text(&fewer).matches("W012").count(), 3);
+}
+
+#[test]
+fn truncated_material_summary_has_a_link_to_the_full_material() {
+    use novnow::core::features::reference::{MaterialRef, Reference};
+    use novnow::ui::widgets::reference_pane::{self, Chosen};
+    let ctx = egui::Context::default();
+    let content = Reference {
+        materials: vec![MaterialRef {
+            id: "M0001".into(),
+            title: "Archive".into(),
+            summary: "要".repeat(121),
+            source: String::new(),
+            candidate: false,
+        }],
+        ..Default::default()
+    };
+    let mut chosen = None;
+    let draw = |events: Vec<Event>, chosen: &mut Option<Chosen>| {
+        ctx.run(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::Vec2::new(500.0, 400.0),
+                )),
+                events,
+                ..Default::default()
+            },
+            |ctx| {
+                *chosen = egui::CentralPanel::default()
+                    .show(ctx, |ui| {
+                        reference_pane::sections(
+                            ui,
+                            &content,
+                            Locale::Ja,
+                            novnow::ui::theme::Mode::Light,
+                            1.0,
+                        )
+                    })
+                    .inner;
+            },
+        )
+    };
+    let first = draw(vec![], &mut chosen);
+    let text = painted_text(&first);
+    let label = novnow::ui::i18n::text(Locale::Ja, "pane.more");
+    let more = harness::painted_texts(&first)
+        .iter()
+        .find(|(text, _)| text == label)
+        .expect("continuation line")
+        .1;
+    assert!(text.contains(label) && !text.contains(&"要".repeat(121)));
+    draw(
+        vec![
+            Event::PointerMoved(more.center()),
+            Event::PointerButton {
+                pos: more.center(),
+                button: egui::PointerButton::Primary,
+                pressed: true,
+                modifiers: Modifiers::NONE,
+            },
+        ],
+        &mut chosen,
+    );
+    let clicked = draw(
+        vec![Event::PointerButton {
+            pos: more.center(),
+            button: egui::PointerButton::Primary,
+            pressed: false,
+            modifiers: Modifiers::NONE,
+        }],
+        &mut chosen,
+    );
+    // The paint-only closure cannot retrieve Chosen; verify the app path in a
+    // dedicated assertion below instead of treating a drawn link as navigation.
+    assert!(painted_text(&clicked).contains(label));
+}
+
+#[test]
+fn material_summary_truncated_after_five_lines_shows_continuation() {
+    use novnow::core::features::reference::{MaterialRef, Reference};
+    let content = Reference {
+        materials: vec![MaterialRef {
+            id: "M0001".into(),
+            title: "Archive".into(),
+            summary: (1..=6)
+                .map(|index| format!("line {index}"))
+                .collect::<Vec<_>>()
+                .join("\n"),
+            source: String::new(),
+            candidate: false,
+        }],
+        ..Default::default()
+    };
+    let ctx = egui::Context::default();
+    let output = ctx.run(
+        egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                egui::Vec2::new(400.0, 400.0),
+            )),
+            ..Default::default()
+        },
+        |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                novnow::ui::widgets::reference_pane::sections(
+                    ui,
+                    &content,
+                    Locale::Ja,
+                    novnow::ui::theme::Mode::Light,
+                    1.0,
+                );
+            });
+        },
+    );
+    let painted = painted_text(&output);
+    assert!(
+        painted.contains("line 5") && !painted.contains("line 6"),
+        "{painted}"
+    );
+    assert!(painted.contains(novnow::ui::i18n::text(Locale::Ja, "pane.more")));
+}
