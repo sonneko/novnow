@@ -47,7 +47,7 @@
 
 - **[F-02 / F-03 / F-37 / F-41] 節エディタの枠内パディング・カーソル/行番号調整・フォーカス表現分離・`lock_focus(true)`（未実装・実装計画済み: `REF:docs/plans.md#plan-F-02`）**:
   - `REF:src/ui/widgets/section_editor.rs` で枠内パディングとクリップ矩形を整えてテキストのはみ出しを解消し（F-02）、行番号の Y 座標とキャレット高さを `Galley` の行メトリクスに一致させる（F-03）。
-  - ペインのフォーカス表示は左端 3px 縦線、編集中の節は常時 1px 枠線に分離する（F-41）。
+  - ペインのフォーカス表示は左端 3px 縦線、編集中の節は常時 1px 枠線に分離する（F-41 は実装完了。`REF:src/ui/app.rs`, `REF:src/ui/widgets/context_view.rs`, `REF:tests/gui.rs`）。
   - `TextEdit::multiline` に `.lock_focus(true)` を付け、入力欄外での `Tab` 巡回と 2px フォーカス枠描画を実装する（F-37）。
 
 ### 9.5 参照ペイン

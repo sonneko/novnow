@@ -2459,3 +2459,31 @@ fn palette_can_reopen_welcome_and_show_bidirectional_migration_help() {
         harness.frame(vec![key(Key::Escape, Modifiers::NONE)]);
     }
 }
+
+#[test]
+fn editor_focus_stripe_and_context_placeholder_match_the_thin_editor_border() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
+    let output = harness.frame(Vec::new());
+    let colors = novnow::ui::theme::palette(novnow::ui::theme::Mode::Dark);
+    let stripes: Vec<_> = output
+        .shapes
+        .iter()
+        .filter_map(|item| match &item.shape {
+            egui::Shape::Rect(shape)
+                if shape.rect.width() == 3.0 && shape.fill == colors.accent =>
+            {
+                Some(shape.rect)
+            }
+            _ => None,
+        })
+        .collect();
+    assert!(
+        stripes.len() >= 2,
+        "editor focus and context editing placeholder both have a 3px stripe: {stripes:?}"
+    );
+    assert!(output.shapes.iter().any(|item| matches!(
+        &item.shape,
+        egui::Shape::Rect(shape) if shape.stroke.width == 1.0 && shape.stroke.color == colors.border
+    )), "editor outline remains a 1px border rather than a thick focus frame");
+}
