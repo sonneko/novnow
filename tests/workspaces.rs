@@ -2547,3 +2547,40 @@ fn agent_dry_run_button_generates_the_selected_task_packet() {
         "the button must perform the same action as the D key"
     );
 }
+
+#[test]
+fn material_creation_shortcut_works_while_the_review_form_is_focused() {
+    let mut harness = material_harness();
+    harness.frame(vec![key(Key::Num5, ALT)]);
+    harness.frame(vec![key(Key::ArrowUp, ALT)]);
+    harness.frame(vec![key(Key::Num3, CTRL)]);
+    let title = egui::Id::new(("material-title", "M0138"));
+    for _ in 0..40 {
+        if harness.ctx.memory(|memory| memory.has_focus(title)) {
+            break;
+        }
+        harness.frame(vec![key(Key::Tab, Modifiers::NONE)]);
+    }
+    assert!(harness.ctx.memory(|memory| memory.has_focus(title)));
+    harness.frame(vec![key(Key::N, CTRL_SHIFT)]);
+    assert!(
+        harness.app.overlay_open(),
+        "Ctrl+Shift+N is global in material"
+    );
+    harness.frame(vec![Event::Text("新しい取材".into())]);
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.idle(0.6);
+    let index = written(&harness, "materials/index.json");
+    assert!(index.contains("\"title\": \"新しい取材\""), "{index}");
+}
+
+#[test]
+fn material_creation_button_opens_the_same_dialog() {
+    let mut harness = material_harness();
+    harness.frame(vec![key(Key::Num5, ALT)]);
+    let rect = harness
+        .rect_of("Ctrl+Shift+N 新しい資料")
+        .expect("the visible material new button");
+    harness.click_at(rect.center());
+    assert!(harness.app.overlay_open());
+}

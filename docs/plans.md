@@ -231,7 +231,7 @@
   - 計画内容: 全クリック対象に薄い下線とホバー変化を付与し、`REF:tests/gui.rs` で自動検査する。
 
 <a id="plan-F-31"></a>
-- **F-31（実装中）**: 資料ワークスペースの `Ctrl+Shift+N` をペインフォーカス非依存にする
+- **F-31（実装完了）**: 資料ワークスペースの `Ctrl+Shift+N` をペインフォーカス非依存にする
   - 仕様・設計: `REF:docs/designs/ui.md`（§10.5）, `REF:docs/designs/workflows.md`（§16.1）
   - 変更対象: `REF:src/ui/workspaces/material.rs`, `REF:src/ui/shell.rs`
   - 計画内容: 左一覧以外にフォーカスがあっても `Ctrl+Shift+N`（および新規ボタン）で新しい資料を作成できるようにする。

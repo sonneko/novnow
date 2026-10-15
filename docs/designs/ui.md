@@ -159,7 +159,7 @@
 - 分類ツリー・資料一覧・MD 本文エディタ・インデックスメタデータ表示・状態変更（`A` 承認 / `X` 却下）は `REF:src/ui/workspaces/material.rs` に実装する。
 
 - **[F-31 / F-36 / F-44 / S-07] 資料ワークスペースのショートカット全域化・カテゴリ/条件欄整理・URL 外部リンク（未実装・実装計画済み: `REF:docs/plans.md#plan-F-31`, `REF:docs/plans.md#plan-F-44`, `REF:docs/plans.md#plan-S-07`）**:
-  - `REF:src/ui/workspaces/material.rs` で `Ctrl+Shift+N` をペインフォーカス非依存にし、ガイドラベルをクリック可能なボタンにする（F-31, F-16）。
+  - `REF:src/ui/workspaces/material.rs` で `Ctrl+Shift+N` をペインフォーカス非依存にし、ガイドラベルをクリック可能なボタンにする（F-31, F-16）。フォームのタイトル欄をフォーカスした状態でのショートカット起動とボタン起動は `REF:tests/workspaces.rs` で検証する。
   - フォーム間のフォーカス移動を `Tab` に移し（F-36）、中央ペインの長い操作ガイドを省略表示して右フォームの幅を確保する。`REF:tests/workspaces.rs` と `REF:scripts/web-smoke.mjs` で `Ctrl+3` 後の画面とフォームの可視性を検証する。右ペインのカテゴリチップを「この資料のカテゴリ」見出し直下に置いて選択中を枠線で示し、条件の入力例は `TextEdit::hint_text` に移して説明文を `fg.faint` に統一する（F-44）。
   - 資料内の URL に外部リンクアイコン＋薄い下線＋ホバー時青色を付け、クリックで開けるようにする（S-07）。
 
