@@ -31,12 +31,12 @@
 
 ### 13.4 プロジェクト選択モーダル（Web）
 
-状態: 実装中（REF:src/ui/web.rs, REF:scripts/web-smoke.mjs, REF:docs/plans.md#plan-F-33）
+状態: 実装完了（REF:src/ui/web.rs, REF:src/adapters/storage_idb.rs, REF:scripts/web-smoke.mjs, REF:tests/gui.rs）
 
 - Web 起動時および `Ctrl+O` 時のプロジェクト選択モーダル（一覧・検索 `/`・新規作成 `Ctrl+N`・Zip 取込 `Ctrl+I`・改名 `F2`・削除 `Delete`・単一タブ利用の注記 `project.pick.single_tab`）は `WebPicker`（`REF:src/ui/web.rs`）に実装する（検証: `REF:scripts/web-smoke.mjs`）。
 
-- **[F-33 / S-02] Web 版の同名プロジェクト作成禁止と初回起動ウェルカム案内（実装中: `REF:docs/plans.md#plan-F-33`, `REF:docs/plans.md#plan-S-02`）**:
-  - `REF:src/ui/web.rs` と `REF:src/adapters/storage_idb.rs` で既存プロジェクトと同一タイトルの作成・改名を拒否する（F-33 は実装完了。`REF:tests/storage_idb.rs` と実ブラウザ `REF:scripts/web-smoke.mjs` で検証済み）。履歴が空の初回起動時およびパレットからウェルカム案内モーダルを表示する（S-02）。
+- **[F-33 / S-02] Web 版の同名プロジェクト作成禁止と初回起動ウェルカム案内（実装完了: `REF:docs/plans.md#plan-F-33`, `REF:docs/plans.md#plan-S-02`）**:
+  - `REF:src/ui/web.rs` と `REF:src/adapters/storage_idb.rs` で既存プロジェクトと同一タイトルの作成・改名を拒否する（F-33 は実装完了。`REF:tests/storage_idb.rs` と実ブラウザ `REF:scripts/web-smoke.mjs` で検証済み）。履歴が空の初回起動時に案内を表示し、`>welcome` パレットからウェルカム案内モーダルを再表示する（S-02 は `REF:src/ui/app.rs`, `REF:src/ui/web.rs`, `REF:tests/gui.rs` で確認済み）。
 
 ### 13.5 Zip インポート / エクスポート
 
@@ -44,8 +44,8 @@
 
 - アーカイブ対象の選別（ドット始まりファイルの除外と `.gitignore` / `.gitkeep` の例外許可、パストラバーサル `..` の拒否）は `core::policy::archive`（`REF:src/core/policy/archive.rs`）が担い、Deflate 圧縮・展開は `adapters::zip`（`REF:src/adapters/zip.rs`）が担う（検証: `REF:tests/zip_roundtrip.rs`）。
 
-- **[S-10 / S-16] デスクトップ Zip インポートと Web⇔デスクトップ移行ヘルプ（未実装・実装計画済み: `REF:docs/plans.md#plan-S-10`, `REF:docs/plans.md#plan-S-16`）**:
-  - `REF:src/cli/mod.rs` と `REF:src/ui/app.rs` にデスクトップでの Zip 導入を追加し（S-10）、Zip を使った Web⇔デスクトップ移行手順のヘルプ画面を追加する（S-16）。
+- **[S-10 / S-16] デスクトップ Zip インポートと Web⇔デスクトップ移行ヘルプ（実装中: `REF:docs/plans.md#plan-S-10`, `REF:docs/plans.md#plan-S-16`）**:
+  - `REF:src/cli/mod.rs` と `REF:src/ui/app.rs` にデスクトップでの Zip 導入を追加し（S-10）、Zip を使った Web⇔デスクトップ移行手順のヘルプ画面を追加する（S-16 は `REF:src/ui/app.rs`, `REF:tests/gui.rs` で検証済み）。
 
 ## 14. 起動仕様
 

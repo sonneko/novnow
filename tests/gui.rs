@@ -2435,3 +2435,27 @@ fn workspace_name_fades_from_the_header_after_one_second() {
     assert!(header_has_name(&harness.idle(0.5)));
     assert!(!header_has_name(&harness.idle(0.7)));
 }
+
+#[test]
+fn palette_can_reopen_welcome_and_show_bidirectional_migration_help() {
+    let mut harness = Harness::new();
+    for (command, label_key) in [("welcome", "help.welcome"), ("migration", "help.migration")] {
+        harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+        harness.frame(vec![Event::Text(format!(">{command}"))]);
+        let options = painted_text(&harness.frame(Vec::new()));
+        assert!(
+            options.contains(&format!(">{command}")),
+            "palette: {options}"
+        );
+        harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+        harness.frame(Vec::new());
+        let output = harness.frame(Vec::new());
+        assert!(harness.app.overlay_open(), "{command} dialog is open");
+        assert!(
+            painted_text(&output).contains(novnow::ui::i18n::text(Locale::Ja, label_key)),
+            "{command} help should appear: {}",
+            painted_text(&output)
+        );
+        harness.frame(vec![key(Key::Escape, Modifiers::NONE)]);
+    }
+}
