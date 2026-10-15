@@ -33,10 +33,10 @@
 - 前後最大 3 節の読み取り専用表示と、編集中の節の位置に本文を重複描画せず 1 行プレースホルダ `─── @01-04-02-03 ───` のみを置く処理は `ui::widgets::context_view`（`REF:src/ui/widgets/context_view.rs`）に実装する（検証: `REF:tests/gui.rs` の `the_context_view_never_paints_the_section_being_edited`）。
 - ※§9.3.3 の折りたたみ UI は段階 ②（追加仕様 9、`REF:docs/plans.md#stage-2`）対象。
 
-- **[F-21 / F-22 / F-39 / F-41 / S-04 / S-12] 文脈ビューの視認性・ガイド・可視範囲レイアウト改善（未実装・実装計画済み: `REF:docs/plans.md#plan-F-21`）**:
-  - `REF:src/ui/widgets/context_view.rs` で各節境界に `border` 色の横線を描画し（F-21）、節見出しを章省略なしの `@AA-BB-CC-DD`（`A-B-C-D`）に統一する（F-22）。
+- **[F-21 / F-22 / F-39 / F-41 / S-04 / S-12] 文脈ビューの視認性・ガイド・可視範囲レイアウト改善（実装中: `REF:docs/plans.md#plan-F-21`）**:
+  - `REF:src/ui/widgets/context_view.rs` で各節境界に `border` 色の横線を描画し（F-21）、節見出しを章省略なしの `@AA-BB-CC-DD`（`A-B-C-D`）に統一する（F-22）。両項目とも `REF:tests/gui.rs` で検証済み。
   - 編集中プレースホルダ行の左端に 3px の `accent` 縦線を描画して節エディタと対にし（F-41）、未保存ドットを直径 10px で描く（F-39、`REF:src/ui/widgets/context_view.rs`・`REF:tests/gui.rs` で検証済み）。
-  - 本文が 0 文字のときは `fg.faint` で 3 行ガイド（`Alt+数字=画面 / Alt+矢印=節移動 / Ctrl+P=一覧`）を描画し（S-04）、スクロール可視範囲内の節のみ `Galley` レイアウトを行う（S-12）。`REF:src/ui/widgets/context_view.rs` ではビューポート外を文字数からの高さ推定で確保し、可視節の実測高さを世代・幅・フォントサイズごとにキャッシュする（検証: `REF:src/ui/widgets/context_view.rs` の `viewport_tests`）。
+  - 本文が 0 文字のときは `fg.faint` で 3 行ガイド（`Alt+数字=画面 / Alt+矢印=節移動 / Ctrl+P=一覧`）を描画する（S-04 は `REF:tests/gui.rs` で検証済み）。スクロール可視範囲内の節のみ `Galley` レイアウトを行う（S-12）。`REF:src/ui/widgets/context_view.rs` ではビューポート外を文字数からの高さ推定で確保し、可視節の実測高さを世代・幅・フォントサイズごとにキャッシュする（検証: `REF:src/ui/widgets/context_view.rs` の `viewport_tests`）。
 
 ### 9.4 節エディタ（メインカラム下段）
 
@@ -57,9 +57,9 @@
 - 段階 ① の 6 セクション（プロット・上位プロット・配役・用語・資料・診断）のデータ組み立ては `core::features::reference::build`（`REF:src/core/features/reference.rs`）が `Vec<Section>` として返し（縫い代 6）、`REF:src/ui/widgets/reference_pane.rs` が枠線なしで描画する（80ms デバウンス）。
 - ※五感・空間・挿絵の 3 セクションは段階 ②（`REF:docs/plans.md#stage-2`）対象。
 
-- **[F-04 / F-28 / F-34] 参照ペインのアコーディオン・境界線・「続き...」表示（未実装・実装計画済み: `REF:docs/plans.md#plan-F-04`）**:
+- **[F-04 / F-28 / F-34] 参照ペインのアコーディオン・境界線・「続き...」表示（実装中: `REF:docs/plans.md#plan-F-04`）**:
   - `REF:src/ui/widgets/reference_pane.rs` で同一診断コードが 4 件以上のときは 1 行アコーディオンに集約する（F-04）。
-  - 各セクション間に 1px の薄い横線を引き（F-28）、要約切り詰め時は末尾にクリック可能な「`続き...`」行を表示する（F-34）。
+  - 各セクション間に 1px の薄い横線を引く（F-28 は実装完了、`REF:src/ui/widgets/reference_pane.rs` と `REF:tests/gui.rs` で検証済み）。要約切り詰め時は末尾にクリック可能な「`続き...`」行を表示する（F-34）。
 
 - **[F-23] 参照ペインの診断からの自動回復（実装完了: `REF:src/ui/widgets/reference_pane.rs`, `REF:src/ui/app.rs`）**:
   - 未解決参照診断には、形態素解析で区切った 1 形態素を `words.md` / `characters.md` へ登録するボタンを配置する。

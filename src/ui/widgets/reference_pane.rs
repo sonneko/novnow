@@ -3,6 +3,7 @@
 //! - **`egui::Frame::group`（枠線付きカード）を使わない**（§9.5.1 MUST。`tests/layering.rs` が
 //!   `src/ui/` に 0 件であることを検査する）。区切りは余白（12px）と見出しの字送り。
 //! - 見出し 11px / `fg.faint`、本文 13px / `fg.primary` / 行間 1.6。
+//! - 2 セクション目以降の見出し前には `border` の 1px 横線を引く。
 //! - 更新はカーソル移動から 80ms のデバウンス。待つ間も前の内容をそのまま出す（スピナーを出さない、§9.5.4 MUST）。
 
 use egui::text::{LayoutJob, TextFormat};

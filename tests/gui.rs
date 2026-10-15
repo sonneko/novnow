@@ -2024,3 +2024,110 @@ fn context_unsaved_indicator_has_a_ten_pixel_diameter() {
         harness.app.workbench().map(|b| b.save.state())
     );
 }
+
+#[test]
+fn reference_sections_have_one_pixel_separator_between_headings() {
+    use novnow::core::features::reference::{Reference, Upper};
+    let ctx = egui::Context::default();
+    let colors = novnow::ui::theme::palette(novnow::ui::theme::Mode::Light);
+    let reference = Reference {
+        plot: vec!["A short plot".into()],
+        upper: vec![Upper {
+            id: "01".into(),
+            summary: "Chapter".into(),
+        }],
+        ..Default::default()
+    };
+    let output = ctx.run(
+        egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                egui::Vec2::new(500.0, 300.0),
+            )),
+            ..Default::default()
+        },
+        |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                novnow::ui::widgets::reference_pane::sections(
+                    ui,
+                    &reference,
+                    Locale::Ja,
+                    novnow::ui::theme::Mode::Light,
+                    1.0,
+                );
+            });
+        },
+    );
+    assert_eq!(
+        output.shapes.iter().filter(|item| matches!(
+            &item.shape,
+            egui::Shape::LineSegment { stroke, .. } if stroke.color == colors.border && stroke.width == 1.0
+        )).count(),
+        1,
+        "two nonempty sections have exactly one border rule"
+    );
+}
+
+#[test]
+fn context_view_draws_section_rules_full_ids_and_the_empty_guide() {
+    use novnow::ui::widgets::context_view::{self, Cache, Placeholder};
+    let ctx = egui::Context::default();
+    let bench = Workbench::new(world(), None, 400);
+    let mut cache = Cache::default();
+    let mode = novnow::ui::theme::Mode::Light;
+    let colors = novnow::ui::theme::palette(mode);
+    let placeholder = Placeholder {
+        scene: "01-04-02-01",
+        chars: 0,
+        target: None,
+        indicator: Indicator::Nothing,
+        accessible: "editing",
+    };
+    let mut draw = || {
+        ctx.run(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::Vec2::new(700.0, 600.0),
+                )),
+                ..Default::default()
+            },
+            |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    context_view::show(
+                        ui,
+                        &bench,
+                        &mut cache,
+                        mode,
+                        1.0,
+                        3,
+                        44,
+                        Locale::Ja,
+                        &placeholder,
+                    );
+                });
+            },
+        )
+    };
+    draw();
+    let output = draw();
+    let text = painted_text(&output);
+    assert!(
+        text.contains("@01-04-02-02"),
+        "full 4-part section id: {text}"
+    );
+    for key in [
+        "context.guide_workspace",
+        "context.guide_section",
+        "context.guide_palette",
+    ] {
+        assert!(
+            text.contains(novnow::ui::i18n::text(Locale::Ja, key)),
+            "{key}: {text}"
+        );
+    }
+    assert!(output.shapes.iter().any(|item| matches!(
+        &item.shape,
+        egui::Shape::LineSegment { stroke, .. } if stroke.color == colors.border && stroke.width == 1.0
+    )), "a separator should appear between context sections");
+}
