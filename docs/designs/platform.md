@@ -40,12 +40,12 @@
 
 ### 13.5 Zip インポート / エクスポート
 
-状態: 実装中（REF:src/core/policy/archive.rs, REF:src/adapters/zip.rs, REF:tests/zip_roundtrip.rs, REF:docs/plans.md#plan-S-10）
+状態: 実装完了（REF:src/core/policy/archive.rs, REF:src/adapters/zip.rs, REF:src/cli/import.rs, REF:src/ui/app.rs, REF:tests/zip_roundtrip.rs, REF:tests/cli.rs）
 
 - アーカイブ対象の選別（ドット始まりファイルの除外と `.gitignore` / `.gitkeep` の例外許可、パストラバーサル `..` の拒否）は `core::policy::archive`（`REF:src/core/policy/archive.rs`）が担い、Deflate 圧縮・展開は `adapters::zip`（`REF:src/adapters/zip.rs`）が担う（検証: `REF:tests/zip_roundtrip.rs`）。
 
-- **[S-10 / S-16] デスクトップ Zip インポートと Web⇔デスクトップ移行ヘルプ（実装中: `REF:docs/plans.md#plan-S-10`, `REF:docs/plans.md#plan-S-16`）**:
-  - `REF:src/cli/mod.rs` と `REF:src/ui/app.rs` にデスクトップでの Zip 導入を追加し（S-10）、Zip を使った Web⇔デスクトップ移行手順のヘルプ画面を追加する（S-16 は `REF:src/ui/app.rs`, `REF:tests/gui.rs` で検証済み）。
+- **[S-10 / S-16] デスクトップ Zip インポートと Web⇔デスクトップ移行ヘルプ（実装完了: `REF:src/cli/import.rs`, `REF:src/ui/app.rs`, `REF:tests/cli.rs`, `REF:tests/gui.rs`）**:
+  - `REF:src/cli/mod.rs` と `REF:src/ui/app.rs` にデスクトップでの Zip 導入を追加し（S-10 は `REF:tests/cli.rs`, `REF:tests/zip_roundtrip.rs` で安全な復元を検証）、Zip を使った Web⇔デスクトップ移行手順のヘルプ画面を追加する（S-16 は `REF:src/ui/app.rs`, `REF:tests/gui.rs` で検証済み）。
 
 ## 14. 起動仕様
 
@@ -78,9 +78,9 @@
 
 - デスクトップで `<dir>` なしに GUI 起動した際のプロジェクト選択画面（`recent.json` の履歴一覧、存在しないパスの灰色表示と履歴削除、フォルダ選択ダイアログ、新規作成）は `NativePicker`（`REF:src/ui/app.rs`）に実装する。
 
-- **[F-40 / S-11 / S-17] デスクトップ選択画面の `Ctrl+O` 2 段化・日付表示・履歴削除（未実装・実装計画済み: `REF:docs/plans.md#plan-F-40`, `REF:docs/plans.md#plan-S-11`, `REF:docs/plans.md#plan-S-17`）**:
+- **[F-40 / S-11 / S-17] デスクトップ選択画面の `Ctrl+O` 2 段化・日付表示・履歴削除（実装中: `REF:docs/plans.md#plan-F-40`, `REF:docs/plans.md#plan-S-11`, `REF:docs/plans.md#plan-S-17`）**:
   - `REF:src/ui/app.rs` の `NativePicker` で、`Ctrl+O` 押下時は保存して履歴一覧画面へ戻り、そこから「フォルダを開く」を選ぶ 2 段構成に統一する（F-40）。
-  - 各履歴項目に最終利用日付 `opened_at` を表示し（S-11）、「データは消さず履歴のみを一覧から削除する」旨を明示した履歴削除機能を追加する（S-17）。
+  - 各履歴項目に最終利用日付 `opened_at` を表示する（S-11、`REF:src/ui/app.rs` の native picker テストで確認）。「データは消さず履歴のみを一覧から削除する」旨を明示した履歴削除機能を提供する（S-17、`REF:tests/recent_file.rs` で実データ不変を確認）。
 
 ### 14.5 `novnow new` の生成物
 

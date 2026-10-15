@@ -6686,6 +6686,21 @@ mod native {
         }
     }
 
+    /// A path's last-opened date belongs to the visible picker row (§14.4).
+    fn recent_caption(path: &str, exists: bool, opened_at: &str, locale: Locale) -> String {
+        if !exists {
+            return format!("{}    {path}", i18n::text(locale, "project.pick.missing"));
+        }
+        let name = Path::new(path)
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_else(|| path.to_owned());
+        format!(
+            "{name}    {path}    {}",
+            opened_at.get(..10).unwrap_or(opened_at)
+        )
+    }
+
     /// §14.4 のプロジェクト選択（デスクトップ）。
     struct NativePicker {
         recent: Vec<(String, bool, String)>,
@@ -6861,18 +6876,7 @@ mod native {
                             );
                         }
                         for (index, (path, exists, opened_at)) in self.recent.iter().enumerate() {
-                            let name = Path::new(path)
-                                .file_name()
-                                .map(|name| name.to_string_lossy().into_owned())
-                                .unwrap_or_else(|| path.clone());
-                            let shown = if *exists {
-                                format!(
-                                    "{name}    {path}    {}",
-                                    opened_at.get(..10).unwrap_or(opened_at)
-                                )
-                            } else {
-                                format!("{}    {path}", i18n::text(locale, "project.pick.missing"))
-                            };
+                            let shown = recent_caption(path, *exists, opened_at, locale);
                             let color = if !exists {
                                 colors.fg_faint
                             } else if index == self.selected {
@@ -6995,6 +6999,22 @@ mod native {
             }
             let _ = Vec2::ZERO;
             choose.and_then(|dir| self.try_open(&dir))
+        }
+    }
+    #[cfg(test)]
+    mod picker_tests {
+        use super::*;
+
+        #[test]
+        fn native_history_rows_display_the_date_and_missing_paths() {
+            assert_eq!(
+                recent_caption("/books/novel", true, "2026-10-15T09:30:00Z", Locale::Ja),
+                "novel    /books/novel    2026-10-15"
+            );
+            assert!(
+                recent_caption("/books/gone", false, "2026-10-14", Locale::Ja)
+                    .contains(i18n::text(Locale::Ja, "project.pick.missing"))
+            );
         }
     }
 }
