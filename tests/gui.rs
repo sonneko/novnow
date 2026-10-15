@@ -1024,6 +1024,31 @@ fn on_the_web_only_browser_defaults_that_novnow_needs_are_blocked() {
         ..command
     };
     assert!(!shell::browser_default_blocked("I", devtools));
+    // F-17: Browser-owned keys have actionable alternate chords.
+    let alternate = egui::Modifiers {
+        ctrl: true,
+        shift: true,
+        alt: true,
+        ..Default::default()
+    };
+    for (key, command) in [
+        (egui::Key::I, Command::Capture),
+        (egui::Key::N, Command::InsertSection),
+        (egui::Key::W, Command::Term),
+        (egui::Key::T, Command::Register { character: true }),
+    ] {
+        assert_eq!(
+            shell::command_of(key, alternate, false, false),
+            Some(command)
+        );
+    }
+    assert!(shell::browser_default_blocked(
+        "I",
+        BrowserKeys {
+            alt: true,
+            ..devtools
+        }
+    ));
     assert!(
         shell::browser_default_blocked("F", devtools),
         "Ctrl+Shift+F は全体検索"

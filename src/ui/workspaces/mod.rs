@@ -232,6 +232,8 @@ impl View {
 /// ワークスペースの描画から `NovnowApp` に頼むこと（マウスでの操作。キーは `Command` で来る）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Request {
+    /// Expose a keyboard-only action as a visible button.
+    Shortcut(crate::ui::shell::Command),
     /// `Ctrl+Enter` と同じ（下の段へ降りる・昇格・採用など）。
     Down,
     /// `Ctrl+Delete` と同じ（アイデアの破棄・資料の却下）。

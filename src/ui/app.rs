@@ -534,17 +534,6 @@ pub trait Picker {
     fn show(&mut self, ctx: &Context, locale: Locale, mode: Mode) -> Option<(Session, UiSettings)>;
     /// `Ctrl+O`（選択画面の中）。
     fn open_folder(&mut self);
-    /// `Ctrl+O`（プロジェクトを開いている間）: フォルダを選んで開く。取り消したら `None`、
-    /// 開けなければ §14.2.2 と同じ内容の文字列。
-    fn open_dialog(&mut self, locale: Locale) -> Option<Result<(Session, UiSettings), String>> {
-        let _ = locale;
-        None
-    }
-    /// `Ctrl+O`（プロジェクトを開いている間）で、書き終えてから選択画面に戻るか（Web、§13.4
-    /// 「2 回目以降は `Ctrl+O` でいつでも開ける」）。デスクトップはフォルダの選択（[`Picker::open_dialog`]）。
-    fn returns_to_list(&self) -> bool {
-        true
-    }
     /// 選択画面に戻ってきた（一覧を読み直す）。
     fn refresh(&mut self) {}
     /// 選択画面での `Esc`（入力中の名前などをやめる。選択画面そのものは閉じない、§13.4）。
@@ -571,7 +560,7 @@ pub struct NovnowApp {
     mac: bool,
     /// 次のフレームの頭で戻すフォーカス（矢印のショートカットの後。`frame` の注記）。
     refocus: Option<egui::Id>,
-    /// 書き終えたら選択画面に戻る（Web の `Ctrl+O`。[`Picker::returns_to_list`]）。
+    /// 書き終えたら選択画面に戻る（Web / デスクトップの `Ctrl+O`）。
     leaving: bool,
 }
 
@@ -742,7 +731,7 @@ impl NovnowApp {
                 }
             }
             Stage::Open(session) if self.leaving && session.saving.is_none() => {
-                // Web の `Ctrl+O`: 書き終えたら選択画面へ（書けなければ戻らずに知らせる）
+                // `Ctrl+O`: 書き終えたら選択画面へ（書けなければ戻らずに知らせる）
                 self.leaving = false;
                 match session.bench.save.state() {
                     State::Clean => {
@@ -901,25 +890,10 @@ impl NovnowApp {
                         session.bench.edited(now);
                         session.bench.save.request_now();
                         save_if_due(session, &mut self.settings, now);
-                        if self.picker.returns_to_list() {
-                            // 非同期の保存（Web）は終わってから戻る（`frame` の `leaving`）
-                            self.leaving = true;
-                            self.overlay = Overlay::None;
-                            return;
-                        }
-                        if session.bench.save.state() != State::Clean {
-                            self.overlay = Overlay::SaveError;
-                            return;
-                        }
-                        match self.picker.open_dialog(locale) {
-                            Some(Ok((next, settings))) => {
-                                self.stage = Stage::Open(Box::new(next));
-                                self.settings = settings;
-                                self.overlay = Overlay::None;
-                            }
-                            Some(Err(report)) => self.overlay = Overlay::Message(report),
-                            None => {}
-                        }
+                        // 両プラットフォームとも、保存完了後に履歴一覧へ戻る。
+                        // フォルダダイアログは一覧の「開く」からのみ起動する。
+                        self.leaving = true;
+                        self.overlay = Overlay::None;
                         return;
                     }
                 }
@@ -2570,6 +2544,7 @@ impl NovnowApp {
                 _ => None,
             };
             match request {
+                Some(workspaces::Request::Shortcut(command)) => self.run(ctx, command, now),
                 Some(workspaces::Request::Down) => self.run(ctx, Command::ConfirmNext, now),
                 Some(workspaces::Request::Drop) => self.run(ctx, Command::Drop, now),
                 Some(workspaces::Request::Notice(message)) => {
@@ -4664,116 +4639,161 @@ fn status_bar(
     let mono = FontId::new(11.0 * scale, FontFamily::Monospace);
     let mut clicked = false;
     ui.horizontal_centered(|ui| {
-        let dot = || {
-            RichText::new("  ·  ")
-                .font(font.clone())
-                .color(colors.fg_faint)
+        let width = ui.available_width();
+        // Reserve the rightmost save state before placing lower-priority labels.
+        // A clipped long notice or diagnostic count must never push it off-screen.
+        let reserved = if indicator == Indicator::Failed {
+            170.0
+        } else if session.bench.save.guards_close() {
+            46.0
+        } else {
+            23.0
         };
-        if let Some(crumb) = session.bench.breadcrumb() {
-            ui.label(
-                RichText::new(crumb)
-                    .font(mono.clone())
-                    .color(colors.fg_muted),
-            );
-            ui.label(dot());
-        }
-        let (section, episode, project) = session.bench.counts();
-        let unit = i18n::text(locale, "status.chars_unit");
-        ui.label(
-            RichText::new(format!(
-                "{}{unit} / {}{unit} / {}{unit}",
-                context_view::group(section),
-                context_view::group(episode),
-                context_view::group(project)
-            ))
-            .font(mono.clone())
-            .color(colors.fg_muted),
-        );
-        ui.label(dot());
-        let page = session
-            .bench
-            .project()
-            .settings()
-            .writing
-            .manuscript_page_chars
-            .max(1) as f64;
-        ui.label(
-            RichText::new(format!(
-                "{:.1}{}",
-                episode as f64 / page,
-                i18n::text(locale, "status.pages_unit")
-            ))
-            .font(mono.clone())
-            .color(colors.fg_muted),
-        );
-        // 診断件数（E + W、今のファイル。0 件なら出さない）
-        let count = diagnostic_count(session);
-        if count > 0 {
-            ui.label(dot());
-            let flag = ui
-                .add(
-                    egui::Label::new(
-                        RichText::new(format!("⚑{count}"))
-                            .font(mono.clone())
-                            .color(colors.warn),
-                    )
-                    .sense(Sense::click()),
-                )
-                .on_hover_text(i18n::text(locale, "status.open_review"));
-            if flag.clicked() {
-                session.open_review = true;
-            }
-        }
-        if session.bench.conflicts().next().is_some() {
-            ui.label(dot());
-            ui.label(RichText::new("⇄").font(mono.clone()).color(colors.error))
-                .on_hover_text(i18n::text(locale, "status.conflict"));
-        }
-        // 稼働表示（§15.7.4: `⟳ T0042 writer` / `⟳ 3件`、自律なら `(自律)`。クリックで一覧）
-        if let Some(label) = crate::ui::agents::status_label(&session.agents, locale) {
-            ui.label(dot());
-            let running = ui
-                .add(
-                    egui::Label::new(RichText::new(label).font(mono.clone()).color(colors.accent))
-                        .sense(Sense::click()),
-                )
-                .on_hover_text(i18n::text(locale, "status.open_agent"));
-            if running.clicked() {
-                session.open_agent = true;
-            }
-        }
-        if let Some((message, at)) = &session.notice {
-            if now - at < 4.0 {
-                ui.label(dot());
-                ui.label(
-                    RichText::new(message)
+        ui.allocate_ui_with_layout(
+            Vec2::new((width - reserved).max(0.0), ui.available_height()),
+            Layout::left_to_right(Align::Center),
+            |ui| {
+                ui.set_clip_rect(ui.clip_rect().intersect(ui.max_rect()));
+                let mut hidden = Vec::new();
+                let dot = || {
+                    RichText::new("  ·  ")
                         .font(font.clone())
-                        .color(colors.fg_faint),
+                        .color(colors.fg_faint)
+                };
+                if let Some(crumb) = session.bench.breadcrumb() {
+                    if width >= 900.0 {
+                        ui.label(
+                            RichText::new(crumb.clone())
+                                .font(mono.clone())
+                                .color(colors.fg_muted),
+                        );
+                        ui.label(dot());
+                    } else {
+                        hidden.push(crumb);
+                    }
+                }
+                let (section, episode, project) = session.bench.counts();
+                let unit = i18n::text(locale, "status.chars_unit");
+                let chars = format!(
+                    "{}{unit} / {}{unit} / {}{unit}",
+                    context_view::group(section),
+                    context_view::group(episode),
+                    context_view::group(project)
                 );
-            }
-        }
-        // F-05: live modifier-prefix completion, without displacing the save indicator.
-        let mods = ui.ctx().input(|input| input.modifiers);
-        let mac = ui.ctx().os() == egui::os::OperatingSystem::Mac;
-        if mods.command || (mac && mods.mac_cmd) {
-            let key = if mods.shift {
-                "status.shortcut_shift"
-            } else if mods.alt {
-                "status.shortcut_alt"
-            } else {
-                "status.shortcut_ctrl"
-            };
-            let detail = i18n::text(locale, key);
-            if ui.available_width() > 230.0 {
-                ui.label(dot());
-                ui.label(
-                    RichText::new(palette::ellipsize(detail, 23))
-                        .font(font.clone())
-                        .color(colors.fg_faint),
-                )
-                .on_hover_text(detail);
-            }
-        }
+                if width >= 410.0 {
+                    ui.label(
+                        RichText::new(&chars)
+                            .font(mono.clone())
+                            .color(colors.fg_muted),
+                    );
+                    ui.label(dot());
+                } else {
+                    hidden.push(chars);
+                }
+                let page = session
+                    .bench
+                    .project()
+                    .settings()
+                    .writing
+                    .manuscript_page_chars
+                    .max(1) as f64;
+                let pages = format!(
+                    "{:.1}{}",
+                    episode as f64 / page,
+                    i18n::text(locale, "status.pages_unit")
+                );
+                if width >= 680.0 {
+                    ui.label(
+                        RichText::new(&pages)
+                            .font(mono.clone())
+                            .color(colors.fg_muted),
+                    );
+                } else {
+                    hidden.push(pages);
+                }
+                if width < 950.0 {
+                    if let Some((message, at)) = &session.notice {
+                        if now - at < 4.0 {
+                            hidden.push(message.clone());
+                        }
+                    }
+                }
+                if !hidden.is_empty() {
+                    ui.label(RichText::new("…").color(colors.fg_faint))
+                        .on_hover_text(hidden.join(" · "));
+                }
+                // 診断件数（E + W、今のファイル。0 件なら出さない）
+                let count = diagnostic_count(session);
+                if count > 0 {
+                    ui.label(dot());
+                    let flag = ui
+                        .add(
+                            egui::Label::new(
+                                RichText::new(format!("⚑{count}"))
+                                    .font(mono.clone())
+                                    .color(colors.warn),
+                            )
+                            .sense(Sense::click()),
+                        )
+                        .on_hover_text(i18n::text(locale, "status.open_review"));
+                    if flag.clicked() {
+                        session.open_review = true;
+                    }
+                }
+                if session.bench.conflicts().next().is_some() {
+                    ui.label(dot());
+                    ui.label(RichText::new("⇄").font(mono.clone()).color(colors.error))
+                        .on_hover_text(i18n::text(locale, "status.conflict"));
+                }
+                // 稼働表示（§15.7.4: `⟳ T0042 writer` / `⟳ 3件`、自律なら `(自律)`。クリックで一覧）
+                if let Some(label) = crate::ui::agents::status_label(&session.agents, locale) {
+                    ui.label(dot());
+                    let running = ui
+                        .add(
+                            egui::Label::new(
+                                RichText::new(label).font(mono.clone()).color(colors.accent),
+                            )
+                            .sense(Sense::click()),
+                        )
+                        .on_hover_text(i18n::text(locale, "status.open_agent"));
+                    if running.clicked() {
+                        session.open_agent = true;
+                    }
+                }
+                if let Some((message, at)) = &session.notice {
+                    if now - at < 4.0 && width >= 950.0 {
+                        ui.label(dot());
+                        ui.label(
+                            RichText::new(message)
+                                .font(font.clone())
+                                .color(colors.fg_faint),
+                        );
+                    }
+                }
+                // F-05: live modifier-prefix completion, without displacing the save indicator.
+                let mods = ui.ctx().input(|input| input.modifiers);
+                let mac = ui.ctx().os() == egui::os::OperatingSystem::Mac;
+                if mods.command || (mac && mods.mac_cmd) {
+                    let key = if mods.shift {
+                        "status.shortcut_shift"
+                    } else if mods.alt {
+                        "status.shortcut_alt"
+                    } else {
+                        "status.shortcut_ctrl"
+                    };
+                    let detail = i18n::text(locale, key);
+                    if ui.available_width() > 230.0 {
+                        ui.label(dot());
+                        ui.label(
+                            RichText::new(palette::ellipsize(detail, 23))
+                                .font(font.clone())
+                                .color(colors.fg_faint),
+                        )
+                        .on_hover_text(detail);
+                    }
+                }
+            },
+        );
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             let (rect, response) = ui.allocate_exact_size(Vec2::new(14.0, 14.0), Sense::click());
             let painter = ui.painter_at(rect.expand(2.0));
@@ -5696,7 +5716,7 @@ const SHORTCUT_PALETTE_COMMANDS: &[(&str, &str, Command)] = &[
     ("find-previous", "Shift+F3", Command::FindNext(false)),
     ("complete", "Ctrl+Space", Command::Complete),
     ("modes", "Ctrl+Shift+M", Command::Modes),
-    ("term", "Ctrl+Shift+W", Command::Term),
+    ("term", "Ctrl+Alt+Shift+W (Web)", Command::Term),
     ("recent-next", "Ctrl+Tab", Command::RecentFile(true)),
     (
         "recent-previous",
@@ -5711,7 +5731,7 @@ const SHORTCUT_PALETTE_COMMANDS: &[(&str, &str, Command)] = &[
     ),
     (
         "register-character",
-        "Ctrl+Shift+T",
+        "Ctrl+Alt+Shift+T (Web)",
         Command::Register { character: true },
     ),
     ("diff", "Ctrl+Shift+D", Command::Diff),
@@ -5777,8 +5797,8 @@ const SHORTCUT_PALETTE_COMMANDS: &[(&str, &str, Command)] = &[
     ),
     ("previous-workspace", "Alt+0", Command::PreviousWorkspace),
     ("up", "Ctrl+B", Command::Up),
-    ("new-item", "Ctrl+Shift+N", Command::InsertSection),
-    ("capture", "Ctrl+Shift+I", Command::Capture),
+    ("new-item", "Ctrl+Alt+Shift+N (Web)", Command::InsertSection),
+    ("capture", "Ctrl+Alt+Shift+I (Web)", Command::Capture),
     ("review", "Ctrl+Shift+E", Command::Review),
     ("drop", "Ctrl+Delete", Command::Drop),
     ("next-tab", "Ctrl+Shift+Right", Command::Tab(true)),
@@ -6547,14 +6567,6 @@ mod native {
             *self = Self::new(self.locale);
         }
 
-        fn open_dialog(&mut self, locale: Locale) -> Option<Result<(Session, UiSettings), String>> {
-            let dir = block_on(RfdDialog.pick_folder())?;
-            Some(match precheck_report(&dir, locale) {
-                Ok(root) => open_project(&root),
-                Err((report, _)) => Err(report),
-            })
-        }
-
         fn show(
             &mut self,
             ctx: &Context,
@@ -6619,6 +6631,7 @@ mod native {
             let down = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::ArrowDown));
             let up = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::ArrowUp));
             let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
+            let delete = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Delete));
             if down && self.selected + 1 < self.recent.len() {
                 self.selected += 1;
             }
@@ -6626,13 +6639,19 @@ mod native {
                 self.selected = self.selected.saturating_sub(1);
             }
             let mut choose: Option<PathBuf> = None;
+            if enter && self.recent.is_empty() {
+                self.want_folder = true;
+            }
             if enter {
                 if let Some((path, true, _)) = self.recent.get(self.selected) {
                     choose = Some(PathBuf::from(path));
                 }
             }
             let mut create_at: Option<PathBuf> = None;
-            let mut remove_history: Option<String> = None;
+            // Delete removes only the history entry, never the project's files.
+            let mut remove_history: Option<String> = delete
+                .then(|| self.recent.get(self.selected).map(|row| row.0.clone()))
+                .flatten();
             egui::CentralPanel::default()
                 .frame(
                     Frame::none()

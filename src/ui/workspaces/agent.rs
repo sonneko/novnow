@@ -609,6 +609,9 @@ fn tasks_column(
     }
     super::separator(ui, view.mode);
     if tasks.is_empty() {
+        if ui.button(i18n::text(locale, "agent.new_button")).clicked() {
+            actions.push(Action::New);
+        }
         super::hint(
             ui,
             view.mode,

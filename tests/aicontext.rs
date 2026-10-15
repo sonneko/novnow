@@ -421,3 +421,36 @@ fn task_examples_are_in_the_packet_and_prompt_variable() {
     assert!(packet.text().contains("## examples"));
     assert!(packet.size() <= packet.cap);
 }
+
+#[test]
+fn long_examples_are_clipped_consistently_with_prompt_expansion() {
+    let mut project = project();
+    project.insert(Document::new(
+        world::CONTENTS_PATH,
+        world::CONTENTS.replace("設計図だ", &"設計図だ".repeat(1000)),
+    ));
+    project.insert(Document::new(
+        "prompts/writer.md",
+        "# writer\n## system\nExample: {{examples}}\n## task\nWrite.\n## output\nBody.\n",
+    ));
+    let mut settings = project.settings().clone();
+    settings.agents.max_chars_per_request = 3000;
+    project.set_settings(settings);
+    let examples = vec!["@01-04-02-02 contents".to_owned()];
+    let packet = packet::build(&Inputs {
+        project: &project,
+        role: "writer",
+        scene: id(1, 4, 2, 3),
+        delegation: Delegation::Propose,
+        generated_at: NOW,
+        title: "星屑",
+        excluded: &[],
+        task: None,
+        comment: "",
+        examples: &examples,
+    });
+    assert!(!packet.examples.is_empty());
+    assert!(packet.size() <= packet.cap);
+    assert!(packet.request().system.contains(&packet.examples));
+    assert!(packet.examples.chars().count() < 8000);
+}

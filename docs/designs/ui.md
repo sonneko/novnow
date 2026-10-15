@@ -99,7 +99,8 @@
   - フェイルセーフとして `Event::WindowFocused(false)` または最後の変換イベントから 2 秒無入力で `composing = false` に戻す。
   - デスクトップで IME を有効化するため、編集領域フォーカス中は毎フレーム `PlatformOutput.ime = Some(IMEOutput { rect, cursor_rect })` を出力する。Web 版でキーボード移動時にも IME hidden input を同期する処理は `sync_text_agent`（`REF:src/ui/web.rs`）が担う（検証: `REF:tests/gui.rs`, `REF:tests/gui.rs`）。
 
-- **[F-17 / F-35 / F-36 / F-37 / F-40] キー割当の統一とブラウザ非衝突化（未実装・実装計画済み: `REF:docs/plans.md#plan-F-17`）**:
+- **[F-17 / F-35 / F-36 / F-37 / F-40] キー割当の統一とブラウザ非衝突化（実装中: `REF:docs/plans.md#plan-F-17`）**:
+  - `REF:src/ui/shell.rs` は Web の予約キーに `Ctrl+Alt+Shift+I/N/T/W` を代替割当にし、ブラウザの開発者ツール等を妨げない。`REF:src/ui/web.rs` の key guard と `REF:tests/gui.rs` で確認する。
   - `REF:src/ui/shell.rs` と各ワークスペースで「一覧選択は素の `↑`/`↓`、確定して節移動は `Alt+↑`/`Alt+↓`」に統一し（F-35）、`Ctrl+3` を全画面で「参照ペインへフォーカス」に統一して資料内の移動は `Tab` に移し（F-36）、デスクトップの `Ctrl+O` を「保存して一覧へ戻る」に統一する（F-40）。
 
 ### 9.9 アクセシビリティ

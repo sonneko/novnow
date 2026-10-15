@@ -57,13 +57,13 @@
   - 計画内容: フォントグリフに存在しない `☾`（U+263E）等の文字描画をやめ、`egui::Painter` のベジェ曲線・円弧で半円（system）・三日月（dark）・太陽（light）を描画する `paint_theme_icon` を実装する。
 
 <a id="plan-F-02"></a>
-- **F-02（未実装・実装計画済み）**: 節エディタの枠線外へのテキストはみ出し修正
+- **F-02（実装中）**: 節エディタの枠線外へのテキストはみ出し修正
   - 仕様・設計: `REF:docs/designs/ui.md`（§9.4）
   - 変更対象: `REF:src/ui/widgets/section_editor.rs`
   - 計画内容: 節エディタ枠の `inner_margin` と内部 `ScrollArea` / `TextEdit` のクリップ領域を一致させ、文字や下線が枠外へ出ないよう調整する。
 
 <a id="plan-F-03"></a>
-- **F-03（未実装・実装計画済み）**: カーソル寸法と行番号・文字の垂直位置合わせ
+- **F-03（実装中）**: カーソル寸法と行番号・文字の垂直位置合わせ
   - 仕様・設計: `REF:docs/designs/ui.md`（§9.4）
   - 変更対象: `REF:src/ui/widgets/section_editor.rs`, `REF:src/ui/widgets/syntax_text.rs`
   - 計画内容: `Galley` の各行 `rect` から行番号のベースライン Y 座標を算出し、キャレット高さをフォントサイズに比例した自然な高さへ揃える。
@@ -141,13 +141,13 @@
   - 計画内容: 全 `Command` を `>` コマンドパレットに公開し、パレットから全ショートカット機能を実行できるようにする。
 
 <a id="plan-F-16"></a>
-- **F-16（未実装・実装計画済み）**: ショートカット専用機能の視覚ボタン化（ガイドラベルのボタン化）
+- **F-16（実装中）**: ショートカット専用機能の視覚ボタン化（ガイドラベルのボタン化）
   - 仕様・設計: `REF:docs/designs/ui.md`（§9.1, §10.0〜§10.9）
   - 変更対象: `REF:src/ui/workspaces/mod.rs`, `REF:src/ui/workspaces/material.rs`, `REF:src/ui/workspaces/idea.rs`, `REF:src/ui/workspaces/plot_episode.rs`, `REF:src/ui/workspaces/plot_outline.rs`, `REF:src/ui/workspaces/cast.rs`, `REF:src/ui/workspaces/agent.rs`, `REF:src/ui/workspaces/review.rs`
   - 計画内容: 「`Ctrl+Shift+N` で新しい資料を作れます」等のガイドラベルをショートカット表記付きの押せるボタンに置き換える。
 
 <a id="plan-F-17"></a>
-- **F-17（未実装・実装計画済み）**: ブラウザ・OS に奪われるショートカットの非衝突化調整
+- **F-17（実装中）**: ブラウザ・OS に奪われるショートカットの非衝突化調整
   - 仕様・設計: `REF:docs/designs/ui.md`（§9.8）
   - 変更対象: `REF:src/ui/shell.rs`, `REF:src/ui/web.rs`
   - 計画内容: ブラウザ予約キーと被らない代替キー割当および `preventDefault` 調整を行う。
@@ -398,7 +398,7 @@
   - 計画内容: パレットでの `Tab` キー押下時に次のトークン単位まで補完する。
 
 <a id="plan-S-14"></a>
-- **S-14（未実装・実装計画済み）**: ステータスバーの幅に応じた省略優先順（保存状態最高優先、`…`＋ホバー詳細）
+- **S-14（実装中）**: ステータスバーの幅に応じた省略優先順（保存状態最高優先、`…`＋ホバー詳細）
   - 仕様・設計: `REF:docs/designs/ui.md`（§9.6）
   - 変更対象: `REF:src/ui/app.rs`
   - 計画内容: 幅不足時に「セッション情報 → 原稿用紙枚数 → 文字数」の順で `…` に畳み、ホバーで詳細を出し、保存状態マークを最高優先で残す。

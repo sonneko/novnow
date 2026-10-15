@@ -1100,10 +1100,6 @@ impl Picker for WebPicker {
 
     fn open_folder(&mut self) {}
 
-    fn returns_to_list(&self) -> bool {
-        true
-    }
-
     fn refresh(&mut self) {
         self.edit = Edit::None;
         self.focus_search = true;

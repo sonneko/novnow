@@ -237,14 +237,34 @@ pub(crate) fn area(
                     }
                     ui.fonts(|fonts| fonts.layout_job(job))
                 };
+                // egui's built-in cursor spans the full 1.8× line-height.
+                // Keep its layout/IME geometry, but paint a font-sized caret.
+                let cursor_stroke = ui.visuals().text_cursor;
+                ui.visuals_mut().text_cursor.width = 0.0;
                 let output = TextEdit::multiline(buffer)
                     .id(id)
                     .frame(false)
+                    .font(FontId::new(metrics.size, FontFamily::Proportional))
                     .desired_width(width)
                     .desired_rows(8)
                     .lock_focus(true)
                     .layouter(&mut layouter)
                     .show(ui);
+                ui.visuals_mut().text_cursor = cursor_stroke;
+                if output.response.has_focus() {
+                    if let Some(range) = &output.cursor_range {
+                        let cursor = output.galley.pos_from_cursor(&range.primary);
+                        let center = cursor.center().y + output.galley_pos.y;
+                        let x = cursor.min.x + output.galley_pos.x;
+                        let half = metrics.size * 0.57;
+                        ui.painter()
+                            .with_clip_rect(output.response.rect.intersect(ui.clip_rect()))
+                            .line_segment(
+                                [Pos2::new(x, center - half), Pos2::new(x, center + half)],
+                                egui::Stroke::new(cursor_stroke.width, cursor_stroke.color),
+                            );
+                    }
+                }
                 result.changed = output.response.changed();
                 if output.response.has_focus() {
                     if let Some(range) = output.cursor_range {
@@ -256,7 +276,10 @@ pub(crate) fn area(
                         result.caret = Some(caret.translate(output.galley_pos.to_vec2()));
                     }
                 }
-                let painter = ui.painter().clone();
+                // Clip decorations to the TextEdit and the scroll viewport,
+                // independently of the gutter and the surrounding editor frame.
+                let text_clip = output.response.rect.intersect(ui.clip_rect());
+                let painter = ui.painter().with_clip_rect(text_clip);
                 let found = highlight(buffer);
                 syntax_text::paint_squiggles(
                     &painter,
@@ -277,8 +300,11 @@ pub(crate) fn area(
                         mode,
                     );
                 }
+                let gutter_painter = ui
+                    .painter()
+                    .with_clip_rect(gutter_rect.intersect(ui.clip_rect()));
                 paint_line_numbers(
-                    &painter,
+                    &gutter_painter,
                     gutter_rect.min.x + gutter - 8.0,
                     output.galley_pos,
                     &output.galley,

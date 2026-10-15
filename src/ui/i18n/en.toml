@@ -498,6 +498,7 @@ seed = "seed"
 payoff = "payoff"
 
 [idea]
+capture_button = "Ctrl+Shift+I Capture idea"
 filter_active = "All"
 status_inbox = "inbox"
 status_keep = "keep"
@@ -526,6 +527,7 @@ promoted = "Promoted {0} to {1}"
 promote_failed = "Could not promote (the destination document cannot be read)"
 
 [material]
+new_button = "Ctrl+Shift+N New source"
 filter_active = "All but rejected"
 status_proposed = "Proposed"
 status_approved = "Approved"
@@ -621,6 +623,7 @@ unmatched_count = "{0} lines of dialogue matched no speech pattern (double-click
 
 # The agent workspace (§15.7, M10)
 [agent]
+new_button = "N New task"
 new_examples = "Reference examples (one per line)"
 new_examples_hint = "@01-02 both"
 disabled = "Agents are disabled"

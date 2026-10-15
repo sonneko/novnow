@@ -310,6 +310,7 @@ pub fn show(
             .inner_margin(Margin::symmetric(8.0, 8.0)),
     )
     .show(ctx, |ui| list(ui, state, bench, view));
+    let mut request = None;
     egui::CentralPanel::default()
         .frame(
             Frame::none()
@@ -317,11 +318,19 @@ pub fn show(
                 .inner_margin(Margin::symmetric(16.0, 8.0)),
         )
         .show(ctx, |ui| {
-            ui.label(
-                RichText::new(i18n::text(locale, "idea.keys"))
-                    .font(FontId::new(11.0 * scale, FontFamily::Proportional))
-                    .color(colors.fg_faint),
-            );
+            ui.horizontal(|ui| {
+                ui.label(
+                    RichText::new(i18n::text(locale, "idea.keys"))
+                        .font(FontId::new(11.0 * scale, FontFamily::Proportional))
+                        .color(colors.fg_faint),
+                );
+                if ui
+                    .button(i18n::text(locale, "idea.capture_button"))
+                    .clicked()
+                {
+                    request = Some(Request::Shortcut(crate::ui::shell::Command::Capture));
+                }
+            });
             super::separator(ui, view.mode);
             if bench.slice().is_some() {
                 if state.reveal {
@@ -337,7 +346,7 @@ pub fn show(
             }
             state.reveal = false;
         });
-    None
+    request
 }
 
 /// 左: 絞り込みと一覧。

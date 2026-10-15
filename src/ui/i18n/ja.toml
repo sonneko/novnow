@@ -496,6 +496,7 @@ seed = "設置"
 payoff = "回収"
 
 [idea]
+capture_button = "Ctrl+Shift+I 即時入力"
 filter_active = "すべて"
 status_inbox = "inbox"
 status_keep = "keep"
@@ -524,6 +525,7 @@ promoted = "{0}を {1}へ昇格しました"
 promote_failed = "昇格できませんでした（転記先の文書を読めません）"
 
 [material]
+new_button = "Ctrl+Shift+N 新しい資料"
 filter_active = "却下以外"
 status_proposed = "提案"
 status_approved = "採用"
@@ -619,6 +621,7 @@ unmatched_count = "役割語が一致しなかった台詞 {0} 件（ダブル�
 
 # agent ワークスペース（§15.7、M10）
 [agent]
+new_button = "N タスクを作る"
 new_examples = "参考例（1 行に 1 指定）"
 new_examples_hint = "@01-02 both"
 disabled = "エージェントは無効です"

@@ -458,11 +458,19 @@ pub fn show(
                 .inner_margin(Margin::symmetric(16.0, 8.0)),
         )
         .show(ctx, |ui| {
-            ui.label(
-                RichText::new(i18n::text(locale, "material.keys"))
-                    .font(FontId::new(11.0 * scale, FontFamily::Proportional))
-                    .color(colors.fg_faint),
-            );
+            ui.horizontal(|ui| {
+                ui.label(
+                    RichText::new(i18n::text(locale, "material.keys"))
+                        .font(FontId::new(11.0 * scale, FontFamily::Proportional))
+                        .color(colors.fg_faint),
+                );
+                if ui
+                    .button(i18n::text(locale, "material.new_button"))
+                    .clicked()
+                {
+                    request = Some(Request::Shortcut(crate::ui::shell::Command::InsertSection));
+                }
+            });
             super::separator(ui, view.mode);
             match bench.slice().map(|slice| slice.path.clone()) {
                 Some(path) => {

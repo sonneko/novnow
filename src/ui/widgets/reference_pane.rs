@@ -234,6 +234,16 @@ pub fn sections(
                         heading(ui, "pane.materials");
                         for material in content.materials.iter().filter(|found| !found.candidate) {
                             muted(ui, &material.id, &material.title);
+                            if material.source.starts_with("https://")
+                                || material.source.starts_with("http://")
+                            {
+                                ui.add(egui::Hyperlink::from_label_and_url(
+                                    RichText::new(format!("↗ {}", material.source))
+                                        .color(colors.fg_muted)
+                                        .underline(),
+                                    &material.source,
+                                ));
+                            }
                             if !material.summary.is_empty() {
                                 let short: String = material.summary.chars().take(120).collect();
                                 body(ui, &short);
