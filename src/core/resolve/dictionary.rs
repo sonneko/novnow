@@ -45,6 +45,17 @@
 //! 1 文字ずつ正規化するので**結合文字の並びは合成されない**（`ﾊ` + `゙` → `バ` にならない）。
 //! 辞書キーに半角カナ＋濁点を書く事例は無いと判断した（B-57）。
 //!
+//! # 未知の参照の範囲（§6.2.6、S-09）
+//!
+//! 辞書に当たらない `'名前` は、以前は区切り文字（句読点・空白・括弧）までを未解決参照の
+//! 範囲としていた。いまは**先頭 1 形態素（語幹）**までを範囲とし、E001 の赤波線も
+//! 「用語として登録」が登録する名前も、その 1 形態素になる（[`first_morpheme_end`]）。
+//! 判定は文字種の連なり（漢字 / カタカナ / ひらがな / 英数字）＋形態素解析
+//! （[`tiniestsegmenter`]）＋助詞の切り出し（[`PARTICLES`]）で行う。
+//!
+//! トークン全体（[`RefToken::range`]）は狭めない。§17.1 のエクスポート（`'` と修飾子を
+//! 消して名前部を残す）と §6.6.3 の資料 ID の形の判定が、元の範囲を前提にしているため。
+//!
 //! # ①（本書の範囲）と ②
 //!
 //! - エントリ種別は **4 つ**（`Character` / `Word` / `Material` / `MaterialTitle`）。
@@ -242,6 +253,183 @@ impl OffsetMap {
 /// §6.2.1 の区切り文字か。
 pub fn is_delimiter(c: char) -> bool {
     lexer::is_space(c) || DELIMITERS.contains(&c)
+}
+
+// ============================================================ §6.2.6 形態素境界
+
+/// 文字種（§6.2.6「漢字・カタカナ・ひらがな・英数字の文字種境界」）。
+///
+/// ASCII の英数字と全角の英数字は**同じクラス**にする（`Ｍ0137` と `M0137` を別の
+/// 形態素に割らないため）。長音符 `ー`（U+30FC）はカタカナ側に入れる（`コーヒー` を
+/// 1 つの形態素として扱う）。それ以外（記号・約物）は [`CharClass::Other`]。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CharClass {
+    /// 漢字（`々` `〆` を含む）。
+    Kanji,
+    /// カタカナ（半角カナ・長音符・濁点を含む）。
+    Katakana,
+    /// ひらがな（`ゝ` `ゞ` を含む）。
+    Hiragana,
+    /// 英数字（ASCII と全角）。
+    Alphanumeric,
+    /// それ以外（記号・約物）。
+    Other,
+}
+
+/// [`CharClass`] を返す。
+fn char_class(c: char) -> CharClass {
+    match c {
+        '\u{3041}'..='\u{3096}' | '\u{309D}'..='\u{309F}' => CharClass::Hiragana,
+        '\u{30A1}'..='\u{30FA}' | '\u{30FC}'..='\u{30FE}' | '\u{FF66}'..='\u{FF9F}' => {
+            CharClass::Katakana
+        }
+        '\u{3005}' | '\u{3006}' | '\u{4E00}'..='\u{9FFF}' | '\u{F900}'..='\u{FAFF}' => {
+            CharClass::Kanji
+        }
+        '\u{FF10}'..='\u{FF19}' | '\u{FF21}'..='\u{FF3A}' | '\u{FF41}'..='\u{FF5A}' => {
+            CharClass::Alphanumeric
+        }
+        c if c.is_ascii_alphanumeric() => CharClass::Alphanumeric,
+        _ => CharClass::Other,
+    }
+}
+
+/// §6.2.6 の「助詞切り出し」に使う助詞（**長いものから**照合する）。
+///
+/// 形態素解析（[`tiniestsegmenter`]）は助詞を独立したトークンに切ることが多いが、
+/// 語尾に取り込まれてしまう場合の保険として、先頭トークンの末尾から落とす。
+/// `です` / `ます` は助動詞だが、`words.md` に `'です` を登録したい作家はいないので同じ扱いにする。
+///
+/// ここに並ぶのは**日本語という言語の語彙**であって UI の文言ではない（§12.2 の例外。
+/// UI 言語が `en` でも `'ゆきこが` の助詞は `が` のままで、カタログには置けない）。
+///
+/// i18n: format-vocabulary
+pub const PARTICLES: &[&str] = &[
+    "かしら",
+    "ください",
+    "ばかり",
+    "ましょう",
+    "まで",
+    "から",
+    "より",
+    "だけ",
+    "ほど",
+    "など",
+    "って",
+    "です",
+    "ます",
+    "でも",
+    "には",
+    "とは",
+    "は",
+    "が",
+    "を",
+    "に",
+    "へ",
+    "と",
+    "で",
+    "も",
+    "や",
+    "の",
+    "か",
+    "ね",
+    "よ",
+    "な",
+    "ぞ",
+    "ぜ",
+    "わ",
+    "さ",
+];
+
+/// 助詞そのものか（[`PARTICLES`] との完全一致）。
+fn is_particle(token: &str) -> bool {
+    PARTICLES.contains(&token)
+}
+
+/// 先頭トークンの末尾から助詞を 1 つ落とした長さ（落とせなければ `None`）。
+///
+/// 落としたあとが空になる場合は落とさない（`'だれか` の `か` のような「助詞だけの
+/// 形態素」を消して 0 バイトの範囲にしないため）。
+fn strip_trailing_particle(token: &str) -> Option<usize> {
+    PARTICLES
+        .iter()
+        .filter_map(|particle| {
+            let rest = token.len().checked_sub(particle.len())?;
+            (rest > 0 && token.ends_with(particle)).then_some(rest)
+        })
+        .min()
+}
+
+/// 先頭の**文字種の連なり**の長さ（`text` が空なら 0）。
+fn first_run_end(text: &str) -> usize {
+    let mut class = None;
+    for (at, c) in text.char_indices() {
+        let found = char_class(c);
+        match class {
+            None => class = Some(found),
+            Some(previous) if previous == found => {}
+            Some(_) => return at,
+        }
+    }
+    text.len()
+}
+
+/// §6.2.6 の簡易形態素境界。`'` の直後から始まる `text` の**先頭 1 形態素（語幹）**の
+/// byte 長を返す。
+///
+/// 手順は 3 段:
+///
+/// 1. §6.2.1 の区切り文字までを候補にする（句読点・空白・括弧で必ず終わる）。
+/// 2. 候補の**先頭の文字種の連なり**（漢字 / カタカナ / ひらがな / 英数字）を取る。
+///    ここで切るので `'科学の甲子園` は `科学`、`'リリアは` は `リリア` になる。
+///    **英数字の連なりはそのまま返す**（`'M0137` を `M` に割ると §6.6.3 の資料 ID の形が
+///    失われ、**E007** が出なくなる）。
+/// 3. 連なりの中を [`tiniestsegmenter::tokenize`] に掛け、先頭トークンを採る。さらに末尾の
+///    助詞（[`PARTICLES`]）を 1 つ落とす（`'だれか` → `だれ`）。
+///
+/// `text` の先頭が区切り文字なら 0 を返す（`scan_line` はその場合トークンを作らない）。
+pub fn first_morpheme_end(text: &str) -> usize {
+    let window = scan_to_delimiter(text);
+    if window == 0 {
+        return 0;
+    }
+    let candidate = &text[..window];
+    let run = first_run_end(candidate);
+    let head = &candidate[..run];
+    let Some(first) = candidate.chars().next() else {
+        return 0;
+    };
+    if char_class(first) == CharClass::Alphanumeric {
+        return run;
+    }
+    let tokens = tiniestsegmenter::tokenize(head);
+    let Some(token) = tokens.first().copied() else {
+        return run;
+    };
+    // 先頭トークンが助詞そのもの（`'はなこ` の `は`）なら、語幹はその先にあるので
+    // 形態素では切らずに**文字種の連なり**まで戻す（助詞 1 文字だけの赤波線を作らない）。
+    if is_particle(token) {
+        return run;
+    }
+    // 1 つのトークンに丸ごと飲み込まれていたときだけ末尾の助詞を落とす
+    // （`'ゆきこが` → `ゆきこ`）。トークンが連なりより短いときは、その境界が
+    // 形態素解析の答えなので触らない（`'もののあはれ` の `もの` を `も` にしない）。
+    let mut end = if token.len() == run {
+        strip_trailing_particle(token).unwrap_or(run)
+    } else {
+        token.len()
+    };
+    // 形態素解析の結果が連なりからはみ出すことは無い（同じ文字列を渡している）が、
+    // 万一 byte 境界がずれても本文を壊さないよう、必ず**文字の境界**へ丸める。
+    end = end.min(run);
+    while end > 0 && !candidate.is_char_boundary(end) {
+        end -= 1;
+    }
+    if end == 0 {
+        run
+    } else {
+        end
+    }
 }
 
 // ============================================================ エントリ
@@ -690,6 +878,30 @@ impl Dictionary {
         self.trie.scan(text)
     }
 
+    /// §6.1.4（F-24）の重複抑止: 正規化後のキー `key` が **`Character` と `Word` の
+    /// 両方**に存在するか。
+    ///
+    /// `characters.md` の名前・別名は `words.md` に書き足さなくても辞書に入るので、
+    /// 作家が同じ名前を用語としても書いたときに 2 件見える。UI（参照ペイン・パレット・
+    /// `'` の補完候補）はそのとき **`Character` だけを出す**（`characters.md` のエントリへ
+    /// 透過的に統合する）。`words.md` のファイル自体は書き換えない。
+    pub fn is_character_word_duplicate(&self, key: &str) -> bool {
+        let normalized = normalize(key);
+        let Some(ids) = self.conflicts.get(&normalized) else {
+            return false;
+        };
+        let mut character = false;
+        let mut word = false;
+        for id in ids {
+            match self.entry(*id).map(|entry| entry.kind) {
+                Some(EntryKind::Character) => character = true,
+                Some(EntryKind::Word) => word = true,
+                _ => {}
+            }
+        }
+        character && word
+    }
+
     /// 完全一致で引く（話者注釈 `@名前`（§6.2.5）と明示形 `'{名前}`（§6.2.3）用）。
     ///
     /// 正規化してから引き、**優先順位の勝者**を返す。`kinds` が `Some` ならその種別だけに
@@ -1090,6 +1302,7 @@ pub fn resolve_ref(line: &str, at: usize, dictionary: &Dictionary) -> RefToken {
                 let modifier = parse_modifier(line, closed, dictionary, resolved);
                 RefToken {
                     range: at..modifier.as_ref().map_or(closed, |found| found.range.end),
+                    morpheme_range: key_range.clone(),
                     key_range,
                     explicit: true,
                     unclosed: false,
@@ -1101,6 +1314,7 @@ pub fn resolve_ref(line: &str, at: usize, dictionary: &Dictionary) -> RefToken {
             // §6.2.3「閉じ括弧が無い場合は E002（行末までを未解決範囲とする）」
             None => RefToken {
                 range: at..line.len(),
+                morpheme_range: inner_at..line.len(),
                 key_range: inner_at..line.len(),
                 explicit: true,
                 unclosed: true,
@@ -1119,6 +1333,7 @@ pub fn resolve_ref(line: &str, at: usize, dictionary: &Dictionary) -> RefToken {
         let modifier = parse_modifier(line, key_end, dictionary, resolved);
         return RefToken {
             range: at..modifier.as_ref().map_or(key_end, |found| found.range.end),
+            morpheme_range: head..key_end,
             key_range: head..key_end,
             explicit: false,
             unclosed: false,
@@ -1128,10 +1343,12 @@ pub fn resolve_ref(line: &str, at: usize, dictionary: &Dictionary) -> RefToken {
         };
     }
 
-    // (c) 未解決: 区切り文字まで（§6.2.1）
+    // (c) 未解決: 区切り文字まで（§6.2.1）。**赤波線はそのうち先頭 1 形態素だけ**（§6.2.6）
     let end = head + scan_to_delimiter(rest);
+    let morpheme = head + first_morpheme_end(rest);
     RefToken {
         range: at..end,
+        morpheme_range: head..morpheme,
         key_range: head..end,
         explicit: false,
         unclosed: false,
@@ -1155,6 +1372,13 @@ pub struct RefToken {
     pub range: Range<usize>,
     /// 名前部（`'` と `{` `}` と修飾子を除く）。
     pub key_range: Range<usize>,
+    /// §6.2.6 の**先頭 1 形態素（語幹）**の範囲。解決済みなら [`RefToken::key_range`] と同じ。
+    ///
+    /// **E001 の赤波線はここに引く**（「句読点まで漫然と赤波線を引くのではなく…先頭の
+    /// 1 形態素（語幹）のみを未解決参照の範囲として区切り」）。トークン全体（[`RefToken::range`]）
+    /// は §17.1 のエクスポート（名前部を残して `'` と修飾子を消す）や §6.6.3 の資料 ID の形の
+    /// 判定が使うので、**狭めない**。
+    pub morpheme_range: Range<usize>,
     /// §6.2.3 の明示形 `'{...}` だったか。
     pub explicit: bool,
     /// 明示形が**閉じていない**（§6.2.3 → **E002**）。
@@ -1171,6 +1395,18 @@ impl RefToken {
     /// 名前部（`'` と波括弧を除いた、**書かれたままの**文字列）。
     pub fn key<'a>(&self, line: &'a str) -> &'a str {
         &line[self.key_range.clone()]
+    }
+
+    /// §6.2.6 の先頭 1 形態素（語幹）。
+    pub fn morpheme<'a>(&self, line: &'a str) -> &'a str {
+        &line[self.morpheme_range.clone()]
+    }
+
+    /// **E001 の赤波線を引く範囲**（`'` を含み、未解決なら先頭 1 形態素まで）。
+    ///
+    /// 解決済み・明示形・閉じていない明示形では [`RefToken::range`] と同じ。
+    pub fn unresolved_range(&self) -> Range<usize> {
+        self.range.start..self.morpheme_range.end
     }
 
     /// 解決済みか。
@@ -1336,10 +1572,11 @@ pub fn token_diagnostics(line: &str, token: &RefToken, dictionary: &Dictionary) 
         return out;
     }
     if token.resolved.is_none() {
+        // §6.2.6: 赤波線（と「登録する名前」）は句読点までではなく**先頭 1 形態素**まで
         out.push(Diagnostic::new(
             DiagnosticCode::E001,
-            Some(token.range.clone()),
-            vec![Arg::text(token.key(line))],
+            Some(token.unresolved_range()),
+            vec![Arg::text(token.morpheme(line))],
         ));
     }
     // §6.2.2「この挙動は作家を驚かせうるため、次の補助を MUST で付ける」

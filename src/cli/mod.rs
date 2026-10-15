@@ -19,6 +19,7 @@
 
 pub mod check;
 pub mod export;
+pub mod import;
 pub mod mcp;
 pub mod new;
 pub mod open;
@@ -36,7 +37,7 @@ use crate::ui::i18n::{self, Locale};
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// サブコマンド（§14.1）。第 1 引数がこのどれかと**完全一致**したときだけサブコマンドになる。
-pub const SUBCOMMANDS: [&str; 4] = ["new", "check", "export", "mcp"];
+pub const SUBCOMMANDS: [&str; 5] = ["new", "check", "export", "mcp", "import"];
 
 /// この実行ファイルが GUI を持つか（`ui` feature のビルドだけ。M7）。`novnow new` の案内
 /// （開く / 検査する）と、GUI を含まないビルドでの GUI 起動の拒否（§14.2.5）に使う。
@@ -130,6 +131,8 @@ pub enum Command {
         /// `<dir>` より後ろの引数（§17.2 のオプション）。
         options: Vec<OsString>,
     },
+    /// `novnow import <zip> <dir>`。
+    Import { zip: PathBuf, dir: PathBuf },
     /// `novnow mcp <dir>`（中身は M10）。
     Mcp(PathBuf),
 }
@@ -142,6 +145,7 @@ impl Command {
             Self::Check(_) => "check",
             Self::Export { .. } => "export",
             Self::Mcp(_) => "mcp",
+            Self::Import { .. } => "import",
         }
     }
 }
@@ -200,6 +204,24 @@ pub fn decide(args: &[OsString], terminal: Terminal) -> Launch {
 
 /// サブコマンドの引数を読む。
 fn subcommand(name: &'static str, rest: &[OsString]) -> Launch {
+    if name == "import" {
+        return match rest {
+            [zip, dir] if as_option(zip).is_none() && as_option(dir).is_none() => {
+                Launch::Command(Command::Import {
+                    zip: PathBuf::from(zip),
+                    dir: PathBuf::from(dir),
+                })
+            }
+            [zip, ..] if as_option(zip).is_some() => {
+                Launch::Error(ArgError::UnknownOption(lossy(zip)))
+            }
+            [_, dir, ..] if as_option(dir).is_some() => {
+                Launch::Error(ArgError::UnknownOption(lossy(dir)))
+            }
+            [_, _, extra, ..] => Launch::Error(ArgError::UnexpectedArgument(lossy(extra))),
+            _ => Launch::Error(ArgError::MissingDir("import")),
+        };
+    }
     if name == "export" {
         // フラグを取るのは export だけ（§14.1）。ここでは最初の引数をディレクトリとし、
         // 残りはそのまま渡す（読むのは `cli::export`）
@@ -321,6 +343,7 @@ pub fn run<E: Env>(args: &[OsString], cli: &mut Cli<'_, E>) -> Outcome {
             Command::Check(dir) => check::run(cli, dir),
             Command::Export { dir, options } => export::run(cli, dir, options),
             Command::Mcp(dir) => mcp::run(cli, dir),
+            Command::Import { zip, dir } => import::run(cli, zip, dir),
         }),
         Launch::Error(error) => Outcome::Exit(cli.arg_error(&error)),
     }
@@ -407,12 +430,13 @@ impl<'a, E: Env> Cli<'a, E> {
     /// 使い方（`--help` と、端末から引数なしで起動されたとき）。`new` という名前のディレクトリの
     /// 開き方を必ず書く（§14.1）。
     pub fn usage(&self) -> String {
-        const ROWS: [(&str, &str); 8] = [
+        const ROWS: [(&str, &str); 9] = [
             ("novnow <dir>", "cli.usage.open"),
             ("novnow new [dir]", "cli.usage.new"),
             ("novnow check <dir>", "cli.usage.check"),
             ("novnow export <dir> [options]", "cli.usage.export"),
             ("novnow mcp <dir>", "cli.usage.mcp"),
+            ("novnow import <zip> <dir>", "cli.usage.import"),
             ("novnow --gui", "cli.usage.gui"),
             ("novnow --help | -h", "cli.usage.help"),
             ("novnow --version | -V", "cli.usage.version"),

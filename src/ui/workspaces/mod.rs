@@ -211,6 +211,23 @@ pub struct View {
     pub reference: Option<(PaneSide, f32)>,
     /// インレイヒントを出すか（`ui.json.inlay_hints`、`Alt+H`。§6.6.2）。
     pub inlay_hints: bool,
+    /// A modal/command palette is receiving arrows instead of the list.
+    pub overlay: bool,
+}
+
+/// Unmodified arrows browse list rows only when no text editor or overlay owns the keys.
+/// Structural Alt+arrows still commit and open the destination.
+pub(super) fn browse_keys(ctx: &egui::Context, view: &View) -> Option<bool> {
+    if view.overlay || ctx.wants_keyboard_input() {
+        return None;
+    }
+    if ctx.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::ArrowDown)) {
+        Some(true)
+    } else if ctx.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::ArrowUp)) {
+        Some(false)
+    } else {
+        None
+    }
 }
 
 impl View {
@@ -219,6 +236,11 @@ impl View {
         crate::ui::widgets::section_editor::Look {
             mode: self.mode,
             scale: self.scale,
+            max_line_chars: if self.locale == crate::ui::i18n::Locale::En {
+                70
+            } else {
+                44
+            },
             inlay: self.inlay_hints.then_some(self.locale),
         }
     }
@@ -227,6 +249,8 @@ impl View {
 /// ワークスペースの描画から `NovnowApp` に頼むこと（マウスでの操作。キーは `Command` で来る）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Request {
+    /// Expose a keyboard-only action as a visible button.
+    Shortcut(crate::ui::shell::Command),
     /// `Ctrl+Enter` と同じ（下の段へ降りる・昇格・採用など）。
     Down,
     /// `Ctrl+Delete` と同じ（アイデアの破棄・資料の却下）。
@@ -235,6 +259,15 @@ pub enum Request {
     Notice(String),
     /// 参照ペインの資料の候補を、今の節のプロットの `material:` に足す（§10.2・§16.4、B-136）。
     AppendMaterial(String),
+    /// Open the full source material instead of modifying a plot.
+    OpenMaterial(String),
+    /// 参照ペインの診断からの自動回復（§6.2.6 / §9.5.4、F-23）: 1 形態素を登録する。
+    Register {
+        /// 登録先（`words.md` / `characters.md`）。
+        kind: crate::core::resolve::dictionary::EntryKind,
+        /// 登録する名前。
+        name: String,
+    },
 }
 
 /// 状態の縦線の色（§10.2: draft = 灰 / review = 橙 / fixed = 緑）。
@@ -292,15 +325,20 @@ pub fn list_row(ui: &mut Ui, mode: Mode, scale: f32, row: Row<'_>) -> egui::Resp
         muted,
     } = row;
     let colors = theme::palette(mode);
-    let height = 24.0 * scale;
-    let width = ui.available_width();
+    let height = (24.0 * scale).max(24.0);
+    let width = ui.available_width().max(24.0);
     let (rect, response) = ui.allocate_exact_size(Vec2::new(width, height), Sense::click());
+    if response.hovered() {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
     response.widget_info(|| {
         egui::WidgetInfo::selected(egui::WidgetType::SelectableLabel, selected, text)
     });
     let painter = ui.painter_at(rect);
     if selected {
         painter.rect_filled(rect, 0.0, colors.bg_selection);
+    } else if response.hovered() {
+        painter.rect_filled(rect, 0.0, colors.bg_selection.gamma_multiply(0.6));
     }
     if let Some(color) = bar {
         painter.rect_filled(
@@ -339,12 +377,38 @@ pub fn list_row(ui: &mut Ui, mode: Mode, scale: f32, row: Row<'_>) -> egui::Resp
             rect.max.x - x - 6.0,
         ))
     });
+    let text_width = galley.size().x;
     painter.galley(
         egui::pos2(x, rect.center().y - galley.size().y / 2.0),
         galley,
         color,
     );
+    let end = (x + text_width).min(rect.max.x - 6.0);
+    painter.line_segment(
+        [
+            egui::pos2(x, rect.center().y + 8.0 * scale),
+            egui::pos2(end, rect.center().y + 8.0 * scale),
+        ],
+        Stroke::new(
+            0.6_f32,
+            if response.hovered() {
+                color
+            } else {
+                colors.border
+            },
+        ),
+    );
     response
+}
+
+/// Uniform visible action button used by the workspace panels.
+pub fn action_button(ui: &mut Ui, text: impl Into<String>) -> egui::Response {
+    crate::ui::widgets::action_button(ui, text)
+}
+
+/// Uniform filter/tab/choice affordance used by workspace panels.
+pub fn selectable_action(ui: &mut Ui, selected: bool, text: egui::RichText) -> egui::Response {
+    crate::ui::widgets::selectable_action(ui, selected, text)
 }
 
 /// 幅を決めた横のペイン（egui 0.27 の `exact_width` は中身の最小幅を枠の幅そのものにするので、
@@ -379,12 +443,26 @@ pub fn hint(ui: &mut Ui, mode: Mode, scale: f32, text: &str) {
 /// ヘッダのワークスペースインジケータ（§9.2.1「ワークスペース名はアイコン」）。開けるワークスペースの
 /// 図形を並べ、今のものを `accent`、他を `fg.faint` で描く。ラベルは置かず、ツールチップと
 /// アクセシブル名（カタログの `header.workspace.<id>`）だけ。クリックされたものを返す。
-pub fn indicator(ui: &mut Ui, mode: Mode, locale: Locale, current: Workspace) -> Option<Workspace> {
+/// Highest outstanding diagnostic severity for the review header badge.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReviewProblem {
+    Error,
+    Warning,
+}
+
+pub fn indicator(
+    ui: &mut Ui,
+    mode: Mode,
+    locale: Locale,
+    current: Workspace,
+    problem: Option<ReviewProblem>,
+) -> Option<Workspace> {
     let colors = theme::palette(mode);
     let mut clicked = None;
     for workspace in Workspace::available_all() {
         let name = crate::ui::i18n::text(locale, workspace.label_key()).to_owned();
-        let (rect, response) = ui.allocate_exact_size(Vec2::splat(18.0), Sense::click());
+        let (hit, response) = ui.allocate_exact_size(Vec2::splat(24.0), Sense::click());
+        let rect = Rect::from_center_size(hit.center(), Vec2::splat(18.0));
         let active = workspace == current;
         response.widget_info(|| {
             egui::WidgetInfo::selected(egui::WidgetType::SelectableLabel, active, &name)
@@ -401,7 +479,39 @@ pub fn indicator(ui: &mut Ui, mode: Mode, locale: Locale, current: Workspace) ->
         } else {
             colors.fg_faint
         };
-        glyph(&ui.painter_at(rect.expand(2.0)), rect, workspace, color);
+        let painter = ui.painter_at(hit);
+        if hovered {
+            painter.rect_filled(hit, 2.0, colors.bg_selection.gamma_multiply(0.6));
+            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+        }
+        painter.line_segment(
+            [rect.left_bottom(), rect.right_bottom()],
+            Stroke::new(0.6_f32, colors.border),
+        );
+        glyph(
+            &painter,
+            rect,
+            workspace,
+            if workspace == Workspace::Review {
+                match problem {
+                    Some(ReviewProblem::Error) => colors.error,
+                    Some(ReviewProblem::Warning) => colors.warn,
+                    None => color,
+                }
+            } else {
+                color
+            },
+        );
+        if workspace == Workspace::Review {
+            let badge = match problem {
+                Some(ReviewProblem::Error) => Some(colors.error),
+                Some(ReviewProblem::Warning) => Some(colors.warn),
+                None => None,
+            };
+            if let Some(badge) = badge {
+                painter.circle_filled(rect.right_top() + Vec2::new(-1.0, 2.0), 2.5, badge);
+            }
+        }
         ui.add_space(2.0);
     }
     clicked

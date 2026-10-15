@@ -129,7 +129,10 @@ pub struct State {
     editor: slice_editor::Cache,
     form: Option<Form>,
     reveal: bool,
-    focus_form: bool,
+    /// List highlight moved without opening/committing its text slice.
+    preview: bool,
+    /// Scroll the list once after a keyboard-only selection change.
+    scroll_list: bool,
 }
 
 impl State {
@@ -187,6 +190,7 @@ impl State {
             return false;
         }
         self.selected = Some(key.to_owned());
+        self.preview = false;
         self.reveal = true;
         true
     }
@@ -213,18 +217,17 @@ impl State {
         }
     }
 
-    /// 審査フォームの最初の欄にフォーカスを移す（`Ctrl+3`）。
-    pub fn focus_form(&mut self) {
-        self.focus_form = true;
-    }
-
     /// 資料 MD のエディタにフォーカスを移す（`Ctrl+2`）。
     pub fn focus_editor(&mut self) {
+        self.preview = false;
         self.reveal = true;
     }
 
     /// 選んだ行の資料 MD をエディタ（Slice）に開く（ファイル全体）。
     pub fn sync(&mut self, bench: &mut Workbench) {
+        if self.preview {
+            return;
+        }
         match self.current(bench) {
             Some(entry) => {
                 let count = bench.project().text(&entry.path).split('\n').count();
@@ -236,8 +239,34 @@ impl State {
         }
     }
 
+    /// Only move the list highlight; keep the current MD slice and unsaved buffer open.
+    pub fn preview_row(&mut self, bench: &Workbench, forward: bool) -> bool {
+        let selected = self.selected.clone();
+        let entries = self.entries(bench);
+        let at = selected.and_then(|key| entries.iter().position(|entry| entry.key() == key));
+        let next = if forward {
+            at.map_or(Some(0), |index| {
+                (index + 1 < entries.len()).then_some(index + 1)
+            })
+        } else {
+            at.and_then(|index| index.checked_sub(1))
+        };
+        let Some(key) = next
+            .and_then(|index| entries.get(index))
+            .map(|entry| entry.key().to_owned())
+        else {
+            return false;
+        };
+        self.selected = Some(key);
+        self.preview = true;
+        self.scroll_list = true;
+        self.reveal = false;
+        true
+    }
+
     /// 前 / 次の資料（`Alt+↑/↓`・`Alt+←/→`・`Ctrl+Home/End`）。
     pub fn nav(&mut self, bench: &mut Workbench, nav: Nav) -> bool {
+        self.preview = false;
         bench.commit();
         let selected = self.selected.clone();
         let entries = self.entries(bench).to_vec();
@@ -418,6 +447,9 @@ pub fn show(
     let scale = view.scale;
     let locale = view.locale;
     state.sync(bench);
+    if let Some(forward) = super::browse_keys(ctx, view) {
+        state.preview_row(bench, forward);
+    }
     let width = ctx.screen_rect().width();
     super::fixed_width(
         egui::SidePanel::left("material-list"),
@@ -458,11 +490,21 @@ pub fn show(
                 .inner_margin(Margin::symmetric(16.0, 8.0)),
         )
         .show(ctx, |ui| {
-            ui.label(
-                RichText::new(i18n::text(locale, "material.keys"))
-                    .font(FontId::new(11.0 * scale, FontFamily::Proportional))
-                    .color(colors.fg_faint),
-            );
+            ui.horizontal(|ui| {
+                if super::action_button(ui, i18n::text(locale, "material.new_button")).clicked() {
+                    request = Some(Request::Shortcut(crate::ui::shell::Command::InsertSection));
+                }
+                // Do not let the long keyboard guide expand the central panel
+                // and steal the width reserved for the material review form.
+                ui.add(
+                    egui::Label::new(
+                        RichText::new(i18n::text(locale, "material.keys"))
+                            .font(FontId::new(11.0 * scale, FontFamily::Proportional))
+                            .color(colors.fg_faint),
+                    )
+                    .truncate(true),
+                );
+            });
             super::separator(ui, view.mode);
             match bench.slice().map(|slice| slice.path.clone()) {
                 Some(path) => {
@@ -514,7 +556,7 @@ fn list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) {
                 } else {
                     colors.fg_muted
                 });
-            if ui.selectable_label(selected, text).clicked() {
+            if super::selectable_action(ui, selected, text).clicked() {
                 state.filter = filter;
                 state.reveal = true;
             }
@@ -537,6 +579,7 @@ fn list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) {
         .clone()
         .or_else(|| entries.first().map(|entry| entry.key().to_owned()));
     let mut clicked = None;
+    let scroll_list = std::mem::take(&mut state.scroll_list);
     egui::ScrollArea::vertical()
         .id_source("material-list-scroll")
         .auto_shrink([false, false])
@@ -555,7 +598,7 @@ fn list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) {
                         muted: entry.status == Some(MaterialStatus::Rejected),
                     },
                 );
-                if is_selected && state.reveal {
+                if is_selected && (state.reveal || scroll_list) {
                     response.scroll_to_me(Some(egui::Align::Center));
                 }
                 if response.clicked() {
@@ -565,6 +608,7 @@ fn list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) {
         });
     if let Some(key) = clicked {
         state.selected = Some(key);
+        state.preview = false;
         state.reveal = true;
     }
 }
@@ -626,7 +670,6 @@ fn form(
             applied: fresh,
         });
     }
-    let focus = std::mem::take(&mut state.focus_form);
     let form = state.form.as_mut()?;
     // 見出し: ID・状態・日付・追加者
     let status = item.status_kind();
@@ -668,26 +711,17 @@ fn form(
         view.mode,
         scale,
     );
-    let title = ui.add(
+    ui.add(
         egui::TextEdit::singleline(&mut form.draft.title)
             .id(Id::new(("material-title", &id)))
             .font(font.clone())
             .desired_width(f32::INFINITY),
     );
-    if focus {
-        title.request_focus();
-    }
     reference_pane::heading(
         ui,
         i18n::text(locale, "material.field_category"),
         view.mode,
         scale,
-    );
-    ui.add(
-        egui::TextEdit::singleline(&mut form.draft.category)
-            .id(Id::new(("material-category", &id)))
-            .font(font.clone())
-            .desired_width(f32::INFINITY),
     );
     ui.horizontal_wrapped(|ui| {
         for category in i18n::text(locale, "material.categories").split(',') {
@@ -700,11 +734,28 @@ fn form(
                 } else {
                     colors.fg_faint
                 });
-            if ui.selectable_label(chosen, text).clicked() {
+            let response = ui.add(
+                egui::Button::new(text.underline())
+                    .stroke(Stroke::new(
+                        if chosen { 1.5_f32 } else { 0.5_f32 },
+                        if chosen { colors.accent } else { colors.border },
+                    ))
+                    .min_size(Vec2::splat(24.0)),
+            );
+            if response.hovered() {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+            }
+            if response.clicked() {
                 form.draft.category = category.to_owned();
             }
         }
     });
+    ui.add(
+        egui::TextEdit::singleline(&mut form.draft.category)
+            .id(Id::new(("material-category", &id)))
+            .font(font.clone())
+            .desired_width(f32::INFINITY),
+    );
     reference_pane::heading(
         ui,
         i18n::text(locale, "material.field_summary"),
@@ -758,6 +809,11 @@ fn form(
             .hint_text(i18n::text(locale, "material.source_hint"))
             .desired_width(f32::INFINITY),
     );
+    // Open only explicit web URLs. The source field itself remains editable.
+    let source = form.draft.source.trim();
+    if source.starts_with("https://") || source.starts_with("http://") {
+        crate::ui::widgets::external_link(ui, &format!("↗ {source}"), source, &colors);
+    }
     ui.add_space(12.0);
     let mut request = None;
     ui.horizontal(|ui| {
@@ -853,6 +909,14 @@ fn icon_button(ui: &mut Ui, mode: Mode, icon: Icon, name: &str) -> egui::Respons
         (Icon::Add, _) => colors.accent,
     };
     let painter = ui.painter_at(rect.expand(2.0));
+    if hovered {
+        painter.rect_filled(rect, 4.0, colors.bg_selection.gamma_multiply(0.6));
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    painter.line_segment(
+        [rect.left_bottom(), rect.right_bottom()],
+        Stroke::new(0.6_f32, colors.border),
+    );
     painter.rect_stroke(
         rect.shrink(1.0),
         4.0,

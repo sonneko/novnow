@@ -11,7 +11,8 @@ use std::time::Instant;
 
 use novnow::core::diagnostics::{Arg, Diagnostic, DiagnosticCode};
 use novnow::core::resolve::dictionary::{
-    self, Dictionary, Entry, EntryKind, Origin, SourceFile, Target, DELIMITERS, MAX_KEY_BYTES,
+    self, first_morpheme_end, Dictionary, Entry, EntryKind, Origin, SourceFile, Target, DELIMITERS,
+    MAX_KEY_BYTES,
 };
 use novnow::core::syntax::contents::Speaker;
 use novnow::core::syntax::{characters_md, materials_index, words_md};
@@ -205,18 +206,81 @@ fn a_longer_key_absent_from_the_dictionary_leaves_the_rest_as_body_text() {
 }
 
 #[test]
-fn an_unknown_reference_stops_at_the_delimiter_set_and_is_e001() {
-    // §6.2.1 (c)「未解決: 区切り文字までを範囲とし、診断 E001 を付ける」
+fn an_unknown_reference_is_e001_for_the_first_morpheme() {
+    // §6.2.1 (c)「未解決: 区切り文字までを範囲とし、診断 E001 を付ける」＋
+    // §6.2.6「形態素解析…によって先頭の 1 形態素（語幹）のみを未解決参照の範囲として区切り、
+    //          その範囲だけに赤波線を引く」
     let line = "'しらぬ名を呼んだ。";
     let scan = found(line, vec![character("リリア", 0)]);
     assert_eq!(scan.len(), 1);
     assert_eq!(scan[0].0, DiagnosticCode::E001);
-    // `'しらぬ名を呼んだ` まで（`。` は区切り）
-    assert_eq!(scan[0].1, 0.."しらぬ名を呼んだ".len() + 1);
+    // `'しらぬ` まで（`名` は別の形態素、`。` は区切り）
+    assert_eq!(scan[0].1, 0.."'しらぬ".len());
     let built = dictionary(vec![character("リリア", 0)]);
     let diagnostic = &dictionary::scan_line(line, 0, &built).diagnostics[0];
     // §7 E001「辞書にない参照です: {0}」
-    assert_eq!(diagnostic.args, vec![Arg::text("しらぬ名を呼んだ")]);
+    assert_eq!(diagnostic.args, vec![Arg::text("しらぬ")]);
+}
+
+#[test]
+fn a_word_that_repeats_a_character_name_is_a_duplicate() {
+    // §6.1.4（F-24）: `characters.md` の名前・別名は `words.md` に書き足さなくても辞書に入る。
+    // 同じ名前を用語にも書いたときは、UI が二重に表示しないよう「重複」として扱う
+    let built = dictionary(vec![character("アルス", 0), word("アルス", 3)]);
+    assert!(built.is_character_word_duplicate("アルス"));
+    // 照合は正規化のあと（§6.1.3。全角・半角と大小は同じキーになる）
+    let built = dictionary(vec![character("ﾘﾘｱ", 0), word("リリア", 3)]);
+    assert!(built.is_character_word_duplicate("リリア"));
+    let built = dictionary(vec![character("ABC", 0), word("abc", 3)]);
+    assert!(built.is_character_word_duplicate("Abc"));
+    // 片方しか無ければ重複ではない
+    let built = dictionary(vec![character("アルス", 0), word("星屑の時計", 3)]);
+    assert!(!built.is_character_word_duplicate("アルス"));
+    assert!(!built.is_character_word_duplicate("星屑の時計"));
+}
+
+#[test]
+fn the_first_morpheme_boundary_is_decided_by_character_class() {
+    // §6.2.6「文字種遷移（漢字・カタカナ・ひらがな・ASCII 英数字）」
+    assert_eq!(first_morpheme_end("しらぬ名を呼んだ"), "しらぬ".len());
+    assert_eq!(first_morpheme_end("科学の甲子園"), "科学".len());
+    assert_eq!(first_morpheme_end("リリアは待った"), "リリア".len());
+    assert_eq!(first_morpheme_end("ルビーの指輪"), "ルビー".len());
+    // カタカナだけの名前はそのまま 1 形態素
+    assert_eq!(first_morpheme_end("アンジェリカ"), "アンジェリカ".len());
+    // 区切り文字までで必ず終わる（§6.2.1）
+    assert_eq!(first_morpheme_end("しらぬ。名"), "しらぬ".len());
+    assert_eq!(first_morpheme_end("しらぬ 名"), "しらぬ".len());
+    // 先頭が区切り文字なら 0（`scan_line` はトークンを作らない）
+    assert_eq!(first_morpheme_end("。しらぬ"), 0);
+    assert_eq!(first_morpheme_end(""), 0);
+}
+
+#[test]
+fn the_first_morpheme_boundary_cuts_trailing_particles() {
+    // §6.2.6「助詞切り出し」
+    assert_eq!(first_morpheme_end("だれか、来て"), "だれ".len());
+    assert_eq!(first_morpheme_end("ねこです"), "ねこ".len());
+    // 形態素解析が語尾を 1 トークンに飲み込んだときだけ助詞を落とす
+    assert_eq!(first_morpheme_end("ゆきこが"), "ゆきこ".len());
+    // `もの` は `も` + 助詞 `の` ではない（形態素解析の境界をそのまま採る）
+    assert_eq!(first_morpheme_end("もののあはれ"), "もの".len());
+    // 先頭が助詞そのもののときは連なりまで戻す（`は` + `なこ` に割らない）
+    assert_eq!(first_morpheme_end("はなこ"), "はなこ".len());
+    // 助詞だけの参照はそのまま（0 バイトの波線を作らない）
+    assert_eq!(first_morpheme_end("か、そうか"), "か".len());
+}
+
+#[test]
+fn an_id_shaped_unknown_reference_keeps_the_whole_id() {
+    // §6.2.6 の文字種境界は英数字を 1 つの連なりとして扱う。`'M9999` を `M` に割ると
+    // §6.6.3 の「資料 ID の形」が失われて E007 が出なくなる（materials.rs の前提）。
+    let line = "'M9999の話";
+    let scan = dictionary::scan_line(line, 0, &dictionary(vec![character("リリア", 0)]));
+    // 赤波線は ID 全体（`M9999`）で止まり、`の話` は巻き込まない
+    assert_eq!(scan.tokens[0].morpheme(line), "M9999");
+    assert_eq!(scan.diagnostics[0].code, DiagnosticCode::E001);
+    assert_eq!(scan.diagnostics[0].range, Some(0.."'M9999".len()));
 }
 
 #[test]

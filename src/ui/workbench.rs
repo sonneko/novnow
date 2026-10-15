@@ -238,6 +238,55 @@ impl Workbench {
         self.rebuild();
     }
 
+    /// 貼り付けたテキストを今の節へ入れる（§8.1.3）。
+    ///
+    /// `selection`（本文の中の byte）を `pasted` で置き換える。改行はそのまま残り、単独 `;` 行・場面
+    /// 見出し行（`@A-B-C`）が在ればその位置で節に分けて、分けた後ろは同じファイルの続きの節として
+    /// 一括で文書へ入れる（§8.1「節の移動で即座に文書へ反映」）。エディタに残るのは先頭の節の本文。
+    ///
+    /// 分ける必要が無ければ何もしないで `false`（呼び出し側は普通の貼り付けに任せる）。
+    pub fn paste(&mut self, selection: Range<usize>, pasted: &str, now: f64) -> bool {
+        let Some(editing) = self.editing.as_ref() else {
+            return false;
+        };
+        let path = editing.section.path.clone();
+        let section = editing.section.clone();
+        // 選択が在れば置き換える（[`sections::split_pasted_sections`] はカーソルへの挿入だけを見る）
+        let start = selection.start.min(selection.end).min(self.buffer.len());
+        let end = selection.end.max(selection.start).min(self.buffer.len());
+        if !self.buffer.is_char_boundary(start) || !self.buffer.is_char_boundary(end) {
+            return false;
+        }
+        let mut base = self.buffer.clone();
+        base.replace_range(start..end, "");
+        let Some(blocks) = sections::split_pasted_sections(&base, start, pasted) else {
+            return false;
+        };
+        let Some(document) = self.project.document(&path) else {
+            // まだ無いファイルを編集中（[`Workbench::start_file`]）: 分けずに普通の貼り付けに任せる
+            return false;
+        };
+        // 節の本文に見出し行と区切り `;` を混ぜた形で書き戻す（節が増えるのは並びの作り直しが拾う）
+        let text = sections::splice(&document.text, &section, &blocks.join("\n;\n"));
+        let count = sections::line_count(&blocks[0]);
+        let first = blocks[0].clone();
+        if let Some(editing) = self.editing.as_mut() {
+            let start = editing.section.lines.start;
+            let old_end = editing.section.lines.end;
+            editing.section.lines = start..start + count;
+            let grow = (start + count) as isize - old_end as isize;
+            editing.section.span = editing.section.span.start
+                ..((editing.section.span.end as isize + grow).max((start + count) as isize))
+                    as usize;
+        }
+        self.buffer = first;
+        self.project.insert(Document::new(path.clone(), text));
+        self.unsaved.insert(path);
+        self.rebuild();
+        self.edited(now);
+        true
+    }
+
     /// 構造移動（§9.8.2）。移動したら即時の保存を求める（§8.1）。動けなければ `false`。
     pub fn go(&mut self, nav: Nav) -> bool {
         self.commit();

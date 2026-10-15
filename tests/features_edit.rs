@@ -289,6 +289,19 @@ fn typed_prefixes_filter_and_replace_only_the_typed_part() {
 }
 
 #[test]
+fn a_word_that_repeats_a_character_name_is_not_listed_twice() {
+    // §6.1.4（F-24）: `words.md` の用語が `characters.md` の名前と同じでも、
+    // 補完候補は登場人物側の 1 件だけ（用語としては出さない）
+    let words = format!("{WORDS}\n# アルス\ndefinition: 錬金術を学ぶ少年。\n");
+    let mut project = world_with("words.md", &words);
+    let body = "@01-04-02 x\n'アル";
+    project.insert(Document::new(CONTENTS_PATH, body));
+    let items = completion::at(&doc(&project, CONTENTS_PATH), body.len(), &project);
+    assert_eq!(labels(&items, CompletionKind::Character), vec!["アルス"]);
+    assert!(labels(&items, CompletionKind::Word).is_empty());
+}
+
+#[test]
 fn explicit_forms_and_shortest_match_hazards_insert_braces() {
     let text = "@01-04-02 x\n'{星";
     let (_, items) = items_at(CONTENTS_PATH, text, text.len());
@@ -361,6 +374,15 @@ fn an_at_sign_offers_nearby_scene_ids_or_speakers() {
     let speaker = "@01-04-02 x\n「待って」@リ";
     let (_, items) = items_at(CONTENTS_PATH, speaker, speaker.len());
     assert_eq!(labels(&items, CompletionKind::Character), vec!["リリア"]);
+    // S-08: closing Japanese quotation marks must not swallow the speaker trigger.
+    for close in ['」', '』'] {
+        let text = format!("@01-04-02 x\n「待って{close}@リ");
+        let (_, items) = items_at(CONTENTS_PATH, &text, text.len());
+        assert_eq!(labels(&items, CompletionKind::Character), vec!["リリア"]);
+        let text = format!("@01-04-02 x\n「待って{close}@リリア:");
+        let (_, items) = items_at(CONTENTS_PATH, &text, text.len());
+        assert!(!labels(&items, CompletionKind::Mode).is_empty());
+    }
 }
 
 #[test]
@@ -671,4 +693,20 @@ fn only_diagnostics_in_the_range_get_actions() {
     let actions = code_action::at(&document, second..second + 1, &project);
     assert!(!actions.is_empty());
     assert!(actions.iter().all(|action| action.arg != "だれか"));
+}
+
+#[test]
+fn closing_japanese_quotes_offer_speaker_and_mode_completion() {
+    // S-08: dialogue closing marks, including a separating space, open speaker suggestions.
+    for ending in ["」@", "』@", "」 @", "』 @"] {
+        let text = format!("@01-04-02 x\n「行くぞ{ending}");
+        let (_, items) = items_at(CONTENTS_PATH, &text, text.len());
+        assert!(
+            labels(&items, CompletionKind::Character).contains(&"アルス".to_owned()),
+            "{ending}: {items:?}"
+        );
+    }
+    let text = "@01-04-02 x\n「行くぞ」@アルス:";
+    let (_, items) = items_at(CONTENTS_PATH, text, text.len());
+    assert!(labels(&items, CompletionKind::Mode).contains(&"A".to_owned()));
 }

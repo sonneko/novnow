@@ -92,6 +92,49 @@ impl Harness {
         self.ctx.run(input, |ctx| app.frame(ctx, Some(dark)))
     }
 
+    /// One frame at a specified viewport and with a held modifier prefix.
+    pub fn frame_at(&mut self, width: f32, modifiers: Modifiers) -> egui::FullOutput {
+        self.time += 0.05;
+        let input = RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(width, 800.0))),
+            time: Some(self.time),
+            modifiers,
+            focused: true,
+            ..Default::default()
+        };
+        let app = &mut self.app;
+        let dark = self.dark;
+        self.ctx.run(input, |ctx| app.frame(ctx, Some(dark)))
+    }
+
+    /// `pos` を押す（`PointerButton` の down と up を別のフレームで送る）。
+    pub fn click_at(&mut self, pos: Pos2) {
+        self.frame(vec![
+            Event::PointerMoved(pos),
+            Event::PointerButton {
+                pos,
+                button: egui::PointerButton::Primary,
+                pressed: true,
+                modifiers: Modifiers::NONE,
+            },
+        ]);
+        self.frame(vec![Event::PointerButton {
+            pos,
+            button: egui::PointerButton::Primary,
+            pressed: false,
+            modifiers: Modifiers::NONE,
+        }]);
+    }
+
+    /// 描かれた `text` の矩形（見つからなければ `None`）。
+    pub fn rect_of(&mut self, text: &str) -> Option<Rect> {
+        let output = self.frame(Vec::new());
+        painted_texts(&output)
+            .into_iter()
+            .find(|(painted, _)| painted == text)
+            .map(|(_, rect)| rect)
+    }
+
     pub fn idle(&mut self, seconds: f64) -> egui::FullOutput {
         let mut last = self.frame(Vec::new());
         let end = self.time + seconds;
@@ -100,6 +143,29 @@ impl Harness {
         }
         last
     }
+}
+
+/// フレームに描かれた文字列とその矩形（クリックの座標を決めるのに使う）。
+pub fn painted_texts(output: &egui::FullOutput) -> Vec<(String, Rect)> {
+    fn walk(shape: &egui::Shape, out: &mut Vec<(String, Rect)>) {
+        match shape {
+            egui::Shape::Text(text) => out.push((
+                text.galley.text().to_owned(),
+                Rect::from_min_size(text.pos, text.galley.size()),
+            )),
+            egui::Shape::Vec(shapes) => {
+                for inner in shapes {
+                    walk(inner, out);
+                }
+            }
+            _ => {}
+        }
+    }
+    let mut out = Vec::new();
+    for clipped in &output.shapes {
+        walk(&clipped.shape, &mut out);
+    }
+    out
 }
 
 /// フレームに描かれた文字列を全部集める。

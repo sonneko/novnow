@@ -8,6 +8,8 @@
 //!   含まない）を LF でつないだもの。節エディタはこれだけを編集する（末尾の空行は書き戻しでも残る）。
 //! - **書き戻し**: 編集した本文で節の行を置き換えたファイル全体の文字列を返す（§8.1「節の移動で
 //!   即座に文書へ反映」）。本文に `;` の行を書けば、書き戻した後は節が増える（並びを作り直す）。
+//! - **貼り付けの分割**: 貼り付けたテキストに節区切り行（単独の `;`）や場面見出し行（`@A-B-C`）が
+//!   在れば、その位置で節に分ける（[`split_pasted_sections`]、§8.1.3）。
 //!
 //! 文字数（§9.6.1）は**空白を除いた文字数**（[`count_chars`]）。
 
@@ -15,9 +17,10 @@ use std::ops::Range;
 
 use crate::core::features::project::episode_of_path;
 use crate::core::features::Project;
-use crate::core::id::SceneId;
+use crate::core::id::{PartialSceneId, SceneId};
 use crate::core::model::document::{Document, DocumentFormat};
 use crate::core::syntax::contents;
+use crate::core::text::lexer::{self, LineKind, TextFormat};
 
 /// 並びの中の節 1 つ。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -189,6 +192,115 @@ pub fn remove(text: &str, section: &SectionRef) -> String {
 /// 空白を除いた文字数（§9.6.1。コメント行・アノテーションも数える）。
 pub fn count_chars(text: &str) -> usize {
     text.chars().filter(|c| !c.is_whitespace()).count()
+}
+
+/// 場面見出しに書ける最少の階層数（§5.2.1 `scene_id = num "-" num "-" num [ "-" num ]`）。
+const SCENE_HEADER_DEPTH: usize = 3;
+
+/// 貼り付けたテキストの中の節の切れ目（§8.1.3）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Cut {
+    /// 切れ目ではない（そのまま本文の行になる）。
+    None,
+    /// 節区切り行（単独の `;`）。行は消えて、次の節が始まる。
+    Break,
+    /// 場面見出し行（`@A-B-C`）。**行はそのまま**本文ファイルへ入れて、次の節が始まる。
+    Header,
+}
+
+/// 1 行が節の切れ目か（§8.1.3）。
+fn cut_of(line: &str) -> Cut {
+    match lexer::classify(line, TextFormat::Contents) {
+        LineKind::SectionBreak => Cut::Break,
+        LineKind::Structure(rest) => {
+            let id_text = rest.split(lexer::is_space).next().unwrap_or(rest);
+            match PartialSceneId::parse(id_text) {
+                Ok(found) if found.depth() >= SCENE_HEADER_DEPTH => Cut::Header,
+                _ => Cut::None,
+            }
+        }
+        _ => Cut::None,
+    }
+}
+
+/// 貼り付けたテキストを節に分ける（§8.1.3）。
+///
+/// `current`（今の節の本文）の `cursor`（byte。文字の境界でなくてもよい）に `pasted` を挿れる形にして、
+/// 節区切り行（単独の `;`）と場面見出し行（`@A-B-C`）を切れ目に分ける。**改行はそのまま残る**。
+///
+/// 返すのは節の本文（LF 区切り）の列。`[0]` は今の節に残り、`[1..]` は同じファイルの続きの節になる
+/// （見出し行で分けた節は、その見出し行を先頭の行に含む。作者が貼った行をそのまま残すため）。
+/// 各節の末尾の空行は落とす（節の区切りは `;` の行で表すので、本文の末尾に空行を足さない）。
+/// 切れ目が無ければ `None`（呼び出し側は普通の貼り付けに任せる）。
+pub fn split_pasted_sections(current: &str, cursor: usize, pasted: &str) -> Option<Vec<String>> {
+    let at = boundary_of(current, cursor);
+    let head = &current[..at];
+    let tail = &current[at..];
+    let mut joined = String::with_capacity(current.len() + pasted.len() + 1);
+    joined.push_str(head);
+    // 貼り付けの先頭が切れ目なら、行の途中に貼っても行の先頭から始める（`本文。` の後ろに `;` が
+    // 食い付いて切れ目でなくなるのを避ける）
+    if !head.is_empty() && !head.ends_with('\n') && starts_with_cut(pasted) {
+        joined.push('\n');
+    }
+    joined.push_str(pasted);
+    joined.push_str(tail);
+    let mut blocks: Vec<Vec<&str>> = vec![Vec::new()];
+    let mut cut = false;
+    for line in joined.split('\n') {
+        match cut_of(line) {
+            Cut::Break => {
+                cut = true;
+                blocks.push(Vec::new());
+            }
+            Cut::Header => {
+                cut = true;
+                blocks.push(vec![line]);
+            }
+            Cut::None => {
+                if let Some(block) = blocks.last_mut() {
+                    block.push(line);
+                }
+            }
+        }
+    }
+    if !cut {
+        return None;
+    }
+    let mut out: Vec<String> = blocks
+        .into_iter()
+        .map(|mut lines| {
+            while lines.last().is_some_and(|line| line.is_empty()) {
+                lines.pop();
+            }
+            lines.join("\n")
+        })
+        .collect();
+    // 切れ目が続いたときに出来る空の節（先頭と末尾は残す）は落とす
+    let mut index = 1;
+    while index + 1 < out.len() {
+        if out[index].is_empty() {
+            out.remove(index);
+        } else {
+            index += 1;
+        }
+    }
+    Some(out)
+}
+
+/// 貼り付けの先頭の行が切れ目か（[`split_pasted_sections`]）。
+fn starts_with_cut(pasted: &str) -> bool {
+    let first = pasted.split('\n').next().unwrap_or(pasted);
+    cut_of(first) != Cut::None
+}
+
+/// `text` の `at` を文字の境界に寄せる（超えていれば末尾へ）。
+fn boundary_of(text: &str, at: usize) -> usize {
+    let mut at = at.min(text.len());
+    while at > 0 && !text.is_char_boundary(at) {
+        at -= 1;
+    }
+    at
 }
 
 /// 並び `list` の中で `id` の節の位置。無ければ、同じファイルの同じ場面・最も近い節。

@@ -234,6 +234,10 @@ fn ref_items(
             if !same_kind || !entry.normalized.starts_with(&wanted) {
                 continue;
             }
+            // §6.1.4（F-24）: `characters.md` にもある用語は出さない（登場人物側に統合する）
+            if entry.kind == EntryKind::Word && dictionary.is_character_word_duplicate(&entry.key) {
+                continue;
+            }
             let label = match &entry.target {
                 Target::Material { id } => id.clone(),
                 _ => entry.key.clone(),

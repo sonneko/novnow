@@ -211,6 +211,7 @@ pub fn prompt_path(role: &str) -> String {
 const TASK_KEYS: &[&str] = &[
     "role",
     "scope",
+    "examples",
     "intent",
     "status",
     "initiator",
@@ -243,6 +244,12 @@ pub fn parse_task(path: &str, text: &str) -> Option<Task> {
         id,
         role: found.get("role").to_owned(),
         scope: found.get("scope").to_owned(),
+        examples: found
+            .fields
+            .iter()
+            .filter(|(key, _)| *key == "examples")
+            .map(|(_, value)| (*value).to_owned())
+            .collect(),
         intent: found.get("intent").to_owned(),
         status: found.get("status").to_owned(),
         initiator: found.get("initiator").to_owned(),
@@ -286,8 +293,17 @@ pub fn write_task(task: &Task) -> String {
         &task.human_comment,
         &task.exclude,
     ];
-    for (key, value) in TASK_KEYS.iter().zip(values) {
+    for (key, value) in TASK_KEYS
+        .iter()
+        .filter(|key| **key != "examples")
+        .zip(values)
+    {
         push_field(&mut out, key, value);
+        if *key == "scope" {
+            for example in &task.examples {
+                push_field(&mut out, "examples", example);
+            }
+        }
     }
     for (key, value) in &task.unknown {
         let text = match value {

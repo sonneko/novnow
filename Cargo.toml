@@ -39,6 +39,10 @@ egui = { version = "0.27.2", optional = true }
 # 既定 feature の unicode_lines は U+2028 等も行区切りにしてしまい、本文にそれが
 # 含まれると行番号がずれるため落とす（simd は性能のため残す）。
 ropey = { version = "1.6", default-features = false, features = ["simd"] }
+# §6.2.6（S-09 / F-23）の簡易形態素解析（`'` 未解決参照の赤波線範囲と語幹の切り出し）。
+# 依存ゼロ・純 Rust・乱数も I/O も持たない（モデルは同梱）ので `src/core/**` に置ける
+# （§3.2 の許可クレート表と `tests/layering.rs` の `ALLOWED_ROOTS` を参照）。
+tiniestsegmenter = "0.3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1.0"
 regex = "1.10"

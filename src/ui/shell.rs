@@ -218,7 +218,7 @@ pub fn command_of(
         Key::Backslash if ctrl && !alt && shift => Command::SwapReference,
         Key::Backslash if ctrl && !alt => Command::ToggleReference,
         Key::L if ctrl && alt => Command::ToggleLanguage,
-        Key::T if ctrl && alt => Command::CycleTheme,
+        Key::T if ctrl && alt && !shift => Command::CycleTheme,
         Key::Questionmark if !text_focused && !ctrl && !alt => Command::Help,
         Key::Slash if !text_focused && shift && !ctrl && !alt => Command::Help,
         Key::Escape => Command::Escape,
@@ -236,10 +236,10 @@ pub fn command_of(
         Key::Space if ctrl && !alt && !shift => Command::Complete,
         Key::M if ctrl && !alt && shift => Command::Modes,
         Key::M if ctrl && !alt => Command::MaterialSearch,
-        Key::W if ctrl && !alt && shift => Command::Term,
+        Key::W if ctrl && shift => Command::Term, // Ctrl+Alt+Shift+W: Web close-window-safe fallback
         Key::Tab if ctrl && !alt => Command::RecentFile(!shift),
         Key::Period if ctrl && !alt && !shift => Command::QuickFix,
-        Key::T if ctrl && !alt => Command::Register { character: shift },
+        Key::T if ctrl && (!alt || shift && alt) => Command::Register { character: shift },
         Key::D if ctrl && !alt && shift => Command::Diff,
         Key::ArrowUp if ctrl && alt && !shift => Command::ContextRatio(true),
         Key::ArrowDown if ctrl && alt && !shift => Command::ContextRatio(false),
@@ -264,8 +264,8 @@ pub fn command_of(
         Key::Num8 if plain_alt && !shift => Command::Workspace(8),
         Key::Num9 if plain_alt && !shift => Command::Workspace(9),
         Key::B if ctrl && !alt => Command::Up,
-        Key::N if ctrl && !alt && shift => Command::InsertSection,
-        Key::I if ctrl && !alt && shift => Command::Capture,
+        Key::N if ctrl && shift => Command::InsertSection, // Ctrl+Alt+Shift+N: Web incognito-safe fallback
+        Key::I if ctrl && shift => Command::Capture, // Ctrl+Alt+Shift+I: Web DevTools-safe fallback
         Key::E if ctrl && !alt && shift => Command::Review,
         _ => return None,
     };

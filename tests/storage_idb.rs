@@ -186,3 +186,14 @@ fn utc_millis_round_trip_and_sort_as_text() {
         vec![951_825_600_000, 1_791_860_645_123, 1_791_860_645_124]
     );
 }
+
+#[test]
+fn a_web_project_title_must_be_unique_except_for_its_own_rename() {
+    use novnow::adapters::storage_idb::{name_available, Origin, ProjectRecord};
+    let projects = [ProjectRecord::new("a", "星屑", Origin::New, "now")];
+    assert!(!name_available(&projects, "星屑", None));
+    assert!(!name_available(&projects, " 星屑 ", Some("b")));
+    assert!(name_available(&projects, "星屑", Some("a")));
+    assert!(name_available(&projects, "新作", None));
+    assert!(!name_available(&projects, " ", None));
+}

@@ -65,6 +65,53 @@ jobs:
             gh pr comment "$pr" --repo "${GITHUB_REPOSITORY}" --body "$body"
           fi
 
+  japanese-crates:
+    name: tiniestsegmenter .crate to a git blob
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: fetch, store as a blob, comment
+        shell: bash
+        run: |
+          set -euo pipefail
+          # shellcheck source=/dev/null
+          . ./.github/sandbox-tools.env
+          if [ "${ENABLED:-0}" != "1" ] && [ "${GITHUB_EVENT_NAME}" != "workflow_dispatch" ]; then
+            echo "ENABLED=0 のためスキップします。"
+            exit 0
+          fi
+          mkdir -p crates
+          # S-09 / F-23（簡易形態素解析）で使うクレート。依存は無い（純 Rust・モデル同梱）。
+          for item in \
+            tiniestsegmenter:0.3.0
+          do
+            name="${item%:*}"
+            ver="${item#*:}"
+            curl -fsSL --retry 3 -o "crates/${name}-${ver}.crate" \
+              "https://static.crates.io/crates/${name}/${name}-${ver}.crate"
+          done
+          tar czf japanese-crates.tar.gz crates
+          sha="$(sha256sum japanese-crates.tar.gz | cut -d' ' -f1)"
+          python3 - <<'PY'
+          import base64, json
+          data = base64.b64encode(open("japanese-crates.tar.gz", "rb").read()).decode()
+          json.dump({"content": data, "encoding": "base64"}, open("blob.json", "w"))
+          PY
+          blob="$(gh api -X POST "repos/${GITHUB_REPOSITORY}/git/blobs" --input blob.json --jq .sha)"
+          pr="$(gh pr list --repo "${GITHUB_REPOSITORY}" --head "${GITHUB_REF_NAME}" --state all --json number --jq '.[0].number')"
+          body="sandbox-tools: japanese-crates=tiniestsegmenter-0.3.0 blob=${blob} sha256=${sha} file=japanese-crates.tar.gz"
+          echo "$body"
+          echo "$body" >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$pr" ]; then
+            gh pr comment "$pr" --repo "${GITHUB_REPOSITORY}" --body "$body"
+          fi
+
   criterion-crates:
     name: criterion .crate files to a git blob
     runs-on: ubuntu-latest

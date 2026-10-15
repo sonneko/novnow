@@ -225,6 +225,7 @@ pub fn call(project: &Project, name: &str, args: &Value, now: &str, title: &str)
                         excluded: &[],
                         task: None,
                         comment: "",
+                        examples: &[],
                     });
                     ok(json!({ "packet": built.text(), "chars": built.size(), "cap": built.cap }))
                 }
@@ -465,6 +466,7 @@ fn block_of(
         excluded: &[],
         task: None,
         comment: "",
+        examples: &[],
     });
     built
         .block(kind)

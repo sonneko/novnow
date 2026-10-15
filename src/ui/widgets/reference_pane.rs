@@ -3,19 +3,40 @@
 //! - **`egui::Frame::group`（枠線付きカード）を使わない**（§9.5.1 MUST。`tests/layering.rs` が
 //!   `src/ui/` に 0 件であることを検査する）。区切りは余白（12px）と見出しの字送り。
 //! - 見出し 11px / `fg.faint`、本文 13px / `fg.primary` / 行間 1.6。
+//! - 2 セクション目以降の見出し前には `border` の 1px 横線を引く。
 //! - 更新はカーソル移動から 80ms のデバウンス。待つ間も前の内容をそのまま出す（スピナーを出さない、§9.5.4 MUST）。
 
 use egui::text::{LayoutJob, TextFormat};
 use egui::{FontFamily, FontId, RichText, Sense, Stroke, Ui};
 
+use crate::core::diagnostics::{Arg, Diagnostic, DiagnosticCode};
 use crate::core::features::reference::{self, Reference};
 use crate::core::resolve::context_rules::PaneSection;
+use crate::core::resolve::dictionary::EntryKind;
 use crate::ui::i18n::{self, Locale};
 use crate::ui::theme::{self, Mode};
 use crate::ui::workbench::Workbench;
 
 /// デバウンス（§9.5.4）。
 pub const DEBOUNCE_SECS: f64 = 0.08;
+
+/// 参照ペインで選ばれたもの（クリック・`Enter` の結果。呼び出し側が適用する）。
+///
+/// 参照ペイン自身は編集を持たない（§3.4 の層構造）。文言も持たない（§12.2）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Chosen {
+    /// 条件一致の資料候補。その ID を今の節のプロットの `material:` に足す（§16.4）。
+    Material(String),
+    /// Open the full source when a summary is truncated.
+    OpenMaterial(String),
+    /// 診断からの自動回復（§6.2.6 / §9.5.4、F-23）。1 形態素を辞書へ登録する。
+    Register {
+        /// 登録先（`words.md` = [`EntryKind::Word`] / `characters.md` = [`EntryKind::Character`]）。
+        kind: EntryKind,
+        /// 登録する名前（形態素解析で切り出した 1 形態素）。
+        name: String,
+    },
+}
 
 /// 参照ペインの中身と、更新待ち。
 #[derive(Debug, Default)]
@@ -64,8 +85,8 @@ impl Cache {
     }
 }
 
-/// 参照ペインを描く。資料の候補が選ばれたら（ダブルクリック・フォーカスして `Enter`）その ID。
-pub fn show(ui: &mut Ui, cache: &Cache, locale: Locale, mode: Mode, scale: f32) -> Option<String> {
+/// 参照ペインを描く。何かが選ばれたら（ダブルクリック・`Enter`・登録ボタン）その [`Chosen`]。
+pub fn show(ui: &mut Ui, cache: &Cache, locale: Locale, mode: Mode, scale: f32) -> Option<Chosen> {
     let mut chosen = None;
     egui::ScrollArea::vertical()
         .id_source("reference-pane")
@@ -104,10 +125,20 @@ pub fn sections(
     locale: Locale,
     mode: Mode,
     scale: f32,
-) -> Option<String> {
+) -> Option<Chosen> {
     let mut chosen = None;
     let colors = theme::palette(mode);
-    let heading = |ui: &mut Ui, key: &str| {
+    let mut first_heading = true;
+    let mut heading = |ui: &mut Ui, key: &str| {
+        if !first_heading {
+            let (rule, _) =
+                ui.allocate_exact_size(egui::vec2(ui.available_width(), 1.0), Sense::hover());
+            ui.painter().line_segment(
+                [rule.left_top(), rule.right_top()],
+                Stroke::new(1.0_f32, colors.border),
+            );
+        }
+        first_heading = false;
         ui.add_space(12.0);
         ui.label(
             RichText::new(i18n::text(locale, key))
@@ -204,19 +235,42 @@ pub fn sections(
                         heading(ui, "pane.materials");
                         for material in content.materials.iter().filter(|found| !found.candidate) {
                             muted(ui, &material.id, &material.title);
+                            if material.source.starts_with("https://")
+                                || material.source.starts_with("http://")
+                            {
+                                super::external_link(
+                                    ui,
+                                    &format!("↗ {}", material.source),
+                                    &material.source,
+                                    &colors,
+                                );
+                            }
                             if !material.summary.is_empty() {
-                                body(ui, &material.summary);
+                                let lines = material.summary.lines().take(5).collect::<Vec<_>>();
+                                let short: String = lines.join("\n").chars().take(120).collect();
+                                body(ui, &short);
+                                if short != material.summary {
+                                    let button = super::link_button(
+                                        ui,
+                                        i18n::text(locale, "pane.more"),
+                                        body_font.clone(),
+                                        &colors,
+                                    );
+                                    if button.clicked() {
+                                        chosen = Some(Chosen::OpenMaterial(material.id.clone()));
+                                    }
+                                }
                             }
                         }
                         for material in content.materials.iter().filter(|found| found.candidate) {
                             if candidate(ui, material, locale, mode, scale) {
-                                chosen = Some(material.id.clone());
+                                chosen = Some(Chosen::Material(material.id.clone()));
                             }
                         }
                     }
                     PaneSection::Diagnostics if !content.diagnostics.is_empty() => {
                         heading(ui, "pane.diagnostics");
-                        for found in &content.diagnostics {
+                        let mut draw = |ui: &mut Ui, found: &Diagnostic| {
                             let color = match found.severity() {
                                 crate::core::diagnostics::Severity::Error => colors.error,
                                 _ => colors.warn,
@@ -241,6 +295,75 @@ pub fn sections(
                                 },
                             );
                             ui.label(job);
+                            // §6.2.6 / §9.5.4（F-23）: 形態素解析で切った 1 形態素をその場で登録する
+                            let recovery = recovery(found);
+                            if !recovery.is_empty() {
+                                ui.horizontal(|ui| {
+                                    ui.spacing_mut().item_spacing.x = 8.0;
+                                    for (kind, name) in recovery {
+                                        let key = match kind {
+                                            EntryKind::Word => "pane.add_word",
+                                            _ => "pane.add_character",
+                                        };
+                                        let label = i18n::text(locale, key);
+                                        let button = super::link_button(
+                                            ui,
+                                            label,
+                                            FontId::new(11.0 * scale, FontFamily::Proportional),
+                                            &colors,
+                                        );
+                                        let hint =
+                                            i18n::format(locale, "pane.add_hint", &[name, label]);
+                                        // アクセシブル名にも「何を登録するか」を入れる（§9.1）
+                                        button.widget_info(|| {
+                                            egui::WidgetInfo::labeled(
+                                                egui::WidgetType::Button,
+                                                &hint,
+                                            )
+                                        });
+                                        if button.on_hover_text(hint).clicked() {
+                                            chosen = Some(Chosen::Register {
+                                                kind,
+                                                name: name.to_owned(),
+                                            });
+                                        }
+                                    }
+                                });
+                            }
+                        };
+                        for (index, found) in content.diagnostics.iter().enumerate() {
+                            let count = content
+                                .diagnostics
+                                .iter()
+                                .filter(|item| item.code == found.code)
+                                .count();
+                            if count >= 4 {
+                                if content.diagnostics[..index]
+                                    .iter()
+                                    .any(|item| item.code == found.code)
+                                {
+                                    continue;
+                                }
+                                let group = egui::CollapsingHeader::new(
+                                    RichText::new(format!("{} ({count})", found.code.as_str()))
+                                        .underline(),
+                                )
+                                .id_source(("diagnostic-group", found.code.as_str()))
+                                .show(ui, |ui| {
+                                    for item in content
+                                        .diagnostics
+                                        .iter()
+                                        .filter(|item| item.code == found.code)
+                                    {
+                                        draw(ui, item);
+                                    }
+                                });
+                                if group.header_response.hovered() {
+                                    ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                                }
+                            } else {
+                                draw(ui, found);
+                            }
                         }
                     }
                     _ => {}
@@ -270,8 +393,21 @@ fn candidate(
     };
     job.append(&material.id, 0.0, format.clone());
     job.append(&material.title, 12.0, format);
+    let hover_background = ui.painter().add(egui::Shape::Noop);
     let label = ui.label(job);
-    let response = ui.interact(label.rect, candidate_id(&material.id), Sense::click());
+    let hit = super::hit_rect(label.rect);
+    let response = ui.interact(hit, candidate_id(&material.id), Sense::click());
+    if response.hovered() {
+        ui.painter().set(
+            hover_background,
+            egui::Shape::rect_filled(hit, 2.0, colors.bg_selection.gamma_multiply(0.6)),
+        );
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    ui.painter().line_segment(
+        [label.rect.left_bottom(), label.rect.right_bottom()],
+        Stroke::new(0.6_f32, colors.border),
+    );
     let name = format!("{} {}", material.id, material.title);
     response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, &name));
     if response.has_focus() || response.hovered() {
@@ -283,6 +419,26 @@ fn candidate(
     }
     let response = response.on_hover_text(i18n::text(locale, "pane.candidate_hint"));
     response.double_clicked() || (response.clicked() && response.fake_primary_click)
+}
+
+/// §6.2.6 / §9.5.4（F-23）の自動回復: 診断から「登録できる 1 形態素」と登録先を組む。
+///
+/// - **E001**（辞書にない参照）は用語（`words.md`）と登場人物（`characters.md`）の両方。
+/// - **E012**（`characters.md` にいない話者）は登場人物だけ。
+///
+/// 名前は診断の第 1 引数（E001 は §6.2.6 の先頭 1 形態素、E012 は書かれた話者名）。
+fn recovery(found: &Diagnostic) -> Vec<(EntryKind, &str)> {
+    let Some(name) = found.args.iter().find_map(|arg| match arg {
+        Arg::Text(text) if !text.is_empty() => Some(text.as_str()),
+        _ => None,
+    }) else {
+        return Vec::new();
+    };
+    match found.code {
+        DiagnosticCode::E001 => vec![(EntryKind::Word, name), (EntryKind::Character, name)],
+        DiagnosticCode::E012 => vec![(EntryKind::Character, name)],
+        _ => Vec::new(),
+    }
 }
 
 fn first_line(text: &str) -> &str {

@@ -6,23 +6,23 @@
 
 ### 6.1 辞書
 
-状態: 未実装・実装計画済み（REF:src/core/resolve/dictionary.rs, REF:tests/dictionary.rs, REF:benches/core.rs, REF:docs/plans.md#plan-F-24）
+状態: 実装完了（REF:src/core/resolve/dictionary.rs, REF:src/core/features/completion.rs, REF:src/ui/palette.rs, REF:tests/dictionary.rs, REF:tests/features_edit.rs, REF:benches/core.rs）
 
 - `characters.md`・`words.md`・`materials/index.json` の 3 供給元から `Dictionary`（`REF:src/core/resolve/dictionary.rs`）を構築する。
 - 正規化関数 `normalize` は長音記号（`ー` `−` `―` `─` `ｰ` → `ー`）の統一を行った後に Unicode NFKC 正規化（`unicode-normalization`）を適用し、正規化後文字列から原文バイト位置への対応表を用いてトライ木（`Trie`）と `aho-corasick` オートマトンを構築する。
 - 同名衝突の診断（`E014` / `E015` / `W027`）と長すぎるキー（`E028`）は辞書構築時に生成する（検証: `REF:tests/dictionary.rs`、ベンチマーク: `REF:benches/core.rs` の `dictionary_trie_5000`）。
 
-- **[F-24] 登場人物の透過的な辞書統合と重複抑止（未実装・実装計画済み: `REF:docs/plans.md#plan-F-24`）**:
+- **[F-24] 登場人物の透過的な辞書統合と重複抑止（実装完了: `REF:src/core/resolve/dictionary.rs`, `REF:src/ui/palette.rs`）**:
   - `REF:src/core/resolve/dictionary.rs` で `characters.md` の見出し名と `alias:` を無条件に統合辞書へ登録し（`words.md` ファイル自体は書き換えない）、`words.md` に同名の見出しが存在する場合は `Character` 定義へマージして `REF:src/core/features/reference.rs` や `REF:src/ui/palette.rs` に重複エントリが出ないようにする。
 
 ### 6.2 `'` の最短一致
 
-状態: 未実装・実装計画済み（REF:src/core/resolve/dictionary.rs, REF:tests/dictionary.rs, REF:docs/plans.md#plan-S-09）
+状態: 実装完了（REF:src/core/resolve/dictionary.rs, REF:src/ui/widgets/reference_pane.rs, REF:src/ui/app.rs, REF:tests/dictionary.rs, REF:tests/workspaces.rs）
 
 - `core::resolve::dictionary`（`REF:src/core/resolve/dictionary.rs`）が `'` トークンを走査し、明示境界 `'{…}` と通常形 `'名前[:修飾子]` を解析する。
 - 通常形ではトライ木を 1 文字ずつ辿り、**最初に終端に達したキー**で確定する（最短一致）。終端に一度も達しない場合は助詞・句読点・空白・括弧・改行までを未解決キーとして切り出し、`E001`（または資料 ID 形なら `E012`）を生成する（検証: `REF:tests/dictionary.rs`）。
 
-- **[S-09 / F-23] 未知の `'` 参照の形態素解析境界と自動回復（未実装・実装計画済み: `REF:docs/plans.md#plan-S-09`, `REF:docs/plans.md#plan-F-23`）**:
+- **[S-09 / F-23] 未知の `'` 参照の形態素解析境界と自動回復（実装完了: `REF:src/core/resolve/dictionary.rs`, `REF:src/ui/widgets/reference_pane.rs`）**:
   - `REF:src/core/resolve/dictionary.rs` に文字種遷移（漢字・カタカナ・ひらがな・ASCII 英数字）および日本語助詞テーブルに基づく簡易形態素境界関数 `first_morpheme_end(text: &str) -> usize` を実装し、未解決参照 `E001` のスパン（赤波線範囲）を先頭 1 形態素に限定する。
   - `REF:src/core/features/code_action.rs` と `REF:src/ui/widgets/reference_pane.rs` で、切り出された 1 形態素を `words.md`（用語）または `characters.md`（登場人物）へワンクリック追加するアクションを提供する。
 
@@ -56,14 +56,14 @@
 
 ### 6.7 インクリメンタル再解析
 
-状態: 未実装・実装計画済み（REF:src/core/text/incremental.rs, REF:tests/incremental.rs, REF:benches/core.rs, REF:docs/plans.md#plan-F-43）
+状態: 実装完了（REF:src/core/text/incremental.rs, REF:src/ui/widgets/section_editor.rs, REF:tests/editor_performance.rs）
 
 - ファイル全体の行種別キャッシュ `LineIndex` と 1 行編集時の再解析 `relex_line` / `relex_text` は `core::text::incremental`（`REF:src/core/text/incremental.rs`）に実装する。
 - 構造見出し `@` または節区切り `;` に関わる変更のみ `Renumber::From(line)` を返し、10 万行規模でも O(1) で 1 行再字句解析を完了する（検証: `REF:tests/incremental.rs`、ベンチマーク: `REF:benches/core.rs` の `single_line_relex`）。
 
-- **[F-43] 打鍵時の編集中節のみの同期解析と他節デバウンス（未実装・実装計画済み: `REF:docs/plans.md#plan-F-43`）**:
+- **[F-43] 打鍵時の編集中節のみの同期解析と他節デバウンス（実装完了: `REF:src/ui/widgets/section_editor.rs`, `REF:tests/editor_performance.rs`）**:
   - `REF:src/ui/workbench.rs` と `REF:src/core/features/project.rs` で、打鍵フレーム内では編集中の 1 節スライスのみを対象にトークン化・ローカル診断・インレイヒント計算を行い、ファイル内他節の再構築とプロジェクト横断診断は 300ms デバウンス後に実行する。
-  - `REF:tests/incremental.rs` および `REF:benches/core.rs` に「10 万字のファイルで 1 打鍵 16ms 以内」を検査するテストを追加する。
+  - `REF:tests/editor_performance.rs` に 10 万字ファイルでの節解析と egui 画面全体の 1 打鍵 16ms 以内を release ビルドで検査するテストを追加し、`REF:.github/workflows/ci.yml` の bench ジョブで実行する。
 
 ## 付録 B: 役割語パターン言語と、提示された例の変換表
 

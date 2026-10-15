@@ -464,8 +464,8 @@ fn check_prints_one_line_per_diagnostic_and_exits_5_on_errors() {
     assert_eq!(ran.err, "");
     assert_eq!(
         ran.out,
-        "contents/01-01.txt:2:5: [本文 @01-01-01-01] E012 登場人物 謎の人 は characters.md にいません\n\
-         contents/01-01.txt:3:1: [本文 @01-01-01-01] E001 辞書にない参照です: 未登録の語が出る\n\
+        "contents/01-01.txt:2:5: [本文 @01-01-01-01] E012 登場人物 謎の人は characters.md にいません\n\
+         contents/01-01.txt:3:1: [本文 @01-01-01-01] E001 辞書にない参照です: 未登録\n\
          contents/01-01.txt:5:1: [本文 @01-01-01-02] W012 空の節です\n\
          \n\
          6 個の文書を検査しました（エラー 2・警告 1・情報 0）\n"
@@ -522,7 +522,7 @@ fn check_shows_diagnostics_without_a_position_with_the_path_only() {
     );
     assert!(ran
         .out
-        .contains(" [作品の設定] E027 語クラス a の正規表現が不正です\n"));
+        .contains(" [作品の設定] E027 語クラス aの正規表現が不正です\n"));
 }
 
 #[test]
@@ -991,11 +991,11 @@ fn export_option_errors_are_exit_2_and_empty_selections_write_nothing() {
     let cases: [(&[&str], &str); 7] = [
         (
             &["export", "novel", "--range"],
-            "--range に値を指定してください",
+            "--rangeに値を指定してください",
         ),
         (
             &["export", "novel", "--range", "--state", "fixed"],
-            "--range に値を指定してください",
+            "--rangeに値を指定してください",
         ),
         (
             &["export", "novel", "--range", "@03 .. @01"],
@@ -1007,7 +1007,7 @@ fn export_option_errors_are_exit_2_and_empty_selections_write_nothing() {
         ),
         (
             &["export", "novel", "--out="],
-            "--out に値を指定してください",
+            "--outに値を指定してください",
         ),
         // ② のオプション（`PLANS.md` §1.2）
         (
@@ -1316,10 +1316,7 @@ fn argument_errors_are_exit_2_with_a_pointer_to_the_help() {
     let cases: [(&[&str], &str); 4] = [
         (&["-x"], "不明なオプションです: -x"),
         (&["a", "b"], "余分な引数です: b"),
-        (
-            &["check"],
-            "novnow check にはディレクトリを指定してください",
-        ),
+        (&["check"], "novnow checkにはディレクトリを指定してください"),
         (&["new", "--force"], "不明なオプションです: --force"),
     ];
     for (args, message) in cases {
@@ -1531,4 +1528,55 @@ fn binary_help_version_and_check_errors() {
     assert!(String::from_utf8(output.stdout)
         .expect("utf8")
         .contains(" E001 Unknown reference: 未登録\n"));
+}
+
+#[test]
+fn zip_import_writes_only_safe_new_files_and_preserves_existing_data() {
+    use novnow::adapters::zip as archive;
+    let dir = TempDir::new("cli-zip-import");
+    let zip = archive::export(
+        &template::new_project("小説")
+            .into_iter()
+            .map(|item| (ProjectPath::new(item.path).unwrap(), item.text.into_bytes()))
+            .collect::<Vec<_>>(),
+    )
+    .unwrap();
+    std::fs::write(dir.join("novel.zip"), zip).unwrap();
+    let env = env_ja(&dir);
+    let first = run(dir.path(), &env, &["import", "novel.zip", "book"]);
+    assert_eq!(first.exit(), Exit::Ok, "{}", first.err);
+    assert!(dir.join("book/project.json").exists());
+    dir.write("book/words.md", "# 自分の用語\n");
+    let second = run(dir.path(), &env, &["import", "novel.zip", "book"]);
+    assert_eq!(second.exit(), Exit::Ok, "{}", second.err);
+    assert_eq!(
+        std::fs::read_to_string(dir.join("book/words.md")).unwrap(),
+        "# 自分の用語\n"
+    );
+    assert!(second.out.contains("words.md"));
+    assert!(!dir.join("state").exists());
+    assert_eq!(
+        decide(&os_args(&["import", "one.zip", "out"]), Terminal::default()),
+        Launch::Command(Command::Import {
+            zip: PathBuf::from("one.zip"),
+            dir: PathBuf::from("out")
+        })
+    );
+}
+
+#[test]
+fn zip_import_rejects_bad_archive_without_creating_destination() {
+    let dir = TempDir::new("cli-import-broken");
+    dir.write("bad.zip", "not a zip");
+    let result = run(
+        dir.path(),
+        &env_ja(&dir),
+        &["import", "bad.zip", "destination"],
+    );
+    assert_eq!(result.exit(), Exit::Io);
+    assert!(!dir.join("destination").exists());
+    assert_eq!(
+        decide(&os_args(&["import", "file.zip"]), Terminal::default()),
+        Launch::Error(ArgError::MissingDir("import"))
+    );
 }

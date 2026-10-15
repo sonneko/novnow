@@ -279,7 +279,7 @@ fn places_read_naturally_in_both_languages() {
                 role: "writer".to_owned(),
                 section: Some("output".to_owned()),
             },
-            "プロンプト writer の output",
+            "プロンプト writerの output",
             "prompt writer, section output",
         ),
         (Place::Settings, "作品の設定", "project settings"),

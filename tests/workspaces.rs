@@ -19,7 +19,7 @@ use novnow::ui::shell::{self, Command};
 use novnow::ui::workbench::{Nav, Reaction, Workbench};
 use novnow::ui::workspaces::{Switcher, Workspace};
 
-use harness::{key, painted_text, Harness};
+use harness::{key, painted_text, painted_texts, Harness};
 
 fn id(chapter: u16, episode: u16, scene: u16, section: u16) -> SceneId {
     SceneId {
@@ -424,7 +424,7 @@ fn the_reserved_reader_shows_a_notice_and_does_not_switch() {
     harness.frame(vec![key(Key::Num7, ALT)]);
     let output = harness.frame(Vec::new());
     assert_eq!(harness.app.workspace(), Some(Workspace::Write));
-    assert!(painted_text(&output).contains("読者 はこの版ではまだ使えません"));
+    assert!(painted_text(&output).contains("読者はこの版ではまだ使えません"));
     harness.frame(vec![key(Key::Num8, ALT)]);
     assert_eq!(
         harness.app.workspace(),
@@ -456,7 +456,7 @@ fn ctrl_shift_n_creates_the_missing_episode_plot_with_a_scene_header() {
     harness.frame(vec![key(Key::ArrowRight, CTRL_ALT)]);
     harness.frame(vec![key(Key::Num2, ALT)]);
     let output = harness.frame(Vec::new());
-    assert!(painted_text(&output).contains("話プロット plots/01-02.txt はまだありません"));
+    assert!(painted_text(&output).contains("話プロット plots/01-02.txtはまだありません"));
     harness.frame(vec![key(Key::N, CTRL_SHIFT)]);
     harness.frame(Vec::new());
     harness.frame(vec![Event::Text("扉を開ける".into())]);
@@ -648,7 +648,7 @@ fn ctrl_shift_n_in_the_outline_adds_a_block_and_ctrl_alt_arrows_change_the_level
         Some(Some(2))
     );
     let output = harness.frame(Vec::new());
-    assert!(painted_text(&output).contains("plots/02.txt にブロックはまだありません"));
+    assert!(painted_text(&output).contains("plots/02.txtにブロックはまだありません"));
     harness.frame(vec![key(Key::N, CTRL_SHIFT)]);
     harness.frame(Vec::new());
     assert_eq!(outline_selected(&harness), Some(id(2, 1, 0, 0)));
@@ -724,7 +724,7 @@ fn ctrl_shift_i_captures_an_idea_from_anywhere_without_changing_the_screen() {
         ),
         "{ideas}"
     );
-    assert!(painted_text(&output).contains("I0009 を ideas.md に積みました"));
+    assert!(painted_text(&output).contains("I0009を ideas.md に積みました"));
 }
 
 #[test]
@@ -1039,7 +1039,7 @@ fn alt_5_lists_materials_and_ctrl_enter_approves_after_confirming_a_missing_sour
     );
     assert!(index.contains("\"status\": \"approved\""), "{index}");
     assert!(
-        painted_text(&output).contains("M0138 を採用しました"),
+        painted_text(&output).contains("M0138を採用しました"),
         "通知"
     );
     // 保存した資料 MD の checksum が索引に入る（§16.6）
@@ -1082,7 +1082,35 @@ fn ctrl_enter_registers_an_unregistered_file_and_ctrl_delete_rejects_without_del
     assert!(index.contains("\"status\": \"rejected\""), "{index}");
     assert!(removed(&harness).is_empty(), "却下はファイルを消さない");
     assert_ne!(material_selected(&harness).as_deref(), Some("M0140"));
-    assert!(painted_text(&output).contains("M0140 を却下しました"));
+    assert!(painted_text(&output).contains("M0140を却下しました"));
+}
+
+#[test]
+fn material_tab_traverses_to_the_review_form_after_ctrl_three() {
+    let mut harness = material_harness();
+    harness.frame(vec![key(Key::Num5, ALT)]);
+    harness.frame(vec![key(Key::ArrowUp, ALT)]);
+    let output = harness.frame(vec![key(Key::Num3, CTRL)]);
+    // The shortcut guide in the central pane must not force the right form
+    // offscreen: the title label and source label remain within the viewport.
+    for label in ["タイトル", "出典"] {
+        let rect = painted_texts(&output)
+            .into_iter()
+            .find(|(text, _)| text == label)
+            .map(|(_, rect)| rect)
+            .expect("material review form label");
+        assert!(rect.right() <= 1280.0, "{label} is clipped: {rect:?}");
+    }
+    let title = egui::Id::new(("material-title", "M0138"));
+    let mut reached = false;
+    for _ in 0..40 {
+        harness.frame(vec![key(Key::Tab, Modifiers::NONE)]);
+        if harness.ctx.memory(|memory| memory.has_focus(title)) {
+            reached = true;
+            break;
+        }
+    }
+    assert!(reached, "Tab must traverse to the material title field");
 }
 
 #[test]
@@ -1091,9 +1119,17 @@ fn the_review_form_writes_the_index_and_keeps_the_h1_in_step() {
     harness.frame(vec![key(Key::Num5, ALT)]);
     harness.frame(vec![key(Key::ArrowUp, ALT)]);
     assert_eq!(material_selected(&harness).as_deref(), Some("M0138"));
-    // Ctrl+3 で審査フォームのタイトルへ
+    // Ctrl+3 reveals the shared reference pane, without taking a
+    // material-specific form shortcut. The form uses ordinary focus traversal.
     harness.frame(vec![key(Key::Num3, CTRL)]);
-    harness.frame(Vec::new());
+    let title = egui::Id::new(("material-title", "M0138"));
+    for _ in 0..40 {
+        if harness.ctx.memory(|memory| memory.has_focus(title)) {
+            break;
+        }
+        harness.frame(vec![key(Key::Tab, Modifiers::NONE)]);
+    }
+    assert!(harness.ctx.memory(|memory| memory.has_focus(title)));
     harness.frame(vec![key(Key::End, Modifiers::NONE)]);
     harness.frame(vec![Event::Text("（増補）".into())]);
     harness.idle(1.0);
@@ -1190,6 +1226,54 @@ fn a_condition_match_in_the_reference_pane_is_added_to_the_plot_with_enter() {
         ),
         "{plot}"
     );
+}
+
+/// 本文の先頭の節に辞書にない参照（`'未登録の紋様`）が 1 つだけあるプロジェクト。
+fn unresolved_harness() -> Harness {
+    let mut project = novel::novel();
+    project.insert(Document::new(
+        "contents/01-01.txt",
+        "@01-01-01 放課後\n'未登録の紋様 が描かれていた。\n",
+    ));
+    Harness::start_with(project, true).0
+}
+
+#[test]
+fn a_diagnostic_in_the_reference_pane_registers_the_first_morpheme() {
+    // §6.2.6 / §9.5.4（F-23）: 参照ペインの診断から、形態素解析で切った 1 形態素を
+    // その場のボタンで `words.md` へ登録して自動回復できる
+    let mut harness = unresolved_harness();
+    harness.idle(0.5);
+    let output = harness.frame(Vec::new());
+    let text = painted_text(&output);
+    // `'未登録の紋様` の赤波線は先頭 1 形態素（`未登録`）まで
+    assert!(text.contains("辞書にない参照です: 未登録"), "{text}");
+    let at = {
+        let found = painted_texts(&output)
+            .into_iter()
+            .find(|(painted, _)| painted == "words.md に追加")
+            .expect("words.md に追加 ボタン");
+        found.1.center()
+    };
+    harness.click_at(at);
+    harness.idle(0.6);
+    let words = written(&harness, "words.md");
+    assert!(words.ends_with("# 未登録\ndefinition: \n"), "{words}");
+    // `characters.md` へも同じ 1 形態素を登録できる
+    let mut harness = unresolved_harness();
+    harness.idle(0.5);
+    let output = harness.frame(Vec::new());
+    let at = {
+        let found = painted_texts(&output)
+            .into_iter()
+            .find(|(painted, _)| painted == "characters.md に追加")
+            .expect("characters.md に追加 ボタン");
+        found.1.center()
+    };
+    harness.click_at(at);
+    harness.idle(0.6);
+    let characters = written(&harness, "characters.md");
+    assert!(characters.ends_with("# 未登録\n"), "{characters}");
 }
 
 #[test]
@@ -1426,6 +1510,7 @@ fn agent_project(agents: &str, tasks: &[&str]) -> novnow::core::features::Projec
                 scope,
                 intent: "テンポを上げる",
                 comment: "",
+                examples: "",
                 initiator: "human",
                 status: "draft",
             },
@@ -1730,7 +1815,7 @@ fn one_to_four_set_the_delegation_level_and_ctrl_shift_x_stops_all() {
     }
     let text = press(&mut harness, Key::Num3, Modifiers::NONE);
     assert!(
-        text.contains("writer の委譲レベルを apply にしました"),
+        text.contains("writerの委譲レベルを applyにしました"),
         "{text}"
     );
     let level = |harness: &Harness, role: &str| {
@@ -1935,7 +2020,7 @@ fn a_missing_key_blocks_the_run_with_e030() {
     );
     let text = press(&mut harness, Key::R, Modifiers::NONE);
     assert!(
-        text.contains("環境変数 NOVNOW_LLM_KEY が設定されていません"),
+        text.contains("環境変数 NOVNOW_LLM_KEYが設定されていません"),
         "{text}"
     );
     assert!(harness.host.files.borrow().jobs.is_empty());
@@ -1950,7 +2035,7 @@ fn a_failed_call_returns_the_task_to_ready_without_retrying() {
     harness.frame(vec![key(Key::R, Modifiers::NONE)]);
     let text = settle(&mut harness);
     assert!(
-        text.contains("T0001 がタイムアウトしました（ready に戻しました）"),
+        text.contains("T0001がタイムアウトしました（ready に戻しました）"),
         "{text}"
     );
     assert_eq!(board(&harness).tasks[0].status, "ready");
@@ -2036,7 +2121,7 @@ fn the_palette_sets_levels_and_resets_or_compares_prompts() {
         "{listed}"
     );
     assert!(
-        text.contains("writer の委譲レベルを apply にしました"),
+        text.contains("writerの委譲レベルを applyにしました"),
         "{text}"
     );
     let (_, text) = palette(&mut harness, ">agent stop-all");
@@ -2107,7 +2192,7 @@ fn palette_format_and_dictionary_references_and_rename_and_outline_folding_work_
     harness.frame(Vec::new());
     let text = painted_text(&harness.frame(Vec::new()));
     assert!(
-        text.contains("contents/01-01.txt を正規化しました"),
+        text.contains("contents/01-01.txtを正規化しました"),
         "format notice: {text}"
     );
 
@@ -2172,4 +2257,446 @@ fn palette_format_and_dictionary_references_and_rename_and_outline_folding_work_
         text.contains("▸ 01"),
         "folded chapter in outline tree: {text}"
     );
+}
+
+#[test]
+fn bare_arrow_selection_does_not_commit_or_replace_an_open_slice() {
+    use novnow::ui::workspaces::{idea, material, plot_episode, plot_outline};
+
+    let mut bench = Workbench::new(material_project(), None, 400);
+    let mut materials = material::State::default();
+    assert!(materials.select(&bench, "M0138"));
+    materials.sync(&mut bench);
+    let slice = bench.slice().cloned().expect("open material");
+    bench.slice_buffer_mut().push_str(" 未確定");
+    assert!(materials.preview_row(&bench, true));
+    materials.sync(&mut bench);
+    assert_eq!(bench.slice(), Some(&slice));
+    assert!(bench.slice_buffer().ends_with(" 未確定"));
+    assert!(!bench.project().text(&slice.path).contains(" 未確定"));
+    materials.nav(&mut bench, Nav::PrevSection);
+    assert!(bench.project().text(&slice.path).contains(" 未確定"));
+
+    let mut bench = Workbench::new(novel::novel_with("ideas.md", IDEAS), None, 400);
+    let mut ideas = idea::State::default();
+    ideas.sync(&mut bench);
+    let slice = bench.slice().cloned().expect("open idea");
+    assert!(ideas.preview_row(&bench, true));
+    ideas.sync(&mut bench);
+    assert_eq!(bench.slice(), Some(&slice));
+
+    let mut bench = Workbench::new(world::world(), None, 400);
+    let mut episode = plot_episode::State::default();
+    episode.land(&bench, id(1, 4, 2, 1));
+    episode.sync(&mut bench);
+    let slice = bench.slice().cloned().expect("open plot episode");
+    assert!(episode.preview_row(&bench, true));
+    episode.sync(&mut bench);
+    assert_eq!(bench.slice(), Some(&slice));
+
+    let mut outline = plot_outline::State::default();
+    outline.land_all(&bench, 1);
+    outline.sync(&mut bench);
+    let slice = bench.slice().cloned().expect("open plot outline");
+    if outline.preview_row(&bench, true) {
+        outline.sync(&mut bench);
+        assert_eq!(bench.slice(), Some(&slice));
+    }
+}
+
+#[test]
+fn bare_arrow_browses_material_list_without_leaving_its_editor() {
+    let mut harness = material_harness();
+    harness.frame(vec![key(Key::Num5, ALT)]);
+    harness.frame(Vec::new());
+    let before = material_selected(&harness);
+    let slice = harness.app.workbench().and_then(Workbench::slice).cloned();
+    if let Some(focused) = harness.ctx.memory(|memory| memory.focused()) {
+        harness
+            .ctx
+            .memory_mut(|memory| memory.surrender_focus(focused));
+    }
+    harness.frame(vec![key(Key::ArrowDown, Modifiers::NONE)]);
+    assert_ne!(material_selected(&harness), before);
+    assert_eq!(
+        harness.app.workbench().and_then(Workbench::slice),
+        slice.as_ref()
+    );
+}
+
+#[test]
+fn bare_arrow_browses_cast_and_plot_lists_without_committing_slices() {
+    for (workspace, selected) in [
+        (Key::Num6, Workspace::Cast),
+        (Key::Num2, Workspace::PlotEpisode),
+        (Key::Num3, Workspace::PlotOutline),
+    ] {
+        let mut harness = Harness::start_with(world::world(), true).0;
+        harness.frame(vec![key(workspace, ALT)]);
+        harness.frame(Vec::new());
+        let previous = harness.app.workbench().and_then(Workbench::slice).cloned();
+        let before = match selected {
+            Workspace::Cast => {
+                format!("{:?}", harness.app.spaces().and_then(|s| s.cast.selected()))
+            }
+            Workspace::PlotEpisode => format!(
+                "{:?}",
+                harness.app.spaces().and_then(|s| s.episode.selected())
+            ),
+            Workspace::PlotOutline => format!(
+                "{:?}",
+                harness.app.spaces().and_then(|s| s.outline.selected())
+            ),
+            _ => unreachable!(),
+        };
+        if let Some(id) = harness.ctx.memory(|memory| memory.focused()) {
+            harness.ctx.memory_mut(|memory| memory.surrender_focus(id));
+        }
+        harness.frame(vec![key(Key::ArrowDown, Modifiers::NONE)]);
+        let spaces = harness.app.spaces().expect("open");
+        assert_eq!(spaces.switcher.current(), selected);
+        let after = match selected {
+            Workspace::Cast => format!("{:?}", spaces.cast.selected()),
+            Workspace::PlotEpisode => format!("{:?}", spaces.episode.selected()),
+            Workspace::PlotOutline => format!("{:?}", spaces.outline.selected()),
+            _ => unreachable!(),
+        };
+        if selected != Workspace::PlotOutline {
+            assert_ne!(before, after, "bare arrow must browse {selected:?}");
+        }
+        assert_eq!(
+            harness.app.workbench().and_then(Workbench::slice),
+            previous.as_ref()
+        );
+    }
+}
+
+#[test]
+fn empty_episode_plot_can_be_created_with_the_visible_button() {
+    let mut harness = novel_harness();
+    harness.frame(vec![key(Key::ArrowRight, CTRL_ALT)]);
+    harness.frame(vec![key(Key::Num2, ALT)]);
+    let rect = harness
+        .rect_of("Ctrl+Shift+N 最初の節を作る")
+        .expect("visible insertion button");
+    harness.click_at(rect.center());
+    harness.frame(Vec::new());
+    harness.frame(vec![Event::Text("扉を開ける".into())]);
+    harness.idle(0.6);
+    assert_eq!(
+        written(&harness, "plots/01-02.txt"),
+        "@01-02-01\n扉を開ける\n"
+    );
+}
+
+#[test]
+fn review_and_cast_shortcut_buttons_execute_their_actions() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::Num9, ALT)]);
+    harness.frame(vec![key(Key::ArrowRight, CTRL_SHIFT)]);
+    assert_eq!(
+        harness.app.spaces().unwrap().review.tab,
+        novnow::ui::workspaces::review::Tab::Progress
+    );
+    let rect = harness
+        .rect_of("Ctrl+Shift+E 数え直す")
+        .expect("review rerun button");
+    harness.click_at(rect.center());
+    assert_eq!(
+        harness.app.spaces().unwrap().review.tab,
+        novnow::ui::workspaces::review::Tab::Diagnostics
+    );
+
+    harness.frame(vec![key(Key::Num6, ALT)]);
+    let rect = harness
+        .rect_of("Ctrl+Shift+V 未一致の台詞を走査")
+        .expect("cast scan button");
+    harness.click_at(rect.center());
+    assert_eq!(
+        harness.app.spaces().unwrap().cast.tab,
+        novnow::ui::workspaces::cast::Tab::Unmatched
+    );
+}
+
+#[test]
+fn empty_chapter_plot_can_be_created_with_the_visible_button() {
+    let mut harness = novel_harness();
+    harness.frame(vec![key(Key::Num3, ALT)]);
+    harness.frame(vec![key(Key::ArrowRight, CTRL_ALT)]);
+    let rect = harness
+        .rect_of("Ctrl+Shift+N ブロックを作る")
+        .expect("visible outline insertion button");
+    harness.click_at(rect.center());
+    harness.frame(Vec::new());
+    assert_eq!(outline_selected(&harness), Some(id(2, 1, 0, 0)));
+    harness.idle(0.6);
+    assert_eq!(written(&harness, "plots/02.txt"), "@02-01\n;\n");
+}
+
+#[test]
+fn agent_stop_all_button_downgrades_delegation() {
+    let (mut harness, _) = agent_harness(
+        agent_project(r#"{"enabled":true,"roles":{"writer":"apply"}}"#, &[]),
+        |_| {},
+    );
+    let rect = harness
+        .rect_of("Ctrl+Shift+X 総停止")
+        .expect("visible stop-all button");
+    harness.click_at(rect.center());
+    assert_eq!(
+        harness
+            .app
+            .workbench()
+            .unwrap()
+            .project()
+            .settings()
+            .agents
+            .roles
+            .get("writer")
+            .map(String::as_str),
+        Some("propose")
+    );
+}
+
+#[test]
+fn thousand_idea_rows_scroll_to_the_keyboard_selection_without_rendering_every_row() {
+    let mut project = world::world();
+    let ideas = (1..=1000)
+        .map(|number| format!("# I{number:04} Idea {number:04}\nstatus: active\n\n"))
+        .collect::<String>();
+    project.insert(Document::new("ideas.md", ideas));
+    let mut harness = Harness::start_with(project, true).0;
+    harness.frame(vec![key(Key::Num4, ALT)]);
+    for _ in 0..65 {
+        harness.frame(vec![key(Key::ArrowDown, Modifiers::NONE)]);
+    }
+    let selected = harness.app.spaces().unwrap().idea.selected();
+    assert_eq!(selected, Some("I0066"));
+    let output = harness.frame(Vec::new());
+    let text = painted_text(&output);
+    assert!(
+        text.contains("Idea 0066"),
+        "selected row should be in the viewport: {text}"
+    );
+    assert!(
+        !text.contains("Idea 0900"),
+        "offscreen rows must not be laid out: {text}"
+    );
+}
+
+#[test]
+fn focused_cast_timeline_arrows_do_not_change_the_character_list_selection() {
+    let mut harness = novel_harness();
+    harness.frame(vec![key(Key::Num6, ALT)]);
+    let first = harness.app.spaces().unwrap().cast.selected();
+    for _ in 0..3 {
+        harness.frame(vec![key(Key::ArrowRight, CTRL_SHIFT)]);
+    }
+    harness.frame(Vec::new());
+    harness.frame(vec![key(Key::ArrowDown, Modifiers::NONE)]);
+    assert_eq!(harness.app.spaces().unwrap().cast.selected(), first);
+}
+
+#[test]
+fn agent_task_examples_entered_in_the_modal_reach_the_dry_run_packet() {
+    let (mut harness, _) = agent_harness(agent_project("{}", &[]), |_| {});
+    press(&mut harness, Key::N, Modifiers::NONE);
+    let rect = harness
+        .rect_of("@01-02 both")
+        .expect("examples field hint is visible");
+    harness.click_at(rect.center());
+    harness.frame(vec![Event::Text("@01-04 plot".into())]);
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    let task = board(&harness).tasks[0].clone();
+    assert_eq!(task.examples, ["@01-04 plot"]);
+    press(&mut harness, Key::D, Modifiers::NONE);
+    let packet = project_text(&harness, "agents/results/T0001.dryrun.md");
+    assert!(packet.contains("## examples"), "{packet}");
+    assert!(packet.contains("@01-04"), "{packet}");
+}
+
+#[test]
+fn agent_delegation_level_buttons_apply_to_the_selected_role() {
+    let (mut harness, _) = agent_harness(agent_project("{}", &[]), |_| {});
+    let rect = harness
+        .rect_of("3 apply")
+        .expect("visible delegation button");
+    harness.click_at(rect.center());
+    assert_eq!(
+        harness
+            .app
+            .workbench()
+            .unwrap()
+            .project()
+            .settings()
+            .agents
+            .roles
+            .get("writer")
+            .map(String::as_str),
+        Some("apply")
+    );
+}
+
+#[test]
+fn agent_dry_run_button_generates_the_selected_task_packet() {
+    let (mut harness, _) = agent_harness(agent_project("{}", &["@01-04-02-01"]), |_| {});
+    let rect = harness.rect_of("D ドライラン").expect("dry run button");
+    harness.click_at(rect.center());
+    assert!(
+        project_text(&harness, "agents/results/T0001.dryrun.md").contains("## 1 project"),
+        "the button must perform the same action as the D key"
+    );
+}
+
+#[test]
+fn material_creation_shortcut_works_while_the_review_form_is_focused() {
+    let mut harness = material_harness();
+    harness.frame(vec![key(Key::Num5, ALT)]);
+    harness.frame(vec![key(Key::ArrowUp, ALT)]);
+    harness.frame(vec![key(Key::Num3, CTRL)]);
+    let title = egui::Id::new(("material-title", "M0138"));
+    for _ in 0..40 {
+        if harness.ctx.memory(|memory| memory.has_focus(title)) {
+            break;
+        }
+        harness.frame(vec![key(Key::Tab, Modifiers::NONE)]);
+    }
+    assert!(harness.ctx.memory(|memory| memory.has_focus(title)));
+    harness.frame(vec![key(Key::N, CTRL_SHIFT)]);
+    assert!(
+        harness.app.overlay_open(),
+        "Ctrl+Shift+N is global in material"
+    );
+    harness.frame(vec![Event::Text("新しい取材".into())]);
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.idle(0.6);
+    let index = written(&harness, "materials/index.json");
+    assert!(index.contains("\"title\": \"新しい取材\""), "{index}");
+}
+
+#[test]
+fn material_creation_button_opens_the_same_dialog() {
+    let mut harness = material_harness();
+    harness.frame(vec![key(Key::Num5, ALT)]);
+    let rect = harness
+        .rect_of("Ctrl+Shift+N 新しい資料")
+        .expect("the visible material new button");
+    harness.click_at(rect.center());
+    assert!(harness.app.overlay_open());
+}
+
+#[test]
+fn material_category_chips_and_condition_hint_match_the_metadata_form() {
+    let mut harness = material_harness();
+    harness.frame(vec![key(Key::Num5, ALT)]);
+    harness.frame(Vec::new());
+    let output = harness.frame(Vec::new());
+    let text = painted_text(&output);
+    assert!(text.contains("この資料のカテゴリ"), "{text}");
+    for chip in [
+        "取材",
+        "文献",
+        "Web",
+        "画像",
+        "体験",
+        "一次資料",
+        "二次資料",
+        "その他",
+    ] {
+        assert!(text.contains(chip), "chip {chip}: {text}");
+    }
+    assert!(
+        output.shapes.iter().any(|shape| matches!(
+            &shape.shape,
+            egui::Shape::Rect(rect) if rect.stroke.width == 1.5
+        )),
+        "selected category has a visible outline"
+    );
+    // M0138 has an empty conditions list, so the examples belong to the
+    // TextEdit hint rather than a permanent explanatory paragraph.
+    harness.frame(vec![key(Key::ArrowUp, ALT)]);
+    let empty = painted_text(&harness.frame(Vec::new()));
+    assert_eq!(material_selected(&harness).as_deref(), Some("M0138"));
+    assert!(empty.contains("scope: @02-03"), "condition hint: {empty}");
+}
+
+#[test]
+fn review_and_agent_bare_arrows_work_with_a_focused_header_button() {
+    let mut review = Harness::new();
+    review.frame(vec![key(Key::Num9, ALT)]);
+    let header = review.rect_of("あ").expect("language button");
+    review.click_at(header.center());
+    review.frame(vec![key(Key::Tab, Modifiers::NONE)]);
+    assert!(review.ctx.memory(|memory| memory.focused().is_some()));
+    let before = review.app.spaces().unwrap().review.selected();
+    review.frame(vec![key(Key::ArrowDown, Modifiers::NONE)]);
+    let after = review.app.spaces().unwrap().review.selected();
+    assert!(
+        after > before,
+        "review selection must move with header focus"
+    );
+
+    let (mut agent, _) = agent_harness(
+        agent_project("{}", &["@01-04-02-01", "@01-04-02-02"]),
+        |_| {},
+    );
+    let header = agent.rect_of("あ").expect("language button");
+    agent.click_at(header.center());
+    agent.frame(vec![key(Key::Tab, Modifiers::NONE)]);
+    assert!(agent.ctx.memory(|memory| memory.focused().is_some()));
+    let before = agent.app.spaces().unwrap().agent.task.clone();
+    agent.frame(vec![key(Key::ArrowDown, Modifiers::NONE)]);
+    let after = agent.app.spaces().unwrap().agent.task.clone();
+    assert_ne!(
+        before, after,
+        "agent task list must browse with header focus"
+    );
+}
+
+#[test]
+fn idea_capture_guide_is_a_clickable_shortcut_button() {
+    let mut harness = novel_harness();
+    harness.frame(vec![key(Key::Num4, ALT)]);
+    let button = harness
+        .rect_of("Ctrl+Shift+I 即時入力")
+        .expect("visible capture button");
+    harness.click_at(button.center());
+    assert!(
+        harness.app.overlay_open(),
+        "opens the same capture as the keyboard shortcut"
+    );
+}
+
+#[test]
+fn cast_timeline_hover_covers_a_full_minimum_height_row() {
+    let mut harness = novel_harness();
+    harness.frame(vec![key(Key::Num6, ALT)]);
+    let output = harness.frame(Vec::new());
+    let label = painted_texts(&output)
+        .into_iter()
+        .find(|(text, rect)| text == "A 探究" && rect.min.x > 700.0)
+        .expect("timeline band")
+        .1;
+    assert!(
+        output.shapes.iter().any(|item| matches!(&item.shape,
+            egui::Shape::LineSegment { points, stroke }
+                if stroke.width == 0.6
+                    && (points[0].x - label.min.x).abs() < 1.0
+                    && (points[1].x - label.max.x).abs() < 1.0
+                    && (points[0].y - label.max.y - 1.0).abs() < 1.0
+        )),
+        "clickable timeline band has a thin underline"
+    );
+    harness.frame(vec![Event::PointerMoved(label.center())]);
+    let hovered = harness.frame(vec![Event::PointerMoved(label.center())]);
+    assert_eq!(
+        hovered.platform_output.cursor_icon,
+        egui::CursorIcon::PointingHand
+    );
+    let fill = novnow::ui::theme::palette(novnow::ui::theme::Mode::Dark)
+        .bg_selection
+        .gamma_multiply(0.6);
+    assert!(hovered.shapes.iter().any(|item| matches!(&item.shape,
+        egui::Shape::Rect(shape) if shape.fill == fill && shape.rect.height() >= 24.0 && shape.rect.contains(label.center())
+    )), "timeline hover must cover a 24px band");
 }

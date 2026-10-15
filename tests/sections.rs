@@ -249,3 +249,65 @@ fn removing_a_section_takes_its_separator_with_it() {
         "@01-04-02 図書室の攻防\n"
     );
 }
+
+#[test]
+fn pasting_text_with_a_break_line_splits_it_into_sections() {
+    let current = "前の行。";
+    assert_eq!(
+        sections::split_pasted_sections(
+            current,
+            current.len(),
+            "あたらしい行。\nつぎの行。\n;\nあとの節。"
+        ),
+        Some(vec![
+            "前の行。あたらしい行。\nつぎの行。".to_owned(),
+            "あとの節。".to_owned()
+        ]),
+        "§8.1.3: 単独 `;` の行で節に分ける（改行はそのまま）"
+    );
+    // 行末コメント付きの区切りも同じ（§5.2.1 `section_break = ws? , ";" , [ comment ] , eol`）
+    assert_eq!(
+        sections::split_pasted_sections("", 0, ";  // メモ\nつづき。"),
+        Some(vec![String::new(), "つづき。".to_owned()])
+    );
+}
+
+#[test]
+fn pasting_a_scene_header_starts_a_new_section_and_keeps_the_line() {
+    assert_eq!(
+        sections::split_pasted_sections("", 0, "本文。\n;\n@01-04-03 屋上\n屋上の行。"),
+        Some(vec![
+            "本文。".to_owned(),
+            "@01-04-03 屋上\n屋上の行。".to_owned()
+        ]),
+        "見出し行は作者が貼ったまま本文ファイルへ入れる"
+    );
+    // 4 階層（同じ場面の節番号、§5.2.2）も節の切れ目
+    assert_eq!(
+        sections::split_pasted_sections("", 0, "@01-04-02-03 つづき"),
+        Some(vec![String::new(), "@01-04-02-03 つづき".to_owned()])
+    );
+}
+
+#[test]
+fn a_paste_without_breaks_or_headers_is_not_split() {
+    assert_eq!(
+        sections::split_pasted_sections("本文", "本文".len(), "一行。\n二行目。"),
+        None,
+        "改行はそのまま入る（分ける必要が無い）"
+    );
+    assert_eq!(
+        sections::split_pasted_sections("", 0, "@メモ\n本文。"),
+        None,
+        "見出しの形をしていない `@` の行は切れ目ではない"
+    );
+}
+
+#[test]
+fn pasting_in_the_middle_leaves_the_rest_in_the_last_section() {
+    let current = "前半後半";
+    assert_eq!(
+        sections::split_pasted_sections(current, "前半".len(), ";\n新しい節。"),
+        Some(vec!["前半".to_owned(), "新しい節。後半".to_owned()])
+    );
+}

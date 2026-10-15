@@ -281,9 +281,11 @@ pub fn show(
 ) -> (Option<Request>, Option<Target>) {
     let colors = theme::palette(view.mode);
     let locale = view.locale;
-    // 編集欄が無いので、テキストにフォーカスが無ければ素の矢印と Enter も受ける
-    let typing = ctx.memory(|memory| memory.focused().is_some());
+    // There is no text editor on this screen; focus on a header button must
+    // not steal bare arrows from the diagnostic/progress list.
+    let typing = view.overlay;
     let mut jump = None;
+    let mut request = None;
     if !typing {
         let (down, up, enter) = ctx.input_mut(|input| {
             (
@@ -309,7 +311,9 @@ pub fn show(
                 .inner_margin(Margin::symmetric(16.0, 8.0)),
         )
         .show(ctx, |ui| {
-            tabs(ui, state, view);
+            if tabs(ui, state, view) {
+                request = Some(Request::Shortcut(crate::ui::shell::Command::Review));
+            }
             super::separator(ui, view.mode);
             let clicked = match state.tab {
                 Tab::Diagnostics => diagnostics_tab(ui, state, bench, view),
@@ -324,11 +328,12 @@ pub fn show(
             }
             state.reveal = false;
         });
-    (None, jump)
+    (request, jump)
 }
 
-fn tabs(ui: &mut Ui, state: &mut State, view: &View) {
+fn tabs(ui: &mut Ui, state: &mut State, view: &View) -> bool {
     let colors = theme::palette(view.mode);
+    let mut rerun = false;
     ui.horizontal(|ui| {
         for (tab, key) in [
             (Tab::Diagnostics, "review.tab_diagnostics"),
@@ -342,9 +347,12 @@ fn tabs(ui: &mut Ui, state: &mut State, view: &View) {
                 } else {
                     colors.fg_muted
                 });
-            if ui.selectable_label(selected, text).clicked() {
+            if super::selectable_action(ui, selected, text).clicked() {
                 state.tab = tab;
             }
+        }
+        if super::action_button(ui, i18n::text(view.locale, "review.rerun_button")).clicked() {
+            rerun = true;
         }
         ui.label(
             RichText::new(i18n::text(view.locale, "review.keys"))
@@ -352,6 +360,7 @@ fn tabs(ui: &mut Ui, state: &mut State, view: &View) {
                 .color(colors.fg_faint),
         );
     });
+    rerun
 }
 
 /// 診断タブ。クリックされた行（と、ダブルクリックか）を返す。
@@ -405,7 +414,7 @@ fn diagnostics_tab(
                 } else {
                     colors.fg_muted
                 });
-            if ui.selectable_label(selected, text).clicked() {
+            if super::selectable_action(ui, selected, text).clicked() {
                 state.sort = sort;
             }
         }

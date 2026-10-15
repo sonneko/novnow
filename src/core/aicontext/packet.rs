@@ -28,7 +28,7 @@ use crate::core::export::State;
 use crate::core::features::project::line_starts_of;
 use crate::core::features::reference::{self, Cast};
 use crate::core::features::{ideas, sections, Project};
-use crate::core::id::{PartialSceneId, SceneId};
+use crate::core::id::{PartialSceneId, RangeExpr, SceneId};
 use crate::core::model::delegation::Delegation;
 use crate::core::model::document::Document;
 use crate::core::resolve::context_rules::PacketBlock;
@@ -66,6 +66,8 @@ pub struct Inputs<'a> {
     pub task: Option<&'a str>,
     /// 人間のコメント（`{{user_comment}}`）。
     pub comment: &'a str,
+    /// Reference examples requested by the task.
+    pub examples: &'a [String],
 }
 
 /// 送るもの一式。
@@ -87,6 +89,8 @@ pub struct Packet {
     pub prompt: Rendered,
     /// `prompts/<role>.md` があったか。
     pub prompt_found: bool,
+    /// Selected reference examples, capped separately from the fixed nine blocks.
+    pub examples: String,
     /// 当該節が確定済み（`state: fixed`）か。
     pub fixed: bool,
     /// 本文の目標字数（writer の字数の制約）。
@@ -126,6 +130,11 @@ impl Packet {
                 out.push('\n');
             }
         }
+        if !self.examples.is_empty() {
+            out.push_str("\n## examples\n");
+            out.push_str(&self.examples);
+            out.push('\n');
+        }
         out
     }
 
@@ -136,7 +145,7 @@ impl Packet {
 
     /// 9 ブロックの合計の文字数。
     pub fn size(&self) -> usize {
-        self.blocks.iter().map(Block::size).sum()
+        self.blocks.iter().map(Block::size).sum::<usize>() + self.examples.chars().count()
     }
 
     /// 上限を超えたまま（送れない、§15.9）。
@@ -217,6 +226,10 @@ struct MaterialSource {
 
 /// パケットを組み立てる。
 pub fn build(inputs: &Inputs<'_>) -> Packet {
+    build_with_examples(inputs, example_text(inputs.project, inputs.examples), true)
+}
+
+fn build_with_examples(inputs: &Inputs<'_>, examples: String, retry: bool) -> Packet {
     let project = inputs.project;
     let digits = project.digits();
     let sources = gather(inputs);
@@ -224,7 +237,7 @@ pub fn build(inputs: &Inputs<'_>) -> Packet {
     let prompt_text = project
         .document(&prompt_path)
         .map(|found| found.text.clone());
-    let variables = variables(&sources, inputs, digits);
+    let variables = variables(&sources, inputs, digits, &examples);
     let lookup = |name: &str| variables.get(name).cloned();
     let prompt = prompt_text
         .as_deref()
@@ -251,7 +264,15 @@ pub fn build(inputs: &Inputs<'_>) -> Packet {
     for block in &mut blocks {
         block.fit();
     }
-    budget::fit_total(&mut blocks, cap);
+    budget::fit_total(&mut blocks, cap.saturating_sub(examples.chars().count()));
+    // Examples cannot silently push a valid packet past its request limit.
+    let remaining = cap.saturating_sub(blocks.iter().map(Block::size).sum());
+    if retry && examples.chars().count() > remaining {
+        // Re-render {{examples}} as well as the packet after clipping: the
+        // preview, hash, and actual LLM request must agree byte for byte.
+        return build_with_examples(inputs, examples.chars().take(remaining).collect(), false);
+    }
+    let examples: String = examples.chars().take(remaining).collect();
     Packet {
         scene: inputs.scene.display(digits),
         role: inputs.role.to_owned(),
@@ -264,15 +285,177 @@ pub fn build(inputs: &Inputs<'_>) -> Packet {
             ..prompt
         },
         prompt_found: prompt_text.is_some(),
+        examples,
         fixed: sources.fixed,
         target_chars: sources.target_chars,
     }
+}
+
+/// Expand a task's selected reference ranges into a bounded, deterministic sample.
+/// Invalid expressions and missing files yield no sample instead of leaking unrelated content.
+fn example_text(project: &Project, specs: &[String]) -> String {
+    let mut output = String::new();
+    let digits = project.digits();
+    for spec in specs {
+        let words: Vec<&str> = spec.split_whitespace().collect();
+        let (range_text, kind) = match words.last().copied() {
+            Some("contents" | "plot" | "both") => {
+                (words[..words.len() - 1].join(" "), words[words.len() - 1])
+            }
+            _ => (spec.clone(), "both"),
+        };
+        let Ok(range) = RangeExpr::parse(&range_text) else {
+            continue;
+        };
+        if kind != "plot" {
+            for section in sections::all(project) {
+                if !range.contains(section.id) {
+                    continue;
+                }
+                let body = sections::text_of(project.text(&section.path), &section);
+                output.push_str(&format!(
+                    "\n### @{} contents\n{}\n",
+                    section.id.display(digits),
+                    body
+                ));
+                if output.chars().count() >= 8000 {
+                    break;
+                }
+            }
+        }
+        if kind != "contents" && output.chars().count() < 8000 {
+            // A-format outlines are the plot examples for chapter/episode
+            // ranges. Narrower scene/section ranges use B-format below.
+            if let Some(outline) = project.all_plot() {
+                for block in &outline.blocks {
+                    if let Some(id) = block.id.filter(|id| range.contains(*id)) {
+                        let text = block
+                            .span
+                            .clone()
+                            .filter_map(|line| outline.lines.get(line))
+                            .map(|line| line.raw())
+                            .collect::<Vec<_>>()
+                            .join("\n");
+                        output.push_str(&format!("\n### @{} plot\n{}\n", id.display(digits), text));
+                        if output.chars().count() >= 8000 {
+                            break;
+                        }
+                    }
+                }
+            }
+            let chapters: std::collections::BTreeSet<_> = project
+                .documents()
+                .filter_map(|doc| {
+                    doc.path
+                        .strip_prefix("plots/")?
+                        .strip_suffix(".txt")?
+                        .parse::<u16>()
+                        .ok()
+                })
+                .collect();
+            for chapter in chapters {
+                if let Some(outline) = project.chapter_plot(chapter) {
+                    for block in &outline.blocks {
+                        if let Some(id) = block.id.filter(|id| range.contains(*id)) {
+                            let text = block
+                                .span
+                                .clone()
+                                .filter_map(|line| outline.lines.get(line))
+                                .map(|line| line.raw())
+                                .collect::<Vec<_>>()
+                                .join("\n");
+                            output.push_str(&format!(
+                                "\n### @{} plot\n{}\n",
+                                id.display(digits),
+                                text
+                            ));
+                            if output.chars().count() >= 8000 {
+                                break;
+                            }
+                        }
+                    }
+                }
+                if output.chars().count() >= 8000 {
+                    break;
+                }
+            }
+            let episodes: std::collections::BTreeSet<_> = project
+                .documents()
+                .filter_map(|document| {
+                    let stem = document.path.strip_prefix("plots/")?.strip_suffix(".txt")?;
+                    let (chapter, episode) = stem.split_once('-')?;
+                    Some((chapter.parse::<u16>().ok()?, episode.parse::<u16>().ok()?))
+                })
+                .collect();
+            for (chapter, episode) in episodes {
+                if let Some(plot) = project.episode_plot(chapter, episode) {
+                    for scene in &plot.scenes {
+                        let Some(id) = scene.id else { continue };
+                        let matching_sections: Vec<_> = scene
+                            .sections
+                            .iter()
+                            .filter(|section| {
+                                range.contains(SceneId {
+                                    section: section.number,
+                                    ..id
+                                })
+                            })
+                            .collect();
+                        if range.contains(id) && matching_sections.is_empty() {
+                            let text = scene
+                                .span
+                                .clone()
+                                .filter_map(|line| plot.lines.get(line))
+                                .map(|line| line.raw())
+                                .collect::<Vec<_>>()
+                                .join("\n");
+                            output.push_str(&format!(
+                                "\n### @{} plot\n{}\n",
+                                id.display(digits),
+                                text
+                            ));
+                        } else {
+                            for section in matching_sections {
+                                let section_id = SceneId {
+                                    section: section.number,
+                                    ..id
+                                };
+                                let text = section
+                                    .span
+                                    .clone()
+                                    .filter_map(|line| plot.lines.get(line))
+                                    .map(|line| line.raw())
+                                    .collect::<Vec<_>>()
+                                    .join("\n");
+                                output.push_str(&format!(
+                                    "\n### @{} plot\n{}\n",
+                                    section_id.display(digits),
+                                    text
+                                ));
+                            }
+                        }
+                        if output.chars().count() >= 8000 {
+                            break;
+                        }
+                    }
+                }
+                if output.chars().count() >= 8000 {
+                    break;
+                }
+            }
+        }
+        if output.chars().count() >= 8000 {
+            break;
+        }
+    }
+    output.chars().take(8000).collect()
 }
 
 fn variables(
     sources: &Sources,
     inputs: &Inputs<'_>,
     digits: crate::core::id::Digits,
+    examples: &str,
 ) -> BTreeMap<&'static str, String> {
     let mut out = BTreeMap::new();
     let mut put = |name: &'static str, value: String| {
@@ -359,6 +542,7 @@ fn variables(
     put("history", sources.history.join("\n"));
     put("delegation", inputs.delegation.as_str().to_owned());
     put("user_comment", inputs.comment.trim().to_owned());
+    put("examples", examples.to_owned());
     out
 }
 

@@ -19,11 +19,11 @@
 
 ### 5.2 本文形式（C 形式）— `contents/AA-BB.txt`
 
-状態: 未実装・実装計画済み（REF:src/core/syntax/contents.rs, REF:tests/contents.rs, REF:tests/golden.rs, REF:docs/plans.md#plan-S-08）
+状態: 実装完了（REF:src/core/syntax/contents.rs, REF:src/core/features/completion.rs, REF:tests/contents.rs, REF:tests/golden.rs, REF:tests/features_edit.rs）
 
 - 場面見出し `@A-B-C[-D]`、節区切り `;` による節番号 `D` の自動採番、空節の `W012`、行末話者注釈 `@char[:mode]`、会話スパン `「」` / `『』`、ルビ 2 形式、コメント範囲の解析と無損失 `to_text()` は `core::syntax::contents`（`REF:src/core/syntax/contents.rs`）に実装する（検証: `REF:tests/contents.rs`, `REF:tests/golden.rs`）。
 
-- **[S-08] 会話閉じ括弧直後の `@` による話者予測補完（未実装・実装計画済み: `REF:docs/plans.md#plan-S-08`）**:
+- **[S-08] 会話閉じ括弧直後の `@` による話者予測補完（実装完了: `REF:src/core/features/completion.rs`, `REF:tests/features_edit.rs`）**:
   - `REF:src/core/features/completion.rs` のトリガー判定に「同一行のカーソル前に `」` または `』` があり、その後に `@`（および入力途中のキャラ名/モード）が続く」ケースを追加し、`characters.md` の登場人物名と `:モードID` を候補として返す。
 
 ### 5.3 アウトライン形式（A 形式）— `plots/all.txt`, `plots/AA.txt`
@@ -64,30 +64,30 @@
 
 ### 5.9 `prompts/*.md`
 
-状態: 未実装・実装計画済み（REF:src/core/syntax/prompt_md.rs, REF:src/core/agents/prompts.rs, REF:tests/prompt_md.rs, REF:docs/plans.md#plan-S-01）
+状態: 実装完了（REF:src/core/syntax/prompt_md.rs, REF:src/core/agents/prompts.rs, REF:tests/prompt_md.rs, REF:docs/plans.md#plan-S-01）
 
-- H1 ロール名、フィールド行（`version`）、H2 セクション（`system`, `task`, `output`）、`{{include:...}}` と 19 個の閉じた変数 `{{...}}` の検査（`W015` / `E029` / `E030`）は `core::syntax::prompt_md`（`REF:src/core/syntax/prompt_md.rs`）および `core::agents::prompts`（`REF:src/core/agents/prompts.rs`）に実装する（検証: `REF:tests/prompt_md.rs`）。
+- H1 ロール名、フィールド行（`version`）、H2 セクション（`system`, `task`, `output`）、`{{include:...}}` と 20 個の閉じた変数 `{{...}}` の検査（`W015` / `E029` / `E030`）は `core::syntax::prompt_md`（`REF:src/core/syntax/prompt_md.rs`）および `core::agents::prompts`（`REF:src/core/agents/prompts.rs`）に実装する（検証: `REF:tests/prompt_md.rs`）。
 
-- **[S-01] 参考例展開変数 `{{examples}}`（未実装・実装計画済み: `REF:docs/plans.md#plan-S-01`）**:
+- **[S-01] 参考例展開変数 `{{examples}}`（実装完了: `REF:docs/plans.md#plan-S-01`）**:
   - `REF:src/core/syntax/prompt_md.rs` の `VARIABLES` 定数配列に `"examples"` を追加し、`REF:src/core/agents/prompts.rs` の変数展開でタスクの参考例テキストを注入する。
 
 ### 5.10 `agents/` のファイル形式
 
-状態: 未実装・実装計画済み（REF:src/core/agents/files.rs, REF:tests/agents_files.rs, REF:docs/plans.md#plan-S-01）
+状態: 実装完了（REF:src/core/agents/files.rs, REF:tests/agents_files.rs, REF:docs/plans.md#plan-S-01）
 
 - タスク（`agents/tasks/T####.md`）、結果（`agents/results/T####.result.md`）、提案（`agents/proposals/P####.diff`、および人間用 `H####.diff`）、スレッド（`agents/threads/TH####.md`）、JSON Lines 監査ログ（`agents/log/YYYY-MM-DD.jsonl`）のパース・直列化・単調増加 ID 採番は `core::agents::files`（`REF:src/core/agents/files.rs`）および `core::features::proposals`（`REF:src/core/agents/files.rs`）に実装する（検証: `REF:tests/agents_files.rs`, `REF:tests/workspaces.rs`）。
 
-- **[S-01] タスクの `examples:` フィールド（未実装・実装計画済み: `REF:docs/plans.md#plan-S-01`）**:
+- **[S-01] タスクの `examples:` フィールド（実装完了: `REF:docs/plans.md#plan-S-01`）**:
   - `REF:src/core/model/task.rs` の `Task` および `REF:src/core/agents/files.rs` のタスクパーサ・シリアライザに `examples: Vec<ExampleSpec>`（範囲式＋`contents`/`plot`/`both`）を追加する。
 
 ### 5.11 `agents/mcp.json`
 
-状態: 未実装・実装計画済み（REF:src/core/agents/mcp_config.rs, REF:tests/agents_files.rs, REF:docs/plans.md#plan-F-19）
+状態: 実装完了（REF:src/core/agents/mcp_config.rs, REF:src/ui/app.rs, REF:tests/agents_files.rs, REF:tests/gui.rs）
 
-- `agents/mcp.json` のパース、サーバ定義順の保持、`env` 内の `${VAR}` 環境変数展開と未定義エラー（`E030`）、非 `stdio` トランスポートや絶対パスコマンドの警告（`W033`）は `core::agents::mcp_config`（`REF:src/core/agents/mcp_config.rs`）に実装する（検証: `REF:tests/agents_files.rs`）。
+- `agents/mcp.json` のパース、サーバ定義順の保持、`env` 内の `${VAR}` 環境変数展開と未定義エラー（`E030`）、リテラルの秘密情報の警告（`W033`）は `core::agents::mcp_config`（`REF:src/core/agents/mcp_config.rs`）に実装する（検証: `REF:tests/agents_files.rs`）。
 
-- **[F-19] アプリ内 `mcp.json` 編集モーダル（未実装・実装計画済み: `REF:docs/plans.md#plan-F-19`）**:
-  - `REF:src/ui/app.rs` の `Overlay` に `McpJsonModal` を追加し、`REF:src/core/agents/mcp_config.rs` の `parse` を用いて編集中テキストをリアルタイム検証した上で `agents/mcp.json` へ原子的に保存する。
+- **[F-19] アプリ内 `mcp.json` 編集モーダル（実装完了: `REF:docs/plans.md#plan-F-19`）**:
+  - `REF:src/ui/app.rs` の `Overlay` に `McpConfig` を追加し、`REF:src/core/agents/mcp_config.rs` の `parse` を用いて編集中テキストをリアルタイム検証した上で `agents/mcp.json` へ原子的に保存する。
 
 ### 5.12 フォーマッタ（正規化）仕様
 

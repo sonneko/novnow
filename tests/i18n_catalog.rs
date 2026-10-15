@@ -157,6 +157,37 @@ fn placeholders_are_positional_only() {
 }
 
 #[test]
+fn japanese_messages_do_not_put_a_space_before_a_particle_after_a_placeholder() {
+    // §12.3「プレースホルダ `{0}` 等の直後に助詞が続くときは半角空白を入れない」
+    const PARTICLES: &[char] = &[
+        'は', 'が', 'を', 'に', 'へ', 'で', 'と', 'の', 'も', 'や', 'か', 'ね', 'よ', 'な', 'ぞ',
+        'ぜ', 'わ', 'さ',
+    ];
+    let mut bad = Vec::new();
+    for (key, message) in flatten(JA, "ja.toml") {
+        let chars: Vec<char> = message.chars().collect();
+        for (index, c) in chars.iter().enumerate() {
+            if *c != '}' {
+                continue;
+            }
+            let mut at = index + 1;
+            while at < chars.len() && chars[at] == ' ' {
+                at += 1;
+            }
+            if at > index + 1 && chars.get(at).is_some_and(|c| PARTICLES.contains(c)) {
+                bad.push(format!("{key}: {message}"));
+                break;
+            }
+        }
+    }
+    assert!(
+        bad.is_empty(),
+        "§12.3: プレースホルダ直後の助詞の前に半角空白がある {} 件: {bad:?}",
+        bad.len()
+    );
+}
+
+#[test]
 fn every_diagnostic_code_has_a_message_in_both_languages() {
     let ja = flatten(JA, "ja.toml");
     let en = flatten(EN, "en.toml");
@@ -418,7 +449,7 @@ fn diagnostics_are_rendered_in_both_languages() {
     );
     assert_eq!(
         i18n::diagnostic(Locale::Ja, &found),
-        "恩田恵 のモード C は @03-01-02-01 では使用できません（有効範囲: @01 .. @02）"
+        "恩田恵のモード Cは @03-01-02-01では使用できません（有効範囲: @01 .. @02）"
     );
     let counted = Diagnostic::new(
         DiagnosticCode::W030,

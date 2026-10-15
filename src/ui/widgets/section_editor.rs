@@ -7,16 +7,16 @@
 //! - 行番号は**節内のローカル行番号**（1 始まり、§9.4.1）。折り返した行には番号を振らない。
 //! - ソフトラップ有り・横スクロール無し。
 //! - 節ごとに別の `Id` を使うので、undo の履歴は節ごとに残る（§8.6。戻ってくると復元される）。
+//! - 貼り付け（`Event::Paste`）は改行をそのまま入れる。単独 `;` 行・場面見出し行（`@A-B-C`）が
+//!   含まれていれば [`apply_paste`] が節に分けて文書へ一括で反映する（§8.1.3）。
 //! - インレイヒント（§6.6.2）は [`crate::ui::widgets::inlay`] が隙間を空けて上から描く（B-137）。
 
 use std::ops::Range;
 use std::sync::Arc;
 
 use egui::text::{CCursor, CCursorRange};
-use egui::{FontFamily, FontId, Galley, Id, Pos2, Rect, TextEdit, Ui, Vec2};
+use egui::{Event, FontFamily, FontId, Galley, Id, Pos2, Rect, TextEdit, Ui, Vec2};
 
-use crate::core::features::project::line_starts_of;
-use crate::core::features::sections;
 use crate::core::model::document::Document;
 use crate::ui::i18n::Locale;
 use crate::ui::theme::{self, Mode};
@@ -101,6 +101,60 @@ fn byte_of(text: &str, char_index: usize) -> usize {
         .map_or(text.len(), |(at, _)| at)
 }
 
+/// 貼り付けを処理する（§8.1.3。`TextEdit` を描く**前**に呼ぶ）。
+///
+/// - 改行は内部表現の LF に直す（§5.0.4 MUST。貼り付けはファイル読み込みを通らない）。
+/// - 選択（無ければキャレット）に貼って節区切り行・場面見出し行が含まれるときだけ、こちらで節に分けて
+///   文書へ入れる。そのときはイベントを消費して `TextEdit` に二重に入れさせない。
+/// - 分ける必要が無ければ、直した LF の `Event::Paste` をそのまま残す（[`egui::TextEdit`] が入れる）。
+pub(crate) fn apply_paste(ui: &Ui, bench: &mut Workbench, id: Id) {
+    if !ui.memory(|memory| memory.has_focus(id)) {
+        return;
+    }
+    let now = ui.input(|input| input.time);
+    // 選択（無ければキャレット。`TextEdit` はカーソルをまだ持たない間、末尾に入れる。egui の
+    // `cursor_at_end` の既定と同じ）
+    let selection = egui::text_edit::TextEditState::load(ui.ctx(), id)
+        .and_then(|state| state.cursor.char_range())
+        .map(|range| {
+            let (low, high) = if range.primary.index <= range.secondary.index {
+                (range.primary.index, range.secondary.index)
+            } else {
+                (range.secondary.index, range.primary.index)
+            };
+            let text = bench.buffer();
+            byte_of(text, low)..byte_of(text, high)
+        })
+        .unwrap_or_else(|| {
+            let end = bench.buffer().len();
+            end..end
+        });
+    let mut done = false;
+    ui.input_mut(|input| {
+        let mut kept = Vec::with_capacity(input.events.len());
+        for event in input.events.drain(..) {
+            match event {
+                // CRLF・CR は LF に直す（§5.0.4 MUST）
+                Event::Paste(text) => {
+                    let text = text.replace("\r\n", "\n").replace('\r', "\n");
+                    if !done && bench.paste(selection.clone(), &text, now) {
+                        done = true;
+                        continue;
+                    }
+                    kept.push(Event::Paste(text));
+                }
+                other => kept.push(other),
+            }
+        }
+        input.events = kept;
+    });
+    if done {
+        // キャレットは先頭の節（エディタに残る本文）の末尾へ
+        let end = bench.buffer().len();
+        select(ui.ctx(), bench, end..end);
+    }
+}
+
 /// エディタの見た目（配色・文字の倍率・インレイヒント）。
 #[derive(Debug, Clone, Copy)]
 pub struct Look {
@@ -108,6 +162,8 @@ pub struct Look {
     pub mode: Mode,
     /// 文字の倍率（`ui.json.font_scale`）。
     pub scale: f32,
+    /// 本文の折り返し幅（全角相当）。
+    pub max_line_chars: usize,
     /// インレイヒントを出すなら、その文言の言語（`None` = 出さない。`Alt+H`、§6.6.2）。
     pub inlay: Option<Locale>,
 }
@@ -115,6 +171,7 @@ pub struct Look {
 /// 節エディタを描く。
 pub fn show(ui: &mut Ui, bench: &mut Workbench, cache: &mut Cache, look: Look) -> EditorOutput {
     let id = editor_id(bench);
+    apply_paste(ui, bench, id);
     let mut buffer = std::mem::take(bench.buffer_mut());
     let bench_ref: &Workbench = bench;
     let hints = look.inlay.is_some();
@@ -141,7 +198,12 @@ pub(crate) fn area(
     highlight: &mut dyn FnMut(&str) -> Highlight,
     look: Look,
 ) -> EditorOutput {
-    let Look { mode, scale, inlay } = look;
+    let Look {
+        mode,
+        scale,
+        inlay,
+        max_line_chars,
+    } = look;
     let colors = theme::palette(mode);
     let metrics = Metrics {
         size: 15.0 * scale,
@@ -158,10 +220,12 @@ pub(crate) fn area(
                     Vec2::new(gutter, ui.available_height()),
                     egui::Sense::hover(),
                 );
-                let width = ui.available_width();
+                let width = ui
+                    .available_width()
+                    .min(metrics.size * max_line_chars as f32);
                 let mut layouter = |ui: &Ui, text: &str, wrap: f32| -> Arc<Galley> {
                     let found = highlight(text);
-                    let mut job = syntax_text::job(text, &found, mode, metrics, wrap);
+                    let mut job = syntax_text::job(text, &found, mode, metrics, wrap.min(width));
                     if let Some(locale) = inlay {
                         // ヒントの幅の隙間を空ける（描くのは `TextEdit` の後）
                         let gaps: Vec<(usize, f32)> =
@@ -173,14 +237,34 @@ pub(crate) fn area(
                     }
                     ui.fonts(|fonts| fonts.layout_job(job))
                 };
+                // egui's built-in cursor spans the full 1.8× line-height.
+                // Keep its layout/IME geometry, but paint a font-sized caret.
+                let cursor_stroke = ui.visuals().text_cursor;
+                ui.visuals_mut().text_cursor.width = 0.0;
                 let output = TextEdit::multiline(buffer)
                     .id(id)
                     .frame(false)
+                    .font(FontId::new(metrics.size, FontFamily::Proportional))
                     .desired_width(width)
                     .desired_rows(8)
                     .lock_focus(true)
                     .layouter(&mut layouter)
                     .show(ui);
+                ui.visuals_mut().text_cursor = cursor_stroke;
+                if output.response.has_focus() {
+                    if let Some(range) = &output.cursor_range {
+                        let cursor = output.galley.pos_from_cursor(&range.primary);
+                        let center = cursor.center().y + output.galley_pos.y;
+                        let x = cursor.min.x + output.galley_pos.x;
+                        let half = metrics.size * 0.57;
+                        ui.painter()
+                            .with_clip_rect(output.response.rect.intersect(ui.clip_rect()))
+                            .line_segment(
+                                [Pos2::new(x, center - half), Pos2::new(x, center + half)],
+                                egui::Stroke::new(cursor_stroke.width, cursor_stroke.color),
+                            );
+                    }
+                }
                 result.changed = output.response.changed();
                 if output.response.has_focus() {
                     if let Some(range) = output.cursor_range {
@@ -192,7 +276,10 @@ pub(crate) fn area(
                         result.caret = Some(caret.translate(output.galley_pos.to_vec2()));
                     }
                 }
-                let painter = ui.painter().clone();
+                // Clip decorations to the TextEdit and the scroll viewport,
+                // independently of the gutter and the surrounding editor frame.
+                let text_clip = output.response.rect.intersect(ui.clip_rect());
+                let painter = ui.painter().with_clip_rect(text_clip);
                 let found = highlight(buffer);
                 syntax_text::paint_squiggles(
                     &painter,
@@ -213,8 +300,11 @@ pub(crate) fn area(
                         mode,
                     );
                 }
+                let gutter_painter = ui
+                    .painter()
+                    .with_clip_rect(gutter_rect.intersect(ui.clip_rect()));
                 paint_line_numbers(
-                    &painter,
+                    &gutter_painter,
                     gutter_rect.min.x + gutter - 8.0,
                     output.galley_pos,
                     &output.galley,
@@ -252,26 +342,30 @@ fn paint_line_numbers(
     }
 }
 
-/// 今の節の本文 `text` のハイライト（ファイル全体に書き戻した形で解析し、節の部分だけを取る。
-/// 役割語・モードの解決には場面の文脈が要るため）。`hints` ならインレイヒントも入れる。
+/// Only the active section is analyzed synchronously while typing. Other sections
+/// retain their cached rendering until the workbench commits after the debounce.
 pub fn highlight_of(bench: &Workbench, text: &str, hints: bool) -> Highlight {
     let Some(current) = bench.current() else {
         return Highlight::default();
     };
-    let Some(document) = bench.project().document(&current.path) else {
-        return Highlight::default();
-    };
-    let spliced = sections::splice(&document.text, current, text);
-    let starts = line_starts_of(&spliced);
-    let start = starts
-        .get(current.lines.start)
-        .copied()
-        .unwrap_or(spliced.len());
-    let range: Range<usize> = start..(start + text.len()).min(spliced.len());
-    let whole = Document::new(current.path.clone(), spliced);
-    let mut out = Highlight::of_range(&whole, range.clone(), bench.project());
+    // A standalone scene with the same structural id provides the resolver with the
+    // correct plot context without rescanning a 100,000-character neighboring section.
+    // Empty preceding sections preserve the section number for mode/range resolution.
+    let displayed = current.id.display(bench.project().digits());
+    let scene = displayed
+        .rsplit_once('-')
+        .map_or(displayed.as_str(), |(scene, _)| scene);
+    let mut body = format!("@{scene}\n");
+    for _ in 1..current.id.section {
+        body.push_str(";\n");
+    }
+    let start = body.len();
+    body.push_str(text);
+    let range = start..body.len();
+    let scoped = Document::new(current.path.clone(), body);
+    let mut out = Highlight::of_range(&scoped, range.clone(), bench.project());
     if hints {
-        out.hints = inlay::of_range(&whole, range, bench.project());
+        out.hints = inlay::of_range(&scoped, range, bench.project());
     }
     out
 }
