@@ -21,13 +21,13 @@
 
 ### 13.3 Web: IndexedDB
 
-状態: 実装中（REF:src/adapters/storage_idb.rs, REF:tests/storage_idb.rs, REF:docs/plans.md#plan-S-03）
+状態: 実装完了（REF:src/adapters/storage_idb.rs, REF:tests/storage_idb.rs, REF:index.html, REF:sw.js, REF:manifest.webmanifest, REF:scripts/web-smoke.mjs）
 
 - DB 名 `novnow`（version 1）の 3 オブジェクトストア（`projects`, `files`, `app`）と `APP_KEYS`（`recent_projects` のみ許可）、残容量 10MB 未満の `W063`、IndexedDB 利用不可時の `E062`、初回 `sample` プロジェクト投入は `REF:src/adapters/storage_idb.rs` に実装する。
 - スキーマ定数と仕様表の一致は `REF:tests/storage_idb.rs` が `include_str!` で検証し、ブラウザ実機動作は `REF:scripts/web-smoke.mjs` で検証する。
 
-- **[S-03] Web 版の PWA 化とオフライン動作（未実装・実装計画済み: `REF:docs/plans.md#plan-S-03`）**:
-  - `REF:index.html` に Web App Manifest と Service Worker 登録を追加し、オフラインキャッシュと `REF:README.md` への PWA 案内を実装する。
+- **[S-03] Web 版の PWA 化とオフライン動作（実装完了: `REF:index.html`, `REF:sw.js`, `REF:README.md`, `REF:scripts/web-smoke.mjs`）**:
+  - `REF:index.html` に Web App Manifest（`REF:manifest.webmanifest`）と Service Worker（`REF:sw.js`）登録を設け、オフラインキャッシュと `REF:README.md` への PWA 案内を実装する。`REF:scripts/web-smoke.mjs` でオフライン再起動と IndexedDB の継続性を確認する。
 
 ### 13.4 プロジェクト選択モーダル（Web）
 
