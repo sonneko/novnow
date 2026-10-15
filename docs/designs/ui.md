@@ -11,7 +11,7 @@
 - 共通シェル（上端 28px アイコンバー、下端 22px ステータスバー、中央のメインカラム＋参照ペイン 2 カラム分割）は `NovnowApp`（`REF:src/ui/app.rs`）が描画する。
 - メイン/参照の比率（既定 `62 : 38`、`Ctrl+Alt+Shift+←/→`）と文脈/節エディタの比率（既定 `45 : 55`、`Ctrl+Alt+↑/↓`）は `UiSettings`（`REF:src/ui/settings.rs`）に保持する。
 
-- **[S-05] ヘッダ右端への `?` と `Ctrl+P` ボタン常設（未実装・実装計画済み: `REF:docs/plans.md#plan-S-05`）**:
+- **[S-05] ヘッダ右端への `?` と `Ctrl+P` ボタン常設（実装完了: `REF:src/ui/app.rs`, `REF:tests/gui.rs`）**:
   - `REF:src/ui/app.rs` のトップバー右側に `Ctrl+P` ボタンと `?` ボタンを常設する。
 - **[F-20] エラー・警告時の `review` アイコン変化（未実装・実装計画済み: `REF:docs/plans.md#plan-F-20`）**:
   - `REF:src/ui/app.rs` でエラーまたは警告が 1 件以上あるとき、`WorkspaceId::Review` アイコンに `state.error` / `state.warn` 色のドットバッジと強調色を付与する。
@@ -117,11 +117,11 @@
 
 ### 10.0 切替の挙動
 
-状態: 実装中（REF:src/ui/workspaces/mod.rs, REF:src/ui/app.rs, REF:tests/workspaces.rs, REF:docs/plans.md#plan-S-06）
+状態: 実装完了（REF:src/ui/workspaces/mod.rs, REF:src/ui/app.rs, REF:tests/workspaces.rs, REF:tests/gui.rs）
 
 - ワークスペース識別子 `WorkspaceId` は `REF:src/ui/workspaces/mod.rs` に定義し、各ワークスペースのスクロール・選択状態は破棄せず `Session`（`REF:src/ui/app.rs`）に常時保持する（縫い代 5）。切替時も現在の `SceneId` を維持する。
 
-- **[S-06] 切替時の画面名 1 秒表示（未実装・実装計画済み: `REF:docs/plans.md#plan-S-06`）**:
+- **[S-06] 切替時の画面名 1 秒表示（実装完了: `REF:src/ui/app.rs`, `REF:tests/gui.rs`）**:
   - `REF:src/ui/app.rs` でワークスペース切替時刻を記録し、切替後 1.0 秒間はパンくずの右に画面名バッジを描画する。
 
 ### 10.1 `write` — 本文執筆（§9 の基本レイアウトそのもの）

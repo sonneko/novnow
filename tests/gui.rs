@@ -2398,3 +2398,40 @@ fn material_summary_truncated_after_five_lines_shows_continuation() {
     );
     assert!(painted.contains(novnow::ui::i18n::text(Locale::Ja, "pane.more")));
 }
+
+#[test]
+fn header_shortcut_buttons_open_help_and_palette() {
+    let mut harness = Harness::new();
+    let first = harness.frame(Vec::new());
+    let header = |text: &str, output: &egui::FullOutput| {
+        harness::painted_texts(output)
+            .into_iter()
+            .find(|(painted, rect)| painted == text && rect.min.y < 30.0)
+            .map(|(_, rect)| rect.center())
+            .unwrap_or_else(|| panic!("no header button: {text}"))
+    };
+    let help = header("?", &first);
+    let palette = header("Ctrl+P", &first);
+    harness.click_at(help);
+    assert!(harness.app.overlay_open());
+    harness.frame(vec![key(Key::Escape, Modifiers::NONE)]);
+    assert!(!harness.app.overlay_open());
+    harness.click_at(palette);
+    assert!(harness.app.overlay_open());
+}
+
+#[test]
+fn workspace_name_fades_from_the_header_after_one_second() {
+    let mut harness = Harness::new();
+    let name = novnow::ui::i18n::text(Locale::Ja, "header.workspace.material");
+    let header_has_name = |output: &egui::FullOutput| {
+        harness::painted_texts(output)
+            .iter()
+            .any(|(painted, rect)| painted == name && rect.min.y < 30.0)
+    };
+    assert!(!header_has_name(&harness.frame(Vec::new())));
+    let switched = harness.frame(vec![key(Key::Num5, Modifiers::ALT)]);
+    assert!(header_has_name(&switched));
+    assert!(header_has_name(&harness.idle(0.5)));
+    assert!(!header_has_name(&harness.idle(0.7)));
+}
