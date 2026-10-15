@@ -236,11 +236,22 @@ fn draw_section(
         .heights
         .insert(height_key, galley.size().y.max(metrics.size));
     let (rect, response) = ui.allocate_exact_size(
-        Vec2::new(width, galley.size().y.max(metrics.size)),
+        Vec2::new(width.max(24.0), galley.size().y.max(metrics.size).max(24.0)),
         Sense::click(),
     );
     let painter = ui.painter_at(rect.expand(4.0));
+    if response.hovered() {
+        painter.rect_filled(rect, 2.0, colors.bg_selection.gamma_multiply(0.6));
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
     painter.galley(rect.min, galley.clone(), colors.fg_primary);
+    painter.line_segment(
+        [
+            rect.left_bottom(),
+            egui::pos2((rect.min.x + galley.size().x).min(rect.max.x), rect.max.y),
+        ],
+        egui::Stroke::new(0.6_f32, colors.border),
+    );
     syntax_text::paint_squiggles(&painter, rect.min, &galley, text, &highlight, mode);
     Some(response.clicked())
 }

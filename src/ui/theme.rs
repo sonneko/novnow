@@ -192,6 +192,8 @@ pub fn visuals(mode: Mode) -> Visuals {
     visuals.widgets.noninteractive.fg_stroke = Stroke::new(1.0_f32, colors.fg_primary);
     visuals.widgets.inactive.fg_stroke = Stroke::new(1.0_f32, colors.fg_muted);
     visuals.widgets.hovered.fg_stroke = Stroke::new(1.0_f32, colors.fg_primary);
+    visuals.widgets.hovered.bg_fill = colors.bg_selection.gamma_multiply(0.6);
+    visuals.widgets.hovered.weak_bg_fill = colors.bg_selection.gamma_multiply(0.6);
     visuals.widgets.active.fg_stroke = Stroke::new(1.0_f32, colors.accent);
     visuals.error_fg_color = colors.error;
     visuals.warn_fg_color = colors.warn;

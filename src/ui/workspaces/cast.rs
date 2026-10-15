@@ -369,7 +369,7 @@ pub fn show(
                 .inner_margin(Margin::symmetric(16.0, 8.0)),
         )
         .show(ctx, |ui| {
-            if ui.button(i18n::text(locale, "cast.scan_button")).clicked() {
+            if super::action_button(ui, i18n::text(locale, "cast.scan_button")).clicked() {
                 request = Some(Request::Shortcut(crate::ui::shell::Command::Scan));
             }
             if bench.slice().is_some() {
@@ -405,7 +405,7 @@ fn tabs(ui: &mut Ui, state: &mut State, view: &View) {
                 } else {
                     colors.fg_muted
                 });
-            if ui.selectable_label(selected, text).clicked() {
+            if super::selectable_action(ui, selected, text).clicked() {
                 state.tab = tab;
             }
         }

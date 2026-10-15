@@ -346,14 +346,11 @@ fn tabs(ui: &mut Ui, state: &mut State, view: &View) -> bool {
                 } else {
                     colors.fg_muted
                 });
-            if ui.selectable_label(selected, text).clicked() {
+            if super::selectable_action(ui, selected, text).clicked() {
                 state.tab = tab;
             }
         }
-        if ui
-            .button(i18n::text(view.locale, "review.rerun_button"))
-            .clicked()
-        {
+        if super::action_button(ui, i18n::text(view.locale, "review.rerun_button")).clicked() {
             rerun = true;
         }
         ui.label(
@@ -416,7 +413,7 @@ fn diagnostics_tab(
                 } else {
                     colors.fg_muted
                 });
-            if ui.selectable_label(selected, text).clicked() {
+            if super::selectable_action(ui, selected, text).clicked() {
                 state.sort = sort;
             }
         }

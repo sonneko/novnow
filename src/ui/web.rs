@@ -1225,6 +1225,12 @@ impl WebPicker {
             let selected = index == self.selected;
             if selected {
                 ui.painter().rect_filled(rect, 2.0, colors.accent);
+            } else if response.hovered() && !editing && !blocked {
+                ui.painter()
+                    .rect_filled(rect, 2.0, colors.bg_selection.gamma_multiply(0.6));
+            }
+            if response.hovered() && !editing && !blocked {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
             }
             let color = if selected {
                 colors.bg_base
@@ -1233,12 +1239,16 @@ impl WebPicker {
             };
             let font = FontId::new(14.0, FontFamily::Proportional);
             let middle = rect.left_center() + egui::vec2(10.0, 0.0);
-            ui.painter().text(
+            let name_rect = ui.painter().text(
                 middle,
                 Align2::LEFT_CENTER,
                 &row.record.name,
                 font.clone(),
                 color,
+            );
+            ui.painter().line_segment(
+                [name_rect.left_bottom(), name_rect.right_bottom()],
+                egui::Stroke::new(0.6_f32, color),
             );
             let size = row.size.map(size_text).unwrap_or_default();
             ui.painter().text(
@@ -1267,20 +1277,32 @@ impl WebPicker {
         ui.horizontal(|ui| {
             ui.add_space((ui.available_width() - 120.0).max(0.0) / 2.0);
             let enabled = !editing && !blocked && !busy;
-            if ui
-                .add_enabled(enabled, egui::Button::new("＋"))
-                .on_hover_text(i18n::text(locale, "project.pick.new"))
-                .clicked()
-            {
+            let new = ui
+                .add_enabled(
+                    enabled,
+                    egui::Button::new(RichText::new("＋").underline())
+                        .min_size(egui::Vec2::splat(24.0)),
+                )
+                .on_hover_text(i18n::text(locale, "project.pick.new"));
+            if enabled && new.hovered() {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+            }
+            if new.clicked() {
                 self.edit = Edit::New(String::new());
                 self.focus_edit = true;
             }
             ui.add_space(12.0);
-            if ui
-                .add_enabled(enabled, egui::Button::new("📥"))
-                .on_hover_text(i18n::text(locale, "project.pick.import"))
-                .clicked()
-            {
+            let import = ui
+                .add_enabled(
+                    enabled,
+                    egui::Button::new(RichText::new("📥").underline())
+                        .min_size(egui::Vec2::splat(24.0)),
+                )
+                .on_hover_text(i18n::text(locale, "project.pick.import"));
+            if enabled && import.hovered() {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+            }
+            if import.clicked() {
                 self.import(locale);
             }
         });
@@ -1373,10 +1395,20 @@ impl WebPicker {
                 }
                 ui.add_space(6.0);
                 ui.horizontal(|ui| {
-                    if ui.add_enabled(ok, egui::Button::new(button)).clicked() {
+                    let submit_button = ui.add_enabled(
+                        ok,
+                        egui::Button::new(RichText::new(button).underline())
+                            .min_size(egui::Vec2::splat(24.0)),
+                    );
+                    if ok && submit_button.hovered() {
+                        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                    }
+                    if submit_button.clicked() {
                         submit = true;
                     }
-                    if ui.button(i18n::text(locale, "modal.cancel")).clicked() {
+                    if crate::ui::widgets::action_button(ui, i18n::text(locale, "modal.cancel"))
+                        .clicked()
+                    {
                         cancel = true;
                     }
                 });
@@ -1429,23 +1461,38 @@ impl WebPicker {
                 ui.label(RichText::new(invalid_text(locale, &error)).color(colors.warn));
                 ui.add_space(6.0);
                 ui.horizontal(|ui| {
-                    if incomplete && ui.button(i18n::text(locale, "project.pick.fill")).clicked() {
+                    if incomplete
+                        && crate::ui::widgets::action_button(
+                            ui,
+                            i18n::text(locale, "project.pick.fill"),
+                        )
+                        .clicked()
+                    {
                         fill = true;
                     }
                     if imported {
-                        if ui
-                            .button(i18n::text(locale, "project.pick.import_keep"))
-                            .clicked()
+                        if crate::ui::widgets::action_button(
+                            ui,
+                            i18n::text(locale, "project.pick.import_keep"),
+                        )
+                        .clicked()
                         {
                             close = true;
                         }
-                        if ui
-                            .button(i18n::text(locale, "project.pick.import_cancel"))
-                            .clicked()
+                        if crate::ui::widgets::action_button(
+                            ui,
+                            i18n::text(locale, "project.pick.import_cancel"),
+                        )
+                        .clicked()
                         {
                             cancel_import = true;
                         }
-                    } else if ui.button(i18n::text(locale, "modal.close")).clicked() {
+                    } else if crate::ui::widgets::action_button(
+                        ui,
+                        i18n::text(locale, "modal.close"),
+                    )
+                    .clicked()
+                    {
                         close = true;
                     }
                 });

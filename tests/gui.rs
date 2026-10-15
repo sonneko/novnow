@@ -1813,3 +1813,190 @@ fn fullwidth_punctuation_uses_the_cjk_font_before_the_generic_fallback() {
         );
     }
 }
+
+#[test]
+fn link_buttons_have_a_24px_target_hover_fill_underline_and_pointer() {
+    let ctx = egui::Context::default();
+    let colors = novnow::ui::theme::palette(novnow::ui::theme::Mode::Light);
+    let mut rect = egui::Rect::NOTHING;
+    let render = |events: Vec<Event>, rect: &mut egui::Rect| {
+        ctx.run(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::Vec2::new(300.0, 150.0),
+                )),
+                events,
+                ..Default::default()
+            },
+            |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    *rect = novnow::ui::widgets::link_button(
+                        ui,
+                        "続き...",
+                        egui::FontId::proportional(13.0),
+                        &colors,
+                    )
+                    .rect;
+                });
+            },
+        )
+    };
+    render(Vec::new(), &mut rect);
+    assert!(rect.width() >= 24.0 && rect.height() >= 24.0, "{rect:?}");
+    let output = render(vec![Event::PointerMoved(rect.center())], &mut rect);
+    assert_eq!(
+        output.platform_output.cursor_icon,
+        egui::CursorIcon::PointingHand
+    );
+    assert!(output.shapes.iter().any(|item| matches!(
+        &item.shape,
+        egui::Shape::Rect(shape) if shape.fill == colors.bg_selection.gamma_multiply(0.6)
+    )));
+    assert!(output
+        .shapes
+        .iter()
+        .any(|item| matches!(&item.shape, egui::Shape::LineSegment { .. })));
+}
+
+#[test]
+fn action_buttons_share_a_minimum_hit_area_underline_and_pointer_cursor() {
+    let ctx = egui::Context::default();
+    ctx.set_visuals(novnow::ui::theme::visuals(novnow::ui::theme::Mode::Light));
+    let mut rect = egui::Rect::NOTHING;
+    let draw = |events: Vec<Event>, rect: &mut egui::Rect| {
+        ctx.run(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::Vec2::new(300.0, 150.0),
+                )),
+                events,
+                ..Default::default()
+            },
+            |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    *rect = novnow::ui::widgets::action_button(ui, "実行").rect;
+                });
+            },
+        )
+    };
+    let first = draw(Vec::new(), &mut rect);
+    assert!(rect.width() >= 24.0 && rect.height() >= 24.0, "{rect:?}");
+    assert!(first.shapes.iter().any(|item| matches!(
+        &item.shape,
+        egui::Shape::Text(text) if text.galley.job.sections.iter().any(|section| section.format.underline.width > 0.0)
+    )));
+    let hovered = draw(vec![Event::PointerMoved(rect.center())], &mut rect);
+    assert_eq!(
+        hovered.platform_output.cursor_icon,
+        egui::CursorIcon::PointingHand
+    );
+}
+
+#[test]
+fn input_rect_expands_without_changing_the_painted_bounds() {
+    let painted = egui::Rect::from_min_size(egui::pos2(10.0, 20.0), egui::Vec2::new(8.0, 10.0));
+    let hit = novnow::ui::widgets::hit_rect(painted);
+    assert_eq!(hit.center(), painted.center());
+    assert_eq!(hit.size(), egui::Vec2::splat(24.0));
+    assert_eq!(
+        novnow::ui::widgets::hit_rect(egui::Rect::from_min_size(
+            egui::Pos2::ZERO,
+            egui::Vec2::new(80.0, 30.0)
+        ))
+        .size(),
+        egui::Vec2::new(80.0, 30.0)
+    );
+}
+
+#[test]
+fn selectable_actions_have_underlines_and_24px_hit_targets() {
+    let ctx = egui::Context::default();
+    ctx.set_visuals(novnow::ui::theme::visuals(novnow::ui::theme::Mode::Light));
+    let mut rect = egui::Rect::NOTHING;
+    let draw = |events: Vec<Event>, rect: &mut egui::Rect| {
+        ctx.run(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::Vec2::new(300.0, 150.0),
+                )),
+                events,
+                ..Default::default()
+            },
+            |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    *rect = novnow::ui::widgets::selectable_action(
+                        ui,
+                        false,
+                        egui::RichText::new("短").small(),
+                    )
+                    .rect;
+                });
+            },
+        )
+    };
+    let first = draw(Vec::new(), &mut rect);
+    assert!(rect.width() >= 24.0 && rect.height() >= 24.0, "{rect:?}");
+    assert!(first.shapes.iter().any(|item| matches!(
+        &item.shape,
+        egui::Shape::Text(text) if text.galley.job.sections.iter().any(|section| section.format.underline.width > 0.0)
+    )));
+    let hovered = draw(vec![Event::PointerMoved(rect.center())], &mut rect);
+    assert_eq!(
+        hovered.platform_output.cursor_icon,
+        egui::CursorIcon::PointingHand
+    );
+}
+
+#[test]
+fn clickable_status_label_expands_hit_area_and_has_hover_affordance() {
+    let ctx = egui::Context::default();
+    ctx.set_visuals(novnow::ui::theme::visuals(novnow::ui::theme::Mode::Light));
+    let mut rect = egui::Rect::NOTHING;
+    let draw = |events: Vec<Event>, rect: &mut egui::Rect| {
+        ctx.run(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::Vec2::new(300.0, 150.0),
+                )),
+                events,
+                ..Default::default()
+            },
+            |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    *rect = novnow::ui::widgets::clickable_label(
+                        ui,
+                        egui::RichText::new("⚑").small(),
+                        egui::Id::new("test-status-label"),
+                    )
+                    .rect;
+                });
+            },
+        )
+    };
+    let first = draw(Vec::new(), &mut rect);
+    assert!(rect.width() >= 24.0 && rect.height() >= 24.0, "{rect:?}");
+    assert!(first.shapes.iter().any(|item| matches!(
+        &item.shape,
+        egui::Shape::Text(text) if text.galley.job.sections.iter().any(|section| section.format.underline.width > 0.0)
+    )));
+    let hovered = draw(vec![Event::PointerMoved(rect.center())], &mut rect);
+    assert_eq!(
+        hovered.platform_output.cursor_icon,
+        egui::CursorIcon::PointingHand
+    );
+    let fill = ctx.style().visuals.selection.bg_fill.gamma_multiply(0.6);
+    assert!(hovered.shapes.iter().any(|item| matches!(
+        &item.shape,
+        egui::Shape::Rect(shape) if shape.fill == fill
+    )));
+}
+
+#[test]
+fn static_labels_are_not_text_selectable_in_the_app() {
+    let (harness, _) = Harness::start();
+    assert!(!harness.ctx.style().interaction.selectable_labels);
+}

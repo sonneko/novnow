@@ -606,18 +606,15 @@ fn tasks_column(
                 .color(colors.warn),
         );
     }
-    if ui.button(i18n::text(locale, "help.edit_mcp")).clicked() {
+    if super::action_button(ui, i18n::text(locale, "help.edit_mcp")).clicked() {
         actions.push(Action::EditMcp);
     }
-    if ui
-        .button(i18n::text(locale, "agent.stop_all_button"))
-        .clicked()
-    {
+    if super::action_button(ui, i18n::text(locale, "agent.stop_all_button")).clicked() {
         actions.push(Action::StopAll);
     }
     super::separator(ui, view.mode);
     if tasks.is_empty() {
-        if ui.button(i18n::text(locale, "agent.new_button")).clicked() {
+        if super::action_button(ui, i18n::text(locale, "agent.new_button")).clicked() {
             actions.push(Action::New);
         }
         super::hint(
@@ -685,10 +682,7 @@ fn tasks_column(
                 .font(small(view))
                 .color(colors.fg_faint),
         );
-        if ui
-            .add(egui::Button::new(i18n::text(locale, "agent.new")).small())
-            .clicked()
-        {
+        if super::action_button(ui, i18n::text(locale, "agent.new")).clicked() {
             actions.push(Action::New);
         }
         if let Some(id) = state.task.as_ref() {
@@ -698,25 +692,16 @@ fn tasks_column(
                 state.marked.clone()
             };
             ui.horizontal_wrapped(|ui| {
-                if ui.button(i18n::text(locale, "agent.run_button")).clicked() {
+                if super::action_button(ui, i18n::text(locale, "agent.run_button")).clicked() {
                     actions.push(Action::Run(vec![id.clone()]));
                 }
-                if ui
-                    .button(i18n::text(locale, "agent.confirm_button"))
-                    .clicked()
-                {
+                if super::action_button(ui, i18n::text(locale, "agent.confirm_button")).clicked() {
                     actions.push(Action::Confirm(targets.clone()));
                 }
-                if ui
-                    .button(i18n::text(locale, "agent.dry_run_button"))
-                    .clicked()
-                {
+                if super::action_button(ui, i18n::text(locale, "agent.dry_run_button")).clicked() {
                     actions.push(Action::DryRun(targets));
                 }
-                if ui
-                    .button(i18n::text(locale, "agent.cancel_button"))
-                    .clicked()
-                {
+                if super::action_button(ui, i18n::text(locale, "agent.cancel_button")).clicked() {
                     actions.push(Action::Cancel(id.clone()));
                 }
             });
@@ -803,7 +788,7 @@ fn context_column(
         };
         let selected = column_focused && index == selected_block;
         let (rect, response) = ui.allocate_exact_size(
-            Vec2::new(ui.available_width(), 18.0 * view.scale),
+            Vec2::new(ui.available_width(), (18.0 * view.scale).max(24.0)),
             Sense::click(),
         );
         if response.clicked() {
@@ -819,7 +804,16 @@ fn context_column(
         let painter = ui.painter_at(rect);
         if selected {
             painter.rect_filled(rect, 0.0, colors.bg_selection);
+        } else if response.hovered() {
+            painter.rect_filled(rect, 0.0, colors.bg_selection.gamma_multiply(0.6));
         }
+        if response.hovered() {
+            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+        }
+        painter.line_segment(
+            [rect.left_bottom(), rect.right_bottom()],
+            egui::Stroke::new(0.6_f32, colors.border),
+        );
         let label = block.kind.heading().trim_start_matches("## ");
         let mut text = format!("{label}  {size} / {}", block.budget);
         if block.kind.is_mandatory() {
@@ -1179,7 +1173,7 @@ fn delegation_column(
             ("3 apply", Delegation::Apply),
             ("4 autonomous", Delegation::Autonomous),
         ] {
-            if ui.button(label).clicked() {
+            if super::action_button(ui, label).clicked() {
                 actions.push(Action::Level {
                     role: BUILTIN_ROLES[state.role].to_owned(),
                     level,

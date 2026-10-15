@@ -365,10 +365,7 @@ pub fn show(
                         .font(FontId::new(11.0 * scale, FontFamily::Proportional))
                         .color(colors.fg_faint),
                 );
-                if ui
-                    .button(i18n::text(locale, "idea.capture_button"))
-                    .clicked()
-                {
+                if super::action_button(ui, i18n::text(locale, "idea.capture_button")).clicked() {
                     request = Some(Request::Shortcut(crate::ui::shell::Command::Capture));
                 }
             });
@@ -405,7 +402,7 @@ fn list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) {
                 } else {
                     colors.fg_muted
                 });
-            if ui.selectable_label(selected, text).clicked() {
+            if super::selectable_action(ui, selected, text).clicked() {
                 state.filter = filter;
                 state.reveal = true;
             }

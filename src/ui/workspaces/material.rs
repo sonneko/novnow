@@ -491,10 +491,7 @@ pub fn show(
         )
         .show(ctx, |ui| {
             ui.horizontal(|ui| {
-                if ui
-                    .button(i18n::text(locale, "material.new_button"))
-                    .clicked()
-                {
+                if super::action_button(ui, i18n::text(locale, "material.new_button")).clicked() {
                     request = Some(Request::Shortcut(crate::ui::shell::Command::InsertSection));
                 }
                 // Do not let the long keyboard guide expand the central panel
@@ -559,7 +556,7 @@ fn list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) {
                 } else {
                     colors.fg_muted
                 });
-            if ui.selectable_label(selected, text).clicked() {
+            if super::selectable_action(ui, selected, text).clicked() {
                 state.filter = filter;
                 state.reveal = true;
             }
@@ -737,10 +734,17 @@ fn form(
                 } else {
                     colors.fg_faint
                 });
-            let response = ui.add(egui::Button::new(text).stroke(Stroke::new(
-                if chosen { 1.5_f32 } else { 0.5_f32 },
-                if chosen { colors.accent } else { colors.border },
-            )));
+            let response = ui.add(
+                egui::Button::new(text.underline())
+                    .stroke(Stroke::new(
+                        if chosen { 1.5_f32 } else { 0.5_f32 },
+                        if chosen { colors.accent } else { colors.border },
+                    ))
+                    .min_size(Vec2::splat(24.0)),
+            );
+            if response.hovered() {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+            }
             if response.clicked() {
                 form.draft.category = category.to_owned();
             }
@@ -911,6 +915,14 @@ fn icon_button(ui: &mut Ui, mode: Mode, icon: Icon, name: &str) -> egui::Respons
         (Icon::Add, _) => colors.accent,
     };
     let painter = ui.painter_at(rect.expand(2.0));
+    if hovered {
+        painter.rect_filled(rect, 4.0, colors.bg_selection.gamma_multiply(0.6));
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    painter.line_segment(
+        [rect.left_bottom(), rect.right_bottom()],
+        Stroke::new(0.6_f32, colors.border),
+    );
     painter.rect_stroke(
         rect.shrink(1.0),
         4.0,

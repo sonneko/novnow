@@ -519,10 +519,7 @@ fn list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) -> Optio
             view.scale,
             &i18n::format(view.locale, "episode.no_plot", &[&path]),
         );
-        if ui
-            .button(i18n::text(view.locale, "episode.new_button"))
-            .clicked()
-        {
+        if super::action_button(ui, i18n::text(view.locale, "episode.new_button")).clicked() {
             return Some(Request::Shortcut(crate::ui::shell::Command::InsertSection));
         }
         return None;

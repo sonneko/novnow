@@ -15,8 +15,8 @@
   - `REF:src/ui/app.rs` のトップバー右側に `Ctrl+P` ボタンと `?` ボタンを常設する。
 - **[F-20] エラー・警告時の `review` アイコン変化（未実装・実装計画済み: `REF:docs/plans.md#plan-F-20`）**:
   - `REF:src/ui/app.rs` でエラーまたは警告が 1 件以上あるとき、`WorkspaceId::Review` アイコンに `state.error` / `state.warn` 色のドットバッジと強調色を付与する。
-- **[F-16 / F-29 / F-30] 視覚的アクションボタン・押せる要素の下線・静的ラベルの非選択化（未実装・実装計画済み: `REF:docs/plans.md#plan-F-16`, `REF:docs/plans.md#plan-F-29`, `REF:docs/plans.md#plan-F-30`）**:
-  - `REF:src/ui/app.rs` で `style.interaction.selectable_labels = false` を設定し、押せないラベルのダブルクリック青選択を防ぐ。
+- **[F-16 / F-29 / F-30] 視覚的アクションボタン・押せる要素の下線・静的ラベルの非選択化（実装中: `REF:docs/plans.md#plan-F-16`, `REF:docs/plans.md#plan-F-29`, `REF:docs/plans.md#plan-F-30`）**:
+  - F-29 は実装完了。`REF:src/ui/app.rs` で `style.interaction.selectable_labels = false` を設定し、押せないラベルのダブルクリック青選択を防ぐ（検証: `REF:tests/gui.rs`）。
   - `REF:src/ui/widgets/mod.rs` に共通クリック部品を設けて全ボタン・クリック対象に薄い下線＋ホバー背景＋ショートカット併記を適用する。
 
 ### 9.2 ラベル撤廃規則
@@ -110,8 +110,8 @@
 
 - アイコンボタンへの i18n 済みツールチップ/アクセシブル名付与、色＋形状の併用、WCAG コントラスト比基準（本文 4.5:1 以上、補助テキスト 3.0:1 以上）は `REF:src/ui/theme.rs` と `REF:src/ui/app.rs` で実装し、`REF:tests/gui.rs` の `every_token_meets_the_contrast_minimums` で全カラートークンのコントラスト比を機械検証する。
 
-- **[F-30 / F-32] 全クリック対象の下線・ホバー背景・ポインタ・24×24px 当たり判定と自動テスト（未実装・実装計画済み: `REF:docs/plans.md#plan-F-30`, `REF:docs/plans.md#plan-F-32`）**:
-  - `REF:src/ui/widgets/mod.rs` の統一クリックヘルパで、視覚寸法（`allocate_exact_size` 等）はそのままに `ui.interact` に渡す矩形を最低 `24.0 x 24.0` へ拡張し、薄い下線描画＋ホバー時 `bg.selection`（60%）塗りと `CursorIcon::PointingHand` を全クリック対象に適用する。`REF:tests/gui.rs` で全画面のクリック対象がこれを満たすことを検証する。
+- **[F-30 / F-32] 全クリック対象の下線・ホバー背景・ポインタ・24×24px 当たり判定と自動テスト（実装中: `REF:docs/plans.md#plan-F-30`, `REF:docs/plans.md#plan-F-32`）**:
+  - `REF:src/ui/widgets/mod.rs` の統一クリックヘルパで、テキスト・ボタンの最小当たり判定を `24.0 x 24.0` にし、薄い下線描画＋ホバー時 `bg.selection`（60%）塗りと `CursorIcon::PointingHand` を適用する。共通部品と一覧行は `REF:src/ui/workspaces/mod.rs`、Web 選択画面は `REF:src/ui/web.rs` も参照。`REF:tests/gui.rs` で共通部品の描画と当たり判定を検証済み。個別画面と外部リンクの全件監査は継続中。
 
 ## 10. ワークスペース
 

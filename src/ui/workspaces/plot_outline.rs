@@ -677,10 +677,7 @@ fn block_list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) ->
             view.scale,
             &i18n::format(view.locale, "outline.no_blocks", &[&path]),
         );
-        if ui
-            .button(i18n::text(view.locale, "outline.new_button"))
-            .clicked()
-        {
+        if super::action_button(ui, i18n::text(view.locale, "outline.new_button")).clicked() {
             return Some(Request::Shortcut(crate::ui::shell::Command::InsertSection));
         }
         return None;

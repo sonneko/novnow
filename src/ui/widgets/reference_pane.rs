@@ -388,8 +388,21 @@ fn candidate(
     };
     job.append(&material.id, 0.0, format.clone());
     job.append(&material.title, 12.0, format);
+    let hover_background = ui.painter().add(egui::Shape::Noop);
     let label = ui.label(job);
-    let response = ui.interact(label.rect, candidate_id(&material.id), Sense::click());
+    let hit = super::hit_rect(label.rect);
+    let response = ui.interact(hit, candidate_id(&material.id), Sense::click());
+    if response.hovered() {
+        ui.painter().set(
+            hover_background,
+            egui::Shape::rect_filled(hit, 2.0, colors.bg_selection.gamma_multiply(0.6)),
+        );
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    ui.painter().line_segment(
+        [label.rect.left_bottom(), label.rect.right_bottom()],
+        Stroke::new(0.6_f32, colors.border),
+    );
     let name = format!("{} {}", material.id, material.title);
     response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, &name));
     if response.has_focus() || response.hovered() {

@@ -383,17 +383,32 @@ pub fn list_row(ui: &mut Ui, mode: Mode, scale: f32, row: Row<'_>) -> egui::Resp
         galley,
         color,
     );
-    if response.hovered() {
-        let end = (x + text_width).min(rect.max.x - 6.0);
-        painter.line_segment(
-            [
-                egui::pos2(x, rect.center().y + 8.0 * scale),
-                egui::pos2(end, rect.center().y + 8.0 * scale),
-            ],
-            Stroke::new(0.6_f32, color),
-        );
-    }
+    let end = (x + text_width).min(rect.max.x - 6.0);
+    painter.line_segment(
+        [
+            egui::pos2(x, rect.center().y + 8.0 * scale),
+            egui::pos2(end, rect.center().y + 8.0 * scale),
+        ],
+        Stroke::new(
+            0.6_f32,
+            if response.hovered() {
+                color
+            } else {
+                colors.border
+            },
+        ),
+    );
     response
+}
+
+/// Uniform visible action button used by the workspace panels.
+pub fn action_button(ui: &mut Ui, text: impl Into<String>) -> egui::Response {
+    crate::ui::widgets::action_button(ui, text)
+}
+
+/// Uniform filter/tab/choice affordance used by workspace panels.
+pub fn selectable_action(ui: &mut Ui, selected: bool, text: egui::RichText) -> egui::Response {
+    crate::ui::widgets::selectable_action(ui, selected, text)
 }
 
 /// 幅を決めた横のペイン（egui 0.27 の `exact_width` は中身の最小幅を枠の幅そのものにするので、
@@ -439,7 +454,8 @@ pub fn indicator(
     let mut clicked = None;
     for workspace in Workspace::available_all() {
         let name = crate::ui::i18n::text(locale, workspace.label_key()).to_owned();
-        let (rect, response) = ui.allocate_exact_size(Vec2::splat(18.0), Sense::click());
+        let (hit, response) = ui.allocate_exact_size(Vec2::splat(24.0), Sense::click());
+        let rect = Rect::from_center_size(hit.center(), Vec2::splat(18.0));
         let active = workspace == current;
         response.widget_info(|| {
             egui::WidgetInfo::selected(egui::WidgetType::SelectableLabel, active, &name)
@@ -456,7 +472,15 @@ pub fn indicator(
         } else {
             colors.fg_faint
         };
-        let painter = ui.painter_at(rect.expand(2.0));
+        let painter = ui.painter_at(hit);
+        if hovered {
+            painter.rect_filled(hit, 2.0, colors.bg_selection.gamma_multiply(0.6));
+            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+        }
+        painter.line_segment(
+            [rect.left_bottom(), rect.right_bottom()],
+            Stroke::new(0.6_f32, colors.border),
+        );
         glyph(
             &painter,
             rect,

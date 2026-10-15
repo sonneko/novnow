@@ -810,6 +810,7 @@ impl NovnowApp {
             // 切替アニメーションはしない（§11.4 MUST）
             style.animation_time = 0.0;
             style.interaction.selectable_labels = false;
+            style.spacing.interact_size.y = (24.0 * scale).max(24.0);
         });
         self.applied = Some((mode, scale_key));
     }
@@ -2331,24 +2332,33 @@ impl NovnowApp {
                     }
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         if ui
-                            .small_button("?")
+                            .add(
+                                egui::Button::new(RichText::new("?").underline())
+                                    .small()
+                                    .min_size(Vec2::splat(24.0)),
+                            )
                             .on_hover_text(i18n::text(locale, "command.help"))
                             .clicked()
                         {
                             open_help = true;
                         }
                         if ui
-                            .small_button("Ctrl+P")
+                            .add(
+                                egui::Button::new(RichText::new("Ctrl+P").underline())
+                                    .small()
+                                    .min_size(Vec2::splat(24.0)),
+                            )
                             .on_hover_text(i18n::text(locale, "help.palette"))
                             .clicked()
                         {
                             open_palette = true;
                         }
+                        let theme_hover = ui.painter().add(egui::Shape::Noop);
                         let theme_button = ui
                             .add(
                                 egui::Button::new(" ")
                                     .frame(false)
-                                    .min_size(Vec2::new(24.0, 20.0)),
+                                    .min_size(Vec2::splat(24.0)),
                             )
                             .on_hover_text(i18n::text(locale, "header.theme"));
                         theme_button.widget_info(|| {
@@ -2363,19 +2373,53 @@ impl NovnowApp {
                             self.settings.theme,
                             colors.fg_primary,
                         );
+                        ui.painter().line_segment(
+                            [
+                                theme_button.rect.left_bottom(),
+                                theme_button.rect.right_bottom(),
+                            ],
+                            Stroke::new(0.6_f32, colors.border),
+                        );
+                        if theme_button.hovered() {
+                            ui.painter().set(
+                                theme_hover,
+                                egui::Shape::rect_filled(
+                                    theme_button.rect,
+                                    2.0,
+                                    colors.bg_selection.gamma_multiply(0.6),
+                                ),
+                            );
+                            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                        }
                         if theme_button.clicked() {
                             self.settings.theme = self.settings.theme.next();
                             session.settings_dirty = true;
                         }
                         // §12.5: 記号ボタン（ja は「あ」、en は「A」。カタログの header.language_symbol）。文字ラベルは置かない
                         let symbol = i18n::text(locale, "header.language_symbol");
-                        let language = ui.add(egui::Button::new(symbol).frame(false));
+                        let language_hover = ui.painter().add(egui::Shape::Noop);
+                        let language = ui.add(
+                            egui::Button::new(RichText::new(symbol).underline())
+                                .frame(false)
+                                .min_size(Vec2::splat(24.0)),
+                        );
                         language.widget_info(|| {
                             egui::WidgetInfo::labeled(
                                 egui::WidgetType::Button,
                                 i18n::text(locale, "header.language"),
                             )
                         });
+                        if language.hovered() {
+                            ui.painter().set(
+                                language_hover,
+                                egui::Shape::rect_filled(
+                                    language.rect,
+                                    2.0,
+                                    colors.bg_selection.gamma_multiply(0.6),
+                                ),
+                            );
+                            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                        }
                         if language.clicked() {
                             self.settings.language = match locale {
                                 Locale::Ja => LanguageChoice::En,
@@ -2919,7 +2963,13 @@ impl NovnowApp {
                                 } else {
                                     colors.fg_primary
                                 });
-                                if ui.selectable_label(index == *selected, text).clicked() {
+                                if crate::ui::widgets::selectable_action(
+                                    ui,
+                                    index == *selected,
+                                    text,
+                                )
+                                .clicked()
+                                {
                                     chosen = Some(index);
                                 }
                             }
@@ -3127,10 +3177,17 @@ impl NovnowApp {
                         ui.colored_label(colors.error, message);
                     }
                     ui.horizontal(|ui| {
-                        if ui.button(i18n::text(locale, "help.save_mcp")).clicked() {
+                        if crate::ui::widgets::action_button(
+                            ui,
+                            i18n::text(locale, "help.save_mcp"),
+                        )
+                        .clicked()
+                        {
                             save = true;
                         }
-                        if ui.button(i18n::text(locale, "help.close")).clicked() {
+                        if crate::ui::widgets::action_button(ui, i18n::text(locale, "help.close"))
+                            .clicked()
+                        {
                             close = true;
                         }
                     });
@@ -3167,7 +3224,9 @@ impl NovnowApp {
                             i18n::text(locale, "help.website"),
                             crate::core::model::project::PROJECT_STRUCTURE_DOC_URL,
                         );
-                        if ui.button(i18n::text(locale, "help.close")).clicked() {
+                        if crate::ui::widgets::action_button(ui, i18n::text(locale, "help.close"))
+                            .clicked()
+                        {
                             close = true;
                         }
                     },
@@ -3335,7 +3394,9 @@ impl NovnowApp {
                                 colors.fg_primary
                             },
                         );
-                        if ui.selectable_label(index == *selected, text).clicked() {
+                        if crate::ui::widgets::selectable_action(ui, index == *selected, text)
+                            .clicked()
+                        {
                             chosen = Some(index);
                         }
                     }
@@ -3432,19 +3493,25 @@ impl NovnowApp {
                     ui.label(RichText::new(&message).color(colors.fg_muted));
                     ui.add_space(8.0);
                     ui.horizontal(|ui| {
-                        if ui.button(i18n::text(locale, "modal.retry")).clicked() {
+                        if crate::ui::widgets::action_button(ui, i18n::text(locale, "modal.retry"))
+                            .clicked()
+                        {
                             session.bench.save.request_now();
                             close = true;
                         }
                         if quota
-                            && ui
-                                .button(i18n::text(locale, "command.export_zip"))
-                                .clicked()
+                            && crate::ui::widgets::action_button(
+                                ui,
+                                i18n::text(locale, "command.export_zip"),
+                            )
+                            .clicked()
                         {
                             zip = true;
                             close = true;
                         }
-                        if ui.button(i18n::text(locale, "modal.close")).clicked() {
+                        if crate::ui::widgets::action_button(ui, i18n::text(locale, "modal.close"))
+                            .clicked()
+                        {
                             close = true;
                         }
                     });
@@ -3514,12 +3581,19 @@ impl NovnowApp {
                                                 .desired_width(220.0),
                                         );
                                         // 置換は上書き（破壊的操作）なので文字ラベルを置く（§9.2.1-2）
-                                        if ui.button(i18n::text(locale, "find.replace")).clicked() {
+                                        if crate::ui::widgets::action_button(
+                                            ui,
+                                            i18n::text(locale, "find.replace"),
+                                        )
+                                        .clicked()
+                                        {
                                             replace_one = true;
                                         }
-                                        if ui
-                                            .button(i18n::text(locale, "find.replace_all"))
-                                            .clicked()
+                                        if crate::ui::widgets::action_button(
+                                            ui,
+                                            i18n::text(locale, "find.replace_all"),
+                                        )
+                                        .clicked()
                                         {
                                             replace_all = true;
                                         }
@@ -3612,7 +3686,13 @@ impl NovnowApp {
                                     hit.path, hit.line, hit.text
                                 ))
                                 .color(color);
-                                if ui.selectable_label(index == *selected, text).clicked() {
+                                if crate::ui::widgets::selectable_action(
+                                    ui,
+                                    index == *selected,
+                                    text,
+                                )
+                                .clicked()
+                                {
                                     chosen = Some(index);
                                 }
                             }
@@ -3702,7 +3782,9 @@ impl NovnowApp {
                                 } else {
                                     colors.fg_primary
                                 });
-                                if ui.selectable_label(is_selected, text).clicked() {
+                                if crate::ui::widgets::selectable_action(ui, is_selected, text)
+                                    .clicked()
+                                {
                                     chosen = Some(index);
                                 }
                                 if is_selected {
@@ -3751,13 +3833,17 @@ impl NovnowApp {
                     ui.label(i18n::text(locale, "material.confirm_approve"));
                     ui.add_space(8.0);
                     ui.horizontal(|ui| {
-                        if ui
-                            .button(i18n::text(locale, "material.confirm_yes"))
-                            .clicked()
+                        if crate::ui::widgets::action_button(
+                            ui,
+                            i18n::text(locale, "material.confirm_yes"),
+                        )
+                        .clicked()
                         {
                             approve = true;
                         }
-                        if ui.button(i18n::text(locale, "modal.cancel")).clicked() {
+                        if crate::ui::widgets::action_button(ui, i18n::text(locale, "modal.cancel"))
+                            .clicked()
+                        {
                             close = true;
                         }
                     });
@@ -3832,7 +3918,13 @@ impl NovnowApp {
                     );
                     ui.horizontal_wrapped(|ui| {
                         for (index, name) in roles.iter().enumerate() {
-                            if ui.selectable_label(index == *role, *name).clicked() {
+                            if crate::ui::widgets::selectable_action(
+                                ui,
+                                index == *role,
+                                RichText::new(*name),
+                            )
+                            .clicked()
+                            {
                                 *role = index;
                             }
                         }
@@ -3953,10 +4045,17 @@ impl NovnowApp {
                     }
                     ui.add_space(8.0);
                     ui.horizontal(|ui| {
-                        if ui.button(i18n::text(locale, "agent.confirm_yes")).clicked() {
+                        if crate::ui::widgets::action_button(
+                            ui,
+                            i18n::text(locale, "agent.confirm_yes"),
+                        )
+                        .clicked()
+                        {
                             run = true;
                         }
-                        if ui.button(i18n::text(locale, "modal.cancel")).clicked() {
+                        if crate::ui::widgets::action_button(ui, i18n::text(locale, "modal.cancel"))
+                            .clicked()
+                        {
                             close = true;
                         }
                     });
@@ -4021,10 +4120,17 @@ impl NovnowApp {
                     );
                     ui.add_space(8.0);
                     ui.horizontal(|ui| {
-                        if ui.button(i18n::text(locale, "agent.accept_yes")).clicked() {
+                        if crate::ui::widgets::action_button(
+                            ui,
+                            i18n::text(locale, "agent.accept_yes"),
+                        )
+                        .clicked()
+                        {
                             accept = true;
                         }
-                        if ui.button(i18n::text(locale, "modal.cancel")).clicked() {
+                        if crate::ui::widgets::action_button(ui, i18n::text(locale, "modal.cancel"))
+                            .clicked()
+                        {
                             close = true;
                         }
                     });
@@ -4052,10 +4158,17 @@ impl NovnowApp {
                     prompt_pairs(ui, session.bench.project(), &targets, locale, colors);
                     ui.add_space(8.0);
                     ui.horizontal(|ui| {
-                        if ui.button(i18n::text(locale, "prompt.reset_yes")).clicked() {
+                        if crate::ui::widgets::action_button(
+                            ui,
+                            i18n::text(locale, "prompt.reset_yes"),
+                        )
+                        .clicked()
+                        {
                             reset = true;
                         }
-                        if ui.button(i18n::text(locale, "modal.cancel")).clicked() {
+                        if crate::ui::widgets::action_button(ui, i18n::text(locale, "modal.cancel"))
+                            .clicked()
+                        {
                             close = true;
                         }
                     });
@@ -4084,7 +4197,9 @@ impl NovnowApp {
                     ui.add_space(4.0);
                     prompt_pairs(ui, session.bench.project(), &targets, locale, colors);
                     ui.add_space(8.0);
-                    if ui.button(i18n::text(locale, "modal.close")).clicked() {
+                    if crate::ui::widgets::action_button(ui, i18n::text(locale, "modal.close"))
+                        .clicked()
+                    {
                         close = true;
                     }
                 });
@@ -4121,10 +4236,20 @@ impl NovnowApp {
                         );
                         ui.horizontal(|ui| {
                             // どちらも上書き・破棄（破壊的操作）なので文字ラベルを置く（§9.2.1-2）
-                            if ui.button(i18n::text(locale, "diff.keep_mine")).clicked() {
+                            if crate::ui::widgets::action_button(
+                                ui,
+                                i18n::text(locale, "diff.keep_mine"),
+                            )
+                            .clicked()
+                            {
                                 keep = Some(path.clone());
                             }
-                            if ui.button(i18n::text(locale, "diff.take_theirs")).clicked() {
+                            if crate::ui::widgets::action_button(
+                                ui,
+                                i18n::text(locale, "diff.take_theirs"),
+                            )
+                            .clicked()
+                            {
                                 take = Some(path.clone());
                             }
                         });
@@ -4174,10 +4299,14 @@ impl NovnowApp {
                     ui.label(i18n::text(locale, "delete.confirm"));
                     ui.add_space(8.0);
                     ui.horizontal(|ui| {
-                        if ui.button(i18n::text(locale, "delete.yes")).clicked() {
+                        if crate::ui::widgets::action_button(ui, i18n::text(locale, "delete.yes"))
+                            .clicked()
+                        {
                             confirmed = true;
                         }
-                        if ui.button(i18n::text(locale, "modal.cancel")).clicked() {
+                        if crate::ui::widgets::action_button(ui, i18n::text(locale, "modal.cancel"))
+                            .clicked()
+                        {
                             close = true;
                         }
                     });
@@ -4246,7 +4375,7 @@ impl NovnowApp {
                             } else {
                                 colors.fg_muted
                             });
-                            if ui.selectable_label(selected, text).clicked() {
+                            if crate::ui::widgets::selectable_action(ui, selected, text).clicked() {
                                 *state = choice;
                             }
                         }
@@ -4273,8 +4402,15 @@ impl NovnowApp {
                             (ExportAction::SaveAs, "export.save_as"),
                             (ExportAction::Copy, "export.copy"),
                         ] {
-                            let button = egui::Button::new(i18n::text(locale, key));
-                            if ui.add_enabled(enabled, button).clicked() {
+                            let button = egui::Button::new(
+                                RichText::new(i18n::text(locale, key)).underline(),
+                            )
+                            .min_size(Vec2::splat(24.0));
+                            let response = ui.add_enabled(enabled, button);
+                            if enabled && response.hovered() {
+                                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                            }
+                            if response.clicked() {
                                 action = Some(kind);
                             }
                         }
@@ -4298,7 +4434,9 @@ impl NovnowApp {
                         ui.label(RichText::new(line).color(colors.fg_muted));
                     }
                     ui.add_space(8.0);
-                    if ui.button(i18n::text(locale, "modal.close")).clicked() {
+                    if crate::ui::widgets::action_button(ui, i18n::text(locale, "modal.close"))
+                        .clicked()
+                    {
                         close = true;
                     }
                 });
@@ -4311,19 +4449,25 @@ impl NovnowApp {
                     ui.label(i18n::text(locale, "status.dont_close"));
                     ui.add_space(8.0);
                     ui.horizontal(|ui| {
-                        if ui
-                            .button(i18n::text(locale, "modal.discard_and_close"))
-                            .clicked()
+                        if crate::ui::widgets::action_button(
+                            ui,
+                            i18n::text(locale, "modal.discard_and_close"),
+                        )
+                        .clicked()
                         {
                             self.allow_close = true;
                             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                             close = true;
                         }
-                        if ui.button(i18n::text(locale, "modal.retry")).clicked() {
+                        if crate::ui::widgets::action_button(ui, i18n::text(locale, "modal.retry"))
+                            .clicked()
+                        {
                             session.bench.save.request_now();
                             close = true;
                         }
-                        if ui.button(i18n::text(locale, "modal.cancel")).clicked() {
+                        if crate::ui::widgets::action_button(ui, i18n::text(locale, "modal.cancel"))
+                            .clicked()
+                        {
                             close = true;
                         }
                     });
@@ -4444,7 +4588,13 @@ impl NovnowApp {
                                 let label =
                                     RichText::new(format!("{}:{line_num}  {snippet}", loc.path))
                                         .color(color);
-                                if ui.selectable_label(index == *selected, label).clicked() {
+                                if crate::ui::widgets::selectable_action(
+                                    ui,
+                                    index == *selected,
+                                    label,
+                                )
+                                .clicked()
+                                {
                                     chosen = Some(index);
                                 }
                             }
@@ -4731,16 +4881,14 @@ fn status_bar(
                 let count = diagnostic_count(session);
                 if count > 0 {
                     ui.label(dot());
-                    let flag = ui
-                        .add(
-                            egui::Label::new(
-                                RichText::new(format!("⚑{count}"))
-                                    .font(mono.clone())
-                                    .color(colors.warn),
-                            )
-                            .sense(Sense::click()),
-                        )
-                        .on_hover_text(i18n::text(locale, "status.open_review"));
+                    let flag = crate::ui::widgets::clickable_label(
+                        ui,
+                        RichText::new(format!("⚑{count}"))
+                            .font(mono.clone())
+                            .color(colors.warn),
+                        egui::Id::new("status-open-review"),
+                    )
+                    .on_hover_text(i18n::text(locale, "status.open_review"));
                     if flag.clicked() {
                         session.open_review = true;
                     }
@@ -4753,14 +4901,12 @@ fn status_bar(
                 // 稼働表示（§15.7.4: `⟳ T0042 writer` / `⟳ 3件`、自律なら `(自律)`。クリックで一覧）
                 if let Some(label) = crate::ui::agents::status_label(&session.agents, locale) {
                     ui.label(dot());
-                    let running = ui
-                        .add(
-                            egui::Label::new(
-                                RichText::new(label).font(mono.clone()).color(colors.accent),
-                            )
-                            .sense(Sense::click()),
-                        )
-                        .on_hover_text(i18n::text(locale, "status.open_agent"));
+                    let running = crate::ui::widgets::clickable_label(
+                        ui,
+                        RichText::new(label).font(mono.clone()).color(colors.accent),
+                        egui::Id::new("status-open-agent"),
+                    )
+                    .on_hover_text(i18n::text(locale, "status.open_agent"));
                     if running.clicked() {
                         session.open_agent = true;
                     }
@@ -4800,9 +4946,26 @@ fn status_bar(
             },
         );
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            let (rect, response) = ui.allocate_exact_size(Vec2::new(14.0, 14.0), Sense::click());
-            let painter = ui.painter_at(rect.expand(2.0));
+            let (rect, response) = ui.allocate_exact_size(
+                Vec2::splat(24.0),
+                if indicator == Indicator::Failed {
+                    Sense::click()
+                } else {
+                    Sense::hover()
+                },
+            );
+            let painter = ui.painter_at(rect);
             let center = rect.center();
+            if indicator == Indicator::Failed {
+                painter.line_segment(
+                    [rect.left_bottom(), rect.right_bottom()],
+                    Stroke::new(0.6_f32, colors.border),
+                );
+                if response.hovered() {
+                    painter.rect_filled(rect, 2.0, colors.bg_selection.gamma_multiply(0.6));
+                    ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                }
+            }
             match indicator {
                 Indicator::Nothing => {}
                 Indicator::Unsaved => {
@@ -5007,9 +5170,12 @@ fn completion(
                         } else {
                             format!("{}  {}", item.label, item.detail)
                         };
-                        if ui
-                            .selectable_label(index == *selected, RichText::new(text).color(color))
-                            .clicked()
+                        if crate::ui::widgets::selectable_action(
+                            ui,
+                            index == *selected,
+                            RichText::new(text).color(color),
+                        )
+                        .clicked()
                         {
                             chosen = Some(index);
                         }
@@ -5097,9 +5263,12 @@ fn quick_fix(
                         } else {
                             colors.fg_primary
                         };
-                        if ui
-                            .selectable_label(index == *selected, RichText::new(label).color(color))
-                            .clicked()
+                        if crate::ui::widgets::selectable_action(
+                            ui,
+                            index == *selected,
+                            RichText::new(label).color(color),
+                        )
+                        .clicked()
                         {
                             chosen = Some(index);
                         }
@@ -6708,7 +6877,8 @@ mod native {
                                 colors.fg_primary
                             };
                             ui.horizontal(|ui| {
-                                let response = ui.selectable_label(
+                                let response = crate::ui::widgets::selectable_action(
+                                    ui,
                                     index == self.selected,
                                     RichText::new(shown).color(color),
                                 );
@@ -6716,7 +6886,11 @@ mod native {
                                     choose = Some(PathBuf::from(path));
                                 }
                                 if ui
-                                    .small_button("×")
+                                    .add(
+                                        egui::Button::new(RichText::new("×").underline())
+                                            .small()
+                                            .min_size(Vec2::splat(24.0)),
+                                    )
                                     .on_hover_text(i18n::text(
                                         locale,
                                         "project.pick.remove_history",
@@ -6730,23 +6904,29 @@ mod native {
                         ui.add_space(20.0);
                         ui.horizontal(|ui| {
                             ui.add_space((ui.available_width() - 320.0).max(0.0) / 2.0);
-                            if ui
-                                .button(format!("📂 {}", i18n::text(locale, "project.pick.open")))
-                                .clicked()
+                            if crate::ui::widgets::action_button(
+                                ui,
+                                format!("📂 {}", i18n::text(locale, "project.pick.open")),
+                            )
+                            .clicked()
                             {
                                 self.want_folder = true;
                             }
                             ui.add_space(12.0);
-                            if ui
-                                .button(format!("＋ {}", i18n::text(locale, "project.pick.new")))
-                                .clicked()
+                            if crate::ui::widgets::action_button(
+                                ui,
+                                format!("＋ {}", i18n::text(locale, "project.pick.new")),
+                            )
+                            .clicked()
                             {
                                 self.want_new = true;
                             }
                             ui.add_space(12.0);
-                            if ui
-                                .button(i18n::text(locale, "project.pick.import"))
-                                .clicked()
+                            if crate::ui::widgets::action_button(
+                                ui,
+                                i18n::text(locale, "project.pick.import"),
+                            )
+                            .clicked()
                             {
                                 self.want_import = true;
                             }
@@ -6775,9 +6955,11 @@ mod native {
                                     if *incomplete {
                                         ui.add_space(8.0);
                                         // 勝手に作らない（明示操作が必要、§14.4）
-                                        if ui
-                                            .button(i18n::text(locale, "project.pick.create_here"))
-                                            .clicked()
+                                        if crate::ui::widgets::action_button(
+                                            ui,
+                                            i18n::text(locale, "project.pick.create_here"),
+                                        )
+                                        .clicked()
                                         {
                                             create_at = Some(dir.clone());
                                         }

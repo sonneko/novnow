@@ -12,12 +12,75 @@ pub mod section_editor;
 pub mod slice_editor;
 pub mod syntax_text;
 
-use egui::{FontId, Response, Sense, Stroke, Ui, Vec2};
+use egui::{FontId, Rect, Response, RichText, Sense, Stroke, Ui, Vec2};
 
 use crate::ui::theme::Palette;
 
 /// 押せる要素の当たり判定の下限（§9.9、F-32。「24×24px 以上」）。
 pub const MIN_HIT: f32 = 24.0;
+
+/// Keep the painted size unchanged while expanding the input target to at least 24×24.
+pub fn hit_rect(rect: Rect) -> Rect {
+    rect.expand2(Vec2::new(
+        (MIN_HIT - rect.width()).max(0.0) * 0.5,
+        (MIN_HIT - rect.height()).max(0.0) * 0.5,
+    ))
+}
+
+/// Standard textual action. Keep the keyboard-visible label, underline the
+/// click target, and use the same minimum hit area and pointer on every screen.
+pub fn action_button(ui: &mut Ui, text: impl Into<String>) -> Response {
+    let response = ui.add(
+        egui::Button::new(RichText::new(text.into()).underline()).min_size(Vec2::splat(MIN_HIT)),
+    );
+    if response.hovered() {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    response
+}
+
+/// Clickable filter/tab/choice with the same underlined affordance as actions.
+pub fn selectable_action(ui: &mut Ui, selected: bool, text: RichText) -> Response {
+    let background = ui.painter().add(egui::Shape::Noop);
+    let response = ui.add(
+        egui::Button::new(text.underline())
+            .selected(selected)
+            .frame(false)
+            .min_size(Vec2::splat(MIN_HIT)),
+    );
+    if response.hovered() {
+        ui.painter().set(
+            background,
+            egui::Shape::rect_filled(
+                response.rect,
+                2.0,
+                ui.visuals().selection.bg_fill.gamma_multiply(0.6),
+            ),
+        );
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    response
+}
+
+/// Clickable status label: preserve its painted text size but expand the input
+/// area around it (unlike `Label::sense`, which uses the glyph bounds only).
+pub fn clickable_label(ui: &mut Ui, text: RichText, id: egui::Id) -> Response {
+    let background = ui.painter().add(egui::Shape::Noop);
+    let painted = ui.label(text.underline());
+    let response = ui.interact(hit_rect(painted.rect), id, Sense::click());
+    if response.hovered() {
+        ui.painter().set(
+            background,
+            egui::Shape::rect_filled(
+                response.rect,
+                2.0,
+                ui.visuals().selection.bg_fill.gamma_multiply(0.6),
+            ),
+        );
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    response
+}
 
 /// クリックできるテキスト（下線つきリンク風）。
 ///

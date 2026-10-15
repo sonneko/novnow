@@ -12,7 +12,7 @@
 |---|---|---|---|
 | 段階 ①（M0〜M11） | 完了 | コア仕様・全 8 ワークスペース・MCP・CLI・Web 版・ベンチマーク・サンプル一式 | `REF:docs/history.md` |
 | 設計書セクション実装状況 | 実装完了 94 節 / 実装中 28 節 / 未実装・実装計画済み 1 節 / 未実装・未計画 1 節 / 実装待ち 2 節 | 全 10 設計書（`docs/designs/*.md`）の `### ` 節（合計 126 節） | `REF:docs/plans.md#planned-fixes-and-features` |
-| 仕様変更・修正（F-01〜F-44） | 実装中（F-01, F-10, F-11, F-23, F-24, F-31, F-36, F-38, F-42, F-43 は完了） | UI・エディタ・パレット・辞書・ショートカット・性能等の修正 44 項目 | `REF:docs/plans.md#planned-fixes` |
+| 仕様変更・修正（F-01〜F-44） | 実装中（F-01, F-10, F-11, F-23, F-24, F-29, F-31, F-36, F-38, F-42, F-43 は完了） | UI・エディタ・パレット・辞書・ショートカット・性能等の修正 44 項目 | `REF:docs/plans.md#planned-fixes` |
 | 機能追加（小規模：S-01〜S-18） | 実装中（S-01, S-09, S-15 は完了） | エージェント例指定・PWA・Zip 導入・形態素波線等の小規模機能追加 18 項目 | `REF:docs/plans.md#planned-small-features` |
 | 機能追加（比較的大規模：L-01） | 未実装・未計画 | 既存の本文テキストから `novnow` に移行するための手段の提供 | `REF:docs/plans.md#unplanned-large` |
 | 段階 ②（追加仕様 1〜27） | 未着手（計画待機） | 予約済みの追加機能 27 項目（10 個の縫い代で受け入れ準備済み） | `REF:docs/plans.md#stage-2` |
@@ -26,7 +26,8 @@
 - **PR**: PR #18（Draft、base は前セッションの Draft PR #17 の作業ブランチ）。
 - **現在の状態**: `REF:docs/plans.md#planned-fixes-and-features` の 62 項目を実装中。実装中という表示は達成を意味しない。未着手・未完了項目（特に F-17 の OS 別検証、F-35 の各画面・OS のフォーカス/一覧/タイムライン動作、F-36 の Linux/Web 以外でのキー挙動、F-43 の実環境別フレーム予算と残る計画項目）と横断的な検査が残っている。
 - **本ブランチの作業**: `REF:src/ui/app.rs` ほかのパレット・共通シェル・参照ペイン、`REF:src/cli/import.rs` の CLI Zip 導入、`REF:src/adapters/storage_idb.rs` の Web 同名制限、`REF:src/core/aicontext/packet.rs` の参考例、`REF:sw.js` の PWA、`REF:website/src/data/diagnostics.ts` の診断一覧を実装中。
-- **検証**: `bash scripts/verify.sh` は 1190 件のテストで全ジョブ成功（53 ターゲット）。`REF:scripts/web-smoke.sh` は Web の既存シナリオと PWA のオフライン再起動を含め成功。幅 620px の画面を撮り、F-02/F-03 のキャレット・本文の収まりと S-14 の右端の未保存マークを視覚確認（`REF:scripts/web-smoke.mjs` の `02b` / `02c`）。`npm run build`（`website/`、診断の個別ページ 152 件を含む 160 ページ）と `python3 scripts/diagnostics-site.py --check` も成功。
+- **検証**: `bash scripts/verify.sh` は 1196 件のテストで全ジョブ成功（53 ターゲット）。`REF:scripts/web-smoke.sh` は Web の既存シナリオと PWA のオフライン再起動を含め成功。幅 620px の画面を撮り、F-02/F-03 のキャレット・本文の収まりと S-14 の右端の未保存マークを視覚確認（`REF:scripts/web-smoke.mjs` の `02b` / `02c`）。`npm run build`（`website/`、診断の個別ページ 152 件を含む 160 ページ）と `python3 scripts/diagnostics-site.py --check` も成功。
+- **直近の追加作業**: F-29 の静的ラベル非選択化を GUI テストで確認。F-30/F-32 は共通アクションボタン・選択アクション・リンク・ステータスラベル・各一覧行・Web 選択画面に下線、ホバー背景、ポインターと最小 24px 当たり判定を広げ、GUI で各共通部品を検証（`REF:src/ui/widgets/mod.rs`, `REF:src/ui/workspaces/mod.rs`, `REF:src/ui/web.rs`, `REF:tests/gui.rs`）。全クリック対象の網羅的な画面検査は継続する。Web スモークは PR #17 の sandbox-tools blob を使用して成功。
 - **直近の追加作業**: F-35 の一覧専用 `↑`/`↓` を plot-episode / plot-outline / idea / material / cast に追加。編集中の Slice を移動・保存せず、Alt 矢印は従来どおり確定して移動する。1,000 件のアイデア一覧スクロールと Cast タイムラインのキー競合を GUI テスト済み。その他の画面の実機確認は残る。
 - **追加作業**: S-13 の `>agent ` トークン単位 Tab 補完を GUI テスト、F-36 の資料専用 `Ctrl+3` 上書きを廃止して `Tab` によるフォーム移動を GUI テスト、S-18 のロケール別最大行幅設定をテスト。S-12 は可視範囲外の節の高さを概算して Galley 構築を省く処理とユニットテストを追加（スクロール中の視覚検証は残る）。
 - **追加作業**: F-17 は Chromium の実際の keydown listener に対し予約キー/代替キーの `preventDefault` を検証。F-01 は Bézier 曲線によるフォント非依存の月/半月を Web のダークテーマ画面で視覚確認、F-11 は CJK フォント優先順を検査。F-31 は資料フォームをフォーカスした状態での新規ショートカットとボタンを GUI テスト済み。F-36 は Web 上で資料画面の Ctrl+3・Tab を操作・撮影し、長いガイドが中央幅を押し広げて右フォームを画面外へ追いやる不具合を修正して可視性を再確認。
