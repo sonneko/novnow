@@ -2932,6 +2932,7 @@ impl NovnowApp {
                 }
                 let mut chosen = None;
                 let outside = popup(ctx, "palette", colors, |ui| {
+                    ui.set_width(540.0);
                     let edit = ui.add(
                         egui::TextEdit::singleline(input)
                             .hint_text(i18n::text(locale, "palette.placeholder"))
@@ -2941,9 +2942,8 @@ impl NovnowApp {
                     if edit.changed() {
                         *selected = 0;
                     }
-                    ui.set_width(540.0);
                     ui.add_space(4.0);
-                    if items.is_empty() {
+                    if items.len() == 1 && matches!(items[0].action, PaletteAction::Close) {
                         ui.label(
                             RichText::new(if mode_kind == palette::Mode::Material {
                                 i18n::text(locale, "palette.no_materials")
@@ -2957,7 +2957,7 @@ impl NovnowApp {
                         .max_height(360.0)
                         .show(ui, |ui| {
                             for (index, item) in items.iter().enumerate() {
-                                let label = palette::ellipsize(&item.label, 70);
+                                let label = palette_label(ui, &item.label, 510.0);
                                 let text = RichText::new(label).color(if index == *selected {
                                     colors.accent
                                 } else {
@@ -5595,6 +5595,36 @@ fn prompt_pairs(
         });
 }
 
+/// Truncate by painted pixels rather than Unicode scalar count: CJK glyphs are
+/// much wider than Latin letters, but neither may resize the fixed palette.
+fn palette_label(ui: &egui::Ui, text: &str, max_width: f32) -> String {
+    let font = egui::TextStyle::Button.resolve(ui.style());
+    let width = |value: &str| {
+        ui.fonts(|fonts| {
+            fonts
+                .layout_no_wrap(value.to_owned(), font.clone(), Color32::WHITE)
+                .size()
+                .x
+        })
+    };
+    if width(text) <= max_width {
+        return text.to_owned();
+    }
+    let chars: Vec<char> = text.chars().collect();
+    let mut low = 0;
+    let mut high = chars.len();
+    while low < high {
+        let mid = (low + high).div_ceil(2);
+        let candidate = format!("{}...", chars[..mid].iter().collect::<String>());
+        if width(&candidate) <= max_width {
+            low = mid;
+        } else {
+            high = mid - 1;
+        }
+    }
+    format!("{}...", chars[..low].iter().collect::<String>())
+}
+
 fn popup(ctx: &Context, id: &str, colors: theme::Palette, add: impl FnOnce(&mut egui::Ui)) -> bool {
     let screen = ctx.screen_rect();
     // Catch clicks outside the foreground area; never let a click through to an
@@ -5610,20 +5640,29 @@ fn popup(ctx: &Context, id: &str, colors: theme::Palette, add: impl FnOnce(&mut 
         .inner;
     ctx.layer_painter(egui::LayerId::new(egui::Order::Middle, Id::new("dim")))
         .rect_filled(screen, 0.0, Color32::from_black_alpha(96));
-    egui::Area::new(Id::new(id))
-        .order(egui::Order::Foreground)
-        .anchor(Align2::CENTER_TOP, Vec2::new(0.0, 72.0))
-        .show(ctx, |ui| {
-            Frame::none()
-                .fill(colors.bg_raised)
-                .stroke(Stroke::new(1.0_f32, colors.border))
-                .inner_margin(Margin::same(12.0))
-                .rounding(4.0)
-                .show(ui, |ui| {
-                    ui.set_max_width(560.0);
-                    add(ui);
-                });
-        });
+    let area = egui::Area::new(Id::new(id)).order(egui::Order::Foreground);
+    // Area::anchor uses ctx.available_rect(), which shrinks after the side
+    // panels have been laid out. The command palette must use the *window*
+    // center instead, regardless of the workspace beneath it.
+    let area = if id == "palette" {
+        area.fixed_pos(Pos2::new(screen.center().x - 282.0, screen.top() + 72.0))
+    } else {
+        area.anchor(Align2::CENTER_TOP, Vec2::new(0.0, 72.0))
+    };
+    area.show(ctx, |ui| {
+        if id == "palette" {
+            ui.set_width(564.0);
+        }
+        Frame::none()
+            .fill(colors.bg_raised)
+            .stroke(Stroke::new(1.0_f32, colors.border))
+            .inner_margin(Margin::same(12.0))
+            .rounding(4.0)
+            .show(ui, |ui| {
+                ui.set_max_width(560.0);
+                add(ui);
+            });
+    });
     outside
 }
 
@@ -6081,9 +6120,7 @@ fn palette_items(
                 label: format!(">zip  {}", i18n::text(locale, "command.export_zip")),
                 action: PaletteAction::ExportZip,
             });
-            if (query.starts_with("agent") && (query != "agent" || input.ends_with(' ')))
-                || query.starts_with("prompt")
-            {
+            if query.starts_with("agent") || query.starts_with("prompt") {
                 all.extend(agent_palette_items(locale));
             } else {
                 all.push(PaletteItem {

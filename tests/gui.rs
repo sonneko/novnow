@@ -2549,3 +2549,79 @@ fn narrow_status_folds_secondary_details_without_hiding_save_state() {
         "save state remains visible at narrow widths"
     );
 }
+
+#[test]
+fn palette_stays_on_top_at_the_center_and_closes_without_click_through() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    let output = harness.frame(Vec::new());
+    let close = harness::painted_texts(&output)
+        .into_iter()
+        .find(|(text, _)| text == "パレットを閉じる (Esc)")
+        .expect("permanent close choice")
+        .1;
+    assert!(
+        (close.center().x - 640.0).abs() < 275.0,
+        "centered: {close:?}"
+    );
+    assert!(close.min.y > 72.0 && close.min.y < 600.0, "top: {close:?}");
+    assert!(
+        painted_text(&output).contains("M・# 資料"),
+        "empty-input guide"
+    );
+    // The palette is painted after the editor, not behind its border or text.
+    let text = harness::painted_texts(&output);
+    let editor = text
+        .iter()
+        .position(|(s, _)| s.contains("旧校舎の地下遺跡"));
+    let palette = text.iter().position(|(s, _)| s == "パレットを閉じる (Esc)");
+    assert!(
+        editor < palette,
+        "palette foreground should paint after the editor"
+    );
+    harness.click_at(Pos2::new(20.0, 155.0));
+    assert!(
+        !harness.app.overlay_open(),
+        "outside click closes the palette"
+    );
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    let close = harness.rect_of("パレットを閉じる (Esc)").unwrap();
+    harness.click_at(close.center());
+    assert!(!harness.app.overlay_open(), "the close choice also works");
+}
+
+#[test]
+fn palette_agent_subcommands_and_empty_material_results_are_visible() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text(">agent".into())]);
+    let output = painted_text(&harness.frame(Vec::new()));
+    assert!(output.contains(">agent delegation"), "{output}");
+    harness.frame(vec![key(Key::Escape, Modifiers::NONE)]);
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text("#そんな資料はない".into())]);
+    let output = painted_text(&harness.frame(Vec::new()));
+    assert!(
+        output.contains("登録されている資料がありません"),
+        "{output}"
+    );
+    assert!(output.contains("パレットを閉じる"));
+}
+
+#[test]
+fn palette_long_cjk_label_truncates_in_pixels_without_resizing() {
+    let long = "長".repeat(120);
+    let content = world::CONTENTS.replace("図書室の攻防", &long);
+    let (mut harness, _) = Harness::start_with(world_with(CONTENTS_PATH, &content), true);
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    let output = harness.frame(Vec::new());
+    let rect = harness::painted_texts(&output)
+        .into_iter()
+        .find(|(text, _)| text.contains("長長長") && text.ends_with("..."))
+        .expect("long CJK candidate truncated with ellipsis")
+        .1;
+    assert!(
+        rect.max.x < 930.0,
+        "candidate remains in centered fixed-width palette: {rect:?}"
+    );
+}
