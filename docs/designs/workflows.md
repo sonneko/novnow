@@ -6,11 +6,11 @@
 
 ### 16.1 ワークフロー
 
-状態: 実装中（REF:src/core/features/reference.rs, REF:src/ui/workspaces/material.rs, REF:tests/materials_ops.rs, REF:docs/plans.md#plan-F-31）
+状態: 実装完了（REF:src/core/features/reference.rs, REF:src/ui/workspaces/material.rs, REF:tests/materials_ops.rs, REF:docs/plans.md#plan-F-31）
 
 - 資料の新規作成（提案 `proposed` / 承認 `approved`）、採番（`M####`）、索引登録、MD テンプレート生成は `core::features::reference`（`REF:src/core/features/reference.rs`）および `REF:src/ui/workspaces/material.rs` に実装する。
 
-- **[F-31] 新規資料作成の全域有効化とボタン設置（未実装・実装計画済み: `REF:docs/plans.md#plan-F-31`）**:
+- **[F-31] 新規資料作成の全域有効化とボタン設置（実装完了: `REF:docs/plans.md#plan-F-31`）**:
   - `REF:src/ui/workspaces/material.rs` でペインフォーカスにかかわらず `Ctrl+Shift+N` と画面上のボタンで新規資料を作成可能にする。
 
 ### 16.2 インデックス（§5.8.2 の運用規則）
@@ -77,12 +77,12 @@
 
 ### 18.1 性能目標（既定のリファレンス環境: 4 コア / 8GB / 統合 GPU）
 
-状態: 実装中（REF:benches/core.rs, REF:tests/incremental.rs, REF:tests/role_language.rs, REF:.github/workflows/ci.yml, REF:docs/plans.md#plan-F-43）
+状態: 実装完了（REF:benches/core.rs, REF:tests/incremental.rs, REF:tests/role_language.rs, REF:.github/workflows/ci.yml, REF:docs/plans.md#plan-F-43）
 
 - 主要 5 処理の `criterion` ベンチマークは `REF:benches/core.rs` に実装している（リリース実測値: `single_line_relex` 約 462ns、`role_language_10_patterns` 約 1.89µs、`dictionary_trie_5000` 約 1.14ms、`reference_pane_rebuild` 約 38.7µs、`export_100k_chars` 約 7.37ms）。
 - Web リリースビルドの gzip 後 wasm サイズ（上限 8MiB、実測約 6.75MiB）は `REF:.github/workflows/ci.yml` の `wasm` ジョブで検査する。
 
-- **[F-38 / F-43 / S-12] 10 万字打鍵 16ms 以内・アイデア 1,000 件 60fps・文脈ビュー可視範囲レイアウト（未実装・実装計画済み: `REF:docs/plans.md#plan-F-43`）**:
+- **[F-38 / F-43 / S-12] 10 万字打鍵 16ms 以内・アイデア 1,000 件 60fps・文脈ビュー可視範囲レイアウト（実装完了: `REF:docs/plans.md#plan-F-43`）**:
   - 打鍵時の編集中節限定解析（F-43）、一覧の `show_rows` 仮想スクロール（F-38）、文脈ビューのビューポートカリング（S-12）を実装し、`REF:tests/editor_performance.rs`（release で画面全体の打鍵 16ms とアイデア 1,000 件の一覧移動 16ms を確認）、`REF:tests/incremental.rs` と `REF:benches/core.rs` で計測・検証する。
 
 ### 18.2 メモリ
@@ -100,9 +100,9 @@
 
 ### 18.4 継続的検証要件
 
-状態: 実装中（REF:tests/layering.rs, REF:.github/workflows/ci.yml, REF:scripts/verify.sh, REF:docs/script/duplicate.py, REF:docs/plans.md#plan-S-15）
+状態: 実装完了（REF:tests/layering.rs, REF:.github/workflows/ci.yml, REF:scripts/verify.sh, REF:docs/script/duplicate.py, REF:docs/plans.md#plan-S-15）
 
 - CI ワークフロー（`REF:.github/workflows/ci.yml`）の 5 ジョブ（`fmt`, `clippy`, `test`, `wasm`, `bench`）およびローカル検証スクリプト `REF:scripts/verify.sh`、ドキュメント規約検査スクリプト `REF:docs/script/duplicate.py` により全変更を機械的に検証する。
 
-- **[F-30 / F-32 / F-42 / F-43 / S-15] 追加の CI・自動テスト検証項目（未実装・実装計画済み: `REF:docs/plans.md#plan-S-15`）**:
+- **[F-30 / F-32 / F-42 / F-43 / S-15] 追加の CI・自動テスト検証項目（実装完了: `REF:docs/plans.md#plan-S-15`）**:
   - `REF:tests/gui.rs`（押せる要素の下線・ホバー・24×24px 当たり判定検査）、`REF:tests/i18n_catalog.rs`（`ja.toml` 助詞前空白検査）、`REF:tests/editor_performance.rs`（10 万字での画面全体の 1 打鍵 16ms 検査。CI の bench ジョブは release で実行）、および `REF:scripts/diagnostics-site.py`（全診断コードの日英解説と具体例の網羅性 CI 検査）を追加する。

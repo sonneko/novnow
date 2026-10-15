@@ -281,8 +281,9 @@ pub fn show(
 ) -> (Option<Request>, Option<Target>) {
     let colors = theme::palette(view.mode);
     let locale = view.locale;
-    // 編集欄が無いので、テキストにフォーカスが無ければ素の矢印と Enter も受ける
-    let typing = ctx.memory(|memory| memory.focused().is_some());
+    // There is no text editor on this screen; focus on a header button must
+    // not steal bare arrows from the diagnostic/progress list.
+    let typing = view.overlay;
     let mut jump = None;
     let mut request = None;
     if !typing {

@@ -55,7 +55,7 @@
 
 - 引数解析とサブコマンド（`<dir>`, `new`, `check`, `export`, `mcp`）およびフラグ（`--gui`, `-h`/`--help`, `-V`/`--version`）の振り分けは `REF:src/cli/mod.rs` に実装する（検証: `REF:tests/cli.rs`）。
 
-- **[S-10] `novnow import <zip> <dir>` サブコマンド（未実装・実装計画済み: `REF:docs/plans.md#plan-S-10`）**:
+- **[S-10] `novnow import <zip> <dir>` サブコマンド（実装完了: `REF:docs/plans.md#plan-S-10`）**:
   - `REF:src/cli/mod.rs` に `import <zip> <dir>` を追加し、`REF:src/adapters/zip.rs` で展開・検証を行う。
 
 ### 14.2 起動時のスキャンとエラー出力

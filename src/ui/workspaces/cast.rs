@@ -458,7 +458,7 @@ fn modes_tab(ui: &mut Ui, state: &mut State, bench: &mut Workbench, view: &View)
         }
     }
     let label_width = 96.0 * scale;
-    let row_height = 22.0 * scale;
+    let row_height = (22.0 * scale).max(24.0);
     let columns = timeline.chapters.len().max(1);
     let width = ui.available_width();
     let column = ((width - label_width) / columns as f32).max(18.0);
@@ -502,8 +502,19 @@ fn modes_tab(ui: &mut Ui, state: &mut State, bench: &mut Workbench, view: &View)
         );
     }
     // どの帯の上でクリック・ドラッグしたか
-    let pointer = response.interact_pointer_pos();
-    if let Some(at) = pointer {
+    let hover = ui
+        .ctx()
+        .input(|input| input.pointer.hover_pos())
+        .filter(|at| rect.contains(*at));
+    if response.hovered()
+        && hover.is_some_and(|at| {
+            at.y >= rect.min.y + row_height
+                && at.y < rect.min.y + row_height * (timeline.bands.len() as f32 + 1.0)
+        })
+    {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    if let Some(at) = response.interact_pointer_pos() {
         let row = ((at.y - rect.min.y) / row_height).floor() as isize - 1;
         if row >= 0 && (row as usize) < timeline.bands.len() && response.drag_started() {
             state.band = row as usize;
@@ -527,13 +538,20 @@ fn modes_tab(ui: &mut Ui, state: &mut State, bench: &mut Workbench, view: &View)
     }
     for (row, band) in timeline.bands.iter().enumerate() {
         let y = rect.min.y + row_height * (row as f32 + 1.0);
+        if response.hovered() && hover.is_some_and(|at| at.y >= y && at.y < y + row_height) {
+            painter.rect_filled(
+                Rect::from_min_size(Pos2::new(rect.min.x, y), Vec2::new(width, row_height)),
+                2.0,
+                colors.bg_selection.gamma_multiply(0.6),
+            );
+        }
         let selected = row == state.band;
         let label = if band.label.is_empty() {
             band.id.clone()
         } else {
             format!("{} {}", band.id, band.label)
         };
-        painter.text(
+        let label_rect = painter.text(
             Pos2::new(rect.min.x, y + row_height / 2.0),
             egui::Align2::LEFT_CENTER,
             label,
@@ -543,6 +561,13 @@ fn modes_tab(ui: &mut Ui, state: &mut State, bench: &mut Workbench, view: &View)
             } else {
                 colors.fg_primary
             },
+        );
+        painter.line_segment(
+            [
+                label_rect.left_bottom() + Vec2::Y,
+                label_rect.right_bottom() + Vec2::Y,
+            ],
+            Stroke::new(0.6_f32, colors.border),
         );
         let offset = match state.drag {
             Some((dragged, moved)) if dragged == row => moved,

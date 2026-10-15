@@ -2895,3 +2895,118 @@ fn editor_text_gutter_and_caret_stay_clipped_inside_the_border() {
         assert!(caret.1.intersects(border));
     }
 }
+
+#[test]
+fn mac_browser_reserved_shortcuts_have_usable_nonconflicting_alternates() {
+    let mac = Modifiers {
+        mac_cmd: true,
+        command: true,
+        alt: true,
+        shift: true,
+        ..Modifiers::NONE
+    };
+    for (key, expected) in [
+        (Key::I, Command::Capture),
+        (Key::N, Command::InsertSection),
+        (Key::T, Command::Register { character: true }),
+        (Key::W, Command::Term),
+    ] {
+        assert_eq!(shell::command_of(key, mac, true, false), Some(expected));
+    }
+    let browser = BrowserKeys {
+        command: true,
+        alt: true,
+        shift: true,
+        mac: true,
+        ..BrowserKeys::default()
+    };
+    for key in ["I", "N", "T", "W"] {
+        assert!(
+            shell::browser_default_blocked(key, browser),
+            "Cmd+Option+Shift+{key}"
+        );
+    }
+    assert!(
+        !shell::browser_default_blocked(
+            "I",
+            BrowserKeys {
+                alt: false,
+                ..browser
+            }
+        ),
+        "browser DevTools remains available"
+    );
+    assert!(
+        !shell::browser_default_blocked(
+            "I",
+            BrowserKeys {
+                command: false,
+                ..browser
+            }
+        ),
+        "Option text input remains available"
+    );
+}
+
+#[test]
+fn workspace_action_and_list_row_share_underline_hover_and_minimum_hit_target() {
+    use novnow::ui::workspaces::{list_row, Row};
+    let ctx = egui::Context::default();
+    let mode = novnow::ui::theme::Mode::Dark;
+    ctx.set_visuals(novnow::ui::theme::visuals(mode));
+    let mut buttons = (egui::Rect::NOTHING, egui::Rect::NOTHING);
+    let draw = |pos: Option<Pos2>, buttons: &mut (egui::Rect, egui::Rect)| {
+        ctx.run(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    Pos2::ZERO,
+                    egui::vec2(300.0, 180.0),
+                )),
+                events: pos
+                    .map(|point| vec![Event::PointerMoved(point)])
+                    .unwrap_or_default(),
+                ..Default::default()
+            },
+            |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    buttons.0 = novnow::ui::widgets::action_button(ui, "押す").rect;
+                    buttons.1 = list_row(
+                        ui,
+                        mode,
+                        1.0,
+                        Row {
+                            selected: false,
+                            text: "一覧",
+                            ..Row::default()
+                        },
+                    )
+                    .rect;
+                });
+            },
+        )
+    };
+    let normal = draw(None, &mut buttons);
+    for rect in [buttons.0, buttons.1] {
+        assert!(rect.width() >= 24.0 && rect.height() >= 24.0, "{rect:?}");
+    }
+    assert!(normal.shapes.iter().any(|item| matches!(&item.shape,
+        egui::Shape::Text(text) if text.galley.text() == "押す"
+            && text.galley.job.sections.iter().any(|section| section.format.underline.width > 0.0)
+    )));
+    for rect in [buttons.0, buttons.1] {
+        let hovered = draw(Some(rect.center()), &mut buttons);
+        assert_eq!(
+            hovered.platform_output.cursor_icon,
+            egui::CursorIcon::PointingHand
+        );
+        let fill = novnow::ui::theme::palette(mode)
+            .bg_selection
+            .gamma_multiply(0.6);
+        assert!(
+            hovered.shapes.iter().any(|item| matches!(&item.shape,
+                egui::Shape::Rect(shape) if shape.fill == fill && shape.rect.intersects(rect)
+            )),
+            "hover highlight for {rect:?}"
+        );
+    }
+}

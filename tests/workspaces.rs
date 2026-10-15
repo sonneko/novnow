@@ -2619,3 +2619,84 @@ fn material_category_chips_and_condition_hint_match_the_metadata_form() {
     assert_eq!(material_selected(&harness).as_deref(), Some("M0138"));
     assert!(empty.contains("scope: @02-03"), "condition hint: {empty}");
 }
+
+#[test]
+fn review_and_agent_bare_arrows_work_with_a_focused_header_button() {
+    let mut review = Harness::new();
+    review.frame(vec![key(Key::Num9, ALT)]);
+    let header = review.rect_of("あ").expect("language button");
+    review.click_at(header.center());
+    review.frame(vec![key(Key::Tab, Modifiers::NONE)]);
+    assert!(review.ctx.memory(|memory| memory.focused().is_some()));
+    let before = review.app.spaces().unwrap().review.selected();
+    review.frame(vec![key(Key::ArrowDown, Modifiers::NONE)]);
+    let after = review.app.spaces().unwrap().review.selected();
+    assert!(
+        after > before,
+        "review selection must move with header focus"
+    );
+
+    let (mut agent, _) = agent_harness(
+        agent_project("{}", &["@01-04-02-01", "@01-04-02-02"]),
+        |_| {},
+    );
+    let header = agent.rect_of("あ").expect("language button");
+    agent.click_at(header.center());
+    agent.frame(vec![key(Key::Tab, Modifiers::NONE)]);
+    assert!(agent.ctx.memory(|memory| memory.focused().is_some()));
+    let before = agent.app.spaces().unwrap().agent.task.clone();
+    agent.frame(vec![key(Key::ArrowDown, Modifiers::NONE)]);
+    let after = agent.app.spaces().unwrap().agent.task.clone();
+    assert_ne!(
+        before, after,
+        "agent task list must browse with header focus"
+    );
+}
+
+#[test]
+fn idea_capture_guide_is_a_clickable_shortcut_button() {
+    let mut harness = novel_harness();
+    harness.frame(vec![key(Key::Num4, ALT)]);
+    let button = harness
+        .rect_of("Ctrl+Shift+I 即時入力")
+        .expect("visible capture button");
+    harness.click_at(button.center());
+    assert!(
+        harness.app.overlay_open(),
+        "opens the same capture as the keyboard shortcut"
+    );
+}
+
+#[test]
+fn cast_timeline_hover_covers_a_full_minimum_height_row() {
+    let mut harness = novel_harness();
+    harness.frame(vec![key(Key::Num6, ALT)]);
+    let output = harness.frame(Vec::new());
+    let label = painted_texts(&output)
+        .into_iter()
+        .find(|(text, rect)| text == "A 探究" && rect.min.x > 700.0)
+        .expect("timeline band")
+        .1;
+    assert!(
+        output.shapes.iter().any(|item| matches!(&item.shape,
+            egui::Shape::LineSegment { points, stroke }
+                if stroke.width == 0.6
+                    && (points[0].x - label.min.x).abs() < 1.0
+                    && (points[1].x - label.max.x).abs() < 1.0
+                    && (points[0].y - label.max.y - 1.0).abs() < 1.0
+        )),
+        "clickable timeline band has a thin underline"
+    );
+    harness.frame(vec![Event::PointerMoved(label.center())]);
+    let hovered = harness.frame(vec![Event::PointerMoved(label.center())]);
+    assert_eq!(
+        hovered.platform_output.cursor_icon,
+        egui::CursorIcon::PointingHand
+    );
+    let fill = novnow::ui::theme::palette(novnow::ui::theme::Mode::Dark)
+        .bg_selection
+        .gamma_multiply(0.6);
+    assert!(hovered.shapes.iter().any(|item| matches!(&item.shape,
+        egui::Shape::Rect(shape) if shape.fill == fill && shape.rect.height() >= 24.0 && shape.rect.contains(label.center())
+    )), "timeline hover must cover a 24px band");
+}

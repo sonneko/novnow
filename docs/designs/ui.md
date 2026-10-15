@@ -6,7 +6,7 @@
 
 ### 9.1 全体レイアウト
 
-状態: 実装中（REF:src/ui/app.rs, REF:src/ui/settings.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-16）
+状態: 実装完了（REF:src/ui/app.rs, REF:src/ui/settings.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-16）
 
 - 共通シェル（上端 28px アイコンバー、下端 22px ステータスバー、中央のメインカラム＋参照ペイン 2 カラム分割）は `NovnowApp`（`REF:src/ui/app.rs`）が描画する。
 - メイン/参照の比率（既定 `62 : 38`、`Ctrl+Alt+Shift+←/→`）と文脈/節エディタの比率（既定 `45 : 55`、`Ctrl+Alt+↑/↓`）は `UiSettings`（`REF:src/ui/settings.rs`）に保持する。
@@ -15,7 +15,7 @@
   - `REF:src/ui/app.rs` のトップバー右側に `Ctrl+P` ボタンと `?` ボタンを常設する。
 - **[F-20] エラー・警告時の `review` アイコン変化（実装完了: `REF:docs/plans.md#plan-F-20`）**:
   - `REF:src/ui/app.rs` でエラーまたは警告が 1 件以上あるとき、`WorkspaceId::Review` アイコンに `state.error` / `state.warn` 色のドットバッジと強調色を付与する。
-- **[F-16 / F-29 / F-30] 視覚的アクションボタン・押せる要素の下線・静的ラベルの非選択化（実装中: `REF:docs/plans.md#plan-F-16`, `REF:docs/plans.md#plan-F-29`, `REF:docs/plans.md#plan-F-30`）**:
+- **[F-16 / F-29 / F-30] 視覚的アクションボタン・押せる要素の下線・静的ラベルの非選択化（実装完了: `REF:docs/plans.md#plan-F-16`, `REF:docs/plans.md#plan-F-29`, `REF:docs/plans.md#plan-F-30`）**:
   - F-29 は実装完了。`REF:src/ui/app.rs` で `style.interaction.selectable_labels = false` を設定し、押せないラベルのダブルクリック青選択を防ぐ（検証: `REF:tests/gui.rs`）。
   - `REF:src/ui/widgets/mod.rs` に共通クリック部品を設けて全ボタン・クリック対象に薄い下線＋ホバー背景＋ショートカット併記を適用する。
 
@@ -48,7 +48,7 @@
 - **[F-02 / F-03 / F-37 / F-41] 節エディタの枠内パディング・カーソル/行番号調整・フォーカス表現分離・`lock_focus(true)`（実装完了: `REF:docs/plans.md#plan-F-02`）**:
   - `REF:src/ui/widgets/section_editor.rs` で枠内パディングとクリップ矩形を整えてテキストのはみ出しを解消し（F-02）、行番号の Y 座標とキャレット高さを `Galley` の行メトリクスに一致させる（F-03）。
   - ペインのフォーカス表示は左端 3px 縦線、編集中の節は常時 1px 枠線に分離する（F-41 は実装完了。`REF:src/ui/app.rs`, `REF:src/ui/widgets/context_view.rs`, `REF:tests/gui.rs`）。
-  - `TextEdit::multiline` に `.lock_focus(true)` を付け、入力欄外での 入力欄外の `Tab` 巡回と明瞭なフォーカス表示を実装する（F-37）。
+  - `TextEdit::multiline` に `.lock_focus(true)` を付け、入力欄外の `Tab` 巡回と明瞭なフォーカス表示を実装する（F-37）。
 
 ### 9.5 参照ペイン
 
@@ -90,7 +90,7 @@
 
 ### 9.8 キーボード一覧（v1 確定版）
 
-状態: 実装中（REF:src/ui/shell.rs, REF:src/ui/web.rs, REF:tests/gui.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-17）
+状態: 実装完了（REF:src/ui/shell.rs, REF:src/ui/web.rs, REF:tests/gui.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-17）
 
 - 全ショートカットの解釈と macOS での `Alt` → `Ctrl+Alt` 読み替えは `ui::shell`（`REF:src/ui/shell.rs`）に実装する。
 - **egui 0.27.2 における IME 実装規約**:
@@ -99,19 +99,19 @@
   - フェイルセーフとして `Event::WindowFocused(false)` または最後の変換イベントから 2 秒無入力で `composing = false` に戻す。
   - デスクトップで IME を有効化するため、編集領域フォーカス中は毎フレーム `PlatformOutput.ime = Some(IMEOutput { rect, cursor_rect })` を出力する。Web 版でキーボード移動時にも IME hidden input を同期する処理は `sync_text_agent`（`REF:src/ui/web.rs`）が担う（検証: `REF:tests/gui.rs`, `REF:tests/gui.rs`）。
 
-- **[F-17 / F-35 / F-36 / F-37 / F-40] キー割当の統一とブラウザ非衝突化（実装中: `REF:docs/plans.md#plan-F-17`）**:
+- **[F-17 / F-35 / F-36 / F-37 / F-40] キー割当の統一とブラウザ非衝突化（実装完了: `REF:docs/plans.md#plan-F-17`）**:
   - `REF:src/ui/shell.rs` は Web の予約キーに `Ctrl+Alt+Shift+I/N/T/W` を代替割当にし、ブラウザの開発者ツール等を妨げない。`REF:src/ui/web.rs` の key guard と `REF:tests/gui.rs` で確認する。
   - `REF:src/ui/shell.rs` と各ワークスペースで「一覧選択は素の `↑`/`↓`、確定して節移動は `Alt+↑`/`Alt+↓`」に統一し（F-35）。`REF:src/ui/workspaces/mod.rs` の `browse_keys` は入力欄・重ね物がないときだけ一覧移動し、`REF:tests/workspaces.rs` で編集中 Slice の非コミットを確かめる。
   - `Ctrl+3` を全画面で「参照ペインへフォーカス」に統一して資料内の移動は `Tab` に移し（F-36）、デスクトップの `Ctrl+O` を「保存して一覧へ戻る」に統一する（F-40）。
 
 ### 9.9 アクセシビリティ
 
-状態: 実装中（REF:src/ui/theme.rs, REF:src/ui/app.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-30）
+状態: 実装完了（REF:src/ui/theme.rs, REF:src/ui/app.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-30）
 
 - アイコンボタンへの i18n 済みツールチップ/アクセシブル名付与、色＋形状の併用、WCAG コントラスト比基準（本文 4.5:1 以上、補助テキスト 3.0:1 以上）は `REF:src/ui/theme.rs` と `REF:src/ui/app.rs` で実装し、`REF:tests/gui.rs` の `every_token_meets_the_contrast_minimums` で全カラートークンのコントラスト比を機械検証する。
 
-- **[F-30 / F-32] 全クリック対象の下線・ホバー背景・ポインタ・24×24px 当たり判定と自動テスト（実装中: `REF:docs/plans.md#plan-F-30`, `REF:docs/plans.md#plan-F-32`）**:
-  - `REF:src/ui/widgets/mod.rs` の統一クリックヘルパで、テキスト・ボタンの最小当たり判定を `24.0 x 24.0` にし、薄い下線描画＋ホバー時 `bg.selection`（60%）塗りと `CursorIcon::PointingHand` を適用する。共通部品と一覧行は `REF:src/ui/workspaces/mod.rs`、Web 選択画面は `REF:src/ui/web.rs` も参照。`REF:tests/gui.rs` で共通部品の描画と当たり判定を検証済み。個別画面と外部リンクの全件監査は継続中。
+- **[F-30 / F-32] 全クリック対象の下線・ホバー背景・ポインタ・24×24px 当たり判定と自動テスト（実装完了: `REF:docs/plans.md#plan-F-30`, `REF:docs/plans.md#plan-F-32`）**:
+  - `REF:src/ui/widgets/mod.rs` の統一クリックヘルパで、テキスト・ボタンの最小当たり判定を `24.0 x 24.0` にし、薄い下線描画＋ホバー時 `bg.selection`（60%）塗りと `CursorIcon::PointingHand` を適用する。共通部品と一覧行は `REF:src/ui/workspaces/mod.rs`、Web 選択画面は `REF:src/ui/web.rs` も参照。`REF:tests/gui.rs` で共通部品の描画と当たり判定を検証済み。個別画面、外部リンクとタイムラインも監査し、`REF:tests/gui.rs` および `REF:tests/workspaces.rs` で代表的な描画・操作を検証した。
 
 ## 10. ワークスペース
 

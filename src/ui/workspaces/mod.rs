@@ -338,7 +338,7 @@ pub fn list_row(ui: &mut Ui, mode: Mode, scale: f32, row: Row<'_>) -> egui::Resp
     if selected {
         painter.rect_filled(rect, 0.0, colors.bg_selection);
     } else if response.hovered() {
-        painter.rect_filled(rect, 0.0, colors.bg_selection.linear_multiply(0.6));
+        painter.rect_filled(rect, 0.0, colors.bg_selection.gamma_multiply(0.6));
     }
     if let Some(color) = bar {
         painter.rect_filled(

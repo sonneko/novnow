@@ -2331,26 +2331,30 @@ impl NovnowApp {
                         ctx.request_repaint_after(std::time::Duration::from_secs(1));
                     }
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        if ui
+                        let help = ui
                             .add(
                                 egui::Button::new(RichText::new("?").underline())
                                     .small()
                                     .min_size(Vec2::splat(24.0)),
                             )
-                            .on_hover_text(i18n::text(locale, "command.help"))
-                            .clicked()
-                        {
+                            .on_hover_text(i18n::text(locale, "command.help"));
+                        if help.hovered() {
+                            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                        }
+                        if help.clicked() {
                             open_help = true;
                         }
-                        if ui
+                        let palette = ui
                             .add(
                                 egui::Button::new(RichText::new("Ctrl+P").underline())
                                     .small()
                                     .min_size(Vec2::splat(24.0)),
                             )
-                            .on_hover_text(i18n::text(locale, "help.palette"))
-                            .clicked()
-                        {
+                            .on_hover_text(i18n::text(locale, "help.palette"));
+                        if palette.hovered() {
+                            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                        }
+                        if palette.clicked() {
                             open_palette = true;
                         }
                         let theme_hover = ui.painter().add(egui::Shape::Noop);
@@ -7011,7 +7015,7 @@ mod native {
                                 if response.clicked() && *exists {
                                     choose = Some(PathBuf::from(path));
                                 }
-                                if ui
+                                let remove = ui
                                     .add(
                                         egui::Button::new(RichText::new("×").underline())
                                             .small()
@@ -7020,9 +7024,11 @@ mod native {
                                     .on_hover_text(i18n::text(
                                         locale,
                                         "project.pick.remove_history",
-                                    ))
-                                    .clicked()
-                                {
+                                    ));
+                                if remove.hovered() {
+                                    ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                                }
+                                if remove.clicked() {
                                     remove_history = Some(path.clone());
                                 }
                             });

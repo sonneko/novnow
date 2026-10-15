@@ -325,9 +325,9 @@ fn keys(
     proposal: Option<&Proposal>,
     actions: &mut Vec<Action>,
 ) {
-    if ctx.memory(|memory| memory.focused().is_some()) {
-        return;
-    }
+    // The agent workspace has no in-place text editor. A focused header
+    // button must not suppress list navigation; editing happens in an overlay
+    // and the caller does not invoke `keys` while that overlay is open.
     let pressed =
         |key: Key, modifiers: Modifiers| ctx.input_mut(|input| input.consume_key(modifiers, key));
     let ctrl = if ctx.os() == egui::os::OperatingSystem::Mac {

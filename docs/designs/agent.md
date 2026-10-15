@@ -24,7 +24,7 @@
 
 ### 15.4 コンテキスト設計
 
-状態: 実装中（REF:src/core/aicontext/packet.rs, REF:src/core/aicontext/budget.rs, REF:tests/aicontext.rs, REF:docs/plans.md#plan-S-01）
+状態: 実装完了（REF:src/core/aicontext/packet.rs, REF:src/core/aicontext/budget.rs, REF:tests/aicontext.rs, REF:docs/plans.md#plan-S-01）
 
 - 固定 9 セクション（`1 project` 〜 `9 history`）の組み立ては `core::aicontext::packet`（`REF:src/core/aicontext/packet.rs`）が `core::resolve::context_rules` と同じ優先順位規則を用いて生成する。
 - 役割別のトークン予算配分と優先順位に基づく決定論的切り詰めは `core::aicontext::budget`（`REF:src/core/aicontext/budget.rs`）が担う（検証: `REF:tests/aicontext.rs`）。
