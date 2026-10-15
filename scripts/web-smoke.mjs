@@ -206,6 +206,12 @@ async function main() {
     check(opened.app[0]?.value?.items?.[0]?.id === 'sample', '履歴の先頭が sample');
     const before = file(opened, 'sample', 'contents/01-04.txt');
     check(before !== null, 'sample の本文 contents/01-04.txt がある');
+    // F-01: photograph the glyph-free dark crescent and return to the
+    // original system preference before checking the remaining workflows.
+    await key(tab, 'Control+Alt+t');
+    await shot(tab, '01b-dark-theme-icon');
+    await key(tab, 'Control+Alt+t');
+    await key(tab, 'Control+Alt+t');
     // F-17: exercise the actual installed Web keydown listener, not just the
     // Rust shortcut table. DevTools' reserved chord stays free; its alternate
     // and ordinary app navigation are prevented before the browser handles them.

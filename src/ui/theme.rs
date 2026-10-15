@@ -293,33 +293,48 @@ pub fn paint_theme_icon(
     center: egui::Pos2,
     choice: crate::ui::settings::ThemeChoice,
     ink: Color32,
-    background: Color32,
 ) {
     use crate::ui::settings::ThemeChoice;
-    use egui::{Stroke, Vec2};
+    use egui::{epaint::CubicBezierShape, Stroke, Vec2};
+    let point = |x: f32, y: f32| center + Vec2::new(x, y);
+    let curve = |points: [egui::Pos2; 4]| {
+        CubicBezierShape::from_points_stroke(points, false, Color32::TRANSPARENT, Stroke::NONE)
+            .flatten(Some(0.1))
+    };
     match choice {
         ThemeChoice::System => {
             painter.circle_stroke(center, 7.0, Stroke::new(1.5_f32, ink));
-            let points = (0..=16)
-                .map(|step| {
-                    let angle =
-                        std::f32::consts::FRAC_PI_2 + step as f32 * std::f32::consts::PI / 16.0;
-                    center + Vec2::new(angle.cos(), angle.sin()) * 6.0
-                })
-                .collect::<Vec<_>>();
-            painter.add(egui::Shape::convex_polygon(
-                {
-                    let mut p = vec![center];
-                    p.extend(points);
-                    p
-                },
-                ink,
-                Stroke::NONE,
-            ));
+            // Left half-disc, curved with a cubic Bézier instead of a font glyph.
+            let mut points = curve([
+                point(0.0, -6.0),
+                point(-8.0, -6.0),
+                point(-8.0, 6.0),
+                point(0.0, 6.0),
+            ]);
+            points.push(center);
+            painter.add(egui::Shape::convex_polygon(points, ink, Stroke::NONE));
         }
         ThemeChoice::Dark => {
-            painter.circle_filled(center, 7.0, ink);
-            painter.circle_filled(center + Vec2::new(3.0, -3.0), 6.0, background);
+            // A filled crescent made from two cubic Bézier arcs. In particular,
+            // this does not paint a background-colored circle over adjacent UI.
+            let mut points = curve([
+                point(3.0, -7.0),
+                point(-9.0, -9.0),
+                point(-9.0, 9.0),
+                point(3.0, 7.0),
+            ]);
+            points.extend(curve([
+                point(3.0, 7.0),
+                point(-2.0, 4.0),
+                point(-2.0, -4.0),
+                point(3.0, -7.0),
+            ]));
+            painter.add(egui::Shape::Path(egui::epaint::PathShape {
+                points,
+                closed: true,
+                fill: ink,
+                stroke: Stroke::NONE,
+            }));
         }
         ThemeChoice::Light => {
             painter.circle_filled(center, 4.0, ink);

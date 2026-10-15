@@ -2362,7 +2362,6 @@ impl NovnowApp {
                             theme_button.rect.center(),
                             self.settings.theme,
                             colors.fg_primary,
-                            colors.bg_raised,
                         );
                         if theme_button.clicked() {
                             self.settings.theme = self.settings.theme.next();

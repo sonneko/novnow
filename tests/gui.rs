@@ -1766,3 +1766,50 @@ fn save_as_goes_through_the_dialog_and_copy_fills_the_clipboard() {
     assert_eq!(output.platform_output.copied_text, exported(&world(), None));
     assert!(!harness.app.overlay_open());
 }
+
+#[test]
+fn theme_icons_are_vector_shapes_including_bezier_crescent() {
+    let ctx = egui::Context::default();
+    for choice in [ThemeChoice::System, ThemeChoice::Dark, ThemeChoice::Light] {
+        let output = ctx.run(egui::RawInput::default(), |ctx| {
+            novnow::ui::theme::paint_theme_icon(
+                &ctx.debug_painter(),
+                egui::pos2(30.0, 30.0),
+                choice,
+                egui::Color32::WHITE,
+            );
+        });
+        assert!(
+            output
+                .shapes
+                .iter()
+                .all(|clipped| !matches!(clipped.shape, egui::Shape::Text(_))),
+            "theme icon must not require a font glyph: {choice:?}"
+        );
+        if choice == ThemeChoice::Dark {
+            assert!(
+                output
+                    .shapes
+                    .iter()
+                    .any(|clipped| matches!(clipped.shape, egui::Shape::Path(_))),
+                "dark icon must use a curved vector crescent"
+            );
+        }
+    }
+}
+
+#[test]
+fn fullwidth_punctuation_uses_the_cjk_font_before_the_generic_fallback() {
+    let (definitions, _) = novnow::ui::theme::fonts();
+    for family in [egui::FontFamily::Proportional, egui::FontFamily::Monospace] {
+        assert_eq!(
+            definitions
+                .families
+                .get(&family)
+                .and_then(|names| names.first())
+                .map(String::as_str),
+            Some("novnow-cjk"),
+            "？！＊ should use the same CJK face as surrounding prose"
+        );
+    }
+}

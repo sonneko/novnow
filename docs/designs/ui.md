@@ -213,20 +213,20 @@
 
 ### 11.4 テーマ切替
 
-状態: 実装中（REF:src/ui/theme.rs, REF:src/ui/settings.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-01）
+状態: 実装完了（REF:src/ui/theme.rs, REF:src/ui/settings.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-01）
 
 - `ThemePreference`（`System` / `Dark` / `Light`）は `REF:src/ui/settings.rs` で `.novnow/ui.json` に永続化し、`Ctrl+Alt+T` または `>theme` で即時切り替える。
 
-- **[F-01] テーマ記号（`◐` / `☾` / `☀`）のベジェ・ベクター描画化（未実装・実装計画済み: `REF:docs/plans.md#plan-F-01`）**:
+- **[F-01] テーマ記号（`◐` / `☾` / `☀`）のベジェ・ベクター描画化（実装完了: `REF:src/ui/theme.rs`, `REF:tests/gui.rs`）**:
   - `REF:src/ui/theme.rs` と `REF:src/ui/app.rs` でフォント文字 `"☾"` 等を使わず、`egui::Painter` のベジェ曲線と円弧による自前描画関数 `paint_theme_icon` に置き換える。
 
 ### 11.5 タイポグラフィ
 
-状態: 実装中（REF:src/ui/theme.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-11）
+状態: 実装完了（REF:src/ui/theme.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-11）
 
 - デスクトップでは `fontdb` でシステムの CJK フォントを探索し、見つからない場合および Web 版では `assets/ipag.ttf`（同梱 IPA ゴシック）にフォールバックする（`REF:src/ui/theme.rs`）。また `⟨⟩`（U+27E8 / U+27E9）表示のため egui 既定の Hack フォントをフォールバック末尾に連結する。
 
-- **[F-11 / S-18] 全角「？」「！」「＊」の太さ統一と `max_line_chars` 対応（未実装・実装計画済み: `REF:docs/plans.md#plan-F-11`, `REF:docs/plans.md#plan-S-18`）**:
+- **[F-11 / S-18] 全角「？」「！」「＊」の太さ統一と `max_line_chars` 対応（実装完了: `REF:src/ui/theme.rs`, `REF:src/ui/settings.rs`, `REF:tests/gui.rs`）**:
   - `REF:src/ui/theme.rs` のフォント設定で全角約物が CJK フォントからグリフ解決される順序を保証し（F-11）、`REF:src/ui/settings.rs` の `max_line_chars`（`ja`=44, `en`=70）に応じて本文折り返し幅を計算する（S-18）。
 
 ## 12. 国際化
