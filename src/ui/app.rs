@@ -2458,6 +2458,7 @@ impl NovnowApp {
                 reference: show_reference
                     .then_some((self.settings.reference_pane_side, reference_width)),
                 inlay_hints: self.settings.inlay_hints,
+                overlay: self.overlay != Overlay::None,
             };
             // `Ctrl+.` のポップアップが出ている間は、↑/↓/Enter/Tab を Slice のエディタより先に取る
             let popup = if matches!(self.overlay, Overlay::QuickFix { .. }) {

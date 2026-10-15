@@ -211,6 +211,23 @@ pub struct View {
     pub reference: Option<(PaneSide, f32)>,
     /// インレイヒントを出すか（`ui.json.inlay_hints`、`Alt+H`。§6.6.2）。
     pub inlay_hints: bool,
+    /// A modal/command palette is receiving arrows instead of the list.
+    pub overlay: bool,
+}
+
+/// Unmodified arrows browse list rows only when no text editor or overlay owns the keys.
+/// Structural Alt+arrows still commit and open the destination.
+pub(super) fn browse_keys(ctx: &egui::Context, view: &View) -> Option<bool> {
+    if view.overlay || ctx.wants_keyboard_input() {
+        return None;
+    }
+    if ctx.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::ArrowDown)) {
+        Some(true)
+    } else if ctx.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::ArrowUp)) {
+        Some(false)
+    } else {
+        None
+    }
 }
 
 impl View {

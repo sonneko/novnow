@@ -83,6 +83,10 @@ pub struct State {
     rows: Option<(u64, Vec<IdeaRow>)>,
     editor: slice_editor::Cache,
     reveal: bool,
+    /// List highlight moved without opening/committing its text slice.
+    preview: bool,
+    /// Scroll the list once after a keyboard-only selection change.
+    scroll_list: bool,
 }
 
 impl State {
@@ -141,12 +145,16 @@ impl State {
                 self.tag.clear();
             }
             self.selected = Some(row.id);
+            self.preview = false;
             self.reveal = true;
         }
     }
 
     /// 選んだアイデアをエディタ（Slice）に開く。
     pub fn sync(&mut self, bench: &mut Workbench) {
+        if self.preview {
+            return;
+        }
         match self.current(bench) {
             Some(row) => {
                 let tag = format!("idea:{}:{}", row.id, row.index);
@@ -157,8 +165,36 @@ impl State {
         }
     }
 
+    /// Only move the list highlight; keep the current idea slice uncommitted.
+    pub fn preview_row(&mut self, bench: &Workbench, forward: bool) -> bool {
+        let visible = self.visible(bench);
+        let at = self
+            .selected
+            .as_ref()
+            .and_then(|id| visible.iter().position(|row| &row.id == id));
+        let next = if forward {
+            at.map_or(Some(0), |index| {
+                (index + 1 < visible.len()).then_some(index + 1)
+            })
+        } else {
+            at.and_then(|index| index.checked_sub(1))
+        };
+        let Some(id) = next
+            .and_then(|index| visible.get(index))
+            .map(|row| row.id.clone())
+        else {
+            return false;
+        };
+        self.selected = Some(id);
+        self.preview = true;
+        self.scroll_list = true;
+        self.reveal = false;
+        true
+    }
+
     /// 前 / 次のアイデア（`Alt+↑/↓`・`Alt+←/→`・`Ctrl+Home/End`）。
     pub fn nav(&mut self, bench: &mut Workbench, nav: Nav) -> bool {
+        self.preview = false;
         bench.commit();
         let visible = self.visible(bench);
         let index = self
@@ -188,6 +224,7 @@ impl State {
 
     /// 選んでいるアイデアを捨てる（`status: dropped`。行は消さない）。捨てたアイデアの ID。
     pub fn drop_selected(&mut self, bench: &mut Workbench, now: f64) -> Option<String> {
+        self.preview = false;
         bench.commit();
         let row = self.current(bench)?;
         let text = bench.project().text(ideas::PATH).to_owned();
@@ -213,6 +250,7 @@ impl State {
         now: f64,
         stamp: &str,
     ) -> Option<(String, String)> {
+        self.preview = false;
         bench.commit();
         let row = self.current(bench)?;
         let source = bench.project().text(ideas::PATH).to_owned();
@@ -298,6 +336,9 @@ pub fn show(
     let scale = view.scale;
     let locale = view.locale;
     state.sync(bench);
+    if let Some(forward) = super::browse_keys(ctx, view) {
+        state.preview_row(bench, forward);
+    }
     let width = ctx.screen_rect().width();
     super::fixed_width(
         egui::SidePanel::left("idea-list"),
@@ -383,34 +424,46 @@ fn list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) {
         return;
     }
     let mut clicked = None;
-    egui::ScrollArea::vertical()
+    let scroll_list = std::mem::take(&mut state.scroll_list);
+    let mut scroll = egui::ScrollArea::vertical()
         .id_source("idea-list-scroll")
-        .auto_shrink([false, false])
-        .show_rows(ui, 24.0 * scale, visible.len(), |ui, rows| {
-            for row in &visible[rows] {
-                let is_selected = selected.as_deref() == Some(row.id.as_str());
-                let response = list_row(
-                    ui,
-                    view.mode,
-                    scale,
-                    Row {
-                        selected: is_selected,
-                        bar: Some(status_color(view.mode, row.status)),
-                        label: &row.id,
-                        text: &row.title,
-                        muted: row.status == IdeaStatus::Dropped,
-                    },
-                );
-                if is_selected && state.reveal {
-                    response.scroll_to_me(Some(egui::Align::Center));
-                }
-                if response.clicked() {
-                    clicked = Some(row.id.clone());
-                }
+        .auto_shrink([false, false]);
+    if scroll_list {
+        if let Some(index) = visible
+            .iter()
+            .position(|row| Some(&row.id) == selected.as_ref())
+        {
+            scroll = scroll.vertical_scroll_offset(
+                (index as f32 * 24.0 * scale - ui.available_height() / 2.0).max(0.0),
+            );
+        }
+    }
+    scroll.show_rows(ui, 24.0 * scale, visible.len(), |ui, rows| {
+        for row in &visible[rows] {
+            let is_selected = selected.as_deref() == Some(row.id.as_str());
+            let response = list_row(
+                ui,
+                view.mode,
+                scale,
+                Row {
+                    selected: is_selected,
+                    bar: Some(status_color(view.mode, row.status)),
+                    label: &row.id,
+                    text: &row.title,
+                    muted: row.status == IdeaStatus::Dropped,
+                },
+            );
+            if is_selected && state.reveal {
+                response.scroll_to_me(Some(egui::Align::Center));
             }
-        });
+            if response.clicked() {
+                clicked = Some(row.id.clone());
+            }
+        }
+    });
     if let Some(id) = clicked {
         state.selected = Some(id);
+        state.preview = false;
         state.reveal = true;
     }
 }

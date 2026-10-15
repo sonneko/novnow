@@ -227,6 +227,17 @@ async function main() {
     });
     check(composed !== null && !composed.includes('へんかん'), 'IME の確定だけが本文に入った（変換中の字は入らない、§9.8.5）');
     await shot(tab, '02-typed');
+    // S-14/F-02/F-03: capture a narrow layout for manual caret and status-bar inspection.
+    await tab.setViewport({ width: 620, height: 720 });
+    await shot(tab, '02b-narrow');
+    await tab.keyboard.type('追');
+    await sleep(70); // before the 400ms autosave, while the status indicator is unsaved
+    await tab.screenshot({ path: path.join(OUT, '02c-narrow-unsaved.png') });
+    await tab.setViewport({ width: 1280, height: 800 });
+    await until('狭幅で打った字の保存', async () => {
+      const text = file(await db(tab), 'sample', 'contents/01-04.txt');
+      return text?.includes('変換した。追') ? text : null;
+    });
 
     // 3. 読み直しても残る・Ctrl+O で選択画面へ戻る（§13.4）
     await tab.reload({ waitUntil: 'load' });

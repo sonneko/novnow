@@ -65,6 +65,10 @@ pub struct State {
     unmatched_selected: usize,
     editor: slice_editor::Cache,
     reveal: bool,
+    /// Browse the cast list without replacing the open editor Slice.
+    preview: bool,
+    /// Scroll the list once after a keyboard-only selection change.
+    scroll_list: bool,
     /// ドラッグ中の帯と、ずらした量（px）。
     drag: Option<(usize, f32)>,
     /// キーでタブを切り替えた直後（タブの中身にフォーカスを移す）。
@@ -100,6 +104,7 @@ impl State {
     pub fn select(&mut self, index: usize) {
         self.selected = Some(index);
         self.band = 0;
+        self.preview = false;
         self.reveal = true;
     }
 
@@ -115,12 +120,16 @@ impl State {
         if let Some(index) = found {
             self.selected = Some(index);
             self.band = 0;
+            self.preview = false;
             self.reveal = true;
         }
     }
 
     /// 選んだキャラをエディタ（Slice）に開く。
     pub fn sync(&mut self, bench: &mut Workbench) {
+        if self.preview {
+            return;
+        }
         match self.current(bench) {
             Some(row) => {
                 let tag = format!("cast:{}:{}", row.index, row.name);
@@ -131,8 +140,31 @@ impl State {
         }
     }
 
+    /// Browse the adjacent character without committing the editor.
+    pub fn preview_row(&mut self, bench: &Workbench, forward: bool) -> bool {
+        let selected = self.selected;
+        let rows = self.rows(bench);
+        let at = selected.and_then(|index| rows.iter().position(|row| row.index == index));
+        let next = if forward {
+            at.map_or(Some(0), |index| {
+                (index + 1 < rows.len()).then_some(index + 1)
+            })
+        } else {
+            at.and_then(|index| index.checked_sub(1))
+        };
+        let Some(index) = next.and_then(|index| rows.get(index)).map(|row| row.index) else {
+            return false;
+        };
+        self.selected = Some(index);
+        self.preview = true;
+        self.scroll_list = true;
+        self.reveal = false;
+        true
+    }
+
     /// 前 / 次のキャラ（`Alt+↑/↓`）。
     pub fn nav(&mut self, bench: &mut Workbench, nav: Nav) -> bool {
+        self.preview = false;
         bench.commit();
         let rows = self.rows(bench).to_vec();
         let at = self
@@ -245,6 +277,15 @@ pub fn show(
     let scale = view.scale;
     let locale = view.locale;
     state.sync(bench);
+    // The right-hand timeline owns unmodified arrows while focused.
+    let timeline_focus = state.tab == Tab::Modes
+        && (state.focus_tab
+            || ctx.memory(|memory| memory.has_focus(egui::Id::new("cast-timeline"))));
+    if !timeline_focus {
+        if let Some(forward) = super::browse_keys(ctx, view) {
+            state.preview_row(bench, forward);
+        }
+    }
     let mut jump = None;
     super::fixed_width(
         egui::SidePanel::left("cast-list"),
@@ -263,6 +304,7 @@ pub fn show(
             return;
         }
         let mut clicked = None;
+        let scroll_list = std::mem::take(&mut state.scroll_list);
         egui::ScrollArea::vertical()
             .id_source("cast-list-scroll")
             .auto_shrink([false, false])
@@ -279,6 +321,9 @@ pub fn show(
                             ..Row::default()
                         },
                     );
+                    if scroll_list && state.selected == Some(row.index) {
+                        response.scroll_to_me(Some(egui::Align::Center));
+                    }
                     if response.clicked() {
                         clicked = Some(row.index);
                     }
@@ -287,6 +332,7 @@ pub fn show(
         if let Some(index) = clicked {
             state.selected = Some(index);
             state.band = 0;
+            state.preview = false;
             state.reveal = true;
         }
     });

@@ -2248,3 +2248,115 @@ fn palette_format_and_dictionary_references_and_rename_and_outline_folding_work_
         "folded chapter in outline tree: {text}"
     );
 }
+
+#[test]
+fn bare_arrow_selection_does_not_commit_or_replace_an_open_slice() {
+    use novnow::ui::workspaces::{idea, material, plot_episode, plot_outline};
+
+    let mut bench = Workbench::new(material_project(), None, 400);
+    let mut materials = material::State::default();
+    assert!(materials.select(&bench, "M0138"));
+    materials.sync(&mut bench);
+    let slice = bench.slice().cloned().expect("open material");
+    bench.slice_buffer_mut().push_str(" 未確定");
+    assert!(materials.preview_row(&bench, true));
+    materials.sync(&mut bench);
+    assert_eq!(bench.slice(), Some(&slice));
+    assert!(bench.slice_buffer().ends_with(" 未確定"));
+    assert!(!bench.project().text(&slice.path).contains(" 未確定"));
+    materials.nav(&mut bench, Nav::PrevSection);
+    assert!(bench.project().text(&slice.path).contains(" 未確定"));
+
+    let mut bench = Workbench::new(novel::novel_with("ideas.md", IDEAS), None, 400);
+    let mut ideas = idea::State::default();
+    ideas.sync(&mut bench);
+    let slice = bench.slice().cloned().expect("open idea");
+    assert!(ideas.preview_row(&bench, true));
+    ideas.sync(&mut bench);
+    assert_eq!(bench.slice(), Some(&slice));
+
+    let mut bench = Workbench::new(world::world(), None, 400);
+    let mut episode = plot_episode::State::default();
+    episode.land(&bench, id(1, 4, 2, 1));
+    episode.sync(&mut bench);
+    let slice = bench.slice().cloned().expect("open plot episode");
+    assert!(episode.preview_row(&bench, true));
+    episode.sync(&mut bench);
+    assert_eq!(bench.slice(), Some(&slice));
+
+    let mut outline = plot_outline::State::default();
+    outline.land_all(&bench, 1);
+    outline.sync(&mut bench);
+    let slice = bench.slice().cloned().expect("open plot outline");
+    if outline.preview_row(&bench, true) {
+        outline.sync(&mut bench);
+        assert_eq!(bench.slice(), Some(&slice));
+    }
+}
+
+#[test]
+fn bare_arrow_browses_material_list_without_leaving_its_editor() {
+    let mut harness = material_harness();
+    harness.frame(vec![key(Key::Num5, ALT)]);
+    harness.frame(Vec::new());
+    let before = material_selected(&harness);
+    let slice = harness.app.workbench().and_then(Workbench::slice).cloned();
+    if let Some(focused) = harness.ctx.memory(|memory| memory.focused()) {
+        harness
+            .ctx
+            .memory_mut(|memory| memory.surrender_focus(focused));
+    }
+    harness.frame(vec![key(Key::ArrowDown, Modifiers::NONE)]);
+    assert_ne!(material_selected(&harness), before);
+    assert_eq!(
+        harness.app.workbench().and_then(Workbench::slice),
+        slice.as_ref()
+    );
+}
+
+#[test]
+fn bare_arrow_browses_cast_and_plot_lists_without_committing_slices() {
+    for (workspace, selected) in [
+        (Key::Num6, Workspace::Cast),
+        (Key::Num2, Workspace::PlotEpisode),
+        (Key::Num3, Workspace::PlotOutline),
+    ] {
+        let mut harness = Harness::start_with(world::world(), true).0;
+        harness.frame(vec![key(workspace, ALT)]);
+        harness.frame(Vec::new());
+        let previous = harness.app.workbench().and_then(Workbench::slice).cloned();
+        let before = match selected {
+            Workspace::Cast => {
+                format!("{:?}", harness.app.spaces().and_then(|s| s.cast.selected()))
+            }
+            Workspace::PlotEpisode => format!(
+                "{:?}",
+                harness.app.spaces().and_then(|s| s.episode.selected())
+            ),
+            Workspace::PlotOutline => format!(
+                "{:?}",
+                harness.app.spaces().and_then(|s| s.outline.selected())
+            ),
+            _ => unreachable!(),
+        };
+        if let Some(id) = harness.ctx.memory(|memory| memory.focused()) {
+            harness.ctx.memory_mut(|memory| memory.surrender_focus(id));
+        }
+        harness.frame(vec![key(Key::ArrowDown, Modifiers::NONE)]);
+        let spaces = harness.app.spaces().expect("open");
+        assert_eq!(spaces.switcher.current(), selected);
+        let after = match selected {
+            Workspace::Cast => format!("{:?}", spaces.cast.selected()),
+            Workspace::PlotEpisode => format!("{:?}", spaces.episode.selected()),
+            Workspace::PlotOutline => format!("{:?}", spaces.outline.selected()),
+            _ => unreachable!(),
+        };
+        if selected != Workspace::PlotOutline {
+            assert_ne!(before, after, "bare arrow must browse {selected:?}");
+        }
+        assert_eq!(
+            harness.app.workbench().and_then(Workbench::slice),
+            previous.as_ref()
+        );
+    }
+}

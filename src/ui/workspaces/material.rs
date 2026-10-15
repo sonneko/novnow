@@ -129,6 +129,10 @@ pub struct State {
     editor: slice_editor::Cache,
     form: Option<Form>,
     reveal: bool,
+    /// List highlight moved without opening/committing its text slice.
+    preview: bool,
+    /// Scroll the list once after a keyboard-only selection change.
+    scroll_list: bool,
 }
 
 impl State {
@@ -186,6 +190,7 @@ impl State {
             return false;
         }
         self.selected = Some(key.to_owned());
+        self.preview = false;
         self.reveal = true;
         true
     }
@@ -214,11 +219,15 @@ impl State {
 
     /// 資料 MD のエディタにフォーカスを移す（`Ctrl+2`）。
     pub fn focus_editor(&mut self) {
+        self.preview = false;
         self.reveal = true;
     }
 
     /// 選んだ行の資料 MD をエディタ（Slice）に開く（ファイル全体）。
     pub fn sync(&mut self, bench: &mut Workbench) {
+        if self.preview {
+            return;
+        }
         match self.current(bench) {
             Some(entry) => {
                 let count = bench.project().text(&entry.path).split('\n').count();
@@ -230,8 +239,34 @@ impl State {
         }
     }
 
+    /// Only move the list highlight; keep the current MD slice and unsaved buffer open.
+    pub fn preview_row(&mut self, bench: &Workbench, forward: bool) -> bool {
+        let selected = self.selected.clone();
+        let entries = self.entries(bench);
+        let at = selected.and_then(|key| entries.iter().position(|entry| entry.key() == key));
+        let next = if forward {
+            at.map_or(Some(0), |index| {
+                (index + 1 < entries.len()).then_some(index + 1)
+            })
+        } else {
+            at.and_then(|index| index.checked_sub(1))
+        };
+        let Some(key) = next
+            .and_then(|index| entries.get(index))
+            .map(|entry| entry.key().to_owned())
+        else {
+            return false;
+        };
+        self.selected = Some(key);
+        self.preview = true;
+        self.scroll_list = true;
+        self.reveal = false;
+        true
+    }
+
     /// 前 / 次の資料（`Alt+↑/↓`・`Alt+←/→`・`Ctrl+Home/End`）。
     pub fn nav(&mut self, bench: &mut Workbench, nav: Nav) -> bool {
+        self.preview = false;
         bench.commit();
         let selected = self.selected.clone();
         let entries = self.entries(bench).to_vec();
@@ -412,6 +447,9 @@ pub fn show(
     let scale = view.scale;
     let locale = view.locale;
     state.sync(bench);
+    if let Some(forward) = super::browse_keys(ctx, view) {
+        state.preview_row(bench, forward);
+    }
     let width = ctx.screen_rect().width();
     super::fixed_width(
         egui::SidePanel::left("material-list"),
@@ -539,6 +577,7 @@ fn list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) {
         .clone()
         .or_else(|| entries.first().map(|entry| entry.key().to_owned()));
     let mut clicked = None;
+    let scroll_list = std::mem::take(&mut state.scroll_list);
     egui::ScrollArea::vertical()
         .id_source("material-list-scroll")
         .auto_shrink([false, false])
@@ -557,7 +596,7 @@ fn list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) {
                         muted: entry.status == Some(MaterialStatus::Rejected),
                     },
                 );
-                if is_selected && state.reveal {
+                if is_selected && (state.reveal || scroll_list) {
                     response.scroll_to_me(Some(egui::Align::Center));
                 }
                 if response.clicked() {
@@ -567,6 +606,7 @@ fn list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) {
         });
     if let Some(key) = clicked {
         state.selected = Some(key);
+        state.preview = false;
         state.reveal = true;
     }
 }

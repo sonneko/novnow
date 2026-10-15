@@ -61,6 +61,10 @@ pub struct State {
     editor: slice_editor::Cache,
     /// 次のフレームで選んだ行までスクロールし、エディタにフォーカスを移す。
     reveal: bool,
+    /// List highlight moved without opening/committing its text slice.
+    preview: bool,
+    /// Scroll the list once after a keyboard-only selection change.
+    scroll_list: bool,
 }
 
 impl State {
@@ -82,6 +86,7 @@ impl State {
             .and_then(|index| rows.get(index))
             .map(|row| row.id)
             .or(Some(id));
+        self.preview = false;
         self.reveal = true;
     }
 
@@ -90,6 +95,7 @@ impl State {
         self.episode = Some((chapter, episode));
         let rows = self.rows(bench);
         self.selected = rows.first().map(|row| row.id);
+        self.preview = false;
         self.reveal = true;
     }
 
@@ -130,6 +136,9 @@ impl State {
 
     /// 選んだ行をエディタ（Slice）に開く。行が無ければ Slice を閉じる。
     pub fn sync(&mut self, bench: &mut Workbench) {
+        if self.preview {
+            return;
+        }
         let Some(path) = self.path(bench) else {
             bench.close_slice();
             return;
@@ -145,8 +154,30 @@ impl State {
         }
     }
 
+    /// Highlight the adjacent plot row without committing/changing the Slice editor.
+    pub fn preview_row(&mut self, bench: &Workbench, forward: bool) -> bool {
+        let at = self.selected_index(bench);
+        let rows = self.rows(bench);
+        let next = if forward {
+            at.map_or(Some(0), |index| {
+                (index + 1 < rows.len()).then_some(index + 1)
+            })
+        } else {
+            at.and_then(|index| index.checked_sub(1))
+        };
+        let Some(id) = next.and_then(|index| rows.get(index)).map(|row| row.id) else {
+            return false;
+        };
+        self.selected = Some(id);
+        self.preview = true;
+        self.scroll_list = true;
+        self.reveal = false;
+        true
+    }
+
     /// 構造移動（`Alt+↑/↓/←/→`・`Ctrl+Alt+←/→`・`Ctrl+Home/End`）。動けなければ `false`。
     pub fn nav(&mut self, bench: &mut Workbench, nav: Nav) -> bool {
+        self.preview = false;
         bench.commit();
         let index = self.selected_index(bench);
         let rows = self.rows(bench).to_vec();
@@ -212,6 +243,7 @@ impl State {
         let Some(path) = self.path(bench) else {
             return false;
         };
+        self.preview = false;
         bench.commit();
         let index = self.selected_index(bench);
         let rows = self.rows(bench).to_vec();
@@ -329,6 +361,9 @@ pub fn show(
     let scale = view.scale;
     let locale = view.locale;
     state.sync(bench);
+    if let Some(forward) = super::browse_keys(ctx, view) {
+        state.preview_row(bench, forward);
+    }
     let mut request = None;
     if let Some((side, width)) = view.reference {
         let panel = match side {
@@ -472,7 +507,7 @@ fn upper(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) {
 fn list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) -> Option<Request> {
     let digits = bench.project().digits();
     let selected = state.selected_index(bench);
-    let reveal = state.reveal;
+    let reveal = state.reveal || std::mem::take(&mut state.scroll_list);
     let rows = state.rows(bench).to_vec();
     let mut request = None;
     let mut clicked = None;
@@ -535,6 +570,7 @@ fn list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) -> Optio
         });
     if let Some(id) = clicked {
         state.selected = Some(id);
+        state.preview = false;
         state.reveal = true;
     }
     request
