@@ -23,7 +23,7 @@
 ## 2. 現在のブランチ・PR・直近の作業状態
 
 - **現在のブランチ**: `arena/75c027a6-novnow`。
-- **PR**: PR #18（Draft、base は前セッションの Draft PR #17 の作業ブランチ）。
+- **PR**: PR #18（レビュー待ち、base は前セッションの Draft PR #17 の作業ブランチ）。
 - **現在の状態**: `REF:docs/plans.md#planned-fixes-and-features` の計画済み 62 項目（F-01〜F-44、S-01〜S-18）を実装・自動検証済み。L-01（未計画）と段階 ②（計画待機）は対象外。macOS/Windows 実機での操作および異なる性能環境での測定はこの Linux サンドボックスでは行っていない。
 - **本ブランチの作業**: `REF:src/ui/app.rs` ほかのパレット・共通シェル・参照ペイン、`REF:src/cli/import.rs` の CLI Zip 導入、`REF:src/adapters/storage_idb.rs` の Web 同名制限、`REF:src/core/aicontext/packet.rs` の参考例、`REF:sw.js` の PWA、`REF:website/src/data/diagnostics.ts` の診断一覧を実装済み。
 - **検証**: `bash scripts/verify.sh` は 1232 件のテストで全ジョブ成功（53 ターゲット）。`REF:scripts/web-smoke.sh` は Web の既存シナリオと PWA のオフライン再起動を含め成功。幅 620px の画面を撮り、F-02/F-03 のキャレット・本文の収まりと S-14 の右端の未保存マークを視覚確認（`REF:scripts/web-smoke.mjs` の `02b` / `02c`）。`npm run build`（`website/`、診断の個別ページ 152 件を含む 160 ページ）と `python3 scripts/diagnostics-site.py --check` も成功。
