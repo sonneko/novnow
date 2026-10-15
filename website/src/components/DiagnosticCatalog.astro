@@ -3,6 +3,7 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import Header from "./Header.astro";
 import Footer from "./Footer.astro";
 import { diagnostics } from "../data/diagnostics";
+import diagnosticEnglish from "../data/diagnostics-en.json";
 const { lang } = Astro.props as { lang: "ja" | "en" };
 const japanese = lang === "ja";
 ---
@@ -18,8 +19,9 @@ const japanese = lang === "ja";
       <section id={code} style="scroll-margin-top:6rem;border-top:1px solid var(--border-color);padding:1.5rem 0;">
         <h2><code>{code}</code> <small>{severity === "E" ? (japanese ? "エラー" : "Error") : severity === "W" ? (japanese ? "警告" : "Warning") : (japanese ? "情報" : "Info")}</small></h2>
         <p><strong>{japanese ? ja : en}</strong></p>
-        <p>{japanese ? "発生条件: " : "Cause (Japanese specification): "}{condition}</p>
-        <p>{japanese ? "対応: " : "Available action (Japanese specification): "}{action === "—" ? (japanese ? "自動修正なし。該当箇所を確認してください。" : "No automatic fix; review the affected location.") : action}</p>
+        <p>{japanese ? "発生条件: " : "Cause: "}{japanese ? condition : diagnosticEnglish[code][0]}</p>
+        <p>{japanese ? "対応: " : "Available action: "}{japanese ? (action === "—" ? "自動修正なし。該当箇所を確認してください。" : action) : diagnosticEnglish[code][1]}</p>
+        <p><a href={`/${lang}/diagnostics/${code}/`}>{japanese ? "具体例と解消手順を見る →" : "See example and resolution →"}</a></p>
       </section>
     ))}
   </main>

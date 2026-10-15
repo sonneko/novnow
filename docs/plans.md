@@ -12,7 +12,7 @@
 | 段階 ①（M0〜M11） | 完了 | コア仕様・全 8 ワークスペース・MCP・CLI・Web 版・ベンチマーク・サンプル一式 | `REF:docs/history.md` |
 | 設計書セクション実装状況 | 実装完了 91 節 / 実装中 31 節 / 未実装・実装計画済み 1 節 / 未実装・未計画 1 節 / 実装待ち 2 節 | 全 10 設計書（`docs/designs/*.md`）の `### ` 節（合計 126 節） | `REF:docs/plans.md#planned-fixes-and-features` |
 | 仕様変更・修正（F-01〜F-44） | 実装中（F-10, F-23, F-24, F-42 は既に完了） | UI・エディタ・パレット・辞書・ショートカット・性能等の修正 44 項目 | `REF:docs/plans.md#planned-fixes` |
-| 機能追加（小規模：S-01〜S-18） | 実装中（S-09 は既に完了） | エージェント例指定・PWA・Zip 導入・形態素波線等の小規模機能追加 18 項目 | `REF:docs/plans.md#planned-small-features` |
+| 機能追加（小規模：S-01〜S-18） | 実装中（S-01, S-09, S-15 は完了） | エージェント例指定・PWA・Zip 導入・形態素波線等の小規模機能追加 18 項目 | `REF:docs/plans.md#planned-small-features` |
 | 機能追加（比較的大規模：L-01） | 未実装・未計画 | 既存の本文テキストから `novnow` に移行するための手段の提供 | `REF:docs/plans.md#unplanned-large` |
 | 段階 ②（追加仕様 1〜27） | 未着手（計画待機） | 予約済みの追加機能 27 項目（10 個の縫い代で受け入れ準備済み） | `REF:docs/plans.md#stage-2` |
 <!-- SYNC:END stage1-status -->
@@ -22,7 +22,7 @@
 <a id="planned-fixes-and-features"></a>
 ## 2. 仕様変更・修正および小規模機能追加の実装計画（状態: 一部実装完了）
 
-以下の 62 項目（修正 44 件 `F-01`〜`F-44`、小規模機能追加 18 件 `S-01`〜`S-18`）はすべて仕様書（`docs/specifications/*.md`）および設計書（`docs/designs/*.md`）への反映を完了している。現時点での実装状態は `F-10` / `F-23` / `F-24` / `F-42` / `S-09` が **「実装完了」**、残りは **「実装中」または「未実装・実装計画済み」** である。実装時は依存関係と変更対象モジュールの近接性に基づき、以下の **6 フェーズ（P1〜P6）** の順序で段階的に実装・検証する。
+以下の 62 項目（修正 44 件 `F-01`〜`F-44`、小規模機能追加 18 件 `S-01`〜`S-18`）はすべて仕様書（`docs/specifications/*.md`）および設計書（`docs/designs/*.md`）への反映を完了している。計画策定時に `F-10` / `F-23` / `F-24` / `F-42` / `S-09` が **「実装完了」** だった。その後 `S-01` / `S-15` の実装・検証を完了し、残りは **「実装中」または「未実装・実装計画済み」** である。実装時は依存関係と変更対象モジュールの近接性に基づき、以下の **6 フェーズ（P1〜P6）** の順序で段階的に実装・検証する。
 
 ### 2.1 フェーズ別実行順序
 
@@ -320,7 +320,7 @@
 ### 2.3 機能追加（小規模：S-01〜S-18：一部実装中）
 
 <a id="plan-S-01"></a>
-- **S-01（実装中）**: LLM エージェントに「例」として指定した話の本文またはプロットをコンテキスト付与
+- **S-01（実装完了）**: LLM エージェントに「例」として指定した話の本文またはプロットをコンテキスト付与
   - 仕様・設計: `REF:docs/designs/agent.md`（§15.4, §15.7）, `REF:docs/designs/syntax.md`（§5.9, §5.10）
   - 変更対象: `REF:src/core/model/task.rs`, `REF:src/core/agents/files.rs`, `REF:src/core/aicontext/packet.rs`, `REF:src/core/syntax/prompt_md.rs`, `REF:src/ui/workspaces/agent.rs`
   - 計画内容: タスクに参考例範囲 `examples` を持たせ、指定した話・節の本文またはプロットをコンテキストパケットおよび `{{examples}}` 変数として渡す。
@@ -404,10 +404,10 @@
   - 計画内容: 幅不足時に「セッション情報 → 原稿用紙枚数 → 文字数」の順で `…` に畳み、ホバーで詳細を出し、保存状態マークを最高優先で残す。
 
 <a id="plan-S-15"></a>
-- **S-15（実装中）**: Web サイトへの全エラー解説の記載と CI での網羅性チェック
+- **S-15（実装完了）**: Web サイトへの全エラー解説の記載と CI での網羅性チェック
   - 仕様・設計: `REF:docs/designs/diagnostics.md`（§7.2）, `REF:docs/designs/workflows.md`（§18.4）
   - 変更対象: `REF:docs/specifications/diagnostics.md`, `REF:tests/diagnostics_catalog.rs`, `REF:.github/workflows/ci.yml`
-  - 計画内容: 定義されている全 76 診断コードの解説を整備し、全エラーの解説が存在するかを CI で機械検査する。
+  - 計画内容: 定義されている全 76 診断コードの原因・具体例・対処（日英）の個別ページを整備し、全コードの解説が存在するかを CI で機械検査する（`REF:website/src/pages/[lang]/diagnostics/[code].astro`, `REF:scripts/diagnostics-site.py`）。
 
 <a id="plan-S-16"></a>
 - **S-16（実装中）**: Web⇔デスクトップ双方向移行のヘルプ（Zip 手順）を追加

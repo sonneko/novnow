@@ -287,6 +287,7 @@ pub fn show(
         }
     }
     let mut jump = None;
+    let mut request = None;
     super::fixed_width(
         egui::SidePanel::left("cast-list"),
         200.0 * scale.min(1.2),
@@ -368,6 +369,9 @@ pub fn show(
                 .inner_margin(Margin::symmetric(16.0, 8.0)),
         )
         .show(ctx, |ui| {
+            if ui.button(i18n::text(locale, "cast.scan_button")).clicked() {
+                request = Some(Request::Shortcut(crate::ui::shell::Command::Scan));
+            }
             if bench.slice().is_some() {
                 if state.reveal {
                     let id = slice_editor::editor_id(bench);
@@ -382,7 +386,7 @@ pub fn show(
             }
             state.reveal = false;
         });
-    (None, jump)
+    (request, jump)
 }
 
 fn tabs(ui: &mut Ui, state: &mut State, view: &View) {

@@ -66,6 +66,8 @@ pub enum Action {
     New,
     /// MCP configuration editor.
     EditMcp,
+    /// Stop every active agent task (same as Ctrl+Shift+X).
+    StopAll,
     /// `R`: 実行。
     Run(Vec<String>),
     /// `Shift+R`: まとめて実行（確認の重ね物）。
@@ -607,6 +609,12 @@ fn tasks_column(
     if ui.button(i18n::text(locale, "help.edit_mcp")).clicked() {
         actions.push(Action::EditMcp);
     }
+    if ui
+        .button(i18n::text(locale, "agent.stop_all_button"))
+        .clicked()
+    {
+        actions.push(Action::StopAll);
+    }
     super::separator(ui, view.mode);
     if tasks.is_empty() {
         if ui.button(i18n::text(locale, "agent.new_button")).clicked() {
@@ -682,6 +690,36 @@ fn tasks_column(
             .clicked()
         {
             actions.push(Action::New);
+        }
+        if let Some(id) = state.task.as_ref() {
+            let targets = if state.marked.is_empty() {
+                vec![id.clone()]
+            } else {
+                state.marked.clone()
+            };
+            ui.horizontal_wrapped(|ui| {
+                if ui.button(i18n::text(locale, "agent.run_button")).clicked() {
+                    actions.push(Action::Run(vec![id.clone()]));
+                }
+                if ui
+                    .button(i18n::text(locale, "agent.confirm_button"))
+                    .clicked()
+                {
+                    actions.push(Action::Confirm(targets.clone()));
+                }
+                if ui
+                    .button(i18n::text(locale, "agent.dry_run_button"))
+                    .clicked()
+                {
+                    actions.push(Action::DryRun(targets));
+                }
+                if ui
+                    .button(i18n::text(locale, "agent.cancel_button"))
+                    .clicked()
+                {
+                    actions.push(Action::Cancel(id.clone()));
+                }
+            });
         }
     });
 }
@@ -1134,11 +1172,21 @@ fn delegation_column(
             state.column = Column::Delegation;
         }
     }
-    ui.label(
-        RichText::new(i18n::text(locale, "agent.keys.delegation"))
-            .font(small(view))
-            .color(colors.fg_faint),
-    );
+    ui.horizontal_wrapped(|ui| {
+        for (label, level) in [
+            ("1 off", Delegation::Off),
+            ("2 propose", Delegation::Propose),
+            ("3 apply", Delegation::Apply),
+            ("4 autonomous", Delegation::Autonomous),
+        ] {
+            if ui.button(label).clicked() {
+                actions.push(Action::Level {
+                    role: BUILTIN_ROLES[state.role].to_owned(),
+                    level,
+                });
+            }
+        }
+    });
     super::separator(ui, view.mode);
     let counters = &info.runtime.counters;
     ui.label(

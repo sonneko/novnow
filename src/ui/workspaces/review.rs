@@ -284,6 +284,7 @@ pub fn show(
     // 編集欄が無いので、テキストにフォーカスが無ければ素の矢印と Enter も受ける
     let typing = ctx.memory(|memory| memory.focused().is_some());
     let mut jump = None;
+    let mut request = None;
     if !typing {
         let (down, up, enter) = ctx.input_mut(|input| {
             (
@@ -309,7 +310,9 @@ pub fn show(
                 .inner_margin(Margin::symmetric(16.0, 8.0)),
         )
         .show(ctx, |ui| {
-            tabs(ui, state, view);
+            if tabs(ui, state, view) {
+                request = Some(Request::Shortcut(crate::ui::shell::Command::Review));
+            }
             super::separator(ui, view.mode);
             let clicked = match state.tab {
                 Tab::Diagnostics => diagnostics_tab(ui, state, bench, view),
@@ -324,11 +327,12 @@ pub fn show(
             }
             state.reveal = false;
         });
-    (None, jump)
+    (request, jump)
 }
 
-fn tabs(ui: &mut Ui, state: &mut State, view: &View) {
+fn tabs(ui: &mut Ui, state: &mut State, view: &View) -> bool {
     let colors = theme::palette(view.mode);
+    let mut rerun = false;
     ui.horizontal(|ui| {
         for (tab, key) in [
             (Tab::Diagnostics, "review.tab_diagnostics"),
@@ -346,12 +350,19 @@ fn tabs(ui: &mut Ui, state: &mut State, view: &View) {
                 state.tab = tab;
             }
         }
+        if ui
+            .button(i18n::text(view.locale, "review.rerun_button"))
+            .clicked()
+        {
+            rerun = true;
+        }
         ui.label(
             RichText::new(i18n::text(view.locale, "review.keys"))
                 .font(FontId::new(11.0 * view.scale, FontFamily::Proportional))
                 .color(colors.fg_faint),
         );
     });
+    rerun
 }
 
 /// 診断タブ。クリックされた行（と、ダブルクリックか）を返す。

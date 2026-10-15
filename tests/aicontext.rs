@@ -454,3 +454,35 @@ fn long_examples_are_clipped_consistently_with_prompt_expansion() {
     assert!(packet.request().system.contains(&packet.examples));
     assert!(packet.examples.chars().count() < 8000);
 }
+
+#[test]
+fn chapter_and_episode_plot_examples_are_extracted_at_the_requested_scope() {
+    let project = project();
+    let specs = ["@01 plot", "@01-04 plot"];
+    for spec in specs {
+        let examples = vec![spec.to_owned()];
+        let packet = packet::build(&Inputs {
+            project: &project,
+            role: "writer",
+            scene: id(1, 4, 2, 3),
+            delegation: Delegation::Propose,
+            generated_at: NOW,
+            title: "星屑",
+            excluded: &[],
+            task: None,
+            comment: "",
+            examples: &examples,
+        });
+        assert!(
+            packet.examples.contains(" plot"),
+            "{spec}: {}",
+            packet.examples
+        );
+        assert!(
+            packet.examples.contains("@01-04"),
+            "{spec}: {}",
+            packet.examples
+        );
+        assert!(!packet.examples.contains(" contents"));
+    }
+}

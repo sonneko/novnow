@@ -1,5 +1,6 @@
 #![cfg(feature = "ui")]
 
+mod harness;
 mod world;
 
 use novnow::core::model::document::Document;
@@ -34,5 +35,41 @@ fn typing_scans_only_the_active_section_of_a_100k_character_file() {
     assert!(
         worst < Duration::from_millis(16),
         "active-section scan took {worst:?}"
+    );
+}
+
+/// F-43: measure the *whole* egui frame after a real Text event, not just highlighting.
+/// The large file is divided into sections so the active section is short, as required
+/// by the per-section synchronous analysis contract. Run in --release for the 16ms target.
+#[test]
+fn a_keystroke_in_a_100k_character_file_fits_the_frame_budget() {
+    let mut text = "@01-04-02 x\n短い節。\n;\n".to_owned();
+    let other = "隣の節は編集中ではありません。描画と診断を打鍵と同期させません。\n";
+    while text.chars().count() < 100_000 {
+        text.push_str(other);
+        text.push_str(";\n");
+    }
+    let project = world_with(CONTENTS_PATH, &text);
+    let mut ui = harness::Harness::start_with(project, true).0;
+    ui.frame(vec![harness::key(egui::Key::Num2, egui::Modifiers::CTRL)]);
+    // Allow font atlas and initial caches to settle before measuring the typing path.
+    for _ in 0..3 {
+        ui.frame(Vec::new());
+    }
+    let mut worst = Duration::ZERO;
+    for _ in 0..8 {
+        let started = Instant::now();
+        ui.frame(vec![egui::Event::Text("あ".to_owned())]);
+        worst = worst.max(started.elapsed());
+    }
+    assert!(
+        ui.app.workbench().unwrap().buffer().matches("あ").count() == 8,
+        "text events must reach the editor"
+    );
+    eprintln!("100k-character whole-frame worst keystroke: {worst:?}");
+    let limit = if cfg!(debug_assertions) { 250 } else { 16 };
+    assert!(
+        worst < Duration::from_millis(limit),
+        "whole egui typing frame took {worst:?} (limit {limit}ms)"
     );
 }

@@ -83,7 +83,7 @@
 - Web リリースビルドの gzip 後 wasm サイズ（上限 8MiB、実測約 6.75MiB）は `REF:.github/workflows/ci.yml` の `wasm` ジョブで検査する。
 
 - **[F-38 / F-43 / S-12] 10 万字打鍵 16ms 以内・アイデア 1,000 件 60fps・文脈ビュー可視範囲レイアウト（未実装・実装計画済み: `REF:docs/plans.md#plan-F-43`）**:
-  - 打鍵時の編集中節限定解析（F-43）、一覧の `show_rows` 仮想スクロール（F-38）、文脈ビューのビューポートカリング（S-12）を実装し、`REF:tests/incremental.rs` と `REF:benches/core.rs` で計測・検証する。
+  - 打鍵時の編集中節限定解析（F-43）、一覧の `show_rows` 仮想スクロール（F-38）、文脈ビューのビューポートカリング（S-12）を実装し、`REF:tests/editor_performance.rs`（release で画面全体の打鍵 16ms を確認）、`REF:tests/incremental.rs` と `REF:benches/core.rs` で計測・検証する。
 
 ### 18.2 メモリ
 
@@ -105,4 +105,4 @@
 - CI ワークフロー（`REF:.github/workflows/ci.yml`）の 5 ジョブ（`fmt`, `clippy`, `test`, `wasm`, `bench`）およびローカル検証スクリプト `REF:scripts/verify.sh`、ドキュメント規約検査スクリプト `REF:docs/script/duplicate.py` により全変更を機械的に検証する。
 
 - **[F-30 / F-32 / F-42 / F-43 / S-15] 追加の CI・自動テスト検証項目（未実装・実装計画済み: `REF:docs/plans.md#plan-S-15`）**:
-  - `REF:tests/gui.rs`（押せる要素の下線・ホバー・24×24px 当たり判定検査）、`REF:tests/i18n_catalog.rs`（`ja.toml` 助詞前空白検査）、`REF:tests/incremental.rs`（10 万字 1 打鍵 16ms 検査）、および全診断コードの Web サイト解説網羅性 CI チェックを追加する。
+  - `REF:tests/gui.rs`（押せる要素の下線・ホバー・24×24px 当たり判定検査）、`REF:tests/i18n_catalog.rs`（`ja.toml` 助詞前空白検査）、`REF:tests/editor_performance.rs`（10 万字での画面全体の 1 打鍵 16ms 検査。CI の bench ジョブは release で実行）、および `REF:scripts/diagnostics-site.py`（全診断コードの日英解説と具体例の網羅性 CI 検査）を追加する。

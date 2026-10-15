@@ -471,6 +471,7 @@ UseExplicitForm = "Use the explicit form: {0}"
 unavailable = "{0} is not available in this version yet"
 
 [episode]
+new_button = "Ctrl+Shift+N Create the first section"
 # {0} = character count (grouped)
 prose_chars = "{0} characters"
 no_prose = "Not written yet"
@@ -483,6 +484,7 @@ no_plot = "The episode plot {0} does not exist yet. Press Ctrl+Shift+N to create
 empty = "Choose a section in the list above to edit it here"
 
 [outline]
+new_button = "Ctrl+Shift+N Create a block"
 all = "All"
 empty = "Choose a block in the list above to edit it here"
 no_parent = "The overall plot plots/all.txt has no block for this chapter yet"
@@ -583,6 +585,7 @@ new_title = "New material (created as a proposal)"
 new_hint = "Type a title (you may add #category), then Enter"
 
 [review]
+rerun_button = "Ctrl+Shift+E Rerun checks"
 tab_diagnostics = "Diagnostics"
 tab_progress = "Progress"
 keys = "Ctrl+Shift+← / → tabs · ↑ / ↓ select · Enter open · Ctrl+Shift+E recount"
@@ -605,6 +608,7 @@ chars_of = "{0} / {1} characters ({2}%)"
 cannot_open = "This version has no screen that opens {0} yet"
 
 [cast]
+scan_button = "Ctrl+Shift+V Scan unmatched speech"
 none = "characters.md has no characters"
 empty = "Choose a character in the list to edit it here"
 tab_modes = "Modes"
@@ -623,6 +627,11 @@ unmatched_count = "{0} lines of dialogue matched no speech pattern (double-click
 
 # The agent workspace (§15.7, M10)
 [agent]
+run_button = "R Run"
+confirm_button = "Shift+R Run selected"
+dry_run_button = "D Dry run"
+cancel_button = "X Cancel"
+stop_all_button = "Ctrl+Shift+X Stop all"
 new_button = "N New task"
 new_examples = "Reference examples (one per line)"
 new_examples_hint = "@01-02 both"
@@ -674,7 +683,6 @@ keys.context = "↑↓ block · Space exclude / include · D dry run"
 keys.review = "A accept · P partial · X reject · M approve messages"
 keys.revert = "X revert (restore the text before the proposal)"
 keys.settled = "This proposal is settled"
-keys.delegation = "1 off · 2 propose · 3 apply · 4 autonomous · Ctrl+Shift+X stop all"
 column.tasks = "① Tasks"
 column.context = "② Context"
 column.review = "③ Review"

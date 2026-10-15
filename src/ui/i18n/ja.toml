@@ -469,6 +469,7 @@ UseExplicitForm = "明示形にする: {0}"
 unavailable = "{0}はこの版ではまだ使えません"
 
 [episode]
+new_button = "Ctrl+Shift+N 最初の節を作る"
 # {0} = 文字数（3 桁区切り）
 prose_chars = "{0} 字"
 no_prose = "まだ書かれていません"
@@ -481,6 +482,7 @@ no_plot = "話プロット {0}はまだありません。Ctrl+Shift+N で最初�
 empty = "上の一覧から節を選ぶと、ここで編集できます"
 
 [outline]
+new_button = "Ctrl+Shift+N ブロックを作る"
 all = "全体"
 empty = "一覧からブロックを選ぶと、ここで編集できます"
 no_parent = "全体プロット plots/all.txt にこの章のブロックはまだありません"
@@ -581,6 +583,7 @@ new_title = "新しい資料（提案として作ります）"
 new_hint = "タイトル（#分類 も書けます）を書いて Enter"
 
 [review]
+rerun_button = "Ctrl+Shift+E 数え直す"
 tab_diagnostics = "診断"
 tab_progress = "進捗"
 keys = "Ctrl+Shift+← / → タブ · ↑ / ↓ 選ぶ · Enter 開く · Ctrl+Shift+E 数え直す"
@@ -603,6 +606,7 @@ chars_of = "{0} / {1} 字（{2}%）"
 cannot_open = "{0}を開く画面はこの版にはまだありません"
 
 [cast]
+scan_button = "Ctrl+Shift+V 未一致の台詞を走査"
 none = "characters.md にキャラがいません"
 empty = "一覧からキャラを選ぶと、ここで編集できます"
 tab_modes = "モード"
@@ -621,6 +625,11 @@ unmatched_count = "役割語が一致しなかった台詞 {0} 件（ダブル�
 
 # agent ワークスペース（§15.7、M10）
 [agent]
+run_button = "R 実行"
+confirm_button = "Shift+R まとめて実行"
+dry_run_button = "D ドライラン"
+cancel_button = "X 中止"
+stop_all_button = "Ctrl+Shift+X 総停止"
 new_button = "N タスクを作る"
 new_examples = "参考例（1 行に 1 指定）"
 new_examples_hint = "@01-02 both"
@@ -687,7 +696,6 @@ keys.context = "↑↓ ブロック · Space 外す / 戻す · D ドライラ�
 keys.review = "A 採用 · P 一部採用 · X 却下 · M メッセージを承認"
 keys.revert = "X 差し戻し（本文を提案の前に戻す）"
 keys.settled = "決着済みの提案です"
-keys.delegation = "1 off · 2 propose · 3 apply · 4 autonomous · Ctrl+Shift+X 総停止"
 column.tasks = "① タスク"
 column.context = "② コンテキスト"
 column.review = "③ 結果レビュー"

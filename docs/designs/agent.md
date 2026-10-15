@@ -29,7 +29,7 @@
 - 固定 9 セクション（`1 project` 〜 `9 history`）の組み立ては `core::aicontext::packet`（`REF:src/core/aicontext/packet.rs`）が `core::resolve::context_rules` と同じ優先順位規則を用いて生成する。
 - 役割別のトークン予算配分と優先順位に基づく決定論的切り詰めは `core::aicontext::budget`（`REF:src/core/aicontext/budget.rs`）が担う（検証: `REF:tests/aicontext.rs`）。
 
-- **[S-01] 指定した話の本文・プロットを「例」としてコンテキストに付与（未実装・実装計画済み: `REF:docs/plans.md#plan-S-01`）**:
+- **[S-01] 指定した話の本文・プロットを「例」としてコンテキストに付与（実装完了: `REF:src/core/aicontext/packet.rs`, `REF:tests/aicontext.rs`）**:
   - `REF:src/core/aicontext/packet.rs` と `REF:src/core/aicontext/budget.rs` で、タスクに指定された `examples` 範囲の本文またはプロットを抽出し、コンテキストパケットおよび `{{examples}}` 変数へ組み込む。
 
 ### 15.5 プロンプト設計
@@ -50,7 +50,7 @@
 
 - `agent` ワークスペース（`Alt+8`）の 4 ペイン描画、タスク起票・ドライラン・提案の節単位採否（`A` / `X` / `E`）・差し戻し（`U`）・役割別委譲レベル変更（`1`〜`4`）・総停止（`Ctrl+Shift+X`）は `REF:src/ui/workspaces/agent.rs` と `REF:src/ui/agents.rs` に実装する。
 
-- **[F-19 / S-01] `mcp.json` 編集モーダルへの移行と起票時の「例」指定 UI（未実装・実装計画済み: `REF:docs/plans.md#plan-F-19`, `REF:docs/plans.md#plan-S-01`）**:
+- **[F-19 / S-01] `mcp.json` 編集モーダルへの移行と起票時の「例」指定 UI（実装中: `REF:docs/plans.md#plan-F-19`, `REF:docs/plans.md#plan-S-01`）**:
   - `REF:src/ui/workspaces/agent.rs` と `REF:src/ui/app.rs` に `agents/mcp.json` 編集モーダル呼び出し（F-19）およびタスク起票時の参考例範囲入力欄（S-01）を追加する。
 
 ### 15.8 MCP

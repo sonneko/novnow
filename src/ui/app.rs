@@ -1522,6 +1522,15 @@ impl NovnowApp {
             };
             let mut notices: Vec<String> = Vec::new();
             match action {
+                Action::StopAll => {
+                    notices.push(crate::ui::agents::stop_all(
+                        &mut session.bench,
+                        session.host.as_mut(),
+                        &mut session.agents,
+                        now,
+                        locale,
+                    ));
+                }
                 Action::EditMcp => {
                     self.overlay = Overlay::McpConfig {
                         input: session

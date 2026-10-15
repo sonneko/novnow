@@ -2360,3 +2360,180 @@ fn bare_arrow_browses_cast_and_plot_lists_without_committing_slices() {
         );
     }
 }
+
+#[test]
+fn empty_episode_plot_can_be_created_with_the_visible_button() {
+    let mut harness = novel_harness();
+    harness.frame(vec![key(Key::ArrowRight, CTRL_ALT)]);
+    harness.frame(vec![key(Key::Num2, ALT)]);
+    let rect = harness
+        .rect_of("Ctrl+Shift+N 最初の節を作る")
+        .expect("visible insertion button");
+    harness.click_at(rect.center());
+    harness.frame(Vec::new());
+    harness.frame(vec![Event::Text("扉を開ける".into())]);
+    harness.idle(0.6);
+    assert_eq!(
+        written(&harness, "plots/01-02.txt"),
+        "@01-02-01\n扉を開ける\n"
+    );
+}
+
+#[test]
+fn review_and_cast_shortcut_buttons_execute_their_actions() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::Num9, ALT)]);
+    harness.frame(vec![key(Key::ArrowRight, CTRL_SHIFT)]);
+    assert_eq!(
+        harness.app.spaces().unwrap().review.tab,
+        novnow::ui::workspaces::review::Tab::Progress
+    );
+    let rect = harness
+        .rect_of("Ctrl+Shift+E 数え直す")
+        .expect("review rerun button");
+    harness.click_at(rect.center());
+    assert_eq!(
+        harness.app.spaces().unwrap().review.tab,
+        novnow::ui::workspaces::review::Tab::Diagnostics
+    );
+
+    harness.frame(vec![key(Key::Num6, ALT)]);
+    let rect = harness
+        .rect_of("Ctrl+Shift+V 未一致の台詞を走査")
+        .expect("cast scan button");
+    harness.click_at(rect.center());
+    assert_eq!(
+        harness.app.spaces().unwrap().cast.tab,
+        novnow::ui::workspaces::cast::Tab::Unmatched
+    );
+}
+
+#[test]
+fn empty_chapter_plot_can_be_created_with_the_visible_button() {
+    let mut harness = novel_harness();
+    harness.frame(vec![key(Key::Num3, ALT)]);
+    harness.frame(vec![key(Key::ArrowRight, CTRL_ALT)]);
+    let rect = harness
+        .rect_of("Ctrl+Shift+N ブロックを作る")
+        .expect("visible outline insertion button");
+    harness.click_at(rect.center());
+    harness.frame(Vec::new());
+    assert_eq!(outline_selected(&harness), Some(id(2, 1, 0, 0)));
+    harness.idle(0.6);
+    assert_eq!(written(&harness, "plots/02.txt"), "@02-01\n;\n");
+}
+
+#[test]
+fn agent_stop_all_button_downgrades_delegation() {
+    let (mut harness, _) = agent_harness(
+        agent_project(r#"{"enabled":true,"roles":{"writer":"apply"}}"#, &[]),
+        |_| {},
+    );
+    let rect = harness
+        .rect_of("Ctrl+Shift+X 総停止")
+        .expect("visible stop-all button");
+    harness.click_at(rect.center());
+    assert_eq!(
+        harness
+            .app
+            .workbench()
+            .unwrap()
+            .project()
+            .settings()
+            .agents
+            .roles
+            .get("writer")
+            .map(String::as_str),
+        Some("propose")
+    );
+}
+
+#[test]
+fn thousand_idea_rows_scroll_to_the_keyboard_selection_without_rendering_every_row() {
+    let mut project = world::world();
+    let ideas = (1..=1000)
+        .map(|number| format!("# I{number:04} Idea {number:04}\nstatus: active\n\n"))
+        .collect::<String>();
+    project.insert(Document::new("ideas.md", ideas));
+    let mut harness = Harness::start_with(project, true).0;
+    harness.frame(vec![key(Key::Num4, ALT)]);
+    for _ in 0..65 {
+        harness.frame(vec![key(Key::ArrowDown, Modifiers::NONE)]);
+    }
+    let selected = harness.app.spaces().unwrap().idea.selected();
+    assert_eq!(selected, Some("I0066"));
+    let output = harness.frame(Vec::new());
+    let text = painted_text(&output);
+    assert!(
+        text.contains("Idea 0066"),
+        "selected row should be in the viewport: {text}"
+    );
+    assert!(
+        !text.contains("Idea 0900"),
+        "offscreen rows must not be laid out: {text}"
+    );
+}
+
+#[test]
+fn focused_cast_timeline_arrows_do_not_change_the_character_list_selection() {
+    let mut harness = novel_harness();
+    harness.frame(vec![key(Key::Num6, ALT)]);
+    let first = harness.app.spaces().unwrap().cast.selected();
+    for _ in 0..3 {
+        harness.frame(vec![key(Key::ArrowRight, CTRL_SHIFT)]);
+    }
+    harness.frame(Vec::new());
+    harness.frame(vec![key(Key::ArrowDown, Modifiers::NONE)]);
+    assert_eq!(harness.app.spaces().unwrap().cast.selected(), first);
+}
+
+#[test]
+fn agent_task_examples_entered_in_the_modal_reach_the_dry_run_packet() {
+    let (mut harness, _) = agent_harness(agent_project("{}", &[]), |_| {});
+    press(&mut harness, Key::N, Modifiers::NONE);
+    let rect = harness
+        .rect_of("@01-02 both")
+        .expect("examples field hint is visible");
+    harness.click_at(rect.center());
+    harness.frame(vec![Event::Text("@01-04 plot".into())]);
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    let task = board(&harness).tasks[0].clone();
+    assert_eq!(task.examples, ["@01-04 plot"]);
+    press(&mut harness, Key::D, Modifiers::NONE);
+    let packet = project_text(&harness, "agents/results/T0001.dryrun.md");
+    assert!(packet.contains("## examples"), "{packet}");
+    assert!(packet.contains("@01-04"), "{packet}");
+}
+
+#[test]
+fn agent_delegation_level_buttons_apply_to_the_selected_role() {
+    let (mut harness, _) = agent_harness(agent_project("{}", &[]), |_| {});
+    let rect = harness
+        .rect_of("3 apply")
+        .expect("visible delegation button");
+    harness.click_at(rect.center());
+    assert_eq!(
+        harness
+            .app
+            .workbench()
+            .unwrap()
+            .project()
+            .settings()
+            .agents
+            .roles
+            .get("writer")
+            .map(String::as_str),
+        Some("apply")
+    );
+}
+
+#[test]
+fn agent_dry_run_button_generates_the_selected_task_packet() {
+    let (mut harness, _) = agent_harness(agent_project("{}", &["@01-04-02-01"]), |_| {});
+    let rect = harness.rect_of("D ドライラン").expect("dry run button");
+    harness.click_at(rect.center());
+    assert!(
+        project_text(&harness, "agents/results/T0001.dryrun.md").contains("## 1 project"),
+        "the button must perform the same action as the D key"
+    );
+}
