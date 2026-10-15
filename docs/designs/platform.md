@@ -35,8 +35,8 @@
 
 - Web 起動時および `Ctrl+O` 時のプロジェクト選択モーダル（一覧・検索 `/`・新規作成 `Ctrl+N`・Zip 取込 `Ctrl+I`・改名 `F2`・削除 `Delete`・単一タブ利用の注記 `project.pick.single_tab`）は `WebPicker`（`REF:src/ui/web.rs`）に実装する（検証: `REF:scripts/web-smoke.mjs`）。
 
-- **[F-33 / S-02] Web 版の同名プロジェクト作成禁止と初回起動ウェルカム案内（未実装・実装計画済み: `REF:docs/plans.md#plan-F-33`, `REF:docs/plans.md#plan-S-02`）**:
-  - `REF:src/ui/web.rs` と `REF:src/adapters/storage_idb.rs` で既存プロジェクトと同一タイトルの作成・改名を拒否し（F-33）、履歴が空の初回起動時およびパレットからウェルカム案内モーダルを表示する（S-02）。
+- **[F-33 / S-02] Web 版の同名プロジェクト作成禁止と初回起動ウェルカム案内（実装中: `REF:docs/plans.md#plan-F-33`, `REF:docs/plans.md#plan-S-02`）**:
+  - `REF:src/ui/web.rs` と `REF:src/adapters/storage_idb.rs` で既存プロジェクトと同一タイトルの作成・改名を拒否する（F-33 は実装完了。`REF:tests/storage_idb.rs` と実ブラウザ `REF:scripts/web-smoke.mjs` で検証済み）。履歴が空の初回起動時およびパレットからウェルカム案内モーダルを表示する（S-02）。
 
 ### 13.5 Zip インポート / エクスポート
 

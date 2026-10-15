@@ -312,6 +312,17 @@ async function main() {
     await sleep(1200);
     await shot(tab, '04-back-to-list');
 
+    // F-33: the title check must run against IndexedDB, not just the
+    // currently filtered picker rows. A failed create must not open a project.
+    await key(tab, 'Control+n');
+    await tab.keyboard.type(first.projects[0].name);
+    await key(tab, 'Enter');
+    await sleep(900);
+    const afterDuplicateCreate = await db(tab);
+    check(afterDuplicateCreate.projects.length === 1 &&
+      afterDuplicateCreate.projects[0].id === 'sample',
+      'F-33: 既存タイトルの新規作成を拒否し IndexedDB を保持');
+
     // 4. Ctrl+N で新規 → 名前 → 開く
     await key(tab, 'Control+n');
     await tab.keyboard.type('星屑の時計');
@@ -355,6 +366,15 @@ async function main() {
     // 8. 選択画面: F2 で名前の変更・Zip の取り込み・Delete で削除
     await key(tab, 'Control+o');
     await sleep(1200);
+    await key(tab, 'F2');
+    await key(tab, 'Control+a');
+    await tab.keyboard.type(first.projects[0].name);
+    await key(tab, 'Enter');
+    await sleep(900);
+    const afterDuplicateRename = await db(tab);
+    check(afterDuplicateRename.projects.find((project) => project.id === created?.id)?.name === '星屑の時計' &&
+      afterDuplicateRename.projects.length === 2,
+      'F-33: 既存タイトルへの改名を拒否し IndexedDB を保持');
     await key(tab, 'F2');
     await key(tab, 'Control+a');
     await tab.keyboard.type('改名した');
