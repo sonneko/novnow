@@ -106,7 +106,7 @@ novnow形式は、小説をテキストデータでエクスポートする機�
 - [`agent.md`](./docs/specifications/agent.md): AI エージェント・委譲レベル・MCP・プロンプト仕様
 - [`workflows.md`](./docs/specifications/workflows.md): 資料収集・エクスポート・性能品質要件
 
-公式Webサイト（https://novnow.sonneko.com/specifications/）でも確認いただけます。
+公式Webサイト（[https://novnow.sonneko.com/specifications/](https://novnow.sonneko.com/specifications/)）でも確認いただけます。
 
 ## ライセンスについて
 
