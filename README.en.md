@@ -4,6 +4,8 @@
 
 The novnow editor, built to manage the novnow format, is available as a desktop application (Windows / macOS / Linux) and in web browsers.
 
+![](docs/screenshot-m7.png)
+
 ---
 
 ## What is the novnow format?
