@@ -6,6 +6,8 @@
 
 novnow形式を管理するための、novnowエディタは、デスクトップアプリ（Windows / macOS / Linux）およびブラウザに対応しています。
 
+![](docs/screenshot-m7.png)
+
 ---
 
 ## novnow形式とは？
