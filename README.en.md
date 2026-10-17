@@ -4,6 +4,8 @@
 
 The novnow editor, built to manage the novnow format, is available as a desktop application (Windows / macOS / Linux) and in web browsers.
 
+![](docs/screenshot-m7.png)
+
 ---
 
 ## What is the novnow format?
@@ -101,7 +103,7 @@ All specifications for the editor and the novnow format are fully documented:
 - [`agent.md`](./docs/specifications/agent.md): AI agents, delegation levels, MCP, and prompt specifications
 - [`workflows.md`](./docs/specifications/workflows.md): Material collection, export, and performance/quality requirements
 
-You can also view them on our official website (https://novnow.sonneko.com/specifications/).
+You can also view them on our official website ([https://novnow.sonneko.com/specifications/](https://novnow.sonneko.com/specifications/)).
 
 ## About the License
 
