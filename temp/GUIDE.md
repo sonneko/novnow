@@ -287,6 +287,31 @@ PR テンプレート（`.github/pull_request_template.md`）は、LLMがPRを�
 4. `docs/developers.md` をプロジェクト固有の情報に調整
 5. `.github/workflows/ci.yml` の lint / test / build をプロジェクト固有のコマンドに置換
 6. `scripts/bootstrap-toolchain.sh` をプロジェクトのツールチェーンに合わせて調整
+7. **技術スタックの環境整備**: `dependencies/` ディレクトリを参照（後述）
+
+### 7.1.1 `dependencies/` の扱い
+
+`dependencies/` には各技術スタック固有の環境整備ドキュメントとスクリプトが含まれている（詳細は `REF:dependencies/STRATEGY.md`）。
+
+プロジェクトで使用する技術スタックに応じて以下を行う：
+
+- **Rust を使う場合**: `dependencies/rust/` のファイルをプロジェクトに移動する
+  ```bash
+  cp dependencies/rust/bootstrap-rust.sh scripts/bootstrap-rust.sh
+  cp dependencies/rust/toolchain-export.yml .github/workflows/toolchain-export.yml
+  cp dependencies/rust/toolchain.env .github/toolchain.env
+  # dependencies/rust/README.md の内容を docs/add-dependencies.md に追記してもよい
+  ```
+  詳しい手順は `dependencies/rust/README.md` を参照すること。
+
+- **Rust を使わない場合**: `dependencies/rust/` を削除して問題ない
+  ```bash
+  rm -rf dependencies/rust/
+  ```
+
+- **他の技術スタックが必要な場合**: `dependencies/STRATEGY.md` の手順に従って新しい `dependencies/<stack>/` を追加する
+
+`dependencies/` のファイルはテンプレート利用時の参考情報であり、プロジェクトに統合後は `dependencies/` ディレクトリごと削除しても問題ない。
 
 ### 7.2 LLMエージェントへの指示
 
