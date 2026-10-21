@@ -4,6 +4,7 @@ pub mod diagnostics;
 pub mod export;
 pub mod features;
 pub mod id;
+pub mod migration;
 pub mod model;
 pub mod policy;
 pub mod resolve;

@@ -399,7 +399,7 @@ fn the_spec_example_has_one_scene_with_four_sections() {
     assert_eq!(scenes_tag(&text), "S0|h0|id1-4-2-0|d3|0..31|f1,2,3,4,5,6");
     assert_eq!(
         sections_tag(&text, 0),
-        "s0|n1|12..15|c12..15|b15|f13,14|p12 / s1|n2|16..19|c16..19|b19|f17,18|p16 / s2|n3|20..26|c20..26|b26|f20,23,24,25|p21,22 / s3|n4|27..29|c27..29|b29|f28|p27"
+        "s0|n1|12..15|c12..15|b15|f13,14|p12 / s1|n2|16..19|c16..19|b19|f17,18|p16 / s2|n3|20..26|c20..26|b26|f20,23,24,25|p22 / s3|n4|27..29|c27..29|b29|f28|p27"
     );
 }
 
@@ -472,13 +472,13 @@ fn two_modes_on_one_character_are_allowed() {
     );
 }
 
-/// ① では `# ` は行コメントにならない（§5.0.8、② の Stage::Two）。節の内容のまま。
+/// Additional specification 15: hash lines are comments.
 #[test]
-fn a_hash_line_is_prose_in_stage_one() {
+fn a_hash_line_is_a_comment() {
     let text = spec_episode();
     assert_eq!(
         line_tag_of(&text, 21),
-        "point[# ここの心変わりは何度か書き直すかもしれない]"
+        "comment[# ここの心変わりは何度か書き直すかもしれない@0..65]"
     );
     assert!(sections_tag(&text, 0).contains("|p12"));
 }
@@ -612,10 +612,10 @@ fn trailing_blank_lines_are_not_part_of_the_content() {
 fn comments_do_not_end_the_scene_field_region() {
     assert_eq!(
         lines_tag(COMMENTS),
-        "scene[01-04-02|d3|id1-4-2-0|t攻防|c] / comment[ 場面のメモ@0..18] / field[cast|Cast|va] / point[# 井戸] / point[本文。] / comment[ 節のメモ@0..15] / break[@0|c]"
+        "scene[01-04-02|d3|id1-4-2-0|t攻防|c] / comment[ 場面のメモ@0..18] / field[cast|Cast|va] / comment[# 井戸@0..8] / point[本文。] / comment[ 節のメモ@0..15] / break[@0|c]"
     );
     assert_eq!(scenes_tag(COMMENTS), "S0|h0|id1-4-2-0|d3|0..7|f2");
-    assert_eq!(sections_tag(COMMENTS, 0), "s0|n1|3..6|c3..6|b6|f-|p3,4");
+    assert_eq!(sections_tag(COMMENTS, 0), "s0|n1|4..6|c4..6|b6|f-|p4");
 }
 
 #[test]

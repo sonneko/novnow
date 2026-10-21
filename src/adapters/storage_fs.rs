@@ -489,6 +489,35 @@ impl FsStorage {
         Ok(Self { root, gate })
     }
 
+    /// Reserve a new root exclusively. Never merge into an existing directory.
+    /// The parent must already exist; a failed write may leave a partial project.
+    pub fn create_fresh(gate: Arc<FsGate>, root: &Path) -> Result<Self, StorageError> {
+        let parent = root
+            .parent()
+            .ok_or_else(|| io_error(root, &io::Error::other("missing parent")))?;
+        let parent = std::fs::canonicalize(parent).map_err(|e| io_error(parent, &e))?;
+        let name = root
+            .file_name()
+            .ok_or_else(|| io_error(root, &io::Error::other("missing name")))?;
+        let root = parent.join(name);
+        match std::fs::symlink_metadata(&root) {
+            Ok(_) => {
+                return Err(io_error(
+                    &root,
+                    &io::Error::from(io::ErrorKind::AlreadyExists),
+                ))
+            }
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+            Err(error) => return Err(io_error(&root, &error)),
+        }
+        gate.write_policy()
+            .open(&root)
+            .map_err(StorageError::Policy)?;
+        gate.check(&root).map_err(StorageError::Policy)?;
+        std::fs::create_dir(&root).map_err(|e| io_error(&root, &e))?;
+        Self::open(gate, &root)
+    }
+
     /// ルート（解決済みの絶対パス）。
     pub fn root(&self) -> &Path {
         &self.root

@@ -304,10 +304,7 @@ fn unknown_syntax_stays_in_the_body() {
         line_tag_of("! 見開き。リリアが時計塔の階段を見上げている。"),
         "text[! 見開き。リリアが時計塔の階段を見上げている。]"
     );
-    assert_eq!(
-        line_tag_of("# これはコメントではない"),
-        "text[# これはコメントではない]"
-    );
+    assert_eq!(line_tag_of("#1 これは本文"), "text[#1 これは本文]");
     // C 形式にフィールド行は無い（§5.0.5 の表）
     assert_eq!(line_tag_of("summary: 一行"), "text[summary: 一行]");
     // 行内コメントは位置だけを持ち、文字列は本文に残る（除去は §17.1、M9）

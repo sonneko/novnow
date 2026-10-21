@@ -298,10 +298,10 @@ fn an_escaped_slash_does_not_open_an_inline_comment() {
 // ============================================================ §5.0.2 `# ` / `! `（②）
 
 #[test]
-fn stage_two_sigils_are_plain_text_in_stage_one() {
-    // ① では動かさない（`PLANS.md` §1.2 の 15・23）
+fn hash_comments_are_active_but_illustrations_remain_reserved() {
+    // Additional specification 15 is active independently of 23.
     let hash = tag("# メモ", A);
-    assert_eq!(hash, "text[# メモ]");
+    assert_eq!(hash, "comment(HashComment)[メモ]");
     let memo = tag("! 挿絵メモ", C);
     assert_eq!(memo, "text[! 挿絵メモ]");
 }
@@ -860,7 +860,7 @@ fn escapes_are_found_at_any_position() {
     let starts: Vec<usize> = found.iter().map(|e| e.start).collect();
     assert_eq!(starts, [1, 4]);
     assert!(found.iter().all(|e| e.valid));
-    assert_eq!(lexer::ESCAPE_TARGETS.len(), 7);
+    assert_eq!(lexer::ESCAPE_TARGETS.len(), 10);
 }
 
 #[test]
@@ -874,8 +874,8 @@ fn unescape_borrows_when_there_is_nothing_to_remove() {
 
 #[test]
 fn every_escape_target_is_listed_in_the_spec() {
-    // §5.0.3 の 7 種（`\@` `\'` `\;` `\/` `\「` `\」 `\\`）
-    let want = ['@', '\'', ';', '/', '「', '」', '\\'];
+    // §5.0.3, including literal markers used by migration.
+    let want = ['@', '\'', ';', '/', '「', '」', '\\', '#', '!', '^'];
     assert_eq!(lexer::ESCAPE_TARGETS, want.as_slice());
 }
 

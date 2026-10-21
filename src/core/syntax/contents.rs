@@ -562,9 +562,12 @@ pub(crate) fn parse_break<'a>(raw: &'a str) -> BreakLine<'a> {
 }
 
 pub(crate) fn parse_comment<'a>(raw: &'a str) -> CommentLine<'a> {
-    // 字句器が行頭コメントと判定した行には必ず `//` がある（§5.0.2）。`# ` は ② なので
-    // [`Stage::One`] では作られない（§5.0.8）。保険として [`whole_line_comment`] を持つ
-    let comment = find_comment(raw).unwrap_or_else(|| whole_line_comment(raw));
+    // Hash comments occupy the entire line, even when their text contains `//`.
+    let comment = if raw.trim_start().starts_with('#') {
+        whole_line_comment(raw)
+    } else {
+        find_comment(raw).unwrap_or_else(|| whole_line_comment(raw))
+    };
     CommentLine {
         raw,
         indent: lexer::leading_indent(raw),
@@ -572,8 +575,7 @@ pub(crate) fn parse_comment<'a>(raw: &'a str) -> CommentLine<'a> {
     }
 }
 
-/// 行全体を 1 件のコメントとして扱う（[`parse_comment`] の保険。② の `# ` を ① の字句器が
-/// 拾ったときなどに形を保つため）。
+/// 行全体を 1 件のコメントとして扱う（`# ` コメントおよび解析失敗時の保険）。
 fn whole_line_comment(raw: &str) -> Comment<'_> {
     Comment {
         range: 0..raw.len(),

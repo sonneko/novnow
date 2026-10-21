@@ -145,6 +145,7 @@ missing = "Not found: {0}"
 gate = "Not written because it would add {1}; kept as proposal {0}"
 
 [cli.usage]
+migrate = "migrate UTF-8 text into a fresh project (--preview does not write)"
 tagline = "a novel-writing IDE built on deterministic algorithms"
 heading = "Usage"
 open = "open an existing project"
@@ -748,3 +749,8 @@ completed = "Zip import completed"
 failed = "Could not read Zip archive: {0}"
 incomplete = "Imported project is incomplete: {0}"
 skipped = "Skipped entries"
+
+[cli.migrate]
+preview = "Migration preview (no files created)"
+completed = "Text imported into a new project"
+failed = "Migration failed (partial output may remain): {0}"
