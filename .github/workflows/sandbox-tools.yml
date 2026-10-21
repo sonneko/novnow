@@ -175,3 +175,62 @@ jobs:
           if [ -n "$pr" ]; then
             gh pr comment "$pr" --repo "${GITHUB_REPOSITORY}" --body "$body"
           fi
+
+  pyo3-crates:
+    name: pyo3 vendored sources to a git blob
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: fetch pyo3 + deps, store as a blob, comment
+        shell: bash
+        run: |
+          set -euo pipefail
+          # shellcheck source=/dev/null
+          . ./.github/sandbox-tools.env
+          if [ "${ENABLED:-0}" != "1" ] && [ "${GITHUB_EVENT_NAME}" != "workflow_dispatch" ]; then
+            echo "ENABLED=0 のためスキップします。"
+            exit 0
+          fi
+          # 段階③ H6（§19.3 Python API）の PyO3 系クレート。バージョンはここで解決して
+          # ログに残す（サンドボックスからは crates.io の索引に届かないため）。
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
+          # shellcheck source=/dev/null
+          . "$HOME/.cargo/env"
+          mkdir -p /tmp/probe/src
+          printf 'fn main() {}\n' > /tmp/probe/src/main.rs
+          cat > /tmp/probe/Cargo.toml <<'TOML'
+          [package]
+          name = "pyo3-probe"
+          version = "0.0.0"
+          edition = "2021"
+
+          [dependencies]
+          pyo3 = { version = "0.23", features = ["extension-module", "abi3-py39"] }
+          TOML
+          cd /tmp/probe
+          cargo generate-lockfile
+          pyo3_version="$(awk '/^name = "pyo3"$/ { getline; gsub(/version = |"/, ""); print; exit }' Cargo.lock)"
+          cargo vendor /tmp/pyo3-vendor >/dev/null
+          cd /tmp/pyo3-vendor
+          tar czf /tmp/pyo3-crates.tar.gz .
+          sha="$(sha256sum /tmp/pyo3-crates.tar.gz | cut -d' ' -f1)"
+          python3 - <<'PY'
+          import base64, json
+          data = base64.b64encode(open("/tmp/pyo3-crates.tar.gz", "rb").read()).decode()
+          json.dump({"content": data, "encoding": "base64"}, open("/tmp/blob.json", "w"))
+          PY
+          blob="$(gh api -X POST "repos/${GITHUB_REPOSITORY}/git/blobs" --input /tmp/blob.json --jq .sha)"
+          pr="$(gh pr list --repo "${GITHUB_REPOSITORY}" --head "${GITHUB_REF_NAME}" --state all --json number --jq '.[0].number')"
+          body="sandbox-tools: pyo3-crates=${pyo3_version} blob=${blob} sha256=${sha} file=pyo3-crates.tar.gz"
+          echo "$body"
+          echo "$body" >> "$GITHUB_STEP_SUMMARY"
+          ls /tmp/pyo3-vendor | tr '\n' ' ' >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$pr" ]; then
+            gh pr comment "$pr" --repo "${GITHUB_REPOSITORY}" --body "$body"
+          fi
