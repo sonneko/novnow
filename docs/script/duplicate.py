@@ -394,7 +394,7 @@ def main() -> int:
         return 1
 
     print(
-        f"OK: docs rules verified (10 specifications, 10 designs, "
+        f"OK: docs rules verified ({len(spec_files)} specifications, {len(design_files)} designs, "
         f"{status_counts['実装完了']} completed / {status_counts['実装中']} in-progress / "
         f"{status_counts['未実装・実装計画済み']} planned / {status_counts['未実装・未計画']} unplanned / "
         f"{status_counts['実装待ち']} stage2-waiting sections, SYNC blocks & REF links valid)."

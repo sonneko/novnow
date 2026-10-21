@@ -46,7 +46,7 @@ docs/
 2. **重複許可ブロック（`SYNC` マーカー）**:
    - `REF:docs/handoff.md` と `REF:docs/plans.md` の間で共有するマイルストーン達成状況など、重複が避けられない箇所は `<!-- SYNC:START <id> -->` と `<!-- SYNC:END <id> -->` で囲み、`REF:docs/script/duplicate.py` でバイト単位の一致を検証する。
 3. **仕様書と設計書の対応表**:
-   - `docs/specifications/<name>.md` と `docs/designs/<name>.md` は以下の 10 ファイル対で構成し、`## ` および `### ` 見出しを完全一致させる。
+   - `docs/specifications/<name>.md` と `docs/designs/<name>.md` は以下の 11 ファイル対で構成し、`## ` および `### ` 見出しを完全一致させる。
      1. `overview.md`（§1 設計原則・§2 用語・§3 アーキテクチャと処理モデル）
      2. `project.md`（§4 プロジェクト構造・付録 C サンプルプロジェクト）
      3. `syntax.md`（§5 ファイル形式）
@@ -57,6 +57,7 @@ docs/
      8. `platform.md`（§13 ストレージ・§14 起動仕様）
      9. `agent.md`（§15 AI エージェント・付録 A 既定プロンプト）
      10. `workflows.md`（§16 資料収集・§17 エクスポート・§18 性能・品質要件）
+     11. `interfaces.md`（§19 外部インターフェース：ヘッドレス全機能 API 群）
 
 ---
 
@@ -107,8 +108,8 @@ novnow/
 │   ├── history.md             # 過去の仕様改訂・意思決定・完了履歴（追記専用、REF:docs/history.md）
 │   ├── script/
 │   │   └── duplicate.py       # ドキュメント管理規則・重複・REF 検査スクリプト（REF:docs/script/duplicate.py）
-│   ├── specifications/        # 純粋な仕様書（10 ファイル）
-│   └── designs/               # 対応する設計書（10 ファイル）
+│   ├── specifications/        # 純粋な仕様書（11 ファイル）
+│   └── designs/               # 対応する設計書（11 ファイル）
 ├── examples/
 │   └── sample-novel/          # 付録 C のサンプルプロジェクト一式（REF:examples/sample-novel/project.json）
 ├── scripts/
