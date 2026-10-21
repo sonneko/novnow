@@ -226,8 +226,21 @@ jobs:
           json.dump({"content": data, "encoding": "base64"}, open("/tmp/blob.json", "w"))
           PY
           blob="$(gh api -X POST "repos/${GITHUB_REPOSITORY}/git/blobs" --input /tmp/blob.json --jq .sha)"
+          # 孤立ブランチ cache/pyo3-crates にも置く（サンドボックスからは api.github.com 経由の
+          # blob 取得も git fetch もできるが、blob SHA をログから拾えないため branch を正本にする）。
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan cache/pyo3-crates
+          git rm -rf . >/dev/null
+          cp /tmp/pyo3-crates.tar.gz .
+          echo "$sha  pyo3-crates.tar.gz" > SHA256SUMS
+          echo "$pyo3_version" > PYO3_VERSION
+          ls -1 /tmp/pyo3-vendor > CRATES
+          git add -A
+          git commit -q -m "cache: pyo3 vendored sources (${pyo3_version})"
+          git push -f origin cache/pyo3-crates
           pr="$(gh pr list --repo "${GITHUB_REPOSITORY}" --head "${GITHUB_REF_NAME}" --state all --json number --jq '.[0].number')"
-          body="sandbox-tools: pyo3-crates=${pyo3_version} blob=${blob} sha256=${sha} file=pyo3-crates.tar.gz"
+          body="sandbox-tools: pyo3-crates=${pyo3_version} blob=${blob} sha256=${sha} file=pyo3-crates.tar.gz branch=cache/pyo3-crates"
           echo "$body"
           echo "$body" >> "$GITHUB_STEP_SUMMARY"
           ls /tmp/pyo3-vendor | tr '\n' ' ' >> "$GITHUB_STEP_SUMMARY"

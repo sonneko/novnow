@@ -17,9 +17,9 @@ use crate::core::id::SceneId;
 use crate::core::model::delegation::Delegation;
 use crate::core::model::project::PROJECT_FILE;
 use crate::ports::mcp::{McpCall, McpError, McpReply, McpServer, DEFAULT_TIMEOUT_MS};
-use crate::ui::app::Host;
+use crate::app::host::Host;
 use crate::ui::i18n::{self, Locale};
-use crate::ui::workbench::Workbench;
+use crate::app::workbench::Workbench;
 
 /// MCP の呼び出し 1 回（`Host::mcp_start` に渡す）。
 #[derive(Debug, Clone, PartialEq)]

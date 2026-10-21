@@ -16,7 +16,7 @@ use crate::core::features::sections::{self, SectionRef};
 use crate::core::features::Project;
 use crate::core::id::SceneId;
 use crate::core::model::document::Document;
-use crate::ui::save_machine::SaveMachine;
+use crate::app::save_machine::SaveMachine;
 
 /// 構造移動（§9.8.2）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
