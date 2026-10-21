@@ -71,6 +71,9 @@ jobs:
       - name: Verify documentation rules (duplicate.py)
         run: python3 docs/script/duplicate.py
 
+      - name: Test documentation validator
+        run: python3 -B -m unittest discover -s docs/script -p 'test_*.py'
+
       - name: Verify website diagnostic catalog covers all codes
         run: python3 scripts/diagnostics-site.py --check
 

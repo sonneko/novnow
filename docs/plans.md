@@ -1,7 +1,6 @@
 # 開発計画（Plans）
 
-本書は現在の開発状況サマリ、新規に追加された仕様変更・小規模機能追加（全 62 件：実装完了）の実装計画、比較的大規模な機能追加（1 件：CLI 実装済み・GUI 未実装）、および段階 ②（追加仕様 27 項目）の計画を記述する。完了済みの段階 ① マイルストーン（M0〜M11）の履歴は `REF:docs/history.md` を参照すること。
-本書は現在の開発状況サマリ、新規に追加された仕様変更・小規模機能追加（全 62 件：実装完了）の実装計画、比較的大規模な機能追加（1 件：未実装・未計画）、段階 ②（追加仕様 27 項目）の計画、および段階 ③（§19 外部インターフェース：ヘッドレス全機能 API 群）の計画を記述する。完了済みの段階 ① マイルストーン（M0〜M11）の履歴は `REF:docs/history.md` を参照すること。
+本書は現在の進捗と段階③（§19 外部インターフェース）の実装計画を記録する。L-01・段階②の対応表と検収表は §3・§4 に、完了済みの意思決定・検証履歴は `REF:docs/history.md` に置く。
 
 ---
 
@@ -11,17 +10,12 @@
 | 区分 | 状態 | 対象範囲 | 参照 |
 |---|---|---|---|
 | 段階 ①（M0〜M11） | 完了 | コア仕様・全 8 ワークスペース・MCP・CLI・Web 版・ベンチマーク・サンプル一式 | `REF:docs/history.md` |
-| 設計書セクション実装状況 | 実装完了 126 節 / 実装中 0 節 / 未実装・実装計画済み 0 節 / 未実装・未計画 0 節 / 実装待ち 0 節 | 全 10 設計書（`docs/designs/*.md`）の `### ` 節（合計 126 節） | `REF:docs/plans.md#planned-fixes-and-features` |
+| 設計書セクション実装状況 | 実装完了 126 節 / 実装中 0 節 / 未実装・実装計画済み 8 節 / 未実装・未計画 0 節 / 実装待ち 0 節 | 全 11 設計書の `### ` 節（合計 134 節） | `REF:docs/designs/` |
 | 仕様変更・修正（F-01〜F-44） | 実装完了（44 件） | UI・エディタ・パレット・辞書・ショートカット・性能等の修正 44 項目 | `REF:docs/plans.md#planned-fixes` |
 | 機能追加（小規模：S-01〜S-18） | 実装完了（18 件） | エージェント例指定・PWA・Zip 導入・形態素波線等の小規模機能追加 18 項目 | `REF:docs/plans.md#planned-small-features` |
 | 機能追加（比較的大規模：L-01） | 実装済み（CLI・デスクトップ） | 既存の本文テキストから `novnow` に移行するための手段の提供 | `REF:docs/plans.md#unplanned-large` |
-| 段階 ②（追加仕様 1〜27） | 実装済み（#1〜27・最終検証） | 予約済みの追加機能 27 項目（10 個の縫い代で受け入れ準備済み） | `REF:docs/plans.md#stage-2` |
-| 設計書セクション実装状況 | 実装完了 123 節 / 実装中 0 節 / 未実装・実装計画済み 8 節 / 未実装・未計画 1 節 / 実装待ち 2 節 | 全 11 設計書（`docs/designs/*.md`）の `### ` 節（合計 134 節） | `REF:docs/plans.md#planned-fixes-and-features` |
-| 仕様変更・修正（F-01〜F-44） | 実装完了（44 件） | UI・エディタ・パレット・辞書・ショートカット・性能等の修正 44 項目 | `REF:docs/plans.md#planned-fixes` |
-| 機能追加（小規模：S-01〜S-18） | 実装完了（18 件） | エージェント例指定・PWA・Zip 導入・形態素波線等の小規模機能追加 18 項目 | `REF:docs/plans.md#planned-small-features` |
-| 機能追加（比較的大規模：L-01） | 未実装・未計画 | 既存の本文テキストから `novnow` に移行するための手段の提供 | `REF:docs/plans.md#unplanned-large` |
-| 段階 ②（追加仕様 1〜27） | 未着手（計画待機） | 予約済みの追加機能 27 項目（10 個の縫い代で受け入れ準備済み） | `REF:docs/plans.md#stage-2` |
-| 段階 ③（§19 外部インターフェース） | 仕様確定・実装未着手（H0 完了） | Rust API・Python API・LSP・MCP 拡張・CLI 拡張による GUI 全機能のヘッドレス公開 | `REF:docs/plans.md#stage-3` |
+| 段階 ②（追加仕様 1〜27） | 実装済み・検証完了（#1〜27） | 予約済みの追加機能 27 項目（10 個の縫い代で受け入れ準備済み） | `REF:docs/plans.md#stage-2` |
+| 段階 ③（§19 外部インターフェース） | 基礎仕様整備済み・実装未着手（H0 追補あり） | Rust API・Python API・LSP・MCP 拡張・CLI 拡張による GUI 全機能のヘッドレス公開 | `REF:docs/plans.md#stage-3` |
 <!-- SYNC:END stage1-status -->
 
 ---
@@ -471,7 +465,7 @@
 | B7 読者モード | #27 | B1 の出力から純粋なフォントメトリクス注入組版、禁則・縦中横・回転・ルビ、章表紙、ページ操作としおりを実装 | 注釈非表示、キーで原稿非変更、組版座標の不変条件テスト、1 ページ 3ms ベンチ |
 | B8 総合検収 | L-01 と #1〜27 | 全受け入れ基準を照合し、未検証の OS/性能を分離して記録する | 全検証スクリプト、Web スモーク、サイズ、ベンチ、PR の CI |
 
-**実施記録**: B1〜B7 の各経路を実装し、B8 の最終検証を実施。横断受け入れは `REF:tests/stage_two.rs`、保存失敗の巻き戻しは `REF:tests/storage_fs.rs`、loopback MCP の実通信は `REF:src/adapters/mcp_http.rs` の mock テストで検証する。直近の全体検証は 1267 件成功。release の 16ms / 3ms 条件、ブラウザの読者原稿非変更と画像の Zip 往復を確認。Alt+数字の文字混入も回帰テスト化し、最終の検証結果と Actions は PR に記録する。
+**実施記録**: B1〜B7 の各経路を実装し、B8 の最終検証を実施。横断受け入れは `REF:tests/stage_two.rs`、保存失敗の巻き戻しは `REF:tests/storage_fs.rs`、loopback MCP の実通信は `REF:src/adapters/mcp_http.rs` の mock テストで検証する。実装完了時の全体検証は 1268 件成功（56 ターゲット）。release の 16ms / 3ms 条件、ブラウザの読者原稿非変更と画像の Zip 往復を確認。Alt+数字の文字混入を回帰テスト化し、Web スモーク全項目および PR #23 の実装コミットに対する Actions 全6ジョブの成功を確認した。完了記録は `REF:docs/history.md` の L01-STAGE2-COMPLETE。
 
 ### 4.1 追加仕様 1〜27 の完全リストと仕様・設計書対応表（旧 §0.6・旧計画書 §1.2 統合）
 
@@ -503,7 +497,7 @@
 | 24 | キャラアイコン（`icon:`） | `REF:docs/designs/syntax.md`（§5.5.3）, `REF:docs/designs/ui.md`（§9.5.2）, `REF:docs/designs/diagnostics.md`（§7.1, §7.2） | `characters.md` の `icon:` 行、`assets/` 画像読み込みと検証、診断 `W068`–`W070` / `W092` | §4.5 `19.14-24` |
 | 25 | キャラ別・節長の統計強化 | `REF:docs/designs/ui.md`（§9.6.3, §10.9.5） | キャラ別台詞数・台詞字数（話者不明 `（不明）` 集計含む）、節長ヒストグラム | §4.5 `19.14-25` |
 | 26 | 話の長さバランス偏差値 | `REF:docs/designs/ui.md`（§10.3.4）, `REF:docs/designs/diagnostics.md`（§7.2） | `plot-outline` 分量タブでの T スコア（偏差値）算出、外れ値診断 `W091` | §4.5 `19.14-26` |
-| 27 | 読者モード（縦書きプレビュー） | `REF:docs/designs/ui.md`（§10.7）, `REF:docs/designs/workflows.md`（§17.3, §18.1）, `REF:docs/designs/project.md`（§4.4.3, §4.5.1） | `Alt+7`（`reader` ワークスペース）、`core/reader.rs`（純粋組版関数 `layout`）と `ui/workspaces/reader.rs`（段階 ② で新設予定）、`.novnow/reader.json`、`project.json.reader`、`reader.exit` 文言、1 ページ 3ms 以内目標 | §4.5 `19.14-27` |
+| 27 | 読者モード（縦書きプレビュー） | `REF:docs/designs/ui.md`（§10.7）, `REF:docs/designs/workflows.md`（§17.3, §18.1）, `REF:docs/designs/project.md`（§4.4.3, §4.5.1） | `Alt+7`（`reader` ワークスペース）、`REF:src/core/reader.rs`（純粋組版関数 `layout`）と `REF:src/ui/workspaces/stage_two.rs`（読者 UI）、`.novnow/reader.json`、`project.json.reader`、`reader.exit` 文言、1 ページ 3ms 以内目標 | §4.5 `19.14-27` |
 | U-7 | 既定プロンプトの不変保管と復元 | `REF:docs/designs/agent.md`（§15.5.4） | **段階 ①（M10）で実装完了**（`REF:src/core/agents/prompts.rs`、`>prompt reset` / `>prompt diff`） | §4.5 `19.14-U7` |
 | U-8 | エージェントの並列実行 | `REF:docs/designs/agent.md`（§15.7.5） | **段階 ①（M10）で実装完了**（`REF:src/core/agents/runner.rs`、`REF:src/ui/agents.rs`、`Shift+R`） | §4.5 `19.14-U8` |
 
@@ -747,14 +741,17 @@
 
 **番号の曖昧性解消**: §4.3・§4.5 に見える「旧仕様書 §19.13 / §19.14」は廃止済み単一ファイル `SPECIFICATIONS.md` の受け入れ基準章を指し、新設の `REF:docs/specifications/interfaces.md` の §19（外部インターフェース）とは別物である。章番号の再利用は旧ファイルの 10（現在 11）分割時に確定した採番規則による。
 
-### 5.1 H0（完了 — 本セッション）: ドキュメント整備
+### 5.1 H0（基礎文書整備完了）: ドキュメント整備
 
-- [x] `REF:docs/specifications/interfaces.md` を新設: §19.1 共通原則〜§19.8 版・互換性・配布。§19.7 は正規操作カタログ（117 行）で、インターフェースごとの例外と関門の印を定義する。
+- [x] `REF:docs/specifications/interfaces.md` を新設: §19.1 共通原則〜§19.8 版・互換性・配布。§19.7 は正規操作カタログで、インターフェースごとの例外と関門の印を定義する。
 - [x] `REF:docs/designs/interfaces.md` を新設: 見出しは仕様書と完全一致させ、8 つの `###` 節すべての `状態:` を「未実装・実装計画済み」とした。
 - [x] `REF:docs/developers.md` §1.1 項目 3 の対応表と §3 ディレクトリツリーのファイル数を 11 へ更新した。
 - [x] `REF:docs/script/duplicate.py` の末尾 OK 行の個数表示を、実ファイル一覧に基づく動的なものへ変更した。
-- [x] SYNC 進捗表（本書 §1 と `REF:docs/handoff.md` §1 の共有ブロック）へ段階 ③ 行を追加し、設計書節の集計（実装完了 123 / 計画済み 8 / 未計画 1 / 実装待ち 2、計 134 節）を更新した。
+- [x] SYNC 進捗表（本書 §1 と `REF:docs/handoff.md` §1 の共有ブロック）へ段階 ③ 行を追加し、設計書節の集計を実測値へ更新する。現在の数値の正本は SYNC 進捗表と文書検査の出力。
 - [x] `python3 docs/script/duplicate.py` がエラーゼロで通過した。
+
+**段階②統合後の追補（H1 着手前）**
+- [ ] §19.7 のカタログと段階②の機能対応表（本書 §4.1）を再照合し、読者・統計・呼称マトリクス・五感・正規表現検索等の操作 ID、引数、例外と権限を確定する。既存の汎用操作で覆う機能も明示し、仕様・設計の変更は人間の承認を得る。H0 の基礎文書追加と、GUI 全機能の API 網羅確定を同一視しない。
 
 ### 5.2 共通方針: 単一実装点を先に確立する
 
@@ -788,7 +785,7 @@ H3・H4・H5 の 3 系統は相互に交差せず、H2 完了後は任意の順�
 <a id="stage-3-h2"></a>
 **H2 — Rust API**
 - [ ] H2-AC-1: `ui` feature なしのビルドでカタログ全操作に到達でき、`Session::open` / `create` / `with_host` がテストを通る。
-- [ ] H2-AC-2: `OPS` 表がカタログ 117 行を全網羅し、`api.list` 関数がスキーマ・例外列・関門有無を含むカタログを返す。
+- [ ] H2-AC-2: `OPS` 表が仕様書 §19.7 のカタログ全行を網羅し、`api.list` 関数がスキーマ・例外列・関門有無を含むカタログを返す。
 - [ ] H2-AC-3: `session.command` が `REF:src/ui/app.rs` の `PALETTE_COMMANDS`（14 鍵）と `SHORTCUT_PALETTE_COMMANDS`（約 40 鍵）の全キーを受け付け、効果（即時 / 遅延 / 状態変更）の宣言が実態と一致する。
 - [ ] H2-AC-4: `tests/api.rs` がメモリホストのみで全工程（開く → 編集 → 外部変更 → 衝突解決 → 保存 → イベント確認）を通し、実ファイルシステムに触れない。
 

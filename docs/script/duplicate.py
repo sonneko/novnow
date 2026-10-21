@@ -118,6 +118,36 @@ def parse_sections_outside_fences(text: str) -> list[tuple[str, list[str]]]:
     return sections
 
 
+def validate_status_table(content: str, counts: dict[str, int], design_count: int) -> list[str]:
+    """Validate each status row, not substrings spread across merged rows."""
+    errors: list[str] = []
+    rows: dict[str, list[list[str]]] = defaultdict(list)
+    for line in content.splitlines():
+        if not line.startswith("|"):
+            continue
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if not cells or cells[0] == "区分" or cells[0].startswith("---"):
+            continue
+        rows[cells[0]].append(cells)
+    for label, entries in rows.items():
+        if len(entries) != 1:
+            errors.append(f"[rule-8] stage1-status の区分 '{label}' が重複しています")
+    expected = " / ".join(f"{name} {count} 節" for name, count in counts.items())
+    aggregate = rows.get("設計書セクション実装状況", [])
+    if len(aggregate) != 1:
+        errors.append("[rule-8] stage1-status の設計書集計行は必ず1行にしてください")
+    else:
+        row = aggregate[0]
+        if len(row) != 4 or row[1] != expected:
+            errors.append(f"[rule-8] stage1-status の設計書集計値が実測値（{expected}）と一致しません")
+        if len(row) != 4 or not re.search(
+            rf"全 {design_count} 設計書(?:（[^）]*）)?の `### ` 節（合計 {sum(counts.values())} 節）",
+            row[2],
+        ):
+            errors.append("[rule-8] stage1-status の設計書数・総節数が実測値と一致しません")
+    return errors
+
+
 def extract_sync_blocks(text: str) -> dict[str, str]:
     blocks: dict[str, str] = {}
     pattern = re.compile(
@@ -351,19 +381,8 @@ def main() -> int:
                     f"[rule-8] SYNC ブロック '{sync_id}' の内容が {base_path.relative_to(ROOT)} と {other_path.relative_to(ROOT)} で一致しません"
                 )
         if sync_id == "stage1-status":
-            total = sum(status_counts.values())
-            expected_fragment = (
-                f"実装完了 {status_counts['実装完了']} 節 / "
-                f"実装中 {status_counts['実装中']} 節 / "
-                f"未実装・実装計画済み {status_counts['未実装・実装計画済み']} 節 / "
-                f"未実装・未計画 {status_counts['未実装・未計画']} 節 / "
-                f"実装待ち {status_counts['実装待ち']} 節"
-            )
-            expected_total = f"合計 {total} 節"
-            if expected_fragment not in base_content or expected_total not in base_content:
-                errors.append(
-                    f"[rule-8] stage1-status SYNC ブロックの集計値が docs/designs/*.md の実測値（{expected_fragment}、{expected_total}）と一致しません"
-                )
+            for _, content in items:
+                errors.extend(validate_status_table(content, status_counts, len(design_files)))
 
     # SYNC 外の散文段落（40 文字以上）が複数のファイルに重複していないか検査
     prose_locations: dict[str, list[str]] = defaultdict(list)
