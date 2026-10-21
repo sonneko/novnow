@@ -8,9 +8,9 @@
 
 ### 19.1 共通原則
 
-状態: 未実装・実装計画済み（REF:src/ui/workbench.rs, REF:docs/plans.md#stage-3）
+状態: 未実装・実装計画済み（REF:src/app/workbench.rs, REF:docs/plans.md#stage-3）
 
-- **単一実装点（H1）**: `Workbench`（`REF:src/ui/workbench.rs`）、`SaveMachine`（`REF:src/ui/save_machine.rs`）、`UiSettings`（`REF:src/ui/settings.rs`）、エージェント実行状態（`REF:src/ui/agents.rs`）、検索状態（`REF:src/ui/assist.rs`）、パレットの純粋論理（`REF:src/ui/palette.rs`）、`Command`（`REF:src/ui/shell.rs`）、`Switcher`（`REF:src/ui/workspaces/mod.rs`）、`Host` トレイト（現在 `REF:src/ui/app.rs` 内）を `src/app/` へ移す。移設は「移動 + 旧パスからの `pub use` 再エクスポート」で段階的に行い、GUI 側テスト（`REF:tests/gui.rs`, `REF:tests/workspaces.rs`）を毎段グリーンに保つ。
+- **単一実装点（H1）**: `Workbench`（`REF:src/app/workbench.rs`）、`SaveMachine`（`REF:src/app/save_machine.rs`）、`UiSettings`（`REF:src/app/settings.rs`）、エージェント実行状態（`REF:src/app/agents.rs`）、検索状態（`REF:src/app/assist.rs`）、パレットの純粋論理（`REF:src/app/palette.rs`）、`Command`（`REF:src/ui/shell.rs`）、`Switcher`（`REF:src/ui/workspaces/mod.rs`）、`Host` トレイト（現在 `REF:src/ui/app.rs` 内）を `src/app/` へ移す。移設は「移動 + 旧パスからの `pub use` 再エクスポート」で段階的に行い、GUI 側テスト（`REF:tests/gui.rs`, `REF:tests/workspaces.rs`）を毎段グリーンに保つ。
 - **層規則**: `REF:tests/layering.rs` に `src/app/` の禁止規則を追加する — egui / eframe / rfd / fontdb の import 禁止。書き込みは従来どおり `FsGate`（`REF:src/adapters/storage_fs.rs`）と `WritePolicy`（`REF:src/core/policy/write_policy.rs`）を経由し、書き込み関門テストの走査対象に新層を含める。
 - **権限モデル**: 委譲関門は MCP ツール境界（`REF:src/core/agents/server.rs`）に集約する。人間経路は関門を迂回するが、規則 10 の制約は全経路で等しく効く。
 - **原子性**: 複数ファイル操作は `Workbench::take_writes()` のバッチに一旦蓄積し、失敗時は全件を破棄する（既存の `write_finished` 失敗経路の拡張）。
@@ -26,7 +26,7 @@
 - `src/app/ops.rs`（新設）: ディスパッチ表 `OPS: &[OpDef]`（正規操作 ID・引数スキーマ・ハンドラ・関門の有無・例外・対応パレットコマンド）。`api.list`・MCP の `inputSchema`・CLI ヘルプ・Python スタブの単一の真実となる。
 - ドメインハンドルは `&mut Session` を借りる薄いラッパ（`session.section()` → `SectionOps`）とし、メソッド名は正規操作 ID の動詞と 1:1 対応。多階層ドメインは動詞側へ畳む（§19.1.3）。
 - `session.command` のコマンド表は `REF:src/ui/app.rs` の `PALETTE_COMMANDS` / `SHORTCUT_PALETTE_COMMANDS` 定数を app 層へ引き上げ、GUI と API が同一の表を共有する（ドリフト排除）。
-- イベントキュー: セッション内 `VecDeque<AppEvent>` と `poll_events()` / `on_event()`。LLM 呼び出し・URL 取得のワーカは `REF:src/ui/agents.rs` の既存スレッド + チャネル方式を踏襲し、`cancel(handle)` は同じチャネルで中止フラグを伝える。
+- イベントキュー: セッション内 `VecDeque<AppEvent>` と `poll_events()` / `on_event()`。LLM 呼び出し・URL 取得のワーカは `REF:src/app/agents.rs` の既存スレッド + チャネル方式を踏襲し、`cancel(handle)` は同じチャネルで中止フラグを伝える。
 - 検証: `tests/api.rs`（新設・計画パス）でメモリホストによる全操作・エラー分類・イベント順序をカバーし、仕様 §19.2.1 の例は doc-test として常に実行する。
 
 ### 19.3 Python API

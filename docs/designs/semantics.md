@@ -6,14 +6,14 @@
 
 ### 6.1 辞書
 
-状態: 実装完了（REF:src/core/resolve/dictionary.rs, REF:src/core/features/completion.rs, REF:src/ui/palette.rs, REF:tests/dictionary.rs, REF:tests/features_edit.rs, REF:benches/core.rs）
+状態: 実装完了（REF:src/core/resolve/dictionary.rs, REF:src/core/features/completion.rs, REF:src/app/palette.rs, REF:tests/dictionary.rs, REF:tests/features_edit.rs, REF:benches/core.rs）
 
 - `characters.md`・`words.md`・`materials/index.json` の 3 供給元から `Dictionary`（`REF:src/core/resolve/dictionary.rs`）を構築する。
 - 正規化関数 `normalize` は長音記号（`ー` `−` `―` `─` `ｰ` → `ー`）の統一を行った後に Unicode NFKC 正規化（`unicode-normalization`）を適用し、正規化後文字列から原文バイト位置への対応表を用いてトライ木（`Trie`）と `aho-corasick` オートマトンを構築する。NFKC より先に長音統一を行うのは、全角マイナス `－`（U+FF0D）が NFKC で ASCII `-` に変わった後では長音統一が発火しないためである（`A-19`, `B-57`）。
 - 同名衝突の診断（優先順位 `Character > Address > Word > Material > MaterialTitle`、負けた側に `W027`）と長すぎるキー（正規化後 `MAX_KEY_BYTES = 96` バイト超で `E028`）は辞書構築時に生成する（検証: `REF:tests/dictionary.rs`、ベンチマーク: `REF:benches/core.rs` の `dictionary_trie_5000`）。
 
-- **[F-24] 登場人物の透過的な辞書統合と重複抑止（実装完了: `REF:src/core/resolve/dictionary.rs`, `REF:src/ui/palette.rs`）**:
-  - `REF:src/core/resolve/dictionary.rs` で `characters.md` の見出し名と `alias:` を無条件に統合辞書へ登録し（`words.md` ファイル自体は書き換えない）、`words.md` に同名の見出しが存在する場合は `Character` 定義へマージして `REF:src/core/features/reference.rs` や `REF:src/ui/palette.rs` に重複エントリが出ないようにする。
+- **[F-24] 登場人物の透過的な辞書統合と重複抑止（実装完了: `REF:src/core/resolve/dictionary.rs`, `REF:src/app/palette.rs`）**:
+  - `REF:src/core/resolve/dictionary.rs` で `characters.md` の見出し名と `alias:` を無条件に統合辞書へ登録し（`words.md` ファイル自体は書き換えない）、`words.md` に同名の見出しが存在する場合は `Character` 定義へマージして `REF:src/core/features/reference.rs` や `REF:src/app/palette.rs` に重複エントリが出ないようにする。
 
 ### 6.2 `'` の最短一致
 
@@ -74,7 +74,7 @@
 - 構造見出し `@` または節区切り `;` に関わる変更のみ `Renumber::From(line)` を返し、10 万行規模でも O(1) で 1 行再字句解析を完了する（検証: `REF:tests/incremental.rs`、ベンチマーク: `REF:benches/core.rs` の `single_line_relex`）。
 
 - **[F-43] 打鍵時の編集中節のみの同期解析と他節デバウンス（実装完了: `REF:src/ui/widgets/section_editor.rs`, `REF:tests/editor_performance.rs`）**:
-  - `REF:src/ui/workbench.rs` と `REF:src/core/features/project.rs` で、打鍵フレーム内では編集中の 1 節スライスのみを対象にトークン化・ローカル診断・インレイヒント計算を行い、ファイル内他節の再構築とプロジェクト横断診断は 300ms デバウンス後に実行する。
+  - `REF:src/app/workbench.rs` と `REF:src/core/features/project.rs` で、打鍵フレーム内では編集中の 1 節スライスのみを対象にトークン化・ローカル診断・インレイヒント計算を行い、ファイル内他節の再構築とプロジェクト横断診断は 300ms デバウンス後に実行する。
   - `REF:tests/editor_performance.rs` に 10 万字ファイルでの節解析と egui 画面全体の 1 打鍵 16ms 以内を release ビルドで検査するテストを追加し、`REF:.github/workflows/ci.yml` の bench ジョブで実行する。
 
 ## 付録 B: 役割語パターン言語と、提示された例の変換表

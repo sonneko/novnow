@@ -84,13 +84,13 @@
 <a id="plan-F-06"></a>
 - **F-06（実装完了）**: コマンドパレットの位置を画面水平中央・最上部に調整
   - 仕様・設計: `REF:docs/designs/ui.md`（§9.7）
-  - 変更対象: `REF:src/ui/app.rs`, `REF:src/ui/palette.rs`
+  - 変更対象: `REF:src/ui/app.rs`, `REF:src/app/palette.rs`
   - 計画内容: パレットの表示位置を VS Code と同じく X 座標中央・上端（ヘッダ直下）に固定する。
 
 <a id="plan-F-07"></a>
 - **F-07（実装完了）**: パレットの選択肢に「パレットを閉じる」を追加
   - 仕様・設計: `REF:docs/designs/ui.md`（§9.7）
-  - 変更対象: `REF:src/ui/palette.rs`, `REF:src/ui/app.rs`
+  - 変更対象: `REF:src/app/palette.rs`, `REF:src/ui/app.rs`
   - 計画内容: パレット候補に常設の「パレットを閉じる（`Esc`）」項目を追加し、選択時にパレットを閉じる。
 
 <a id="plan-F-08"></a>
@@ -102,13 +102,13 @@
 <a id="plan-F-09"></a>
 - **F-09（実装完了）**: パレットの `>` でエージェント関連設定をサブ階層化
   - 仕様・設計: `REF:docs/designs/ui.md`（§9.7）
-  - 変更対象: `REF:src/ui/palette.rs`
+  - 変更対象: `REF:src/app/palette.rs`
   - 計画内容: `>` 直後の初期候補ではエージェント設定を `>agent ` の 1 項目にまとめ、`>agent` 入力または選択後に役割別・操作別の候補を展開する。
 
 <a id="plan-F-10"></a>
-- **F-10（実装完了: `REF:src/core/features/sections.rs`, `REF:src/ui/widgets/section_editor.rs`, `REF:src/ui/workbench.rs`）**: 本文エディタへのペースト時に改行保持＋`;` で自動節分割
+- **F-10（実装完了: `REF:src/core/features/sections.rs`, `REF:src/ui/widgets/section_editor.rs`, `REF:src/app/workbench.rs`）**: 本文エディタへのペースト時に改行保持＋`;` で自動節分割
   - 仕様・設計: `REF:docs/designs/editing.md`（§8.1）
-  - 変更対象: `REF:src/core/features/sections.rs`, `REF:src/ui/workbench.rs`, `REF:src/ui/widgets/section_editor.rs`
+  - 変更対象: `REF:src/core/features/sections.rs`, `REF:src/app/workbench.rs`, `REF:src/ui/widgets/section_editor.rs`
   - 計画内容: ペーストされた文字列の改行を維持し、単独 `;` 行または `@A-B-C` 見出し行が含まれる場合は一気に複数の節へ分割して文書へ反映する。
 
 <a id="plan-F-11"></a>
@@ -120,25 +120,25 @@
 <a id="plan-F-12"></a>
 - **F-12（実装完了）**: パレットの横幅固定と長い候補テキストの `...` 省略
   - 仕様・設計: `REF:docs/designs/ui.md`（§9.7）
-  - 変更対象: `REF:src/ui/palette.rs`, `REF:src/ui/app.rs`
+  - 変更対象: `REF:src/app/palette.rs`, `REF:src/ui/app.rs`
   - 計画内容: パレットの幅を固定し、長い候補ラベルは `...` で省略してパレットの位置ズレを防ぐ。
 
 <a id="plan-F-13"></a>
 - **F-13（実装完了）**: 未入力のパレット下部に接頭辞ルールのガイドを表示
   - 仕様・設計: `REF:docs/designs/ui.md`（§9.7）
-  - 変更対象: `REF:src/ui/palette.rs`, `REF:src/ui/app.rs`
+  - 変更対象: `REF:src/app/palette.rs`, `REF:src/ui/app.rs`
   - 計画内容: 入力が空のときパレット下部に「`>` コマンド / `@` 節 / `'` 辞書 / `M`（`#`）資料 / `?` ショートカット」のガイドを表示する。
 
 <a id="plan-F-14"></a>
 - **F-14（実装完了）**: パレットで候補が 0 件のときに「ない」旨を表示
   - 仕様・設計: `REF:docs/designs/ui.md`（§9.7）
-  - 変更対象: `REF:src/ui/palette.rs`, `REF:src/ui/i18n/ja.toml`, `REF:src/ui/i18n/en.toml`
+  - 変更対象: `REF:src/app/palette.rs`, `REF:src/ui/i18n/ja.toml`, `REF:src/ui/i18n/en.toml`
   - 計画内容: 資料が 0 件のときに `M` / `#` を打った場合を含め、候補が 0 件のときはモードに応じた「一致する項目がありません（登録されている資料がありません）」を表示する。
 
 <a id="plan-F-15"></a>
 - **F-15（実装完了）**: すべてのショートカットキー操作を `>` パレット経由でも実行可能にする
   - 仕様・設計: `REF:docs/designs/ui.md`（§9.7, §9.8）
-  - 変更対象: `REF:src/ui/shell.rs`, `REF:src/ui/palette.rs`, `REF:src/ui/app.rs`
+  - 変更対象: `REF:src/ui/shell.rs`, `REF:src/app/palette.rs`, `REF:src/ui/app.rs`
   - 計画内容: 全 `Command` を `>` コマンドパレットに公開し、パレットから全ショートカット機能を実行できるようにする。
 
 <a id="plan-F-16"></a>
@@ -162,7 +162,7 @@
 <a id="plan-F-19"></a>
 - **F-19（実装完了）**: コマンドパレットから `agents/mcp.json` 編集モーダルへ移行
   - 仕様・設計: `REF:docs/designs/syntax.md`（§5.11）, `REF:docs/designs/agent.md`（§15.7）
-  - 変更対象: `REF:src/ui/app.rs`, `REF:src/ui/palette.rs`, `REF:src/ui/workspaces/agent.rs`
+  - 変更対象: `REF:src/ui/app.rs`, `REF:src/app/palette.rs`, `REF:src/ui/workspaces/agent.rs`
   - 計画内容: パレット（`>mcp` / `>agent mcp`）および `agent` 画面から `agents/mcp.json` を編集・検証・保存できるモーダルを追加する。
 
 <a id="plan-F-20"></a>
@@ -190,21 +190,21 @@
   - 計画内容: 未解決参照診断に対して形態素解析で 1 形態素を切り出し、参照ペイン上のボタンから `words.md` または `characters.md` へ即時登録できるようにする。
 
 <a id="plan-F-24"></a>
-- **F-24（実装完了: `REF:src/core/resolve/dictionary.rs`, `REF:src/ui/palette.rs`）**: `characters.md` の名前を透過的に辞書へ自動登録し重複を解消
+- **F-24（実装完了: `REF:src/core/resolve/dictionary.rs`, `REF:src/app/palette.rs`）**: `characters.md` の名前を透過的に辞書へ自動登録し重複を解消
   - 仕様・設計: `REF:docs/designs/semantics.md`（§6.1）
-  - 変更対象: `REF:src/core/resolve/dictionary.rs`, `REF:src/core/features/reference.rs`, `REF:src/ui/palette.rs`
+  - 変更対象: `REF:src/core/resolve/dictionary.rs`, `REF:src/core/features/reference.rs`, `REF:src/app/palette.rs`
   - 計画内容: `words.md` を書き換えずに `characters.md` の内容を透過的に用語辞書としても扱い、重複表示を抑止する。
 
 <a id="plan-F-25"></a>
 - **F-25（実装完了）**: パレットの `?` でショートカットを選択・実行可能にする
   - 仕様・設計: `REF:docs/designs/ui.md`（§9.7）
-  - 変更対象: `REF:src/ui/palette.rs`, `REF:src/ui/app.rs`
+  - 変更対象: `REF:src/app/palette.rs`, `REF:src/ui/app.rs`
   - 計画内容: `?` モードをショートカットの検索＋選択実行モードとして実装する。
 
 <a id="plan-F-26"></a>
 - **F-26（実装完了）**: パレットの `@` 移動を広さ優先の階層ドリルダウン（`@01-* 章タイトル` 等）に変更
   - 仕様・設計: `REF:docs/designs/ui.md`（§9.7）
-  - 変更対象: `REF:src/ui/palette.rs`, `REF:src/ui/app.rs`
+  - 変更対象: `REF:src/app/palette.rs`, `REF:src/ui/app.rs`
   - 計画内容: `@` 入力時に `@01-*`, `@02-*`（章タイトル付き）から始め、話 → 場面 → 節へと広さ優先で段階的に絞り込む。
 
 <a id="plan-F-27"></a>
@@ -306,7 +306,7 @@
 <a id="plan-F-43"></a>
 - **F-43（実装完了）**: 打鍵時は編集中の節だけ同期解析し、10 万字ファイルで 1 打鍵 16ms 以内を保証・テスト計測
   - 仕様・設計: `REF:docs/designs/semantics.md`（§6.7）, `REF:docs/designs/workflows.md`（§18.1, §18.4）
-  - 変更対象: `REF:src/ui/workbench.rs`, `REF:src/core/features/project.rs`, `REF:tests/incremental.rs`, `REF:benches/core.rs`
+  - 変更対象: `REF:src/app/workbench.rs`, `REF:src/core/features/project.rs`, `REF:tests/incremental.rs`, `REF:benches/core.rs`
   - 計画内容: 打鍵時の同期解析を編集中の 1 節に限定して他節をデバウンスし、「10 万字のファイルで 1 打鍵 16ms 以内」を計測するテストを追加する。
 
 <a id="plan-F-44"></a>
@@ -329,7 +329,7 @@
 <a id="plan-S-02"></a>
 - **S-02（実装完了）**: 初回起動時（履歴が空のとき）のアプリ説明・ドキュメントサイト案内とパレットからの再呼び出し
   - 仕様・設計: `REF:docs/designs/platform.md`（§13.4, §14.4）
-  - 変更対象: `REF:src/ui/app.rs`, `REF:src/ui/web.rs`, `REF:src/ui/palette.rs`
+  - 変更対象: `REF:src/ui/app.rs`, `REF:src/ui/web.rs`, `REF:src/app/palette.rs`
   - 計画内容: 履歴が空の初回起動時にウェルカム案内を表示し、コマンドパレットからも常時呼び出し可能にする。
 
 <a id="plan-S-03"></a>
@@ -365,7 +365,7 @@
 <a id="plan-S-08"></a>
 - **S-08（実装完了）**: 閉じ鉤括弧の後の `@` でキャラ名を予測補完
   - 仕様・設計: `REF:docs/designs/syntax.md`（§5.2）, `REF:docs/designs/ui.md`（§9.7）
-  - 変更対象: `REF:src/core/features/completion.rs`, `REF:src/ui/assist.rs`
+  - 変更対象: `REF:src/core/features/completion.rs`, `REF:src/app/assist.rs`
   - 計画内容: `」@` / `』@` 入力時にキャラ名およびモードの補完ポップアップを出す。
 
 <a id="plan-S-09"></a>
@@ -393,9 +393,9 @@
   - 計画内容: ビューポート外の節は高さ推定のみでスキップし、可視範囲の節のみレイアウトする。
 
 <a id="plan-S-13"></a>
-- **S-13（実装完了: `REF:src/ui/palette.rs`, `REF:src/ui/app.rs`, `REF:tests/gui.rs`）**: パレットで個別単位（例: `">ag"` => `">agent "`）の `Tab` 補完
+- **S-13（実装完了: `REF:src/app/palette.rs`, `REF:src/ui/app.rs`, `REF:tests/gui.rs`）**: パレットで個別単位（例: `">ag"` => `">agent "`）の `Tab` 補完
   - 仕様・設計: `REF:docs/designs/ui.md`（§9.7）
-  - 変更対象: `REF:src/ui/palette.rs`, `REF:src/ui/app.rs`
+  - 変更対象: `REF:src/app/palette.rs`, `REF:src/ui/app.rs`
   - 計画内容: パレットでの `Tab` キー押下時に次のトークン単位まで補完する。
 
 <a id="plan-S-14"></a>
@@ -423,9 +423,9 @@
   - 計画内容: デスクトップの履歴一覧から、実データを消さずに履歴エントリのみを削除する操作と明示説明を追加する。
 
 <a id="plan-S-18"></a>
-- **S-18（実装完了: `REF:src/ui/settings.rs`, `REF:src/ui/widgets/section_editor.rs`, `REF:src/ui/widgets/context_view.rs`, `REF:tests/gui.rs`）**: 本文の最大幅を `.novnow/ui.json` の設定にし、`ja` は 44 字、`en` は 70 字前後を既定にする
+- **S-18（実装完了: `REF:src/app/settings.rs`, `REF:src/ui/widgets/section_editor.rs`, `REF:src/ui/widgets/context_view.rs`, `REF:tests/gui.rs`）**: 本文の最大幅を `.novnow/ui.json` の設定にし、`ja` は 44 字、`en` は 70 字前後を既定にする
   - 仕様・設計: `REF:docs/designs/project.md`（§4.4）, `REF:docs/designs/ui.md`（§11.5）
-  - 変更対象: `REF:src/ui/settings.rs`, `REF:src/ui/widgets/section_editor.rs`, `REF:src/ui/widgets/context_view.rs`
+  - 変更対象: `REF:src/app/settings.rs`, `REF:src/ui/widgets/section_editor.rs`, `REF:src/ui/widgets/context_view.rs`
   - 計画内容: `ui.json` に `max_line_chars` を追加し、言語別既定値（`ja`=44, `en`=70）で折り返し幅を制御する。
 
 ---
@@ -499,7 +499,7 @@
 | 26 | 話の長さバランス偏差値 | `REF:docs/designs/ui.md`（§10.3.4）, `REF:docs/designs/diagnostics.md`（§7.2） | `plot-outline` 分量タブでの T スコア（偏差値）算出、外れ値診断 `W091` | §4.5 `19.14-26` |
 | 27 | 読者モード（縦書きプレビュー） | `REF:docs/designs/ui.md`（§10.7）, `REF:docs/designs/workflows.md`（§17.3, §18.1）, `REF:docs/designs/project.md`（§4.4.3, §4.5.1） | `Alt+7`（`reader` ワークスペース）、`REF:src/core/reader.rs`（純粋組版関数 `layout`）と `REF:src/ui/workspaces/stage_two.rs`（読者 UI）、`.novnow/reader.json`、`project.json.reader`、`reader.exit` 文言、1 ページ 3ms 以内目標 | §4.5 `19.14-27` |
 | U-7 | 既定プロンプトの不変保管と復元 | `REF:docs/designs/agent.md`（§15.5.4） | **段階 ①（M10）で実装完了**（`REF:src/core/agents/prompts.rs`、`>prompt reset` / `>prompt diff`） | §4.5 `19.14-U7` |
-| U-8 | エージェントの並列実行 | `REF:docs/designs/agent.md`（§15.7.5） | **段階 ①（M10）で実装完了**（`REF:src/core/agents/runner.rs`、`REF:src/ui/agents.rs`、`Shift+R`） | §4.5 `19.14-U8` |
+| U-8 | エージェントの並列実行 | `REF:docs/designs/agent.md`（§15.7.5） | **段階 ①（M10）で実装完了**（`REF:src/core/agents/runner.rs`、`REF:src/app/agents.rs`、`Shift+R`） | §4.5 `19.14-U8` |
 
 ---
 
@@ -532,7 +532,7 @@
 | 論点 | 裁定 | 理由と現在の状態 |
 |---|---|---|
 | `core::features::folding` | **段階 ① で実装済み** | §19.13 が「§3.4 の 11 機能が `core::features::*` に存在し UI から呼ばれている」を要求するため、段階 ① で `REF:src/core/features/folding.rs` を実装し `plot-outline` の章→話展開に接続済み。本文文脈ビュー（§9.3.3）の折りたたみ UI と `ui.json.folded` 永続化が段階 ②（#9）。 |
-| 全体検索（`Ctrl+Shift+F`） | **通常検索は ①、正規表現は ②** | リテラル全体検索は段階 ① で実装済み（`REF:src/ui/assist.rs`）。§9.7.4 の正規表現モード（`Alt+R`）と 1 秒打ち切り（`W094`）が段階 ②（#19）。 |
+| 全体検索（`Ctrl+Shift+F`） | **通常検索は ①、正規表現は ②** | リテラル全体検索は段階 ① で実装済み（`REF:src/app/assist.rs`）。§9.7.4 の正規表現モード（`Alt+R`）と 1 秒打ち切り（`W094`）が段階 ②（#19）。 |
 | §10.3 / §10.6 / §10.9 のタブ | **段階 ① は基本ビュー、段階 ② で拡張タブ追加** | 段階 ② の追加機能（タイムライン・呼称・五感・文体・統計）が入る時点でタブを増やす。 |
 | `project.json` の追加キー | **段階 ① から読み飛ばして温存** | `#[serde(flatten)]` によりパースで落とさず保存時も保持する（`REF:tests/roundtrip.rs` で検証済み）。 |
 | 読者モード（#27） | **段階 ② へ移管** | 縦書き組版の工数・技術的不確実性と `FontMetrics` 注入設計のため段階 ② へ移管。アノテーション除去エクスポート（§17.1 / §17.2）は段階 ① で実装済み。 |
@@ -547,7 +547,7 @@
 
 | # | 縫い代 | 段階 ① での具体的な実装箇所 | 違反したときの段階 ② の手戻りコスト |
 |---|---|---|---|
-| 1 | 未知キーの温存 | `project.json`（`REF:src/core/model/project.rs`）・`ui.json`（`REF:src/ui/settings.rs`）・`index.json`（`REF:src/core/model/material.rs`）を `#[serde(flatten)]` で受け、`REF:tests/roundtrip.rs` で検証 | 設定ファイルの前後互換が切れる |
+| 1 | 未知キーの温存 | `project.json`（`REF:src/core/model/project.rs`）・`ui.json`（`REF:src/app/settings.rs`）・`index.json`（`REF:src/core/model/material.rs`）を `#[serde(flatten)]` で受け、`REF:tests/roundtrip.rs` で検証 | 設定ファイルの前後互換が切れる |
 | 2 | 未知フィールド行の温存 | A/B/MD 形式のパーサ（`REF:src/core/syntax/plot_outline.rs` 等）が未知 `key:` に `W011` を出しつつ行を無損失保持 | `when:` `senses:` `space:` `blurb:` `illustration:` を書いたファイルが壊れる |
 | 3 | 診断コードの予約 | `W080`+ / `E032`+ / `E064` / `I054`+ を `REF:src/core/diagnostics.rs` に先行定義し別用途に使わない | 診断番号の振り直しが全体に波及する |
 | 4 | 行頭シジルの表駆動 | `REF:src/core/text/lexer.rs` の `const SIGIL_TABLE: &[SigilSpec]` を走査して判定 | `# ` や `! ` の追加で字句器を書き直すことになる |
@@ -777,7 +777,7 @@ H3・H4・H5 の 3 系統は相互に交差せず、H2 完了後は任意の順�
 
 <a id="stage-3-h1"></a>
 **H1 — app 層の抽出**
-- [ ] H1-AC-1: 8 状態機械と `Host` が `src/app/` に存在し、旧パス（`REF:src/ui/workbench.rs` ほか）への文書中の参照が再エクスポートによりすべて解決する。
+- [ ] H1-AC-1: 8 状態機械と `Host` が `src/app/` に存在し、旧パス（`REF:src/app/workbench.rs` ほか）への文書中の参照が再エクスポートによりすべて解決する。
 - [ ] H1-AC-2: `REF:tests/layering.rs` が新層の egui / eframe / rfd / fontdb 禁止を機械検査し、意図的な違反で失敗する。
 - [ ] H1-AC-3: `cargo test --features ui`（`REF:tests/gui.rs`、`REF:tests/workspaces.rs` を含む）、`REF:scripts/web-smoke.sh`、wasm ビルドがすべてグリーンで、挙動が変わらない。
 - [ ] H1-AC-4: `REF:docs/designs/overview.md` §3.3 の層図と依存方向の記述が app 層を含めて改訂済み（PR で人間の承認を得る）。

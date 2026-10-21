@@ -260,7 +260,7 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 
 ### [HIST:MILESTONE:M7] 2026-04-21 M7 共通シェル・`write` ワークスペース・保存状態機械・IME（PR #9）
 [HIST-TAG: category=MILESTONE id=M7 topics=ui,shell,workbench,save_machine,ime,theme,PR-9]
-- 共通シェル（`REF:src/ui/app.rs`）、文脈ビュー、節エディタ、参照ペイン、統一パレット、保存状態機械（`REF:src/ui/save_machine.rs`）、IME 状態機械（`REF:src/ui/shell.rs`）、Dark/Light テーマ（`REF:src/ui/theme.rs`）を実装。
+- 共通シェル（`REF:src/ui/app.rs`）、文脈ビュー、節エディタ、参照ペイン、統一パレット、保存状態機械（`REF:src/app/save_machine.rs`）、IME 状態機械（`REF:src/ui/shell.rs`）、Dark/Light テーマ（`REF:src/ui/theme.rs`）を実装。
 
 ### [HIST:MILESTONE:M8] 2026-04-21 M8 残り 7 ワークスペースと人間用提案モード（PR #10, PR #11）
 [HIST-TAG: category=MILESTONE id=M8 topics=workspaces,plot,idea,material,cast,agent,review,proposals,PR-10,PR-11]
@@ -272,7 +272,7 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 
 ### [HIST:MILESTONE:M10] 2026-04-22 M10 エージェント実接続・ドライラン・提案差分レビュー（PR #11, PR #12）
 [HIST-TAG: category=MILESTONE id=M10 topics=agents_ui,mcp_stdio,diff_review,PR-11,PR-12]
-- `agent` ワークスペースからの非同期タスク実行・ドライラン・節単位採否レビュー・MCP サーバ死活監視（`REF:src/ui/agents.rs`）を接続。
+- `agent` ワークスペースからの非同期タスク実行・ドライラン・節単位採否レビュー・MCP サーバ死活監視（`REF:src/app/agents.rs`）を接続。
 
 ### [HIST:MILESTONE:M11] 2026-10-14 M11 性能ベンチマーク・サンプル v1 化・v0 撤去・ドキュメント再編（PR #16）
 [HIST-TAG: category=MILESTONE id=M11 topics=benchmarks,criterion,sample_project,v0_removal,docs_reorg,PR-16]

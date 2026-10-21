@@ -6,10 +6,10 @@
 
 ### 9.1 全体レイアウト
 
-状態: 実装完了（REF:src/ui/app.rs, REF:src/ui/settings.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-16）
+状態: 実装完了（REF:src/ui/app.rs, REF:src/app/settings.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-16）
 
 - 共通シェル（上端 28px アイコンバー、下端 22px ステータスバー、中央のメインカラム＋参照ペイン 2 カラム分割）は `NovnowApp`（`REF:src/ui/app.rs`）が描画する。
-- メイン/参照の比率（既定 `62 : 38`、`Ctrl+Alt+Shift+←/→`）と文脈/節エディタの比率（既定 `45 : 55`、`Ctrl+Alt+↑/↓`）は `UiSettings`（`REF:src/ui/settings.rs`）に保持する。
+- メイン/参照の比率（既定 `62 : 38`、`Ctrl+Alt+Shift+←/→`）と文脈/節エディタの比率（既定 `45 : 55`、`Ctrl+Alt+↑/↓`）は `UiSettings`（`REF:src/app/settings.rs`）に保持する。
 
 - **[S-05] ヘッダ右端への `?` と `Ctrl+P` ボタン常設（実装完了: `REF:src/ui/app.rs`, `REF:tests/gui.rs`）**:
   - `REF:src/ui/app.rs` のトップバー右側に `Ctrl+P` ボタンと `?` ボタンを常設する。
@@ -78,13 +78,13 @@
 
 ### 9.7 ナビゲーション
 
-状態: 実装完了（REF:src/ui/palette.rs, REF:src/ui/assist.rs, REF:src/ui/app.rs, REF:tests/gui.rs）
+状態: 実装完了（REF:src/app/palette.rs, REF:src/app/assist.rs, REF:src/ui/app.rs, REF:tests/gui.rs）
 
-- 統一パレット（`Ctrl+P` / `Ctrl+G` / `Ctrl+Shift+P`）の先頭文字によるモード切替（通常 / `@` 構造 / `'` 辞書 / `#` 資料 / `>` コマンド）と決定論的ファジースコアリング（完全一致 +1000、先頭一致 +500、連続一致 +200、頭文字 +100、50 件上限）は `ui::palette`（`REF:src/ui/palette.rs`）に実装する。
-- `'名前` パレットでの `Enter`（`core::features::definition::at` による定義ジャンプ）と `Shift+Enter`（`core::features::references::find` による使用箇所一覧）、および入力中補完ポップアップ（`REF:src/ui/assist.rs`）は `REF:src/ui/app.rs` で接続されている（検証: `REF:tests/gui.rs`, `REF:tests/workspaces.rs`）。
+- 統一パレット（`Ctrl+P` / `Ctrl+G` / `Ctrl+Shift+P`）の先頭文字によるモード切替（通常 / `@` 構造 / `'` 辞書 / `#` 資料 / `>` コマンド）と決定論的ファジースコアリング（完全一致 +1000、先頭一致 +500、連続一致 +200、頭文字 +100、50 件上限）は `ui::palette`（`REF:src/app/palette.rs`）に実装する。
+- `'名前` パレットでの `Enter`（`core::features::definition::at` による定義ジャンプ）と `Shift+Enter`（`core::features::references::find` による使用箇所一覧）、および入力中補完ポップアップ（`REF:src/app/assist.rs`）は `REF:src/ui/app.rs` で接続されている（検証: `REF:tests/gui.rs`, `REF:tests/workspaces.rs`）。
 
 - **[F-06〜F-09 / F-12〜F-15 / F-25〜F-27 / S-08 / S-13] パレットの UX 全面改善（実装完了: `REF:docs/plans.md#plan-F-06`）**:
-  - `REF:src/ui/app.rs` と `REF:src/ui/palette.rs` でパレットを画面水平中央・上端に固定し（F-06）、`Order::Foreground` で青枠より前面に描画し（F-08）、背面シールドでパレット外クリック時は背面要素を発火させずにパレットのみを閉じる（F-27）。
+  - `REF:src/ui/app.rs` と `REF:src/app/palette.rs` でパレットを画面水平中央・上端に固定し（F-06）、`Order::Foreground` で青枠より前面に描画し（F-08）、背面シールドでパレット外クリック時は背面要素を発火させずにパレットのみを閉じる（F-27）。
   - パレット幅を固定して長文候補を `...` で省略し（F-12）、候補に「パレットを閉じる」を追加し（F-07）、未入力時の下部ガイド（F-13）と 0 件時の「ない」表示（F-14）を追加する。
   - `>` でエージェント系を `>agent ` 階層にまとめ（F-09）、全ショートカット操作を `>` から実行可能にし（F-15）、`?` をショートカット選択実行モードにし（F-25）、`@` を広さ優先の階層ドリルダウン（`@01-* 章タイトル` → `@01-01-* 話タイトル` → …）に変更し（F-26）、`Tab` によるトークン単位補完（S-13）を実装する。
 
@@ -180,9 +180,9 @@
 
 ### 10.8 `agent` — エージェント管制（§15.7 に詳細。委譲レベルの確認・変更は §15.7.6）
 
-状態: 実装完了（REF:src/ui/workspaces/agent.rs, REF:src/ui/agents.rs, REF:tests/workspaces.rs）
+状態: 実装完了（REF:src/ui/workspaces/agent.rs, REF:src/app/agents.rs, REF:tests/workspaces.rs）
 
-- 4 ペイン構成（タスク一覧・コンテキストプレビュー・結果/提案差分レビュー・委譲レベル管制と MCP 状態）は `REF:src/ui/workspaces/agent.rs` と `REF:src/ui/agents.rs` に実装する。
+- 4 ペイン構成（タスク一覧・コンテキストプレビュー・結果/提案差分レビュー・委譲レベル管制と MCP 状態）は `REF:src/ui/workspaces/agent.rs` と `REF:src/app/agents.rs` に実装する。
 
 ### 10.9 `review` — 点検
 
@@ -217,9 +217,9 @@
 
 ### 11.4 テーマ切替
 
-状態: 実装完了（REF:src/ui/theme.rs, REF:src/ui/settings.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-01）
+状態: 実装完了（REF:src/ui/theme.rs, REF:src/app/settings.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-01）
 
-- `ThemePreference`（`System` / `Dark` / `Light`）は `REF:src/ui/settings.rs` で `.novnow/ui.json` に永続化し、`Ctrl+Alt+T` または `>theme` で即時切り替える。
+- `ThemePreference`（`System` / `Dark` / `Light`）は `REF:src/app/settings.rs` で `.novnow/ui.json` に永続化し、`Ctrl+Alt+T` または `>theme` で即時切り替える。
 
 - **[F-01] テーマ記号（`◐` / `☾` / `☀`）のベジェ・ベクター描画化（実装完了: `REF:src/ui/theme.rs`, `REF:tests/gui.rs`）**:
   - `REF:src/ui/theme.rs` と `REF:src/ui/app.rs` でフォント文字 `"☾"` 等を使わず、`egui::Painter` のベジェ曲線と円弧による自前描画関数 `paint_theme_icon` に置き換える。
@@ -235,8 +235,8 @@
   4. 同梱フォールバック: `assets/ipag.ttf`
 - インレイヒントの数学山括弧 `⟨⟩`（U+27E8 / U+27E9）は IPA ゴシックに含まれないため、egui 既定の `Hack` 等幅フォントを `FontDefinitions` のフォールバック末尾に連結して豆腐（`□`）化を防ぐ。
 
-- **[F-11 / S-18] 全角「？」「！」「＊」の太さ統一と `max_line_chars` 対応（実装完了: `REF:src/ui/theme.rs`, `REF:src/ui/settings.rs`, `REF:tests/gui.rs`）**:
-  - `REF:src/ui/theme.rs` のフォント設定で全角約物が CJK フォントからグリフ解決される順序を保証し（F-11）、`REF:src/ui/settings.rs` の `max_line_chars`（`ja`=44, `en`=70）に応じて本文折り返し幅を計算する（S-18）。
+- **[F-11 / S-18] 全角「？」「！」「＊」の太さ統一と `max_line_chars` 対応（実装完了: `REF:src/ui/theme.rs`, `REF:src/app/settings.rs`, `REF:tests/gui.rs`）**:
+  - `REF:src/ui/theme.rs` のフォント設定で全角約物が CJK フォントからグリフ解決される順序を保証し（F-11）、`REF:src/app/settings.rs` の `max_line_chars`（`ja`=44, `en`=70）に応じて本文折り返し幅を計算する（S-18）。
 
 ## 12. 国際化
 
