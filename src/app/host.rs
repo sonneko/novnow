@@ -165,4 +165,3 @@ pub enum ExportFailure {
     /// 書けなかった（OS のメッセージ）。
     Failed(String),
 }
-

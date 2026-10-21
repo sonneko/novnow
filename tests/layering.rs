@@ -993,6 +993,110 @@ fn the_message_catalog_does_not_use_the_gui_crates() {
     }
 }
 
+/// 段階 ③ §19.1: app 層（外部インターフェースの機能核）は GUI のクレートを使わない。
+///
+/// `src/app/**` は `ui` feature なし（＝ CI の 4 ジョブの既定ビルド）でコンパイルされる。
+/// egui / eframe / rfd / fontdb / image のどれかに依存した瞬間に既定のビルドが落ちるので、
+/// ソースを読んで固定する（GUI 付きビルドでなくても検査できる）。文言は `ui::i18n` 経由
+/// （§19.1.8）なので、`gui_has_no_user_facing_text` が `src/app/**` も一緒に検査する。
+#[test]
+fn the_app_layer_does_not_use_the_gui_crates() {
+    let mut files = Vec::new();
+    collect_rs(Path::new("src/app"), &mut files);
+    assert!(files.len() > 5, "src/app の .rs が少なすぎる: {files:?}");
+    for file in &files {
+        let source = read_core(file);
+        let parsed = syn::parse_file(&source).expect("parse");
+        let mut roots = CrateRoots::default();
+        roots.visit_file(&parsed);
+        let used: Vec<&String> = roots
+            .roots
+            .iter()
+            .filter(|root| UI_CRATES.contains(&root.as_str()))
+            .collect();
+        assert!(
+            used.is_empty(),
+            "{} が GUI のクレートを使っている: {used:?}（§19.1: app 層は GUI なしで動く）",
+            file.display()
+        );
+    }
+}
+
+/// 段階 ③ H1-AC-1: `src/app/` へ移した状態機械は旧パスから再エクスポートで解決する。
+///
+/// 文書（`REF:docs/designs/**`）と既存テストは `ui::workbench` などの旧パスを参照し続ける
+/// ため、移設は「移動 + 旧パスからの `pub use`」で行う（`REF:docs/plans.md#stage-3`）。
+#[test]
+fn the_moved_state_machines_are_reexported_from_their_old_paths() {
+    let app_mod = include_str!("../src/app/mod.rs");
+    for name in [
+        "agents",
+        "assist",
+        "command",
+        "commands",
+        "host",
+        "palette",
+        "save_machine",
+        "settings",
+        "workbench",
+        "workspace",
+    ] {
+        assert!(
+            app_mod.contains(&format!("pub mod {name};")),
+            "src/app/mod.rs に `pub mod {name};` が無い"
+        );
+    }
+    assert!(
+        UI_MOD_RS.contains(
+            "pub use crate::app::{agents, assist, palette, save_machine, settings, workbench};"
+        ),
+        "src/ui/mod.rs が app 層の 6 モジュールを再エクスポートしていない（旧パスが壊れる）"
+    );
+    let shell = include_str!("../src/ui/shell.rs");
+    assert!(
+        shell.contains("pub use crate::app::command::Command;"),
+        "src/ui/shell.rs が Command を再エクスポートしていない"
+    );
+    let spaces = include_str!("../src/ui/workspaces/mod.rs");
+    assert!(
+        spaces.contains("pub use crate::app::workspace::{Switcher, Workspace};"),
+        "src/ui/workspaces/mod.rs が Switcher / Workspace を再エクスポートしていない"
+    );
+    let gui = include_str!("../src/ui/app.rs");
+    assert!(
+        gui.contains(
+            "pub use crate::app::host::{save_now, ExportFailure, Host, HostEvent, SaveOutcome};"
+        ),
+        "src/ui/app.rs が Host 一式を再エクスポートしていない"
+    );
+    // app 層が GUI 層を逆に参照していないこと（依存の向き ui → app、`overview.md` §3.3）。
+    let mut files = Vec::new();
+    collect_rs(Path::new("src/app"), &mut files);
+    let mut found = Vec::new();
+    for file in &files {
+        let source = read_core(file);
+        for (number, line) in source.lines().enumerate() {
+            let code = match line.find("//") {
+                Some(at) => &line[..at],
+                None => line,
+            };
+            if code.contains("crate::ui::") && !code.contains("crate::ui::i18n") {
+                found.push(format!(
+                    "{}:{}: {}",
+                    file.display(),
+                    number + 1,
+                    line.trim()
+                ));
+            }
+        }
+    }
+    assert!(
+        found.is_empty(),
+        "app 層が ui 層（i18n 以外）を参照している（依存の向きが逆）:\n{}",
+        found.join("\n")
+    );
+}
+
 /// §12.2: CLI（`src/cli/**`・`src/main.rs`）と文言カタログ（`src/ui/i18n/**`）にも
 /// ユーザー向け文言（日本語の文字列リテラル）を書かない（CLI も同じカタログを使う）。
 #[test]
@@ -1021,6 +1125,8 @@ fn gui_has_no_user_facing_text() {
     // GUI のコードは `ui` feature の中だけでビルドされるが、ここはソースを読むので既定のビルドでも検査できる
     let mut files = Vec::new();
     collect_rs(Path::new("src/ui"), &mut files);
+    // 段階 ③ H1 で `src/app/**` へ移した状態機械も同じ規則（§19.1.8: 文言はカタログ経由）
+    collect_rs(Path::new("src/app"), &mut files);
     assert!(files.len() > 10, "src/ui の .rs が少なすぎる: {files:?}");
     let mut found = Vec::new();
     for file in &files {

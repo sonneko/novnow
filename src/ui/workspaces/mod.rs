@@ -30,7 +30,6 @@ pub mod write;
 
 pub use crate::app::workspace::{Switcher, Workspace};
 
-
 /// ワークスペースごとの状態（`Session` が持ち続ける。§10.0「破棄・再構築をしない」）。
 #[derive(Debug, Default)]
 pub struct Spaces {

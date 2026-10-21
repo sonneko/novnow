@@ -146,4 +146,3 @@ pub const SHORTCUT_PALETTE_COMMANDS: &[(&str, &str, Command)] = &[
     ("workspace-agent", "Alt+8", Command::Workspace(8)),
     ("workspace-review", "Alt+9", Command::Workspace(9)),
 ];
-

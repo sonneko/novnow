@@ -70,7 +70,6 @@ impl ImeState {
 
 pub use crate::app::command::Command;
 
-
 /// キー 1 つをショートカットに読む。`text_focused` は入力欄にフォーカスがあるか（`?` の判定）。
 ///
 /// macOS では `Option` が文字入力に使われるので、`Alt` 系（矢印以外）は `Ctrl+Alt` に読み替える

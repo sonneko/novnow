@@ -333,7 +333,7 @@ fn every_cli_key_used_in_the_source_exists_and_none_is_unused() {
     assert!(unused.is_empty(), "使われていない cli.* のキー: {unused:?}");
 }
 
-/// GUI（M7）の文言の領域。`src/ui/**`（カタログ自身を除く）の文字列リテラルから引く。
+/// GUI（M7）の文言の領域。`src/ui/**`・`src/app/**`（カタログ自身を除く）の文字列リテラルから引く。
 const GUI_PREFIXES: &[&str] = &[
     "stage.",
     "status.",
@@ -370,6 +370,8 @@ fn every_gui_key_used_in_the_source_exists_and_none_is_unused() {
     let en = flatten(EN, "en.toml");
     let mut files = Vec::new();
     rust_files(Path::new("src/ui"), &mut files);
+    // 段階 ③ H1 で `src/app/**` へ移した状態機械（ワークスペース名など）も同じカタログを引く
+    rust_files(Path::new("src/app"), &mut files);
     files.retain(|file| !file.starts_with("src/ui/i18n"));
     let mut total = 0;
     for prefix in GUI_PREFIXES {

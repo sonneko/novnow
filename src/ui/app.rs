@@ -13,7 +13,6 @@ use egui::{
     Pos2, Rect, RichText, Sense, Stroke, Vec2,
 };
 
-use crate::core::diagnostics::Diagnostic;
 use crate::core::export::{self as export_text, State as ExportState};
 use crate::core::features::Project;
 use crate::ports::dialog::ChosenPath;
