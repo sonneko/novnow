@@ -988,7 +988,7 @@ fn export_writes_only_the_chosen_file_outside_the_project() {
 fn export_option_errors_are_exit_2_and_empty_selections_write_nothing() {
     let dir = TempDir::new("cli-export-args");
     minimal_project(&dir, "novel");
-    let cases: [(&[&str], &str); 7] = [
+    let cases: [(&[&str], &str); 6] = [
         (
             &["export", "novel", "--range"],
             "--rangeに値を指定してください",
@@ -1008,11 +1008,6 @@ fn export_option_errors_are_exit_2_and_empty_selections_write_nothing() {
         (
             &["export", "novel", "--out="],
             "--outに値を指定してください",
-        ),
-        // ② のオプション（`PLANS.md` §1.2）
-        (
-            &["export", "novel", "--include-stock"],
-            "不明なオプションです: --include-stock",
         ),
         (&["export", "novel", "extra"], "余分な引数です: extra"),
     ];
@@ -1388,7 +1383,7 @@ fn the_structure_doc_url_is_written_once_and_matches_section_14_2_1() {
         let Ok(text) = std::fs::read_to_string(&file) else {
             continue;
         };
-        for _ in text.matches("sonneko.github.io/novnow/guide") {
+        for _ in text.matches("sonneko.github.io/novnow/guide/project_structure.html") {
             found.push(file.display().to_string());
         }
     }

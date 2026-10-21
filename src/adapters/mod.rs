@@ -19,6 +19,8 @@ pub mod clock_system;
 pub mod dialog_rfd;
 pub mod env_system;
 #[cfg(not(target_arch = "wasm32"))]
+pub mod mcp_http;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod mcp_stdio;
 pub mod project_load;
 #[cfg(not(target_arch = "wasm32"))]

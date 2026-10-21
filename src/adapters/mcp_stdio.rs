@@ -38,6 +38,9 @@ impl McpClient for StdioClient {
         call: &McpCall,
         cancel: &AtomicBool,
     ) -> Result<McpReply, McpError> {
+        if server.command == "__novnow_http_mcp" {
+            return super::mcp_http::call(server, call, cancel);
+        }
         let deadline = Instant::now() + Duration::from_millis(server.timeout_ms.max(1));
         let mut child = Command::new(&server.command)
             .args(&server.args)

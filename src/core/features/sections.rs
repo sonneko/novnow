@@ -191,7 +191,16 @@ pub fn remove(text: &str, section: &SectionRef) -> String {
 
 /// 空白を除いた文字数（§9.6.1。コメント行・アノテーションも数える）。
 pub fn count_chars(text: &str) -> usize {
-    text.chars().filter(|c| !c.is_whitespace()).count()
+    if !text
+        .chars()
+        .any(|c| matches!(c, '^' | '!' | '#' | '@' | '\'' | '|' | '《' | '\\'))
+    {
+        return text.chars().filter(|c| !c.is_whitespace()).count();
+    }
+    crate::core::export::plain(text)
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .count()
 }
 
 /// 場面見出しに書ける最少の階層数（§5.2.1 `scene_id = num "-" num "-" num [ "-" num ]`）。

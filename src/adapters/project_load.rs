@@ -80,6 +80,13 @@ pub async fn load<S: Storage>(storage: &S) -> Result<Loaded, StorageError> {
     fill_dirs(storage, &mut listing).await?;
     let mut documents = Vec::new();
     for entry in &entries {
+        if entry.path.as_str() == ".novnow/stats.json"
+            || entry.path.as_str() == ".novnow/reader.json"
+        {
+            if let Ok(text) = storage.read(&entry.path).await {
+                documents.push(Document::new(entry.path.as_str(), text));
+            }
+        }
         if !is_checked_text(&entry.path) {
             continue;
         }
@@ -102,7 +109,20 @@ pub async fn load<S: Storage>(storage: &S) -> Result<Loaded, StorageError> {
         }
     }
     let validation = validate(&listing);
-    let project = Project::with_documents(Default::default(), documents);
+    let mut project = Project::with_documents(Default::default(), documents);
+    for entry in &entries {
+        if entry.path.as_str().starts_with("assets/") {
+            if entry.stamp.len > 256 * 1024 {
+                project
+                    .assets
+                    .insert(entry.path.as_str().to_owned(), Vec::new());
+                continue;
+            }
+            if let Ok(bytes) = storage.read_binary(&entry.path).await {
+                project.assets.insert(entry.path.as_str().to_owned(), bytes);
+            }
+        }
+    }
     Ok(Loaded {
         listing,
         validation,

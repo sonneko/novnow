@@ -25,6 +25,7 @@ pub mod material;
 pub mod plot_episode;
 pub mod plot_outline;
 pub mod review;
+pub mod stage_two;
 pub mod write;
 
 /// ワークスペース（§10 の表の順。番号が `Alt+N`）。
@@ -112,7 +113,7 @@ impl Workspace {
 
     /// v1 のこの版で開けるか（`reader` は ②。B-126。`agent` は M10 で開けるようになった）。
     pub fn available(self) -> bool {
-        !matches!(self, Self::Reader)
+        true
     }
 
     /// 開けるワークスペース（ヘッダのインジケータに並べる順）。

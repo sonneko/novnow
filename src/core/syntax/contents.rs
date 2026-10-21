@@ -728,6 +728,11 @@ fn escaped_positions(text: &str) -> Vec<usize> {
 /// `《` を左から見て、閉じ `》` があり読みが空でなければルビ。親文字が取れなければ
 /// （`｜` が無い・`《` の直前が漢字でない）ルビではなく本文のまま。`》` が行内に無ければ
 /// それ以降を見ない（§5.0.1「1 行は常に単独で字句解析できる」）。
+/// Ruby spans in a fragment, without interpreting structure or line sigils.
+pub fn rubies_of(text: &str) -> Vec<Ruby<'_>> {
+    find_rubies(text, &escaped_positions(text))
+}
+
 fn find_rubies<'a>(text: &'a str, escaped: &[usize]) -> Vec<Ruby<'a>> {
     let mut out = Vec::new();
     let mut at = 0;

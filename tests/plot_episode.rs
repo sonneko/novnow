@@ -443,20 +443,15 @@ fn the_spec_example_reads_the_space_memo_as_a_continuation() {
 /// ② のキー（`when` `space` `space-mode` `senses` `illustration`）は W011 になるが、
 /// **値は改変せずに保持する**（§5.0.6、`PLANS.md` §5.3「② の生命線」）。
 #[test]
-fn the_spec_example_warns_about_stage_two_keys_and_keeps_their_values() {
+fn the_spec_example_reads_stage_two_fields_and_keeps_their_values() {
     let text = spec_episode();
+    assert_eq!(diags_tag(&text), "");
+    assert_eq!(scene_keys_of(&text, 0, FieldKey::When), "406 09:40");
+    assert_eq!(scene_keys_of(&text, 0, FieldKey::SpaceMode), "ascii");
+    assert_eq!(section_keys_of(&text, 0, 0, FieldKey::Senses), "視覚 聴覚");
+    assert_eq!(section_keys_of(&text, 0, 1, FieldKey::Senses), "視覚 嗅覚");
     assert_eq!(
-        diags_tag(&text),
-        "W011@105..109(when) / W011@121..131(space-mode) / W011@139..144(space) / W011@451..457(senses) / W011@670..676(senses) / W011@1008..1020(illustration)"
-    );
-    assert_eq!(
-        scene_keys_of(&text, 0, FieldKey::Unknown),
-        "406 09:40 / ascii / "
-    );
-    assert_eq!(section_keys_of(&text, 0, 0, FieldKey::Unknown), "視覚 聴覚");
-    assert_eq!(section_keys_of(&text, 0, 1, FieldKey::Unknown), "視覚 嗅覚");
-    assert_eq!(
-        section_keys_of(&text, 0, 2, FieldKey::Unknown),
+        section_keys_of(&text, 0, 2, FieldKey::Illustration),
         "挿絵候補 / リリアが図面を覗き込む / 窓からの逆光"
     );
 }
@@ -494,18 +489,12 @@ fn the_spec_example_round_trips_byte_for_byte() {
 #[test]
 fn senses_before_the_first_point_is_scene_level() {
     assert_eq!(scenes_tag(SPEC_SENSES), "S0|h0|id1-4-2-0|d3|0..7|f1");
+    assert_eq!(scene_keys_of(SPEC_SENSES, 0, FieldKey::Senses), "視覚 聴覚");
     assert_eq!(
-        scene_keys_of(SPEC_SENSES, 0, FieldKey::Unknown),
-        "視覚 聴覚"
-    );
-    assert_eq!(
-        section_keys_of(SPEC_SENSES, 0, 1, FieldKey::Unknown),
+        section_keys_of(SPEC_SENSES, 0, 1, FieldKey::Senses),
         "視覚 嗅覚 触覚"
     );
-    assert_eq!(
-        diags_tag(SPEC_SENSES),
-        "W011@29..35(senses) / W011@53..59(senses)"
-    );
+    assert_eq!(diags_tag(SPEC_SENSES), "");
 }
 
 /// §5.4.5 の例は最初の節が**空**。B 形式では空の節が正当なので W012 は出さない
@@ -516,9 +505,9 @@ fn the_illustration_example_has_an_empty_first_section() {
         sections_tag(SPEC_ILLUSTRATION, 0),
         "s0|n1|1..1|c1..1|b1|f-|p- / s1|n2|2..4|c2..4|b4|f2,3|p-"
     );
-    assert_eq!(diags_tag(SPEC_ILLUSTRATION), "W011@31..43(illustration)");
+    assert_eq!(diags_tag(SPEC_ILLUSTRATION), "");
     assert_eq!(
-        section_keys_of(SPEC_ILLUSTRATION, 0, 1, FieldKey::Unknown),
+        section_keys_of(SPEC_ILLUSTRATION, 0, 1, FieldKey::Illustration),
         "見開き / リリアが階段を見上げる / 逆光 / 制服は夏服"
     );
     assert_eq!(
@@ -631,10 +620,7 @@ fn a_continuation_chain_breaks_on_a_blank_or_a_comment() {
     assert_eq!(line_tag_of(CONT_CHAIN, 7), "cont(2)[孤児]");
     assert_eq!(line_tag_of(CONT_CHAIN, 8), "comment[ コメント@0..15]");
     assert_eq!(line_tag_of(CONT_CHAIN, 9), "cont(2)[続き]");
-    assert_eq!(
-        diags_tag(CONT_CHAIN),
-        "W011@17..27(space-mode) / W011@35..40(space)"
-    );
+    assert_eq!(diags_tag(CONT_CHAIN), "");
     assert_eq!(
         sections_tag(CONT_CHAIN, 0),
         "s0|n1|10..12|c10..11|b-|f-|p10"
@@ -773,16 +759,10 @@ fn cast_is_not_checked_for_e005() {
 
 #[test]
 fn unknown_keys_are_warned_and_their_values_are_kept() {
+    assert_eq!(diags_tag(UNKNOWN_KEYS), "");
+    assert_eq!(scene_keys_of(UNKNOWN_KEYS, 0, FieldKey::When), "406 09:40");
     assert_eq!(
-        diags_tag(UNKNOWN_KEYS),
-        "W011@17..21(when) / W011@33..39(senses) / W011@58..70(illustration)"
-    );
-    assert_eq!(
-        scene_keys_of(UNKNOWN_KEYS, 0, FieldKey::Unknown),
-        "406 09:40 / 視覚"
-    );
-    assert_eq!(
-        section_keys_of(UNKNOWN_KEYS, 0, 0, FieldKey::Unknown),
+        section_keys_of(UNKNOWN_KEYS, 0, 0, FieldKey::Illustration),
         "見開き / 逆光"
     );
     assert_eq!(plot_episode::parse(UNKNOWN_KEYS).to_text(), UNKNOWN_KEYS);
@@ -812,7 +792,7 @@ fn field_returns_the_field_of_a_line() {
     assert_eq!(field_tag_of(&text, 11), "-");
     assert!(parsed.field(0).is_none());
     assert!(parsed.field(99).is_none());
-    assert!(parsed.field(6).unwrap().is_unknown());
+    assert_eq!(parsed.field(6).unwrap().key, FieldKey::Space);
 }
 
 #[test]

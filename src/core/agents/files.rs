@@ -202,7 +202,11 @@ pub fn thread_path(id: &str) -> String {
 
 /// プロンプトのパス（既定の役割）。
 pub fn prompt_path(role: &str) -> String {
-    format!("prompts/{role}.md")
+    if super::is_role(role) {
+        format!("prompts/{role}.md")
+    } else {
+        format!("prompts/custom/{role}.md")
+    }
 }
 
 // ============================================================ タスク（§5.10.1）
@@ -811,7 +815,9 @@ impl Board {
                 if let Some(task) = parse_task(path, &document.text) {
                     out.tasks.push(task);
                 }
-            } else if number_in(path, PROPOSALS_DIR, "P").is_some() {
+            } else if number_in(path, PROPOSALS_DIR, "P").is_some()
+                || number_in(path, PROPOSALS_DIR, "H").is_some()
+            {
                 if let Some(proposal) = parse_proposal(&document.text) {
                     out.proposals.push(proposal);
                 }

@@ -465,3 +465,19 @@ fn patterns(lines: &[characters_md::Line<'_>], indices: &[usize]) -> Value {
         .collect();
     Value::Array(found)
 }
+
+#[test]
+#[ignore]
+fn regenerate_stage_two_expected_from_actual_parser() {
+    for form in FORMS {
+        for path in cases(form) {
+            let text = fs::read_to_string(&path).unwrap();
+            let value = project(form, &text);
+            fs::write(
+                expected_of(&path),
+                serde_json::to_string_pretty(&value).unwrap() + "\n",
+            )
+            .unwrap();
+        }
+    }
+}

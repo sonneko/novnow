@@ -194,7 +194,7 @@ pub const SIGIL_TABLE: &[SigilSpec] = &[
         requires_space: true,
         whole_line: false,
         formats: Formats::CONTENTS,
-        stage: Stage::Two,
+        stage: Stage::One,
     },
     SigilSpec {
         prefix: "//",
@@ -346,6 +346,14 @@ pub enum FieldKey {
     Temperature,
     /// `label`
     Label,
+    When,
+    Senses,
+    Space,
+    SpaceMode,
+    Illustration,
+    Blurb,
+    Address,
+    Icon,
     /// §5.0.6 の表に無いキー（**W011**。値は改変せず保持する）。
     Unknown,
 }
@@ -461,7 +469,20 @@ pub const FIELD_KEYS: &[KeyRow] = &[
         "温度",
         Formats::MARKDOWN,
     ), // §5.0.6: prompts/*.md
-    (FieldKey::Label, "label", "表示名", Formats::MARKDOWN),   // §5.0.6: prompts/*.md
+    (FieldKey::When, "when", "日時", Formats::AB),
+    (FieldKey::Senses, "senses", "五感", Formats::PLOT_EPISODE),
+    (FieldKey::Space, "space", "空間", Formats::AB),
+    (FieldKey::SpaceMode, "space-mode", "空間形式", Formats::AB),
+    (
+        FieldKey::Illustration,
+        "illustration",
+        "挿絵",
+        Formats::PLOT_EPISODE,
+    ),
+    (FieldKey::Blurb, "blurb", "あらすじ", Formats::PLOT_OUTLINE),
+    (FieldKey::Address, "address", "呼称", Formats::MARKDOWN),
+    (FieldKey::Icon, "icon", "アイコン", Formats::MARKDOWN),
+    (FieldKey::Label, "label", "表示名", Formats::MARKDOWN), // §5.0.6: prompts/*.md
 ];
 
 /// 1 行を字句解析する（§5.0.1「1 行は常に単独で字句解析できる」）。

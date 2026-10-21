@@ -1710,3 +1710,21 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 [HIST-TAG: category=RISK id=R-10 topics=R-10]
 - **影響 / 確度 / 判断期限**: 層構造の崩壊 / 中 / 常時
 - **対策と結果**: `tests/layering.rs` が CI 必須。例外を 1 つも認めない
+
+
+### [HIST:DECISION:L01-STAGE2] 2026-10-21 段階②の統合実装判断
+[HIST-TAG: category=DECISION id=L01-STAGE2 topics=migration,reader,statistics,mcp,stock]
+
+- 全判断を自律実行して事後報告するというユーザー指示に従い、段階②の詳細を裁定した。
+- Reader の「ファイルを変更しない」は原稿・プロット・資料・共有設定に適用し、要求された読書位置・しおりのローカル保存は例外とした。
+- ローカル MCP は平文 HTTP の loopback のみ。外部 URL・URL 内の制御文字を拒否し、プロバイダ SDK は導入しない。
+- 統計は公開済みの日次 `chars` / 時刻集合 `hours` を維持し、集計時間・セッション数と未知キーを保持する。10分または終了時にだけ保存する。
+- 構造移動はネイティブでは全変更前のバイト列を確保して失敗時に関門経由で復元し、Web は単一 IndexedDB トランザクションとする。電源断を含む分散トランザクションではない。
+- JPEG は既存 image 依存の codec を有効化し、ネットワーク制約環境の復旧は `REF:scripts/bootstrap-jpeg.sh` で検証済みソースを補う。
+
+
+### [HIST:DECISION:STAGE2-INPUT] 2026-10-21 読者からエディタへの切替での文字イベント漏れ
+[HIST-TAG: category=DECISION id=STAGE2-INPUT topics=web,shortcuts,readonly]
+
+- 読者のキーボード操作とバイナリ画像の Zip 往復を `REF:scripts/web-smoke.mjs` に追加し、読者から資料へ移ったときの Alt+数字の随伴 Text イベント混入を検出した。
+- `REF:src/ui/shell.rs` で消費したショートカットに対応する文字だけを同時に消費し、無関係な入力と IME 確定を残す。`REF:tests/stage_two.rs` で固定した。

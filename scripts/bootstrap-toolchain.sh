@@ -183,6 +183,8 @@ if [ ! -d "$BUILD_DIR/vendor-src/tiniestsegmenter" ]; then
         japanese-crates.tar.gz
 fi
 
+bash "$ROOT/scripts/bootstrap-jpeg.sh"
+
 say "確認"
 # shellcheck disable=SC1091
 . "$BUILD_DIR/env.sh"

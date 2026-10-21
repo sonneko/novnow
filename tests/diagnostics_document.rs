@@ -47,7 +47,7 @@ fn the_spec_examples_only_warn_about_what_the_spec_itself_leaves_open() {
     // 定義側の 3 ファイルは診断 0 件
     assert_eq!(tags(&project, "characters.md"), "");
     assert_eq!(tags(&project, "words.md"), "");
-    assert_eq!(tags(&project, "materials/index.json"), "");
+    assert_eq!(tags(&project, "materials/index.json"), "I054@(1)");
     // 本文（§5.2.3）も 0 件（`'『星屑の時計』` は `'` の直後が区切り文字なので参照ではない）
     assert_eq!(tags(&project, CONTENTS_PATH), "");
     assert_eq!(tags(&project, ALL_PATH), "");

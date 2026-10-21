@@ -139,16 +139,16 @@ fn the_spec_example_reads_the_keys_of_the_table() {
 
 #[test]
 fn keys_outside_the_table_still_warn_and_keep_their_values() {
-    // §5.0.6 の表に無いキーは W011 ＋ 値を改変せず保持（縫い代 2）。② のキー（`blurb`）も
+    // §5.0.6 の表に無いキーは W011 ＋ 値を改変せず保持（縫い代 2）。② のキー（`flurb`）も
     // ① では未知のまま（PLANS.md §1.2）
-    let text = "# I0001 下書き\nstatus: inbox\nblurb: 一行紹介\nfoo: bar\n";
+    let text = "# I0001 下書き\nstatus: inbox\nflurb: 一行紹介\nfoo: bar\n";
     assert_eq!(
         diags_tag(text),
-        [w011(text, 2, "blurb"), w011(text, 3, "foo")].join("\n")
+        [w011(text, 2, "flurb"), w011(text, 3, "foo")].join("\n")
     );
     let parsed = ideas_md::parse(text);
     assert_eq!(parsed.status(0).unwrap().key, FieldKey::Status);
-    assert_eq!(parsed.unknown_field(0, "blurb").unwrap().value, "一行紹介");
+    assert_eq!(parsed.unknown_field(0, "flurb").unwrap().value, "一行紹介");
     assert_eq!(parsed.to_text(), text);
 }
 

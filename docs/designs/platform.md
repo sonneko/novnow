@@ -90,9 +90,9 @@
 
 ### 14.6 既存本文テキストからの移行支援
 
-状態: 実装中（REF:src/core/migration.rs, REF:src/cli/migrate.rs, REF:src/adapters/storage_fs.rs）
+状態: 実装完了（REF:src/core/migration.rs, REF:src/cli/migrate.rs, REF:src/adapters/storage_fs.rs, REF:src/ui/app.rs）
 
 - 純粋な変換関数 `convert` は `REF:src/core/migration.rs`。既定雛形からサンプルを除去し、1 節の本文と空の構造を生成する。
 - CLI の読み取り・プレビュー・確定は `REF:src/cli/migrate.rs`。移行先を排他的に作成する `FsStorage::create_fresh`（`REF:src/adapters/storage_fs.rs`）で既存先を拒否する。書き込みは既存の単一関門を使用する。
 - `REF:tests/migration.rs` で記号の往復・正規化、`REF:tests/cli.rs` でプレビュー非変更・入力不正・既存先拒否・入力元保持を検証する。
-- デスクトップ/Web の操作接続は未実装。計画: `REF:docs/plans.md#unplanned-large`。
+- デスクトップは `REF:src/ui/app.rs` の NativePicker とダイアログポートから入力選択→プレビュー→新規先へ作成→開くを接続する。Web は初期移行の対象外。

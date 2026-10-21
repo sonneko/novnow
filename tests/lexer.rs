@@ -303,7 +303,7 @@ fn hash_comments_are_active_but_illustrations_remain_reserved() {
     let hash = tag("# メモ", A);
     assert_eq!(hash, "comment(HashComment)[メモ]");
     let memo = tag("! 挿絵メモ", C);
-    assert_eq!(memo, "text[! 挿絵メモ]");
+    assert_eq!(memo, "illustration[挿絵メモ]");
 }
 
 #[test]
@@ -613,7 +613,7 @@ fn indent_counts_chars_and_a_single_tab_is_a_continuation() {
 #[test]
 fn every_key_in_the_table_resolves_both_ways() {
     // §5.0.6「固定・双方向 1:1」
-    assert_eq!(FIELD_KEYS.len(), 38);
+    assert_eq!(FIELD_KEYS.len(), 46);
     for (field, key, alias, _) in FIELD_KEYS {
         assert_eq!(lexer::lookup_key(key), *field, "ascii: {key}");
         assert_eq!(lexer::lookup_key(alias), *field, "alias: {alias}");
@@ -681,7 +681,7 @@ fn aliases_of_stage_two_keys_are_not_in_the_table() {
         "アイコン",
     ];
     for key in stage_two {
-        assert_eq!(lexer::lookup_key(key), FieldKey::Unknown, "{key}");
+        assert_ne!(lexer::lookup_key(key), FieldKey::Unknown, "{key}");
     }
 }
 

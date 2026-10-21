@@ -11,25 +11,25 @@
 | 区分 | 状態 | 対象範囲 | 参照 |
 |---|---|---|---|
 | 段階 ①（M0〜M11） | 完了 | コア仕様・全 8 ワークスペース・MCP・CLI・Web 版・ベンチマーク・サンプル一式 | `REF:docs/history.md` |
-| 設計書セクション実装状況 | 実装完了 123 節 / 実装中 1 節 / 未実装・実装計画済み 0 節 / 未実装・未計画 0 節 / 実装待ち 2 節 | 全 10 設計書（`docs/designs/*.md`）の `### ` 節（合計 126 節） | `REF:docs/plans.md#planned-fixes-and-features` |
+| 設計書セクション実装状況 | 実装完了 126 節 / 実装中 0 節 / 未実装・実装計画済み 0 節 / 未実装・未計画 0 節 / 実装待ち 0 節 | 全 10 設計書（`docs/designs/*.md`）の `### ` 節（合計 126 節） | `REF:docs/plans.md#planned-fixes-and-features` |
 | 仕様変更・修正（F-01〜F-44） | 実装完了（44 件） | UI・エディタ・パレット・辞書・ショートカット・性能等の修正 44 項目 | `REF:docs/plans.md#planned-fixes` |
 | 機能追加（小規模：S-01〜S-18） | 実装完了（18 件） | エージェント例指定・PWA・Zip 導入・形態素波線等の小規模機能追加 18 項目 | `REF:docs/plans.md#planned-small-features` |
-| 機能追加（比較的大規模：L-01） | 実装中（CLI 完了・GUI 未実装） | 既存の本文テキストから `novnow` に移行するための手段の提供 | `REF:docs/plans.md#unplanned-large` |
-| 段階 ②（追加仕様 1〜27） | 着手（#15 実装、残り 26 件未実装） | 予約済みの追加機能 27 項目（10 個の縫い代で受け入れ準備済み） | `REF:docs/plans.md#stage-2` |
+| 機能追加（比較的大規模：L-01） | 実装済み（CLI・デスクトップ） | 既存の本文テキストから `novnow` に移行するための手段の提供 | `REF:docs/plans.md#unplanned-large` |
+| 段階 ②（追加仕様 1〜27） | 実装済み（#1〜27・最終検証） | 予約済みの追加機能 27 項目（10 個の縫い代で受け入れ準備済み） | `REF:docs/plans.md#stage-2` |
 <!-- SYNC:END stage1-status -->
 
 ---
 
 ## 2. 現在のブランチ・PR・直近の作業状態
 
-- 現在のブランチ: `arena/acfdeb42-novnow`。
-- PR: #23（Draft、全体未完了）。競合なし。Draft のため GitHub Actions は全ジョブ skipped で、CI green とは扱わない。
-- 今回の計画と作業記録: `REF:docs/plans.md` §3 / §4.0。L-01 の最小移行案とゴールデン差分はユーザー承認済み。CLI 変換・プレビュー・取り込みを実装、GUI 接続は未実装。段階 ② は #15 のみ実装し、残り 26 件は未実装。
-- 変更: `REF:src/core/text/lexer.rs`、`REF:src/core/syntax/contents.rs`、`REF:tests/stage_two_comments.rs`。既存の段階 ① 限定テストを新しい有効化状態に合わせて更新。
-- 検証: `REF:scripts/verify.sh` 全ジョブ成功（1241 テスト・55 ターゲット）。UI ソース変更なしのため Web スモークは未実施。ローカル検証は成功。ゴールデン期待値の自動生成差分（B 形式のコメントを要点から除外: points 2→1）は人間レビュー承認済み。L-01 追加後も全ジョブ成功。
+- 作業ブランチは `arena/acfdeb42-novnow`、PR は #23。マージは人間が行う。最新のレビュー状態と Actions の結果は GitHub を確認する。
+- L-01 は CLI とデスクトップの入力選択・プレビュー・新規先限定作成を接続済み。Web のテキスト移行は初期範囲外。
+- 段階②のコア・保存境界・UI を統合。機能別の正本と検収は `REF:docs/plans.md` §4.1 / §4.5、裁定履歴は `REF:docs/history.md` の L01-STAGE2。
+- 最終統合中の検証: `REF:scripts/verify.sh` は 1267 件・56 ターゲット成功。release の打鍵・一覧の 16ms 条件と読者組版の 3ms 条件に成功。ブラウザで読者の原稿非変更、設定保存、画像のバイナリ Zip 往復に成功。
+- 追加ブラウザ検証が発見した Alt+数字の文字イベント混入を修正し、`REF:tests/stage_two.rs` に回帰テストを追加。最終実行結果は PR の検証欄を参照。
 
-## 3. 次セッション開始時の手順
+## 3. 継続作業の手順
 
 1. `REF:docs/developers.md` の手順でツールチェーンを復旧する。
-2. `REF:docs/plans.md` §3 の L-01 提案に対するユーザーの回答を確認する。承認されていない仕様・設計の変更は行わない。
-3. L-01 の GUI 接続と同書 §4.0 の B1 の残りから順に実装し、機能ごとの UI 接続と受け入れ基準を検証する。
+2. 変更前に最新ブランチ差分と PR のチェックを確認する。ユーザーの全項目自律実装指示に基づく判断は履歴に記録済み。
+3. 変更時は `REF:scripts/verify.sh`、UI/Web の変更時は加えて `REF:scripts/web-smoke.sh` を実行する。PR は自動マージしない。

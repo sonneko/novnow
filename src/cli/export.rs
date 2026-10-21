@@ -65,6 +65,10 @@ pub struct Args {
     pub state: Option<State>,
     /// `--out`。
     pub out: Output,
+    pub include_blurb: bool,
+    pub blurb_only: bool,
+    pub include_stock: bool,
+    pub keep_illustration_memo: bool,
 }
 
 impl Args {
@@ -74,6 +78,10 @@ impl Args {
             range: None,
             state: None,
             out: Output::Default,
+            include_blurb: false,
+            blurb_only: false,
+            include_stock: false,
+            keep_illustration_memo: false,
         };
         let mut rest = options.iter().map(|arg| arg.to_string_lossy().into_owned());
         while let Some(arg) = rest.next() {
@@ -83,6 +91,27 @@ impl Args {
                 }
                 _ => (arg.clone(), None),
             };
+            if inline.is_none() {
+                match name.as_str() {
+                    "--include-blurb" => {
+                        args.include_blurb = true;
+                        continue;
+                    }
+                    "--blurb-only" => {
+                        args.blurb_only = true;
+                        continue;
+                    }
+                    "--include-stock" => {
+                        args.include_stock = true;
+                        continue;
+                    }
+                    "--keep-illustration-memo" => {
+                        args.keep_illustration_memo = true;
+                        continue;
+                    }
+                    _ => {}
+                }
+            }
             if !matches!(name.as_str(), "--range" | "--state" | "--out") {
                 return Err(if arg.starts_with('-') && arg.len() > 1 {
                     ArgError::UnknownOption(arg)
@@ -141,10 +170,14 @@ pub fn run<E: Env>(cli: &mut Cli<'_, E>, dir: &Path, options: &[OsString]) -> Ex
     let project = &loaded.project;
     let mut options = export::Options::from_settings(&project.settings().export);
     options.state = args.state;
+    options.include_blurb |= args.include_blurb;
+    options.blurb_only = args.blurb_only;
+    options.include_stock = args.include_stock;
+    options.keep_illustration_memo = args.keep_illustration_memo;
     if let Output::File(path) = &args.out {
         options.format = Format::of_name(&path.to_string_lossy());
     }
-    let chosen = export::select(project, args.range.as_ref(), args.state);
+    let chosen = export::select_with(project, args.range.as_ref(), &options);
     if chosen.is_empty() {
         let message = cli.text("cli.export.empty");
         cli.headline(Stream::Err, Paint::Warning, message);

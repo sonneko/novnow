@@ -117,6 +117,9 @@ pub struct UiSettings {
     pub inlay_hints: bool,
     /// 参照ペインを表示するか（`Ctrl+\`。保存しない、セッション内）。
     pub reference_visible: bool,
+    pub status_stats_mode: bool,
+    pub suggest_comma: bool,
+    pub folded: Vec<String>,
     /// 読んだ JSON（知らないキーを残すため）。
     raw: Map<String, Value>,
 }
@@ -136,6 +139,9 @@ impl Default for UiSettings {
             autosave_ms: 400,
             inlay_hints: true,
             reference_visible: true,
+            status_stats_mode: false,
+            suggest_comma: false,
+            folded: Vec::new(),
             raw: Map::new(),
         }
     }
@@ -184,6 +190,24 @@ impl UiSettings {
         if let Some(shown) = raw.get("inlay_hints").and_then(Value::as_bool) {
             out.inlay_hints = shown;
         }
+        out.status_stats_mode = raw
+            .get("status_stats_mode")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        out.suggest_comma = raw
+            .get("suggest_comma")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        out.folded = raw
+            .get("folded")
+            .and_then(|v| v.get("context"))
+            .and_then(Value::as_array)
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(str::to_owned))
+                    .collect()
+            })
+            .unwrap_or_default();
         out.raw = raw;
         out
     }
@@ -192,6 +216,15 @@ impl UiSettings {
     pub fn to_json(&self) -> String {
         let mut raw = self.raw.clone();
         raw.insert("schema_version".into(), json!(1));
+        raw.insert("status_stats_mode".into(), json!(self.status_stats_mode));
+        raw.insert("suggest_comma".into(), json!(self.suggest_comma));
+        let mut folded = raw
+            .get("folded")
+            .and_then(Value::as_object)
+            .cloned()
+            .unwrap_or_default();
+        folded.insert("context".to_owned(), json!(self.folded));
+        raw.insert("folded".into(), Value::Object(folded));
         raw.insert("theme".into(), json!(self.theme.key()));
         raw.insert("language".into(), json!(self.language.key()));
         raw.insert(

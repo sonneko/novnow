@@ -262,6 +262,29 @@ async function main() {
       const text = file(await db(tab), 'sample', 'contents/01-04.txt');
       return text?.includes('変換した。追') ? text : null;
     });
+    // Stage two: reader controls may persist local reading state, never shared prose.
+    const shared = (state, id) => state.files.filter((f) => f.project_id === id && !f.path.startsWith('.novnow/'))
+      .map((f) => JSON.stringify([f.path, f.text, f.bytes])).sort();
+    const readerBefore = shared(await db(tab), 'sample');
+    await key(tab, 'Alt+7');
+    await sleep(500);
+    await key(tab, 'PageDown');
+    await key(tab, 'r');
+    await key(tab, 't');
+    await key(tab, 'b');
+    await shot(tab, '02e-reader');
+    const readerSaved = await until('読書位置としおり', async () => {
+      const state = await db(tab);
+      const raw = file(state, 'sample', '.novnow/reader.json');
+      return raw && JSON.parse(raw).bookmarks?.length > 0 ? state : null;
+    });
+    check(readerSaved && JSON.stringify(readerBefore) === JSON.stringify(shared(readerSaved, 'sample')),
+      '段階②: 読者のページ・ルビ・テーマ・しおり操作が原稿と共有ファイルを変更しない');
+    check(readerSaved && JSON.parse(file(readerSaved, 'sample', '.novnow/reader.json')).ruby === false,
+      '段階②: 読者のルビ設定と位置が IndexedDB に保存された');
+    await key(tab, 'Escape');
+    await sleep(300);
+    await key(tab, 'Alt+1');
     // F-36: on a real browser canvas, Ctrl+3 exposes the shared reference
     // pane from material; Tab remains available to cycle the form controls.
     const materialBefore = file(await db(tab), 'sample', 'materials/index.json');
@@ -271,7 +294,9 @@ async function main() {
     await shot(tab, '02e-material-reference');
     await key(tab, 'Tab');
     await shot(tab, '02f-material-tab');
-    check(file(await db(tab), 'sample', 'materials/index.json') === materialBefore,
+    const materialAfter = file(await db(tab), 'sample', 'materials/index.json');
+    if (materialAfter !== materialBefore) {fs.writeFileSync(path.join(OUT, 'material-before.json'), materialBefore ?? 'null');fs.writeFileSync(path.join(OUT, 'material-after.json'), materialAfter ?? 'null');}
+    check(materialAfter === materialBefore,
       'F-36: 資料で Ctrl+3 と Tab を使っても内容は変更されない');
     await key(tab, 'Alt+1');
 
@@ -337,6 +362,19 @@ async function main() {
     const createdState = await db(tab);
     check(file(createdState, created?.id, 'project.json')?.includes('星屑の時計'), 'project.json の題が名前');
 
+    // Binary assets use the same project-scoped IDB records and survive Zip round trips.
+    const iconBytes = Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aB1sAAAAASUVORK5CYII=', 'base64'));
+    await tab.evaluate(({ projectId, bytes }) => new Promise((resolve, reject) => {
+      const request = indexedDB.open('novnow');
+      request.onsuccess = () => {
+        const database = request.result;
+        const tx = database.transaction(['files'], 'readwrite');
+        tx.objectStore('files').put({ project_id: projectId, path: 'assets/portrait.png', text: '', bytes, updated_at: '2026-10-21T00:00:00Z' });
+        tx.oncomplete = () => { database.close(); resolve(); };
+        tx.onerror = () => reject(tx.error);
+      };
+      request.onerror = () => reject(request.error);
+    }), { projectId: created.id, bytes: iconBytes });
     // 5. Zip でエクスポート（パレットの >zip）→ ダウンロード
     await key(tab, 'Control+p');
     await tab.keyboard.type('>zip');
@@ -393,6 +431,9 @@ async function main() {
     check(imported !== null, 'Zip を新しいプロジェクトとして取り込んだ（§13.5）');
     const importedState = await db(tab);
     check(file(importedState, imported?.id, 'project.json')?.includes('星屑の時計'), '取り込んだ中身');
+    const importedIcon = importedState.files.find((entry) => entry.project_id === imported?.id && entry.path === 'assets/portrait.png');
+    check(importedIcon && JSON.stringify(importedIcon.bytes) === JSON.stringify(iconBytes),
+      '段階②: バイナリ画像が IndexedDB → Zip → IndexedDB でバイト単位に一致する');
     await sleep(800);
     await shot(tab, '09-imported');
     // 取り込んだもの（選ばれている）を消す

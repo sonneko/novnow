@@ -558,6 +558,64 @@ impl FsStorage {
         fs::read(&absolute).map_err(|error| self.map_read_error(path, &error))
     }
 
+    /// Save a structural move as one recoverable batch. All original bytes are captured
+    /// before mutation; any write/remove failure restores the entire batch through FsGate.
+    pub fn write_batch(
+        &self,
+        writes: &[(ProjectPath, String)],
+        removals: &[ProjectPath],
+    ) -> Result<Vec<(ProjectPath, Stamp)>, String> {
+        let mut backups = std::collections::BTreeMap::new();
+        for path in writes.iter().map(|(p, _)| p).chain(removals) {
+            self.gate
+                .guard_file(&self.absolute(path), Allowed::Project)
+                .map_err(|e| format!("{e:?}"))?;
+            let original = match self.read_bytes(path) {
+                Ok(bytes) => Some(bytes),
+                Err(StorageError::NotFound(_)) => None,
+                Err(e) => return Err(format!("{e:?}")),
+            };
+            backups.insert(path.clone(), original);
+        }
+        let result = (|| {
+            let mut stamps = Vec::new();
+            for (path, text) in writes {
+                stamps.push((
+                    path.clone(),
+                    self.write_bytes(path, text.as_bytes())
+                        .map_err(|e| format!("{e:?}"))?,
+                ));
+            }
+            for path in removals {
+                match self.gate.remove_file(&self.absolute(path)) {
+                    Ok(()) => {}
+                    Err(e) if !self.absolute(path).exists() => {
+                        let _ = e;
+                    }
+                    Err(e) => return Err(format!("{e:?}")),
+                }
+            }
+            Ok(stamps)
+        })();
+        if let Err(error) = result {
+            let mut errors = vec![error];
+            for (path, bytes) in backups {
+                let restored = if let Some(bytes) = bytes {
+                    self.write_bytes(&path, &bytes).map(|_| ())
+                } else if self.absolute(&path).exists() {
+                    self.gate.remove_file(&self.absolute(&path))
+                } else {
+                    Ok(())
+                };
+                if let Err(e) = restored {
+                    errors.push(format!("rollback {}: {e:?}", path.as_str()));
+                }
+            }
+            return Err(errors.join("; "));
+        }
+        result
+    }
+
     /// 行き先（リンクを解決した実体）がルートの中か。解決できないものは `true`（読み込みのエラーに任せる）。
     fn inside(&self, absolute: &Path) -> bool {
         fs::canonicalize(absolute).map_or(true, |real| real.starts_with(&self.root))
@@ -627,6 +685,9 @@ impl FsStorage {
 }
 
 impl Storage for FsStorage {
+    async fn read_binary(&self, path: &ProjectPath) -> Result<Vec<u8>, StorageError> {
+        self.read_bytes(path)
+    }
     async fn list(&self) -> Result<Vec<FileEntry>, StorageError> {
         self.list_files()
     }

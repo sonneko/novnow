@@ -346,38 +346,29 @@ async fn save(
     writes: Vec<(String, String)>,
     removals: Vec<String>,
 ) -> SaveOutcome {
-    let mut outcome = SaveOutcome::default();
-    for (path, text) in writes {
-        let result = match ProjectPath::new(&path) {
-            Ok(target) => storage
-                .write(&target, &text)
-                .await
-                .map(|_| ())
-                .map_err(|error| message(&error)),
-            Err(error) => Err(message(&error)),
-        };
-        match result {
-            Ok(()) => outcome.written.push(path),
-            Err(error) => outcome.failures.push((path, error)),
-        }
+    let parsed: Result<Vec<_>, _> = writes
+        .iter()
+        .map(|(p, t)| ProjectPath::new(p).map(|p| (p, t.clone())))
+        .collect();
+    let deleted: Result<Vec<_>, _> = removals.iter().map(|p| ProjectPath::new(p)).collect();
+    let result = match (parsed, deleted) {
+        (Ok(w), Ok(r)) => storage.write_batch(&w, &r).await.map_err(|e| message(&e)),
+        _ => Err("invalid batch path".to_owned()),
+    };
+    match result {
+        Ok(()) => SaveOutcome {
+            written: writes.into_iter().map(|(p, _)| p).collect(),
+            ..Default::default()
+        },
+        Err(error) => SaveOutcome {
+            failures: writes
+                .into_iter()
+                .map(|(p, _)| (p, error.clone()))
+                .collect(),
+            removals_left: removals,
+            ..Default::default()
+        },
     }
-    if !outcome.failures.is_empty() {
-        outcome.removals_left = removals;
-        return outcome;
-    }
-    for path in removals {
-        let Ok(target) = ProjectPath::new(&path) else {
-            continue;
-        };
-        match storage.remove(&target).await {
-            Ok(()) | Err(StorageError::NotFound(_)) => {}
-            Err(error) => {
-                outcome.failures.push((path.clone(), message(&error)));
-                outcome.removals_left.push(path);
-            }
-        }
-    }
-    outcome
 }
 
 /// 保存の前に空き容量を確かめる（§13.3.7: 残り 10MB 未満なら W062。1 分に 1 回まで）。

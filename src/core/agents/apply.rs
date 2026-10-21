@@ -337,6 +337,19 @@ pub fn accept(project: &Project, id: &str, text: Option<&str>, now: &str) -> Res
     if proposal.status_kind() != Some(ProposalStatus::Open) {
         return Err(Refusal::Settled);
     }
+    if proposal.kind == "human" {
+        let (path, scene) = proposal.target_parts();
+        let current = scene
+            .and_then(|id| {
+                crate::core::features::sections::all(project)
+                    .into_iter()
+                    .find(|s| s.id == id && s.path == path)
+            })
+            .map(|s| crate::core::features::sections::text_of(project.text(&path), &s));
+        if current.as_deref() != Some(proposal.before.as_str()) {
+            return Err(Refusal::Settled);
+        }
+    }
     let role = origin_role(&board, proposal);
     let applied_text = text.unwrap_or(&proposal.after);
     let mut plan = Plan::default();
@@ -351,7 +364,11 @@ pub fn accept(project: &Project, id: &str, text: Option<&str>, now: &str) -> Res
         plan.write(change.path, change.text);
     }
     let mut updated = proposal.clone();
-    updated.status = ProposalStatus::Accepted.as_str().to_owned();
+    updated.status = if proposal.kind == "human" {
+        "applied".to_owned()
+    } else {
+        ProposalStatus::Accepted.as_str().to_owned()
+    };
     updated.updated_at = now.to_owned();
     updated.partial = text.is_some_and(|found| found != proposal.after);
     plan.write(

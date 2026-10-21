@@ -59,6 +59,7 @@ fn every_option() -> Vec<Options> {
                                 newline,
                                 format,
                                 state: None,
+                                ..Options::default()
                             });
                         }
                     }

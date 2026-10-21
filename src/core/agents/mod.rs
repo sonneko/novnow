@@ -94,7 +94,7 @@ impl Kind {
     /// `kind:` の値から。
     pub fn parse(text: &str) -> Option<Self> {
         match text {
-            "section-text" => Some(Self::SectionText),
+            "section-text" | "human" => Some(Self::SectionText),
             "plot-field" => Some(Self::PlotField),
             "idea" => Some(Self::Idea),
             "material" => Some(Self::Material),
@@ -219,4 +219,15 @@ impl Plan {
             self.writes.push(Change { path, text });
         }
     }
+}
+
+/// Built-in roles plus explicitly registered, well-formed custom roles, in stable order.
+pub fn roles(project: &crate::core::features::Project) -> Vec<String> {
+    let mut roles: Vec<String> = BUILTIN_ROLES.iter().map(|r| r.to_string()).collect();
+    for role in project.settings().agents.custom_roles.iter().take(16) {
+        if crate::core::syntax::prompt_md::is_role_name(role) && !roles.contains(role) {
+            roles.push(role.clone());
+        }
+    }
+    roles
 }

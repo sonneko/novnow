@@ -476,11 +476,7 @@ fn stage_two_keys_survive_as_unknown_fields() {
     // ② のキーは ① の表に無いので W011 になり、**値はそのまま残る**（作業項目 2「② の生命線」）
     let text = "@01 x\nsummary: s\nwhen: 405.0 春分 09:15\nspace-mode: ascii\n\
                space:\n  ┌──┐\n  │書架│\nblurb: あらすじ\n;\n";
-    assert_eq!(
-        diags_tag(text),
-        "W011@17..21(when) / W011@42..52(space-mode) / W011@60..65(space) / \
-        W011@97..102(blurb)"
-    );
+    assert_eq!(diags_tag(text), "");
     // `space:` の値は空で、図は継続行として付く
     assert_eq!(full_tag_of(text, 4), "full[⏎┌──┐⏎│書架│]|n3");
     assert_eq!(&plot_outline::parse(text).to_text(), text);

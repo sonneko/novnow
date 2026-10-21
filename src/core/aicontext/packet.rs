@@ -261,6 +261,30 @@ fn build_with_examples(inputs: &Inputs<'_>, examples: String, retry: bool) -> Pa
             parts: parts_of(*kind, &sources, &prompt, &contract, inputs),
         })
         .collect();
+    if !crate::core::agents::is_role(inputs.role) {
+        if let Some(text) = prompt_text.as_deref() {
+            let parsed = crate::core::syntax::prompt_md::parse(text);
+            if let Some(field) = parsed
+                .fields
+                .iter()
+                .filter_map(|n| parsed.field(*n))
+                .find(|field| field.key == crate::core::text::lexer::FieldKey::Context)
+            {
+                let allowed: Vec<&str> = field
+                    .value
+                    .split([',', ' '])
+                    .filter(|s| !s.is_empty())
+                    .collect();
+                for block in &mut blocks {
+                    if !block.kind.is_mandatory()
+                        && !allowed.iter().any(|s| *s == block.kind.name())
+                    {
+                        block.excluded = true;
+                    }
+                }
+            }
+        }
+    }
     for block in &mut blocks {
         block.fit();
     }

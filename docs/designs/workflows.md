@@ -69,13 +69,11 @@
 
 ### 17.3 読者モード（`reader` ワークスペース）
 
-状態: 実装待ち（段階 ② 対象: REF:docs/plans.md#stage-2）
+状態: 実装完了（REF:src/core/reader.rs, REF:src/ui/workspaces/stage_two.rs, REF:tests/stage_two.rs）
 
-- 縦書き読者モードは追加仕様 27（段階 ②）として予約されている。`project.json` の `reader` 設定セクションは未知キー温存（縫い代 1）により段階 ① でも無損失に保持される（`REF:tests/project_json.rs`）。
-- **段階 ② 実装時のアーキテクチャ境界（`REF:docs/plans.md#stage-2`）**:
-  - `egui` 標準の `TextEdit` / `Label` は横書き専用であるため、読者モードは `egui::Painter` による自前グリフ配置で実装する。
-  - 禁則処理・縦中横・ルビ配置・回転グリフ判定・改行および段組み（1 段 / 2 段）の座標計算は GUI に依存しない純粋関数 `core::reader::layout(blocks: &[ReaderBlock], config: &ReaderConfig, metrics: &dyn FontMetrics) -> Vec<Page>` として `src/core/` に実装し（P7 遵守）、`ui::workspaces::reader` は `Page` 内の `PlacedGlyph` 列を `Painter` に描くだけの薄い層とする。
-  - 約物の縦書き置換は `ttf-parser` でフォントの GSUB `vert` / `vrt2` テーブルを参照できない環境でも破綻しないよう、Unicode 縦書き形（U+FE10–U+FE19, U+FE30–U+FE4F）へのコードポイント置換表と 90 度時計回り回転描画（`ー` `〜` `…` `‥` `—` 等）の二段構えとする。
+- 組版は `REF:src/core/reader.rs` の純粋関数 `layout(text, options, metrics)`。実測送り幅と縦書き字形の有無を引数として注入し、禁則・縦中横・Unicode 縦字形・回転・モノルビを座標列へ変換する。
+- 描画とページ操作・章表紙・目次・しおりは `REF:src/ui/workspaces/stage_two.rs`。原稿と章プロットの指紋および組版設定をキーにページをキャッシュし、ページ送りで再組版しない。
+- 読書位置と表示設定はローカル状態のみ。未知キーを保持し、原稿の変更経路とは分離する。
 
 ## 18. 性能・品質要件
 
