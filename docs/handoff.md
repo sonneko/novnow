@@ -23,9 +23,10 @@
 ## 2. 現在のブランチ・PR・直近の作業状態
 
 - 現在のブランチ: `arena/acfdeb42-novnow`。
+- PR: #23（Draft、全体未完了）。競合なし。Draft のため GitHub Actions は全ジョブ skipped で、CI green とは扱わない。
 - 今回の計画と作業記録: `REF:docs/plans.md` §3 / §4.0。L-01 の最小移行案とゴールデン差分はユーザー承認済み。CLI 変換・プレビュー・取り込みを実装、GUI 接続は未実装。段階 ② は #15 のみ実装し、残り 26 件は未実装。
 - 変更: `REF:src/core/text/lexer.rs`、`REF:src/core/syntax/contents.rs`、`REF:tests/stage_two_comments.rs`。既存の段階 ① 限定テストを新しい有効化状態に合わせて更新。
-- 検証: `REF:scripts/verify.sh` 全ジョブ成功（1241 テスト・55 ターゲット）。UI ソース変更なしのため Web スモークは未実施。PR・CI は未確認。ゴールデン期待値の自動生成差分（B 形式のコメントを要点から除外: points 2→1）は人間レビュー承認済み。L-01 追加後も全ジョブ成功。
+- 検証: `REF:scripts/verify.sh` 全ジョブ成功（1241 テスト・55 ターゲット）。UI ソース変更なしのため Web スモークは未実施。ローカル検証は成功。ゴールデン期待値の自動生成差分（B 形式のコメントを要点から除外: points 2→1）は人間レビュー承認済み。L-01 追加後も全ジョブ成功。
 
 ## 3. 次セッション開始時の手順
 
