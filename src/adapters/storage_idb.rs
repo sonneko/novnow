@@ -121,6 +121,8 @@ pub struct FileRecord {
     pub path: String,
     /// 中身。
     pub text: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bytes: Option<Vec<u8>>,
     /// 更新日時（UTC の RFC 3339）。
     pub updated_at: String,
 }
@@ -132,6 +134,7 @@ impl FileRecord {
             project_id: project_id.to_owned(),
             path: path.as_str().to_owned(),
             text: text.to_owned(),
+            bytes: None,
             updated_at: now.to_owned(),
         }
     }
@@ -145,7 +148,7 @@ impl FileRecord {
     pub fn stamp(&self) -> Stamp {
         Stamp {
             modified_ms: parse_utc(&self.updated_at),
-            len: self.text.len() as u64,
+            len: self.bytes.as_ref().map_or(self.text.len(), Vec::len) as u64,
         }
     }
 }
@@ -423,6 +426,18 @@ mod web {
             record: &ProjectRecord,
             files: &[(ProjectPath, String)],
         ) -> Result<(), StorageError> {
+            let records: Vec<FileRecord> = files
+                .iter()
+                .map(|(path, text)| FileRecord::new(&record.id, path, text, &record.updated_at))
+                .collect();
+            self.create_records(record, &records).await
+        }
+
+        async fn create_records(
+            &self,
+            record: &ProjectRecord,
+            records: &[FileRecord],
+        ) -> Result<(), StorageError> {
             let transaction =
                 self.transaction(&[PROJECTS, FILES], IdbTransactionMode::Readwrite)?;
             let projects = transaction.object_store(PROJECTS).map_err(js_error)?;
@@ -439,9 +454,8 @@ mod web {
             }
             let store = transaction.object_store(FILES).map_err(js_error)?;
             projects.add(&to_js(record)?).map_err(js_error)?;
-            for (path, text) in files {
-                let file = FileRecord::new(&record.id, path, text, &record.updated_at);
-                store.put(&to_js(&file)?).map_err(js_error)?;
+            for file in records {
+                store.put(&to_js(file)?).map_err(js_error)?;
             }
             commit(&transaction).await
         }
@@ -535,10 +549,16 @@ mod web {
         /// Zip のエクスポート（§13.5）。ダウンロードは [`download`]。
         pub async fn export_zip(&self, project_id: &str) -> Result<Vec<u8>, ArchiveError> {
             let files: Vec<(ProjectPath, Vec<u8>)> = self
-                .export_files(project_id)
+                .storage(project_id)
+                .records()
                 .await?
                 .into_iter()
-                .map(|(path, text)| (path, text.into_bytes()))
+                .filter_map(|record| {
+                    Some((
+                        record.project_path()?,
+                        record.bytes.unwrap_or_else(|| record.text.into_bytes()),
+                    ))
+                })
                 .collect();
             archive_io::export(&files)
         }
@@ -551,9 +571,31 @@ mod web {
             name: &str,
             bytes: &[u8],
         ) -> Result<(ProjectRecord, Vec<Skipped>), ArchiveError> {
-            let (files, skipped) = archive_io::import(bytes)?.into_texts();
+            let imported = archive_io::import(bytes)?;
             let record = ProjectRecord::new(&random_id()?, name, Origin::Import, &now());
-            self.create_project(&record, &files).await?;
+            let mut skipped = imported.skipped;
+            let mut records = Vec::new();
+            for (path, bytes) in imported.files {
+                if path.as_str().starts_with("assets/") {
+                    let mut file = FileRecord::new(&record.id, &path, "", &record.updated_at);
+                    file.bytes = Some(bytes);
+                    records.push(file);
+                } else {
+                    match String::from_utf8(bytes) {
+                        Ok(text) => records.push(FileRecord::new(
+                            &record.id,
+                            &path,
+                            &text,
+                            &record.updated_at,
+                        )),
+                        Err(_) => skipped.push(Skipped {
+                            name: path.as_str().to_owned(),
+                            reason: crate::core::policy::archive::SkipReason::NotText,
+                        }),
+                    }
+                }
+            }
+            self.create_records(&record, &records).await?;
             Ok((record, skipped))
         }
 
@@ -695,6 +737,51 @@ mod web {
             from_js(&found).map(Some)
         }
 
+        /// All structural writes/deletions share one IndexedDB transaction.
+        pub async fn write_batch(
+            &self,
+            writes: &[(ProjectPath, String)],
+            removals: &[ProjectPath],
+        ) -> Result<(), StorageError> {
+            let stamp_time = now();
+            let transaction =
+                self.transaction(&[FILES, PROJECTS], IdbTransactionMode::Readwrite)?;
+            let result = (|| {
+                let files = transaction.object_store(FILES).map_err(js_error)?;
+                for (path, text) in writes {
+                    files
+                        .put(&to_js(&FileRecord::new(
+                            &self.project_id,
+                            path,
+                            text,
+                            &stamp_time,
+                        ))?)
+                        .map_err(js_error)?;
+                }
+                for path in removals {
+                    files
+                        .delete(&file_key(&self.project_id, path.as_str()))
+                        .map_err(js_error)?;
+                }
+                Ok::<_, StorageError>(())
+            })();
+            if let Err(error) = result {
+                let _ = transaction.abort();
+                return Err(error);
+            }
+            let projects = transaction.object_store(PROJECTS).map_err(js_error)?;
+            let request = projects
+                .get(&JsValue::from_str(&self.project_id))
+                .map_err(js_error)?;
+            let found = wait(&request).await?;
+            if !found.is_undefined() {
+                let mut project: ProjectRecord = from_js(&found)?;
+                project.updated_at = stamp_time;
+                projects.put(&to_js(&project)?).map_err(js_error)?;
+            }
+            commit(&transaction).await
+        }
+
         /// 1 ファイルを書いて `projects.updated_at` を更新する（同一トランザクション、§13.3.3）。
         async fn put(&self, path: &ProjectPath, text: String) -> Result<Stamp, StorageError> {
             let stamp_time = now();
@@ -740,11 +827,23 @@ mod web {
             Ok(None)
         }
 
+        async fn read_binary(&self, path: &ProjectPath) -> Result<Vec<u8>, StorageError> {
+            self.record(path)
+                .await?
+                .map(|r| r.bytes.unwrap_or_else(|| r.text.into_bytes()))
+                .ok_or_else(|| StorageError::NotFound(path.clone()))
+        }
         async fn read(&self, path: &ProjectPath) -> Result<String, StorageError> {
             self.record(path)
                 .await?
-                .map(|record| record.text)
-                .ok_or_else(|| StorageError::NotFound(path.clone()))
+                .map(|record| {
+                    if let Some(bytes) = record.bytes {
+                        String::from_utf8(bytes).map_err(|_| StorageError::Encoding(path.clone()))
+                    } else {
+                        Ok(record.text)
+                    }
+                })
+                .ok_or_else(|| StorageError::NotFound(path.clone()))?
         }
 
         async fn write(&self, path: &ProjectPath, text: &str) -> Result<Stamp, StorageError> {

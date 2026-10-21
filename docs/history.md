@@ -1710,3 +1710,37 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 [HIST-TAG: category=RISK id=R-10 topics=R-10]
 - **影響 / 確度 / 判断期限**: 層構造の崩壊 / 中 / 常時
 - **対策と結果**: `tests/layering.rs` が CI 必須。例外を 1 つも認めない
+
+
+### [HIST:DECISION:L01-STAGE2] 2026-10-21 段階②の統合実装判断
+[HIST-TAG: category=DECISION id=L01-STAGE2 topics=migration,reader,statistics,mcp,stock]
+
+- 全判断を自律実行して事後報告するというユーザー指示に従い、段階②の詳細を裁定した。
+- Reader の「ファイルを変更しない」は原稿・プロット・資料・共有設定に適用し、要求された読書位置・しおりのローカル保存は例外とした。
+- ローカル MCP は平文 HTTP の loopback のみ。外部 URL・URL 内の制御文字を拒否し、プロバイダ SDK は導入しない。
+- 統計は公開済みの日次 `chars` / 時刻集合 `hours` を維持し、集計時間・セッション数と未知キーを保持する。10分または終了時にだけ保存する。
+- 構造移動はネイティブでは全変更前のバイト列を確保して失敗時に関門経由で復元し、Web は単一 IndexedDB トランザクションとする。電源断を含む分散トランザクションではない。
+- JPEG は既存 image 依存の codec を有効化し、ネットワーク制約環境の復旧は `REF:scripts/bootstrap-jpeg.sh` で検証済みソースを補う。
+
+
+### [HIST:DECISION:STAGE2-INPUT] 2026-10-21 読者からエディタへの切替での文字イベント漏れ
+[HIST-TAG: category=DECISION id=STAGE2-INPUT topics=web,shortcuts,readonly]
+
+- 読者のキーボード操作とバイナリ画像の Zip 往復を `REF:scripts/web-smoke.mjs` に追加し、読者から資料へ移ったときの Alt+数字の随伴 Text イベント混入を検出した。
+- `REF:src/ui/shell.rs` で消費したショートカットに対応する文字だけを同時に消費し、無関係な入力と IME 確定を残す。`REF:tests/stage_two.rs` で固定した。
+
+
+### [HIST:MILESTONE:L01-STAGE2-COMPLETE] 2026-10-22 L-01・段階②の実装検証完了
+[HIST-TAG: category=MILESTONE id=L01-STAGE2-COMPLETE topics=migration,stage2,verification]
+
+- PR #23 のコミット `73efa9e` で CLI・デスクトップの L-01 と追加仕様 #1〜27 を統合した。判断の記録は本書 L01-STAGE2 と STAGE2-INPUT、対応・検収表は `REF:docs/plans.md` §3 / §4。
+- 同コミットで `REF:scripts/verify.sh` は 1268 成功・0 失敗（56 ターゲット）、`REF:scripts/web-smoke.sh` は全項目成功。release の打鍵・一覧 16ms 条件と読者組版 3ms 条件も通過した。
+- GitHub Actions run 39625763551 の Docs & Change Filter / Rustfmt / Clippy / Test / WASM Build Check / Benchmarks はすべて成功した。この記録は実装コミットの結果であり、将来のコミットの成功を保証するものではない。
+
+### [HIST:FIX:DOCS-MERGE-STAGE23] 2026-10-22 段階②・③文書のマージ重複を解消
+[HIST-TAG: category=FIX id=DOCS-MERGE-STAGE23 topics=docs,merge,stage2,stage3]
+
+- PR #24 を含む main の取り込み（`509e564`）で Accept both changes により、段階②実装済みと未着手の進捗行、旧ブランチの引き継ぎ、二重の手順が混在した。片方を丸ごと採用せず、段階②の実装状態と段階③の文書・計画を両立させた。
+- `REF:docs/handoff.md` と `REF:docs/plans.md` の共有表を一意にし、11 文書対・134 節（完了126 / 計画済み8）に揃えた。固定の文書管理規則と段階③の H1〜H7 は保持した。
+- `REF:docs/script/duplicate.py` に共有表の区分重複・集計行単独一致・設計書数の検査を追加し、再発ケースを `REF:docs/script/test_duplicate.py` に固定した。
+- 段階②の GUI 提供と、段階③の API 提供を区別した。操作 ID の追加を無承認で決めず、統合後のカタログ追補を `REF:docs/plans.md#stage-3` の H1 前提作業として明示した。

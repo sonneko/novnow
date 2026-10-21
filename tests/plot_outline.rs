@@ -415,11 +415,11 @@ fn a_block_end_may_carry_a_line_comment() {
 }
 
 #[test]
-fn a_hash_comment_is_a_note_while_stage_one_is_in_force() {
-    // §5.0.8 の `# ` は **②**（`SIGIL_TABLE` の `Stage::Two`）なので ① では自由記述
+fn a_hash_comment_is_not_a_note() {
+    // Additional specification 15.
     assert_eq!(
         lines_tag("# メモ\n@01 x\nsummary: s\n"),
-        "note[# メモ] / header[01|d1|id1-0-0-0|tx|c] / field[summary|Summary|vs] / blank[]"
+        "comment[# メモ@0..8] / header[01|d1|id1-0-0-0|tx|c] / field[summary|Summary|vs] / blank[]"
     );
 }
 
@@ -476,11 +476,7 @@ fn stage_two_keys_survive_as_unknown_fields() {
     // ② のキーは ① の表に無いので W011 になり、**値はそのまま残る**（作業項目 2「② の生命線」）
     let text = "@01 x\nsummary: s\nwhen: 405.0 春分 09:15\nspace-mode: ascii\n\
                space:\n  ┌──┐\n  │書架│\nblurb: あらすじ\n;\n";
-    assert_eq!(
-        diags_tag(text),
-        "W011@17..21(when) / W011@42..52(space-mode) / W011@60..65(space) / \
-        W011@97..102(blurb)"
-    );
+    assert_eq!(diags_tag(text), "");
     // `space:` の値は空で、図は継続行として付く
     assert_eq!(full_tag_of(text, 4), "full[⏎┌──┐⏎│書架│]|n3");
     assert_eq!(&plot_outline::parse(text).to_text(), text);

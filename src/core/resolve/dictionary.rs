@@ -763,6 +763,39 @@ impl Dictionary {
     ) -> Built {
         let mut entries = Vec::new();
         collect_characters(characters, &mut entries);
+        let starts = line_starts(&characters.lines);
+        for address in crate::core::stage_two::metadata::addresses(&characters.to_text()) {
+            if address.target == "*" {
+                continue;
+            }
+            if let Some((index, found)) = characters
+                .characters
+                .iter()
+                .enumerate()
+                .find(|(_, c)| c.name == address.target)
+            {
+                for name in address.names {
+                    entries.push(Entry::new(
+                        EntryKind::Address,
+                        name,
+                        Target::Character {
+                            index,
+                            name: found.name.to_owned(),
+                        },
+                        Origin {
+                            file: SourceFile::Characters,
+                            range: Some(
+                                starts.get(address.line).copied().unwrap_or(0)
+                                    ..starts
+                                        .get(address.line + 1)
+                                        .copied()
+                                        .unwrap_or_else(|| characters.to_text().len()),
+                            ),
+                        },
+                    ));
+                }
+            }
+        }
         collect_words(words, &mut entries);
         collect_materials(index, &mut entries);
         Self::build(entries)

@@ -174,9 +174,9 @@
 
 ### 10.7 `reader` — 読者モード（§17.3 に詳細）
 
-状態: 実装待ち（段階 ② 対象: REF:docs/plans.md#stage-2）
+状態: 実装完了（REF:src/ui/workspaces/stage_two.rs, REF:src/core/reader.rs, REF:tests/workspaces.rs, REF:tests/stage_two.rs）
 
-- 縦書き読者モードは追加仕様 27（段階 ②）として予約されており、`Alt+7` は段階 ① では無操作とする（`REF:src/ui/workspaces/mod.rs`）。
+- `Alt+7` で retained な読者ビューへ切り替える。組版と保存の境界は §17.3 を参照。
 
 ### 10.8 `agent` — エージェント管制（§15.7 に詳細。委譲レベルの確認・変更は §15.7.6）
 

@@ -7,6 +7,7 @@
 
 pub mod context_view;
 pub mod inlay;
+pub mod portrait;
 pub mod reference_pane;
 pub mod section_editor;
 pub mod slice_editor;

@@ -164,6 +164,10 @@ pub struct Options {
     pub format: Format,
     /// 状態の絞り込み（§17.2 `--state`）。`Some(s)` なら実効の状態が `s` 以上の節だけ（B-122）。
     pub state: Option<State>,
+    pub include_blurb: bool,
+    pub blurb_only: bool,
+    pub include_stock: bool,
+    pub keep_illustration_memo: bool,
 }
 
 impl Options {
@@ -178,6 +182,10 @@ impl Options {
             newline: export.newline,
             format: Format::Text,
             state: None,
+            include_blurb: export.include_blurb,
+            blurb_only: false,
+            include_stock: false,
+            keep_illustration_memo: false,
         }
     }
 }
@@ -281,6 +289,19 @@ pub fn select(
         .into_iter()
         .filter(|section| range.is_none_or(|range| range.contains(section.id)))
         .filter(|section| state.is_none_or(|least| states.of(section.id) >= least))
+        .collect()
+}
+
+pub fn select_with(
+    project: &Project,
+    range: Option<&RangeExpr>,
+    options: &Options,
+) -> Vec<SectionRef> {
+    select(project, range, options.state)
+        .into_iter()
+        .filter(|s| {
+            s.id.episode != 0 && (s.id.chapter != 0 || options.include_stock || range.is_some())
+        })
         .collect()
 }
 
@@ -471,7 +492,8 @@ enum Out {
 ///
 /// 出すものが無ければ空文字列。それ以外は `options.newline` の改行で、末尾は改行 1 個。
 pub fn run(project: &Project, range: Option<&RangeExpr>, options: &Options) -> String {
-    render(project, &select(project, range, options.state), options)
+    let chosen = select_with(project, range, options);
+    render(project, &chosen, options)
 }
 
 /// [`select`] で選んだ節を書き出す（§17.1 の 2〜14。節の数を先に知りたい呼び出し側のため）。
@@ -483,6 +505,22 @@ pub fn render(project: &Project, chosen: &[SectionRef], options: &Options) -> St
     // 同じファイルの節が続くあいだは、解析し直さない
     let mut parsed: Option<(String, Vec<Line<'_>>)> = None;
     for section in chosen {
+        if section.id.episode == 0 {
+            continue;
+        }
+        if previous.is_none_or(|id| id.chapter != section.id.chapter)
+            && (options.include_blurb || options.blurb_only)
+        {
+            let blurb = crate::core::stage_two::chapter_blurb(project, section.id.chapter);
+            if !blurb.is_empty() {
+                out.push(Out::Text(blurb));
+                out.push(Out::Blank);
+            }
+        }
+        if options.blurb_only {
+            previous = Some(section.id);
+            continue;
+        }
         boundary(project, previous, section.id, options, &mut out);
         previous = Some(section.id);
         if parsed
@@ -498,7 +536,7 @@ pub fn render(project: &Project, chosen: &[SectionRef], options: &Options) -> St
             continue;
         };
         for line in lines.get(section.span.clone()).unwrap_or_default() {
-            if let Some(found) = convert_line(line, dictionary, options.keep_ruby) {
+            if let Some(found) = convert_line(line, dictionary, options) {
                 out.push(found);
             }
         }
@@ -545,11 +583,21 @@ fn boundary(
     }
 }
 
+/// i18n: format-vocabulary
+fn illustration_text(memo: &str) -> String {
+    format!("{ILLUSTRATION_PREFIX}{memo}］")
+}
+
 /// 節の中の 1 行（§17.1 の 3〜9）。消える行は `None`。
-fn convert_line(line: &Line<'_>, dictionary: &Dictionary, keep_ruby: bool) -> Option<Out> {
+fn convert_line(line: &Line<'_>, dictionary: &Dictionary, options: &Options) -> Option<Out> {
+    if let Some(memo) = crate::core::annotations::illustration(line.raw()) {
+        return options
+            .keep_illustration_memo
+            .then(|| Out::Text(illustration_text(memo)));
+    }
     match line {
         Line::Blank(_) => Some(Out::Blank),
-        Line::Text(text) => convert_text(text, dictionary, keep_ruby).map(Out::Text),
+        Line::Text(text) => convert_text(text, dictionary, options.keep_ruby).map(Out::Text),
         // 見出し行と `;` は節の行に入らない（`contents::Section::span`）。行コメントは行ごと消す
         Line::Scene(_) | Line::Break(_) | Line::Comment(_) => None,
     }
@@ -569,7 +617,7 @@ enum Edit<'a> {
 /// 本文の 1 行を書き換える。残りが空（コメントや資料参照だけの行）なら `None`（行ごと消す）。
 fn convert_text(text: &TextLine<'_>, dictionary: &Dictionary, keep_ruby: bool) -> Option<String> {
     // 行末コメントと話者注釈（直前の空白ごと）は `body` に入っていない（§17.1 の 3・5）
-    let body = text.body;
+    let body = crate::core::annotations::without_citations(text.body);
     let clamp = |range: &Range<usize>| range.start.min(body.len())..range.end.min(body.len());
     let mut edits: Vec<(Range<usize>, Edit<'_>)> = Vec::new();
     // 3: 行内コメント
@@ -745,3 +793,27 @@ fn finish(lines: Vec<Out>, options: &Options) -> String {
     }
     out
 }
+
+/// Annotation-free fragment, shared by all stage-two measurements.
+pub fn plain(text: &str) -> String {
+    fragment(text, false)
+}
+
+pub fn fragment(text: &str, keep_ruby: bool) -> String {
+    let dictionary = Dictionary::empty();
+    let options = Options {
+        newline: Newline::Lf,
+        keep_ruby,
+        ..Default::default()
+    };
+    let parsed = contents::parse(text);
+    let lines = parsed
+        .lines
+        .iter()
+        .filter_map(|line| convert_line(line, &dictionary, &options))
+        .collect();
+    finish(lines, &options)
+}
+
+/// i18n: format-vocabulary
+const ILLUSTRATION_PREFIX: &str = "［挿絵: ";

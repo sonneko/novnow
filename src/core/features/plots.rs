@@ -419,8 +419,8 @@ pub fn chapters(project: &Project) -> Vec<u16> {
             out.push(chapter);
         }
     }
-    out.retain(|chapter| *chapter > 0);
-    out.sort_unstable();
+    out.retain(|chapter| *chapter > 0 || project.settings().structure.allow_chapter_zero);
+    out.sort_by_key(|chapter| (*chapter == 0, *chapter));
     out.dedup();
     out
 }
@@ -491,6 +491,9 @@ pub fn progress(project: &Project) -> Vec<ProgressRow> {
     let mut chars: BTreeMap<SceneId, usize> = BTreeMap::new();
     let mut scene_titles: BTreeMap<SceneId, String> = BTreeMap::new();
     for section in &prose {
+        if section.id.chapter == 0 || section.id.episode == 0 {
+            continue;
+        }
         let text = crate::core::features::sections::text_of(project.text(&section.path), section);
         *chars.entry(section.id).or_default() +=
             crate::core::features::sections::count_chars(&text);
@@ -504,6 +507,9 @@ pub fn progress(project: &Project) -> Vec<ProgressRow> {
     let mut ids: BTreeSet<SceneId> = chars.keys().copied().collect();
     let mut point_titles: BTreeMap<SceneId, String> = BTreeMap::new();
     for (chapter, episode) in all_episodes(project) {
+        if chapter == 0 || episode == 0 {
+            continue;
+        }
         for row in episode_rows(project, chapter, episode) {
             if row.is_scene() {
                 if !row.summary.is_empty() {

@@ -1,12 +1,16 @@
 pub mod agents;
 pub mod aicontext;
+pub mod annotations;
 pub mod diagnostics;
 pub mod export;
 pub mod features;
 pub mod id;
+pub mod migration;
 pub mod model;
 pub mod policy;
+pub mod reader;
 pub mod resolve;
+pub mod stage_two;
 pub mod syntax;
 pub mod template;
 pub mod text;

@@ -187,7 +187,10 @@ pub fn sections(
                 PaneSection::UpperPlot,
                 PaneSection::Cast,
                 PaneSection::Words,
+                PaneSection::Senses,
+                PaneSection::Space,
                 PaneSection::Materials,
+                PaneSection::Illustrations,
                 PaneSection::Diagnostics,
             ];
             for section in order {
@@ -207,6 +210,9 @@ pub fn sections(
                     PaneSection::Cast if !content.cast.is_empty() => {
                         heading(ui, "pane.cast");
                         for cast in &content.cast {
+                            if let Some(bytes) = &cast.icon {
+                                super::portrait::show(ui, bytes, 16.0 * scale);
+                            }
                             muted(ui, &cast.name, &cast.modes.join(" + "));
                             if let Some(text) = &cast.personality {
                                 muted(ui, i18n::text(locale, "pane.personality"), first_line(text));
@@ -229,6 +235,37 @@ pub fn sections(
                         heading(ui, "pane.words");
                         for word in &content.words {
                             muted(ui, &word.term, &word.definition);
+                        }
+                    }
+                    PaneSection::Senses if !content.senses.is_empty() => {
+                        heading(ui, "stage.senses");
+                        for line in &content.senses {
+                            body(ui, line);
+                        }
+                    }
+                    PaneSection::Space if !content.space.is_empty() => {
+                        heading(ui, "stage.space");
+                        egui::ScrollArea::horizontal()
+                            .id_source("space-scroll")
+                            .show(ui, |ui| {
+                                for line in &content.space {
+                                    ui.collapsing(i18n::text(locale, "stage.space"), |ui| {
+                                        if content.space_ascii {
+                                            ui.add(
+                                                egui::Label::new(RichText::new(line).monospace())
+                                                    .wrap(false),
+                                            );
+                                        } else {
+                                            ui.label(line);
+                                        }
+                                    });
+                                }
+                            });
+                    }
+                    PaneSection::Illustrations if !content.illustrations.is_empty() => {
+                        heading(ui, "stage.illustrations");
+                        for line in &content.illustrations {
+                            body(ui, line);
                         }
                     }
                     PaneSection::Materials if !content.materials.is_empty() => {

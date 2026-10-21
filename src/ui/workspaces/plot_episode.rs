@@ -509,6 +509,7 @@ fn list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) -> Optio
     let selected = state.selected_index(bench);
     let reveal = state.reveal || std::mem::take(&mut state.scroll_list);
     let rows = state.rows(bench).to_vec();
+    let prose_sections = crate::core::features::sections::all(bench.project());
     let mut request = None;
     let mut clicked = None;
     if rows.is_empty() {
@@ -560,6 +561,20 @@ fn list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) -> Optio
                         },
                     )
                 };
+                if !row.is_scene() {
+                    if let Some(section) = prose_sections.iter().find(|s| s.id == row.id) {
+                        let text = crate::core::features::sections::text_of(
+                            bench.project().text(&section.path),
+                            section,
+                        );
+                        let ratio = crate::core::stage_two::metrics::section(&text).ratio();
+                        ui.add(
+                            egui::ProgressBar::new(ratio as f32)
+                                .desired_width(80.0 * view.scale)
+                                .text(format!("{:.0}%", ratio * 100.0)),
+                        );
+                    }
+                }
                 if is_selected && reveal {
                     response.scroll_to_me(Some(Align::Center));
                 }

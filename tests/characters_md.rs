@@ -560,18 +560,7 @@ fn unknown_keys_warn_and_keep_their_values() {
     // `address:` は ②（追加仕様 8）、`icon:` は ②（追加仕様 24）。
     // PLANS.md §5.3 作業項目 3「実装しないが未知フィールドとして保持されること」
     let text = "# 恵\naddress: '葵あおい => あおいちゃん\nicon: assets/icons/megumi.png\n";
-    let address = byte_offset(text, 1);
-    let icon = byte_offset(text, 2);
-    assert_eq!(
-        diags_tag(text),
-        format!(
-            "W011@{}..{}(address)\nW011@{}..{}(icon)",
-            address,
-            address + "address".len(),
-            icon,
-            icon + "icon".len()
-        )
-    );
+    assert_eq!(diags_tag(text), "");
     let parsed = characters_md::parse(text);
     let address = parsed.field(parsed.characters[0].fields[0]).unwrap();
     assert_eq!(address.value, "'葵あおい => あおいちゃん");

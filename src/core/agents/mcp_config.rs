@@ -27,6 +27,8 @@ pub struct ServerConfig {
     pub transport: String,
     /// 起動するコマンド。
     pub command: String,
+    pub url: String,
+    pub model: String,
     /// 引数。
     pub args: Vec<String>,
     /// 環境変数（書かれた順。値は書かれたまま＝`${NAME}`）。
@@ -155,9 +157,12 @@ pub struct McpConfig {
 impl McpConfig {
     /// 役割を受け持つ最初のサーバ（定義順、stdio のものだけ）。
     pub fn server_for(&self, role: &str) -> Option<&ServerConfig> {
-        self.servers
-            .iter()
-            .find(|server| server.is_stdio() && server.serves(role))
+        self.servers.iter().find(|server| {
+            (server.is_stdio()
+                || (server.transport == "http"
+                    && crate::core::stage_two::local_llm::is_loopback(&server.url)))
+                && server.serves(role)
+        })
     }
 
     /// 名前で引く。
@@ -195,6 +200,10 @@ struct RawServer {
     transport: String,
     #[serde(default)]
     command: String,
+    #[serde(default)]
+    url: String,
+    #[serde(default)]
+    model: String,
     #[serde(default)]
     args: Vec<String>,
     #[serde(default)]
@@ -243,6 +252,8 @@ pub fn parse(text: &str) -> Result<McpConfig, String> {
             name,
             transport: server.transport,
             command: server.command,
+            url: server.url,
+            model: server.model,
             args: server.args,
             env,
             capabilities: server.capabilities,

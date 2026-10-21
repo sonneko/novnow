@@ -33,6 +33,10 @@ use crate::core::text::lexer::FieldKey;
 pub struct Reference {
     /// 1. 今の節のプロット（行ごと、書かれたまま）。
     pub plot: Vec<String>,
+    pub senses: Vec<String>,
+    pub space: Vec<String>,
+    pub space_ascii: bool,
+    pub illustrations: Vec<String>,
     /// 2. 上位プロット（章 → 全体）。
     pub upper: Vec<Upper>,
     /// 3. 配役。
@@ -49,6 +53,9 @@ impl Reference {
     /// 何も無いか。
     pub fn is_empty(&self) -> bool {
         self.plot.is_empty()
+            && self.senses.is_empty()
+            && self.space.is_empty()
+            && self.illustrations.is_empty()
             && self.upper.is_empty()
             && self.cast.is_empty()
             && self.words.is_empty()
@@ -71,6 +78,7 @@ pub struct Upper {
 pub struct Cast {
     /// H1 の表示名。
     pub name: String,
+    pub icon: Option<Vec<u8>>,
     /// 有効なモードの見出し（`B 冷静な観察者`）。併用なら複数。決まらなければ空。
     pub modes: Vec<String>,
     /// `personality:`（モード → キャラの順に最初に見つかったもの）。
@@ -117,7 +125,27 @@ pub fn at(
     let parsed = contents::parse_with(&document.text, &project.contents_options());
     let starts = project::line_starts_of(&document.text);
     let byte_range = byte_range_of(&starts, &document.text, &lines);
+    let rows = crate::core::stage_two::metadata::records(project);
+    let get = |key| crate::core::stage_two::metadata::inherited(&rows, scene, key);
+    let space = get("space")
+        .map(|s| {
+            crate::core::stage_two::metadata::asset_path(&s, false)
+                .and_then(|p| project.document(&p))
+                .map_or(s, |d| d.text.clone())
+        })
+        .into_iter()
+        .collect();
+    let mut illustrations: Vec<String> = get("illustration").into_iter().collect();
+    for line in document.text.lines().skip(lines.start).take(lines.len()) {
+        if let Some(memo) = crate::core::annotations::illustration(line) {
+            illustrations.push(memo.to_owned());
+        }
+    }
     Reference {
+        senses: get("senses").into_iter().collect(),
+        space_ascii: get("space-mode").as_deref() == Some("ascii"),
+        space,
+        illustrations,
         plot: plot_lines(project, scene),
         upper: upper_plots(project, scene),
         cast: cast(document, &parsed, &lines, scene, project),
@@ -362,6 +390,9 @@ pub(crate) fn cast_of(
                     .filter(|value| !value.is_empty())
             };
             let mut entry = Cast {
+                icon: first(FieldKey::Icon)
+                    .and_then(|p| crate::core::stage_two::metadata::asset_path(&p, true))
+                    .and_then(|p| project.assets.get(&p).cloned()),
                 name,
                 modes: assignment
                     .definitions
@@ -462,6 +493,20 @@ fn materials(
     if let Some((path, ranges, _)) = &plot {
         if let Some(found) = project.document(path) {
             collect_refs(found, ranges, project, &mut ids, &mut names);
+        }
+    }
+    for line in contents::parse_with(&document.text, &project.contents_options())
+        .lines
+        .iter()
+        .skip(lines.start)
+        .take(lines.len())
+    {
+        if let contents::Line::Text(text) = line {
+            for (_, id) in crate::core::annotations::citations(text.body) {
+                if !ids.iter().any(|s| s == id) {
+                    ids.push(id.to_owned());
+                }
+            }
         }
     }
     let explicit = ids.len();

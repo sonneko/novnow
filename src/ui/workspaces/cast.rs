@@ -311,6 +311,12 @@ pub fn show(
             .auto_shrink([false, false])
             .show(ui, |ui| {
                 for row in &rows {
+                    crate::ui::widgets::portrait::character(
+                        ui,
+                        bench.project(),
+                        &row.name,
+                        32.0 * scale,
+                    );
                     let response = list_row(
                         ui,
                         view.mode,

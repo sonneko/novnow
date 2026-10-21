@@ -98,6 +98,7 @@ fi
 # GUI 込み（`--features ui`）と GUI を含まない既定のビルドの双方を clippy とテストで確かめる。
 : "$UI"
 run docs      python3 "$ROOT/docs/script/duplicate.py"
+run docs-tests python3 -B -m unittest discover -s "$ROOT/docs/script" -p 'test_*.py'
 run fmt       cargo fmt --all --check
 run clippy    cargo clippy --locked --all-targets -- -D warnings
 run clippy-ui cargo clippy --locked --all-targets --features ui -- -D warnings

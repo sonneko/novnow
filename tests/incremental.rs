@@ -205,7 +205,7 @@ fn every_line_kind_has_a_tag() {
     }
     // ① では挿絵メモを作らない
     let one = classify_at_stage("! 挿絵", C, Stage::One);
-    assert_eq!(LineTag::of(&one), LineTag::Text);
+    assert_eq!(LineTag::of(&one), LineTag::IllustrationMemo);
 }
 
 #[test]

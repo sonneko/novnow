@@ -168,6 +168,16 @@ pub fn full(document: &Document, project: &Project) -> Vec<SemanticToken> {
                 _ => None,
             });
         let comments = paint_line(line.text, format, text_line, &mut paint);
+        if let Some(text) = text_line {
+            for (range, _) in crate::core::annotations::citations(text.body) {
+                fill(&mut paint, range, TokenType::Citation);
+            }
+        }
+        if format == TextFormat::Contents
+            && crate::core::annotations::illustration(line.text).is_some()
+        {
+            fill(&mut paint, 0..line.text.len(), TokenType::Illustration);
+        }
         while refs_at < refs.len() && refs[refs_at].line < line.index {
             refs_at += 1;
         }

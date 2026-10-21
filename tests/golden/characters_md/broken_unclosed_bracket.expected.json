@@ -2,141 +2,129 @@
   "form": "characters_md",
   "lines": 16,
   "tree": {
-    "diagnostics": [
-      {
-        "code": "W011",
-        "range": [
-          227,
-          234
-        ],
-        "args": [
-          "address"
-        ]
-      },
-      {
-        "code": "E016",
-        "range": [
-          97,
-          107
-        ],
-        "args": []
-      },
-      {
-        "code": "E002",
-        "range": [
-          143,
-          148
-        ],
-        "args": []
-      },
-      {
-        "code": "E017",
-        "range": [
-          66,
-          76
-        ],
-        "args": [
-          "A"
-        ]
-      }
-    ],
-    "preamble": {
-      "span": [
-        0,
-        0
-      ],
-      "fields": []
-    },
     "characters": [
       {
-        "name": "恵",
-        "span": [
-          0,
-          16
-        ],
         "fields": [],
         "free": 0,
+        "name": "恵",
         "sections": [
           {
+            "bullets": 0,
+            "fields": [],
+            "free": 0,
             "key": "Modes",
             "key_text": "modes",
-            "span": [
-              1,
-              16
-            ],
-            "fields": [],
-            "bullets": 0,
-            "patterns": [],
-            "free": 0,
-            "relations": [],
             "modes": [
               {
+                "fields": [
+                  "range"
+                ],
+                "free": 0,
                 "id": "A",
                 "label": "日常",
-                "valid_id": true,
+                "patterns": [],
+                "range": "@01 .. @02",
                 "span": [
                   2,
                   4
                 ],
+                "valid_id": true
+              },
+              {
                 "fields": [
                   "range"
                 ],
-                "patterns": [],
                 "free": 0,
-                "range": "@01 .. @02"
-              },
-              {
                 "id": "A",
                 "label": "後半",
-                "valid_id": true,
+                "patterns": [],
+                "range": "@02 .. @03",
                 "span": [
                   4,
                   6
                 ],
+                "valid_id": true
+              },
+              {
                 "fields": [
                   "range"
                 ],
-                "patterns": [],
                 "free": 0,
-                "range": "@02 .. @03"
-              },
-              {
                 "id": "C",
                 "label": "逆順",
-                "valid_id": true,
+                "patterns": [],
+                "range": "@03 .. @01",
                 "span": [
                   6,
                   8
                 ],
-                "fields": [
-                  "range"
-                ],
-                "patterns": [],
-                "free": 0,
-                "range": "@03 .. @01"
+                "valid_id": true
               },
               {
+                "fields": [
+                  "range",
+                  "address"
+                ],
+                "free": 3,
                 "id": "B",
                 "label": "形が壊れている",
-                "valid_id": true,
+                "patterns": [],
+                "range": "01 ..",
                 "span": [
                   8,
                   16
                 ],
-                "fields": [
-                  "range",
-                  {
-                    "unknown": "address"
-                  }
-                ],
-                "patterns": [],
-                "free": 3,
-                "range": "01 .."
+                "valid_id": true
               }
+            ],
+            "patterns": [],
+            "relations": [],
+            "span": [
+              1,
+              16
             ]
           }
+        ],
+        "span": [
+          0,
+          16
         ]
       }
-    ]
+    ],
+    "diagnostics": [
+      {
+        "args": [],
+        "code": "E016",
+        "range": [
+          97,
+          107
+        ]
+      },
+      {
+        "args": [],
+        "code": "E002",
+        "range": [
+          143,
+          148
+        ]
+      },
+      {
+        "args": [
+          "A"
+        ],
+        "code": "E017",
+        "range": [
+          66,
+          76
+        ]
+      }
+    ],
+    "preamble": {
+      "fields": [],
+      "span": [
+        0,
+        0
+      ]
+    }
   }
 }

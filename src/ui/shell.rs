@@ -73,6 +73,11 @@ impl ImeState {
 pub enum Command {
     /// `Ctrl+P` コマンドパレット。
     Palette,
+    HumanProposal,
+    StatsMode,
+    SuggestComma,
+    InsertComma,
+    CarryWorkspace(u8),
     /// `Ctrl+G` SceneId ジャンプ。
     Jump,
     /// `Ctrl+O` プロジェクトを開く。
@@ -136,7 +141,9 @@ pub enum Command {
     /// `Ctrl+.` クイックフィックス（カーソル位置の診断）。
     QuickFix,
     /// `Ctrl+T` / `Ctrl+Shift+T` 選択文字列を用語 / キャラとして登録。
-    Register { character: bool },
+    Register {
+        character: bool,
+    },
     /// `Ctrl+Shift+D` 外部変更との差分モーダル（衝突時のみ）。
     Diff,
     /// `>export` テキストのエクスポート（§17.2。ショートカットは無く、パレットから）。
@@ -204,6 +211,19 @@ pub fn command_of(
         alt && !ctrl
     };
     let command = match key {
+        Key::P if ctrl && !alt && shift => Command::HumanProposal,
+        Key::Comma if ctrl && alt && !shift => Command::SuggestComma,
+        Key::Comma if plain_alt && !shift => Command::InsertComma,
+        Key::S if ctrl && alt && !shift => Command::StatsMode,
+        Key::Num1 if ctrl && shift && !alt => Command::CarryWorkspace(1),
+        Key::Num2 if ctrl && shift && !alt => Command::CarryWorkspace(2),
+        Key::Num3 if ctrl && shift && !alt => Command::CarryWorkspace(3),
+        Key::Num4 if ctrl && shift && !alt => Command::CarryWorkspace(4),
+        Key::Num5 if ctrl && shift && !alt => Command::CarryWorkspace(5),
+        Key::Num6 if ctrl && shift && !alt => Command::CarryWorkspace(6),
+        Key::Num7 if ctrl && shift && !alt => Command::CarryWorkspace(7),
+        Key::Num8 if ctrl && shift && !alt => Command::CarryWorkspace(8),
+        Key::Num9 if ctrl && shift && !alt => Command::CarryWorkspace(9),
         Key::P if ctrl && !alt && !shift => Command::Palette,
         Key::G if ctrl && !alt && !shift => Command::Jump,
         Key::O if ctrl && !alt && !shift => Command::Open,
@@ -300,10 +320,10 @@ pub fn local_command_of(
         (Workspace::Cast, Key::ArrowLeft) if ctrl && shift && !alt => Some(Command::Tab(false)),
         (Workspace::Cast, Key::V) if ctrl && shift && !alt => Some(Command::Scan),
         (Workspace::Agent, Key::X) if ctrl && shift && !alt => Some(Command::StopAll),
-        (Workspace::PlotOutline, Key::OpenBracket) if ctrl && shift && !alt => {
+        (Workspace::PlotOutline | Workspace::Write, Key::OpenBracket) if ctrl && shift && !alt => {
             Some(Command::Fold(true))
         }
-        (Workspace::PlotOutline, Key::CloseBracket) if ctrl && shift && !alt => {
+        (Workspace::PlotOutline | Workspace::Write, Key::CloseBracket) if ctrl && shift && !alt => {
             Some(Command::Fold(false))
         }
         _ => None,
@@ -344,6 +364,7 @@ pub fn take_commands_in(
         return Vec::new();
     }
     let mut out = Vec::new();
+    let mut shortcut_text = Vec::new();
     input.events.retain(|event| {
         let Event::Key {
             key,
@@ -358,12 +379,21 @@ pub fn take_commands_in(
             .or_else(|| command_of(*key, *modifiers, mac, text_focused));
         match found {
             Some(command) => {
+                if (modifiers.alt || modifiers.ctrl || modifiers.command)
+                    && key.name().chars().count() == 1
+                {
+                    shortcut_text.push(key.name());
+                }
                 out.push(command);
                 false
             }
             None => true,
         }
     });
+    // eframe can deliver a printable Text event alongside Alt+digit when no text
+    // agent was focused (notably Reader -> an editable workspace). Consume the
+    // associated character too, without dropping unrelated typing or IME commits.
+    input.events.retain(|event|!matches!(event,Event::Text(text)if shortcut_text.iter().any(|key|text.eq_ignore_ascii_case(key))));
     // `?` は Text イベントとして来ることもある（キー配列による）
     if !text_focused && !out.contains(&Command::Help) {
         let before = input.events.len();

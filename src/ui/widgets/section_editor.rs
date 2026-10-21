@@ -170,6 +170,24 @@ pub struct Look {
 
 /// 節エディタを描く。
 pub fn show(ui: &mut Ui, bench: &mut Workbench, cache: &mut Cache, look: Look) -> EditorOutput {
+    let ratio = crate::core::stage_two::metrics::section(bench.buffer()).ratio();
+    ui.add(
+        egui::ProgressBar::new(ratio as f32)
+            .show_percentage()
+            .desired_width(ui.available_width())
+            .fill(theme::palette(look.mode).fg_muted),
+    )
+    .on_hover_text(crate::ui::i18n::text(
+        look.inlay.unwrap_or(Locale::Ja),
+        "stage.dialogue_ratio",
+    ));
+    if bench.human_active() {
+        let rect = ui.max_rect();
+        ui.painter().line_segment(
+            [rect.left_top(), rect.left_bottom()],
+            egui::Stroke::new(3.0_f32, theme::palette(look.mode).warn),
+        );
+    }
     let id = editor_id(bench);
     apply_paste(ui, bench, id);
     let mut buffer = std::mem::take(bench.buffer_mut());
@@ -280,6 +298,24 @@ pub(crate) fn area(
                 // independently of the gutter and the surrounding editor frame.
                 let text_clip = output.response.rect.intersect(ui.clip_rect());
                 let painter = ui.painter().with_clip_rect(text_clip);
+                if ui.ctx().data(|d| {
+                    d.get_temp::<bool>(Id::new("suggest-comma"))
+                        .unwrap_or(false)
+                }) {
+                    for at in crate::core::stage_two::metrics::comma_candidates(buffer, 40) {
+                        let cursor = output
+                            .galley
+                            .from_ccursor(CCursor::new(buffer[..at].chars().count()));
+                        let rect = output
+                            .galley
+                            .pos_from_cursor(&cursor)
+                            .translate(output.galley_pos.to_vec2());
+                        painter.line_segment(
+                            [rect.left_top(), rect.left_bottom()],
+                            egui::Stroke::new(1.0_f32, colors.fg_faint),
+                        );
+                    }
+                }
                 let found = highlight(buffer);
                 syntax_text::paint_squiggles(
                     &painter,

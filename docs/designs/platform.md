@@ -53,7 +53,7 @@
 
 状態: 実装完了（REF:src/cli/mod.rs, REF:src/main.rs, REF:tests/cli.rs）
 
-- 引数解析とサブコマンド（`<dir>`, `new`, `check`, `export`, `mcp`）およびフラグ（`--gui`, `-h`/`--help`, `-V`/`--version`）の振り分けは `REF:src/cli/mod.rs` に実装する（検証: `REF:tests/cli.rs`）。
+- 引数解析とサブコマンド（`<dir>`, `new`, `check`, `export`, `mcp`, `import`, `migrate`）およびフラグ（`--gui`, `-h`/`--help`, `-V`/`--version`）の振り分けは `REF:src/cli/mod.rs` に実装する（検証: `REF:tests/cli.rs`）。
 
 - **[S-10] `novnow import <zip> <dir>` サブコマンド（実装完了: `REF:docs/plans.md#plan-S-10`）**:
   - `REF:src/cli/mod.rs` に `import <zip> <dir>` を追加し、`REF:src/adapters/zip.rs` で展開・検証を行う。
@@ -90,7 +90,9 @@
 
 ### 14.6 既存本文テキストからの移行支援
 
-状態: 未実装・未計画（REF:docs/plans.md#unplanned-large）
+状態: 実装完了（REF:src/core/migration.rs, REF:src/cli/migrate.rs, REF:src/adapters/storage_fs.rs, REF:src/ui/app.rs）
 
-- **[L-01] 既存の本文テキストから `novnow` に移行するための手段の提供（未実装・未計画: `REF:docs/plans.md#unplanned-large`）**:
-  - 比較的大規模な機能追加であり、現時点では実装および詳細計画の対象外（未実装・未計画）とする。
+- 純粋な変換関数 `convert` は `REF:src/core/migration.rs`。既定雛形からサンプルを除去し、1 節の本文と空の構造を生成する。
+- CLI の読み取り・プレビュー・確定は `REF:src/cli/migrate.rs`。移行先を排他的に作成する `FsStorage::create_fresh`（`REF:src/adapters/storage_fs.rs`）で既存先を拒否する。書き込みは既存の単一関門を使用する。
+- `REF:tests/migration.rs` で記号の往復・正規化、`REF:tests/cli.rs` でプレビュー非変更・入力不正・既存先拒否・入力元保持を検証する。
+- デスクトップは `REF:src/ui/app.rs` の NativePicker とダイアログポートから入力選択→プレビュー→新規先へ作成→開くを接続する。Web は初期移行の対象外。

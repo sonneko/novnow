@@ -87,9 +87,9 @@ fn workspaces_are_numbered_like_the_spec_table_and_reader_is_reserved() {
     }
     assert_eq!(Workspace::of_number(0), None);
     assert_eq!(Workspace::of_number(10), None);
-    assert!(!Workspace::Reader.available(), "追加仕様 #27 で ②");
+    assert!(Workspace::Reader.available(), "追加仕様 #27");
     assert!(Workspace::Agent.available(), "M10 で入った");
-    assert_eq!(Workspace::available_all().count(), 8);
+    assert_eq!(Workspace::available_all().count(), 9);
 }
 
 #[test]
@@ -102,7 +102,8 @@ fn the_switcher_remembers_the_previous_workspace_and_first_visits() {
         !switcher.switch(Workspace::Write),
         "同じものへは切り替えない"
     );
-    assert!(!switcher.switch(Workspace::Reader), "欠番");
+    assert!(switcher.switch(Workspace::Reader));
+    assert!(switcher.switch(Workspace::Write));
     assert!(switcher.first_visit(Workspace::PlotEpisode));
     assert!(switcher.switch(Workspace::PlotEpisode));
     assert!(
@@ -419,12 +420,12 @@ fn each_workspace_keeps_its_own_position_after_switching_back() {
 }
 
 #[test]
-fn the_reserved_reader_shows_a_notice_and_does_not_switch() {
+fn the_reader_opens_a_clean_preview() {
     let mut harness = novel_harness();
     harness.frame(vec![key(Key::Num7, ALT)]);
     let output = harness.frame(Vec::new());
-    assert_eq!(harness.app.workspace(), Some(Workspace::Write));
-    assert!(painted_text(&output).contains("読者はこの版ではまだ使えません"));
+    assert_eq!(harness.app.workspace(), Some(Workspace::Reader));
+    assert!(painted_text(&output).contains("読者モード"));
     harness.frame(vec![key(Key::Num8, ALT)]);
     assert_eq!(
         harness.app.workspace(),

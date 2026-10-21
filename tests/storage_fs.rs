@@ -222,3 +222,49 @@ fn block_on_waits_for_a_pending_future() {
     }
     assert_eq!(block_on(Twice(false)), 7);
 }
+
+#[test]
+fn structural_batch_rolls_back_already_written_files_on_mid_batch_failure() {
+    let (_dir, storage) = setup("fs-batch-rollback");
+    let original = path("contents/01-01.txt");
+    storage
+        .write_bytes(&original, b"original bytes\r\n")
+        .unwrap();
+    let bad = path("contents/bad.txt");
+    std::fs::create_dir(
+        storage
+            .root()
+            .join(format!("contents/.bad.txt{TMP_SUFFIX}")),
+    )
+    .unwrap();
+    assert!(storage
+        .write_batch(
+            &[
+                (original.clone(), "changed".into()),
+                (bad.clone(), "new".into())
+            ],
+            std::slice::from_ref(&original)
+        )
+        .is_err());
+    assert_eq!(
+        storage.read_bytes(&original).unwrap(),
+        b"original bytes\r\n"
+    );
+    assert!(!storage.absolute(&bad).exists());
+}
+#[test]
+fn structural_batch_commits_writes_before_removing_old_paths() {
+    let (_dir, storage) = setup("fs-batch-success");
+    let old = path("contents/00-01.txt");
+    let new = path("contents/01-02.txt");
+    storage.write_bytes(&old, b"stock").unwrap();
+    let stamps = storage
+        .write_batch(
+            &[(new.clone(), "assigned".into())],
+            std::slice::from_ref(&old),
+        )
+        .unwrap();
+    assert_eq!(stamps.len(), 1);
+    assert_eq!(storage.read_bytes(&new).unwrap(), b"assigned");
+    assert!(!storage.absolute(&old).exists());
+}

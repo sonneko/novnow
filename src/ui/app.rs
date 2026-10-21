@@ -77,6 +77,12 @@ pub trait Host {
     fn mcp_poll(&mut self) -> Vec<crate::ui::agents::Finished> {
         Vec::new()
     }
+    fn local_probe_start(&mut self, _job: crate::ui::agents::Job) -> Option<u64> {
+        None
+    }
+    fn local_probe_poll(&mut self) -> Vec<crate::ui::agents::Finished> {
+        Vec::new()
+    }
     /// 呼び出しを取り消す。
     fn mcp_cancel(&mut self, job: u64) {
         let _ = job;
@@ -248,6 +254,7 @@ enum Overlay {
         range: String,
         state: Option<ExportState>,
         fresh: bool,
+        flags: [bool; 4],
     },
     /// 本文の最大幅設定。
     LineWidth {
@@ -341,6 +348,7 @@ enum MaterialAction {
 
 /// 開いているプロジェクト。
 pub struct Session {
+    stage_two: workspaces::stage_two::State,
     host: Box<dyn Host>,
     bench: Workbench,
     settings_dirty: bool,
@@ -387,7 +395,7 @@ pub struct Session {
 /// エクスポートの下書き（`>export` のモーダルが毎フレーム作り直さないため）。
 struct ExportDraft {
     /// 鍵: 文書の世代・範囲の文字列・状態。
-    key: (u64, String, Option<ExportState>),
+    key: (u64, String, Option<ExportState>, [bool; 4]),
     /// 範囲が読めなければ `None`。
     range: Option<Option<crate::core::id::RangeExpr>>,
     /// 出す節の数。
@@ -405,6 +413,7 @@ impl Session {
             settings.autosave_ms,
         );
         Self {
+            stage_two: workspaces::stage_two::State::default(),
             host,
             bench,
             settings_dirty: false,
@@ -450,8 +459,18 @@ impl Session {
     }
 
     /// エクスポートの下書きを（必要なら作り直して）返す（§17.2）。
-    fn export_draft(&mut self, range: &str, state: Option<ExportState>) -> &ExportDraft {
-        let key = (self.bench.generation(), range.trim().to_owned(), state);
+    fn export_draft(
+        &mut self,
+        range: &str,
+        state: Option<ExportState>,
+        flags: [bool; 4],
+    ) -> &ExportDraft {
+        let key = (
+            self.bench.generation(),
+            range.trim().to_owned(),
+            state,
+            flags,
+        );
         if self
             .export_cache
             .as_ref()
@@ -468,7 +487,11 @@ impl Session {
                     let mut options =
                         export_text::Options::from_settings(&project.settings().export);
                     options.state = state;
-                    let chosen = export_text::select(project, range.as_ref(), state);
+                    options.include_blurb = flags[0];
+                    options.blurb_only = flags[1];
+                    options.keep_illustration_memo = flags[2];
+                    options.include_stock = flags[3];
+                    let chosen = export_text::select_with(project, range.as_ref(), &options);
                     let text = export_text::render(project, &chosen, &options);
                     (chosen.len(), text)
                 }
@@ -685,6 +708,46 @@ impl NovnowApp {
         // §9.8.5 (3): IME → 変換中なら Key を捨てる → ショートカット
         let text_focused = ctx.wants_keyboard_input();
         let workspace = self.workspace().unwrap_or_default();
+        self.ime.update(&ctx.input(|i| i.clone()));
+        if !self.ime.composing() && workspace == Workspace::Write {
+            let chord = ctx.data(|d| d.get_temp::<f64>(Id::new("fold-chord")));
+            let ctrl = Modifiers::CTRL;
+            if ctx.input_mut(|i| i.consume_key(ctrl, Key::K)) {
+                ctx.data_mut(|d| d.insert_temp(Id::new("fold-chord"), now));
+            } else if chord.is_some_and(|at| now - at <= 2.0) {
+                let fold = ctx.input_mut(|i| i.consume_key(ctrl, Key::Num0));
+                let unfold = ctx.input_mut(|i| i.consume_key(ctrl, Key::J));
+                if fold || unfold {
+                    ctx.data_mut(|d| d.remove::<f64>(Id::new("fold-chord")));
+                    if let Stage::Open(session) = &mut self.stage {
+                        if unfold {
+                            self.settings.folded.retain(|key| !key.starts_with('@'));
+                        } else {
+                            let active = session.bench.current_id();
+                            for section in
+                                crate::core::features::sections::all(session.bench.project())
+                            {
+                                if active.is_none_or(|id| id.chapter != section.id.chapter) {
+                                    let key = format!(
+                                        "@{}",
+                                        section
+                                            .id
+                                            .display(session.bench.project().digits())
+                                            .split('-')
+                                            .next()
+                                            .unwrap_or("")
+                                    );
+                                    if !self.settings.folded.contains(&key) {
+                                        self.settings.folded.push(key);
+                                    }
+                                }
+                            }
+                        }
+                        session.settings_dirty = true;
+                    }
+                }
+            }
+        }
         let commands = ctx.input_mut(|input| {
             shell::take_commands_in(input, &mut self.ime, self.mac, text_focused, workspace)
         });
@@ -871,6 +934,9 @@ impl NovnowApp {
                 };
             }
             Command::Escape => {
+                if self.overlay == Overlay::None && self.workspace() == Some(Workspace::Reader) {
+                    ctx.data_mut(|d| d.insert_temp(Id::new("reader-exit"), true));
+                }
                 if matches!(self.stage, Stage::Picker) {
                     self.picker.escape();
                 }
@@ -886,6 +952,7 @@ impl NovnowApp {
                 match &mut self.stage {
                     Stage::Picker => self.picker.open_folder(),
                     Stage::Open(session) => {
+                        session.stage_two.stats_flush_requested = true;
                         // 今のプロジェクトを書き終えてから切り替える（書けなければ切り替えない）
                         session.bench.commit();
                         session.bench.edited(now);
@@ -961,6 +1028,25 @@ impl NovnowApp {
                 session.settings_dirty = true;
             }
             Command::Nav(nav) => {
+                if self.settings.suggest_comma
+                    && matches!(
+                        nav,
+                        crate::ui::workbench::Nav::PrevScene | crate::ui::workbench::Nav::NextScene
+                    )
+                {
+                    let candidates =
+                        crate::core::stage_two::metrics::comma_candidates(bench.buffer(), 40);
+                    let caret = session.selection.as_ref().map_or(0, |r| r.start);
+                    let at = if nav == crate::ui::workbench::Nav::NextScene {
+                        candidates.into_iter().find(|at| *at > caret)
+                    } else {
+                        candidates.into_iter().rev().find(|at| *at < caret)
+                    };
+                    if let Some(at) = at {
+                        session.pending_selection = Some(at..at);
+                        return;
+                    }
+                }
                 if bench.go(nav) {
                     session.settings_dirty = true;
                     ctx.memory_mut(|memory| memory.request_focus(section_editor::editor_id(bench)));
@@ -986,6 +1072,31 @@ impl NovnowApp {
                 self.settings.step_ratio(false, grow);
                 session.settings_dirty = true;
             }
+            Command::HumanProposal => {
+                let stamp = session.host.now();
+                bench.toggle_human(&stamp, now);
+            }
+            Command::InsertComma => {
+                if self.settings.suggest_comma {
+                    let candidates =
+                        crate::core::stage_two::metrics::comma_candidates(bench.buffer(), 40);
+                    let caret = session.selection.as_ref().map_or(0, |r| r.start);
+                    if let Some(at) = candidates.into_iter().find(|at| *at >= caret) {
+                        bench.buffer_mut().insert(at, '、');
+                        bench.edited(now);
+                        session.pending_selection = Some(at + 3..at + 3);
+                    }
+                }
+            }
+            Command::SuggestComma => {
+                self.settings.suggest_comma = !self.settings.suggest_comma;
+                session.settings_dirty = true;
+            }
+            Command::StatsMode => {
+                self.settings.status_stats_mode = !self.settings.status_stats_mode;
+                session.settings_dirty = true;
+            }
+            Command::CarryWorkspace(_) => {}
             Command::Find | Command::Replace => {
                 let query = session
                     .selection
@@ -1009,10 +1120,14 @@ impl NovnowApp {
                 }
             }
             Command::Search => {
-                self.overlay = Overlay::Search {
-                    query: session.last_find.clone(),
-                    selected: 0,
-                };
+                if session.spaces.switcher.current() == Workspace::Write {
+                    session.stage_two.tabs[0] = 1;
+                } else {
+                    self.overlay = Overlay::Search {
+                        query: session.last_find.clone(),
+                        selected: 0,
+                    };
+                }
             }
             Command::Complete => {
                 self.overlay = Overlay::Completion { selected: 0 };
@@ -1047,6 +1162,12 @@ impl NovnowApp {
                     range: String::new(),
                     state: None,
                     fresh: true,
+                    flags: [
+                        session.bench.project().settings().export.include_blurb,
+                        false,
+                        false,
+                        false,
+                    ],
                 };
             }
             Command::QuickFix => {
@@ -1140,6 +1261,27 @@ impl NovnowApp {
         };
         let current = session.spaces.switcher.current();
         match command {
+            Command::CarryWorkspace(number) => {
+                session.bench.finish_human(now);
+                if let Some(target) = Workspace::of_number(number) {
+                    let id = session.bench.current_id();
+                    if let Some(id) = id {
+                        match target {
+                            Workspace::PlotEpisode => {
+                                session.spaces.episode.land(&session.bench, id)
+                            }
+                            Workspace::PlotOutline => session.spaces.outline.land_chapter(
+                                &session.bench,
+                                id.chapter,
+                                id.episode,
+                            ),
+                            _ => {}
+                        }
+                    }
+                    self.switch_to(ctx, target, now);
+                }
+                return true;
+            }
             Command::Workspace(number) => {
                 if let Some(target) = Workspace::of_number(number) {
                     self.switch_to(ctx, target, now);
@@ -1363,8 +1505,23 @@ impl NovnowApp {
             _ => {}
         }
         if current == Workspace::Write {
+            if let Command::Fold(fold) = command {
+                if let Some(key) = ctx.data(|d| d.get_temp::<String>(Id::new("context-fold-hover")))
+                {
+                    if fold {
+                        if !self.settings.folded.contains(&key) {
+                            self.settings.folded.push(key);
+                        }
+                    } else {
+                        self.settings.folded.retain(|k| k != &key);
+                    }
+                    session.settings_dirty = true;
+                }
+                return true;
+            }
             return false;
         }
+
         let bench = &mut session.bench;
         let spaces = &mut session.spaces;
         match (current, command) {
@@ -1765,7 +1922,13 @@ impl NovnowApp {
             session.notice = Some((i18n::format(locale, "workspace.unavailable", &[&name]), now));
             return false;
         }
+        if session.spaces.switcher.current() == Workspace::Reader && target == Workspace::Write {
+            if let Some((path, at)) = &session.stage_two.reader_position {
+                session.bench.reveal(path, *at);
+            }
+        }
         // 開いている文書の一部を書き戻して閉じ、すぐに保存する
+        session.bench.finish_human(now);
         session.bench.close_slice();
         session.bench.commit();
         session.bench.save.request_now();
@@ -2483,7 +2646,43 @@ impl NovnowApp {
         let Stage::Open(session) = &mut self.stage else {
             return;
         };
+        ctx.data_mut(|d| {
+            d.insert_temp(Id::new("suggest-comma"), self.settings.suggest_comma);
+            d.insert_temp(Id::new("context-folded"), self.settings.folded.clone());
+        });
         // ④ ステータスバー（22px）
+        let stamp = session.host.now();
+        let date = stamp.get(..10).unwrap_or("");
+        let hour = stamp.get(11..13).and_then(|h| h.parse().ok()).unwrap_or(0);
+        let activity = ctx.input(|i| {
+            i.events.iter().any(|e| {
+                matches!(
+                    e,
+                    egui::Event::Text(_) | egui::Event::Key { pressed: true, .. }
+                )
+            })
+        });
+        session.stage_two.stamp = stamp.clone();
+        session
+            .stage_two
+            .tick(&session.bench, now, date, hour, activity);
+        if !self.ime.composing() {
+            for (redo, mods, key) in [
+                (false, egui::Modifiers::CTRL, egui::Key::Z),
+                (
+                    true,
+                    egui::Modifiers::CTRL | egui::Modifiers::SHIFT,
+                    egui::Key::Z,
+                ),
+                (true, egui::Modifiers::CTRL, egui::Key::Y),
+            ] {
+                if session.bench.workspace_undo_ready(redo)
+                    && ctx.input_mut(|i| i.consume_key(mods, key))
+                {
+                    session.bench.undo_workspace(redo, now);
+                }
+            }
+        }
         let indicator = session.bench.save.indicator(now);
         let mut open_error = false;
         egui::TopBottomPanel::bottom("status")
@@ -2494,7 +2693,16 @@ impl NovnowApp {
                     .inner_margin(Margin::symmetric(10.0, 2.0)),
             )
             .show(ctx, |ui| {
-                open_error = status_bar(ui, session, locale, mode, scale, indicator, now);
+                open_error = status_bar(
+                    ui,
+                    session,
+                    locale,
+                    mode,
+                    scale,
+                    indicator,
+                    now,
+                    self.settings.status_stats_mode,
+                );
             });
         if open_error {
             self.overlay = Overlay::SaveError;
@@ -2504,6 +2712,24 @@ impl NovnowApp {
         let show_reference =
             self.settings.reference_visible && (width >= 900.0 || self.focus == Pane::Reference);
         let workspace = session.spaces.switcher.current();
+        if workspaces::stage_two::show(
+            ctx,
+            &mut session.stage_two,
+            &mut session.bench,
+            workspace,
+            locale,
+            now,
+            session.host.as_mut(),
+        ) {
+            let exit = ctx
+                .data_mut(|d| d.remove_temp::<bool>(Id::new("reader-exit")))
+                .unwrap_or(false);
+            if exit {
+                self.switch_to(ctx, Workspace::Write, now);
+            }
+            self.common_tail(ctx, locale, now);
+            return;
+        }
         if workspace != Workspace::Write {
             let reference_width = (width * (1.0 - self.settings.main_ratio)).clamp(320.0, 560.0);
             let view = workspaces::View {
@@ -2853,6 +3079,28 @@ impl NovnowApp {
         let Stage::Open(session) = &mut self.stage else {
             return;
         };
+        if let Some(folded) =
+            ctx.data_mut(|d| d.remove_temp::<Vec<String>>(Id::new("context-folded-changed")))
+        {
+            self.settings.folded = folded;
+            session.settings_dirty = true;
+        }
+        if let Some(id) = session.bench.current_id() {
+            let current = id.display(session.bench.project().digits());
+            let count = self.settings.folded.len();
+            self.settings.folded.retain(|key| {
+                !key.starts_with('@')
+                    || !current.starts_with(&format!("{}-", key.trim_start_matches('@')))
+            });
+            if self.settings.folded.len() != count {
+                session.settings_dirty = true;
+            }
+        }
+        if session.stage_two.stats_dirty {
+            ctx.request_repaint_after(std::time::Duration::from_secs_f64(
+                (600.0 - (now - session.stage_two.stats_last_flush)).max(1.0),
+            ));
+        }
         // 保存（§8.2）
         save_if_due(session, &mut self.settings, now);
         if let Some(at) = session.bench.save.next_wakeup(now) {
@@ -3235,6 +3483,18 @@ impl NovnowApp {
                             crate::core::model::project::PROJECT_STRUCTURE_DOC_URL,
                             &colors,
                         );
+                        crate::ui::widgets::external_link(
+                            ui,
+                            i18n::text(locale, "stage.git_guide"),
+                            crate::core::model::project::GIT_GUIDE_DOC_URL,
+                            &colors,
+                        );
+                        crate::ui::widgets::external_link(
+                            ui,
+                            i18n::text(locale, "stage.publish_guide"),
+                            crate::core::model::project::CICD_GUIDE_DOC_URL,
+                            &colors,
+                        );
                         if crate::ui::widgets::action_button(ui, i18n::text(locale, "help.close"))
                             .clicked()
                         {
@@ -3279,6 +3539,14 @@ impl NovnowApp {
                 });
                 if enter {
                     match workspace {
+                        Workspace::Reader => {
+                            if let Some(id) = crate::core::features::sections::query_id(input) {
+                                session.stage_two.reader_jump = Some(id);
+                                close = true;
+                            } else {
+                                *missed = true;
+                            }
+                        }
                         // plot-outline: 章（話があればそのブロック）へ
                         Workspace::PlotOutline => {
                             match crate::core::features::sections::query_id(input) {
@@ -3909,7 +4177,7 @@ impl NovnowApp {
                 examples,
                 fresh,
             } => {
-                let roles = crate::core::agents::BUILTIN_ROLES;
+                let roles = crate::core::agents::roles(session.bench.project());
                 let down = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::ArrowDown));
                 let up = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::ArrowUp));
                 let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
@@ -3932,7 +4200,7 @@ impl NovnowApp {
                             if crate::ui::widgets::selectable_action(
                                 ui,
                                 index == *role,
-                                RichText::new(*name),
+                                RichText::new(name.as_str()),
                             )
                             .clicked()
                             {
@@ -3976,7 +4244,7 @@ impl NovnowApp {
                     let plan = crate::core::agents::runner::new_tasks(
                         session.bench.project(),
                         &crate::core::agents::runner::Draft {
-                            role: roles[*role],
+                            role: &roles[*role],
                             scope,
                             intent,
                             comment,
@@ -4332,6 +4600,7 @@ impl NovnowApp {
                 range,
                 state,
                 fresh,
+                flags,
             } => {
                 // 先に消費する（`Shift+Enter` は `Enter` より先に。素の `Enter` は Shift も拾うため）
                 let cycle = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Tab));
@@ -4347,7 +4616,7 @@ impl NovnowApp {
                         Some(ExportState::Fixed) => None,
                     };
                 }
-                let draft = session.export_draft(range, *state);
+                let draft = session.export_draft(range, *state, *flags);
                 let readable = draft.range.is_some();
                 let sections = draft.sections;
                 let chars = crate::core::features::sections::count_chars(&draft.text);
@@ -4364,6 +4633,19 @@ impl NovnowApp {
                     ui.label(
                         RichText::new(i18n::text(locale, "export.title")).color(colors.fg_faint),
                     );
+                    ui.horizontal_wrapped(|ui| {
+                        for (index, key) in [
+                            "stage.include_blurb",
+                            "stage.blurb_only",
+                            "stage.keep_illustration",
+                            "stage.include_stock",
+                        ]
+                        .iter()
+                        .enumerate()
+                        {
+                            ui.checkbox(&mut flags[index], i18n::text(locale, key));
+                        }
+                    });
                     ui.add_space(6.0);
                     let edit = ui.add(
                         egui::TextEdit::singleline(range)
@@ -4428,6 +4710,7 @@ impl NovnowApp {
                     });
                 });
                 if let Some(kind) = action {
+                    session.export_draft(range, *state, *flags);
                     if let Some(result) = export_now(ctx, session, kind, locale, now) {
                         match result {
                             Ok(message) => {
@@ -4658,6 +4941,7 @@ impl NovnowApp {
             return;
         }
         if requested {
+            session.stage_two.stats_flush_requested = true;
             session.bench.commit();
             session.bench.save.request_now();
             save_if_due(session, &mut self.settings, now);
@@ -4734,11 +5018,26 @@ fn save_if_due(session: &mut Session, settings: &mut UiSettings, now: f64) {
         }
         return;
     }
+    if session.stage_two.stats_dirty
+        && (session.stage_two.stats_flush_requested
+            || now - session.stage_two.stats_last_flush >= 600.0)
+    {
+        session.bench.save.request_now();
+    }
     if session.bench.save.due(now) {
         // 書き込む資料 MD の `updated_at` と `checksum` を索引に（§16.6）
         let stamp = session.host.now();
         session.bench.touch_materials(&stamp);
-        let writes = session.bench.take_writes();
+        let mut writes = session.bench.take_writes();
+        if session.stage_two.stats_dirty
+            && (session.stage_two.stats_flush_requested
+                || now - session.stage_two.stats_last_flush >= 600.0)
+            && !session.bench.human_active()
+        {
+            if let Ok(text) = serde_json::to_string_pretty(&session.stage_two.stats) {
+                writes.push((".novnow/stats.json".to_owned(), text));
+            }
+        }
         // 動かした文書の元（資料の採用 `inbox/` → `docs/`）は、新しい側を書けてから消す（Host::save）
         let removals = session.bench.take_removals();
         session.bench.save.begin(now);
@@ -4754,6 +5053,16 @@ fn save_if_due(session: &mut Session, settings: &mut UiSettings, now: f64) {
 /// 保存 1 回分の結果を受け取る（同期ならその場、非同期なら後のフレーム）。
 fn finish_save(session: &mut Session, settings: &mut UiSettings, now: f64, outcome: SaveOutcome) {
     let handed = session.saving.take().unwrap_or_default();
+    if outcome.written.iter().any(|p| p == ".novnow/stats.json")
+        && handed.get(".novnow/stats.json")
+            == serde_json::to_string_pretty(&session.stage_two.stats)
+                .ok()
+                .as_ref()
+    {
+        session.stage_two.stats_dirty = false;
+        session.stage_two.stats_flush_requested = false;
+        session.stage_two.stats_last_flush = now;
+    }
     // 書いているあいだに変わったファイルは未保存のまま残す（次の保存で書く）
     let written: Vec<String> = outcome
         .written
@@ -4791,6 +5100,7 @@ fn flush_settings(session: &mut Session, settings: &mut UiSettings) {
 }
 
 /// ステータスバー（§9.6.1）。保存インジケータが押されたら `true`。
+#[allow(clippy::too_many_arguments)] // Explicit display settings and the retained session match other UI entry points.
 fn status_bar(
     ui: &mut egui::Ui,
     session: &mut Session,
@@ -4799,6 +5109,7 @@ fn status_bar(
     scale: f32,
     indicator: Indicator,
     now: f64,
+    stats_mode: bool,
 ) -> bool {
     let colors = theme::palette(mode);
     let font = FontId::new(11.0 * scale, FontFamily::Proportional);
@@ -4826,8 +5137,11 @@ fn status_bar(
                         .font(font.clone())
                         .color(colors.fg_faint)
                 };
+                if session.bench.human_active() {
+                    ui.colored_label(colors.warn, i18n::text(locale, "stage.proposal"));
+                }
                 if let Some(crumb) = session.bench.breadcrumb() {
-                    if width >= 900.0 {
+                    if width >= 320.0 {
                         ui.label(
                             RichText::new(crumb.clone())
                                 .font(mono.clone())
@@ -4846,6 +5160,35 @@ fn status_bar(
                     context_view::group(episode),
                     context_view::group(project)
                 );
+                let chars = if stats_mode {
+                    let minutes = session.stage_two.session.minutes(now);
+                    let date = session.stage_two.stamp.get(..10).unwrap_or("");
+                    let recent = crate::core::stage_two::metrics::recent_dates(date, 400);
+                    let stats = &session.stage_two.stats;
+                    let today = stats.days.get(date).map_or(0, |d| d.chars);
+                    let speed = if minutes > 0 {
+                        format!(
+                            "{:.1}",
+                            session.stage_two.session.delta as f64 / minutes as f64
+                        )
+                    } else {
+                        "—".to_owned()
+                    };
+                    let average =
+                        stats.average(&recent.iter().take(7).cloned().collect::<Vec<_>>());
+                    i18n::format(
+                        locale,
+                        "stage.stats_status",
+                        &[
+                            &today.to_string(),
+                            &speed,
+                            &format!("{average:.0}"),
+                            &stats.streak(&recent).to_string(),
+                        ],
+                    )
+                } else {
+                    chars
+                };
                 if width >= 410.0 {
                     ui.label(
                         RichText::new(&chars)
@@ -4876,6 +5219,18 @@ fn status_bar(
                     );
                 } else {
                     hidden.push(pages);
+                }
+                if !stats_mode && width >= 680.0 {
+                    ui.label(
+                        RichText::new(format!(
+                            "{:+}{unit} {}{}",
+                            session.stage_two.session.delta,
+                            session.stage_two.session.minutes(now),
+                            i18n::text(locale, "stage.minutes")
+                        ))
+                        .font(mono.clone())
+                        .color(colors.fg_muted),
+                    );
                 }
                 if width < 950.0 {
                     if let Some((message, at)) = &session.notice {
@@ -5622,11 +5977,12 @@ fn prompt_pairs(
 /// stdio servers; unsupported transports must never be silently accepted.
 fn validate_mcp_editor(input: &str, locale: Locale) -> Result<(), String> {
     let config = crate::core::agents::mcp_config::parse(input)?;
-    if let Some(server) = config
-        .servers
-        .iter()
-        .find(|server| !server.transport.is_empty() && server.transport != "stdio")
-    {
+    if let Some(server) = config.servers.iter().find(|server| {
+        !server.transport.is_empty()
+            && server.transport != "stdio"
+            && !(server.transport == "http"
+                && crate::core::stage_two::local_llm::is_loopback(&server.url))
+    }) {
         return Err(i18n::format(
             locale,
             "help.mcp_transport",
@@ -5735,6 +6091,7 @@ fn export_now(
     }
     let text = draft.text.clone();
     let state = draft.key.2;
+    let flags = draft.key.3;
     match kind {
         ExportAction::Copy => {
             let chars = crate::core::features::sections::count_chars(&text);
@@ -5763,6 +6120,10 @@ fn export_now(
                 let mut options = export_text::Options::from_settings(&project.settings().export);
                 options.state = state;
                 options.format = format;
+                options.include_blurb = flags[0];
+                options.blurb_only = flags[1];
+                options.keep_illustration_memo = flags[2];
+                options.include_stock = flags[3];
                 export_text::run(project, range.as_ref(), &options)
             } else {
                 text
@@ -6460,7 +6821,7 @@ mod native {
 
     use egui::{Context, FontFamily, FontId, Frame, Key, Margin, Modifiers, RichText, Vec2};
 
-    use super::{Host, NovnowApp, Picker, Session};
+    use super::{save_now, Host, NovnowApp, Picker, SaveOutcome, Session};
     use crate::adapters::block_on;
     use crate::adapters::clock_system::SystemClock;
     use crate::adapters::dialog_rfd::RfdDialog;
@@ -6530,6 +6891,7 @@ mod native {
         storage: FsStorage,
         snapshot: Snapshot,
         mcp: Calls,
+        probes: Calls,
     }
 
     /// MCP の呼び出し（1 回 1 スレッド。結果は通り道で UI のスレッドへ返す、§15.7.5）。
@@ -6553,6 +6915,44 @@ mod native {
     }
 
     impl Host for FsHost {
+        fn save(
+            &mut self,
+            writes: Vec<(String, String)>,
+            removals: Vec<String>,
+        ) -> Option<SaveOutcome> {
+            if removals.is_empty() {
+                return Some(save_now(self, writes, removals));
+            }
+            let parsed: Result<Vec<_>, _> = writes
+                .iter()
+                .map(|(p, t)| ProjectPath::new(p).map(|p| (p, t.clone())))
+                .collect();
+            let deleted: Result<Vec<_>, _> = removals.iter().map(|p| ProjectPath::new(p)).collect();
+            let result = match (parsed, deleted) {
+                (Ok(w), Ok(r)) => self.storage.write_batch(&w, &r),
+                _ => Err("invalid batch path".to_owned()),
+            };
+            Some(match result {
+                Ok(stamps) => {
+                    for (p, stamp) in stamps {
+                        self.snapshot.acknowledge(p, stamp);
+                    }
+                    SaveOutcome {
+                        written: writes.into_iter().map(|(p, _)| p).collect(),
+                        ..Default::default()
+                    }
+                }
+                Err(error) => SaveOutcome {
+                    failures: writes
+                        .into_iter()
+                        .map(|(p, _)| (p, error.clone()))
+                        .collect(),
+                    removals_left: removals,
+                    ..Default::default()
+                },
+            })
+        }
+
         fn write(&mut self, path: &str, text: &str) -> Result<(), String> {
             let path = ProjectPath::new(path).map_err(|error| format!("{error:?}"))?;
             let stamp = self
@@ -6691,6 +7091,35 @@ mod native {
             done
         }
 
+        fn local_probe_start(&mut self, job: Job) -> Option<u64> {
+            let number = self.probes.next;
+            self.probes.next += 1;
+            let cancel = Arc::new(AtomicBool::new(false));
+            let flag = Arc::clone(&cancel);
+            let sender = self.probes.sender.clone();
+            let spawned = std::thread::Builder::new()
+                .name(format!("novnow-mcp-{number}"))
+                .spawn(move || {
+                    let started = std::time::Instant::now();
+                    let result = StdioClient.call(&job.server, &job.call, &flag);
+                    let elapsed = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+                    let _ = sender.send((number, result, elapsed));
+                });
+            if spawned.is_err() {
+                return None;
+            }
+            self.probes.cancels.push((number, cancel));
+            Some(number)
+        }
+
+        fn local_probe_poll(&mut self) -> Vec<Finished> {
+            let done: Vec<Finished> = self.probes.receiver.try_iter().collect();
+            self.probes
+                .cancels
+                .retain(|(number, _)| !done.iter().any(|(finished, _, _)| finished == number));
+            done
+        }
+
         fn mcp_cancel(&mut self, job: u64) {
             if let Some((_, flag)) = self.mcp.cancels.iter().find(|(number, _)| *number == job) {
                 flag.store(true, Ordering::Relaxed);
@@ -6743,6 +7172,7 @@ mod native {
             storage,
             snapshot,
             mcp: Calls::default(),
+            probes: Calls::default(),
         };
         let mut session = Session::new(Box::new(host), loaded.project, &settings);
         // `prompts/` の欠けた既定ファイルを書き出す（U-7・§15.5.4。I050 は `prompts/` が無かったとき）
@@ -6831,6 +7261,8 @@ mod native {
         want_folder: bool,
         want_new: bool,
         want_import: bool,
+        want_migrate: bool,
+        migration: Option<(String, String)>,
         locale: Locale,
     }
 
@@ -6853,6 +7285,8 @@ mod native {
                 want_folder: false,
                 want_new: false,
                 want_import: false,
+                want_migrate: false,
+                migration: None,
                 locale,
             }
         }
@@ -6892,6 +7326,99 @@ mod native {
             self.locale = locale;
             let colors = theme::palette(mode);
             let mut opened = None;
+            if self.want_migrate {
+                self.want_migrate = false;
+                if let Some(picked) = block_on(RfdDialog.pick_text()) {
+                    match String::from_utf8(picked.bytes) {
+                        Ok(text) => {
+                            self.migration = Some((
+                                picked
+                                    .name
+                                    .trim_end_matches(".txt")
+                                    .trim_end_matches(".md")
+                                    .to_owned(),
+                                text,
+                            ));
+                        }
+                        Err(error) => {
+                            self.problem = Some((PathBuf::new(), error.to_string(), false))
+                        }
+                    }
+                }
+            }
+            let mut migration_confirm = false;
+            let mut migration_cancel = false;
+            if let Some((title, source)) = &mut self.migration {
+                egui::Window::new(i18n::text(locale, "stage.migrate"))
+                    .collapsible(false)
+                    .show(ctx, |ui| {
+                        ui.label(i18n::text(locale, "stage.migrate_notice"));
+                        ui.text_edit_singleline(title);
+                        match crate::core::migration::convert(title, source) {
+                            Ok(files) => {
+                                egui::ScrollArea::vertical()
+                                    .max_height(300.0)
+                                    .show(ui, |ui| {
+                                        for file in files {
+                                            ui.monospace(file.path);
+                                            if file.path == "contents/01-01.txt" {
+                                                ui.monospace(file.text);
+                                            }
+                                        }
+                                    });
+                                migration_confirm = crate::ui::widgets::action_button(
+                                    ui,
+                                    i18n::text(locale, "stage.confirm"),
+                                )
+                                .clicked();
+                            }
+                            Err(error) => {
+                                ui.label(format!("{error:?}"));
+                            }
+                        }
+                        migration_cancel = crate::ui::widgets::action_button(
+                            ui,
+                            i18n::text(locale, "stage.cancel"),
+                        )
+                        .clicked();
+                    });
+            }
+            if migration_cancel {
+                self.migration = None;
+            }
+            if migration_confirm {
+                if let Some((title, source)) = self.migration.take() {
+                    if let Some(parent) = block_on(RfdDialog.pick_folder()) {
+                        let safe = ProjectPath::new(&title)
+                            .ok()
+                            .filter(|p| !p.as_str().contains('/'));
+                        if let Some(name) = safe {
+                            let dir = parent.join(name.as_str());
+                            let result = (|| {
+                                let files = crate::core::migration::convert(&title, &source)
+                                    .map_err(|e| format!("{e:?}"))?;
+                                let storage = FsStorage::create_fresh(
+                                    Arc::new(FsGate::new(&SystemEnv)),
+                                    &dir,
+                                )
+                                .map_err(|e| format!("{e:?}"))?;
+                                for file in files {
+                                    let path = ProjectPath::new(file.path)
+                                        .map_err(|e| format!("{e:?}"))?;
+                                    storage
+                                        .write_bytes(&path, file.text.as_bytes())
+                                        .map_err(|e| format!("{e:?}"))?;
+                                }
+                                Ok::<_, String>(())
+                            })();
+                            match result {
+                                Ok(()) => return self.try_open(&dir),
+                                Err(message) => self.problem = Some((dir, message, false)),
+                            }
+                        }
+                    }
+                }
+            }
             if self.want_import {
                 self.want_import = false;
                 if let Some(zip_file) = block_on(RfdDialog.pick_zip()) {
@@ -7061,6 +7588,14 @@ mod native {
                             .clicked()
                             {
                                 self.want_import = true;
+                            }
+                            if crate::ui::widgets::action_button(
+                                ui,
+                                i18n::text(locale, "stage.migrate"),
+                            )
+                            .clicked()
+                            {
+                                self.want_migrate = true;
                             }
                         });
                         if let Some((dir, report, incomplete)) = &self.problem {

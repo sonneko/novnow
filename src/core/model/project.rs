@@ -414,10 +414,12 @@ pub const REQUIRED_FILES: &[&str] = &[
 pub const REQUIRED_DIRS: &[&str] = &["contents", "plots"];
 
 /// プロジェクト構造の解説ページ（§14.2.1、指示 2）。URL は**この定数だけ**を参照する（MUST。
-/// `tests/cli.rs` がソース中の出現を 1 か所に固定している）。`GIT_GUIDE_DOC_URL` /
-/// `CICD_GUIDE_DOC_URL` は ② なので定義しない（`PLANS.md` §1.2-14）。
+/// `tests/cli.rs` がソース中の出現を 1 か所に固定している）。
 pub const PROJECT_STRUCTURE_DOC_URL: &str =
     "https://sonneko.github.io/novnow/guide/project_structure.html";
+
+pub const GIT_GUIDE_DOC_URL: &str = "https://sonneko.github.io/novnow/guide/git.html";
+pub const CICD_GUIDE_DOC_URL: &str = "https://sonneko.github.io/novnow/guide/publish.html";
 
 /// `project.json`（§4.1）。
 pub const PROJECT_FILE: &str = "project.json";

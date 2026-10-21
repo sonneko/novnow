@@ -8,7 +8,7 @@
 
 状態: 実装完了（REF:src/core/text/lexer.rs, REF:tests/lexer.rs）
 
-- 行頭シジル判定（`SIGIL_TABLE`）・7 種のエスケープ解除・フィールド行の 7 段判定・継続行インデント判定（2 空白以上または先頭タブ 1 文字以上）・BOM/CRLF 正規化は `core::text::lexer`（`REF:src/core/text/lexer.rs`）に実装する。
+- 行頭シジル判定（`SIGIL_TABLE`）・10 種のエスケープ解除・フィールド行の 7 段判定・継続行インデント判定（2 空白以上または先頭タブ 1 文字以上）・BOM/CRLF 正規化は `core::text::lexer`（`REF:src/core/text/lexer.rs`）に実装する。
 - 日本語フィールドキー別名表は `/// i18n: format-vocabulary` を付与した定数配列として保持し、URI スキームとの非交差（`no_field_key_collides_with_a_url_scheme`）と双方向 1:1 対応（`the_alias_table_is_one_to_one_in_both_directions`）を `REF:tests/lexer.rs` で検証する。
 - **字句解析の内部不変条件（`REF:docs/history.md` の `B-18`, `B-21`〜`B-24`, `B-36`, `B-37`）**:
   - `SIGIL_TABLE: &[SigilSpec]` は `(prefix, sigil, requires_space, whole_line, formats, stage)` を保持し、配列の並び順そのものが優先順位を表す（`match` 直書き禁止）。
@@ -16,6 +16,8 @@
   - 半角コロンのフィールド行判定は §5.0.6 のキー表を許可リストとして用い、表にない ASCII キーは `:` 直後の空白を必須とすることで URL（`https://...`）・時刻（`10:30`）・Windows パスを誤認しない。また直前が `:` の `//` は行内コメントにしない（`B-24`）。
   - フィールド値の後ろに書かれた `//` は無損失往復変換を保つため値の一部として保持し、数値等として解釈する層が行末コメントを除去する（`A-14`, `B-36`）。
   - 空文書は保存時に改行 1 個を追加せず 0 バイトのまま保持する（`B-22`）。
+
+- L-01 の本文記号保護に `\#`・`\!`・`\^` を含め、`# ` コメントは `.txt` 3 形式で有効化する。検証: `REF:tests/migration.rs`, `REF:tests/stage_two_comments.rs`。
 
 ### 5.1 SceneId と範囲式
 

@@ -248,7 +248,7 @@ pub fn prepare(
     if !matches!(task.status.as_str(), "draft" | "ready") {
         return Err(Blocker::Unknown);
     }
-    if !crate::core::agents::is_role(&task.role) {
+    if !super::roles(project).contains(&task.role) {
         return Err(Blocker::Role);
     }
     let level = level_of(settings, &task.role);
@@ -677,7 +677,7 @@ fn chain(
     if task.role == "integrator" {
         for found in &parsed.tasks {
             let role = found.role.trim();
-            if !crate::core::agents::is_role(role)
+            if !super::roles(project).iter().any(|r| r == role)
                 || role == "integrator"
                 || level_of(settings, role) == Delegation::Off
             {

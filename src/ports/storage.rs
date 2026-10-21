@@ -67,6 +67,14 @@ pub trait Storage {
     /// テキストを読む（UTF-8 として読めなければ [`StorageError::Encoding`]）。
     fn read(&self, path: &ProjectPath) -> impl Future<Output = Result<String, StorageError>>;
 
+    /// Read project-relative asset bytes; unsupported implementations can return Unsupported.
+    fn read_binary(
+        &self,
+        _path: &ProjectPath,
+    ) -> impl Future<Output = Result<Vec<u8>, StorageError>> {
+        async { Err(StorageError::Unsupported) }
+    }
+
     /// テキストを**原子的に**書く（§8.3）。親ディレクトリは無ければ作る。新しいスタンプを返す
     /// （外部変更の検出で自分の保存を候補にしないため、`policy::external_change`）。
     fn write(

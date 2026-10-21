@@ -210,7 +210,10 @@ pub fn call(project: &Project, name: &str, args: &Value, now: &str, title: &str)
         "novnow.materials.search" => ok(materials_search(project, args)),
         "novnow.context.build" => {
             let role = text_arg(args, "role").unwrap_or("writer");
-            if !crate::core::agents::is_role(role) {
+            if !crate::core::agents::roles(project)
+                .iter()
+                .any(|r| r == role)
+            {
                 return err(ToolError::Argument("role"));
             }
             match scene_arg(args) {

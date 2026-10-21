@@ -28,12 +28,13 @@ path = "src/main.rs"
 # `toml`（文言カタログ `ui/i18n/*.toml` の読み込み）は M6 から**常に**入れる: CLI のメッセージも
 # 同じカタログを使う（§12.2）ので、`ui::i18n` は GUI なしのビルドにも要る（`PLANS.md` §9.2 B-100）。
 default = []
-ui = ["dep:eframe", "dep:egui", "dep:rfd", "dep:fontdb"]
+ui = ["dep:eframe", "dep:egui", "dep:rfd", "dep:fontdb", "dep:image"]
 
 [dependencies]
 # 以下 4 つ（eframe / egui / rfd / fontdb）は `ui` feature のときだけ（上記）。層は `PLANS.md` §2.1 の表のとおり ui。
 eframe = { version = "0.27.2", optional = true }
 egui = { version = "0.27.2", optional = true }
+image = { version = "0.24.9", default-features = false, features = ["png", "jpeg"], optional = true }
 
 # 行区切りを LF のみにする（SPECIFICATIONS §5.0.4「内部表現は LF」）。
 # 既定 feature の unicode_lines は U+2028 等も行区切りにしてしまい、本文にそれが

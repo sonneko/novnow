@@ -669,6 +669,17 @@ fn block_list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) ->
     let selected = state.selected_index(bench);
     let reveal = state.reveal || std::mem::take(&mut state.scroll_list);
     let blocks = state.blocks(bench).to_vec();
+    let progress = plots::progress(bench.project());
+    let lengths: Vec<_> = blocks
+        .iter()
+        .map(|b| {
+            progress
+                .iter()
+                .find(|r| r.id == b.id)
+                .map_or(0, |r| r.chars)
+        })
+        .collect();
+    let scores = crate::core::stage_two::metrics::t_scores(&lengths);
     if blocks.is_empty() {
         let path = state.path(bench).unwrap_or_default();
         super::hint(
@@ -704,6 +715,17 @@ fn block_list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) ->
                         muted: false,
                     },
                 );
+                let t = scores[index];
+                ui.horizontal(|ui| {
+                    ui.label(format!(
+                        "{}  T {}",
+                        lengths[index],
+                        t.map_or_else(|| "—".to_owned(), |n| format!("{n:.0}"))
+                    ));
+                    if t.is_some_and(|n| !(35.0..=65.0).contains(&n)) {
+                        ui.colored_label(egui::Color32::from_rgb(210, 145, 45), "⚠");
+                    }
+                });
                 if !block.summary.is_empty() {
                     ui.horizontal(|ui| {
                         ui.add_space(40.0 * view.scale);

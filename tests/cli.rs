@@ -988,7 +988,7 @@ fn export_writes_only_the_chosen_file_outside_the_project() {
 fn export_option_errors_are_exit_2_and_empty_selections_write_nothing() {
     let dir = TempDir::new("cli-export-args");
     minimal_project(&dir, "novel");
-    let cases: [(&[&str], &str); 7] = [
+    let cases: [(&[&str], &str); 6] = [
         (
             &["export", "novel", "--range"],
             "--rangeに値を指定してください",
@@ -1008,11 +1008,6 @@ fn export_option_errors_are_exit_2_and_empty_selections_write_nothing() {
         (
             &["export", "novel", "--out="],
             "--outに値を指定してください",
-        ),
-        // ② のオプション（`PLANS.md` §1.2）
-        (
-            &["export", "novel", "--include-stock"],
-            "不明なオプションです: --include-stock",
         ),
         (&["export", "novel", "extra"], "余分な引数です: extra"),
     ];
@@ -1388,7 +1383,7 @@ fn the_structure_doc_url_is_written_once_and_matches_section_14_2_1() {
         let Ok(text) = std::fs::read_to_string(&file) else {
             continue;
         };
-        for _ in text.matches("sonneko.github.io/novnow/guide") {
+        for _ in text.matches("sonneko.github.io/novnow/guide/project_structure.html") {
             found.push(file.display().to_string());
         }
     }
@@ -1579,4 +1574,86 @@ fn zip_import_rejects_bad_archive_without_creating_destination() {
         decide(&os_args(&["import", "file.zip"]), Terminal::default()),
         Launch::Error(ArgError::MissingDir("import"))
     );
+}
+
+#[test]
+fn migration_preview_is_read_only_and_import_refuses_existing_targets() {
+    let dir = TempDir::new("migrate");
+    let env = env_ja(&dir);
+    let source = "@heading\n# memo\n「body」@speaker\n";
+    dir.write("source.txt", source);
+    let preview = run(
+        dir.path(),
+        &env,
+        &["migrate", "source.txt", "book", "--preview"],
+    );
+    assert_eq!(preview.exit(), Exit::Ok, "{preview:?}");
+    assert!(!dir.join("book").exists());
+    assert!(preview.out.contains("contents/01-01.txt"));
+    let imported = run(dir.path(), &env, &["migrate", "source.txt", "book"]);
+    assert_eq!(imported.exit(), Exit::Ok, "{imported:?}");
+    let before = tree(&dir.join("book"));
+    assert_eq!(
+        run(dir.path(), &env, &["migrate", "source.txt", "book"]).exit(),
+        Exit::Io
+    );
+    assert_eq!(tree(&dir.join("book")), before);
+    assert_eq!(
+        std::fs::read_to_string(dir.join("source.txt")).unwrap(),
+        source
+    );
+    assert!(!dir.join("state/recent.json").exists());
+}
+
+#[test]
+fn migration_invalid_input_never_creates_a_target() {
+    let dir = TempDir::new("migrate-invalid");
+    let env = env_ja(&dir);
+    for (name, content) in [("empty.txt", " \n"), ("nul.txt", "a\0b")] {
+        dir.write(name, content);
+        assert_eq!(
+            run(dir.path(), &env, &["migrate", name, "book"]).exit(),
+            Exit::Io
+        );
+        assert!(!dir.join("book").exists());
+    }
+    std::fs::write(dir.join("invalid.txt"), [0xff, 0xfe]).unwrap();
+    assert_eq!(
+        run(dir.path(), &env, &["migrate", "invalid.txt", "book"]).exit(),
+        Exit::Io
+    );
+    assert!(!dir.join("book").exists());
+}
+
+#[test]
+fn migration_refuses_empty_directories_and_missing_parents() {
+    let dir = TempDir::new("migrate-existing");
+    let env = env_ja(&dir);
+    dir.write("source.txt", "body\n");
+    dir.mkdir("existing");
+    assert_eq!(
+        run(dir.path(), &env, &["migrate", "source.txt", "existing"]).exit(),
+        Exit::Io
+    );
+    assert!(tree(&dir.join("existing")).is_empty());
+    assert_eq!(
+        run(dir.path(), &env, &["migrate", "source.txt", "missing/book"]).exit(),
+        Exit::Io
+    );
+    assert!(!dir.join("missing").exists());
+}
+
+#[cfg(unix)]
+#[test]
+fn migration_refuses_symlink_destinations_without_touching_them() {
+    let dir = TempDir::new("migrate-link");
+    let env = env_ja(&dir);
+    dir.write("source.txt", "body\n");
+    dir.mkdir("outside");
+    std::os::unix::fs::symlink(dir.join("outside"), dir.join("link")).unwrap();
+    assert_eq!(
+        run(dir.path(), &env, &["migrate", "source.txt", "link"]).exit(),
+        Exit::Io
+    );
+    assert!(tree(&dir.join("outside")).is_empty());
 }

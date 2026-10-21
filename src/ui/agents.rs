@@ -205,8 +205,16 @@ fn job_of(start: &runner::Start) -> Job {
     Job {
         server: McpServer {
             name: server.name.clone(),
-            command: server.command.clone(),
-            args: server.args.clone(),
+            command: if server.transport == "http" {
+                "__novnow_http_mcp".to_owned()
+            } else {
+                server.command.clone()
+            },
+            args: if server.transport == "http" {
+                vec![server.url.clone(), server.model.clone()]
+            } else {
+                server.args.clone()
+            },
             env: start.env.clone(),
             timeout_ms: server.timeout_ms.unwrap_or(DEFAULT_TIMEOUT_MS),
         },

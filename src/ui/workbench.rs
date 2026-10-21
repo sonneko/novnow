@@ -67,9 +67,14 @@ pub struct Slice {
     pub tag: String,
 }
 
+type WorkspaceTransaction = (Vec<(String, String)>, Vec<(String, String)>);
+
 /// 編集の状態。
 #[derive(Debug)]
 pub struct Workbench {
+    workspace_undo: Vec<WorkspaceTransaction>,
+    workspace_redo: Vec<WorkspaceTransaction>,
+    human: Option<(SectionRef, String, String, String)>,
     project: Project,
     list: Vec<SectionRef>,
     editing: Option<Editing>,
@@ -94,6 +99,9 @@ impl Workbench {
     /// プロジェクトを開いた直後。`last_scene`（`ui.json`）があればそこから、無ければ最初の節から。
     pub fn new(project: Project, last_scene: Option<&str>, autosave_ms: u32) -> Self {
         let mut out = Self {
+            workspace_undo: Vec::new(),
+            workspace_redo: Vec::new(),
+            human: None,
             project,
             list: Vec::new(),
             editing: None,
@@ -172,10 +180,77 @@ impl Workbench {
 
     /// 節エディタで編集があった（§8.2 の Dirty とタイマ再起動）。
     pub fn edited(&mut self, now: f64) {
+        if self.human.is_some() {
+            return;
+        }
         if let Some(editing) = &self.editing {
             self.unsaved.insert(editing.section.path.clone());
         }
         self.save.edited(now);
+    }
+
+    pub fn human_active(&self) -> bool {
+        self.human.is_some()
+    }
+    pub fn toggle_human(&mut self, stamp: &str, now: f64) {
+        if self.human.is_some() {
+            self.finish_human(now);
+            return;
+        }
+        self.commit();
+        if let Some(current) = self.current().cloned() {
+            let max = self
+                .project
+                .documents()
+                .filter_map(|d| {
+                    d.path
+                        .strip_prefix("agents/proposals/H")
+                        .and_then(|s| s.strip_suffix(".md"))
+                        .and_then(|n| n.parse::<u32>().ok())
+                })
+                .max()
+                .unwrap_or(0);
+            self.human = Some((
+                current,
+                self.buffer.clone(),
+                format!("H{:04}", max + 1),
+                stamp.to_owned(),
+            ));
+        }
+    }
+    pub fn finish_human(&mut self, now: f64) {
+        let Some((current, before, id, stamp)) = self.human.take() else {
+            return;
+        };
+        let after = std::mem::replace(&mut self.buffer, before.clone());
+        if before == after {
+            return;
+        }
+        let proposal = crate::core::agents::files::Proposal {
+            id: id.clone(),
+            kind: "human".to_owned(),
+            target: crate::core::agents::files::target_of(
+                &current.path,
+                Some(current.id),
+                self.project.digits(),
+            ),
+            origin: "human".to_owned(),
+            status: "open".to_owned(),
+            created_at: stamp.clone(),
+            updated_at: stamp,
+            before,
+            after,
+            ..Default::default()
+        };
+        let path = crate::core::agents::files::proposal_path(&id);
+        self.project.insert(Document::new(
+            &path,
+            crate::core::agents::files::write_proposal(&proposal),
+        ));
+        self.unsaved.insert(path);
+        self.save.edited(now);
+        self.save.request_now();
+        self.generation += 1;
     }
 
     /// 未保存のファイル（パスの昇順）。
@@ -195,6 +270,9 @@ impl Workbench {
     }
 
     fn commit_section(&mut self) {
+        if self.human.is_some() {
+            return;
+        }
         let Some(editing) = self.editing.as_mut() else {
             return;
         };
@@ -246,6 +324,9 @@ impl Workbench {
     ///
     /// 分ける必要が無ければ何もしないで `false`（呼び出し側は普通の貼り付けに任せる）。
     pub fn paste(&mut self, selection: Range<usize>, pasted: &str, now: f64) -> bool {
+        if self.human.is_some() {
+            return false;
+        }
         let Some(editing) = self.editing.as_ref() else {
             return false;
         };
@@ -558,6 +639,11 @@ impl Workbench {
                 self.slice_buffer.clear();
             }
         }
+        let before: Vec<_> = edit
+            .changes
+            .iter()
+            .map(|c| (c.path.clone(), self.project.text(&c.path).to_owned()))
+            .collect();
         let current = self.editing.clone();
         let mut touched = false;
         for change in &edit.changes {
@@ -571,12 +657,73 @@ impl Workbench {
         if !touched {
             return false;
         }
+        let after = before
+            .iter()
+            .map(|(p, _)| (p.clone(), self.project.text(p).to_owned()))
+            .collect();
+        self.workspace_undo.push((before, after));
+        if self.workspace_undo.len() > 100 {
+            self.workspace_undo.remove(0);
+        }
+        self.workspace_redo.clear();
         self.rebuild();
         if let Some(current) = current {
             match sections::position_of(&self.list, &current.section.path, current.section.id) {
                 Some(index) => self.enter(index),
                 None => self.editing = Some(current),
             }
+        }
+        self.save.edited(now);
+        true
+    }
+
+    /// A multi-file replacement is a single undo unit. Later edits never get overwritten.
+    pub fn workspace_undo_ready(&self, redo: bool) -> bool {
+        if self.human_active() {
+            return false;
+        }
+        let stack = if redo {
+            &self.workspace_redo
+        } else {
+            &self.workspace_undo
+        };
+        stack.last().is_some_and(|(before, after)| {
+            let expected = if redo { before } else { after };
+            expected.iter().all(|(p, t)| self.project.text(p) == t)
+                && self.current().is_none_or(|section| {
+                    sections::text_of(self.project.text(&section.path), section) == self.buffer
+                })
+        })
+    }
+    pub fn undo_workspace(&mut self, redo: bool, now: f64) -> bool {
+        if !self.workspace_undo_ready(redo) {
+            return false;
+        }
+        let item = if redo {
+            self.workspace_redo.pop()
+        } else {
+            self.workspace_undo.pop()
+        }
+        .unwrap();
+        let target = if redo { &item.1 } else { &item.0 };
+        let current = self.editing.clone();
+        for (path, text) in target {
+            self.project
+                .insert(Document::new(path.clone(), text.clone()));
+            self.unsaved.insert(path.clone());
+        }
+        self.rebuild();
+        if let Some(current) = current {
+            if let Some(index) =
+                sections::position_of(&self.list, &current.section.path, current.section.id)
+            {
+                self.enter(index);
+            }
+        }
+        if redo {
+            self.workspace_undo.push(item);
+        } else {
+            self.workspace_redo.push(item);
         }
         self.save.edited(now);
         true
@@ -815,6 +962,19 @@ impl Workbench {
 
     /// 書き込みの後で消すファイル（[`Workbench::rename_document`] の元）。取り出すと空になる。
     /// 消せなかったものは [`Workbench::removal_failed`] で戻す。
+    pub fn remove_document(&mut self, path: &str, now: f64) -> bool {
+        self.commit();
+        if self.project.remove(path).is_none() {
+            return false;
+        }
+        self.unsaved.remove(path);
+        self.removals.insert(path.to_owned());
+        self.rebuild();
+        self.save.edited(now);
+        self.save.request_now();
+        true
+    }
+
     pub fn take_removals(&mut self) -> Vec<String> {
         std::mem::take(&mut self.removals).into_iter().collect()
     }
@@ -976,6 +1136,17 @@ impl Workbench {
         let committed = document
             .map(|found| sections::count_chars(&sections::text_of(&found.text, current)))
             .unwrap_or(0);
+        if current.id.chapter == 0 || current.id.episode == 0 || self.human_active() {
+            return (
+                if self.human_active() {
+                    committed
+                } else {
+                    section
+                },
+                self.counts.get(&current.path).copied().unwrap_or(0),
+                self.counts.values().sum(),
+            );
+        }
         let episode = self.counts.get(&current.path).copied().unwrap_or(0) + section - committed;
         let project = self.counts.values().sum::<usize>() + section - committed;
         (section, episode, project)
@@ -1002,6 +1173,7 @@ impl Workbench {
     }
 
     fn enter(&mut self, index: usize) {
+        self.finish_human(0.0);
         let Some(section) = self.list.get(index).cloned() else {
             return;
         };
@@ -1018,6 +1190,9 @@ impl Workbench {
         self.list = sections::all(&self.project);
         self.counts.clear();
         for item in &self.list {
+            if item.id.chapter == 0 || item.id.episode == 0 {
+                continue;
+            }
             let Some(document) = self.project.document(&item.path) else {
                 continue;
             };

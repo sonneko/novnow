@@ -542,12 +542,12 @@ fn a_second_heading_is_not_a_second_role() {
 
 #[test]
 fn keys_outside_the_table_still_warn_and_keep_their_values() {
-    // §5.0.6 の表に無いキーは W011 ＋ 値を改変せず保持（縫い代 2）。② のキー（`blurb`）も
+    // §5.0.6 の表に無いキーは W011 ＋ 値を改変せず保持（縫い代 2）。② のキー（`flurb`）も
     // ① では未知のまま（PLANS.md §1.2）
-    let text = "# writer\nmodel-hint: careful\nfoo: bar\nblurb: 一行紹介\n";
+    let text = "# writer\nmodel-hint: careful\nfoo: bar\nflurb: 一行紹介\n";
     assert_eq!(
         diags_tag(text),
-        [w011(text, 2, "foo"), w011(text, 3, "blurb")].join("\n")
+        [w011(text, 2, "foo"), w011(text, 3, "flurb")].join("\n")
     );
     let parsed = prompt_md::parse(text);
     // 表にあるキーは正準形で引ける（第 2.6 版）
@@ -555,7 +555,7 @@ fn keys_outside_the_table_still_warn_and_keep_their_values() {
     // 表に無いキーは書かれたままのキーで引く
     assert_eq!(parsed.meta_field("foo").unwrap().key, FieldKey::Unknown);
     assert_eq!(parsed.meta_field("foo").unwrap().value, "bar");
-    assert_eq!(parsed.meta_field("blurb").unwrap().value, "一行紹介");
+    assert_eq!(parsed.meta_field("flurb").unwrap().value, "一行紹介");
     assert_eq!(parsed.to_text(), text);
 }
 

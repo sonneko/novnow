@@ -801,7 +801,7 @@ const ADAPTERS_MOD_RS: &str = include_str!("../src/adapters/mod.rs");
 
 /// GUI（§3.3 の `ui` 層の egui 部分）に要るクレート。`PLANS.md` §2.1 の表で層が ui のもの
 /// （`toml` は M6 から CLI も使う文言カタログのために通常の依存になった。B-100）。
-const UI_CRATES: &[&str] = &["eframe", "egui", "rfd", "fontdb"];
+const UI_CRATES: &[&str] = &["eframe", "egui", "rfd", "fontdb", "image"];
 
 /// `src/ui/mod.rs`（`ui` 層の宣言の正本）。
 const UI_MOD_RS: &str = include_str!("../src/ui/mod.rs");

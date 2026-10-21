@@ -9,7 +9,7 @@
 //! 1. **行頭シジルの判定**（§5.0.2）。優先順位は [`SIGIL_TABLE`] の**配列順**で固定する
 //!    （`PLANS.md` §7 の縫い代 4「表駆動」）。② のシジル（`# ` / `! `）は行を消すのではなく
 //!    [`Stage::Two`] として残すので、② の実装はフラグを切り替えるだけでよい。
-//! 2. **エスケープ**（§5.0.3）。有効なのは `\@ \' \; \/ \「 \」 \\` のみで、他は 2 文字のまま
+//! 2. **エスケープ**（§5.0.3）。有効文字は [`ESCAPE_TARGETS`] で管理し、他は 2 文字のまま
 //!    扱い**診断を出さない**。
 //! 3. **フィールド行**（§5.0.5 の 7 段の手順）。全角 `：` は直後の空白を問わず受理し、
 //!    半角 `:` は「空白・行末・§5.0.6 の表にあるキー」のときに受理する。表に無い ascii キーは
@@ -186,7 +186,7 @@ pub const SIGIL_TABLE: &[SigilSpec] = &[
         requires_space: true,
         whole_line: false,
         formats: Formats::TXT,
-        stage: Stage::Two,
+        stage: Stage::One,
     },
     SigilSpec {
         prefix: "!",
@@ -194,7 +194,7 @@ pub const SIGIL_TABLE: &[SigilSpec] = &[
         requires_space: true,
         whole_line: false,
         formats: Formats::CONTENTS,
-        stage: Stage::Two,
+        stage: Stage::One,
     },
     SigilSpec {
         prefix: "//",
@@ -346,6 +346,14 @@ pub enum FieldKey {
     Temperature,
     /// `label`
     Label,
+    When,
+    Senses,
+    Space,
+    SpaceMode,
+    Illustration,
+    Blurb,
+    Address,
+    Icon,
     /// §5.0.6 の表に無いキー（**W011**。値は改変せず保持する）。
     Unknown,
 }
@@ -461,7 +469,20 @@ pub const FIELD_KEYS: &[KeyRow] = &[
         "温度",
         Formats::MARKDOWN,
     ), // §5.0.6: prompts/*.md
-    (FieldKey::Label, "label", "表示名", Formats::MARKDOWN),   // §5.0.6: prompts/*.md
+    (FieldKey::When, "when", "日時", Formats::AB),
+    (FieldKey::Senses, "senses", "五感", Formats::PLOT_EPISODE),
+    (FieldKey::Space, "space", "空間", Formats::AB),
+    (FieldKey::SpaceMode, "space-mode", "空間形式", Formats::AB),
+    (
+        FieldKey::Illustration,
+        "illustration",
+        "挿絵",
+        Formats::PLOT_EPISODE,
+    ),
+    (FieldKey::Blurb, "blurb", "あらすじ", Formats::PLOT_OUTLINE),
+    (FieldKey::Address, "address", "呼称", Formats::MARKDOWN),
+    (FieldKey::Icon, "icon", "アイコン", Formats::MARKDOWN),
+    (FieldKey::Label, "label", "表示名", Formats::MARKDOWN), // §5.0.6: prompts/*.md
 ];
 
 /// 1 行を字句解析する（§5.0.1「1 行は常に単独で字句解析できる」）。
@@ -663,7 +684,7 @@ pub fn lookup_key(text: &str) -> FieldKey {
 /// §5.0.3 の有効なエスケープ（`\` の直後に来られる文字）。
 ///
 /// これ以外の `\x` は `\x` の 2 文字としてそのまま扱い、**診断を出さない**（§5.0.3）。
-pub const ESCAPE_TARGETS: &[char] = &['@', '\'', ';', '/', '「', '」', '\\'];
+pub const ESCAPE_TARGETS: &[char] = &['@', '\'', ';', '/', '「', '」', '\\', '#', '!', '^'];
 
 /// `\` の出現 1 件。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

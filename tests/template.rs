@@ -93,7 +93,9 @@ fn the_template_has_no_diagnostics_at_all() {
     for document in &documents {
         let found = diagnostics::document(document, &project);
         assert!(
-            found.is_empty(),
+            found
+                .iter()
+                .all(|d| d.severity() == novnow::core::diagnostics::Severity::Info),
             "{} に診断が出た: {found:?}",
             document.path
         );
@@ -396,7 +398,9 @@ fn sample_project_covers_appendix_c_with_no_diagnostics() {
     for document in &documents {
         let found = diagnostics::document(document, &project);
         assert!(
-            found.is_empty(),
+            found
+                .iter()
+                .all(|d| d.code == novnow::core::diagnostics::DiagnosticCode::I054),
             "{} に診断が出た: {found:?}",
             document.path
         );

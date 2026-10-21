@@ -20,7 +20,7 @@ use egui::{
 
 use crate::core::agents::files::{self, Board, Proposal, ProposalStatus};
 use crate::core::agents::output::{self, DiffLine};
-use crate::core::agents::{prompts, runner, Kind, BUILTIN_ROLES};
+use crate::core::agents::{prompts, runner, Kind};
 use crate::core::aicontext::packet::Packet;
 use crate::core::model::delegation::Delegation;
 use crate::core::model::task::Task;
@@ -262,6 +262,7 @@ pub fn show(
             ctx,
             state,
             &tasks,
+            &crate::core::agents::roles(bench.project()),
             selected.as_ref(),
             proposal.as_ref(),
             &mut actions,
@@ -321,6 +322,7 @@ fn keys(
     ctx: &Context,
     state: &mut State,
     tasks: &[Task],
+    roles: &[String],
     selected: Option<&Task>,
     proposal: Option<&Proposal>,
     actions: &mut Vec<Action>,
@@ -442,7 +444,7 @@ fn keys(
         ),
         Column::Delegation => {
             if down {
-                state.role = (state.role + 1).min(BUILTIN_ROLES.len() - 1);
+                state.role = (state.role + 1).min(roles.len() - 1);
             }
             if up {
                 state.role = state.role.saturating_sub(1);
@@ -455,7 +457,7 @@ fn keys(
             ] {
                 if pressed(key, Modifiers::NONE) {
                     actions.push(Action::Level {
-                        role: BUILTIN_ROLES[state.role].to_owned(),
+                        role: roles[state.role].to_owned(),
                         level,
                     });
                 }
@@ -1132,7 +1134,8 @@ fn delegation_column(
         state.column == Column::Delegation,
     );
     let settings = &bench.project().settings().agents;
-    for (index, role) in BUILTIN_ROLES.iter().enumerate() {
+    let roles = crate::core::agents::roles(bench.project());
+    for (index, role) in roles.iter().enumerate() {
         let level = crate::core::agents::level_of(settings, role);
         let path = files::prompt_path(role);
         let mut text = format!("{role}  {}", level.as_str());
@@ -1175,7 +1178,7 @@ fn delegation_column(
         ] {
             if super::action_button(ui, label).clicked() {
                 actions.push(Action::Level {
-                    role: BUILTIN_ROLES[state.role].to_owned(),
+                    role: roles[state.role].to_owned(),
                     level,
                 });
             }

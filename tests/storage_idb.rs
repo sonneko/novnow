@@ -104,6 +104,7 @@ fn records_have_exactly_the_fields_of_the_schema_table() {
     assert_eq!(file.project_path(), Some(path("contents/01-04.txt")));
     // 先頭スラッシュ（§13.3.2 で禁止）の手で壊されたレコードは読み飛ばせる
     let broken = FileRecord {
+        bytes: None,
         path: "/etc/passwd".to_owned(),
         ..file.clone()
     };

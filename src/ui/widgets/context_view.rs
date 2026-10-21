@@ -180,6 +180,59 @@ fn draw_section(
     width: f32,
 ) -> Option<bool> {
     let colors = theme::palette(mode);
+    let full = section.id.display(bench.project().digits());
+    let levels: Vec<&str> = full.split('-').collect();
+    let mut folded = ui
+        .ctx()
+        .data(|d| d.get_temp::<Vec<String>>(egui::Id::new("context-folded")))
+        .unwrap_or_default();
+    let current = bench
+        .current_id()
+        .map(|id| id.display(bench.project().digits()))
+        .unwrap_or_default();
+    let mut hidden = false;
+    ui.horizontal(|ui| {
+        for depth in 1..=3 {
+            let key = format!(
+                "@{}",
+                levels
+                    .iter()
+                    .take(depth)
+                    .copied()
+                    .collect::<Vec<_>>()
+                    .join("-")
+            );
+            let prefix = key.trim_start_matches('@');
+            let active = current == prefix || current.starts_with(&format!("{prefix}-"));
+            let collapsed = folded.contains(&key) && !active;
+            if collapsed {
+                hidden = true;
+            }
+            let response = ui.add_enabled(
+                !active,
+                egui::Button::new(format!("{} {}", if collapsed { "▸" } else { "▾" }, prefix))
+                    .small(),
+            );
+            if response.hovered() && !active {
+                ui.ctx()
+                    .data_mut(|d| d.insert_temp(egui::Id::new("context-fold-hover"), key.clone()));
+            }
+            if response.clicked() {
+                if collapsed {
+                    folded.retain(|k| k != &key);
+                } else {
+                    folded.push(key);
+                }
+                ui.ctx().data_mut(|d| {
+                    d.insert_temp(egui::Id::new("context-folded"), folded.clone());
+                    d.insert_temp(egui::Id::new("context-folded-changed"), folded.clone());
+                });
+            }
+        }
+    });
+    if hidden {
+        return Some(false);
+    }
     let document = bench.project().document(&section.path)?;
     let range = {
         let (_, starts) = cache.file(bench, &section.path);

@@ -53,6 +53,7 @@ pub const ALL_PLOT_PATH: &str = "plots/all.txt";
 #[derive(Debug)]
 pub struct Project {
     settings: Settings,
+    pub assets: BTreeMap<String, Vec<u8>>,
     files: BTreeMap<String, Document>,
     dictionary: Dictionary,
     dictionary_diagnostics: Vec<dictionary::FileDiagnostic>,
@@ -69,6 +70,7 @@ impl Project {
     pub fn new(settings: Settings) -> Self {
         Self {
             settings,
+            assets: BTreeMap::new(),
             files: BTreeMap::new(),
             dictionary: Dictionary::empty(),
             dictionary_diagnostics: Vec::new(),
@@ -139,6 +141,9 @@ impl Project {
         self.files.get(path)
     }
 
+    pub fn has_file(&self, path: &str) -> bool {
+        self.files.contains_key(path) || self.assets.contains_key(path)
+    }
     /// 全文書（パスの昇順）。
     pub fn documents(&self) -> impl Iterator<Item = &Document> {
         self.files.values()

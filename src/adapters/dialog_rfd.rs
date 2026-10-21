@@ -30,6 +30,16 @@ impl Dialog for RfdDialog {
         None
     }
 
+    async fn pick_text(&self) -> Option<PickedFile> {
+        let picked = rfd::AsyncFileDialog::new()
+            .add_filter("Text", &["txt", "md"])
+            .pick_file()
+            .await?;
+        Some(PickedFile {
+            name: picked.file_name(),
+            bytes: picked.read().await,
+        })
+    }
     async fn pick_zip(&self) -> Option<PickedFile> {
         let picked = rfd::AsyncFileDialog::new()
             .add_filter("Zip", &["zip"])
