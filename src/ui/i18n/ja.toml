@@ -93,6 +93,8 @@ I058 = "検索結果を {0}として保存しました"
 # - `novnow` `new` `check` などのコマンド名・`schema_version` などのキーは翻訳しない（§12.6）。
 
 [cli.error]
+missing_project_dir = "{0}: プロジェクトのディレクトリがありません（novnow <ドメイン> <動詞> <dir>）"
+unknown_verb = "その動詞はありません: {0}"
 incomplete = "このディレクトリは novnow プロジェクトではありません"
 missing_items = "不足しているもの"
 not_found = "ディレクトリが見つかりません"
@@ -144,6 +146,8 @@ missing = "見つかりません: {0}"
 gate = "書くと {1}が増えるので書かず、提案 {0}として残しました"
 
 [cli.usage]
+op = "正規操作を実行する（--json で機械可読。§19.6）"
+api = "正規操作カタログ（§19.7）を一覧する"
 migrate = "既存の UTF-8 本文を新しい作品に移行（--preview は書き込みなし）"
 tagline = "決定論的アルゴリズムによる小説執筆 IDE"
 heading = "使い方"

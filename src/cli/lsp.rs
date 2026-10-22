@@ -27,11 +27,14 @@ impl<E: Env> lsp::server::Sink for Cli<'_, E> {
 
 /// 実行する。`input` が無ければ標準入力を読む。
 pub fn run<E: Env>(cli: &mut Cli<'_, E>, dir: &Path) -> Exit {
-    if let Err(exit) = open::precheck(cli, dir) {
-        return exit;
-    }
-    let root = dir.to_string_lossy().into_owned();
-    let mut session = match Session::open_with(dir, Interface::Lsp) {
+    // 相対パスは CLI の作業ディレクトリ基準（§14.1）。検査が返す絶対ルートを開く。
+    let root = match open::precheck(cli, dir) {
+        Ok(root) => root,
+        Err(exit) => return exit,
+    };
+    let root = root.to_string_lossy().into_owned();
+    let path = std::path::Path::new(&root);
+    let mut session = match Session::open_with(path, Interface::Lsp) {
         Ok(session) => session,
         Err(error) => {
             cli.line(Stream::Err, &error.message);

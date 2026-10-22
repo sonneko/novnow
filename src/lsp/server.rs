@@ -90,14 +90,21 @@ pub fn run(session: &mut Session, root: &str, input: &mut dyn BufRead, out: &mut
                 }
             }
             Ok(None) => {}
-            Err(error) => {
+            Err(failure) => {
                 if let Some(id) = id {
-                    let code = if initialized {
-                        code_of(&error.class)
-                    } else {
-                        NOT_INITIALIZED
-                    };
-                    write_error(out, id, code, &error.message);
+                    match failure {
+                        Failure::UnknownMethod => {
+                            write_error(out, id, METHOD_NOT_FOUND, "method not found");
+                        }
+                        Failure::Op(error) => {
+                            let code = if initialized {
+                                code_of(&error.class)
+                            } else {
+                                NOT_INITIALIZED
+                            };
+                            write_error(out, id, code, &error.message);
+                        }
+                    }
                 }
             }
         }
@@ -157,6 +164,20 @@ fn flush(outbox: &mut Outbox, out: &mut dyn Sink) {
     }
 }
 
+/// 捌ききれなかった理由。
+pub enum Failure {
+    /// 操作が誤りを返した（分類は §19.1.7 の符号へ写す）。
+    Op(Error),
+    /// そのメソッドを知らない（JSON-RPC 本来の -32601）。
+    UnknownMethod,
+}
+
+impl From<Error> for Failure {
+    fn from(error: Error) -> Self {
+        Self::Op(error)
+    }
+}
+
 /// 1 件のメソッドを捌く。
 ///
 /// `Ok(None)` は通知（応答しない）。`Ok(Some(_))` は応答する結果。
@@ -168,9 +189,9 @@ fn handle(
     root: &str,
     method: &str,
     params: &Value,
-) -> Result<Option<Outcome>, Error> {
+) -> Result<Option<Outcome>, Failure> {
     if !*initialized && !matches!(method, "initialize" | "initialized" | "exit") {
-        return Err(Error::usage(session.locale, method));
+        return Err(Failure::Op(Error::usage(session.locale, method)));
     }
     match method {
         "initialize" => Ok(Some(Outcome::Value(initialize(session)))),
@@ -185,31 +206,53 @@ fn handle(
             Ok(None)
         }
         "textDocument/didSave" => {
-            methods::did_save(session, out, params, root)?;
+            methods::did_save(session, out, params, root).map_err(Failure::Op)?;
             Ok(None)
         }
         "textDocument/didClose" => Ok(None),
-        "textDocument/completion" => Ok(Some(methods::completion(session, params, root)?)),
-        "textDocument/hover" => Ok(Some(methods::hover(session, params, root)?)),
-        "textDocument/definition" => Ok(Some(methods::definition(session, params, root)?)),
-        "textDocument/references" => Ok(Some(methods::references(session, params, root)?)),
-        "textDocument/documentSymbol" => Ok(Some(methods::document_symbol(session, params, root)?)),
-        "textDocument/formatting" => Ok(Some(methods::formatting(session, params, root)?)),
+        "textDocument/completion" => Ok(Some(
+            methods::completion(session, params, root).map_err(Failure::Op)?,
+        )),
+        "textDocument/hover" => Ok(Some(
+            methods::hover(session, params, root).map_err(Failure::Op)?,
+        )),
+        "textDocument/definition" => Ok(Some(
+            methods::definition(session, params, root).map_err(Failure::Op)?,
+        )),
+        "textDocument/references" => Ok(Some(
+            methods::references(session, params, root).map_err(Failure::Op)?,
+        )),
+        "textDocument/documentSymbol" => Ok(Some(
+            methods::document_symbol(session, params, root).map_err(Failure::Op)?,
+        )),
+        "textDocument/formatting" => Ok(Some(
+            methods::formatting(session, params, root).map_err(Failure::Op)?,
+        )),
         "textDocument/rename" => Ok(Some(methods::rename(session, params, root, false)?)),
         "textDocument/prepareRename" => Ok(Some(methods::rename(session, params, root, true)?)),
-        "textDocument/foldingRange" => Ok(Some(methods::folding(session, params, root)?)),
-        "textDocument/inlayHint" => Ok(Some(methods::inlay_hint(session, params, root)?)),
-        "textDocument/semanticTokens/full" => {
-            Ok(Some(methods::semantic_tokens(session, params, root)?))
-        }
-        "textDocument/codeAction" => Ok(Some(methods::code_action(session, params, root)?)),
-        "workspace/symbol" => Ok(Some(methods::workspace_symbol(session, params, root)?)),
+        "textDocument/foldingRange" => Ok(Some(
+            methods::folding(session, params, root).map_err(Failure::Op)?,
+        )),
+        "textDocument/inlayHint" => Ok(Some(
+            methods::inlay_hint(session, params, root).map_err(Failure::Op)?,
+        )),
+        "textDocument/semanticTokens/full" => Ok(Some(
+            methods::semantic_tokens(session, params, root).map_err(Failure::Op)?,
+        )),
+        "textDocument/codeAction" => Ok(Some(
+            methods::code_action(session, params, root).map_err(Failure::Op)?,
+        )),
+        "workspace/symbol" => Ok(Some(
+            methods::workspace_symbol(session, params, root).map_err(Failure::Op)?,
+        )),
         "workspace/executeCommand" => {
-            let value = commands::execute(session, out, params, root)?;
+            let value = commands::execute(session, out, params, root).map_err(Failure::Op)?;
             Ok(Some(Outcome::Value(value)))
         }
-        "workspace/didChangeConfiguration" => Ok(Some(methods::did_change_configuration(session)?)),
-        _ => Err(Error::not_found(session.locale, method, None)),
+        "workspace/didChangeConfiguration" => Ok(Some(
+            methods::did_change_configuration(session).map_err(Failure::Op)?,
+        )),
+        _ => Err(Failure::UnknownMethod),
     }
     .inspect(|_outcome| {
         if method == "initialized" {
@@ -259,14 +302,15 @@ pub fn initialize(session: &Session) -> Value {
     })
 }
 
-/// 誤りの分類を JSON-RPC の符号にする（§19.1.4）。
+/// 誤りの分類を JSON-RPC の符号にする（**§19.1.7 の表**。5 つの口で共通）。
 pub fn code_of(class: &Class) -> i64 {
     match class {
-        Class::Usage | Class::Project | Class::Conflict => INVALID_PARAMS,
-        Class::NotFound => METHOD_NOT_FOUND,
+        Class::Usage | Class::Project => INVALID_PARAMS,
+        Class::Io | Class::Validation | Class::Policy => INTERNAL_ERROR,
+        Class::NotFound => -32001,
+        Class::Conflict => -32002,
         Class::Timeout => -32003,
         Class::Cancelled => -32800,
-        Class::Io | Class::Validation | Class::Policy => INTERNAL_ERROR,
     }
 }
 

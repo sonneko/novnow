@@ -509,8 +509,8 @@ fn execute_command_reaches_the_catalog_and_can_apply_an_edit() {
     );
     assert_eq!(
         error_of(&messages, 4)["code"],
-        json!(-32601),
-        "知らないコマンド"
+        json!(-32001),
+        "知らないコマンドは not_found（§19.1.7）"
     );
     assert_eq!(result_of(&messages, 5)["applied"], json!(true));
     let edits = notifications(&messages, "workspace/applyEdit");

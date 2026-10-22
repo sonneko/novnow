@@ -17,9 +17,11 @@
 //!
 //! 判断の記録は `PLANS.md` §9.2 B-100〜B-107。
 
+pub mod api;
 pub mod check;
 pub mod export;
 pub mod import;
+pub mod json;
 pub mod lsp;
 pub mod mcp;
 pub mod migrate;
@@ -39,7 +41,9 @@ use crate::ui::i18n::{self, Locale};
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// サブコマンド（§14.1）。第 1 引数がこのどれかと**完全一致**したときだけサブコマンドになる。
-pub const SUBCOMMANDS: [&str; 7] = ["new", "check", "export", "mcp", "lsp", "import", "migrate"];
+pub const SUBCOMMANDS: [&str; 8] = [
+    "new", "check", "export", "mcp", "lsp", "api", "import", "migrate",
+];
 
 /// この実行ファイルが GUI を持つか（`ui` feature のビルドだけ。M7）。`novnow new` の案内
 /// （開く / 検査する）と、GUI を含まないビルドでの GUI 起動の拒否（§14.2.5）に使う。
@@ -139,6 +143,28 @@ pub enum Command {
     Mcp(PathBuf),
     /// `novnow lsp <dir>`（§19.4）。
     Lsp(PathBuf),
+    /// `novnow api list [--json] [--lang ja|en]`（§19.6.1）。
+    Api {
+        /// `--json`（§19.6.2 の封筒）。
+        json: bool,
+        /// `--lang`（§19.1.8）。
+        lang: Option<String>,
+    },
+    /// `novnow <ドメイン> <動詞> <dir> [オペランド] [--オプション]`（§19.6.1）。
+    Op {
+        /// 正規操作 ID（`section.get`）。
+        id: &'static str,
+        /// プロジェクト。
+        dir: PathBuf,
+        /// オペランド（`-` は標準入力。§19.6.2）。
+        operand: Option<String>,
+        /// `--<引数名> <値>`（宣言された引数へ渡る）。
+        options: Vec<(String, String)>,
+        /// `--json`。
+        json: bool,
+        /// `--lang`。
+        lang: Option<String>,
+    },
     Migrate {
         source: PathBuf,
         dir: PathBuf,
@@ -155,6 +181,8 @@ impl Command {
             Self::Export { .. } => "export",
             Self::Mcp(_) => "mcp",
             Self::Lsp(_) => "lsp",
+            Self::Api { .. } => "api",
+            Self::Op { id, .. } => id,
             Self::Migrate { .. } => "migrate",
             Self::Import { .. } => "import",
         }
@@ -176,6 +204,10 @@ pub enum ArgError {
     BadRange(String),
     /// `--state` の値が `draft` / `review` / `fixed` のどれでもない（§17.2）。
     BadState(String),
+    /// 操作にプロジェクトの `<dir>` が無い（§19.6.1）。
+    MissingProjectDir(String),
+    /// `novnow api` の動詞が `list` 以外（§19.6.1）。
+    UnknownVerb(String),
 }
 
 /// 起動のしかたを決める（§14.3。**純粋**: 引数と端末かどうかだけを見る）。
@@ -204,6 +236,12 @@ pub fn decide(args: &[OsString], terminal: Terminal) -> Launch {
     if let Some(name) = SUBCOMMANDS.into_iter().find(|name| first == *name) {
         return subcommand(name, &args[1..]);
     }
+    // §19.6.1: 第 1 引数が §19.7 のドメイン名、第 2 引数がその動詞と完全一致したときだけ操作。
+    // 既存のサブコマンド語は上で拾われるので常に優先し、ディレクトリ名との衝突は §14.1 の
+    // `./` 規則（`./project`）で避ける。
+    if let Some(launch) = domain_verb(args) {
+        return launch;
+    }
     if let Some(option) = as_option(first) {
         return Launch::Error(ArgError::UnknownOption(option));
     }
@@ -213,8 +251,135 @@ pub fn decide(args: &[OsString], terminal: Terminal) -> Launch {
     Launch::Open(PathBuf::from(first))
 }
 
+/// `--json` と `--lang <値>` を拾い、残りの位置引数を返す（§19.6.1）。
+fn flags(rest: &[OsString]) -> Result<(bool, Option<String>, Vec<String>), ArgError> {
+    let mut json = false;
+    let mut lang = None;
+    let mut positionals = Vec::new();
+    let mut at = 0;
+    while at < rest.len() {
+        let arg = &rest[at];
+        if arg == "--json" {
+            json = true;
+        } else if arg == "--lang" {
+            at += 1;
+            let Some(value) = rest.get(at) else {
+                return Err(ArgError::MissingValue("--lang".to_owned()));
+            };
+            lang = Some(lossy(value));
+        } else if let Some(option) = as_option(arg) {
+            return Err(ArgError::UnknownOption(option));
+        } else {
+            positionals.push(lossy(arg));
+        }
+        at += 1;
+    }
+    Ok((json, lang, positionals))
+}
+
+/// `novnow <ドメイン> <動詞> <dir> [オペランド] [--オプション]`（§19.6.1）。
+///
+/// ドメイン名でも動詞でもなければ `None`（`novnow <dir>` のまま）。
+fn domain_verb(args: &[OsString]) -> Option<Launch> {
+    let domain = args.first()?.to_str()?;
+    if !crate::app::ops::domains().contains(&domain) {
+        return None;
+    }
+    let verb = args.get(1)?.to_str()?;
+    let def = crate::app::ops::find(&format!("{domain}.{verb}"))?;
+    let parsed = match operation_args(&args[2..]) {
+        Ok(parsed) => parsed,
+        Err(error) => return Some(Launch::Error(error)),
+    };
+    let Parsed {
+        json,
+        lang,
+        options,
+        positionals,
+    } = parsed;
+    let Some(dir) = positionals.first() else {
+        return Some(Launch::Error(ArgError::MissingProjectDir(
+            def.id.to_owned(),
+        )));
+    };
+    Some(Launch::Command(Command::Op {
+        dir: PathBuf::from(dir),
+        id: def.id,
+        json,
+        lang,
+        operand: positionals.get(1).cloned(),
+        options,
+    }))
+}
+
+/// `novnow <ドメイン> <動詞> …` の引数の読み取り結果（§19.6.1）。
+struct Parsed {
+    json: bool,
+    lang: Option<String>,
+    positionals: Vec<String>,
+    options: Vec<(String, String)>,
+}
+
+/// 操作の引数を読む（`--json`・`--lang`・`--<引数名> <値>`・位置引数 2 つまで）。
+fn operation_args(rest: &[OsString]) -> Result<Parsed, ArgError> {
+    let mut at = 0;
+    let mut json = false;
+    let mut lang = None;
+    let mut positionals = Vec::new();
+    let mut options = Vec::new();
+    while at < rest.len() {
+        let arg = &rest[at];
+        if arg == "--json" {
+            json = true;
+        } else if arg == "--lang" {
+            at += 1;
+            let Some(value) = rest.get(at) else {
+                return Err(ArgError::MissingValue("--lang".to_owned()));
+            };
+            lang = Some(lossy(value));
+        } else if let Some(option) = as_option(arg) {
+            let name = option.trim_start_matches('-').to_owned();
+            at += 1;
+            let Some(value) = rest.get(at) else {
+                return Err(ArgError::MissingValue(option));
+            };
+            options.push((name, lossy(value)));
+        } else if positionals.len() < 2 {
+            positionals.push(lossy(arg));
+        } else {
+            return Err(ArgError::UnexpectedArgument(lossy(arg)));
+        }
+        at += 1;
+    }
+    Ok(Parsed {
+        json,
+        lang,
+        options,
+        positionals,
+    })
+}
+
 /// サブコマンドの引数を読む。
 fn subcommand(name: &'static str, rest: &[OsString]) -> Launch {
+    if name == "api" {
+        return match rest {
+            [] => Launch::Error(ArgError::UnknownVerb(String::new())),
+            _ => {
+                let (json, lang, positionals) = match flags(&rest[1..]) {
+                    Ok(parsed) => parsed,
+                    Err(error) => return Launch::Error(error),
+                };
+                if let Some(extra) = positionals.first() {
+                    return Launch::Error(ArgError::UnexpectedArgument(extra.clone()));
+                }
+                let verb = lossy(&rest[0]);
+                if verb != "list" {
+                    return Launch::Error(ArgError::UnknownVerb(verb));
+                }
+                Launch::Command(Command::Api { json, lang })
+            }
+        };
+    }
     if name == "migrate" {
         let (rest, preview) = if rest.last().is_some_and(|arg| arg == "--preview") {
             (&rest[..rest.len() - 1], true)
@@ -373,6 +538,23 @@ pub fn run<E: Env>(args: &[OsString], cli: &mut Cli<'_, E>) -> Outcome {
             Command::Export { dir, options } => export::run(cli, dir, options),
             Command::Mcp(dir) => mcp::run(cli, dir),
             Command::Lsp(dir) => lsp::run(cli, dir),
+            Command::Api { json, lang } => api::run(cli, "list", *json, lang.as_deref()),
+            Command::Op {
+                id,
+                dir,
+                operand,
+                options,
+                json,
+                lang,
+            } => json::run(
+                cli,
+                id,
+                dir,
+                operand.as_deref(),
+                options,
+                *json,
+                lang.as_deref(),
+            ),
             Command::Import { zip, dir } => import::run(cli, zip, dir),
             Command::Migrate {
                 source,
@@ -465,8 +647,10 @@ impl<'a, E: Env> Cli<'a, E> {
     /// 使い方（`--help` と、端末から引数なしで起動されたとき）。`new` という名前のディレクトリの
     /// 開き方を必ず書く（§14.1）。
     pub fn usage(&self) -> String {
-        const ROWS: [(&str, &str); 10] = [
+        const ROWS: [(&str, &str); 12] = [
             ("novnow <dir>", "cli.usage.open"),
+            ("novnow <domain> <verb> <dir> …", "cli.usage.op"),
+            ("novnow api list [--json]", "cli.usage.api"),
             ("novnow new [dir]", "cli.usage.new"),
             ("novnow check <dir>", "cli.usage.check"),
             ("novnow export <dir> [options]", "cli.usage.export"),
@@ -613,6 +797,8 @@ impl<'a, E: Env> Cli<'a, E> {
             ArgError::MissingValue(option) => self.format("cli.error.missing_value", &[option]),
             ArgError::BadRange(value) => self.format("cli.error.bad_range", &[value]),
             ArgError::BadState(value) => self.format("cli.error.bad_state", &[value]),
+            ArgError::MissingProjectDir(id) => self.format("cli.error.missing_project_dir", &[id]),
+            ArgError::UnknownVerb(verb) => self.format("cli.error.unknown_verb", &[verb]),
         };
         self.headline(Stream::Err, Paint::Error, &message);
         self.help_hint();

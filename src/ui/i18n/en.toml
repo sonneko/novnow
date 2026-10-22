@@ -94,6 +94,8 @@ I058 = "Saved the search result as {0}"
 # - Command names (`novnow`, `new`, `check`) and keys (`schema_version`) are not translated (§12.6).
 
 [cli.error]
+missing_project_dir = "{0}: missing project directory (novnow <domain> <verb> <dir>)"
+unknown_verb = "No such verb: {0}"
 incomplete = "this directory is not a novnow project"
 missing_items = "Missing items"
 not_found = "directory not found"
@@ -145,6 +147,8 @@ missing = "Not found: {0}"
 gate = "Not written because it would add {1}; kept as proposal {0}"
 
 [cli.usage]
+op = "Run a canonical operation (--json for machine output, §19.6)"
+api = "List the canonical operation catalog (§19.7)"
 migrate = "migrate UTF-8 text into a fresh project (--preview does not write)"
 tagline = "a novel-writing IDE built on deterministic algorithms"
 heading = "Usage"
