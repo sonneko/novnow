@@ -55,6 +55,23 @@ def catalog_rows(text: str) -> list[dict]:
     return rows
 
 
+def read_text(target: Path) -> str:
+    """UTF-8 as text, without translating newlines.
+
+    `Path.read_text()` uses the locale encoding and universal newlines, so on
+    Windows it both mangles the Japanese text and silently absorbs CRLF -- which
+    makes `--check` accept a corrupted file (a false negative for drift).
+    """
+    with target.open("r", encoding="utf-8", newline="") as handle:
+        return handle.read()
+
+
+def write_text(target: Path, text: str) -> None:
+    """Write UTF-8 with LF endings, regardless of the OS default."""
+    with target.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(text)
+
+
 def descriptions(language: str) -> dict[str, str]:
     """`api.op.<id>` の文言（§7.4 の辞書）。"""
     with DICTIONARIES[language].open("rb") as handle:
@@ -68,7 +85,7 @@ def descriptions(language: str) -> dict[str, str]:
 
 
 def main() -> int:
-    rows = catalog_rows(SPEC.read_text(encoding="utf-8"))
+    rows = catalog_rows(read_text(SPEC))
     if len(rows) != 119 or len({row["id"] for row in rows}) != len(rows):
         raise SystemExit(f"expected 119 unique operations, found {len(rows)}")
     words = {language: descriptions(language) for language in DICTIONARIES}
@@ -91,12 +108,12 @@ def main() -> int:
     result += "// and src/ui/i18n/{ja,en}.toml. Run `python3 scripts/api-site.py --check` to verify.\n"
     result += "export const operations = " + json.dumps(payload, ensure_ascii=False, indent=2) + " as const;\n"
     if "--check" in sys.argv:
-        current = OUT.read_text(encoding="utf-8") if OUT.exists() else ""
+        current = read_text(OUT) if OUT.exists() else ""
         if current != result:
             raise SystemExit(f"{OUT} is out of date; run `python3 scripts/api-site.py`")
         print(f"{OUT} covers {len(payload)} operations")
         return 0
-    OUT.write_text(result, encoding="utf-8")
+    write_text(OUT, result)
     print(f"wrote {OUT} ({len(payload)} operations)")
     return 0
 
