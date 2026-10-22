@@ -373,9 +373,18 @@ fn every_gui_key_used_in_the_source_exists_and_none_is_unused() {
     // 段階 ③ H1 で `src/app/**` へ移した状態機械（ワークスペース名など）も同じカタログを引く
     rust_files(Path::new("src/app"), &mut files);
     files.retain(|file| !file.starts_with("src/ui/i18n"));
+    // 正規操作 ID（`project.info`・`nav.prev` など）は文言のキーではない。`src/app/**` の
+    // カタログ（§19.7）に同じ形の文字列リテラルが並ぶので、こちらでは除く（検査は `api.*`
+    // のほうで行う）
+    let op_ids = canonical_op_ids();
     let mut total = 0;
     for prefix in GUI_PREFIXES {
-        let used = keys_in_source(prefix, &files);
+        let used: BTreeSet<String> = keys_in_source(prefix, &files)
+            .into_iter()
+            // 正規操作 ID と同じ形の文字列はキーではない。ただしカタログに同じ名前のキーが
+            // あるもの（`cast.timeline`）は本物のキーなので残す
+            .filter(|key| !op_ids.contains(key) || ja.contains_key(key))
+            .collect();
         total += used.len();
         for key in &used {
             assert!(ja.contains_key(key), "ja.toml に {key} が無い");
@@ -524,4 +533,88 @@ fn the_language_is_decided_in_the_order_of_section_12_4() {
     assert_eq!(Locale::detect(None, &env(&[])), Locale::Ja);
     assert_eq!(Locale::from_os_locale("ja-JP"), Locale::Ja);
     assert_eq!(Locale::ALL.map(Locale::code), ["ja", "en"]);
+}
+
+/// `src/app/ops/mod.rs` の `opdef!(…)` に並ぶ正規操作 ID（§19.7 の全行）。
+///
+/// 長い行は rustfmt が `opdef!(\n    "id",\n    …` の形に割るので、`(` の直後に空白・改行が
+/// 入っても ID を拾えるように読む（`cargo fmt` の前後で結果が変わってはいけない）。
+fn canonical_op_ids() -> BTreeSet<String> {
+    let source = std::fs::read_to_string("src/app/ops/mod.rs").expect("read");
+    let mut out = BTreeSet::new();
+    let mut rest = source.as_str();
+    while let Some(at) = rest.find("opdef!(") {
+        let after = &rest[at + "opdef!(".len()..];
+        let Some(quoted) = after.trim_start().strip_prefix('"') else {
+            break;
+        };
+        let end = quoted.find('"').expect("閉じる引用符");
+        out.insert(quoted[..end].to_owned());
+        rest = &quoted[end..];
+    }
+    out
+}
+
+/// 外部インターフェース（段階 ③）の文言: `api.error.*` はソースが使うものと一致し、
+/// `api.op.*` は正規操作カタログ（§19.7）と 1 対 1 に対応する。`api.list` の出力（§19.8.2）が
+/// 同じカタログから説明を引くこともここで見る。
+#[test]
+fn every_api_key_matches_the_canonical_operations() {
+    let ja = flatten(JA, "ja.toml");
+    let en = flatten(EN, "en.toml");
+    let mut files = Vec::new();
+    rust_files(Path::new("src/app"), &mut files);
+    let used = keys_in_source("api.error.", &files);
+    assert!(
+        used.len() > 10,
+        "キーが少なすぎる（検査が空振り？）: {used:?}"
+    );
+    for key in &used {
+        assert!(ja.contains_key(key), "ja.toml に {key} が無い");
+        assert!(en.contains_key(key), "en.toml に {key} が無い");
+    }
+    let unused = unused_keys("api.error.", &used);
+    assert!(
+        unused.is_empty(),
+        "使われていない api.error.* のキー: {unused:?}"
+    );
+
+    let ids = canonical_op_ids();
+    assert_eq!(ids.len(), 119, "§19.7 の行数と合わない: {}", ids.len());
+    for id in &ids {
+        let key = format!("api.op.{id}");
+        assert!(ja.contains_key(&key), "ja.toml に {key} が無い");
+        assert!(en.contains_key(&key), "en.toml に {key} が無い");
+        assert!(!ja[&key].trim().is_empty(), "{key} が空");
+        assert!(!en[&key].trim().is_empty(), "{key} が空");
+    }
+    let extra: Vec<String> = ja
+        .keys()
+        .filter(|key| key.starts_with("api.op.") && !ids.contains(&key["api.op.".len()..]))
+        .cloned()
+        .collect();
+    assert!(
+        extra.is_empty(),
+        "カタログに余分な api.op.* がある: {extra:?}"
+    );
+
+    // 実行時の `api.list`（§19.8.2）が同じ単一のカタログから説明を引くこと
+    for locale in [Locale::Ja, Locale::En] {
+        let catalog = novnow::app::ops::catalog(locale);
+        let operations = catalog["operations"].as_array().expect("operations");
+        assert_eq!(operations.len(), 119);
+        for operation in operations {
+            let id = operation["id"].as_str().expect("id");
+            let description = operation["description"].as_str().expect("description");
+            let key = format!("api.op.{id}");
+            assert_eq!(
+                description,
+                match locale {
+                    Locale::Ja => &ja[&key],
+                    Locale::En => &en[&key],
+                },
+                "{id} の説明がカタログと違う"
+            );
+        }
+    }
 }

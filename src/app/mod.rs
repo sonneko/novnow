@@ -12,9 +12,17 @@ pub mod agents;
 pub mod assist;
 pub mod command;
 pub mod commands;
+pub mod error;
+pub mod event;
+// ファイルシステムを後ろに持つホスト（§19.2.1）。Web には FS が無いのでネイティブだけ。
+#[cfg(not(target_arch = "wasm32"))]
+pub mod fs_host;
 pub mod host;
+pub mod memory_host;
+pub mod ops;
 pub mod palette;
 pub mod save_machine;
+pub mod session;
 pub mod settings;
 pub mod workbench;
 pub mod workspace;

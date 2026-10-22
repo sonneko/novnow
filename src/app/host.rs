@@ -19,6 +19,10 @@ pub trait Host {
     fn stamp(&self) -> String;
     /// 今の日時（RFC 3339。アイデアの `created`・資料の `saved_at` / `updated_at`）。
     fn now(&self) -> String;
+    /// 単調増加の秒（保存状態機のタイマ、§9.6）。持たない環境は 0（タイマは進まない）。
+    fn seconds(&self) -> f64 {
+        0.0
+    }
     /// プロジェクトの中のファイルを消す（資料の採用で `inbox/` から `docs/` へ動かすとき、§16.1）。
     fn remove(&mut self, path: &str) -> Result<(), String> {
         Err(format!("cannot remove {path}"))
@@ -35,6 +39,17 @@ pub trait Host {
         Err(ExportFailure::Failed(
             chosen.path().to_string_lossy().into_owned(),
         ))
+    }
+    /// 利用者が明示した書き出し先へバイナリを書く（§13.1.1 の特例の口。`project.export_zip`
+    /// の `out`・`export.text` の `out`）。ダイアログを持たない環境では `Err`。
+    fn write_chosen(
+        &mut self,
+        path: &str,
+        bytes: &[u8],
+        kind: crate::ports::dialog::ExportKind,
+    ) -> Result<String, String> {
+        let _ = (bytes, kind);
+        Err(format!("cannot write to {path} here"))
     }
     /// プロジェクトの中のファイルに追記する（監査ログ `agents/log/*.jsonl`、§5.10.5）。
     fn append(&mut self, path: &str, text: &str) -> Result<(), String> {
