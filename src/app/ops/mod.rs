@@ -204,6 +204,16 @@ impl OpDef {
         schema["order"] = json!(self.argument_order());
         entry.insert("arguments".to_owned(), schema);
         entry.insert("gate".to_owned(), json!(self.gate));
+        // 関門が書き込みのときだけ掛かる操作は、その引き金になる引数名も出す（§19.7）。
+        // 型スタブ（`REF:scripts/pyi-site.py`）と MCP の `inputSchema` が `role` を
+        // 必須にするかどうかをここから決める
+        entry.insert(
+            "gate_arg".to_owned(),
+            match self.gate_arg {
+                Some(name) => json!(name),
+                None => Value::Null,
+            },
+        );
         entry.insert("stateful".to_owned(), json!(self.stateful));
         let mut exceptions = Map::new();
         for (column, reason) in self.exceptions {

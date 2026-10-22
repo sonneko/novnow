@@ -12,6 +12,7 @@
 #   bash scripts/verify.sh --ui         # M7 から既定で GUI 込み（`--features ui`）なので何もしない（互換のため残す）
 #   bash scripts/verify.sh --report     # 失敗時に .github/report.py の出力も表示（CI と同じ読み物）
 #   bash scripts/verify.sh --fix        # cargo fmt --all を先に実行する（差分を書く）
+#   bash scripts/verify.sh --python     # Python 側だけ（§19.3。Rust のビルド不要・1 秒）
 #
 # 環境変数:
 #   BUILD_DIR  ツールチェーンの場所（既定 $HOME/build。scripts/bootstrap-toolchain.sh が作る）
@@ -25,7 +26,7 @@ ROOT="$(cd "$HERE/.." && pwd)"
 BUILD_DIR="${BUILD_DIR:-$HOME/build}"
 LOG_DIR="${LOG_DIR:-/tmp/novnow-verify}"
 
-QUICK=0; UI=0; REPORT=0; FIX=0; WASM=1
+QUICK=0; UI=0; REPORT=0; FIX=0; WASM=1; RUST=1
 for arg in "$@"; do
     case "$arg" in
         --quick)   QUICK=1 ;;
@@ -33,7 +34,8 @@ for arg in "$@"; do
         --report)  REPORT=1 ;;
         --fix)     FIX=1 ;;
         --no-wasm) WASM=0 ;;
-        -h|--help) sed -n '2,26p' "${BASH_SOURCE[0]}"; exit 0 ;;
+        --python)  RUST=0; WASM=0 ;;
+        -h|--help) sed -n '2,27p' "${BASH_SOURCE[0]}"; exit 0 ;;
         *) printf 'error: 未知の引数 %s（--help を見る）\n' "$arg" >&2; exit 2 ;;
     esac
 done
@@ -41,6 +43,7 @@ done
 
 cd "$ROOT"
 mkdir -p "$LOG_DIR"
+STARTED_AT="$(mktemp)"
 
 # --- ツールチェーン ---------------------------------------------------------
 if ! command -v cargo >/dev/null 2>&1; then
@@ -99,17 +102,22 @@ fi
 : "$UI"
 run docs      python3 "$ROOT/docs/script/duplicate.py"
 run docs-tests python3 -B -m unittest discover -s "$ROOT/docs/script" -p 'test_*.py'
-run fmt       cargo fmt --all --check
-run clippy    cargo clippy --locked --all-targets -- -D warnings
-run clippy-ui cargo clippy --locked --all-targets --features ui -- -D warnings
-run test      cargo test --locked --all-targets --no-fail-fast --features ui
-run test-cli  cargo test --locked --test cli --no-fail-fast
-if [ "$WASM" = 1 ]; then
-    run wasm      cargo check --locked --target wasm32-unknown-unknown --features ui
+# Python API（§19.3）: 型スタブの生成・構文・位置引数の束縛。Rust のビルドは要らない
+run python    bash "$ROOT/scripts/python-check.sh"
+if [ "$RUST" = 1 ]; then
+    run fmt       cargo fmt --all --check
+    run clippy    cargo clippy --locked --all-targets -- -D warnings
+    run clippy-ui cargo clippy --locked --all-targets --features ui -- -D warnings
+    run test      cargo test --locked --all-targets --no-fail-fast --features ui
+    run test-cli  cargo test --locked --test cli --no-fail-fast
+    if [ "$WASM" = 1 ]; then
+        run wasm      cargo check --locked --target wasm32-unknown-unknown --features ui
+    fi
 fi
 
 # --- テスト件数（CI の実行サマリと同じ見せ方） -------------------------------
-if [ -f "$LOG_DIR/test.log" ]; then
+# 今回走らせたときだけ表示する（`--python` などで Rust を飛ばすと前回のログが残っている）
+if [ -f "$LOG_DIR/test.log" ] && [ "$LOG_DIR/test.log" -nt "$STARTED_AT" ]; then
     passed=$(grep -E '^test result: ok\.' "$LOG_DIR/test.log" | awk -F'[ ;]' '{s+=$4} END {print s+0}')
     failed=$(grep -E '^test result:' "$LOG_DIR/test.log" | awk -F'[ ;]' '{s+=$6} END {print s+0}')
     targets=$(grep -cE '^test result:' "$LOG_DIR/test.log")
@@ -127,6 +135,7 @@ for i in "${!names[@]}"; do
         exit_code=1
     fi
 done
+rm -f "$STARTED_AT"
 if [ "$exit_code" = 0 ]; then
     green "すべて緑。コミットしてよい（push も忘れないこと＝ユーザー指示 2026-10-11）。"
 else
