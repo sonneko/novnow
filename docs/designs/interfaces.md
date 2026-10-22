@@ -8,7 +8,7 @@
 
 ### 19.1 共通原則
 
-状態: 未実装・実装計画済み（REF:src/app/workbench.rs, REF:docs/plans.md#stage-3）
+状態: 実装完了（REF:src/app/ops/mod.rs, REF:src/app/session.rs, REF:tests/api.rs）
 
 - **単一実装点（H1）**: `Workbench`（`REF:src/app/workbench.rs`）、`SaveMachine`（`REF:src/app/save_machine.rs`）、`UiSettings`（`REF:src/app/settings.rs`）、エージェント実行状態（`REF:src/app/agents.rs`）、検索状態（`REF:src/app/assist.rs`）、パレットの純粋論理（`REF:src/app/palette.rs`）、`Command`（`REF:src/ui/shell.rs`）、`Switcher`（`REF:src/ui/workspaces/mod.rs`）、`Host` トレイト（現在 `REF:src/ui/app.rs` 内）を `src/app/` へ移す。移設は「移動 + 旧パスからの `pub use` 再エクスポート」で段階的に行い、GUI 側テスト（`REF:tests/gui.rs`, `REF:tests/workspaces.rs`）を毎段グリーンに保つ。
 - **層規則**: `REF:tests/layering.rs` に `src/app/` の禁止規則を追加する — egui / eframe / rfd / fontdb の import 禁止。書き込みは従来どおり `FsGate`（`REF:src/adapters/storage_fs.rs`）と `WritePolicy`（`REF:src/core/policy/write_policy.rs`）を経由し、書き込み関門テストの走査対象に新層を含める。
@@ -20,7 +20,7 @@
 
 ### 19.2 Rust API
 
-状態: 未実装・実装計画済み（REF:src/ui/app.rs, REF:docs/plans.md#stage-3）
+状態: 実装完了（REF:src/app/session.rs, REF:src/app/ops/mod.rs, REF:tests/api.rs, REF:tests/api_fs.rs）
 
 - `src/app/session.rs`（新設）: `pub struct Session` が移設済み状態機械を合成する。`Session::open` / `create` は `REF:src/cli/open.rs` の起動前検証を再利用し、`with_host` はメモリホストの注入を受ける（`REF:tests/gui.rs` のモックの発想を公開 API へ昇格）。
 - `src/app/ops.rs`（新設）: ディスパッチ表 `OPS: &[OpDef]`（正規操作 ID・引数スキーマ・ハンドラ・関門の有無・例外・対応パレットコマンド）。`api.list`・MCP の `inputSchema`・CLI ヘルプ・Python スタブの単一の真実となる。
@@ -43,7 +43,7 @@
 
 ### 19.4 LSP（Language Server Protocol）
 
-状態: 未実装・実装計画済み（REF:src/adapters/mcp_stdio.rs, REF:docs/plans.md#stage-3）
+状態: 実装完了（REF:src/lsp/server.rs, REF:src/lsp/methods.rs, REF:src/cli/lsp.rs, REF:tests/lsp.rs）
 
 - `src/lsp/`（新設、`cli` と同じくネイティブターゲット限定でコンパイル）: `framing.rs`（Content-Length フレーミングの手書き実装 — 追加依存ゼロ、serde_json は既存。stdio ループの構成は `REF:src/adapters/mcp_stdio.rs` を踏襲）、`server.rs`（リクエスト路由）、`methods.rs`（§19.4.2 の標準メソッド対応）、`commands.rs`（`executeCommand` → `OPS` ディスパッチ）、`convert.rs`（UTF-16 ↔ バイト位置、`REF:src/core/text/position.rs` の行表を利用）。
 - 文書同期は Full: 受け取った全文を `REF:src/core/text/incremental.rs` の差分編集器で rope に適用する。単節診断は `REF:src/core/features/sections.rs` のスコープ限定機構を再利用し、`publishDiagnostics` を §7.4 の地域化メッセージで配信する。
@@ -53,7 +53,7 @@
 
 ### 19.5 MCP サーバ拡張
 
-状態: 未実装・実装計画済み（REF:src/core/agents/server.rs, REF:docs/plans.md#stage-3）
+状態: 実装完了（REF:src/core/agents/server.rs, REF:src/cli/mcp.rs, REF:tests/cli.rs）
 
 - `REF:src/core/agents/server.rs` のツール表を 14 件からカタログ全件へ拡張する。既存 14 件の名前・スキーマ・挙動はバイト単位で凍結（`REF:tests/mcp_stdio.rs` が回帰ガード）、新規分は app 層の `OPS` 表から生成し `api.list` との二重管理をなくす。
 - 呼び出しごとのプロジェクト読み直しは現行 `run()` の方式を維持する。関門付き書き込みは既存の直接書き込み経路（E036 検証・提案のみ記録・§15.8.4 監査ログ）を再利用する。
@@ -63,7 +63,7 @@
 
 ### 19.6 CLI 拡張
 
-状態: 未実装・実装計画済み（REF:src/cli/mod.rs, REF:docs/plans.md#stage-3）
+状態: 実装完了（REF:src/cli/mod.rs, REF:src/cli/json.rs, REF:src/cli/api.rs, REF:tests/cli.rs）
 
 - `REF:src/cli/mod.rs`: サブコマンド解決表へ `lsp` / `api` と §19.7 の全ドメイン名を追加する。既存コマンド語が最優先（凍結）。`src/cli/` 直下に `api.rs`（`api list`）・`lsp.rs`（サーバ起動）・`json.rs`（`--json` エンベロープと `--lang` の共通処理）を新設する。
 - 1 コマンド = 1 `Session`: 起動検証は `REF:src/cli/open.rs` を再利用 → 操作実行 → `take_writes()` のフラッシュ → §19.1.7 の写像で終了コードを返す。シグナル中断時はフラッシュを行わない。
@@ -72,7 +72,7 @@
 
 ### 19.7 機能パリティカタログ
 
-状態: 未実装・実装計画済み（REF:tests/diagnostics_catalog.rs, REF:docs/plans.md#stage-3）
+状態: 実装完了（REF:src/app/ops/mod.rs, REF:tests/api_parity.rs, REF:tests/golden/api_catalog.json）
 
 - 契約テスト `tests/api_parity.rs`（新設・計画パス）: `REF:docs/specifications/interfaces.md` を include_str! で読み §19.7 の表を行単位で解析する（`REF:tests/diagnostics_catalog.rs` と同じ「仕様直結」方式）。各正規操作について (1) `OPS` 表、(2) CLI ディスパッチ、(3) LSP ルーティング、(4) MCP ツール（または「M—」例外）、(5) Python スタブのメソッド、の存在を検証する。例外列（R— / P— / L— / M— / C—）も解析し、「提供しない」ことも宣言どおりか検証する。
 - `api.list` の機械可読出力は `tests/golden/api_catalog.json`（新設・計画パス）としてゴールデン化し、カタログの意図しないドリフトを双方向に検出する。

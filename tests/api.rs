@@ -305,7 +305,7 @@ fn the_same_operation_answers_the_same_from_every_interface() {
 // =========================================================================== 例外列（§19.7）
 
 #[test]
-fn stateful_operations_are_refused_without_a_session() {
+fn operations_are_refused_on_the_interfaces_the_catalog_excludes() {
     let (mut session, _) = open();
     let stateful: Vec<String> = {
         let catalog = session.run("api.list", json!({})).expect("api.list");
@@ -321,9 +321,19 @@ fn stateful_operations_are_refused_without_a_session() {
         stateful.len() > 20,
         "状態性の操作が少なすぎる: {stateful:?}"
     );
+    // 状態性の操作はどれも MCP では提供しない（§19.7 の `M—（状態性）`）。
+    for id in &stateful {
+        let def = novnow::app::ops::find(id).expect("OPS 表");
+        assert!(def.excepts(Interface::Mcp).is_some(), "{id} に `M—` が無い");
+    }
+    // 拒否は**例外列どおり**（§19.7）。`C—` の無い操作は CLI でも動く。
     for interface in [Interface::Mcp, Interface::Cli] {
         session.set_interface(interface);
-        for id in &stateful {
+        for def in novnow::app::ops::OPS {
+            if def.excepts(interface).is_none() {
+                continue;
+            }
+            let id = def.id;
             let error = session
                 .run(id, json!({}))
                 .err()

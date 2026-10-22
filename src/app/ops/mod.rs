@@ -253,7 +253,9 @@ pub const OPS: &[OpDef] = &[
     opdef!(
         "project.new",
         &[ArgDef::string("path"), ArgDef::opt_string("title")],
-        project::new
+        project::new,
+        // §19.7 の例外列: LSP はプロジェクトを開いた後、MCP はプロジェクトがある前提。
+        exceptions = &[("L", "startup"), ("M", "project")]
     ),
     opdef!("project.validate", NONE, project::validate),
     opdef!(
@@ -269,14 +271,16 @@ pub const OPS: &[OpDef] = &[
         "project.recent_list",
         NONE,
         project::recent_list,
-        exceptions = &[("M", "stateful")]
+        exceptions = &[("M", "stateful")],
+        stateful = true
     ),
     opdef!(
         "project.recent_remove",
         &[ArgDef::string("path")],
         project::recent_remove,
         exceptions = &[("M", "stateful")],
-        command = Some("forget")
+        command = Some("forget"),
+        stateful = true
     ),
     opdef!(
         "project.import_zip",

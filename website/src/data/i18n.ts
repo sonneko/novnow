@@ -5,6 +5,7 @@ export const translations = {
     nav: {
       home: "トップ",
       guide: "機能ガイド",
+      api: "API リファレンス",
       troubleshooting: "トラブルシューティング",
       github: "GitHub",
     },
@@ -40,6 +41,7 @@ export const translations = {
     nav: {
       home: "Home",
       guide: "Feature Guide",
+      api: "API reference",
       troubleshooting: "Troubleshooting",
       github: "GitHub",
     },

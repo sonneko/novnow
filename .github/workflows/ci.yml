@@ -77,6 +77,9 @@ jobs:
       - name: Verify website diagnostic catalog covers all codes
         run: python3 scripts/diagnostics-site.py --check
 
+      - name: Verify website API reference covers the canonical catalog
+        run: python3 scripts/api-site.py --check
+
       - name: Detect whether Rust build/test inputs changed
         id: filter
         shell: bash

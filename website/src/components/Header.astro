@@ -30,6 +30,9 @@ const t = translations[lang].nav;
       <a href={`/${lang}/guide`} class:list={[styles.navLink, { [styles.active]: currentPath.includes("/guide") }]}>
         {t.guide}
       </a>
+      <a href={`/${lang}/api`} class:list={[styles.navLink, { [styles.active]: currentPath.includes("/api") }]}>
+        {t.api}
+      </a>
       <a href={`/${lang}/troubleshooting`} class:list={[styles.navLink, { [styles.active]: currentPath.includes("/troubleshooting") }]}>
         {t.troubleshooting}
       </a>

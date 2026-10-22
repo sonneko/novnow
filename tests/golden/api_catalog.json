@@ -1,0 +1,2776 @@
+{
+  "catalog_version": "1.0",
+  "count": 119,
+  "interfaces": [
+    "rust",
+    "python",
+    "lsp",
+    "mcp",
+    "cli"
+  ],
+  "operations": [
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": null,
+      "description": "プロジェクト基本情報ワークスペース見出し",
+      "domain": "project",
+      "exceptions": {},
+      "gate": false,
+      "id": "project.info",
+      "lsp": null,
+      "stateful": false,
+      "verb": "info"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "新規プロジェクト作成",
+      "domain": "project",
+      "exceptions": {
+        "L": "startup",
+        "M": "project"
+      },
+      "gate": false,
+      "id": "project.new",
+      "lsp": null,
+      "stateful": false,
+      "verb": "new"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": null,
+      "description": "構造検証",
+      "domain": "project",
+      "exceptions": {},
+      "gate": false,
+      "id": "project.validate",
+      "lsp": null,
+      "stateful": false,
+      "verb": "validate"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": "reload",
+      "description": "再読込",
+      "domain": "project",
+      "exceptions": {
+        "C": "stateful",
+        "M": "stateful"
+      },
+      "gate": false,
+      "id": "project.reload",
+      "lsp": null,
+      "stateful": true,
+      "verb": "reload"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": null,
+      "description": "執筆統計",
+      "domain": "project",
+      "exceptions": {},
+      "gate": false,
+      "id": "project.stats",
+      "lsp": null,
+      "stateful": false,
+      "verb": "stats"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": null,
+      "description": "最近開いたプロジェクト一覧",
+      "domain": "project",
+      "exceptions": {
+        "M": "stateful"
+      },
+      "gate": false,
+      "id": "project.recent_list",
+      "lsp": null,
+      "stateful": true,
+      "verb": "recent_list"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "command": "forget",
+      "description": "最近開いた一覧からの削除",
+      "domain": "project",
+      "exceptions": {
+        "M": "stateful"
+      },
+      "gate": false,
+      "id": "project.recent_remove",
+      "lsp": null,
+      "stateful": true,
+      "verb": "recent_remove"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "bytes": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "command": null,
+      "description": "Zip 導入",
+      "domain": "project",
+      "exceptions": {
+        "M": "binary"
+      },
+      "gate": false,
+      "id": "project.import_zip",
+      "lsp": null,
+      "stateful": false,
+      "verb": "import_zip"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "out": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "command": null,
+      "description": "Zip 書き出し",
+      "domain": "project",
+      "exceptions": {
+        "M": "binary"
+      },
+      "gate": false,
+      "id": "project.export_zip",
+      "lsp": null,
+      "stateful": false,
+      "verb": "export_zip"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "chapter": {
+            "type": "integer"
+          },
+          "level": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "command": "tree",
+      "description": "構成ツリー",
+      "domain": "structure",
+      "exceptions": {},
+      "gate": false,
+      "id": "structure.tree",
+      "lsp": null,
+      "stateful": false,
+      "verb": "tree"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "query": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      },
+      "command": "jump",
+      "description": "位置・ID の解決",
+      "domain": "structure",
+      "exceptions": {},
+      "gate": false,
+      "id": "structure.resolve",
+      "lsp": null,
+      "stateful": false,
+      "verb": "resolve"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": null,
+      "description": "パンくず",
+      "domain": "structure",
+      "exceptions": {
+        "C": "stateful",
+        "M": "stateful"
+      },
+      "gate": false,
+      "id": "structure.breadcrumb",
+      "lsp": null,
+      "stateful": true,
+      "verb": "breadcrumb"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "command": null,
+      "description": "セクション一覧",
+      "domain": "section",
+      "exceptions": {},
+      "gate": false,
+      "id": "section.list",
+      "lsp": "textDocument/documentSymbol",
+      "stateful": false,
+      "verb": "list"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "scene": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "scene"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "セクション取得",
+      "domain": "section",
+      "exceptions": {},
+      "gate": false,
+      "id": "section.get",
+      "lsp": null,
+      "stateful": false,
+      "verb": "get"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "scene": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "scene",
+          "text",
+          "role"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "セクション保存",
+      "domain": "section",
+      "exceptions": {},
+      "gate": true,
+      "id": "section.write",
+      "lsp": null,
+      "stateful": false,
+      "verb": "write"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "after": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "type": "object"
+      },
+      "command": "new-section",
+      "description": "節の新設",
+      "domain": "section",
+      "exceptions": {},
+      "gate": true,
+      "id": "section.insert",
+      "lsp": null,
+      "stateful": false,
+      "verb": "insert"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "scene": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "type": "object"
+      },
+      "command": "delete-section",
+      "description": "節の削除",
+      "domain": "section",
+      "exceptions": {},
+      "gate": true,
+      "id": "section.delete",
+      "lsp": null,
+      "stateful": false,
+      "verb": "delete"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": "confirm-next",
+      "description": "次の未確認節の確認",
+      "domain": "section",
+      "exceptions": {
+        "C": "stateful",
+        "M": "stateful"
+      },
+      "gate": false,
+      "id": "section.confirm_next",
+      "lsp": null,
+      "stateful": true,
+      "verb": "confirm_next"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "scene": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "文書・ファイルの直接指定",
+      "domain": "nav",
+      "exceptions": {
+        "C": "stateful",
+        "M": "stateful"
+      },
+      "gate": false,
+      "id": "nav.file",
+      "lsp": null,
+      "stateful": true,
+      "verb": "file"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "scene": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "scene"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "セクションへの移動",
+      "domain": "nav",
+      "exceptions": {
+        "C": "stateful",
+        "M": "stateful"
+      },
+      "gate": false,
+      "id": "nav.section",
+      "lsp": null,
+      "stateful": true,
+      "verb": "section"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "line": {
+            "type": "integer"
+          },
+          "query": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "command": null,
+      "description": "行への移動",
+      "domain": "nav",
+      "exceptions": {
+        "C": "stateful",
+        "M": "stateful"
+      },
+      "gate": false,
+      "id": "nav.jump",
+      "lsp": null,
+      "stateful": true,
+      "verb": "jump"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": null,
+      "description": "前の位置",
+      "domain": "nav",
+      "exceptions": {
+        "C": "stateful",
+        "M": "stateful"
+      },
+      "gate": false,
+      "id": "nav.prev",
+      "lsp": null,
+      "stateful": true,
+      "verb": "prev"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": null,
+      "description": "次の位置",
+      "domain": "nav",
+      "exceptions": {
+        "C": "stateful",
+        "M": "stateful"
+      },
+      "gate": false,
+      "id": "nav.next",
+      "lsp": null,
+      "stateful": true,
+      "verb": "next"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": null,
+      "description": "親ディレクトリへ",
+      "domain": "nav",
+      "exceptions": {
+        "C": "stateful",
+        "M": "stateful"
+      },
+      "gate": false,
+      "id": "nav.back",
+      "lsp": null,
+      "stateful": true,
+      "verb": "back"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": null,
+      "description": "子の先頭へ",
+      "domain": "nav",
+      "exceptions": {
+        "C": "stateful",
+        "M": "stateful"
+      },
+      "gate": false,
+      "id": "nav.forward",
+      "lsp": null,
+      "stateful": true,
+      "verb": "forward"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": "up",
+      "description": "1 つ上の階層へ",
+      "domain": "nav",
+      "exceptions": {
+        "C": "stateful",
+        "M": "stateful"
+      },
+      "gate": false,
+      "id": "nav.up",
+      "lsp": null,
+      "stateful": true,
+      "verb": "up"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": null,
+      "description": "切替パネルの一覧",
+      "domain": "nav",
+      "exceptions": {
+        "C": "stateful",
+        "M": "stateful"
+      },
+      "gate": false,
+      "id": "nav.switcher",
+      "lsp": null,
+      "stateful": true,
+      "verb": "switcher"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "ドキュメント全文の取得",
+      "domain": "document",
+      "exceptions": {},
+      "gate": false,
+      "id": "document.get",
+      "lsp": null,
+      "stateful": false,
+      "verb": "get"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "text",
+          "role"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "ドキュメント全文の書き込み",
+      "domain": "document",
+      "exceptions": {},
+      "gate": true,
+      "id": "document.write",
+      "lsp": null,
+      "stateful": false,
+      "verb": "write"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "role"
+        ],
+        "type": "object"
+      },
+      "command": "rename-document",
+      "description": "文書のリネーム",
+      "domain": "document",
+      "exceptions": {},
+      "gate": true,
+      "id": "document.rename",
+      "lsp": null,
+      "stateful": false,
+      "verb": "rename"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "chapter": {
+            "type": "integer"
+          },
+          "level": {
+            "type": "string"
+          },
+          "scene": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "level"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "全体／章プロットの取得",
+      "domain": "plot",
+      "exceptions": {},
+      "gate": false,
+      "id": "plot.get",
+      "lsp": null,
+      "stateful": false,
+      "verb": "get"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "chapter": {
+            "type": "integer"
+          },
+          "level": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "scene": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "level",
+          "text",
+          "role"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "全体／章／話プロットの書き込み",
+      "domain": "plot",
+      "exceptions": {},
+      "gate": true,
+      "id": "plot.write",
+      "lsp": null,
+      "stateful": false,
+      "verb": "write"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "scene": {
+            "type": "string"
+          },
+          "state": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "scene",
+          "role"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "プロットの確認状態の切替",
+      "domain": "plot",
+      "exceptions": {},
+      "gate": true,
+      "id": "plot.set_state",
+      "lsp": null,
+      "stateful": false,
+      "verb": "set_state"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "scene": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "type": "object"
+      },
+      "command": "new-item",
+      "description": "話プロットへの節挿入",
+      "domain": "plot",
+      "exceptions": {},
+      "gate": true,
+      "id": "plot.insert_section",
+      "lsp": null,
+      "stateful": false,
+      "verb": "insert_section"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "chapter": {
+            "type": "integer"
+          },
+          "fold": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "chapter"
+        ],
+        "type": "object"
+      },
+      "command": "fold",
+      "description": "構成ツリーの章→話の展開・折り畳み",
+      "domain": "plot",
+      "exceptions": {},
+      "gate": false,
+      "id": "plot.outline_fold",
+      "lsp": "textDocument/foldingRange",
+      "stateful": false,
+      "verb": "outline_fold"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": "save",
+      "description": "保存",
+      "domain": "save",
+      "exceptions": {
+        "C": "stateful",
+        "M": "stateful"
+      },
+      "gate": false,
+      "id": "save.now",
+      "lsp": null,
+      "stateful": true,
+      "verb": "now"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": null,
+      "description": "保存状態の取得",
+      "domain": "save",
+      "exceptions": {
+        "C": "stateful",
+        "M": "stateful"
+      },
+      "gate": false,
+      "id": "save.state",
+      "lsp": null,
+      "stateful": true,
+      "verb": "state"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "command": null,
+      "description": "衝突時に自分の版を維持",
+      "domain": "save",
+      "exceptions": {
+        "C": "stateful",
+        "M": "stateful"
+      },
+      "gate": false,
+      "id": "save.keep_mine",
+      "lsp": null,
+      "stateful": true,
+      "verb": "keep_mine"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "command": null,
+      "description": "外部変更の読み込み",
+      "domain": "save",
+      "exceptions": {
+        "C": "stateful",
+        "M": "stateful"
+      },
+      "gate": false,
+      "id": "save.reload_external",
+      "lsp": null,
+      "stateful": true,
+      "verb": "reload_external"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "command": "diff",
+      "description": "自分の版と外部変更の差分",
+      "domain": "save",
+      "exceptions": {
+        "C": "stateful",
+        "M": "stateful"
+      },
+      "gate": false,
+      "id": "save.diff_external",
+      "lsp": null,
+      "stateful": true,
+      "verb": "diff_external"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "regex": {
+            "type": "boolean"
+          },
+          "replace": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      },
+      "command": "find",
+      "description": "検索／置換",
+      "domain": "search",
+      "exceptions": {
+        "M": "gate:replace"
+      },
+      "gate": false,
+      "id": "search.file",
+      "lsp": null,
+      "stateful": false,
+      "verb": "file"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "regex": {
+            "type": "boolean"
+          },
+          "replace": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "query",
+          "replace",
+          "role"
+        ],
+        "type": "object"
+      },
+      "command": "replace",
+      "description": "全置換",
+      "domain": "search",
+      "exceptions": {},
+      "gate": true,
+      "id": "search.replace_file",
+      "lsp": null,
+      "stateful": false,
+      "verb": "replace_file"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "regex": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      },
+      "command": "search",
+      "description": "全体検索",
+      "domain": "search",
+      "exceptions": {},
+      "gate": false,
+      "id": "search.project",
+      "lsp": "workspace/symbol",
+      "stateful": false,
+      "verb": "project"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": "find-next",
+      "description": "次の候補",
+      "domain": "search",
+      "exceptions": {
+        "C": "stateful",
+        "M": "stateful"
+      },
+      "gate": false,
+      "id": "search.find_next",
+      "lsp": null,
+      "stateful": true,
+      "verb": "find_next"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": "find-previous",
+      "description": "前の候補",
+      "domain": "search",
+      "exceptions": {
+        "C": "stateful",
+        "M": "stateful"
+      },
+      "gate": false,
+      "id": "search.find_prev",
+      "lsp": null,
+      "stateful": true,
+      "verb": "find_prev"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": null,
+      "description": "素材インボックス一覧",
+      "domain": "materials",
+      "exceptions": {},
+      "gate": false,
+      "id": "materials.list",
+      "lsp": null,
+      "stateful": false,
+      "verb": "list"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "素材カードの取得",
+      "domain": "materials",
+      "exceptions": {},
+      "gate": false,
+      "id": "materials.get",
+      "lsp": null,
+      "stateful": false,
+      "verb": "get"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "role"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "素材の採用",
+      "domain": "materials",
+      "exceptions": {},
+      "gate": true,
+      "id": "materials.approve",
+      "lsp": null,
+      "stateful": false,
+      "verb": "approve"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "role"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "素材の却下",
+      "domain": "materials",
+      "exceptions": {},
+      "gate": true,
+      "id": "materials.reject",
+      "lsp": null,
+      "stateful": false,
+      "verb": "reject"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "review": {
+            "type": "object"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "role"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "素材カードの編集",
+      "domain": "materials",
+      "exceptions": {},
+      "gate": true,
+      "id": "materials.update",
+      "lsp": null,
+      "stateful": false,
+      "verb": "update"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "role"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "素材の添付",
+      "domain": "materials",
+      "exceptions": {},
+      "gate": true,
+      "id": "materials.attach",
+      "lsp": null,
+      "stateful": false,
+      "verb": "attach"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "素材の検索",
+      "domain": "materials",
+      "exceptions": {},
+      "gate": false,
+      "id": "materials.search",
+      "lsp": null,
+      "stateful": false,
+      "verb": "search"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "markdown": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "素材の提案",
+      "domain": "materials",
+      "exceptions": {},
+      "gate": false,
+      "id": "materials.propose",
+      "lsp": null,
+      "stateful": false,
+      "verb": "propose"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": null,
+      "description": "着想一覧",
+      "domain": "idea",
+      "exceptions": {},
+      "gate": false,
+      "id": "idea.list",
+      "lsp": null,
+      "stateful": false,
+      "verb": "list"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "keywords": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "role"
+        ],
+        "type": "object"
+      },
+      "command": "capture",
+      "description": "着想の記録",
+      "domain": "idea",
+      "exceptions": {},
+      "gate": true,
+      "id": "idea.capture",
+      "lsp": null,
+      "stateful": false,
+      "verb": "capture"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "target",
+          "role"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "着想の昇格",
+      "domain": "idea",
+      "exceptions": {},
+      "gate": true,
+      "id": "idea.promote",
+      "lsp": null,
+      "stateful": false,
+      "verb": "promote"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "role"
+        ],
+        "type": "object"
+      },
+      "command": "drop",
+      "description": "着想の削除",
+      "domain": "idea",
+      "exceptions": {},
+      "gate": true,
+      "id": "idea.drop",
+      "lsp": null,
+      "stateful": false,
+      "verb": "drop"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "role"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "着想メモの書き込み",
+      "domain": "idea",
+      "exceptions": {},
+      "gate": true,
+      "id": "idea.write",
+      "lsp": null,
+      "stateful": false,
+      "verb": "write"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "scene": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "scene"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "キャラクター情報・有効なモード",
+      "domain": "cast",
+      "exceptions": {},
+      "gate": false,
+      "id": "cast.get",
+      "lsp": null,
+      "stateful": false,
+      "verb": "get"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": null,
+      "description": "キャラクター一覧",
+      "domain": "cast",
+      "exceptions": {},
+      "gate": false,
+      "id": "cast.list",
+      "lsp": null,
+      "stateful": false,
+      "verb": "list"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "index": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "command": null,
+      "description": "呼称タイムライン",
+      "domain": "cast",
+      "exceptions": {},
+      "gate": false,
+      "id": "cast.timeline",
+      "lsp": null,
+      "stateful": false,
+      "verb": "timeline"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "type": "object"
+      },
+      "command": "scan",
+      "description": "本文スキャンで候補抽出",
+      "domain": "cast",
+      "exceptions": {},
+      "gate": true,
+      "id": "cast.scan",
+      "lsp": null,
+      "stateful": false,
+      "verb": "scan"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": null,
+      "description": "辞書の一覧",
+      "domain": "dictionary",
+      "exceptions": {},
+      "gate": false,
+      "id": "dictionary.list",
+      "lsp": null,
+      "stateful": false,
+      "verb": "list"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "definition": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "term": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "term",
+          "role"
+        ],
+        "type": "object"
+      },
+      "command": "register-term",
+      "description": "用語の辞書登録",
+      "domain": "dictionary",
+      "exceptions": {},
+      "gate": true,
+      "id": "dictionary.register_term",
+      "lsp": null,
+      "stateful": false,
+      "verb": "register_term"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "reading": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "role"
+        ],
+        "type": "object"
+      },
+      "command": "register-character",
+      "description": "キャラクターの辞書登録",
+      "domain": "dictionary",
+      "exceptions": {},
+      "gate": true,
+      "id": "dictionary.register_character",
+      "lsp": null,
+      "stateful": false,
+      "verb": "register_character"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "query": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "用語の完全情報",
+      "domain": "dictionary",
+      "exceptions": {},
+      "gate": false,
+      "id": "dictionary.term_full",
+      "lsp": null,
+      "stateful": false,
+      "verb": "term_full"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": null,
+      "description": "全モード一覧",
+      "domain": "dictionary",
+      "exceptions": {},
+      "gate": false,
+      "id": "dictionary.modes_list",
+      "lsp": null,
+      "stateful": false,
+      "verb": "modes_list"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "scene": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "command": null,
+      "description": "字句解析",
+      "domain": "lang",
+      "exceptions": {},
+      "gate": false,
+      "id": "lang.tokens",
+      "lsp": null,
+      "stateful": false,
+      "verb": "tokens"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "pos": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "pos"
+        ],
+        "type": "object"
+      },
+      "command": "complete",
+      "description": "補完候補",
+      "domain": "lang",
+      "exceptions": {},
+      "gate": false,
+      "id": "lang.completion",
+      "lsp": "textDocument/completion",
+      "stateful": false,
+      "verb": "completion"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "pos": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "pos"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "カーソル位置の情報",
+      "domain": "lang",
+      "exceptions": {},
+      "gate": false,
+      "id": "lang.hover",
+      "lsp": "textDocument/hover",
+      "stateful": false,
+      "verb": "hover"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "end": {
+            "type": "integer"
+          },
+          "path": {
+            "type": "string"
+          },
+          "start": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "command": "inlay-hints",
+      "description": "インラインヒント",
+      "domain": "lang",
+      "exceptions": {},
+      "gate": false,
+      "id": "lang.hints",
+      "lsp": "textDocument/inlayHint",
+      "stateful": false,
+      "verb": "hints"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "end": {
+            "type": "integer"
+          },
+          "path": {
+            "type": "string"
+          },
+          "start": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "start",
+          "end"
+        ],
+        "type": "object"
+      },
+      "command": "quick-fix",
+      "description": "クイックフィックス候補",
+      "domain": "lang",
+      "exceptions": {
+        "M": "gate:apply"
+      },
+      "gate": false,
+      "id": "lang.code_action",
+      "lsp": "textDocument/codeAction",
+      "stateful": false,
+      "verb": "code_action"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "pos": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "pos"
+        ],
+        "type": "object"
+      },
+      "command": "definition",
+      "description": "定義へジャンプ",
+      "domain": "lang",
+      "exceptions": {},
+      "gate": false,
+      "id": "lang.definition",
+      "lsp": "textDocument/definition",
+      "stateful": false,
+      "verb": "definition"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "pos": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "pos"
+        ],
+        "type": "object"
+      },
+      "command": "references",
+      "description": "参照検索",
+      "domain": "lang",
+      "exceptions": {},
+      "gate": false,
+      "id": "lang.references",
+      "lsp": "textDocument/references",
+      "stateful": false,
+      "verb": "references"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "シンボル一覧",
+      "domain": "lang",
+      "exceptions": {},
+      "gate": false,
+      "id": "lang.symbols",
+      "lsp": "textDocument/documentSymbol",
+      "stateful": false,
+      "verb": "symbols"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "apply": {
+            "type": "boolean"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "command": "format",
+      "description": "整形",
+      "domain": "lang",
+      "exceptions": {},
+      "gate": false,
+      "id": "lang.format",
+      "lsp": "textDocument/formatting",
+      "stateful": false,
+      "verb": "format"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "pos": {
+            "type": "integer"
+          },
+          "to": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "pos"
+        ],
+        "type": "object"
+      },
+      "command": "rename",
+      "description": "リネームの影響範囲",
+      "domain": "lang",
+      "exceptions": {},
+      "gate": false,
+      "id": "lang.rename_preview",
+      "lsp": "textDocument/rename",
+      "stateful": false,
+      "verb": "rename_preview"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "pos": {
+            "type": "integer"
+          },
+          "role": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "pos",
+          "to",
+          "role"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "リネームの実行",
+      "domain": "lang",
+      "exceptions": {},
+      "gate": true,
+      "id": "lang.rename_apply",
+      "lsp": "textDocument/rename",
+      "stateful": false,
+      "verb": "rename_apply"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "折り畳み範囲",
+      "domain": "lang",
+      "exceptions": {},
+      "gate": false,
+      "id": "lang.folding",
+      "lsp": "textDocument/foldingRange",
+      "stateful": false,
+      "verb": "folding"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "scene": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "command": null,
+      "description": "診断",
+      "domain": "diagnostics",
+      "exceptions": {},
+      "gate": false,
+      "id": "diagnostics.run",
+      "lsp": "textDocument/publishDiagnostics",
+      "stateful": false,
+      "verb": "run"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "pos": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "command": null,
+      "description": "地名解決",
+      "domain": "diagnostics",
+      "exceptions": {},
+      "gate": false,
+      "id": "diagnostics.place",
+      "lsp": null,
+      "stateful": false,
+      "verb": "place"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": "review",
+      "description": "見直し項目一覧",
+      "domain": "review",
+      "exceptions": {},
+      "gate": false,
+      "id": "review.list",
+      "lsp": null,
+      "stateful": false,
+      "verb": "list"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "index": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "index"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "見直し項目への移動",
+      "domain": "review",
+      "exceptions": {
+        "C": "stateful",
+        "M": "stateful"
+      },
+      "gate": false,
+      "id": "review.goto",
+      "lsp": null,
+      "stateful": true,
+      "verb": "goto"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": null,
+      "description": "タスク一覧",
+      "domain": "agent",
+      "exceptions": {},
+      "gate": false,
+      "id": "agent.task_list",
+      "lsp": null,
+      "stateful": false,
+      "verb": "task_list"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "comment": {
+            "type": "string"
+          },
+          "examples": {
+            "type": "string"
+          },
+          "intent": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "タスクの起票",
+      "domain": "agent",
+      "exceptions": {},
+      "gate": false,
+      "id": "agent.task_create",
+      "lsp": null,
+      "stateful": false,
+      "verb": "task_create"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "タスク 1 件の詳細",
+      "domain": "agent",
+      "exceptions": {},
+      "gate": false,
+      "id": "agent.task_get",
+      "lsp": null,
+      "stateful": false,
+      "verb": "task_get"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "role"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "タスクの実行",
+      "domain": "agent",
+      "exceptions": {},
+      "gate": true,
+      "id": "agent.task_run",
+      "lsp": null,
+      "stateful": false,
+      "verb": "task_run"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "ドライラン",
+      "domain": "agent",
+      "exceptions": {},
+      "gate": false,
+      "id": "agent.task_dry_run",
+      "lsp": null,
+      "stateful": false,
+      "verb": "task_dry_run"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "role"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "タスクの中止",
+      "domain": "agent",
+      "exceptions": {},
+      "gate": true,
+      "id": "agent.task_stop",
+      "lsp": null,
+      "stateful": false,
+      "verb": "task_stop"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "type": "object"
+      },
+      "command": "stop-all",
+      "description": "全実行の中止",
+      "domain": "agent",
+      "exceptions": {},
+      "gate": true,
+      "id": "agent.stop_all",
+      "lsp": null,
+      "stateful": false,
+      "verb": "stop_all"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": null,
+      "description": "提案一覧",
+      "domain": "agent",
+      "exceptions": {},
+      "gate": false,
+      "id": "agent.proposal_list",
+      "lsp": null,
+      "stateful": false,
+      "verb": "proposal_list"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "提案 1 件の内容",
+      "domain": "agent",
+      "exceptions": {},
+      "gate": false,
+      "id": "agent.proposal_get",
+      "lsp": null,
+      "stateful": false,
+      "verb": "proposal_get"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "role"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "提案の適用",
+      "domain": "agent",
+      "exceptions": {},
+      "gate": true,
+      "id": "agent.proposal_apply",
+      "lsp": null,
+      "stateful": false,
+      "verb": "proposal_apply"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "comment": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "comment",
+          "role"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "提案の却下",
+      "domain": "agent",
+      "exceptions": {},
+      "gate": true,
+      "id": "agent.proposal_reject",
+      "lsp": null,
+      "stateful": false,
+      "verb": "proposal_reject"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": null,
+      "description": "委譲レベルの参照",
+      "domain": "agent",
+      "exceptions": {
+        "M": "safety"
+      },
+      "gate": false,
+      "id": "agent.delegation_get",
+      "lsp": null,
+      "stateful": false,
+      "verb": "delegation_get"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "level": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "level"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "委譲レベルの変更",
+      "domain": "agent",
+      "exceptions": {
+        "M": "safety"
+      },
+      "gate": false,
+      "id": "agent.delegation_set",
+      "lsp": null,
+      "stateful": false,
+      "verb": "delegation_set"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": "mcp",
+      "description": "MCP 接続設定の参照",
+      "domain": "agent",
+      "exceptions": {},
+      "gate": false,
+      "id": "agent.mcp_config_get",
+      "lsp": null,
+      "stateful": false,
+      "verb": "mcp_config_get"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "command": null,
+      "description": "MCP 接続設定の検証",
+      "domain": "agent",
+      "exceptions": {},
+      "gate": false,
+      "id": "agent.mcp_config_validate",
+      "lsp": null,
+      "stateful": false,
+      "verb": "mcp_config_validate"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "MCP 接続設定の書き込み",
+      "domain": "agent",
+      "exceptions": {
+        "M": "safety"
+      },
+      "gate": false,
+      "id": "agent.mcp_config_set",
+      "lsp": null,
+      "stateful": false,
+      "verb": "mcp_config_set"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": null,
+      "description": "メールスレッド一覧",
+      "domain": "agent",
+      "exceptions": {},
+      "gate": false,
+      "id": "agent.thread_list",
+      "lsp": null,
+      "stateful": false,
+      "verb": "thread_list"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "スレッド 1 件の内容",
+      "domain": "agent",
+      "exceptions": {},
+      "gate": false,
+      "id": "agent.thread_get",
+      "lsp": null,
+      "stateful": false,
+      "verb": "thread_get"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": null,
+      "description": "監査ログ一覧",
+      "domain": "agent",
+      "exceptions": {},
+      "gate": false,
+      "id": "agent.audit_list",
+      "lsp": null,
+      "stateful": false,
+      "verb": "audit_list"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "scene": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "scene"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "コンテキストパケットの構築",
+      "domain": "context",
+      "exceptions": {},
+      "gate": false,
+      "id": "context.build",
+      "lsp": null,
+      "stateful": false,
+      "verb": "build"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": null,
+      "description": "プロンプトファイル一覧",
+      "domain": "prompt",
+      "exceptions": {},
+      "gate": false,
+      "id": "prompt.list",
+      "lsp": null,
+      "stateful": false,
+      "verb": "list"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "プロンプト内容の取得",
+      "domain": "prompt",
+      "exceptions": {},
+      "gate": false,
+      "id": "prompt.get",
+      "lsp": null,
+      "stateful": false,
+      "verb": "get"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "初期版との差分",
+      "domain": "prompt",
+      "exceptions": {},
+      "gate": false,
+      "id": "prompt.diff",
+      "lsp": null,
+      "stateful": false,
+      "verb": "diff"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "プロンプトの初期化",
+      "domain": "prompt",
+      "exceptions": {
+        "M": "safety"
+      },
+      "gate": false,
+      "id": "prompt.reset",
+      "lsp": null,
+      "stateful": false,
+      "verb": "reset"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "to",
+          "body"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "エージェント間のメール",
+      "domain": "mail",
+      "exceptions": {},
+      "gate": false,
+      "id": "mail.send",
+      "lsp": null,
+      "stateful": false,
+      "verb": "send"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "blurb": {
+            "type": "boolean"
+          },
+          "blurb_only": {
+            "type": "boolean"
+          },
+          "format": {
+            "type": "string"
+          },
+          "keep_illustration_memo": {
+            "type": "boolean"
+          },
+          "out": {
+            "type": "string"
+          },
+          "range": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "stock": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "command": "export",
+      "description": "テキストのエクスポート",
+      "domain": "export",
+      "exceptions": {
+        "M": "gate:write"
+      },
+      "gate": false,
+      "id": "export.text",
+      "lsp": null,
+      "stateful": false,
+      "verb": "text"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "scene": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "command": null,
+      "description": "参照ペインの全セクション",
+      "domain": "reference",
+      "exceptions": {},
+      "gate": false,
+      "id": "reference.pane",
+      "lsp": null,
+      "stateful": false,
+      "verb": "pane"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": null,
+      "description": "設定の取得",
+      "domain": "settings",
+      "exceptions": {},
+      "gate": false,
+      "id": "settings.get",
+      "lsp": "workspace/didChangeConfiguration",
+      "stateful": false,
+      "verb": "get"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "設定の変更",
+      "domain": "settings",
+      "exceptions": {
+        "M": "safety"
+      },
+      "gate": false,
+      "id": "settings.set",
+      "lsp": null,
+      "stateful": false,
+      "verb": "set"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": null,
+      "description": "現在のワークスペース",
+      "domain": "session",
+      "exceptions": {
+        "C": "stateful",
+        "M": "stateful"
+      },
+      "gate": false,
+      "id": "session.workspace_get",
+      "lsp": null,
+      "stateful": true,
+      "verb": "workspace_get"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "workspace": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspace"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "ワークスペースの切替",
+      "domain": "session",
+      "exceptions": {
+        "C": "stateful",
+        "M": "stateful"
+      },
+      "gate": false,
+      "id": "session.workspace_switch",
+      "lsp": null,
+      "stateful": true,
+      "verb": "workspace_switch"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "back": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "command": "recent-next",
+      "description": "最近開いた文書の循環",
+      "domain": "session",
+      "exceptions": {
+        "C": "stateful",
+        "M": "stateful"
+      },
+      "gate": false,
+      "id": "session.recent_document",
+      "lsp": null,
+      "stateful": true,
+      "verb": "recent_document"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "パレットコマンドの実行",
+      "domain": "session",
+      "exceptions": {
+        "C": "stateful",
+        "M": "stateful"
+      },
+      "gate": false,
+      "id": "session.command",
+      "lsp": null,
+      "stateful": true,
+      "verb": "command"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": null,
+      "description": "イベントキューの取得",
+      "domain": "session",
+      "exceptions": {
+        "C": "stateful",
+        "M": "stateful"
+      },
+      "gate": false,
+      "id": "session.poll_events",
+      "lsp": null,
+      "stateful": true,
+      "verb": "poll_events"
+    },
+    {
+      "arguments": {
+        "properties": {
+          "topic": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "command": "help",
+      "description": "ヘルプ本文",
+      "domain": "help",
+      "exceptions": {},
+      "gate": false,
+      "id": "help.topic",
+      "lsp": null,
+      "stateful": false,
+      "verb": "topic"
+    },
+    {
+      "arguments": {
+        "properties": {},
+        "type": "object"
+      },
+      "command": null,
+      "description": "正規操作カタログの機械可読出力",
+      "domain": "api",
+      "exceptions": {},
+      "gate": false,
+      "id": "api.list",
+      "lsp": null,
+      "stateful": false,
+      "verb": "list"
+    }
+  ],
+  "version": "0.1.0"
+}
