@@ -26,7 +26,7 @@
 //! 待たされた側もほかの Python スレッドを止めない。
 
 use std::cell::RefCell;
-use std::sync::{Mutex, PoisonError};
+use std::sync::Mutex;
 
 use pyo3::create_exception;
 use pyo3::exceptions::PyException;
