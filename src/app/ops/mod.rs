@@ -135,6 +135,21 @@ impl OpDef {
     }
 
     /// MCP の `inputSchema`（§19.5.3。`api.list` から生成し、手書きの複製を置かない）。
+    /// 引数の**宣言順**の名前（関門の `role` を含む。§19.3.2 の位置引数はこの順で束縛する）。
+    ///
+    /// `input_schema` の `properties` は `serde_json::Map`（＝ `BTreeMap`）なので**アルファベット
+    /// 順に並ぶ**。位置引数を宣言順に束縛したい口（Python の `session.section.write(id, text)`）
+    /// は、この列を使う（`REF:python/novnow-py/python/novnow/__init__.py`）。
+    pub fn argument_order(&self) -> Vec<&'static str> {
+        let mut names: Vec<&'static str> = self.args.iter().map(|arg| arg.name).collect();
+        // 関門の `role` は引数としても宣言されることがある（`agent.task_create` など 26 件）。
+        // その場合は 1 つに数える（`input_schema` も `properties` を上書きするだけ）
+        if self.gate && !names.contains(&"role") {
+            names.push("role");
+        }
+        names
+    }
+
     pub fn input_schema(&self) -> Value {
         let mut properties = Map::new();
         let mut required = Vec::new();
@@ -172,7 +187,10 @@ impl OpDef {
             "description".to_owned(),
             json!(description(locale, self.id)),
         );
-        entry.insert("arguments".to_owned(), self.input_schema());
+        let mut schema = self.input_schema();
+        // JSON のオブジェクトは順序を持たないので、位置引数の束縛順は明示する（§19.3.2）
+        schema["order"] = json!(self.argument_order());
+        entry.insert("arguments".to_owned(), schema);
         entry.insert("gate".to_owned(), json!(self.gate));
         entry.insert("stateful".to_owned(), json!(self.stateful));
         let mut exceptions = Map::new();

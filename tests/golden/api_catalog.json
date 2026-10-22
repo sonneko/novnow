@@ -11,6 +11,7 @@
   "operations": [
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -26,6 +27,10 @@
     },
     {
       "arguments": {
+        "order": [
+          "path",
+          "title"
+        ],
         "properties": {
           "path": {
             "type": "string"
@@ -54,6 +59,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -69,6 +75,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -87,6 +94,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -102,6 +110,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -119,6 +128,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "path"
+        ],
         "properties": {
           "path": {
             "type": "string"
@@ -143,6 +155,10 @@
     },
     {
       "arguments": {
+        "order": [
+          "path",
+          "bytes"
+        ],
         "properties": {
           "bytes": {
             "type": "string"
@@ -167,6 +183,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "out"
+        ],
         "properties": {
           "out": {
             "type": "string"
@@ -188,6 +207,10 @@
     },
     {
       "arguments": {
+        "order": [
+          "level",
+          "chapter"
+        ],
         "properties": {
           "chapter": {
             "type": "integer"
@@ -210,6 +233,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "query"
+        ],
         "properties": {
           "query": {
             "type": "string"
@@ -232,6 +258,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -250,6 +277,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "path"
+        ],
         "properties": {
           "path": {
             "type": "string"
@@ -269,6 +299,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "scene"
+        ],
         "properties": {
           "scene": {
             "type": "string"
@@ -291,6 +324,11 @@
     },
     {
       "arguments": {
+        "order": [
+          "scene",
+          "text",
+          "role"
+        ],
         "properties": {
           "role": {
             "type": "string"
@@ -321,6 +359,11 @@
     },
     {
       "arguments": {
+        "order": [
+          "after",
+          "text",
+          "role"
+        ],
         "properties": {
           "after": {
             "type": "string"
@@ -349,6 +392,10 @@
     },
     {
       "arguments": {
+        "order": [
+          "scene",
+          "role"
+        ],
         "properties": {
           "role": {
             "type": "string"
@@ -374,6 +421,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -392,6 +440,10 @@
     },
     {
       "arguments": {
+        "order": [
+          "path",
+          "scene"
+        ],
         "properties": {
           "path": {
             "type": "string"
@@ -420,6 +472,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "scene"
+        ],
         "properties": {
           "scene": {
             "type": "string"
@@ -445,6 +500,10 @@
     },
     {
       "arguments": {
+        "order": [
+          "line",
+          "query"
+        ],
         "properties": {
           "line": {
             "type": "integer"
@@ -470,6 +529,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -488,6 +548,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -506,6 +567,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -524,6 +586,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -542,6 +605,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -560,6 +624,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -578,6 +643,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "path"
+        ],
         "properties": {
           "path": {
             "type": "string"
@@ -600,6 +668,11 @@
     },
     {
       "arguments": {
+        "order": [
+          "path",
+          "text",
+          "role"
+        ],
         "properties": {
           "path": {
             "type": "string"
@@ -630,6 +703,11 @@
     },
     {
       "arguments": {
+        "order": [
+          "from",
+          "to",
+          "role"
+        ],
         "properties": {
           "from": {
             "type": "string"
@@ -660,6 +738,11 @@
     },
     {
       "arguments": {
+        "order": [
+          "level",
+          "scene",
+          "chapter"
+        ],
         "properties": {
           "chapter": {
             "type": "integer"
@@ -688,6 +771,13 @@
     },
     {
       "arguments": {
+        "order": [
+          "level",
+          "text",
+          "scene",
+          "chapter",
+          "role"
+        ],
         "properties": {
           "chapter": {
             "type": "integer"
@@ -724,6 +814,11 @@
     },
     {
       "arguments": {
+        "order": [
+          "scene",
+          "state",
+          "role"
+        ],
         "properties": {
           "role": {
             "type": "string"
@@ -753,6 +848,11 @@
     },
     {
       "arguments": {
+        "order": [
+          "scene",
+          "title",
+          "role"
+        ],
         "properties": {
           "role": {
             "type": "string"
@@ -781,6 +881,10 @@
     },
     {
       "arguments": {
+        "order": [
+          "chapter",
+          "fold"
+        ],
         "properties": {
           "chapter": {
             "type": "integer"
@@ -806,6 +910,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -824,6 +929,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -842,6 +948,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "path"
+        ],
         "properties": {
           "path": {
             "type": "string"
@@ -864,6 +973,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "path"
+        ],
         "properties": {
           "path": {
             "type": "string"
@@ -886,6 +998,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "path"
+        ],
         "properties": {
           "path": {
             "type": "string"
@@ -908,6 +1023,11 @@
     },
     {
       "arguments": {
+        "order": [
+          "query",
+          "replace",
+          "regex"
+        ],
         "properties": {
           "query": {
             "type": "string"
@@ -938,6 +1058,12 @@
     },
     {
       "arguments": {
+        "order": [
+          "query",
+          "replace",
+          "regex",
+          "role"
+        ],
         "properties": {
           "query": {
             "type": "string"
@@ -971,6 +1097,10 @@
     },
     {
       "arguments": {
+        "order": [
+          "query",
+          "regex"
+        ],
         "properties": {
           "query": {
             "type": "string"
@@ -996,6 +1126,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -1014,6 +1145,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -1032,6 +1164,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -1047,6 +1180,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "id"
+        ],
         "properties": {
           "id": {
             "type": "string"
@@ -1069,6 +1205,10 @@
     },
     {
       "arguments": {
+        "order": [
+          "id",
+          "role"
+        ],
         "properties": {
           "id": {
             "type": "string"
@@ -1095,6 +1235,11 @@
     },
     {
       "arguments": {
+        "order": [
+          "id",
+          "note",
+          "role"
+        ],
         "properties": {
           "id": {
             "type": "string"
@@ -1124,6 +1269,11 @@
     },
     {
       "arguments": {
+        "order": [
+          "id",
+          "review",
+          "role"
+        ],
         "properties": {
           "id": {
             "type": "string"
@@ -1153,6 +1303,12 @@
     },
     {
       "arguments": {
+        "order": [
+          "id",
+          "path",
+          "text",
+          "role"
+        ],
         "properties": {
           "id": {
             "type": "string"
@@ -1185,6 +1341,11 @@
     },
     {
       "arguments": {
+        "order": [
+          "query",
+          "category",
+          "scope"
+        ],
         "properties": {
           "category": {
             "type": "string"
@@ -1213,6 +1374,12 @@
     },
     {
       "arguments": {
+        "order": [
+          "title",
+          "source",
+          "markdown",
+          "category"
+        ],
         "properties": {
           "category": {
             "type": "string"
@@ -1244,6 +1411,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -1259,6 +1427,12 @@
     },
     {
       "arguments": {
+        "order": [
+          "title",
+          "kind",
+          "keywords",
+          "role"
+        ],
         "properties": {
           "keywords": {
             "type": "string"
@@ -1291,6 +1465,12 @@
     },
     {
       "arguments": {
+        "order": [
+          "id",
+          "target",
+          "to",
+          "role"
+        ],
         "properties": {
           "id": {
             "type": "string"
@@ -1324,6 +1504,10 @@
     },
     {
       "arguments": {
+        "order": [
+          "id",
+          "role"
+        ],
         "properties": {
           "id": {
             "type": "string"
@@ -1350,6 +1534,11 @@
     },
     {
       "arguments": {
+        "order": [
+          "id",
+          "text",
+          "role"
+        ],
         "properties": {
           "id": {
             "type": "string"
@@ -1380,6 +1569,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "scene"
+        ],
         "properties": {
           "scene": {
             "type": "string"
@@ -1402,6 +1594,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -1417,6 +1610,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "index"
+        ],
         "properties": {
           "index": {
             "type": "integer"
@@ -1436,6 +1632,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "role"
+        ],
         "properties": {
           "role": {
             "type": "string"
@@ -1458,6 +1657,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -1473,6 +1673,11 @@
     },
     {
       "arguments": {
+        "order": [
+          "term",
+          "definition",
+          "role"
+        ],
         "properties": {
           "definition": {
             "type": "string"
@@ -1502,6 +1707,11 @@
     },
     {
       "arguments": {
+        "order": [
+          "name",
+          "reading",
+          "role"
+        ],
         "properties": {
           "name": {
             "type": "string"
@@ -1531,6 +1741,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "query"
+        ],
         "properties": {
           "query": {
             "type": "string"
@@ -1553,6 +1766,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -1568,6 +1782,10 @@
     },
     {
       "arguments": {
+        "order": [
+          "path",
+          "scene"
+        ],
         "properties": {
           "path": {
             "type": "string"
@@ -1590,6 +1808,10 @@
     },
     {
       "arguments": {
+        "order": [
+          "path",
+          "pos"
+        ],
         "properties": {
           "path": {
             "type": "string"
@@ -1616,6 +1838,10 @@
     },
     {
       "arguments": {
+        "order": [
+          "path",
+          "pos"
+        ],
         "properties": {
           "path": {
             "type": "string"
@@ -1642,6 +1868,11 @@
     },
     {
       "arguments": {
+        "order": [
+          "path",
+          "start",
+          "end"
+        ],
         "properties": {
           "end": {
             "type": "integer"
@@ -1670,6 +1901,11 @@
     },
     {
       "arguments": {
+        "order": [
+          "path",
+          "start",
+          "end"
+        ],
         "properties": {
           "end": {
             "type": "integer"
@@ -1702,6 +1938,10 @@
     },
     {
       "arguments": {
+        "order": [
+          "path",
+          "pos"
+        ],
         "properties": {
           "path": {
             "type": "string"
@@ -1728,6 +1968,10 @@
     },
     {
       "arguments": {
+        "order": [
+          "path",
+          "pos"
+        ],
         "properties": {
           "path": {
             "type": "string"
@@ -1754,6 +1998,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "path"
+        ],
         "properties": {
           "path": {
             "type": "string"
@@ -1776,6 +2023,10 @@
     },
     {
       "arguments": {
+        "order": [
+          "path",
+          "apply"
+        ],
         "properties": {
           "apply": {
             "type": "boolean"
@@ -1801,6 +2052,11 @@
     },
     {
       "arguments": {
+        "order": [
+          "path",
+          "pos",
+          "to"
+        ],
         "properties": {
           "path": {
             "type": "string"
@@ -1830,6 +2086,12 @@
     },
     {
       "arguments": {
+        "order": [
+          "path",
+          "pos",
+          "to",
+          "role"
+        ],
         "properties": {
           "path": {
             "type": "string"
@@ -1864,6 +2126,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "path"
+        ],
         "properties": {
           "path": {
             "type": "string"
@@ -1886,6 +2151,11 @@
     },
     {
       "arguments": {
+        "order": [
+          "scope",
+          "path",
+          "scene"
+        ],
         "properties": {
           "path": {
             "type": "string"
@@ -1911,6 +2181,10 @@
     },
     {
       "arguments": {
+        "order": [
+          "path",
+          "pos"
+        ],
         "properties": {
           "path": {
             "type": "string"
@@ -1933,6 +2207,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -1948,6 +2223,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "index"
+        ],
         "properties": {
           "index": {
             "type": "integer"
@@ -1973,6 +2251,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -1988,6 +2267,13 @@
     },
     {
       "arguments": {
+        "order": [
+          "role",
+          "scope",
+          "intent",
+          "comment",
+          "examples"
+        ],
         "properties": {
           "comment": {
             "type": "string"
@@ -2022,6 +2308,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "id"
+        ],
         "properties": {
           "id": {
             "type": "string"
@@ -2044,6 +2333,10 @@
     },
     {
       "arguments": {
+        "order": [
+          "id",
+          "role"
+        ],
         "properties": {
           "id": {
             "type": "string"
@@ -2070,6 +2363,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "id"
+        ],
         "properties": {
           "id": {
             "type": "string"
@@ -2092,6 +2388,10 @@
     },
     {
       "arguments": {
+        "order": [
+          "id",
+          "role"
+        ],
         "properties": {
           "id": {
             "type": "string"
@@ -2118,6 +2418,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "role"
+        ],
         "properties": {
           "role": {
             "type": "string"
@@ -2140,6 +2443,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -2155,6 +2459,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "id"
+        ],
         "properties": {
           "id": {
             "type": "string"
@@ -2177,6 +2484,10 @@
     },
     {
       "arguments": {
+        "order": [
+          "id",
+          "role"
+        ],
         "properties": {
           "id": {
             "type": "string"
@@ -2203,6 +2514,11 @@
     },
     {
       "arguments": {
+        "order": [
+          "id",
+          "comment",
+          "role"
+        ],
         "properties": {
           "comment": {
             "type": "string"
@@ -2233,6 +2549,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -2250,6 +2567,10 @@
     },
     {
       "arguments": {
+        "order": [
+          "role",
+          "level"
+        ],
         "properties": {
           "level": {
             "type": "string"
@@ -2277,6 +2598,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -2292,6 +2614,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "text"
+        ],
         "properties": {
           "text": {
             "type": "string"
@@ -2311,6 +2636,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "text"
+        ],
         "properties": {
           "text": {
             "type": "string"
@@ -2335,6 +2663,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -2350,6 +2679,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "id"
+        ],
         "properties": {
           "id": {
             "type": "string"
@@ -2372,6 +2704,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -2387,6 +2720,10 @@
     },
     {
       "arguments": {
+        "order": [
+          "role",
+          "scene"
+        ],
         "properties": {
           "role": {
             "type": "string"
@@ -2413,6 +2750,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -2428,6 +2766,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "name"
+        ],
         "properties": {
           "name": {
             "type": "string"
@@ -2450,6 +2791,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "name"
+        ],
         "properties": {
           "name": {
             "type": "string"
@@ -2472,6 +2816,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "name"
+        ],
         "properties": {
           "name": {
             "type": "string"
@@ -2496,6 +2843,12 @@
     },
     {
       "arguments": {
+        "order": [
+          "to",
+          "body",
+          "kind",
+          "scope"
+        ],
         "properties": {
           "body": {
             "type": "string"
@@ -2528,6 +2881,16 @@
     },
     {
       "arguments": {
+        "order": [
+          "range",
+          "state",
+          "format",
+          "out",
+          "blurb",
+          "blurb_only",
+          "keep_illustration_memo",
+          "stock"
+        ],
         "properties": {
           "blurb": {
             "type": "boolean"
@@ -2570,6 +2933,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "scene"
+        ],
         "properties": {
           "scene": {
             "type": "string"
@@ -2589,6 +2955,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -2604,6 +2971,10 @@
     },
     {
       "arguments": {
+        "order": [
+          "key",
+          "value"
+        ],
         "properties": {
           "key": {
             "type": "string"
@@ -2631,6 +3002,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -2649,6 +3021,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "workspace"
+        ],
         "properties": {
           "workspace": {
             "type": "string"
@@ -2674,6 +3049,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "back"
+        ],
         "properties": {
           "back": {
             "type": "boolean"
@@ -2696,6 +3074,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "name"
+        ],
         "properties": {
           "name": {
             "type": "string"
@@ -2721,6 +3102,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },
@@ -2739,6 +3121,9 @@
     },
     {
       "arguments": {
+        "order": [
+          "topic"
+        ],
         "properties": {
           "topic": {
             "type": "string"
@@ -2758,6 +3143,7 @@
     },
     {
       "arguments": {
+        "order": [],
         "properties": {},
         "type": "object"
       },

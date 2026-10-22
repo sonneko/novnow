@@ -1,0 +1,223 @@
+[
+  {
+    "description": "Title, structure and statistics of the project",
+    "inputSchema": {
+      "properties": {},
+      "type": "object"
+    },
+    "name": "novnow.project.info"
+  },
+  {
+    "description": "Chapter / episode / scene / section tree with summaries",
+    "inputSchema": {
+      "properties": {
+        "level": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "novnow.structure.tree"
+  },
+  {
+    "description": "Plot at a level (all | chapter | episode) for a scene",
+    "inputSchema": {
+      "properties": {
+        "level": {
+          "type": "string"
+        },
+        "scene": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "novnow.plot.get"
+  },
+  {
+    "description": "Text of a section and its neighbors",
+    "inputSchema": {
+      "properties": {
+        "neighbors": {
+          "type": "integer"
+        },
+        "scene": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "novnow.section.get"
+  },
+  {
+    "description": "Cast of a section (active modes only)",
+    "inputSchema": {
+      "properties": {
+        "scene": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "novnow.cast.get"
+  },
+  {
+    "description": "Search the lexicon (words.md)",
+    "inputSchema": {
+      "properties": {
+        "query": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "novnow.lexicon.search"
+  },
+  {
+    "description": "Search materials",
+    "inputSchema": {
+      "properties": {
+        "category": {
+          "type": "string"
+        },
+        "query": {
+          "type": "string"
+        },
+        "scope": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "novnow.materials.search"
+  },
+  {
+    "description": "The ContextPacket for a role and a section",
+    "inputSchema": {
+      "properties": {
+        "role": {
+          "type": "string"
+        },
+        "scene": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "novnow.context.build"
+  },
+  {
+    "description": "Diagnostics (all files, a path prefix or a scene)",
+    "inputSchema": {
+      "properties": {
+        "scope": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "novnow.diagnostics.run"
+  },
+  {
+    "description": "Create a proposal for a section (does not change the text)",
+    "inputSchema": {
+      "properties": {
+        "note": {
+          "type": "string"
+        },
+        "scene": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "novnow.section.propose"
+  },
+  {
+    "description": "Write a section directly (role with apply / autonomous only)",
+    "inputSchema": {
+      "properties": {
+        "note": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "scene": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "novnow.section.write"
+  },
+  {
+    "description": "Write a plot section directly (role with apply / autonomous only)",
+    "inputSchema": {
+      "properties": {
+        "level": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "scene": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "novnow.plot.write"
+  },
+  {
+    "description": "Add a material with status proposed",
+    "inputSchema": {
+      "properties": {
+        "category": {
+          "type": "string"
+        },
+        "markdown": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "novnow.materials.propose"
+  },
+  {
+    "description": "Queue an unapproved message to a role",
+    "inputSchema": {
+      "properties": {
+        "body": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "scope": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "novnow.mail.send"
+  }
+]

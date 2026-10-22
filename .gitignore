@@ -2,3 +2,10 @@
 **/*.rs.bk
 *.pdb
 /dist
+
+# Python（`python/novnow-py` の pytest が作る）
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+*.so

@@ -151,9 +151,14 @@ class Session:
     def run(self, op: str, *args: Any, **kwargs: Any) -> Any:
         """正規操作を 1 つ実行する。位置引数は宣言順の引数、キーワード引数は名前指定。"""
         arguments = _arguments(kwargs)
+        names = _argument_names(op)
+        if len(args) > len(names):
+            raise TypeError(
+                f"{op}() takes {len(names)} positional argument(s) "
+                f"({', '.join(names) or 'none'}) but {len(args)} were given"
+            )
         for index, value in enumerate(args):
-            name = _argument_names(op)[index]
-            arguments[name] = value
+            arguments[names[index]] = value
         try:
             return self._session.run(op, arguments)
         except _core.NovnowError as error:
@@ -215,8 +220,17 @@ def _domain_names() -> list[str]:
 
 
 def _argument_names(op: str) -> list[str]:
+    """位置引数の束縛順（§19.3.2）。
+
+    カタログの `arguments.order`（宣言順）を使う。`properties` は JSON オブジェクトなので
+    アルファベット順に並んでおり、こちらを使うと 31 操作で束縛がずれる
+    （例 `section.write(scene, text)` が `role`・`scene` に入る）。
+    """
     for operation in operations():
         if operation["id"] == op:
+            order = operation["arguments"].get("order")
+            if order:
+                return list(order)
             return list(operation["arguments"].get("properties", {}).keys())
     return []
 

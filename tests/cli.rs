@@ -1126,14 +1126,17 @@ fn mcp_serves_the_tools_over_json_lines_and_writes_only_inside_the_project() {
     assert_eq!(lines[0]["id"], 1);
     assert_eq!(lines[0]["result"]["serverInfo"]["name"], "novnow");
     assert_eq!(lines[0]["result"]["protocolVersion"], "2024-11-05");
-    // 既存 14 ツールは凍結（§19.8.3）。後ろにカタログ（§19.5.1）が続く
+    // 既存 14 ツールは凍結（§19.8.3）。後ろにカタログ（§19.5.1）が続く。
+    // 比較相手は `REF:tests/golden/mcp_tools.json`（実装そのものと比べると退行を検出できない。
+    // 内訳の機械検査は `REF:tests/mcp_frozen.rs`）
     let tools = lines[1]["result"]["tools"].as_array().unwrap();
-    assert!(tools.len() > 14, "カタログが載っていない: {}", tools.len());
-    for (found, frozen) in tools.iter().zip(server::tools().as_array().unwrap()) {
+    assert_eq!(tools.len(), 83, "ツール表の全件数（凍結 14 + 新規 69）");
+    let golden: Value = serde_json::from_str(include_str!("golden/mcp_tools.json")).unwrap();
+    for (found, frozen) in tools.iter().zip(golden.as_array().unwrap()) {
         assert_eq!(
             found.to_string(),
             frozen.to_string(),
-            "既存ツールの定義が変わった"
+            "既存ツールの定義が変わった（§19.8.3。意図した変更なら              `cargo run --locked --example mcp_tools > tests/golden/mcp_tools.json`）"
         );
     }
     assert_eq!(lines[2]["result"]["isError"], false);
