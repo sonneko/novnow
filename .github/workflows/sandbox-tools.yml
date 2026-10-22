@@ -202,16 +202,23 @@ jobs:
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
           # shellcheck source=/dev/null
           . "$HOME/.cargo/env"
+          # 版本は `python/novnow-py/Cargo.toml` から読む（ここで別々に書くとずれる）
+          pyo3_req="$(awk -F'"' '/^pyo3 = \{ version =/ { print $2; exit }' python/novnow-py/Cargo.toml)"
+          if [ -z "$pyo3_req" ]; then
+            echo "::error::python/novnow-py/Cargo.toml から pyo3 の版本を読めません"
+            exit 1
+          fi
+          echo "python/novnow-py が要求する pyo3: $pyo3_req"
           mkdir -p /tmp/probe/src
           printf 'fn main() {}\n' > /tmp/probe/src/main.rs
-          cat > /tmp/probe/Cargo.toml <<'TOML'
+          cat > /tmp/probe/Cargo.toml <<TOML
           [package]
           name = "pyo3-probe"
           version = "0.0.0"
           edition = "2021"
 
           [dependencies]
-          pyo3 = { version = "0.23", features = ["extension-module", "abi3-py39"] }
+          pyo3 = { version = "$pyo3_req", features = ["extension-module", "abi3-py39"] }
           TOML
           cd /tmp/probe
           cargo generate-lockfile
