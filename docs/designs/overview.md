@@ -117,11 +117,11 @@
 - `REF:src/core/model/mod.rs`: ドメインモデル型群。
 - `REF:src/core/resolve/mod.rs`: `dictionary.rs`, `modes.rs`, `role_language.rs`, `materials.rs`, `context_rules.rs`。
 - `REF:src/core/diagnostics.rs`: 76 診断コードの定義とメタデータ表。
-- `REF:src/core/features/mod.rs`: LSP 11 機能およびワークスペース補助（`project.rs`, `sections.rs`, `reference.rs`, `place.rs`, `plots.rs`, `ideas.rs`, `cast.rs`, `review.rs`, `proposals.rs`, `search.rs`）。
+- `REF:src/core/features/mod.rs`: ワークスペース補助（`project.rs`, `sections.rs`, `reference.rs`, `references.rs`, `place.rs`, `plots.rs`, `ideas.rs`, `cast.rs`, `materials_ops.rs`）と LSP 11 機能（`completion.rs`, `definition.rs`, `document_symbol.rs`, `folding.rs`, `formatting.rs`, `hover.rs`, `inlay_hint.rs`, `semantic_tokens.rs`, `code_action.rs`, `rename.rs`）。
 - `REF:src/core/policy/mod.rs`: `write_policy.rs`, `recent.rs`, `archive.rs`, `external_change.rs`。
 - `REF:src/core/export.rs`, `REF:src/core/template/mod.rs`, `REF:src/core/aicontext/mod.rs`, `REF:src/core/agents/mod.rs`。
 - `REF:src/ports/mod.rs` & `REF:src/adapters/mod.rs`: ポートと各環境アダプタ。
-- `REF:src/app/mod.rs`: 描画と無縁の状態機械（`workbench.rs`, `save_machine.rs`, `settings.rs`, `palette.rs`, `assist.rs`, `agents.rs`, `command.rs`, `commands.rs`, `host.rs`, `workspace.rs`）と外部インターフェースの機能核（§19）。
+- `REF:src/app/mod.rs`: 描画と無縁の状態機械（`workbench.rs`, `save_machine.rs`, `settings.rs`, `palette.rs`, `assist.rs`, `agents.rs`, `command.rs`, `commands.rs`, `host.rs`, `workspace.rs`）と外部インターフェースの機能核（§19: `error.rs`, `event.rs`, `session.rs`, `memory_host.rs`, `fs_host.rs`, `driver.rs` と `ops/` の 119 操作）。
 - `REF:src/ui/mod.rs`: `i18n/`, `app.rs`, `web.rs`, `shell.rs`, `theme.rs`, `widgets/`, `workspaces/`（`app` 層の 6 モジュールは再エクスポートで旧パスからも解決する）。
 
 段階 ② の追加仕様を無改修で受け入れるための 10 個の拡張点（縫い代）を維持する:

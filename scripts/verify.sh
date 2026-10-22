@@ -109,7 +109,9 @@ if [ "$RUST" = 1 ]; then
     run clippy    cargo clippy --locked --all-targets -- -D warnings
     run clippy-ui cargo clippy --locked --all-targets --features ui -- -D warnings
     run test      cargo test --locked --all-targets --no-fail-fast --features ui
-    run test-cli  cargo test --locked --test cli --no-fail-fast
+    # GUI なしの既定のビルドは**全ターゲット**を回す（`--test cli` だけだと 63 件しか
+    # 走らず、app 層・LSP・MCP の退行を見逃す。全ターゲットで 1176 件・65 ターゲット）
+    run test-nogui cargo test --locked --all-targets --no-fail-fast
     if [ "$WASM" = 1 ]; then
         run wasm      cargo check --locked --target wasm32-unknown-unknown --features ui
     fi

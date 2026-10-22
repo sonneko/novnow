@@ -264,8 +264,10 @@ jobs:
           echo "::group::cargo test --features ui（生ログ）"
           cargo test --locked --all-targets --no-fail-fast --features ui 2>&1 | tee /tmp/ci.log || status=$?
           echo "::endgroup::"
-          echo "::group::cargo test --test cli（GUI なしの既定のビルド、生ログ）"
-          cargo test --locked --test cli --no-fail-fast 2>&1 | tee -a /tmp/ci.log || status=$?
+          echo "::group::cargo test --all-targets（GUI なしの既定のビルド、生ログ）"
+          # `--test cli` だけだと 63 件しか走らない。GUI なしのビルドでも app 層・LSP・MCP・
+          # カタログの全ターゲットを回す（1176 件・65 ターゲット）
+          cargo test --locked --all-targets --no-fail-fast 2>&1 | tee -a /tmp/ci.log || status=$?
           echo "::endgroup::"
           exit $status
       - name: Report to the run summary

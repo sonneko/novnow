@@ -295,6 +295,12 @@ fn the_standard_methods_answer_from_the_catalog() {
             "workspace/executeCommand",
             json!({ "arguments": [{}], "command": "api.list" }),
         ),
+        // 当たらない検索語では何も出ないこと（検索が実際に絞っているかの確認）
+        request(
+            16,
+            "workspace/symbol",
+            json!({ "query": "zzz-存在しない語" }),
+        ),
         notify(
             "textDocument/didChange",
             json!({ "contentChanges": [{ "text": text }], "textDocument": { "uri": uri, "version": 2 } }),
@@ -383,10 +389,79 @@ fn the_standard_methods_answer_from_the_catalog() {
     );
 
     // documentSymbol / foldingRange / semanticTokens の形。
-    assert!(!result_of(&messages, 6)
-        .as_array()
-        .expect("symbols")
-        .is_empty());
+    // 形だけでなく**中身**も見る: LSP の SymbolInformation（§19.4.2）として必要な
+    // フィールドが揃い、範囲が入れ子になり、名前が本文の見出しと一致すること。
+    let symbols = result_of(&messages, 6).as_array().expect("symbols").clone();
+    assert!(!symbols.is_empty(), "documentSymbol が 1 件も出ていない");
+    fn line_of(value: &serde_json::Value, edge: &str) -> u64 {
+        value[edge]["line"]
+            .as_u64()
+            .unwrap_or_else(|| panic!("{edge}.line が無い: {value}"))
+    }
+    fn check_range(value: &serde_json::Value, what: &str) {
+        for edge in ["start", "end"] {
+            let point = &value[edge];
+            assert!(
+                point["line"].as_u64().is_some() && point["character"].as_u64().is_some(),
+                "{what}.{edge} が LSP の Position ではない: {value}"
+            );
+        }
+        assert!(
+            line_of(value, "start") <= line_of(value, "end"),
+            "{what} の範囲が逆: {value}"
+        );
+    }
+    fn check_symbol(symbol: &serde_json::Value) {
+        let name = symbol["name"]
+            .as_str()
+            .unwrap_or_else(|| panic!("name が無い: {symbol}"));
+        assert!(!name.trim().is_empty(), "名前が空: {symbol}");
+        let kind = symbol["kind"]
+            .as_u64()
+            .unwrap_or_else(|| panic!("{name}: SymbolKind（数）が無い: {symbol}"));
+        assert!(
+            (1..=26).contains(&kind),
+            "{name}: SymbolKind が LSP の範囲外: {kind}"
+        );
+        check_range(&symbol["range"], name);
+        check_range(&symbol["selectionRange"], name);
+        // selectionRange は range の中に入る（LSP の不変条件）
+        assert!(
+            line_of(&symbol["selectionRange"], "start") >= line_of(&symbol["range"], "start")
+                && line_of(&symbol["selectionRange"], "end") <= line_of(&symbol["range"], "end"),
+            "{name}: selectionRange が range の外: {symbol}"
+        );
+        if let Some(children) = symbol["children"].as_array() {
+            for child in children {
+                check_symbol(child);
+            }
+        }
+    }
+    let mut names: Vec<String> = Vec::new();
+    fn collect(symbol: &serde_json::Value, into: &mut Vec<String>) {
+        into.push(symbol["name"].as_str().expect("name").to_owned());
+        if let Some(children) = symbol["children"].as_array() {
+            for child in children {
+                collect(child, into);
+            }
+        }
+    }
+    for symbol in &symbols {
+        check_symbol(symbol);
+        collect(symbol, &mut names);
+    }
+    assert!(
+        names.iter().any(|name| !name.is_empty()),
+        "見出しの名前が 1 つも取れていない: {names:?}"
+    );
+    assert_eq!(
+        names.len(),
+        names
+            .iter()
+            .collect::<std::collections::BTreeSet<_>>()
+            .len(),
+        "同じ見出しが二重に出ている: {names:?}"
+    );
     assert!(result_of(&messages, 11).as_array().is_some());
     let tokens = result_of(&messages, 13);
     let data = tokens["data"].as_array().expect("data");
@@ -396,11 +471,55 @@ fn the_standard_methods_answer_from_the_catalog() {
     // completion は形が正しければよい（候補の有無は §6.3 の検査が見る）。
     assert!(result_of(&messages, 2)["items"].as_array().is_some());
 
-    // workspace/symbol はプロジェクト横断の検索。
-    assert!(!result_of(&messages, 7)
-        .as_array()
-        .expect("symbols")
-        .is_empty());
+    // workspace/symbol はプロジェクト横断の検索。**中身**も見る:
+    // 検索語（`星図`）を含む名前だけが出て、場所が実在の文書を指すこと。
+    let found = result_of(&messages, 7).as_array().expect("symbols").clone();
+    assert!(!found.is_empty(), "workspace/symbol が 1 件も出ていない");
+    for symbol in &found {
+        let name = symbol["name"]
+            .as_str()
+            .unwrap_or_else(|| panic!("name が無い: {symbol}"));
+        assert!(
+            name.contains("星図"),
+            "検索語「星図」を含まない名前が混ざっている: {name}"
+        );
+        assert!(
+            symbol["kind"].as_u64().is_some(),
+            "{name}: SymbolKind が無い: {symbol}"
+        );
+        let location = &symbol["location"];
+        let location_uri = location["uri"]
+            .as_str()
+            .unwrap_or_else(|| panic!("{name}: location.uri が無い: {symbol}"));
+        assert!(
+            location_uri.starts_with("file://"),
+            "{name}: file URI ではない: {location_uri}"
+        );
+        assert!(
+            location_uri.ends_with(".txt") || location_uri.ends_with(".md"),
+            "{name}: 文書ではない場所を指している: {location_uri}"
+        );
+        check_range(&location["range"], name);
+        // どの文書で見つかったかも返す（LSP の SymbolInformation.containerName）
+        let container = symbol["containerName"]
+            .as_str()
+            .unwrap_or_else(|| panic!("{name}: containerName が無い: {symbol}"));
+        assert!(
+            !container.is_empty() && !container.starts_with('/'),
+            "{name}: containerName がプロジェクト相対パスではない: {container}"
+        );
+        assert!(
+            location_uri.contains(container),
+            "{name}: containerName（{container}）と location.uri（{location_uri}）が食い違う"
+        );
+    }
+
+    // 当たらない検索語は 0 件（`found` が「全部返しているだけ」でないことの確認）
+    assert_eq!(
+        result_of(&messages, 16).as_array().expect("symbols").len(),
+        0,
+        "検索語を無視して全部返している"
+    );
 
     // executeCommand は操作カタログへ届く（§19.4.5）。
     assert_eq!(result_of(&messages, 15)["count"], json!(119));

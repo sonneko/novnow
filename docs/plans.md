@@ -15,7 +15,7 @@
 | 機能追加（小規模：S-01〜S-18） | 実装完了（18 件） | エージェント例指定・PWA・Zip 導入・形態素波線等の小規模機能追加 18 項目 | `REF:docs/plans.md#planned-small-features` |
 | 機能追加（比較的大規模：L-01） | 実装済み（CLI・デスクトップ） | 既存の本文テキストから `novnow` に移行するための手段の提供 | `REF:docs/plans.md#unplanned-large` |
 | 段階 ②（追加仕様 1〜27） | 実装済み・検証完了（#1〜27） | 予約済みの追加機能 27 項目（10 個の縫い代で受け入れ準備済み） | `REF:docs/plans.md#stage-2` |
-| 段階 ③（§19 外部インターフェース） | 実装済み・検証完了（H1〜H7。Python 拡張のビルドは CI のホイール行列 `REF:.github/workflows/wheels.yml` が行う） | Rust API・Python API・LSP・MCP 拡張・CLI 拡張による GUI 全機能のヘッドレス公開 | `REF:docs/plans.md#stage-3` |
+| 段階 ③（§19 外部インターフェース） | 実装済み・検証完了（H1〜H7。ただし Python 拡張のネイティブビルドは pyo3 の vendor 未生成のためサンドボックスで検証できず、CI のホイール行列 `REF:.github/workflows/wheels.yml` が行う。`REF:docs/plans.md` §5.5・§5.6） | Rust API・Python API・LSP・MCP 拡張・CLI 拡張による GUI 全機能のヘッドレス公開 | `REF:docs/plans.md#stage-3` |
 <!-- SYNC:END stage1-status -->
 
 ---
@@ -834,31 +834,38 @@ H1〜H7 の受け入れ基準（各 4〜5 件、計 29 件）はすべて達成�
 行列（5 構成 × Python 3.9 / 3.11 / 3.13）が初回の検証になる。Rust 側の GIL 解放の型条件
 （`Driver: Send` と待機区間をまたぐ全型）は `REF:tests/api_driver.rs` が検証済み。
 
-### 5.5 PyO3 系の vendoring 手順（H6 の事前作業）
+### 5.5 PyO3 系の vendoring 手順（状態: 仕組みは用意済み、vendor は未生成）
 
-`REF:docs/add-dependencies.md` §2.2 のパターン B-1（Git Blob 差分追加）に従う。対象クレート一覧は本節だけで確定する（設計書へは載せず、重複を防ぐ）:
+`REF:docs/add-dependencies.md` §2.2 の方法 1（Git Blob 差分追加）に従う。対象クレート一覧は `cargo vendor` の解決結果を正本とし、本節には写さない（写すと版本更新のたびに古くなる）。
 
-- 直接依存: pyo3（`abi3-py39` + `extension-module` features）
-- マクロ系: pyo3-macros, pyo3-macros-backend, pyo3-ffi, pyo3-build-config
-- 推移的依存: target-lexicon, unindent, indoc, memoffset, portable-atomic, libc, once_cell（vendoring 済みは再利用: syn, quote, proc-macro2, unicode-ident）
+**用意できているもの**
 
-手順:
+1. `REF:.github/workflows/sandbox-tools.yml` の `pyo3-crates` ジョブ。版本は `python/novnow-py/Cargo.toml` から読む（別々に書くとずれるため）。`cargo vendor` の出力を孤立ブランチ `cache/pyo3-crates` へ push し、`SHA256SUMS` / `PYO3_VERSION` / `CRATES` を添える。
+2. `REF:scripts/bootstrap-toolchain.sh` の `install_pyo3_vendor`。`cache/pyo3-crates` を取り出し、sha256 を検証して `$BUILD_DIR/vendor-src/` へ**既存を上書きせずに**合わせる（`libc` など重複しうるクレートを守る）。ブランチが無ければ警告して続き、本体のビルドは止めない（`PYO3_BRANCH` で別ブランチを指定できる）。
 
-1. `python/novnow-py` をワークスペースメンバーとして追加し、`Cargo.lock` の手動編集で差分クレート一覧を確定する。
-2. `REF:.github/workflows/sandbox-tools.yml` で `.crate` を取得し Git Blob 化してコミットする。
-3. `REF:scripts/bootstrap-toolchain.sh` で `/home/user/build/vendor-src/` へ展開する。
-4. `cargo test --locked` と `cargo build --release -p novnow-py` で検証する。
-5. `REF:tests/layering.rs` の許可クレート検査と `REF:docs/designs/overview.md` §3.2 の依存表を更新する（いずれも人間の承認が必要）。
+**できていないもの（＝ `python/novnow-py` の Rust ビルドをサンドボックスで検証できない理由）**
 
-推移的依存が 20 個を超えた場合はパターン B-2（`cache/rust-toolchain` 全面再生成、`REF:.github/toolchain.env` の SALT 更新）へ切り替える。新規クレートはワークスペースメンバー内に閉じるため、LLM SDK 混入の余地はない（`REF:tests/no_llm_sdk.rs` はグリーンのまま）。
+- `cache/pyo3-crates` がまだ無い。`pyo3-crates` ジョブは `workflow_dispatch` でしか走らない（`.github/sandbox-tools.env` は `ENABLED=0`）が、サンドボックスの `GITHUB_TOKEN` は `actions: write` を持たないため dispatch できない（実測: `gh workflow run sandbox-tools.yml` → HTTP 403 Resource not accessible by integration）。**人間が Actions のページから `sandbox-tools` を `Run workflow`（ref = 作業ブランチ）すること。**
+- それまで `python/novnow-py` は root の `[workspace] exclude` のまま（pyo3 を本体の依存解決へ混ぜないためでもあり、wasm ビルドを守る）。Rust 側のビルド検証は `REF:.github/workflows/wheels.yml`（5 プラットフォームの wheel ＋ `pytest python/novnow-py`）が担う。
+- vendor が揃ったあとの手順: `FORCE=1 bash scripts/bootstrap-toolchain.sh` → `cd python/novnow-py && cargo check --offline` → `cargo build --release` → `.so` を `novnow.so` へ改名して `PYTHONPATH` スモーク。
+- `REF:tests/layering.rs` の許可クレート検査と `REF:docs/designs/overview.md` §3.2 の依存表の更新は**人間の承認が必要**なので、vendor が揃ってから行う。
 
-### 5.6 テスト戦略（H1〜H7 横断）
+推移的依存が 20 個を超えた場合は方法 2（`cache/rust-toolchain` 全面再生成、`REF:.github/toolchain.env` の SALT 更新）へ切り替える。新規クレートは `python/novnow-py` 内に閉じるため、LLM SDK 混入の余地はない（`REF:tests/no_llm_sdk.rs` はグリーンのまま）。
 
-- パリティ契約テストは仕様書 §19.7 の Markdown 表を直接読む（`REF:tests/diagnostics_catalog.rs` と同じ include_str! 方式）。カタログの手書き写しはリポジトリへ置かない。
-- ゴールデン（CLI 出力・api_catalog.json・MCP 既存 14 定義）はすべて `REF:docs/developers.md` §7.2 の生成手順に従い、手編集を禁止する。
-- LSP はスクリプト化した JSON-RPC で実 stdio 配管を駆動してテストする。外部のテストフレームワークへ依存しない。
-- Python 一式は `python/tests/`（pytest は pip 導入）。サンドボックスでは release ビルド成果物の `.so` を `novnow.so` へ改名し `PYTHONPATH` でスモークし、正式な wheel 検証は CI で行う。
-- `REF:scripts/verify.sh` へ `--python` 段階（既定オフ、CI で明示オン）を、`REF:.github/workflows/ci.yml` へ python ジョブを追加する（H6 以降）。
+### 5.6 テスト戦略（H1〜H7 横断。状態: 未達の 1 件を除き実装済み）
+
+| 決めたこと | 状態 | 実体 |
+|---|---|---|
+| パリティ契約テストは仕様書 §19.7 の Markdown 表を直接読む（`REF:tests/diagnostics_catalog.rs` と同じ `include_str!` 方式）。カタログの手書き写しはリポジトリへ置かない | 実装完了 | `REF:tests/api_parity.rs` |
+| ゴールデン（CLI 出力・api_catalog.json・MCP 既存 14 定義）は `REF:docs/developers.md` §7.2 の生成手順に従い、手編集を禁止する | 実装完了 | `REF:examples/api_catalog.rs` → `REF:tests/golden/api_catalog.json`、`REF:examples/mcp_tools.rs` → `REF:tests/golden/mcp_tools.json`（検査は `REF:tests/mcp_frozen.rs`） |
+| LSP はスクリプト化した JSON-RPC で実 stdio 配管を駆動してテストする。外部のテストフレームワークへ依存しない | 実装完了 | `REF:tests/lsp.rs` |
+| 正規操作 119 件を 1 回ずつ叩く網羅テストと、カバレッジの可視化 | 実装完了 | `REF:tests/api_coverage.rs`（表は `target/debug/api-coverage.txt`） |
+| Python の位置引数の束縛（§19.3.2）と 9 例外（§19.3.3）を**拡張のビルド無し**で検査する | 実装完了 | `REF:python/novnow-py/tests/test_binding.py`（`novnow._core` を偽物にする。10 件） |
+| 型スタブ（§19.3.1）は手書きせずカタログから生成する | 実装完了 | `REF:scripts/pyi-site.py` → `REF:python/novnow-py/python/novnow/__init__.pyi` |
+| `REF:scripts/verify.sh` の `--python` 段階と `REF:.github/workflows/ci.yml` の python ジョブ | 実装完了 | `REF:scripts/python-check.sh`（`verify.sh` の既定にも入り、`--python` で単独実行。計画では「既定オフ」だったが 1 秒で終わるので既定オンにした） |
+| サンドボックスで release ビルドの `.so` を `novnow.so` へ改名し `PYTHONPATH` でスモークする | **未達** | pyo3 の vendor が無い（§5.5）。`REF:.github/workflows/wheels.yml` の test ジョブが wheel に対して `pytest python/novnow-py` を回すことで代替している |
+
+Python 一式は `python/novnow-py/tests/`（当初の計画に書いた `python/tests/` ではない）。`test_api.py` は本物の拡張が要るので wheel 検証（`REF:.github/workflows/wheels.yml`）で走り、`test_binding.py` は逆に本物がある環境では自動で skip する（`sys.modules` を汚さないため）。
 
 ### 5.7 リスクと対策
 
