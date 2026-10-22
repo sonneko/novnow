@@ -97,6 +97,12 @@ pub const TOOLS: &[(&str, &str, &[&str])] = &[
     ),
 ];
 
+/// 凍結された 14 ツールの 1 つか（§19.8.3）。呼び出し側が既存分と新規分（§19.5.1 の
+/// `novnow.<正規操作 ID>`）を振り分けるときに使う。
+pub fn is_tool(name: &str) -> bool {
+    TOOLS.iter().any(|(tool, _, _)| *tool == name)
+}
+
 /// `tools/list` の `tools`。
 pub fn tools() -> Value {
     Value::Array(

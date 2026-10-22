@@ -798,10 +798,10 @@ H3・H4・H5 の 3 系統は相互に交差せず、H2 完了後は任意の順�
 
 <a id="stage-3-h4"></a>
 **H4 — MCP 拡張**
-- [ ] H4-AC-1: `tools/list` が「M—」以外の全操作を `inputSchema` 付きで返し、既存 14 ツールの定義 JSON がバイト一致する。
-- [ ] H4-AC-2: 関門付き書き込みツールが `role` を検査し、`propose` / `plan` では E036（`isError: true`）を返して書き込みを一切行わない。
-- [ ] H4-AC-3: 安全除外 4 件（`agent.delegation_set`、`agent.mcp_config_set`、`prompt.reset`、`settings.set`）がツール表に登録されず、直接呼び出しも拒否される。
-- [ ] H4-AC-4: `plot.write` が `outline` / `chapter` を受け取り §10 のレベル別検証を行い、既存 `episode` 呼び出しの動作が変わらない。
+- [x] H4-AC-1: `tools/list` が「M—」以外の全操作を `inputSchema` 付きで返し、既存 14 ツールの定義 JSON がバイト一致する。
+- [x] H4-AC-2: 関門付き書き込みツールが `role` を検査し、`propose` / `plan` では E036（`isError: true`）を返して書き込みを一切行わない。
+- [x] H4-AC-3: 安全除外 4 件（`agent.delegation_set`、`agent.mcp_config_set`、`prompt.reset`、`settings.set`）がツール表に登録されず、直接呼び出しも拒否される。
+- [x] H4-AC-4: `plot.write` が `outline` / `chapter` を受け取り §10 のレベル別検証を行い、既存 `episode` 呼び出しの動作が変わらない。
 
 <a id="stage-3-h5"></a>
 **H5 — LSP サーバ**

@@ -5,6 +5,7 @@
 //!   ファイルを書き出し（§15.5.4。`prompts/` 自体が無ければ I050 を stderr に出す）、標準入出力で
 //!   改行区切りの JSON-RPC 2.0 を読み書きする。標準入力が閉じたら 0 で終わる。
 //! - `initialize` / `ping` / `tools/list` / `tools/call` に答える。知らない要求は -32601。
+//!   ツール表は §19.5.1: 既存 14 ツール（凍結）+ 正規操作カタログ（§19.7）の「M—」以外の全件。
 //! - `tools/call` のたびにプロジェクトを読み直す（GUI と同時に開いていても古い中身で書かない）。
 //!   書き込みは開いたプロジェクトの中だけ（`FsStorage` → `FsGate`、規則 10）。
 //! - 結果は JSON のテキスト 1 つ。失敗は `isError: true` と、カタログの文言（E036 などは診断の文言）。
@@ -19,6 +20,8 @@ use crate::adapters::clock_system::{self, SystemClock};
 use crate::adapters::project_load;
 use crate::adapters::storage_fs::FsStorage;
 use crate::adapters::{block_on, mcp_stdio};
+use crate::app::ops::{self, Args};
+use crate::app::session::{Interface, Session};
 use crate::core::agents::server::{self, ToolError};
 use crate::core::agents::{prompts, Plan};
 use crate::core::diagnostics::{Diagnostic, DiagnosticCode};
@@ -119,7 +122,7 @@ fn serve<E: Env>(
                 "serverInfo": { "name": "novnow", "version": env!("CARGO_PKG_VERSION") }
             })),
             "ping" => Ok(json!({})),
-            "tools/list" => Ok(json!({ "tools": server::tools() })),
+            "tools/list" => Ok(json!({ "tools": ops::mcp_tools(cli.locale(), &server::tools()) })),
             "tools/call" => Ok(call(cli, storage, title, &params)),
             _ => Err(json!({ "code": -32601, "message": "Method not found" })),
         };
@@ -136,12 +139,33 @@ fn reply<E: Env>(cli: &mut Cli<'_, E>, message: &Value) {
 }
 
 /// `tools/call` の結果（MCP の `CallToolResult`）。
+///
+/// 振り分け（§19.1.4「単一実装点」・§19.8.3「既存 14 ツールの凍結」）:
+///
+/// 1. 既存 14 ツールは `REF:src/core/agents/server.rs` の実装をそのまま使う（出力バイト不変）。
+///    例外は `novnow.plot.write` の `outline` / `chapter`（§19.5.2 で追加）だけで、これは正規操作の
+///    実装（`REF:src/app/ops/editing.rs`）へ回す。
+/// 2. それ以外の `novnow.<正規操作 ID>` は `OPS` 表の実装を `Interface::Mcp` の 1 回分のセッションで
+///    実行する（§19.1.6「呼び出しごとに読み直す」）。関門（§19.1.5）と「M—」例外・人間の専権事項
+///    4 件は `Session::run` が断る。
+/// 3. どちらでもない名前は未知のツール（既存の文言）。
 fn call<E: Env>(cli: &mut Cli<'_, E>, storage: &FsStorage, title: &str, params: &Value) -> Value {
     let name = params.get("name").and_then(Value::as_str).unwrap_or("");
     let arguments = params
         .get("arguments")
         .cloned()
         .unwrap_or_else(|| json!({}));
+    let level = arguments
+        .get("level")
+        .and_then(Value::as_str)
+        .unwrap_or("episode");
+    let frozen = server::is_tool(name) && !(name == "novnow.plot.write" && level != "episode");
+    if !frozen {
+        let Some(op) = ops::op_of_tool(name) else {
+            return failure(&cli.format("cli.mcp.unknown_tool", &[name]));
+        };
+        return call_op(cli, storage, op, &arguments);
+    }
     let loaded = match block_on(project_load::load(storage)) {
         Ok(loaded) => loaded,
         Err(error) => {
@@ -155,12 +179,39 @@ fn call<E: Env>(cli: &mut Cli<'_, E>, storage: &FsStorage, title: &str, params: 
         return failure(&message);
     }
     match outcome.result {
-        Ok(value) => json!({
-            "content": [{ "type": "text", "text": value.to_string() }],
-            "isError": false
-        }),
+        Ok(value) => answer(&value),
         Err(error) => failure(&message_of(cli, &error)),
     }
+}
+
+/// 正規操作を MCP の 1 回分（状態を持たない。§19.1.6）として実行する。
+fn call_op<E: Env>(
+    cli: &mut Cli<'_, E>,
+    storage: &FsStorage,
+    op: &str,
+    arguments: &Value,
+) -> Value {
+    let mut session = match Session::open_with(storage.root(), Interface::Mcp) {
+        Ok(session) => session,
+        Err(error) => return failure(&error.message),
+    };
+    session.set_locale(cli.locale());
+    let args = match arguments {
+        Value::Object(map) => Value::Object(map.clone()),
+        _ => Value::Object(Args::new()),
+    };
+    match session.run(op, args) {
+        Ok(data) => answer(&data),
+        Err(error) => failure(&error.message),
+    }
+}
+
+/// 成功の `CallToolResult`（結果は JSON のテキスト 1 つ）。
+fn answer(value: &Value) -> Value {
+    json!({
+        "content": [{ "type": "text", "text": value.to_string() }],
+        "isError": false
+    })
 }
 
 fn failure(message: &str) -> Value {

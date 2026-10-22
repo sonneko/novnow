@@ -22,6 +22,7 @@ use novnow::cli::{
     self, decide, display_path, shell_quote, ArgError, Cli, Command, Exit, Launch, Outcome,
     Terminal,
 };
+use novnow::core::agents::server;
 use novnow::core::model::project::PROJECT_STRUCTURE_DOC_URL;
 use novnow::core::policy::ProjectPath;
 use novnow::core::template;
@@ -1125,7 +1126,16 @@ fn mcp_serves_the_tools_over_json_lines_and_writes_only_inside_the_project() {
     assert_eq!(lines[0]["id"], 1);
     assert_eq!(lines[0]["result"]["serverInfo"]["name"], "novnow");
     assert_eq!(lines[0]["result"]["protocolVersion"], "2024-11-05");
-    assert_eq!(lines[1]["result"]["tools"].as_array().unwrap().len(), 14);
+    // 既存 14 ツールは凍結（§19.8.3）。後ろにカタログ（§19.5.1）が続く
+    let tools = lines[1]["result"]["tools"].as_array().unwrap();
+    assert!(tools.len() > 14, "カタログが載っていない: {}", tools.len());
+    for (found, frozen) in tools.iter().zip(server::tools().as_array().unwrap()) {
+        assert_eq!(
+            found.to_string(),
+            frozen.to_string(),
+            "既存ツールの定義が変わった"
+        );
+    }
     assert_eq!(lines[2]["result"]["isError"], false);
     let info: Value =
         serde_json::from_str(lines[2]["result"]["content"][0]["text"].as_str().unwrap()).unwrap();
@@ -1656,4 +1666,193 @@ fn migration_refuses_symlink_destinations_without_touching_them() {
         Exit::Io
     );
     assert!(tree(&dir.join("outside")).is_empty());
+}
+
+// ============================================================ MCP のツール表（§19.5.1・段階③ H4）
+
+/// `tools/call` の要求 1 件。
+fn tool_call(id: u32, name: &str, arguments: serde_json::Value) -> serde_json::Value {
+    serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": id,
+        "method": "tools/call",
+        "params": { "name": name, "arguments": arguments }
+    })
+}
+
+/// 応答（標準出力の 1 行 1 メッセージ）を読む。
+fn responses(out: &str) -> Vec<serde_json::Value> {
+    out.lines()
+        .map(|line| serde_json::from_str(line).expect("一行 1 メッセージの JSON"))
+        .collect()
+}
+
+#[test]
+fn mcp_lists_the_whole_catalog_and_refuses_the_human_only_operations() {
+    use serde_json::json;
+    let dir = TempDir::new("cli-mcp-catalog");
+    minimal_project(&dir, "novel");
+    let input = mcp_lines(&[
+        json!({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}),
+        // 人間の専権事項 4 件（§19.1.5）は直接呼んでも断られる
+        tool_call(
+            2,
+            "novnow.settings.set",
+            json!({"key": "theme", "value": "dark"}),
+        ),
+        tool_call(
+            3,
+            "novnow.agent.delegation_set",
+            json!({"role": "writer", "level": "apply"}),
+        ),
+        tool_call(4, "novnow.agent.mcp_config_set", json!({"text": "{}"})),
+        tool_call(5, "novnow.prompt.reset", json!({"name": "writer"})),
+        // カタログの操作は 1 回分で答えが返る（§19.1.6）
+        tool_call(6, "novnow.section.list", json!({})),
+        tool_call(7, "novnow.nope", json!({})),
+    ]);
+    let ran = run_mcp(dir.path(), &env_ja(&dir), "novel", &input);
+    assert_eq!(ran.exit(), Exit::Ok, "{}", ran.err);
+    let lines = responses(&ran.out);
+    assert_eq!(lines.len(), 7, "{}", ran.out);
+
+    let tools = lines[0]["result"]["tools"].as_array().expect("tools");
+    let names: Vec<&str> = tools
+        .iter()
+        .map(|tool| tool["name"].as_str().expect("name"))
+        .collect();
+    // 「M—」以外の全操作が載り、「M—」は載らない（既存 14 ツールは別枠で凍結）
+    for def in novnow::app::ops::OPS {
+        let name = format!("novnow.{}", def.id);
+        let listed = names.contains(&name.as_str());
+        if def.excepts(novnow::app::session::Interface::Mcp).is_none() {
+            assert!(listed, "{name} がツール表に無い（§19.5.1）");
+        } else {
+            assert!(
+                !listed || server::is_tool(&name),
+                "{name} は MCP で提供しないのに載っている"
+            );
+        }
+    }
+    // 全ツールが JSON Schema を持つ（§19.5.3）
+    assert!(
+        tools
+            .iter()
+            .all(|tool| tool["inputSchema"]["type"] == json!("object")),
+        "inputSchema が無いツールがある"
+    );
+    // 安全除外 4 件は登録されない（§19.1.5）
+    for name in [
+        "novnow.settings.set",
+        "novnow.agent.delegation_set",
+        "novnow.agent.mcp_config_set",
+        "novnow.prompt.reset",
+    ] {
+        assert!(!names.contains(&name), "{name} がツール表にある");
+    }
+    // 直接呼び出しも断る（isError）
+    for line in &lines[1..5] {
+        assert_eq!(line["result"]["isError"], true, "{line}");
+    }
+    assert_eq!(lines[5]["result"]["isError"], false, "{}", lines[5]);
+    // カタログに無い名前は未知のツール（既存の文言）
+    assert_eq!(lines[6]["result"]["isError"], true, "{}", lines[6]);
+    assert!(
+        lines[6]["result"]["content"][0]["text"]
+            .as_str()
+            .expect("text")
+            .contains("novnow.nope"),
+        "{}",
+        lines[6]
+    );
+}
+
+#[test]
+fn mcp_write_tools_check_the_role_and_write_nothing() {
+    let dir = TempDir::new("cli-mcp-gate");
+    let root = minimal_project(&dir, "novel");
+    let before = std::fs::read_to_string(root.join("contents/01-01.txt")).expect("read");
+    let input = mcp_lines(&[
+        // role が無い（§19.1.5「省略時は E036」）
+        tool_call(
+            1,
+            "novnow.section.insert",
+            serde_json::json!({"text": "関門を通らない本文"}),
+        ),
+        // 既定の委譲（propose）では role があっても書けない
+        tool_call(
+            2,
+            "novnow.section.insert",
+            serde_json::json!({"text": "まだ書けない本文", "role": "writer"}),
+        ),
+    ]);
+    let ran = run_mcp(dir.path(), &env_ja(&dir), "novel", &input);
+    assert_eq!(ran.exit(), Exit::Ok, "{}", ran.err);
+    let lines = responses(&ran.out);
+    assert_eq!(lines.len(), 2, "{}", ran.out);
+    for line in &lines {
+        assert_eq!(line["result"]["isError"], true, "{line}");
+        assert!(
+            line["result"]["content"][0]["text"]
+                .as_str()
+                .expect("text")
+                .contains("書き込めません"),
+            "E036 の文言ではない: {line}"
+        );
+    }
+    assert_eq!(
+        std::fs::read_to_string(root.join("contents/01-01.txt")).expect("read"),
+        before,
+        "関門を通らないのに書き込んだ"
+    );
+}
+
+#[test]
+fn mcp_plot_write_takes_outline_and_chapter_levels() {
+    use serde_json::json;
+    let dir = TempDir::new("cli-mcp-plot");
+    let root = minimal_project(&dir, "novel");
+    // writer の委譲を apply に（§15.7.6。`agents.roles` の上書き）
+    dir.write(
+        "novel/project.json",
+        "{\n  \"schema_version\": 1,\n  \"title\": \"星屑の時計\",\n  \"agents\": { \"roles\": { \"writer\": \"apply\" } }\n}\n",
+    );
+    dir.write("novel/plots/01.txt", "@01\nsummary: 章のプロット\n;\n");
+    dir.write("novel/plots/01-01.txt", "@01-01-01\n話のプロット\n");
+    let input = mcp_lines(&[
+        tool_call(
+            1,
+            "novnow.plot.write",
+            json!({"role": "writer", "level": "outline", "text": "@01\nsummary: 全体を書き換えた\n;\n"}),
+        ),
+        tool_call(
+            2,
+            "novnow.plot.write",
+            json!({"role": "writer", "level": "chapter", "chapter": 1, "text": "@01\nsummary: 章を書き換えた\n;\n"}),
+        ),
+        // 既存の episode は凍結された実装のまま（§19.8.3）
+        tool_call(
+            3,
+            "novnow.plot.write",
+            json!({"role": "writer", "level": "episode", "scene": "@01-01-01-01", "text": "話を書き換えた\n"}),
+        ),
+    ]);
+    let ran = run_mcp(dir.path(), &env_ja(&dir), "novel", &input);
+    assert_eq!(ran.exit(), Exit::Ok, "{}", ran.err);
+    let lines = responses(&ran.out);
+    assert_eq!(lines.len(), 3, "{}", ran.out);
+    for line in &lines {
+        assert_eq!(line["result"]["isError"], false, "{line}");
+    }
+    let outline = std::fs::read_to_string(root.join("plots/all.txt")).expect("read");
+    assert!(outline.contains("全体を書き換えた"), "{outline}");
+    let chapter = std::fs::read_to_string(root.join("plots/01.txt")).expect("read");
+    assert!(chapter.contains("章を書き換えた"), "{chapter}");
+    let episode = std::fs::read_to_string(root.join("plots/01-01.txt")).expect("read");
+    assert!(episode.contains("話を書き換えた"), "{episode}");
+    // 直接書き込みは監査ログに残る（§15.8.4）
+    let logged = tree(&root.join("agents"))
+        .values()
+        .any(|bytes| String::from_utf8_lossy(bytes).contains("direct_write"));
+    assert!(logged, "監査ログに direct_write が無い");
 }

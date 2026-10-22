@@ -1065,19 +1065,19 @@ pub fn catalog(locale: Locale) -> Value {
 
 /// MCP の `tools/list`（§19.5.1「`api.list` の出力と一致する」）。
 ///
-/// `frozen` は §15.8.2 の既存 14 ツール（名前・説明・スキーマを凍結）。それ以外は
-/// `novnow.` + 正規操作 ID で、`inputSchema` は [`OpDef::input_schema`] から生成する。
-pub fn mcp_tools(locale: Locale, frozen: &[(&str, &str, Value)]) -> Value {
-    let mut tools: Vec<Value> = frozen
+/// `frozen` は §15.8.2 の既存 14 ツール（`REF:src/core/agents/server.rs` の `tools()` の出力を
+/// **そのまま**先頭に置く＝名前・説明・スキーマの凍結、§19.8.3）。それ以外は `novnow.` + 正規
+/// 操作 ID で、`inputSchema` は [`OpDef::input_schema`]（＝ `api.list` と同じ単一のカタログ）から
+/// 生成する。「M—」の操作と人間の専権事項 4 件（§19.1.5）は載せない。
+pub fn mcp_tools(locale: Locale, frozen: &Value) -> Value {
+    let mut tools = frozen.as_array().cloned().unwrap_or_default();
+    let frozen_names: Vec<String> = tools
         .iter()
-        .map(|(name, description, schema)| {
-            json!({ "name": name, "description": description, "inputSchema": schema })
-        })
+        .filter_map(|tool| tool["name"].as_str().map(str::to_owned))
         .collect();
-    let frozen_names: Vec<&str> = frozen.iter().map(|(name, _, _)| *name).collect();
     for def in OPS {
         let name = format!("novnow.{}", def.id);
-        if frozen_names.contains(&name.as_str()) || def.excepts(Interface::Mcp).is_some() {
+        if frozen_names.contains(&name) || def.excepts(Interface::Mcp).is_some() {
             continue;
         }
         tools.push(json!({
@@ -1087,6 +1087,12 @@ pub fn mcp_tools(locale: Locale, frozen: &[(&str, &str, Value)]) -> Value {
         }));
     }
     Value::Array(tools)
+}
+
+/// MCP ツール名（`novnow.<正規操作 ID>`）から正規操作 ID を返す（§19.5.1）。
+pub fn op_of_tool(name: &str) -> Option<&'static str> {
+    let id = name.strip_prefix("novnow.")?;
+    find(id).map(|def| def.id)
 }
 
 /// 関門（§19.1.5）: MCP からの書き込みは `role` の委譲レベルが `apply` / `autonomous` のときだけ。
