@@ -426,7 +426,7 @@ jobs:
           そのあと、コマンドごとに次を読む（bash の呼び出しごとに環境は引き継がれないため）:
 
           ```sh
-          . /home/user/build/env.sh && cd /home/user/novnow && cargo test --all-targets
+          . /home/user/build/env.sh && cd /home/user/novnow && cargo test --locked --all-targets
           ```
           NOTES
           # 分割元の tar.gz は 100MB を超えるので push できない（GitHub の制限）。
