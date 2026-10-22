@@ -1760,9 +1760,16 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - **パリティ検査が見つけた実装のずれ**（`tests/api_parity.rs`）: `project.new` の `L—`・`M—` の
   宣言漏れ、`project.recent_list` / `project.recent_remove` の状態性宣言漏れ。修正し、
   拒否の判定を**例外列基準**へ改めた（`C—` の無い操作は CLI でも動く。§19.7 どおり）。
-- **未達**: §19.3.4 の GIL 解放。`novnow::app::Session` が `Send` でない（`Host` と `on_event`
-  のコールバックに `Send` が無い）ため `Python::allow_threads` で包めない。前提作業は
-  `Host: Send` + `Callback: Send` 化（GUI 側のクロージャも含む）。pyo3 系の vendoring
-  （`REF:docs/add-dependencies.md` §2.2）も未了のため、Python 拡張のビルドと pytest は
-  未検証（CI の `wheels.yml` が初回の検証になる）。
-- 検証: `bash scripts/verify.sh` すべて緑（1330 passed / 0 failed、61 ターゲット）。
+- **§19.3.4 の GIL 解放**: `novnow::app::Session` は `Send` にできない。Web の `WebHost` が
+  `Rc<RefCell<..>>` を持つので `Host: Send` を supertrait にできない（wasm ビルドが壊れる）。
+  そこで `Session` を待機区間へ持ち込むのではなく、ワーカースレッド 1 本に所有させる
+  `REF:src/app/driver.rs` を挟んだ。`Driver` は `Send`（1 通も応答も `Send` だけ）なので
+  `Python::allow_threads` が包め、ワーカーが 1 通ずつ処理するので同時呼び出しは直列実行になる。
+  設計書 §19.3 の「pyo3 の借用規則で直列化」は「`Mutex<Driver>` + ワーカースレッド 1 本」で
+  満たしている（§19.3.4 の 2 つの MUST はどちらも成立）。設計書の語句の修正は人間の承認待ち。
+- **未検証（意図的）**: pyo3 系の vendoring（`REF:docs/add-dependencies.md` §2.2）が未了で
+  crates.io にも到達できないため、Python 拡張のビルドと pytest は実行していない。CI の
+  `REF:.github/workflows/wheels.yml` が初回の検証になる。
+- 検証: `bash scripts/verify.sh` すべて緑（1339 passed / 0 failed、62 ターゲット）。
+  `REF:tests/api_driver.rs`（9 件）が `Driver: Send`・直列化・イベント配送・待機区間をまたぐ
+  全型の `Send` を実ディレクトリで確かめる。

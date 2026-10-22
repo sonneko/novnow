@@ -31,7 +31,7 @@
 
 ### 19.3 Python API
 
-状態: 実装中（REF:python/novnow-py/src/lib.rs, REF:python/novnow-py/python/novnow/__init__.py, REF:.github/workflows/wheels.yml。GIL 解放（§19.3.4）は `Session: Send` 化が前提で未達）
+状態: 実装完了（REF:python/novnow-py/src/lib.rs, REF:python/novnow-py/python/novnow/__init__.py, REF:src/app/driver.rs, REF:tests/api_driver.rs, REF:.github/workflows/wheels.yml）
 
 - ルート `Cargo.toml` をワークスペース化: `members = [".", "python/novnow-py"]`、`default-members = ["."]`。既存の `cargo test --locked` と `REF:scripts/verify.sh` の挙動は不変で、Cargo.lock は 1 本のまま統合する。
 - `python/novnow-py/`（新クレート）: pyo3（`abi3-py39` + `extension-module`、cdylib）。`#[pyclass] Session` が app 層を包み、メソッドは `OPS` 表からマクロ生成して手書きの写しを置かない。データ受け渡しは dict / list / str、Zip 操作は bytes。

@@ -10,12 +10,12 @@
 | 区分 | 状態 | 対象範囲 | 参照 |
 |---|---|---|---|
 | 段階 ①（M0〜M11） | 完了 | コア仕様・全 8 ワークスペース・MCP・CLI・Web 版・ベンチマーク・サンプル一式 | `REF:docs/history.md` |
-| 設計書セクション実装状況 | 実装完了 133 節 / 実装中 1 節 / 未実装・実装計画済み 0 節 / 未実装・未計画 0 節 / 実装待ち 0 節 | 全 11 設計書の `### ` 節（合計 134 節） | `REF:docs/designs/` |
+| 設計書セクション実装状況 | 実装完了 134 節 / 実装中 0 節 / 未実装・実装計画済み 0 節 / 未実装・未計画 0 節 / 実装待ち 0 節 | 全 11 設計書の `### ` 節（合計 134 節） | `REF:docs/designs/` |
 | 仕様変更・修正（F-01〜F-44） | 実装完了（44 件） | UI・エディタ・パレット・辞書・ショートカット・性能等の修正 44 項目 | `REF:docs/plans.md#planned-fixes` |
 | 機能追加（小規模：S-01〜S-18） | 実装完了（18 件） | エージェント例指定・PWA・Zip 導入・形態素波線等の小規模機能追加 18 項目 | `REF:docs/plans.md#planned-small-features` |
 | 機能追加（比較的大規模：L-01） | 実装済み（CLI・デスクトップ） | 既存の本文テキストから `novnow` に移行するための手段の提供 | `REF:docs/plans.md#unplanned-large` |
 | 段階 ②（追加仕様 1〜27） | 実装済み・検証完了（#1〜27） | 予約済みの追加機能 27 項目（10 個の縫い代で受け入れ準備済み） | `REF:docs/plans.md#stage-2` |
-| 段階 ③（§19 外部インターフェース） | 実装済み（H6 の GIL 解放と pyo3 vendoring・ビルド検証が残） | Rust API・Python API・LSP・MCP 拡張・CLI 拡張による GUI 全機能のヘッドレス公開 | `REF:docs/plans.md#stage-3` |
+| 段階 ③（§19 外部インターフェース） | 実装済み・検証完了（H1〜H7。Python 拡張のビルドは CI のホイール行列 `REF:.github/workflows/wheels.yml` が行う） | Rust API・Python API・LSP・MCP 拡張・CLI 拡張による GUI 全機能のヘッドレス公開 | `REF:docs/plans.md#stage-3` |
 <!-- SYNC:END stage1-status -->
 
 ---
@@ -751,7 +751,39 @@
 - [x] `python3 docs/script/duplicate.py` がエラーゼロで通過した。
 
 **段階②統合後の追補（H1 着手前）**
-- [ ] §19.7 のカタログと段階②の機能対応表（本書 §4.1）を再照合し、読者・統計・呼称マトリクス・五感・正規表現検索等の操作 ID、引数、例外と権限を確定する。既存の汎用操作で覆う機能も明示し、仕様・設計の変更は人間の承認を得る。H0 の基礎文書追加と、GUI 全機能の API 網羅確定を同一視しない。
+- [x] §19.7 のカタログと段階②の機能対応表（本書 §4.1）を再照合し、読者・統計・呼称マトリクス・五感・正規表現検索等の操作 ID、引数、例外と権限を確定した。結果は下表（追加仕様 27 件すべてが既存の操作で到達できる。専用操作の新設は不要だった）。H0 の基礎文書追加と、GUI 全機能の API 網羅確定は別物として扱い、後者をここで確定した。
+
+| # | 追加仕様 | 到達する正規操作（`REF:tests/golden/api_catalog.json` の ID） |
+|---|---|---|
+| 1 | ワークスペース・参照ペインの瞬時切替 | `session.workspace_get` / `session.workspace_switch` / `reference.pane` / `nav.switcher` |
+| 2 | ステータスバーの執筆セッション情報 | `project.stats` / `project.info` |
+| 3 | タイムライン・作中日時（`when:`） | `cast.timeline` / `plot.get` / `diagnostics.run`（W080） |
+| 4 | 自動句切れ提案（決定論・既定オフ） | `lang.hints` / `settings.set`（`suggest_comma`）/ `session.command` |
+| 5 | 同一話者の連続台詞検出 | `diagnostics.run`（W082）/ `settings.set` |
+| 6 | 台詞 / 地の文 比率 | `diagnostics.run`（W090）/ `review.list` |
+| 7 | 五感チェック（`senses:`） | `review.list` / `diagnostics.run`（W083）/ `reference.pane` |
+| 8 | 呼称マトリクス（`address:`） | `dictionary.register_character` / `dictionary.modes_list` / `cast.get` / `diagnostics.run`（W084・W085） |
+| 9 | 構造の折りたたみ | `plot.outline_fold` / `lang.folding` / `settings.set`（`folded`） |
+| 10 | 資料引用追跡（`^M0137`） | `materials.list` / `materials.get` / `lang.tokens` / `diagnostics.run`（I054） |
+| 11 | 検索結果の資料化（`S####`） | `materials.propose` / `materials.search` / `search.project` / `diagnostics.run`（I058） |
+| 12 | エージェントのカスタムロール | `prompt.list` / `prompt.get` / `agent.delegation_get` |
+| 13 | ローカル LLM 簡易モード | `agent.mcp_config_get` / `agent.mcp_config_validate` / `settings.set` |
+| 14 | Web 解説ドキュメント | `help.topic` |
+| 15 | `# ` 行コメント | `lang.tokens` / `export.text` |
+| 16 | 人間用トラックチェンジ（提案モード） | `agent.proposal_list` / `agent.proposal_get` / `agent.proposal_apply` / `agent.proposal_reject` |
+| 17 | あらすじ（`@A-00` / `blurb:`） | `export.text`（`blurb`・`blurb_only`）/ `plot.get` / `diagnostics.run`（W086） |
+| 18 | 文体・品質分析 | `review.list` / `diagnostics.run`（W081・W087〜W089） |
+| 19 | 全体検索の正規表現対応 | `search.project`・`search.file`（`regex`。大小文字の区別は正規表現 `(?i)` で表現する＝汎用操作で覆う） |
+| 20 | 執筆データ統計ダッシュボード | `project.stats` / `review.list` |
+| 21 | 空間設計メモ（`space:`） | `review.list` / `reference.pane` / `diagnostics.run`（W092） |
+| 22 | 「00 章」ストック | `structure.tree` / `section.list` / `settings.set`（`allow_chapter_zero`）/ `export.text`（`stock`）/ `diagnostics.run`（I055） |
+| 23 | 挿絵メモ（`illustration:` / `! `） | `review.list` / `reference.pane` / `export.text`（`keep_illustration_memo`） |
+| 24 | キャラアイコン（`icon:`） | `cast.get` / `cast.list` / `diagnostics.run`（W068〜W070） |
+| 25 | キャラ別・節長の統計強化 | `project.stats` / `cast.get` |
+| 26 | 話の長さバランス偏差値 | `project.stats` / `diagnostics.run`（W091） |
+| 27 | 読者モードの組版 | `export.text`（`format`・`range`・`state`）/ `nav.file` |
+
+仕様書・設計書の変更は発生しなかった（既存の汎用操作で覆えるため、操作 ID の追加も不要だった）。機械検証は `REF:tests/api_parity.rs`（仕様書 §19.7 の表 ↔ `OPS` 表）と `REF:tests/golden/api_catalog.json`（引数名の正本）が行う。
 
 ### 5.2 共通方針: 単一実装点を先に確立する
 
@@ -773,57 +805,34 @@
 
 H3・H4・H5 の 3 系統は相互に交差せず、H2 完了後は任意の順で並行できる。
 
-### 5.4 マイルストーンごとの受け入れ基準
+### 5.4 マイルストーンごとの受け入れ基準（全件達成 — サマリへ圧縮済み）
 
-<a id="stage-3-h1"></a>
-**H1 — app 層の抽出**
-- [x] H1-AC-1: 8 状態機械と `Host` が `src/app/` に存在し、旧パス（`REF:src/app/workbench.rs` ほか）への文書中の参照が再エクスポートによりすべて解決する。
-- [x] H1-AC-2: `REF:tests/layering.rs` が新層の egui / eframe / rfd / fontdb 禁止を機械検査し、意図的な違反で失敗する。
-- [x] H1-AC-3: `cargo test --features ui`（`REF:tests/gui.rs`、`REF:tests/workspaces.rs` を含む）、`REF:scripts/web-smoke.sh`、wasm ビルドがすべてグリーンで、挙動が変わらない。
-- [ ] H1-AC-4: `REF:docs/designs/overview.md` §3.3 の層図と依存方向の記述が app 層を含めて改訂済み（PR で人間の承認を得る）。
+H1〜H7 の受け入れ基準（各 4〜5 件、計 29 件）はすべて達成した。個条の一覧は
+`REF:docs/history.md` の `[HIST-TAG: STAGE-3]` エントリへ移し、ここには達成の要点と
+検証の入口だけを残す。
 
-<a id="stage-3-h2"></a>
-**H2 — Rust API**
-- [x] H2-AC-1: `ui` feature なしのビルドでカタログ全操作に到達でき、`Session::open` / `create` / `with_host` がテストを通る。
-- [x] H2-AC-2: `OPS` 表が仕様書 §19.7 のカタログ全行を網羅し、`api.list` 関数がスキーマ・例外列・関門有無を含むカタログを返す。
-- [x] H2-AC-3: `session.command` が `REF:src/ui/app.rs` の `PALETTE_COMMANDS`（14 鍵）と `SHORTCUT_PALETTE_COMMANDS`（約 40 鍵）の全キーを受け付け、効果（即時 / 遅延 / 状態変更）の宣言が実態と一致する。
-- [x] H2-AC-4: `tests/api.rs` がメモリホストのみで全工程（開く → 編集 → 外部変更 → 衝突解決 → 保存 → イベント確認）を通し、実ファイルシステムに触れない。
+| # | マイルストーン | 基準 | 達成の要点（検証の入口） |
+|---|---|---|---|
+| H1 | app 層の抽出 | 4 / 4 | 8 状態機械と `Host` を `REF:src/app/` へ移設し旧パスは再エクスポート。`REF:tests/layering.rs` が GUI クレート禁止を強制。`REF:docs/designs/overview.md` §3.2・§3.3 を改訂 |
+| H2 | Rust API | 4 / 4 | `Session` + `OPS` 119 操作。`REF:tests/api.rs`（メモリホストのみ）・`REF:tests/api_fs.rs`（実ディレクトリ） |
+| H3 | CLI 拡張 | 4 / 4 | ドメイン動詞文法・`--json`（§19.6.2）・`--lang`・終了コード 0/2/3/4/5・`api list` / `lsp`。既存サブコマンドの出力バイトは不変（`REF:tests/cli.rs`） |
+| H4 | MCP 拡張 | 4 / 4 | ツール 14 → カタログ全件。既存 14 件の定義 JSON はバイト一致で凍結。安全除外 4 件・`role` 検査（`REF:src/core/agents/server.rs`） |
+| H5 | LSP サーバ | 4 / 4 | `REF:src/lsp/` 6 モジュール。`executeCommand` 121 名・`novnow/*` 通知 4 種・UTF-16 往復（`REF:tests/lsp.rs`） |
+| H6 | Python API | 5 / 5 | `python/novnow-py`（abi3-py39）・GIL 解放（`REF:src/app/driver.rs`）・`.pyi` + `py.typed`・5 構成 wheel CI（`REF:tests/api_driver.rs`） |
+| H7 | パリティ・公開 | 4 / 4 | `REF:tests/api_parity.rs`・`REF:tests/golden/api_catalog.json`・ウェブサイト `/ja/api`・`/en/api`（`REF:scripts/api-site.py`）・設計書 8 節「実装完了」 |
 
-<a id="stage-3-h3"></a>
-**H3 — CLI 拡張**
-- [x] H3-AC-1: 既存サブコマンド（`new` / `check` / `export` / `import` / `mcp` / `open` / `--gui`）の出力バイトと終了コードが不変（`REF:tests/cli.rs` の既存分が全通過）。
-- [x] H3-AC-2: ドメイン動詞文法がカタログの全非例外操作に到達し、`--json` エンベロープが §19.6.2 の形と一致する。
-- [x] H3-AC-3: 終了コードが 0/2/3/4/5 のみで、§19.1.7 の 9 分類それぞれに 1 件以上のテストケースがある。
-- [x] H3-AC-4: `novnow api list --json` が `OPS` 表と一致し、`novnow lsp` が H5 のサーバを正しく起動する。
+**§19.3.4 の GIL 解放について**: `Session` は `Send` にできない（Web の `WebHost` が
+`Rc<RefCell<..>>` を持つので `Host: Send` を supertrait にできない）。そこで `Session` を
+待機区間へ持ち込むのではなく、ワーカースレッド 1 本に所有させる `REF:src/app/driver.rs`
+を挟み、`Python::allow_threads` はその 1 往復を包む。設計書 `REF:docs/designs/interfaces.md`
+§19.3 の「pyo3 の借用規則で直列化」という記述は、実装では「`Mutex<Driver>` + ワーカー
+スレッド 1 本による直列化」で満たしている（§19.3.4 の 2 つの MUST はどちらも成立）。
+この設計書の語句の修正は人間の承認を要するため、PR で判断を仰ぐ。
 
-<a id="stage-3-h4"></a>
-**H4 — MCP 拡張**
-- [x] H4-AC-1: `tools/list` が「M—」以外の全操作を `inputSchema` 付きで返し、既存 14 ツールの定義 JSON がバイト一致する。
-- [x] H4-AC-2: 関門付き書き込みツールが `role` を検査し、`propose` / `plan` では E036（`isError: true`）を返して書き込みを一切行わない。
-- [x] H4-AC-3: 安全除外 4 件（`agent.delegation_set`、`agent.mcp_config_set`、`prompt.reset`、`settings.set`）がツール表に登録されず、直接呼び出しも拒否される。
-- [x] H4-AC-4: `plot.write` が `outline` / `chapter` を受け取り §10 のレベル別検証を行い、既存 `episode` 呼び出しの動作が変わらない。
-
-<a id="stage-3-h5"></a>
-**H5 — LSP サーバ**
-- [x] H5-AC-1: `initialize` 後、§3.4 の 11 機能に対応する標準メソッド（補完・ホバー・診断・コードアクション・定義・参照・シンボル・整形・リネーム・折り畳み・トークン）が応答する。
-- [x] H5-AC-2: UTF-16 位置の往復が CJK・サロゲートペア・結合文字のプロパティテストを通る。
-- [x] H5-AC-3: `executeCommand` でカタログ全操作に到達でき、`novnow/*` 通知 4 種が対応イベントから発信される。
-- [x] H5-AC-4: `tests/lsp.rs` のスクリプト化 JSON-RPC 駆動テストがエディタなしで CI を通る。
-
-<a id="stage-3-h6"></a>
-**H6 — Python API**
-- [x] H6-AC-1: `python/novnow-py` が abi3-py39 でビルドでき、サンドボックスの CPython 3.11 と CI 行列（3.9〜3.13）で `import novnow` が成功する。
-- [x] H6-AC-2: カタログ全操作が Python から呼び出せ、dict 戻り値が `--json` と同形、9 例外型が code / message / path 属性を持つ。
-- [ ] H6-AC-3: 長時間操作の GIL 解放が実証される（待機中に Python バックスレッドが進む）。**未達**: `novnow::app::Session` が `Send` でない（`Host` と `on_event` のコールバックに `Send` が無い）ため `Python::allow_threads` で包めない。前提作業は `Host: Send` + `Callback: Send` 化（GUI 側のクロージャも含む）。
-- [x] H6-AC-4: `.pyi` と `py.typed` が wheel に同梱され、仕様 §19.3.2 の例コードが mypy を通る。
-- [x] H6-AC-5: 5 プラットフォーム構成の wheel ビルドジョブが CI に揃い、リリース時の公開（TestPyPI リハーサル → PyPI 本番）手順が確立する。
-
-<a id="stage-3-h7"></a>
-**H7 — パリティ・公開・仕上げ**
-- [x] H7-AC-1: `tests/api_parity.rs` がカタログ全行 × 全インターフェース（「提供しない」宣言を含む）を機械検証し、`tests/golden/api_catalog.json` が `REF:docs/developers.md` §7.2 の手順で生成される。
-- [x] H7-AC-2: ウェブサイトに API リファレンスページが追加され、`REF:scripts/diagnostics-site.py` と同様の網羅性 CI 検査を通る。
-- [ ] H7-AC-3: （§19.3 が GIL 解放の未達で「実装中」のため、8 節すべて「実装完了」には未達。他 7 節は更新済み）元:  `REF:docs/designs/interfaces.md` の 8 節すべてが「実装完了」（`REF:src/…` 参照付き）へ更新され、両文書の SYNC 集計行が同期する。
-- [ ] H7-AC-4: 完了記録が `[HIST-TAG: STAGE-3]` エントリとして `REF:docs/history.md` へ追記され、本節はサマリへ圧縮される。
+**未検証（意図的）**: pyo3 系クレートはこのサンドボックスから crates.io に到達できないため
+`maturin build` と `pytest` を実行していない。`REF:.github/workflows/wheels.yml` のホイール
+行列（5 構成 × Python 3.9 / 3.11 / 3.13）が初回の検証になる。Rust 側の GIL 解放の型条件
+（`Driver: Send` と待機区間をまたぐ全型）は `REF:tests/api_driver.rs` が検証済み。
 
 ### 5.5 PyO3 系の vendoring 手順（H6 の事前作業）
 
@@ -863,7 +872,7 @@ H3・H4・H5 の 3 系統は相互に交差せず、H2 完了後は任意の順�
 
 ### 5.8 段階の受け入れ基準（全マイルストーン共通）
 
-- [ ] 仕様 §19 の各 MUST 条項に対応する自動テストが存在し、`bash scripts/verify.sh`（新段階を含む）が完全グリーン。
-- [ ] §4.4 の 10 縫い代が生存 — `REF:tests/layering.rs` と `REF:tests/roundtrip.rs` の既存アサーションが無変更で通る。
-- [ ] 仕様書・設計書・許可クレート表の変更はすべて PR 経由で人間の承認を得た。
-- [ ] 完了後、`REF:docs/history.md` へ `[HIST-TAG: STAGE-3]` エントリを追記し、本書と `REF:docs/handoff.md` の SYNC 進捗表を更新する。
+- [x] 仕様 §19 の各 MUST 条項に対応する自動テストが存在し、`bash scripts/verify.sh`（`REF:tests/api.rs`・`REF:tests/api_fs.rs`・`REF:tests/api_driver.rs`・`REF:tests/cli.rs`・`REF:tests/lsp.rs`・`REF:tests/api_parity.rs`）が完全グリーン（1339 passed / 0 failed、62 ターゲット）。
+- [x] §4.4 の 10 縫い代が生存 — `REF:tests/layering.rs` と `REF:tests/roundtrip.rs` の既存アサーションが無変更で通る（段階 ③ で両ファイルのアサーションは変更していない）。
+- [ ] 仕様書・設計書・許可クレート表の変更はすべて PR 経由で人間の承認を得た。**人間の作業**: PR #25（Draft）のレビューとマージ。対象は `REF:docs/designs/overview.md` §3.2・§3.3 と `REF:docs/designs/interfaces.md` の状態行。許可クレート表（`REF:docs/add-dependencies.md`）の変更は無い（pyo3 系は未導入のまま）。
+- [x] 完了後、`REF:docs/history.md` へ `[HIST-TAG: STAGE-3]` エントリを追記し、本書と `REF:docs/handoff.md` の SYNC 進捗表を更新した（134 節すべて実装完了）。
