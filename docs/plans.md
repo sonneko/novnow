@@ -812,11 +812,11 @@ H3・H4・H5 の 3 系統は相互に交差せず、H2 完了後は任意の順�
 
 <a id="stage-3-h6"></a>
 **H6 — Python API**
-- [ ] H6-AC-1: `python/novnow-py` が abi3-py39 でビルドでき、サンドボックスの CPython 3.11 と CI 行列（3.9〜3.13）で `import novnow` が成功する。
-- [ ] H6-AC-2: カタログ全操作が Python から呼び出せ、dict 戻り値が `--json` と同形、9 例外型が code / message / path 属性を持つ。
-- [ ] H6-AC-3: 長時間操作の GIL 解放が実証される（待機中に Python バックスレッドが進む）。
-- [ ] H6-AC-4: `.pyi` と `py.typed` が wheel に同梱され、仕様 §19.3.2 の例コードが mypy を通る。
-- [ ] H6-AC-5: 5 プラットフォーム構成の wheel ビルドジョブが CI に揃い、リリース時の公開（TestPyPI リハーサル → PyPI 本番）手順が確立する。
+- [x] H6-AC-1: `python/novnow-py` が abi3-py39 でビルドでき、サンドボックスの CPython 3.11 と CI 行列（3.9〜3.13）で `import novnow` が成功する。
+- [x] H6-AC-2: カタログ全操作が Python から呼び出せ、dict 戻り値が `--json` と同形、9 例外型が code / message / path 属性を持つ。
+- [ ] H6-AC-3: 長時間操作の GIL 解放が実証される（待機中に Python バックスレッドが進む）。**未達**: `novnow::app::Session` が `Send` でない（`Host` と `on_event` のコールバックに `Send` が無い）ため `Python::allow_threads` で包めない。前提作業は `Host: Send` + `Callback: Send` 化（GUI 側のクロージャも含む）。
+- [x] H6-AC-4: `.pyi` と `py.typed` が wheel に同梱され、仕様 §19.3.2 の例コードが mypy を通る。
+- [x] H6-AC-5: 5 プラットフォーム構成の wheel ビルドジョブが CI に揃い、リリース時の公開（TestPyPI リハーサル → PyPI 本番）手順が確立する。
 
 <a id="stage-3-h7"></a>
 **H7 — パリティ・公開・仕上げ**

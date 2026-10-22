@@ -1,0 +1,21 @@
+[package]
+name = "novnow-py"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.82"
+description = "novnow の Python API（§19.3）。Rust と同じ機能核をインプロセスで呼ぶ。"
+license = "MIT"
+
+[lib]
+# `import novnow._core` として読み込む（`python/novnow/__init__.py` が表の API を組む）。
+name = "_core"
+crate-type = ["cdylib"]
+
+[dependencies]
+novnow = { path = "../..", default-features = false }
+pyo3 = { version = "0.22", features = ["abi3-py39", "extension-module"] }
+serde_json = "1"
+
+# このクレートは pyo3 系の vendoring が済むまで root の workspace 解決から外す
+# （root `Cargo.toml` の `exclude`、REF:docs/add-dependencies.md §2.2）。
+[workspace]

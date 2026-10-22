@@ -1,0 +1,29 @@
+[build-system]
+requires = ["maturin>=1.7,<2"]
+build-backend = "maturin"
+
+[project]
+name = "novnow"
+requires-python = ">=3.9"
+description = "novnow — deterministic IDE for long-form fiction, as a Python module (§19.3)"
+readme = "README.md"
+license = { text = "MIT" }
+classifiers = [
+  "Programming Language :: Rust",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Typing :: Typed",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[tool.maturin]
+# ネイティブ拡張は `novnow._core`。Python 側の表（Session・例外・型スタブ）は python/novnow/。
+python-source = "python"
+module-name = "novnow._core"
+features = ["pyo3/extension-module"]
+include = ["python/novnow/py.typed", "python/novnow/__init__.pyi"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
