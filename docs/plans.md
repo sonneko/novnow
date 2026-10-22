@@ -777,17 +777,17 @@ H3・H4・H5 の 3 系統は相互に交差せず、H2 完了後は任意の順�
 
 <a id="stage-3-h1"></a>
 **H1 — app 層の抽出**
-- [ ] H1-AC-1: 8 状態機械と `Host` が `src/app/` に存在し、旧パス（`REF:src/app/workbench.rs` ほか）への文書中の参照が再エクスポートによりすべて解決する。
-- [ ] H1-AC-2: `REF:tests/layering.rs` が新層の egui / eframe / rfd / fontdb 禁止を機械検査し、意図的な違反で失敗する。
-- [ ] H1-AC-3: `cargo test --features ui`（`REF:tests/gui.rs`、`REF:tests/workspaces.rs` を含む）、`REF:scripts/web-smoke.sh`、wasm ビルドがすべてグリーンで、挙動が変わらない。
+- [x] H1-AC-1: 8 状態機械と `Host` が `src/app/` に存在し、旧パス（`REF:src/app/workbench.rs` ほか）への文書中の参照が再エクスポートによりすべて解決する。
+- [x] H1-AC-2: `REF:tests/layering.rs` が新層の egui / eframe / rfd / fontdb 禁止を機械検査し、意図的な違反で失敗する。
+- [x] H1-AC-3: `cargo test --features ui`（`REF:tests/gui.rs`、`REF:tests/workspaces.rs` を含む）、`REF:scripts/web-smoke.sh`、wasm ビルドがすべてグリーンで、挙動が変わらない。
 - [ ] H1-AC-4: `REF:docs/designs/overview.md` §3.3 の層図と依存方向の記述が app 層を含めて改訂済み（PR で人間の承認を得る）。
 
 <a id="stage-3-h2"></a>
 **H2 — Rust API**
-- [ ] H2-AC-1: `ui` feature なしのビルドでカタログ全操作に到達でき、`Session::open` / `create` / `with_host` がテストを通る。
-- [ ] H2-AC-2: `OPS` 表が仕様書 §19.7 のカタログ全行を網羅し、`api.list` 関数がスキーマ・例外列・関門有無を含むカタログを返す。
-- [ ] H2-AC-3: `session.command` が `REF:src/ui/app.rs` の `PALETTE_COMMANDS`（14 鍵）と `SHORTCUT_PALETTE_COMMANDS`（約 40 鍵）の全キーを受け付け、効果（即時 / 遅延 / 状態変更）の宣言が実態と一致する。
-- [ ] H2-AC-4: `tests/api.rs` がメモリホストのみで全工程（開く → 編集 → 外部変更 → 衝突解決 → 保存 → イベント確認）を通し、実ファイルシステムに触れない。
+- [x] H2-AC-1: `ui` feature なしのビルドでカタログ全操作に到達でき、`Session::open` / `create` / `with_host` がテストを通る。
+- [x] H2-AC-2: `OPS` 表が仕様書 §19.7 のカタログ全行を網羅し、`api.list` 関数がスキーマ・例外列・関門有無を含むカタログを返す。
+- [x] H2-AC-3: `session.command` が `REF:src/ui/app.rs` の `PALETTE_COMMANDS`（14 鍵）と `SHORTCUT_PALETTE_COMMANDS`（約 40 鍵）の全キーを受け付け、効果（即時 / 遅延 / 状態変更）の宣言が実態と一致する。
+- [x] H2-AC-4: `tests/api.rs` がメモリホストのみで全工程（開く → 編集 → 外部変更 → 衝突解決 → 保存 → イベント確認）を通し、実ファイルシステムに触れない。
 
 <a id="stage-3-h3"></a>
 **H3 — CLI 拡張**

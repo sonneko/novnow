@@ -890,3 +890,99 @@ fn the_catalog_is_localized_in_both_languages() {
         "en の説明に ASCII 以外が混ざっている"
     );
 }
+
+// =========================================================================== 外部変更と衝突（§8.5・§9.6・§19.1.6）
+
+/// 未保存の編集があるファイルが外部で変わると衝突になる（§8.5）。
+fn conflict() -> (Session, String, String) {
+    let (mut session, files) = open();
+    let scene = open_first_section(&mut session);
+    let path = "contents/01-01.txt";
+    // 外部の版は「編集前の文書 + 1 行」（自分の編集を含まない形にする）
+    let original = session.aggregate().text(path).to_owned();
+    session
+        .run(
+            "section.write",
+            json!({ "scene": scene.clone(), "text": "自分の本文\n" }),
+        )
+        .expect("section.write");
+    let external = format!("{original}外部で書き換わった一行\n");
+    files
+        .borrow_mut()
+        .changes
+        .push((path.to_owned(), Some(external)));
+    let changes = session.poll_external();
+    assert_eq!(changes.len(), 1, "外部変更を取り込めていない");
+    // 保存状態機は 4 状態（§9.6）。衝突は状態ではなく `conflicts` に出る
+    let state = session.run("save.state", json!({})).expect("save.state");
+    assert_eq!(state["state"], json!("dirty"), "{state}");
+    assert_eq!(state["conflicts"], json!([path]), "{state}");
+    (session, scene, path.to_owned())
+}
+
+#[test]
+fn an_external_change_becomes_a_conflict_and_keep_mine_wins() {
+    let (mut session, scene, path) = conflict();
+    // 差分を見せてから自分の側を残す（§9.6 の keep mine）
+    let diff = session
+        .run("save.diff_external", json!({}))
+        .expect("save.diff_external");
+    assert_eq!(diff["diffs"][0]["path"], json!(path), "{diff}");
+    assert!(
+        !diff["diffs"][0]["lines"]
+            .as_array()
+            .expect("lines")
+            .is_empty(),
+        "差分が出ていない: {diff}"
+    );
+    let kept = session
+        .run("save.keep_mine", json!({}))
+        .expect("save.keep_mine");
+    assert_eq!(kept["kept"], json!([path]), "{kept}");
+    let text = session
+        .run("section.get", json!({ "scene": scene }))
+        .expect("section.get");
+    let text = text["text"].as_str().expect("text");
+    assert!(
+        text.contains("自分の本文"),
+        "自分の側が残っていない: {text}"
+    );
+    assert!(
+        !text.contains("外部で書き換わった一行"),
+        "外部の側が混ざっている: {text}"
+    );
+    let state = session.run("save.state", json!({})).expect("save.state");
+    assert_eq!(state["conflicts"], json!([]), "衝突が残っている: {state}");
+}
+
+#[test]
+fn reload_external_takes_the_other_side() {
+    let (mut session, scene, path) = conflict();
+    let reloaded = session
+        .run("save.reload_external", json!({}))
+        .expect("save.reload_external");
+    assert_eq!(reloaded["reloaded"], json!([path]), "{reloaded}");
+    let text = session
+        .run("section.get", json!({ "scene": scene }))
+        .expect("section.get");
+    let text = text["text"].as_str().expect("text");
+    assert!(
+        text.contains("外部で書き換わった一行"),
+        "外部の側になっていない: {text}"
+    );
+    assert!(!text.contains("自分の本文"), "自分の側が残っている: {text}");
+    let state = session.run("save.state", json!({})).expect("save.state");
+    assert_eq!(state["conflicts"], json!([]), "衝突が残っている: {state}");
+}
+
+#[test]
+fn resolving_a_conflict_twice_is_a_conflict_error() {
+    let (mut session, _, _) = conflict();
+    session
+        .run("save.keep_mine", json!({}))
+        .expect("save.keep_mine");
+    let error = session
+        .run("save.keep_mine", json!({}))
+        .expect_err("衝突が無いのに解決できた");
+    assert_eq!(error.class, Class::Conflict, "{error:?}");
+}
