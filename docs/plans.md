@@ -10,12 +10,12 @@
 | 区分 | 状態 | 対象範囲 | 参照 |
 |---|---|---|---|
 | 段階 ①（M0〜M11） | 完了 | コア仕様・全 8 ワークスペース・MCP・CLI・Web 版・ベンチマーク・サンプル一式 | `REF:docs/history.md` |
-| 設計書セクション実装状況 | 実装完了 132 節 / 実装中 0 節 / 未実装・実装計画済み 2 節 / 未実装・未計画 0 節 / 実装待ち 0 節 | 全 11 設計書の `### ` 節（合計 134 節） | `REF:docs/designs/` |
+| 設計書セクション実装状況 | 実装完了 133 節 / 実装中 1 節 / 未実装・実装計画済み 0 節 / 未実装・未計画 0 節 / 実装待ち 0 節 | 全 11 設計書の `### ` 節（合計 134 節） | `REF:docs/designs/` |
 | 仕様変更・修正（F-01〜F-44） | 実装完了（44 件） | UI・エディタ・パレット・辞書・ショートカット・性能等の修正 44 項目 | `REF:docs/plans.md#planned-fixes` |
 | 機能追加（小規模：S-01〜S-18） | 実装完了（18 件） | エージェント例指定・PWA・Zip 導入・形態素波線等の小規模機能追加 18 項目 | `REF:docs/plans.md#planned-small-features` |
 | 機能追加（比較的大規模：L-01） | 実装済み（CLI・デスクトップ） | 既存の本文テキストから `novnow` に移行するための手段の提供 | `REF:docs/plans.md#unplanned-large` |
 | 段階 ②（追加仕様 1〜27） | 実装済み・検証完了（#1〜27） | 予約済みの追加機能 27 項目（10 個の縫い代で受け入れ準備済み） | `REF:docs/plans.md#stage-2` |
-| 段階 ③（§19 外部インターフェース） | 実装中（H1〜H5・H7 完了、H6 Python が残） | Rust API・Python API・LSP・MCP 拡張・CLI 拡張による GUI 全機能のヘッドレス公開 | `REF:docs/plans.md#stage-3` |
+| 段階 ③（§19 外部インターフェース） | 実装済み（H6 の GIL 解放と pyo3 vendoring・ビルド検証が残） | Rust API・Python API・LSP・MCP 拡張・CLI 拡張による GUI 全機能のヘッドレス公開 | `REF:docs/plans.md#stage-3` |
 <!-- SYNC:END stage1-status -->
 
 ---
@@ -822,7 +822,7 @@ H3・H4・H5 の 3 系統は相互に交差せず、H2 完了後は任意の順�
 **H7 — パリティ・公開・仕上げ**
 - [x] H7-AC-1: `tests/api_parity.rs` がカタログ全行 × 全インターフェース（「提供しない」宣言を含む）を機械検証し、`tests/golden/api_catalog.json` が `REF:docs/developers.md` §7.2 の手順で生成される。
 - [x] H7-AC-2: ウェブサイトに API リファレンスページが追加され、`REF:scripts/diagnostics-site.py` と同様の網羅性 CI 検査を通る。
-- [ ] H7-AC-3: `REF:docs/designs/interfaces.md` の 8 節すべてが「実装完了」（`REF:src/…` 参照付き）へ更新され、両文書の SYNC 集計行が同期する。
+- [ ] H7-AC-3: （§19.3 が GIL 解放の未達で「実装中」のため、8 節すべて「実装完了」には未達。他 7 節は更新済み）元:  `REF:docs/designs/interfaces.md` の 8 節すべてが「実装完了」（`REF:src/…` 参照付き）へ更新され、両文書の SYNC 集計行が同期する。
 - [ ] H7-AC-4: 完了記録が `[HIST-TAG: STAGE-3]` エントリとして `REF:docs/history.md` へ追記され、本節はサマリへ圧縮される。
 
 ### 5.5 PyO3 系の vendoring 手順（H6 の事前作業）

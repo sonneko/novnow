@@ -31,7 +31,7 @@
 
 ### 19.3 Python API
 
-状態: 未実装・実装計画済み（REF:docs/add-dependencies.md, REF:docs/plans.md#stage-3）
+状態: 実装中（REF:python/novnow-py/src/lib.rs, REF:python/novnow-py/python/novnow/__init__.py, REF:.github/workflows/wheels.yml。GIL 解放（§19.3.4）は `Session: Send` 化が前提で未達）
 
 - ルート `Cargo.toml` をワークスペース化: `members = [".", "python/novnow-py"]`、`default-members = ["."]`。既存の `cargo test --locked` と `REF:scripts/verify.sh` の挙動は不変で、Cargo.lock は 1 本のまま統合する。
 - `python/novnow-py/`（新クレート）: pyo3（`abi3-py39` + `extension-module`、cdylib）。`#[pyclass] Session` が app 層を包み、メソッドは `OPS` 表からマクロ生成して手書きの写しを置かない。データ受け渡しは dict / list / str、Zip 操作は bytes。
@@ -80,7 +80,7 @@
 
 ### 19.8 版・互換性・配布
 
-状態: 未実装・実装計画済み（REF:src/cli/mod.rs, REF:docs/plans.md#stage-3）
+状態: 実装完了（REF:src/app/ops/mod.rs, REF:src/cli/api.rs, REF:tests/golden/api_catalog.json, REF:scripts/api-site.py）
 
 - 版番号は `VERSION` 定数（`env!("CARGO_PKG_VERSION")`、`REF:src/cli/mod.rs`）を単一の真実とし、`Session::version()`・`novnow.__version__`・LSP の `serverInfo`・MCP のサーバ情報が共有する。
 - 互換性の凍結は回帰テストが守る: 既存 14 ツールは `REF:tests/mcp_stdio.rs`、既存サブコマンドと終了コードは `REF:tests/cli.rs`、カタログ全体は `tests/golden/api_catalog.json`。

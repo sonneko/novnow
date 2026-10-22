@@ -1744,3 +1744,25 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - `REF:docs/handoff.md` と `REF:docs/plans.md` の共有表を一意にし、11 文書対・134 節（完了126 / 計画済み8）に揃えた。固定の文書管理規則と段階③の H1〜H7 は保持した。
 - `REF:docs/script/duplicate.py` に共有表の区分重複・集計行単独一致・設計書数の検査を追加し、再発ケースを `REF:docs/script/test_duplicate.py` に固定した。
 - 段階②の GUI 提供と、段階③の API 提供を区別した。操作 ID の追加を無承認で決めず、統合後のカタログ追補を `REF:docs/plans.md#stage-3` の H1 前提作業として明示した。
+
+---
+
+### [HIST:MILESTONE:STAGE-3] 2026-10-22 段階 ③（§19 外部インターフェース）の実装
+
+[HIST-TAG: category=MILESTONE id=STAGE-3 topics=interfaces,rust-api,python,lsp,mcp,cli,parity]
+
+- **単一実装点（§19.1.2）**: 5 つの口（Rust API・Python・LSP・MCP・CLI）がすべて
+  `src/app/ops` の正規操作カタログ（119 件）を呼ぶ形になった。口ごとの再実装は無い。
+- **H1**（app 層の分離）・**H2**（Rust API `Session` / `OPS` 表）・**H4**（MCP を 14 ツールから
+  カタログ全件へ）・**H5**（`src/lsp/` 5 モジュール + `novnow lsp`）・**H3**（CLI のドメイン動詞
+  文法 + `--json` 封筒）・**H7**（`tests/api_parity.rs`・ゴールデン・ウェブサイトの API
+  リファレンス）・**H6**（`python/novnow-py` + 5 構成の wheel CI）。
+- **パリティ検査が見つけた実装のずれ**（`tests/api_parity.rs`）: `project.new` の `L—`・`M—` の
+  宣言漏れ、`project.recent_list` / `project.recent_remove` の状態性宣言漏れ。修正し、
+  拒否の判定を**例外列基準**へ改めた（`C—` の無い操作は CLI でも動く。§19.7 どおり）。
+- **未達**: §19.3.4 の GIL 解放。`novnow::app::Session` が `Send` でない（`Host` と `on_event`
+  のコールバックに `Send` が無い）ため `Python::allow_threads` で包めない。前提作業は
+  `Host: Send` + `Callback: Send` 化（GUI 側のクロージャも含む）。pyo3 系の vendoring
+  （`REF:docs/add-dependencies.md` §2.2）も未了のため、Python 拡張のビルドと pytest は
+  未検証（CI の `wheels.yml` が初回の検証になる）。
+- 検証: `bash scripts/verify.sh` すべて緑（1330 passed / 0 failed、61 ターゲット）。
