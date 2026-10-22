@@ -13,5 +13,9 @@ pub mod app;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod cli;
 pub mod core;
+/// 第 5 の口（§19.4）。エディタと話す LSP サーバ。標準入出力だけを使うのでネイティブ専用
+/// （Web には CLI と同じく無い）。
+#[cfg(not(target_arch = "wasm32"))]
+pub mod lsp;
 pub mod ports;
 pub mod ui;

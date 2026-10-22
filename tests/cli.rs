@@ -1856,3 +1856,104 @@ fn mcp_plot_write_takes_outline_and_chapter_levels() {
         .any(|bytes| String::from_utf8_lossy(bytes).contains("direct_write"));
     assert!(logged, "監査ログに direct_write が無い");
 }
+
+// ============================================================ novnow lsp
+
+/// `novnow lsp` を、標準入力の代わりに `input`（枠つきの JSON-RPC）を渡して走らせる。
+fn run_lsp(cwd: &Path, env: &FakeEnv, dir: &str, input: &str) -> Ran {
+    let mut out = Vec::new();
+    let mut err = Vec::new();
+    let mut reader = std::io::Cursor::new(input.as_bytes().to_vec());
+    let outcome = {
+        let mut cli = Cli::new(
+            env,
+            &mut out,
+            &mut err,
+            cwd.to_path_buf(),
+            Terminal::default(),
+        );
+        cli.set_input(&mut reader);
+        cli::run(&os_args(&["lsp", dir]), &mut cli)
+    };
+    Ran {
+        outcome,
+        out: String::from_utf8(out).expect("stdout は UTF-8"),
+        err: String::from_utf8(err).expect("stderr は UTF-8"),
+    }
+}
+
+/// 枠つきの 1 通話分を作る。
+fn lsp_frames(messages: &[serde_json::Value]) -> String {
+    messages
+        .iter()
+        .map(|message| novnow::lsp::framing::encode(&message.to_string()))
+        .collect()
+}
+
+/// 標準出力を枠ごとに分解する。
+fn lsp_messages(stdout: &str) -> Vec<serde_json::Value> {
+    let mut cursor = std::io::Cursor::new(stdout.as_bytes().to_vec());
+    let mut messages = Vec::new();
+    while let Some(body) = novnow::lsp::framing::read_message(&mut cursor) {
+        messages.push(serde_json::from_str(&body).expect("JSON"));
+    }
+    messages
+}
+
+#[test]
+fn lsp_checks_the_project_first() {
+    let dir = TempDir::new("cli-lsp-broken");
+    spec_like_incomplete(&dir, "broken");
+    let ran = run_lsp(dir.path(), &env_ja(&dir), "broken", "");
+    assert_eq!(ran.exit(), Exit::Project, "§14.2 の検査が先（{}）", ran.err);
+    assert_eq!(ran.out, "", "プロトコル以外を標準出力に出さない");
+}
+
+#[test]
+fn lsp_speaks_framed_jsonrpc_over_stdio() {
+    let dir = TempDir::new("cli-lsp");
+    minimal_project(&dir, "novel");
+    let project = dir.join("novel");
+    let bodies = lsp_frames(&[
+        serde_json::json!({"id": 1, "jsonrpc": "2.0", "method": "initialize", "params": {"capabilities": {}}}),
+        serde_json::json!({"jsonrpc": "2.0", "method": "initialized", "params": {}}),
+        serde_json::json!({"id": 2, "jsonrpc": "2.0", "method": "workspace/executeCommand",
+               "params": {"arguments": [{}], "command": "api.list"}}),
+        serde_json::json!({"id": 3, "jsonrpc": "2.0", "method": "textDocument/noSuchFeature", "params": {}}),
+        serde_json::json!({"jsonrpc": "2.0", "method": "exit", "params": null}),
+    ]);
+    let ran = run_lsp(
+        dir.path(),
+        &env_ja(&dir),
+        project.to_str().expect("path"),
+        &bodies,
+    );
+    assert_eq!(ran.exit(), Exit::Ok, "{}", ran.err);
+    let messages = lsp_messages(&ran.out);
+    assert!(messages.len() >= 3, "枠が読めない: {:?}", ran.out);
+    let capabilities = &messages[0]["result"]["capabilities"];
+    assert_eq!(capabilities["textDocumentSync"], serde_json::json!(1));
+    assert_eq!(
+        capabilities["executeCommandProvider"]["commands"]
+            .as_array()
+            .expect("commands")
+            .len(),
+        121,
+        "操作 119 件 + 特別な 2 つ"
+    );
+    let api = messages
+        .iter()
+        .find(|message| message["id"] == serde_json::json!(2))
+        .expect("api.list の応答");
+    assert_eq!(
+        api["result"]["count"],
+        serde_json::json!(119),
+        "§19.7 の全行"
+    );
+    let unknown = messages
+        .iter()
+        .find(|message| message["id"] == serde_json::json!(3))
+        .expect("未知のメソッドの応答");
+    assert_eq!(unknown["error"]["code"], serde_json::json!(-32601));
+    assert_eq!(ran.err, "", "標準エラーに何も出さない");
+}

@@ -381,7 +381,7 @@ impl Session {
     }
 
     /// イベントを積む（コールバックにも渡す）。
-    pub(crate) fn push(&mut self, event: AppEvent) {
+    pub fn push(&mut self, event: AppEvent) {
         for callback in &mut self.callbacks {
             callback(&event);
         }

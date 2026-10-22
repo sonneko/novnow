@@ -20,6 +20,7 @@
 pub mod check;
 pub mod export;
 pub mod import;
+pub mod lsp;
 pub mod mcp;
 pub mod migrate;
 pub mod new;
@@ -38,7 +39,7 @@ use crate::ui::i18n::{self, Locale};
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// サブコマンド（§14.1）。第 1 引数がこのどれかと**完全一致**したときだけサブコマンドになる。
-pub const SUBCOMMANDS: [&str; 6] = ["new", "check", "export", "mcp", "import", "migrate"];
+pub const SUBCOMMANDS: [&str; 7] = ["new", "check", "export", "mcp", "lsp", "import", "migrate"];
 
 /// この実行ファイルが GUI を持つか（`ui` feature のビルドだけ。M7）。`novnow new` の案内
 /// （開く / 検査する）と、GUI を含まないビルドでの GUI 起動の拒否（§14.2.5）に使う。
@@ -136,6 +137,8 @@ pub enum Command {
     Import { zip: PathBuf, dir: PathBuf },
     /// `novnow mcp <dir>`（中身は M10）。
     Mcp(PathBuf),
+    /// `novnow lsp <dir>`（§19.4）。
+    Lsp(PathBuf),
     Migrate {
         source: PathBuf,
         dir: PathBuf,
@@ -151,6 +154,7 @@ impl Command {
             Self::Check(_) => "check",
             Self::Export { .. } => "export",
             Self::Mcp(_) => "mcp",
+            Self::Lsp(_) => "lsp",
             Self::Migrate { .. } => "migrate",
             Self::Import { .. } => "import",
         }
@@ -268,6 +272,7 @@ fn subcommand(name: &'static str, rest: &[OsString]) -> Launch {
         ("new", dir) => Command::New(dir.unwrap_or_else(|| PathBuf::from("."))),
         (_, None) => return Launch::Error(ArgError::MissingDir(name)),
         ("check", Some(dir)) => Command::Check(dir),
+        ("lsp", Some(dir)) => Command::Lsp(dir),
         (_, Some(dir)) => Command::Mcp(dir),
     };
     Launch::Command(command)
@@ -367,6 +372,7 @@ pub fn run<E: Env>(args: &[OsString], cli: &mut Cli<'_, E>) -> Outcome {
             Command::Check(dir) => check::run(cli, dir),
             Command::Export { dir, options } => export::run(cli, dir, options),
             Command::Mcp(dir) => mcp::run(cli, dir),
+            Command::Lsp(dir) => lsp::run(cli, dir),
             Command::Import { zip, dir } => import::run(cli, zip, dir),
             Command::Migrate {
                 source,
