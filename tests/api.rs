@@ -402,6 +402,67 @@ fn a_gated_write_over_mcp_needs_a_role_that_may_write() {
     assert_eq!(error.kind, "E036");
 }
 
+/// §19.7 の「書き込みのときだけ関門」3 件（`OpDef::gate_arg`）。
+///
+/// `search.file` の置換・`lang.code_action` の適用・`export.text` の書き出しは `role` を求めるが、
+/// 同じ操作の読み取りだけの呼び出しには `role` を求めない（「テキストの返却のみは無関門」）。
+/// 例外列に `M` を入れて操作ごと外すと §19.5.1 の「提供する」に反するので、引き金の引数名で表す。
+#[test]
+fn the_write_time_gate_binds_only_to_the_writing_call() {
+    let (mut session, _) = open();
+    open_first_section(&mut session);
+    session.set_interface(Interface::Mcp);
+    let document = "contents/01-01.txt";
+
+    // search.file（§19.7「置換は M 門番」）
+    let found = session
+        .run("search.file", json!({ "query": "の" }))
+        .expect("検索だけの呼び出しに role を求めた");
+    assert!(
+        found["count"].as_u64().expect("count") > 0,
+        "雛形の本文に「の」が無い"
+    );
+    let error = session
+        .run(
+            "search.file",
+            json!({ "query": "の", "replace": "ほ", "role": "writer" }),
+        )
+        .expect_err("置換が propose のまま通った");
+    assert_eq!(error.kind, "E036", "§19.1.5 の関門");
+    assert_eq!(error.class, Class::Policy);
+
+    // lang.code_action（§19.7「適用は M 門番」）
+    session
+        .run(
+            "lang.code_action",
+            json!({ "path": document, "start": 0, "end": 1 }),
+        )
+        .expect("候補の列挙に role を求めた");
+    let error = session
+        .run(
+            "lang.code_action",
+            json!({ "path": document, "start": 0, "end": 1, "apply": true, "role": "writer" }),
+        )
+        .expect_err("適用が propose のまま通った");
+    assert_eq!(error.kind, "E036");
+
+    // export.text（§19.7「M 門番（書き込み時。テキストの返却のみは無関門）」）
+    let returned = session
+        .run("export.text", json!({}))
+        .expect("テキストの返却に role を求めた");
+    assert!(returned["text"].is_string(), "返却の形が違う: {returned}");
+    let error = session
+        .run("export.text", json!({ "out": "out.txt", "role": "writer" }))
+        .expect_err("書き出しが propose のまま通った");
+    assert_eq!(error.kind, "E036");
+
+    // 人間経路（Rust）では同じ呼び出しが通る（§19.1.5 は MCP だけの規則）
+    session.set_interface(Interface::Rust);
+    session
+        .run("search.file", json!({ "query": "の", "replace": "ほ" }))
+        .expect("人間経路の置換");
+}
+
 // =========================================================================== イベント（§19.2.4）
 
 #[test]

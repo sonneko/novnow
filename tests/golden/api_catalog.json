@@ -1026,7 +1026,8 @@
         "order": [
           "query",
           "replace",
-          "regex"
+          "regex",
+          "role"
         ],
         "properties": {
           "query": {
@@ -1036,6 +1037,9 @@
             "type": "boolean"
           },
           "replace": {
+            "type": "string"
+          },
+          "role": {
             "type": "string"
           }
         },
@@ -1047,10 +1051,8 @@
       "command": "find",
       "description": "検索／置換",
       "domain": "search",
-      "exceptions": {
-        "M": "gate:replace"
-      },
-      "gate": false,
+      "exceptions": {},
+      "gate": true,
       "id": "search.file",
       "lsp": null,
       "stateful": false,
@@ -1904,13 +1906,25 @@
         "order": [
           "path",
           "start",
-          "end"
+          "end",
+          "apply",
+          "index",
+          "role"
         ],
         "properties": {
+          "apply": {
+            "type": "boolean"
+          },
           "end": {
             "type": "integer"
           },
+          "index": {
+            "type": "integer"
+          },
           "path": {
+            "type": "string"
+          },
+          "role": {
             "type": "string"
           },
           "start": {
@@ -1927,10 +1941,8 @@
       "command": "quick-fix",
       "description": "クイックフィックス候補",
       "domain": "lang",
-      "exceptions": {
-        "M": "gate:apply"
-      },
-      "gate": false,
+      "exceptions": {},
+      "gate": true,
       "id": "lang.code_action",
       "lsp": "textDocument/codeAction",
       "stateful": false,
@@ -2889,7 +2901,8 @@
           "blurb",
           "blurb_only",
           "keep_illustration_memo",
-          "stock"
+          "stock",
+          "role"
         ],
         "properties": {
           "blurb": {
@@ -2910,6 +2923,9 @@
           "range": {
             "type": "string"
           },
+          "role": {
+            "type": "string"
+          },
           "state": {
             "type": "string"
           },
@@ -2922,10 +2938,8 @@
       "command": "export",
       "description": "テキストのエクスポート",
       "domain": "export",
-      "exceptions": {
-        "M": "gate:write"
-      },
-      "gate": false,
+      "exceptions": {},
+      "gate": true,
       "id": "export.text",
       "lsp": null,
       "stateful": false,

@@ -1130,7 +1130,7 @@ fn mcp_serves_the_tools_over_json_lines_and_writes_only_inside_the_project() {
     // 比較相手は `REF:tests/golden/mcp_tools.json`（実装そのものと比べると退行を検出できない。
     // 内訳の機械検査は `REF:tests/mcp_frozen.rs`）
     let tools = lines[1]["result"]["tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 83, "ツール表の全件数（凍結 14 + 新規 69）");
+    assert_eq!(tools.len(), 86, "ツール表の全件数（凍結 14 + 正規操作 72）");
     let golden: Value = serde_json::from_str(include_str!("golden/mcp_tools.json")).unwrap();
     for (found, frozen) in tools.iter().zip(golden.as_array().unwrap()) {
         assert_eq!(

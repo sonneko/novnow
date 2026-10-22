@@ -148,30 +148,102 @@ fn the_mcp_column_matches_the_tool_table() {
         let refused = flagged(&row.exceptions, "M—");
         // §19.5.1: 正規操作のツール名は `novnow.<操作 ID>`（既存 14 ツールは凍結の名前）。
         let offered = names.contains(&format!("novnow.{}", row.id));
-        // 「M 門番（書き込み時）」の 3 件は実装が操作ごと外している（上のテストと同じ注記）。
-        let qualified = row.exceptions.contains("M 門番")
-            && matches!(
-                row.id.as_str(),
-                "search.file" | "lang.code_action" | "export.text"
-            );
-        if !qualified {
-            assert_eq!(
-                refused, !offered,
-                "{}: `M—` の印と MCP のツール表が合わない",
+        // 例外は無い。「M 門番（書き込み時）」の 3 件も**提供する**（§19.7 のとおり）。
+        // かつては実装がその 3 件を操作ごと外していたため、ここに ID の手書き除外があった。
+        assert_eq!(
+            refused, !offered,
+            "{}: `M—` の印と MCP のツール表が合わない",
+            row.id
+        );
+        // `M 門番` は §19.1.5 の関門（書き込みは role が要る）
+        assert_eq!(
+            flagged(&row.exceptions, "M 門番"),
+            def.gate,
+            "{}: `M 門番` の印と関門の実態が合わない",
+            row.id
+        );
+    }
+}
+
+/// 「書き込みのときだけ関門」の宣言（§19.7 の `置換は M 門番` / `適用は M 門番` /
+/// `M 門番（書き込み時…）`）が、`OpDef::gate_arg` として機械可読に宣言されていること。
+///
+/// 例外列に `M` を入れると**操作ごと**に MCP から外れてしまい、§19.7 の「提供する」に
+/// 反する。だから条件付き関門は例外列ではなく `gate_arg`（引き金の引数名）で表す。
+#[test]
+fn the_write_time_gate_is_declared_as_a_conditional_gate() {
+    use novnow::app::session::Interface;
+    let mut checked = 0usize;
+    for row in rows() {
+        let Some(def) = ops::find(&row.id) else {
+            panic!("{} が OPS 表に無い", row.id);
+        };
+        if !row.exceptions.contains("M 門番") {
+            assert!(
+                !def.gate,
+                "{}: 表に関門の印が無いのに gate が立っている",
                 row.id
             );
+            continue;
         }
-        // `M 門番` は §19.1.5 の関門（書き込みは role が要る）。上の 3 件は操作ごと外しているので
-        // 関門は持たない（外れているほうが厳しい）。
-        if !qualified {
-            assert_eq!(
-                flagged(&row.exceptions, "M 門番"),
-                def.gate,
-                "{}: `M 門番` の印と関門の実態が合わない",
+        // `role 必須` と書く行と、印だけの行は無条件。それ以外（`置換は`・`適用は`・
+        // `書き込み時`）は条件付き。新しい書き方が増えたらここで止めて人間が確認する。
+        let unconditional =
+            row.exceptions.trim() == "M 門番" || row.exceptions.contains("role 必須");
+        assert_eq!(
+            def.gate_arg.is_none(),
+            unconditional,
+            "{}: 表「{}」と gate_arg（{:?}）が合わない",
+            row.id,
+            row.exceptions,
+            def.gate_arg
+        );
+        let schema = def.input_schema();
+        let required = schema["required"]
+            .as_array()
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(|item| item.as_str())
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        if unconditional {
+            assert!(
+                required.contains(&"role"),
+                "{}: 無条件関門なのに `role` が必須でない",
                 row.id
             );
+        } else {
+            let trigger = def.gate_arg.expect("gate_arg");
+            assert!(
+                def.args.iter().any(|arg| arg.name == trigger),
+                "{}: gate_arg の {trigger} が引数に無い",
+                row.id
+            );
+            assert!(
+                !required.contains(&"role"),
+                "{}: 条件付き関門なのに `role` が必須（読み取りにも role を求める）",
+                row.id
+            );
+            assert!(
+                schema["properties"]["role"]["type"].as_str() == Some("string"),
+                "{}: `role` が schema に載っていない",
+                row.id
+            );
+            // 例外列に `M` を入れていない（＝ MCP が提供しない扱いにしない）
+            assert!(
+                def.excepts(Interface::Mcp).is_none(),
+                "{}: 条件付き関門なのに MCP の例外列に入っている",
+                row.id
+            );
+            checked += 1;
         }
     }
+    assert_eq!(
+        checked, 3,
+        "条件付き関門は §19.7 の 3 件（置換・適用・書き出し）"
+    );
 }
 
 #[test]
@@ -191,15 +263,7 @@ fn every_exception_column_is_declared_in_the_operation_table() {
         };
         for (column, interface) in columns {
             let marked = flagged(&row.exceptions, &format!("{column}—"));
-            // 表が「M 門番（書き込み時）」と書く 3 件は、実装では**操作ごと**に MCP から外して
-            // いる（読み取りだけの呼び出しに `role` を求めないための、仕様より厳しい側の実現）。
-            let qualified = column == "M"
-                && row.exceptions.contains("M 門番")
-                && matches!(
-                    row.id.as_str(),
-                    "search.file" | "lang.code_action" | "export.text"
-                );
-            if marked != def.excepts(interface).is_some() && !qualified {
+            if marked != def.excepts(interface).is_some() {
                 drift.push(format!(
                     "{}: `{column}—` 表「{}」 実装「{:?}」",
                     row.id,

@@ -798,7 +798,7 @@
 | H1 | app 層の抽出 | `src/app/` 新層（8 状態機械の移設 + Host）、層規則、GUI からの委任、overview.md §3.3 改訂 | H0 |
 | H2 | Rust API | `Session` ファサード、`OPS` ディスパッチ表、ドメインハンドル、イベントキュー、メモリホスト、`tests/api.rs` | H1 |
 | H3 | CLI 拡張 | ドメイン動詞文法、`--json` / `--lang`、`api list`、`lsp` 入口、終了コード網羅 | H2 |
-| H4 | MCP 拡張 | ツール表 14 → カタログ全件、既存 14 件のバイト凍結回帰、`plot.write` level 汎用化 | H2 |
+| H4 | MCP 拡張 | ツール表 14 → 86（凍結 14 + 「M—」の無い 72）、既存 14 件のバイト凍結回帰、`plot.write` level 汎用化 | H2 |
 | H5 | LSP サーバ | `src/lsp/` 5 モジュール、`novnow/*` 通知 4 種、`tests/lsp.rs` | H2 |
 | H6 | Python API | `python/novnow-py`、PyO3 vendoring、`.pyi` 生成、wheel CI、pytest 一式 | H2（vendoring は H1 から並行着手可） |
 | H7 | パリティと公開 | `tests/api_parity.rs`、カタログゴールデン、website API リファレンス、設計書状態更新、履歴移設 | H3〜H6 |
@@ -816,7 +816,7 @@ H1〜H7 の受け入れ基準（各 4〜5 件、計 29 件）はすべて達成�
 | H1 | app 層の抽出 | 4 / 4 | 8 状態機械と `Host` を `REF:src/app/` へ移設し旧パスは再エクスポート。`REF:tests/layering.rs` が GUI クレート禁止を強制。`REF:docs/designs/overview.md` §3.2・§3.3 を改訂 |
 | H2 | Rust API | 4 / 4 | `Session` + `OPS` 119 操作。`REF:tests/api.rs`（メモリホストのみ）・`REF:tests/api_fs.rs`（実ディレクトリ） |
 | H3 | CLI 拡張 | 4 / 4 | ドメイン動詞文法・`--json`（§19.6.2）・`--lang`・終了コード 0/2/3/4/5・`api list` / `lsp`。既存サブコマンドの出力バイトは不変（`REF:tests/cli.rs`） |
-| H4 | MCP 拡張 | 4 / 4 | ツール 14 → カタログ全件。既存 14 件の定義 JSON はバイト一致で凍結。安全除外 4 件・`role` 検査（`REF:src/core/agents/server.rs`） |
+| H4 | MCP 拡張 | 4 / 4 | ツール 14 → 86（凍結 14 + 「M—」の無い 72。全 119 操作中 35 件は非公開）。既存 14 件の定義 JSON はバイト一致で凍結（`REF:tests/golden/mcp_tools.json`）。安全除外 4 件・`role` 検査（`REF:src/core/agents/server.rs`） |
 | H5 | LSP サーバ | 4 / 4 | `REF:src/lsp/` 6 モジュール。`executeCommand` 121 名・`novnow/*` 通知 4 種・UTF-16 往復（`REF:tests/lsp.rs`） |
 | H6 | Python API | 5 / 5 | `python/novnow-py`（abi3-py39）・GIL 解放（`REF:src/app/driver.rs`）・`.pyi` + `py.typed`・5 構成 wheel CI（`REF:tests/api_driver.rs`） |
 | H7 | パリティ・公開 | 4 / 4 | `REF:tests/api_parity.rs`・`REF:tests/golden/api_catalog.json`・ウェブサイト `/ja/api`・`/en/api`（`REF:scripts/api-site.py`）・設計書 8 節「実装完了」 |

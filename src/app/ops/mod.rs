@@ -97,6 +97,15 @@ pub struct OpDef {
     pub args: &'static [ArgDef],
     /// MCP で関門（`role` 引数）を要求するか（§19.1.5 の `M 門番`）。
     pub gate: bool,
+    /// 関門が**書き込みのときだけ**掛かる場合、その引き金になる引数名（§19.7 の
+    /// 「置換は M 門番」「適用は M 門番」「M 門番（書き込み時）」）。`None` なら無条件。
+    ///
+    /// `Some` のときは `role` は任意引数として schema に載る（読み取りだけの呼び出しに
+    /// `role` を求めない。§19.7 の「テキストの返却のみは無関門」）。実行時の判定は
+    /// ハンドラ側の [`gate`] 呼び出しの位置がそのまま表す（`REF:src/app/ops/editing.rs` の
+    /// `search_file`、`REF:src/app/ops/lang.rs` の `code_action_op`、
+    /// `REF:src/app/ops/session_ops.rs` の `export_text`）。
+    pub gate_arg: Option<&'static str>,
     /// 例外列（`R` / `P` / `L` / `M` / `C` → 理由）。§19.7 の「例外」列。
     pub exceptions: &'static [(&'static str, &'static str)],
     /// 対応する LSP 標準メソッド（§19.7 の 3 列目。無ければ `None`）。
@@ -165,6 +174,9 @@ impl OpDef {
         }
         if self.gate {
             schema["properties"]["role"] = json!({ "type": "string" });
+        }
+        // 関門が書き込みのときだけ掛かる操作は `role` を必須にしない（§19.7）
+        if self.gate && self.gate_arg.is_none() {
             schema["required"] = match schema.get("required") {
                 Some(Value::Array(items)) => {
                     let mut items = items.clone();
@@ -231,6 +243,7 @@ const OP_DEFAULT: OpDef = OpDef {
     id: "",
     args: &[],
     gate: false,
+    gate_arg: None,
     exceptions: &[],
     lsp: None,
     command: None,
@@ -544,7 +557,10 @@ pub const OPS: &[OpDef] = &[
             ArgDef::opt_boolean("regex")
         ],
         editing::search_file,
-        exceptions = &[("M", "gate:replace")],
+        // §19.7「置換は M 門番」: MCP でも**提供する**。`replace` を渡したときだけ `role` を
+        // 求める（`REF:src/app/ops/editing.rs` の `search_file` がその位置で `gate` を呼ぶ）
+        gate = true,
+        gate_arg = Some("replace"),
         command = Some("find")
     ),
     opdef!(
@@ -743,11 +759,17 @@ pub const OPS: &[OpDef] = &[
         &[
             ArgDef::string("path"),
             ArgDef::integer("start"),
-            ArgDef::integer("end")
+            ArgDef::integer("end"),
+            // `apply` と `index` はハンドラが読むのに宣言が無かった（§19.2.2 の
+            // 機械可読性が壊れ、MCP の利用者は適用できることに気づけない）
+            ArgDef::opt_boolean("apply"),
+            ArgDef::opt_integer("index")
         ],
         lang::code_action_op,
         lsp = Some("textDocument/codeAction"),
-        exceptions = &[("M", "gate:apply")],
+        // §19.7「適用は M 門番」: 候補を列挙するだけなら無関門（`apply` のときだけ `role`）
+        gate = true,
+        gate_arg = Some("apply"),
         command = Some("quick-fix")
     ),
     opdef!(
@@ -966,7 +988,9 @@ pub const OPS: &[OpDef] = &[
             ArgDef::opt_boolean("stock")
         ],
         session_ops::export_text,
-        exceptions = &[("M", "gate:write")],
+        // §19.7「M 門番（書き込み時。テキストの返却のみは無関門）」: `out` のときだけ `role`
+        gate = true,
+        gate_arg = Some("out"),
         command = Some("export")
     ),
     opdef!(

@@ -181,8 +181,10 @@ fn every_tool_carries_a_well_formed_input_schema() {
                 name,
                 arg.name
             );
-            // 関門の `role` は引数の宣言に関わらず必須になる（§19.1.5）
-            let mandatory = arg.required || (def.gate && arg.name == "role");
+            // 無条件関門の `role` は引数の宣言に関わらず必須になる（§19.1.5）。
+            // 書き込み時だけの関門（`gate_arg`）は `role` を必須にしない（§19.7）
+            let mandatory =
+                arg.required || (def.gate && def.gate_arg.is_none() && arg.name == "role");
             assert_eq!(
                 required.contains(arg.name),
                 mandatory,
@@ -191,9 +193,9 @@ fn every_tool_carries_a_well_formed_input_schema() {
                 arg.name
             );
         }
-        // 関門（§19.1.5）は `role` を必須にする。`role` を引数として宣言する操作
+        // 無条件関門（§19.1.5）は `role` を必須にする。`role` を引数として宣言する操作
         // （`agent.task_create` など）は関門でなくても必須になる
-        let role_required = def.gate
+        let role_required = (def.gate && def.gate_arg.is_none())
             || def
                 .args
                 .iter()
@@ -242,8 +244,8 @@ fn the_tool_table_is_the_frozen_fourteen_plus_every_operation_mcp_offers() {
     );
     // 内訳も固定する（`docs/plans.md` §5.4 の H4 と設計書 §19.5 の記述の正本）
     assert_eq!(offered + refused, 119, "カタログの全操作数");
-    assert_eq!(refused, 38, "「M—」で MCP が提供しない操作数");
-    assert_eq!(names.len(), 83, "ツール表の全件数（凍結 14 + 新規 69）");
+    assert_eq!(refused, 35, "「M—」で MCP が提供しない操作数");
+    assert_eq!(names.len(), 86, "ツール表の全件数（凍結 14 + 正規操作 72）");
     assert!(
         refused > 0 && offered > 0,
         "内訳が壊れている: offered={offered} refused={refused}"
