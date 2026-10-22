@@ -12,6 +12,10 @@ pub mod agents;
 pub mod assist;
 pub mod command;
 pub mod commands;
+/// ワーカースレッド 1 本の上で `Session` を所有する口（§19.3.4 の GIL 解放）。
+/// Web にはスレッドが無いのでネイティブだけ。
+#[cfg(not(target_arch = "wasm32"))]
+pub mod driver;
 pub mod error;
 pub mod event;
 // ファイルシステムを後ろに持つホスト（§19.2.1）。Web には FS が無いのでネイティブだけ。

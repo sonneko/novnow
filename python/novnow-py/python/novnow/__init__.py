@@ -228,8 +228,10 @@ def open(path: str) -> Session:  # noqa: A001 - §19.3.2 がこの名前を指�
 
 def create(path: str, title: str | None = None) -> Session:
     """新しいプロジェクトを作って開く（`project.new`）。"""
-    _core.create(path, title)
-    return Session(path)
+    # 作ったプロジェクトをそのまま使う（開き直さない）
+    session = Session.__new__(Session)
+    session._session = _core.create(path, title)
+    return session
 
 
 def operations() -> list[dict[str, Any]]:

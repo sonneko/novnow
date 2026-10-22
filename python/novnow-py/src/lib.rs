@@ -10,10 +10,23 @@
 //! - `OPERATIONS` — `api.list` と同じカタログ（`novnow.operations()` が返す）
 //! - `NovnowError` — 全例外の親（`class` / `code` / `message` / `path` 属性。§19.1.7）
 //!
-//! 直列化（§19.3.4）: 1 つの `Session` は `Mutex` で守り、複数スレッドからの同時呼び出しは
-//! データ競合でなく直列実行になる。
+//! ## GIL（§19.3.4）
+//!
+//! ブロックする 1 往復は**すべて `Python::allow_threads` の中で待つ**。待っているあいだに
+//! ほかの Python スレッドが動く。
+//!
+//! `novnow::app::Session` は `Send` ではない（ホストが Web の `Rc` を前提にするので
+//! `Host: Send` にできない）。だから `allow_threads` の区間に `Session` を持ち込むのではなく、
+//! 機能核を **ワーカースレッド 1 本**（`REF:src/app/driver.rs`）に所有させ、この層は
+//! `Send` だけの 1 通を渡して応答を待つ。`allow_threads` が閉包と戻り値に課す `Ungil`
+//! （＝ `Send`）はその 1 通と応答だけで満たされる。
+//!
+//! 直列化（§19.3.4）: 1 つの `Session` は `Mutex<Driver>` で守り、**ロックも GIL を解放した
+//! 区間の中で取る**。だから複数スレッドからの同時呼び出しはデータ競合でなく直列実行になり、
+//! 待たされた側もほかの Python スレッドを止めない。
 
-use std::sync::{Mutex, MutexGuard, PoisonError};
+use std::cell::RefCell;
+use std::sync::{Mutex, PoisonError};
 
 use pyo3::create_exception;
 use pyo3::exceptions::PyException;
@@ -21,8 +34,10 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use serde_json::{Map, Value};
 
+use novnow::app::driver::Driver;
 use novnow::app::error::{Class, Error};
-use novnow::app::session::{Interface, Session as Core};
+use novnow::app::session::{CreateOptions, Interface};
+use novnow::ui::i18n::Locale;
 
 create_exception!(
     novnow,
@@ -31,48 +46,89 @@ create_exception!(
     "novnow のエラー（§19.3.3）。派生型は Python 側で §19.1.7 の分類ごとに作る。"
 );
 
-/// 直列化された機能核（§19.3.4）。
-struct Guarded(Mutex<Core>);
-
-impl Guarded {
-    fn lock(&self) -> PyResult<MutexGuard<'_, Core>> {
-        self.0
-            .lock()
-            .map_err(|error: PoisonError<_>| PyException::new_err(error.to_string()))
-    }
-}
-
 /// 開いたプロジェクト（§19.3.2 の `Session`）。
+///
+/// 中身はワーカースレッドへの口（`Driver`）。`Mutex` は §19.3.4 の直列化で、
+/// ロックは GIL を解放した区間で取る。
 #[pyclass]
 struct Session {
-    inner: Guarded,
+    core: Mutex<Driver>,
+    /// `on_event` で登録された Python のコールバック（§19.3.5）。GIL を持つときだけ触る。
+    callbacks: RefCell<Vec<PyObject>>,
+    /// `poll_events()` がまだ返していないイベント（`dict`）。
+    pending: RefCell<Vec<PyObject>>,
+}
+
+impl Session {
+    fn new(driver: Driver) -> Self {
+        Self {
+            core: Mutex::new(driver),
+            callbacks: RefCell::new(Vec::new()),
+            pending: RefCell::new(Vec::new()),
+        }
+    }
+
+    /// 溜まったイベントを取り出し、コールバックへ渡してから返す（§19.2.4・§19.3.5）。
+    ///
+    /// イベントは `Driver` の 1 本を通って待った側のスレッドへ来ているので、ここで
+    /// Python のオブジェクト（`dict`）に写す。コールバックは `Session::push` と同じく
+    /// 起きたときに 1 回だけ呼び、`poll_events()` はそれとは別に**同じ列**を返す
+    /// （`REF:src/app/session.rs` の `push` / `poll_events` と同じ関係）。
+    fn take_events(&self, py: Python<'_>) -> PyResult<Vec<PyObject>> {
+        let core = &self.core;
+        let drained = py.allow_threads(move || -> PyResult<Result<Vec<Value>, Error>> {
+            let Ok(mut driver) = core.lock() else {
+                return Err(poisoned());
+            };
+            Ok(driver
+                .poll_events()
+                .map(|events| events.iter().map(|event| event.to_json()).collect()))
+        })?;
+        let values = drained.map_err(into_error)?;
+        if !values.is_empty() {
+            // JSON → Python の `dict`（§19.3.2）。GIL を持っているのでここで写す
+            let dicts = values
+                .iter()
+                .map(|value| to_python(py, value))
+                .collect::<PyResult<Vec<_>>>()?;
+            // Python 側から `on_event` を呼ばれても壊れないように、写しを取ってから渡す
+            let callbacks = self.callbacks.borrow().clone();
+            for dict in &dicts {
+                for callback in &callbacks {
+                    let _ = callback.call1(py, (dict,));
+                }
+            }
+            self.pending.borrow_mut().extend(dicts);
+        }
+        Ok(std::mem::take(&mut *self.pending.borrow_mut()))
+    }
+
+    /// イベントを流すだけ（操作のあと）。`poll_events()` が列を返す。
+    fn deliver(&self, py: Python<'_>) -> PyResult<()> {
+        self.take_events(py)?;
+        Ok(())
+    }
 }
 
 /// `novnow.open(path)`（§19.3.2）。
 #[pyfunction]
-fn open(path: &str) -> PyResult<Session> {
-    let core = Core::open_with(std::path::Path::new(path), Interface::Python)
-        .map_err(|error| into_error(error))?;
-    Ok(Session {
-        inner: Guarded(Mutex::new(core)),
-    })
+fn open(py: Python<'_>, path: &str) -> PyResult<Session> {
+    let root = std::path::PathBuf::from(path);
+    let opened = py.allow_threads(move || Driver::open_with(&root, Interface::Python))?;
+    Ok(Session::new(opened))
 }
 
 /// `novnow.create(path, title=None)`（`project.new`。§19.3.2）。
 #[pyfunction]
-fn create(path: &str, title: Option<&str>) -> PyResult<Session> {
-    let options = novnow::app::session::CreateOptions {
+fn create(py: Python<'_>, path: &str, title: Option<&str>) -> PyResult<Session> {
+    let root = std::path::PathBuf::from(path);
+    let options = CreateOptions {
         author: String::new(),
         language: "ja".to_owned(),
         title: title.unwrap_or_default().to_owned(),
     };
-    let core = Core::create(std::path::Path::new(path), options).map_err(into_error)?;
-    let root = core
-        .root()
-        .map(|root| root.to_path_buf())
-        .unwrap_or_else(|| std::path::PathBuf::from(path));
-    drop(core);
-    open(&root.to_string_lossy())
+    let created = py.allow_threads(move || Driver::create(&root, options))?;
+    Ok(Session::new(created))
 }
 
 #[pymethods]
@@ -83,89 +139,111 @@ impl Session {
             Some(dict) => from_python(&dict)?,
             None => Value::Object(Map::new()),
         };
-        let session = self.inner.lock()?;
-        let result = session.run(op, args);
-        drop(session);
-        let _ = py;
-        match result {
-            Ok(value) => to_python(py, &value),
-            Err(error) => Err(into_error(error)),
-        }
+        let op = op.to_owned();
+        let core = &self.core;
+        // GIL を解放して待つ（§19.3.4）。渡す 1 通も応答も Python に触れない
+        let outcome = py.allow_threads(move || -> PyResult<Result<Value, Error>> {
+            let Ok(mut driver) = core.lock() else {
+                return Err(poisoned());
+            };
+            Ok(driver.run(&op, args))
+        })?;
+        self.deliver(py)?;
+        outcome
+            .map(|value| to_python(py, &value))
+            .map_err(into_error)
     }
 
     /// パレットのコマンドを実行する（§19.2.3）。
     fn command(&self, py: Python<'_>, name: &str) -> PyResult<PyObject> {
-        let session = self.inner.lock()?;
-        let result = session.command(name);
-        drop(session);
-        match result {
-            Ok(value) => to_python(py, &value),
-            Err(error) => Err(into_error(error)),
-        }
+        let name = name.to_owned();
+        let core = &self.core;
+        let outcome = py.allow_threads(move || -> PyResult<Result<Value, Error>> {
+            let Ok(mut driver) = core.lock() else {
+                return Err(poisoned());
+            };
+            Ok(driver.command(&name))
+        })?;
+        self.deliver(py)?;
+        outcome
+            .map(|value| to_python(py, &value))
+            .map_err(into_error)
     }
 
-    /// イベントキューを取り出す（§19.2.4・§19.3.5）。
+    /// イベントキューを取り出す（§19.2.4・§19.3.5）。登録済みのコールバックにも渡す。
     fn poll_events(&self, py: Python<'_>) -> PyResult<PyObject> {
-        let mut session = self.inner.lock()?;
-        let events: Vec<Value> = session
-            .poll_events()
-            .into_iter()
-            .map(|event| event.to_json())
-            .collect();
-        drop(session);
-        let value = serde_json::to_value(events).unwrap_or(Value::Array(Vec::new()));
-        to_python(py, &value)
+        let values = self.take_events(py)?;
+        let list = PyList::empty_bound(py);
+        for value in values {
+            list.append(value)?;
+        }
+        Ok(list.into_py(py))
     }
 
     /// イベントのコールバックを登録する（§19.3.5）。
     fn on_event(&self, callback: PyObject) -> PyResult<()> {
-        let mut session = self.inner.lock()?;
-        session.on_event(move |event| {
-            Python::with_gil(|py| {
-                let value = to_python(py, &event.to_json()).ok();
-                if let Some(value) = value {
-                    let _ = callback.call1(py, (value,));
-                }
-            });
-        });
+        self.callbacks.borrow_mut().push(callback);
         Ok(())
     }
 
     /// 長時間の操作を中断する（§19.1.9・§19.3.5）。
     fn cancel(&self, py: Python<'_>, handle: &str) -> PyResult<PyObject> {
-        let mut session = self.inner.lock()?;
-        let result = session.cancel(handle);
-        drop(session);
-        match result {
-            Ok(value) => to_python(py, &value),
-            Err(error) => Err(into_error(error)),
-        }
+        let handle = handle.to_owned();
+        let core = &self.core;
+        let outcome = py.allow_threads(move || -> PyResult<Result<Value, Error>> {
+            let Ok(mut driver) = core.lock() else {
+                return Err(poisoned());
+            };
+            Ok(driver.cancel(&handle))
+        })?;
+        self.deliver(py)?;
+        outcome
+            .map(|value| to_python(py, &value))
+            .map_err(into_error)
     }
 
     /// 文言の言語（§19.1.8）。`ja` / `en`。
-    fn set_locale(&self, locale: &str) -> PyResult<()> {
+    fn set_locale(&self, py: Python<'_>, locale: &str) -> PyResult<()> {
         let locale = match locale {
-            "en" => novnow::ui::i18n::Locale::En,
-            _ => novnow::ui::i18n::Locale::Ja,
+            "en" => Locale::En,
+            _ => Locale::Ja,
         };
-        let mut session = self.inner.lock()?;
-        session.set_locale(locale);
-        Ok(())
+        let core = &self.core;
+        let outcome = py.allow_threads(move || -> PyResult<Result<(), Error>> {
+            let Ok(mut driver) = core.lock() else {
+                return Err(poisoned());
+            };
+            Ok(driver.set_locale(locale))
+        })?;
+        outcome.map_err(into_error)
     }
 
     /// プロジェクトルート。
-    fn root(&self) -> PyResult<Option<String>> {
-        let session = self.inner.lock()?;
-        Ok(session
-            .root()
+    fn root(&self, py: Python<'_>) -> PyResult<Option<String>> {
+        let core = &self.core;
+        let root = py.allow_threads(
+            move || -> PyResult<Result<Option<std::path::PathBuf>, Error>> {
+                let Ok(mut driver) = core.lock() else {
+                    return Err(poisoned());
+                };
+                Ok(driver.root())
+            },
+        )?;
+        Ok(root
+            .map_err(into_error)?
             .map(|path| path.to_string_lossy().into_owned()))
     }
 
-    /// 閉じる（§19.3.2。未保存変更の破棄は §19.2.5 と同じ）。
-    fn close(&self) -> PyResult<()> {
-        let mut session = self.inner.lock()?;
-        session.flush();
-        Ok(())
+    /// 閉じる（§19.3.2「未保存変更の破棄は §19.2.5 と同じ」）。保存はしない。
+    fn close(&self, py: Python<'_>) -> PyResult<()> {
+        let core = &self.core;
+        py.allow_threads(move || -> PyResult<()> {
+            let Ok(mut driver) = core.lock() else {
+                return Err(poisoned());
+            };
+            driver.shutdown();
+            Ok(())
+        })
     }
 
     fn __enter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
@@ -174,25 +252,31 @@ impl Session {
 
     fn __exit__(
         &self,
+        py: Python<'_>,
         _kind: Option<PyObject>,
         _value: Option<PyObject>,
         _traceback: Option<PyObject>,
     ) -> PyResult<bool> {
-        self.close()?;
+        self.close(py)?;
         Ok(false)
     }
+}
+
+/// `Mutex` が汚染された（ワーカー側でパニックがあった）。novnow の分類エラーではない。
+fn poisoned() -> PyErr {
+    PyException::new_err("the novnow session thread panicked")
 }
 
 /// 分類・S/E 番号・地域化メッセージ・パスを属性に持たせる（§19.3.3）。
 fn into_error(error: Error) -> PyErr {
     let failure = NovnowError::new_err((error.message.clone(),));
     Python::with_gil(|py| {
-        let instance = failure.value(py);
-        let _ = instance.set_attr("class", error.class.as_str());
-        let _ = instance.set_attr("code", error.kind);
-        let _ = instance.set_attr("message", error.message);
-        let _ = instance.set_attr("path", error.path);
-        let _ = instance.set_attr("exit_code", exit_code(&error.class));
+        let instance = failure.value_bound(py);
+        let _ = instance.setattr("class", error.class.as_str());
+        let _ = instance.setattr("code", error.kind);
+        let _ = instance.setattr("message", error.message);
+        let _ = instance.setattr("path", error.path);
+        let _ = instance.setattr("exit_code", exit_code(&error.class));
     });
     failure
 }
@@ -277,9 +361,13 @@ fn from_python(value: &Bound<'_, PyAny>) -> PyResult<Value> {
         }
         return Ok(Value::Object(map));
     }
+    let name = value
+        .get_type()
+        .name()
+        .map(|name| name.to_string())
+        .unwrap_or_else(|_| "?".to_owned());
     Err(PyException::new_err(format!(
-        "Python の型を JSON に写せません: {}",
-        value.get_type().name().unwrap_or("?")
+        "Python の型を JSON に写せません: {name}"
     )))
 }
 
@@ -288,8 +376,8 @@ fn from_python(value: &Bound<'_, PyAny>) -> PyResult<Value> {
 fn _core(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add("NovnowError", module.py().get_type_bound::<NovnowError>())?;
     module.add_class::<Session>()?;
-    module.add_function(wrap_pyfunction!(open, module)?)?;
-    module.add_function(wrap_pyfunction!(create, module)?)?;
+    module.add_function(&wrap_pyfunction!(open, module)?)?;
+    module.add_function(&wrap_pyfunction!(create, module)?)?;
     module.add(
         "OPERATIONS",
         to_python(

@@ -71,3 +71,67 @@ def test_events_are_python_dicts(project):
         events = session.poll_events()
         assert all(isinstance(event, dict) for event in events)
         assert events, "イベントが 1 つも無い"
+        # コールバックは起きたときに 1 回、`poll_events()` は同じ列を返す
+        # （REF:src/app/session.rs の `push` / `poll_events` と同じ関係）
+        assert seen == events
+
+
+def test_calls_from_several_threads_are_serialised(project):
+    """§19.3.4: 複数スレッドからの同時呼び出しはデータ競合でなく直列実行。"""
+    import threading
+
+    with novnow.Session(project) as session:
+        answers: list[str] = []
+        failures: list[BaseException] = []
+
+        def worker() -> None:
+            try:
+                for _ in range(20):
+                    answers.append(session.project.info()["title"])
+            except BaseException as error:  # noqa: BLE001 - 失敗は主スレッドで見る
+                failures.append(error)
+
+        threads = [threading.Thread(target=worker) for _ in range(4)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+    assert not failures, failures
+    assert len(answers) == 80, "100 往復のうち欠けたものがある"
+    assert all(answers), "応答が壊れている"
+
+
+def test_the_gil_is_released_while_an_operation_runs(project):
+    """§19.3.4: 待っているあいだにほかの Python スレッドが動く（GIL の解放）。
+
+    `sys.setswitchinterval` を大きくしておくので、拡張が GIL を握ったままループしたら
+    数えるスレッドは 1 歩も進めない。`Python::allow_threads` で待っていれば自由に走る。
+    """
+    import sys
+    import threading
+    import time
+
+    original = sys.getswitchinterval()
+    sys.setswitchinterval(30.0)
+    ticks = 0
+    stop = threading.Event()
+
+    def ticker() -> None:
+        nonlocal ticks
+        while not stop.is_set():
+            ticks += 1
+
+    thread = threading.Thread(target=ticker)
+    thread.start()
+    try:
+        with novnow.Session(project) as session:
+            deadline = time.monotonic() + 0.5
+            while time.monotonic() < deadline:
+                session.project.info()
+    finally:
+        stop.set()
+        sys.setswitchinterval(original)
+        thread.join(timeout=10.0)
+
+    assert ticks > 100, f"GIL が解放されていない（{ticks} 歩）"
