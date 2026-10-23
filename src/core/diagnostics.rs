@@ -1,20 +1,20 @@
-//! 診断コードの表（`SPECIFICATIONS.md` §7 / §7.1 / §7.2）。
+//! 診断コードの表（`docs/specifications/diagnostics.md` §7 / §7.1 / §7.2）。
 //!
 //! **実装規則（MUST、§7.2）**: `core::diagnostics` は **コードと引数だけ**を返す。
 //! 文言（`辞書にない参照です: {0}` のような文字列）は `ui/i18n/*.toml` が担当する（§12.2）。
 //! キーは `diag.<コード>`（例 `diag.E004`、§12.3）で、**コード文字列そのものが正準の識別子**。
 //! だから core は文言を持たないが、コードを文字列で返す口（[`DiagnosticCode::as_str`]）は持つ。
 //!
-//! **全件を先に定義する**（`PLANS.md` §3 I5「診断は先に表を実装」）。① が出さないコード
+//! **全件を先に定義する**（`docs/history.md` I5「診断は先に表を実装」）。① が出さないコード
 //! （エージェント系・MCP 系・ローカル LLM 系）も enum に入れてある。後から足すと番号が
 //! 散らかるためで、未使用 variant の警告は I5 が明示的に許容している。
 //!
 //! 中身は §7 の 3 つの表を写したもので、**仕様書が正本**。`tests/diagnostics_catalog.rs` が
-//! `SPECIFICATIONS.md` を `include_str!` で読み直して、件数・コード・重大度・引数の数・
+//! `docs/specifications/diagnostics.md` を `include_str!` で読み直して、件数・コード・重大度・引数の数・
 //! どの表に載っているか・文書位置の有無・既定の有効/無効・実行コスト表を突き合わせる。
-//! 表を変えるときは **先に仕様書**を直すこと（`PLANS.md` §6.3 の「仕様書 → ゴールデン → 実装」）。
+//! 表を変えるときは **先に仕様書**を直すこと（`docs/history.md` の「仕様書 → ゴールデン → 実装」）。
 //!
-//! 仕様書に明記の無い属性の決め方は `PLANS.md` §9.2 B-26。
+//! 仕様書に明記の無い属性の決め方は `docs/history.md` B-26。
 
 use serde::Serialize;
 use std::ops::Range;
@@ -52,7 +52,7 @@ pub enum Group {
     /// §7.1 ストレージ・移行・エージェント系。**文書位置を持たない通知**。
     Storage,
     /// §7.2 執筆支援系（v1 追加仕様）。文章の良し悪しを言うものは W / I で、設定・接続・
-    /// 権限の誤り（E032〜E036・E064）だけが E（§7.2 の冒頭文、第 2.8 版。`PLANS.md` §9.1 A-8）。
+    /// 権限の誤り（E032〜E036・E064）だけが E（§7.2 の冒頭文、第 2.8 版。`docs/history.md` A-8）。
     Writing,
 }
 
@@ -550,7 +550,7 @@ pub const CATALOG: &[CatalogRow] = &[
 /// 2. **§7.2 の E032〜E036**。§7.2 の注「エラーだが文書位置を持たないため、
 ///    §7.1 と同じくステータスバー通知として扱う」（仕様書の明記）。
 /// 3. **位置を指しようがない通知**（接続・保存・検索・件数・プロジェクト全体のもの）。
-///    仕様書の明記は無いので、判断は `PLANS.md` §9.2 B-26 に記録した。
+///    仕様書の明記は無いので、判断は `docs/history.md` B-26 に記録した。
 ///
 /// 1 と 2 は `tests/diagnostics_catalog.rs` が仕様書から導いて一致を確認している。
 pub const STATUS_ANCHOR: &[DiagnosticCode] = &[
@@ -601,7 +601,7 @@ pub const TOGGLE_OFF: &[DiagnosticCode] = &[
 ///
 /// W085・W086 は仕様書が名指ししていない（有効 9 件・無効 7 件のどちらにも入っていない）。
 /// W084 と同じタイミング・範囲で計算する同族の lint なので有効側に寄せた。
-/// 判断は `PLANS.md` §9.2 B-26。
+/// 判断は `docs/history.md` B-26。
 pub const TOGGLE_ON: &[DiagnosticCode] = &[
     DiagnosticCode::E064,
     DiagnosticCode::W080,
@@ -682,7 +682,7 @@ pub struct Diagnostic {
     pub code: DiagnosticCode,
     /// プレースホルダに埋める値。個数は [`DiagnosticCode::params`] と揃える。
     pub args: Vec<Arg>,
-    /// 文書内の byte range（§3.4「core は内部で byte offset」、`PLANS.md` §9.2 B-1）。
+    /// 文書内の byte range（§3.4「core は内部で byte offset」、`docs/history.md` B-1）。
     /// [`Anchor::Status`] の診断は `None`。
     pub range: Option<Range<usize>>,
 }
@@ -728,7 +728,7 @@ impl Diagnostic {
 /// 1 文書の診断を全部集める（§3.4 `diagnostics::document(doc, project)` →
 /// `textDocument/publishDiagnostics`）。範囲は**この文書の中の byte**。
 ///
-/// 下の層が出す診断を**1 か所で組む**まとめ役（`PLANS.md` §5.5 作業項目 1）。どの層が
+/// 下の層が出す診断を**1 か所で組む**まとめ役（`docs/history.md` の作業項目 1）。どの層が
 /// どのコードを出すかは次の表で、**同じ形に 2 層が波線を引かない**（B-67 / B-71）。
 /// 最後に同一の診断（コード・範囲・引数が同じ）を 1 つにまとめ、§9.5.2 の 9 の順
 /// （`E` → `W` → `I` → 位置 → コード、`context_rules::sort_diagnostics`）に並べる。
@@ -1249,7 +1249,7 @@ fn material_heading(document: &Document, project: &Project, out: &mut Vec<Diagno
         .find(|item| item.path.trim_start_matches("./") == document.path)
     else {
         // §16.2「MD ファイルを手で足しただけでは資料として認識しない（W064 で通知し、ワンクリックで
-        // 登録できる）」。位置は 1 行目（M8、`PLANS.md` §9.2 B-134）
+        // 登録できる）」。位置は 1 行目（M8、`docs/history.md` B-134）
         let first = project::lines_of(&document.text)
             .next()
             .map(|line| line.start..line.start + line.text.len());

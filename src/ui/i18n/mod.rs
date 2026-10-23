@@ -7,9 +7,9 @@
 //! - 欠けたキーは `en` → キーそのもの、の順に落とし、**デバッグビルドでは panic** する（§12.3
 //!   「`debug_assert!` で落とす」）。キーの揃いは `tests/i18n_catalog.rs` が CI で見ている。
 //! - 言語（§12.4）: `.novnow/ui.json` の `language` → `NOVNOW_LANG` → OS / ブラウザのロケール →
-//!   既定 `ja`（[`Locale::detect`]）。CLI は `ui.json` を読まない（§14.2.3、`PLANS.md` §9.2 B-101）。
+//!   既定 `ja`（[`Locale::detect`]）。CLI は `ui.json` を読まない（§14.2.3、`docs/history.md` B-101）。
 //!
-//! **egui に依存しない**ので `ui` feature なしでもビルドする（`PLANS.md` §9.2 B-100。
+//! **egui に依存しない**ので `ui` feature なしでもビルドする（`docs/history.md` B-100。
 //! `tests/layering.rs` が検査する）。
 
 use std::collections::HashMap;

@@ -1773,3 +1773,232 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - 検証: `bash scripts/verify.sh` すべて緑（1339 passed / 0 failed、62 ターゲット）。
   `REF:tests/api_driver.rs`（9 件）が `Driver: Send`・直列化・イベント配送・待機区間をまたぐ
   全型の `Send` を実ディレクトリで確かめる。
+
+### [HIST:MILESTONE:DOCS-SYNC-AUDIT] 2026-10-23 ドキュメントと実装の同期監査と、突き合わせ検査の追加
+
+[HIST-TAG: category=MILESTONE id=DOCS-SYNC-AUDIT topics=docs,sync,audit,reference.py,verify.sh,workspaces,diagnostics]
+
+- **監査の方法**: サンドボックスで `REF:scripts/bootstrap-toolchain.sh` からツールチェーンを復旧し、
+  `REF:docs/script/duplicate.py`・`REF:scripts/python-check.sh --full`（拡張のビルド + pytest）・
+  `cargo fmt` / `clippy`（`ui` あり・なし）/ `cargo test`（1176 件・1347 件）/ wasm32 の `cargo check` を実行した。
+  仕様書と実装の一致は既存の契約テスト（`REF:tests/diagnostics_catalog.rs`・`REF:tests/api_parity.rs`・
+  `REF:tests/i18n_catalog.rs` 他）が保証しており、すべて緑だった。**崩れていたのは「文書の固定情報」と
+  「コードのコメント」**であり、どちらも構造検査の外側にあった。
+- **ドキュメントの是正**（記述ミスの範囲。仕様・設計の変更を伴わない）:
+  `REF:docs/developers.md` §3 の `src/` ツリーを実装（`app` 層・`lsp`・`python`・`website`）に合わせて全面改訂し、
+  §4.1 の検証手順を 7 段から実際の 12 段へ、§4.5 の `REF:.github/report.py` の呼び方を実際の引数（出力先 1 つ +
+  環境変数）へ、§2.1 のツールチェーン記述を `stable` 指定へ直した。`REF:docs/handoff.md` §2 を現在のブランチ・
+  マージ済み PR #25・検証済みの Python 拡張に更新した。`REF:README.md`・`REF:README.en.md`・`REF:GUIDE.md` の
+  「8 ワークスペース」を 9（`reader` を含む）に直し、`REF:GUIDE.md` の機能説明（README と 21 行重複）を
+  README への参照に置き換えた。`REF:website/README.md` をテンプレートのままからプロジェクトの説明に変えた。
+- **コードのコメント**: 廃止済みの単一ファイル名（`SPECIFICATIONS.md` / `PLANS.md` / `DEVELOPERS.md`）への参照
+  327 箇所を、分割後の実在する文書（`docs/specifications/*.md`・`docs/plans.md`・`docs/history.md`）へ置換した。
+  旧計画書の節番号（§5.x・§9.1・§9.2）は、移設先の `docs/history.md` の ID（`B-nnn` / `A-nn`）と
+  `REF:docs/plans.md` §4.2（①/② の区分）・§4.4（縫い代）へ対応づけた。
+  空だった `src/ui/workspaces/write.rs`（本文執筆の実体は `src/ui/app.rs` と `src/ui/widgets/`）を削除し、
+  設計書 §10.1 の参照先を実体に合わせた。`reader` を「v1 では欠番」と書いたコメント（3 箇所）を実装に合わせた。
+- **追加した検査（`REF:docs/script/reference.py`）**: 構造検査では届かない 8 項目を機械化した。
+  (1) 廃止名の参照 (2) 仕様書の節番号の実在 (3) `docs/history.md` の ID の実在 (4) `REF:docs/developers.md` §3 の
+  `src/` ツリーと実物の一致 (5) `REF:scripts/verify.sh` が CI の静的検査をすべて含むこと (6) ルート文書間の
+  丸写しの重複 (7) 文書の数の主張（ワークスペース数・MCP ツール数・正規操作数）と実装の一致
+  (8) `include_str!` のパスの実在。`REF:docs/script/test_reference.py`（10 件）が検査器自身の退行を防ぐ。
+  `REF:scripts/verify.sh` と `REF:.github/workflows/ci.yml` の `docs` ジョブに組み込み、CI の検査が
+  `verify.sh` に無ければ検査 5 が落ちる（CI だけに検査が増える事故を防ぐ）。
+- **未修正（人間の承認待ち）**: `REF:docs/specifications/overview.md` §3.4 の「11 機能」と 12 行の表、
+  `REF:docs/specifications/ui.md` §10 の `reader` の行の「v1 では `Alt+7` を欠番として予約する」
+  （実装・設計書・受け入れ基準はすべて実装済み）。どちらも仕様書の変更なので裁定を待つ。
+- **未検証**: Playwright による Web 実機スモーク（`REF:scripts/web-smoke.sh`）だけは実行していない。
+
+### [HIST:IMPL:LINK-CHECK] 2026-10-23 リンクとアンカーの検査（`reference.py` の 9 項目目）
+
+[HIST-TAG: category=IMPL id=LINK-CHECK topics=docs,reference.py,links,anchors,verify.sh]
+
+- **足した理由**: 節の改名では `REF:` のパスは残るので `REF:docs/script/duplicate.py` の検査 6 は通る。
+  飛び先のアンカー（`#…`）と、`REF:README.md` などの相対リンク・画像だけが宙に浮く壊れ方は、
+  読み手が踏むまで見えない。
+- **検査する内容**: `REF:README.md`・`REF:README.en.md`・`REF:GUIDE.md` の相対リンクと画像の実在、
+  および同一文書内の `#アンカー`、`REF:` の `#アンカー` が見出し（GitHub と同じスラグ）か
+  `<a id="…">` に解決するか。外部 URL と `mailto:` は対象外。
+- **退行防止**: `REF:docs/script/test_reference.py` にスラグ・`<a id>` の単体テストを足した（26 件）。
+
+### [HIST:IMPL:RETIRED-SCAN-SCOPE] 2026-10-23 廃止名の検査範囲を `Cargo.toml` と PR テンプレートへ広げた
+
+[HIST-TAG: category=IMPL id=RETIRED-SCAN-SCOPE topics=docs,reference.py,ci,pull_request_template]
+
+- **見つかった漏れ**: 検査 1 は `src` / `tests` / `benches` / `examples` / `python` / `scripts` / `.github`
+  の**コード拡張子**だけを見ていた。そのため `REF:Cargo.toml` のコメント 4 箇所
+  （`PLANS.md` §9.2 B-54・B-100、§2.1・§5.0.4）と `REF:.github/pull_request_template.md`
+  （`SPECIFICATIONS.md` / `PLANS.md` を 6 箇所）が、緑のまま残っていた。PR テンプレートは
+  **これから書く人が最初に読む文書**なので、影響が大きい。
+- **直した内容**: `Cargo.toml` の `PLANS.md` §9.2 は `docs/history.md` の `B-nn` へ、層の表は
+  `REF:docs/designs/overview.md` §3.2 へ、行区切りは `REF:docs/specifications/syntax.md` §5.0.4 へ。
+  PR テンプレートは `docs/specifications/` / `docs/plans.md`（§4.2・§4.4）/ `docs/history.md` を指す形に書き換え、
+  `REF:scripts/verify.sh` の確認を 1 行足した。`REF:scripts/web-smoke.sh` の §9.2 表記も `B-156〜B-158` に直した。
+- **再発防止**: `REF:docs/script/reference.py` に `CODE_ROOT_FILES`（`Cargo.toml` /
+  `rust-toolchain.toml` / `.github/pull_request_template.md`）を足し、検査 1 の対象に含めた。
+  `REF:docs/script/test_reference.py` が 3 ファイルの実在と、ルート直下が別枠であることを固定する（28 件）。
+
+### [HIST:IMPL:ACTIONS-BUDGET] 2026-10-23 Actions を既定で走らせない仕組み（`[ci skip]` と変更フィルタ）
+
+[HIST-TAG: category=IMPL id=ACTIONS-BUDGET topics=ci,actions,cost,git-hooks,reference.py]
+
+- **背景**: 2026-10-23 の同期是正の PR で、文書だけの変更にもかかわらず push のたびに
+  Rust 5 ジョブ ＋ wasm ＋ bench ＋ ホイール 5 OS が走った（`Cargo.toml` のコメントを直した回は
+  変更フィルタが `rust_changed=true` と判定した）。Actions の使用量を抑える指示を受けて、
+  「必要なときだけ回す」を既定にした。
+- **足したもの**: `REF:.githooks/commit-msg`（1 行目に `[ci skip]` を自動で付ける。`[ci run]` と
+  書いたときだけ付けない）、`REF:scripts/install-git-hooks.sh`（`core.hooksPath` を `.githooks` に向ける。
+  `REF:scripts/bootstrap-toolchain.sh` からも呼ぶ）、`REF:scripts/ci-run.sh`
+  （`gh workflow run` で必要なワークフローだけ回す）。
+- **直したもの**: `REF:.github/workflows/wheels.yml` に `concurrency`（PR は `cancel-in-progress`）を追加。
+  5 OS の行列が二重に走り、macos の待ち行列に古い実行が積み上がっていた。
+- **検査**: `REF:docs/script/reference.py` の検査 10 が、全ワークフローの `concurrency`・
+  `ci.yml` の変更フィルタ・フックと 2 スクリプトの存在を見る（仕組みを消すと文書検査が落ちる）。
+- **運用**: 文書・コメントだけのコミットは CI を回さない。マージ前に `bash scripts/ci-run.sh ci watch`
+  で 1 回だけ回す（`REF:docs/developers.md` §4.7 の表）。
+
+### [HIST:IMPL:CI-BUDGET-2] 2026-10-23 draft で走らせない統一・macos-13 の廃止・スクリーンショットの整理
+
+[HIST-TAG: category=IMPL id=CI-BUDGET-2 topics=ci,actions,draft,macos-13,screenshot,readme,website]
+
+- **ユーザー裁定（2026-10-23）**: Actions の使用量を抑える。仕様書・設計書の文書系はすべて承認。`docs/` の
+  スクリーンショットは README が使う 1 枚だけ残す。`screenshot.jpeg` は古いので削除。Web 実機スモークは
+  サンドボックスの Chromium で実施。Web サイトを最新かつ網羅的な内容へ。
+- **CI**: `REF:.github/workflows/wheels.yml` の `build` / `test` に draft 条件を足し、**PR で走る全ワークフローが
+  draft では起動しない**よう統一した。`macos-13`（x86_64-apple-darwin）は待ち行列が数十分単位で、得られる確認より
+  コストが大きいため**構成ごと削除**（4 構成: ubuntu x64 / ubuntu arm64 / macos arm64 / windows x64）。
+  検査 10 が全ワークフローの draft 条件と `macos-13` の不在、`concurrency` を見る。
+- **スクリーンショット**: `docs/screenshot-m7.png` を `REF:screenshot.png` へ移し（README の画像）、
+  `screenshot.jpeg`（旧）と `docs/screenshot-m8.png` / `screenshot-m10.png` / `screenshot-web.png` を削除した。
+  `REF:README.md` / `REF:README.en.md` の画像パスを追随。CI の `paths-ignore` と変更フィルタも `screenshot.png` に直した。
+- **仕様書の是正（承認済み）**: `REF:docs/specifications/overview.md` §3.4 の「11 機能」→「12 機能」（表は 12 行）。
+  `REF:docs/specifications/ui.md` §10 の `reader` の行から「v1 では `Alt+7` を欠番として予約する」を削除（実装済み）。
+  `REF:docs/designs/overview.md` §3.3 の「LSP 11 機能」を、12 機能の内訳（文書診断は `REF:src/core/diagnostics.rs`、
+  残る 11 機能が `core/features`）に書き直した。
+- **README**: 現行実装（9 ワークスペース・76 診断・7 役割・MCP 14 ツール・119 の正規操作・LSP/MCP/CLI/Python/Rust の
+  5 入口）に更新し、インストールと起動、外部インターフェースの表を追加した。`REF:README.en.md` も同じ構成にした。
+- **Web サイト**: `REF:website/src/data/site.ts` を新設し、ワークスペース 9 件・入口 5 件・主要キーを 1 か所に集約。
+  `REF:website/src/components/Overview.astro` が「ひと目で分かる数」「ワークスペース表」「キー一覧」「本文の書き方」
+  「プロジェクト構造」「外部インターフェース」「仕様へのリンク」を描く。`features.ts` の誤り（AI の役割を 6 役と
+  していた・LSP を「将来」としていた）を修正し、`i18n.ts` の「準備中」を「v1 実装完了 / バイナリ配布準備中」に直した。
+  `REF:website/README.md` に `site.ts` を直す場所として追記した。
+- **Web 実機スモーク**: `REF:scripts/web-smoke.sh` をサンドボックスのヘッドレス Chromium で実行し、28 項目すべて通った
+  （IndexedDB 保存・IME・読者モード・PWA キャッシュ・オフライン・Zip・エクスポート・取り込み・バイナリ画像の往復・
+  保存失敗からの再試行）。wasm の取得は PR #25 の `sandbox-tools` コメントを使った（`PR=25`）。
+
+### [HIST:MILESTONE:USER-GUIDE-PLAN] 2026-10-23 ユーザー向けガイドの新設と、ガイドモード・サイト生成の仕様化
+
+[HIST-TAG: category=MILESTONE id=USER-GUIDE-PLAN topics=docs,users,guide-mode,website,i18n,plan]
+
+- **ユーザー裁定（2026-10-23）**: バイナリ配布は後回し（インストールの節は場所だけ作って「準備中」）。
+  用語は変えず定義を足す。`REF:docs/users/` を新設し、`REF:docs/specifications/` を参照する向きに固定する。
+  サイトは仕様書とユーザーガイドの両方を docs から生成する。ブラウザで動くこと・入口が複数あることを
+  README とサイトで分かるようにする。ガイドモードは Web=保存 0 件／デスクトップ=履歴 0 件のときだけ自動で出す。
+- **追加した文書**: `REF:docs/users/README.md`（読む順路）・`REF:docs/users/start.md`（はじめての手引き 9 段階）・
+  `REF:docs/users/cheatsheet.md`（記号とキー）・`REF:docs/users/glossary.md`（用語の定義と仕様の節へのリンク）・
+  `REF:docs/users/faq.md`（保存・波線・外部連携）。用語は仕様書の語のまま（節・場面・話・章・モード・役割語）で、
+  言い換えずに定義を足した。
+- **仕様の追加（人間の承認済み）**: `REF:docs/specifications/ui.md` §9.10（ガイドモード。出る条件・9 段階・
+  吹き出しと矢印・入力を奪わないこと・ja/en と手引きとの一致）、`REF:docs/specifications/workflows.md` §18.5
+  （仕様書とユーザーガイドの両方を docs から公開し、ガイドから仕様書へリンクする。公開物と元文書の一致、
+  解説ページ URL の実在を CI が検査する）、`REF:docs/specifications/platform.md` §14.2.1（3 URL の実在 MUST）。
+- **設計の追加**: `REF:docs/designs/ui.md` §9.10（段階定義を 1 か所に持つ・判定・`guide_done` の保存・
+  吹き出しの位置決め・進む条件の監視・テスト）と `REF:docs/designs/workflows.md` §18.5（`docs-site.py` による生成、
+  `§N.M` のアンカー化、`guide/` の生成、検査 11）。どちらも状態は「実装待ち」。
+- **計画**: `REF:docs/plans.md` §6 に Phase 0〜5、受け入れ基準、検査 11、リスクを置いた。
+- **README**: 冒頭に「どこで動くか」（ブラウザ／デスクトップ／CLI／LSP／MCP／Python）の表を足し、
+  ユーザーガイドへの導線を置いた（`REF:README.en.md` も同様）。サイトのトップにも同じ表と
+  「はじめての手引き」ボタンを追加した（`REF:website/src/data/site.ts`・`REF:website/src/components/Overview.astro`）。
+- **未実施（意図的）**: ガイドモードの実装、`docs-site.py`・`easy-read.py`・検査 11、`guide/*.html` の生成は
+  計画のみ。今回のコミットは文書とサイトのデータだけ。
+
+### [HIST:MILESTONE:DOCS-SITE] 2026-10-23 docs をそのまま読めるサイトにする（複製を持たない）
+
+[HIST-TAG: category=MILESTONE id=DOCS-SITE topics=docs,website,generator,ci,guide,links]
+
+- **ユーザー裁定（2026-10-23）**: 非エンジニアに GitHub を読ませない。ドキュメントではなく**ガイド**として
+  サイト上で読ませる。`REF:docs/` の内容をそっくりそのままサイトにし、**複製物を作らない**（正本は 1 か所、
+  管理コストを増やさない）。
+- **生成器**: `REF:scripts/docs-site.py` を新設。`REF:docs/users/*.md` と `REF:docs/specifications/*.md` を
+  `REF:website/src/content/docs/` へフロントマター（`title`・`group`・`order`・`source`）付きで写し、
+  目次 `REF:website/src/data/docs-nav.ts` を書き出す。既定は生成、`--check` は再生成して差分があれば
+  終了コード 1（`REF:scripts/diagnostics-site.py` と同じ形）。余剰の生成物は削除する。
+- **サイトの構造**: ガイドは `/ja/manual/<slug>`（`README.md` は `/ja/manual/`）、仕様書は
+  `/ja/specifications/<name>`（同じく index あり）。描画は `REF:website/src/components/DocShell.astro`
+  （左に目次、本文、生成元の注記）と `REF:website/src/pages/ja/manual/[slug].astro`・
+  `REF:website/src/pages/ja/specifications/[slug].astro`。本文の Markdown はサイト側に置かない。
+- **リンク**: `./x.md` → `/ja/manual/<slug>`、`./README.md` → `/ja/manual/`、`../specifications/x.md` →
+  `/ja/specifications/<slug>`。外部 URL と `#` はそのまま。飛べない日本語見出しには `<a id="install">`
+  などの英字 ID を置き、生成器が見出しと `<a id>` の両方からアンカー集合を作って、存在しないアンカーを
+  指すリンクをエラーにする（`REF:docs/users/start.md` に 3 つ追加）。
+- **導線**: `REF:website/src/components/Header.astro` に「ガイド」「仕様書」、`REF:website/src/data/site.ts` の
+  `guideLinks` をサイト内 URL へ差し替え。トップページは本文を書き写すのをやめ、**ガイドへのカードと
+  入口の表だけ**にした（`REF:website/src/components/Overview.astro`）。英語の `/en/manual/*`・
+  `/en/specifications/*` は、本文が日本語のみであることと日本語版への案内を出す短いページ。
+- **追加したガイド**: `REF:docs/users/project-structure.md`（作品フォルダと命名規則）・
+  `REF:docs/users/git.md`（Git は任意、`.novnow/` は除外）・`REF:docs/users/publish.md`
+  （書き出した原稿の公開）。計 8 本。
+- **CI**: `REF:scripts/verify.sh` の `site-check` に `python3 scripts/docs-site.py --check` を追加。
+  docs を直して生成し忘れた状態と、生成物を手で編集した状態の両方が落ちる。
+- **結果**: `npm run build` は 202 ページ（既存 162＋ガイド 8＋仕様書 11＋英語の案内 21）。
+  生成 HTML のサイト内リンクはすべて実在。
+- **未実施（意図的）**: アプリ内の `guide/*.html` の生成と検査 11、ガイドモードの実装、英語本文の翻訳。
+
+### [HIST:MILESTONE:GUIDE-MODE] 2026-10-23 ガイドモード（はじめての手引き）を実装
+
+[HIST-TAG: category=MILESTONE id=GUIDE-MODE topics=ui,guide-mode,onboarding,i18n,tests]
+
+- **実装**: `REF:docs/specifications/ui.md` §9.10 の 9 段階を `REF:src/ui/guide.rs` に置き、
+  `REF:src/ui/widgets/guide.rs` が対象を枠と矢印で指して吹き出しを出す。膜は描かない（入力を奪わない）。
+- **出る条件**: `Picker::first_visit()`（Web=保存 0 件、デスクトップ=履歴 0 件）かつ
+  `.novnow/ui.json` の `guide_done` が `false` のときだけ。閉じたら `guide_done` を立てる。
+  ヘルプ（`?`）の「はじめての手引きをもう一度」からいつでも出し直せる。
+- **キー**: `Alt+Enter`（次へ）・`Alt+Backspace`（戻る）・`Esc`（閉じる）。**`Enter` と `Backspace` は
+  横取りしない**。当初の設計案（`Enter`／`Backspace`／`Esc` を横取りする）は、本文の改行と削除が
+  できなくなり仕様 §9.10「入力を奪わない」に反するため採らなかった（設計書も同じ理由で直した）。
+- **段階の進み方**: 条件を満たした段階は飛ばす（`Guide::observe`）。ボタンだけで進むのは 2 と 9 だけ。
+  エクスポートと Zip の完了は成功した時点で覚える。
+- **制約**: プロジェクトを 1 件も作らずに閉じた場合は保存先（`ui.json`）がまだ無いので、次の起動でも
+  もう一度出る。自動で出るのは 0 件のときだけなので、1 件作れば以後は出ない（仕様 §9.10 に例外として明記）。
+- **検証**: `REF:tests/guide.rs` 6 件と `REF:src/ui/guide.rs` の単体テスト 6 件。`REF:tests/layering.rs` の
+  「LocalStorage を使わない」「書き込みは関門だけ」を守るため、閉じたことは端末ではなく `ui.json` に置いた。
+- **未実施**: アプリ内の解説ページ（`guide/*.html`）の生成と、`REF:docs/script/reference.py` の検査 11
+  （仕様 §14.2.1 の URL 実在）。`REF:docs/plans.md` §6 Phase 0・3・5 は未実施のまま。
+
+### [HIST:MILESTONE:GUIDE-PUBLISH] 2026-10-23 手引きの公開（guide/*.html）と読みやすさの検査を実装
+
+[HIST-TAG: category=MILESTONE id=GUIDE-PUBLISH topics=docs,website,guide,ci,easy-read,url]
+
+- **背景**: 仕様 §14.2.1 の 3 URL（`guide/project_structure.html`・`guide/git.html`・`guide/publish.html`）は
+  アプリのヘルプが指すのに、公開物に実在しなかった（404）。非エンジニアに GitHub を読ませない方針なので、
+  サイト側に実体を作る必要があった。
+- **生成**: `REF:scripts/docs-site.py` が `REF:docs/users/*.md` から `REF:guide/*.html`（8 ページ）を作る。
+  見出し・箇条書き・表・コード・引用・段落を HTML にする最小の変換器を同じスクリプトに置いた。
+  リンクは同じフォルダの HTML へ張り替え、仕様書への参照だけリポジトリの URL にする。
+  `REF:index.html` の `copy-dir` で trunk の dist に載せ、`REF:website/public/guide/` にも同じ HTML を置いて
+  公式サイト（`novnow.sonneko.com`）からも開けるようにした。
+- **検査 11**: `REF:docs/script/reference.py` に 11 番目の検査を足した。3 URL の実体と `copy-dir` の指定、
+  仕様 §14.2.1・`REF:src/core/model/project.rs`・`REF:guide/` の URL の一致、`docs/users` の相対リンクが
+  仕様書か自分自身だけを指すこと、`REF:src/ui/guide.rs` の段階と `REF:docs/users/start.md` の見出しが
+  1〜9 で揃うこと、生成した HTML どうしのリンクの実在。
+- **読みやすさ**: `REF:docs/script/easy-read.py` を新設（1 文 60 字・1 段落 3 文・漢字 40% 以下・禁止語・
+  です/ます調の混在）。`REF:scripts/verify.sh` の `docs-users` と CI の docs ジョブに入れ、
+  `REF:docs/script/test_easy_read.py` で検査器そのものも試す。違反していた 19 件のうち、
+  漢字の詰まった短い定義は規則の対象外（60 字以上の段落だけ）にし、段落の分割と語の言い換えで残りを直した。
+- **直した文書**: `REF:docs/users/start.md` の `GUIDE.md` への相対リンクは、`docs/users` から
+  `docs/specifications` 以外を指せない規則に反していたので GitHub の URL に変えた。
+- **未実施**: 英語の本文（Phase 5）、診断の上位 12 件の「利用者向けの対処」（Phase 3-3）。
+
+### [HIST:MILESTONE:GUIDE-ERRORS] 2026-10-23 よく出るエラー 12 件の手引きを追加
+
+[HIST-TAG: category=MILESTONE id=GUIDE-ERRORS topics=docs,users,diagnostics,guide,easy-read]
+
+- **背景**: 波線（診断）が出たときに読む場所が、FAQ の数行しかなかった。仕様書の診断カタログは
+  正確だが、書き手が読むには条件と用語が詳しすぎる。
+- **追加**: `REF:docs/users/errors.md`（12 件）。参照（`E001`・`E012`）・構造（`E002`・`E008`・`W002`・
+  `W030`・`W012`）・人物とモード（`E005`・`E003`）・資料（`E007`・`E006`）・ファイル（`E025`）を、
+  「何が起きたか」と「どう直すか」の 2 段で書いた。条件の正確な記述は
+  `REF:docs/specifications/diagnostics.md` §7 を指す（書き写さない）。
+- **導線**: `REF:docs/users/README.md` の読む順路と、`REF:docs/users/faq.md` の波線の節から引ける。
+  サイトの目次（`REF:scripts/docs-site.py` の `USER_ORDER`・`guide/*.html` のヘッダ）にも並べた。
+- **検査**: `REF:docs/script/easy-read.py` が同じ規則（1 文 60 字・1 段落 3 文・漢字 40% 以下）で通る。

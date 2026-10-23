@@ -26,7 +26,7 @@ path = "src/main.rs"
 #
 # M7 まで `src/ui/**` は空の stub なので、egui / eframe（依存ツリーは 200 クレート規模）を
 # 毎回ビルドするのは CI の 4 ジョブと手元のビルドの時間を無駄にする（2026-10-11 の
-# ユーザー承認、`PLANS.md` §9.2 B-54）。core / ports / adapters は GUI なしでビルドでき、
+# ユーザー承認、`docs/history.md` B-54）。core / ports / adapters は GUI なしでビルドでき、
 # §3.2 の「core は egui / eframe / rfd に依存しない」は `tests/layering.rs` が検査する。
 #
 # M7 で `src/ui/**` に egui のコードが入ったら、`.github/workflows/ci.yml` の 4 コマンドに
@@ -34,17 +34,17 @@ path = "src/main.rs"
 # `cargo build --features ui` / `cargo run --features ui`。
 #
 # `toml`（文言カタログ `ui/i18n/*.toml` の読み込み）は M6 から**常に**入れる: CLI のメッセージも
-# 同じカタログを使う（§12.2）ので、`ui::i18n` は GUI なしのビルドにも要る（`PLANS.md` §9.2 B-100）。
+# 同じカタログを使う（§12.2）ので、`ui::i18n` は GUI なしのビルドにも要る（`docs/history.md` B-100）。
 default = []
 ui = ["dep:eframe", "dep:egui", "dep:rfd", "dep:fontdb", "dep:image"]
 
 [dependencies]
-# 以下 4 つ（eframe / egui / rfd / fontdb）は `ui` feature のときだけ（上記）。層は `PLANS.md` §2.1 の表のとおり ui。
+# 以下 4 つ（eframe / egui / rfd / fontdb）は `ui` feature のときだけ（上記）。層は `docs/designs/overview.md` §3.2 の依存表のとおり ui。
 eframe = { version = "0.27.2", optional = true }
 egui = { version = "0.27.2", optional = true }
 image = { version = "0.24.9", default-features = false, features = ["png", "jpeg"], optional = true }
 
-# 行区切りを LF のみにする（SPECIFICATIONS §5.0.4「内部表現は LF」）。
+# 行区切りを LF のみにする（`docs/specifications/syntax.md` §5.0.4「内部表現は LF」）。
 # 既定 feature の unicode_lines は U+2028 等も行区切りにしてしまい、本文にそれが
 # 含まれると行番号がずれるため落とす（simd は性能のため残す）。
 ropey = { version = "1.6", default-features = false, features = ["simd"] }

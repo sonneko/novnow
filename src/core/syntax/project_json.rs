@@ -1,4 +1,4 @@
-//! `project.json`（§4.5）の読み込みと検査（仕様 第 2.9 版。`PLANS.md` §9.2 B-88・B-89）。
+//! `project.json`（§4.5）の読み込みと検査（仕様 第 2.9 版。`docs/history.md` B-88・B-89）。
 //!
 //! 設定の読み込み（M5）はここを通る。`features::Project` は `project.json` の文書を受け取ると
 //! [`parse`] の [`ProjectJson::settings`] を設定として使い、`diagnostics::document` は
@@ -7,7 +7,7 @@
 //! | コード | 条件 | 位置 |
 //! |---|---|---|
 //! | **E025** | JSON として読めない（§4.3-4。型の合わない値を含む） | ファイル全体 |
-//! | **E027** | `lexicon.word_classes` の正規表現が不正（§6.5.1、`PLANS.md` §9.1 A-24） | その値の文字列リテラル |
+//! | **E027** | `lexicon.word_classes` の正規表現が不正（§6.5.1、`docs/history.md` A-24） | その値の文字列リテラル |
 //!
 //! E025 のときは**既定値で続行する**（§4.3-4「既定値で開く」。P4: 作家の原稿を人質に取らない）。
 //! 原文は 1 バイトも書き換えない。E027 の語クラスは、マッチャ（`resolve::role_language`）が
@@ -91,7 +91,7 @@ fn word_class_diagnostics(text: &str, offset: usize, settings: &Settings) -> Vec
 
 /// `lexicon.word_classes` の `name` の値の**文字列リテラル**の範囲（`"…"` を含む）。
 ///
-/// serde は位置を持たないので、`PLANS.md` §9.2 B-45（`materials/index.json`）と同じく
+/// serde は位置を持たないので、`docs/history.md` B-45（`materials/index.json`）と同じく
 /// **原文からリテラルを探す**。`"word_classes"` より後ろで、キーのリテラル・`:`・値のリテラルが
 /// 空白だけを挟んで並ぶ所を採る。見つからない書き方（`\u` エスケープ等）なら、キーのリテラル →
 /// `"word_classes"` → ファイル全体の順に広げる（位置がずれても診断が消えるよりはよい）。

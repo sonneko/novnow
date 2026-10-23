@@ -1,6 +1,6 @@
 //! インレイヒント（§3.4 `inlay_hint::range(doc, range, project)` → `textDocument/inlayHint`）。
 //!
-//! §3.4 の表の「資料タイトル・モード名の薄表示」の 2 種を返す（`PLANS.md` §9.2 B-82）。
+//! §3.4 の表の「資料タイトル・モード名の薄表示」の 2 種を返す（`docs/history.md` B-82）。
 //!
 //! - **資料タイトル**（§6.6.2）: `'M0137` の直後に `⟨タイトル⟩`。中身は M3 の
 //!   [`materials::Hint`]（24 字超は 23 字 + `…`、`status`）。

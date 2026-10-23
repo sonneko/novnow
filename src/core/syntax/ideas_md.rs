@@ -26,7 +26,7 @@
 //!
 //! | コード | 条件 | 位置 |
 //! |---|---|---|
-//! | **W011** | §5.0.6 の表に無いフィールドキー（`status` `created` `relates` `promoted-to` は表に無い。`PLANS.md` §9.1 A-15） | キー |
+//! | **W011** | §5.0.6 の表に無いフィールドキー（`status` `created` `relates` `promoted-to` は表に無い。`docs/history.md` A-15） | キー |
 //! | **E008** | 同一ファイル内の ID 重複（§5.7「再利用禁止」） | 2 件目の ID |
 //!
 //! 並びは**行順の W011** のあとに**アイデア順の E008**。
@@ -51,7 +51,7 @@ use super::plot_outline::{self, Field};
 
 // MD 方言の行は `characters_md` のものが正（§5.6「同一の MD 方言」）。
 // このモジュールだけで木を辿れるよう、同じ名前で公開し直す（B 形式が A 形式の
-// `Field` 等を `pub use` したのと同じ流儀。PLANS.md §9.2 B-40）。
+// `Field` 等を `pub use` したのと同じ流儀。`docs/history.md` B-40）。
 pub use super::characters_md::{Bullet, Heading, Line, Pattern, PatternLine};
 
 /// ID のシジル（§5.7「H1 は `I` + 4 桁 ID + 空白 + タイトル」）。
@@ -76,7 +76,7 @@ pub struct Ideas<'a> {
 /// `ideas.md` のテキストをパースする。
 ///
 /// `text` は **LF 改行**であること（§5.0.4）。壊れた入力でも部分木と診断を返す
-/// （`PLANS.md` §5.3 完了条件 3）。
+/// （`docs/history.md` の完了条件 3）。
 pub fn parse(text: &str) -> Ideas<'_> {
     let mut lines: Vec<Line<'_>> = text.split('\n').map(characters_md::parse_line).collect();
     characters_md::attach_continuations(&mut lines);
@@ -96,7 +96,7 @@ pub fn parse(text: &str) -> Ideas<'_> {
 }
 
 impl<'a> Ideas<'a> {
-    /// 入力と**バイト単位で一致する**テキストに戻す（`PLANS.md` §5.3 完了条件 2）。
+    /// 入力と**バイト単位で一致する**テキストに戻す（`docs/history.md` の完了条件 2）。
     pub fn to_text(&self) -> String {
         let mut out = String::new();
         for (index, line) in self.lines.iter().enumerate() {
@@ -140,7 +140,7 @@ impl<'a> Ideas<'a> {
     /// `index` 番目のアイデアの `status`（§5.7 `inbox | keep | promoted | dropped`）。
     ///
     /// `status` は §5.0.6 の表に無いキーなので **W011** が出るが、値はそのまま読める
-    /// （`PLANS.md` §9.1 A-15）。② の `# ` 行コメントが付いていれば値に含まれる（§5.0.8）。
+    /// （`docs/history.md` A-15）。② の `# ` 行コメントが付いていれば値に含まれる（§5.0.8）。
     pub fn status(&self, index: usize) -> Option<&Field<'a>> {
         self.unknown_field(index, "status")
     }

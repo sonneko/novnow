@@ -4,7 +4,9 @@ export const translations = {
   ja: {
     nav: {
       home: "トップ",
-      guide: "機能ガイド",
+      guide: "機能一覧",
+      manual: "ガイド",
+      specs: "仕様書",
       api: "API リファレンス",
       troubleshooting: "トラブルシューティング",
       github: "GitHub",
@@ -15,7 +17,7 @@ export const translations = {
       description: "プロットと本文の完全連動、設定の自動ポップアップ参照、人間が手綱を握る段階的AIエージェントワークフロー。作家とエンジニアのためのモダンな執筆環境。",
       ctaGuide: "ガイドを見る",
       ctaGitHub: "GitHubを見る",
-      ctaStatus: "準備中（近日公開予定）",
+      ctaStatus: "ソースからビルドできます",
     },
     community: {
       title: "コミュニティ・貢献・スポンサー",
@@ -33,14 +35,16 @@ export const translations = {
     },
     installNotice: {
       title: "インストール・導入方法について",
-      status: "準備中（ベータ版公開をお待ちください）",
-      desc: "デスクトップ版（Windows / macOS / Linux）および Web版の正式リリース準備を行っています。インストール手順およびバイナリ配布情報は順次公開されます。",
+      status: "v1 実装完了 / バイナリ配布準備中",
+      desc: "現在はソースからビルドして利用できます（cargo build --release --features ui）。デスクトップ版（Windows / macOS / Linux）とブラウザ版（WebAssembly）は同じ画面・同じキー操作で、同じプロジェクトをそのまま開けます。インストーラとバイナリは準備中です。",
     }
   },
   en: {
     nav: {
       home: "Home",
-      guide: "Feature Guide",
+      guide: "Features",
+      manual: "Guide",
+      specs: "Specifications",
       api: "API reference",
       troubleshooting: "Troubleshooting",
       github: "GitHub",
@@ -51,7 +55,7 @@ export const translations = {
       description: "Seamless plot-prose synchronization, automatic character reference popups, and human-guided AI agent workflows. A modern writing IDE for authors and engineers.",
       ctaGuide: "Read Guide",
       ctaGitHub: "View GitHub",
-      ctaStatus: "Under Construction (Coming Soon)",
+      ctaStatus: "Build from source today",
     },
     community: {
       title: "Community, Contribute & Sponsor",
@@ -69,8 +73,8 @@ export const translations = {
     },
     installNotice: {
       title: "Installation & Setup Guide",
-      status: "Under Construction (Awaiting Beta Release)",
-      desc: "Desktop builds (Windows / macOS / Linux) and the official Web version are currently in preparation. Installation commands and binaries will be published upon release.",
+      status: "v1 complete / binaries in preparation",
+      desc: "You can build from source today (cargo build --release --features ui). The desktop build (Windows / macOS / Linux) and the browser build (WebAssembly) share the same layout, the same keys, and open the same project. Installers and binaries are being prepared.",
     }
   }
 } as const;

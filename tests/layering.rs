@@ -1,11 +1,11 @@
-//! 層構造の機械検査（`PLANS.md` §5.1 作業項目 3 / §6.2、`SPECIFICATIONS.md` §3.2・§12.2）。
+//! 層構造の機械検査（`docs/history.md` の作業項目 3 / §6.2、`docs/specifications/overview.md` §3.2・§12.2）。
 //!
 //! `src/core/**` を `syn` の AST として訪走し、次の 2 点を検査する。
 //!
 //! 1. 禁止依存（§3.2）— UI / I/O / 非同期 / 時刻・乱数、および許可リストに無いクレート
 //! 2. ユーザー向け文言（§12.2）— 日本語の文字列リテラル
 //!
-//! 加えて **`Cargo.toml` の feature gate**（`PLANS.md` §9.2 B-54・B-100）を見る: GUI のクレート
+//! 加えて **`Cargo.toml` の feature gate**（`docs/history.md` B-54・B-100）を見る: GUI のクレート
 //! （egui / eframe / rfd / fontdb）が `optional = true` で `ui` feature の後ろにあり、既定のビルド
 //! （＝ CI の fmt / clippy / test / wasm）がそれらをコンパイルしないこと。`ui` 層のうち文言カタログ
 //! `ui::i18n` だけは CLI も使うので常にビルドし、GUI のクレートを使わないこと（M6）。
@@ -31,14 +31,14 @@
 //! `i18n: format-vocabulary` という doc 行を付けた `const` / `static` の中も日本語リテラル検査の
 //! 対象外にする。§5.0.6 のフィールドキー別名表は「UI 言語が `en` でも受理する」ファイル形式の
 //! 語彙であってユーザー向け文言ではなく、ロケール表（`ui/i18n/`）にも置けないため（§12.2 の
-//! 「文言」の解釈は `PLANS.md` §9.1 A-5 / §9.2 B-19）。マーカーは **doc 行の完全一致**で判定し、
+//! 「文言」の解釈は `docs/history.md` A-5・B-19）。マーカーは **doc 行の完全一致**で判定し、
 //! 免除が及ぶのはその item の中だけ（同じファイルの関数やモジュールには効かない）。
 //!
 //! §3.2 の「読み書きは不可」は `std::fs` 等の禁止モジュールに加えて、**`io::stdin` /
 //! `io::stdout` / `io::stderr`**（`use std::io;` 経由の 2 セグメント形を含む）でも検査する。
 //! `std::io::Read` / `Write` / `Error` を型として使うのは純粋なので許可する。
 //!
-//! 検査器そのものの回帰は末尾の `checker_*` テストが担保する（`PLANS.md` §5.1 の完了条件
+//! 検査器そのものの回帰は末尾の `checker_*` テストが担保する（`docs/history.md` のの完了条件
 //! 「`src/core/` に意図的に `use egui;` を書き足すと CI が落ちる」の機械化）。
 
 use std::fs;
@@ -100,7 +100,7 @@ const FORBIDDEN_CRATES: &[&str] = &[
     "console_error_panic_hook",
 ];
 
-/// core が参照してはならない std のモジュール（§3.2 / `DEVELOPERS.md` §3）。
+/// core が参照してはならない std のモジュール（§3.2 / `docs/developers.md` §3）。
 ///
 /// `std::path` は型として持つことが §3.2 で明示的に許されているので対象外。`std::io` も
 /// 型（`io::Result` 等）としての利用があり得るので対象外にしている（I/O 呼び出し自体は
@@ -527,7 +527,7 @@ fn read_core(file: &Path) -> String {
 }
 
 // ---------------------------------------------------------------------------
-// 本体の検査（`PLANS.md` §6.2 の CI 常設テスト）
+// 本体の検査（`docs/history.md` の CI 常設テスト）
 // ---------------------------------------------------------------------------
 
 /// §3.2: `src/core/**` に禁止依存（UI / I/O / 非同期 / 時刻・乱数 / 許可外クレート）が無いこと。
@@ -542,7 +542,7 @@ fn core_has_no_forbidden_dependency() {
     }
     assert!(
         found.is_empty(),
-        "SPECIFICATIONS.md §3.2 の層構造違反が {} 件（src/core）:\n{}",
+        "`docs/specifications/overview.md` §3.2 の層構造違反が {} 件（src/core）:\n{}",
         found.len(),
         bullets(&found)
     );
@@ -560,7 +560,7 @@ fn core_has_no_user_facing_text() {
     }
     assert!(
         found.is_empty(),
-        "SPECIFICATIONS.md §12.2 違反（core は文言を持たない）が {} 件:\n{}",
+        "`docs/specifications/ui.md` §12.2 違反（core は文言を持たない）が {} 件:\n{}",
         found.len(),
         bullets(&found)
     );
@@ -570,7 +570,7 @@ fn core_has_no_user_facing_text() {
 // 検査器の自己テスト
 //
 // 「違反を書いたら本当に落ちるか」をテストで担保する。これが無いと、検査器の改修で
-// 検出漏れが混入しても CI は緑のままになる（`PLANS.md` §5.1 完了条件 2 の機械化）。
+// 検出漏れが混入しても CI は緑のままになる（`docs/history.md` の完了条件 2 の機械化）。
 // ---------------------------------------------------------------------------
 
 /// 検出されるべき違反（§3.2）。
@@ -788,7 +788,7 @@ fn checker_allows_japanese_comments() {
     );
 }
 
-// ============================================================ Cargo の feature gate（§9.2 B-54）
+// ============================================================ Cargo の feature gate（`docs/history.md` B-54）
 
 /// `Cargo.toml`（依存と feature の正本）。
 const CARGO_TOML: &str = include_str!("../Cargo.toml");
@@ -799,7 +799,7 @@ const LIB_RS: &str = include_str!("../src/lib.rs");
 /// `src/adapters/mod.rs`（アダプタの宣言の正本）。
 const ADAPTERS_MOD_RS: &str = include_str!("../src/adapters/mod.rs");
 
-/// GUI（§3.3 の `ui` 層の egui 部分）に要るクレート。`PLANS.md` §2.1 の表で層が ui のもの
+/// GUI（§3.3 の `ui` 層の egui 部分）に要るクレート。`docs/designs/overview.md` §3.1 の表で層が ui のもの
 /// （`toml` は M6 から CLI も使う文言カタログのために通常の依存になった。B-100）。
 const UI_CRATES: &[&str] = &["eframe", "egui", "rfd", "fontdb", "image"];
 
@@ -819,7 +819,7 @@ fn the_ui_crates_are_optional_and_behind_the_ui_feature() {
         assert_eq!(
             dep["optional"].as_bool(),
             Some(true),
-            "{name} は optional = true にする（PLANS.md §9.2 B-54）"
+            "{name} は optional = true にする（`docs/history.md` B-54）"
         );
     }
     let features = cargo["features"]
@@ -937,7 +937,7 @@ impl<'ast> Visit<'ast> for CrateRoots {
 }
 
 /// §9.5.1 MUST: 参照ペインはカードにしない。`egui::Frame::group`（と、それを使う `Ui::group`）は
-/// `src/ui/` 全体で 0 件（PLANS.md §5.8 の完了条件「grep で検査、CI に追加」。CI の test ジョブで走る）。
+/// `src/ui/` 全体で 0 件（`docs/history.md` の完了条件「grep で検査、CI に追加」。CI の test ジョブで走る）。
 #[test]
 fn the_gui_never_uses_frame_group() {
     let mut files = Vec::new();
@@ -1113,7 +1113,7 @@ fn cli_has_no_user_facing_text() {
     }
     assert!(
         found.is_empty(),
-        "SPECIFICATIONS.md §12.2 違反（CLI の文言はカタログに置く）が {} 件:\n{}",
+        "`docs/specifications/ui.md` §12.2 違反（CLI の文言はカタログに置く）が {} 件:\n{}",
         found.len(),
         bullets(&found)
     );
@@ -1136,7 +1136,7 @@ fn gui_has_no_user_facing_text() {
     }
     assert!(
         found.is_empty(),
-        "SPECIFICATIONS.md §12.2 / §19.1 違反（GUI の文言はカタログに置く）が {} 件:\n{}",
+        "`docs/specifications/ui.md` §12.2 / §19.1 違反（GUI の文言はカタログに置く）が {} 件:\n{}",
         found.len(),
         bullets(&found)
     );
@@ -1146,7 +1146,7 @@ fn gui_has_no_user_facing_text() {
 // §13.1.2: 書き込みの system call は書き込みの関門（`src/adapters/storage_fs.rs`）だけ
 //
 // 仕様は「`std::fs::write` / `File::create` の直接使用が `adapters/` 以外に無いこと」。第 2.9 版で
-// **関門の 1 ファイル**に絞った（`PLANS.md` §9.2 B-91）。関門の中の書き込みはすべて
+// **関門の 1 ファイル**に絞った（`docs/history.md` B-91）。関門の中の書き込みはすべて
 // `WritePolicy` の判定を通るので、ここで「関門の外に書き込み API が無い」ことを固定すれば、
 // 規則 10（プロジェクト外への書き込み禁止）を迂回する経路がソースに現れない。
 // ---------------------------------------------------------------------------
@@ -1331,7 +1331,7 @@ fn only_the_write_gate_touches_the_file_system_for_writing() {
     }
     assert!(
         found.is_empty(),
-        "SPECIFICATIONS.md §13.1.2 違反（書き込み API は {WRITE_GATE} だけ）が {} 件:\n{}",
+        "`docs/specifications/platform.md` §13.1.2 違反（書き込み API は {WRITE_GATE} だけ）が {} 件:\n{}",
         found.len(),
         bullets(&found)
     );
@@ -1567,7 +1567,7 @@ fn unsafe_is_restricted_to_the_two_windows_ffi_sites() {
     }
     assert!(
         unexpected.is_empty(),
-        "SPECIFICATIONS.md §18.3 違反（許可された 2 箇所外の unsafe）:\n{}",
+        "`docs/specifications/workflows.md` §18.3 違反（許可された 2 箇所外の unsafe）:\n{}",
         bullets(&unexpected)
     );
 }
@@ -1629,7 +1629,7 @@ fn ui_calls_all_eleven_lsp_feature_modules() {
     }
     assert!(
         missing.is_empty(),
-        "SPECIFICATIONS.md §19.13-2 違反（ui から呼ばれていない core::features 関数）:\n{}",
+        "`docs/specifications/interfaces.md` §19.1.2 違反（ui から呼ばれていない core::features 関数）:\n{}",
         bullets(&missing)
     );
 }

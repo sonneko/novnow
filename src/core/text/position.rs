@@ -1,4 +1,4 @@
-//! 位置の相互変換（`SPECIFICATIONS.md` §3.4）。
+//! 位置の相互変換（`docs/specifications/overview.md` §3.4）。
 //!
 //! core は内部で **byte offset** を使う。LSP は UTF-16 を既定とするため、
 //! `Utf8Byte ⇔ CharIndex ⇔ Utf16CodeUnit` の相互変換をこの 1 ファイルに集約する。

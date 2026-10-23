@@ -72,7 +72,7 @@ fn platform_locale() -> Option<String> {
     None
 }
 
-/// ホームディレクトリ（`HOME` → OS の既定。`directories` クレート、`PLANS.md` §2.1）。
+/// ホームディレクトリ（`HOME` → OS の既定。`directories` クレート、`docs/designs/overview.md` §3.1）。
 #[cfg(not(target_arch = "wasm32"))]
 fn home_dir() -> Option<PathBuf> {
     std::env::var_os("HOME")

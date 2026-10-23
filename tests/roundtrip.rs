@@ -1,4 +1,4 @@
-//! 未知キーを含むファイルの読み書き（`PLANS.md` §6.2 の M2 の行、本書 §1.5-1,2）。
+//! 未知キーを含むファイルの読み書き（`docs/history.md` の M2 の行、本書 §1.5-1,2）。
 //!
 //! §1.5 は ① が ② のために必ず守る MUST なので、形式ごとの unit テストとは別に
 //! **1 ファイルに集めて**固定する。
@@ -258,7 +258,7 @@ fn the_c_form_round_trips_byte_for_byte() {
 fn characters_md_round_trips_byte_for_byte_with_unknown_keys() {
     let parsed = characters_md::parse(CHARACTERS_MD);
     assert_eq!(parsed.to_text(), CHARACTERS_MD);
-    // `addresz` / `icoz` は ② のキーなので ① では W011 ＋ 値を保持（PLANS.md §1.2）。
+    // `addresz` / `icoz` は ② のキーなので ① では W011 ＋ 値を保持（`docs/plans.md` §4.2）。
     // `color` は §5.0.6 の表に正式追加された（第 2.6 版・A-15）ので W011 にならない
     let warned: Vec<String> = parsed
         .diagnostics
@@ -405,7 +405,7 @@ fn project_json_keeps_unknown_keys_at_every_level() {
 #[test]
 fn broken_json_is_kept_as_text_and_does_not_panic() {
     // §4.3-4「壊れていても開ける」。`materials/index.json` は診断コードが無いので
-    // `Index::error` にメッセージを持つ（`PLANS.md` §9.1 A-17）
+    // `Index::error` にメッセージを持つ（`docs/history.md` A-17）
     for text in ["{", "{\"items\": [", "not json at all", "[1,2,3]"] {
         let parsed = materials_index::parse(text);
         assert_eq!(parsed.to_text(), text, "{text:?}");

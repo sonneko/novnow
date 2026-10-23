@@ -5,7 +5,7 @@
 //! 中身は全部プロジェクトの文書から作る（同じ文書なら同じパケット＝決定論。`generated_at` だけは
 //! 呼び出し側が渡す。core は時計を持たない）。
 //!
-//! | ブロック | 中身（`PLANS.md` §9.2 B-140） |
+//! | ブロック | 中身（`docs/history.md` B-140） |
 //! |---|---|
 //! | 1 project | `title` と `style`（`prompts/_shared/style.md` の本文） |
 //! | 2 outline | `all`（当該章の summary 1 行）・`chapter`（当該話の summary 1 行）・`goal` |

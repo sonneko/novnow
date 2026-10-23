@@ -65,7 +65,7 @@ docs/
 
 ### 2.1 必要なツールチェーン（通常環境）
 
-- **Rust**: `.github/toolchain.env`（`REF:.github/toolchain.env`）で指定されたバージョン（`1.99.0`）、ターゲット `x86_64-unknown-linux-gnu` および `wasm32-unknown-unknown`、コンポーネント `rustfmt` / `clippy`。
+- **Rust**: `REF:rust-toolchain.toml` の `channel = "stable"`（サンドボックスの退避ツールチェーンは 1.99.0。`REF:.github/toolchain.env` の `TOOLCHAIN=stable` も同じ指定）。ターゲット `x86_64-unknown-linux-gnu` および `wasm32-unknown-unknown`、コンポーネント `rustfmt` / `clippy`。
 - **Linux システムライブラリ（`ui` feature ビルド時）**:
   - `libxcb-render0-dev`, `libxcb-shape0-dev`, `libxcb-xfixes0-dev`, `libxkbcommon-dev`, `libssl-dev`, `libgtk-3-dev`
 - **Web ビルド・スモークテスト時**:
@@ -79,7 +79,7 @@ Arena サンドボックスには初期状態で `rustc` / `cargo` が入って�
    ```bash
    bash scripts/bootstrap-toolchain.sh
    ```
-   これにより `/home/user/build/`（スナップショット対象外）に Rust 1.99.0、`wasm32-unknown-unknown` 標準ライブラリ、全依存クレート（`criterion` を含む 493 クレート）、`/home/user/build/env.sh` が展開される。
+   これにより `/home/user/build/`（スナップショット対象外）に現行の stable（1.99.0）、`wasm32-unknown-unknown` 標準ライブラリ、全依存クレート（`criterion` を含む約 500 クレート）と pyo3 系、`/home/user/build/env.sh` が展開される。**サンドボックスの版は固定されない**ので、CI（`dtolnay/rust-toolchain@stable`）と一致しないことがある。
 2. **各コマンド実行時の環境有効化**:
    `bash` ツール呼び出しは毎回新しいシェルで起動するため、Rust コマンドを実行する際は必ず先頭に `. /home/user/build/env.sh` を付ける。
    ```bash
@@ -94,37 +94,70 @@ Arena サンドボックスには初期状態で `rustc` / `cargo` が入って�
 novnow/
 ├── Cargo.toml                 # クレートマニフェスト（REF:Cargo.toml）
 ├── Cargo.lock                 # 依存ロックファイル（v4）
+├── rust-toolchain.toml        # ツールチェーン指定（stable / rustfmt・clippy / wasm32）
 ├── Trunk.toml                 # Web 版ビルド設定（REF:Trunk.toml）
 ├── index.html                 # Web 版エントリ HTML（REF:index.html）
+├── sw.js / manifest.webmanifest  # PWA のサービスワーカーとマニフェスト
+├── icon.svg                   # アプリアイコン
+├── README.md / README.en.md / GUIDE.md  # 利用者向け（日本語 / 英語 / 手引き）
 ├── assets/
 │   └── ipag.ttf               # Web / CJK フォールバック用同梱フォント（IPA ゴシック）
 ├── benches/
 │   └── core.rs                # §18.1 性能目標の criterion ベンチマーク（REF:benches/core.rs）
-├── docs/
+├── docs/                      # 本リポジトリのドキュメント体系（§1）
 │   ├── developers.md          # 本書（固定の開発者情報・ドキュメント規則）
 │   ├── handoff.md             # セッション引き継ぎ情報（REF:docs/handoff.md）
 │   ├── add-dependencies.md    # 依存追加時用ドキュメント
-│   ├── plans.md               # 段階 ② 計画・進行中マイルストーン（REF:docs/plans.md）
+│   ├── plans.md               # 進行中の計画・受け入れ基準（REF:docs/plans.md）
 │   ├── history.md             # 過去の仕様改訂・意思決定・完了履歴（追記専用、REF:docs/history.md）
-│   ├── script/
-│   │   └── duplicate.py       # ドキュメント管理規則・重複・REF 検査スクリプト（REF:docs/script/duplicate.py）
+│   ├── verify-rule10.md       # 規則 10（プロジェクト外に書かない）の確認手順
+│   ├── script/                # duplicate.py（文書規則）/ reference.py（実装との突き合わせ）/ 各 test_*.py
 │   ├── specifications/        # 純粋な仕様書（11 ファイル）
 │   └── designs/               # 対応する設計書（11 ファイル）
 ├── examples/
+│   ├── api_catalog.rs         # 正規操作カタログのゴールデン生成（REF:examples/api_catalog.rs）
+│   ├── mcp_tools.rs           # MCP ツール定義のゴールデン生成（REF:examples/mcp_tools.rs）
 │   └── sample-novel/          # 付録 C のサンプルプロジェクト一式（REF:examples/sample-novel/project.json）
 ├── scripts/
 │   ├── bootstrap-toolchain.sh # サンドボックス用 Rust ツールチェーン展開（REF:scripts/bootstrap-toolchain.sh）
+│   ├── bootstrap-jpeg.sh      # 同梱 JPEG デコーダの展開
 │   ├── verify.sh              # コミット前の一括検証スクリプト（REF:scripts/verify.sh）
+│   ├── python-check.sh        # Python API の検査（REF:scripts/python-check.sh）
+│   ├── pyi-site.py            # 型スタブの生成・照合（REF:scripts/pyi-site.py）
+│   ├── api-site.py            # Web サイトの API 表の生成・照合（REF:scripts/api-site.py）
+│   ├── diagnostics-site.py    # Web サイトの診断解説の生成・照合（REF:scripts/diagnostics-site.py）
+│   ├── ci-report.sh           # CI の状態・注釈・PR コメントを読む（REF:scripts/ci-report.sh）
 │   ├── web-smoke.sh           # Web 版ビルド＋Headless Chromium E2E 起動（REF:scripts/web-smoke.sh）
 │   └── web-smoke.mjs          # Playwright E2E シナリオ本体（REF:scripts/web-smoke.mjs）
 ├── src/
 │   ├── main.rs                # バイナリ入口（REF:src/main.rs）
 │   ├── lib.rs                 # ライブラリ根（REF:src/lib.rs）
-│   ├── cli/                   # CLI サブコマンド（open, new, check, export, mcp）
-│   ├── core/                  # 純粋ドメイン層（id, text, syntax, model, resolve, diagnostics, features, policy, export, template, aicontext, agents）
+│   ├── core/                  # 純粋ドメイン層（REF:docs/designs/overview.md §3）
+│   │   ├── id.rs / text/ / syntax/ / model/ / resolve/ / diagnostics.rs
+│   │   ├── features/          # LSP 相当の純粋関数とワークスペース補助
+│   │   ├── policy/            # 規則 10・履歴・Zip・外部変更
+│   │   ├── export.rs / reader.rs / migration.rs / annotations.rs
+│   │   └── aicontext/ / agents/ / stage_two/ / template/
 │   ├── ports/                 # 外部境界 trait（storage, clock, mcp, env, dialog）
-│   ├── adapters/              # 環境別実装（storage_fs, storage_idb, recent_file, zip, project_load, env_system, mcp_stdio, clock_system, dialog_rfd）
-│   └── ui/                    # egui ベース GUI / Web UI（i18n, app, web, shell, workbench, save_machine, settings, palette, assist, agents, theme, widgets, workspaces）
+│   ├── adapters/              # 環境別実装（storage_fs, storage_idb, recent_file, zip, project_load,
+│   │                          #   env_system, mcp_stdio, mcp_http, clock_system, dialog_rfd）
+│   ├── app/                   # 描画と無縁の状態機械と 119 操作の機能核（REF:docs/specifications/interfaces.md §19）
+│   │   ├── session.rs / driver.rs / workbench.rs / save_machine.rs / settings.rs
+│   │   ├── palette.rs / assist.rs / agents.rs / command.rs / commands.rs
+│   │   ├── host.rs / memory_host.rs / fs_host.rs / event.rs / error.rs / workspace.rs
+│   │   └── ops/               # 正規操作カタログ（project, editing, knowledge, lang, agent, session_ops）
+│   ├── cli/                   # CLI サブコマンド（open, new, check, export, import, migrate, mcp, lsp, api, json）
+│   ├── lsp/                   # LSP サーバ（framing, convert, methods, commands, server）
+│   └── ui/                    # egui ベース GUI / Web UI（`ui` feature のときだけ）
+│       ├── i18n/              # ja.toml / en.toml（GUI と CLI が共有。常にビルド）
+│       ├── app.rs / shell.rs / theme.rs / web.rs
+│       ├── widgets/           # context_view, section_editor, reference_pane, syntax_text, inlay, portrait
+│       └── workspaces/        # 9 ワークスペース（write, plot-episode, plot-outline, idea, material,
+│                              #   cast, reader, agent, review）と stage_two（② の画面）
+├── python/
+│   └── novnow-py/             # PyO3 拡張（python/novnow/__init__.pyi は自動生成）REF:python/novnow-py/README.md
+├── website/                   # Astro の公式サイト（診断・API のページは仕様書から生成）
+├── contents/ , project.json/  # GUI の動作確認用のサンプルプロジェクト
 └── tests/                     # 統合テスト・アーキテクチャ境界検査・仕様照合テスト群
 ```
 
@@ -134,23 +167,34 @@ novnow/
 
 ### 4.1 `bash scripts/verify.sh`（コミット前の必須検証）
 
-`REF:scripts/verify.sh` は次を一括で実行する。コミット・プッシュ前に必ず実行し、すべて通ることを確認する。
+`REF:scripts/verify.sh` は次を一括で実行する（`--quick` で wasm を、`--python` で Python だけに絞れる）。コミット・プッシュ前に必ず実行し、すべて通ることを確認する。
 
 1. `python3 docs/script/duplicate.py`（ドキュメント規則・重複・`REF:` リンク・仕様/設計見出し一致の検査）
-2. `cargo fmt --all -- --check`
-3. `cargo clippy --locked --all-targets -- -D warnings`（`ui` feature なし）
-4. `cargo clippy --locked --all-targets --features ui -- -D warnings`（`ui` feature あり）
-5. `cargo test --locked --all-targets --no-fail-fast`（`ui` feature なし）
-6. `cargo test --locked --all-targets --features ui --no-fail-fast`（`ui` feature あり）
-7. `cargo check --locked --target wasm32-unknown-unknown --no-default-features --features web`
+2. `python3 -B -m unittest discover -s docs/script -p 'test_*.py'`（文書検査器自身の回帰）
+3. `python3 docs/script/reference.py`（文書と実装の突き合わせ。§4.6）
+4. `python3 scripts/diagnostics-site.py --check`（Web サイトの診断解説が全コードを網羅すること）
+5. `python3 scripts/api-site.py --check`（Web サイトの API 表が仕様 §19.7 の写しであること）
+6. `bash scripts/python-check.sh`（型スタブの生成一致・構文・位置引数の束縛）
+7. `cargo fmt --all --check`
+8. `cargo clippy --locked --all-targets -- -D warnings`（`ui` feature なし）
+9. `cargo clippy --locked --all-targets --features ui -- -D warnings`（`ui` feature あり）
+10. `cargo test --locked --all-targets --no-fail-fast --features ui`（`ui` feature あり・全ターゲット）
+11. `cargo test --locked --all-targets --no-fail-fast`（`ui` feature なし・全ターゲット）
+12. `cargo check --locked --target wasm32-unknown-unknown --features ui`
+
+`--python` を付けると 6 が本検査（拡張の release ビルド + pytest。pytest が無い環境では skip）に変わる。
+4 と 5 は `verify.sh` では `site-check` の 1 ステップにまとまる（合計 11 ステップ・12 の検査）。
+**1〜5 は CI の `docs` ジョブと同一**（§4.6 の検査 5 がこの一致を機械的に保証する）。
 
 ### 4.2 `python3 docs/script/duplicate.py`（ドキュメント規則検査）
 
 ドキュメントのみを編集した際にも単体で高速に実行できる。終了コード `0` で全規則合格、非 `0` で違反箇所を標準エラーに出力する。
 
+同じ「書いた内容が実装と合っているか」を、規約で決まる範囲（`REF:` の実在・見出し一致・`SYNC` の一致）だけでなく**実物との突き合わせ**でも検査する仕組みを §4.6 に示す。
+
 ### 4.3 `bash scripts/web-smoke.sh`（Web 版実機スモークテスト）
 
-`cache/sandbox-tools` ブランチから `trunk`・`wasm-bindgen`・Playwright・Headless Chromium を `/home/user/build/web-tools` に展開し、Web 版バンドルをビルドした上で 18 シナリオのブラウザ自動テスト（`REF:scripts/web-smoke.mjs`）を実行する。UI や Web アダプタ（`REF:src/ui/web.rs`, `REF:src/adapters/storage_idb.rs`）を変更した際に実行する。
+`cache/sandbox-tools` ブランチから `trunk`・`wasm-bindgen`・Playwright・Headless Chromium を `/home/user/build/web-tools` に展開し、Web 版バンドルをビルドした上で、IndexedDB・IME・オフライン（PWA）・Zip 入出力・エクスポートなどのブラウザ自動テスト（`REF:scripts/web-smoke.mjs` の `check(...)`）を実行する。UI や Web アダプタ（`REF:src/ui/web.rs`, `REF:src/adapters/storage_idb.rs`）を変更した際に実行する。
 
 ### 4.4 サンドボックス環境での所要時間目安
 
@@ -164,18 +208,21 @@ novnow/
 | `cargo clippy --locked --all-targets --features ui -- -D warnings` | 約 60〜90 秒 | 約 5〜10 秒 | `300` |
 | `cargo test --locked --all-targets --no-fail-fast` | 約 30〜50 秒 | 約 8〜15 秒 | `300` |
 | `cargo test --locked --all-targets --features ui --no-fail-fast` | 約 60〜110 秒 | 約 15〜25 秒 | `300` |
-| `cargo check --locked --target wasm32-unknown-unknown --no-default-features --features web` | 約 45〜75 秒 | 約 4〜8 秒 | `300` |
-| `bash scripts/verify.sh`（全 7 ステップ通し） | 約 150〜240 秒 | 約 35〜60 秒 | `600` |
+| `cargo check --locked --target wasm32-unknown-unknown --features ui` | 約 45〜75 秒 | 約 4〜8 秒 | `300` |
+| `bash scripts/verify.sh`（11 ステップ・12 検査の通し。増分ビルドで実測 70 秒） | 約 300〜420 秒 | 約 60〜120 秒 | `900` |
 | `bash scripts/web-smoke.sh`（初回展開＋WASM ビルド＋Playwright 18 件） | 約 120〜180 秒 | 約 35〜60 秒 | `600` |
 
 ### 4.5 CI レポート生成スクリプト（`.github/report.py`）の仕組み
 
-CI の各ジョブでは、`cargo` の標準出力・標準エラーをそのままログに流すだけでなく、`REF:.github/report.py` にパイプして **3 種類の出力** を同時に生成している。
+CI の各ジョブでは、`cargo` の標準出力・標準エラーを `tee` でファイルに残したうえで `REF:.github/report.py` に渡し、**3 種類の出力** を同時に生成している。
 
 ```text
-cargo clippy --message-format=json ... 2>&1 \
-  | python3 .github/report.py clippy --title "Clippy (all targets)"
+cargo clippy --message-format=json ... 2>&1 | tee /tmp/ci.log
+CI_LOG=/tmp/ci.log CI_JOB=Clippy CI_KIND=clippy CI_STATUS=${{ steps.cargo.outcome }} \
+  python3 .github/report.py /tmp/body.md
 ```
+
+引数は **PR コメント本文の出力先パス 1 つだけ**。入力は環境変数 `CI_LOG`（`cargo` を `tee` したファイル）・`CI_JOB`（表示名）・`CI_KIND`（`fmt` / `clippy` / `test` / `wasm`）・`CI_STATUS`（`success` / `failure`）・`CI_SHA` で渡す。
 
 1. **端末ログ（ANSI カラー付き）**: ステップのログ画面でそのまま読める整形済み出力。
 2. **GitHub Annotations（`::error` / `::warning`）**: compiler JSON メッセージ（`reason == "compiler-message"`）からファイル名・行・列・診断コード・レンダリング済みメッセージを抽出し、PR の Files changed タブや Checks タブに直接インライン注釈を表示する（上限 50 件）。
@@ -184,9 +231,143 @@ cargo clippy --message-format=json ... 2>&1 \
 ローカルで動作を試す場合は次のコマンドを実行できる:
 
 ```bash
-cargo test --locked --all-targets --no-fail-fast 2>&1 \
-  | python3 .github/report.py test --title "Local test run"
+cargo test --locked --all-targets --no-fail-fast 2>&1 | tee /tmp/ci.log
+CI_LOG=/tmp/ci.log CI_JOB="Local test run" CI_KIND=test CI_STATUS=success \
+  python3 .github/report.py /tmp/body.md
 ```
+
+（`REF:scripts/verify.sh --report` が失敗時に同じ整形を自動で行う。）
+
+### 4.6 `python3 docs/script/reference.py`（文書と実装の突き合わせ）
+
+`REF:docs/script/duplicate.py` が見るのは**文書の規約**（構成・重複・`REF:` の実在・見出し一致・`SYNC` の一致）である。
+規約を守っていても「中身が実装とずれている」ことはあり得るので、`REF:docs/script/reference.py` が次の 10 項目を機械検査する。
+
+| # | 検査 | 何を捕まえるか | 実例（この検査で実際に見つかったもの） |
+|---|---|---|---|
+| 1 | 廃止名の参照 | コード・スクリプト・CI に `SPECIFICATIONS.md` / `PLANS.md` / `DEVELOPERS.md` が残る（`Cargo.toml` と `.github/pull_request_template.md` も見る） | 分割前の文書名を指すコメント 327 箇所 |
+| 2 | 仕様書の節番号 | `docs/specifications/x.md` の `§N.M` がその仕様書に無い | `interfaces.md` §19.13（新仕様では §19.1.2） |
+| 3 | history の ID | `docs/history.md` と書いて `B-nnn` / `A-nn` を指すが実在しない | 節番号の付け替えで生じた幽霊参照 |
+| 4 | `src/` ツリー | `REF:docs/developers.md` §3 のツリーと `src/` の実物が違う | `app/` と `lsp/` の記載漏れ |
+| 5 | `verify.sh` と CI | CI が走らせる静的検査を `verify.sh` が走らせていない | Web サイトの生成物 2 検査の欠落 |
+| 6 | ルート文書の重複 | `README.md` / `README.en.md` / `GUIDE.md` の間に丸写しの 3 行ブロック | README と GUIDE の機能説明 21 行 |
+| 7 | 数の主張 | 「N ワークスペース」「MCP N ツール」「N の正規操作」が実装と違う | README の「8 個のワークスペース」という記述（実装は 9） |
+| 8 | `include_str!` | テスト・本体が埋め込むパスが存在しない | 仕様書の改名に追随していないテスト |
+| 9 | リンクとアンカー | ルート文書の相対リンク・画像、`REF:…` の `#アンカー` が飛べない | 見出しを書き換えた後の `REF:` のアンカー |
+| 10 | Actions の節約 | `concurrency` の無いワークフロー、draft で走る PR ジョブ、廃止ランナー（`macos-13`）、変更フィルタの消失、`[ci skip]` フックの欠落 | `REF:.github/workflows/wheels.yml` に `concurrency` が無かった（4 OS の行列が二重に走る） |
+
+```bash
+python3 docs/script/reference.py          # 検査（違反があれば終了コード 1）
+python3 docs/script/reference.py --list   # 検査項目の一覧
+```
+
+**数の主張（7）を足した理由**: 文書の数は、コードを 1 行直すたびに古くなる。`REF:docs/plans.md` の `SYNC` ブロックは
+節数の集計を守っているが、それ以外の本文中の数（ワークスペース数・ツール数・操作数）は誰も見ていなかった。
+
+**リンク（9）を足した理由**: 節の改名は `duplicate.py` の `REF:` パス検査を通ってしまう（ファイルは在る）。
+飛び先だけが消える壊れ方は、読むまで気づけない。
+
+**`verify.sh` と CI の一致（5）を足した理由**: 「手元で `verify.sh` が緑なら CI も緑」という運用が、
+CI だけに検査が増えた時点で静かに壊れるため。CI の `docs` ジョブに静的検査を足したら `verify.sh` にも足す必要が出る。
+
+#### 4.6.1 それでも機械で見られないもの（人が確かめる）
+
+以下は「正解」が機械的に決まらないため、この検査の対象外である。変更時は該当箇所を人が読むこと。
+
+- **散文の意味**: 説明が現在の挙動と食い違う（例: 「右側の参照ペイン」が実際は左）かどうか。
+- **仕様書の内部矛盾**: 「以下の N 項目」と表の行数が食い違う箇所（構造検査では見えない。表の行数は数えられるが、どちらが正しいかは決められない）。
+- **仕様と実装のどちらを直すかの判断**: 優先順位は仕様書 > 設計書 > コード（§1）だが、どちらが誤りかは人間が決める。
+- **画像・スクリーンショットの鮮度**: `REF:screenshot.png` などの画像が現在の UI と一致するか。
+- **外部サイト（`REF:website/`）の文面**: 生成物（診断・API 表）は `--check` で守れるが、紹介文は手書き。
+
+新しい検査を足すときは `REF:docs/script/reference.py` の `CHECKS` に 1 項目追加し、
+`REF:docs/script/test_reference.py` に判定の単体テストを足す（検査器自身の退行を防ぐ）。
+
+---
+
+### 4.7 Actions を無駄に使わない（既定は走らせない）
+
+GitHub Actions は**走った分だけ**課金される。このリポジトリは CI の行列が重く
+（Rust の 5 ジョブ＋ wasm ＋ bench、Python ホイールは 4 OS）、文書やコメントだけの変更で
+回すと、ほぼ確実に捨てる実行にお金を払うことになる。そこで**既定は走らせない**。
+
+| 仕組み | 実体 | 効く場面 |
+|---|---|---|
+| コミット既定で `[ci skip]` | `REF:.githooks/commit-msg`（`bash REF:scripts/install-git-hooks.sh` で有効化） | push・PR の全ワークフロー。`[ci run]` と書いたときだけ付かない |
+| 必要なときに 1 回だけ回す | `bash REF:scripts/ci-run.sh [ci\|wheels] [watch]` | `workflow_dispatch`。push し直さずにブランチを指定して回せる |
+| 変更フィルタ | `REF:.github/workflows/ci.yml` の `docs` ジョブ（`rust_changed`） | 文書だけの変更で Rust 5 ジョブを skip |
+| `paths` / `paths-ignore` | 各ワークフロー | 無関係な変更でワークフロー自体を起動しない |
+| `concurrency` | 全ワークフロー（PR は `cancel-in-progress`） | 同じブランチを続けて push したとき、古い実行を取り消す |
+| draft PR では走らせない | 全ワークフローの `if: github.event_name != 'pull_request' \|\| !github.event.pull_request.draft` | 作業中の push で行列を埋めない（検査 10 が全ワークフローで見る） |
+
+**回す・回さないの目安**
+
+| 変更したもの | 回すもの |
+|---|---|
+| 文書（`docs/`）・コードのコメント・整形だけ | 回さない（`scripts/verify.sh` を手元で回す） |
+| Rust のロジック・テスト・`Cargo.toml` / `Cargo.lock`・`src/ui/**`・`src/wasm*` | `bash scripts/ci-run.sh ci watch` |
+| Web 版の画面・IndexedDB・PWA（`scripts/web-smoke.sh` で手元確認できる） | 手元で `bash scripts/web-smoke.sh`、必要なら `ci` |
+| `python/**`・PyO3 のバージョン | `bash scripts/ci-run.sh wheels`（＋ `ci`） |
+| ワークフロー自体・リリース前 | `ci` と `wheels` の両方 |
+
+**落とし穴**: `[ci skip]` が付いたコミットが PR の頭だと、PR のチェックは**空**になる。
+マージ前に `bash scripts/ci-run.sh ci watch` で 1 回だけ回し、緑を確認してからマージする
+（`gh pr checks` が空なら「回していない」の意味であり、緑ではない）。
+
+検査 10 はこの仕組みの**土台が消えていないか**（`concurrency`・draft の条件・廃止ランナーの不在・
+変更フィルタ・フック・`ci-run.sh`）を見る。仕組みを外すと文書検査が落ちるので、意図的に外すときは
+`REF:docs/script/reference.py` の `check_actions_budget` も一緒に直す。
+
+---
+
+### 4.8 ユーザー向け文書（`REF:docs/users/`）
+
+`REF:docs/specifications/` は「決まり」、`REF:docs/users/` は「使い方」である。両者は読者が違うので分ける。
+
+| 文書 | 中身 | 読者 |
+|---|---|---|
+| `REF:docs/users/start.md` | はじめての手引き（30 分で 1 本書く） | 使い始める人 |
+| `REF:docs/users/cheatsheet.md` | 記号とキーの早見表 | 書きながら手元に置く人 |
+| `REF:docs/users/glossary.md` | 用語の定義（用語は言い換えない） | 途中で言葉に詰まった人 |
+| `REF:docs/users/faq.md` | よくある質問（保存・波線・外部連携） | 困った人 |
+| `REF:docs/users/project-structure.md` | 作品フォルダの中身とファイル名 | 中身を確かめたい人 |
+| `REF:docs/users/git.md` | Git で履歴を残す（任意） | 上級者 |
+| `REF:docs/users/publish.md` | 書き出した原稿の公開 | 公開したい人 |
+
+**参照の向き（MUST）**
+
+- `REF:docs/users/` から参照してよいのは `REF:docs/specifications/`（と `REF:docs/users/` 自身）だけ。
+  開発者向け文書（`REF:docs/developers.md`・`REF:docs/plans.md`・`REF:docs/history.md`）は参照しない。
+- 仕様書から `REF:docs/users/` を参照しない（仕様書は純粋仕様のまま）。
+- 逆向きが必要に見えたら、**仕様書の節を指すのが正しい**（使い方の説明が仕様に無いなら、仕様の記述漏れを疑う）。
+
+**書き方**
+
+- 用語は仕様書の語をそのまま使う（「節」「場面」「モード」「役割語」）。**言い換えず、定義を足す**。
+- 1 文 60 字以内、1 段落 3 文以内。漢字を詰め込まない（`REF:docs/script/easy-read.py` が機械で見る）。
+- 手順は番号付きで 1 ステップ 1 動作。各手順に「うまくいかないとき」を 1〜2 行置く。
+- インストールの節は**場所だけ**作り、配布物が無い間は「準備中」と書く（ソースからのビルドは `REF:GUIDE.md` に逃がす）。
+- 仕様書の節を指すときは `§N.M` を添える（サイト生成がアンカーに変える）。
+
+**サイトへの反映**
+
+この 2 つのディレクトリがサイトの正本で、`REF:scripts/docs-site.py` が
+`REF:website/src/content/docs/` と `REF:website/src/data/docs-nav.ts` を生成する。
+**生成物は手で編集しない。** docs を直したらスクリプトを実行し、差分も一緒にコミットする。
+`REF:scripts/verify.sh` の `site-check` が `--check` で一致を見張るので、忘れると落ちる。
+
+    python3 scripts/docs-site.py          # 生成する（サイトのページと `guide/*.html`）
+    python3 scripts/docs-site.py --check  # 一致を確かめる（CI と同じ）
+    python3 docs/script/easy-read.py      # 読みやすさ（1 文 60 字・1 段落 3 文・漢字 40% 以下）
+
+`REF:guide/*.html` は**アプリの公開サイトに置く手引き**で、同じ生成器が作る（手で編集しない）。
+仕様 §14.2.1 の 3 URL がここに実在し、`REF:docs/script/reference.py` の検査 11 が CI で見張る。
+
+**3 か所で同じ内容にする**
+
+`REF:docs/users/start.md` の段階が、公開サイトの「はじめての手引き」とアプリ内のガイドモード
+（`REF:docs/specifications/ui.md` §9.10）の元になる。段階の数・順序・文言を変えるときは 3 か所同時に直す
+（`REF:docs/plans.md#plan-docs-site` の生成と、`REF:docs/plans.md#plan-guide-mode` の段階定義）。
 
 ---
 
@@ -245,9 +426,9 @@ cargo test --locked --all-targets --no-fail-fast 2>&1 \
 3. **構文・無損失往復・ゴールデンテスト（`REF:tests/roundtrip.rs`, `REF:tests/golden.rs`, `REF:tests/contents.rs` 他）**:
    - 全 7 ファイル形式の `parse(text).to_text() == text`（BOM / CRLF 正規化後）と、入力フィクスチャに対する構文木・診断の完全一致を検証する。
 4. **意味解決・機能・CLI・MCP テスト（`REF:tests/dictionary.rs`, `REF:tests/modes.rs`, `REF:tests/role_language.rs`, `REF:tests/export_invariants.rs`, `REF:tests/cli.rs`, `REF:tests/mcp_stdio.rs` 他）**:
-   - 辞書最短一致、モード 8 段優先順位、役割語 5 アトム、エクスポート 14 段パイプライン、CLI 終了コード `0`〜`5`、MCP 11 ツールを検証する。
+   - 辞書最短一致、モード 8 段優先順位、役割語 5 アトム、エクスポート 14 段パイプライン、CLI 終了コード `0`〜`5`、MCP 14 ツールを検証する。
 5. **GUI ヘッドレス・ブラウザ実機 E2E テスト（`REF:tests/gui.rs`, `REF:tests/workspaces.rs`, `REF:scripts/web-smoke.mjs`）**:
-   - `egui::Context::run` による全 9 ワークスペース・パレット・保存状態機械・IME 状態遷移のヘッドレス検証と、Headless Chromium + Playwright による Web 版実機 18 シナリオ検証を行う。
+   - `egui::Context::run` による全 9 ワークスペース・パレット・保存状態機械・IME 状態遷移のヘッドレス検証と、Headless Chromium + Playwright による Web 版実機シナリオ検証（`REF:scripts/web-smoke.mjs` の `check(...)`）を行う。
 
 ### 7.2 ゴールデンテスト（`tests/golden/`）の運用規則
 
@@ -277,9 +458,9 @@ GUI の見た目（パレット位置、下線・波線の座標、枠線やバ�
 
 これまでの開発（M0〜M11 および Web 実機検証）で実際に遭遇した落とし穴と対処法を領域別に記録する。
 
-### 8.1 Rust ツールチェーン・Clippy（`rustc 1.99.0`）
+### 8.1 Rust ツールチェーン・Clippy（サンドボックスは `rustc 1.99.0`）
 
-1. **`io::Error::other(e)` の強制**: `io::Error::new(io::ErrorKind::Other, e)` は Rust 1.99 の Clippy で `io_other_error` 警告（`-D warnings` でエラー）になるため、常に `io::Error::other(e)` を使う。
+1. **`io::Error::other(e)` の強制**: `io::Error::new(io::ErrorKind::Other, e)` は新しい Clippy で `io_other_error` 警告（`-D warnings` でエラー）になるため、常に `io::Error::other(e)` を使う。
 2. **`collapsible_if` の厳格化**: ネストした `if let` や `if a { if b { ... } }` は `if a && b` または let-chains（`if let Some(x) = ... && cond`）にまとめる。
 3. **`needless_range_loop`**: 添字 `i` を配列アクセス `arr[i]` にしか使わない `for i in 0..n` は `arr.iter().enumerate()` に書き換える。
 4. **`DoubleEndedIterator` 未実装イテレータの `.rev()`**: カスタムイテレータで末尾から走査したい場合は一度 `collect::<Vec<_>>()` してから `.into_iter().rev()` を使う。
@@ -331,5 +512,5 @@ GUI の見た目（パレット位置、下線・波線の座標、枠線やバ�
 ### 8.9 GitHub CLI / Git 操作の注意点
 
 28. **`gh pr edit` の Classic Projects 廃止エラー**: `gh pr edit` は GraphQL の Classic Projects 廃止エラーで失敗するため、PR のタイトル・本文更新には `gh api repos/sonneko/novnow/pulls/<PR番号> -X PATCH --input -` を使用する。
-29. **ロックファイル v4（`Cargo.lock`）**: 本リポジトリの `Cargo.lock` は format version 4（Rust 1.99.0）を使用しているため、古い `cargo`（1.77 等）では `--locked` が読めない。GitHub Actions 等で扱う際は `.github/toolchain.env` のバージョンまたは `curl` による直接取得を使う。
+29. **ロックファイル v4（`Cargo.lock`）**: 本リポジトリの `Cargo.lock` は format version 4（Rust 1.78 以降）を使用しているため、古い `cargo`（1.77 等）では `--locked` が読めない。GitHub Actions 等で扱う際は `dtolnay/rust-toolchain@stable` などの新しいツールチェーンを使う。
 

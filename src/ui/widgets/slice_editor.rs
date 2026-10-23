@@ -1,5 +1,5 @@
 //! 本文以外の文書の一部を編集するエディタ（M8 のワークスペース。`Workbench` の `Slice`、
-//! `PLANS.md` §9.2 B-126）。
+//! `docs/history.md` B-126）。
 //!
 //! 節エディタ（[`super::section_editor`]）と同じ `TextEdit` ＋ layouter で、色分けは文書全体に
 //! 書き戻した形で解析して、開いている行の部分だけを取る（話プロットの `mode:` の E003 / E004 など、

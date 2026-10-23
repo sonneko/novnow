@@ -17,7 +17,7 @@ use crate::core::resolve::modes;
 use crate::core::syntax::plot_outline::Field;
 use crate::core::text::lexer::FieldKey;
 
-/// `alias:` の区切り（§5.5.3 / §5.6。`PLANS.md` §9.2 B-58 と同じ 3 字）。
+/// `alias:` の区切り（§5.5.3 / §5.6。`docs/history.md` B-58 と同じ 3 字）。
 const ALIAS_SEPARATORS: &[char] = &[',', '、', '，'];
 
 /// ホバーの結果。

@@ -15,7 +15,7 @@
 //! # 行とブロック
 //!
 //! [`Outline::lines`] は**書かれたままの 1 行ずつ**を持ち、[`Outline::to_text`] はそれを LF で
-//! 連結するので入力とバイト単位で一致する（`PLANS.md` §5.3 完了条件 2）。[`Preamble`] と
+//! 連結するので入力とバイト単位で一致する（`docs/history.md` の完了条件 2）。[`Preamble`] と
 //! [`Block`] は同じ行を **index で指すだけ**で、行の複製を持たない（C 形式の
 //! [`super::contents::Section`] と同じ流儀）。
 //!
@@ -23,7 +23,7 @@
 //!
 //! 行がフィールド行かどうかの判定は字句器（§5.0.5 の 7 段の手順）に任せ、このパーサは
 //! キーの表引き結果と値を木に載せる。§5.0.6 の表に無いキーは **W011** を出して**値を改変せずに
-//! 保持する**（`PLANS.md` §5.3 作業項目 2「これが ② の生命線」）。② のキー（`when` `space`
+//! 保持する**（`docs/history.md` の作業項目 2「これが ② の生命線」）。② のキー（`when` `space`
 //! `space-mode` `blurb` `senses` `illustration`）は ① の表に無いので、この経路でそのまま残る
 //! （`tests/lexer.rs` の `aliases_of_stage_two_keys_are_not_in_the_table` が固定している）。
 //!
@@ -31,7 +31,7 @@
 //! [`Field::full_value`] は 1 行目と継続行を LF で連結した値を返す。継続行のインデントは
 //! **2 文字（[`crate::core::text::lexer::CONTINUATION_INDENT`]）だけ**落として相対的な字下げを
 //! 残す（§5.3.6 の `space-mode: ascii` は「等幅・折り返しなし・整形なし」で表示する MUST なので
-//! 形を保たねばならない。`PLANS.md` §9.2 B-37）。
+//! 形を保たねばならない。`docs/history.md` B-37）。
 //!
 //! # 診断（M2 で出すもの）
 //!
@@ -53,7 +53,7 @@
 //! - **W080**（`when` の時系列矛盾、§5.3.5）・**E062**（`space` の外部パス、§5.3.6）・
 //!   **W083**（`senses` の偏り、§5.4.4）: いずれも ② のキーが絡むので ② の実装時。
 //! - `state` / `length` の値が形に合わないとき: §7 に対応コードが無いので診断せず、
-//!   [`Field::number`] が `None` を返す（`PLANS.md` §9.2 B-39）。
+//!   [`Field::number`] が `None` を返す（`docs/history.md` B-39）。
 //! - 参照（`'名前`）の実体が無い・モードが無い: 辞書が要るので M3（§6.2・§6.4）。
 //!
 //! # `.txt` 3 形式の共通部
@@ -61,7 +61,7 @@
 //! 行末コメント（§5.0.2）・行頭空白の byte 位置・`mode_id` / `char_name` の形（§5.5）は
 //! A / B / C 形式で同じ規則なので、C 形式の [`super::contents`] のものをそのまま使う
 //! （同じ規則を 2 箇所に書かないため）。共通部が増えたら `syntax` の直下に移す
-//! （`PLANS.md` §9.2 B-40）。
+//! （`docs/history.md` B-40）。
 
 use std::ops::Range;
 
@@ -136,7 +136,7 @@ pub fn parse(text: &str) -> Outline<'_> {
 
 /// 設定を指定してパースする。
 ///
-/// 壊れた入力でも部分木と診断を返す（§4.3-4、`PLANS.md` §5.3 完了条件 3）。ID が壊れた
+/// 壊れた入力でも部分木と診断を返す（§4.3-4、`docs/history.md` の完了条件 3）。ID が壊れた
 /// 見出しもブロックを作り（[`Block::id`] が `None`）、`summary` の無いブロックは **E018**
 /// になるだけで中身は保持する。
 pub fn parse_with<'a>(text: &'a str, options: &Options) -> Outline<'a> {
@@ -153,7 +153,7 @@ pub fn parse_with<'a>(text: &'a str, options: &Options) -> Outline<'a> {
 }
 
 impl<'a> Outline<'a> {
-    /// 入力と**バイト単位で一致する**テキストに戻す（`PLANS.md` §5.3 完了条件 2）。
+    /// 入力と**バイト単位で一致する**テキストに戻す（`docs/history.md` の完了条件 2）。
     pub fn to_text(&self) -> String {
         let mut out = String::new();
         for (index, line) in self.lines.iter().enumerate() {
@@ -225,7 +225,7 @@ pub enum Line<'a> {
     Note(&'a str),
     /// 行コメント（`//`、§5.0.2）。`# ` は ② なので ① では [`Line::Note`] になる。
     Comment(contents::CommentLine<'a>),
-    /// 空行（空白だけの行を含む。`PLANS.md` §9.2 B-34）。
+    /// 空行（空白だけの行を含む。`docs/history.md` B-34）。
     Blank(&'a str),
     /// ブロックの終わり `;`（§5.3.1 `block_end`）。
     Break(contents::BreakLine<'a>),
@@ -719,7 +719,7 @@ fn check_header(
         ));
     }
     if id.chapter == 0 && !options.allow_chapter_zero {
-        // §5.1.2 の `A = 00`（予約番号は E022、第 2.8 版。`PLANS.md` §9.1 A-9）
+        // §5.1.2 の `A = 00`（予約番号は E022、第 2.8 版。`docs/history.md` A-9）
         let args = vec![Arg::text(found.id_text)];
         out.push(Diagnostic::new(
             DiagnosticCode::E022,

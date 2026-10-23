@@ -1,7 +1,7 @@
 //! `project.json` の読み込みと検査（`core::syntax::project_json`、仕様 第 2.9 版）。
 //!
 //! - **E025**: JSON として読めない → 既定値で続行（§4.3-4）。
-//! - **E027**: `lexicon.word_classes` の正規表現が不正（§6.5.1、`PLANS.md` §9.1 A-24 / §9.2 B-88）。
+//! - **E027**: `lexicon.word_classes` の正規表現が不正（§6.5.1、`docs/history.md` A-24・B-88）。
 //! - 設定の読み込み: `features::Project` は `project.json` の文書の中身を設定にする（B-89）。
 
 use novnow::core::diagnostics::{self, Arg, DiagnosticCode};

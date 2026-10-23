@@ -185,7 +185,7 @@ pub fn route_of(token: &RefToken, dictionary: &Dictionary) -> Option<Route> {
 ///
 /// `line` はその行の原文（[`RefToken::key`] が名前部を切り出すのに要る）、`line_start` は
 /// その行の先頭の byte 位置（辞書のトークンは**行内相対**なので、診断とインレイヒントの位置を
-/// **ファイル単位**にするのに使う。`PLANS.md` §9.2 B-56）。
+/// **ファイル単位**にするのに使う。`docs/history.md` B-56）。
 ///
 /// 辞書に無いトークンのうち**資料 ID の形**（`M0137`）をしたものには §6.6.3 の **E007** を出す
 /// （`'しらぬ人` のように ID の形でないものは **E001** のまま＝辞書の担当）。
@@ -386,7 +386,7 @@ pub fn body_diagnostic(range: Range<usize>) -> Diagnostic {
 /// M4 が行単位で診断を組み立てるときの入口。`dictionary::scan_line` と
 /// `dictionary::token_diagnostics` と `resolve` を**ここで一度に**呼ぶので、
 /// **E001（未解決）と E007（未知の資料 ID）が 2 重に出ない**ようになっている
-/// （資料 ID の形をした未解決トークンは E007 だけ。`PLANS.md` §9.2 **B-71**）。
+/// （資料 ID の形をした未解決トークンは E007 だけ。`docs/history.md` B-71）。
 ///
 /// `in_body` が `true`（C 形式の本文）なら、資料参照のトークンごとに §6.6.4 の **W031** を足す。
 /// **ファイルが本文かどうかは呼び出し側が知る**（core は I/O をしない、§3.2）。

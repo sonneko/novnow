@@ -1,9 +1,8 @@
-//! `core::diagnostics` の表を `SPECIFICATIONS.md` §7 と突き合わせるテスト。
+//! `core::diagnostics` の表を `docs/specifications/diagnostics.md` §7 と突き合わせるテスト。
 //!
-//! §7（40 件）・§7.1（14 件）・§7.2（27 件）の **81 件**（第 2.16 版で E029 が増えた）を仕様書の Markdown から直接
-//! 読み直し、`CATALOG` と一致するかを見る。`PLANS.md` §6.2 では `tests/diagnostics_catalog.rs`
-//! の導入は M4 だが、§3 I5「診断は先に表を実装」に合わせて**前倒し**した。表を先に作る以上、
-//! 仕様書との一致も先に固定しておく（後から 81 件を照合するのは手でできない）。
+//! §7（39 件）・§7.1（10 件）・§7.2（27 件）の **76 件**（第 2.17 版で v0 移行系の 5 件を削除した）を仕様書の Markdown から直接
+//! 読み直し、`CATALOG` と一致するかを見る。`tests/diagnostics_catalog.rs` の導入は M4 だが、「診断は先に表を実装」の方針に合わせて**前倒し**した。
+//! 表を先に作る以上、仕様書との一致も先に固定しておく（後から 76 件を照合するのは手でできない）。
 //!
 //! 確認するのは次の 7 つ。
 //!
@@ -126,7 +125,7 @@ fn ja_and_en_use_the_same_placeholders() {
 
 #[test]
 fn e004_names_the_character_first() {
-    // `PLANS.md` §9.1 A-7（第 2.8 版で解消）: 旧文言は `{0}` を使わず、`resolve::modes` が
+    // `docs/history.md` A-7（第 2.8 版で解消）: 旧文言は `{0}` を使わず、`resolve::modes` が
     // `args[0]` に入れるキャラ名が表示されなかった。いまは ja も en も `{0}`〜`{3}` を全部使う
     let rows = all_rows();
     let row = rows.iter().find(|row| row.code == "E004").expect("E004");
@@ -197,7 +196,7 @@ fn the_default_toggles_match_the_spec() {
         assert!(TOGGLE_OFF.contains(&code), "{text}");
         assert!(!code.enabled_by_default(), "{text}");
     }
-    // 仕様が名指ししない W085・W086 は `PLANS.md` §9.2 B-26 の判断で有効側に入れている
+    // 仕様が名指ししない W085・W086 は `docs/history.md` B-26 の判断で有効側に入れている
     assert_eq!(TOGGLE_ON.len(), on.len() + 2);
     assert!(TOGGLE_ON.contains(&DiagnosticCode::W085));
     assert!(TOGGLE_ON.contains(&DiagnosticCode::W086));

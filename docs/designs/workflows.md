@@ -108,3 +108,41 @@
 
 - **[F-30 / F-32 / F-42 / F-43 / S-15] 追加の CI・自動テスト検証項目（実装完了: `REF:docs/plans.md#plan-S-15`）**:
   - `REF:tests/gui.rs`（押せる要素の下線・ホバー・24×24px 当たり判定検査）、`REF:tests/i18n_catalog.rs`（`ja.toml` 助詞前空白検査）、`REF:tests/editor_performance.rs`（10 万字での画面全体の 1 打鍵 16ms 検査。CI の bench ジョブは release で実行）、および `REF:scripts/diagnostics-site.py`（全診断コードの日英解説と具体例の網羅性 CI 検査）を追加する。
+
+### 18.5 ドキュメント公開（仕様書とユーザー向けガイド）
+
+状態: 実装完了（REF:scripts/docs-site.py, REF:docs/script/reference.py, REF:src/core/model/project.rs, REF:docs/plans.md#plan-docs-site, REF:docs/users/, REF:guide/）
+
+- **正本は 1 か所だけ**: `REF:docs/users/*.md` と `REF:docs/specifications/*.md` が正本で、サイトのページは
+  その生成物。Markdown を書き写した複製を `REF:website/` に置かない。
+- **生成器**: `REF:scripts/docs-site.py` が正本を `REF:website/src/content/docs/users/` と
+  `REF:website/src/content/docs/specifications/` へ、先頭に `title`・`group`・`order`・`source` の
+  フロントマターを付けて写す。あわせて目次 `REF:website/src/data/docs-nav.ts`（`manualNav`・
+  `specificationNav`）を書き出す。`REF:scripts/diagnostics-site.py` と同じ形（既定は生成、
+  `--check` は再生成して差分があれば終了コード 1、余剰の生成物は削除）にそろえてある。
+- **URL**: ユーザー向けガイドは `/ja/manual/<slug>`（`README.md` は `/ja/manual/`）、仕様書は
+  `/ja/specifications/<name>`（`README.md` は `/ja/specifications/`）。slug はファイル名から `.md` を
+  外したもの。ページの描画は `REF:website/src/components/DocShell.astro`（左に目次、本文、
+  「このページは `<source>` から自動生成」の注記）と、`REF:website/src/pages/ja/manual/[slug].astro`・
+  `REF:website/src/pages/ja/specifications/[slug].astro` が担う。
+- **リンクの書き換え**: `./x.md` → `/ja/manual/<slug>`、`./README.md` → `/ja/manual/`、
+  `../specifications/x.md` → `/ja/specifications/<slug>`。外部 URL と `#アンカー` はそのまま残す。
+  これで「ガイドから仕様書へ」の向きだけが生まれる。
+- **アンカー**: 見出しの文字列から GitHub と同じ規則でアンカーを作る。日本語の見出しは URL に
+  パーセントエンコードされて読みにくく、環境によっても変わるため、飛び先には
+  `<a id="install">` のような英字 ID を置き、本文のリンクもその ID を使う（`start.md` の
+  `#install`・`#write-first-section`・`#export`）。生成器は見出しと `<a id>` の両方からアンカー集合を
+  作り、**存在しないアンカーを指すリンクがあればエラーにする**。
+- **英語**: ガイドと仕様書の本文は日本語のみ。`/en/manual/<slug>` と `/en/specifications/<slug>` は
+  「日本語で書かれている」ことと日本語版へのリンクを出す短いページにして、英語話者を空振りさせない。
+- **検査**: `REF:scripts/verify.sh` の `site-check` が `REF:scripts/docs-site.py` を `--check` 付きで
+  実行する。docs を直して生成し忘れた状態と、生成物を手で編集した状態の両方が落ちる。
+- **アプリ内の解説ページ**: 同じ生成器が `docs/users/*.md` から `REF:guide/*.html`（8 ページ）を作る。
+  `REF:index.html` の `copy-dir` で trunk の dist に載るので、仕様 §14.2.1 の 3 URL
+  （`guide/project_structure.html`・`guide/git.html`・`guide/publish.html`）が公開物に実在する。
+  公式サイト側でも同じ URL で開けるよう、`REF:website/public/guide/` にも同じ HTML を置く。
+- **検査 11**: `REF:docs/script/reference.py` の 11 番目が、(1) 3 URL の実体と `copy-dir` の指定、
+  (2) 仕様 §14.2.1・`REF:src/core/model/project.rs`・`REF:guide/` の URL の一致、(3) `docs/users` の
+  相対リンクが仕様書か自分自身だけを指すこと、(4) `REF:src/ui/guide.rs` の段階と
+  `REF:docs/users/start.md` の見出しが 1〜9 で揃うこと、(5) 生成した HTML どうしのリンクの実在を見る。
+- **まだ実装していないこと**: 英語の本文（`docs/users/*.en.md` と `/en` の生成）。Phase 5 として残す。

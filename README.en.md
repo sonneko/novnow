@@ -2,9 +2,25 @@
 
 `novnow` is a suite of tools designed to cultivate and expand your own fictional worlds—whether for full-length novels, light novels, web fiction, visual novels, or scenario scripts.
 
-The novnow editor, built to manage the novnow format, is available as a desktop application (Windows / macOS / Linux) and in web browsers.
+The novnow editor, built to manage the novnow format, runs both as a desktop application (Windows / macOS / Linux) and in the browser (WebAssembly + IndexedDB). The layout and the keyboard bindings are the same on both, and the same project opens in either.
 
-![](docs/screenshot-m7.png)
+## Where it runs
+
+| Way to run it | Setup | Best for |
+|---|---|---|
+| **Browser** (no install) | Open `https://novnow.sonneko.com/app/` | Trying it first, keeping your machine clean |
+| Desktop (Windows / macOS / Linux) | Build it (binaries are in preparation) | Managing manuscripts in a local folder |
+| Command line (CLI) | Same as above | Checking and exporting a whole manuscript at once |
+| Editor integration (LSP) | Same as above | Writing in VS Code or another editor |
+| AI integration (MCP) | Same as above | Letting AI read and propose changes |
+| Python | Same as above | Automating your own workflow |
+
+The layout, the keys, and what gets saved are the same in the browser and on the desktop.
+Whichever door you use, you get the same result from one shared implementation.
+
+Start with the [user guide](./docs/users/README.md), or go straight to [Getting Started](./docs/users/start.md).
+
+![The novnow editor (write workspace)](screenshot.png)
 
 ---
 
@@ -72,21 +88,75 @@ In the future, following continued research and development, we plan to implemen
 ## Summary of Editor Specifications
 
 1. **Focused Writing Centered on 1 Section as the Smallest Unit (`write` workspace)**
-   - The "Section Editor" in the lower pane allows you to focus solely on the section currently being written, while the "Context View" in the upper pane displays up to 3 preceding and following sections in read-only mode.
-   - The "Reference Pane" on the right automatically extracts and displays the plot, characters (active modes/role-language), terms, reference materials, and diagnostics relevant to the current section.
+   - The "Section Editor" in the lower pane lets you focus solely on the section you are writing, while the "Context View" above it shows up to 3 preceding and following sections read-only.
+   - The reference pane on the right automatically extracts and shows the plot, characters (active modes and speech styles), terms, materials, and diagnostics that concern the current section. Its visibility, side, and split ratio are all keyboard-adjustable.
 2. **Lightweight Proprietary Text Syntax and Lossless Saving**
-   - Manuscript text (`contents/AA-BB.txt`), overall and chapter plots (`plots/all.txt`, `plots/AA.txt`), episode plots (`plots/AA-BB.txt`), characters (`characters.md`), terms (`words.md`), ideas (`ideas.md`), and materials (`materials/`) are all managed as plain text (UTF-8), allowing native version control and diffing via Git.
+   - Manuscript text (`contents/AA-BB.txt`), overall and chapter plots (`plots/all.txt`, `plots/AA.txt`), episode plots (`plots/AA-BB.txt`), characters (`characters.md`), terms (`words.md`), ideas (`ideas.md`), and materials (`materials/`) are all plain text (UTF-8), so Git diffs them natively.
+   - Not a single byte of the original is discarded: what you read is what is written back. A project is self-contained around `project.json`; only the `.novnow/` cache stays out of version control.
 3. **Semantic Resolution Engine and 76 Types of Real-Time Diagnostics**
-   - Provides glossary resolution via `'Name` (shortest-match, NFKC normalization), context-aware character mode resolution, role-language pattern matching (visualizing tone-matching in dialogue with green underlines), detection of term usage prior to initial introduction, and authoring assistance diagnostics for sentence length, consecutive sentence endings, spelling inconsistencies, and more.
-4. **Keyboard-Driven 8 Workspaces and Unified Palette**
-   - Instantly switch between manuscript (`write`), episode plot (`plot-episode`), outline plot (`plot-outline`), ideas (`idea`), materials (`material`), casting (`cast`), agents (`agent`), and review (`review`) using `Alt+1` through `Alt+9`.
-   - Jump to any element in the project via the unified palette (`Ctrl+P`) using prefix characters (`@` structure, `'` dictionary, `#` materials, `>` commands).
+   - Provides glossary resolution via `'Name` (shortest match, NFKC normalization), situation-aware character mode resolution, speech-style pattern matching (tone matches are underlined in green), detection of terms used before their first appearance, and authoring diagnostics for sentence length, repeated sentence endings, spelling variance, and more.
+   - Every one of the 76 diagnostics has a stable code (`E001`-`W0xx` / `I0xx`), reachable through the `Ctrl+.` quick fix and the `review` workspace.
+4. **Keyboard-Driven 9 Workspaces and a Unified Palette**
+   - Switch instantly between manuscript (`write`), episode plot (`plot-episode`), outline (`plot-outline`), ideas (`idea`), materials (`material`), cast (`cast`), reader (`reader`), agents (`agent`), and review (`review`) with `Alt+1` through `Alt+9`. The current section is preserved across the switch.
+   - The unified palette (`Ctrl+P`) jumps anywhere in the project by prefix (`@` structure, `'` dictionary, `#` materials, `>` commands). `Ctrl+G` jumps by scene number, `F5` reloads, and `?` lists every shortcut.
+   - The UI is available in Japanese and English (`Ctrl+Alt+L`), with a system-aware dark/light theme (`Ctrl+Alt+T`).
 5. **Human-Controlled AI Agent Integration (MCP Compatible)**
-   - Configure 4 delegation levels (`off` / `propose` / `apply` / `autonomous`) per role (`writer`, `plotter`, `ideator`, `researcher`, `stylist`, `logician`, `integrator`), supporting diff reviews of proposed changes and MCP server integration via `novnow mcp`.
+   - Set one of 4 delegation levels (`off` / `propose` / `apply` / `autonomous`) per role (`writer`, `plotter`, `ideator`, `researcher`, `stylist`, `logician`, `integrator`). Proposals become part of the manuscript only after a diff review.
+   - `novnow mcp <dir>` exposes the project to external AI clients as an MCP server with 14 tools. Prompts and ContextPackets are assembled deterministically with a character budget.
 6. **Annotation-Stripped Export**
-   - Strips authoring structural headers, comments, `'` references, and material tags to output plain text (`.txt`) or Markdown (`.md`) tailored for web publishing platforms and vertical text viewers.
+   - Strips authoring headers, comments, `'` references, and material tags to produce plain text (`.txt`) or Markdown (`.md`) for publishing platforms and vertical-text viewers.
+   - Whole projects can be exported to and imported from a Zip archive.
 
 ---
+
+## Install and Run
+
+For now novnow is built from source (binary releases are being prepared). A stable Rust toolchain is required.
+
+```bash
+git clone https://github.com/sonneko/novnow.git
+cd novnow
+
+# CLI only (no GUI crates, so it builds quickly)
+cargo build --release
+
+# Desktop GUI included
+cargo build --release --features ui
+```
+
+```bash
+# Create a project (then check it, then export it)
+NOVNOW=./target/release/novnow
+$NOVNOW new my-novel
+$NOVNOW check my-novel
+$NOVNOW export my-novel --format txt --out manuscript.txt
+
+# Open the GUI (a directory, or --gui for the picker)
+$NOVNOW my-novel
+$NOVNOW --gui
+```
+
+The bundled sample runs with `./target/release/novnow check examples/sample-novel`. The web build is served locally with `trunk serve` (see [`GUIDE.md`](./GUIDE.md)).
+
+---
+
+## External Interfaces
+
+Everything the GUI can do is also reachable headlessly (see [`interfaces.md`](./docs/specifications/interfaces.md)).
+
+| Entry point | Start it with | What it gives you |
+|---|---|---|
+| CLI | `novnow new` / `check` / `export` / `import` / `migrate` / `api` / `mcp` / `lsp` | Create, check, export, migrate, and list the API. Uniform `novnow <domain> <verb> <dir>` form |
+| LSP | `novnow lsp <dir>` | Completion, hover, go-to-definition, diagnostics, formatting, and folding for your editor (LSP 3.17) |
+| MCP | `novnow mcp <dir>` | 14 tools for AI clients |
+| Python | `import novnow` | The same 119 canonical operations from Python (PyO3, abi3-py39 wheel) |
+| Rust | the `novnow` crate | The `core` and `app` APIs directly |
+
+```bash
+novnow api list             # list the 119 canonical operations (--json for machines)
+novnow check my-novel       # print diagnostics and exit (exit code 5 when there are errors)
+novnow structure tree my-novel --json                    # canonical operations accept --json
+```
 
 ## About the Specifications
 
@@ -102,8 +172,11 @@ All specifications for the editor and the novnow format are fully documented:
 - [`platform.md`](./docs/specifications/platform.md): Storage boundaries, Web IndexedDB, and CLI startup specifications
 - [`agent.md`](./docs/specifications/agent.md): AI agents, delegation levels, MCP, and prompt specifications
 - [`workflows.md`](./docs/specifications/workflows.md): Material collection, export, and performance/quality requirements
+- [`interfaces.md`](./docs/specifications/interfaces.md): CLI, LSP, MCP, Python, and Rust interfaces
 
-You can also view them on our official website ([https://novnow.sonneko.com/specifications/](https://novnow.sonneko.com/specifications/)).
+Our website ([https://novnow.sonneko.com/](https://novnow.sonneko.com/)) has a feature guide, the full diagnostics catalog, and an API reference. The specifications themselves live in this repository under [`docs/specifications/`](./docs/specifications/) and are versioned with the implementation.
+
+To contribute, start with [`GUIDE.md`](./GUIDE.md) (build and writing walkthrough) and [`docs/developers.md`](./docs/developers.md) (dev environment, document rules, and verification).
 
 ## About the License
 

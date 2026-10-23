@@ -23,7 +23,7 @@ export interface TroubleshootingItem {
   code?: string;
 }
 
-// TODO: インストール方法の準備中 - リリース後のビルド手順、インストーラに関するトラブルシューティングは順次追加する
+// 症状は利用者から見た言葉で書く。原因と処置は docs/specifications/ の該当節に合わせる。
 
 export const troubleshootingData: TroubleshootingItem[] = [
   {

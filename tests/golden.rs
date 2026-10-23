@@ -1,4 +1,4 @@
-//! ゴールデンテスト（I4、`PLANS.md` §6.3）。
+//! ゴールデンテスト（I4、`docs/history.md` の）。
 //!
 //! - 置き場所は `tests/golden/<形式>/<ケース>.txt` ＋ 同名の `<ケース>.expected.json`。
 //!   `<形式>` のディレクトリ名は §3.3 のモジュール名（`contents` / `plot_outline` /

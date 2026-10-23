@@ -1,4 +1,4 @@
-//! Web の GUI（§13.3〜§13.5、`PLANS.md` §9.2 B-156〜B-158）。
+//! Web の GUI（§13.3〜§13.5、`docs/history.md` B-156〜B-158）。
 //!
 //! - **プロジェクト選択モーダル**（§13.4）: IndexedDB（`adapters::storage_idb`）のプロジェクトの一覧・
 //!   検索・新規作成・Zip の取り込み・名前の変更・削除。初回は `sample` を 1 つだけ作り、自動では
@@ -87,7 +87,7 @@ impl eframe::App for App {
     }
 }
 
-/// `Ctrl+C` / `Ctrl+X` を egui のコピー / 切り取りにする（`PLANS.md` §9.2 B-158）。eframe 0.27 の Web は
+/// `Ctrl+C` / `Ctrl+X` を egui のコピー / 切り取りにする（`docs/history.md` B-158）。eframe 0.27 の Web は
 /// これを `web_sys_unstable_apis` の cfg のときだけ行うが、その cfg は今の web-sys と組み合わせると
 /// eframe がコンパイルできない。貼り付け（`paste` イベント）は eframe が受ける。
 fn copy_and_cut_keys(ctx: &Context) {
@@ -128,7 +128,7 @@ fn write_clipboard(ctx: &Context) {
 }
 
 /// eframe の「テキストエージェント」（IME と文字の入力を受ける隠れた `<input>`）を、入力欄に
-/// フォーカスがあるあいだ出しておく（`PLANS.md` §9.2 B-158）。eframe 0.27 はマウスで入力欄を
+/// フォーカスがあるあいだ出しておく（`docs/history.md` B-158）。eframe 0.27 はマウスで入力欄を
 /// クリックしたときだけ出すので、キーボードで節エディタへ移ったとき（`Ctrl+2`・開いた直後など）は
 /// IME が使えず、日本語を打てなかった。入力欄から離れたら隠す（eframe の再フォーカスも止まる）。
 fn sync_text_agent(typing: bool) {
@@ -393,7 +393,7 @@ impl Host for WebHost {
     }
 
     fn poll(&mut self) -> Vec<(String, Option<String>)> {
-        // 別のタブでの変更は見ない（`PLANS.md` §9.2 B-157）
+        // 別のタブでの変更は見ない（`docs/history.md` B-157）
         Vec::new()
     }
 
@@ -1034,6 +1034,10 @@ fn date_text(rfc3339: &str) -> String {
 }
 
 impl Picker for WebPicker {
+    fn first_visit(&self) -> bool {
+        self.shared.borrow().first_visit
+    }
+
     fn show(&mut self, ctx: &Context, locale: Locale, mode: Mode) -> Option<(Session, UiSettings)> {
         self.locale = locale;
         if !self.started {

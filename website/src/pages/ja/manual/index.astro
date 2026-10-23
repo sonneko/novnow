@@ -1,0 +1,13 @@
+---
+import { getCollection, render } from "astro:content";
+import DocShell from "../../../components/DocShell.astro";
+
+const entries = await getCollection("docs", ({ data }) => data.group === "users");
+const entry = entries.find((item) => item.id === "users");
+if (!entry) throw new Error("docs/users/README.md から生成された index がありません");
+const { Content } = await render(entry);
+---
+
+<DocShell title={entry.data.title} current="users" slug="index" source={entry.data.source}>
+  <Content />
+</DocShell>

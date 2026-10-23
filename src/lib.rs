@@ -1,7 +1,7 @@
-//! novnow の層（`SPECIFICATIONS.md` §3.3）。依存の向きは `ui → adapters → ports ← core`。
+//! novnow の層（`docs/specifications/overview.md` §3.3）。依存の向きは `ui → adapters → ports ← core`。
 //!
 //! - `ui` 層の GUI（egui）部分は **`ui` feature のときだけ**ビルドする（`Cargo.toml` の `[features]`、
-//!   `PLANS.md` §9.2 B-54）。文言カタログ `ui::i18n` だけは CLI も使う（§12.2）ので常にビルドする
+//!   `docs/history.md` B-54）。文言カタログ `ui::i18n` だけは CLI も使う（§12.2）ので常にビルドする
 //!   （`src/ui/mod.rs`、B-100）。
 //! - `app` は描画と無縁の状態機械と外部インターフェースの機能核（§19.1「単一実装点」）。
 //!   常にビルドし、GUI のクレートを使わない（`tests/layering.rs` が検査する）。

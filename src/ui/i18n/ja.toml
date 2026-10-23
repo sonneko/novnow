@@ -1,4 +1,4 @@
-# novnow の UI 文言カタログ（日本語）。SPECIFICATIONS.md §12.3。
+# novnow の UI 文言カタログ（日本語）。`docs/specifications/ui.md` §12.3。
 #
 # - キーは `<領域>.<対象>.<語>`（§12.3）。TOML のテーブル `[diag]` の `E004` が `diag.E004`。
 # - プレースホルダは `{0}` `{1}` の位置引数だけ（§12.3）。core が返す `Diagnostic::args` の順。
@@ -6,7 +6,7 @@
 #   `tests/i18n_catalog.rs` が仕様書と en.toml を読み直して、キー集合・プレースホルダ・文言の
 #   一致を検査する（§12.3 の CI チェック MUST）。文言を変えるときは**先に仕様書の表**を直すこと。
 # - M4 で診断（`diag.*`）、M6 で CLI（`cli.*`、§14）を置いた。ステータスバー・パレットの文言は M7 で足す
-#   （PLANS.md §3 I6）。`cli.*` のうち §12.7 の表にあるものは表の写し（tests/i18n_catalog.rs が照合する）。
+#   （`docs/history.md` I6）。`cli.*` のうち §12.7 の表にあるものは表の写し（tests/i18n_catalog.rs が照合する）。
 
 [diag]
 E001 = "辞書にない参照です: {0}"
@@ -238,7 +238,7 @@ empty = "まだプロジェクトがありません"
 open = "フォルダを開く"
 missing = "(見つかりません)"
 create_here = "ここに新規作成する"
-# Web のプロジェクト選択（§13.4、PLANS.md §9.2 B-156〜B-158）
+# Web のプロジェクト選択（§13.4、`docs/history.md` B-156〜B-158）
 search = "検索（/）"
 loading = "読み込んでいます…"
 unavailable = "このブラウザでは IndexedDB を使えません（プライベートブラウズなど）。通常のウィンドウで開くか、デスクトップ版をお使いください。"
@@ -352,6 +352,7 @@ copied = "クリップボードにコピーしました（{0} 字）"
 failed = "エクスポートできませんでした: {0}"
 
 [help]
+guide = "はじめての手引きの操作（ガイド中）"
 save_mcp = "保存"
 edit_mcp = "MCP サーバー設定を編集"
 mcp_transport = "サーバー {1}の未対応トランスポート: {0} (stdio のみ使用できます)"
@@ -1054,3 +1055,51 @@ set = "設定の変更"
 tree = "構成ツリー"
 resolve = "位置・ID の解決"
 breadcrumb = "パンくず"
+
+[guide]
+title = "はじめての手引き"
+progress = "{0} / {1}"
+waiting = "操作すると次に進みます"
+next = "次へ"
+back = "戻る"
+later = "あとで閉じる"
+reopen = "はじめての手引きをもう一度"
+done = "最後まで進みました。書き出した原稿は、いつでも読み返せます。"
+reader_hint = "読者モードで読み返す"
+
+[guide.step1]
+text = "作品を作りましょう。名前は後から変えられます。"
+hint = "「新規作成」を押す"
+
+[guide.step2]
+text = "画面は 3 つの領域に分かれています。左から順に見てください。"
+hint = "Ctrl+1 / 2 / 3 で移動"
+
+[guide.step3]
+text = "1 節目を書いてみましょう。まずは 1 行で構いません。"
+hint = "本文を入力（Enter で改行）"
+
+[guide.step4]
+text = "行の先頭で ; を打つと、次の節ができます。"
+hint = "; を入力"
+
+[guide.step5]
+text = "人物を登録して、' で呼ぶと、名前の揺れを拾えます。"
+hint = "' に続けて名前"
+
+[guide.step6]
+text = "話プロットに、この話で起きることを書きます。"
+hint = "Alt+2 で話プロット"
+
+[guide.step7]
+text = "読み返すときは読者モードに切り替えます。"
+hint = "Alt+7"
+
+[guide.step8]
+text = "書き出して、原稿を 1 つのファイルにまとめます。"
+hint = "Ctrl+P → export"
+
+[guide.step9]
+text = "最後に Zip で保管しておくと、引っ越しも安心です。"
+hint = "Ctrl+P → export zip"
+

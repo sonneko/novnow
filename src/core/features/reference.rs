@@ -1,6 +1,6 @@
 //! 参照ペインの中身（§9.5.2。① の 6 セクション）を集める。
 //!
-//! LSP には対応しない補助（`PLANS.md` §9.2 B-113）。**文言は持たない**（見出しの言葉は UI の
+//! LSP には対応しない補助（`docs/history.md` B-113）。**文言は持たない**（見出しの言葉は UI の
 //! `ui/i18n`、§12.2）。表示順と「内容が無ければ省く」は `resolve::context_rules::PaneSection`。
 //!
 //! | § 9.5.2 | ここで集めるもの |
@@ -12,7 +12,7 @@
 //! | 7 資料 | 明示参照（節の `'M…` / `'タイトル` と、話プロットの同じ節・場面レベルの `material:`）の後に、条件一致の候補（§16.4、M8）。引用注釈（`^M…`、§5.2.4）は ②（追加仕様 10） |
 //! | 9 診断 | この節に掛かるもの。E → W の順（I は出さない） |
 //!
-//! 五感・空間・挿絵（5・6・8）は ②（`PLANS.md` §5.8 作業項目 7）。
+//! 五感・空間・挿絵（5・6・8）は ②（`docs/history.md` の作業項目 7）。
 
 use std::collections::BTreeSet;
 use std::ops::Range;
@@ -488,7 +488,7 @@ fn materials(
         &mut names,
     );
     // 話プロットのこの節（と場面レベル）の `material:` も明示参照（§16.4 の追記先。追記した候補は
-    // 候補でなくなる、`PLANS.md` §9.2 B-134）
+    // 候補でなくなる、`docs/history.md` B-134）
     let plot = plot_scope(project, scene);
     if let Some((path, ranges, _)) = &plot {
         if let Some(found) = project.document(path) {

@@ -1,6 +1,6 @@
 //! `core::syntax::plot_outline`（A 形式、§5.3）のテスト。
 //!
-//! `PLANS.md` §5.3 完了条件の 1（§5.3.3・§5.3.4 の例が期待どおりにパースできる）・
+//! `docs/history.md` の完了条件の 1（§5.3.3・§5.3.4 の例が期待どおりにパースできる）・
 //! 2（未知フィールドキーを含むファイルの round-trip がバイト一致）・3（壊れた入力でパニックしない）
 //! に対応する。
 //!
@@ -315,7 +315,7 @@ fn the_spec_example_for_all_txt_has_two_blocks() {
 
 #[test]
 fn the_spec_example_for_all_txt_reads_the_title_key() {
-    // §5.3.3 の例の `title:` は §5.0.6 の表に**正式追加**された（第 2.6 版。`PLANS.md` §9.1
+    // §5.3.3 の例の `title:` は §5.0.6 の表に**正式追加**された（第 2.6 版。`docs/history.md`
     // A-12）ので、例の診断は 0 件。値は改変せずに保持する（§5.0.6 MUST）
     assert_eq!(diags_tag(SPEC_ALL), "");
     assert_eq!(line_tag_of(SPEC_ALL, 1), "field[title|Title|v星屑の時計]");
@@ -406,7 +406,7 @@ fn a_heading_keeps_the_id_the_title_and_the_comment() {
 #[test]
 fn a_block_end_may_carry_a_line_comment() {
     // §5.3.1 の `block_end` に行末コメントは無いが、§5.0.2 の共通規則で受ける
-    // （`PLANS.md` §9.1 A-11）
+    // （`docs/history.md` A-11）
     assert_eq!(
         lines_tag("@01 x\nsummary: s\n; // メモ\n"),
         "header[01|d1|id1-0-0-0|tx|c] / field[summary|Summary|vs] / \
@@ -665,7 +665,7 @@ fn a_malformed_heading_id_is_e002() {
 #[test]
 fn chapter_zero_is_rejected_only_when_strict() {
     // §5.1.2「`A = 00` は `structure.allow_chapter_zero = false` にすると **E022** で拒否」
-    // （第 2.8 版で E020 から分離。`PLANS.md` §9.1 A-9）
+    // （第 2.8 版で E020 から分離。`docs/history.md` A-9）
     assert_eq!(diags_tag("@00 x\nsummary: s\n;\n"), "");
     assert_eq!(
         diags_with("@00 x\nsummary: s\n;\n", &strict()),

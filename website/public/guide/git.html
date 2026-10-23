@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Git で原稿を守る（知りたい人だけ） — novnow</title>
+<style>
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 0 1.25rem 5rem;
+  background: #16161a; color: #e6e6ea;
+  font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  line-height: 1.85; font-size: 16px;
+}
+main { max-width: 46rem; margin: 0 auto; }
+header.bar {
+  max-width: 46rem; margin: 0 auto; padding: 1rem 0 0.5rem;
+  display: flex; gap: 1rem; align-items: baseline; flex-wrap: wrap;
+  border-bottom: 1px solid #2c2c33; margin-bottom: 2rem;
+}
+header.bar a { color: #b9a7ff; text-decoration: none; }
+header.bar .brand { font-weight: 700; color: #e6e6ea; }
+header.bar .spacer { flex: 1; }
+h1 { font-size: 1.7rem; line-height: 1.4; margin: 1.5rem 0 0.75rem; }
+h2 { font-size: 1.3rem; margin: 2.2rem 0 0.6rem; border-bottom: 1px solid #2c2c33; padding-bottom: 0.3rem; }
+h3 { font-size: 1.1rem; margin: 1.8rem 0 0.5rem; }
+a { color: #b9a7ff; }
+code { background: #232329; padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.92em; }
+pre { background: #232329; padding: 0.9rem 1rem; border-radius: 8px; overflow-x: auto; }
+pre code { background: none; padding: 0; }
+blockquote { margin: 1rem 0; padding: 0.2rem 1rem; border-left: 3px solid #4a4a58; color: #b9b9c4; }
+table { border-collapse: collapse; width: 100%; margin: 1.2rem 0; font-size: 0.94rem; }
+th, td { border: 1px solid #2c2c33; padding: 0.45rem 0.7rem; text-align: left; vertical-align: top; }
+th { background: #1e1e24; }
+hr { border: none; border-top: 1px solid #2c2c33; margin: 2rem 0; }
+footer { max-width: 46rem; margin: 3rem auto 0; padding-top: 1rem; border-top: 1px solid #2c2c33;
+  color: #85858f; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="index.html">novnow ユーザーガイド</a>
+  <a href="start.html">はじめての手引き</a>
+  <a href="cheatsheet.html">早見表</a>
+  <a href="glossary.html">用語集</a>
+  <a href="faq.html">よくある質問</a>
+  <a href="errors.html">エラーの直し方</a>
+  <span class="spacer"></span>
+  <a href="https://novnow.sonneko.com/app/">アプリを開く</a>
+</header>
+<main>
+<h1>Git で原稿を守る（知りたい人だけ）</h1>
+<p>Git は、<strong>変更の歴史を残す道具</strong>です。<code>novnow</code> は Git を内蔵していませんが、 作品がただのテキストのフォルダなので、そのまま Git で管理できます。</p>
+<p><strong>使わなくても構いません。</strong> バックアップだけなら、<a href="start.html#export">Zip で書き出す</a>か、 フォルダをコピーするだけで足ります。</p>
+<h2 id="git-を使うと何がうれしいか">Git を使うと何がうれしいか</h2>
+<ul>
+<li>「昨日の状態に戻す」ができる（変更を記録しているため）</li>
+<li>どこをどう変えたかが行単位で分かる</li>
+<li>GitHub などに置けば、別のパソコンでも同じ原稿を開ける</li>
+</ul>
+<h2 id="最小限の手順">最小限の手順</h2>
+<pre><code class="language-bash">cd わたしの作品
+git init
+git add .
+git commit -m &quot;書き始め&quot;</code></pre>
+<p>以降は、区切りがついたときに次の 2 行を繰り返すだけです。</p>
+<pre><code class="language-bash">git add .
+git commit -m &quot;第 1 話を書き終えた&quot;</code></pre>
+<h2 id="何を記録しないか">何を記録しないか</h2>
+<p><code>.novnow/</code> は画面の状態とキャッシュなので、記録しません。 <code>novnow new</code> で作った作品には、最初から <code>.gitignore</code> が入っていて <code>.novnow/</code> を除外しています。</p>
+<h2 id="注意">注意</h2>
+<ul>
+<li><code>novnow</code> は Git の状態を画面に表示しません（入っているかどうかを気にせず書けます）。</li>
+<li>コミットは<strong>自動では行いません</strong>。自分で区切りをつけて実行してください。</li>
+</ul>
+<h2 id="もっと詳しく">もっと詳しく</h2>
+<ul>
+<li><a href="https://github.com/sonneko/novnow/blob/main/docs/specifications/platform.md">仕様: ローカル状態</a> §4.4</li>
+</ul>
+</main>
+<footer>
+  このページは <code>docs/users/git.md</code> から自動生成しています。直すときはリポジトリの
+  <code>docs/users/</code> を編集してください（<code>python3 scripts/docs-site.py</code> で作り直します）。
+</footer>
+</body>
+</html>

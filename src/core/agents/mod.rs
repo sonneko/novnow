@@ -48,7 +48,7 @@ pub fn level_of(settings: &Agents, role: &str) -> Delegation {
     settings.delegation_of(role)
 }
 
-/// 既定の役割か（カスタムロールは ②、`PLANS.md` §1.2）。
+/// 既定の役割か（カスタムロールは ②、`docs/plans.md` §4.2 ）。
 pub fn is_role(role: &str) -> bool {
     BUILTIN_ROLES.contains(&role)
 }
@@ -64,7 +64,7 @@ pub enum Kind {
     Idea,
     /// researcher: 資料（`materials/inbox/`、`status: proposed`）。
     Material,
-    /// stylist / logician / integrator: 指摘・提案の文章。ファイルには適用しない（`PLANS.md` §9.2 B-141）。
+    /// stylist / logician / integrator: 指摘・提案の文章。ファイルには適用しない（`docs/history.md` B-141）。
     Note,
 }
 

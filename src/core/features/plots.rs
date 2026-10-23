@@ -1,6 +1,6 @@
 //! プロットのワークスペース（§10.2 `plot-episode`・§10.3 `plot-outline`）の行の並び。
 //!
-//! LSP には対応しない補助（`PLANS.md` §9.2 B-127）。**文言は持たない**（§12.2）。
+//! LSP には対応しない補助（`docs/history.md` B-127）。**文言は持たない**（§12.2）。
 //!
 //! - **話プロットの節リスト**（[`episode_rows`]）: `plots/AA-BB.txt`（B 形式）を、場面見出しの行と
 //!   節の行の並びにする。各行は「エディタで編集する行の範囲」を持つ。場面の行は見出しから最初の
@@ -219,7 +219,7 @@ pub fn insert_section(
 ///
 /// 節の行なら節の内容の最後（`;` と末尾の空行の前）、場面の行なら場面レベルのフィールドの最後に
 /// 入る。見出しだけの場面（空の節の行）は見出しの直後なので場面レベルのフィールドになる。
-/// 行が無ければ（話プロットが無い・場面が無い）`None`（UI が通知する、`PLANS.md` §9.2 B-134）。
+/// 行が無ければ（話プロットが無い・場面が無い）`None`（UI が通知する、`docs/history.md` B-134）。
 pub fn append_line(text: &str, rows: &[EpisodeRow], id: SceneId, line: &str) -> Option<String> {
     let row = rows.iter().find(|row| row.id == id).or_else(|| {
         rows.iter()

@@ -323,7 +323,7 @@ pub fn sampling_params(request: &Request, task: &Task) -> Value {
 }
 
 /// `tools` だけのサーバに送る `tools/call` の `arguments`（`allow_tools` の先頭のツール。
-/// `PLANS.md` §9.2 B-147）。
+/// `docs/history.md` B-147）。
 pub fn tool_arguments(request: &Request, task: &Task) -> Value {
     json!({
         "system": request.system,
@@ -399,7 +399,7 @@ pub struct Session {
     pub hops: BTreeMap<String, u32>,
 }
 
-/// 自動で起こす前の検査（0 は無制限、`PLANS.md` §9.2 B-143）。
+/// 自動で起こす前の検査（0 は無制限、`docs/history.md` B-143）。
 pub fn limit(limits: &AgentLimits, session: &Session, hop: u32) -> Option<Limit> {
     if limits.max_tasks_per_session > 0 && session.auto_started >= limits.max_tasks_per_session {
         return Some(Limit::Tasks);

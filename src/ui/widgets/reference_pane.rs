@@ -118,7 +118,7 @@ pub fn heading(ui: &mut Ui, text: &str, mode: Mode, scale: f32) {
 ///
 /// 資料は明示参照の後に、条件一致の候補を薄い色で並べる（§16.4）。候補はダブルクリックか、
 /// フォーカスして `Enter` で選べ、選ばれた候補の ID を返す（呼び出し側が今の節のプロットの
-/// `material:` に足す、`PLANS.md` §9.2 B-136）。
+/// `material:` に足す、`docs/history.md` B-136）。
 pub fn sections(
     ui: &mut Ui,
     content: &Reference,

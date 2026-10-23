@@ -9,8 +9,8 @@
 <!-- SYNC:START stage1-status -->
 | 区分 | 状態 | 対象範囲 | 参照 |
 |---|---|---|---|
-| 段階 ①（M0〜M11） | 完了 | コア仕様・全 8 ワークスペース・MCP・CLI・Web 版・ベンチマーク・サンプル一式 | `REF:docs/history.md` |
-| 設計書セクション実装状況 | 実装完了 134 節 / 実装中 0 節 / 未実装・実装計画済み 0 節 / 未実装・未計画 0 節 / 実装待ち 0 節 | 全 11 設計書の `### ` 節（合計 134 節） | `REF:docs/designs/` |
+| 段階 ①（M0〜M11） | 完了 | コア仕様・全 9 ワークスペース・MCP・CLI・Web 版・ベンチマーク・サンプル一式 | `REF:docs/history.md` |
+| 設計書セクション実装状況 | 実装完了 136 節 / 実装中 0 節 / 未実装・実装計画済み 0 節 / 未実装・未計画 0 節 / 実装待ち 0 節 | 全 11 設計書の `### ` 節（合計 136 節） | `REF:docs/designs/` |
 | 仕様変更・修正（F-01〜F-44） | 実装完了（44 件） | UI・エディタ・パレット・辞書・ショートカット・性能等の修正 44 項目 | `REF:docs/plans.md#planned-fixes` |
 | 機能追加（小規模：S-01〜S-18） | 実装完了（18 件） | エージェント例指定・PWA・Zip 導入・形態素波線等の小規模機能追加 18 項目 | `REF:docs/plans.md#planned-small-features` |
 | 機能追加（比較的大規模：L-01） | 実装済み（CLI・デスクトップ） | 既存の本文テキストから `novnow` に移行するための手段の提供 | `REF:docs/plans.md#unplanned-large` |
@@ -893,7 +893,134 @@ Python 一式は `python/novnow-py/tests/`（当初の計画に書いた `python
 
 ### 5.8 段階の受け入れ基準（全マイルストーン共通）
 
-- [x] 仕様 §19 の各 MUST 条項に対応する自動テストが存在し、`bash scripts/verify.sh`（`REF:tests/api.rs`・`REF:tests/api_fs.rs`・`REF:tests/api_driver.rs`・`REF:tests/cli.rs`・`REF:tests/lsp.rs`・`REF:tests/api_parity.rs`）が完全グリーン（1339 passed / 0 failed、62 ターゲット）。
+- [x] 仕様 §19 の各 MUST 条項に対応する自動テストが存在し、`bash scripts/verify.sh`（`REF:tests/api.rs`・`REF:tests/api_fs.rs`・`REF:tests/api_driver.rs`・`REF:tests/cli.rs`・`REF:tests/lsp.rs`・`REF:tests/api_parity.rs`）が完全グリーン（1347 passed / 0 failed、65 ターゲット。GUI なしのビルドは 1176 件）。
 - [x] §4.4 の 10 縫い代が生存 — `REF:tests/layering.rs` と `REF:tests/roundtrip.rs` の既存アサーションが無変更で通る（段階 ③ で両ファイルのアサーションは変更していない）。
-- [ ] 仕様書・設計書・許可クレート表の変更はすべて PR 経由で人間の承認を得た。**人間の作業**: PR #25（Draft）のレビューとマージ。対象は `REF:docs/designs/overview.md` §3.2・§3.3 と `REF:docs/designs/interfaces.md` の状態行。許可クレート表（`REF:docs/add-dependencies.md`）の変更は無い（pyo3 系は未導入のまま）。
+- [x] 仕様書・設計書・許可クレート表の変更はすべて PR 経由で人間の承認を得た。**完了**: PR #25 は 2026-10-23 にマージ済み。対象は `REF:docs/designs/overview.md` §3.2・§3.3 と `REF:docs/designs/interfaces.md` の状態行。許可クレート表（`REF:docs/add-dependencies.md`）の変更は無い（pyo3 系は vendoring で持ち込み、クレート依存には加えていない）。
 - [x] 完了後、`REF:docs/history.md` へ `[HIST-TAG: STAGE-3]` エントリを追記し、本書と `REF:docs/handoff.md` の SYNC 進捗表を更新した（134 節すべて実装完了）。
+
+---
+
+<a id="users-and-guide-mode"></a>
+## 6. ユーザー向けガイドとガイドモードの実装計画（状態: 一部実施。Phase 0〜4 は実施済み、Phase 5（英語本文・GIF）は未実施）
+
+非エンジニアが「開いて、書いて、書き出せる」までを、**文書・サイト・アプリの 3 か所で同じ内容**にする計画。
+仕様は `REF:docs/specifications/ui.md` §9.10（ガイドモード）、`REF:docs/specifications/workflows.md` §18.5
+（ドキュメント公開）、`REF:docs/specifications/platform.md` §14.2.1（解説ページ URL）に置いた。
+
+**前提（決定済み）**
+
+- バイナリ配布は後回し。インストールの節は**場所だけ作り、中身は「準備中」**とする。
+- 用語（節・場面・話・モード・役割語）は仕様書の語のまま使う。**言い換えず、定義と説明を足す**。
+- `REF:docs/users/` は `REF:docs/specifications/` を参照する（逆向きの参照は持たない）。
+- サイトは仕様書とユーザー向けガイドを**どちらも docs から生成**し、ガイドから仕様書へリンクする。
+- ガイドモードは、Web 版は保存プロジェクト 0 件、デスクトップ GUI 版はプロジェクト履歴 0 件のときだけ自動で出す。
+
+### 6.1 段階
+
+<a id="plan-users-docs"></a>
+#### Phase 0: 壊れている導線を直す（半日）— **実施済み**
+
+`REF:scripts/docs-site.py` が `REF:docs/users/*.md` から `REF:guide/*.html`（8 ページ）を作り、
+`REF:index.html` の `copy-dir` で dist に載る。仕様 §14.2.1 の 3 URL は公開物に実在する。
+存在は `REF:docs/script/reference.py` の検査 11 が CI で見張る。
+
+
+| # | すること | 完了条件 |
+|---|---|---|
+| 0-1 | `REF:docs/specifications/platform.md` §14.2.1 の 3 URL に対応する解説ページを作る（`guide/project_structure.html`・`guide/git.html`・`guide/publish.html`）。`REF:index.html` にコピー指定を足し、trunk の dist に載せる | 3 URL が実際に開ける。中身はユーザー向けガイドとサイトへの短い案内 |
+| 0-2 | `REF:docs/script/reference.py` に検査 11 を足す（下記 6.3） | 3 URL を消すと `verify.sh` が落ちる |
+| 0-3 | CLI の不足ファイル案内（`REF:src/cli/mod.rs`・`REF:src/cli/open.rs`）の文面を平易にする | 済（確認の結果、仕様 §14.2.2 の文面が既に「足りないもの・構造の解説・`novnow new`」の 3 段で案内していたため変更なし） |
+
+<a id="plan-guide-mode"></a>
+#### Phase 1: ガイドモード（3 日）— **実施済み**
+
+`REF:src/ui/guide.rs`（9 段階の定義と状態機械）・`REF:src/ui/widgets/guide.rs`（枠・矢印・吹き出し）・
+`REF:src/ui/app.rs`（自動で出る判定・状態の観測・キー）・`REF:src/app/settings.rs`（`guide_done`）に実装した。
+キーは `Alt+Enter`／`Alt+Backspace`／`Esc` で、**本文の `Enter` と `Backspace` は奪わない**。
+
+
+| # | すること | 置き場所（予定） |
+|---|---|---|
+| 1-1 | 段階の定義を 1 か所に持つ（文言 ja/en・進む条件・対象の部品 ID） | 済: `REF:src/ui/guide.rs`（新設）＋ `REF:src/ui/i18n/{ja,en}.toml` の `guide.*` |
+| 1-2 | 出る条件の判定（Web=保存 0 / デスクトップ=履歴 0）と、閉じたことの保存 | 済: `Picker::first_visit`（`REF:src/ui/web.rs`・`REF:src/ui/app.rs`）と `.novnow/ui.json` の `guide_done` |
+| 1-3 | 吹き出しと矢印の描画（対象の矩形から位置決め、画面端で逃げる、入力を奪わない） | 済: `REF:src/ui/widgets/guide.rs`（新設） |
+| 1-4 | 進む条件の監視（節が増えた・`'` が出た・プロットが空でない・読者モードを開いた・エクスポート完了・Zip 完了） | 済: `Session::guide_signals` と `Guide::observe`（`REF:src/ui/app.rs`） |
+| 1-5 | ヘルプ（`?`）に「はじめての手引きをもう一度」を足す | 済: `REF:src/ui/app.rs` のヘルプの一覧の下 |
+| 1-6 | テスト（条件判定・段階送り・飛ばし・キーボードのみ・ja/en の網羅） | 済: `REF:tests/guide.rs` と `REF:src/ui/guide.rs` の単体テスト。ja/en の網羅は `REF:tests/i18n_catalog.rs` |
+
+<a id="plan-docs-site"></a>
+#### Phase 2: サイトの自動ビルド（2 日）— **実施済み**
+
+`REF:scripts/docs-site.py` が正本（`REF:docs/users/*.md`・`REF:docs/specifications/*.md`）を
+`REF:website/src/content/docs/` へ写し、目次 `REF:website/src/data/docs-nav.ts` を書き出す。
+サイトの URL は `/ja/manual/<slug>`（ガイド）と `/ja/specifications/<name>`（仕様書）で、
+`README.md` はそれぞれの index になる。英語は本文が無いので、日本語版へ案内する短いページを出す。
+
+| # | すること | 結果 |
+|---|---|---|
+| 2-1 | `REF:docs/users/*.md` から Astro ページを生成する | 済（`/ja/manual/start`・`cheatsheet`・`glossary`・`faq`・`project-structure`・`git`・`publish`・index の 8 ページ） |
+| 2-2 | 仕様書（11 冊）から `/ja/specifications/<name>` を生成する | 済（11 冊＋index） |
+| 2-3 | ガイドから仕様書の節へリンクを張る | 済（`../specifications/x.md#アンカー` を `/ja/specifications/x#...` に書き換え。飛べない日本語見出しには `<a id="install">` などの英字 ID を置く） |
+| 2-4 | 生成物の一致を CI で検査（`--check`） | 済（`REF:scripts/verify.sh` の `site-check`） |
+| 2-5 | トップと `Get Started` を `REF:docs/users/start.md` の段階と一致させる | 未（アプリ内のガイドモードと同じく Phase 1 の実装に合わせる） |
+| 2-6 | トップページから GitHub の URL を外す | 済（`REF:website/src/data/site.ts` の `guideLinks` と、トップの仕様書リンクをサイト内へ） |
+
+「同じ内容を 2 か所に持たない」ため、トップページには説明の本文を置かず、**ガイドへのカードと入口の表だけ**を置く。
+本文はすべて `REF:docs/` が正本。
+
+#### Phase 3: 文章の品質を機械で守る（1 日）— **実施済み**
+
+`REF:docs/script/easy-read.py`（標準ライブラリのみ）を `REF:scripts/verify.sh` の `docs-users` と
+CI の docs ジョブに入れた。規則は 1 文 60 字・1 段落 3 文・漢字 40% 以下（60 字以上の段落だけ）・
+禁止語・です/ます調の混在。回帰テストは `REF:docs/script/test_easy_read.py`。
+
+
+| # | すること | 基準 |
+|---|---|---|
+| 3-1 | `docs/script/easy-read.py` を新設（標準ライブラリのみ） | 1 文 60 字以内・1 段落 3 文以内・漢字比率 40% 以下・禁止語（`AST`・`enum`・`デバウンス`・`シリアライズ`）・です/ます混在なし |
+| 3-2 | `REF:scripts/verify.sh` の `docs-users` ステップに組み込む | 落ちたときにどの文かが出る |
+| 3-3 | 診断の上位 12 件に「利用者向けの対処」を足す | 済: `REF:docs/users/errors.md`（12 件）。`REF:docs/users/faq.md` と `REF:docs/users/README.md` から引ける |
+
+#### Phase 4: 見つけてもらう（1 日）
+
+| # | すること | 完了条件 |
+|---|---|---|
+| 4-1 | `REF:README.md` / `REF:README.en.md` の冒頭に「どこで動くか」（デスクトップ / ブラウザ / CLI / LSP / MCP / Python）を表で置く | 冒頭 30 行以内にブラウザ版の記載がある |
+| 4-2 | サイトのトップに同じ表を置き、`Get Started` へのボタンを最上部に出す | トップから 1 クリックで手引きに入れる |
+| 4-3 | インストールの節は「ブラウザ版は不要」「デスクトップは準備中」の 2 段だけにする | 準備中の表示が README・サイト・手引きで同じ |
+
+#### Phase 5: 英語と図（1 日・任意）
+
+- `REF:docs/users/` の英訳（`start.en.md` など）。サイトは `/en` に同じ生成を通す。
+- 操作の GIF 3 本（作品を作る／節を書く／書き出す）。撮り方は `REF:docs/developers.md` §7.3 に追記する。
+
+### 6.2 受け入れ基準
+
+- [ ] はじめての人がブラウザだけで、手引きの 1〜9 を**詰まらずに**終えられる（5 人で試す）
+- [x] ガイドモードが、Web は保存 0 件のときだけ・デスクトップは履歴 0 件のときだけ自動で出る
+- [x] ガイド中も本文が書ける（入力を奪わない）／`Esc` と「あとで」で閉じられる／閉じたら次回は出ない
+      （プロジェクトを 1 件も作らずに閉じた場合だけ、保存先が無いので次回も出る。仕様 §9.10 の例外）
+- [ ] ガイドの 9 段階と、サイトと `REF:docs/users/start.md` の段階が一致する（検査 11）
+- [ ] `REF:docs/users/` の `REF:` が `REF:docs/specifications/` だけを指す（検査 11）
+- [ ] 3 つの解説ページ URL が公開物に実在する（検査 11）
+- [ ] `docs/script/easy-read.py` が `REF:docs/users/` の全ファイルで通る
+- [ ] `bash scripts/verify.sh` が全ステップ緑（`docs-users` を含む）
+
+### 6.3 検査 11（`REF:docs/script/reference.py` に足す）
+
+| # | 検査 | 何を捕まえるか |
+|---|---|---|
+| 11-1 | 解説ページ URL の実在 | 仕様 §14.2.1 と `REF:src/core/model/project.rs` の URL を集め、対応する公開物（`guide/*.html`）が無い |
+| 11-2 | `REF:docs/users/` の参照方向 | ガイドから `docs/developers.md` など仕様書以外を参照している |
+| 11-3 | ガイドと手引きの段階一致 | アプリの段階定義と `REF:docs/users/start.md` の見出しの数・順序が違う |
+| 11-4 | 用語集の被覆 | 仕様書に出る主要語（節・場面・話・章・モード・役割語・参照ペイン・点検・委譲レベル）が用語集に無い |
+
+### 6.4 リスク
+
+| リスク | 対策 |
+|---|---|
+| ガイドの文言がサイトと二重管理になる | 段階の定義を 1 つの表から生成し、検査 11-3 で数と順序を突き合わせる |
+| 吹き出しが対象の部品を見失う（画面幅・言語で位置が変わる） | 対象を**部品 ID** で指定し、矩形は描画時に取る。見つからない段階は飛ばす |
+| ガイドが邪魔で閉じられない | `Esc`・「あとで」・画面外クリックの 3 つで閉じる。閉じたことを保存 |
+| 用語を言い換えて仕様と食い違う | 用語集は「言い換えない」を MUST にし、`easy-read.py` の禁止語に「節の言い換え」を入れない |
+| サイト生成が重くて CI が長くなる | 生成は `--check` のみ（ビルドはしない）。Astro のビルドはデプロイ時だけ |

@@ -10,8 +10,8 @@
 <!-- SYNC:START stage1-status -->
 | 区分 | 状態 | 対象範囲 | 参照 |
 |---|---|---|---|
-| 段階 ①（M0〜M11） | 完了 | コア仕様・全 8 ワークスペース・MCP・CLI・Web 版・ベンチマーク・サンプル一式 | `REF:docs/history.md` |
-| 設計書セクション実装状況 | 実装完了 134 節 / 実装中 0 節 / 未実装・実装計画済み 0 節 / 未実装・未計画 0 節 / 実装待ち 0 節 | 全 11 設計書の `### ` 節（合計 134 節） | `REF:docs/designs/` |
+| 段階 ①（M0〜M11） | 完了 | コア仕様・全 9 ワークスペース・MCP・CLI・Web 版・ベンチマーク・サンプル一式 | `REF:docs/history.md` |
+| 設計書セクション実装状況 | 実装完了 136 節 / 実装中 0 節 / 未実装・実装計画済み 0 節 / 未実装・未計画 0 節 / 実装待ち 0 節 | 全 11 設計書の `### ` 節（合計 136 節） | `REF:docs/designs/` |
 | 仕様変更・修正（F-01〜F-44） | 実装完了（44 件） | UI・エディタ・パレット・辞書・ショートカット・性能等の修正 44 項目 | `REF:docs/plans.md#planned-fixes` |
 | 機能追加（小規模：S-01〜S-18） | 実装完了（18 件） | エージェント例指定・PWA・Zip 導入・形態素波線等の小規模機能追加 18 項目 | `REF:docs/plans.md#planned-small-features` |
 | 機能追加（比較的大規模：L-01） | 実装済み（CLI・デスクトップ） | 既存の本文テキストから `novnow` に移行するための手段の提供 | `REF:docs/plans.md#unplanned-large` |
@@ -23,13 +23,16 @@
 
 ## 2. 現在のブランチ・PR・直近の作業状態
 
-- 作業ブランチ: `arena/10a83ca3-novnow`。PR #25 は **Draft**（CI を走らせないため）。マージと Ready 化は人間が行う。
-- 今回は段階 ③（§19 外部インターフェース）の H1〜H7 を実装した。実装の記録は `REF:docs/history.md` の STAGE-3、受け入れ基準の達成状況は `REF:docs/plans.md#stage-3` §5.4 を参照。L-01・段階②の検証は L01-STAGE2-COMPLETE、統合文書の修正理由は DOCS-MERGE-STAGE23。
-- 未検証のまま残るのは Python 拡張のビルドと pytest（サンドボックスから crates.io に到達できない）。初回の検証は CI のホイール行列 `REF:.github/workflows/wheels.yml`（5 構成 × Python 3.9 / 3.11 / 3.13）が行う。pyo3 系クレートの vendoring が必要になったら `REF:docs/add-dependencies.md` §2.2 と `REF:docs/plans.md#stage-3` §5.5 に従う（人間の承認が前提）。
+- 作業ブランチ: `arena/06cb5373-novnow`（`main` の `8360f28` から分岐）。PR #26（文書と実装の同期是正と `REF:docs/script/reference.py` の追加）を作成済み。マージは人間が行う。
+- 段階 ①〜③（M0〜M11・追加仕様 1〜27・L-01・§19 の H1〜H7）は `main` にマージ済み（PR #25 は 2026-10-23 にマージ）。
+- 直近の作業: ユーザー向けガイド（`REF:docs/users/`）とガイドモードの仕様・計画の整備（`REF:docs/plans.md#users-and-guide-mode`。実装はこれから）。その前は、ドキュメントとコードの同期監査とその是正（`REF:docs/history.md` の DOCS-SYNC-AUDIT、検査は `REF:docs/developers.md` §4.6）、および Actions の節約（同 §4.7）。
+- **コミットは既定で `[ci skip]`**（`REF:.githooks/commit-msg`）。CI は必要なときだけ `bash REF:scripts/ci-run.sh ci watch` で回す。マージ前に 1 回だけ回して緑を確認する。
+- サンドボックスでの検証は全件通る: `docs 11 項目 / docs-tests 30 件 / docs-sync 10 項目 / site-check 2 件 / python-check 10 件 / 拡張の pytest 8 passed 1 skipped / cargo test 1176（GUI なし）・1347（GUI あり）/ clippy・fmt・wasm32 すべて ok`。Web 実機スモーク（`REF:scripts/web-smoke.sh`、ヘッドレス Chromium で 28 項目）も通る。
 - macOS / Windows の実機操作と、異なる性能環境での測定は未実施。CI のクロスビルドやサンドボックスでの測定とは区別する。
 
 ## 3. 継続作業の手順
 
 1. ツールチェーン復旧とサンドボックス再起動時の Git 同期は `REF:docs/developers.md` §2.2 / §6.2 に従う。
 2. PR の最新状態・チェックと作業ツリーを確認する。段階 ③（`REF:docs/plans.md#stage-3`）は H1〜H7 を実装済み。実装済みの段階②を未着手へ戻さない。
-3. 変更後は `REF:scripts/verify.sh`、UI/Web 変更時は加えて `REF:scripts/web-smoke.sh` を実行する。設計の状態を変更した場合は文書検査の実測値に従い両文書の SYNC 表を更新する。
+3. 変更後は `REF:scripts/verify.sh`、UI/Web 変更時は加えて `REF:scripts/web-smoke.sh` を実行する。
+   ユーザー向け文書（`REF:docs/users/`）を直したら、サイトの手引きとアプリ内のガイドモードの段階も同じにする（`REF:docs/developers.md` §4.8）。設計の状態を変更した場合は文書検査の実測値に従い両文書の SYNC 表を更新する。

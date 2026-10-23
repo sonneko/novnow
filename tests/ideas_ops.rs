@@ -1,5 +1,5 @@
 //! アイデアと資料のワークスペースの操作（`core::features::ideas` / `materials_ops`、M8、
-//! `PLANS.md` §9.2 B-130・B-131）。
+//! `docs/history.md` B-130・B-131）。
 
 mod novel;
 mod world;

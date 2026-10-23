@@ -1,15 +1,15 @@
-//! 文言カタログ（`src/ui/i18n/{ja,en}.toml`）の CI 検査（`SPECIFICATIONS.md` §12.3）。
+//! 文言カタログ（`src/ui/i18n/{ja,en}.toml`）の CI 検査（`docs/specifications/ui.md` §12.3）。
 //!
 //! §12.3「**CI チェック（MUST）**: 2 つのカタログのキー集合が完全一致しない、または
 //! プレースホルダ番号集合が一致しない場合はビルド失敗」をここで担保する。
 //!
-//! GUI（`ui` feature）は M7 まで既定で切れている（`PLANS.md` §9.2 B-54）ので、カタログは
+//! GUI（`ui` feature）は M7 まで既定で切れている（`docs/history.md` B-54）ので、カタログは
 //! `include_str!` で読み、パースは dev-dependency の `toml` で行う。**既定の `cargo test` で走る**
 //! （CI の Test ジョブがそのまま検査する）。
 //!
 //! あわせて `diag.*` が §7 / §7.1 / §7.2 の表の文言と**一字一句**一致すること、core の
 //! [`DiagnosticCode`] の全コードが揃っていること、引数の数が [`DiagnosticCode::params`] と
-//! 合うことも見る（文言の正本は仕様書。`PLANS.md` §5.5 の作業項目 1）。
+//! 合うことも見る（文言の正本は仕様書。`docs/history.md` のの作業項目 1）。
 //!
 //! M6 から: §12.7 の表の `cli.*` の行がカタログの写しであること、CLI のソースが使うキーが
 //! 両方のカタログにあり、使われていない `cli.*` のキーが無いこと、実行時の `ui::i18n`
@@ -207,7 +207,7 @@ fn every_diagnostic_code_has_a_message_in_both_languages() {
 
 #[test]
 fn diag_messages_are_copied_verbatim_from_the_spec() {
-    // 文言の正本は仕様書の §7 / §7.1 / §7.2（`PLANS.md` §6.3「仕様書 → 実装」）
+    // 文言の正本は仕様書の §7 / §7.1 / §7.2（`docs/history.md` の「仕様書 → 実装」）
     let ja = flatten(JA, "ja.toml");
     let en = flatten(EN, "en.toml");
     let rows = spec_rows();

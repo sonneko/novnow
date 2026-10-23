@@ -125,7 +125,7 @@ pub struct Task {
     #[serde(rename = "human-comment")]
     pub human_comment: String,
     /// 人間が外したブロック（§15.7.2 のトグル。`materials, history` のようにブロック名を `,` 区切り。
-    /// 第 2.16 版、`PLANS.md` §9.2 B-138）。
+    /// 第 2.16 版、`docs/history.md` B-138）。
     pub exclude: String,
     /// §5.10.1 に無いキー。**削除してはならない**（縫い代 1）。
     #[serde(flatten)]

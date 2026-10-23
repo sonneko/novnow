@@ -1,6 +1,6 @@
 //! 節単位の編集（§8.1）と、節の並び（§9.3 の文脈ビュー・§9.8.2 の構造移動）。
 //!
-//! LSP には対応しない補助（UI の節エディタと文脈ビューのための純粋関数。`PLANS.md` §9.2 B-112）。
+//! LSP には対応しない補助（UI の節エディタと文脈ビューのための純粋関数。`docs/history.md` B-112）。
 //!
 //! - **節の並び**: 本文（`contents/AA-BB.txt`）の節を、ファイル名の順 → ファイルの中の順に並べたもの。
 //!   場面見出しの ID が壊れた節（E002 / E020）と、最初の場面見出しより前の行は並びに入らない。
@@ -108,7 +108,7 @@ pub fn text_of(text: &str, section: &SectionRef) -> String {
 }
 
 /// ファイルの行 `lines`（行 index の範囲）を LF でつないだもの（M8 のワークスペースが本文以外の
-/// 文書の一部を編集するときも同じ規則、`PLANS.md` §9.2 B-126）。
+/// 文書の一部を編集するときも同じ規則、`docs/history.md` B-126）。
 pub fn text_of_lines(text: &str, lines: &Range<usize>) -> String {
     let all: Vec<&str> = text.split('\n').collect();
     let end = lines.end.min(all.len());

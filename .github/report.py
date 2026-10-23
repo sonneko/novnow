@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""CI の出力を**人が読む形**に整える（`.github/workflows/ci.yml` の 4 ジョブ共用）。
+"""CI の出力を**人が読む形**に整える（`.github/workflows/ci.yml` のジョブが共用する）。
 
 ## なぜこれがあるか
 
 GitHub Actions のログ取得先ホスト（`objects.githubusercontent.com`）に作業環境から到達できない
 ため、このリポジトリでは**失敗の中身を読む経路が PR コメントしかない**
-（`PLANS.md` §9.3、`.github/workflows/ci.yml` の冒頭コメント）。ところが `cargo` の生ログは
+（`docs/history.md` の CI のログ取得、`.github/workflows/ci.yml` の冒頭コメント）。ところが `cargo` の生ログは
 
 - コンパイルエラーが数十行の `Compiling …` に埋もれる、
 - `cargo test` は fail-fast なので**最初の失敗ターゲットしか出ない**、
@@ -405,7 +405,7 @@ def markdown(
         parts.append("`cargo fmt --all` で下の差分を適用できます。\n")
     if failed:
         parts.append(
-            "ローカルでの再現（CI と同じコマンド。`DEVELOPERS.md` §1）:\n\n"
+            "ローカルでの再現（CI と同じコマンド。`docs/developers.md` §4.1）:\n\n"
             + fence(
                 "cargo fmt --all --check\n"
                 "cargo clippy --locked --all-targets -- -D warnings\n"

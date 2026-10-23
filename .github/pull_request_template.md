@@ -1,16 +1,17 @@
 ## 概要
 
-<!-- 何を実装したか。作業項目単位で（PLANS.md §10.1 / B-15） -->
+<!-- 何を変えたか。作業項目単位で（`docs/plans.md` の該当節 / `docs/history.md` の ID を添えて） -->
 
 ## 参照した仕様
 
-<!-- 例: SPECIFICATIONS.md §5.1, PLANS.md §5.2 作業項目 1 -->
+<!-- 例: `docs/specifications/syntax.md` §5.1、`docs/plans.md` §4.1 の追加仕様 12 -->
 
-- [ ] `SPECIFICATIONS.md` / `PLANS.md` の該当章を参照した（上に §番号を書いた）
+- [ ] `docs/specifications/**.md` / `docs/designs/**.md` の該当章を参照した（上に §番号を書いた）
 
 ## チェックリスト
 
-- [ ] `PLANS.md` §7 の縫い代チェック（① の実装が ② の追加仕様を妨げていないか）
+- [ ] `docs/plans.md` §4.4 の縫い代チェック（① の実装が ② の追加仕様を妨げていないか）
 - [ ] `tests/layering.rs` が通る（CI の Test ジョブが緑）
-- [ ] `PLANS.md` §1.2 の表にある ②（追加仕様）の範囲に手を出していない
-- [ ] 仕様からの逸脱・設計判断は `PLANS.md` §9 に記録した
+- [ ] `docs/plans.md` §4.2 の表にある ②（追加仕様）の範囲からはみ出していない
+- [ ] 仕様からの逸脱・設計判断は `docs/history.md` に ID（`[HIST:...]`）付きで記録した
+- [ ] `bash scripts/verify.sh` が緑（`docs/developers.md` §4.1）

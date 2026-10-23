@@ -10,7 +10,7 @@
 //! - 審査フォームの変更は打鍵ごとに索引へ書き戻す（保存は自動保存の待ち時間の後、§8.2）。資料 MD の
 //!   保存のたびに索引の `updated_at` と `checksum` を書き換える（§16.6、`Workbench::touch_materials`）。
 //!
-//! 規則は `PLANS.md` §9.2 B-131・B-134〜B-136。
+//! 規則は `docs/history.md` B-131・B-134〜B-136。
 
 use egui::{Context, FontFamily, FontId, Frame, Id, Margin, RichText, Sense, Stroke, Ui, Vec2};
 

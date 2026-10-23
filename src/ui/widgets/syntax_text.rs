@@ -28,7 +28,7 @@ pub struct Highlight {
     /// 診断の波線（範囲・重さ）。I は出さない。
     pub squiggles: Vec<(Range<usize>, Severity)>,
     /// インレイヒント（位置・中身。§6.6.2）。エディタ（節エディタと M8 のワークスペースのエディタ）
-    /// だけが入れる（[`crate::ui::widgets::inlay`]、`PLANS.md` §9.2 B-137）。
+    /// だけが入れる（[`crate::ui::widgets::inlay`]、`docs/history.md` B-137）。
     pub hints: Vec<(usize, InlayKind)>,
 }
 

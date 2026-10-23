@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Web 版をヘッドレスの Chromium で実際に動かして確かめる（`PLANS.md` §5.8 の「Web で IndexedDB の接続を
-# 一通り動かす」・§9.2 B-156〜B-158）。CI では回さない（作業環境で回す道具）。
+# Web 版をヘッドレスの Chromium で実際に動かして確かめる（`docs/history.md` B-156〜B-158
+# 「Web で IndexedDB の接続を一通り動かす」）。CI では回さない（作業環境で回す道具）。
 #
 # 背景: 作業環境（Arena）から GitHub のリリースの asset と Chrome の配布元には届かない。
 #   - wasm-bindgen CLI（Cargo.lock の wasm-bindgen と同じ版）は `.github/workflows/sandbox-tools.yml` が

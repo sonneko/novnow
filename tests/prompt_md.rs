@@ -1,6 +1,6 @@
 //! `core::syntax::prompt_md`（`prompts/*.md`、§5.9.1 / §5.9.2）のテスト。
 //!
-//! `PLANS.md` §5.3 完了条件の 1（§5.9.1 の例が期待どおりにパースできる）・2（round-trip が
+//! `docs/history.md` の完了条件の 1（§5.9.1 の例が期待どおりにパースできる）・2（round-trip が
 //! バイト一致）・3（壊れた入力でパニックしない）に対応する。
 
 use novnow::core::syntax::prompt_md::{
@@ -193,7 +193,7 @@ fn the_spec_example_reads_the_meta_fields() {
 #[test]
 fn the_spec_example_reads_the_meta_keys_from_the_table() {
     // §5.9.1 が定義する `model-hint` / `max-chars` / `temperature` は §5.0.6 の表に**正式追加**
-    // された（第 2.6 版。PLANS.md §9.1 A-15 の裁定＝すべて正式追加）ので W011 は出ない
+    // された（第 2.6 版。`docs/history.md` A-15 の裁定＝すべて正式追加）ので W011 は出ない
     assert_eq!(diags_tag(SPEC_EXAMPLE), "");
     let parsed = prompt_md::parse(SPEC_EXAMPLE);
     for (key, alias) in [
@@ -297,7 +297,7 @@ fn the_custom_role_example_reads_the_meta_keys_from_the_table() {
 #[test]
 fn the_custom_role_example_uses_only_variables_of_the_closed_set() {
     // §5.9.2 の例は第 2.6 版で `{{content_section}}` → `{{text_current}}` に直った
-    // （§15.5.3 の当時の閉じた 19 変数が正本。PLANS.md §9.1 A-16 の裁定＝サンプルの記述ミス）
+    // （§15.5.3 の当時の閉じた 19 変数が正本。`docs/history.md` A-16 の裁定＝サンプルの記述ミス）
     let parsed = prompt_md::parse_with(SPEC_CUSTOM, &custom());
     assert!(
         parsed.unknown_variables().is_empty(),
@@ -543,7 +543,7 @@ fn a_second_heading_is_not_a_second_role() {
 #[test]
 fn keys_outside_the_table_still_warn_and_keep_their_values() {
     // §5.0.6 の表に無いキーは W011 ＋ 値を改変せず保持（縫い代 2）。② のキー（`flurb`）も
-    // ① では未知のまま（PLANS.md §1.2）
+    // ① では未知のまま（`docs/plans.md` §4.2）
     let text = "# writer\nmodel-hint: careful\nfoo: bar\nflurb: 一行紹介\n";
     assert_eq!(
         diags_tag(text),

@@ -1,6 +1,6 @@
 //! `core::syntax::contents`（C 形式、§5.2）のテスト。
 //!
-//! `PLANS.md` §5.3 完了条件の 1（仕様書中のコード例 §5.2.3 が期待どおりにパースできる）・
+//! `docs/history.md` の完了条件の 1（仕様書中のコード例 §5.2.3 が期待どおりにパースできる）・
 //! 2（round-trip でバイト列が一致する）・3（壊れた入力でパニックせず診断を返す）に対応する。
 //!
 //! 比較は [`lines_tag`] / [`sections_tag`] / [`diags_tag`] が作る短い文字列で行う
@@ -288,14 +288,14 @@ fn a_whitespace_only_line_is_blank() {
 
 #[test]
 fn indented_prose_is_body_text_not_a_continuation() {
-    // 一字下げ・段落字下げは正当な本文（`PLANS.md` §9.2 B-31）
+    // 一字下げ・段落字下げは正当な本文（`docs/history.md` B-31）
     assert_eq!(line_tag_of("　そして、"), "text[　そして、]");
     assert_eq!(line_tag_of("    続きの行"), "text[    続きの行]");
 }
 
 #[test]
 fn unknown_syntax_stays_in_the_body() {
-    // ① で解析しない構文は本文のまま（`PLANS.md` §5.3 作業項目 1・本書 §1.2 の 10/23/15）
+    // ① で解析しない構文は本文のまま（`docs/history.md` の作業項目 1・本書 §1.2 の 10/23/15）
     assert_eq!(
         line_tag_of("世界樹の樹皮は、剥がすと七日で再生するという。^M0137"),
         "text[世界樹の樹皮は、剥がすと七日で再生するという。^M0137]"
@@ -558,7 +558,7 @@ fn a_trailing_break_does_not_open_a_section() {
 
 #[test]
 fn lines_before_the_first_header_belong_to_no_section() {
-    // 節は場面見出しから始まる（§5.2.2、`PLANS.md` §9.2 B-32）
+    // 節は場面見出しから始まる（§5.2.2、`docs/history.md` B-32）
     let text = "前置き\n;\n@01-04-01 x\nあ\n";
     assert_eq!(sections_tag(text), "D1|s1-4-1-0|h2|3..5|c3..4");
     assert_eq!(owner_tag(text, 0), "-");
@@ -601,7 +601,7 @@ fn a_broken_header_still_makes_sections() {
 
 #[test]
 fn a_shallow_scene_id_is_e020() {
-    // §6.2.5（第 2.8 版、`PLANS.md` §9.1 A-10）: ID としては読めるが階層が足りない見出しは
+    // §6.2.5（第 2.8 版、`docs/history.md` A-10）: ID としては読めるが階層が足りない見出しは
     // E020（「対応ファイルへ移動」）。C 形式は 3〜4 階層なので `{0}` は範囲 `3-4`
     assert_eq!(diags_tag("@01-04 x"), "E020@0..6(3-4)");
     assert_eq!(diags_tag("@01 x"), "E020@0..3(3-4)");
@@ -623,7 +623,7 @@ fn the_same_header_twice_is_e008() {
 #[test]
 fn a_reserved_scene_zero_is_e022() {
     // §5.1.2「`C = 00` は予約（未使用）。v1 では書いてはならない（**E022**）」（第 2.8 版で
-    // E020 から分離。`PLANS.md` §9.1 A-9）。`{0}` は書かれたままの ID
+    // E020 から分離。`docs/history.md` A-9）。`{0}` は書かれたままの ID
     assert_eq!(diags_tag("@01-04-00 x"), "E022@0..9(01-04-00)");
     // `A = 00` は既定では正当（§5.1.2「パースを拒否しない」MUST）
     assert_eq!(diags_tag("@00-01-02 x"), "");

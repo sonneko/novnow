@@ -2,7 +2,7 @@
 //!
 //! **egui に依存しない純粋な状態機械**（時刻は呼び出し側が秒で渡す。`egui::InputState::time` など）。
 //! 書き込みそのものはしない: [`SaveMachine::due`] が「いま書く」を返したら、ホストが書いて
-//! [`SaveMachine::succeeded`] / [`SaveMachine::failed`] で結果を戻す（`PLANS.md` §9.2 B-114）。
+//! [`SaveMachine::succeeded`] / [`SaveMachine::failed`] で結果を戻す（`docs/history.md` B-114）。
 //!
 //! ```text
 //! Clean ─編集→ Dirty ─400ms idle / 即時→ Saving ─成功→ Clean（保存中に編集があれば Dirty）

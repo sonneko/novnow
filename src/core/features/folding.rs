@@ -4,7 +4,7 @@
 //! なので A 形式（`plots/all.txt` / `plots/AA.txt`）のブロックだけを返す。本文の場面・節の
 //! 折り畳み（§9.3.3）は**追加仕様 9**（②）で足す（C / B 形式は空）。
 //!
-//! 範囲は byte（`PLANS.md` §9.2 B-1）。LSP の `FoldingRange` は行で表すので、アダプタが
+//! 範囲は byte（`docs/history.md` B-1）。LSP の `FoldingRange` は行で表すので、アダプタが
 //! [`crate::core::text::position::LineTable`] で行に直す。ブロックの末尾の空行は含めない。
 
 use std::ops::Range;

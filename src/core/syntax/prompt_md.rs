@@ -44,7 +44,7 @@
 //! |---|---|---|
 //! | **E032** | カスタムロール名が不正（§5.9.2） | H1 の名前 |
 //! | **E033** | カスタムロール名が既定役割と衝突（§5.9.2） | H1 の名前 |
-//! | **W011** | §5.0.6 の表に無いフィールドキー（`model-hint` `max-chars` `temperature` `label` は表に無い。`PLANS.md` §9.1 A-15） | キー |
+//! | **W011** | §5.0.6 の表に無いフィールドキー（`model-hint` `max-chars` `temperature` `label` は表に無い。`docs/history.md` A-15） | キー |
 //! | **E031** | 未知の変数（§15.5.3） | 変数名 |
 //!
 //! 並びは**ロールの E032 / E033** → **行順の W011** → **行順の E031**。
@@ -72,7 +72,7 @@ use super::contents;
 use super::plot_outline::{self, Field};
 
 // MD 方言の行は `characters_md` のものが正（§5.6「同一の MD 方言」）。このモジュールだけで
-// 木を辿れるよう、同じ名前で公開し直す（PLANS.md §9.2 B-40 の流儀）。
+// 木を辿れるよう、同じ名前で公開し直す（`docs/history.md` B-40 の流儀）。
 pub use super::characters_md::{Bullet, Heading, Line, Pattern, PatternLine};
 
 /// §5.9.1 のセクション（固定 5 種）。
@@ -96,7 +96,7 @@ pub const ROLE_NAME_MAX: usize = 32;
 
 /// 既定の 7 役割（§15.2「6 + 統合」）。
 ///
-/// `PLANS.md` §7 の縫い代 10「ロール一覧を配列で持つ（enum の直書きにしない）」の実体。
+/// `docs/plans.md` §4.4 の縫い代 10「ロール一覧を配列で持つ（enum の直書きにしない）」の実体。
 /// カスタムロール（§5.9.2）はこれと**同名であってはならない**（E033）。
 pub const BUILTIN_ROLES: &[&str] = &[
     "writer",
@@ -187,7 +187,7 @@ pub fn parse_with<'a>(text: &'a str, options: &Options) -> Prompt<'a> {
 }
 
 impl<'a> Prompt<'a> {
-    /// 入力と**バイト単位で一致する**テキストに戻す（`PLANS.md` §5.3 完了条件 2）。
+    /// 入力と**バイト単位で一致する**テキストに戻す（`docs/history.md` の完了条件 2）。
     pub fn to_text(&self) -> String {
         let mut out = String::new();
         for (index, line) in self.lines.iter().enumerate() {

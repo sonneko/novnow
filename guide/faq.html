@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>よくある質問 — novnow</title>
+<style>
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 0 1.25rem 5rem;
+  background: #16161a; color: #e6e6ea;
+  font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  line-height: 1.85; font-size: 16px;
+}
+main { max-width: 46rem; margin: 0 auto; }
+header.bar {
+  max-width: 46rem; margin: 0 auto; padding: 1rem 0 0.5rem;
+  display: flex; gap: 1rem; align-items: baseline; flex-wrap: wrap;
+  border-bottom: 1px solid #2c2c33; margin-bottom: 2rem;
+}
+header.bar a { color: #b9a7ff; text-decoration: none; }
+header.bar .brand { font-weight: 700; color: #e6e6ea; }
+header.bar .spacer { flex: 1; }
+h1 { font-size: 1.7rem; line-height: 1.4; margin: 1.5rem 0 0.75rem; }
+h2 { font-size: 1.3rem; margin: 2.2rem 0 0.6rem; border-bottom: 1px solid #2c2c33; padding-bottom: 0.3rem; }
+h3 { font-size: 1.1rem; margin: 1.8rem 0 0.5rem; }
+a { color: #b9a7ff; }
+code { background: #232329; padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.92em; }
+pre { background: #232329; padding: 0.9rem 1rem; border-radius: 8px; overflow-x: auto; }
+pre code { background: none; padding: 0; }
+blockquote { margin: 1rem 0; padding: 0.2rem 1rem; border-left: 3px solid #4a4a58; color: #b9b9c4; }
+table { border-collapse: collapse; width: 100%; margin: 1.2rem 0; font-size: 0.94rem; }
+th, td { border: 1px solid #2c2c33; padding: 0.45rem 0.7rem; text-align: left; vertical-align: top; }
+th { background: #1e1e24; }
+hr { border: none; border-top: 1px solid #2c2c33; margin: 2rem 0; }
+footer { max-width: 46rem; margin: 3rem auto 0; padding-top: 1rem; border-top: 1px solid #2c2c33;
+  color: #85858f; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="index.html">novnow ユーザーガイド</a>
+  <a href="start.html">はじめての手引き</a>
+  <a href="cheatsheet.html">早見表</a>
+  <a href="glossary.html">用語集</a>
+  <a href="faq.html">よくある質問</a>
+  <a href="errors.html">エラーの直し方</a>
+  <span class="spacer"></span>
+  <a href="https://novnow.sonneko.com/app/">アプリを開く</a>
+</header>
+<main>
+<h1>よくある質問</h1>
+<h2 id="使い始め">使い始め</h2>
+<h3 id="何から始めればいい">何から始めればいい？</h3>
+<p><a href="start.html">はじめての手引き</a> を上から順に進めてください。30 分で 1 本書き上がります。</p>
+<h3 id="インストールは必要">インストールは必要？</h3>
+<p>ブラウザ版は不要です。<code>https://novnow.sonneko.com/app/</code> を開くだけです。 デスクトップ版の配布物は準備中です（<a href="start.html#install">インストール</a>）。</p>
+<h3 id="無料-あとで有料にならない">無料？ あとで有料にならない？</h3>
+<p>無料です。仕様も実装も MIT ライセンスで、有料化の予定はありません （<a href="https://github.com/sonneko/novnow/blob/main/LICENSE">ライセンス</a>）。</p>
+<h3 id="スマホやタブレットで使える">スマホやタブレットで使える？</h3>
+<p>ブラウザ版はタブレットのブラウザでも開けますが、<strong>キーボード操作が前提</strong>の画面です。 スマホでの利用は想定していません。</p>
+<h2 id="保存とバックアップ">保存とバックアップ</h2>
+<h3 id="保存は自動">保存は自動？</h3>
+<p>はい。書いた内容は自動で保存されます。保存されないのは「読んでいるだけ」のときだけです。</p>
+<p>保存の状態は画面の下に出ます。</p>
+<h3 id="保存されたか確かめたい">保存されたか確かめたい</h3>
+<p>画面の下（ステータスバー）を見てください。<code>Ctrl+S</code> で今すぐ書き出すこともできます。</p>
+<h3 id="ブラウザ版のデータはどこにある">ブラウザ版のデータはどこにある？</h3>
+<p>ブラウザの中（IndexedDB）です。<strong>ブラウザのデータを消すと作品も消えます。</strong> 右上のメニューから「Zip 書き出し」で、作品まるごとを 1 ファイルにして保管してください。</p>
+<h3 id="パソコンを変えたい">パソコンを変えたい</h3>
+<p>Zip で書き出して、新しい環境で「Zip 読み込み」をします。デスクトップ版ならフォルダごとコピーでも構いません。</p>
+<h3 id="外のソフトで原稿を直したら">外のソフトで原稿を直したら</h3>
+<p><code>F5</code> を押すと読み直します。両方で同じ場所を変えていた場合は、差分を見て選べます。</p>
+<h2 id="画面と操作">画面と操作</h2>
+<h3 id="波線が出た消したい">波線が出た。消したい</h3>
+<p>赤・黄・青の波線は<strong>注意の印</strong>で、原稿そのものは壊れていません。</p>
+<ol>
+<li>波線の上にカーソルを置き、<code>Ctrl+.</code> を押します。</li>
+<li>出てきた候補から選ぶと直ります。候補が合わなければ、そのまま書き換えてください。</li>
+<li>一覧で見たいときは <code>Alt+9</code>（点検）へ。</li>
+</ol>
+<p>意味が分からないコード（<code>E001</code> など）は <a href="errors.html">よく出るエラーと直し方</a> か <a href="https://novnow.sonneko.com/ja/diagnostics">診断の一覧</a> で調べられます。</p>
+<h3 id="-の後ろに候補が出ない"><code>'</code> の後ろに候補が出ない</h3>
+<p>その名前がまだ登録されていません。<code>Ctrl+.</code> から用語・人物として登録するか、 <code>Alt+6</code>（配役）で人物を作ってください。</p>
+<h3 id="キーを忘れた">キーを忘れた</h3>
+<p><code>?</code> を押すとキーの一覧が出ます。印刷したいときは <a href="cheatsheet.html">早見表</a> を。</p>
+<h3 id="文字が小さい--大きい">文字が小さい / 大きい</h3>
+<p><code>Ctrl+Plus</code> で大きく、<code>Ctrl+Minus</code> で小さく、<code>Ctrl+0</code> で元に戻ります。</p>
+<h3 id="色を変えたい">色を変えたい</h3>
+<p><code>Ctrl+Alt+T</code> で「システムに合わせる → 暗い → 明るい」を切り替えます。</p>
+<h3 id="英語にしたい">英語にしたい</h3>
+<p><code>Ctrl+Alt+L</code> で日本語と英語が入れ替わります。作品の中身は変わりません。</p>
+<h3 id="前の画面に戻りたい">前の画面に戻りたい</h3>
+<p><code>Alt+0</code> です。もう一度押すと 2 つの画面を行き来します。</p>
+<h2 id="書き方">書き方</h2>
+<h3 id="-って何のためにある"><code>;</code> って何のためにある？</h3>
+<p>「ここで節が変わる」という印です。行全体を <code>;</code> だけにすると区切りになります。 表示されず、書き出すときも残りません（<a href="cheatsheet.html">早見表</a>）。</p>
+<h3 id="記号を消して読みたい">記号を消して読みたい</h3>
+<p><code>Alt+7</code>（読者）に切り替えてください。記号が消えて縦書きで読めます。</p>
+<h3 id="章や話の番号は変えられる">章や話の番号は変えられる？</h3>
+<p>番号は「章 → 話 → 場面 → 節」の並びを表しています。話を足すと番号も増えます。 番号の決まりは <a href="https://github.com/sonneko/novnow/blob/main/docs/specifications/project.md">仕様: 構造 ID</a> §4.1 にあります。</p>
+<h3 id="ルビは振れる">ルビは振れる？</h3>
+<p>読者モードでルビの設定ができます（<a href="https://github.com/sonneko/novnow/blob/main/docs/specifications/workflows.md">仕様: 読者モード</a> §17.3）。 本文には書き込みません。</p>
+<h2 id="ai-について">AI について</h2>
+<h3 id="ai-が勝手に書き換えることはある">AI が勝手に書き換えることはある？</h3>
+<p>ありません。既定は「提案まで」で、あなたが差分を見て承認したときだけ反映されます。 <code>Alt+8</code>（エージェント）で役割ごとに任せ方を変えられます。</p>
+<h3 id="ai-を使わなくても使える">AI を使わなくても使える？</h3>
+<p>使えます。AI の機能はすべて切った状態でも、執筆・点検・書き出しは普通に動きます。</p>
+<h2 id="ほかのソフトから使えますか">ほかのソフトから使えますか</h2>
+<p><code>novnow</code> は画面（GUI）だけのアプリではありません。同じ機能を別の入口からも使えます。 ふだん使わないなら覚える必要はありませんが、<strong>自動化や他のエディタとの連携</strong>ができます。</p>
+<table><thead><tr>
+<th>入口</th>
+<th>何ができるか</th>
+<th>誰向け</th>
+</tr></thead><tbody>
+<tr>
+<td>画面（GUI）</td>
+<td>すべて</td>
+<td>ふつうに書く人</td>
+</tr>
+<tr>
+<td>ブラウザ</td>
+<td>GUI と同じ（インストール不要）</td>
+<td>まず試したい人</td>
+</tr>
+<tr>
+<td>コマンド（CLI）</td>
+<td>作成・診断・書き出し・取り込み</td>
+<td>大量の原稿をまとめて処理したい人</td>
+</tr>
+<tr>
+<td>エディタ連携（LSP）</td>
+<td>補完・定義へ移動・診断を他のエディタで</td>
+<td>VS Code などを使っている人</td>
+</tr>
+<tr>
+<td>AI 連携（MCP）</td>
+<td>AI から作品を読む・提案を受ける</td>
+<td>AI と組み合わせたい人</td>
+</tr>
+<tr>
+<td>Python</td>
+<td>同じ操作をプログラムから</td>
+<td>自動化したい人</td>
+</tr>
+</tbody></table>
+<p>詳しくは <a href="https://github.com/sonneko/novnow/blob/main/docs/specifications/interfaces.md">仕様: 外部インターフェース</a> §19 を参照してください。</p>
+<h2 id="困ったとき">困ったとき</h2>
+<ul>
+<li>起動しない・作品が見つからない: <a href="https://novnow.sonneko.com/ja/troubleshooting">トラブルシューティング</a></li>
+<li>用語が分からない: <a href="glossary.html">用語集</a></li>
+<li>手順を最初から: <a href="start.html">はじめての手引き</a></li>
+</ul>
+</main>
+<footer>
+  このページは <code>docs/users/faq.md</code> から自動生成しています。直すときはリポジトリの
+  <code>docs/users/</code> を編集してください（<code>python3 scripts/docs-site.py</code> で作り直します）。
+</footer>
+</body>
+</html>

@@ -1,5 +1,5 @@
 //! 資料の操作（`core::features::materials_ops`・`core::text::sha256`）と、参照ペインの資料
-//! （`core::features::reference`、§16.4）。M8、`PLANS.md` §9.2 B-131・B-134〜B-136。
+//! （`core::features::reference`、§16.4）。M8、`docs/history.md` B-131・B-134〜B-136。
 
 mod world;
 

@@ -9,7 +9,7 @@
 //! - `tools/call` のたびにプロジェクトを読み直す（GUI と同時に開いていても古い中身で書かない）。
 //!   書き込みは開いたプロジェクトの中だけ（`FsStorage` → `FsGate`、規則 10）。
 //! - 結果は JSON のテキスト 1 つ。失敗は `isError: true` と、カタログの文言（E036 などは診断の文言）。
-//!   標準出力はプロトコルだけに使い、それ以外は stderr に出す（`PLANS.md` §9.2 B-149）。
+//!   標準出力はプロトコルだけに使い、それ以外は stderr に出す（`docs/history.md` B-149）。
 
 use std::io::{self, BufRead};
 use std::path::Path;

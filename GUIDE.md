@@ -6,20 +6,16 @@
 
 ## 主な特徴
 
-1. **1 節（セクション）を最小単位とする集中執筆（`write` ワークスペース）**
-   - 画面下段の「節エディタ」では現在執筆中の 1 節だけに集中でき、上段の「文脈ビュー」に前後最大 3 節が読み取り専用で表示されます。
-   - 右側の「参照ペイン」には、現在の節に関わるプロット・登場人物（有効モード・役割語）・用語・資料・診断が自動抽出されて並びます。
-2. **軽量な専用テキスト記法と無損失保存**
-   - 本文（`contents/AA-BB.txt`）、全体・章プロット（`plots/all.txt`, `plots/AA.txt`）、話プロット（`plots/AA-BB.txt`）、登場人物（`characters.md`）、用語（`words.md`）、アイデア（`ideas.md`）、資料（`materials/`）をすべてプレーンテキスト（UTF-8）で管理し、Git でそのまま差分管理できます。
-3. **意味解決エンジンと 76 種のリアルタイム診断**
-   - `'名前` による辞書参照（最短一致・NFKC 正規化）、状況別キャラクターモード解決、役割語パターン照合（台詞の口調一致を緑下線で可視化）、初出より前の用語使用検出、文長・連続文末・表記揺れなどの執筆支援診断を提供します。
-4. **キーボード完結の 8 ワークスペースと統一パレット**
-   - `Alt+1`〜`Alt+9` で本文（`write`）・話プロット（`plot-episode`）・全体プロット（`plot-outline`）・アイデア（`idea`）・資料（`material`）・配役（`cast`）・エージェント（`agent`）・点検（`review`）を即座に切り替えられます。
-   - `Ctrl+P` の統一パレットから先頭 1 文字（`@` 構造、`'` 辞書、`#` 資料、`>` コマンド）でプロジェクト内のあらゆる要素へジャンプできます。
-5. **人間の統制下で動く AI エージェント連携（MCP 対応）**
-   - 役割ごと（`writer`, `plotter`, `ideator`, `researcher`, `stylist`, `logician`, `integrator`）に 4 段階の委譲レベル（`off` / `propose` / `apply` / `autonomous`）を設定でき、変更提案の差分レビューや `novnow mcp` による MCP サーバ連携に対応しています。
-6. **アノテーション除去エクスポート**
-   - 執筆用の構造見出し・コメント・`'` 参照・資料タグを除去し、投稿サイトや縦書きビューア向けのプレーンテキスト（`.txt`）または Markdown（`.md`）を出力します。
+機能の一覧と説明は [`README.md`](./README.md#エディタの仕様の要約) に集約しています（同じ説明を 2 か所に置かないため）。本手引きは「ビルドして、書いて、書き出す」までの手順に絞ります。
+
+要点だけ:
+
+- **1 節を最小単位とする集中執筆**（`write` ワークスペース。上段は前後 3 節の文脈ビュー、右は参照ペイン）。
+- **プレーンテキスト + Git で管理できる専用記法**（本文・プロット・登場人物・用語・アイデア・資料）。
+- **意味解決エンジンと 76 種のリアルタイム診断**（`'名前` の辞書参照・モード解決・役割語の照合）。
+- **キーボード完結の 9 ワークスペース**（`Alt+1`〜`Alt+9`。`write` `plot-episode` `plot-outline` `idea` `material` `cast` `reader` `agent` `review`）と統一パレット `Ctrl+P`。
+- **人間の統制下で動く AI エージェント連携**（4 段階の委譲レベル・MCP）。
+- **アノテーション除去エクスポート**（`.txt` / `.md`）。
 
 ---
 
@@ -65,16 +61,7 @@ novnow --gui
 ## ドキュメント構成
 
 - **仕様書（ユーザー向けリファレンス）**: [`docs/specifications/`](./docs/specifications/)
-  - [`overview.md`](./docs/specifications/overview.md): 設計原則・用語・アーキテクチャ
-  - [`project.md`](./docs/specifications/project.md): プロジェクト構造・`project.json`・サンプル構成
-  - [`syntax.md`](./docs/specifications/syntax.md): 各ファイルの構文仕様（EBNF）
-  - [`semantics.md`](./docs/specifications/semantics.md): 辞書・最短一致・モード解決・役割語パターン言語
-  - [`diagnostics.md`](./docs/specifications/diagnostics.md): 診断カタログ（全 76 コード）
-  - [`editing.md`](./docs/specifications/editing.md): 節単位編集・自動保存・外部変更競合・変更提案
-  - [`ui.md`](./docs/specifications/ui.md): 画面仕様・ワークスペース・テーマ・国際化
-  - [`platform.md`](./docs/specifications/platform.md): ストレージ境界（規則 10）・Web IndexedDB・CLI 起動仕様
-  - [`agent.md`](./docs/specifications/agent.md): AI エージェント・委譲レベル・MCP・プロンプト仕様
-  - [`workflows.md`](./docs/specifications/workflows.md): 資料収集・エクスポート・性能品質要件
+  全 11 冊（概要・プロジェクト構造・構文・意味解決・診断・編集・UI・プラットフォーム・エージェント・ワークフロー・外部インターフェース）。各冊の役割は [`README.md`](./README.md#仕様について) の一覧を参照してください（同じ表を 2 か所に置かないため）。
 - **設計書（実装設計・対応ソースコード）**: [`docs/designs/`](./docs/designs/)
 - **開発者ガイド**: [`docs/developers.md`](./docs/developers.md)
 - **開発計画（段階 ② ロードマップ）**: [`docs/plans.md`](./docs/plans.md)

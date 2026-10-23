@@ -45,7 +45,7 @@ use super::plot_outline::{self, Field};
 
 // MD 方言の行は `characters_md` のものが正（§5.6「同一の MD 方言」）。
 // このモジュールだけで木を辿れるよう、同じ名前で公開し直す（B 形式が A 形式の
-// `Field` 等を `pub use` したのと同じ流儀。PLANS.md §9.2 B-40）。
+// `Field` 等を `pub use` したのと同じ流儀。`docs/history.md` B-40）。
 pub use super::characters_md::{Bullet, Heading, Line, Pattern, PatternLine};
 
 /// `words.md` 1 ファイル。
@@ -64,7 +64,7 @@ pub struct Words<'a> {
 /// `words.md` のテキストをパースする。
 ///
 /// `text` は **LF 改行**であること（§5.0.4）。壊れた入力でも部分木と診断を返す
-/// （`PLANS.md` §5.3 完了条件 3）。
+/// （`docs/history.md` の完了条件 3）。
 pub fn parse(text: &str) -> Words<'_> {
     let mut lines: Vec<Line<'_>> = text.split('\n').map(characters_md::parse_line).collect();
     characters_md::attach_continuations(&mut lines);
@@ -81,7 +81,7 @@ pub fn parse(text: &str) -> Words<'_> {
 }
 
 impl<'a> Words<'a> {
-    /// 入力と**バイト単位で一致する**テキストに戻す（`PLANS.md` §5.3 完了条件 2）。
+    /// 入力と**バイト単位で一致する**テキストに戻す（`docs/history.md` の完了条件 2）。
     pub fn to_text(&self) -> String {
         let mut out = String::new();
         for (index, line) in self.lines.iter().enumerate() {

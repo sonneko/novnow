@@ -1,4 +1,4 @@
-//! `novnow new` の雛形と既定プロンプト（`core::template`、§14.5・§15.5、`PLANS.md` §5.7 作業項目 6）。
+//! `novnow new` の雛形と既定プロンプト（`core::template`、§14.5・§15.5、`docs/history.md` の作業項目 6）。
 //!
 //! - 雛形は §14.5 の表のとおりのファイルを持ち、§4.3 の判定を通る。
 //! - **雛形に診断が 1 件も出ない**（作家が最初に見る診断がサンプル由来にならないように。
@@ -60,7 +60,7 @@ fn the_template_has_exactly_the_files_of_section_14_5() {
         ".gitignore",
     ]);
     assert_eq!(paths, want);
-    // §1.2（② の除外）: prompts/custom/ と assets/ は作らない（PLANS.md §5.7 作業項目 6）
+    // §1.2（② の除外）: prompts/custom/ と assets/ は作らない（`docs/history.md` 作業項目 6）
     assert!(paths
         .iter()
         .all(|path| !path.starts_with("prompts/custom/") && !path.starts_with("assets/")));

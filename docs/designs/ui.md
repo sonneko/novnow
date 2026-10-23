@@ -116,7 +116,41 @@
 - **[F-30 / F-32] 全クリック対象の下線・ホバー背景・ポインタ・24×24px 当たり判定と自動テスト（実装完了: `REF:docs/plans.md#plan-F-30`, `REF:docs/plans.md#plan-F-32`）**:
   - `REF:src/ui/widgets/mod.rs` の統一クリックヘルパで、テキスト・ボタンの最小当たり判定を `24.0 x 24.0` にし、薄い下線描画＋ホバー時 `bg.selection`（60%）塗りと `CursorIcon::PointingHand` を適用する。共通部品と一覧行は `REF:src/ui/workspaces/mod.rs`、Web 選択画面は `REF:src/ui/web.rs` も参照。`REF:tests/gui.rs` で共通部品の描画と当たり判定を検証済み。個別画面、外部リンクとタイムラインも監査し、`REF:tests/gui.rs` および `REF:tests/workspaces.rs` で代表的な描画・操作を検証した。
 
+### 9.10 ガイドモード（はじめての手引き）
+
+状態: 実装完了（REF:src/ui/guide.rs, REF:src/ui/widgets/guide.rs, REF:src/ui/app.rs, REF:src/ui/web.rs, REF:src/app/settings.rs, REF:tests/guide.rs）
+
+- **段階の定義は 1 か所**: `REF:src/ui/guide.rs` の `STEPS`（9 件）。各段階は `{ number, text, hint, advance }` を持ち、
+  `text`／`hint` は `REF:src/ui/i18n/ja.toml`・`REF:src/ui/i18n/en.toml` の `guide.stepN.*` を指す。
+  `advance`（`Advance`）は「作品が開いた」「ボタン」「節が N 個以上」「`'` の参照が 1 個以上」
+  「話プロットが空でない」「読者モードを開いた」「エクスポート完了」「Zip 完了」の 8 種。
+- **出る条件**: `REF:src/ui/app.rs` の `guide_frame` が、`Picker::first_visit()`（Web は保存 0 件、
+  デスクトップは履歴 0 件）かつ `UiSettings::guide_done` が `false` のときだけ `Guide::start(0)` する。
+  判定は既存の一覧取得をそのまま使い、新しい I/O を足さない（規則 10）。
+- **閉じたことの保存**: `REF:src/app/settings.rs` の `UiSettings::guide_done` を `.novnow/ui.json` に書く。
+  プロジェクトを 1 件も作らずに閉じたときは保存先が無いので、次の起動でもう一度出る
+  （自動で出るのは 0 件のときだけなので、1 件作れば以後は出ない。仕様 §9.10 の例外）。
+  ヘルプ（`?`）の「はじめての手引きをもう一度」は `Session::guide_restart` を立て、`NovnowApp::start_guide` が受ける。
+- **描画**: `REF:src/ui/widgets/guide.rs` の `draw` が、対象の矩形を囲む枠と、対象から吹き出しへの短い線を描く。
+  膜（画面を暗くする層）は描かない。吹き出しは対象の下に空きがあれば下、無ければ上（幅 900px 未満は上）。
+  中身は「見出し・`n / 9`・1 文・操作・待ちの説明・ボタン」。
+- **進む条件の監視**: `REF:src/ui/app.rs` の `Session::guide_signals` が毎フレーム状態を集め、
+  `Guide::observe` が条件を満たした段階を飛ばす（仕様 §9.10「先に操作を済ませた段階は飛ばす」）。
+  エクスポートと Zip の完了は、成功した時点で `Session::guide_exported` / `guide_zipped` に立てる。
+  節の数は `Workbench::sections()`、参照は本文の `'` の走査（`guide::count_references`）、
+  話プロットは `plots/` の文書が空でないことで見る。
+- **キー**: `Alt+Enter`（次へ）・`Alt+Backspace`（戻る）・`Esc`（閉じる）。`Enter` と `Backspace` は
+  横取りしない（本文の改行・削除を奪うと仕様 §9.10「入力を奪わない」に反するため）。ボタンは
+  `REF:src/ui/widgets/mod.rs` の `action_button` なので、フォーカスを当てればキーボードでも押せる。
+- **重ね物との関係**: パレット・ヘルプ・モーダルが出ているあいだは吹き出しを描かない（操作を譲る）。
+- **検証**: `REF:tests/guide.rs`（描画・Esc で閉じる・`Enter` を奪わない・条件で自動前進・重ね物の下では出さない）
+  と `REF:src/ui/guide.rs` の単体テスト（順序・飛ばし・自動で出る条件・参照の数え方）。
+
+---
+
 ## 10. ワークスペース
+
+ワークスペース = 用途別に最適化された画面構成。`Alt+1..9` で切替。切替時も **現在の SceneId は維持** する（MUST）。
 
 ### 10.0 切替の挙動
 
@@ -129,9 +163,9 @@
 
 ### 10.1 `write` — 本文執筆（§9 の基本レイアウトそのもの）
 
-状態: 実装完了（REF:src/ui/workspaces/write.rs, REF:src/ui/app.rs, REF:tests/gui.rs）
+状態: 実装完了（REF:src/ui/app.rs, REF:src/ui/widgets/context_view.rs, REF:src/ui/widgets/section_editor.rs, REF:src/ui/widgets/reference_pane.rs, REF:tests/gui.rs）
 
-- 共通シェル（文脈ビュー＋節エディタ＋参照ペイン）による本文執筆ワークスペースは `REF:src/ui/workspaces/write.rs` および `REF:src/ui/app.rs` に実装する。
+- 共通シェル（文脈ビュー＋節エディタ＋参照ペイン）による本文執筆ワークスペースは、ワークスペースの分岐と配置を `REF:src/ui/app.rs`、3 つの部品を `REF:src/ui/widgets/context_view.rs`・`REF:src/ui/widgets/section_editor.rs`・`REF:src/ui/widgets/reference_pane.rs` に実装する（`write` 専用のファイルは置かない）。
 
 ### 10.2 `plot-episode` — 話プロット
 

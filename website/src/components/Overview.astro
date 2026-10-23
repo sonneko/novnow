@@ -1,0 +1,162 @@
+---
+// トップページの各ブロック。
+// 内容は docs/ と README が正本。ここには「読み方の案内」だけを置き、本文を書き写さない
+// （ガイドの中身は docs/users から、入口の一覧は src/data/site.ts から取る）。
+import { platforms, guideLinks } from "../data/site";
+import { manualNav } from "../data/docs-nav";
+import type { Language } from "../data/i18n";
+
+interface Props {
+  lang: Language;
+}
+const { lang } = Astro.props;
+
+const text = {
+  ja: {
+    startTitle: "まずは手引きから",
+    startLead:
+      "ブラウザだけで始められます。インストールは要りません。9 段階を順に進めると、1 本の短編が書き上がります。",
+    startButton: "はじめての手引き（30 分）",
+    startGuideLink: "ガイドの目次",
+    manualTitle: "ガイドの中身",
+    manualLead:
+      "このサイトのガイドは、リポジトリの docs/users/ をそのまま表示しています。書き写しではないので、直す場所は 1 か所だけです。",
+    platformsTitle: "どこで動くか",
+    platformsLead:
+      "画面・キー操作・保存される内容は、ブラウザとデスクトップで同じです。どの入口から触っても結果は同じになります。",
+    platformColumns: { name: "入口", setup: "準備", bestFor: "向いている人" },
+    factsTitle: "ひと目で分かる novnow",
+    specsTitle: "仕様はすべて公開されています",
+    specsLead:
+      "11 冊の仕様書と 11 冊の設計書がリポジトリにあり、サイトは仕様書をそのまま表示しています。ガイドで分からない言葉が出たら、そこから引いてください。",
+    specsLinks: [
+      { label: "仕様書（全 11 冊）", href: "/ja/specifications/" },
+      { label: "診断コードの一覧", href: "/ja/diagnostics" },
+      { label: "API リファレンス", href: "/ja/api" },
+      { label: "困ったとき", href: "/ja/troubleshooting" },
+    ],
+  },
+  en: {
+    startTitle: "Start with the guide",
+    startLead:
+      "You can start in the browser — nothing to install. Nine steps take you from a blank page to a finished short story.",
+    startButton: "Getting Started (30 min)",
+    startGuideLink: "Guide contents",
+    manualTitle: "What the guide covers",
+    manualLead:
+      "Every guide page on this site is rendered straight from docs/users/. There is one copy to maintain, so the site cannot fall behind.",
+    platformsTitle: "Where it runs",
+    platformsLead:
+      "The layout, the keys, and what gets saved are the same in the browser and on the desktop. Whichever door you use, you get the same result.",
+    platformColumns: { name: "Entry point", setup: "Setup", bestFor: "Best for" },
+    factsTitle: "novnow at a glance",
+    specsTitle: "Every specification is public",
+    specsLead:
+      "Eleven specifications and eleven design documents live in the repository, and this site renders them directly. When a word in the guide is unclear, look it up there.",
+    specsLinks: [
+      { label: "Specifications (11 volumes)", href: "/en/specifications/" },
+      { label: "Diagnostics catalog", href: "/en/diagnostics" },
+      { label: "API reference", href: "/en/api" },
+      { label: "Troubleshooting", href: "/en/troubleshooting" },
+    ],
+  },
+} as const;
+
+const t = text[lang];
+
+// ガイドのカードは docs/users の目次（docs-site.py が生成）から作る。
+const cardNotes: Record<string, { ja: string; en: string }> = {
+  start: { ja: "9 段階で、書き上げて書き出すまで", en: "Nine steps from blank page to export" },
+  cheatsheet: { ja: "記号とキーだけを 1 枚に", en: "Sigils and keys on one page" },
+  glossary: { ja: "「節」「モード」などの意味", en: "What section, mode, and the rest mean" },
+  faq: { ja: "保存・波線・外部連携", en: "Saving, squiggles, integrations" },
+  errors: { ja: "よく出る波線の直し方", en: "Fixing the common squiggles" },
+  "project-structure": { ja: "作品フォルダの中身", en: "What is inside a project folder" },
+  git: { ja: "履歴を残したい人だけ", en: "For keeping a history" },
+  publish: { ja: "書き出した原稿の公開", en: "Publishing what you exported" },
+};
+const guideCards = manualNav
+  .filter((entry) => entry.slug !== "index" && cardNotes[entry.slug])
+  .map((entry) => ({
+    href: `/ja/manual/${entry.slug}`,
+    title: entry.title,
+    note: cardNotes[entry.slug],
+  }));
+
+const facts = [
+  { value: "9", label: { ja: "ワークスペース", en: "workspaces" }, note: { ja: "Alt+1 〜 Alt+9 で切替", en: "switch with Alt+1 – Alt+9" } },
+  { value: "76", label: { ja: "リアルタイム診断", en: "live diagnostics" }, note: { ja: "すべてに固定のコード", en: "each with a stable code" } },
+  { value: "5", label: { ja: "入口", en: "entry points" }, note: { ja: "CLI・LSP・MCP・Python・Rust", en: "CLI, LSP, MCP, Python, Rust" } },
+  { value: "MIT", label: { ja: "ライセンス", en: "license" }, note: { ja: "仕様書も実装も自由", en: "specs and code alike" } },
+];
+---
+
+<section class="container" style="margin: 3rem auto 4rem; text-align: center; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; padding: 2rem;">
+  <h2 style="font-size: 1.6rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.5rem;">{t.startTitle}</h2>
+  <p style="color: var(--text-secondary); max-width: 720px; margin: 0 auto 1.25rem; line-height: 1.7;">{t.startLead}</p>
+  <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
+    <a href={guideLinks.start} style="display: inline-block; background-color: var(--accent-purple); color: #fff; font-weight: 600; padding: 0.7rem 1.5rem; border-radius: 8px; text-decoration: none;">{t.startButton}</a>
+    <a href={guideLinks.index} style="display: inline-block; border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.7rem 1.5rem; border-radius: 8px; text-decoration: none;">{t.startGuideLink}</a>
+  </div>
+</section>
+
+<section class="container" style="margin-bottom: 5rem;">
+  <h2 style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.5rem;">{t.manualTitle}</h2>
+  <p style="color: var(--text-secondary); max-width: 760px; margin-bottom: 1.5rem; line-height: 1.7;">{t.manualLead}</p>
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
+    {guideCards.map((card) => (
+      <a href={card.href} style="display: block; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 1.25rem; text-decoration: none;">
+        <div style="color: var(--text-primary); font-weight: 700; margin-bottom: 0.35rem;">{card.title}</div>
+        <div style="color: var(--text-secondary); font-size: 0.88rem; line-height: 1.6;">{card.note[lang]}</div>
+      </a>
+    ))}
+  </div>
+</section>
+
+<section class="container" style="margin-bottom: 5rem;">
+  <h2 style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.5rem;">{t.platformsTitle}</h2>
+  <p style="color: var(--text-secondary); max-width: 760px; margin-bottom: 1.5rem; line-height: 1.7;">{t.platformsLead}</p>
+  <div style="overflow-x: auto; border: 1px solid var(--border-color); border-radius: 10px;">
+    <table style="width: 100%; border-collapse: collapse; font-size: 0.92rem;">
+      <thead>
+        <tr style="background-color: var(--bg-subtle); color: var(--text-muted); text-align: left;">
+          <th style="padding: 0.7rem 1rem; font-weight: 600;">{t.platformColumns.name}</th>
+          <th style="padding: 0.7rem 1rem; font-weight: 600;">{t.platformColumns.setup}</th>
+          <th style="padding: 0.7rem 1rem; font-weight: 600;">{t.platformColumns.bestFor}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {platforms.map((row) => (
+          <tr style="border-top: 1px solid var(--border-color);">
+            <td style="padding: 0.7rem 1rem; white-space: nowrap; color: var(--text-primary); font-weight: 600;">{row.name}</td>
+            <td style="padding: 0.7rem 1rem; color: var(--text-secondary);">{row.setup[lang]}</td>
+            <td style="padding: 0.7rem 1rem; color: var(--text-secondary);">{row.bestFor[lang]}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="container" style="margin-bottom: 5rem;">
+  <h2 style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary); text-align: center; margin-bottom: 1.5rem;">{t.factsTitle}</h2>
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
+    {facts.map((fact) => (
+      <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 1.25rem; text-align: center;">
+        <div style="font-size: 2rem; font-weight: 800; color: var(--accent-purple); line-height: 1.1;">{fact.value}</div>
+        <div style="color: var(--text-primary); font-weight: 600; margin-top: 0.35rem;">{fact.label[lang]}</div>
+        <div style="color: var(--text-muted); font-size: 0.8rem; margin-top: 0.25rem;">{fact.note[lang]}</div>
+      </div>
+    ))}
+  </div>
+</section>
+
+<section class="container" style="margin-bottom: 5rem; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 2rem;">
+  <h2 style="font-size: 1.5rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.5rem;">{t.specsTitle}</h2>
+  <p style="color: var(--text-secondary); max-width: 780px; margin-bottom: 1.25rem; line-height: 1.7;">{t.specsLead}</p>
+  <div style="display: flex; flex-wrap: wrap; gap: 0.6rem;">
+    {t.specsLinks.map((link) => (
+      <a href={link.href} style="display: inline-block; border: 1px solid var(--border-color); border-radius: 999px; padding: 0.45rem 1rem; color: var(--text-primary); text-decoration: none; font-size: 0.88rem;">{link.label}</a>
+    ))}
+  </div>
+</section>

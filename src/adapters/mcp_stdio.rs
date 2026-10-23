@@ -1,4 +1,4 @@
-//! stdio の MCP クライアント（§15.8.1）。`std::process` とスレッドだけで書く（`PLANS.md` §9.2 B-147）。
+//! stdio の MCP クライアント（§15.8.1）。`std::process` とスレッドだけで書く（`docs/history.md` B-147）。
 //!
 //! 1 回の呼び出しごとにサーバを起動し、改行区切りの JSON-RPC 2.0 で
 //! `initialize` → `notifications/initialized` → `sampling/createMessage`（または `tools/call`）を送って、

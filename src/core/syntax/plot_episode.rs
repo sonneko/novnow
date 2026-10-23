@@ -59,7 +59,7 @@
 //! - **W012**（空の節、§5.2.2）: B 形式では空の節が正当（§5.4.5 の例は `;` 直後の節にだけ
 //!   `illustration:` を書く）。§5.4 に対応する記述が無いので出さない。
 //! - `state` / `length` の値が形に合わないとき: §7 に対応コードが無いので診断せず
-//!   [`Field::number`] が `None` を返す（`PLANS.md` §9.2 B-39）。
+//!   [`Field::number`] が `None` を返す（`docs/history.md` B-39）。
 //!
 //! # `.txt` 3 形式の共通部
 //!
@@ -218,7 +218,7 @@ pub enum Line<'a> {
     Point(&'a str),
     /// 行コメント（`//`、§5.0.2）。`# ` は ② なので ① では [`Line::Point`] になる。
     Comment(contents::CommentLine<'a>),
-    /// 空行（空白だけの行を含む。`PLANS.md` §9.2 B-34）。
+    /// 空行（空白だけの行を含む。`docs/history.md` B-34）。
     Blank(&'a str),
 }
 

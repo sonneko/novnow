@@ -1,7 +1,7 @@
 //! セマンティックトークン（§3.4 `semantic_tokens::full(doc, project)` →
 //! `textDocument/semanticTokens/full`）。種別は §6.3、配色は UI（§11.2）。
 //!
-//! # 返す形（`PLANS.md` §9.2 B-80）
+//! # 返す形（`docs/history.md` B-80）
 //!
 //! **重ならない・位置の昇順**のトークン列。LSP の `semanticTokens/full` は重なりを表せないので、
 //! 内側のものが外側を切り欠く（`「'リリアが来た」` は `dialogue.bracket` / `sigil.ref` /

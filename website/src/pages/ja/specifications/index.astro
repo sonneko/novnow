@@ -1,0 +1,36 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import Header from "../../../components/Header.astro";
+import Footer from "../../../components/Footer.astro";
+import { specificationNav } from "../../../data/docs-nav";
+---
+
+<BaseLayout title="仕様書" lang="ja">
+  <Header lang="ja" currentPath="/ja/specifications/" />
+
+  <main class="container" style="margin: 3rem auto 5rem; max-width: 900px;">
+    <h1 style="font-size: 2rem; font-weight: 800; margin-bottom: 0.75rem;">仕様書</h1>
+    <p style="color: var(--text-secondary); line-height: 1.8; margin-bottom: 2rem;">
+      novnow の決まりごとの正本です。<strong>読まなくても使えます。</strong>
+      手引きで分からない言葉が出たときや、「なぜそうなっているか」を知りたいときに引いてください。
+      仕様書はリポジトリの <code>docs/specifications/</code> にあり、このサイトはそれをそのまま表示しています。
+    </p>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.75rem;">
+      {specificationNav.map((entry) => (
+        <a
+          href={`/ja/specifications/${entry.slug}`}
+          style="display: block; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 1rem; text-decoration: none;"
+        >
+          <span style="color: var(--text-primary); font-weight: 600;">{entry.title}</span>
+        </a>
+      ))}
+    </div>
+
+    <p style="margin-top: 2.5rem; color: var(--text-muted); font-size: 0.85rem;">
+      先に読むなら <a href="/ja/manual/">ユーザーガイド</a> から。
+    </p>
+  </main>
+
+  <Footer lang="ja" />
+</BaseLayout>

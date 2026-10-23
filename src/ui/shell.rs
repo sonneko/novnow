@@ -307,7 +307,7 @@ pub struct BrowserKeys {
 }
 
 /// Web で、このキーのブラウザの既定の動作（印刷・ページの保存・検索バー・戻る など）を止めるか
-/// （novnow のショートカットに使うため。`PLANS.md` §9.2 B-158）。`key` は `KeyboardEvent.key`。
+/// （novnow のショートカットに使うため。`docs/history.md` B-158）。`key` は `KeyboardEvent.key`。
 ///
 /// 止めないもの: コピー / 貼り付け / 切り取り（`Ctrl+C` / `V` / `X`。貼り付けはブラウザのイベントで
 /// 受ける）・再読み込み（`Ctrl+R` / `F5`）・開発者ツール（`Ctrl+Shift+I` / `J`・`F12`）・全画面（`F11`）・
