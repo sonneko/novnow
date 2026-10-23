@@ -181,6 +181,7 @@ novnow structure tree my-novel --json                    # 正規操作も --jso
 
 開発に参加する場合は [`GUIDE.md`](./GUIDE.md)（ビルドと執筆の手順）と [`docs/developers.md`](./docs/developers.md)（開発環境・文書規則・検証手順）から始めてください。
 
+
 ## ライセンスについて
 
 novnowはどなたでも無料で利用可能です。有料になることは決してありません。
