@@ -4,14 +4,14 @@
 
 ## 20. 配布形態
 
-配布物の数は 5 形態で 28 通り（ブラウザ 1・デスクトップ 20・Python 5・VSCode 1・GitHub Actions 1）。この数を **1 つの表** から作り、CI と文書の両方がその表を読む。表を 2 か所に書かないための置き場所が `scripts/release-matrix.py`（新設・計画パス）で、成果物の名前・対象環境・ビルドの引数をここから生成する。`tests/distribution.rs`（新設・計画パス）が §20.1.1 の数（1・20・5・1・1）と表の行数を突き合わせる。
+配布物の数は 5 形態で 18 通り（ブラウザ 1・デスクトップ 10・Python 5・VSCode 1・GitHub Actions 1）。この数を **1 つの表** から作り、CI と文書の両方がその表を読む。表を 2 か所に書かないための置き場所が `scripts/release-matrix.py`（新設・計画パス）で、成果物の名前・対象環境・ビルドの引数をここから生成する。`tests/distribution.rs`（新設・計画パス）が §20.1.1 の数（1・10・5・1・1）と表の行数を突き合わせる。
 
 ### 20.1 配布形態の一覧と共通原則
 
 状態: 未実装・実装計画済み（REF:docs/plans.md#distribution, scripts/release-matrix.py）
 
 - **版の一元化**: 版番号の正本は `REF:Cargo.toml` の `version` だけとする。Python（`REF:python/novnow-py/Cargo.toml`）・VSCode 拡張（計画パス `vscode/package.json`）・Actions の `action.yml` は、リリース時にこの値で書き換える。手で 4 か所を編集しない（`scripts/release-matrix.py` の `--bump` が担う）。
-- **成果物の生成**: `scripts/release-matrix.py` が 20 行のデスクトップ行列（対象環境 × gui/nogui × single/multi）と 5 行のホイール行列を JSON で出す。`.github/workflows/release.yml`（新設・計画パス）はこの JSON を `strategy.matrix.include` に渡す。
+- **成果物の生成**: `scripts/release-matrix.py` が 10 行のデスクトップ行列（対象環境 × gui/nogui）と 5 行のホイール行列を JSON で出す。`.github/workflows/release.yml`（新設・計画パス）はこの JSON を `strategy.matrix.include` に渡す。
 - **照合値**: リリースの最後のジョブが全成果物の SHA-256 を集め、`SHA256SUMS` を添付する。公開側（PyPI・市場・Actions）は同じジョブが緑になってから動かす。
 - **実行時の非通信**: 更新確認のコードを置かない。`tests/no_llm_sdk.rs` と同じ発想で、`reqwest` / `ureq` などの HTTP クライアントを本体の依存へ足さない（`REF:tests/layering.rs` の許可リストに追加しない）。
 - **署名**: Windows は `signtool`、macOS は `codesign` + `notarytool` をリリースジョブの任意ステップにする。秘密鍵が無い環境（フォーク・サンドボックス）では署名を飛ばし、`SHA256SUMS` にその旨を書く。
@@ -21,19 +21,15 @@
 
 状態: 未実装・実装計画済み（REF:docs/plans.md#distribution, REF:src/...）
 
-- **feature の追加**: ルート `REF:Cargo.toml` に `single-instance = []` を足す（計画）。GUI は既存の `ui` feature をそのまま使う。20 通りは「`ui` の有無」×「`single-instance` の有無」×「`--target`」で作る（2 × 2 × 5）。
-- **成果物の名前**: `scripts/release-matrix.py` の `artifact_name(version, target, gui, single)` が唯一の実装点。命名は仕様 §20.2.2 の 1 形だけを許し、テストで 20 通りを列挙して重複が無いことを確かめる。
-- **アーカイブの中身**: 実行ファイル・`LICENSE`・`README.txt`（起動方法 3 行）。macOS の GUI あり版だけ `.app` を組み立てる（`Contents/MacOS/novnow` と `Info.plist`、`CFBundleExecutable=novnow`、`LSMinimumSystemVersion`）。`.app` を作るのは CI のスクリプト（`scripts/release-matrix.py --bundle-macos`）とする。
-- **シングルトンの排他**: `src/adapters/single_instance.rs`（新設・計画パス）に閉じる。実装は **パス履歴ファイル（仕様 §13.2）を開いて `std::fs::File::try_lock()` を試す** だけにする。理由は 3 つ:
-  1. 新しいロックファイルを作らない（規則 10 と仕様 §20.2.3 を同時に満たす）。
-  2. OS がプロセス終了時に解放するので、残骸で次の起動が止まらない。
-  3. 追加クレートも `unsafe` も要らない（`REF:tests/layering.rs` の許可リストを増やさない）。
-  履歴ファイルがまだ無い初回起動では、`FsGate` 経由で空の履歴ファイルを作ってから排他する（仕様 §13.2 の「書き込みは履歴ファイルの書き込みの一部として許す」に含める）。作れない環境（読み取り専用の `$XDG_STATE_HOME` など）では、排他を諦めて 1 行警告を出し、起動は続ける。
-- **2 つ目の起動**: 排他に失敗したら、`ui` を初期化する前に「すでに起動しています」を標準エラーへ出して 0 で終わる。前面化は実装しない（仕様 §20.2.3 の MUST ではない）。前面化には OS ごとの IPC が要り、ファイルを作らない・`unsafe` を増やさない・クレートを増やさないという 3 条件と両立しないためである。
+- **feature の追加はしない**: 10 通りは「`ui` feature の有無」×「`--target`」だけで作る（2 × 5）。新しい feature も、配布物を分けるビルドスイッチも足さない。同梱物（`REF:src/ui/theme.rs` の `BUNDLED_FONT`、`REF:src/core/template/mod.rs` の `include_str!` 群）は現状どおり常に実行ファイルへ埋め込む。
+- **成果物の名前**: `scripts/release-matrix.py` の `artifact_name(version, target, gui)` が唯一の実装点。命名は仕様 §20.2.2 の 1 形だけを許し、テストで 10 通りを列挙して重複が無いことを確かめる。
+- **アーカイブの中身**: 実行ファイル・`LICENSE`・`README.txt`（起動方法 3 行）。同梱物のファイルは入れない（実行ファイルに入っている）。macOS の GUI あり版だけ `.app` を組み立てる（`Contents/MacOS/novnow` と `Info.plist`、`CFBundleExecutable=novnow`、`LSMinimumSystemVersion`）。`.app` を作るのは CI のスクリプト（`scripts/release-matrix.py --bundle-macos`）とする。
+- **同時起動**: 制限しない（仕様 §20.2.3）。ロックファイルも排他も作らないので、新しいファイルはプロジェクト外に増えない。
+- **なぜ軸を置かないか**: 同梱物を外に置く版を作ると、(1) 配布物の置き場所に依存する読み取り経路が増え、(2) 「実行ファイル 1 個で動く」という検証が 2 通りになり、(3) 得られる削減が同梱フォントの約 6 MB だけである。履歴ファイル以外をプロジェクト外に置かない現状では、利用者から見た違いがほぼ無いため、軸そのものを持たない（2026-10-23 の裁定）。
 - **GUI なしのビルド**: `ui` feature を付けない。`--gui` は既存の `Exit::Usage`（`REF:src/cli/mod.rs`）へ流す。`tests/cli.rs` に「引数なし + 非 TTY + GUI なしビルド → 使い方表示・終了コード 2」を足す。
 - **Windows のサブシステム**: GUI 版だけ `#![windows_subsystem = "windows"]` を効かせる。既存の `REF:src/main.rs` の cfg を feature で切り替える（`#[cfg_attr(all(windows, feature = "ui"), windows_subsystem = "windows")]`）。
-- **CI 行列の負荷**: 20 ジョブは 1 つのワークフローにまとめ、タグ公開と `workflow_dispatch` のときだけ走らせる。PR では 2 通り（`ui` あり/なし）だけをビルドして `cargo build` が通ることを見る。
-- **テスト**: `tests/distribution.rs` が (1) 命名の 20 通り、(2) 同じ版で 5 対象環境が揃うこと、(3) `single-instance` の有無で保存形式のテスト（`REF:tests/roundtrip.rs`）が同じ結果になること、を確かめる。単体テストは `single_instance.rs` に置き、`NOVNOW_RECENT_FILE` を一時ファイルへ向けて 2 回目の `try_lock` が失敗することを見る。
+- **CI 行列の負荷**: 10 ジョブは 1 つのワークフローにまとめ、タグ公開と `workflow_dispatch` のときだけ走らせる。PR では 2 通り（`ui` あり/なし）だけをビルドして `cargo build` が通ることを見る。
+- **テスト**: `tests/distribution.rs` が (1) 命名の 10 通りと重複の無さ、(2) 同じ版で 5 対象環境 × 2 画面が揃うこと、(3) `ui` の有無で保存形式のテスト（`REF:tests/roundtrip.rs`）と診断のゴールデン（`REF:tests/golden.rs`）が同じ結果になること、を確かめる。同梱物が実行ファイルに含まれることは、GUI なしの成果物に `assets/ipag.ttf` のファイルが入っていないこと（アーカイブの中身）で見る。
 
 ### 20.3 Python ライブラリ版
 
@@ -53,7 +49,7 @@
 - **置き場所**: `vscode/`（新設・計画パス）。`package.json`（識別子 `sonneko.novnow`、`engines.vscode`、`activationEvents`、`contributes.configuration`、`contributes.commands`）、`src/extension.ts`（接続とコマンド）、`esbuild.mjs`（1 ファイルへ束ねる）。`novnow` の実行ファイルは同梱しない。
 - **依存**: `vscode-languageclient` と `vscode-languageserver-protocol` だけを足す（npm）。esbuild で `dist/extension.js` に束ね、`node_modules` を `.vsix` に入れない。
 - **探索順**: 仕様 §20.4.2 の 4 段を `resolveBinary()` に 1 か所で書く。`novnow.executablePath` が空でない場合は**そのパスだけ**を見て、無ければ取得へ進む（`PATH` を飛ばす。利用者の明示を優先する）。
-- **取得**: リリースの URL は `https://github.com/sonneko/novnow/releases/download/v<版>/<成果物名>`。成果物名は `scripts/release-matrix.py` の出力（`nogui-single`）を `package.json` の `novnow.artifact` 表へリリース時に埋め込む。保存先は `context.globalStorageUri` 配下の `bin/<版>/novnow`（Windows は `.exe`）。`https.get` のリダイレクトを 1 段だけ追い、`crypto.createHash("sha256")` で照合する。失敗したら部分ファイルを消す。
+- **取得**: リリースの URL は `https://github.com/sonneko/novnow/releases/download/v<版>/<成果物名>`。成果物名は `scripts/release-matrix.py` の出力（`nogui`）を `package.json` の `novnow.artifact` 表へリリース時に埋め込む。保存先は `context.globalStorageUri` 配下の `bin/<版>/novnow`（Windows は `.exe`）。`https.get` のリダイレクトを 1 段だけ追い、`crypto.createHash("sha256")` で照合する。失敗したら部分ファイルを消す。
 - **設定**: `novnow.executablePath`（文字列）、`novnow.autoDownload`（真偽、既定 true）、`novnow.downloadVersion`（文字列、空なら拡張機能の版）、`novnow.extraArgs`（配列）。設定は VSCode の設定に置き、novnow のプロジェクトへは書かない。
 - **LSP の起動**: `novnow lsp <プロジェクトルート>` を stdio で起動する。サーバの生死は `vscode-languageclient` の `Restart` に任せ、再起動コマンドを 1 つ提供する。診断はサーバの `publishDiagnostics` をそのまま使う。
 - **言語 ID**: `novnow` を定義し、`contents/**/*.txt` と `plots/**/*.txt` を対象にする。`contributes.languages` に拡張子ではなく `filenames` / `filenamePatterns` で書く（`.txt` 全体を奪わない）。
@@ -79,7 +75,7 @@
 
 状態: 未実装・実装計画済み（REF:docs/plans.md#distribution, scripts/release-matrix.py）
 
-- **公開の順序**: `release.yml` を 4 つのジョブに分け、`needs` で直列化する。`artifacts`（デスクトップ 20 + 照合値）→ `pypi`（environment の承認）→ `vscode`（`workflow_dispatch` で承認）→ `tags`（`v1` の付け替え）。前が失敗したら後を起動しない。
+- **公開の順序**: `release.yml` を 4 つのジョブに分け、`needs` で直列化する。`artifacts`（デスクトップ 10 + 照合値）→ `pypi`（environment の承認）→ `vscode`（`workflow_dispatch` で承認）→ `tags`（`v1` の付け替え）。前が失敗したら後を起動しない。
 - **未提供の表示**: サイトと `REF:README.md` の「どこで動くか」表は、`scripts/release-matrix.py --status` の出力（公開済みの形態）を読んで「未提供」を出す。文書へ手で書かない。
 - **取り下げ**: リリースの成果物は削除しない。PyPI は `yank` を使い、`SHA256SUMS` とリリースノートに理由を書く。市場と Actions のタグは戻さず、修正版を出す。
-- **検査**: `scripts/release-check.sh`（新設・計画パス）が (1) 20 + 5 の成果物が揃う、(2) `SHA256SUMS` の行数が成果物と一致する、(3) 各形態の版が `Cargo.toml` と一致する、(4) 主要版タグが最新の版を指す、を確かめる。`REF:scripts/verify.sh` には入れない（リリース時だけの検査なので、通常のコミットで走らせない）。
+- **検査**: `scripts/release-check.sh`（新設・計画パス）が (1) 10 + 5 の成果物が揃う、(2) `SHA256SUMS` の行数が成果物と一致する、(3) 各形態の版が `Cargo.toml` と一致する、(4) 主要版タグが最新の版を指す、を確かめる。`REF:scripts/verify.sh` には入れない（リリース時だけの検査なので、通常のコミットで走らせない）。

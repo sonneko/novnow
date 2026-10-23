@@ -112,7 +112,7 @@ In the future, following continued research and development, we plan to implemen
 
 ## Install and Run
 
-Distribution covers 20 desktop builds, 5 Python wheels, a VS Code extension, and a GitHub Action (publication is in preparation). See [how to install](./docs/users/install.md) for users and [distribution.md](./docs/distribution.md) for the release procedure and rules.
+Distribution covers 10 desktop builds (with or without a window, across 5 OS/CPU targets), 5 Python wheels, a VS Code extension, and a GitHub Action (publication is in preparation). See [how to install](./docs/users/install.md) for users and [distribution.md](./docs/distribution.md) for the release procedure and rules.
 
 Until then, novnow can be built from source. A stable Rust toolchain is required.
 
@@ -176,7 +176,7 @@ All specifications for the editor and the novnow format are fully documented:
 - [`agent.md`](./docs/specifications/agent.md): AI agents, delegation levels, MCP, and prompt specifications
 - [`workflows.md`](./docs/specifications/workflows.md): Material collection, export, and performance/quality requirements
 - [`interfaces.md`](./docs/specifications/interfaces.md): CLI, LSP, MCP, Python, and Rust interfaces
-- [`external.md`](./docs/specifications/external.md): Distribution formats (20 desktop builds, 5 wheels, a VS Code extension, and a GitHub Action)
+- [`external.md`](./docs/specifications/external.md): Distribution formats (10 desktop builds, 5 wheels, a VS Code extension, and a GitHub Action)
 
 Our website ([https://novnow.sonneko.com/](https://novnow.sonneko.com/)) has a feature guide, the full diagnostics catalog, and an API reference. The specifications themselves live in this repository under [`docs/specifications/`](./docs/specifications/) and are versioned with the implementation.
 

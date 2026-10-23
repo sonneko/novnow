@@ -116,7 +116,7 @@ novnow形式は、小説をテキストデータでエクスポートする機�
 
 ## インストールと起動
 
-配布物はデスクトップ 20 通り・Python ホイール 5 通り・VSCode 拡張・GitHub Actions を用意しています（公開は準備中）。利用者向けの手順は [入れ方](./docs/users/install.md)、配布の決まりと手順は [distribution.md](./docs/distribution.md) にあります。
+配布物はデスクトップ 10 通り（窓あり / なし × 5 つの OS・CPU）・Python ホイール 5 通り・VSCode 拡張・GitHub Actions を用意しています（公開は準備中）。利用者向けの手順は [入れ方](./docs/users/install.md)、配布の決まりと手順は [distribution.md](./docs/distribution.md) にあります。
 
 それまではソースからビルドできます。Rust の stable ツールチェーンが必要です。
 
@@ -179,7 +179,7 @@ novnow structure tree my-novel --json                    # 正規操作も --jso
 - [`agent.md`](./docs/specifications/agent.md): AI エージェント・委譲レベル・MCP・プロンプト仕様
 - [`workflows.md`](./docs/specifications/workflows.md): 資料収集・エクスポート・性能品質要件
 - [`interfaces.md`](./docs/specifications/interfaces.md): CLI・LSP・MCP・Python・Rust の外部インターフェース
-- [`external.md`](./docs/specifications/external.md): 配布形態（デスクトップ 20 通り・Python 5 通り・VSCode 拡張・GitHub Actions）
+- [`external.md`](./docs/specifications/external.md): 配布形態（デスクトップ 10 通り・Python 5 通り・VSCode 拡張・GitHub Actions）
 
 公式サイト（[https://novnow.sonneko.com/](https://novnow.sonneko.com/)）では、機能ガイド・診断コードの一覧・API リファレンスを読めます。仕様書はすべてこのリポジトリの [`docs/specifications/`](./docs/specifications/) にあり、実装と同じコミットで管理されています。
 

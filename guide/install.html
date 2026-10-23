@@ -106,45 +106,41 @@ footer { max-width: 46rem; margin: 3rem auto 0; padding-top: 1rem; border-top: 1
 <hr>
 <a id="desktop"></a>
 <h2 id="3-デスクトップ版">3. デスクトップ版</h2>
-<p>デスクトップ版には 20 通りの組み合わせがあります。次の 2 つの質問に答えるだけで、使うファイルが 1 つに決まります。</p>
-<h3 id="31-質問-1-窓画面は要りますか">3.1 質問 1: 窓（画面）は要りますか</h3>
+<p>デスクトップ版は 10 通りあります。選ぶのは 2 つだけです。<strong>窓が要るか</strong>と、<strong>パソコンの種類</strong>です。</p>
+<h3 id="31-質問-窓画面は要りますか">3.1 質問: 窓（画面）は要りますか</h3>
 <ul>
 <li><strong>要る</strong>: ふだん使うならこちらです。窓の中で書けます。コマンドからも使えます。</li>
-<li><strong>要らない</strong>: コマンドやほかのソフトから使うだけならこちらです。軽くて余計な窓が出ません。</li>
+<li><strong>要らない</strong>: コマンドやほかのソフトから使うだけならこちらです。余計な窓が出ません。</li>
 </ul>
-<h3 id="32-質問-2-同じパソコンで-2-つ以上を同時に開きますか">3.2 質問 2: 同じパソコンで 2 つ以上を同時に開きますか</h3>
-<ul>
-<li><strong>開かない</strong>: 「1 つだけ」の版を選びます。2 つ目を開こうとすると「すでに起動しています」と出ます。</li>
-<li><strong>開く</strong>: 「同時に開ける」版を選びます。別々の作品を並べて開けます。</li>
-</ul>
-<h3 id="33-パソコンの種類を選ぶ">3.3 パソコンの種類を選ぶ</h3>
+<p>どちらを選んでも、同時にいくつでも開けます。同じ作品を 2 つ開くと、後から保存したほうだけが残ります。</p>
+<h3 id="32-パソコンの種類を選ぶ">3.2 パソコンの種類を選ぶ</h3>
 <table><thead><tr>
 <th>パソコン</th>
 <th>ファイル名の例</th>
 </tr></thead><tbody>
 <tr>
 <td>Windows（ふつうの Windows）</td>
-<td><code>novnow-0.1.0-x86_64-pc-windows-msvc-gui-single.zip</code></td>
+<td><code>novnow-0.1.0-x86_64-pc-windows-msvc-gui.zip</code></td>
 </tr>
 <tr>
 <td>Mac（Apple のチップ）</td>
-<td><code>novnow-0.1.0-aarch64-apple-darwin-gui-single.tar.gz</code></td>
+<td><code>novnow-0.1.0-aarch64-apple-darwin-gui.tar.gz</code></td>
 </tr>
 <tr>
 <td>Mac（Intel のチップ）</td>
-<td><code>novnow-0.1.0-x86_64-apple-darwin-gui-single.tar.gz</code></td>
+<td><code>novnow-0.1.0-x86_64-apple-darwin-gui.tar.gz</code></td>
 </tr>
 <tr>
 <td>Linux（ふつうの PC）</td>
-<td><code>novnow-0.1.0-x86_64-unknown-linux-gnu-gui-single.tar.gz</code></td>
+<td><code>novnow-0.1.0-x86_64-unknown-linux-gnu-gui.tar.gz</code></td>
 </tr>
 <tr>
 <td>Linux（ARM の機械）</td>
-<td><code>novnow-0.1.0-aarch64-unknown-linux-gnu-gui-single.tar.gz</code></td>
+<td><code>novnow-0.1.0-aarch64-unknown-linux-gnu-gui.tar.gz</code></td>
 </tr>
 </tbody></table>
-<p>名前の後ろの <code>gui</code> は窓あり、<code>nogui</code> は窓なしです。<code>single</code> は 1 つだけ、<code>multi</code> は同時に開ける版です。</p>
-<h3 id="34-入れ方4-段階">3.4 入れ方（4 段階）</h3>
+<p>名前の後ろの <code>gui</code> は窓あり、<code>nogui</code> は窓なしです。窓なしが要るときは、<code>gui</code> を <code>nogui</code> に読み替えてください。</p>
+<h3 id="33-入れ方4-段階">3.3 入れ方（4 段階）</h3>
 <ol>
 <li>公開ページ（GitHub の Releases）を開きます。</li>
 <li>上の表と同じ名前のファイルを落とします。</li>
@@ -155,19 +151,17 @@ footer { max-width: 46rem; margin: 3rem auto 0; padding-top: 1rem; border-top: 1
 <li>インストーラはありません。展開するだけで使えます。</li>
 <li>PATH の追加や、ファイルの関連付けは行いません。</li>
 <li>Mac の窓あり版には <code>novnow.app</code> が入っています。これを開いてください。</li>
+<li>ファイルは実行ファイルだけです（Mac は <code>novnow.app</code> だけ）。フォントや雛形は中に入っています。</li>
 <li>Linux では、展開した <code>novnow</code> に実行の権限が付いています。</li>
 </ul>
-<h3 id="35-警告が出たとき">3.5 警告が出たとき</h3>
+<h3 id="34-警告が出たとき">3.4 警告が出たとき</h3>
 <ul>
 <li><strong>Mac</strong>: 「開発元を確認できません」と出たら、システム設定の「プライバシーとセキュリティ」を開きます。下のほうの「このまま開く」を押します。</li>
 <li><strong>Windows</strong>: 「Windows によって PC が保護されました」と出ることがあります。そのときは「詳細情報」を押し、次に「実行」を押します。</li>
 <li>どちらも、配布元の署名が付いていない間だけ出ます。</li>
 </ul>
-<h3 id="36-2-つ目が開かないとき">3.6 2 つ目が開かないとき</h3>
-<p>「1 つだけ」の版では、2 つ目を開くと「すでに起動しています」と出て終わります。これは故障ではありません。</p>
-<p>先に開いている窓を使ってください。窓が前に出ないときは、タスクバーや Dock から選びます。</p>
-<h3 id="37-消したいとき">3.7 消したいとき</h3>
-<p>展開したフォルダを削除するだけです。パソコンの中に設定は残りません。</p>
+<h3 id="35-消したいとき">3.5 消したいとき</h3>
+<p>展開したフォルダを削除するだけです。同梱のフォントやサンプルは実行ファイルの中にあるので、ほかに消すものはありません。</p>
 <p>「最近開いた作品」の一覧だけは、次の場所に残ります。消してよいファイルです。</p>
 <ul>
 <li>Windows: <code>%APPDATA%\novnow\recent.json</code></li>

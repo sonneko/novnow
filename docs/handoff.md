@@ -25,7 +25,7 @@
 
 - 作業ブランチ: `arena/8da95dbf-novnow`（`main` の `77d9f97` から分岐）。配布の準備（仕様・設計 §20、`REF:docs/distribution.md`、`REF:docs/users/install.md`、`REF:docs/plans.md` §7）を追加中。マージは人間が行う。
 - 段階 ①〜③（M0〜M11・追加仕様 1〜27・L-01・§19 の H1〜H7）は `main` にマージ済み（PR #25 は 2026-10-23 にマージ）。
-- 直近の作業: 配布の準備。仕様 §20（`REF:docs/specifications/external.md`）と設計 §20（`REF:docs/designs/external.md`）に 5 形態（ブラウザ・デスクトップ 20 通り・Python 5 通り・VSCode 拡張・GitHub Actions）を書き、配布方法（`REF:docs/distribution.md`）・利用者向けの入れ方（`REF:docs/users/install.md`）・計画（`REF:docs/plans.md#distribution`）を足した。VSCode 拡張と複合アクションの**実装は未着手**。その前は、ユーザー向けガイド（`REF:docs/users/`）とガイドモードの整備（`REF:docs/plans.md#users-and-guide-mode`）。
+- 直近の作業: 配布の準備。仕様 §20（`REF:docs/specifications/external.md`）と設計 §20（`REF:docs/designs/external.md`）に 5 形態（ブラウザ・デスクトップ 10 通り・Python 5 通り・VSCode 拡張・GitHub Actions）を書き、配布方法（`REF:docs/distribution.md`）・利用者向けの入れ方（`REF:docs/users/install.md`）・計画（`REF:docs/plans.md#distribution`）を足した。VSCode 拡張と複合アクションの**実装は未着手**。その前は、ユーザー向けガイド（`REF:docs/users/`）とガイドモードの整備（`REF:docs/plans.md#users-and-guide-mode`）。
 - **コミットは既定で `[ci skip]`**（`REF:.githooks/commit-msg`）。CI は必要なときだけ `bash REF:scripts/ci-run.sh ci watch` で回す。マージ前に 1 回だけ回して緑を確認する。
 - サンドボックスでの検証は全件通る: `docs 11 項目 / docs-tests 38 件 / docs-sync（12 仕様書・12 設計書・142 節）/ site-check（10 ガイド・12 仕様書・10 HTML）/ easy-read 10 本 / python-check 10 件 / cargo test 1176（GUI なし）・1347（GUI あり）/ clippy・fmt・wasm32 すべて ok`。Web 実機スモーク（`REF:scripts/web-smoke.sh`、ヘッドレス Chromium で 28 項目）も通る。
 - macOS / Windows の実機操作と、異なる性能環境での測定は未実施。CI のクロスビルドやサンドボックスでの測定とは区別する。
