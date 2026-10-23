@@ -49,6 +49,9 @@ jobs:
           python-version: "3.11"
       - name: Verify the committed Cargo.lock still resolves
         working-directory: python/novnow-py
+        # Windows の既定シェルは PowerShell で、`>/dev/null` が `C:\dev\null` への
+        # リダイレクトとして失敗する。ランナーには Git Bash が入っているので bash で走らせる。
+        shell: bash
         run: |
           # `python/novnow-py` は root の `[workspace] exclude` なので独自の Cargo.lock を持つ
           # （pyo3 0.22.6 ＋ 97 パッケージ。`cache/pyo3-crates` の vendor を使って
