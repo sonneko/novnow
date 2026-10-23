@@ -86,6 +86,20 @@ class CountPatternTests(unittest.TestCase):
         self.assertEqual(self.pattern.findall("**19.14-1 ワークスペース瞬時切替**"), [])
 
 
+class RetiredScopeTests(unittest.TestCase):
+    """検査 1 が「コード側」をどこまで見るか（漏らすと緑のまま残る）。"""
+
+    def test_root_manifests_are_scanned(self):
+        for name in ("Cargo.toml", "rust-toolchain.toml", ".github/pull_request_template.md"):
+            self.assertIn(name, reference.CODE_ROOT_FILES)
+            self.assertTrue((reference.ROOT / name).is_file(), name)
+
+    def test_root_files_are_in_the_target_list(self):
+        targets = {reference.rel(p) for p in reference.walk(reference.CODE_DIRS, reference.CODE_SUFFIXES)}
+        self.assertIn(".github/workflows/ci.yml", targets)
+        self.assertNotIn("Cargo.toml", targets)  # ルート直下は CODE_ROOT_FILES 側で足す
+
+
 class SlugTests(unittest.TestCase):
     def test_japanese_heading(self):
         self.assertEqual(reference.slug("エディタの仕様の要約"), "エディタの仕様の要約")

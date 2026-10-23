@@ -245,7 +245,7 @@ CI_LOG=/tmp/ci.log CI_JOB="Local test run" CI_KIND=test CI_STATUS=success \
 
 | # | 検査 | 何を捕まえるか | 実例（この検査で実際に見つかったもの） |
 |---|---|---|---|
-| 1 | 廃止名の参照 | コード・スクリプト・CI に `SPECIFICATIONS.md` / `PLANS.md` / `DEVELOPERS.md` が残る | 分割前の文書名を指すコメント 327 箇所 |
+| 1 | 廃止名の参照 | コード・スクリプト・CI に `SPECIFICATIONS.md` / `PLANS.md` / `DEVELOPERS.md` が残る（`Cargo.toml` と `.github/pull_request_template.md` も見る） | 分割前の文書名を指すコメント 327 箇所 |
 | 2 | 仕様書の節番号 | `docs/specifications/x.md` の `§N.M` がその仕様書に無い | `interfaces.md` §19.13（新仕様では §19.1.2） |
 | 3 | history の ID | `docs/history.md` と書いて `B-nnn` / `A-nn` を指すが実在しない | 節番号の付け替えで生じた幽霊参照 |
 | 4 | `src/` ツリー | `REF:docs/developers.md` §3 のツリーと `src/` の実物が違う | `app/` と `lsp/` の記載漏れ |

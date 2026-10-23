@@ -23,7 +23,7 @@
 
 ## 2. 現在のブランチ・PR・直近の作業状態
 
-- 作業ブランチ: `arena/06cb5373-novnow`（`main` の `8360f28` から分岐）。PR は本ブランチの作業完了時に作成する。マージは人間が行う。
+- 作業ブランチ: `arena/06cb5373-novnow`（`main` の `8360f28` から分岐）。PR #26（文書と実装の同期是正と `REF:docs/script/reference.py` の追加）を作成済み。マージは人間が行う。
 - 段階 ①〜③（M0〜M11・追加仕様 1〜27・L-01・§19 の H1〜H7）は `main` にマージ済み（PR #25 は 2026-10-23 にマージ）。
 - 直近の作業: ドキュメントとコードの同期監査と、その是正（`REF:docs/history.md` の DOCS-SYNC-AUDIT、検査の追加は `REF:docs/developers.md` §4.6）。
 - サンドボックスでの検証は全件通る: `docs 11 項目 / docs-tests 23 件 / docs-sync 9 項目 / site-check 2 件 / python-check 10 件 / 拡張の pytest 8 passed 1 skipped / cargo test 1176（GUI なし）・1347（GUI あり）/ clippy・fmt・wasm32 すべて ok`。未実行は Playwright による Web 実機スモーク（`REF:scripts/web-smoke.sh`）だけ。

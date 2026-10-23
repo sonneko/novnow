@@ -34,6 +34,11 @@ ROOT = Path(__file__).resolve().parents[2]
 CODE_DIRS = ["src", "tests", "benches", "examples", "python", "scripts", ".github"]
 CODE_SUFFIXES = {".rs", ".toml", ".py", ".sh", ".mjs", ".yml", ".yaml"}
 
+# ディレクトリの外にあるが「コード側」として見るもの（マニフェストと PR テンプレート）。
+# ここを漏らすと、`Cargo.toml` のコメントや `.github/pull_request_template.md` に
+# 廃止名が残ったまま検査が緑になる（実際に残っていた）。
+CODE_ROOT_FILES = ["Cargo.toml", "rust-toolchain.toml", ".github/pull_request_template.md"]
+
 # 章番号 → 仕様書（`docs/developers.md` §1.1 の対応表と同じ）。
 CHAPTERS = {
     "3": "overview",
@@ -102,7 +107,9 @@ def read(path: Path) -> str:
 def check_retired() -> list[str]:
     """廃止済みの文書名がコード側に残っていないこと。"""
     errors: list[str] = []
-    for path in walk(CODE_DIRS, CODE_SUFFIXES):
+    targets = walk(CODE_DIRS, CODE_SUFFIXES)
+    targets += [ROOT / name for name in CODE_ROOT_FILES if (ROOT / name).exists()]
+    for path in targets:
         name = rel(path)
         if name in RETIRED_ALLOWED:
             continue

@@ -1820,3 +1820,20 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
   および同一文書内の `#アンカー`、`REF:` の `#アンカー` が見出し（GitHub と同じスラグ）か
   `<a id="…">` に解決するか。外部 URL と `mailto:` は対象外。
 - **退行防止**: `REF:docs/script/test_reference.py` にスラグ・`<a id>` の単体テストを足した（26 件）。
+
+### [HIST:IMPL:RETIRED-SCAN-SCOPE] 2026-10-23 廃止名の検査範囲を `Cargo.toml` と PR テンプレートへ広げた
+
+[HIST-TAG: category=IMPL id=RETIRED-SCAN-SCOPE topics=docs,reference.py,ci,pull_request_template]
+
+- **見つかった漏れ**: 検査 1 は `src` / `tests` / `benches` / `examples` / `python` / `scripts` / `.github`
+  の**コード拡張子**だけを見ていた。そのため `REF:Cargo.toml` のコメント 4 箇所
+  （`PLANS.md` §9.2 B-54・B-100、§2.1・§5.0.4）と `REF:.github/pull_request_template.md`
+  （`SPECIFICATIONS.md` / `PLANS.md` を 6 箇所）が、緑のまま残っていた。PR テンプレートは
+  **これから書く人が最初に読む文書**なので、影響が大きい。
+- **直した内容**: `Cargo.toml` の `PLANS.md` §9.2 は `docs/history.md` の `B-nn` へ、層の表は
+  `REF:docs/designs/overview.md` §3.2 へ、行区切りは `REF:docs/specifications/syntax.md` §5.0.4 へ。
+  PR テンプレートは `docs/specifications/` / `docs/plans.md`（§4.2・§4.4）/ `docs/history.md` を指す形に書き換え、
+  `REF:scripts/verify.sh` の確認を 1 行足した。`REF:scripts/web-smoke.sh` の §9.2 表記も `B-156〜B-158` に直した。
+- **再発防止**: `REF:docs/script/reference.py` に `CODE_ROOT_FILES`（`Cargo.toml` /
+  `rust-toolchain.toml` / `.github/pull_request_template.md`）を足し、検査 1 の対象に含めた。
+  `REF:docs/script/test_reference.py` が 3 ファイルの実在と、ルート直下が別枠であることを固定する（28 件）。
