@@ -24,7 +24,7 @@ on:
       - main
       - master
     paths-ignore:
-      - 'screenshot.jpeg'
+      - 'screenshot.png'
       - 'LICENSE'
       - '.github/toolchain.env'
       - '.github/sandbox-tools.env'
@@ -37,7 +37,7 @@ on:
       - main
       - master
     paths-ignore:
-      - 'screenshot.jpeg'
+      - 'screenshot.png'
       - 'LICENSE'
       - '.github/toolchain.env'
       - '.github/sandbox-tools.env'
@@ -111,7 +111,7 @@ jobs:
           while IFS= read -r file; do
             [ -z "$file" ] && continue
             case "$file" in
-              docs/developers.md|docs/plans.md|docs/handoff.md|docs/history.md|docs/designs/*|docs/script/*|README.md|LICENSE|screenshot.jpeg|.github/workflows/deploy.yml|.github/workflows/sandbox-tools.yml|.github/workflows/toolchain-export.yml|.github/*.env)
+              docs/developers.md|docs/plans.md|docs/handoff.md|docs/history.md|docs/designs/*|docs/script/*|README.md|LICENSE|screenshot.png|.github/workflows/deploy.yml|.github/workflows/sandbox-tools.yml|.github/workflows/toolchain-export.yml|.github/*.env)
                 ;;
               *)
                 rust_changed=true

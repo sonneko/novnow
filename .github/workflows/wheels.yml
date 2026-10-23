@@ -1,4 +1,9 @@
-# Python ホイール（§19.3.1 の 5 構成）。abi3-py39 なので 1 構成 1 ホイールで 3.9+ を賄う。
+# Python ホイール（§19.3.1 の構成）。abi3-py39 なので 1 構成 1 ホイールで 3.9+ を賄う。
+#
+# ビルドは 4 構成（ubuntu x64 / ubuntu arm64 / macos arm64 / windows x64）。macos-13 の
+# x86_64-apple-darwin はランナーの待ち行列が数十分単位で、得られる確認以上のコストになるため**廃止**した
+# （2026-10-23 のユーザー裁定）。Intel Mac 向けのホイールが要るときは `macos-latest` で
+# `--target x86_64-apple-darwin` を指定する構成を足す（ランナーは arm64 のまま）。
 #
 # - push / pull_request: ビルドだけ（公開しない）。
 # - タグ `v*`: TestPyPI へリハーサル公開。
@@ -25,8 +30,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# draft の PR では走らせない（`ci.yml` と同じ条件。Actions の使用量を抑える）。
 jobs:
   build:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     strategy:
       fail-fast: false
       matrix:
@@ -35,8 +42,6 @@ jobs:
             target: x86_64-unknown-linux-gnu
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-          - os: macos-13
-            target: x86_64-apple-darwin
           - os: macos-latest
             target: aarch64-apple-darwin
           - os: windows-latest
@@ -79,6 +84,7 @@ jobs:
 
   test:
     needs: build
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     strategy:
       fail-fast: false
       matrix:
