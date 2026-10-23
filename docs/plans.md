@@ -10,7 +10,7 @@
 | 区分 | 状態 | 対象範囲 | 参照 |
 |---|---|---|---|
 | 段階 ①（M0〜M11） | 完了 | コア仕様・全 9 ワークスペース・MCP・CLI・Web 版・ベンチマーク・サンプル一式 | `REF:docs/history.md` |
-| 設計書セクション実装状況 | 実装完了 134 節 / 実装中 1 節 / 未実装・実装計画済み 0 節 / 未実装・未計画 0 節 / 実装待ち 1 節 | 全 11 設計書の `### ` 節（合計 136 節） | `REF:docs/designs/` |
+| 設計書セクション実装状況 | 実装完了 135 節 / 実装中 1 節 / 未実装・実装計画済み 0 節 / 未実装・未計画 0 節 / 実装待ち 0 節 | 全 11 設計書の `### ` 節（合計 136 節） | `REF:docs/designs/` |
 | 仕様変更・修正（F-01〜F-44） | 実装完了（44 件） | UI・エディタ・パレット・辞書・ショートカット・性能等の修正 44 項目 | `REF:docs/plans.md#planned-fixes` |
 | 機能追加（小規模：S-01〜S-18） | 実装完了（18 件） | エージェント例指定・PWA・Zip 導入・形態素波線等の小規模機能追加 18 項目 | `REF:docs/plans.md#planned-small-features` |
 | 機能追加（比較的大規模：L-01） | 実装済み（CLI・デスクトップ） | 既存の本文テキストから `novnow` に移行するための手段の提供 | `REF:docs/plans.md#unplanned-large` |
@@ -901,7 +901,7 @@ Python 一式は `python/novnow-py/tests/`（当初の計画に書いた `python
 ---
 
 <a id="users-and-guide-mode"></a>
-## 6. ユーザー向けガイドとガイドモードの実装計画（状態: 計画中）
+## 6. ユーザー向けガイドとガイドモードの実装計画（状態: 一部実施。Phase 1・2・4 は実施済み、Phase 0・3・5 は未実施）
 
 非エンジニアが「開いて、書いて、書き出せる」までを、**文書・サイト・アプリの 3 か所で同じ内容**にする計画。
 仕様は `REF:docs/specifications/ui.md` §9.10（ガイドモード）、`REF:docs/specifications/workflows.md` §18.5
@@ -927,16 +927,21 @@ Python 一式は `python/novnow-py/tests/`（当初の計画に書いた `python
 | 0-3 | CLI の不足ファイル案内（`REF:src/cli/mod.rs`・`REF:src/cli/open.rs`）の文面を平易にする | 案内文が「何をすればよいか」を 1 文で言う |
 
 <a id="plan-guide-mode"></a>
-#### Phase 1: ガイドモード（3 日）
+#### Phase 1: ガイドモード（3 日）— **実施済み**
+
+`REF:src/ui/guide.rs`（9 段階の定義と状態機械）・`REF:src/ui/widgets/guide.rs`（枠・矢印・吹き出し）・
+`REF:src/ui/app.rs`（自動で出る判定・状態の観測・キー）・`REF:src/app/settings.rs`（`guide_done`）に実装した。
+キーは `Alt+Enter`／`Alt+Backspace`／`Esc` で、**本文の `Enter` と `Backspace` は奪わない**。
+
 
 | # | すること | 置き場所（予定） |
 |---|---|---|
-| 1-1 | 段階の定義を 1 か所に持つ（文言 ja/en・進む条件・対象の部品 ID） | `src/ui/guide.rs`（新設）＋ `src/ui/i18n/{ja,en}.toml` の `guide.*` |
-| 1-2 | 出る条件の判定（Web=保存 0 / デスクトップ=履歴 0）と、閉じたことの保存 | `src/ui/web.rs`（`WebPicker`）・`src/ui/app.rs`（`NativePicker`）・`.novnow/ui.json`（`guide_done`） |
-| 1-3 | 吹き出しと矢印の描画（対象の矩形から位置決め、画面端で逃げる、入力を奪わない） | `src/ui/widgets/guide.rs`（新設） |
-| 1-4 | 進む条件の監視（節が増えた・`'` が出た・プロットが空でない・読者モードを開いた・エクスポート完了・Zip 完了） | `src/ui/app.rs`（既存の状態変化点にフック） |
-| 1-5 | ヘルプ（`?`）に「はじめての手引きをもう一度」を足す | `src/ui/app.rs` のショートカット一覧 |
-| 1-6 | テスト（条件判定・段階送り・飛ばし・キーボードのみ・ja/en の網羅） | `tests/gui.rs`・`tests/workspaces.rs`・`tests/i18n_catalog.rs` |
+| 1-1 | 段階の定義を 1 か所に持つ（文言 ja/en・進む条件・対象の部品 ID） | 済: `REF:src/ui/guide.rs`（新設）＋ `REF:src/ui/i18n/{ja,en}.toml` の `guide.*` |
+| 1-2 | 出る条件の判定（Web=保存 0 / デスクトップ=履歴 0）と、閉じたことの保存 | 済: `Picker::first_visit`（`REF:src/ui/web.rs`・`REF:src/ui/app.rs`）と `.novnow/ui.json` の `guide_done` |
+| 1-3 | 吹き出しと矢印の描画（対象の矩形から位置決め、画面端で逃げる、入力を奪わない） | 済: `REF:src/ui/widgets/guide.rs`（新設） |
+| 1-4 | 進む条件の監視（節が増えた・`'` が出た・プロットが空でない・読者モードを開いた・エクスポート完了・Zip 完了） | 済: `Session::guide_signals` と `Guide::observe`（`REF:src/ui/app.rs`） |
+| 1-5 | ヘルプ（`?`）に「はじめての手引きをもう一度」を足す | 済: `REF:src/ui/app.rs` のヘルプの一覧の下 |
+| 1-6 | テスト（条件判定・段階送り・飛ばし・キーボードのみ・ja/en の網羅） | 済: `REF:tests/guide.rs` と `REF:src/ui/guide.rs` の単体テスト。ja/en の網羅は `REF:tests/i18n_catalog.rs` |
 
 <a id="plan-docs-site"></a>
 #### Phase 2: サイトの自動ビルド（2 日）— **実施済み**
@@ -982,8 +987,9 @@ Python 一式は `python/novnow-py/tests/`（当初の計画に書いた `python
 ### 6.2 受け入れ基準
 
 - [ ] はじめての人がブラウザだけで、手引きの 1〜9 を**詰まらずに**終えられる（5 人で試す）
-- [ ] ガイドモードが、Web は保存 0 件のときだけ・デスクトップは履歴 0 件のときだけ自動で出る
-- [ ] ガイド中も本文が書ける（入力を奪わない）／`Esc` と「あとで」で閉じられる／閉じたら次回は出ない
+- [x] ガイドモードが、Web は保存 0 件のときだけ・デスクトップは履歴 0 件のときだけ自動で出る
+- [x] ガイド中も本文が書ける（入力を奪わない）／`Esc` と「あとで」で閉じられる／閉じたら次回は出ない
+      （プロジェクトを 1 件も作らずに閉じた場合だけ、保存先が無いので次回も出る。仕様 §9.10 の例外）
 - [ ] ガイドの 9 段階と、サイトと `REF:docs/users/start.md` の段階が一致する（検査 11）
 - [ ] `REF:docs/users/` の `REF:` が `REF:docs/specifications/` だけを指す（検査 11）
 - [ ] 3 つの解説ページ URL が公開物に実在する（検査 11）

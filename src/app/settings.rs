@@ -119,6 +119,8 @@ pub struct UiSettings {
     pub reference_visible: bool,
     pub status_stats_mode: bool,
     pub suggest_comma: bool,
+    /// はじめての手引きを閉じたか（§9.10。`true` なら自動では出さない）。
+    pub guide_done: bool,
     pub folded: Vec<String>,
     /// 読んだ JSON（知らないキーを残すため）。
     raw: Map<String, Value>,
@@ -141,6 +143,7 @@ impl Default for UiSettings {
             reference_visible: true,
             status_stats_mode: false,
             suggest_comma: false,
+            guide_done: false,
             folded: Vec::new(),
             raw: Map::new(),
         }
@@ -198,6 +201,10 @@ impl UiSettings {
             .get("suggest_comma")
             .and_then(Value::as_bool)
             .unwrap_or(false);
+        out.guide_done = raw
+            .get("guide_done")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
         out.folded = raw
             .get("folded")
             .and_then(|v| v.get("context"))
@@ -218,6 +225,7 @@ impl UiSettings {
         raw.insert("schema_version".into(), json!(1));
         raw.insert("status_stats_mode".into(), json!(self.status_stats_mode));
         raw.insert("suggest_comma".into(), json!(self.suggest_comma));
+        raw.insert("guide_done".into(), json!(self.guide_done));
         let mut folded = raw
             .get("folded")
             .and_then(Value::as_object)

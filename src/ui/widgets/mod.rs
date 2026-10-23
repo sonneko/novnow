@@ -6,6 +6,7 @@
 //! - `interact` の矩形は**最低 24×24px**（見た目の寸法は変えない。F-32）。
 
 pub mod context_view;
+pub mod guide;
 pub mod inlay;
 pub mod portrait;
 pub mod reference_pane;

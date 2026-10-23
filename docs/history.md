@@ -1943,3 +1943,24 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - **結果**: `npm run build` は 202 ページ（既存 162＋ガイド 8＋仕様書 11＋英語の案内 21）。
   生成 HTML のサイト内リンクはすべて実在。
 - **未実施（意図的）**: アプリ内の `guide/*.html` の生成と検査 11、ガイドモードの実装、英語本文の翻訳。
+
+### [HIST:MILESTONE:GUIDE-MODE] 2026-10-23 ガイドモード（はじめての手引き）を実装
+
+[HIST-TAG: category=MILESTONE id=GUIDE-MODE topics=ui,guide-mode,onboarding,i18n,tests]
+
+- **実装**: `REF:docs/specifications/ui.md` §9.10 の 9 段階を `REF:src/ui/guide.rs` に置き、
+  `REF:src/ui/widgets/guide.rs` が対象を枠と矢印で指して吹き出しを出す。膜は描かない（入力を奪わない）。
+- **出る条件**: `Picker::first_visit()`（Web=保存 0 件、デスクトップ=履歴 0 件）かつ
+  `.novnow/ui.json` の `guide_done` が `false` のときだけ。閉じたら `guide_done` を立てる。
+  ヘルプ（`?`）の「はじめての手引きをもう一度」からいつでも出し直せる。
+- **キー**: `Alt+Enter`（次へ）・`Alt+Backspace`（戻る）・`Esc`（閉じる）。**`Enter` と `Backspace` は
+  横取りしない**。当初の設計案（`Enter`／`Backspace`／`Esc` を横取りする）は、本文の改行と削除が
+  できなくなり仕様 §9.10「入力を奪わない」に反するため採らなかった（設計書も同じ理由で直した）。
+- **段階の進み方**: 条件を満たした段階は飛ばす（`Guide::observe`）。ボタンだけで進むのは 2 と 9 だけ。
+  エクスポートと Zip の完了は成功した時点で覚える。
+- **制約**: プロジェクトを 1 件も作らずに閉じた場合は保存先（`ui.json`）がまだ無いので、次の起動でも
+  もう一度出る。自動で出るのは 0 件のときだけなので、1 件作れば以後は出ない（仕様 §9.10 に例外として明記）。
+- **検証**: `REF:tests/guide.rs` 6 件と `REF:src/ui/guide.rs` の単体テスト 6 件。`REF:tests/layering.rs` の
+  「LocalStorage を使わない」「書き込みは関門だけ」を守るため、閉じたことは端末ではなく `ui.json` に置いた。
+- **未実施**: アプリ内の解説ページ（`guide/*.html`）の生成と、`REF:docs/script/reference.py` の検査 11
+  （仕様 §14.2.1 の URL 実在）。`REF:docs/plans.md` §6 Phase 0・3・5 は未実施のまま。

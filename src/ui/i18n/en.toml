@@ -354,6 +354,7 @@ copied = "Copied to the clipboard ({0} characters)"
 failed = "Could not export: {0}"
 
 [help]
+guide = "Move the Getting Started tour (while it is open)"
 save_mcp = "Save"
 edit_mcp = "Edit MCP server configuration"
 mcp_transport = "Unsupported transport {0} in server {1} (only stdio is available)"
@@ -1029,3 +1030,51 @@ set = "Change a setting"
 tree = "Structure tree"
 resolve = "Resolve a position or structure ID"
 breadcrumb = "Breadcrumb of the current position"
+
+[guide]
+title = "Getting started"
+progress = "{0} / {1}"
+waiting = "Do the step and this moves on"
+next = "Next"
+back = "Back"
+later = "Close for now"
+reopen = "Show Getting Started again"
+done = "That is the whole tour. You can read your draft back any time."
+reader_hint = "Read it in Reader mode"
+
+[guide.step1]
+text = "Create a project. You can rename it later."
+hint = "Press New"
+
+[guide.step2]
+text = "The screen has three areas. Look at them left to right."
+hint = "Ctrl+1 / 2 / 3 to move"
+
+[guide.step3]
+text = "Write the first section. One line is enough to start."
+hint = "Type in the editor (Enter for a new line)"
+
+[guide.step4]
+text = "Start a line with ; to create the next section."
+hint = "Type ;"
+
+[guide.step5]
+text = "Register a character and call it with ' to catch name drift."
+hint = "' then the name"
+
+[guide.step6]
+text = "In the episode plot, write what happens in this episode."
+hint = "Alt+2 for the plot"
+
+[guide.step7]
+text = "Switch to Reader mode when you want to read it back."
+hint = "Alt+7"
+
+[guide.step8]
+text = "Export the draft into a single file."
+hint = "Ctrl+P then export"
+
+[guide.step9]
+text = "Keep a Zip as a backup so moving machines is safe."
+hint = "Ctrl+P then export zip"
+

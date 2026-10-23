@@ -15,6 +15,7 @@ use egui::{
 
 use crate::core::export::{self as export_text, State as ExportState};
 use crate::core::features::Project;
+use crate::ui::guide::{self, Guide, Signals};
 use crate::ui::i18n::{self, Locale};
 use crate::ui::palette;
 use crate::ui::save_machine::{Indicator, State};
@@ -231,6 +232,14 @@ pub struct Session {
     saving: Option<std::collections::BTreeMap<String, String>>,
     /// 保存領域が足りないことを知らせた（同じ失敗のあいだは何度も出さない、§13.3.7）。
     quota_shown: bool,
+    /// ガイドモードの段階 8 の条件（エクスポートが完了した。§9.10）。
+    guide_exported: bool,
+    /// 段階 9 の条件（Zip の書き出しが完了した）。
+    guide_zipped: bool,
+    /// 段階 7 の条件（読者モードを一度でも開いた）。
+    guide_reader: bool,
+    /// ヘルプから「はじめての手引きをもう一度」が押された（次のフレームで出し直す）。
+    guide_restart: bool,
 }
 
 /// エクスポートの下書き（`>export` のモーダルが毎フレーム作り直さないため）。
@@ -281,6 +290,10 @@ impl Session {
             open_agent: false,
             saving: None,
             quota_shown: false,
+            guide_exported: false,
+            guide_zipped: false,
+            guide_reader: false,
+            guide_restart: false,
         }
     }
 
@@ -291,6 +304,31 @@ impl Session {
             crate::ui::agents::write_prompts(&mut self.bench, self.host.as_ref(), 0.0, locale)
         {
             self.notice = Some((message, 0.0));
+        }
+    }
+
+    /// ガイドモード（§9.10）が見る状態を集める。`workspace` は今のワークスペース。
+    /// 段階 7〜9 は「一度でも起きたこと」なので、セッションの中で覚えておく。
+    fn guide_signals(&mut self, workspace: Workspace) -> Signals {
+        if workspace == Workspace::Reader {
+            self.guide_reader = true;
+        }
+        let references = self
+            .bench
+            .spliced_document()
+            .map(|(document, _)| guide::count_references(&document.text))
+            .unwrap_or(0);
+        let episode_plot = self.bench.project().documents().any(|document| {
+            document.path.starts_with("plots/") && !document.text.trim().is_empty()
+        });
+        Signals {
+            project: true,
+            sections: self.bench.sections().len(),
+            references,
+            episode_plot,
+            reader: self.guide_reader,
+            exported: self.guide_exported,
+            zipped: self.guide_zipped,
         }
     }
 
@@ -402,6 +440,11 @@ pub trait Picker {
     fn refresh(&mut self) {}
     /// 選択画面での `Esc`（入力中の名前などをやめる。選択画面そのものは閉じない、§13.4）。
     fn escape(&mut self) {}
+    /// この端末ではじめて起動したか（保存済みプロジェクト 0 件 / 履歴 0 件。§9.10 の自動で出る条件）。
+    /// 判定できない実装は `false`（自動では出さない）。
+    fn first_visit(&self) -> bool {
+        false
+    }
 }
 
 enum Stage {
@@ -426,6 +469,10 @@ pub struct NovnowApp {
     refocus: Option<egui::Id>,
     /// 書き終えたら選択画面に戻る（Web / デスクトップの `Ctrl+O`）。
     leaving: bool,
+    /// はじめての手引き（§9.10）。
+    guide: Guide,
+    /// この起動のあいだ、もう自動では出さない（閉じた・最後まで進んだ）。
+    guide_closed: bool,
 }
 
 impl NovnowApp {
@@ -456,6 +503,8 @@ impl NovnowApp {
             mac: ctx.os() == egui::os::OperatingSystem::Mac,
             refocus: None,
             leaving: false,
+            guide: Guide::default(),
+            guide_closed: false,
         }
     }
 
@@ -494,6 +543,17 @@ impl NovnowApp {
     /// 何か重ねて出しているか（パレット・ヘルプ・モーダル）。
     pub fn overlay_open(&self) -> bool {
         self.overlay != Overlay::None
+    }
+
+    /// はじめての手引きの状態（テスト用の読み口。§9.10）。
+    pub fn guide(&self) -> &Guide {
+        &self.guide
+    }
+
+    /// はじめての手引きを段階 1 から出す（ヘルプの「もう一度」とテストが使う。§9.10）。
+    pub fn start_guide(&mut self) {
+        self.guide.start(0);
+        self.guide_closed = false;
     }
 
     /// `ui.json` の中身（今の値）。
@@ -685,6 +745,7 @@ impl NovnowApp {
                 }
             }
         }
+        self.guide_frame(ctx, mode, locale);
         self.close_guard(ctx, now);
         if arrow_pressed {
             self.refocus = ctx.memory(|memory| memory.focused());
@@ -775,6 +836,9 @@ impl NovnowApp {
                 };
             }
             Command::Escape => {
+                if self.overlay == Overlay::None && self.guide.active {
+                    self.finish_guide();
+                }
                 if self.overlay == Overlay::None && self.workspace() == Some(Workspace::Reader) {
                     ctx.data_mut(|d| d.insert_temp(Id::new("reader-exit"), true));
                 }
@@ -1083,6 +1147,85 @@ impl NovnowApp {
             }
             _ => {}
         }
+    }
+
+    // ============================================================ ガイドモード（§9.10）
+
+    /// はじめての手引きの 1 フレーム分。自動で出す判定・状態の観測・描画・操作をまとめる。
+    ///
+    /// キーは `Alt+Enter`（次へ）と `Alt+Backspace`（戻る）だけを横取りし、`Esc` は
+    /// `Command::Escape` が受ける。**`Enter` と `Backspace` そのものは横取りしない**
+    /// （横取りすると本文の改行と削除ができなくなり、仕様 §9.10「入力を奪わない」に反する）。
+    fn guide_frame(&mut self, ctx: &Context, mode: Mode, locale: Locale) {
+        // ヘルプの「はじめての手引きをもう一度」
+        if let Stage::Open(session) = &mut self.stage {
+            if session.guide_restart {
+                session.guide_restart = false;
+                self.start_guide();
+            }
+        }
+        // 自動で出す（§9.10: 保存済みプロジェクト 0 件 / 履歴 0 件、かつまだ閉じていない）
+        if !self.guide.active
+            && !self.guide_closed
+            && !self.settings.guide_done
+            && self.picker.first_visit()
+        {
+            self.guide.start(0);
+        }
+        if !self.guide.active {
+            return;
+        }
+        // 重ね物（パレット・ヘルプ・モーダル）が出ているあいだは描かない（操作は重ね物に譲る）
+        if self.overlay != Overlay::None {
+            return;
+        }
+
+        // 実際の操作で進む（先に済ませた段階は飛ばす）
+        let workspace = self.workspace().unwrap_or_default();
+        let signals = match &mut self.stage {
+            Stage::Open(session) => session.guide_signals(workspace),
+            Stage::Picker => Signals::default(),
+        };
+        if self.guide.observe(&signals) {
+            self.finish_guide();
+            return;
+        }
+
+        // キー（Alt+Enter / Alt+Backspace）
+        if ctx.input_mut(|input| input.consume_key(Modifiers::ALT, Key::Enter)) {
+            self.guide.next_step();
+        }
+        if ctx.input_mut(|input| input.consume_key(Modifiers::ALT, Key::Backspace)) {
+            self.guide.back();
+        }
+
+        let target = if self.guide.index >= 6 {
+            Some(header_rect(ctx))
+        } else if matches!(self.stage, Stage::Picker) {
+            None
+        } else {
+            Some(editor_rect(ctx))
+        };
+        let action = crate::ui::widgets::guide::draw(ctx, mode, locale, &self.guide, target);
+        match action {
+            crate::ui::widgets::guide::Action::Next => {
+                if self.guide.next_step() && !self.guide.active {
+                    self.finish_guide();
+                }
+            }
+            crate::ui::widgets::guide::Action::Back => self.guide.back(),
+            crate::ui::widgets::guide::Action::Close => self.finish_guide(),
+            crate::ui::widgets::guide::Action::None => {}
+        }
+        ctx.request_repaint();
+    }
+
+    /// ガイドを閉じ、もう自動では出さないことを覚える（`ui.json` と端末の両方）。
+    fn finish_guide(&mut self) {
+        self.guide.close(true);
+        self.guide_closed = true;
+        self.settings.guide_done = true;
+        self.settings_changed();
     }
 
     fn settings_changed(&mut self) {
@@ -1709,6 +1852,7 @@ impl NovnowApp {
         }
         let name = zip_name(session);
         if let Some(result) = session.host.export_zip(&name) {
+            session.guide_zipped = result.is_ok();
             session.notice = Some((zip_result_text(locale, result), now));
         }
     }
@@ -3593,6 +3737,12 @@ impl NovnowApp {
                                 ui.end_row();
                             }
                         });
+                    ui.add_space(8.0);
+                    if crate::ui::widgets::action_button(ui, i18n::text(locale, "guide.reopen"))
+                        .clicked()
+                    {
+                        session.guide_restart = true;
+                    }
                 });
             }
             Overlay::SaveError => {
@@ -3639,6 +3789,7 @@ impl NovnowApp {
                 if zip {
                     let name = zip_name(session);
                     if let Some(result) = session.host.export_zip(&name) {
+                        session.guide_zipped = result.is_ok();
                         session.notice = Some((zip_result_text(locale, result), now));
                     }
                 }
@@ -4553,9 +4704,13 @@ impl NovnowApp {
                 if let Some(kind) = action {
                     session.export_draft(range, *state, *flags);
                     if let Some(result) = export_now(ctx, session, kind, locale, now) {
+                        if result.is_ok() {
+                            session.guide_exported = true;
+                        }
                         match result {
                             Ok(message) => {
                                 session.notice = Some((message, now));
+                                session.guide_exported = true;
                                 close = true;
                             }
                             Err(message) => self.overlay = Overlay::Message(message),
@@ -5983,6 +6138,24 @@ fn export_now(
     }
 }
 
+/// ヘッダ（ワークスペースの切替）の矩形。ガイドの段階 7〜9 が指す。
+fn header_rect(ctx: &Context) -> Rect {
+    let screen = ctx.screen_rect();
+    Rect::from_min_max(
+        egui::pos2(screen.left() + 90.0, screen.top() + 2.0),
+        egui::pos2(screen.right() - 8.0, screen.top() + 26.0),
+    )
+}
+
+/// 本文の領域の矩形。ガイドの段階 1〜6 が指す。
+fn editor_rect(ctx: &Context) -> Rect {
+    let screen = ctx.screen_rect();
+    Rect::from_min_max(
+        egui::pos2(screen.left() + 8.0, screen.top() + 34.0),
+        egui::pos2(screen.right() - 8.0, screen.bottom() - 30.0),
+    )
+}
+
 /// パレットの候補 1 つ。
 struct PaletteItem {
     key: String,
@@ -6469,6 +6642,7 @@ fn palette_items(
 
 /// キーボードヘルプ（§9.8 のうち M7・M8 で動くもの）。左はキー、右はカタログのキー。
 const HELP_KEYS: &[(&str, &str)] = &[
+    ("Alt+Enter / Alt+Backspace", "help.guide"),
     ("Ctrl+P", "help.palette"),
     ("Ctrl+G", "help.jump"),
     ("Ctrl+S", "help.save"),
@@ -7011,6 +7185,10 @@ mod native {
     }
 
     impl Picker for NativePicker {
+        fn first_visit(&self) -> bool {
+            self.recent.is_empty()
+        }
+
         fn open_folder(&mut self) {
             self.want_folder = true;
         }

@@ -118,34 +118,39 @@
 
 ### 9.10 ガイドモード（はじめての手引き）
 
-状態: 実装待ち（REF:docs/plans.md#plan-guide-mode, REF:src/ui/app.rs, REF:src/ui/web.rs）
+状態: 実装完了（REF:src/ui/guide.rs, REF:src/ui/widgets/guide.rs, REF:src/ui/app.rs, REF:src/ui/web.rs, REF:src/app/settings.rs, REF:tests/guide.rs）
 
-- **段階の定義は 1 か所**: 新設する `src/ui/guide.rs` に `STEPS: &[GuideStep]` を置く。各段階は
-  `{ id, text: &'static str（i18n キー）, hint: Key, advance: Advance }` を持ち、`advance` は
-  「ボタンだけで進む」「節が N 個以上」「参照が 1 個以上」「プロットが空でない」「読者を開いた」
-  「エクスポート完了」「Zip 完了」の 7 種で表す。文言は `REF:src/ui/i18n/ja.toml`・`REF:src/ui/i18n/en.toml`
-  の `guide.*` に置き、`REF:tests/i18n_catalog.rs` が両言語の網羅を検査する。
-- **出る条件**: `REF:src/ui/web.rs` の `WebPicker` が保存プロジェクト 0 件を返すとき、`REF:src/ui/app.rs` の
-  `NativePicker` が履歴 0 件を返すときに、起動状態（`Stage::Picker`）のまま `guide.active = true` にする。
-  判定は `Picker` トレイトの既存の一覧取得をそのまま使い、新しい I/O を足さない（規則 10）。
-- **閉じたことの保存**: `UiSettings`（`REF:src/app/settings.rs`）に `guide_done: bool` を足し、
-  `.novnow/ui.json` に保存する。`true` なら自動では出さない。ヘルプの `?` 一覧の
-  「はじめての手引きをもう一度」からは、いつでも `guide.active = true` にできる。
-- **描画**: 新設する `src/ui/widgets/guide.rs` が、対象の `egui::Id` から `Response.rect` を取り、
-  対象を囲む枠と矢印、40 文字以内の吹き出しを描く。画面を暗くする膜は描かない（入力を奪わない）。
-  吹き出しは対象の下 → 右 → 上 → 左の順に空きを探して置く。画面幅 900px 未満（§9.1 の折り畳み）では
-  対象の上に置き、矢印だけを短くする。
-- **進む条件の監視**: `REF:src/ui/app.rs` の既存の状態変化点（節の確定・参照の解析結果・
-  話プロットの文字数・ワークスペース切替・エクスポート/Zip の完了）で `GuideStep::advance` を評価する。
-  条件を満たした段階が現在より後ろなら、そこまでを飛ばして次に進む（仕様 §9.10「先に操作を済ませた段階は飛ばす」）。
-- **キー**: `Enter` で次へ、`Backspace` で戻る、`Esc` で閉じる。ガイド中はこれら 3 つだけを横取りし、
-  他のキーは通常どおりエディタへ渡す（`REF:src/ui/shell.rs` の割り当てに `guide` の状態を 1 つ足す）。
-- **検証**: `REF:tests/gui.rs` で吹き出しの描画・対象との位置関係・入力を奪わないこと、`REF:tests/workspaces.rs`
-  で条件判定と飛ばし、`REF:tests/i18n_catalog.rs` で ja/en の網羅を確認する。
+- **段階の定義は 1 か所**: `REF:src/ui/guide.rs` の `STEPS`（9 件）。各段階は `{ number, text, hint, advance }` を持ち、
+  `text`／`hint` は `REF:src/ui/i18n/ja.toml`・`REF:src/ui/i18n/en.toml` の `guide.stepN.*` を指す。
+  `advance`（`Advance`）は「作品が開いた」「ボタン」「節が N 個以上」「`'` の参照が 1 個以上」
+  「話プロットが空でない」「読者モードを開いた」「エクスポート完了」「Zip 完了」の 8 種。
+- **出る条件**: `REF:src/ui/app.rs` の `guide_frame` が、`Picker::first_visit()`（Web は保存 0 件、
+  デスクトップは履歴 0 件）かつ `UiSettings::guide_done` が `false` のときだけ `Guide::start(0)` する。
+  判定は既存の一覧取得をそのまま使い、新しい I/O を足さない（規則 10）。
+- **閉じたことの保存**: `REF:src/app/settings.rs` の `UiSettings::guide_done` を `.novnow/ui.json` に書く。
+  プロジェクトを 1 件も作らずに閉じたときは保存先が無いので、次の起動でもう一度出る
+  （自動で出るのは 0 件のときだけなので、1 件作れば以後は出ない。仕様 §9.10 の例外）。
+  ヘルプ（`?`）の「はじめての手引きをもう一度」は `Session::guide_restart` を立て、`NovnowApp::start_guide` が受ける。
+- **描画**: `REF:src/ui/widgets/guide.rs` の `draw` が、対象の矩形を囲む枠と、対象から吹き出しへの短い線を描く。
+  膜（画面を暗くする層）は描かない。吹き出しは対象の下に空きがあれば下、無ければ上（幅 900px 未満は上）。
+  中身は「見出し・`n / 9`・1 文・操作・待ちの説明・ボタン」。
+- **進む条件の監視**: `REF:src/ui/app.rs` の `Session::guide_signals` が毎フレーム状態を集め、
+  `Guide::observe` が条件を満たした段階を飛ばす（仕様 §9.10「先に操作を済ませた段階は飛ばす」）。
+  エクスポートと Zip の完了は、成功した時点で `Session::guide_exported` / `guide_zipped` に立てる。
+  節の数は `Workbench::sections()`、参照は本文の `'` の走査（`guide::count_references`）、
+  話プロットは `plots/` の文書が空でないことで見る。
+- **キー**: `Alt+Enter`（次へ）・`Alt+Backspace`（戻る）・`Esc`（閉じる）。`Enter` と `Backspace` は
+  横取りしない（本文の改行・削除を奪うと仕様 §9.10「入力を奪わない」に反するため）。ボタンは
+  `REF:src/ui/widgets/mod.rs` の `action_button` なので、フォーカスを当てればキーボードでも押せる。
+- **重ね物との関係**: パレット・ヘルプ・モーダルが出ているあいだは吹き出しを描かない（操作を譲る）。
+- **検証**: `REF:tests/guide.rs`（描画・Esc で閉じる・`Enter` を奪わない・条件で自動前進・重ね物の下では出さない）
+  と `REF:src/ui/guide.rs` の単体テスト（順序・飛ばし・自動で出る条件・参照の数え方）。
 
 ---
 
 ## 10. ワークスペース
+
+ワークスペース = 用途別に最適化された画面構成。`Alt+1..9` で切替。切替時も **現在の SceneId は維持** する（MUST）。
 
 ### 10.0 切替の挙動
 

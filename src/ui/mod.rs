@@ -15,6 +15,8 @@ pub use crate::app::{agents, assist, palette, save_machine, settings, workbench}
 #[cfg(feature = "ui")]
 pub mod app;
 #[cfg(feature = "ui")]
+pub mod guide;
+#[cfg(feature = "ui")]
 pub mod shell;
 #[cfg(feature = "ui")]
 pub mod theme;

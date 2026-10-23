@@ -1034,6 +1034,10 @@ fn date_text(rfc3339: &str) -> String {
 }
 
 impl Picker for WebPicker {
+    fn first_visit(&self) -> bool {
+        self.shared.borrow().first_visit
+    }
+
     fn show(&mut self, ctx: &Context, locale: Locale, mode: Mode) -> Option<(Session, UiSettings)> {
         self.locale = locale;
         if !self.started {
