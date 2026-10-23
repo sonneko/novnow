@@ -110,6 +110,15 @@ fn wheel_matrix_has_five_abi3_wheels_and_expected_platform_tags() {
     assert_eq!(actual, expected);
     for row in rows {
         let artifact = row["artifact"].as_str().expect("artifact");
+        let target = row["target"].as_str().expect("target");
+        assert_eq!(
+            row["python_arch"].as_str(),
+            Some(if target.starts_with("aarch64-") {
+                "arm64"
+            } else {
+                "x64"
+            })
+        );
         assert!(artifact.contains("-cp39-abi3-"), "{artifact}");
         assert!(artifact.starts_with(&format!("novnow-{}-", env!("CARGO_PKG_VERSION"))));
     }
@@ -122,6 +131,16 @@ fn derived_versions_and_windows_subsystem_stay_in_sync() {
     assert!(main
         .contains("#![cfg_attr(all(windows, feature = \"ui\"), windows_subsystem = \"windows\")]"));
     assert!(!main.contains("all(windows, not(debug_assertions))"));
+
+    let package: Value =
+        serde_json::from_str(include_str!("../vscode/package.json")).expect("package");
+    assert_eq!(package["version"], env!("CARGO_PKG_VERSION"));
+    assert!(
+        package["contributes"]["configuration"]["properties"]
+            .get("novnow.downloadVersion")
+            .is_none(),
+        "an extension must download its own matching novnow version"
+    );
 }
 
 #[test]
@@ -212,6 +231,7 @@ fn all_archives_are_self_contained_and_release_checksums_cover_every_artifact() 
     run(&["--verify-release", release.to_str().expect("utf8 path")]);
 }
 
+#[cfg(unix)]
 #[test]
 fn composite_action_resolves_runner_targets_and_action_version() {
     let temp = TempDir::new("action-resolve");
@@ -244,6 +264,7 @@ fn composite_action_resolves_runner_targets_and_action_version() {
     }
 }
 
+#[cfg(unix)]
 #[test]
 fn composite_action_preserves_check_and_export_results() {
     let temp = TempDir::new("action-run");
@@ -304,6 +325,134 @@ fn composite_action_preserves_check_and_export_results() {
     assert!(values.contains("exit-code=0\n"));
     assert!(values.contains("findings=\n"));
     assert!(values.contains(&format!("export-path={}\n", exported.display())));
+}
+
+#[cfg(unix)]
+#[test]
+fn release_tag_publication_is_immutable_and_prereleases_do_not_move_v1() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let temp = TempDir::new("release-tags");
+    let fake_gh = temp.write(
+        "bin/gh",
+        r#"#!/usr/bin/env python3
+import os
+from pathlib import Path
+import sys
+
+args = sys.argv[1:]
+endpoint = args[1]
+state = Path(os.environ["FAKE_GH_STATE"])
+state.mkdir(parents=True, exist_ok=True)
+
+def value(prefix):
+    for arg in args:
+        if arg.startswith(prefix):
+            return arg.split("=", 1)[1]
+    raise SystemExit("missing " + prefix)
+
+if "/git/ref/tags/" in endpoint:
+    raise SystemExit(0 if (state / endpoint.rsplit("/", 1)[1]).is_file() else 1)
+if "/commits/" in endpoint:
+    path = state / endpoint.rsplit("/", 1)[1]
+    if not path.is_file():
+        raise SystemExit(1)
+    print(path.read_text())
+    raise SystemExit(0)
+if endpoint.endswith("/git/refs") and "--method" in args:
+    ref = value("ref=")
+    assert ref.startswith("refs/tags/")
+    (state / ref.removeprefix("refs/tags/")).write_text(value("sha="))
+    raise SystemExit(0)
+if "/git/refs/tags/" in endpoint and "--method" in args:
+    (state / endpoint.rsplit("/", 1)[1]).write_text(value("sha="))
+    raise SystemExit(0)
+raise SystemExit("unexpected gh invocation: " + repr(args))
+"#,
+    );
+    let mut permissions = std::fs::metadata(&fake_gh)
+        .expect("fake gh metadata")
+        .permissions();
+    permissions.set_mode(0o755);
+    std::fs::set_permissions(&fake_gh, permissions).expect("executable fake gh");
+    let state = temp.mkdir("state");
+    let path = format!(
+        "{}:{}",
+        fake_gh.parent().expect("bin").display(),
+        std::env::var("PATH").expect("PATH")
+    );
+    let invoke = |mode: &str, version: &str, sha: &str| {
+        Command::new("bash")
+            .arg(root().join("scripts/release-tags.sh"))
+            .arg(mode)
+            .arg("--version")
+            .arg(version)
+            .arg("--sha")
+            .arg(sha)
+            .env("PATH", &path)
+            .env("FAKE_GH_STATE", &state)
+            .output()
+            .expect("run release tags")
+    };
+    let version = env!("CARGO_PKG_VERSION");
+    let original = "a".repeat(40);
+    let other = "b".repeat(40);
+    let published = invoke("--publish", version, &original);
+    assert!(
+        published.status.success(),
+        "{}",
+        String::from_utf8_lossy(&published.stderr)
+    );
+    assert_eq!(
+        std::fs::read_to_string(state.join("v1")).expect("v1"),
+        original
+    );
+    let checked = invoke("--check", version, &original);
+    assert!(
+        checked.status.success(),
+        "{}",
+        String::from_utf8_lossy(&checked.stderr)
+    );
+
+    let moved = invoke("--publish", version, &other);
+    assert!(!moved.status.success());
+    assert!(String::from_utf8_lossy(&moved.stderr).contains("immutable tag"));
+
+    let prerelease = format!("{version}-rc.1");
+    let candidate = invoke("--publish", &prerelease, &other);
+    assert!(
+        candidate.status.success(),
+        "{}",
+        String::from_utf8_lossy(&candidate.stderr)
+    );
+    assert_eq!(
+        std::fs::read_to_string(state.join("v1")).expect("stable v1"),
+        original
+    );
+    assert_eq!(
+        std::fs::read_to_string(state.join(format!("v{prerelease}"))).expect("candidate tag"),
+        other
+    );
+}
+
+#[test]
+fn release_gates_and_cached_action_binaries_stay_safe() {
+    let release = include_str!("../.github/workflows/release.yml");
+    assert!(!release.contains("pull_request:"));
+    assert!(release.contains("published artifacts are immutable"));
+    assert!(release.contains("needs.publish-testpypi.result == 'success'"));
+    assert!(release.contains("Install and import this target's wheel"));
+
+    let action = include_str!("../scripts/action/install.sh");
+    let manifest_refresh = action.find("rm -f \"$sums\"").expect("refresh checksums");
+    let archive_fetch = action
+        .find("fetch \"$RELEASE_ROOT/v$version/$artifact\"")
+        .expect("fetch archive");
+    let reextract = action
+        .find("Re-extract even on a cache hit")
+        .expect("re-extract cached executable");
+    assert!(manifest_refresh < archive_fetch && archive_fetch < reextract);
+    assert!(!action.contains("if [ ! -f \"$work/$executable\" ]"));
 }
 
 #[test]

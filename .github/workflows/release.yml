@@ -42,6 +42,9 @@ jobs:
         env:
           REF_NAME: ${{ github.ref_name }}
           EVENT_NAME: ${{ github.event_name }}
+          PUBLISH_TESTPYPI: ${{ inputs.publish_testpypi }}
+          PUBLISH_PYPI: ${{ inputs.publish_pypi }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           python3 scripts/release-matrix.py --check
@@ -53,6 +56,13 @@ jobs:
               echo "::error::tag $tag does not match Cargo.toml version $version"
               exit 1
             fi
+          elif [ "$PUBLISH_PYPI" = true ] && [ "$PUBLISH_TESTPYPI" != true ]; then
+            echo "::error::PyPI publication requires the TestPyPI gate in the same run"
+            exit 1
+          fi
+          if gh release view "$tag" --json assets --jq '.assets | length' 2>/dev/null | grep -Eq '^[1-9][0-9]*$'; then
+            echo "::error::release $tag already has artifacts; published artifacts are immutable"
+            exit 1
           fi
           {
             echo "version=$version"
@@ -203,9 +213,13 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+      - name: Prepare Rosetta for the Intel macOS Python
+        if: matrix.target == 'x86_64-apple-darwin' && runner.arch == 'ARM64'
+        run: sudo /usr/sbin/softwareupdate --install-rosetta --agree-to-license
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          architecture: ${{ matrix.python_arch }}
       - name: Build manylinux wheel
         if: contains(matrix.target, 'linux')
         uses: PyO3/maturin-action@v1
@@ -231,6 +245,12 @@ jobs:
             ls -l dist
             exit 1
           }
+      - name: Install and import this target's wheel
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --force-reinstall "dist/${{ matrix.artifact }}"
+          python -c 'import novnow,os,tomllib; expected=tomllib.load(open(os.path.join(os.environ["GITHUB_WORKSPACE"],"Cargo.toml"),"rb"))["package"]["version"]; assert novnow.__version__ == expected; assert novnow.operations(); print(novnow.__version__, len(novnow.operations()))'
       - uses: actions/upload-artifact@v4
         with:
           name: wheel-${{ matrix.target }}
@@ -291,7 +311,7 @@ jobs:
           if ! gh release view "$TAG" >/dev/null 2>&1; then
             gh release create "$TAG" --target "$GITHUB_SHA" --title "novnow $VERSION" --notes "novnow $VERSION distribution artifacts" "${prerelease[@]}"
           fi
-          gh release upload "$TAG" release/* --clobber
+          gh release upload "$TAG" release/*
 
   publish-testpypi:
     needs: stage-artifacts
@@ -313,7 +333,7 @@ jobs:
 
   publish-pypi:
     needs: publish-testpypi
-    if: always() && github.event_name == 'workflow_dispatch' && inputs.publish_pypi && needs.publish-testpypi.result != 'failure' && needs.publish-testpypi.result != 'cancelled'
+    if: always() && github.event_name == 'workflow_dispatch' && inputs.publish_pypi && needs.publish-testpypi.result == 'success'
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
@@ -410,7 +430,8 @@ jobs:
           fi
           python3 scripts/release-matrix.py --checksums release --signature-note "$note"
           bash scripts/release-check.sh --dir release
-          gh release upload "$TAG" release/* --clobber
+          gh release upload "$TAG" release/*.vsix
+          gh release upload "$TAG" release/SHA256SUMS --clobber
 
   action-tags:
     needs: [prepare, finalize]

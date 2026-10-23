@@ -47,7 +47,18 @@ jobs:
       - uses: actions/checkout@v4
       - id: matrix
         shell: bash
-        run: echo "wheels=$(python3 scripts/release-matrix.py --wheels)" >> "$GITHUB_OUTPUT"
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PUBLISH_TESTPYPI: ${{ inputs.publish_testpypi }}
+          PUBLISH_PYPI: ${{ inputs.publish_pypi }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = workflow_dispatch ] && [ "$PUBLISH_PYPI" = true ] && [ "$PUBLISH_TESTPYPI" != true ]; then
+            echo "::error::PyPI publication requires the TestPyPI gate in the same run"
+            exit 1
+          fi
+          python3 scripts/release-matrix.py --check
+          echo "wheels=$(python3 scripts/release-matrix.py --wheels)" >> "$GITHUB_OUTPUT"
 
   build:
     needs: prepare
@@ -64,9 +75,13 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+      - name: Prepare Rosetta for the Intel macOS Python
+        if: matrix.target == 'x86_64-apple-darwin' && runner.arch == 'ARM64'
+        run: sudo /usr/sbin/softwareupdate --install-rosetta --agree-to-license
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          architecture: ${{ matrix.python_arch }}
       - name: Verify the committed Cargo.lock still resolves
         working-directory: python/novnow-py
         # Windows の既定シェルは PowerShell で、`>/dev/null` が `C:\dev\null` への
@@ -99,6 +114,12 @@ jobs:
       - name: Verify generated wheel filename
         shell: bash
         run: test -f "dist/${{ matrix.artifact }}"
+      - name: Install and import this target's wheel
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --force-reinstall "dist/${{ matrix.artifact }}"
+          python -c 'import novnow,os,tomllib; expected=tomllib.load(open(os.path.join(os.environ["GITHUB_WORKSPACE"],"Cargo.toml"),"rb"))["package"]["version"]; assert novnow.__version__ == expected; assert novnow.operations(); print(novnow.__version__, len(novnow.operations()))'
       - uses: actions/upload-artifact@v4
         with:
           name: wheel-${{ matrix.target }}

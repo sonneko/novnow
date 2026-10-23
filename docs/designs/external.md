@@ -8,7 +8,7 @@
 
 ### 20.1 配布形態の一覧と共通原則
 
-状態: 未実装・実装計画済み（REF:docs/plans.md#distribution, scripts/release-matrix.py）
+状態: 実装完了（REF:scripts/release-matrix.py, REF:.github/workflows/release.yml, REF:tests/distribution.rs）
 
 - **版の一元化**: 版番号の正本は `REF:Cargo.toml` の `version` だけとする。Python（`REF:python/novnow-py/Cargo.toml`）・VSCode 拡張（計画パス `vscode/package.json`）・Actions の `action.yml` は、リリース時にこの値で書き換える。手で 4 か所を編集しない（`scripts/release-matrix.py` の `--bump` が担う）。
 - **成果物の生成**: `scripts/release-matrix.py` が 10 行のデスクトップ行列（対象環境 × gui/nogui）と 5 行のホイール行列を JSON で出す。`.github/workflows/release.yml`（新設・計画パス）はこの JSON を `strategy.matrix.include` に渡す。
@@ -19,7 +19,7 @@
 
 ### 20.2 デスクトップ版
 
-状態: 未実装・実装計画済み（REF:docs/plans.md#distribution, REF:src/...）
+状態: 実装完了（REF:src/main.rs, REF:scripts/release-matrix.py, REF:.github/workflows/release.yml, REF:tests/distribution.rs）
 
 - **feature の追加はしない**: 10 通りは「`ui` feature の有無」×「`--target`」だけで作る（2 × 5）。新しい feature も、配布物を分けるビルドスイッチも足さない。同梱物（`REF:src/ui/theme.rs` の `BUNDLED_FONT`、`REF:src/core/template/mod.rs` の `include_str!` 群）は現状どおり常に実行ファイルへ埋め込む。
 - **成果物の名前**: `scripts/release-matrix.py` の `artifact_name(version, target, gui)` が唯一の実装点。命名は仕様 §20.2.2 の 1 形だけを許し、テストで 10 通りを列挙して重複が無いことを確かめる。
@@ -33,7 +33,7 @@
 
 ### 20.3 Python ライブラリ版
 
-状態: 未実装・実装計画済み（REF:python/novnow-py/Cargo.toml, REF:.github/workflows/wheels.yml, REF:docs/plans.md#distribution）
+状態: 実装完了（REF:python/novnow-py/pyproject.toml, REF:.github/workflows/wheels.yml, REF:.github/workflows/release.yml, REF:scripts/python-check.sh, REF:tests/distribution.rs）
 
 - **5 構成への拡張**: 既存 `REF:.github/workflows/wheels.yml` の行列は 4 構成（ubuntu x64 / ubuntu arm64 / macos arm64 / windows x64）。macOS x86_64 を `macos-latest` + `--target x86_64-apple-darwin` で足して 5 構成にする。`python/novnow-py` の `pyo3` は `abi3-py39` のままなので、1 構成 1 ホイールで 3.9 以降を賄う。
 - **manylinux**: Linux は `maturin build --manylinux 2_28` を明示し、ビルドした glibc の下限をホイール名に固定する（`auditwheel` の自動判定に任せない）。
@@ -44,7 +44,7 @@
 
 ### 20.4 VSCode 拡張版
 
-状態: 未実装・実装計画済み（REF:docs/plans.md#distribution, vscode/...）
+状態: 実装完了（REF:src/lsp/mod.rs, REF:vscode/package.json, REF:vscode/src/extension.ts, REF:vscode/src/binary.ts, REF:vscode/src/commands.ts, REF:.github/workflows/vscode.yml）
 
 - **置き場所**: `vscode/`（新設・計画パス）。`package.json`（識別子 `sonneko.novnow`、`engines.vscode`、`activationEvents`、`contributes.configuration`、`contributes.commands`）、`src/extension.ts`（接続とコマンド）、`esbuild.mjs`（1 ファイルへ束ねる）。`novnow` の実行ファイルは同梱しない。
 - **依存**: `vscode-languageclient` と `vscode-languageserver-protocol` だけを足す（npm）。esbuild で `dist/extension.js` に束ね、`node_modules` を `.vsix` に入れない。
@@ -59,7 +59,7 @@
 
 ### 20.5 GitHub Actions 版
 
-状態: 未実装・実装計画済み（REF:docs/plans.md#distribution, action.yml）
+状態: 実装完了（REF:action.yml, REF:scripts/action/install.sh, REF:scripts/release-tags.sh, REF:.github/workflows/action-smoke.yml, REF:tests/distribution.rs）
 
 - **置き場所**: リポジトリ直下の `action.yml`（新設・計画パス）。`runs.using: composite`。ステップは (1) 対象環境の判定、(2) 取得（`actions/cache` を挟む）、(3) 実行、(4) 出力の書き出し、の 4 つだけにする。
 - **対象環境の判定**: `${{ runner.os }}` と `${{ runner.arch }}` から仕様 §20.2.1 の三重項を選ぶ。Windows の既定シェルは PowerShell なので、判定と取得は `shell: bash` のステップに閉じる（ランナーには Git Bash がある。`REF:.github/workflows/wheels.yml` の「`>/dev/null` が `C:\dev\null` になる」注意と同じ理由）。
@@ -73,7 +73,7 @@
 
 ### 20.6 公開・版・廃止
 
-状態: 未実装・実装計画済み（REF:docs/plans.md#distribution, scripts/release-matrix.py）
+状態: 実装完了（REF:src/main.rs, REF:scripts/release-check.sh, REF:scripts/release-tags.sh, REF:scripts/release-matrix.py, REF:.github/workflows/release.yml）
 
 - **公開の順序**: `release.yml` を 4 つのジョブに分け、`needs` で直列化する。`artifacts`（デスクトップ 10 + 照合値）→ `pypi`（environment の承認）→ `vscode`（`workflow_dispatch` で承認）→ `tags`（`v1` の付け替え）。前が失敗したら後を起動しない。
 - **未提供の表示**: サイトと `REF:README.md` の「どこで動くか」表は、`scripts/release-matrix.py --status` の出力（公開済みの形態）を読んで「未提供」を出す。文書へ手で書かない。

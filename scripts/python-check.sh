@@ -16,8 +16,9 @@
 # 孤立ブランチ `cache/pyo3-crates`（`REF:.github/workflows/sandbox-tools.yml` の
 # `pyo3-crates` ジョブが生成）から取り出す。無ければ 4・5 は警告して飛ばす。
 #
-#   bash scripts/python-check.sh            # 1〜3 だけ（約 1 秒）
-#   bash scripts/python-check.sh --full     # 4・5 も回す（約 2 分半。`PYO3_BUILD=1` でも可）
+#   bash scripts/python-check.sh                     # 1〜3 だけ（約 1 秒）
+#   bash scripts/python-check.sh --wheel dist/x.whl  # ホイールの版・abi3 タグも検査
+#   bash scripts/python-check.sh --full              # 4・5 も回す（約 2 分半。`PYO3_BUILD=1` でも可）
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

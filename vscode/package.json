@@ -74,11 +74,6 @@
           "default": true,
           "description": "Download the checksum-verified nogui executable from the official GitHub release when no executable is installed."
         },
-        "novnow.downloadVersion": {
-          "type": "string",
-          "default": "",
-          "description": "Release version to download. Empty means the extension version."
-        },
         "novnow.extraArgs": {
           "type": "array",
           "items": {

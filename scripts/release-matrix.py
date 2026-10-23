@@ -34,26 +34,31 @@ TARGETS = (
         "target": "x86_64-unknown-linux-gnu",
         "os": "ubuntu-latest",
         "wheel_tag": "manylinux_2_28_x86_64",
+        "python_arch": "x64",
     },
     {
         "target": "aarch64-unknown-linux-gnu",
         "os": "ubuntu-24.04-arm",
         "wheel_tag": "manylinux_2_28_aarch64",
+        "python_arch": "arm64",
     },
     {
         "target": "x86_64-apple-darwin",
         "os": "macos-latest",
         "wheel_tag": "macosx_11_0_x86_64",
+        "python_arch": "x64",
     },
     {
         "target": "aarch64-apple-darwin",
         "os": "macos-latest",
         "wheel_tag": "macosx_11_0_arm64",
+        "python_arch": "arm64",
     },
     {
         "target": "x86_64-pc-windows-msvc",
         "os": "windows-latest",
         "wheel_tag": "win_amd64",
+        "python_arch": "x64",
     },
 )
 TARGET_NAMES = tuple(row["target"] for row in TARGETS)

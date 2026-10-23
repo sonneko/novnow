@@ -25,6 +25,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.workflow_run.head_sha || github.sha }}
       - name: "Check the sample project through uses: ./"
         id: check
         uses: ./

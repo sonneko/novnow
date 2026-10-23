@@ -24,11 +24,8 @@ function manifest(context: vscode.ExtensionContext): ExtensionManifest {
 }
 
 function selectedVersion(context: vscode.ExtensionContext): string {
-  const configured = vscode.workspace
-    .getConfiguration("novnow")
-    .get<string>("downloadVersion", "")
-    .trim();
-  return configured || manifest(context).version;
+  // §20.4.3: an extension always uses the matching novnow release.
+  return manifest(context).version;
 }
 
 function cachedBinary(context: vscode.ExtensionContext, version: string, target: string): string {

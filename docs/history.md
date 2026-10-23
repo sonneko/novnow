@@ -2016,3 +2016,16 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - **利用者向け**: `REF:docs/users/install.md` を新設。窓の要否 1 つの質問とパソコンの種類でデスクトップ版を選ぶ表、OS 別のファイル名、展開と起動、Gatekeeper / SmartScreen の警告、削除のしかた（実行ファイルだけなので同梱物は消さなくてよい）、拡張の自動取得、`pip install novnow`、`uses:` の例を、`REF:docs/script/easy-read.py` の規則で書いた。`REF:docs/users/README.md`・`REF:docs/users/start.md`・`REF:docs/users/faq.md` から引けるようにし、`guide/install.html` を生成した。
 - **未実施（意図的）**: `release.yml`・`release-matrix.py`・VSCode 拡張・`action.yml`・`release-check.sh` は計画のみ（`REF:docs/plans.md#distribution` の Phase 1〜6）。「準備中」の実値への差し替えは Phase 6（D-20）。
 - **再発防止**: `REF:docs/script/reference.py` に検査 12（配布形態）を足した。仕様 §20.1.1 の表から選択肢の数（1・10・5・1・1）を読み、設計・計画・手順の数と一致すること、名前の形が `novnow-<版>-<対象環境>-<gui|nogui>` であること、廃止した軸（同時起動の制限・同梱物の外置き）が仕様・設計・手順・利用者向けへ戻っていないことを見る（`REF:docs/developers.md` §4.6 の表にも追記）。
+
+### [HIST:MILESTONE:DISTRIBUTION-IMPLEMENTATION] 2026-10-23 5 形態の配布実装と公開ゲートを追加
+
+[HIST-TAG: category=MILESTONE id=DISTRIBUTION-IMPLEMENTATION topics=distribution,release,desktop,python,wheels,vscode,actions,tests]
+
+- **行列と成果物**: `REF:scripts/release-matrix.py` を正本に、デスクトップ 10 通りと `cp39-abi3` ホイール 5 通りを生成する。版の同期、アーカイブ作成、macOS `.app`、SHA256SUMS、wheel / VSIX / 16 成果物の検査を同じスクリプトに置いた。`REF:tests/distribution.rs` が命名・同梱物・版・出力を検査する。
+- **デスクトップ**: `REF:src/main.rs` で Windows の subsystem を `ui` feature だけに結び付けた。`REF:.github/workflows/release.yml` はタグと手動実行だけで 10 個を作り、Windows 署名と macOS 署名・公証を秘密情報があるときだけ行う。既に成果物がある Release は最初に拒否し、公開済みバイナリを上書きしない。
+- **Python**: `REF:.github/workflows/wheels.yml` を 5 対象環境へ拡張し、release 側でも同じ行列を使う。各環境で wheel を導入して版と import を確かめ、Linux では Python 3.9 / 3.11 / 3.13 でも検査する。PyPI は同じ実行の TestPyPI 成功を前置条件にした。サンドボックスでも実 wheel のファイル名・メタデータ・`cp39-abi3` タグを検査し、現在の Python 3.11 で pytest 8 件成功・1 件 skip を確認した。manylinux の互換性は専用コンテナの CI で確かめる。
+- **VSCode**: `REF:vscode/` に言語 ID、LSP 接続、4 コマンド、設定されたパス → PATH → キャッシュ → 公式取得の探索を実装した。取得は拡張と同じ版の `nogui` に固定し、SHA-256 と安全な展開を必須にする。実行ファイルは VSIX に入れない。型検査・単体テスト 6 件・VSIX 生成が通った。
+- **GitHub Actions**: `REF:action.yml` と `REF:scripts/action/install.sh` の複合アクションを追加した。5 入力・3 出力、終了コードの伝搬、E 診断の失敗、export の出力を検査する。キャッシュでは SHA256SUMS を毎回取得し直し、検証済みアーカイブから実行ファイルも毎回展開する。`REF:scripts/release-tags.sh` は固定版タグを動かさず、安定版だけ `v1` を進める。偽の `gh` を使い、不変性とプレリリースの分岐も検査した。
+- **文書**: 設計 §20 の 6 節を実装完了へ更新し、README・手引き・サイトに実際の取得先を載せた。初回リリース前の形態は「未提供」と明示する。生成物は `REF:scripts/docs-site.py` で再生成した。
+- **検証**: `REF:scripts/verify.sh` の全 12 ステップが緑（GUI あり 1371 件・GUI なし 1185 件、clippy・fmt・wasm32 を含む）。`REF:scripts/web-smoke.sh` は全項目成功、Astro は 208 ページを生成した。
+- **未実施**: 実際のリリース公開、署名・公証、VSCode Electron、5 対象環境のリモート wheel 検査、3 OS の Action スモーク。これらはローカル成功と区別し、対応する Actions の結果で確認する。

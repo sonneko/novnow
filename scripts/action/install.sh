@@ -110,6 +110,9 @@ install_release() {
   sums="$work/SHA256SUMS"
   mkdir -p "$work"
 
+  # The manifest is the trust anchor for a cached archive. Always refresh it;
+  # otherwise a poisoned cache could replace both the archive and its checksum.
+  rm -f "$sums"
   fetch "$RELEASE_ROOT/v$version/SHA256SUMS" "$sums"
   fetch "$RELEASE_ROOT/v$version/$artifact" "$archive"
   expected="$(awk -v name="$artifact" '!/^#/ && $2 == name { print $1 }' "$sums")"
@@ -124,29 +127,29 @@ install_release() {
     return 1
   fi
 
-  if [ ! -f "$work/$executable" ]; then
-    temporary="$work/.extract.$$"
+  # Re-extract even on a cache hit. The archive was just authenticated, while
+  # a previously extracted executable is an independent, mutable cache file.
+  temporary="$work/.extract.$$"
+  rm -rf "$temporary"
+  mkdir -p "$temporary"
+  while IFS= read -r entry; do
+    [ -z "$entry" ] && continue
+    case "$entry" in
+      /*|../*|*/../*|*/..|[A-Za-z]:/*|*\\*)
+        rm -rf "$temporary"
+        echo "unsafe archive entry: $entry" >&2
+        return 1
+        ;;
+    esac
+  done < <(tar -tf "$archive")
+  tar -xf "$archive" -C "$temporary" "$executable"
+  if [ ! -f "$temporary/$executable" ]; then
     rm -rf "$temporary"
-    mkdir -p "$temporary"
-    while IFS= read -r entry; do
-      [ -z "$entry" ] && continue
-      case "$entry" in
-        /*|../*|*/../*|*/..|[A-Za-z]:/*|*\\*)
-          rm -rf "$temporary"
-          echo "unsafe archive entry: $entry" >&2
-          return 1
-          ;;
-      esac
-    done < <(tar -tf "$archive")
-    tar -xf "$archive" -C "$temporary" "$executable"
-    if [ ! -f "$temporary/$executable" ]; then
-      rm -rf "$temporary"
-      echo "$artifact did not contain $executable" >&2
-      return 1
-    fi
-    mv "$temporary/$executable" "$work/$executable"
-    rm -rf "$temporary"
+    echo "$artifact did not contain $executable" >&2
+    return 1
   fi
+  mv -f "$temporary/$executable" "$work/$executable"
+  rm -rf "$temporary"
   if [ "$target" != x86_64-pc-windows-msvc ]; then
     chmod +x "$work/$executable"
   fi
