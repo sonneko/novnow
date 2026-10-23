@@ -608,6 +608,27 @@ def check_distribution_forms() -> list[str]:
             f"{DISTRIBUTION_FORMS['デスクトップ版']} 通りになっていない"
         )
 
+    # 数を書き写している文書（README・手引き）。書き写す以上、直し忘れを機械で見る。
+    claims = (
+        (ROOT / "README.md", r"デスクトップ\s*([0-9]+)\s*通り"),
+        (ROOT / "README.en.md", r"([0-9]+) desktop builds"),
+        (ROOT / "docs/users/install.md", r"デスクトップ版は\s*([0-9]+)\s*通り"),
+    )
+    for path, pattern in claims:
+        text = read(path)
+        if not text:
+            errors.append(f"[12] {rel(path)} が無い")
+            continue
+        found_numbers = {int(number) for number in re.findall(pattern, text)}
+        if not found_numbers:
+            errors.append(f"[12] {rel(path)} にデスクトップ版の数（N 通り / N desktop builds）が無い")
+        for number in sorted(found_numbers):
+            if number != DISTRIBUTION_FORMS["デスクトップ版"]:
+                errors.append(
+                    f"[12] {rel(path)} のデスクトップ版が {number} 通り"
+                    f"（{DISTRIBUTION_FORMS['デスクトップ版']} 通りであること）"
+                )
+
     targets = [
         ROOT / "docs/specifications/external.md",
         ROOT / "docs/designs/external.md",
