@@ -169,7 +169,7 @@ export const platforms: PlatformRow[] = [
   },
   {
     name: "Desktop",
-    setup: { ja: "ビルドする（配布物は準備中）", en: "Build it (binaries in preparation)" },
+    setup: { ja: "配布物は準備中（ガイドの「入れ方」）", en: "Releases in preparation (see the install guide)" },
     bestFor: { ja: "手元のフォルダで原稿を管理したい", en: "Managing manuscripts in a local folder" },
   },
   {
@@ -189,8 +189,13 @@ export const platforms: PlatformRow[] = [
   },
   {
     name: "Python",
-    setup: { ja: "同上", en: "Same as above" },
+    setup: { ja: "`pip install novnow`（準備中）", en: "`pip install novnow` (in preparation)" },
     bestFor: { ja: "作業を自動化したい", en: "Automating your own workflow" },
+  },
+  {
+    name: "VS Code",
+    setup: { ja: "拡張機能から導入（準備中）", en: "Install from the marketplace (in preparation)" },
+    bestFor: { ja: "ふだん VS Code で書いている", en: "Writing in VS Code every day" },
   },
 ];
 
@@ -201,6 +206,7 @@ export const guideLinks = {
   glossary: "/ja/manual/glossary",
   cheatsheet: "/ja/manual/cheatsheet",
   faq: "/ja/manual/faq",
+  install: "/ja/manual/install",
 };
 
 /** 覚えておくと迷わないキー（docs/specifications/ui.md §9.9）。 */

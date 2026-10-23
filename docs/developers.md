@@ -46,7 +46,7 @@ docs/
 2. **重複許可ブロック（`SYNC` マーカー）**:
    - `REF:docs/handoff.md` と `REF:docs/plans.md` の間で共有するマイルストーン達成状況など、重複が避けられない箇所は `<!-- SYNC:START <id> -->` と `<!-- SYNC:END <id> -->` で囲み、`REF:docs/script/duplicate.py` でバイト単位の一致を検証する。
 3. **仕様書と設計書の対応表**:
-   - `docs/specifications/<name>.md` と `docs/designs/<name>.md` は以下の 11 ファイル対で構成し、`## ` および `### ` 見出しを完全一致させる。
+   - `docs/specifications/<name>.md` と `docs/designs/<name>.md` は以下の 12 ファイル対で構成し、`## ` および `### ` 見出しを完全一致させる。
      1. `overview.md`（§1 設計原則・§2 用語・§3 アーキテクチャと処理モデル）
      2. `project.md`（§4 プロジェクト構造・付録 C サンプルプロジェクト）
      3. `syntax.md`（§5 ファイル形式）
@@ -58,6 +58,7 @@ docs/
      9. `agent.md`（§15 AI エージェント・付録 A 既定プロンプト）
      10. `workflows.md`（§16 資料収集・§17 エクスポート・§18 性能・品質要件）
      11. `interfaces.md`（§19 外部インターフェース：ヘッドレス全機能 API 群）
+     12. `external.md`（§20 配布形態：ブラウザ・デスクトップ・Python・VSCode 拡張・GitHub Actions）
 
 ---
 
@@ -112,8 +113,8 @@ novnow/
 │   ├── history.md             # 過去の仕様改訂・意思決定・完了履歴（追記専用、REF:docs/history.md）
 │   ├── verify-rule10.md       # 規則 10（プロジェクト外に書かない）の確認手順
 │   ├── script/                # duplicate.py（文書規則）/ reference.py（実装との突き合わせ）/ 各 test_*.py
-│   ├── specifications/        # 純粋な仕様書（11 ファイル）
-│   └── designs/               # 対応する設計書（11 ファイル）
+│   ├── specifications/        # 純粋な仕様書（12 ファイル）
+│   └── designs/               # 対応する設計書（12 ファイル）
 ├── examples/
 │   ├── api_catalog.rs         # 正規操作カタログのゴールデン生成（REF:examples/api_catalog.rs）
 │   ├── mcp_tools.rs           # MCP ツール定義のゴールデン生成（REF:examples/mcp_tools.rs）
@@ -241,7 +242,7 @@ CI_LOG=/tmp/ci.log CI_JOB="Local test run" CI_KIND=test CI_STATUS=success \
 ### 4.6 `python3 docs/script/reference.py`（文書と実装の突き合わせ）
 
 `REF:docs/script/duplicate.py` が見るのは**文書の規約**（構成・重複・`REF:` の実在・見出し一致・`SYNC` の一致）である。
-規約を守っていても「中身が実装とずれている」ことはあり得るので、`REF:docs/script/reference.py` が次の 10 項目を機械検査する。
+規約を守っていても「中身が実装とずれている」ことはあり得るので、`REF:docs/script/reference.py` が次の 12 項目を機械検査する。
 
 | # | 検査 | 何を捕まえるか | 実例（この検査で実際に見つかったもの） |
 |---|---|---|---|
@@ -255,6 +256,8 @@ CI_LOG=/tmp/ci.log CI_JOB="Local test run" CI_KIND=test CI_STATUS=success \
 | 8 | `include_str!` | テスト・本体が埋め込むパスが存在しない | 仕様書の改名に追随していないテスト |
 | 9 | リンクとアンカー | ルート文書の相対リンク・画像、`REF:…` の `#アンカー` が飛べない | 見出しを書き換えた後の `REF:` のアンカー |
 | 10 | Actions の節約 | `concurrency` の無いワークフロー、draft で走る PR ジョブ、廃止ランナー（`macos-13`）、変更フィルタの消失、`[ci skip]` フックの欠落 | `REF:.github/workflows/wheels.yml` に `concurrency` が無かった（4 OS の行列が二重に走る） |
+| 11 | 公開する手引き | 仕様 §14.2.1 の 3 URL の実体、`docs/users` の参照方向、ガイドモードの段階と手引きの一致 | 生成前の `guide/publish.html` の 404（アプリのヘルプから開けなかった） |
+| 12 | 配布形態 | 仕様 §20 の選択肢の数（1・10・5・1・1）、名前の形、廃止した軸（同時起動の制限・同梱物の外置き）が仕様・設計・手順・利用者向けへ戻る。数を書き写した README・`docs/users/install.md` の値も見る | デスクトップ版を 20 通りと書いたまま残った表（軸を廃止した直後） |
 
 ```bash
 python3 docs/script/reference.py          # 検査（違反があれば終了コード 1）
@@ -266,6 +269,10 @@ python3 docs/script/reference.py --list   # 検査項目の一覧
 
 **リンク（9）を足した理由**: 節の改名は `duplicate.py` の `REF:` パス検査を通ってしまう（ファイルは在る）。
 飛び先だけが消える壊れ方は、読むまで気づけない。
+
+**配布形態（12）を足した理由**: 配布の選択肢は 2026-10-23 に 3 度作り直した（同時起動の制限 → 同梱物の外置き → どちらも廃止して 10 通り）。
+数と軸は仕様書の 1 つの表にあるが、README・手引き・サイトへ同じ数を書き写すため、直し忘れが起きやすい。
+数を仕様書の表 1 か所から読み、ほかの文書がその値を使っていることまで見る。
 
 **`verify.sh` と CI の一致（5）を足した理由**: 「手元で `verify.sh` が緑なら CI も緑」という運用が、
 CI だけに検査が増えた時点で静かに壊れるため。CI の `docs` ジョブに静的検査を足したら `verify.sh` にも足す必要が出る。
@@ -346,7 +353,7 @@ GitHub Actions は**走った分だけ**課金される。このリポジトリ�
 - 用語は仕様書の語をそのまま使う（「節」「場面」「モード」「役割語」）。**言い換えず、定義を足す**。
 - 1 文 60 字以内、1 段落 3 文以内。漢字を詰め込まない（`REF:docs/script/easy-read.py` が機械で見る）。
 - 手順は番号付きで 1 ステップ 1 動作。各手順に「うまくいかないとき」を 1〜2 行置く。
-- インストールの節は**場所だけ**作り、配布物が無い間は「準備中」と書く（ソースからのビルドは `REF:GUIDE.md` に逃がす）。
+- インストールの節は `REF:docs/users/install.md` に置く。配布物が無い間は「準備中」と書き、取得先が決まったら同じ節を実値へ差し替える。ソースからのビルドは `REF:GUIDE.md` に逃がす。
 - 仕様書の節を指すときは `§N.M` を添える（サイト生成がアンカーに変える）。
 
 **サイトへの反映**

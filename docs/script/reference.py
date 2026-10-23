@@ -18,6 +18,8 @@ docs/script/reference.py — ドキュメントとコードの**実物の突き�
 10. Actions を無駄に使わない設定（全ワークフローの `concurrency`・変更フィルタ・`[ci skip]` のフック）が揃っているか。
 11. 公開する手引き（仕様 §14.2.1 の 3 URL・§18.5）が実在し、`docs/users` の参照が仕様書だけを指し、
     ガイドモードの段階と `docs/users/start.md` の段階が一致するか。
+12. 配布形態（仕様 §20）の選択肢の数が 1・10・5・1・1 で、廃止した軸（同時起動の制限・同梱物の外置き）が
+    仕様・設計・手順・利用者向けの文書へ戻っていないか。
 
 使い方:
     python3 docs/script/reference.py           # 検査（違反があれば終了コード 1）
@@ -63,6 +65,7 @@ CHAPTERS = {
     "17": "workflows",
     "18": "workflows",
     "19": "interfaces",
+    "20": "external",
 }
 
 RETIRED = ("SPECIFICATIONS.md", "PLANS.md", "DEVELOPERS.md")
@@ -547,6 +550,102 @@ def check_published_guide() -> list[str]:
     return errors
 
 
+# ---------------------------------------------------------------- 12. 配布形態（§20）
+
+# 仕様 §20.1.1 の表の行（形態名 → 選択肢の数）。デスクトップ版は「GUI あり / なし × 対象環境 5」の 10 通り。
+DISTRIBUTION_FORMS = {
+    "ブラウザ版": 1,
+    "デスクトップ版": 10,
+    "Python ライブラリ版": 5,
+    "VSCode 拡張版": 1,
+    "GitHub Actions 版": 1,
+}
+
+# 2026-10-23 に廃止した軸。仕様・設計・手順・利用者向けには戻さない（経緯は docs/history.md にだけ残す）。
+RETIRED_AXES = ("シングルトン", "マルチプル", "スタンドアロン", "standalone", "single-instance", "-single", "-multi")
+
+
+def check_distribution_forms() -> list[str]:
+    """配布形態の数と、廃止した軸が文書へ戻っていないこと。
+
+    数を 1 か所（仕様 §20.1.1 の表）に保ち、ほかの文書はその値を使う。
+    軸を足し直すと、名前（`novnow-<版>-<対象環境>-<gui|nogui>`）の検査でも落ちる。
+    """
+    errors: list[str] = []
+    spec = read(ROOT / "docs/specifications/external.md")
+    if not spec:
+        return ["[12] docs/specifications/external.md が無い（仕様 §20 配布形態）"]
+
+    found: dict[str, int] = {}
+    row = re.compile(r"^\|\s*(ブラウザ版|デスクトップ版|Python ライブラリ版|VSCode 拡張版|GitHub Actions 版)\s*\|[^|]*\|\s*([0-9]+)\s*\|")
+    for line in spec.splitlines():
+        match = row.match(line)
+        if match:
+            found[match.group(1)] = int(match.group(2))
+    for name, expected in DISTRIBUTION_FORMS.items():
+        actual = found.get(name)
+        if actual is None:
+            errors.append(f"[12] 仕様 §20.1.1 の表に「{name}」の行が無い")
+        elif actual != expected:
+            errors.append(
+                f"[12] 仕様 §20.1.1 の「{name}」が {actual} 通り（{expected} 通りであること）"
+            )
+
+    total = sum(DISTRIBUTION_FORMS.values())
+    if "novnow-<版>-<対象環境>-<gui|nogui><拡張子>" not in spec:
+        errors.append("[12] 仕様 §20.2.2 の名前の形（novnow-<版>-<対象環境>-<gui|nogui>）が無い")
+    for path, label in (
+        (ROOT / "docs/designs/external.md", f"{total} 通り"),
+        (ROOT / "docs/plans.md", f"5 形態・{total} 通り"),
+    ):
+        if label not in read(path):
+            errors.append(f"[12] {rel(path)} に「{label}」が無い（仕様 §20.1.1 の合計と合わせる）")
+
+    desktop = re.search(r"^## 2\. デスクトップ版（([0-9]+) 通り）$", read(ROOT / "docs/distribution.md"), re.MULTILINE)
+    if not desktop or int(desktop.group(1)) != DISTRIBUTION_FORMS["デスクトップ版"]:
+        errors.append(
+            f"[12] docs/distribution.md の「## 2. デスクトップ版（N 通り）」が "
+            f"{DISTRIBUTION_FORMS['デスクトップ版']} 通りになっていない"
+        )
+
+    # 数を書き写している文書（README・手引き）。書き写す以上、直し忘れを機械で見る。
+    claims = (
+        (ROOT / "README.md", r"デスクトップ\s*([0-9]+)\s*通り"),
+        (ROOT / "README.en.md", r"([0-9]+) desktop builds"),
+        (ROOT / "docs/users/install.md", r"デスクトップ版は\s*([0-9]+)\s*通り"),
+    )
+    for path, pattern in claims:
+        text = read(path)
+        if not text:
+            errors.append(f"[12] {rel(path)} が無い")
+            continue
+        found_numbers = {int(number) for number in re.findall(pattern, text)}
+        if not found_numbers:
+            errors.append(f"[12] {rel(path)} にデスクトップ版の数（N 通り / N desktop builds）が無い")
+        for number in sorted(found_numbers):
+            if number != DISTRIBUTION_FORMS["デスクトップ版"]:
+                errors.append(
+                    f"[12] {rel(path)} のデスクトップ版が {number} 通り"
+                    f"（{DISTRIBUTION_FORMS['デスクトップ版']} 通りであること）"
+                )
+
+    targets = [
+        ROOT / "docs/specifications/external.md",
+        ROOT / "docs/designs/external.md",
+        ROOT / "docs/distribution.md",
+        *sorted((ROOT / "docs/users").glob("*.md")),
+    ]
+    for path in targets:
+        for number, line in enumerate(read(path).splitlines(), 1):
+            for axis in RETIRED_AXES:
+                if axis in line:
+                    errors.append(
+                        f"[12] {rel(path)}:{number} に廃止した軸「{axis}」がある"
+                        "（デスクトップ版は GUI あり / なし × 対象環境 5 の 10 通りだけ）"
+                    )
+    return errors
+
+
 CHECKS = {
     "1": ("廃止済みの文書名を参照しない", check_retired),
     "2": ("仕様書の節番号が実在する", check_spec_sections),
@@ -559,6 +658,7 @@ CHECKS = {
     "9": ("リンクとアンカーが実在する", check_links),
     "10": ("Actions を無駄に使わない設定が揃っている", check_actions_budget),
     "11": ("公開する手引きが実在し、参照と段階が揃っている", check_published_guide),
+    "12": ("配布形態の数と、廃止した軸が戻っていない", check_distribution_forms),
 }
 
 
@@ -581,7 +681,7 @@ def main() -> int:
     total = len(CHECKS)
     print(
         f"OK: ドキュメントと実装の突き合わせ {total} 項目（廃止名 / 節番号 / history ID / "
-        f"src ツリー / verify と CI / ルート文書 / 数の主張 / include_str / リンク / Actions の節約 / 手引き）"
+        f"src ツリー / verify と CI / ルート文書 / 数の主張 / include_str / リンク / Actions の節約 / 手引き / 配布形態）"
     )
     return 0
 

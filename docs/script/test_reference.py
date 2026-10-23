@@ -38,6 +38,7 @@ class ChapterMapTests(unittest.TestCase):
             "agent",
             "workflows",
             "interfaces",
+            "external",
         }
         self.assertEqual(set(reference.CHAPTERS.values()), expected)
 

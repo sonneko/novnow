@@ -1,0 +1,81 @@
+# novnow 設計書 — 配布形態（外部提供物）
+
+本書は `REF:docs/specifications/external.md` の各節に対応する実装設計を記述する。手順書（だれが何を押すか）は `REF:docs/distribution.md`、実装順序・受け入れ基準は `REF:docs/plans.md#distribution` に置く。build と publish の設定は、既存の `REF:.github/workflows/ci.yml` と `REF:.github/workflows/wheels.yml` の作法（draft では走らせない・`concurrency`・変更フィルタ）をそのまま引き継ぐ。
+
+## 20. 配布形態
+
+配布物の数は 5 形態で 18 通り（ブラウザ 1・デスクトップ 10・Python 5・VSCode 1・GitHub Actions 1）。この数を **1 つの表** から作り、CI と文書の両方がその表を読む。表を 2 か所に書かないための置き場所が `scripts/release-matrix.py`（新設・計画パス）で、成果物の名前・対象環境・ビルドの引数をここから生成する。`tests/distribution.rs`（新設・計画パス）が §20.1.1 の数（1・10・5・1・1）と表の行数を突き合わせる。
+
+### 20.1 配布形態の一覧と共通原則
+
+状態: 未実装・実装計画済み（REF:docs/plans.md#distribution, scripts/release-matrix.py）
+
+- **版の一元化**: 版番号の正本は `REF:Cargo.toml` の `version` だけとする。Python（`REF:python/novnow-py/Cargo.toml`）・VSCode 拡張（計画パス `vscode/package.json`）・Actions の `action.yml` は、リリース時にこの値で書き換える。手で 4 か所を編集しない（`scripts/release-matrix.py` の `--bump` が担う）。
+- **成果物の生成**: `scripts/release-matrix.py` が 10 行のデスクトップ行列（対象環境 × gui/nogui）と 5 行のホイール行列を JSON で出す。`.github/workflows/release.yml`（新設・計画パス）はこの JSON を `strategy.matrix.include` に渡す。
+- **照合値**: リリースの最後のジョブが全成果物の SHA-256 を集め、`SHA256SUMS` を添付する。公開側（PyPI・市場・Actions）は同じジョブが緑になってから動かす。
+- **実行時の非通信**: 更新確認のコードを置かない。`tests/no_llm_sdk.rs` と同じ発想で、`reqwest` / `ureq` などの HTTP クライアントを本体の依存へ足さない（`REF:tests/layering.rs` の許可リストに追加しない）。
+- **署名**: Windows は `signtool`、macOS は `codesign` + `notarytool` をリリースジョブの任意ステップにする。秘密鍵が無い環境（フォーク・サンドボックス）では署名を飛ばし、`SHA256SUMS` にその旨を書く。
+- **ブラウザ版**: 既存の `REF:.github/workflows/deploy.yml` が `dist` を GitHub Pages へ出す。版は `REF:Cargo.toml` から `index.html` のメタ情報へ埋め込む（計画）。
+
+### 20.2 デスクトップ版
+
+状態: 未実装・実装計画済み（REF:docs/plans.md#distribution, REF:src/...）
+
+- **feature の追加はしない**: 10 通りは「`ui` feature の有無」×「`--target`」だけで作る（2 × 5）。新しい feature も、配布物を分けるビルドスイッチも足さない。同梱物（`REF:src/ui/theme.rs` の `BUNDLED_FONT`、`REF:src/core/template/mod.rs` の `include_str!` 群）は現状どおり常に実行ファイルへ埋め込む。
+- **成果物の名前**: `scripts/release-matrix.py` の `artifact_name(version, target, gui)` が唯一の実装点。命名は仕様 §20.2.2 の 1 形だけを許し、テストで 10 通りを列挙して重複が無いことを確かめる。
+- **アーカイブの中身**: 実行ファイル・`LICENSE`・`README.txt`（起動方法 3 行）。同梱物のファイルは入れない（実行ファイルに入っている）。macOS の GUI あり版だけ `.app` を組み立てる（`Contents/MacOS/novnow` と `Info.plist`、`CFBundleExecutable=novnow`、`LSMinimumSystemVersion`）。`.app` を作るのは CI のスクリプト（`scripts/release-matrix.py --bundle-macos`）とする。
+- **同時起動**: 制限しない（仕様 §20.2.3）。ロックファイルも排他も作らないので、新しいファイルはプロジェクト外に増えない。
+- **なぜ軸を置かないか**: 同梱物を外に置く版を作ると、(1) 配布物の置き場所に依存する読み取り経路が増え、(2) 「実行ファイル 1 個で動く」という検証が 2 通りになり、(3) 得られる削減が同梱フォントの約 6 MB だけである。履歴ファイル以外をプロジェクト外に置かない現状では、利用者から見た違いがほぼ無いため、軸そのものを持たない（2026-10-23 の裁定）。
+- **GUI なしのビルド**: `ui` feature を付けない。`--gui` は既存の `Exit::Usage`（`REF:src/cli/mod.rs`）へ流す。`tests/cli.rs` に「引数なし + 非 TTY + GUI なしビルド → 使い方表示・終了コード 2」を足す。
+- **Windows のサブシステム**: GUI 版だけ `#![windows_subsystem = "windows"]` を効かせる。既存の `REF:src/main.rs` の cfg を feature で切り替える（`#[cfg_attr(all(windows, feature = "ui"), windows_subsystem = "windows")]`）。
+- **CI 行列の負荷**: 10 ジョブは 1 つのワークフローにまとめ、タグ公開と `workflow_dispatch` のときだけ走らせる。PR では 2 通り（`ui` あり/なし）だけをビルドして `cargo build` が通ることを見る。
+- **テスト**: `tests/distribution.rs` が (1) 命名の 10 通りと重複の無さ、(2) 同じ版で 5 対象環境 × 2 画面が揃うこと、(3) `ui` の有無で保存形式のテスト（`REF:tests/roundtrip.rs`）と診断のゴールデン（`REF:tests/golden.rs`）が同じ結果になること、を確かめる。同梱物が実行ファイルに含まれることは、GUI なしの成果物に `assets/ipag.ttf` のファイルが入っていないこと（アーカイブの中身）で見る。
+
+### 20.3 Python ライブラリ版
+
+状態: 未実装・実装計画済み（REF:python/novnow-py/Cargo.toml, REF:.github/workflows/wheels.yml, REF:docs/plans.md#distribution）
+
+- **5 構成への拡張**: 既存 `REF:.github/workflows/wheels.yml` の行列は 4 構成（ubuntu x64 / ubuntu arm64 / macos arm64 / windows x64）。macOS x86_64 を `macos-latest` + `--target x86_64-apple-darwin` で足して 5 構成にする。`python/novnow-py` の `pyo3` は `abi3-py39` のままなので、1 構成 1 ホイールで 3.9 以降を賄う。
+- **manylinux**: Linux は `maturin build --manylinux 2_28` を明示し、ビルドした glibc の下限をホイール名に固定する（`auditwheel` の自動判定に任せない）。
+- **版の一致**: ホイールの `version` は `Cargo.toml` から取る。`maturin` は `pyproject.toml`（計画パス `python/novnow-py/pyproject.toml`）の `dynamic = ["version"]` で読む。リリース時に `pyproject.toml` の `project.name = "novnow"` を確認する（現在のフォルダ名 `novnow-py` と公開名は別でよい）。
+- **公開**: タグ `v*` で TestPyPI、`workflow_dispatch` + `environment: pypi` の承認で本番。`PYPI_API_TOKEN` は環境の秘密情報に置き、リポジトリの秘密情報に置かない。
+- **ソース配布を出さない**: `maturin build` のみを使い、`sdist` を作らない。`cargo publish` は行わない（Rust クレートとしての公開は仕様 §19.8.4 の範囲で別途判断する）。
+- **テスト**: `REF:scripts/python-check.sh` に「ホイールを展開して `novnow.__version__` が `Cargo.toml` と一致する」を足す（サンドボックスでは `--no-build` でスキップ可）。
+
+### 20.4 VSCode 拡張版
+
+状態: 未実装・実装計画済み（REF:docs/plans.md#distribution, vscode/...）
+
+- **置き場所**: `vscode/`（新設・計画パス）。`package.json`（識別子 `sonneko.novnow`、`engines.vscode`、`activationEvents`、`contributes.configuration`、`contributes.commands`）、`src/extension.ts`（接続とコマンド）、`esbuild.mjs`（1 ファイルへ束ねる）。`novnow` の実行ファイルは同梱しない。
+- **依存**: `vscode-languageclient` と `vscode-languageserver-protocol` だけを足す（npm）。esbuild で `dist/extension.js` に束ね、`node_modules` を `.vsix` に入れない。
+- **探索順**: 仕様 §20.4.2 の 4 段を `resolveBinary()` に 1 か所で書く。`novnow.executablePath` が空でない場合は**そのパスだけ**を見て、無ければ取得へ進む（`PATH` を飛ばす。利用者の明示を優先する）。
+- **取得**: リリースの URL は `https://github.com/sonneko/novnow/releases/download/v<版>/<成果物名>`。成果物名は `scripts/release-matrix.py` の出力（`nogui`）を `package.json` の `novnow.artifact` 表へリリース時に埋め込む。保存先は `context.globalStorageUri` 配下の `bin/<版>/novnow`（Windows は `.exe`）。`https.get` のリダイレクトを 1 段だけ追い、`crypto.createHash("sha256")` で照合する。失敗したら部分ファイルを消す。
+- **設定**: `novnow.executablePath`（文字列）、`novnow.autoDownload`（真偽、既定 true）、`novnow.downloadVersion`（文字列、空なら拡張機能の版）、`novnow.extraArgs`（配列）。設定は VSCode の設定に置き、novnow のプロジェクトへは書かない。
+- **LSP の起動**: `novnow lsp <プロジェクトルート>` を stdio で起動する。サーバの生死は `vscode-languageclient` の `Restart` に任せ、再起動コマンドを 1 つ提供する。診断はサーバの `publishDiagnostics` をそのまま使う。
+- **言語 ID**: `novnow` を定義し、`contents/**/*.txt` と `plots/**/*.txt` を対象にする。`contributes.languages` に拡張子ではなく `filenames` / `filenamePatterns` で書く（`.txt` 全体を奪わない）。
+- **失敗時の見え方**: 取得に失敗したら `window.showErrorMessage` に「手動で入れる場所」の URL を添える。以降のセッションでは取得を再試行せず、`novnow.autoDownload` を無効にしたのと同じ状態にする。
+- **テスト**: `@vscode/test-electron` で (1) `executablePath` を与えたときにサーバが起動する、(2) 取得関数が照合値の不一致で例外になる、(3) コマンドが CLI を呼ぶ、の 3 件。CI では `xvfb-run` を使う。
+- **公開**: `vsce package` で `.vsix` を作り、リリースへ添付する。市場への公開は `vsce publish` を `workflow_dispatch` で行う（タグでは自動公開しない。取り消せないため）。
+
+### 20.5 GitHub Actions 版
+
+状態: 未実装・実装計画済み（REF:docs/plans.md#distribution, action.yml）
+
+- **置き場所**: リポジトリ直下の `action.yml`（新設・計画パス）。`runs.using: composite`。ステップは (1) 対象環境の判定、(2) 取得（`actions/cache` を挟む）、(3) 実行、(4) 出力の書き出し、の 4 つだけにする。
+- **対象環境の判定**: `${{ runner.os }}` と `${{ runner.arch }}` から仕様 §20.2.1 の三重項を選ぶ。Windows の既定シェルは PowerShell なので、判定と取得は `shell: bash` のステップに閉じる（ランナーには Git Bash がある。`REF:.github/workflows/wheels.yml` の「`>/dev/null` が `C:\dev\null` になる」注意と同じ理由）。
+- **取得の実装**: `scripts/action/install.sh`（新設・計画パス）に `uname` ではなく環境変数（`RUNNER_OS` / `RUNNER_ARCH` / 入力の `target`）で判定する処理を置く。`curl -fsSL` で落とし、`sha256sum`（無ければ `shasum -a 256`）で照合する。`version` が空なら `github.action_ref` から `v` を落として使う。
+- **入力の受け渡し**: 入力は `env:` でスクリプトへ渡し、`args` は `read -r -a` で配列にする（シェルへ文字列連結で渡さない）。パスは `cd` せずに `--dir` として渡す。
+- **出力**: `exit-code` は `$GITHUB_OUTPUT` へ書く。`findings` は `--json` の出力から数える（人間向けの 1 行出力を数えない）。`export-path` は `--out` に渡した値を返す。
+- **失敗の伝え方**: スクリプトは novnow の終了コードをそのまま返し、複合アクション側で `exit $code` する。`continue-on-error` を既定にしない。
+- **キャッシュ**: `actions/cache@v4` のキーは `novnow-<版>-<三重項>`。キャッシュを当てても照合は毎回行う（キャッシュの汚染を検出する）。キャッシュの失敗はジョブを止めない。
+- **タグ**: リリース時に `v<版>` を打ち、同じコミットへ `v1` を付け替える。付け替えは `scripts/release-tags.sh`（新設・計画パス）に閉じ、`git push --force-with-lease` を使わない（`gh api` で ref を更新する）。
+- **テスト**: `.github/workflows/action-smoke.yml`（新設・計画パス）を `workflow_dispatch` とタグだけで走らせ、3 OS で `uses: ./` の自己参照により点検を 1 回実行する。PR では走らせない（Actions の使用量を抑える。`REF:docs/developers.md` §4.7）。
+
+### 20.6 公開・版・廃止
+
+状態: 未実装・実装計画済み（REF:docs/plans.md#distribution, scripts/release-matrix.py）
+
+- **公開の順序**: `release.yml` を 4 つのジョブに分け、`needs` で直列化する。`artifacts`（デスクトップ 10 + 照合値）→ `pypi`（environment の承認）→ `vscode`（`workflow_dispatch` で承認）→ `tags`（`v1` の付け替え）。前が失敗したら後を起動しない。
+- **未提供の表示**: サイトと `REF:README.md` の「どこで動くか」表は、`scripts/release-matrix.py --status` の出力（公開済みの形態）を読んで「未提供」を出す。文書へ手で書かない。
+- **取り下げ**: リリースの成果物は削除しない。PyPI は `yank` を使い、`SHA256SUMS` とリリースノートに理由を書く。市場と Actions のタグは戻さず、修正版を出す。
+- **検査**: `scripts/release-check.sh`（新設・計画パス）が (1) 10 + 5 の成果物が揃う、(2) `SHA256SUMS` の行数が成果物と一致する、(3) 各形態の版が `Cargo.toml` と一致する、(4) 主要版タグが最新の版を指す、を確かめる。`REF:scripts/verify.sh` には入れない（リリース時だけの検査なので、通常のコミットで走らせない）。

@@ -56,6 +56,7 @@ USER_ORDER = {
     "project-structure.md": 6,
     "git.md": 7,
     "publish.md": 8,
+    "install.md": 9,
 }
 
 SPEC_ORDER = {
@@ -70,6 +71,7 @@ SPEC_ORDER = {
     "agent.md": 8,
     "workflows.md": 9,
     "interfaces.md": 10,
+    "external.md": 11,
 }
 
 LINK = re.compile(r"\]\(([^)\s]+)\)")
@@ -189,6 +191,7 @@ footer {{ max-width: 46rem; margin: 3rem auto 0; padding-top: 1rem; border-top: 
   <a href="glossary.html">用語集</a>
   <a href="faq.html">よくある質問</a>
   <a href="errors.html">エラーの直し方</a>
+  <a href="install.html">入れ方</a>
   <span class="spacer"></span>
   <a href="https://novnow.sonneko.com/app/">アプリを開く</a>
 </header>

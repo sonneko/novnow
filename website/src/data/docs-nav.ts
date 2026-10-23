@@ -16,6 +16,7 @@ export const manualNav: DocEntry[] = [
   { slug: "project-structure", title: "作品のフォルダ構成" },
   { slug: "git", title: "Git で原稿を守る（知りたい人だけ）" },
   { slug: "publish", title: "書き出した原稿を公開する" },
+  { slug: "install", title: "novnow の入れ方（どの版を選ぶか）" },
 ];
 
 export const specificationNav: DocEntry[] = [
@@ -30,4 +31,5 @@ export const specificationNav: DocEntry[] = [
   { slug: "agent", title: "novnow 仕様書 — AI エージェント" },
   { slug: "workflows", title: "novnow 仕様書 — 資料収集・エクスポート・性能品質" },
   { slug: "interfaces", title: "novnow 仕様書 — 外部インターフェース（ヘッドレス全機能 API 群）" },
+  { slug: "external", title: "novnow 仕様書 — 配布形態（外部提供物）" },
 ];

@@ -12,11 +12,12 @@ novnow形式を管理するためのnovnowエディタは、デスクトップ�
 | 動かし方 | 準備 | 向いている人 |
 |---|---|---|
 | **ブラウザ**（インストール不要） | `https://novnow.sonneko.com/app/` を開くだけ | まず試したい・環境を変えたくない |
-| デスクトップ（Windows / macOS / Linux） | ビルドする（配布物は準備中） | 手元のフォルダで原稿を管理したい |
+| デスクトップ（Windows / macOS / Linux） | 配布物は準備中（[入れ方](./docs/users/install.md#desktop)） | 手元のフォルダで原稿を管理したい |
 | コマンド（CLI） | 同上 | 原稿をまとめて検査・書き出ししたい |
 | エディタ連携（LSP） | 同上 | VS Code など手持ちのエディタで書きたい |
 | AI 連携（MCP） | 同上 | AI に作品を読ませたい |
-| Python | 同上 | 作業を自動化したい |
+| Python | `pip install novnow`（準備中） | 作業を自動化したい |
+| VSCode 拡張 | 拡張機能から導入（準備中） | ふだん VSCode で書いている |
 
 画面の構成・キー操作・保存される内容は、ブラウザとデスクトップで同じです。
 どの入口から触っても同じ結果になります（同じ 1 本の実装を共有しています）。
@@ -115,7 +116,9 @@ novnow形式は、小説をテキストデータでエクスポートする機�
 
 ## インストールと起動
 
-現時点ではソースからのビルドのみです（バイナリ配布の準備中）。Rust の stable ツールチェーンが必要です。
+配布物はデスクトップ 10 通り（窓あり / なし × 5 つの OS・CPU）・Python ホイール 5 通り・VSCode 拡張・GitHub Actions を用意しています（公開は準備中）。利用者向けの手順は [入れ方](./docs/users/install.md)、配布の決まりと手順は [distribution.md](./docs/distribution.md) にあります。
+
+それまではソースからビルドできます。Rust の stable ツールチェーンが必要です。
 
 ```bash
 git clone https://github.com/sonneko/novnow.git
@@ -176,6 +179,7 @@ novnow structure tree my-novel --json                    # 正規操作も --jso
 - [`agent.md`](./docs/specifications/agent.md): AI エージェント・委譲レベル・MCP・プロンプト仕様
 - [`workflows.md`](./docs/specifications/workflows.md): 資料収集・エクスポート・性能品質要件
 - [`interfaces.md`](./docs/specifications/interfaces.md): CLI・LSP・MCP・Python・Rust の外部インターフェース
+- [`external.md`](./docs/specifications/external.md): 配布形態（デスクトップ 10 通り・Python 5 通り・VSCode 拡張・GitHub Actions）
 
 公式サイト（[https://novnow.sonneko.com/](https://novnow.sonneko.com/)）では、機能ガイド・診断コードの一覧・API リファレンスを読めます。仕様書はすべてこのリポジトリの [`docs/specifications/`](./docs/specifications/) にあり、実装と同じコミットで管理されています。
 

@@ -19,11 +19,13 @@ source: "docs/users/README.md"
 | 3 | [用語集](/ja/manual/glossary) | 「節って何？」と思ったとき | 都度 |
 | 4 | [よくある質問](/ja/manual/faq) | 動かない・保存されたか不安なとき | 都度 |
 | 5 | [よく出るエラーと直し方](/ja/manual/errors) | 本文に波線が出たとき | そのたび |
+| 6 | [入れ方（どの版を選ぶか）](/ja/manual/install) | ブラウザ以外で使いたいとき | そのとき |
 
 ## この手引きの前提
 
 - **ブラウザだけで使えます。** インストールは要りません（`https://novnow.sonneko.com/app/` を開く）。
 - **デスクトップ版**（Windows / macOS / Linux）もあります。画面とキー操作はブラウザ版と同じです。
+  入れ方は [デスクトップ版の入れ方](/ja/manual/install#desktop) にあります。
 - **コマンドや AI からも使えます**（CLI・LSP・MCP・Python）。ふだんは意識しなくて構いません。
   何ができるかは [よくある質問](/ja/manual/faq#ほかのソフトから使えますか) にまとめています。
 

@@ -2002,3 +2002,17 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - **導線**: `REF:docs/users/README.md` の読む順路と、`REF:docs/users/faq.md` の波線の節から引ける。
   サイトの目次（`REF:scripts/docs-site.py` の `USER_ORDER`・`guide/*.html` のヘッダ）にも並べた。
 - **検査**: `REF:docs/script/easy-read.py` が同じ規則（1 文 60 字・1 段落 3 文・漢字 40% 以下）で通る。
+
+### [HIST:MILESTONE:DISTRIBUTION-DOCS] 2026-10-23 配布形態（5 形態・18 通り）の仕様・設計・手順・利用者向け導入を追加
+
+[HIST-TAG: category=MILESTONE id=DISTRIBUTION-DOCS topics=distribution,specifications,designs,vscode,actions,python,wheels,docs]
+
+- **背景**: 配布の準備に入る。配布形態はブラウザ版（公開済み）・デスクトップ版（10 通り）・Python ライブラリ版（5 通り）・VSCode 拡張版（1 通り）・GitHub Actions 版（1 通り）。VSCode 拡張と複合アクションはこれから作る。
+- **ユーザー裁定（2026-10-23・軸の廃止）**: デスクトップ版の軸を 2 度作り直したうえで、**配布物を分ける軸そのものを置かない**ことにした。当初「シングルトン / マルチプル」を同時起動の制限と解釈して 2×2×5 = 20 通りとしたが、利用者の意図はスタンドアロンであり、次に「同梱物を実行ファイルに埋め込むか」の軸へ置き換えた。最終的に、novnow は履歴ファイル以外をプロジェクト外に置かないため**どちらの軸も利用者から見た違いがほぼ無い**として廃止した。デスクトップ版は「GUI あり / なし」× 対象環境 5 通り = **10 通り**。同梱物は常に実行ファイルへ埋め込み、同時起動は制限しない（ロックファイルも作らない）。
+- **仕様**: `REF:docs/specifications/external.md` を 12 冊目の仕様書として新設（§20）。共通原則（版の一致・実行時に配布元へ接続しない・照合値の公開・インストーラを提供しない・自動更新をしない）と、形態ごとの選択肢・名前・取得・廃止を定めた。名前は `novnow-<版>-<対象環境>-<gui|nogui>` の 1 形に固定し、§20.2.3「同梱物」で、同梱物をすべて埋め込むこと・置くのは実行ファイル 1 個であること・軸を置かないこと（ポータブル配布や共有ライブラリ版を出さないこと）を MUST にした。
+- **設計**: `REF:docs/designs/external.md` を新設（6 節すべて「未実装・実装計画済み」）。10 通りは既存の `ui` feature と `--target` だけで作り、配布用の feature を足さない（`include_bytes!` / `include_str!` の現状を保つ）。軸を置かない理由（読み取り経路・検証の重複・削減は同梱フォント約 6 MB だけ）も残した。拡張の取得は `nogui` を拡張の保存領域へ置いて SHA-256 で照合し、複合アクションは `bash` の 4 ステップに閉じる、とした。
+- **文書の追随**: `REF:docs/developers.md` のファイル対を 12 に、`REF:README.md`・`REF:README.en.md`・`REF:GUIDE.md` の一覧に `external.md` を追加した。`REF:docs/script/reference.py` の章番号表（`20` → `external`）と `REF:docs/script/test_reference.py` の期待集合、`REF:scripts/docs-site.py` の `SPEC_ORDER` も追随した。SYNC 表は 12 設計書・142 節（実装完了 136・計画済み 6）へ更新した。
+- **配布方法**: `REF:docs/distribution.md` を新設。5 形態の置き場所、10 通りの一覧と選び方、ホイールの 5 タグ、拡張の探索順と自動取得、複合アクションの入力と出力、版を出す順序（実行ファイル → Python → VSCode → Actions のタグ）、確認用の早見表をまとめた。
+- **利用者向け**: `REF:docs/users/install.md` を新設。窓の要否 1 つの質問とパソコンの種類でデスクトップ版を選ぶ表、OS 別のファイル名、展開と起動、Gatekeeper / SmartScreen の警告、削除のしかた（実行ファイルだけなので同梱物は消さなくてよい）、拡張の自動取得、`pip install novnow`、`uses:` の例を、`REF:docs/script/easy-read.py` の規則で書いた。`REF:docs/users/README.md`・`REF:docs/users/start.md`・`REF:docs/users/faq.md` から引けるようにし、`guide/install.html` を生成した。
+- **未実施（意図的）**: `release.yml`・`release-matrix.py`・VSCode 拡張・`action.yml`・`release-check.sh` は計画のみ（`REF:docs/plans.md#distribution` の Phase 1〜6）。「準備中」の実値への差し替えは Phase 6（D-20）。
+- **再発防止**: `REF:docs/script/reference.py` に検査 12（配布形態）を足した。仕様 §20.1.1 の表から選択肢の数（1・10・5・1・1）を読み、設計・計画・手順の数と一致すること、名前の形が `novnow-<版>-<対象環境>-<gui|nogui>` であること、廃止した軸（同時起動の制限・同梱物の外置き）が仕様・設計・手順・利用者向けへ戻っていないことを見る（`REF:docs/developers.md` §4.6 の表にも追記）。
