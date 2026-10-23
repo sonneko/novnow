@@ -111,7 +111,7 @@
 
 ### 18.5 ドキュメント公開（仕様書とユーザー向けガイド）
 
-状態: 実装中（REF:scripts/docs-site.py, REF:docs/plans.md#plan-docs-site, REF:docs/users/）
+状態: 実装完了（REF:scripts/docs-site.py, REF:docs/script/reference.py, REF:src/core/model/project.rs, REF:docs/plans.md#plan-docs-site, REF:docs/users/, REF:guide/）
 
 - **正本は 1 か所だけ**: `REF:docs/users/*.md` と `REF:docs/specifications/*.md` が正本で、サイトのページは
   その生成物。Markdown を書き写した複製を `REF:website/` に置かない。
@@ -137,5 +137,12 @@
   「日本語で書かれている」ことと日本語版へのリンクを出す短いページにして、英語話者を空振りさせない。
 - **検査**: `REF:scripts/verify.sh` の `site-check` が `REF:scripts/docs-site.py` を `--check` 付きで
   実行する。docs を直して生成し忘れた状態と、生成物を手で編集した状態の両方が落ちる。
-- **まだ実装していないこと**: アプリ内の解説ページ（`guide/*.html`）と、仕様 §14.2.1 の URL 実在を
-  見る検査 11 は未実装。`REF:index.html` への `guide/` の同梱も、この生成器の出力を使う形で行う。
+- **アプリ内の解説ページ**: 同じ生成器が `docs/users/*.md` から `REF:guide/*.html`（8 ページ）を作る。
+  `REF:index.html` の `copy-dir` で trunk の dist に載るので、仕様 §14.2.1 の 3 URL
+  （`guide/project_structure.html`・`guide/git.html`・`guide/publish.html`）が公開物に実在する。
+  公式サイト側でも同じ URL で開けるよう、`REF:website/public/guide/` にも同じ HTML を置く。
+- **検査 11**: `REF:docs/script/reference.py` の 11 番目が、(1) 3 URL の実体と `copy-dir` の指定、
+  (2) 仕様 §14.2.1・`REF:src/core/model/project.rs`・`REF:guide/` の URL の一致、(3) `docs/users` の
+  相対リンクが仕様書か自分自身だけを指すこと、(4) `REF:src/ui/guide.rs` の段階と
+  `REF:docs/users/start.md` の見出しが 1〜9 で揃うこと、(5) 生成した HTML どうしのリンクの実在を見る。
+- **まだ実装していないこと**: 英語の本文（`docs/users/*.en.md` と `/en` の生成）。Phase 5 として残す。

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>書き出した原稿を公開する — novnow</title>
+<style>
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 0 1.25rem 5rem;
+  background: #16161a; color: #e6e6ea;
+  font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  line-height: 1.85; font-size: 16px;
+}
+main { max-width: 46rem; margin: 0 auto; }
+header.bar {
+  max-width: 46rem; margin: 0 auto; padding: 1rem 0 0.5rem;
+  display: flex; gap: 1rem; align-items: baseline; flex-wrap: wrap;
+  border-bottom: 1px solid #2c2c33; margin-bottom: 2rem;
+}
+header.bar a { color: #b9a7ff; text-decoration: none; }
+header.bar .brand { font-weight: 700; color: #e6e6ea; }
+header.bar .spacer { flex: 1; }
+h1 { font-size: 1.7rem; line-height: 1.4; margin: 1.5rem 0 0.75rem; }
+h2 { font-size: 1.3rem; margin: 2.2rem 0 0.6rem; border-bottom: 1px solid #2c2c33; padding-bottom: 0.3rem; }
+h3 { font-size: 1.1rem; margin: 1.8rem 0 0.5rem; }
+a { color: #b9a7ff; }
+code { background: #232329; padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.92em; }
+pre { background: #232329; padding: 0.9rem 1rem; border-radius: 8px; overflow-x: auto; }
+pre code { background: none; padding: 0; }
+blockquote { margin: 1rem 0; padding: 0.2rem 1rem; border-left: 3px solid #4a4a58; color: #b9b9c4; }
+table { border-collapse: collapse; width: 100%; margin: 1.2rem 0; font-size: 0.94rem; }
+th, td { border: 1px solid #2c2c33; padding: 0.45rem 0.7rem; text-align: left; vertical-align: top; }
+th { background: #1e1e24; }
+hr { border: none; border-top: 1px solid #2c2c33; margin: 2rem 0; }
+footer { max-width: 46rem; margin: 3rem auto 0; padding-top: 1rem; border-top: 1px solid #2c2c33;
+  color: #85858f; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="index.html">novnow ユーザーガイド</a>
+  <a href="start.html">はじめての手引き</a>
+  <a href="cheatsheet.html">早見表</a>
+  <a href="glossary.html">用語集</a>
+  <a href="faq.html">よくある質問</a>
+  <span class="spacer"></span>
+  <a href="https://novnow.sonneko.com/app/">アプリを開く</a>
+</header>
+<main>
+<h1>書き出した原稿を公開する</h1>
+<p><code>novnow</code> は投稿サイトへの投稿までは行いません。<strong>書き出したファイルを、ふだん使っている サイトに貼る</strong>ところまでで、作業は完結します。</p>
+<h2 id="1-書き出す">1. 書き出す</h2>
+<ol>
+<li><code>Ctrl+P</code> を押し、<code>&gt;</code> に続けて <code>export</code> と打ちます。</li>
+<li>形式を選びます。</li>
+</ol>
+<ul>
+<li><strong>テキスト（`.txt`）</strong>: 投稿サイトに貼るだけならこれ。</li>
+<li><strong>Markdown（`.md`）</strong>: 見出しや強調を使いたいとき。</li>
+</ul>
+<ol>
+<li>保存先を選ぶと、<code>@</code> や <code>'</code> などの記号がすべて取り除かれた原稿ができます。</li>
+</ol>
+<h2 id="2-公開する">2. 公開する</h2>
+<p>できたファイルを開いて、中身をまるごとコピーし、投稿サイトの本文欄に貼ります。 章ごとに分けたいときは、範囲を指定して書き出します（<code>--range @01 .. @03</code>）。</p>
+<h2 id="3-自動で公開したい場合">3. 自動で公開したい場合</h2>
+<p>GitHub を使うと、原稿を更新するたびに自動でサイトへ反映する仕組み（GitHub Actions）を 組めます。これは<strong>開発者向けの話</strong>なので、ふつうは必要ありません。</p>
+<p><code>novnow</code> はこの仕組みを内蔵せず、案内だけを出します。設定のしかたは GitHub の ドキュメントを参照してください。</p>
+<h2 id="公開前に確かめたいこと">公開前に確かめたいこと</h2>
+<ul>
+<li><code>Alt+9</code>（点検）で、エラーが 0 件か確認する</li>
+<li><code>Alt+7</code>（読者）で、記号を消した状態を読んでみる</li>
+<li>書き出したファイルを開いて、1 行目から最後まで読めるか確かめる</li>
+</ul>
+<h2 id="もっと詳しく">もっと詳しく</h2>
+<ul>
+<li><a href="https://github.com/sonneko/novnow/blob/main/docs/specifications/workflows.md">仕様: エクスポート</a> §17</li>
+<li><a href="https://github.com/sonneko/novnow/blob/main/docs/specifications/workflows.md">仕様: 読者モード</a> §17.3</li>
+</ul>
+</main>
+<footer>
+  このページは <code>docs/users/publish.md</code> から自動生成しています。直すときはリポジトリの
+  <code>docs/users/</code> を編集してください（<code>python3 scripts/docs-site.py</code> で作り直します）。
+</footer>
+</body>
+</html>

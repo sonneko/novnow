@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>novnow ユーザーガイド — novnow</title>
+<style>
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 0 1.25rem 5rem;
+  background: #16161a; color: #e6e6ea;
+  font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  line-height: 1.85; font-size: 16px;
+}
+main { max-width: 46rem; margin: 0 auto; }
+header.bar {
+  max-width: 46rem; margin: 0 auto; padding: 1rem 0 0.5rem;
+  display: flex; gap: 1rem; align-items: baseline; flex-wrap: wrap;
+  border-bottom: 1px solid #2c2c33; margin-bottom: 2rem;
+}
+header.bar a { color: #b9a7ff; text-decoration: none; }
+header.bar .brand { font-weight: 700; color: #e6e6ea; }
+header.bar .spacer { flex: 1; }
+h1 { font-size: 1.7rem; line-height: 1.4; margin: 1.5rem 0 0.75rem; }
+h2 { font-size: 1.3rem; margin: 2.2rem 0 0.6rem; border-bottom: 1px solid #2c2c33; padding-bottom: 0.3rem; }
+h3 { font-size: 1.1rem; margin: 1.8rem 0 0.5rem; }
+a { color: #b9a7ff; }
+code { background: #232329; padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.92em; }
+pre { background: #232329; padding: 0.9rem 1rem; border-radius: 8px; overflow-x: auto; }
+pre code { background: none; padding: 0; }
+blockquote { margin: 1rem 0; padding: 0.2rem 1rem; border-left: 3px solid #4a4a58; color: #b9b9c4; }
+table { border-collapse: collapse; width: 100%; margin: 1.2rem 0; font-size: 0.94rem; }
+th, td { border: 1px solid #2c2c33; padding: 0.45rem 0.7rem; text-align: left; vertical-align: top; }
+th { background: #1e1e24; }
+hr { border: none; border-top: 1px solid #2c2c33; margin: 2rem 0; }
+footer { max-width: 46rem; margin: 3rem auto 0; padding-top: 1rem; border-top: 1px solid #2c2c33;
+  color: #85858f; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="index.html">novnow ユーザーガイド</a>
+  <a href="start.html">はじめての手引き</a>
+  <a href="cheatsheet.html">早見表</a>
+  <a href="glossary.html">用語集</a>
+  <a href="faq.html">よくある質問</a>
+  <span class="spacer"></span>
+  <a href="https://novnow.sonneko.com/app/">アプリを開く</a>
+</header>
+<main>
+<h1>novnow ユーザーガイド</h1>
+<p><code>novnow</code> を使う人向けの手引きです。<strong>プログラミングの知識は要りません。</strong></p>
+<p>このディレクトリの文書は、公開サイト（https://novnow.sonneko.com/）の「ユーザー向けガイド」と、 アプリの中に出る<strong>ガイドモード</strong>の文言の元になります。3 つは同じ内容です（手で書き写しません）。</p>
+<h2 id="読む順路">読む順路</h2>
+<table><thead><tr>
+<th>#</th>
+<th>文書</th>
+<th>いつ読むか</th>
+<th>所要</th>
+</tr></thead><tbody>
+<tr>
+<td>1</td>
+<td><a href="start.html">はじめての手引き</a></td>
+<td>はじめて開いた日。上から順に進めれば 1 本書き上がります</td>
+<td>約 30 分</td>
+</tr>
+<tr>
+<td>2</td>
+<td><a href="cheatsheet.html">早見表</a></td>
+<td>書きながら横に置く。記号とキーだけ</td>
+<td>—</td>
+</tr>
+<tr>
+<td>3</td>
+<td><a href="glossary.html">用語集</a></td>
+<td>「節って何？」と思ったとき</td>
+<td>都度</td>
+</tr>
+<tr>
+<td>4</td>
+<td><a href="faq.html">よくある質問</a></td>
+<td>動かない・保存されたか不安なとき</td>
+<td>都度</td>
+</tr>
+</tbody></table>
+<h2 id="この手引きの前提">この手引きの前提</h2>
+<ul>
+<li><strong>ブラウザだけで使えます。</strong> インストールは要りません（<code>https://novnow.sonneko.com/app/</code> を開く）。</li>
+<li><strong>デスクトップ版</strong>（Windows / macOS / Linux）もあります。画面とキー操作はブラウザ版と同じです。</li>
+<li><strong>コマンドや AI からも使えます</strong>（CLI・LSP・MCP・Python）。ふだんは意識しなくて構いません。</li>
+</ul>
+<p>何ができるかは <a href="faq.html#ほかのソフトから使えますか">よくある質問</a> にまとめています。</p>
+<h2 id="もっと詳しく知りたいとき">もっと詳しく知りたいとき</h2>
+<p><code>novnow</code> の決まりごとは、すべて<strong>仕様書</strong>に書いてあります。この手引きの各所から、 対応する仕様書の節へリンクしています。用語は仕様書と同じ言葉を使っているので、 手引きで覚えた言葉がそのまま仕様書で通じます。</p>
+<ul>
+<li><a href="https://github.com/sonneko/novnow/blob/main/docs/specifications/">仕様書の一覧</a>（開発者向け。読まなくても使えます）</li>
+<li><a href="faq.html">困ったときの切り分け</a></li>
+</ul>
+</main>
+<footer>
+  このページは <code>docs/users/README.md</code> から自動生成しています。直すときはリポジトリの
+  <code>docs/users/</code> を編集してください（<code>python3 scripts/docs-site.py</code> で作り直します）。
+</footer>
+</body>
+</html>

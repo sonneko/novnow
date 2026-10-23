@@ -344,7 +344,7 @@ GitHub Actions は**走った分だけ**課金される。このリポジトリ�
 **書き方**
 
 - 用語は仕様書の語をそのまま使う（「節」「場面」「モード」「役割語」）。**言い換えず、定義を足す**。
-- 1 文 60 字以内、1 段落 3 文以内。漢字を詰め込まない（`docs/script/easy-read.py` を予定）。
+- 1 文 60 字以内、1 段落 3 文以内。漢字を詰め込まない（`REF:docs/script/easy-read.py` が機械で見る）。
 - 手順は番号付きで 1 ステップ 1 動作。各手順に「うまくいかないとき」を 1〜2 行置く。
 - インストールの節は**場所だけ**作り、配布物が無い間は「準備中」と書く（ソースからのビルドは `REF:GUIDE.md` に逃がす）。
 - 仕様書の節を指すときは `§N.M` を添える（サイト生成がアンカーに変える）。
@@ -356,8 +356,12 @@ GitHub Actions は**走った分だけ**課金される。このリポジトリ�
 **生成物は手で編集しない。** docs を直したらスクリプトを実行し、差分も一緒にコミットする。
 `REF:scripts/verify.sh` の `site-check` が `--check` で一致を見張るので、忘れると落ちる。
 
-    python3 scripts/docs-site.py          # 生成する
+    python3 scripts/docs-site.py          # 生成する（サイトのページと `guide/*.html`）
     python3 scripts/docs-site.py --check  # 一致を確かめる（CI と同じ）
+    python3 docs/script/easy-read.py      # 読みやすさ（1 文 60 字・1 段落 3 文・漢字 40% 以下）
+
+`REF:guide/*.html` は**アプリの公開サイトに置く手引き**で、同じ生成器が作る（手で編集しない）。
+仕様 §14.2.1 の 3 URL がここに実在し、`REF:docs/script/reference.py` の検査 11 が CI で見張る。
 
 **3 か所で同じ内容にする**
 

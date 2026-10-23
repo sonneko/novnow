@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>はじめての手引き（30 分で 1 本書き上げる） — novnow</title>
+<style>
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 0 1.25rem 5rem;
+  background: #16161a; color: #e6e6ea;
+  font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  line-height: 1.85; font-size: 16px;
+}
+main { max-width: 46rem; margin: 0 auto; }
+header.bar {
+  max-width: 46rem; margin: 0 auto; padding: 1rem 0 0.5rem;
+  display: flex; gap: 1rem; align-items: baseline; flex-wrap: wrap;
+  border-bottom: 1px solid #2c2c33; margin-bottom: 2rem;
+}
+header.bar a { color: #b9a7ff; text-decoration: none; }
+header.bar .brand { font-weight: 700; color: #e6e6ea; }
+header.bar .spacer { flex: 1; }
+h1 { font-size: 1.7rem; line-height: 1.4; margin: 1.5rem 0 0.75rem; }
+h2 { font-size: 1.3rem; margin: 2.2rem 0 0.6rem; border-bottom: 1px solid #2c2c33; padding-bottom: 0.3rem; }
+h3 { font-size: 1.1rem; margin: 1.8rem 0 0.5rem; }
+a { color: #b9a7ff; }
+code { background: #232329; padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.92em; }
+pre { background: #232329; padding: 0.9rem 1rem; border-radius: 8px; overflow-x: auto; }
+pre code { background: none; padding: 0; }
+blockquote { margin: 1rem 0; padding: 0.2rem 1rem; border-left: 3px solid #4a4a58; color: #b9b9c4; }
+table { border-collapse: collapse; width: 100%; margin: 1.2rem 0; font-size: 0.94rem; }
+th, td { border: 1px solid #2c2c33; padding: 0.45rem 0.7rem; text-align: left; vertical-align: top; }
+th { background: #1e1e24; }
+hr { border: none; border-top: 1px solid #2c2c33; margin: 2rem 0; }
+footer { max-width: 46rem; margin: 3rem auto 0; padding-top: 1rem; border-top: 1px solid #2c2c33;
+  color: #85858f; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="index.html">novnow ユーザーガイド</a>
+  <a href="start.html">はじめての手引き</a>
+  <a href="cheatsheet.html">早見表</a>
+  <a href="glossary.html">用語集</a>
+  <a href="faq.html">よくある質問</a>
+  <span class="spacer"></span>
+  <a href="https://novnow.sonneko.com/app/">アプリを開く</a>
+</header>
+<main>
+<h1>はじめての手引き（30 分で 1 本書き上げる）</h1>
+<p>この手引きは、<strong>上から順に進めるだけで 1 本の短編が書き上がる</strong>ようにできています。 途中で分からない言葉が出たら <a href="glossary.html">用語集</a> を開いてください。</p>
+<p>アプリの中の<strong>ガイドモード</strong>は、この手引きと同じ順番・同じ文言で案内します。</p>
+<blockquote><strong>この手引きの状態</strong>: 画面の呼び名とキーは実装済みのものを書いています。 配布用のインストーラは準備中です（<a href="#install">インストール</a>）。</blockquote>
+<hr>
+<a id="install"></a>
+<h2 id="インストール">インストール</h2>
+<h3 id="ブラウザ版インストール不要おすすめ">ブラウザ版（インストール不要・おすすめ）</h3>
+<p><code>https://novnow.sonneko.com/app/</code> を開くだけです。作品はブラウザの中（IndexedDB）に保存されます。</p>
+<ul>
+<li>一度開けば、ホーム画面に追加してオフラインでも起動できます（PWA）。</li>
+<li>ブラウザのデータを消すと作品も消えます。<strong>書き上がったら Zip で書き出して保管</strong>してください（<a href="#8-書き出す">8. 書き出す</a>）。</li>
+</ul>
+<h3 id="デスクトップ版準備中">デスクトップ版（準備中）</h3>
+<p>配布用のバイナリとインストーラは<strong>準備中</strong>です。準備ができ次第、この節に置き場所を書きます。</p>
+<p>ソースから自分でビルドすることもできます（開発者向け。手順は <a href="https://github.com/sonneko/novnow/blob/main/GUIDE.md">GUIDE.md</a>）。</p>
+<hr>
+<h2 id="1-作品を作る2-分">1. 作品を作る（2 分）</h2>
+<ol>
+<li>最初の画面で「<strong>＋ 新規作成</strong>」を押します。</li>
+<li>作品の名前を入れて決定します（後から変えられます）。</li>
+<li>作品の箱ができます。まだ本文は空です。</li>
+</ol>
+<p><strong>うまくいかないとき</strong></p>
+<ul>
+<li>「同じ名前があります」と言われたら、別の名前にしてください。同じ名前の作品は 2 つ作れません。</li>
+</ul>
+<h2 id="2-画面の見方を知る1-分">2. 画面の見方を知る（1 分）</h2>
+<p>本文を書く画面（<code>Alt+1</code>）は 3 つに分かれています。</p>
+<table><thead><tr>
+<th>場所</th>
+<th>何が出るか</th>
+</tr></thead><tbody>
+<tr>
+<td>上</td>
+<td>前後の節。読み返し用（編集できません）</td>
+</tr>
+<tr>
+<td>下</td>
+<td><strong>いま書いている節</strong>。ここだけを見て書きます</td>
+</tr>
+<tr>
+<td>右</td>
+<td>この節に関わるプロット・人物・用語・資料・注意（波線の一覧）</td>
+</tr>
+</tbody></table>
+<p>「節」（せつ）は、このアプリの<strong>いちばん小さい書き物の単位</strong>です。ふつうは数行〜十数行で、 1 つの場面の中の 1 区切りにあたります（<a href="glossary.html#節">用語集: 節</a>）。</p>
+<a id="write-first-section"></a>
+<h2 id="3-1-節目を書く5-分">3. 1 節目を書く（5 分）</h2>
+<ol>
+<li>下の欄をクリックします（または <code>Ctrl+2</code>）。</li>
+<li>次の 3 行をそのまま打ってみてください。</li>
+</ol>
+<pre><code>@01-01-01 朝の教室
+窓の外はまだ暗い。机の上に、昨日のままのノートが広げてある。
+隣の席の椅子が、ひとつだけ引かれていた。</code></pre>
+<ol>
+<li><code>@01-01-01 朝の教室</code> が<strong>場面の見出し</strong>です。<code>01-01-01</code> は「1 章 1 話 1 場面」の意味です。</li>
+</ol>
+<p><strong>うまくいかないとき</strong></p>
+<ul>
+<li>見出しが赤くなるとき: <code>@</code> の後ろは半角の数字と <code>-</code> だけにしてください。</li>
+<li>行が勝手に消えたように見えるとき: 上の欄に移っただけかもしれません。下の欄をクリックしてください。</li>
+</ul>
+<h2 id="4-2-節目を書く5-分">4. 2 節目を書く（5 分）</h2>
+<p>節を増やすには、<strong>行全体が `;` の行</strong>を入れます。</p>
+<ol>
+<li>3 行目の下で改行し、<code>;</code> とだけ打って改行します。</li>
+<li>続けて次のように書きます。</li>
+</ol>
+<pre><code>;
+@01-01-01 朝の教室
+「おはよう。今日は早いね」@リリア
+
+'リリアは鞄を置いて、窓際の席に座った。</code></pre>
+<ul>
+<li><code>;</code> は「ここで節が変わる」という印です。表示はされません。</li>
+<li>台詞の行末の <code>@リリア</code> は「この台詞を言った人」です。</li>
+</ul>
+<p><strong>うまくいかないとき</strong></p>
+<ul>
+<li><code>;</code> が消えない: 前後に空白や文字が入ると区切りになりません。行全体を <code>;</code> だけにしてください。</li>
+</ul>
+<h2 id="5-人物を登録して--で呼ぶ5-分">5. 人物を登録して <code>'</code> で呼ぶ（5 分）</h2>
+<ol>
+<li><code>Alt+6</code> で「配役」に移ります。</li>
+<li>「＋ 追加」で人物を作り、名前を <code>リリア</code> にします。</li>
+<li><code>Alt+1</code> で本文に戻り、<code>'リリア</code> と打ちます。</li>
+</ol>
+<p><code>'</code> の後ろに名前を書くと、<strong>登録した人物・用語・資料を指せます</strong>。指した言葉は色が変わり、 右の欄に関連情報が出ます。</p>
+<ul>
+<li>登録していない名前を書くと、その場に「辞書にない参照です」と出ます（<code>E001</code>）。</li>
+</ul>
+<p>これは<strong>失敗ではなく、登録の合図</strong>です。<code>Ctrl+.</code> で登録できます。</p>
+<p><strong>うまくいかないとき</strong></p>
+<ul>
+<li><code>'</code> の後ろに候補が出ない: まだ登録されていません。<code>Ctrl+.</code> から登録してください。</li>
+<li>名前の途中で切れる: 区切りが曖昧なときは <code>'{リリア・ヴァンス}</code> のように波かっこで囲みます。</li>
+</ul>
+<h2 id="6-プロットを書く4-分">6. プロットを書く（4 分）</h2>
+<ol>
+<li><code>Alt+2</code> で「話プロット」に移ります。</li>
+<li>この話で「何を書くか」を 2〜3 行で書きます。</li>
+<li><code>Alt+1</code> で本文に戻ると、右の欄にいま書いたプロットが出ます。</li>
+</ol>
+<p>プロットは本文と<strong>同じ節</strong>につながっています。<code>Ctrl+B</code> で行き来できます。</p>
+<h2 id="7-読み返す3-分">7. 読み返す（3 分）</h2>
+<p><code>Alt+7</code> で「読者」の画面に移ります。本文の記号（<code>@</code> や <code>'</code>）が消え、 縦書きで読める状態になります。ここで読んで直したくなったら <code>Alt+1</code> に戻ります。</p>
+<a id="export"></a>
+<h2 id="8-書き出す3-分">8. 書き出す（3 分）</h2>
+<ol>
+<li><code>Ctrl+P</code> を押し、<code>&gt;</code> に続けて <code>export</code> と打ちます（またはメニューから「エクスポート」）。</li>
+<li>形式は「テキスト（<code>.txt</code>）」を選びます。</li>
+<li>保存先を選ぶと、<code>@</code> や <code>'</code> をすべて取り除いた原稿ができます。そのまま投稿サイトに貼れます。</li>
+</ol>
+<p>Markdown（<code>.md</code>）も選べます。</p>
+<h2 id="9-守る2-分">9. 守る（2 分）</h2>
+<ul>
+<li><strong>ブラウザ版</strong>: 右上のメニューから「Zip 書き出し」で、作品まるごとを 1 つのファイルにできます。</li>
+</ul>
+<p>ときどき書き出して、別の場所に置いてください。</p>
+<ul>
+<li><strong>デスクトップ版</strong>: 作品はただのフォルダです。フォルダごとコピーすれば引っ越せます。</li>
+</ul>
+<p>Git を知っていれば履歴も残せます（<a href="https://sonneko.github.io/novnow/guide/git.html">Git で原稿を守る</a>）。</p>
+<hr>
+<h2 id="次に読むもの">次に読むもの</h2>
+<ul>
+<li><a href="cheatsheet.html">早見表</a>: 記号とキーだけを 1 枚に</li>
+<li><a href="glossary.html">用語集</a>: 「節」「モード」「役割語」などの意味</li>
+<li><a href="faq.html">よくある質問</a>: 保存されたか不安、波線が消えない、など</li>
+</ul>
+</main>
+<footer>
+  このページは <code>docs/users/start.md</code> から自動生成しています。直すときはリポジトリの
+  <code>docs/users/</code> を編集してください（<code>python3 scripts/docs-site.py</code> で作り直します）。
+</footer>
+</body>
+</html>

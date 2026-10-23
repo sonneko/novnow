@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>用語集 — novnow</title>
+<style>
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 0 1.25rem 5rem;
+  background: #16161a; color: #e6e6ea;
+  font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  line-height: 1.85; font-size: 16px;
+}
+main { max-width: 46rem; margin: 0 auto; }
+header.bar {
+  max-width: 46rem; margin: 0 auto; padding: 1rem 0 0.5rem;
+  display: flex; gap: 1rem; align-items: baseline; flex-wrap: wrap;
+  border-bottom: 1px solid #2c2c33; margin-bottom: 2rem;
+}
+header.bar a { color: #b9a7ff; text-decoration: none; }
+header.bar .brand { font-weight: 700; color: #e6e6ea; }
+header.bar .spacer { flex: 1; }
+h1 { font-size: 1.7rem; line-height: 1.4; margin: 1.5rem 0 0.75rem; }
+h2 { font-size: 1.3rem; margin: 2.2rem 0 0.6rem; border-bottom: 1px solid #2c2c33; padding-bottom: 0.3rem; }
+h3 { font-size: 1.1rem; margin: 1.8rem 0 0.5rem; }
+a { color: #b9a7ff; }
+code { background: #232329; padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.92em; }
+pre { background: #232329; padding: 0.9rem 1rem; border-radius: 8px; overflow-x: auto; }
+pre code { background: none; padding: 0; }
+blockquote { margin: 1rem 0; padding: 0.2rem 1rem; border-left: 3px solid #4a4a58; color: #b9b9c4; }
+table { border-collapse: collapse; width: 100%; margin: 1.2rem 0; font-size: 0.94rem; }
+th, td { border: 1px solid #2c2c33; padding: 0.45rem 0.7rem; text-align: left; vertical-align: top; }
+th { background: #1e1e24; }
+hr { border: none; border-top: 1px solid #2c2c33; margin: 2rem 0; }
+footer { max-width: 46rem; margin: 3rem auto 0; padding-top: 1rem; border-top: 1px solid #2c2c33;
+  color: #85858f; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="index.html">novnow ユーザーガイド</a>
+  <a href="start.html">はじめての手引き</a>
+  <a href="cheatsheet.html">早見表</a>
+  <a href="glossary.html">用語集</a>
+  <a href="faq.html">よくある質問</a>
+  <span class="spacer"></span>
+  <a href="https://novnow.sonneko.com/app/">アプリを開く</a>
+</header>
+<main>
+<h1>用語集</h1>
+<p><code>novnow</code> の言葉は、仕様書とそろえています。ここでは<strong>言い換えずに、意味を足して</strong>説明します。</p>
+<p>各項目の終わりのリンクから、仕様書のその節へ移れます。</p>
+<h2 id="書き物の単位">書き物の単位</h2>
+<h3 id="節">節</h3>
+<p>このアプリの<strong>いちばん小さい書き物の単位</strong>。1 つの場面の中の 1 区切りで、ふつうは数行〜十数行。</p>
+<p>本文では、行全体が <code>;</code> の行で区切られます。「1 節だけを見て書く」ことが、このアプリの中心の考え方です。</p>
+<p>→ <a href="https://github.com/sonneko/novnow/blob/main/docs/specifications/syntax.md">仕様: 本文の構文</a> §5.2</p>
+<h3 id="場面">場面</h3>
+<p>節をいくつかまとめた単位。<code>@01-04-02</code> のように 3 つ組で表します。同じ場所・同じ時間の出来事です。</p>
+<h3 id="話">話</h3>
+<p>場面をまとめた単位。本文では 1 ファイル（<code>01-04.txt</code> なら 1 章 4 話）。プロットは話ごとに 1 ファイルです。</p>
+<h3 id="章">章</h3>
+<p>話をまとめた単位。作品全体は「章 → 話 → 場面 → 節」の 4 段です。</p>
+<p>→ <a href="https://github.com/sonneko/novnow/blob/main/docs/specifications/project.md">仕様: 構造 ID</a> §4.1</p>
+<h3 id="プロット">プロット</h3>
+<p>これから書く内容のメモ。「作品全体の流れ」「章の流れ」「話の流れ」の 3 段があり、 本文の節と結びついて右の欄に出ます。</p>
+<p>→ <a href="https://github.com/sonneko/novnow/blob/main/docs/specifications/syntax.md">仕様: プロット</a> §5.3〜§5.4</p>
+<h2 id="人物と口調">人物と口調</h2>
+<h3 id="モード">モード</h3>
+<p>同じ人物の<strong>別の顔</strong>（普段の口調、怒ったとき、任務中のとき、など）に付けた名前。 場面ごとに「この場面ではこのモード」と指定できます。</p>
+<p>→ <a href="https://github.com/sonneko/novnow/blob/main/docs/specifications/semantics.md">仕様: モード解決</a> §6.4</p>
+<h3 id="役割語">役割語</h3>
+<p>その人物らしい語尾や言い回し（「〜だぞ」「〜かしら」など）。台詞の口調が合っているかを その場で確かめられるようにするための決まりです。</p>
+<p>→ <a href="https://github.com/sonneko/novnow/blob/main/docs/specifications/semantics.md">仕様: 役割語パターン</a> §6.5</p>
+<h3 id="辞書参照">辞書参照（<code>'</code>）</h3>
+<p><code>'名前</code> と書いて、登録済みの人物・用語・資料を指すこと。</p>
+<p>指された言葉は色が変わり、右の欄にその説明が出ます。登録が無いときは <code>E001</code> が出ます（辞書にない参照）。</p>
+<p>→ <a href="https://github.com/sonneko/novnow/blob/main/docs/specifications/semantics.md">仕様: 最短一致と正規化</a> §6.2</p>
+<h2 id="画面">画面</h2>
+<h3 id="ワークスペース">ワークスペース</h3>
+<p>用途ごとの画面のこと。<code>Alt+1</code>〜<code>Alt+9</code> で切り替えます。切り替えても<strong>いまいる節は変わりません</strong>。</p>
+<p>→ <a href="https://github.com/sonneko/novnow/blob/main/docs/specifications/ui.md">仕様: ワークスペース</a> §10</p>
+<h3 id="参照ペイン">参照ペイン</h3>
+<p>本文画面の右側。いま書いている節に関わるプロット・人物・用語・資料・注意書きが自動で並びます。</p>
+<p>→ <a href="https://github.com/sonneko/novnow/blob/main/docs/specifications/ui.md">仕様: 参照ペイン</a> §9.5</p>
+<h3 id="文脈ビュー">文脈ビュー</h3>
+<p>本文画面の上側。前後の節を読むための場所で、編集はできません。</p>
+<p>→ <a href="https://github.com/sonneko/novnow/blob/main/docs/specifications/ui.md">仕様: 文脈ビュー</a> §9.3</p>
+<h3 id="読者モードalt7">読者モード（<code>Alt+7</code>）</h3>
+<p>記号を消して、縦書きで読み返す画面。ルビやしおりもここで扱います。</p>
+<p>→ <a href="https://github.com/sonneko/novnow/blob/main/docs/specifications/workflows.md">仕様: 読者モード</a> §17.3</p>
+<h2 id="注意と手助け">注意と手助け</h2>
+<h3 id="診断">診断</h3>
+<p>書いた内容の気になるところを、その場で教えてくれる仕組み。全部で 76 種類あり、 それぞれに <code>E001</code> のような<strong>コード</strong>（識別子）が付いています。赤い波線は「直したほうがよい」、 黄色は「確認してほしい」、青は「知らせておく」の意味です。</p>
+<p>→ <a href="https://github.com/sonneko/novnow/blob/main/docs/specifications/diagnostics.md">仕様: 診断カタログ</a> §7</p>
+<h3 id="クイックフィックス">クイックフィックス</h3>
+<p>波線の上で <code>Ctrl+.</code> を押すと出る「その場で直す」選択肢。</p>
+<p>→ <a href="https://github.com/sonneko/novnow/blob/main/docs/specifications/ui.md">仕様: コードアクション</a> §9.4</p>
+<h3 id="点検alt9">点検（<code>Alt+9</code>）</h3>
+<p>作品全体をまとめて調べる画面。エラーの一覧、進み具合、伏線の置き忘れなどを確認します。</p>
+<p>→ <a href="https://github.com/sonneko/novnow/blob/main/docs/specifications/ui.md">仕様: 点検</a> §10.9</p>
+<h2 id="ai-と外部連携">AI と外部連携</h2>
+<h3 id="エージェント">エージェント</h3>
+<p>AI に手伝ってもらう仕組み。7 つの役割（本文・プロット・アイデア・調査・文体・論理・統合）があります。</p>
+<p>→ <a href="https://github.com/sonneko/novnow/blob/main/docs/specifications/agent.md">仕様: エージェント</a> §15</p>
+<h3 id="委譲レベル">委譲レベル</h3>
+<p>AI にどこまで任せるかの 4 段階。<code>off</code>（頼まない）/ <code>propose</code>（案を出すだけ）/ <code>apply</code>（承認したら反映）/ <code>autonomous</code>（任せる）。<strong>既定は提案まで</strong>で、勝手に本文は変わりません。</p>
+<p>→ <a href="https://github.com/sonneko/novnow/blob/main/docs/specifications/agent.md">仕様: 委譲レベル</a> §15.1</p>
+<h3 id="提案">提案</h3>
+<p>AI が出した変更案。本文に反映する前に、どこがどう変わるかを差分で確認できます。</p>
+<p>→ <a href="https://github.com/sonneko/novnow/blob/main/docs/specifications/editing.md">仕様: 変更提案</a> §8.7</p>
+<h2 id="保存と持ち出し">保存と持ち出し</h2>
+<h3 id="エクスポート">エクスポート</h3>
+<p>記号（<code>@</code> や <code>'</code>）を取り除いて、ふつうの文章として書き出すこと。<code>.txt</code> と <code>.md</code> が選べます。</p>
+<p>→ <a href="https://github.com/sonneko/novnow/blob/main/docs/specifications/workflows.md">仕様: エクスポート</a> §17</p>
+<h3 id="zip-書き出し--読み込み">Zip 書き出し / 読み込み</h3>
+<p>作品まるごとを 1 つのファイルにまとめること。ブラウザ版のバックアップはこれを使います。</p>
+<p>→ <a href="https://github.com/sonneko/novnow/blob/main/docs/specifications/platform.md">仕様: Zip</a> §13.5</p>
+<h3 id="indexeddb">IndexedDB</h3>
+<p>ブラウザ版が作品を保存する場所。ブラウザの中にあり、外のフォルダは使いません。</p>
+<p>→ <a href="https://github.com/sonneko/novnow/blob/main/docs/specifications/platform.md">仕様: Web の保存</a> §13.3</p>
+</main>
+<footer>
+  このページは <code>docs/users/glossary.md</code> から自動生成しています。直すときはリポジトリの
+  <code>docs/users/</code> を編集してください（<code>python3 scripts/docs-site.py</code> で作り直します）。
+</footer>
+</body>
+</html>

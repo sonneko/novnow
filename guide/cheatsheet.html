@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>早見表 — novnow</title>
+<style>
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 0 1.25rem 5rem;
+  background: #16161a; color: #e6e6ea;
+  font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  line-height: 1.85; font-size: 16px;
+}
+main { max-width: 46rem; margin: 0 auto; }
+header.bar {
+  max-width: 46rem; margin: 0 auto; padding: 1rem 0 0.5rem;
+  display: flex; gap: 1rem; align-items: baseline; flex-wrap: wrap;
+  border-bottom: 1px solid #2c2c33; margin-bottom: 2rem;
+}
+header.bar a { color: #b9a7ff; text-decoration: none; }
+header.bar .brand { font-weight: 700; color: #e6e6ea; }
+header.bar .spacer { flex: 1; }
+h1 { font-size: 1.7rem; line-height: 1.4; margin: 1.5rem 0 0.75rem; }
+h2 { font-size: 1.3rem; margin: 2.2rem 0 0.6rem; border-bottom: 1px solid #2c2c33; padding-bottom: 0.3rem; }
+h3 { font-size: 1.1rem; margin: 1.8rem 0 0.5rem; }
+a { color: #b9a7ff; }
+code { background: #232329; padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.92em; }
+pre { background: #232329; padding: 0.9rem 1rem; border-radius: 8px; overflow-x: auto; }
+pre code { background: none; padding: 0; }
+blockquote { margin: 1rem 0; padding: 0.2rem 1rem; border-left: 3px solid #4a4a58; color: #b9b9c4; }
+table { border-collapse: collapse; width: 100%; margin: 1.2rem 0; font-size: 0.94rem; }
+th, td { border: 1px solid #2c2c33; padding: 0.45rem 0.7rem; text-align: left; vertical-align: top; }
+th { background: #1e1e24; }
+hr { border: none; border-top: 1px solid #2c2c33; margin: 2rem 0; }
+footer { max-width: 46rem; margin: 3rem auto 0; padding-top: 1rem; border-top: 1px solid #2c2c33;
+  color: #85858f; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="index.html">novnow ユーザーガイド</a>
+  <a href="start.html">はじめての手引き</a>
+  <a href="cheatsheet.html">早見表</a>
+  <a href="glossary.html">用語集</a>
+  <a href="faq.html">よくある質問</a>
+  <span class="spacer"></span>
+  <a href="https://novnow.sonneko.com/app/">アプリを開く</a>
+</header>
+<main>
+<h1>早見表</h1>
+<p>書きながら横に置いてください。記号の意味は「<a href="start.html#write-first-section">本文の書き方</a>」に説明があります。</p>
+<h2 id="本文に書く記号">本文に書く記号</h2>
+<table><thead><tr>
+<th>書くもの</th>
+<th>意味</th>
+<th>例</th>
+</tr></thead><tbody>
+<tr>
+<td><code>@01-04-02 題名</code></td>
+<td>場面の見出し（新しい場面の始まり）</td>
+<td><code>@01-04-02 図書室の攻防</code></td>
+</tr>
+<tr>
+<td><code>@名前</code></td>
+<td>その行を誰が言ったか（台詞の行末）</td>
+<td><code>「行くよ」@アルス</code></td>
+</tr>
+<tr>
+<td><code>@名前:A</code></td>
+<td>話者とモード（口調）を指定</td>
+<td><code>「……そう」@リリア:B</code></td>
+</tr>
+<tr>
+<td><code>'名前</code></td>
+<td>登録済みの用語・人物・資料を指す</td>
+<td><code>'魔法学院の図書室</code></td>
+</tr>
+<tr>
+<td><code>'M0137</code></td>
+<td>資料を指す</td>
+<td><code>'M0137</code></td>
+</tr>
+<tr>
+<td><code>;</code></td>
+<td>行全体が <code>;</code> のとき、節の区切り</td>
+<td><code>;</code></td>
+</tr>
+<tr>
+<td><code># メモ</code></td>
+<td>その行は表示されない覚え書き</td>
+<td><code># ここで伏線</code></td>
+</tr>
+<tr>
+<td><code>^M0137</code></td>
+<td>行末に資料の引用を付ける</td>
+<td><code>……と書かれている。^M0137</code></td>
+</tr>
+<tr>
+<td><code>! 挿絵</code></td>
+<td>挿絵の指示（表示されない）</td>
+<td><code>! ここに挿絵</code></td>
+</tr>
+</tbody></table>
+<h2 id="よく使うキー">よく使うキー</h2>
+<table><thead><tr>
+<th>キー</th>
+<th>すること</th>
+</tr></thead><tbody>
+<tr>
+<td><code>Alt+1</code>〜<code>Alt+9</code></td>
+<td>画面（ワークスペース）を切り替える。今の節は保たれる</td>
+</tr>
+<tr>
+<td><code>Ctrl+P</code></td>
+<td>何でも呼び出す一覧（<code>@</code> 構造 / <code>'</code> 辞書 / <code>#</code> 資料 / <code>&gt;</code> コマンド）</td>
+</tr>
+<tr>
+<td><code>Ctrl+G</code></td>
+<td>番号で節へジャンプ（<code>010402</code> でも可）</td>
+</tr>
+<tr>
+<td><code>Ctrl+Enter</code></td>
+<td>この節を確定して次へ（無ければ作る）</td>
+</tr>
+<tr>
+<td><code>Ctrl+B</code></td>
+<td>本文と話プロットを行き来する</td>
+</tr>
+<tr>
+<td><code>Ctrl+.</code></td>
+<td>いま出ている波線をその場で直す</td>
+</tr>
+<tr>
+<td><code>Ctrl+Shift+E</code></td>
+<td>作品全体を点検する</td>
+</tr>
+<tr>
+<td><code>F5</code></td>
+<td>外のソフトで変えた内容を読み直す</td>
+</tr>
+<tr>
+<td><code>Alt+0</code></td>
+<td>直前に見ていた画面へ戻る</td>
+</tr>
+<tr>
+<td><code>?</code></td>
+<td>キーの一覧を出す</td>
+</tr>
+</tbody></table>
+<h2 id="画面ワークスペース">画面（ワークスペース）</h2>
+<table><thead><tr>
+<th>キー</th>
+<th>名前</th>
+<th>何をする場所</th>
+</tr></thead><tbody>
+<tr>
+<td><code>Alt+1</code></td>
+<td>本文</td>
+<td>書く。上に前後の節、右に関連する設定</td>
+</tr>
+<tr>
+<td><code>Alt+2</code></td>
+<td>話プロット</td>
+<td>この話で何を書くかを決める</td>
+</tr>
+<tr>
+<td><code>Alt+3</code></td>
+<td>構成</td>
+<td>作品全体と章の流れ</td>
+</tr>
+<tr>
+<td><code>Alt+4</code></td>
+<td>アイデア</td>
+<td>思いつきを溜めて、後で使う形にする</td>
+</tr>
+<tr>
+<td><code>Alt+5</code></td>
+<td>資料</td>
+<td>調べたものを保存して本文から引く</td>
+</tr>
+<tr>
+<td><code>Alt+6</code></td>
+<td>配役</td>
+<td>人物・口調（モード）・役割語</td>
+</tr>
+<tr>
+<td><code>Alt+7</code></td>
+<td>読者</td>
+<td>記号を消して読み返す（縦書き）</td>
+</tr>
+<tr>
+<td><code>Alt+8</code></td>
+<td>エージェント</td>
+<td>AI に任せる範囲を決める</td>
+</tr>
+<tr>
+<td><code>Alt+9</code></td>
+<td>点検</td>
+<td>作品全体の確認と進み具合</td>
+</tr>
+</tbody></table>
+</main>
+<footer>
+  このページは <code>docs/users/cheatsheet.md</code> から自動生成しています。直すときはリポジトリの
+  <code>docs/users/</code> を編集してください（<code>python3 scripts/docs-site.py</code> で作り直します）。
+</footer>
+</body>
+</html>

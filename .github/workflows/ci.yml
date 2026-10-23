@@ -80,11 +80,17 @@ jobs:
       - name: Verify documents against the implementation (reference.py)
         run: python3 docs/script/reference.py
 
+      - name: Check the user guides for readability (easy-read.py)
+        run: python3 docs/script/easy-read.py
+
       - name: Verify website diagnostic catalog covers all codes
         run: python3 scripts/diagnostics-site.py --check
 
       - name: Verify website API reference covers the canonical catalog
         run: python3 scripts/api-site.py --check
+
+      - name: Verify the site pages match docs (docs-site.py)
+        run: python3 scripts/docs-site.py --check
 
       - name: Detect whether Rust build/test inputs changed
         id: filter

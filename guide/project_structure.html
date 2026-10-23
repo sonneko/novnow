@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>作品のフォルダ構成 — novnow</title>
+<style>
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 0 1.25rem 5rem;
+  background: #16161a; color: #e6e6ea;
+  font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  line-height: 1.85; font-size: 16px;
+}
+main { max-width: 46rem; margin: 0 auto; }
+header.bar {
+  max-width: 46rem; margin: 0 auto; padding: 1rem 0 0.5rem;
+  display: flex; gap: 1rem; align-items: baseline; flex-wrap: wrap;
+  border-bottom: 1px solid #2c2c33; margin-bottom: 2rem;
+}
+header.bar a { color: #b9a7ff; text-decoration: none; }
+header.bar .brand { font-weight: 700; color: #e6e6ea; }
+header.bar .spacer { flex: 1; }
+h1 { font-size: 1.7rem; line-height: 1.4; margin: 1.5rem 0 0.75rem; }
+h2 { font-size: 1.3rem; margin: 2.2rem 0 0.6rem; border-bottom: 1px solid #2c2c33; padding-bottom: 0.3rem; }
+h3 { font-size: 1.1rem; margin: 1.8rem 0 0.5rem; }
+a { color: #b9a7ff; }
+code { background: #232329; padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.92em; }
+pre { background: #232329; padding: 0.9rem 1rem; border-radius: 8px; overflow-x: auto; }
+pre code { background: none; padding: 0; }
+blockquote { margin: 1rem 0; padding: 0.2rem 1rem; border-left: 3px solid #4a4a58; color: #b9b9c4; }
+table { border-collapse: collapse; width: 100%; margin: 1.2rem 0; font-size: 0.94rem; }
+th, td { border: 1px solid #2c2c33; padding: 0.45rem 0.7rem; text-align: left; vertical-align: top; }
+th { background: #1e1e24; }
+hr { border: none; border-top: 1px solid #2c2c33; margin: 2rem 0; }
+footer { max-width: 46rem; margin: 3rem auto 0; padding-top: 1rem; border-top: 1px solid #2c2c33;
+  color: #85858f; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="index.html">novnow ユーザーガイド</a>
+  <a href="start.html">はじめての手引き</a>
+  <a href="cheatsheet.html">早見表</a>
+  <a href="glossary.html">用語集</a>
+  <a href="faq.html">よくある質問</a>
+  <span class="spacer"></span>
+  <a href="https://novnow.sonneko.com/app/">アプリを開く</a>
+</header>
+<main>
+<h1>作品のフォルダ構成</h1>
+<p><code>novnow</code> の作品は、<strong>ただのフォルダ</strong>です。特別なデータベースは使いません。</p>
+<p>デスクトップ版ならフォルダをそのままコピーして引っ越せますし、Git で履歴も残せます。 ブラウザ版では、同じ構成をブラウザの中（IndexedDB）に持ちます。</p>
+<h2 id="全体">全体</h2>
+<pre><code>わたしの作品/
+├── project.json      作品の設定（題名・言語など）
+├── characters.md     人物・モード・役割語
+├── words.md          用語の辞書
+├── ideas.md          アイデアのメモ
+├── contents/         本文
+├── plots/            プロット
+├── materials/        資料
+├── prompts/          AI への頼み方（7 役割）
+├── agents/           AI の作業場所
+├── exports/          書き出した原稿の置き場
+└── .novnow/          画面の状態とキャッシュ（Git には入れない）</code></pre>
+<h2 id="ファイル名の決まり">ファイル名の決まり</h2>
+<p>本文とプロットのファイル名は、<strong>章と話の番号</strong>です。</p>
+<table><thead><tr>
+<th>ファイル</th>
+<th>何が入るか</th>
+</tr></thead><tbody>
+<tr>
+<td><code>contents/01-04.txt</code></td>
+<td>1 章 4 話の本文</td>
+</tr>
+<tr>
+<td><code>contents/00-01.txt</code></td>
+<td>章に入れていない話（置き場）</td>
+</tr>
+<tr>
+<td><code>contents/01-00.txt</code></td>
+<td>1 章のあらすじ</td>
+</tr>
+<tr>
+<td><code>plots/all.txt</code></td>
+<td>作品全体の流れ</td>
+</tr>
+<tr>
+<td><code>plots/01.txt</code></td>
+<td>1 章の流れ</td>
+</tr>
+<tr>
+<td><code>plots/01-04.txt</code></td>
+<td>1 章 4 話のプロット</td>
+</tr>
+</tbody></table>
+<p>番号は「章 → 話 → 場面 → 節」の順に並びます。本文の中の <code>@01-04-02</code> は 「1 章 4 話 2 場面」の意味です。</p>
+<h2 id="novnow-とは"><code>.novnow/</code> とは</h2>
+<p>画面の状態（どこまでスクロールしたか、どの画面を開いていたか）と、読み込みを速くするための キャッシュが入ります。<strong>原稿は入りません。</strong> 消しても作品は失われません。</p>
+<p>Git には入れません（<code>novnow new</code> が最初から除外しています）。</p>
+<h2 id="触るときの注意">触るときの注意</h2>
+<ul>
+<li><code>project.json</code> は書き換えても構いませんが、形を崩すと開けなくなります。</li>
+</ul>
+<p>手で直すときは、元の形をコピーして残しておいてください。</p>
+<ul>
+<li>本文とプロットは、アプリで書くのがいちばん安全です（自動保存と検査が効くため）。</li>
+</ul>
+<p>外のソフトで直したときは、アプリに戻って <code>F5</code> を押してください。</p>
+<h2 id="もっと詳しく">もっと詳しく</h2>
+<ul>
+<li><a href="https://github.com/sonneko/novnow/blob/main/docs/specifications/project.md">仕様: プロジェクト構造</a> §4.1</li>
+<li><a href="https://github.com/sonneko/novnow/blob/main/docs/specifications/platform.md">仕様: Web の保存場所</a> §13.3</li>
+</ul>
+</main>
+<footer>
+  このページは <code>docs/users/project-structure.md</code> から自動生成しています。直すときはリポジトリの
+  <code>docs/users/</code> を編集してください（<code>python3 scripts/docs-site.py</code> で作り直します）。
+</footer>
+</body>
+</html>

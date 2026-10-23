@@ -1964,3 +1964,27 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
   「LocalStorage を使わない」「書き込みは関門だけ」を守るため、閉じたことは端末ではなく `ui.json` に置いた。
 - **未実施**: アプリ内の解説ページ（`guide/*.html`）の生成と、`REF:docs/script/reference.py` の検査 11
   （仕様 §14.2.1 の URL 実在）。`REF:docs/plans.md` §6 Phase 0・3・5 は未実施のまま。
+
+### [HIST:MILESTONE:GUIDE-PUBLISH] 2026-10-23 手引きの公開（guide/*.html）と読みやすさの検査を実装
+
+[HIST-TAG: category=MILESTONE id=GUIDE-PUBLISH topics=docs,website,guide,ci,easy-read,url]
+
+- **背景**: 仕様 §14.2.1 の 3 URL（`guide/project_structure.html`・`guide/git.html`・`guide/publish.html`）は
+  アプリのヘルプが指すのに、公開物に実在しなかった（404）。非エンジニアに GitHub を読ませない方針なので、
+  サイト側に実体を作る必要があった。
+- **生成**: `REF:scripts/docs-site.py` が `REF:docs/users/*.md` から `REF:guide/*.html`（8 ページ）を作る。
+  見出し・箇条書き・表・コード・引用・段落を HTML にする最小の変換器を同じスクリプトに置いた。
+  リンクは同じフォルダの HTML へ張り替え、仕様書への参照だけリポジトリの URL にする。
+  `REF:index.html` の `copy-dir` で trunk の dist に載せ、`REF:website/public/guide/` にも同じ HTML を置いて
+  公式サイト（`novnow.sonneko.com`）からも開けるようにした。
+- **検査 11**: `REF:docs/script/reference.py` に 11 番目の検査を足した。3 URL の実体と `copy-dir` の指定、
+  仕様 §14.2.1・`REF:src/core/model/project.rs`・`REF:guide/` の URL の一致、`docs/users` の相対リンクが
+  仕様書か自分自身だけを指すこと、`REF:src/ui/guide.rs` の段階と `REF:docs/users/start.md` の見出しが
+  1〜9 で揃うこと、生成した HTML どうしのリンクの実在。
+- **読みやすさ**: `REF:docs/script/easy-read.py` を新設（1 文 60 字・1 段落 3 文・漢字 40% 以下・禁止語・
+  です/ます調の混在）。`REF:scripts/verify.sh` の `docs-users` と CI の docs ジョブに入れ、
+  `REF:docs/script/test_easy_read.py` で検査器そのものも試す。違反していた 19 件のうち、
+  漢字の詰まった短い定義は規則の対象外（60 字以上の段落だけ）にし、段落の分割と語の言い換えで残りを直した。
+- **直した文書**: `REF:docs/users/start.md` の `GUIDE.md` への相対リンクは、`docs/users` から
+  `docs/specifications` 以外を指せない規則に反していたので GitHub の URL に変えた。
+- **未実施**: 英語の本文（Phase 5）、診断の上位 12 件の「利用者向けの対処」（Phase 3-3）。

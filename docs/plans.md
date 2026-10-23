@@ -10,7 +10,7 @@
 | 区分 | 状態 | 対象範囲 | 参照 |
 |---|---|---|---|
 | 段階 ①（M0〜M11） | 完了 | コア仕様・全 9 ワークスペース・MCP・CLI・Web 版・ベンチマーク・サンプル一式 | `REF:docs/history.md` |
-| 設計書セクション実装状況 | 実装完了 135 節 / 実装中 1 節 / 未実装・実装計画済み 0 節 / 未実装・未計画 0 節 / 実装待ち 0 節 | 全 11 設計書の `### ` 節（合計 136 節） | `REF:docs/designs/` |
+| 設計書セクション実装状況 | 実装完了 136 節 / 実装中 0 節 / 未実装・実装計画済み 0 節 / 未実装・未計画 0 節 / 実装待ち 0 節 | 全 11 設計書の `### ` 節（合計 136 節） | `REF:docs/designs/` |
 | 仕様変更・修正（F-01〜F-44） | 実装完了（44 件） | UI・エディタ・パレット・辞書・ショートカット・性能等の修正 44 項目 | `REF:docs/plans.md#planned-fixes` |
 | 機能追加（小規模：S-01〜S-18） | 実装完了（18 件） | エージェント例指定・PWA・Zip 導入・形態素波線等の小規模機能追加 18 項目 | `REF:docs/plans.md#planned-small-features` |
 | 機能追加（比較的大規模：L-01） | 実装済み（CLI・デスクトップ） | 既存の本文テキストから `novnow` に移行するための手段の提供 | `REF:docs/plans.md#unplanned-large` |
@@ -901,7 +901,7 @@ Python 一式は `python/novnow-py/tests/`（当初の計画に書いた `python
 ---
 
 <a id="users-and-guide-mode"></a>
-## 6. ユーザー向けガイドとガイドモードの実装計画（状態: 一部実施。Phase 1・2・4 は実施済み、Phase 0・3・5 は未実施）
+## 6. ユーザー向けガイドとガイドモードの実装計画（状態: 一部実施。Phase 0〜4 は実施済み、Phase 5（英語本文・GIF）は未実施）
 
 非エンジニアが「開いて、書いて、書き出せる」までを、**文書・サイト・アプリの 3 か所で同じ内容**にする計画。
 仕様は `REF:docs/specifications/ui.md` §9.10（ガイドモード）、`REF:docs/specifications/workflows.md` §18.5
@@ -918,13 +918,18 @@ Python 一式は `python/novnow-py/tests/`（当初の計画に書いた `python
 ### 6.1 段階
 
 <a id="plan-users-docs"></a>
-#### Phase 0: 壊れている導線を直す（半日）
+#### Phase 0: 壊れている導線を直す（半日）— **実施済み**
+
+`REF:scripts/docs-site.py` が `REF:docs/users/*.md` から `REF:guide/*.html`（8 ページ）を作り、
+`REF:index.html` の `copy-dir` で dist に載る。仕様 §14.2.1 の 3 URL は公開物に実在する。
+存在は `REF:docs/script/reference.py` の検査 11 が CI で見張る。
+
 
 | # | すること | 完了条件 |
 |---|---|---|
 | 0-1 | `REF:docs/specifications/platform.md` §14.2.1 の 3 URL に対応する解説ページを作る（`guide/project_structure.html`・`guide/git.html`・`guide/publish.html`）。`REF:index.html` にコピー指定を足し、trunk の dist に載せる | 3 URL が実際に開ける。中身はユーザー向けガイドとサイトへの短い案内 |
 | 0-2 | `REF:docs/script/reference.py` に検査 11 を足す（下記 6.3） | 3 URL を消すと `verify.sh` が落ちる |
-| 0-3 | CLI の不足ファイル案内（`REF:src/cli/mod.rs`・`REF:src/cli/open.rs`）の文面を平易にする | 案内文が「何をすればよいか」を 1 文で言う |
+| 0-3 | CLI の不足ファイル案内（`REF:src/cli/mod.rs`・`REF:src/cli/open.rs`）の文面を平易にする | 済（確認の結果、仕様 §14.2.2 の文面が既に「足りないもの・構造の解説・`novnow new`」の 3 段で案内していたため変更なし） |
 
 <a id="plan-guide-mode"></a>
 #### Phase 1: ガイドモード（3 日）— **実施済み**
@@ -963,13 +968,18 @@ Python 一式は `python/novnow-py/tests/`（当初の計画に書いた `python
 「同じ内容を 2 か所に持たない」ため、トップページには説明の本文を置かず、**ガイドへのカードと入口の表だけ**を置く。
 本文はすべて `REF:docs/` が正本。
 
-#### Phase 3: 文章の品質を機械で守る（1 日）
+#### Phase 3: 文章の品質を機械で守る（1 日）— **実施済み（3-3 を除く）**
+
+`REF:docs/script/easy-read.py`（標準ライブラリのみ）を `REF:scripts/verify.sh` の `docs-users` と
+CI の docs ジョブに入れた。規則は 1 文 60 字・1 段落 3 文・漢字 40% 以下（60 字以上の段落だけ）・
+禁止語・です/ます調の混在。回帰テストは `REF:docs/script/test_easy_read.py`。
+
 
 | # | すること | 基準 |
 |---|---|---|
 | 3-1 | `docs/script/easy-read.py` を新設（標準ライブラリのみ） | 1 文 60 字以内・1 段落 3 文以内・漢字比率 40% 以下・禁止語（`AST`・`enum`・`デバウンス`・`シリアライズ`）・です/ます混在なし |
 | 3-2 | `REF:scripts/verify.sh` の `docs-users` ステップに組み込む | 落ちたときにどの文かが出る |
-| 3-3 | 診断の上位 12 件に「利用者向けの対処」を足す | `REF:docs/users/faq.md` から引ける |
+| 3-3 | 診断の上位 12 件に「利用者向けの対処」を足す | **未実施**（`REF:docs/users/faq.md` から引ける形にする） |
 
 #### Phase 4: 見つけてもらう（1 日）
 

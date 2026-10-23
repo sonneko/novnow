@@ -16,6 +16,8 @@ docs/script/reference.py — ドキュメントとコードの**実物の突き�
 8. `include_str!` で読み込むパス（仕様書・カタログ・ゴールデン）が**実在するか**。
 9. ルート文書の相対リンク・画像と、`REF:` のアンカーが**実在するか**。
 10. Actions を無駄に使わない設定（全ワークフローの `concurrency`・変更フィルタ・`[ci skip]` のフック）が揃っているか。
+11. 公開する手引き（仕様 §14.2.1 の 3 URL・§18.5）が実在し、`docs/users` の参照が仕様書だけを指し、
+    ガイドモードの段階と `docs/users/start.md` の段階が一致するか。
 
 使い方:
     python3 docs/script/reference.py           # 検査（違反があれば終了コード 1）
@@ -445,6 +447,106 @@ def check_actions_budget() -> list[str]:
     return errors
 
 
+# ---------------------------------------------------------------- 11. 公開する手引き（§14.2.1・§18.5）
+
+# 仕様 §14.2.1 の 3 URL。`src/core/model/project.rs` の定数と同じ並び。
+GUIDE_URLS = (
+    "guide/project_structure.html",
+    "guide/git.html",
+    "guide/publish.html",
+)
+
+
+def check_published_guide() -> list[str]:
+    errors: list[str] = []
+
+    # (1) 3 URL の実体がリポジトリにあり、trunk が dist へ写す指定になっている
+    for url in GUIDE_URLS:
+        if not (ROOT / url).is_file():
+            errors.append(
+                f"[11] {url}: 無い（仕様 §14.2.1 の URL が公開物に実在しない。"
+                " `python3 scripts/docs-site.py` を実行すること）"
+            )
+    manifest = (ROOT / "index.html").read_text(encoding="utf-8")
+    if 'rel="copy-dir" href="guide"' not in manifest:
+        errors.append(
+            "[11] index.html: `guide` の copy-dir が無い（trunk の dist に手引きが載らない）"
+        )
+
+    # (2) 仕様 §14.2.1 とコードの URL が、同じ 3 本を指している
+    spec = (ROOT / "docs/specifications/platform.md").read_text(encoding="utf-8")
+    code = (ROOT / "src/core/model/project.rs").read_text(encoding="utf-8")
+    for url in GUIDE_URLS:
+        spec_url = f"https://sonneko.github.io/novnow/{url}"
+        if spec_url not in spec:
+            errors.append(f"[11] 仕様 §14.2.1 に {spec_url} が無い")
+        if spec_url not in code:
+            errors.append(f"[11] src/core/model/project.rs に {spec_url} が無い")
+
+    # (3) 手引きのリンクが、同じフォルダの HTML か外部 URL か仕様書を指している
+    users = ROOT / "docs/users"
+    for path in sorted(users.glob("*.md")):
+        text = path.read_text(encoding="utf-8")
+        for target in re.findall(r"\]\(([^)\s]+)\)", text):
+            if target.startswith(("http://", "https://", "mailto:", "#")):
+                continue
+            rel = target.split("#", 1)[0]
+            if rel.startswith("./"):
+                if not (users / rel[2:]).is_file():
+                    errors.append(
+                        f"[11] {path.relative_to(ROOT).as_posix()}: {target} の飛び先が無い"
+                    )
+            elif rel.startswith("../"):
+                resolved = (users / rel).resolve()
+                if not resolved.exists():
+                    errors.append(
+                        f"[11] {path.relative_to(ROOT).as_posix()}: {target} の飛び先が無い"
+                    )
+                elif not str(resolved).startswith(str(ROOT)):
+                    errors.append(
+                        f"[11] {path.relative_to(ROOT).as_posix()}: {target} がリポジトリの外を指す"
+                    )
+                elif resolved.is_dir() and resolved.name == "specifications":
+                    pass
+                elif "docs/specifications/" not in resolved.as_posix():
+                    errors.append(
+                        f"[11] {path.relative_to(ROOT).as_posix()}: {target} は仕様書以外を指す"
+                        "（docs/users から参照してよいのは docs/specifications と docs/users だけ）"
+                    )
+            else:
+                errors.append(
+                    f"[11] {path.relative_to(ROOT).as_posix()}: {target} は相対リンクでない"
+                )
+
+    # (3b) 生成した HTML どうしのリンクも実在する
+    guide_dir = ROOT / "guide"
+    for page in sorted(guide_dir.glob("*.html")):
+        html = page.read_text(encoding="utf-8")
+        for href in re.findall(r'href="([^"]+)"', html):
+            if href.startswith(("http://", "https://", "#", "../", "mailto:")):
+                continue
+            target = href.split("#", 1)[0]
+            if target and not (guide_dir / target).is_file():
+                errors.append(f"[11] {page.relative_to(ROOT).as_posix()}: {href} の飛び先が無い")
+
+    # (4) ガイドモードの段階（src/ui/guide.rs）と start.md の見出しが同じ数・同じ順
+    guide_rs = (ROOT / "src/ui/guide.rs").read_text(encoding="utf-8")
+    steps = re.findall(r"^\s*number: (\d+),$", guide_rs, flags=re.MULTILINE)
+    if [int(number) for number in steps] != list(range(1, 10)):
+        errors.append(
+            f"[11] src/ui/guide.rs の段階が 1〜9 でない（{', '.join(steps) or 'なし'}）"
+        )
+    start = (ROOT / "docs/users/start.md").read_text(encoding="utf-8")
+    headings = re.findall(r"^## (\d+)\. ", start, flags=re.MULTILINE)
+    if [int(number) for number in headings] != list(range(1, 10)):
+        errors.append(
+            "[11] docs/users/start.md の段階の見出しが 1〜9 でない"
+            f"（{', '.join(headings) or 'なし'}）。ガイドモード（§9.10）と同じ順序にすること"
+        )
+
+    return errors
+
+
 CHECKS = {
     "1": ("廃止済みの文書名を参照しない", check_retired),
     "2": ("仕様書の節番号が実在する", check_spec_sections),
@@ -456,6 +558,7 @@ CHECKS = {
     "8": ("include_str! のパスが実在する", check_include_paths),
     "9": ("リンクとアンカーが実在する", check_links),
     "10": ("Actions を無駄に使わない設定が揃っている", check_actions_budget),
+    "11": ("公開する手引きが実在し、参照と段階が揃っている", check_published_guide),
 }
 
 
@@ -478,7 +581,7 @@ def main() -> int:
     total = len(CHECKS)
     print(
         f"OK: ドキュメントと実装の突き合わせ {total} 項目（廃止名 / 節番号 / history ID / "
-        f"src ツリー / verify と CI / ルート文書 / 数の主張 / include_str / リンク / Actions の節約）"
+        f"src ツリー / verify と CI / ルート文書 / 数の主張 / include_str / リンク / Actions の節約 / 手引き）"
     )
     return 0
 
