@@ -1,7 +1,7 @@
 ---
 // トップページの「正確で網羅的な情報」ブロック。
 // 数や名前は src/data/site.ts と docs/specifications/ に揃える（ここに直書きしない）。
-import { workspaces, interfaces, keyBindings } from "../data/site";
+import { workspaces, interfaces, keyBindings, platforms, guideLinks } from "../data/site";
 import type { Language } from "../data/i18n";
 
 interface Props {
@@ -12,6 +12,15 @@ const { lang } = Astro.props;
 const text = {
   ja: {
     factsTitle: "ひと目で分かる novnow",
+    startTitle: "まずは手引きから",
+    startLead:
+      "ブラウザだけで始められます。インストールは要りません。手引きは 9 段階で、最後まで進めると 1 本の短編が書き上がります。",
+    startButton: "はじめての手引き（30 分）",
+    startGuideLink: "ユーザーガイド一覧",
+    platformsTitle: "どこで動くか",
+    platformsLead:
+      "画面・キー操作・保存される内容は、ブラウザとデスクトップで同じです。どの入口から触っても同じ結果になります。",
+    platformColumns: { name: "入口", setup: "準備", bestFor: "向いている人" },
     facts: [
       { value: "9", label: "ワークスペース", note: "Alt+1 〜 Alt+9 で切替" },
       { value: "76", label: "リアルタイム診断", note: "すべてに固定のコード" },
@@ -48,6 +57,15 @@ const text = {
   },
   en: {
     factsTitle: "novnow at a glance",
+    startTitle: "Start with the guide",
+    startLead:
+      "You can start in the browser — nothing to install. The guide has nine steps, and by the end you have a finished short story.",
+    startButton: "Getting Started (30 min)",
+    startGuideLink: "All user guides",
+    platformsTitle: "Where it runs",
+    platformsLead:
+      "The layout, the keys, and what gets saved are the same in the browser and on the desktop. Whichever door you use, you get the same result.",
+    platformColumns: { name: "Entry point", setup: "Setup", bestFor: "Best for" },
     facts: [
       { value: "9", label: "workspaces", note: "switch with Alt+1 – Alt+9" },
       { value: "76", label: "live diagnostics", note: "each with a stable code" },
@@ -97,6 +115,40 @@ const tree = `my-novel/
 ├── prompts/          AI プロンプト（7 役割）
 └── agents/           MCP 設定・提案・ログ`;
 ---
+
+<section class="container" style="margin: 3rem auto 4rem; text-align: center; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; padding: 2rem;">
+  <h2 style="font-size: 1.6rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.5rem;">{t.startTitle}</h2>
+  <p style="color: var(--text-secondary); max-width: 720px; margin: 0 auto 1.25rem; line-height: 1.7;">{t.startLead}</p>
+  <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
+    <a href={guideLinks.start} style="display: inline-block; background-color: var(--accent-purple); color: #fff; font-weight: 600; padding: 0.7rem 1.5rem; border-radius: 8px; text-decoration: none;">{t.startButton}</a>
+    <a href={guideLinks.index} style="display: inline-block; border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.7rem 1.5rem; border-radius: 8px; text-decoration: none;">{t.startGuideLink}</a>
+  </div>
+</section>
+
+<section class="container" style="margin-bottom: 5rem;">
+  <h2 style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.5rem;">{t.platformsTitle}</h2>
+  <p style="color: var(--text-secondary); max-width: 760px; margin-bottom: 1.5rem; line-height: 1.7;">{t.platformsLead}</p>
+  <div style="overflow-x: auto; border: 1px solid var(--border-color); border-radius: 10px;">
+    <table style="width: 100%; border-collapse: collapse; font-size: 0.92rem;">
+      <thead>
+        <tr style="background-color: var(--bg-subtle); color: var(--text-muted); text-align: left;">
+          <th style="padding: 0.7rem 1rem; font-weight: 600;">{t.platformColumns.name}</th>
+          <th style="padding: 0.7rem 1rem; font-weight: 600;">{t.platformColumns.setup}</th>
+          <th style="padding: 0.7rem 1rem; font-weight: 600;">{t.platformColumns.bestFor}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {platforms.map((row) => (
+          <tr style="border-top: 1px solid var(--border-color);">
+            <td style="padding: 0.7rem 1rem; white-space: nowrap; color: var(--text-primary); font-weight: 600;">{row.name}</td>
+            <td style="padding: 0.7rem 1rem; color: var(--text-secondary);">{row.setup[lang]}</td>
+            <td style="padding: 0.7rem 1rem; color: var(--text-secondary);">{row.bestFor[lang]}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</section>
 
 <section class="container" style="margin-bottom: 5rem;">
   <h2 style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary); text-align: center; margin-bottom: 1.5rem;">

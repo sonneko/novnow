@@ -237,6 +237,7 @@ pub const CICD_GUIDE_DOC_URL: &str =
     "https://sonneko.github.io/novnow/guide/publish.html";
 ```
 これらの URL はハードコードせず、この定数群のみを参照する（MUST）。
+**3 つの URL はすべて公開サイトに実在しなければならない（MUST）。** 実在は CI が検査する（§18.5）。
 
 **解説ページへの導線（v1 追加仕様 14、MUST）**
 

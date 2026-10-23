@@ -320,6 +320,40 @@ GitHub Actions は**走った分だけ**課金される。このリポジトリ�
 
 ---
 
+### 4.8 ユーザー向け文書（`REF:docs/users/`）
+
+`REF:docs/specifications/` は「決まり」、`REF:docs/users/` は「使い方」である。両者は読者が違うので分ける。
+
+| 文書 | 中身 | 読者 |
+|---|---|---|
+| `REF:docs/users/start.md` | はじめての手引き（30 分で 1 本書く） | 使い始める人 |
+| `REF:docs/users/cheatsheet.md` | 記号とキーの早見表 | 書きながら手元に置く人 |
+| `REF:docs/users/glossary.md` | 用語の定義（用語は言い換えない） | 途中で言葉に詰まった人 |
+| `REF:docs/users/faq.md` | よくある質問（保存・波線・外部連携） | 困った人 |
+
+**参照の向き（MUST）**
+
+- `REF:docs/users/` から参照してよいのは `REF:docs/specifications/`（と `REF:docs/users/` 自身）だけ。
+  開発者向け文書（`REF:docs/developers.md`・`REF:docs/plans.md`・`REF:docs/history.md`）は参照しない。
+- 仕様書から `REF:docs/users/` を参照しない（仕様書は純粋仕様のまま）。
+- 逆向きが必要に見えたら、**仕様書の節を指すのが正しい**（使い方の説明が仕様に無いなら、仕様の記述漏れを疑う）。
+
+**書き方**
+
+- 用語は仕様書の語をそのまま使う（「節」「場面」「モード」「役割語」）。**言い換えず、定義を足す**。
+- 1 文 60 字以内、1 段落 3 文以内。漢字を詰め込まない（`docs/script/easy-read.py` を予定）。
+- 手順は番号付きで 1 ステップ 1 動作。各手順に「うまくいかないとき」を 1〜2 行置く。
+- インストールの節は**場所だけ**作り、配布物が無い間は「準備中」と書く（ソースからのビルドは `REF:GUIDE.md` に逃がす）。
+- 仕様書の節を指すときは `§N.M` を添える（サイト生成がアンカーに変える）。
+
+**3 か所で同じ内容にする**
+
+`REF:docs/users/start.md` の段階が、公開サイトの「はじめての手引き」とアプリ内のガイドモード
+（`REF:docs/specifications/ui.md` §9.10）の元になる。段階の数・順序・文言を変えるときは 3 か所同時に直す
+（`REF:docs/plans.md#plan-docs-site` の生成と、`REF:docs/plans.md#plan-guide-mode` の段階定義）。
+
+---
+
 ## 5. ユーザーの開発の進め方（作業の作法）
 
 1. **段階 ① と段階 ② の区分**:

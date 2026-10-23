@@ -108,3 +108,22 @@
 
 - **[F-30 / F-32 / F-42 / F-43 / S-15] 追加の CI・自動テスト検証項目（実装完了: `REF:docs/plans.md#plan-S-15`）**:
   - `REF:tests/gui.rs`（押せる要素の下線・ホバー・24×24px 当たり判定検査）、`REF:tests/i18n_catalog.rs`（`ja.toml` 助詞前空白検査）、`REF:tests/editor_performance.rs`（10 万字での画面全体の 1 打鍵 16ms 検査。CI の bench ジョブは release で実行）、および `REF:scripts/diagnostics-site.py`（全診断コードの日英解説と具体例の網羅性 CI 検査）を追加する。
+
+### 18.5 ドキュメント公開（仕様書とユーザー向けガイド）
+
+状態: 実装待ち（REF:docs/plans.md#plan-docs-site, REF:docs/users/, REF:scripts/diagnostics-site.py）
+
+- **生成は 1 本のスクリプト**: 新設する `scripts/docs-site.py` が `REF:docs/users/*.md` と
+  `REF:docs/specifications/*.md` を読み、Astro のページ（`/ja/start`・`/ja/cheatsheet`・`/ja/glossary`・
+  `/ja/faq`・`/ja/specifications/<name>`）と、その英語版を書き出す。`REF:scripts/diagnostics-site.py` と
+  同じ形（既定は生成、`--check` は再生成して差分があれば終了コード 1）にそろえる。
+- **アンカー**: Markdown の見出しから `§N.M` のアンカーを作る（`§19.3.2` → `#s19-3-2`）。ガイド本文の
+  `§N.M` は自動でその仕様書の節へのリンクにする。これで「ガイドから仕様書へ」の向きだけが生まれる。
+- **逆向きを作らない**: 仕様書からガイドへのリンクは生成しない（仕様書は純粋仕様のまま公開する）。
+- **アプリ内の解説ページ**: `REF:index.html` に `guide/` のディレクトリコピーを足し、trunk の dist に
+  `guide/project_structure.html`・`guide/git.html`・`guide/publish.html` を載せる。3 ページは生成器で作り、
+  `REF:docs/users/` の該当節へ案内する短いページにする。
+- **検査**: `REF:docs/script/reference.py` の検査 11 が、(1) 仕様 §14.2.1 と
+  `REF:src/core/model/project.rs` の URL に対応する公開物の実在、(2) `REF:docs/users/` の `REF:` が
+  `REF:docs/specifications/` と `REF:docs/users/` だけを指すこと、(3) ガイドの段階と
+  `REF:docs/users/start.md` の見出しの一致、を見る。`REF:scripts/verify.sh` の `site-check` に含める。

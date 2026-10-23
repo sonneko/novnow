@@ -4,6 +4,22 @@
 
 The novnow editor, built to manage the novnow format, runs both as a desktop application (Windows / macOS / Linux) and in the browser (WebAssembly + IndexedDB). The layout and the keyboard bindings are the same on both, and the same project opens in either.
 
+## Where it runs
+
+| Way to run it | Setup | Best for |
+|---|---|---|
+| **Browser** (no install) | Open `https://novnow.sonneko.com/app/` | Trying it first, keeping your machine clean |
+| Desktop (Windows / macOS / Linux) | Build it (binaries are in preparation) | Managing manuscripts in a local folder |
+| Command line (CLI) | Same as above | Checking and exporting a whole manuscript at once |
+| Editor integration (LSP) | Same as above | Writing in VS Code or another editor |
+| AI integration (MCP) | Same as above | Letting AI read and propose changes |
+| Python | Same as above | Automating your own workflow |
+
+The layout, the keys, and what gets saved are the same in the browser and on the desktop.
+Whichever door you use, you get the same result from one shared implementation.
+
+Start with the [user guide](./docs/users/README.md), or go straight to [Getting Started](./docs/users/start.md).
+
 ![The novnow editor (write workspace)](screenshot.png)
 
 ---

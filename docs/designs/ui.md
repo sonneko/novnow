@@ -116,6 +116,35 @@
 - **[F-30 / F-32] 全クリック対象の下線・ホバー背景・ポインタ・24×24px 当たり判定と自動テスト（実装完了: `REF:docs/plans.md#plan-F-30`, `REF:docs/plans.md#plan-F-32`）**:
   - `REF:src/ui/widgets/mod.rs` の統一クリックヘルパで、テキスト・ボタンの最小当たり判定を `24.0 x 24.0` にし、薄い下線描画＋ホバー時 `bg.selection`（60%）塗りと `CursorIcon::PointingHand` を適用する。共通部品と一覧行は `REF:src/ui/workspaces/mod.rs`、Web 選択画面は `REF:src/ui/web.rs` も参照。`REF:tests/gui.rs` で共通部品の描画と当たり判定を検証済み。個別画面、外部リンクとタイムラインも監査し、`REF:tests/gui.rs` および `REF:tests/workspaces.rs` で代表的な描画・操作を検証した。
 
+### 9.10 ガイドモード（はじめての手引き）
+
+状態: 実装待ち（REF:docs/plans.md#plan-guide-mode, REF:src/ui/app.rs, REF:src/ui/web.rs）
+
+- **段階の定義は 1 か所**: 新設する `src/ui/guide.rs` に `STEPS: &[GuideStep]` を置く。各段階は
+  `{ id, text: &'static str（i18n キー）, hint: Key, advance: Advance }` を持ち、`advance` は
+  「ボタンだけで進む」「節が N 個以上」「参照が 1 個以上」「プロットが空でない」「読者を開いた」
+  「エクスポート完了」「Zip 完了」の 7 種で表す。文言は `REF:src/ui/i18n/ja.toml`・`REF:src/ui/i18n/en.toml`
+  の `guide.*` に置き、`REF:tests/i18n_catalog.rs` が両言語の網羅を検査する。
+- **出る条件**: `REF:src/ui/web.rs` の `WebPicker` が保存プロジェクト 0 件を返すとき、`REF:src/ui/app.rs` の
+  `NativePicker` が履歴 0 件を返すときに、起動状態（`Stage::Picker`）のまま `guide.active = true` にする。
+  判定は `Picker` トレイトの既存の一覧取得をそのまま使い、新しい I/O を足さない（規則 10）。
+- **閉じたことの保存**: `UiSettings`（`REF:src/app/settings.rs`）に `guide_done: bool` を足し、
+  `.novnow/ui.json` に保存する。`true` なら自動では出さない。ヘルプの `?` 一覧の
+  「はじめての手引きをもう一度」からは、いつでも `guide.active = true` にできる。
+- **描画**: 新設する `src/ui/widgets/guide.rs` が、対象の `egui::Id` から `Response.rect` を取り、
+  対象を囲む枠と矢印、40 文字以内の吹き出しを描く。画面を暗くする膜は描かない（入力を奪わない）。
+  吹き出しは対象の下 → 右 → 上 → 左の順に空きを探して置く。画面幅 900px 未満（§9.1 の折り畳み）では
+  対象の上に置き、矢印だけを短くする。
+- **進む条件の監視**: `REF:src/ui/app.rs` の既存の状態変化点（節の確定・参照の解析結果・
+  話プロットの文字数・ワークスペース切替・エクスポート/Zip の完了）で `GuideStep::advance` を評価する。
+  条件を満たした段階が現在より後ろなら、そこまでを飛ばして次に進む（仕様 §9.10「先に操作を済ませた段階は飛ばす」）。
+- **キー**: `Enter` で次へ、`Backspace` で戻る、`Esc` で閉じる。ガイド中はこれら 3 つだけを横取りし、
+  他のキーは通常どおりエディタへ渡す（`REF:src/ui/shell.rs` の割り当てに `guide` の状態を 1 つ足す）。
+- **検証**: `REF:tests/gui.rs` で吹き出しの描画・対象との位置関係・入力を奪わないこと、`REF:tests/workspaces.rs`
+  で条件判定と飛ばし、`REF:tests/i18n_catalog.rs` で ja/en の網羅を確認する。
+
+---
+
 ## 10. ワークスペース
 
 ### 10.0 切替の挙動

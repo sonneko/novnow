@@ -149,6 +149,60 @@ export const interfaces: InterfaceRow[] = [
   },
 ];
 
+export interface PlatformRow {
+  name: string;
+  setup: Bilingual;
+  bestFor: Bilingual;
+  highlight?: boolean;
+}
+
+/**
+ * 「どこで動くか」。ブラウザで動くことと、入口が複数あることが伝わっていなかったための表。
+ * 文言は README.md の同じ表と揃える（README 側は `reference.py` の検査 7 が見張る）。
+ */
+export const platforms: PlatformRow[] = [
+  {
+    name: "Browser",
+    setup: { ja: "`https://novnow.sonneko.com/app/` を開くだけ", en: "Just open `https://novnow.sonneko.com/app/`" },
+    bestFor: { ja: "まず試したい・環境を変えたくない", en: "Trying it first, keeping your machine clean" },
+    highlight: true,
+  },
+  {
+    name: "Desktop",
+    setup: { ja: "ビルドする（配布物は準備中）", en: "Build it (binaries in preparation)" },
+    bestFor: { ja: "手元のフォルダで原稿を管理したい", en: "Managing manuscripts in a local folder" },
+  },
+  {
+    name: "CLI",
+    setup: { ja: "同上", en: "Same as above" },
+    bestFor: { ja: "原稿をまとめて検査・書き出ししたい", en: "Checking and exporting a whole manuscript at once" },
+  },
+  {
+    name: "LSP",
+    setup: { ja: "同上", en: "Same as above" },
+    bestFor: { ja: "VS Code など手持ちのエディタで書きたい", en: "Writing in VS Code or another editor" },
+  },
+  {
+    name: "MCP",
+    setup: { ja: "同上", en: "Same as above" },
+    bestFor: { ja: "AI に作品を読ませたい", en: "Letting AI read and propose changes" },
+  },
+  {
+    name: "Python",
+    setup: { ja: "同上", en: "Same as above" },
+    bestFor: { ja: "作業を自動化したい", en: "Automating your own workflow" },
+  },
+];
+
+/** ユーザー向けガイドの入口。サイト内の生成ページができるまではリポジトリを指す。 */
+export const guideLinks = {
+  start: "https://github.com/sonneko/novnow/blob/main/docs/users/start.md",
+  index: "https://github.com/sonneko/novnow/blob/main/docs/users/README.md",
+  glossary: "https://github.com/sonneko/novnow/blob/main/docs/users/glossary.md",
+  cheatsheet: "https://github.com/sonneko/novnow/blob/main/docs/users/cheatsheet.md",
+  faq: "https://github.com/sonneko/novnow/blob/main/docs/users/faq.md",
+};
+
 /** 覚えておくと迷わないキー（docs/specifications/ui.md §9.9）。 */
 export const keyBindings: { key: string; what: Bilingual }[] = [
   { key: "Alt+1..9", what: { ja: "ワークスペース切替（現在の節を維持）", en: "Switch workspace (keeps the current section)" } },

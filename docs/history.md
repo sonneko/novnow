@@ -1885,3 +1885,29 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - **Web 実機スモーク**: `REF:scripts/web-smoke.sh` をサンドボックスのヘッドレス Chromium で実行し、28 項目すべて通った
   （IndexedDB 保存・IME・読者モード・PWA キャッシュ・オフライン・Zip・エクスポート・取り込み・バイナリ画像の往復・
   保存失敗からの再試行）。wasm の取得は PR #25 の `sandbox-tools` コメントを使った（`PR=25`）。
+
+### [HIST:MILESTONE:USER-GUIDE-PLAN] 2026-10-23 ユーザー向けガイドの新設と、ガイドモード・サイト生成の仕様化
+
+[HIST-TAG: category=MILESTONE id=USER-GUIDE-PLAN topics=docs,users,guide-mode,website,i18n,plan]
+
+- **ユーザー裁定（2026-10-23）**: バイナリ配布は後回し（インストールの節は場所だけ作って「準備中」）。
+  用語は変えず定義を足す。`REF:docs/users/` を新設し、`REF:docs/specifications/` を参照する向きに固定する。
+  サイトは仕様書とユーザーガイドの両方を docs から生成する。ブラウザで動くこと・入口が複数あることを
+  README とサイトで分かるようにする。ガイドモードは Web=保存 0 件／デスクトップ=履歴 0 件のときだけ自動で出す。
+- **追加した文書**: `REF:docs/users/README.md`（読む順路）・`REF:docs/users/start.md`（はじめての手引き 9 段階）・
+  `REF:docs/users/cheatsheet.md`（記号とキー）・`REF:docs/users/glossary.md`（用語の定義と仕様の節へのリンク）・
+  `REF:docs/users/faq.md`（保存・波線・外部連携）。用語は仕様書の語のまま（節・場面・話・章・モード・役割語）で、
+  言い換えずに定義を足した。
+- **仕様の追加（人間の承認済み）**: `REF:docs/specifications/ui.md` §9.10（ガイドモード。出る条件・9 段階・
+  吹き出しと矢印・入力を奪わないこと・ja/en と手引きとの一致）、`REF:docs/specifications/workflows.md` §18.5
+  （仕様書とユーザーガイドの両方を docs から公開し、ガイドから仕様書へリンクする。公開物と元文書の一致、
+  解説ページ URL の実在を CI が検査する）、`REF:docs/specifications/platform.md` §14.2.1（3 URL の実在 MUST）。
+- **設計の追加**: `REF:docs/designs/ui.md` §9.10（段階定義を 1 か所に持つ・判定・`guide_done` の保存・
+  吹き出しの位置決め・進む条件の監視・テスト）と `REF:docs/designs/workflows.md` §18.5（`docs-site.py` による生成、
+  `§N.M` のアンカー化、`guide/` の生成、検査 11）。どちらも状態は「実装待ち」。
+- **計画**: `REF:docs/plans.md` §6 に Phase 0〜5、受け入れ基準、検査 11、リスクを置いた。
+- **README**: 冒頭に「どこで動くか」（ブラウザ／デスクトップ／CLI／LSP／MCP／Python）の表を足し、
+  ユーザーガイドへの導線を置いた（`REF:README.en.md` も同様）。サイトのトップにも同じ表と
+  「はじめての手引き」ボタンを追加した（`REF:website/src/data/site.ts`・`REF:website/src/components/Overview.astro`）。
+- **未実施（意図的）**: ガイドモードの実装、`docs-site.py`・`easy-read.py`・検査 11、`guide/*.html` の生成は
+  計画のみ。今回のコミットは文書とサイトのデータだけ。
