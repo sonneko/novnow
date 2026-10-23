@@ -117,7 +117,7 @@
 - `REF:src/core/model/mod.rs`: ドメインモデル型群。
 - `REF:src/core/resolve/mod.rs`: `dictionary.rs`, `modes.rs`, `role_language.rs`, `materials.rs`, `context_rules.rs`。
 - `REF:src/core/diagnostics.rs`: 76 診断コードの定義とメタデータ表。
-- `REF:src/core/features/mod.rs`: ワークスペース補助（`project.rs`, `sections.rs`, `reference.rs`, `references.rs`, `place.rs`, `plots.rs`, `ideas.rs`, `cast.rs`, `materials_ops.rs`）と LSP 11 機能（`completion.rs`, `definition.rs`, `document_symbol.rs`, `folding.rs`, `formatting.rs`, `hover.rs`, `inlay_hint.rs`, `semantic_tokens.rs`, `code_action.rs`, `rename.rs`）。
+- `REF:src/core/features/mod.rs`: ワークスペース補助（`project.rs`, `sections.rs`, `reference.rs`, `references.rs`, `place.rs`, `plots.rs`, `ideas.rs`, `cast.rs`, `materials_ops.rs`）と LSP の言語機能（§3.4 の 12 機能のうち文書診断は `REF:src/core/diagnostics.rs` が担い、残る 11 機能を `core/features` が持つ）: `completion.rs`, `definition.rs`, `references.rs`, `document_symbol.rs`, `folding.rs`, `formatting.rs`, `hover.rs`, `inlay_hint.rs`, `semantic_tokens.rs`, `code_action.rs`, `rename.rs`）。
 - `REF:src/core/policy/mod.rs`: `write_policy.rs`, `recent.rs`, `archive.rs`, `external_change.rs`。
 - `REF:src/core/export.rs`, `REF:src/core/template/mod.rs`, `REF:src/core/aicontext/mod.rs`, `REF:src/core/agents/mod.rs`。
 - `REF:src/ports/mod.rs` & `REF:src/adapters/mod.rs`: ポートと各環境アダプタ。
