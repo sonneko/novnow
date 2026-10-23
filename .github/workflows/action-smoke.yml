@@ -1,0 +1,68 @@
+name: Composite Action Smoke
+
+# A tag alone is too early: release assets do not exist yet. Run manually, or
+# automatically after the complete Release workflow has published the assets.
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: action-smoke-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: "Check the sample project through uses: ./"
+        id: check
+        uses: ./
+        with:
+          path: examples/sample-novel
+          command: check
+      - name: Prepare a project with an E diagnostic
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="$RUNNER_TEMP/novnow-invalid"
+          rm -rf "$target"
+          cp -R examples/sample-novel "$target"
+          first="$(find "$target/contents" -type f -name '*.txt' | sort | head -1)"
+          printf "\n'action_unknown_term\n" >> "$first"
+      - name: Verify that E diagnostics fail the action
+        id: invalid
+        uses: ./
+        continue-on-error: true
+        with:
+          path: ${{ runner.temp }}/novnow-invalid
+          command: check
+      - name: Assert exit codes and structured outputs
+        shell: bash
+        env:
+          VALID_OUTCOME: ${{ steps.check.outcome }}
+          VALID_CODE: ${{ steps.check.outputs.exit-code }}
+          VALID_FINDINGS: ${{ steps.check.outputs.findings }}
+          INVALID_OUTCOME: ${{ steps.invalid.outcome }}
+          INVALID_CODE: ${{ steps.invalid.outputs.exit-code }}
+          INVALID_FINDINGS: ${{ steps.invalid.outputs.findings }}
+        run: |
+          set -euo pipefail
+          [ "$VALID_OUTCOME" = success ]
+          [ "$VALID_CODE" = 0 ]
+          [ "$INVALID_OUTCOME" = failure ]
+          [ "$INVALID_CODE" = 5 ]
+          [[ "$VALID_FINDINGS" =~ ^[0-9]+$ ]]
+          [[ "$INVALID_FINDINGS" =~ ^[0-9]+$ ]]
+          [ "$INVALID_FINDINGS" -gt 0 ]
+          echo "valid findings=$VALID_FINDINGS; invalid findings=$INVALID_FINDINGS"

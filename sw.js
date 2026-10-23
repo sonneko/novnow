@@ -1,6 +1,6 @@
 /* Cache the application shell and every same-origin asset the browser actually loads.
    The hashed Trunk JS/WASM filenames are discovered on the first online visit. */
-const CACHE = 'novnow-offline-v1';
+const CACHE = 'novnow-offline-0.1.0';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon.svg'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));

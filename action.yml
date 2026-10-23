@@ -1,0 +1,78 @@
+name: novnow
+description: Check or export a novnow project with the checksum-verified official CLI
+author: sonneko
+branding:
+  icon: book-open
+  color: purple
+
+inputs:
+  path:
+    description: Project directory
+    required: false
+    default: .
+  command:
+    description: Subcommand to run (for example check or export)
+    required: false
+    default: check
+  args:
+    description: Additional arguments, split on whitespace without quote processing
+    required: false
+    default: ""
+  version:
+    description: Version to use; empty means this action's version
+    required: false
+    default: ""
+  target:
+    description: Rust target triple; empty means auto-detect
+    required: false
+    default: ""
+
+outputs:
+  exit-code:
+    description: novnow process exit code
+    value: ${{ steps.execute.outputs.exit-code }}
+  findings:
+    description: Number of diagnostics for check; empty for other commands
+    value: ${{ steps.execute.outputs.findings }}
+  export-path:
+    description: The --out path for export; empty otherwise
+    value: ${{ steps.execute.outputs.export-path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve release target
+      id: resolve
+      shell: bash
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_TARGET: ${{ inputs.target }}
+        NOVNOW_ACTION_VERSION: "0.1.0"
+      run: bash "${{ github.action_path }}/scripts/action/install.sh" --resolve
+
+    - name: Restore the release archive cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ runner.temp }}/novnow-bin
+        key: novnow-${{ steps.resolve.outputs.version }}-${{ steps.resolve.outputs.target }}
+        restore-keys: |
+          novnow-${{ steps.resolve.outputs.version }}-${{ steps.resolve.outputs.target }}-
+
+    - name: Download and verify novnow
+      id: install
+      shell: bash
+      env:
+        NOVNOW_VERSION: ${{ steps.resolve.outputs.version }}
+        NOVNOW_TARGET: ${{ steps.resolve.outputs.target }}
+        NOVNOW_CACHE_DIR: ${{ runner.temp }}/novnow-bin
+      run: bash "${{ github.action_path }}/scripts/action/install.sh" --install
+
+    - name: Run novnow and publish outputs
+      id: execute
+      shell: bash
+      env:
+        NOVNOW_BINARY: ${{ steps.install.outputs.binary }}
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_COMMAND: ${{ inputs.command }}
+        INPUT_ARGS: ${{ inputs.args }}
+      run: bash "${{ github.action_path }}/scripts/action/install.sh" --run

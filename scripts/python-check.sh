@@ -25,12 +25,15 @@ ROOT="$(cd "$HERE/.." && pwd)"
 BUILD_DIR="${BUILD_DIR:-$HOME/build}"
 PY="$ROOT/python/novnow-py"
 FULL="${PYO3_BUILD:-0}"
-for arg in "$@"; do
-    case "$arg" in
+WHEEL=""
+while [ "$#" -gt 0 ]; do
+    case "$1" in
         --full) FULL=1 ;;
-        -h|--help) sed -n '2,25p' "${BASH_SOURCE[0]}"; exit 0 ;;
-        *) printf 'error: 未知の引数 %s\n' "$arg" >&2; exit 2 ;;
+        --wheel) shift; WHEEL="${1:?--wheel にはファイルが要る}" ;;
+        -h|--help) sed -n '2,26p' "${BASH_SOURCE[0]}"; exit 0 ;;
+        *) printf 'error: 未知の引数 %s\n' "$1" >&2; exit 2 ;;
     esac
+    shift
 done
 cd "$ROOT"
 
@@ -42,6 +45,11 @@ python3 -B -m compileall -q python/novnow-py scripts
 
 echo "==> 束縛と例外の検査（\`_core\` は偽物）"
 python3 -B -m unittest discover -s python/novnow-py/tests -t python/novnow-py/tests -p 'test_binding.py'
+
+if [ -n "$WHEEL" ]; then
+    echo "==> ホイールの版・abi3 タグを Cargo.toml と照合"
+    python3 -B scripts/release-matrix.py --verify-wheel "$WHEEL"
+fi
 
 # --- 拡張のビルドと本物の pytest（--full で、かつ vendor があるときだけ） --------
 if [ "$FULL" != 1 ]; then

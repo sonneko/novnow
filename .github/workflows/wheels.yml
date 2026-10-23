@@ -1,13 +1,11 @@
 # Python ホイール（§19.3.1 の構成）。abi3-py39 なので 1 構成 1 ホイールで 3.9+ を賄う。
 #
-# ビルドは 4 構成（ubuntu x64 / ubuntu arm64 / macos arm64 / windows x64）。macos-13 の
-# x86_64-apple-darwin はランナーの待ち行列が数十分単位で、得られる確認以上のコストになるため**廃止**した
-# （2026-10-23 のユーザー裁定）。Intel Mac 向けのホイールが要るときは `macos-latest` で
-# `--target x86_64-apple-darwin` を指定する構成を足す（ランナーは arm64 のまま）。
+# ビルドは 5 構成（ubuntu x64 / ubuntu arm64 / macos x64 / macos arm64 / windows x64）。
+# Intel Mac は macos-latest（arm64）から `--target x86_64-apple-darwin` で作る。
 #
 # - push / pull_request: ビルドだけ（公開しない）。
-# - タグ `v*`: TestPyPI へリハーサル公開。
-# - リリース: PyPI 本番（`environment: pypi` の承認を通す）。
+# - workflow_dispatch: 選択したときだけ TestPyPI / PyPI へ公開。
+# - タグ公開の本流は release.yml（15 成果物の後に TestPyPI）が担う。
 #
 # 前提: pyo3 系のクレートの vendoring（REF:docs/add-dependencies.md §2.2、
 # 対象一覧は REF:docs/plans.md §5.5）。CI ランナーは crates.io に到達できるので通常解決する。
@@ -16,10 +14,18 @@ name: wheels
 on:
   push:
     branches: [main]
-    tags: ["v*"]
   pull_request:
     paths: ["python/**", ".github/workflows/wheels.yml", "src/**", "Cargo.toml"]
   workflow_dispatch:
+    inputs:
+      publish_testpypi:
+        description: Publish to TestPyPI after all tests pass
+        type: boolean
+        default: false
+      publish_pypi:
+        description: Publish to PyPI after all tests pass (requires approval)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -32,20 +38,23 @@ concurrency:
 
 # draft の PR では走らせない（`ci.yml` と同じ条件。Actions の使用量を抑える）。
 jobs:
+  prepare:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    outputs:
+      wheels: ${{ steps.matrix.outputs.wheels }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: matrix
+        shell: bash
+        run: echo "wheels=$(python3 scripts/release-matrix.py --wheels)" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: prepare
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-          - os: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
-          - os: macos-latest
-            target: aarch64-apple-darwin
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
+      matrix: ${{ fromJSON(needs.prepare.outputs.wheels) }}
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -71,16 +80,29 @@ jobs:
           # `cargo generate-lockfile` して commit し直す。
           cargo metadata --locked --format-version 1 >/dev/null
           cargo tree --locked --depth 1 | head -20
-      - name: Build the wheel (abi3-py39)
+      - name: Build the manylinux wheel (abi3-py39)
+        if: contains(matrix.target, 'linux')
         uses: PyO3/maturin-action@v1
         with:
           command: build
-          args: --release --target ${{ matrix.target }} --out dist
+          args: --locked --release --target ${{ matrix.target }} --out dist --manylinux 2_28
           working-directory: python/novnow-py
+      - name: Build the macOS or Windows wheel (abi3-py39)
+        if: ${{ !contains(matrix.target, 'linux') }}
+        uses: PyO3/maturin-action@v1
+        with:
+          command: build
+          args: --locked --release --target ${{ matrix.target }} --out dist
+          working-directory: python/novnow-py
+        env:
+          MACOSX_DEPLOYMENT_TARGET: "11.0"
+      - name: Verify generated wheel filename
+        shell: bash
+        run: test -f "dist/${{ matrix.artifact }}"
       - uses: actions/upload-artifact@v4
         with:
           name: wheel-${{ matrix.target }}
-          path: python/novnow-py/dist/*.whl
+          path: python/novnow-py/dist/${{ matrix.artifact }}
 
   test:
     needs: build
@@ -103,11 +125,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip pytest
           python -m pip install dist/*.whl
-          python -c "import novnow; print(novnow.__version__, len(novnow.operations()))"
+          python -c 'import novnow,tomllib; expected=tomllib.load(open("Cargo.toml","rb"))["package"]["version"]; assert novnow.__version__ == expected; print(novnow.__version__, len(novnow.operations()))'
           pytest python/novnow-py
 
   publish-testpypi:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_testpypi
     needs: test
     runs-on: ubuntu-latest
     environment: testpypi
@@ -124,8 +146,8 @@ jobs:
           repository-url: https://test.pypi.org/legacy/
 
   publish-pypi:
-    if: github.event_name == 'release'
-    needs: test
+    if: always() && github.event_name == 'workflow_dispatch' && inputs.publish_pypi && needs.publish-testpypi.result != 'failure' && needs.publish-testpypi.result != 'cancelled'
+    needs: [test, publish-testpypi]
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
