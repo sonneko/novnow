@@ -61,16 +61,7 @@ novnow --gui
 ## ドキュメント構成
 
 - **仕様書（ユーザー向けリファレンス）**: [`docs/specifications/`](./docs/specifications/)
-  - [`overview.md`](./docs/specifications/overview.md): 設計原則・用語・アーキテクチャ
-  - [`project.md`](./docs/specifications/project.md): プロジェクト構造・`project.json`・サンプル構成
-  - [`syntax.md`](./docs/specifications/syntax.md): 各ファイルの構文仕様（EBNF）
-  - [`semantics.md`](./docs/specifications/semantics.md): 辞書・最短一致・モード解決・役割語パターン言語
-  - [`diagnostics.md`](./docs/specifications/diagnostics.md): 診断カタログ（全 76 コード）
-  - [`editing.md`](./docs/specifications/editing.md): 節単位編集・自動保存・外部変更競合・変更提案
-  - [`ui.md`](./docs/specifications/ui.md): 画面仕様・ワークスペース・テーマ・国際化
-  - [`platform.md`](./docs/specifications/platform.md): ストレージ境界（規則 10）・Web IndexedDB・CLI 起動仕様
-  - [`agent.md`](./docs/specifications/agent.md): AI エージェント・委譲レベル・MCP・プロンプト仕様
-  - [`workflows.md`](./docs/specifications/workflows.md): 資料収集・エクスポート・性能品質要件
+  全 11 冊（概要・プロジェクト構造・構文・意味解決・診断・編集・UI・プラットフォーム・エージェント・ワークフロー・外部インターフェース）。各冊の役割は [`README.md`](./README.md#仕様について) の一覧を参照してください（同じ表を 2 か所に置かないため）。
 - **設計書（実装設計・対応ソースコード）**: [`docs/designs/`](./docs/designs/)
 - **開発者ガイド**: [`docs/developers.md`](./docs/developers.md)
 - **開発計画（段階 ② ロードマップ）**: [`docs/plans.md`](./docs/plans.md)

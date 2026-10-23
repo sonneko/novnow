@@ -137,8 +137,9 @@ Everything the GUI can do is also reachable headlessly (see [`interfaces.md`](./
 | Rust | the `novnow` crate | The `core` and `app` APIs directly |
 
 ```bash
-novnow api list            # list the 119 canonical operations (--json for machines)
-novnow check --json my-novel
+novnow api list             # list the 119 canonical operations (--json for machines)
+novnow check my-novel       # print diagnostics and exit (exit code 5 when there are errors)
+novnow structure tree my-novel --json                    # canonical operations accept --json
 ```
 
 ## About the Specifications

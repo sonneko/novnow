@@ -139,8 +139,9 @@ GUI でできることは、すべてヘッドレスからも操作できます�
 | Rust | `novnow` クレート | `core` / `app` の API を直接利用 |
 
 ```bash
-novnow api list            # 119 の正規操作の一覧（--json で機械可読）
-novnow check --json my-novel
+novnow api list             # 119 の正規操作の一覧（--json で機械可読）
+novnow check my-novel       # 診断を出して終了する（エラーがあれば終了コード 5）
+novnow structure tree my-novel --json                    # 正規操作も --json で機械可読
 ```
 
 ## 仕様について
