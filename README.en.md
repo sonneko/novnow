@@ -9,11 +9,12 @@ The novnow editor, built to manage the novnow format, runs both as a desktop app
 | Way to run it | Setup | Best for |
 |---|---|---|
 | **Browser** (no install) | Open `https://novnow.sonneko.com/app/` | Trying it first, keeping your machine clean |
-| Desktop (Windows / macOS / Linux) | Build it (binaries are in preparation) | Managing manuscripts in a local folder |
+| Desktop (Windows / macOS / Linux) | Releases are in preparation ([how to install](./docs/users/install.md#desktop)) | Managing manuscripts in a local folder |
 | Command line (CLI) | Same as above | Checking and exporting a whole manuscript at once |
 | Editor integration (LSP) | Same as above | Writing in VS Code or another editor |
 | AI integration (MCP) | Same as above | Letting AI read and propose changes |
-| Python | Same as above | Automating your own workflow |
+| Python | `pip install novnow` (in preparation) | Automating your own workflow |
+| VS Code extension | Install from the marketplace (in preparation) | Writing in VS Code every day |
 
 The layout, the keys, and what gets saved are the same in the browser and on the desktop.
 Whichever door you use, you get the same result from one shared implementation.
@@ -111,7 +112,9 @@ In the future, following continued research and development, we plan to implemen
 
 ## Install and Run
 
-For now novnow is built from source (binary releases are being prepared). A stable Rust toolchain is required.
+Distribution covers 20 desktop builds, 5 Python wheels, a VS Code extension, and a GitHub Action (publication is in preparation). See [how to install](./docs/users/install.md) for users and [distribution.md](./docs/distribution.md) for the release procedure and rules.
+
+Until then, novnow can be built from source. A stable Rust toolchain is required.
 
 ```bash
 git clone https://github.com/sonneko/novnow.git
@@ -173,6 +176,7 @@ All specifications for the editor and the novnow format are fully documented:
 - [`agent.md`](./docs/specifications/agent.md): AI agents, delegation levels, MCP, and prompt specifications
 - [`workflows.md`](./docs/specifications/workflows.md): Material collection, export, and performance/quality requirements
 - [`interfaces.md`](./docs/specifications/interfaces.md): CLI, LSP, MCP, Python, and Rust interfaces
+- [`external.md`](./docs/specifications/external.md): Distribution formats (20 desktop builds, 5 wheels, a VS Code extension, and a GitHub Action)
 
 Our website ([https://novnow.sonneko.com/](https://novnow.sonneko.com/)) has a feature guide, the full diagnostics catalog, and an API reference. The specifications themselves live in this repository under [`docs/specifications/`](./docs/specifications/) and are versioned with the implementation.
 

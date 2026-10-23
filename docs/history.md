@@ -2002,3 +2002,15 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - **導線**: `REF:docs/users/README.md` の読む順路と、`REF:docs/users/faq.md` の波線の節から引ける。
   サイトの目次（`REF:scripts/docs-site.py` の `USER_ORDER`・`guide/*.html` のヘッダ）にも並べた。
 - **検査**: `REF:docs/script/easy-read.py` が同じ規則（1 文 60 字・1 段落 3 文・漢字 40% 以下）で通る。
+
+### [HIST:MILESTONE:DISTRIBUTION-DOCS] 2026-10-23 配布形態（5 形態・28 通り）の仕様・設計・手順・利用者向け導入を追加
+
+[HIST-TAG: category=MILESTONE id=DISTRIBUTION-DOCS topics=distribution,specifications,designs,vscode,actions,python,wheels,docs]
+
+- **背景**: 配布の準備に入る。配布形態はブラウザ版（公開済み）・デスクトップ版（2×2×5 = 20 通り）・Python ライブラリ版（5 通り）・VSCode 拡張版（1 通り）・GitHub Actions 版（1 通り）。VSCode 拡張と複合アクションはこれから作る。
+- **仕様**: `REF:docs/specifications/external.md` を 12 冊目の仕様書として新設（§20）。共通原則（版の一致・実行時に配布元へ接続しない・照合値の公開・インストーラを提供しない・自動更新をしない）と、形態ごとの選択肢・名前・取得・廃止を定めた。デスクトップ版の名前は `novnow-<版>-<対象環境>-<gui|nogui>-<single|multi>` の 1 形に固定し、シングルトンは「プロジェクト外へ新しいファイルを作らない」ことを MUST にした。
+- **設計**: `REF:docs/designs/external.md` を新設（6 節すべて「未実装・実装計画済み」）。シングルトンの排他は**パス履歴ファイル 1 個の `try_lock`** に閉じ（新しいロックファイルも追加クレートも作らない。前面化は MUST ではないので実装しない）、拡張の取得は `nogui-single` を拡張の保存領域へ置いて SHA-256 で照合し、複合アクションは `bash` の 4 ステップに閉じる、とした。
+- **文書の追随**: `REF:docs/developers.md` のファイル対を 12 に、`REF:README.md`・`REF:README.en.md`・`REF:GUIDE.md` の一覧に `external.md` を追加した。`REF:docs/script/reference.py` の章番号表（`20` → `external`）と `REF:docs/script/test_reference.py` の期待集合、`REF:scripts/docs-site.py` の `SPEC_ORDER` も追随した。SYNC 表は 12 設計書・142 節（実装完了 136・計画済み 6）へ更新した。
+- **配布方法**: `REF:docs/distribution.md` を新設。5 形態の置き場所、20 通りの一覧と選び方、ホイールの 5 タグ、拡張の探索順と自動取得、複合アクションの入力と出力、版を出す順序（実行ファイル → Python → VSCode → Actions のタグ）、確認用の早見表をまとめた。
+- **利用者向け**: `REF:docs/users/install.md` を新設。2 つの質問でデスクトップ版を 1 つに絞る表、OS 別のファイル名、展開と起動、Gatekeeper / SmartScreen の警告、削除のしかた、拡張の自動取得、`pip install novnow`、`uses:` の例を、`REF:docs/script/easy-read.py` の規則で書いた。`REF:docs/users/README.md`・`REF:docs/users/start.md`・`REF:docs/users/faq.md` から引けるようにし、`guide/install.html` を生成した。
+- **未実施（意図的）**: `release.yml`・`release-matrix.py`・`single-instance` feature・VSCode 拡張・`action.yml`・`release-check.sh` は計画のみ（`REF:docs/plans.md#distribution` の Phase 1〜6）。「準備中」の実値への差し替えは Phase 6（D-20）。

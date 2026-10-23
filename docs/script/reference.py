@@ -63,6 +63,7 @@ CHAPTERS = {
     "17": "workflows",
     "18": "workflows",
     "19": "interfaces",
+    "20": "external",
 }
 
 RETIRED = ("SPECIFICATIONS.md", "PLANS.md", "DEVELOPERS.md")
