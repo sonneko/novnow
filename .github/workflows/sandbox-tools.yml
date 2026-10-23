@@ -235,17 +235,28 @@ jobs:
           blob="$(gh api -X POST "repos/${GITHUB_REPOSITORY}/git/blobs" --input /tmp/blob.json --jq .sha)"
           # 孤立ブランチ cache/pyo3-crates にも置く（サンドボックスからは api.github.com 経由の
           # blob 取得も git fetch もできるが、blob SHA をログから拾えないため branch を正本にする）。
+          #
+          # push は**使い捨ての空リポジトリ**から行う（`REF:.github/workflows/toolchain-export.yml`
+          # の 04 / 09 と同じ、実績のあるやり方）。チェックアウト先で `git checkout --orphan`
+          # する書き方は 2 つの問題がある: 直前までの `cd /tmp/probe` → `cd /tmp/pyo3-vendor`
+          # で `git config` が `fatal: not in a git directory`（exit 128）になる（2026-10-22 の
+          # 失敗の実因）こと、戻っても fetch-depth: 1 の shallow clone からの orphan push になること。
+          payload="$(mktemp -d)"
+          cp /tmp/pyo3-crates.tar.gz "$payload/"
+          echo "$sha  pyo3-crates.tar.gz" > "$payload/SHA256SUMS"
+          echo "$pyo3_version" > "$payload/PYO3_VERSION"
+          ls -1 /tmp/pyo3-vendor > "$payload/CRATES"
+          cd "$payload"
+          git init -q -b cache/pyo3-crates
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout --orphan cache/pyo3-crates
-          git rm -rf . >/dev/null
-          cp /tmp/pyo3-crates.tar.gz .
-          echo "$sha  pyo3-crates.tar.gz" > SHA256SUMS
-          echo "$pyo3_version" > PYO3_VERSION
-          ls -1 /tmp/pyo3-vendor > CRATES
+          git config http.postBuffer 524288000
+          git config http.version HTTP/1.1
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git add -A
           git commit -q -m "cache: pyo3 vendored sources (${pyo3_version})"
-          git push -f origin cache/pyo3-crates
+          git push -q -f origin cache/pyo3-crates
+          echo "pushed cache/pyo3-crates (${pyo3_version}, $(du -h pyo3-crates.tar.gz | cut -f1))"
           pr="$(gh pr list --repo "${GITHUB_REPOSITORY}" --head "${GITHUB_REF_NAME}" --state all --json number --jq '.[0].number')"
           body="sandbox-tools: pyo3-crates=${pyo3_version} blob=${blob} sha256=${sha} file=pyo3-crates.tar.gz branch=cache/pyo3-crates"
           echo "$body"
