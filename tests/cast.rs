@@ -1,4 +1,4 @@
-//! 配役のワークスペースの補助（`core::features::cast`、M8、`PLANS.md` §9.2 B-133）。
+//! 配役のワークスペースの補助（`core::features::cast`、M8、`docs/history.md` B-133）。
 
 mod novel;
 mod world;

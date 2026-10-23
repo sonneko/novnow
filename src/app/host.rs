@@ -85,14 +85,14 @@ pub trait Host {
         None
     }
     /// ディスク上にその名前の何か（ファイル・ディレクトリ・リンク）がある。一覧に無いのにあるもの（外を指す
-    /// シンボリックリンク）には既定のプロンプトを書かない（`PLANS.md` §9.2 B-155）。
+    /// シンボリックリンク）には既定のプロンプトを書かない（`docs/history.md` B-155）。
     fn occupied(&self, path: &str) -> bool {
         let _ = path;
         false
     }
     /// 保存 1 回分（§8.3）: `writes` を書き、全部書けたら `removals` を消す。同期の Host（デスクトップ・
     /// テスト）は既定のまま、その場で書いて結果を返す。非同期の Host（Web の IndexedDB）は始めるだけで
-    /// `None` を返し、終わったら [`Host::save_finished`] が結果を返す（`PLANS.md` §9.2 B-156）。
+    /// `None` を返し、終わったら [`Host::save_finished`] が結果を返す（`docs/history.md` B-156）。
     fn save(
         &mut self,
         writes: Vec<(String, String)>,

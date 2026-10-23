@@ -78,8 +78,8 @@ In the future, following continued research and development, we plan to implemen
    - Manuscript text (`contents/AA-BB.txt`), overall and chapter plots (`plots/all.txt`, `plots/AA.txt`), episode plots (`plots/AA-BB.txt`), characters (`characters.md`), terms (`words.md`), ideas (`ideas.md`), and materials (`materials/`) are all managed as plain text (UTF-8), allowing native version control and diffing via Git.
 3. **Semantic Resolution Engine and 76 Types of Real-Time Diagnostics**
    - Provides glossary resolution via `'Name` (shortest-match, NFKC normalization), context-aware character mode resolution, role-language pattern matching (visualizing tone-matching in dialogue with green underlines), detection of term usage prior to initial introduction, and authoring assistance diagnostics for sentence length, consecutive sentence endings, spelling inconsistencies, and more.
-4. **Keyboard-Driven 8 Workspaces and Unified Palette**
-   - Instantly switch between manuscript (`write`), episode plot (`plot-episode`), outline plot (`plot-outline`), ideas (`idea`), materials (`material`), casting (`cast`), agents (`agent`), and review (`review`) using `Alt+1` through `Alt+9`.
+4. **Keyboard-Driven 9 Workspaces and Unified Palette**
+   - Instantly switch between manuscript (`write`), episode plot (`plot-episode`), outline plot (`plot-outline`), ideas (`idea`), materials (`material`), casting (`cast`), reader mode (`reader`), agents (`agent`), and review (`review`) using `Alt+1` through `Alt+9`.
    - Jump to any element in the project via the unified palette (`Ctrl+P`) using prefix characters (`@` structure, `'` dictionary, `#` materials, `>` commands).
 5. **Human-Controlled AI Agent Integration (MCP Compatible)**
    - Configure 4 delegation levels (`off` / `propose` / `apply` / `autonomous`) per role (`writer`, `plotter`, `ideator`, `researcher`, `stylist`, `logician`, `integrator`), supporting diff reviews of proposed changes and MCP server integration via `novnow mcp`.

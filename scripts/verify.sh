@@ -7,7 +7,7 @@
 #   Actions の使用時間を節約するためにも、push 前は必ずこれで確認すること。
 #
 # 使い方:
-#   bash scripts/verify.sh              # fmt / clippy / test / wasm（既定）
+#   bash scripts/verify.sh              # 文書検査 + fmt / clippy / test / wasm（既定）
 #   bash scripts/verify.sh --quick      # fmt / clippy / test（wasm を省く。wasm は 15〜40 秒かかる）
 #   bash scripts/verify.sh --ui         # M7 から既定で GUI 込み（`--features ui`）なので何もしない（互換のため残す）
 #   bash scripts/verify.sh --report     # 失敗時に .github/report.py の出力も表示（CI と同じ読み物）
@@ -100,8 +100,12 @@ fi
 
 # GUI 込み（`--features ui`）と GUI を含まない既定のビルドの双方を clippy とテストで確かめる。
 : "$UI"
-run docs      python3 "$ROOT/docs/script/duplicate.py"
-run docs-tests python3 -B -m unittest discover -s "$ROOT/docs/script" -p 'test_*.py'
+run docs        python3 "$ROOT/docs/script/duplicate.py"
+run docs-tests  python3 -B -m unittest discover -s "$ROOT/docs/script" -p 'test_*.py'
+# ドキュメントと実装の突き合わせ（廃止名 / 仕様書の節番号 / history ID / src ツリー / 数の主張）
+run docs-sync   python3 "$ROOT/docs/script/reference.py"
+# Web サイトの生成物（診断解説・API 表）が仕様書の写しであること（CI の docs ジョブと同じ）
+run site-check  bash -c "python3 '$ROOT/scripts/diagnostics-site.py' --check && python3 '$ROOT/scripts/api-site.py' --check"
 # Python API（§19.3）: 型スタブの生成・構文・位置引数の束縛。Rust のビルドは要らない
 # Python API（§19.3）: 既定は 1 秒の検査（型スタブ・構文・束縛）。`--python` のときは
 # 拡張のビルドと本物の pytest まで回す（pyo3 の vendor が必要。約 2 分半）

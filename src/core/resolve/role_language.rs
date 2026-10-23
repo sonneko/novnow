@@ -36,7 +36,7 @@
 //! 1 つの台詞の複数の文が一致したら、全部に下線を引く（[`Matcher::find_all`]）。
 //! 経緯: 第 2.7 版は B.3 の 1 行目の不一致例「だよ！って何」に合わせて発話全体としていたが、
 //! ユーザー裁定（2026-10-13）で文単位に戻し、不一致例を「本当だよ！？」に差し替えた
-//! （`PLANS.md` §9.1 **A-23**、細部は §9.2 **B-74**）。
+//! （`docs/history.md` A-23・B-74）。
 //!
 //! # 下線（§6.5.4 / 付録 B.4、**A-21**）
 //!
@@ -109,7 +109,7 @@ pub const SENTENCE_ENDS: &[char] = &['。', '！', '？', '!', '?', '…'];
 ///
 /// キーは §4.5 の例（`"lexicon": { "word_classes": { "体言": "…" } }`）どおり**括弧を除いた**形。
 /// 中身は日本語の文字種を含むが、これはユーザー向け文言ではなく**ファイル形式の語彙**なので
-/// §12.2 の免除（`i18n: format-vocabulary` の doc 行、`PLANS.md` §9.2 B-19）で core が持つ。
+/// §12.2 の免除（`i18n: format-vocabulary` の doc 行、`docs/history.md` B-19）で core が持つ。
 /// `project.json` に定義があれば**そちらが優先する**（§6.5.1「`project.json` で定義」）。
 pub const DEFAULT_WORD_CLASSES: &[(&str, &str)] = &[
     (
@@ -297,7 +297,7 @@ impl Matcher {
     /// **`None` になるのは語クラスの正規表現が壊れているときだけ**
     /// （`project.json.lexicon.word_classes` に不正な値を書いた場合）。そのパターンだけを捨てる
     /// （§6.5.1 第 2.9 版。他のパターンは生かす）。報告は `project.json` 側の **E027**
-    /// （`syntax::project_json`、`PLANS.md` §9.1 A-24）。§6.5.4「一致しない場合は何もしない」と
+    /// （`syntax::project_json`、`docs/history.md` A-24）。§6.5.4「一致しない場合は何もしない」と
     /// 同じく、役割語の色が消えるだけで執筆は止まらない（§4.3-4）。
     pub fn new(pattern: &RolePattern, lexicon: &Lexicon) -> Option<Self> {
         let list = atoms(pattern.body(), lexicon);
@@ -381,7 +381,7 @@ impl Matcher {
     }
 }
 
-/// 発話を §6.5.2 の**文**に区切る（第 2.8 版、`PLANS.md` §9.1 A-23 / §9.2 B-74）。
+/// 発話を §6.5.2 の**文**に区切る（第 2.8 版、`docs/history.md` A-23・B-74）。
 ///
 /// - 文末記号（[`SENTENCE_ENDS`]）の**連続の直後**で区切る（`！？` も `……` も 1 つの区切り）。
 /// - 文の頭（発話の頭・区切りの直後）にある文末記号の連続は区切りにせず、**次の文に含める**

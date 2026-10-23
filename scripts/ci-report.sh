@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # CI の結果を読む（GitHub Actions のログ**本体**は作業環境から取得できないため）。
 #
-# なぜこれが要るか（PLANS.md §9.3、DEVELOPERS.md §1.5）:
+# なぜこれが要るか（`docs/history.md` の CI のログ取得 / `docs/developers.md` §4.5）:
 #   Actions のログは objects.githubusercontent.com / results-receiver.actions.githubusercontent.com
 #   にあり、作業環境からは**到達できない**。`gh run view --log` はすべて失敗する。
 #   読めるのは次の 3 つだけ:

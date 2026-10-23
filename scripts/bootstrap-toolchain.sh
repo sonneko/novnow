@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # novnow の開発用 Rust ツールチェーンを復旧する。
 #
-# 背景（PLANS.md §9.3 / docs/handoff.md §2）:
+# 背景（`docs/history.md` の CI のログ取得 / `docs/handoff.md` §3）:
 #   作業環境（Arena のサンドボックス）には cargo / rustc が無く、crates.io にも static.rust-lang.org
 #   にも到達できない。そこで GitHub Actions 側（.github/workflows/toolchain-export.yml）が
 #   debian:12 コンテナで rustup の sysroot と `cargo vendor` の出力を作り、45MB ずつに割って

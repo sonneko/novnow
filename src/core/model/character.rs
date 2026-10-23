@@ -30,7 +30,7 @@ pub struct Character {
     /// `color:`（§5.5.3 `#RRGGBB`）。
     ///
     /// §5.0.6 の表に無いキーなので `characters.md` では **W011** になるが、値は保持される
-    /// （`PLANS.md` §9.1 A-15）。形の検査に対応するコードは §7 に無いので行わない。
+    /// （`docs/history.md` A-15）。形の検査に対応するコードは §7 に無いので行わない。
     pub color: Option<String>,
     /// `tags:`（§5.5.3。カンマ区切り）。
     pub tags: Vec<String>,

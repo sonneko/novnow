@@ -5,6 +5,8 @@ name: CI
 # ジョブ構成:
 # 1. `docs` (Docs & Change Filter):
 #    - `python3 docs/script/duplicate.py` を実行し、ドキュメント管理規則・REF 整合性・SYNC ブロックを検証する。
+#    - `python3 docs/script/reference.py` で、文書と実装の突き合わせ（廃止名・仕様書の節番号・history ID・
+#      `src/` ツリー・`verify.sh` と CI の一致・ルート文書の重複・数の主張・`include_str!`）を検証する。
 #    - 変更ファイルを判定し、開発者文書（docs/{developers,plans,handoff,history}.md, docs/designs/**, README.md 等）
 #      のみの変更であれば `rust_changed=false` を出力して後続の重い Rust ジョブ 5 本を自動スキップする。
 #    - 注意: `docs/specifications/**` および `examples/sample-novel/**` は `include_str!` でテスト・本体に
@@ -74,6 +76,9 @@ jobs:
 
       - name: Test documentation validator
         run: python3 -B -m unittest discover -s docs/script -p 'test_*.py'
+
+      - name: Verify documents against the implementation (reference.py)
+        run: python3 docs/script/reference.py
 
       - name: Verify website diagnostic catalog covers all codes
         run: python3 scripts/diagnostics-site.py --check

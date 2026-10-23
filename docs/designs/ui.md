@@ -129,9 +129,9 @@
 
 ### 10.1 `write` — 本文執筆（§9 の基本レイアウトそのもの）
 
-状態: 実装完了（REF:src/ui/workspaces/write.rs, REF:src/ui/app.rs, REF:tests/gui.rs）
+状態: 実装完了（REF:src/ui/app.rs, REF:src/ui/widgets/context_view.rs, REF:src/ui/widgets/section_editor.rs, REF:src/ui/widgets/reference_pane.rs, REF:tests/gui.rs）
 
-- 共通シェル（文脈ビュー＋節エディタ＋参照ペイン）による本文執筆ワークスペースは `REF:src/ui/workspaces/write.rs` および `REF:src/ui/app.rs` に実装する。
+- 共通シェル（文脈ビュー＋節エディタ＋参照ペイン）による本文執筆ワークスペースは、ワークスペースの分岐と配置を `REF:src/ui/app.rs`、3 つの部品を `REF:src/ui/widgets/context_view.rs`・`REF:src/ui/widgets/section_editor.rs`・`REF:src/ui/widgets/reference_pane.rs` に実装する（`write` 専用のファイルは置かない）。
 
 ### 10.2 `plot-episode` — 話プロット
 

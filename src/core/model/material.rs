@@ -2,7 +2,7 @@
 //!
 //! `index.json` は**機械が採番・管理する唯一の JSON**（§5.5.1「人間が直接書く情報は MD、
 //! 機械が採番・管理する情報は JSON」）。なのでこの型がそのままストレージ形式で、
-//! `Serialize` + `Deserialize` の両方が要る（`PLANS.md` §9.2 B-30）。
+//! `Serialize` + `Deserialize` の両方が要る（`docs/history.md` B-30）。
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -18,7 +18,7 @@ pub const PREFIX_MATERIAL: char = 'M';
 
 /// 検索結果の保存の接頭辞（§16.3.1、**② の追加仕様 11**）。
 ///
-/// ① は `M` だけを発行するが、**`S` も読める**（`PLANS.md` §7 縫い代 7）。
+/// ① は `M` だけを発行するが、**`S` も読める**（`docs/plans.md` §4.4 縫い代 7）。
 /// `M` と `S` は同一の連番空間を共有する（§5.8.2 MUST）。
 pub const PREFIX_SEARCH: char = 'S';
 
@@ -27,7 +27,7 @@ pub const ID_DIGITS: usize = 4;
 
 /// 資料 ID（§5.8.2）。`M0137` / `S0138`。
 ///
-/// **接頭辞は 1 文字として読む**（`PLANS.md` §7 縫い代 7）。① で発行するのは `M` だけだが、
+/// **接頭辞は 1 文字として読む**（`docs/plans.md` §4.4 縫い代 7）。① で発行するのは `M` だけだが、
 /// `S`（② の検索結果保存）も同じ連番空間なので拒否してはならない。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MaterialId {

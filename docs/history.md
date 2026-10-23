@@ -1773,3 +1773,50 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - 検証: `bash scripts/verify.sh` すべて緑（1339 passed / 0 failed、62 ターゲット）。
   `REF:tests/api_driver.rs`（9 件）が `Driver: Send`・直列化・イベント配送・待機区間をまたぐ
   全型の `Send` を実ディレクトリで確かめる。
+
+### [HIST:MILESTONE:DOCS-SYNC-AUDIT] 2026-10-23 ドキュメントと実装の同期監査と、突き合わせ検査の追加
+
+[HIST-TAG: category=MILESTONE id=DOCS-SYNC-AUDIT topics=docs,sync,audit,reference.py,verify.sh,workspaces,diagnostics]
+
+- **監査の方法**: サンドボックスで `REF:scripts/bootstrap-toolchain.sh` からツールチェーンを復旧し、
+  `REF:docs/script/duplicate.py`・`REF:scripts/python-check.sh --full`（拡張のビルド + pytest）・
+  `cargo fmt` / `clippy`（`ui` あり・なし）/ `cargo test`（1176 件・1347 件）/ wasm32 の `cargo check` を実行した。
+  仕様書と実装の一致は既存の契約テスト（`REF:tests/diagnostics_catalog.rs`・`REF:tests/api_parity.rs`・
+  `REF:tests/i18n_catalog.rs` 他）が保証しており、すべて緑だった。**崩れていたのは「文書の固定情報」と
+  「コードのコメント」**であり、どちらも構造検査の外側にあった。
+- **ドキュメントの是正**（記述ミスの範囲。仕様・設計の変更を伴わない）:
+  `REF:docs/developers.md` §3 の `src/` ツリーを実装（`app` 層・`lsp`・`python`・`website`）に合わせて全面改訂し、
+  §4.1 の検証手順を 7 段から実際の 12 段へ、§4.5 の `REF:.github/report.py` の呼び方を実際の引数（出力先 1 つ +
+  環境変数）へ、§2.1 のツールチェーン記述を `stable` 指定へ直した。`REF:docs/handoff.md` §2 を現在のブランチ・
+  マージ済み PR #25・検証済みの Python 拡張に更新した。`REF:README.md`・`REF:README.en.md`・`REF:GUIDE.md` の
+  「8 ワークスペース」を 9（`reader` を含む）に直し、`REF:GUIDE.md` の機能説明（README と 21 行重複）を
+  README への参照に置き換えた。`REF:website/README.md` をテンプレートのままからプロジェクトの説明に変えた。
+- **コードのコメント**: 廃止済みの単一ファイル名（`SPECIFICATIONS.md` / `PLANS.md` / `DEVELOPERS.md`）への参照
+  327 箇所を、分割後の実在する文書（`docs/specifications/*.md`・`docs/plans.md`・`docs/history.md`）へ置換した。
+  旧計画書の節番号（§5.x・§9.1・§9.2）は、移設先の `docs/history.md` の ID（`B-nnn` / `A-nn`）と
+  `REF:docs/plans.md` §4.2（①/② の区分）・§4.4（縫い代）へ対応づけた。
+  空だった `src/ui/workspaces/write.rs`（本文執筆の実体は `src/ui/app.rs` と `src/ui/widgets/`）を削除し、
+  設計書 §10.1 の参照先を実体に合わせた。`reader` を「v1 では欠番」と書いたコメント（3 箇所）を実装に合わせた。
+- **追加した検査（`REF:docs/script/reference.py`）**: 構造検査では届かない 8 項目を機械化した。
+  (1) 廃止名の参照 (2) 仕様書の節番号の実在 (3) `docs/history.md` の ID の実在 (4) `REF:docs/developers.md` §3 の
+  `src/` ツリーと実物の一致 (5) `REF:scripts/verify.sh` が CI の静的検査をすべて含むこと (6) ルート文書間の
+  丸写しの重複 (7) 文書の数の主張（ワークスペース数・MCP ツール数・正規操作数）と実装の一致
+  (8) `include_str!` のパスの実在。`REF:docs/script/test_reference.py`（10 件）が検査器自身の退行を防ぐ。
+  `REF:scripts/verify.sh` と `REF:.github/workflows/ci.yml` の `docs` ジョブに組み込み、CI の検査が
+  `verify.sh` に無ければ検査 5 が落ちる（CI だけに検査が増える事故を防ぐ）。
+- **未修正（人間の承認待ち）**: `REF:docs/specifications/overview.md` §3.4 の「11 機能」と 12 行の表、
+  `REF:docs/specifications/ui.md` §10 の `reader` の行の「v1 では `Alt+7` を欠番として予約する」
+  （実装・設計書・受け入れ基準はすべて実装済み）。どちらも仕様書の変更なので裁定を待つ。
+- **未検証**: Playwright による Web 実機スモーク（`REF:scripts/web-smoke.sh`）だけは実行していない。
+
+### [HIST:IMPL:LINK-CHECK] 2026-10-23 リンクとアンカーの検査（`reference.py` の 9 項目目）
+
+[HIST-TAG: category=IMPL id=LINK-CHECK topics=docs,reference.py,links,anchors,verify.sh]
+
+- **足した理由**: 節の改名では `REF:` のパスは残るので `REF:docs/script/duplicate.py` の検査 6 は通る。
+  飛び先のアンカー（`#…`）と、`REF:README.md` などの相対リンク・画像だけが宙に浮く壊れ方は、
+  読み手が踏むまで見えない。
+- **検査する内容**: `REF:README.md`・`REF:README.en.md`・`REF:GUIDE.md` の相対リンクと画像の実在、
+  および同一文書内の `#アンカー`、`REF:` の `#アンカー` が見出し（GitHub と同じスラグ）か
+  `<a id="…">` に解決するか。外部 URL と `mailto:` は対象外。
+- **退行防止**: `REF:docs/script/test_reference.py` にスラグ・`<a id>` の単体テストを足した（26 件）。

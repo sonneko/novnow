@@ -52,7 +52,7 @@ pub enum Command {
     ConfirmNext,
     /// `Ctrl+;` 直後に新しい節。
     NewSection,
-    /// `Ctrl+Alt+Shift+←/→` メイン/参照の比（§9.1。`PLANS.md` §9.2 B-116）。
+    /// `Ctrl+Alt+Shift+←/→` メイン/参照の比（§9.1。`docs/history.md` B-116）。
     MainRatio(bool),
     /// `Ctrl+Alt+↑/↓` 文脈ビュー/節エディタの比（§9.1）。
     ContextRatio(bool),
@@ -89,7 +89,7 @@ pub enum Command {
     /// `Alt+0` 直前のワークスペースへ（§10.0）。
     PreviousWorkspace,
     /// `Ctrl+B` / `Ctrl+Shift+B` 4 段階を 1 つ上へ（write → plot-episode → plot-outline の章 → 全体。
-    /// §10.1・§10.3、`PLANS.md` §9.2 B-126）。
+    /// §10.1・§10.3、`docs/history.md` B-126）。
     Up,
     /// `Ctrl+Shift+N` 話プロットに節を挿入（§10.2）。
     InsertSection,
@@ -104,7 +104,7 @@ pub enum Command {
     Tab(bool),
     /// `Ctrl+Shift+V` 役割語が一致しなかった台詞の一覧（§10.6。`cast` の中だけ）。
     Scan,
-    /// `Ctrl+M` 資料検索（§16.3・§9.8.3。どのワークスペースからでも。`PLANS.md` §9.2 B-134）。
+    /// `Ctrl+M` 資料検索（§16.3・§9.8.3。どのワークスペースからでも。`docs/history.md` B-134）。
     MaterialSearch,
     /// `Alt+H` インレイヒントの表示トグル（§6.6.2・§9.8.1。`ui.json.inlay_hints`、B-137）。
     InlayHints,

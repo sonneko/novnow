@@ -1,4 +1,4 @@
-//! Web のストレージ: IndexedDB（§13.3、`PLANS.md` §5.6 作業項目 3・§9.2 B-96）。
+//! Web のストレージ: IndexedDB（§13.3、`docs/history.md` の作業項目 3・B-96）。
 //!
 //! # 2 つの部分
 //!

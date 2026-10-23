@@ -7,7 +7,7 @@
 //! - 採用すると、同じ対象の他の `open` の提案は `superseded`（§15.9）。
 //! - 差し戻し（[`revert`]）は本文・プロットを `before` に戻し、提案を `rejected` にする（コメント必須）。
 //!   「undo 可能」（§15.7.3）は、適用がエディタの編集ではなくファイルの書き換えなので、この差し戻しで
-//!   実現する（`PLANS.md` §9.2 B-142）。
+//!   実現する（`docs/history.md` B-142）。
 
 use crate::core::agents::files::{self, Board, LogEvent, Proposal, ProposalStatus};
 use crate::core::agents::{Change, Kind, Plan};

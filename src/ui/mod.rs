@@ -1,7 +1,7 @@
 //! UI 層（§3.3）。
 //!
 //! **`i18n` だけは常にビルドする**（CLI のメッセージも同じカタログを使う、§12.2。egui に依存しない）。
-//! それ以外（egui を使う GUI）は `ui` feature のときだけ（`PLANS.md` §9.2 B-54・B-100）。
+//! それ以外（egui を使う GUI）は `ui` feature のときだけ（`docs/history.md` B-54・B-100）。
 //! この形は `tests/layering.rs` の `the_gui_is_compiled_only_with_the_ui_feature` が固定している。
 //!
 //! 描画と無縁の状態機械（編集・保存・設定・エージェント実行・検索・パレットの論理・コマンド・

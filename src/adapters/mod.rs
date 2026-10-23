@@ -13,7 +13,7 @@
 
 pub mod clock_system;
 // ネイティブのファイルダイアログ（rfd）は GUI の部品なので `ui` feature のときだけ
-// （`Cargo.toml`、`PLANS.md` §9.2 B-54）。ポートの定義は `ports/dialog.rs` にあり、
+// （`Cargo.toml`、`docs/history.md` B-54）。ポートの定義は `ports/dialog.rs` にあり、
 // CLI 側はポート経由で「ダイアログなし」の実装を選べる。
 #[cfg(feature = "ui")]
 pub mod dialog_rfd;
@@ -30,7 +30,7 @@ pub mod storage_fs;
 pub mod storage_idb;
 pub mod zip;
 
-/// `Future` を今のスレッドで最後まで待つ（ネイティブ専用。`PLANS.md` §9.2 B-90）。
+/// `Future` を今のスレッドで最後まで待つ（ネイティブ専用。`docs/history.md` B-90）。
 ///
 /// ネイティブの `Storage`（`storage_fs::FsStorage`）は中で同期 I/O をして即座に完了するので、
 /// CLI（M6 の `check` 等）やテストはこれで待てばよい。待ちが生じる `Future` でも動く

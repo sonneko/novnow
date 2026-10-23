@@ -1,6 +1,6 @@
 //! `core::syntax::characters_md`（`characters.md`、§5.5）のテスト。
 //!
-//! `PLANS.md` §5.3 完了条件の 1（§5.5.7 の例が期待どおりにパースできる）・
+//! `docs/history.md` の完了条件の 1（§5.5.7 の例が期待どおりにパースできる）・
 //! 2（未知フィールドキーを含むファイルの round-trip がバイト一致）・
 //! 3（壊れた入力でパニックしない）に対応する。
 //!
@@ -361,7 +361,7 @@ fn the_spec_example_does_not_report_overlapping_ranges() {
 
 #[test]
 fn the_spec_example_reads_the_color_key_from_the_table() {
-    // §5.5.3 の `color:` は §5.0.6 の表に**正式追加**された（第 2.6 版。PLANS.md §9.1 A-15 の
+    // §5.5.3 の `color:` は §5.0.6 の表に**正式追加**された（第 2.6 版。`docs/history.md` A-15 の
     // 裁定＝すべて正式追加）。値は改変せずに保持する（§5.0.6 MUST）
     let parsed = characters_md::parse(SPEC_EXAMPLE);
     assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
@@ -558,7 +558,7 @@ fn known_markdown_keys_are_read_without_a_warning() {
 #[test]
 fn unknown_keys_warn_and_keep_their_values() {
     // `address:` は ②（追加仕様 8）、`icon:` は ②（追加仕様 24）。
-    // PLANS.md §5.3 作業項目 3「実装しないが未知フィールドとして保持されること」
+    // `docs/history.md` 作業項目 3「実装しないが未知フィールドとして保持されること」
     let text = "# 恵\naddress: '葵あおい => あおいちゃん\nicon: assets/icons/megumi.png\n";
     assert_eq!(diags_tag(text), "");
     let parsed = characters_md::parse(text);

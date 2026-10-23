@@ -1,6 +1,6 @@
 //! `core::syntax::materials_index`（`materials/index.json`、§5.8.2）のテスト。
 //!
-//! `PLANS.md` §5.3 完了条件の 1（§5.8.2 の例が期待どおりにパースできる）・2（round-trip が
+//! `docs/history.md` の完了条件の 1（§5.8.2 の例が期待どおりにパースできる）・2（round-trip が
 //! バイト一致）・3（壊れた入力でパニックしない）に対応する。
 
 use novnow::core::diagnostics::{Arg, DiagnosticCode};
@@ -359,7 +359,7 @@ fn material_ids_read_a_one_char_prefix() {
             num: 137
         })
     );
-    // ② の `S` も**読む**（PLANS.md §7 縫い代 7）
+    // ② の `S` も**読む**（`docs/plans.md` §4.4 の縫い代 7）
     assert_eq!(
         MaterialId::parse("S0042"),
         Some(MaterialId {

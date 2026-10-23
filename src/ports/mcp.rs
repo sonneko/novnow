@@ -5,7 +5,7 @@
 //! キャンセルできる。サーバに繋がらなければ **E063**（タスクは `ready` に戻り、自動再試行しない）。
 //!
 //! 呼び出しは**同期**で、呼ぶ側（GUI）がスレッドに載せる（tokio の `process` を使わない。vendored の
-//! クレートだけで足りるように、`PLANS.md` §9.2 B-147）。取り消しは `cancel` の旗で伝える。
+//! クレートだけで足りるように、`docs/history.md` B-147）。取り消しは `cancel` の旗で伝える。
 
 use std::sync::atomic::AtomicBool;
 

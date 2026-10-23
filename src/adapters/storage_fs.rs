@@ -1,4 +1,4 @@
-//! ネイティブのファイルシステム（§8.3・§13.1、`PLANS.md` §5.6・§9.2 B-91）。
+//! ネイティブのファイルシステム（§8.3・§13.1、`docs/history.md` B-91）。
 //!
 //! # 書き込みの関門（[`FsGate`]）
 //!
@@ -17,7 +17,7 @@
 //! 履歴ファイルは [`FsGate::write_history`] からしか書けない（他の口は履歴を許さない）。履歴の
 //! 置き場所は [`FsGate::new`] が環境から決める（§13.2.1。引数でパスを渡す口は無い）。
 //!
-//! **特例**（§13.1.1、ユーザー裁定 2026-10-13・第 2.10 / 2.11 版、`PLANS.md` §9.2 B-99・B-109）:
+//! **特例**（§13.1.1、ユーザー裁定 2026-10-13・第 2.10 / 2.11 版、`docs/history.md` B-99・B-109）:
 //! エクスポートの保存先としてユーザーが明示したパス（[`ChosenPath`]。保存ダイアログと
 //! `novnow export --out`）は [`FsGate::write_chosen_export`] からだけ、プロジェクトの外でも書ける。
 //! 種類ごとの拡張子（Zip は `.zip`、テキストは `.txt` / `.md`）のファイル 1 個・その 1 回だけ
@@ -549,7 +549,7 @@ impl FsStorage {
     }
 
     /// バイト列を読む（Zip のエクスポート・バイナリの資料）。行き先がルートの外のもの（外を指す
-    /// シンボリックリンク）は無いものとして扱う（`PLANS.md` §9.2 B-155）。
+    /// シンボリックリンク）は無いものとして扱う（`docs/history.md` B-155）。
     pub fn read_bytes(&self, path: &ProjectPath) -> Result<Vec<u8>, StorageError> {
         let absolute = self.absolute(path);
         if !self.inside(&absolute) {
@@ -668,7 +668,7 @@ impl FsStorage {
                 } else if let Ok(metadata) = fs::metadata(entry.path()) {
                     // シンボリックリンクはファイルを指すときだけ（ディレクトリは辿らない）。行き先がルートの
                     // 外なら読まない（書けないものはプロジェクトに含めない。§19.8「プロンプトがプロジェクト外から
-                    // 読み込まれない」を全ファイルに。`PLANS.md` §9.2 B-155）
+                    // 読み込まれない」を全ファイルに。`docs/history.md` B-155）
                     if metadata.is_file() && (!kind.is_symlink() || self.inside(&entry.path())) {
                         files.push(FileEntry {
                             path,

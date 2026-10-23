@@ -584,7 +584,7 @@ pub fn parse_proposal(text: &str) -> Option<Proposal> {
 // ============================================================ スレッド（§5.10.4）
 
 /// 未承認のメッセージの `approved_by:`（§15.6。人間が中継を承認するまで宛先には届かない。
-/// 第 2.16 版、`PLANS.md` §9.2 B-145）。
+/// 第 2.16 版、`docs/history.md` B-145）。
 pub const PENDING: &str = "pending";
 
 /// メッセージ 1 通。
@@ -726,7 +726,7 @@ pub fn parse_thread(text: &str) -> Option<Thread> {
 // ============================================================ 監査ログ（§5.10.5）
 
 /// 監査ログの 1 イベント。キーは §5.10.5 の順（`proposal` と `detail` は第 2.16 版の追加で、
-/// 値があるときだけ書く。`PLANS.md` §9.2 B-146）。
+/// 値があるときだけ書く。`docs/history.md` B-146）。
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 pub struct LogEvent {
     /// 日時（RFC 3339）。

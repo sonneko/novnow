@@ -1,4 +1,4 @@
-# novnow の UI 文言カタログ（日本語）。SPECIFICATIONS.md §12.3。
+# novnow の UI 文言カタログ（日本語）。`docs/specifications/ui.md` §12.3。
 #
 # - キーは `<領域>.<対象>.<語>`（§12.3）。TOML のテーブル `[diag]` の `E004` が `diag.E004`。
 # - プレースホルダは `{0}` `{1}` の位置引数だけ（§12.3）。core が返す `Diagnostic::args` の順。
@@ -6,7 +6,7 @@
 #   `tests/i18n_catalog.rs` が仕様書と en.toml を読み直して、キー集合・プレースホルダ・文言の
 #   一致を検査する（§12.3 の CI チェック MUST）。文言を変えるときは**先に仕様書の表**を直すこと。
 # - M4 で診断（`diag.*`）、M6 で CLI（`cli.*`、§14）を置いた。ステータスバー・パレットの文言は M7 で足す
-#   （PLANS.md §3 I6）。`cli.*` のうち §12.7 の表にあるものは表の写し（tests/i18n_catalog.rs が照合する）。
+#   （`docs/history.md` I6）。`cli.*` のうち §12.7 の表にあるものは表の写し（tests/i18n_catalog.rs が照合する）。
 
 [diag]
 E001 = "辞書にない参照です: {0}"
@@ -238,7 +238,7 @@ empty = "まだプロジェクトがありません"
 open = "フォルダを開く"
 missing = "(見つかりません)"
 create_here = "ここに新規作成する"
-# Web のプロジェクト選択（§13.4、PLANS.md §9.2 B-156〜B-158）
+# Web のプロジェクト選択（§13.4、`docs/history.md` B-156〜B-158）
 search = "検索（/）"
 loading = "読み込んでいます…"
 unavailable = "このブラウザでは IndexedDB を使えません（プライベートブラウズなど）。通常のウィンドウで開くか、デスクトップ版をお使いください。"

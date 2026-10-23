@@ -10,7 +10,7 @@ pub trait Clock {
     /// ローカル時刻の UTC からのずれ（分。東京なら `540`）。分からない環境では `0`（UTC）。
     ///
     /// ネイティブ版は標準ライブラリにタイムゾーンを得る API が無いので `0` を返す
-    /// （`PLANS.md` §9.2 B-92。`opened_at` は順序のためだけの値で UTC でよい、§13.2.2 第 2.9 版）。
+    /// （`docs/history.md` B-92。`opened_at` は順序のためだけの値で UTC でよい、§13.2.2 第 2.9 版）。
     fn utc_offset_minutes(&self) -> i32 {
         0
     }

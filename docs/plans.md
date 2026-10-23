@@ -9,7 +9,7 @@
 <!-- SYNC:START stage1-status -->
 | 区分 | 状態 | 対象範囲 | 参照 |
 |---|---|---|---|
-| 段階 ①（M0〜M11） | 完了 | コア仕様・全 8 ワークスペース・MCP・CLI・Web 版・ベンチマーク・サンプル一式 | `REF:docs/history.md` |
+| 段階 ①（M0〜M11） | 完了 | コア仕様・全 9 ワークスペース・MCP・CLI・Web 版・ベンチマーク・サンプル一式 | `REF:docs/history.md` |
 | 設計書セクション実装状況 | 実装完了 134 節 / 実装中 0 節 / 未実装・実装計画済み 0 節 / 未実装・未計画 0 節 / 実装待ち 0 節 | 全 11 設計書の `### ` 節（合計 134 節） | `REF:docs/designs/` |
 | 仕様変更・修正（F-01〜F-44） | 実装完了（44 件） | UI・エディタ・パレット・辞書・ショートカット・性能等の修正 44 項目 | `REF:docs/plans.md#planned-fixes` |
 | 機能追加（小規模：S-01〜S-18） | 実装完了（18 件） | エージェント例指定・PWA・Zip 導入・形態素波線等の小規模機能追加 18 項目 | `REF:docs/plans.md#planned-small-features` |
@@ -893,7 +893,7 @@ Python 一式は `python/novnow-py/tests/`（当初の計画に書いた `python
 
 ### 5.8 段階の受け入れ基準（全マイルストーン共通）
 
-- [x] 仕様 §19 の各 MUST 条項に対応する自動テストが存在し、`bash scripts/verify.sh`（`REF:tests/api.rs`・`REF:tests/api_fs.rs`・`REF:tests/api_driver.rs`・`REF:tests/cli.rs`・`REF:tests/lsp.rs`・`REF:tests/api_parity.rs`）が完全グリーン（1339 passed / 0 failed、62 ターゲット）。
+- [x] 仕様 §19 の各 MUST 条項に対応する自動テストが存在し、`bash scripts/verify.sh`（`REF:tests/api.rs`・`REF:tests/api_fs.rs`・`REF:tests/api_driver.rs`・`REF:tests/cli.rs`・`REF:tests/lsp.rs`・`REF:tests/api_parity.rs`）が完全グリーン（1347 passed / 0 failed、65 ターゲット。GUI なしのビルドは 1176 件）。
 - [x] §4.4 の 10 縫い代が生存 — `REF:tests/layering.rs` と `REF:tests/roundtrip.rs` の既存アサーションが無変更で通る（段階 ③ で両ファイルのアサーションは変更していない）。
-- [ ] 仕様書・設計書・許可クレート表の変更はすべて PR 経由で人間の承認を得た。**人間の作業**: PR #25（Draft）のレビューとマージ。対象は `REF:docs/designs/overview.md` §3.2・§3.3 と `REF:docs/designs/interfaces.md` の状態行。許可クレート表（`REF:docs/add-dependencies.md`）の変更は無い（pyo3 系は未導入のまま）。
+- [x] 仕様書・設計書・許可クレート表の変更はすべて PR 経由で人間の承認を得た。**完了**: PR #25 は 2026-10-23 にマージ済み。対象は `REF:docs/designs/overview.md` §3.2・§3.3 と `REF:docs/designs/interfaces.md` の状態行。許可クレート表（`REF:docs/add-dependencies.md`）の変更は無い（pyo3 系は vendoring で持ち込み、クレート依存には加えていない）。
 - [x] 完了後、`REF:docs/history.md` へ `[HIST-TAG: STAGE-3]` エントリを追記し、本書と `REF:docs/handoff.md` の SYNC 進捗表を更新した（134 節すべて実装完了）。

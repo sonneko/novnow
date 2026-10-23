@@ -81,8 +81,8 @@ novnow形式は、小説をテキストデータでエクスポートする機�
    - 本文（`contents/AA-BB.txt`）、全体・章プロット（`plots/all.txt`, `plots/AA.txt`）、話プロット（`plots/AA-BB.txt`）、登場人物（`characters.md`）、用語（`words.md`）、アイデア（`ideas.md`）、資料（`materials/`）をすべてプレーンテキスト（UTF-8）で管理し、Git でそのまま差分管理できます。
 3. **意味解決エンジンと 76 種のリアルタイム診断**
    - `'名前` による辞書参照（最短一致・NFKC 正規化）、状況別キャラクターモード解決、役割語パターン照合（台詞の口調一致を緑下線で可視化）、初出より前の用語使用検出、文長・連続文末・表記揺れなどの執筆支援診断を提供します。
-4. **キーボード完結の 8 ワークスペースと統一パレット**
-   - `Alt+1`〜`Alt+9` で本文（`write`）・話プロット（`plot-episode`）・全体プロット（`plot-outline`）・アイデア（`idea`）・資料（`material`）・配役（`cast`）・エージェント（`agent`）・点検（`review`）を即座に切り替えられます。
+4. **キーボード完結の 9 ワークスペースと統一パレット**
+   - `Alt+1`〜`Alt+9` で本文（`write`）・話プロット（`plot-episode`）・全体プロット（`plot-outline`）・アイデア（`idea`）・資料（`material`）・配役（`cast`）・読者モード（`reader`）・エージェント（`agent`）・点検（`review`）を即座に切り替えられます。
    - `Ctrl+P` の統一パレットから先頭 1 文字（`@` 構造、`'` 辞書、`#` 資料、`>` コマンド）でプロジェクト内のあらゆる要素へジャンプできます。
 5. **人間の統制下で動く AI エージェント連携（MCP 対応）**
    - 役割ごと（`writer`, `plotter`, `ideator`, `researcher`, `stylist`, `logician`, `integrator`）に 4 段階の委譲レベル（`off` / `propose` / `apply` / `autonomous`）を設定でき、変更提案の差分レビューや `novnow mcp` による MCP サーバ連携に対応しています。

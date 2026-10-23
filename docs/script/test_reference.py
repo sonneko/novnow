@@ -1,0 +1,119 @@
+"""Regression tests for docs/script/reference.py.
+
+Run: python3 -m unittest discover -s docs/script -p 'test_*.py'
+
+検査器そのものが壊れると「不整合が無い」という結論だけが残るので、
+判定の関数を直接叩いて、検出できること・誤検出しないことを固定する。
+"""
+import unittest
+from pathlib import Path
+
+import reference
+
+
+class HeadingTests(unittest.TestCase):
+    def test_numbers_are_read_from_headings(self):
+        text = "## 7. 診断カタログ\n### 7.0 コア\n#### 7.0.1 詳細\n### P1. 設計原則\n"
+        path = Path("/tmp/novnow-headings.md")
+        path.write_text(text, encoding="utf-8")
+        self.assertEqual(reference.headings(path), {"7", "7.0", "7.0.1"})
+
+    def test_text_mentions_are_not_headings(self):
+        path = Path("/tmp/novnow-headings2.md")
+        path.write_text("本文の §7.9 は見出しではない。\n- §8.1 も見出しではない\n", encoding="utf-8")
+        self.assertEqual(reference.headings(path), set())
+
+
+class ChapterMapTests(unittest.TestCase):
+    def test_every_specification_is_reachable(self):
+        expected = {
+            "overview",
+            "project",
+            "syntax",
+            "semantics",
+            "diagnostics",
+            "editing",
+            "ui",
+            "platform",
+            "agent",
+            "workflows",
+            "interfaces",
+        }
+        self.assertEqual(set(reference.CHAPTERS.values()), expected)
+
+
+class SourceTreeTests(unittest.TestCase):
+    def test_tree_parser_reads_directories_and_files(self):
+        block = (
+            "├── src/\n"
+            "│   ├── main.rs                # 入口\n"
+            "│   ├── core/                  # 純粋\n"
+            "│   └── ui/                    # GUI\n"
+            "├── tests/\n"
+        )
+        listed = set()
+        for line in block.splitlines():
+            item = reference.re.match(r"^│   [├└]── ([a-z_]+(?:/|\.rs))", line)
+            if item:
+                listed.add(item.group(1).rstrip("/"))
+        self.assertEqual(listed, {"main.rs", "core", "ui"})
+
+
+class RetiredNameTests(unittest.TestCase):
+    def test_explanation_lines_are_allowed(self):
+        allowed = "旧 `SPECIFICATIONS.md` を廃止した"
+        self.assertTrue(any(marker in allowed for marker in reference.RETIRED_LINE_MARKERS))
+
+    def test_plain_reference_is_reported(self):
+        plain = "//! 仕様は `SPECIFICATIONS.md` §5.1 にある。"
+        self.assertFalse(any(marker in plain for marker in reference.RETIRED_LINE_MARKERS))
+
+
+class CountPatternTests(unittest.TestCase):
+    """「N ワークスペース」の数を、見出し番号や節番号から誤って拾わないこと。"""
+
+    def setUp(self):
+        self.pattern = reference.re.compile(r"(?<![0-9.\-§])([0-9]+) ワークスペース")
+
+    def test_plain_sentence(self):
+        found = self.pattern.findall("キーボード完結の 9 ワークスペースと統一パレット")
+        self.assertEqual(found, ["9"])
+
+    def test_section_number_is_not_a_count(self):
+        self.assertEqual(self.pattern.findall("§10 ワークスペース・§11 テーマ"), [])
+
+    def test_acceptance_id_is_not_a_count(self):
+        self.assertEqual(self.pattern.findall("**19.14-1 ワークスペース瞬時切替**"), [])
+
+
+class SlugTests(unittest.TestCase):
+    def test_japanese_heading(self):
+        self.assertEqual(reference.slug("エディタの仕様の要約"), "エディタの仕様の要約")
+
+    def test_symbols_are_dropped(self):
+        # `<a id=...>` を書けば記号を含む見出しでも確実に飛べる（`GUIDE.md` の節はこの形）
+        self.assertEqual(reference.slug("4.5 段階（追加仕様）"), "45-段階追加仕様")
+        self.assertEqual(reference.slug("`Alt+7` と `F1`"), "alt7-と-f1")
+
+    def test_anchor_from_a_tag(self):
+        path = Path("/tmp/novnow-anchors.md")
+        path.write_text('<a id="stage-2"></a>\n## 4. 段階 ②\n', encoding="utf-8")
+        self.assertIn("stage-2", reference.anchors(path))
+        self.assertIn(reference.slug("4. 段階 ②"), reference.anchors(path))
+
+
+class IncludePathTests(unittest.TestCase):
+    def test_missing_include_is_found(self):
+        # 実在しないパスを 1 つだけ持つ仮のファイルを作らずに、正規表現だけを確かめる。
+        found = reference.re.findall(
+            r'include_(?:str|bytes)!\("([^"]+)"\)',
+            'const A: &str = include_str!("../docs/specifications/ui.md");\n'
+            'const B: &[u8] = include_bytes!("../tests/golden/api_catalog.json");\n',
+        )
+        self.assertEqual(
+            found, ["../docs/specifications/ui.md", "../tests/golden/api_catalog.json"]
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -82,7 +82,7 @@
   adapters/ storage_fs, storage_idb, recent_file, zip, project_load, env_system, mcp_stdio, clock_system, dialog_rfd
 ```
 
-`ui` は `app` の状態機械を表示するだけの表示層の 1 つであり、CLI・MCP・LSP・Python（§19）は同じ `app` を薄い适配層から呼ぶ（§19.1.4「単一の真実」）。`ui` 側には旧パスの再エクスポート（`pub use crate::app::{agents, assist, palette, save_machine, settings, workbench};` ほか）を残し、既存の参照と文書中のパスを壊さない。
+`ui` は `app` の状態機械を表示するだけの表示層の 1 つであり、CLI・MCP・LSP・Python（§19）は同じ `app` を薄い適合層から呼ぶ（§19.1.4「単一の真実」）。`ui` 側には旧パスの再エクスポート（`pub use crate::app::{agents, assist, palette, save_machine, settings, workbench};` ほか）を残し、既存の参照と文書中のパスを壊さない。
 
 ### 3.2 ドメイン純粋性と外部隔離規則
 

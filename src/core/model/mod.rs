@@ -1,10 +1,10 @@
 //! ドメイン型（§3.3 の `model/`）。
 //!
 //! **依存の向きは `syntax/<形式>.rs` → `model` の 1 本だけ**で、`model` は `syntax` を
-//! `use` しない（`PLANS.md` §9.2 B-29）。行の位置・byte range・round-trip は `syntax` が持ち、
+//! `use` しない（`docs/history.md` B-29）。行の位置・byte range・round-trip は `syntax` が持ち、
 //! ここは解決（M3）・検査（M4）・UI（M6 以降）が扱う**意味のかたまり**を持つ。
 //!
-//! # serde（`PLANS.md` §9.2 B-30）
+//! # serde（`docs/history.md` B-30）
 //!
 //! - `Serialize` + `Deserialize` の**両方**を付ける（§3.2 は serde / serde_json を許可済み）。
 //!   `materials/index.json`（§5.8.2）・`project.json`（§4.5）・`.novnow/ui.json`（§4.4.1）は

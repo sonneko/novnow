@@ -1,7 +1,7 @@
 //! `core::id`（SceneId / PartialSceneId / RangeExpr）のテスト。
 //!
-//! `PLANS.md` §5.2 完了条件「`tests/id_range.rs`: 仕様 §5.1 の全例（`@01 .. @02` の展開、
-//! E016 等）が通る」に対応する。例は `SPECIFICATIONS.md` §5.1 / §5.1.2 からそのまま取っている。
+//! `docs/history.md` の完了条件「`tests/id_range.rs`: 仕様 §5.1 の全例（`@01 .. @02` の展開、
+//! E016 等）が通る」に対応する。例は `docs/specifications/syntax.md` §5.1 / §5.1.2 からそのまま取っている。
 
 use novnow::core::id::MAX_LEVEL;
 use novnow::core::id::{Digits, IdError, PartialSceneId, RangeError, RangeExpr, SceneId};

@@ -7,7 +7,7 @@
 //! このファイルが担うのは次の 4 つ:
 //!
 //! 1. **行頭シジルの判定**（§5.0.2）。優先順位は [`SIGIL_TABLE`] の**配列順**で固定する
-//!    （`PLANS.md` §7 の縫い代 4「表駆動」）。② のシジル（`# ` / `! `）は行を消すのではなく
+//!    （`docs/plans.md` §4.4 の縫い代 4「表駆動」）。② のシジル（`# ` / `! `）は行を消すのではなく
 //!    [`Stage::Two`] として残すので、② の実装はフラグを切り替えるだけでよい。
 //! 2. **エスケープ**（§5.0.3）。有効文字は [`ESCAPE_TARGETS`] で管理し、他は 2 文字のまま
 //!    扱い**診断を出さない**。
@@ -21,7 +21,7 @@
 //! §5.0.2 の表のうち**行内に現れるシジル**（`'` 参照・`'{ }`・`:` 修飾子・`+` 併用・`「」` 会話・
 //! `^` 引用注釈・`..` 範囲演算子）は、このファイルでは**行の種別を変えない**。
 //! `'` と `「」` のトークン分割は M2（`core/syntax/*`）・M3（`core/resolve/*`）、
-//! `..` は [`crate::core::id`]（M1 で実装済み）、`^` は ②（`PLANS.md` §1.2 の 10）。
+//! `..` は [`crate::core::id`]（M1 で実装済み）、`^` は ②（`docs/plans.md` §4.2 の 10）。
 //! 行頭の判定だけこのファイルで行い、行内の意味は各形式のパーサに委ねる。
 //!
 //! §12.2 により core はユーザー向け文言を持たない。ここにある日本語は**字句データ**
@@ -64,7 +64,7 @@ impl TextFormat {
     /// 節区切り `;`（§5.0.2）を書ける形式か。**`.txt` 3 形式**。
     ///
     /// A 形式は §5.3.1 `block_end = ws? , ";" , eol`、B 形式は §5.4.1、C 形式は §5.2.1。
-    /// `PLANS.md` §9.1 A-11（§5.0.2 の表は「C / B」だけだった）。
+    /// `docs/history.md` A-11（§5.0.2 の表は「C / B」だけだった）。
     pub fn allows_section_break(self) -> bool {
         Formats::TXT.contains(self)
     }
@@ -113,7 +113,7 @@ impl Formats {
     }
 }
 
-/// 実装段階（`PLANS.md` §1.2 の ① / ②）。
+/// 実装段階（`docs/plans.md` §4.2 の ① / ②）。
 ///
 /// ② の機能を ① で**動かさない**ための印。テーブルの行は消さずに残すので、
 /// ② の実装は `Two` を `One` に変えるだけで済む（縫い代 4）。
@@ -160,7 +160,7 @@ pub struct SigilSpec {
 
 /// 行頭シジルの表（§5.0.2）。**配列の順がそのまま優先順位**で、固定。
 ///
-/// `PLANS.md` §7 の縫い代 4「行頭シジルの表駆動: `const SIGIL_TABLE` に
+/// `docs/plans.md` §4.4 の縫い代 4「行頭シジルの表駆動: `const SIGIL_TABLE` に
 /// `(prefix, kind, requires_space)` を並べ、lexer はこれを走査する」の実体。
 /// ② で `# ` / `! ` を有効化するときも、字句器を書き直さずに `stage` を変えるだけにする。
 pub const SIGIL_TABLE: &[SigilSpec] = &[
@@ -265,7 +265,7 @@ pub struct FieldLine<'a> {
 
 /// §5.0.6 のフィールドキー（① の範囲）。
 ///
-/// **② のキーは含めない**（`PLANS.md` §1.2）: `when`（3）/ `senses`（7）/ `space`・
+/// **② のキーは含めない**（`docs/plans.md` §4.2 ）: `when`（3）/ `senses`（7）/ `space`・
 /// `space-mode`（21）/ `illustration`（23）/ `blurb`（17）/ `address`（8）/ `icon`（24）。
 /// ① ではそれらは [`FieldKey::Unknown`] として**値を改変せず保持する**（縫い代 1・2）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
@@ -390,9 +390,9 @@ pub type KeyRow = (FieldKey, &'static str, &'static str, Formats);
 /// **日本語別名はユーザー向け文言ではない**: UI 言語が `en` でも受理する（§12 の明文）ので
 /// ロケール表（`ui/i18n/`）には置けず、ファイル形式の語彙として core が持つ。§12.2 が禁じる
 /// のはメッセージであり、`tests/layering.rs` はこの doc 行を付けた `const` の中だけ
-/// 日本語リテラルを免除する（`PLANS.md` §9.2 B-19）。
+/// 日本語リテラルを免除する（`docs/history.md` B-19）。
 ///
-/// **② のキーは含めない**（`PLANS.md` §1.2）: `when`（3）/ `senses`（7）/ `space`・
+/// **② のキーは含めない**（`docs/plans.md` §4.2 ）: `when`（3）/ `senses`（7）/ `space`・
 /// `space-mode`（21）/ `illustration`（23）/ `blurb`（17）/ `address`（8）/ `icon`（24）。
 /// ① では表に無いので [`FieldKey::Unknown`]（W011）になり、値は改変せず保持する。
 /// 保存時に正準形へは**正規化しない**（§5.0.6「作家の表記を保つ」）。
@@ -496,9 +496,9 @@ pub fn classify(line: &str, format: TextFormat) -> LineKind<'_> {
 ///
 /// 判定順は §5.0.2 の固定順: `@` → `;` → `# ` → `! ` → `//` → フィールド行 → 継続行 →
 /// 通常テキスト。順そのものは [`SIGIL_TABLE`] の配列順で、字句器には書いていない
-/// （`PLANS.md` §7 の縫い代 4）。
+/// （`docs/plans.md` §4.4 の縫い代 4）。
 ///
-/// [`Stage::Two`] を渡すと ② の行（`PLANS.md` §1.2 の 15・23）も有効になる。v1 本体は
+/// [`Stage::Two`] を渡すと ② の行（`docs/plans.md` §4.2 の 15・23）も有効になる。v1 本体は
 /// [`Stage::One`] だけを呼び、② の実装は呼び出し側のフラグを切り替えるだけで済む。
 pub fn classify_at_stage(line: &str, format: TextFormat, stage: Stage) -> LineKind<'_> {
     for spec in SIGIL_TABLE {
@@ -544,10 +544,10 @@ pub fn classify_at_stage(line: &str, format: TextFormat, stage: Stage) -> LineKi
 /// - **行頭の前に 0〜1 文字の空白を許す**（§5.2.1 の `scene_header` / `section_break` /
 ///   `comment_line` / `illust_line` / `blank` はいずれも `ws?` で始まり、§5.0.2 の判定順で
 ///   シジルはフィールド行・継続行より先）。2 文字以上は継続行のために予約されているので
-///   シジルを見ない（`PLANS.md` §9.2 B-18・B-31）。
+///   シジルを見ない（`docs/history.md` B-18・B-31）。
 /// - `whole_line`（`;`）は、残りが空か **行コメントだけ**のときに一致する
 ///   （§5.2.1 `section_break = ws? , ";" , [ comment ] , eol`。§5.0.2 の表の
-///   「行全体が `;` のときのみ」はこの読み方で、`PLANS.md` §9.2 B-31 に記録した）。
+///   「行全体が `;` のときのみ」はこの読み方で、`docs/history.md` B-31 に記録した）。
 fn match_sigil<'a>(line: &'a str, spec: &SigilSpec) -> Option<&'a str> {
     if leading_indent(line) >= CONTINUATION_INDENT {
         return None;
@@ -580,7 +580,7 @@ pub fn leading_indent(line: &str) -> usize {
     line.chars().take_while(|&c| is_space(c)).count()
 }
 
-/// 行頭が継続行のインデント（2 文字以上の空白、または 1 文字以上のタブ）か（§5.0.5、`PLANS.md` §9.2 B-21）。
+/// 行頭が継続行のインデント（2 文字以上の空白、または 1 文字以上のタブ）か（§5.0.5、`docs/history.md` B-21）。
 pub fn is_continuation_indent(line: &str) -> bool {
     let prefix = &line[..line.len() - after_indent(line).len()];
     prefix.chars().count() >= CONTINUATION_INDENT || prefix.contains('\t')
@@ -593,7 +593,7 @@ pub fn after_indent(line: &str) -> &str {
 
 /// フィールド行をパースする（§5.0.5 の 7 段の手順）。フィールド行でなければ `None`。
 fn parse_field_line(line: &str) -> Option<FieldLine<'_>> {
-    // 手順 1: 2 文字以上のインデントまたはタブは継続行のために予約されている（`PLANS.md` §9.2 B-18・B-21）
+    // 手順 1: 2 文字以上のインデントまたはタブは継続行のために予約されている（`docs/history.md` B-18・B-21）
     if is_continuation_indent(line) {
         return None;
     }

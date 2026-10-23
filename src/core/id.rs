@@ -1,9 +1,9 @@
-//! SceneId / PartialSceneId / RangeExpr（`SPECIFICATIONS.md` §5.1）。
+//! SceneId / PartialSceneId / RangeExpr（`docs/specifications/syntax.md` §5.1）。
 //!
 //! 番号は `num = /\d{1,4}/`（0〜9999）で、`A-B-C-D` の 4 階層（章・話・場面・節）。
 //! `D` を省略した `A-B-C` は `section = 0` で「場面全体」を意味する（§5.1）。
 //! 比較は `(chapter, episode, scene, section)` の辞書式順序（`Ord` の derive がそのまま一致する）。
-//! `Serialize` は構文木のゴールデンテスト（`PLANS.md` §5.3 作業項目 5・§6.3）が JSON で
+//! `Serialize` は構文木のゴールデンテスト（`docs/history.md` の作業項目 5 と完了条件）が JSON で
 //! 比較できるように付ける。
 //!
 //! **予約番号 `00` はパースを拒否しない（§5.1.2 の MUST）**。`A = 00`（未配属ストック章）と
@@ -19,7 +19,7 @@
 //! - `@03-01 ..` は上端開放、`.. @01-03` は下端開放。
 //! - カンマ区切りで複数区間の和集合。
 //! - 区間の左端 > 右端 は **E016**（§7）。ここでは [`RangeError::Reversed`] を返し、
-//!   診断コードへの変換は M4 の `core/diagnostics.rs` が担う（`PLANS.md` §9.2 B-17）。
+//!   診断コードへの変換は M4 の `core/diagnostics.rs` が担う（`docs/history.md` B-17）。
 //!
 //! §12.2 により core はユーザー向け文言を持たないので、エラー型に `Display` は実装しない
 //! （`Debug` のみ）。文言は `ui/i18n` のカタログが `(code, params)` から作る。

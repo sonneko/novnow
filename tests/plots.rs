@@ -1,4 +1,4 @@
-//! プロットのワークスペースの行の並び（`core::features::plots`、M8、`PLANS.md` §9.2 B-127）。
+//! プロットのワークスペースの行の並び（`core::features::plots`、M8、`docs/history.md` B-127）。
 
 mod novel;
 mod world;

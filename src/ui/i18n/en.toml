@@ -1,4 +1,4 @@
-# novnow UI message catalog (English). SPECIFICATIONS.md §12.3.
+# novnow UI message catalog (English). `docs/specifications/ui.md` §12.3.
 #
 # - Keys are `<area>.<target>.<word>` (§12.3). `E004` in the `[diag]` table is `diag.E004`.
 # - Placeholders are positional only: `{0}`, `{1}` (§12.3), in the order of `Diagnostic::args`.
@@ -6,7 +6,7 @@
 #   `tests/i18n_catalog.rs` re-reads the spec and ja.toml and checks that keys, placeholders and
 #   messages agree (the CI check required by §12.3). Change the spec table **first**.
 # - M4 added the diagnostics (`diag.*`), M6 the CLI (`cli.*`, §14). Status bar and palette messages come
-#   in M7 (PLANS.md §3 I6). The `cli.*` keys listed in the §12.7 table are copies of that table
+#   in M7 (`docs/history.md` I6). The `cli.*` keys listed in the §12.7 table are copies of that table
 #   (checked by tests/i18n_catalog.rs).
 
 [diag]
@@ -240,7 +240,7 @@ empty = "No projects yet"
 open = "Open folder"
 missing = "(not found)"
 create_here = "Create a project here"
-# Web project picker (§13.4, PLANS.md §9.2 B-156 to B-158)
+# Web project picker (§13.4, `docs/history.md` B-156 to B-158)
 search = "Search (/)"
 loading = "Loading…"
 unavailable = "IndexedDB is not available in this browser (private browsing, etc.). Open novnow in a normal window or use the desktop app."

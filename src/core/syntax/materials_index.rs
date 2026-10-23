@@ -2,9 +2,9 @@
 //!
 //! §5.5.1「人間が直接書く情報は MD、**機械が採番・管理する情報は JSON**
 //! （`materials/index.json` のみ）」。なのでこの形式だけは JSON そのものがストレージで、
-//! 木は [`crate::core::model::material`] の型（`PLANS.md` §9.2 B-30）。
+//! 木は [`crate::core::model::material`] の型（`docs/history.md` B-30）。
 //!
-//! # round-trip（`PLANS.md` §5.3 完了条件 2）
+//! # round-trip（`docs/history.md` の完了条件 2）
 //!
 //! **原文をそのまま [`Index::raw`] に持つ**ことでバイト一致を満たす。serde_json の
 //! 再シリアライズはキー順と空白を変えるので「読んで書き戻す」の一致には使えない
@@ -18,7 +18,7 @@
 //! | **E024** | `path` が `materials/` 配下でない（§5.8.2） | 原文中の `path` の値のリテラル |
 //! | **E008** | `id` が同一ファイル内で重複（§5.8.2「単調増加・再利用禁止」） | 2 件目の `id` のリテラル |
 //! | **E025** | JSON ファイルがパースできない（§4.3-4・§5.8.2） | ファイル全体 |
-//! | **W065** | 出典の無い**提案**（`status: proposed`、§16.7。M8、`PLANS.md` §9.2 B-134） | その資料の `id` のリテラル |
+//! | **W065** | 出典の無い**提案**（`status: proposed`、§16.7。M8、`docs/history.md` B-134） | その資料の `id` のリテラル |
 //!
 //! JSON のトークン位置は serde が持たないので、位置は**値の JSON リテラルを原文から探して**
 //! 決める（[`literal_ranges`]）。同じ文字列が何度も出てくる場合は書いた順に当てはめるだけで、
@@ -65,7 +65,7 @@ pub struct Index<'a> {
 
 /// `materials/index.json` のテキストをパースする。
 ///
-/// JSON として壊れていても**パニックしない**（`PLANS.md` §5.3 完了条件 3）:
+/// JSON として壊れていても**パニックしない**（`docs/history.md` の完了条件 3）:
 /// **E025**（§4.3-4・§7）を出し、[`Index::error`] に理由を入れて木を `None` で返す。
 /// 呼び出し側は [`Index::index_or_default`] で既定値のまま続行する。
 pub fn parse(text: &str) -> Index<'_> {
@@ -96,7 +96,7 @@ pub fn parse(text: &str) -> Index<'_> {
 }
 
 impl<'a> Index<'a> {
-    /// 入力と**バイト単位で一致する**テキストに戻す（`PLANS.md` §5.3 完了条件 2）。
+    /// 入力と**バイト単位で一致する**テキストに戻す（`docs/history.md` の完了条件 2）。
     ///
     /// JSON は再シリアライズするとキー順と空白が変わるので、**原文をそのまま返す**。
     pub fn to_text(&self) -> &'a str {
@@ -173,7 +173,7 @@ fn warn_items(text: &str, index: &MaterialIndex, out: &mut Vec<Diagnostic>) {
             seen.push(item.id.as_str());
         }
         // §16.7「出典のない提案は自動的に W065 を付け、採用ボタンに確認を挟む」。付けるのは**提案**だけ
-        // （採用のときに確認を経たものには付けない。`PLANS.md` §9.2 B-134）
+        // （採用のときに確認を経たものには付けない。`docs/history.md` B-134）
         if item.status_kind() == Some(MaterialStatus::Proposed) && item.source.is_missing() {
             out.push(Diagnostic::new(
                 DiagnosticCode::W065,

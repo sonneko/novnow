@@ -1,6 +1,6 @@
 //! `core::syntax::words_md`（`words.md`、§5.6）のテスト。
 //!
-//! `PLANS.md` §5.3 完了条件の 1（§5.6 の例が期待どおりにパースできる）・2（round-trip が
+//! `docs/history.md` の完了条件の 1（§5.6 の例が期待どおりにパースできる）・2（round-trip が
 //! バイト一致）・3（壊れた入力でパニックしない）に対応する。
 
 use novnow::core::syntax::words_md::{self, Line, Word};
@@ -241,7 +241,7 @@ fn a_range_may_list_several_intervals() {
 #[test]
 fn unknown_keys_warn_and_keep_their_values() {
     // §5.0.6 の表に無いキーは W011 ＋ 値を改変せずに保持（縫い代 2）。② のキー（`icoz`）も
-    // ① では未知のまま（PLANS.md §1.2）。`color` は第 2.6 版で表に入ったので W011 にならない
+    // ① では未知のまま（`docs/plans.md` §4.2）。`color` は第 2.6 版で表に入ったので W011 にならない
     let text = "# 用語\ndefinition: x\nicoz: star\ncolor: #ff0000\n";
     let at = byte_offset(text, 2);
     assert_eq!(diags_tag(text), format!("W011@{}..{}(icoz)", at, at + 4));

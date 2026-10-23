@@ -115,7 +115,7 @@ pub struct TokenStyle {
     pub scale: f32,
 }
 
-/// §11.2 の表（表に無い 4 種は近い役割の色を使う。`PLANS.md` §9.2 B-115）。
+/// §11.2 の表（表に無い 4 種は近い役割の色を使う。`docs/history.md` B-115）。
 pub fn token_style(mode: Mode, kind: TokenType) -> TokenStyle {
     let dark = mode == Mode::Dark;
     let pick = |d: u32, l: u32| if dark { hex(d) } else { hex(l) };
@@ -248,7 +248,7 @@ pub fn fonts() -> (FontDefinitions, bool) {
             .insert(0, CJK.to_owned());
     }
     // 記号の最後の受け皿に egui 既定の等幅フォント（Hack）を置く。インレイヒントの括弧 `⟨⟩`
-    // （U+27E8 / U+27E9、§6.6.2）は Ubuntu-Light にも同梱の IPA ゴシックにも無い（`PLANS.md` §9.2 B-137）
+    // （U+27E8 / U+27E9、§6.6.2）は Ubuntu-Light にも同梱の IPA ゴシックにも無い（`docs/history.md` B-137）
     if fonts.font_data.contains_key(SYMBOLS) {
         fonts
             .families

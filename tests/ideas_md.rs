@@ -1,6 +1,6 @@
 //! `core::syntax::ideas_md`（`ideas.md`、§5.7）のテスト。
 //!
-//! `PLANS.md` §5.3 完了条件の 1（§5.7 の例が期待どおりにパースできる）・2（round-trip が
+//! `docs/history.md` の完了条件の 1（§5.7 の例が期待どおりにパースできる）・2（round-trip が
 //! バイト一致）・3（壊れた入力でパニックしない）に対応する。
 
 use novnow::core::syntax::ideas_md::{self, Idea, Line};
@@ -140,7 +140,7 @@ fn the_spec_example_reads_the_keys_of_the_table() {
 #[test]
 fn keys_outside_the_table_still_warn_and_keep_their_values() {
     // §5.0.6 の表に無いキーは W011 ＋ 値を改変せず保持（縫い代 2）。② のキー（`flurb`）も
-    // ① では未知のまま（PLANS.md §1.2）
+    // ① では未知のまま（`docs/plans.md` §4.2）
     let text = "# I0001 下書き\nstatus: inbox\nflurb: 一行紹介\nfoo: bar\n";
     assert_eq!(
         diags_tag(text),
@@ -155,7 +155,7 @@ fn keys_outside_the_table_still_warn_and_keep_their_values() {
 #[test]
 fn the_spec_example_reads_the_meta_keys_from_the_table() {
     // §5.7 が定義する `status` `created` `relates` `promoted-to` は §5.0.6 の表に**正式追加**
-    // された（第 2.6 版。PLANS.md §9.1 A-15 の裁定＝すべて正式追加）ので W011 は出ない
+    // された（第 2.6 版。`docs/history.md` A-15 の裁定＝すべて正式追加）ので W011 は出ない
     assert_eq!(diags_tag(SPEC_EXAMPLE), "");
 }
 

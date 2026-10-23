@@ -3,7 +3,7 @@
 //! # 予算
 //!
 //! 役割ごとの表（§15.4.2）。integrator は表に無いので、統合に要る `9 history`（タスクの状態）を厚くした
-//! 列を持つ（第 2.16 版で表に追加、`PLANS.md` §9.2 B-140）。`prompts/<role>.md` の `max-chars` は
+//! 列を持つ（第 2.16 版で表に追加、`docs/history.md` B-140）。`prompts/<role>.md` の `max-chars` は
 //! その役割の**合計**を上書きし、各ブロックの予算は表の比率のまま伸び縮みする。送れる上限は
 //! `min(合計, agents.max_chars_per_request)`。
 //!

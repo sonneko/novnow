@@ -1,6 +1,6 @@
 //! `core::text::position` と `core::text::rope` のテスト。
 //!
-//! `PLANS.md` §5.2 完了条件「`tests/position.rs`: 日本語 + 絵文字混在で byte/char/utf16 の
+//! `docs/history.md` の完了条件「`tests/position.rs`: 日本語 + 絵文字混在で byte/char/utf16 の
 //! 往復が一致する」に対応する。§3.4「core は内部的に byte offset を使う。
 //! `Utf8Byte ⇔ CharIndex ⇔ Utf16CodeUnit` を相互変換する（LSP は UTF-16 既定のため MUST）」。
 

@@ -1,6 +1,6 @@
 //! `core::syntax::plot_episode`（B 形式、§5.4）のテスト。
 //!
-//! `PLANS.md` §5.3 完了条件の 1（§5.4.3・§5.4.4・§5.4.5 の例が期待どおりにパースできる）・
+//! `docs/history.md` の完了条件の 1（§5.4.3・§5.4.4・§5.4.5 の例が期待どおりにパースできる）・
 //! 2（未知フィールドキーを含むファイルの round-trip がバイト一致）・3（壊れた入力でパニック
 //! しない）に対応する。
 //!
@@ -441,7 +441,7 @@ fn the_spec_example_reads_the_space_memo_as_a_continuation() {
 }
 
 /// ② のキー（`when` `space` `space-mode` `senses` `illustration`）は W011 になるが、
-/// **値は改変せずに保持する**（§5.0.6、`PLANS.md` §5.3「② の生命線」）。
+/// **値は改変せずに保持する**（§5.0.6、`docs/history.md` の「② の生命線」）。
 #[test]
 fn the_spec_example_reads_stage_two_fields_and_keeps_their_values() {
     let text = spec_episode();
@@ -646,7 +646,7 @@ fn an_unparsable_id_is_e002() {
 }
 
 /// B 形式の見出しは 3〜4 階層（§5.4.1 `scene_header`）。2 階層は E020（C 形式と同じ。
-/// 第 2.8 版で E002 から変更、`PLANS.md` §9.1 A-10）。
+/// 第 2.8 版で E002 から変更、`docs/history.md` A-10）。
 #[test]
 fn a_two_level_id_is_e020_because_b_needs_three_levels() {
     assert_eq!(diags_tag(SHALLOW_ID), "E020@0..6(3-4)");

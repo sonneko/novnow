@@ -1,6 +1,6 @@
 name: toolchain-export
 
-# 目的（PLANS.md §9.3「開発環境に Rust ツールチェーンが無い」への対策）
+# 目的（`docs/history.md` の CI のログ取得「開発環境に Rust ツールチェーンが無い」への対策）
 # ---------------------------------------------------------------------
 # Arena の開発サンドボックスには cargo / rustc / rustup が無く、許可ホストは
 # github.com・codeload.github.com・api.github.com・registry.npmjs.org・pypi.org 系だけ。

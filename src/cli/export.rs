@@ -2,7 +2,7 @@
 //!
 //! 1. オプションを読む（知らないオプション・値の無いオプション・読めない範囲や状態 → 2）。
 //!    ② のオプション（`--include-stock` / `--include-blurb` / `--blurb-only` /
-//!    `--keep-illustration-memo`）も知らないオプションになる（`PLANS.md` §1.2）。
+//!    `--keep-illustration-memo`）も知らないオプションになる（`docs/plans.md` §4.2 ）。
 //! 2. `novnow check` と同じく開いて読む（不備 → 3、読めない → 4）。
 //! 3. `core::export`（§17.1）。設定は `project.json` の `export`、形式は `--out` の名前（`.md` なら
 //!    Markdown）。当てはまる節が無ければ、何も書かずに標準エラーに知らせて 0。
@@ -13,11 +13,11 @@
 //!      （名前が `.txt` / `.md` で終わらない・履歴ファイル → E060 で書かずに 4）。親ディレクトリは
 //!      作らない（無ければ 4）。
 //!    - 省略: プロジェクトの中の `exports/<title>-<範囲>-<YYYYMMDD-HHMM>.txt`（規則 10 のまま）。
-//!      日時は UTC（ネイティブはタイムゾーンが分からない、`PLANS.md` §9.2 B-92・B-123）。
+//!      日時は UTC（ネイティブはタイムゾーンが分からない、`docs/history.md` B-92・B-123）。
 //!
 //!    書いたら標準出力に `novnow: 書き出しました（N 節・M 字）` と書き出し先。
 //!
-//! 判断の記録は `PLANS.md` §9.2 B-122〜B-125。
+//! 判断の記録は `docs/history.md` B-122〜B-125。
 
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};

@@ -38,7 +38,7 @@
 //! # 行と木
 //!
 //! [`Characters::lines`] は**書かれたままの 1 行ずつ**を持ち、[`Characters::to_text`] はそれを
-//! LF で連結するので入力とバイト単位で一致する（`PLANS.md` §5.3 完了条件 2）。
+//! LF で連結するので入力とバイト単位で一致する（`docs/history.md` の完了条件 2）。
 //! [`Character`] / [`Section`] / [`ModeDef`] は同じ行を **index で指すだけ**で複製を持たない
 //! （A 形式の [`super::plot_outline::Block`] と同じ流儀）。
 //!
@@ -48,7 +48,7 @@
 //! （[`Line`] / [`Heading`] / [`Bullet`] / [`PatternLine`] / [`parse_line`] /
 //! [`attach_continuations`]）は**このファイルが持ち**、`words_md` / `ideas_md` / `prompt_md` が
 //! `pub(crate)` で共有する。A / B 形式が `contents.rs` の共通部を共有したのと同じ流儀
-//! （`PLANS.md` §9.2 B-40: §3.3 のツリーに共通ファイルが無いので移設はしない）。
+//! （`docs/history.md` B-40: §3.3 のツリーに共通ファイルが無いので移設はしない）。
 //! フィールド行まわり（[`Field`] / [`Continuation`]）は A 形式のものが正。
 //!
 //! # 診断（M2 で出すもの）
@@ -69,10 +69,10 @@
 //! - **W084**（台詞内の呼称が `address:` に反する、§5.5.6）: 本文と配役を突き合わせる
 //!   §7.2 の検査なので M4 以降。
 //! - `address:`（②・追加仕様 8）と `icon:`（②・追加仕様 24）: §5.0.6 の ① の表に無いので
-//!   **W011 ＋ 値を改変せずに保持**（`PLANS.md` §5.3 作業項目 3「実装しないが未知フィールド
+//!   **W011 ＋ 値を改変せずに保持**（`docs/history.md` の作業項目 3「実装しないが未知フィールド
 //!   として保持されること」）。`icon` の **E062** / **W068** / **W069** / **W070** は ② の実装時。
 //! - `color:` は §5.5.3 が任意フィールドとして定義しているのに §5.0.6 の表に無い
-//!   （`PLANS.md` §9.1 A-15）。表を正本として **W011** を出す。
+//!   （`docs/history.md` A-15）。表を正本として **W011** を出す。
 //! - `### <mode_id>` が `mode_id` の形に合わないとき: §7 に対応コードが無いので診断せず、
 //!   [`ModeDef::valid_id`] が `false` になるだけ（A 形式の B-39 と同じ流儀）。
 
@@ -141,7 +141,7 @@ pub struct Characters<'a> {
 /// `text` は **LF 改行**であること（§5.0.4。読み込み時に
 /// [`crate::core::text::lexer::normalize_on_load`] を通す）。
 ///
-/// 壊れた入力でも部分木と診断を返す（`PLANS.md` §5.3 完了条件 3）。H1 の前に `## ` があっても
+/// 壊れた入力でも部分木と診断を返す（`docs/history.md` の完了条件 3）。H1 の前に `## ` があっても
 /// パニックしない（行は前文として残る）し、閉じない `「` は自由記述になる。
 pub fn parse(text: &str) -> Characters<'_> {
     let mut lines: Vec<Line<'_>> = text.split('\n').map(parse_line).collect();
@@ -158,7 +158,7 @@ pub fn parse(text: &str) -> Characters<'_> {
 }
 
 impl<'a> Characters<'a> {
-    /// 入力と**バイト単位で一致する**テキストに戻す（`PLANS.md` §5.3 完了条件 2）。
+    /// 入力と**バイト単位で一致する**テキストに戻す（`docs/history.md` の完了条件 2）。
     pub fn to_text(&self) -> String {
         let mut out = String::new();
         for (index, line) in self.lines.iter().enumerate() {
@@ -416,7 +416,7 @@ pub enum Line<'a> {
     /// 行コメント（`//`、§5.0.2）。`# ` は `.txt` 専用のコメント（§5.0.8）なので
     /// MD では見出しになる。
     Comment(contents::CommentLine<'a>),
-    /// 空行（空白だけの行を含む。`PLANS.md` §9.2 B-34）。
+    /// 空行（空白だけの行を含む。`docs/history.md` B-34）。
     Blank(&'a str),
 }
 

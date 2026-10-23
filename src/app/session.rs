@@ -348,7 +348,7 @@ impl Session {
         self.interface
     }
 
-    /// インターフェースを指定する（CLI・LSP・MCP・Python の适配層が使う）。
+    /// インターフェースを指定する（CLI・LSP・MCP・Python の適合層が使う）。
     pub fn set_interface(&mut self, interface: Interface) {
         self.interface = interface;
     }

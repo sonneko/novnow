@@ -2,13 +2,13 @@
 //!
 //! 引数は `(&Document, 位置, &Project)` の組み合わせだけ、戻り値は LSP の構造体に機械的に
 //! 写せるプレーンな型（§3.4 MUST）。位置は**ファイル内の byte**（§3.4「core は内部的に
-//! byte offset を使う」、`PLANS.md` §9.2 B-1）で、UTF-16 との変換は `text/position.rs` の
+//! byte offset を使う」、`docs/history.md` B-1）で、UTF-16 との変換は `text/position.rs` の
 //! [`crate::core::text::position::LineTable`] が受け持つ（将来の LSP アダプタと UI の仕事）。
 //!
 //! **文言は返さない**（§12.2）。表示名が要るものは種別の enum を返し、UI が `ui/i18n/` で引く。
-//! 引数の順は §3.4 の表のとおり（`semantic_tokens::full(doc, project)` など。`PLANS.md` §9.2 B-78）。
+//! 引数の順は §3.4 の表のとおり（`semantic_tokens::full(doc, project)` など。`docs/history.md` B-78）。
 
-/// LSP に対応しない補助（キャラの並び・モードタイムライン・役割語テスター。§10.6、`PLANS.md` §9.2 B-133）。
+/// LSP に対応しない補助（キャラの並び・モードタイムライン・役割語テスター。§10.6、`docs/history.md` B-133）。
 pub mod cast;
 pub mod code_action;
 pub mod completion;
@@ -17,21 +17,21 @@ pub mod document_symbol;
 pub mod folding;
 pub mod formatting;
 pub mod hover;
-/// LSP に対応しない補助（アイデアの一覧・即時入力・昇格の転記。§10.4、`PLANS.md` §9.2 B-130）。
+/// LSP に対応しない補助（アイデアの一覧・即時入力・昇格の転記。§10.4、`docs/history.md` B-130）。
 pub mod ideas;
 pub mod inlay_hint;
-/// LSP に対応しない補助（資料の提案・採用・却下と索引の更新。§16、`PLANS.md` §9.2 B-131）。
+/// LSP に対応しない補助（資料の提案・採用・却下と索引の更新。§16、`docs/history.md` B-131）。
 pub mod materials_ops;
 /// LSP に対応しない補助（診断の「どこ」を作家の言葉で。§14.2.5・§10.9.2、第 2.11 版）。
 pub mod place;
-/// LSP に対応しない補助（プロットのワークスペースの行の並び・伏線。§10.2・§10.3、`PLANS.md` §9.2 B-127）。
+/// LSP に対応しない補助（プロットのワークスペースの行の並び・伏線。§10.2・§10.3、`docs/history.md` B-127）。
 pub mod plots;
 pub mod project;
-/// LSP に対応しない補助（参照ペインの中身を集める。§9.5.2、`PLANS.md` §9.2 B-113）。
+/// LSP に対応しない補助（参照ペインの中身を集める。§9.5.2、`docs/history.md` B-113）。
 pub mod reference;
 pub mod references;
 pub mod rename;
-/// LSP に対応しない補助（節単位の編集と節の並び。§8.1・§9.3・§9.8.2、`PLANS.md` §9.2 B-112）。
+/// LSP に対応しない補助（節単位の編集と節の並び。§8.1・§9.3・§9.8.2、`docs/history.md` B-112）。
 pub mod sections;
 pub mod semantic_tokens;
 

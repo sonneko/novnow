@@ -1,4 +1,4 @@
-//! CLI（§14、`PLANS.md` §5.7 M6）。起動の判定（§14.3）・起動前の検査と表示（§14.2）・`new`（§14.5）・
+//! CLI（§14、`docs/history.md` のM6）。起動の判定（§14.3）・起動前の検査と表示（§14.2）・`new`（§14.5）・
 //! `check`・終了コード（§14.2.5）。
 //!
 //! 大半は `novnow::cli::run` をプロセス内で走らせる（出力はバッファ、環境は偽の `Env`、カレント
@@ -260,7 +260,7 @@ fn a_directory_name_that_is_not_utf8_is_still_a_directory() {
 
 #[test]
 fn an_empty_directory_prints_every_missing_item_and_exits_3_without_writing() {
-    // PLANS.md §5.7 の完了条件「空ディレクトリで novnow . → エラー ＋ exit 3。GUI を出さない」
+    // `docs/history.md` の完了条件「空ディレクトリで novnow . → エラー ＋ exit 3。GUI を出さない」
     let dir = TempDir::new("cli-empty");
     let root = dir.mkdir("novel");
     let before = tree(dir.path());

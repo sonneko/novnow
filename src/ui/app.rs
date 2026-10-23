@@ -175,7 +175,7 @@ enum Overlay {
     },
 }
 
-/// `Ctrl+M` で選んだ資料をどうするか（§9.8.3・§16.3、`PLANS.md` §9.2 B-134）。
+/// `Ctrl+M` で選んだ資料をどうするか（§9.8.3・§16.3、`docs/history.md` B-134）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum MaterialAction {
     /// `Enter`: 今のワークスペースのエディタに挿入する（write・アイデアなどは `'M0137`、話プロットは
@@ -1469,7 +1469,7 @@ impl NovnowApp {
             }
             (_, Command::QuickFix) => {
                 // M8 のエディタ（Slice）でも `Ctrl+.`。資料 ID はプロットに書く（§6.6.4）ので、E006 の
-                // クイックフィックス（§6.6.3）は話プロットで要る（`PLANS.md` §9.2 B-137）
+                // クイックフィックス（§6.6.3）は話プロットで要る（`docs/history.md` B-137）
                 let actions = bench
                     .slice_document()
                     .map(|(document, start)| {
@@ -6699,7 +6699,7 @@ mod native {
         }
 
         fn stamp(&self) -> String {
-            // ネイティブはタイムゾーンが分からないので UTC（`PLANS.md` §9.2 B-92・B-123）
+            // ネイティブはタイムゾーンが分からないので UTC（`docs/history.md` B-92・B-123）
             let clock = SystemClock;
             crate::adapters::clock_system::compact_stamp(
                 clock.now_millis(),

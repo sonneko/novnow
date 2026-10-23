@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Web 版をヘッドレスの Chromium で実際に動かして確かめる（`PLANS.md` §5.8 の「Web で IndexedDB の接続を
+# Web 版をヘッドレスの Chromium で実際に動かして確かめる（`docs/history.md` のの「Web で IndexedDB の接続を
 # 一通り動かす」・§9.2 B-156〜B-158）。CI では回さない（作業環境で回す道具）。
 #
 # 背景: 作業環境（Arena）から GitHub のリリースの asset と Chrome の配布元には届かない。

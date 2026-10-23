@@ -1,7 +1,7 @@
 //! ワークスペース（§10。指示 5「用途別 UI」）。
 //!
-//! - `Alt+1..9` で切り替え、`Alt+0` で直前のワークスペースへ戻る（§10.0）。`reader`（`Alt+7`）は
-//!   追加仕様 #27 で ② へ移したので欠番、`agent`（`Alt+8`）は M10 まで欠番（`PLANS.md` §9.2 B-126）。
+//! - `Alt+1..9` で 9 つを切り替え、`Alt+0` で直前のワークスペースへ戻る（§10.0）。`reader`（`Alt+7`）は
+//!   追加仕様 #27、`agent`（`Alt+8`）は M10 で有効にした（`docs/history.md` B-126）。
 //! - 切替で **SceneId は変わらない**（MUST）。各ワークスペースは自分の状態（選んでいる行・開いている
 //!   文書）を `Session` の中に持ち続け、切替で破棄・再構築しない（§10.0「事前計算」）。初めて開く
 //!   ワークスペースだけ、今の節の対応物に着地する（`Ctrl+Shift+1..9` の強制持ち越しは ②）。
@@ -26,7 +26,6 @@ pub mod plot_episode;
 pub mod plot_outline;
 pub mod review;
 pub mod stage_two;
-pub mod write;
 
 pub use crate::app::workspace::{Switcher, Workspace};
 

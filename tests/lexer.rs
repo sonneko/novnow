@@ -1,6 +1,6 @@
 //! `core::text::lexer` のテスト（§5.0 の共通字句規則）。
 //!
-//! `PLANS.md` §5.2 完了条件「`tests/lexer.rs`: §5.0.2 のシジル表と §5.0.3 のエスケープ表の
+//! `docs/history.md` の完了条件「`tests/lexer.rs`: §5.0.2 のシジル表と §5.0.3 のエスケープ表の
 //! **全行にテストがある**」に対応する。① で実装しない行（`'` / `'{ }` / `:` / `+` / `「」` /
 //! `^` / `..`）は「字句器が行の種別を変えないこと」と、表に行が残って ② の受け皿になっている
 //! ことを確認する。
@@ -162,7 +162,7 @@ fn ref_sigils_do_not_change_the_line_kind() {
 
 #[test]
 fn section_break_is_a_whole_line_in_every_txt_form() {
-    // §5.2.1 / §5.3.1 / §5.4.1（`PLANS.md` §9.1 A-11）
+    // §5.2.1 / §5.3.1 / §5.4.1（`docs/history.md` A-11）
     for format in [C, B, A] {
         let got = tag(";", format);
         assert_eq!(got, "section-break");
@@ -187,7 +187,7 @@ fn section_break_needs_the_whole_line() {
 
 #[test]
 fn section_break_allows_a_trailing_line_comment() {
-    // §5.2.1 `section_break = ws? , ";" , [ comment ] , eol`（`PLANS.md` §9.2 B-31）
+    // §5.2.1 `section_break = ws? , ";" , [ comment ] , eol`（`docs/history.md` B-31）
     for line in ["; // メモ", ";  // メモ", ";//メモ", "\t;\t// メモ"] {
         let got = tag(line, C);
         assert_eq!(got, "section-break");
@@ -357,7 +357,7 @@ fn dialogue_brackets_are_plain_text_to_the_lexer() {
 
 #[test]
 fn citation_sigil_is_plain_text_in_stage_one() {
-    // `^` 引用注釈は ②（`PLANS.md` §1.2 の 10、§5.2.4）
+    // `^` 引用注釈は ②（`docs/plans.md` §4.2 の 10、§5.2.4）
     let got = tag("本文^M0137", C);
     assert_eq!(got, "text[本文^M0137]");
 }
@@ -466,7 +466,7 @@ fn no_field_key_collides_with_a_url_scheme() {
 #[test]
 fn field_value_may_be_empty() {
     // §5.0.5 手順 6。§5.0.4 で行末空白は消えるので、`key:` だけの行も
-    // 空の値のフィールド行として受理する（`PLANS.md` §9.1 A-6 の裁定 (1)）
+    // 空の値のフィールド行として受理する（`docs/history.md` A-6 の裁定 (1)）
     let bare = tag("summary:", A);
     assert_eq!(bare, "field(Summary, summary)[]");
     let spaced = tag("summary: ", A);
@@ -523,7 +523,7 @@ fn field_line_exposes_the_byte_position_of_the_value() {
     // 値が空のときは行末（範囲が空になる位置）
     assert_eq!(value_at("space:  "), 8);
     assert_eq!(value_at("summary:"), 8);
-    // 行末コメントは**値の一部**。フィールド行では `//` で切らない（`PLANS.md` §9.2 B-36）
+    // 行末コメントは**値の一部**。フィールド行では `//` で切らない（`docs/history.md` B-36）
     assert_eq!(value_at("mode: 'アルス:A // 戦闘"), 6);
 }
 
@@ -571,7 +571,7 @@ fn the_spec_example_splits_into_a_field_and_a_continuation() {
 
 #[test]
 fn two_or_more_spaces_of_indent_beat_the_field_line() {
-    // 2 スペース以上は継続行のために予約されている（`PLANS.md` §9.2 B-18）
+    // 2 スペース以上は継続行のために予約されている（`docs/history.md` B-18）
     let got = tag("  summary: x", A);
     assert_eq!(got, "continuation(2)[summary: x]");
     let deeper = tag("     x", A);
@@ -586,7 +586,7 @@ fn one_space_of_indent_is_not_a_continuation() {
 
 #[test]
 fn indent_counts_chars_and_a_single_tab_is_a_continuation() {
-    // §5.0.5 の継続行は「2 文字以上の空白、または 1 文字以上のタブ」（`PLANS.md` §9.2 B-20・B-21）
+    // §5.0.5 の継続行は「2 文字以上の空白、または 1 文字以上のタブ」（`docs/history.md` B-20・B-21）
     assert_eq!(lexer::leading_indent("  x"), 2);
     assert_eq!(lexer::leading_indent("\tx"), 1);
     assert_eq!(lexer::leading_indent("　x"), 1);
@@ -662,7 +662,7 @@ fn the_table_records_the_formats_of_each_key() {
 
 #[test]
 fn aliases_of_stage_two_keys_are_not_in_the_table() {
-    // ② のキー（`PLANS.md` §1.2）は ① の表に無いので Unknown になる
+    // ② のキー（`docs/plans.md` §4.2 ）は ① の表に無いので Unknown になる
     let stage_two = [
         "when",
         "senses",
@@ -793,7 +793,7 @@ fn text_format_helpers_agree_with_the_table() {
     assert!(!MD.is_txt());
     assert!(!C.allows_field());
     assert!(A.allows_field());
-    // `;` は `.txt` 3 形式（§5.2.1 / §5.3.1 / §5.4.1。`PLANS.md` §9.1 A-11）
+    // `;` は `.txt` 3 形式（§5.2.1 / §5.3.1 / §5.4.1。`docs/history.md` A-11）
     assert!(C.allows_section_break());
     assert!(B.allows_section_break());
     assert!(A.allows_section_break());

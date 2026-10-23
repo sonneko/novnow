@@ -6,9 +6,9 @@
 //! [`Project`] は §3.4 の 11 機能と `diagnostics::document` が受け取る**プロジェクト全体**で、
 //! 設定（`model::Project`）・開いている文書（[`Document`]）・構築済みの辞書を持つ。
 //! `model/` に置かないのは、辞書（`resolve`）と構文木（`syntax`）を使うから
-//! （`model` は `syntax` を使えない、`PLANS.md` §9.2 B-29）。
+//! （`model` は `syntax` を使えない、`docs/history.md` B-29）。
 //!
-//! # 持つもの（`PLANS.md` §9.2 B-76）
+//! # 持つもの（`docs/history.md` B-76）
 //!
 //! - **文書は所有型**（`path → Document`）。`core/syntax/*` の木は原文を借用する
 //!   （`Characters<'a>` 等）ので、木を持つと自己参照になる。木は**機能を呼ぶたびにパースし直す**
@@ -18,7 +18,7 @@
 //!   作り直す。
 //! - **core は I/O をしない**（§3.2）。文書の読み込みと保存は呼び出し側（M5 のストレージ）。
 //!   ここは渡された文書を覚えるだけ。
-//! - **設定は `project.json` の文書から取る**（M5 の設定読み込み、`PLANS.md` §9.2 B-89）。
+//! - **設定は `project.json` の文書から取る**（M5 の設定読み込み、`docs/history.md` B-89）。
 //!   `project.json` を [`Project::insert`] / [`Project::with_documents`] で渡すと
 //!   [`project_json::parse`] の結果で設定を置き換える（JSON として読めなければ既定値、§4.3-4）。
 //!   E025 / E027 はその文書の診断（`diagnostics::document`）に出る。
@@ -26,7 +26,7 @@
 //! # 参照の走査（11 機能の共通部品）
 //!
 //! `'` の参照（§6.2）は「全形式の本文部」（§5.0.2 の表）に現れる。どこを本文部とみなすかは
-//! [`scan_ranges`] が決め（`PLANS.md` §9.2 B-77）、[`Project::ref_sites`] がその範囲だけを
+//! [`scan_ranges`] が決め（`docs/history.md` B-77）、[`Project::ref_sites`] がその範囲だけを
 //! 辞書で走査する。位置は**ファイル単位の byte**（B-1・B-56）で返す。
 
 use std::collections::BTreeMap;
@@ -723,7 +723,7 @@ pub fn line_starts_of(text: &str) -> Vec<usize> {
         .collect()
 }
 
-/// `'` を走査してよい範囲（**行内相対**）。§5.0.2 の「全形式の本文部」（`PLANS.md` §9.2 B-77）。
+/// `'` を走査してよい範囲（**行内相対**）。§5.0.2 の「全形式の本文部」（`docs/history.md` B-77）。
 ///
 /// | 行 | 走査する範囲 |
 /// |---|---|

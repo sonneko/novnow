@@ -22,7 +22,7 @@ pub struct PickedFile {
     pub bytes: Vec<u8>,
 }
 
-/// ユーザーが保存先として明示したパスと、何を書くか（§13.1.1 の特例、`PLANS.md` §9.2 B-99・B-109）。
+/// ユーザーが保存先として明示したパスと、何を書くか（§13.1.1 の特例、`docs/history.md` B-99・B-109）。
 ///
 /// **作ってよいのは保存ダイアログの実装（[`Dialog::save_zip`] / [`Dialog::save_text`]）・CLI の
 /// `novnow export --out <path>`・テストだけ**。関門の特例の口はこの型を**値で**受け取って消費する

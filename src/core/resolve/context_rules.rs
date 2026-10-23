@@ -90,7 +90,7 @@ impl Scope {
 /// （`plot_episode::Scene` / `Section` の `span`）でも C 形式（`contents::Section`）でも、
 /// 資料や用語のように「1 ファイル＝1 話」のものを渡してもよい。
 ///
-/// 範囲は**行 index**（半開区間）。byte 位置と混ぜないこと（`PLANS.md` §9.2 B-56）。
+/// 範囲は**行 index**（半開区間）。byte 位置と混ぜないこと（`docs/history.md` B-56）。
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Layout {
     /// カーソル行。

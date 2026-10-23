@@ -1,4 +1,4 @@
-//! C 形式（本文 `contents/AA-BB.txt`）のパーサ（`SPECIFICATIONS.md` §5.2）。
+//! C 形式（本文 `contents/AA-BB.txt`）のパーサ（`docs/specifications/syntax.md` §5.2）。
 //!
 //! 字句器（[`crate::core::text::lexer`]）が**行単位**で決めた種別を、§5.2.1 の文法に
 //! 組み立て直す。判定は行内で完結するので（§5.0.1）[`Line`] は 1 行ずつ差し替えられる
@@ -8,12 +8,12 @@
 //! # 原文を 1 バイトも捨てない
 //!
 //! 各行は `raw`（改行を含まない原文）を持ち、[`Contents::to_text`] は `raw` を LF で連結して
-//! **入力と一致する文字列**を返す（`PLANS.md` §5.3 の完了条件 2）。① で解析しない構文 —
+//! **入力と一致する文字列**を返す（`docs/history.md` の完了条件 2）。① で解析しない構文 —
 //! `^M0137` 引用注釈（§5.2.4）、`! ` 挿絵メモ（§5.2.5）、`# ` コメント（§5.0.8）、
 //! `'` 参照（§5.2.1 `ref`）、行内コメント `/* … */` — は [`TextLine::body`] にそのまま残り、
 //! round-trip で戻る（本書 §1.2 の 10 / 23 / 15）。
 //!
-//! # ① で解析する構文（`PLANS.md` §5.3 作業項目 1）
+//! # ① で解析する構文（`docs/history.md` の作業項目 1）
 //!
 //! | 構文 | 仕様 | 型 |
 //! | --- | --- | --- |
@@ -36,7 +36,7 @@
 //!
 //! # パニックしない
 //!
-//! 壊れた入力でも部分木と診断を返す（§4.3-4、`PLANS.md` §5.3 の完了条件 3）。ID が壊れた
+//! 壊れた入力でも部分木と診断を返す（§4.3-4、`docs/history.md` の完了条件 3）。ID が壊れた
 //! 見出しも節を作り（[`Section::scene`] が `None`）、話者注釈の形に合わない `@` は W002 を
 //! 出して本文に残す。
 //!
@@ -62,7 +62,7 @@ const HEADER_DEPTH: usize = 3;
 /// 階層数だけが違う見出し（`@01-04`）の **E020** に渡す `{0}`（§6.2.5、第 2.8 版）。
 ///
 /// C・B 形式は 3 階層と 4 階層の両方を受け付けるので、数 1 つではなく範囲を渡す
-/// （`{0}` に 3 を入れると「3 階層だけ」と読めて `@01-04-02-03` と矛盾する。`PLANS.md` §9.1 A-10）。
+/// （`{0}` に 3 を入れると「3 階層だけ」と読めて `@01-04-02-03` と矛盾する。`docs/history.md` A-10）。
 /// 言語に依らない数字と `-` だけなので core が持ってよい（§12.2 の文言には当たらない）。
 pub const HEADER_DEPTH_RANGE: &str = "3-4";
 
@@ -87,7 +87,7 @@ const RUBY_BAR: char = '｜';
 /// 漢字の code point 範囲（**上端は含まない**）。ルビの親文字になれる文字、§5.2.1 `kanji_run`。
 ///
 /// CJK 統合漢字 U+4E00–U+9FFF・拡張 A U+3400–U+4DBF・互換漢字 U+F900–U+FAFF。
-/// `kanji_run` は仕様書に定義が無いのでここで決めた（`PLANS.md` §9.2 B-33）。
+/// `kanji_run` は仕様書に定義が無いのでここで決めた（`docs/history.md` B-33）。
 const KANJI: &[Range<u32>] = &[0x4E00..0xA000, 0x3400..0x4DC0, 0xF900..0xFB00];
 
 /// 繰返し字（`々` U+3005・`〻` U+303B）。`人々《ひとびと》` のように漢字列に含める。
@@ -124,7 +124,7 @@ pub struct Contents<'a> {
     /// 全行。**改行を含まない**（[`Contents::to_text`] が LF を挟んで復元する）。
     pub lines: Vec<Line<'a>>,
     /// 節（§5.2.2）。**ファイル先頭の場面見出しより前の行はどの節にも属さない**
-    /// （`PLANS.md` §9.2 B-32）。
+    /// （`docs/history.md` B-32）。
     pub sections: Vec<Section>,
     /// 診断（§7）。位置は `text` の中の byte range。行の順・節の順に並ぶ。
     pub diagnostics: Vec<Diagnostic>,
@@ -162,7 +162,7 @@ pub fn parse_with<'a>(text: &'a str, options: &Options) -> Contents<'a> {
 impl<'a> Contents<'a> {
     /// 原文を復元する（`lines` の `raw` を LF で連結）。
     ///
-    /// [`parse`] に渡した文字列と**一致する**（`PLANS.md` §5.3 の完了条件 2）。末尾改行の有無、
+    /// [`parse`] に渡した文字列と**一致する**（`docs/history.md` の完了条件 2）。末尾改行の有無、
     /// 空白だけの行、① が解析しない構文もすべて戻る。
     pub fn to_text(&self) -> String {
         let mut out = String::new();
@@ -296,7 +296,7 @@ pub struct TextLine<'a> {
     /// 行全体。
     pub raw: &'a str,
     /// 先頭の空白文字数。2 以上は継続行（§5.0.5）だが、C 形式では一字下げ・段落字下げの
-    /// **正当な本文**なので [`Line::Text`] として扱う（`PLANS.md` §9.2 B-31）。
+    /// **正当な本文**なので [`Line::Text`] として扱う（`docs/history.md` B-31）。
     pub indent: usize,
     /// 本文（話者注釈と行末コメントを除いた部分。先頭の空白は**含む**）。
     pub body: &'a str,
@@ -437,7 +437,7 @@ fn parse_line<'a>(
     out: &mut Vec<Diagnostic>,
 ) -> Line<'a> {
     // §5.2.1 `blank = ws? , eol`。字句器は空行を Text / Continuation で返すのでここで決める。
-    // 空白の文字数は問わない（保存時に末尾空白は落ちる、§17.1。`PLANS.md` §9.2 B-34）
+    // 空白の文字数は問わない（保存時に末尾空白は落ちる、§17.1。`docs/history.md` B-34）
     if raw.trim_matches(lexer::is_space).is_empty() {
         return Line::Blank(raw);
     }
@@ -508,7 +508,7 @@ fn parse_scene_id(text: &str) -> (Option<SceneId>, usize) {
 
 /// 予約番号の見出し（§5.1.2 の `C = 00` と、拒否設定の `A = 00`）を **E022** で報告する。
 ///
-/// `{0}` は書かれたままの ID（`@` を除く）。第 2.8 版で E020 から分けた（`PLANS.md` §9.1 A-9）。
+/// `{0}` は書かれたままの ID（`@` を除く）。第 2.8 版で E020 から分けた（`docs/history.md` A-9）。
 fn warn_reserved(
     id: SceneId,
     id_text: &str,
@@ -532,7 +532,7 @@ fn warn_reserved(
 ///
 /// C 形式（本文）と B 形式（話プロット）で共有する（B-40）。比べるのは **ID と階層の組**:
 /// `@01-04-02` の後の `@01-04-02-03` は「同じ場面の 3 節目から」（§5.2.2）で重複ではない。
-/// C 形式は M2 では検査していなかった（M4 で追加。`PLANS.md` §9.2 B-87）。
+/// C 形式は M2 では検査していなかった（M4 で追加。`docs/history.md` B-87）。
 pub(crate) fn warn_duplicate(
     found: &SceneLine<'_>,
     offset: usize,
@@ -671,7 +671,7 @@ pub(crate) fn is_mode_id(text: &str) -> bool {
 /// キャラ名（§5.5 `characters.md` の `# char_name`）。空白を含まないこと。
 ///
 /// `char_name` は仕様書に文字種の定義が無いので「空白を含まない 1 字以上」とした
-/// （`PLANS.md` §9.2 B-33）。名前の中に `:` があるとモード式と区別できないので、
+/// （`docs/history.md` B-33）。名前の中に `:` があるとモード式と区別できないので、
 /// その行は話者注釈にならない（W002）。
 pub(crate) fn is_char_name(name: &str) -> bool {
     !name.is_empty() && !name.contains(lexer::is_space)

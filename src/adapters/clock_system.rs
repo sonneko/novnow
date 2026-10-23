@@ -2,7 +2,7 @@
 //!
 //! - 今の時刻は `web_time::SystemTime`（ネイティブでは `std` の再公開、Web では `Date.now()`）。
 //! - ローカルのずれは Web だけが分かる（`Date#getTimezoneOffset`）。ネイティブは標準ライブラリに
-//!   タイムゾーンの API が無く、クレートも足せないので **UTC**（`0`）にする（`PLANS.md` §9.2 B-92。
+//!   タイムゾーンの API が無く、クレートも足せないので **UTC**（`0`）にする（`docs/history.md` B-92。
 //!   §13.2.2 第 2.9 版「`opened_at` は UTC でよい」）。
 //! - 書式は暦の計算（Howard Hinnant の `civil_from_days`）を自前で持つ（クレートを足さない）。
 
@@ -128,7 +128,7 @@ pub fn yyyymmdd(millis: i64, offset_minutes: i32) -> String {
 
 /// `YYYYMMDD-HHMM`（テキストのエクスポートの既定の名前、§17.2 `<YYYYMMDD-HHMM>`）。
 ///
-/// ネイティブ版はローカルのずれが分からないので UTC になる（`PLANS.md` §9.2 B-92・B-123）。
+/// ネイティブ版はローカルのずれが分からないので UTC になる（`docs/history.md` B-92・B-123）。
 pub fn compact_stamp(millis: i64, offset_minutes: i32) -> String {
     let local = millis.div_euclid(1000) + i64::from(offset_minutes) * 60;
     let of_day = local.rem_euclid(86_400);

@@ -3,7 +3,7 @@
 //! 節エディタが持つのは**今の節の本文だけ**（[`Workbench::buffer`]）。文書（`Project` の中の
 //! `Document`）へは [`Workbench::commit`] で書き戻す（節の移動・保存の直前、§8.1）。
 //! 書き込みはしない: [`Workbench::take_writes`] が「書くべきファイルと中身」を返し、ホスト
-//! （`ui::app`）が書いて [`Workbench::write_finished`] で結果を戻す（`PLANS.md` §9.2 B-114）。
+//! （`ui::app`）が書いて [`Workbench::write_finished`] で結果を戻す（`docs/history.md` B-114）。
 //!
 //! 本文以外の文書（話プロット・全体/章プロット・`ideas.md`・`characters.md`・資料）は、M8 の
 //! ワークスペースが**行の範囲**（[`Slice`]）で開いて編集する。規則は節エディタと同じで、書き戻しは
@@ -56,7 +56,7 @@ struct Editing {
     section: SectionRef,
 }
 
-/// 本文以外の文書の一部（行の範囲）を編集する口（M8 のワークスペース、`PLANS.md` §9.2 B-126）。
+/// 本文以外の文書の一部（行の範囲）を編集する口（M8 のワークスペース、`docs/history.md` B-126）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Slice {
     /// 文書のパス（まだ無いファイルでもよい。書き始めると作る）。
@@ -506,7 +506,7 @@ impl Workbench {
     }
 
     /// まだ無い本文のファイル `path` を、場面見出し `header`（`@01-05-01 タイトル`）の最初の節として
-    /// 開く（`plot-episode` から降りたとき、`PLANS.md` §9.2 B-128）。**書き始めるまでファイルは作らない**
+    /// 開く（`plot-episode` から降りたとき、`docs/history.md` B-128）。**書き始めるまでファイルは作らない**
     /// （§10.0「空の節を作らず、その位置にカーソルだけ置く」）。ファイルがあれば何もしない。
     pub fn start_file(&mut self, path: &str, id: SceneId, header: &str) -> bool {
         self.commit();

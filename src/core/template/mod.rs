@@ -2,7 +2,7 @@
 //!
 //! 中身は**プロジェクトの内容**（サンプルの原稿・辞書・LLM へのプロンプト）であって UI の文言では
 //! ない（§12.6「プロジェクトの中身は翻訳しない」）。UI 言語に関わらず日本語で、`project/` の下の
-//! ファイルを `include_str!` で埋め込む（`PLANS.md` §9.2 B-104）。core なので I/O は持たない
+//! ファイルを `include_str!` で埋め込む（`docs/history.md` B-104）。core なので I/O は持たない
 //! （書くのは CLI の `novnow new`、M7 以降は GUI の「新規作成」と `prompts/` 欠落時の I050）。
 //!
 //! 雛形は `novnow check` で **E も W も出ない**ことを `tests/template.rs` が固定している
