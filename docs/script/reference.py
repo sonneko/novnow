@@ -26,6 +26,7 @@ docs/script/reference.py — ドキュメントとコードの**実物の突き�
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 from pathlib import Path
@@ -288,7 +289,9 @@ def check_claims() -> list[str]:
 
     workspaces = count_items(ROOT / "src" / "app" / "workspace.rs", r"^\s{4}[A-Z][A-Za-z]+,\s*$")
     tools = count_items(ROOT / "src" / "core" / "agents" / "server.rs", r'^\s{8}"novnow\.[a-z_.]+",$')
-    operations = count_items(ROOT / "tests" / "golden" / "api_catalog.json", r'"id":')
+    # 正規操作の数は JSON の `operations` 配列の長さで数える（`"id":` を数えると、
+    # 引数や例外の中の `id` まで拾って 135 になる）。
+    operations = len(json.loads(read(ROOT / "tests" / "golden" / "api_catalog.json")).get("operations", []))
 
     claims = [
         (workspaces, r"(?<![0-9.\-§])([0-9]+) ワークスペース", "ワークスペース数"),
@@ -400,6 +403,8 @@ def check_actions_budget() -> list[str]:
     課金は「走った分」に付くので、**走らせない仕組み**そのものを検査する。
 
     - 全ワークフローに `concurrency`（同じブランチの古い実行を取り消す）
+    - PR で走るワークフローは draft では起動しない（`pull_request.draft`）
+    - 廃止したランナー（`macos-13`）を使っていない
     - `ci.yml` に変更フィルタ（`rust_changed`）がある
     - コミット既定で `[ci skip]` を付けるフックと、その有効化スクリプトがある
     """
@@ -412,6 +417,13 @@ def check_actions_budget() -> list[str]:
             errors.append(f"[10] {name}: concurrency が無い（古い実行が取り消されない）")
         elif "cancel-in-progress" not in text:
             errors.append(f"[10] {name}: cancel-in-progress が無い（自動では取り消されない）")
+        # PR で走るワークフローは、draft の間は走らせない（全ワークフローで同じ条件に統一）。
+        if re.search(r"^  pull_request:", text, re.MULTILINE) and "pull_request.draft" not in text:
+            errors.append(f"[10] {name}: draft の PR でも走ってしまう（pull_request.draft の条件が無い）")
+        if re.search(r"^\s*(?:runs-on|os):\s*['\"]?macos-13", text, re.MULTILINE):
+            errors.append(
+                f"[10] {name}: macos-13 は廃止した（待ち行列が長く、確認以上のコストになる）"
+            )
 
     ci = read(ROOT / ".github/workflows/ci.yml")
     if "rust_changed" not in ci:

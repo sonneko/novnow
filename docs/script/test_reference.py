@@ -109,6 +109,17 @@ class ActionsBudgetTests(unittest.TestCase):
             self.assertIn("concurrency:", text, path.name)
             self.assertIn("cancel-in-progress", text, path.name)
 
+    def test_draft_guard_is_uniform(self):
+        import re
+        for path in sorted((reference.ROOT / ".github/workflows").glob("*.yml")):
+            text = reference.read(path)
+            if re.search(r"^  pull_request:", text, re.MULTILINE):
+                self.assertIn("pull_request.draft", text, path.name)
+
+    def test_no_retired_runner(self):
+        for path in sorted((reference.ROOT / ".github/workflows").glob("*.yml")):
+            self.assertNotRegex(reference.read(path), r"^\s*(runs-on|os):\s*['\"]?macos-13", path.name)
+
     def test_hook_and_runner_scripts_exist(self):
         hook = reference.ROOT / ".githooks/commit-msg"
         self.assertTrue(hook.is_file())

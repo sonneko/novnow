@@ -1856,3 +1856,32 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
   `ci.yml` の変更フィルタ・フックと 2 スクリプトの存在を見る（仕組みを消すと文書検査が落ちる）。
 - **運用**: 文書・コメントだけのコミットは CI を回さない。マージ前に `bash scripts/ci-run.sh ci watch`
   で 1 回だけ回す（`REF:docs/developers.md` §4.7 の表）。
+
+### [HIST:IMPL:CI-BUDGET-2] 2026-10-23 draft で走らせない統一・macos-13 の廃止・スクリーンショットの整理
+
+[HIST-TAG: category=IMPL id=CI-BUDGET-2 topics=ci,actions,draft,macos-13,screenshot,readme,website]
+
+- **ユーザー裁定（2026-10-23）**: Actions の使用量を抑える。仕様書・設計書の文書系はすべて承認。`docs/` の
+  スクリーンショットは README が使う 1 枚だけ残す。`screenshot.jpeg` は古いので削除。Web 実機スモークは
+  サンドボックスの Chromium で実施。Web サイトを最新かつ網羅的な内容へ。
+- **CI**: `REF:.github/workflows/wheels.yml` の `build` / `test` に draft 条件を足し、**PR で走る全ワークフローが
+  draft では起動しない**よう統一した。`macos-13`（x86_64-apple-darwin）は待ち行列が数十分単位で、得られる確認より
+  コストが大きいため**構成ごと削除**（4 構成: ubuntu x64 / ubuntu arm64 / macos arm64 / windows x64）。
+  検査 10 が全ワークフローの draft 条件と `macos-13` の不在、`concurrency` を見る。
+- **スクリーンショット**: `docs/screenshot-m7.png` を `REF:screenshot.png` へ移し（README の画像）、
+  `screenshot.jpeg`（旧）と `docs/screenshot-m8.png` / `screenshot-m10.png` / `screenshot-web.png` を削除した。
+  `REF:README.md` / `REF:README.en.md` の画像パスを追随。CI の `paths-ignore` と変更フィルタも `screenshot.png` に直した。
+- **仕様書の是正（承認済み）**: `REF:docs/specifications/overview.md` §3.4 の「11 機能」→「12 機能」（表は 12 行）。
+  `REF:docs/specifications/ui.md` §10 の `reader` の行から「v1 では `Alt+7` を欠番として予約する」を削除（実装済み）。
+  `REF:docs/designs/overview.md` §3.3 の「LSP 11 機能」を、12 機能の内訳（文書診断は `REF:src/core/diagnostics.rs`、
+  残る 11 機能が `core/features`）に書き直した。
+- **README**: 現行実装（9 ワークスペース・76 診断・7 役割・MCP 14 ツール・119 の正規操作・LSP/MCP/CLI/Python/Rust の
+  5 入口）に更新し、インストールと起動、外部インターフェースの表を追加した。`REF:README.en.md` も同じ構成にした。
+- **Web サイト**: `REF:website/src/data/site.ts` を新設し、ワークスペース 9 件・入口 5 件・主要キーを 1 か所に集約。
+  `REF:website/src/components/Overview.astro` が「ひと目で分かる数」「ワークスペース表」「キー一覧」「本文の書き方」
+  「プロジェクト構造」「外部インターフェース」「仕様へのリンク」を描く。`features.ts` の誤り（AI の役割を 6 役と
+  していた・LSP を「将来」としていた）を修正し、`i18n.ts` の「準備中」を「v1 実装完了 / バイナリ配布準備中」に直した。
+  `REF:website/README.md` に `site.ts` を直す場所として追記した。
+- **Web 実機スモーク**: `REF:scripts/web-smoke.sh` をサンドボックスのヘッドレス Chromium で実行し、28 項目すべて通った
+  （IndexedDB 保存・IME・読者モード・PWA キャッシュ・オフライン・Zip・エクスポート・取り込み・バイナリ画像の往復・
+  保存失敗からの再試行）。wasm の取得は PR #25 の `sandbox-tools` コメントを使った（`PR=25`）。

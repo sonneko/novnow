@@ -4,9 +4,9 @@
 
 `novnow` は、長編小説・ライトノベル・Web小説・ノベルゲーム・シナリオなど、あなた自身の世界を育み、広めるためのツール群です。
 
-novnow形式を管理するための、novnowエディタは、デスクトップアプリ（Windows / macOS / Linux）およびブラウザに対応しています。
+novnow形式を管理するためのnovnowエディタは、デスクトップアプリ（Windows / macOS / Linux）とブラウザ（WebAssembly + IndexedDB）の両方で動きます。画面もキーボード操作も共通で、同じプロジェクトをそのまま開けます。
 
-![](docs/screenshot-m7.png)
+![novnow エディタの画面（write ワークスペース）](screenshot.png)
 
 ---
 
@@ -76,20 +76,72 @@ novnow形式は、小説をテキストデータでエクスポートする機�
 
 1. **1 節（セクション）を最小単位とする集中執筆（`write` ワークスペース）**
    - 画面下段の「節エディタ」では現在執筆中の 1 節だけに集中でき、上段の「文脈ビュー」に前後最大 3 節が読み取り専用で表示されます。
-   - 右側の「参照ペイン」には、現在の節に関わるプロット・登場人物（有効モード・役割語）・用語・資料・診断が自動抽出されて並びます。
+   - 右側の「参照ペイン」には、現在の節に関わるプロット・登場人物（有効モード・役割語）・用語・資料・診断が自動抽出されて並びます。ペインの表示・左右入替・比率はショートカットで変えられます。
 2. **軽量な専用テキスト記法と無損失保存**
    - 本文（`contents/AA-BB.txt`）、全体・章プロット（`plots/all.txt`, `plots/AA.txt`）、話プロット（`plots/AA-BB.txt`）、登場人物（`characters.md`）、用語（`words.md`）、アイデア（`ideas.md`）、資料（`materials/`）をすべてプレーンテキスト（UTF-8）で管理し、Git でそのまま差分管理できます。
+   - 原文は 1 バイトも捨てません（読み込んだ本文をそのまま書き戻せます）。プロジェクトは `project.json` を中心に自己完結し、`.novnow/` のキャッシュだけが Git の管理外になります。
 3. **意味解決エンジンと 76 種のリアルタイム診断**
    - `'名前` による辞書参照（最短一致・NFKC 正規化）、状況別キャラクターモード解決、役割語パターン照合（台詞の口調一致を緑下線で可視化）、初出より前の用語使用検出、文長・連続文末・表記揺れなどの執筆支援診断を提供します。
+   - 診断は 76 種すべてに一意のコード（`E001`〜`W0xx`／`I0xx`）があり、`Ctrl+.` のクイックフィックスと `review` ワークスペースの一覧から辿れます。
 4. **キーボード完結の 9 ワークスペースと統一パレット**
-   - `Alt+1`〜`Alt+9` で本文（`write`）・話プロット（`plot-episode`）・全体プロット（`plot-outline`）・アイデア（`idea`）・資料（`material`）・配役（`cast`）・読者モード（`reader`）・エージェント（`agent`）・点検（`review`）を即座に切り替えられます。
-   - `Ctrl+P` の統一パレットから先頭 1 文字（`@` 構造、`'` 辞書、`#` 資料、`>` コマンド）でプロジェクト内のあらゆる要素へジャンプできます。
+   - `Alt+1`〜`Alt+9` で本文（`write`）・話プロット（`plot-episode`）・構成（`plot-outline`）・アイデア（`idea`）・資料（`material`）・配役（`cast`）・読者（`reader`）・エージェント（`agent`）・点検（`review`）を即座に切り替えられます。切替時も現在の節は維持されます。
+   - `Ctrl+P` の統一パレットから先頭 1 文字（`@` 構造、`'` 辞書、`#` 資料、`>` コマンド）でプロジェクト内のあらゆる要素へジャンプできます。`Ctrl+G` の番号ジャンプ、`F5` の再読込、`?` のショートカット一覧もあります。
+   - 日本語・英語の UI（`Ctrl+Alt+L`）と、システム追従のダーク／ライトテーマ（`Ctrl+Alt+T`）を備えます。
 5. **人間の統制下で動く AI エージェント連携（MCP 対応）**
-   - 役割ごと（`writer`, `plotter`, `ideator`, `researcher`, `stylist`, `logician`, `integrator`）に 4 段階の委譲レベル（`off` / `propose` / `apply` / `autonomous`）を設定でき、変更提案の差分レビューや `novnow mcp` による MCP サーバ連携に対応しています。
+   - 7 つの役割（`writer`, `plotter`, `ideator`, `researcher`, `stylist`, `logician`, `integrator`）ごとに 4 段階の委譲レベル（`off` / `propose` / `apply` / `autonomous`）を設定でき、変更提案の差分レビューを経て初めて本文に反映されます。
+   - `novnow mcp <dir>` で MCP サーバ（14 ツール）として外部の AI クライアントから使えます。プロンプトと ContextPacket は決定論的に組み立てられ、文字数予算を持ちます。
 6. **アノテーション除去エクスポート**
    - 執筆用の構造見出し・コメント・`'` 参照・資料タグを除去し、投稿サイトや縦書きビューア向けのプレーンテキスト（`.txt`）または Markdown（`.md`）を出力します。
+   - プロジェクト全体の Zip 書き出し・読み込みにも対応します。
 
 ---
+
+## インストールと起動
+
+現時点ではソースからのビルドのみです（バイナリ配布の準備中）。Rust の stable ツールチェーンが必要です。
+
+```bash
+git clone https://github.com/sonneko/novnow.git
+cd novnow
+
+# CLI のみ（GUI のクレートを落とすので軽い）
+cargo build --release
+
+# デスクトップ GUI を含む
+cargo build --release --features ui
+```
+
+```bash
+# 新規プロジェクトを作る / 診断する / 書き出す
+./target/release/novnow new my-novel
+./target/release/novnow check my-novel
+./target/release/novnow export my-novel --format txt --out manuscript.txt
+
+# GUI を開く（ディレクトリ指定、または --gui で選択画面から）
+./target/release/novnow my-novel
+./target/release/novnow --gui
+```
+
+付属のサンプルは `./target/release/novnow check examples/sample-novel` で試せます。Web 版は `trunk serve` でローカルに立てられます（手順は [`GUIDE.md`](./GUIDE.md)）。
+
+---
+
+## 外部インターフェース
+
+GUI でできることは、すべてヘッドレスからも操作できます（詳細は [`interfaces.md`](./docs/specifications/interfaces.md)）。
+
+| 入口 | 起動 | 何ができるか |
+|---|---|---|
+| CLI | `novnow new` / `check` / `export` / `import` / `migrate` / `api` / `mcp` / `lsp` | プロジェクト作成・診断・書き出し・移行・API 一覧。`novnow <domain> <verb> <dir>` の統一書式 |
+| LSP | `novnow lsp <dir>` | エディタから補完・ホバー・定義移動・診断・整形・折りたたみ（LSP 3.17） |
+| MCP | `novnow mcp <dir>` | AI クライアント向けの 14 ツール |
+| Python | `import novnow` | 同じ 119 の正規操作を Python から（PyO3・abi3-py39 のホイール） |
+| Rust | `novnow` クレート | `core` / `app` の API を直接利用 |
+
+```bash
+novnow api list            # 119 の正規操作の一覧（--json で機械可読）
+novnow check --json my-novel
+```
 
 ## 仕様について
 
@@ -105,8 +157,11 @@ novnow形式は、小説をテキストデータでエクスポートする機�
 - [`platform.md`](./docs/specifications/platform.md): ストレージ境界・Web IndexedDB・CLI 起動仕様
 - [`agent.md`](./docs/specifications/agent.md): AI エージェント・委譲レベル・MCP・プロンプト仕様
 - [`workflows.md`](./docs/specifications/workflows.md): 資料収集・エクスポート・性能品質要件
+- [`interfaces.md`](./docs/specifications/interfaces.md): CLI・LSP・MCP・Python・Rust の外部インターフェース
 
-公式Webサイト（[https://novnow.sonneko.com/specifications/](https://novnow.sonneko.com/specifications/)）でも確認いただけます。
+公式サイト（[https://novnow.sonneko.com/](https://novnow.sonneko.com/)）では、機能ガイド・診断コードの一覧・API リファレンスを読めます。仕様書はすべてこのリポジトリの [`docs/specifications/`](./docs/specifications/) にあり、実装と同じコミットで管理されています。
+
+開発に参加する場合は [`GUIDE.md`](./GUIDE.md)（ビルドと執筆の手順）と [`docs/developers.md`](./docs/developers.md)（開発環境・文書規則・検証手順）から始めてください。
 
 ## ライセンスについて
 

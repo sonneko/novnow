@@ -27,7 +27,7 @@
 - 段階 ①〜③（M0〜M11・追加仕様 1〜27・L-01・§19 の H1〜H7）は `main` にマージ済み（PR #25 は 2026-10-23 にマージ）。
 - 直近の作業: ドキュメントとコードの同期監査とその是正（`REF:docs/history.md` の DOCS-SYNC-AUDIT、検査は `REF:docs/developers.md` §4.6）、および Actions の節約（同 §4.7）。
 - **コミットは既定で `[ci skip]`**（`REF:.githooks/commit-msg`）。CI は必要なときだけ `bash REF:scripts/ci-run.sh ci watch` で回す。マージ前に 1 回だけ回して緑を確認する。
-- サンドボックスでの検証は全件通る: `docs 11 項目 / docs-tests 23 件 / docs-sync 10 項目 / site-check 2 件 / python-check 10 件 / 拡張の pytest 8 passed 1 skipped / cargo test 1176（GUI なし）・1347（GUI あり）/ clippy・fmt・wasm32 すべて ok`。未実行は Playwright による Web 実機スモーク（`REF:scripts/web-smoke.sh`）だけ。
+- サンドボックスでの検証は全件通る: `docs 11 項目 / docs-tests 30 件 / docs-sync 10 項目 / site-check 2 件 / python-check 10 件 / 拡張の pytest 8 passed 1 skipped / cargo test 1176（GUI なし）・1347（GUI あり）/ clippy・fmt・wasm32 すべて ok`。Web 実機スモーク（`REF:scripts/web-smoke.sh`、ヘッドレス Chromium で 28 項目）も通る。
 - macOS / Windows の実機操作と、異なる性能環境での測定は未実施。CI のクロスビルドやサンドボックスでの測定とは区別する。
 
 ## 3. 継続作業の手順
