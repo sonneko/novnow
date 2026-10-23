@@ -52,9 +52,10 @@ USER_ORDER = {
     "cheatsheet.md": 2,
     "glossary.md": 3,
     "faq.md": 4,
-    "project-structure.md": 5,
-    "git.md": 6,
-    "publish.md": 7,
+    "errors.md": 5,
+    "project-structure.md": 6,
+    "git.md": 7,
+    "publish.md": 8,
 }
 
 SPEC_ORDER = {
@@ -187,6 +188,7 @@ footer {{ max-width: 46rem; margin: 3rem auto 0; padding-top: 1rem; border-top: 
   <a href="cheatsheet.html">早見表</a>
   <a href="glossary.html">用語集</a>
   <a href="faq.html">よくある質問</a>
+  <a href="errors.html">エラーの直し方</a>
   <span class="spacer"></span>
   <a href="https://novnow.sonneko.com/app/">アプリを開く</a>
 </header>

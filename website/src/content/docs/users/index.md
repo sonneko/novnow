@@ -18,6 +18,7 @@ source: "docs/users/README.md"
 | 2 | [早見表](/ja/manual/cheatsheet) | 書きながら横に置く。記号とキーだけ | — |
 | 3 | [用語集](/ja/manual/glossary) | 「節って何？」と思ったとき | 都度 |
 | 4 | [よくある質問](/ja/manual/faq) | 動かない・保存されたか不安なとき | 都度 |
+| 5 | [よく出るエラーと直し方](/ja/manual/errors) | 本文に波線が出たとき | そのたび |
 
 ## この手引きの前提
 
@@ -34,3 +35,4 @@ source: "docs/users/README.md"
 
 - [仕様書の一覧](/ja/specifications/)（開発者向け。読まなくても使えます）
 - [困ったときの切り分け](/ja/manual/faq)
+- [よく出るエラーと直し方](/ja/manual/errors)（波線のコードから引けます）

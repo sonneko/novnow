@@ -12,6 +12,7 @@ export const manualNav: DocEntry[] = [
   { slug: "cheatsheet", title: "早見表" },
   { slug: "glossary", title: "用語集" },
   { slug: "faq", title: "よくある質問" },
+  { slug: "errors", title: "よく出るエラーと直し方（12 件）" },
   { slug: "project-structure", title: "作品のフォルダ構成" },
   { slug: "git", title: "Git で原稿を守る（知りたい人だけ）" },
   { slug: "publish", title: "書き出した原稿を公開する" },

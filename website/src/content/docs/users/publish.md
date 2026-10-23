@@ -1,7 +1,7 @@
 ---
 title: "書き出した原稿を公開する"
 group: "users"
-order: 7
+order: 8
 source: "docs/users/publish.md"
 ---
 

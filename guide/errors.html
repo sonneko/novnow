@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>よく出るエラーと直し方（12 件） — novnow</title>
+<style>
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 0 1.25rem 5rem;
+  background: #16161a; color: #e6e6ea;
+  font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  line-height: 1.85; font-size: 16px;
+}
+main { max-width: 46rem; margin: 0 auto; }
+header.bar {
+  max-width: 46rem; margin: 0 auto; padding: 1rem 0 0.5rem;
+  display: flex; gap: 1rem; align-items: baseline; flex-wrap: wrap;
+  border-bottom: 1px solid #2c2c33; margin-bottom: 2rem;
+}
+header.bar a { color: #b9a7ff; text-decoration: none; }
+header.bar .brand { font-weight: 700; color: #e6e6ea; }
+header.bar .spacer { flex: 1; }
+h1 { font-size: 1.7rem; line-height: 1.4; margin: 1.5rem 0 0.75rem; }
+h2 { font-size: 1.3rem; margin: 2.2rem 0 0.6rem; border-bottom: 1px solid #2c2c33; padding-bottom: 0.3rem; }
+h3 { font-size: 1.1rem; margin: 1.8rem 0 0.5rem; }
+a { color: #b9a7ff; }
+code { background: #232329; padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.92em; }
+pre { background: #232329; padding: 0.9rem 1rem; border-radius: 8px; overflow-x: auto; }
+pre code { background: none; padding: 0; }
+blockquote { margin: 1rem 0; padding: 0.2rem 1rem; border-left: 3px solid #4a4a58; color: #b9b9c4; }
+table { border-collapse: collapse; width: 100%; margin: 1.2rem 0; font-size: 0.94rem; }
+th, td { border: 1px solid #2c2c33; padding: 0.45rem 0.7rem; text-align: left; vertical-align: top; }
+th { background: #1e1e24; }
+hr { border: none; border-top: 1px solid #2c2c33; margin: 2rem 0; }
+footer { max-width: 46rem; margin: 3rem auto 0; padding-top: 1rem; border-top: 1px solid #2c2c33;
+  color: #85858f; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="index.html">novnow ユーザーガイド</a>
+  <a href="start.html">はじめての手引き</a>
+  <a href="cheatsheet.html">早見表</a>
+  <a href="glossary.html">用語集</a>
+  <a href="faq.html">よくある質問</a>
+  <a href="errors.html">エラーの直し方</a>
+  <span class="spacer"></span>
+  <a href="https://novnow.sonneko.com/app/">アプリを開く</a>
+</header>
+<main>
+<h1>よく出るエラーと直し方（12 件）</h1>
+<p>本文に波線が出たときは、このページを見てください。<strong>コードごとに直し方が決まっています。</strong></p>
+<p>コードの一覧は <a href="https://novnow.sonneko.com/ja/diagnostics">診断の一覧</a> にあります。ここでは、書きながら よく出る 12 件だけを、直す順番で並べます。</p>
+<h2 id="直すときの基本">直すときの基本</h2>
+<ol>
+<li>波線の上にカーソルを置いて <code>Ctrl+.</code> を押します。</li>
+<li>候補が出たら選びます。合わなければ、そのまま書き換えます。</li>
+<li>全部まとめて見たいときは <code>Alt+9</code>（点検）を開きます。</li>
+</ol>
+<h2 id="参照のエラー">参照のエラー</h2>
+<h3 id="e001-辞書にない参照です"><code>E001</code> 辞書にない参照です</h3>
+<p><code>'</code> の後ろの名前が、まだ登録されていません。</p>
+<ul>
+<li>その名前を<strong>用語か人物として登録</strong>します（<code>Ctrl+.</code> の候補から選べます）。</li>
+<li>打ち間違いなら、正しい名前に直します。似ている候補が <code>Ctrl+.</code> に出ます。</li>
+</ul>
+<h3 id="e012-登場人物がいません"><code>E012</code> 登場人物がいません</h3>
+<p>台詞の行末に書いた <code>@名前</code> の人物が、<code>characters.md</code> にいません。</p>
+<ul>
+<li><code>Alt+6</code>（配役）で人物を作ります。</li>
+<li>名前の綴りが合っているか確かめます。空白や記号の違いでも別の名前になります。</li>
+</ul>
+<h2 id="構造のエラー">構造のエラー</h2>
+<h3 id="e002-構造-id-の形式が不正です"><code>E002</code> 構造 ID の形式が不正です</h3>
+<p><code>@01-04-02</code> のような番号の書き方が崩れています。</p>
+<ul>
+<li>桁数をそろえます（<code>01-04-02</code>。<code>1-4-2</code> は通りません）。</li>
+<li>章・話・場面・節の順番を確かめます。</li>
+</ul>
+<h3 id="e008-重複しています"><code>E008</code> 重複しています</h3>
+<p>同じファイルの中で、同じ番号を 2 回使っています。</p>
+<ul>
+<li>後のほうの番号を、まだ使っていない番号に変えます。</li>
+<li><code>Ctrl+G</code> でその番号へ飛べます。</li>
+</ul>
+<h3 id="w002-裸の--があります"><code>W002</code> 裸の <code>@</code> があります</h3>
+<p>行の途中に <code>@</code> だけが書かれています。<code>@</code> は行の先頭か行末で使います。</p>
+<ul>
+<li>行末の話者注釈にしたいなら、行の最後へ移します。</li>
+<li>記号として書きたいなら、<code>@</code> の前に <code>\</code> を置きます。</li>
+</ul>
+<h3 id="w030-プロットと本文の節数が違います"><code>W030</code> プロットと本文の節数が違います</h3>
+<p>話プロットに書いた節と、本文の節の数が合っていません。</p>
+<ul>
+<li><code>Alt+2</code>（話プロット）で、足りない節の行を足します。</li>
+<li>本文を消したなら、プロットの行も消します。</li>
+</ul>
+<h3 id="w012-空の節があります"><code>W012</code> 空の節があります</h3>
+<p>節の見出しだけがあって、本文がありません。</p>
+<ul>
+<li>その節に 1 行書くか、節ごと消します。</li>
+<li>書き出す前に <code>Alt+9</code> で残りを確かめられます。</li>
+</ul>
+<h2 id="人物とモードのエラー">人物とモードのエラー</h2>
+<h3 id="e005-1-節で同じ人物に設定できるモードは-2-つまでです"><code>E005</code> 1 節で同じ人物に設定できるモードは 2 つまでです</h3>
+<ul>
+<li>先頭の 2 つだけが使われます。3 つ目を消すか、節を分けます。</li>
+</ul>
+<h3 id="e003-モードが定義されていません"><code>E003</code> モードが定義されていません</h3>
+<p><code>@リリア:B</code> の <code>B</code> が、その人物にまだありません。</p>
+<ul>
+<li><code>Alt+6</code>（配役）でモードを足します。</li>
+<li>既にあるモードの名前に直します。</li>
+</ul>
+<h2 id="資料のエラー">資料のエラー</h2>
+<h3 id="e007-資料が存在しません"><code>E007</code> 資料が存在しません</h3>
+<p><code>'M0137</code> の ID の資料がありません。</p>
+<ul>
+<li><code>Alt+5</code>（資料）で ID を確かめます。</li>
+<li>新しく資料を作るなら、その画面から追加します。</li>
+</ul>
+<h3 id="e006-資料のタイトルが一致しません"><code>E006</code> 資料のタイトルが一致しません</h3>
+<p>資料のファイル名と、索引に書いた題名がずれています。</p>
+<ul>
+<li>索引の題名を、ファイルの 1 行目に合わせます。</li>
+</ul>
+<h2 id="ファイルのエラー">ファイルのエラー</h2>
+<h3 id="e025-json-が読めません"><code>E025</code> JSON が読めません</h3>
+<p><code>project.json</code> などの形が崩れています。<strong>開く前に壊れていると、画面が出ません。</strong></p>
+<ul>
+<li>直前のバックアップ（Zip）から戻します。</li>
+<li>手で直すなら、<code>,</code> と <code>&quot;</code> の数を確かめます。迷ったら戻すほうが安全です。</li>
+</ul>
+<h2 id="それでも直らないとき">それでも直らないとき</h2>
+<ul>
+<li><code>Alt+9</code>（点検）で、エラーの全文と場所を見ます。</li>
+<li><a href="faq.html">よくある質問</a> と <a href="https://novnow.sonneko.com/ja/troubleshooting">トラブルシューティング</a> も見てください。</li>
+<li>仕様の正確な条件は <a href="https://github.com/sonneko/novnow/blob/main/docs/specifications/diagnostics.md">診断カタログ</a> §7 にあります。</li>
+</ul>
+</main>
+<footer>
+  このページは <code>docs/users/errors.md</code> から自動生成しています。直すときはリポジトリの
+  <code>docs/users/</code> を編集してください（<code>python3 scripts/docs-site.py</code> で作り直します）。
+</footer>
+</body>
+</html>

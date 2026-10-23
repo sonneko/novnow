@@ -1988,3 +1988,17 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - **直した文書**: `REF:docs/users/start.md` の `GUIDE.md` への相対リンクは、`docs/users` から
   `docs/specifications` 以外を指せない規則に反していたので GitHub の URL に変えた。
 - **未実施**: 英語の本文（Phase 5）、診断の上位 12 件の「利用者向けの対処」（Phase 3-3）。
+
+### [HIST:MILESTONE:GUIDE-ERRORS] 2026-10-23 よく出るエラー 12 件の手引きを追加
+
+[HIST-TAG: category=MILESTONE id=GUIDE-ERRORS topics=docs,users,diagnostics,guide,easy-read]
+
+- **背景**: 波線（診断）が出たときに読む場所が、FAQ の数行しかなかった。仕様書の診断カタログは
+  正確だが、書き手が読むには条件と用語が詳しすぎる。
+- **追加**: `REF:docs/users/errors.md`（12 件）。参照（`E001`・`E012`）・構造（`E002`・`E008`・`W002`・
+  `W030`・`W012`）・人物とモード（`E005`・`E003`）・資料（`E007`・`E006`）・ファイル（`E025`）を、
+  「何が起きたか」と「どう直すか」の 2 段で書いた。条件の正確な記述は
+  `REF:docs/specifications/diagnostics.md` §7 を指す（書き写さない）。
+- **導線**: `REF:docs/users/README.md` の読む順路と、`REF:docs/users/faq.md` の波線の節から引ける。
+  サイトの目次（`REF:scripts/docs-site.py` の `USER_ORDER`・`guide/*.html` のヘッダ）にも並べた。
+- **検査**: `REF:docs/script/easy-read.py` が同じ規則（1 文 60 字・1 段落 3 文・漢字 40% 以下）で通る。

@@ -1,7 +1,7 @@
 ---
 title: "Git で原稿を守る（知りたい人だけ）"
 group: "users"
-order: 6
+order: 7
 source: "docs/users/git.md"
 ---
 
