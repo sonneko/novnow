@@ -1,0 +1,205 @@
+---
+// トップページの「正確で網羅的な情報」ブロック。
+// 数や名前は src/data/site.ts と docs/specifications/ に揃える（ここに直書きしない）。
+import { workspaces, interfaces, keyBindings } from "../data/site";
+import type { Language } from "../data/i18n";
+
+interface Props {
+  lang: Language;
+}
+const { lang } = Astro.props;
+
+const text = {
+  ja: {
+    factsTitle: "ひと目で分かる novnow",
+    facts: [
+      { value: "9", label: "ワークスペース", note: "Alt+1 〜 Alt+9 で切替" },
+      { value: "76", label: "リアルタイム診断", note: "すべてに固定のコード" },
+      { value: "5", label: "入口", note: "CLI・LSP・MCP・Python・Rust" },
+      { value: "MIT", label: "ライセンス", note: "仕様書も実装も自由" },
+    ],
+    workspacesTitle: "9 つのワークスペース",
+    workspacesLead:
+      "どのワークスペースへ移っても「今いる節」は維持されます。同じ場所を、違う視点で見るための仕組みです。",
+    workspaceColumns: { key: "キー", id: "ID", name: "名前", purpose: "用途" },
+    keysTitle: "覚えておくと迷わないキー",
+    formatTitle: "本文の書き方",
+    formatLead:
+      "専用記号は 4 つだけです。@ は場面と発話者、' は辞書参照、; は台詞の区切り、# はコメント。記号の意味は 1 つに固定されていて、読み手が解釈で迷う余地はありません。",
+    formatNote:
+      "'名前 は登録済みの用語・キャラ・資料へ解決されます。参照先が無ければ E001 がその場に出るので、書きながら辞書を育てられます。",
+    treeTitle: "プロジェクトはテキストの束",
+    treeLead:
+      "設定・本文・プロット・辞書・プロンプトまですべて UTF-8 のテキストです。Git で差分が読め、コピーするだけで持ち運べます。",
+    treeNote:
+      "ローカル状態（スクロール位置・キャッシュ）は .novnow/ だけに入り、最初から .gitignore に含まれます。",
+    interfacesTitle: "GUI の外からも使える",
+    interfacesLead:
+      "画面でできることは、すべてヘッドレスからも操作できます。同じ 1 本の実装を共有しているので、どこから触っても結果は同じです。",
+    specsTitle: "仕様はすべて公開されています",
+    specsLead:
+      "11 冊の仕様書と 11 冊の設計書がリポジトリにあり、実装と同じコミットで管理されています。診断コードの一覧と API リファレンスはこのサイトで読めます。",
+    specsLinks: [
+      { label: "仕様書（docs/specifications）", href: "https://github.com/sonneko/novnow/tree/main/docs/specifications" },
+      { label: "診断カタログ", href: `/${lang}/diagnostics` },
+      { label: "API リファレンス", href: `/${lang}/api` },
+      { label: "機能ガイド", href: `/${lang}/guide` },
+    ],
+  },
+  en: {
+    factsTitle: "novnow at a glance",
+    facts: [
+      { value: "9", label: "workspaces", note: "switch with Alt+1 – Alt+9" },
+      { value: "76", label: "live diagnostics", note: "each with a stable code" },
+      { value: "5", label: "entry points", note: "CLI, LSP, MCP, Python, Rust" },
+      { value: "MIT", label: "license", note: "specs and code alike" },
+    ],
+    workspacesTitle: "Nine workspaces",
+    workspacesLead:
+      "Wherever you move, the current section comes with you. The workspaces exist so you can look at the same place from a different angle.",
+    workspaceColumns: { key: "Key", id: "ID", name: "Name", purpose: "Purpose" },
+    keysTitle: "Keys worth memorizing",
+    formatTitle: "How the manuscript is written",
+    formatLead:
+      "Only four sigils. @ marks a scene and a speaker, ' is a dictionary reference, ; separates dialogue turns, and # is a comment. Each sigil has exactly one meaning, so a reader never has to guess.",
+    formatNote:
+      "'name resolves to a registered term, character, or material. If nothing matches, E001 appears right there, so the dictionary grows while you write.",
+    treeTitle: "A project is a pile of text",
+    treeLead:
+      "Settings, prose, plots, dictionaries, and prompts are all UTF-8 text. Git shows you real diffs, and copying the folder moves the whole project.",
+    treeNote:
+      "Only .novnow/ holds local state (scroll positions, caches), and it is in .gitignore from the start.",
+    interfacesTitle: "Usable from outside the GUI",
+    interfacesLead:
+      "Everything the screen can do is reachable headlessly. They share one implementation, so the result is the same whichever door you come in by.",
+    specsTitle: "Every specification is public",
+    specsLead:
+      "Eleven specifications and eleven design documents live in the repository and are versioned with the implementation. The diagnostics catalog and the API reference are readable on this site.",
+    specsLinks: [
+      { label: "Specifications (docs/specifications)", href: "https://github.com/sonneko/novnow/tree/main/docs/specifications" },
+      { label: "Diagnostics catalog", href: `/${lang}/diagnostics` },
+      { label: "API reference", href: `/${lang}/api` },
+      { label: "Feature guide", href: `/${lang}/guide` },
+    ],
+  },
+} as const;
+
+const t = text[lang];
+
+const tree = `my-novel/
+├── project.json      設定（題名・言語・テーマ）
+├── characters.md     キャラ・モード・役割語
+├── words.md          用語辞書
+├── ideas.md          アイデア
+├── contents/         本文（01-04.txt = 1 章 4 話）
+├── plots/            all.txt / 01.txt / 01-04.txt
+├── materials/        資料（index.json と docs/）
+├── prompts/          AI プロンプト（7 役割）
+└── agents/           MCP 設定・提案・ログ`;
+---
+
+<section class="container" style="margin-bottom: 5rem;">
+  <h2 style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary); text-align: center; margin-bottom: 1.5rem;">
+    {t.factsTitle}
+  </h2>
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
+    {t.facts.map((fact) => (
+      <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 1.25rem; text-align: center;">
+        <div style="font-size: 2rem; font-weight: 800; color: var(--accent-purple); line-height: 1.1;">{fact.value}</div>
+        <div style="color: var(--text-primary); font-weight: 600; margin-top: 0.35rem;">{fact.label}</div>
+        <div style="color: var(--text-muted); font-size: 0.8rem; margin-top: 0.25rem;">{fact.note}</div>
+      </div>
+    ))}
+  </div>
+</section>
+
+<section class="container" style="margin-bottom: 5rem;">
+  <h2 style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.5rem;">
+    {t.workspacesTitle}
+  </h2>
+  <p style="color: var(--text-secondary); max-width: 760px; margin-bottom: 1.5rem; line-height: 1.7;">{t.workspacesLead}</p>
+  <div style="overflow-x: auto; border: 1px solid var(--border-color); border-radius: 10px;">
+    <table style="width: 100%; border-collapse: collapse; font-size: 0.92rem;">
+      <thead>
+        <tr style="background-color: var(--bg-subtle); color: var(--text-muted); text-align: left;">
+          <th style="padding: 0.7rem 1rem; font-weight: 600;">{t.workspaceColumns.key}</th>
+          <th style="padding: 0.7rem 1rem; font-weight: 600;">{t.workspaceColumns.id}</th>
+          <th style="padding: 0.7rem 1rem; font-weight: 600;">{t.workspaceColumns.name}</th>
+          <th style="padding: 0.7rem 1rem; font-weight: 600;">{t.workspaceColumns.purpose}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {workspaces.map((workspace) => (
+          <tr style="border-top: 1px solid var(--border-color);">
+            <td style="padding: 0.7rem 1rem; white-space: nowrap;"><code>{workspace.key}</code></td>
+            <td style="padding: 0.7rem 1rem; white-space: nowrap;"><code>{workspace.id}</code></td>
+            <td style="padding: 0.7rem 1rem; color: var(--text-primary); white-space: nowrap;">{workspace.name[lang]}</td>
+            <td style="padding: 0.7rem 1rem; color: var(--text-secondary);">{workspace.purpose[lang]}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="container" style="margin-bottom: 5rem;">
+  <h2 style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary); margin-bottom: 1rem;">{t.keysTitle}</h2>
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0.6rem;">
+    {keyBindings.map((binding) => (
+      <div style="display: flex; gap: 0.85rem; align-items: baseline; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.7rem 0.9rem;">
+        <code style="white-space: nowrap; color: var(--accent-blue); font-weight: 600;">{binding.key}</code>
+        <span style="color: var(--text-secondary); font-size: 0.9rem;">{binding.what[lang]}</span>
+      </div>
+    ))}
+  </div>
+</section>
+
+<section class="container" style="margin-bottom: 5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 2rem;">
+  <div>
+    <h2 style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.5rem;">{t.formatTitle}</h2>
+    <p style="color: var(--text-secondary); line-height: 1.7; margin-bottom: 1rem;">{t.formatLead}</p>
+    <pre style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 1rem; overflow-x: auto; font-size: 0.85rem; line-height: 1.7;"><code>@01-04-02 図書室の攻防
+「やっぱり'アルス、ここにいたのね」@リリア:A
+
+呆れたような声とともに、'リリアが隣の椅子を引き寄せた。
+;
+「分かってるよ。でも、これを見てくれ」@アルス
+
+# この節は「設計図を見せる」まで。落としどころは次の節。</code></pre>
+    <p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.7; margin-top: 0.75rem;">{t.formatNote}</p>
+  </div>
+  <div>
+    <h2 style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.5rem;">{t.treeTitle}</h2>
+    <p style="color: var(--text-secondary); line-height: 1.7; margin-bottom: 1rem;">{t.treeLead}</p>
+    <pre style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 1rem; overflow-x: auto; font-size: 0.85rem; line-height: 1.6;"><code>{tree}</code></pre>
+    <p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.7; margin-top: 0.75rem;">{t.treeNote}</p>
+  </div>
+</section>
+
+<section class="container" style="margin-bottom: 5rem;">
+  <h2 style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.5rem;">{t.interfacesTitle}</h2>
+  <p style="color: var(--text-secondary); max-width: 760px; margin-bottom: 1.5rem; line-height: 1.7;">{t.interfacesLead}</p>
+  <div style="overflow-x: auto; border: 1px solid var(--border-color); border-radius: 10px;">
+    <table style="width: 100%; border-collapse: collapse; font-size: 0.92rem;">
+      <tbody>
+        {interfaces.map((entry) => (
+          <tr style="border-top: 1px solid var(--border-color);">
+            <td style="padding: 0.75rem 1rem; color: var(--text-primary); font-weight: 600; white-space: nowrap; vertical-align: top;">{entry.name}</td>
+            <td style="padding: 0.75rem 1rem; vertical-align: top;"><code style="font-size: 0.85rem;">{entry.how}</code></td>
+            <td style="padding: 0.75rem 1rem; color: var(--text-secondary);">{entry.what[lang]}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="container" style="margin-bottom: 5rem; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 2rem;">
+  <h2 style="font-size: 1.5rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.5rem;">{t.specsTitle}</h2>
+  <p style="color: var(--text-secondary); max-width: 780px; margin-bottom: 1.25rem; line-height: 1.7;">{t.specsLead}</p>
+  <div style="display: flex; flex-wrap: wrap; gap: 0.6rem;">
+    {t.specsLinks.map((link) => (
+      <a href={link.href} style="display: inline-block; border: 1px solid var(--border-color); border-radius: 999px; padding: 0.45rem 1rem; color: var(--text-primary); text-decoration: none; font-size: 0.88rem;">{link.label}</a>
+    ))}
+  </div>
+</section>

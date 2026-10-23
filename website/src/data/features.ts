@@ -19,7 +19,7 @@ export interface FeatureItem {
   icon: string;
 }
 
-// TODO: インストール方法の準備中 - ベータ版公開後にバイナリダウンロードおよびcargo install手順を更新すること
+// 機能の説明は docs/specifications/ と README.md に合わせる。数を書くときは src/data/site.ts も参照。
 
 export const featuresData: FeatureItem[] = [
   {
@@ -109,8 +109,8 @@ export const featuresData: FeatureItem[] = [
       en: "5. Human-Controlled Gradual AI Agent Workflow",
     },
     summary: {
-      ja: "プロット・本文・アイデア・資料検索・文体・論理整合性の6役を独立タスク化。自律度（委譲レベル）を人間が自在にコントロールできます。",
-      en: "Modular AI tasks across 6 distinct roles. Humans set the exact delegation level (off / propose / apply / autonomous).",
+      ja: "プロット・本文・アイデア・資料検索・文体・論理整合性・統合の7役を独立タスク化。自律度（委譲レベル）を人間が自在にコントロールできます。",
+      en: "Modular AI tasks across 7 distinct roles. Humans set the exact delegation level (off / propose / apply / autonomous).",
     },
     nonEngineerSummary: {
       ja: "「アイデア出しだけ任せて本文は自分で書く」「文章のチェックだけ頼む」など自由自在。AIに勝手に文章を書き換えられる心配がなく、いつでも差し戻せます。",
@@ -133,8 +133,8 @@ export const featuresData: FeatureItem[] = [
       en: "Complete keyboard navigation without mouse reliance. Minimalist, label-free dark UI designed for uninterrupted focus.",
     },
     nonEngineerSummary: {
-      ja: "`Ctrl+G` で節ジャンプ、`Ctrl+B` でプロット表示、`Ctrl+1/2/3` でペイン切替。画面から無駄なボタンやメニューラベルが消え、文章だけに没頭できます。",
-      en: "Jump instantly via `Ctrl+G`, open plot via `Ctrl+B`, switch panes via `Ctrl+1/2/3`. Eliminates UI clutter so you can immerse in prose.",
+      ja: "`Ctrl+G` で節ジャンプ、`Ctrl+B` で本文と話プロットを往復、`Ctrl+1/2/3` でペイン切替。画面から無駄なボタンやメニューラベルが消え、文章だけに没頭できます。",
+      en: "Jump via `Ctrl+G`, flip between prose and the episode plot with `Ctrl+B`, switch panes with `Ctrl+1/2/3`. Eliminates UI clutter so you can immerse in prose.",
     },
     engineerSummary: {
       ja: "1フレーム8ms以内の描画性能目標。`Alt+1..9` ワークスペース切替、Command Palette (`Ctrl+P`)、IME変換中の入力状態機械の完全制御 (Composition Events) を搭載。",
@@ -165,8 +165,8 @@ export const featuresData: FeatureItem[] = [
   {
     id: "layered-architecture",
     title: {
-      ja: "8. クリーンなレイヤードアーキテクチャ & LSP準備",
-      en: "8. Layered Architecture & Future LSP Engine",
+      ja: "8. クリーンなレイヤードアーキテクチャ & 言語サーバ",
+      en: "8. Layered Architecture & Language Server",
     },
     summary: {
       ja: "小説執筆ロジック (`core`) と描画UI/ストレージ (`ui`, `adapters`) を厳格に分離したRust堅牢設計。",
@@ -177,8 +177,8 @@ export const featuresData: FeatureItem[] = [
       en: "Ensures lighting-fast performance and crash resiliency, safeguarding your hard-earned manuscript from data corruption.",
     },
     engineerSummary: {
-      ja: "`src/core/` は純粋関数群。`tests/layering.rs` がCIでUI/I/O依存の混入を機械検証。`semantic_tokens`, `hover`, `completion` など11機能が将来のLanguage Server化に対応。",
-      en: "Pure functional `src/core/`. Enforced via `tests/layering.rs` CI linting. 11 core features designed for 1:1 mapping to LSP specification.",
+      ja: "`src/core/` は純粋関数群。`tests/layering.rs` が CI で UI/I/O 依存の混入を機械検証。`semantic_tokens`・`hover`・`completion` などの 12 機能は `novnow lsp` の Language Server としてそのまま公開されています。",
+      en: "Pure functional `src/core/`. Enforced via `tests/layering.rs` CI linting. Its 12 language features are exposed as a real language server via `novnow lsp`.",
     },
     icon: "shield",
   },
