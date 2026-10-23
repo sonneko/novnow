@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Actions を無駄に使わないための commit-msg フック。
+#
+# 既定は **CI を走らせない**（コミットメッセージの 1 行目に `[ci skip]` を足す）。
+# 本当に CI を回したいときだけ、メッセージに `[ci run]` と書く（このときフックは
+# 何も足さず、`[ci run]` の印も消す＝GitHub 側の skip 判定に引っかからない）。
+#
+#   普段:        git commit -m "docs: ..."        → "docs: ... [ci skip]"
+#   回したい時:  git commit -m "fix: ... [ci run]" → "fix: ..."
+#
+# つけ方: `bash scripts/install-git-hooks.sh`（`core.hooksPath` を `.githooks` に向ける）。
+set -euo pipefail
+
+msg_file="$1"
+first="$(head -n 1 "$msg_file")"
+
+# 既に [ci skip] がある／[ci run] と明示された場合は何もしない。
+case "$first" in
+    *"[ci skip]"*) exit 0 ;;
+esac
+
+if printf '%s' "$first" | grep -qF '[ci run]'; then
+    # 印を外す（残すと GitHub の skip 判定には効かないが、履歴が読みにくくなる）。
+    tmp="$(mktemp)"
+    sed '1s/ *\[ci run\]//' "$msg_file" > "$tmp"
+    cat "$tmp" > "$msg_file"
+    rm -f "$tmp"
+    exit 0
+fi
+
+tmp="$(mktemp)"
+sed '1s/$/ [ci skip]/' "$msg_file" > "$tmp"
+cat "$tmp" > "$msg_file"
+rm -f "$tmp"

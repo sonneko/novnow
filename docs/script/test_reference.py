@@ -100,6 +100,24 @@ class RetiredScopeTests(unittest.TestCase):
         self.assertNotIn("Cargo.toml", targets)  # ルート直下は CODE_ROOT_FILES 側で足す
 
 
+class ActionsBudgetTests(unittest.TestCase):
+    """検査 10（Actions を無駄に使わない設定）。"""
+
+    def test_every_workflow_has_concurrency(self):
+        for path in sorted((reference.ROOT / ".github/workflows").glob("*.yml")):
+            text = reference.read(path)
+            self.assertIn("concurrency:", text, path.name)
+            self.assertIn("cancel-in-progress", text, path.name)
+
+    def test_hook_and_runner_scripts_exist(self):
+        hook = reference.ROOT / ".githooks/commit-msg"
+        self.assertTrue(hook.is_file())
+        self.assertIn("[ci skip]", reference.read(hook))
+        self.assertTrue(hook.stat().st_mode & 0o111)
+        self.assertTrue((reference.ROOT / "scripts/install-git-hooks.sh").is_file())
+        self.assertTrue((reference.ROOT / "scripts/ci-run.sh").is_file())
+
+
 class SlugTests(unittest.TestCase):
     def test_japanese_heading(self):
         self.assertEqual(reference.slug("エディタの仕様の要約"), "エディタの仕様の要約")

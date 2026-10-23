@@ -241,7 +241,7 @@ CI_LOG=/tmp/ci.log CI_JOB="Local test run" CI_KIND=test CI_STATUS=success \
 ### 4.6 `python3 docs/script/reference.py`（文書と実装の突き合わせ）
 
 `REF:docs/script/duplicate.py` が見るのは**文書の規約**（構成・重複・`REF:` の実在・見出し一致・`SYNC` の一致）である。
-規約を守っていても「中身が実装とずれている」ことはあり得るので、`REF:docs/script/reference.py` が次の 9 項目を機械検査する。
+規約を守っていても「中身が実装とずれている」ことはあり得るので、`REF:docs/script/reference.py` が次の 10 項目を機械検査する。
 
 | # | 検査 | 何を捕まえるか | 実例（この検査で実際に見つかったもの） |
 |---|---|---|---|
@@ -254,6 +254,7 @@ CI_LOG=/tmp/ci.log CI_JOB="Local test run" CI_KIND=test CI_STATUS=success \
 | 7 | 数の主張 | 「N ワークスペース」「MCP N ツール」「N の正規操作」が実装と違う | README の「8 個のワークスペース」という記述（実装は 9） |
 | 8 | `include_str!` | テスト・本体が埋め込むパスが存在しない | 仕様書の改名に追随していないテスト |
 | 9 | リンクとアンカー | ルート文書の相対リンク・画像、`REF:…` の `#アンカー` が飛べない | 見出しを書き換えた後の `REF:` のアンカー |
+| 10 | Actions の節約 | `concurrency` の無いワークフロー、変更フィルタの消失、`[ci skip]` フックの欠落 | `REF:.github/workflows/wheels.yml` に `concurrency` が無かった（5 OS の行列が二重に走る） |
 
 ```bash
 python3 docs/script/reference.py          # 検査（違反があれば終了コード 1）
@@ -281,6 +282,40 @@ CI だけに検査が増えた時点で静かに壊れるため。CI の `docs` 
 
 新しい検査を足すときは `REF:docs/script/reference.py` の `CHECKS` に 1 項目追加し、
 `REF:docs/script/test_reference.py` に判定の単体テストを足す（検査器自身の退行を防ぐ）。
+
+---
+
+### 4.7 Actions を無駄に使わない（既定は走らせない）
+
+GitHub Actions は**走った分だけ**課金される。このリポジトリは CI の行列が重く
+（Rust の 5 ジョブ＋ wasm ＋ bench、Python ホイールは 5 OS）、文書やコメントだけの変更で
+回すと、ほぼ確実に捨てる実行にお金を払うことになる。そこで**既定は走らせない**。
+
+| 仕組み | 実体 | 効く場面 |
+|---|---|---|
+| コミット既定で `[ci skip]` | `REF:.githooks/commit-msg`（`bash REF:scripts/install-git-hooks.sh` で有効化） | push・PR の全ワークフロー。`[ci run]` と書いたときだけ付かない |
+| 必要なときに 1 回だけ回す | `bash REF:scripts/ci-run.sh [ci\|wheels] [watch]` | `workflow_dispatch`。push し直さずにブランチを指定して回せる |
+| 変更フィルタ | `REF:.github/workflows/ci.yml` の `docs` ジョブ（`rust_changed`） | 文書だけの変更で Rust 5 ジョブを skip |
+| `paths` / `paths-ignore` | 各ワークフロー | 無関係な変更でワークフロー自体を起動しない |
+| `concurrency` | 全ワークフロー（PR は `cancel-in-progress`） | 同じブランチを続けて push したとき、古い実行を取り消す |
+| draft PR では走らせない | `REF:.github/workflows/ci.yml` の `if:` | 作業中の push で行列を埋めない |
+
+**回す・回さないの目安**
+
+| 変更したもの | 回すもの |
+|---|---|
+| 文書（`docs/`）・コードのコメント・整形だけ | 回さない（`scripts/verify.sh` を手元で回す） |
+| Rust のロジック・テスト・`Cargo.toml` / `Cargo.lock`・`src/ui/**`・`src/wasm*` | `bash scripts/ci-run.sh ci watch` |
+| `python/**`・PyO3 のバージョン | `bash scripts/ci-run.sh wheels`（＋ `ci`） |
+| ワークフロー自体・リリース前 | `ci` と `wheels` の両方 |
+
+**落とし穴**: `[ci skip]` が付いたコミットが PR の頭だと、PR のチェックは**空**になる。
+マージ前に `bash scripts/ci-run.sh ci watch` で 1 回だけ回し、緑を確認してからマージする
+（`gh pr checks` が空なら「回していない」の意味であり、緑ではない）。
+
+検査 10 はこの仕組みの**土台が消えていないか**（`concurrency`・変更フィルタ・フック・
+`ci-run.sh`）を見る。仕組みを外すと文書検査が落ちるので、意図的に外すときは
+`REF:docs/script/reference.py` の `check_actions_budget` も一緒に直す。
 
 ---
 

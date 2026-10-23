@@ -246,6 +246,9 @@ install_pyo3_vendor
 
 bash "$ROOT/scripts/bootstrap-jpeg.sh"
 
+say "git フック（コミット既定で [ci skip]）を有効にする"
+bash "$ROOT/scripts/install-git-hooks.sh"
+
 say "確認"
 # shellcheck disable=SC1091
 . "$BUILD_DIR/env.sh"

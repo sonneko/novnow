@@ -1837,3 +1837,22 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - **再発防止**: `REF:docs/script/reference.py` に `CODE_ROOT_FILES`（`Cargo.toml` /
   `rust-toolchain.toml` / `.github/pull_request_template.md`）を足し、検査 1 の対象に含めた。
   `REF:docs/script/test_reference.py` が 3 ファイルの実在と、ルート直下が別枠であることを固定する（28 件）。
+
+### [HIST:IMPL:ACTIONS-BUDGET] 2026-10-23 Actions を既定で走らせない仕組み（`[ci skip]` と変更フィルタ）
+
+[HIST-TAG: category=IMPL id=ACTIONS-BUDGET topics=ci,actions,cost,git-hooks,reference.py]
+
+- **背景**: 2026-10-23 の同期是正の PR で、文書だけの変更にもかかわらず push のたびに
+  Rust 5 ジョブ ＋ wasm ＋ bench ＋ ホイール 5 OS が走った（`Cargo.toml` のコメントを直した回は
+  変更フィルタが `rust_changed=true` と判定した）。Actions の使用量を抑える指示を受けて、
+  「必要なときだけ回す」を既定にした。
+- **足したもの**: `REF:.githooks/commit-msg`（1 行目に `[ci skip]` を自動で付ける。`[ci run]` と
+  書いたときだけ付けない）、`REF:scripts/install-git-hooks.sh`（`core.hooksPath` を `.githooks` に向ける。
+  `REF:scripts/bootstrap-toolchain.sh` からも呼ぶ）、`REF:scripts/ci-run.sh`
+  （`gh workflow run` で必要なワークフローだけ回す）。
+- **直したもの**: `REF:.github/workflows/wheels.yml` に `concurrency`（PR は `cancel-in-progress`）を追加。
+  5 OS の行列が二重に走り、macos の待ち行列に古い実行が積み上がっていた。
+- **検査**: `REF:docs/script/reference.py` の検査 10 が、全ワークフローの `concurrency`・
+  `ci.yml` の変更フィルタ・フックと 2 スクリプトの存在を見る（仕組みを消すと文書検査が落ちる）。
+- **運用**: 文書・コメントだけのコミットは CI を回さない。マージ前に `bash scripts/ci-run.sh ci watch`
+  で 1 回だけ回す（`REF:docs/developers.md` §4.7 の表）。

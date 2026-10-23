@@ -3,7 +3,7 @@
 docs/script/reference.py — ドキュメントとコードの**実物の突き合わせ**を行う検査。
 
 `duplicate.py` は「文書の規約」（構成・重複・`REF:` の実在・見出し一致・`SYNC` の一致）を見る。
-それに対してこのスクリプトは、**規約では守れない「中身のずれ」**を見る。対象は次の 8 つ。
+それに対してこのスクリプトは、**規約では守れない「中身のずれ」**を見る。対象は次の 10 個。
 
 1. 廃止済みの文書名（`SPECIFICATIONS.md` / `PLANS.md` / `DEVELOPERS.md`）を
    コード・スクリプト・CI から参照していないこと。
@@ -13,7 +13,9 @@ docs/script/reference.py — ドキュメントとコードの**実物の突き�
 5. `scripts/verify.sh` が CI（`.github/workflows/ci.yml`）の**静的検査をすべて含むか**。
 6. `README.md` / `README.en.md` / `GUIDE.md` の間に**丸写しの重複**が無いか。
 7. 文書に書いた**数の主張**（ワークスペース数・MCP ツール数・正規操作数）が実装と一致するか。
-8. `include_str!` で読み込むパス（仕様書・カタログ・ゴールデン）が**実在するか**。\n9. ルート文書の相対リンク・画像と、`REF:` のアンカーが**実在するか**。
+8. `include_str!` で読み込むパス（仕様書・カタログ・ゴールデン）が**実在するか**。
+9. ルート文書の相対リンク・画像と、`REF:` のアンカーが**実在するか**。
+10. Actions を無駄に使わない設定（全ワークフローの `concurrency`・変更フィルタ・`[ci skip]` のフック）が揃っているか。
 
 使い方:
     python3 docs/script/reference.py           # 検査（違反があれば終了コード 1）
@@ -388,6 +390,49 @@ def check_links() -> list[str]:
     return errors
 
 
+
+# ============================================================ 10. Actions の節約
+
+
+def check_actions_budget() -> list[str]:
+    """Actions を無駄に走らせない設定が揃っていること。
+
+    課金は「走った分」に付くので、**走らせない仕組み**そのものを検査する。
+
+    - 全ワークフローに `concurrency`（同じブランチの古い実行を取り消す）
+    - `ci.yml` に変更フィルタ（`rust_changed`）がある
+    - コミット既定で `[ci skip]` を付けるフックと、その有効化スクリプトがある
+    """
+    errors: list[str] = []
+
+    for path in sorted((ROOT / ".github/workflows").glob("*.yml")):
+        text = read(path)
+        name = rel(path)
+        if not re.search(r"^concurrency:", text, re.MULTILINE):
+            errors.append(f"[10] {name}: concurrency が無い（古い実行が取り消されない）")
+        elif "cancel-in-progress" not in text:
+            errors.append(f"[10] {name}: cancel-in-progress が無い（自動では取り消されない）")
+
+    ci = read(ROOT / ".github/workflows/ci.yml")
+    if "rust_changed" not in ci:
+        errors.append("[10] .github/workflows/ci.yml: 変更フィルタ（rust_changed）が無い")
+
+    hook = ROOT / ".githooks/commit-msg"
+    if not hook.is_file():
+        errors.append("[10] .githooks/commit-msg: 無い（[ci skip] が付かない）")
+    elif "[ci skip]" not in read(hook):
+        errors.append("[10] .githooks/commit-msg: [ci skip] を付けていない")
+    elif not (hook.stat().st_mode & 0o111):
+        errors.append("[10] .githooks/commit-msg: 実行ビットが無い")
+
+    if not (ROOT / "scripts/install-git-hooks.sh").is_file():
+        errors.append("[10] scripts/install-git-hooks.sh: 無い（フックを有効にできない）")
+    if not (ROOT / "scripts/ci-run.sh").is_file():
+        errors.append("[10] scripts/ci-run.sh: 無い（必要なときに CI を回せない）")
+
+    return errors
+
+
 CHECKS = {
     "1": ("廃止済みの文書名を参照しない", check_retired),
     "2": ("仕様書の節番号が実在する", check_spec_sections),
@@ -398,6 +443,7 @@ CHECKS = {
     "7": ("文書の数の主張が実装と一致する", check_claims),
     "8": ("include_str! のパスが実在する", check_include_paths),
     "9": ("リンクとアンカーが実在する", check_links),
+    "10": ("Actions を無駄に使わない設定が揃っている", check_actions_budget),
 }
 
 
@@ -420,7 +466,7 @@ def main() -> int:
     total = len(CHECKS)
     print(
         f"OK: ドキュメントと実装の突き合わせ {total} 項目（廃止名 / 節番号 / history ID / "
-        f"src ツリー / verify と CI / ルート文書 / 数の主張 / include_str / リンク）"
+        f"src ツリー / verify と CI / ルート文書 / 数の主張 / include_str / リンク / Actions の節約）"
     )
     return 0
 

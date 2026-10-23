@@ -19,6 +19,12 @@ on:
 permissions:
   contents: read
 
+# 同じブランチで push し直したら、古い実行は取り消す（macos の行列は待ち時間が長く、
+# 終わった頃には内容が古い、という無駄が出る）。
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build:
     strategy:
