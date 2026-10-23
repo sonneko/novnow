@@ -10,7 +10,7 @@
 | 区分 | 状態 | 対象範囲 | 参照 |
 |---|---|---|---|
 | 段階 ①（M0〜M11） | 完了 | コア仕様・全 9 ワークスペース・MCP・CLI・Web 版・ベンチマーク・サンプル一式 | `REF:docs/history.md` |
-| 設計書セクション実装状況 | 実装完了 134 節 / 実装中 0 節 / 未実装・実装計画済み 0 節 / 未実装・未計画 0 節 / 実装待ち 2 節 | 全 11 設計書の `### ` 節（合計 136 節） | `REF:docs/designs/` |
+| 設計書セクション実装状況 | 実装完了 134 節 / 実装中 1 節 / 未実装・実装計画済み 0 節 / 未実装・未計画 0 節 / 実装待ち 1 節 | 全 11 設計書の `### ` 節（合計 136 節） | `REF:docs/designs/` |
 | 仕様変更・修正（F-01〜F-44） | 実装完了（44 件） | UI・エディタ・パレット・辞書・ショートカット・性能等の修正 44 項目 | `REF:docs/plans.md#planned-fixes` |
 | 機能追加（小規模：S-01〜S-18） | 実装完了（18 件） | エージェント例指定・PWA・Zip 導入・形態素波線等の小規模機能追加 18 項目 | `REF:docs/plans.md#planned-small-features` |
 | 機能追加（比較的大規模：L-01） | 実装済み（CLI・デスクトップ） | 既存の本文テキストから `novnow` に移行するための手段の提供 | `REF:docs/plans.md#unplanned-large` |
@@ -939,15 +939,24 @@ Python 一式は `python/novnow-py/tests/`（当初の計画に書いた `python
 | 1-6 | テスト（条件判定・段階送り・飛ばし・キーボードのみ・ja/en の網羅） | `tests/gui.rs`・`tests/workspaces.rs`・`tests/i18n_catalog.rs` |
 
 <a id="plan-docs-site"></a>
-#### Phase 2: サイトの自動ビルド（2 日）
+#### Phase 2: サイトの自動ビルド（2 日）— **実施済み**
 
-| # | すること | 完了条件 |
+`REF:scripts/docs-site.py` が正本（`REF:docs/users/*.md`・`REF:docs/specifications/*.md`）を
+`REF:website/src/content/docs/` へ写し、目次 `REF:website/src/data/docs-nav.ts` を書き出す。
+サイトの URL は `/ja/manual/<slug>`（ガイド）と `/ja/specifications/<name>`（仕様書）で、
+`README.md` はそれぞれの index になる。英語は本文が無いので、日本語版へ案内する短いページを出す。
+
+| # | すること | 結果 |
 |---|---|---|
-| 2-1 | `REF:docs/users/*.md` から Astro ページを生成する（`/ja/start`・`/cheatsheet`・`/glossary`・`/faq`） | 手で本文を書かずにページが出る |
-| 2-2 | 仕様書（11 冊）から `/ja/specifications/<file>` を生成する | 仕様書の変更がそのままサイトに出る |
-| 2-3 | ガイドから仕様書の節へリンクを張る（§番号は自動でアンカー化） | 用語集の全項目から仕様書に飛べる |
-| 2-4 | 生成物の一致を CI で検査（`--check`） | 手で docs を直して生成し忘れると落ちる |
-| 2-5 | トップと `Get Started` を `REF:docs/users/start.md` の段階と一致させる | 段階の数と順序がアプリと同一（検査 11） |
+| 2-1 | `REF:docs/users/*.md` から Astro ページを生成する | 済（`/ja/manual/start`・`cheatsheet`・`glossary`・`faq`・`project-structure`・`git`・`publish`・index の 8 ページ） |
+| 2-2 | 仕様書（11 冊）から `/ja/specifications/<name>` を生成する | 済（11 冊＋index） |
+| 2-3 | ガイドから仕様書の節へリンクを張る | 済（`../specifications/x.md#アンカー` を `/ja/specifications/x#...` に書き換え。飛べない日本語見出しには `<a id="install">` などの英字 ID を置く） |
+| 2-4 | 生成物の一致を CI で検査（`--check`） | 済（`REF:scripts/verify.sh` の `site-check`） |
+| 2-5 | トップと `Get Started` を `REF:docs/users/start.md` の段階と一致させる | 未（アプリ内のガイドモードと同じく Phase 1 の実装に合わせる） |
+| 2-6 | トップページから GitHub の URL を外す | 済（`REF:website/src/data/site.ts` の `guideLinks` と、トップの仕様書リンクをサイト内へ） |
+
+「同じ内容を 2 か所に持たない」ため、トップページには説明の本文を置かず、**ガイドへのカードと入口の表だけ**を置く。
+本文はすべて `REF:docs/` が正本。
 
 #### Phase 3: 文章の品質を機械で守る（1 日）
 

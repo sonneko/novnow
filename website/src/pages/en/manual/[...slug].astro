@@ -1,0 +1,41 @@
+---
+// ガイドの本文は日本語のみ（docs/users が正本）。英語の利用者には、その旨と日本語版への道を出す。
+import { manualNav } from "../../../data/docs-nav";
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import Header from "../../../components/Header.astro";
+import Footer from "../../../components/Footer.astro";
+
+export function getStaticPaths() {
+  return [
+    { params: { slug: undefined } },
+    ...manualNav.filter((entry) => entry.slug !== "index").map((entry) => ({ params: { slug: entry.slug } })),
+  ];
+}
+const { slug } = Astro.params;
+const japanese = slug ? `/ja/manual/${slug}` : "/ja/manual/";
+---
+
+<BaseLayout title="Guide" lang="en">
+  <Header lang="en" currentPath="/en/manual/" />
+  <main class="container" style="max-width: 760px; margin: 3rem auto 6rem;">
+    <h1 style="font-size: 1.9rem; font-weight: 800; margin-bottom: 1rem;">The guides are written in Japanese for now</h1>
+    <p style="color: var(--text-secondary); line-height: 1.8;">
+      The user guides are generated from <code>docs/users/</code>, and that text is currently Japanese only.
+      Translating them is tracked as its own task so that the site and the app never drift apart.
+    </p>
+    <p style="margin: 2rem 0;">
+      <a href={japanese} style="display: inline-block; background-color: var(--accent-purple); color: #fff; font-weight: 600; padding: 0.7rem 1.4rem; border-radius: 8px; text-decoration: none;">
+        Read this page in Japanese
+      </a>
+    </p>
+    <p style="color: var(--text-muted); font-size: 0.85rem;">
+      The specifications (<code>docs/specifications/</code>) are also Japanese only.
+      The diagnostics catalog and the API reference below are available in English.
+    </p>
+    <p style="display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 1rem;">
+      <a href="/en/diagnostics">Diagnostics catalog</a>
+      <a href="/en/api">API reference</a>
+    </p>
+  </main>
+  <Footer lang="en" />
+</BaseLayout>

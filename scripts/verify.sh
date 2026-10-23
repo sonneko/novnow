@@ -105,7 +105,9 @@ run docs-tests  python3 -B -m unittest discover -s "$ROOT/docs/script" -p 'test_
 # ドキュメントと実装の突き合わせ（廃止名 / 仕様書の節番号 / history ID / src ツリー / 数の主張）
 run docs-sync   python3 "$ROOT/docs/script/reference.py"
 # Web サイトの生成物（診断解説・API 表）が仕様書の写しであること（CI の docs ジョブと同じ）
-run site-check  bash -c "python3 '$ROOT/scripts/diagnostics-site.py' --check && python3 '$ROOT/scripts/api-site.py' --check"
+# サイトの本文は docs/ から生成する（複製を作らない）。ここで一致を強制し、
+# docs を直して生成し忘れた状態や、生成物を手で編集した状態を落とす
+run site-check  bash -c "python3 '$ROOT/scripts/diagnostics-site.py' --check && python3 '$ROOT/scripts/api-site.py' --check && python3 '$ROOT/scripts/docs-site.py' --check"
 # Python API（§19.3）: 型スタブの生成・構文・位置引数の束縛。Rust のビルドは要らない
 # Python API（§19.3）: 既定は 1 秒の検査（型スタブ・構文・束縛）。`--python` のときは
 # 拡張のビルドと本物の pytest まで回す（pyo3 の vendor が必要。約 2 分半）

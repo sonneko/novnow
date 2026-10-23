@@ -330,6 +330,9 @@ GitHub Actions は**走った分だけ**課金される。このリポジトリ�
 | `REF:docs/users/cheatsheet.md` | 記号とキーの早見表 | 書きながら手元に置く人 |
 | `REF:docs/users/glossary.md` | 用語の定義（用語は言い換えない） | 途中で言葉に詰まった人 |
 | `REF:docs/users/faq.md` | よくある質問（保存・波線・外部連携） | 困った人 |
+| `REF:docs/users/project-structure.md` | 作品フォルダの中身とファイル名 | 中身を確かめたい人 |
+| `REF:docs/users/git.md` | Git で履歴を残す（任意） | 上級者 |
+| `REF:docs/users/publish.md` | 書き出した原稿の公開 | 公開したい人 |
 
 **参照の向き（MUST）**
 
@@ -345,6 +348,16 @@ GitHub Actions は**走った分だけ**課金される。このリポジトリ�
 - 手順は番号付きで 1 ステップ 1 動作。各手順に「うまくいかないとき」を 1〜2 行置く。
 - インストールの節は**場所だけ**作り、配布物が無い間は「準備中」と書く（ソースからのビルドは `REF:GUIDE.md` に逃がす）。
 - 仕様書の節を指すときは `§N.M` を添える（サイト生成がアンカーに変える）。
+
+**サイトへの反映**
+
+この 2 つのディレクトリがサイトの正本で、`REF:scripts/docs-site.py` が
+`REF:website/src/content/docs/` と `REF:website/src/data/docs-nav.ts` を生成する。
+**生成物は手で編集しない。** docs を直したらスクリプトを実行し、差分も一緒にコミットする。
+`REF:scripts/verify.sh` の `site-check` が `--check` で一致を見張るので、忘れると落ちる。
+
+    python3 scripts/docs-site.py          # 生成する
+    python3 scripts/docs-site.py --check  # 一致を確かめる（CI と同じ）
 
 **3 か所で同じ内容にする**
 

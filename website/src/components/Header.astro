@@ -27,8 +27,11 @@ const t = translations[lang].nav;
       <a href={`/${lang}`} class:list={[styles.navLink, { [styles.active]: currentPath === `/${lang}` || currentPath === `/${lang}/` }]}>
         {t.home}
       </a>
-      <a href={`/${lang}/guide`} class:list={[styles.navLink, { [styles.active]: currentPath.includes("/guide") }]}>
-        {t.guide}
+      <a href={`/${lang}/manual/`} class:list={[styles.navLink, { [styles.active]: currentPath.includes("/manual") }]}>
+        {t.manual}
+      </a>
+      <a href={`/${lang}/specifications/`} class:list={[styles.navLink, { [styles.active]: currentPath.includes("/specifications") }]}>
+        {t.specs}
       </a>
       <a href={`/${lang}/api`} class:list={[styles.navLink, { [styles.active]: currentPath.includes("/api") }]}>
         {t.api}

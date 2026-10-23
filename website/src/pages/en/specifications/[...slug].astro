@@ -1,0 +1,32 @@
+---
+import { specificationNav } from "../../../data/docs-nav";
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import Header from "../../../components/Header.astro";
+import Footer from "../../../components/Footer.astro";
+
+export function getStaticPaths() {
+  return [
+    { params: { slug: undefined } },
+    ...specificationNav.map((entry) => ({ params: { slug: entry.slug } })),
+  ];
+}
+const { slug } = Astro.params;
+const japanese = slug ? `/ja/specifications/${slug}` : "/ja/specifications/";
+---
+
+<BaseLayout title="Specifications" lang="en">
+  <Header lang="en" currentPath="/en/specifications/" />
+  <main class="container" style="max-width: 760px; margin: 3rem auto 6rem;">
+    <h1 style="font-size: 1.9rem; font-weight: 800; margin-bottom: 1rem;">Specifications (Japanese)</h1>
+    <p style="color: var(--text-secondary); line-height: 1.8;">
+      The canonical specifications live in <code>docs/specifications/</code> and are currently Japanese only.
+      This site renders them directly, so there is only one copy to maintain.
+    </p>
+    <p style="margin-top: 2rem;">
+      <a href={japanese} style="display: inline-block; background-color: var(--accent-purple); color: #fff; font-weight: 600; padding: 0.7rem 1.4rem; border-radius: 8px; text-decoration: none;">
+        Read in Japanese
+      </a>
+    </p>
+  </main>
+  <Footer lang="en" />
+</BaseLayout>

@@ -1911,3 +1911,35 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
   「はじめての手引き」ボタンを追加した（`REF:website/src/data/site.ts`・`REF:website/src/components/Overview.astro`）。
 - **未実施（意図的）**: ガイドモードの実装、`docs-site.py`・`easy-read.py`・検査 11、`guide/*.html` の生成は
   計画のみ。今回のコミットは文書とサイトのデータだけ。
+
+### [HIST:MILESTONE:DOCS-SITE] 2026-10-23 docs をそのまま読めるサイトにする（複製を持たない）
+
+[HIST-TAG: category=MILESTONE id=DOCS-SITE topics=docs,website,generator,ci,guide,links]
+
+- **ユーザー裁定（2026-10-23）**: 非エンジニアに GitHub を読ませない。ドキュメントではなく**ガイド**として
+  サイト上で読ませる。`REF:docs/` の内容をそっくりそのままサイトにし、**複製物を作らない**（正本は 1 か所、
+  管理コストを増やさない）。
+- **生成器**: `REF:scripts/docs-site.py` を新設。`REF:docs/users/*.md` と `REF:docs/specifications/*.md` を
+  `REF:website/src/content/docs/` へフロントマター（`title`・`group`・`order`・`source`）付きで写し、
+  目次 `REF:website/src/data/docs-nav.ts` を書き出す。既定は生成、`--check` は再生成して差分があれば
+  終了コード 1（`REF:scripts/diagnostics-site.py` と同じ形）。余剰の生成物は削除する。
+- **サイトの構造**: ガイドは `/ja/manual/<slug>`（`README.md` は `/ja/manual/`）、仕様書は
+  `/ja/specifications/<name>`（同じく index あり）。描画は `REF:website/src/components/DocShell.astro`
+  （左に目次、本文、生成元の注記）と `REF:website/src/pages/ja/manual/[slug].astro`・
+  `REF:website/src/pages/ja/specifications/[slug].astro`。本文の Markdown はサイト側に置かない。
+- **リンク**: `./x.md` → `/ja/manual/<slug>`、`./README.md` → `/ja/manual/`、`../specifications/x.md` →
+  `/ja/specifications/<slug>`。外部 URL と `#` はそのまま。飛べない日本語見出しには `<a id="install">`
+  などの英字 ID を置き、生成器が見出しと `<a id>` の両方からアンカー集合を作って、存在しないアンカーを
+  指すリンクをエラーにする（`REF:docs/users/start.md` に 3 つ追加）。
+- **導線**: `REF:website/src/components/Header.astro` に「ガイド」「仕様書」、`REF:website/src/data/site.ts` の
+  `guideLinks` をサイト内 URL へ差し替え。トップページは本文を書き写すのをやめ、**ガイドへのカードと
+  入口の表だけ**にした（`REF:website/src/components/Overview.astro`）。英語の `/en/manual/*`・
+  `/en/specifications/*` は、本文が日本語のみであることと日本語版への案内を出す短いページ。
+- **追加したガイド**: `REF:docs/users/project-structure.md`（作品フォルダと命名規則）・
+  `REF:docs/users/git.md`（Git は任意、`.novnow/` は除外）・`REF:docs/users/publish.md`
+  （書き出した原稿の公開）。計 8 本。
+- **CI**: `REF:scripts/verify.sh` の `site-check` に `python3 scripts/docs-site.py --check` を追加。
+  docs を直して生成し忘れた状態と、生成物を手で編集した状態の両方が落ちる。
+- **結果**: `npm run build` は 202 ページ（既存 162＋ガイド 8＋仕様書 11＋英語の案内 21）。
+  生成 HTML のサイト内リンクはすべて実在。
+- **未実施（意図的）**: アプリ内の `guide/*.html` の生成と検査 11、ガイドモードの実装、英語本文の翻訳。

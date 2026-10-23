@@ -194,13 +194,13 @@ export const platforms: PlatformRow[] = [
   },
 ];
 
-/** ユーザー向けガイドの入口。サイト内の生成ページができるまではリポジトリを指す。 */
+/** ユーザー向けガイドの入口（docs/users から生成したサイト内のページ）。 */
 export const guideLinks = {
-  start: "https://github.com/sonneko/novnow/blob/main/docs/users/start.md",
-  index: "https://github.com/sonneko/novnow/blob/main/docs/users/README.md",
-  glossary: "https://github.com/sonneko/novnow/blob/main/docs/users/glossary.md",
-  cheatsheet: "https://github.com/sonneko/novnow/blob/main/docs/users/cheatsheet.md",
-  faq: "https://github.com/sonneko/novnow/blob/main/docs/users/faq.md",
+  start: "/ja/manual/start",
+  index: "/ja/manual/",
+  glossary: "/ja/manual/glossary",
+  cheatsheet: "/ja/manual/cheatsheet",
+  faq: "/ja/manual/faq",
 };
 
 /** 覚えておくと迷わないキー（docs/specifications/ui.md §9.9）。 */

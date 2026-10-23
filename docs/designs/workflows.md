@@ -111,19 +111,31 @@
 
 ### 18.5 ドキュメント公開（仕様書とユーザー向けガイド）
 
-状態: 実装待ち（REF:docs/plans.md#plan-docs-site, REF:docs/users/, REF:scripts/diagnostics-site.py）
+状態: 実装中（REF:scripts/docs-site.py, REF:docs/plans.md#plan-docs-site, REF:docs/users/）
 
-- **生成は 1 本のスクリプト**: 新設する `scripts/docs-site.py` が `REF:docs/users/*.md` と
-  `REF:docs/specifications/*.md` を読み、Astro のページ（`/ja/start`・`/ja/cheatsheet`・`/ja/glossary`・
-  `/ja/faq`・`/ja/specifications/<name>`）と、その英語版を書き出す。`REF:scripts/diagnostics-site.py` と
-  同じ形（既定は生成、`--check` は再生成して差分があれば終了コード 1）にそろえる。
-- **アンカー**: Markdown の見出しから `§N.M` のアンカーを作る（`§19.3.2` → `#s19-3-2`）。ガイド本文の
-  `§N.M` は自動でその仕様書の節へのリンクにする。これで「ガイドから仕様書へ」の向きだけが生まれる。
-- **逆向きを作らない**: 仕様書からガイドへのリンクは生成しない（仕様書は純粋仕様のまま公開する）。
-- **アプリ内の解説ページ**: `REF:index.html` に `guide/` のディレクトリコピーを足し、trunk の dist に
-  `guide/project_structure.html`・`guide/git.html`・`guide/publish.html` を載せる。3 ページは生成器で作り、
-  `REF:docs/users/` の該当節へ案内する短いページにする。
-- **検査**: `REF:docs/script/reference.py` の検査 11 が、(1) 仕様 §14.2.1 と
-  `REF:src/core/model/project.rs` の URL に対応する公開物の実在、(2) `REF:docs/users/` の `REF:` が
-  `REF:docs/specifications/` と `REF:docs/users/` だけを指すこと、(3) ガイドの段階と
-  `REF:docs/users/start.md` の見出しの一致、を見る。`REF:scripts/verify.sh` の `site-check` に含める。
+- **正本は 1 か所だけ**: `REF:docs/users/*.md` と `REF:docs/specifications/*.md` が正本で、サイトのページは
+  その生成物。Markdown を書き写した複製を `REF:website/` に置かない。
+- **生成器**: `REF:scripts/docs-site.py` が正本を `REF:website/src/content/docs/users/` と
+  `REF:website/src/content/docs/specifications/` へ、先頭に `title`・`group`・`order`・`source` の
+  フロントマターを付けて写す。あわせて目次 `REF:website/src/data/docs-nav.ts`（`manualNav`・
+  `specificationNav`）を書き出す。`REF:scripts/diagnostics-site.py` と同じ形（既定は生成、
+  `--check` は再生成して差分があれば終了コード 1、余剰の生成物は削除）にそろえてある。
+- **URL**: ユーザー向けガイドは `/ja/manual/<slug>`（`README.md` は `/ja/manual/`）、仕様書は
+  `/ja/specifications/<name>`（`README.md` は `/ja/specifications/`）。slug はファイル名から `.md` を
+  外したもの。ページの描画は `REF:website/src/components/DocShell.astro`（左に目次、本文、
+  「このページは `<source>` から自動生成」の注記）と、`REF:website/src/pages/ja/manual/[slug].astro`・
+  `REF:website/src/pages/ja/specifications/[slug].astro` が担う。
+- **リンクの書き換え**: `./x.md` → `/ja/manual/<slug>`、`./README.md` → `/ja/manual/`、
+  `../specifications/x.md` → `/ja/specifications/<slug>`。外部 URL と `#アンカー` はそのまま残す。
+  これで「ガイドから仕様書へ」の向きだけが生まれる。
+- **アンカー**: 見出しの文字列から GitHub と同じ規則でアンカーを作る。日本語の見出しは URL に
+  パーセントエンコードされて読みにくく、環境によっても変わるため、飛び先には
+  `<a id="install">` のような英字 ID を置き、本文のリンクもその ID を使う（`start.md` の
+  `#install`・`#write-first-section`・`#export`）。生成器は見出しと `<a id>` の両方からアンカー集合を
+  作り、**存在しないアンカーを指すリンクがあればエラーにする**。
+- **英語**: ガイドと仕様書の本文は日本語のみ。`/en/manual/<slug>` と `/en/specifications/<slug>` は
+  「日本語で書かれている」ことと日本語版へのリンクを出す短いページにして、英語話者を空振りさせない。
+- **検査**: `REF:scripts/verify.sh` の `site-check` が `REF:scripts/docs-site.py` を `--check` 付きで
+  実行する。docs を直して生成し忘れた状態と、生成物を手で編集した状態の両方が落ちる。
+- **まだ実装していないこと**: アプリ内の解説ページ（`guide/*.html`）と、仕様 §14.2.1 の URL 実在を
+  見る検査 11 は未実装。`REF:index.html` への `guide/` の同梱も、この生成器の出力を使う形で行う。
