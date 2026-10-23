@@ -47,9 +47,9 @@
 
 ### 15.7 人間向け管制 UI（`agent` ワークスペース）
 
-状態: 実装完了（REF:src/ui/workspaces/agent.rs, REF:src/ui/agents.rs, REF:src/ui/app.rs, REF:tests/workspaces.rs, REF:tests/gui.rs）
+状態: 実装完了（REF:src/ui/workspaces/agent.rs, REF:src/app/agents.rs, REF:src/ui/app.rs, REF:tests/workspaces.rs, REF:tests/gui.rs）
 
-- `agent` ワークスペース（`Alt+8`）の 4 ペイン描画、タスク起票・ドライラン・提案の節単位採否（`A` / `X` / `E`）・差し戻し（`U`）・役割別委譲レベル変更（`1`〜`4`）・総停止（`Ctrl+Shift+X`）は `REF:src/ui/workspaces/agent.rs` と `REF:src/ui/agents.rs` に実装する。
+- `agent` ワークスペース（`Alt+8`）の 4 ペイン描画、タスク起票・ドライラン・提案の節単位採否（`A` / `X` / `E`）・差し戻し（`U`）・役割別委譲レベル変更（`1`〜`4`）・総停止（`Ctrl+Shift+X`）は `REF:src/ui/workspaces/agent.rs` と `REF:src/app/agents.rs` に実装する。
 
 - **[F-19 / S-01] `mcp.json` 編集モーダルへの移行と起票時の「例」指定 UI（実装完了: `REF:docs/plans.md#plan-F-19`, `REF:docs/plans.md#plan-S-01`）**:
   - `REF:src/ui/workspaces/agent.rs` と `REF:src/ui/app.rs` に `agents/mcp.json` 編集モーダル呼び出し（F-19）およびタスク起票時の参考例範囲入力欄（S-01）を追加する。

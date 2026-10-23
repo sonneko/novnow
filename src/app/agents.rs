@@ -8,6 +8,8 @@
 //! - 書き込みは `Workbench::replace_document`（§8 の保存に乗る）、監査ログは `Host::append`（追記だけ）。
 //! - 失敗したタスクは `ready` に戻し、自動再試行しない。完了でポップアップを出さない（§15.7.5 (4)）。
 
+use crate::app::host::Host;
+use crate::app::workbench::Workbench;
 use crate::core::agents::files::{self, Board};
 use crate::core::agents::mcp_config::{McpConfig, ServerConfig};
 use crate::core::agents::runner::{self, Blocker, Reply};
@@ -17,9 +19,7 @@ use crate::core::id::SceneId;
 use crate::core::model::delegation::Delegation;
 use crate::core::model::project::PROJECT_FILE;
 use crate::ports::mcp::{McpCall, McpError, McpReply, McpServer, DEFAULT_TIMEOUT_MS};
-use crate::ui::app::Host;
 use crate::ui::i18n::{self, Locale};
-use crate::ui::workbench::Workbench;
 
 /// MCP の呼び出し 1 回（`Host::mcp_start` に渡す）。
 #[derive(Debug, Clone, PartialEq)]

@@ -26,12 +26,12 @@
 
 ### 4.4 `.novnow/`（ローカル状態）
 
-状態: 実装完了（REF:src/ui/settings.rs, REF:src/ui/widgets/section_editor.rs, REF:src/ui/widgets/context_view.rs, REF:tests/gui.rs）
+状態: 実装完了（REF:src/app/settings.rs, REF:src/ui/widgets/section_editor.rs, REF:src/ui/widgets/context_view.rs, REF:tests/gui.rs）
 
-- `.novnow/ui.json` の読み書きと未知キー温存・数値範囲のクランプ（`font_scale`, `main_ref_ratio`, `context_editor_ratio`, `autosave_ms`）は `ui::settings::UiSettings`（`REF:src/ui/settings.rs`）が担う（検証: `REF:tests/gui.rs`）。
+- `.novnow/ui.json` の読み書きと未知キー温存・数値範囲のクランプ（`font_scale`, `main_ref_ratio`, `context_editor_ratio`, `autosave_ms`）は `ui::settings::UiSettings`（`REF:src/app/settings.rs`）が担う（検証: `REF:tests/gui.rs`）。
 
 - **[S-18] 本文最大行幅設定 `max_line_chars`（実装完了: `REF:docs/plans.md#plan-S-18`）**:
-  - `REF:src/ui/settings.rs` の `UiSettings` 構造体に `pub max_line_chars: Option<usize>` を追加し、`clamp` 時に `20..=120` に丸める。
+  - `REF:src/app/settings.rs` の `UiSettings` 構造体に `pub max_line_chars: Option<usize>` を追加し、`clamp` 時に `20..=120` に丸める。
   - 実効幅取得メソッド `line_chars(english: bool) -> usize` を設け、未設定時は `Locale::Ja => 44`、`Locale::En => 70` を返す。
 
 ### 4.5 `project.json` スキーマ（v1）

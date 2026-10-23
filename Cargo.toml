@@ -1,3 +1,11 @@
+[workspace]
+# 既定はこのクレートだけ（`cargo build` / `cargo test` が Python 拡張を巻き込まない）。
+default-members = ["."]
+# Python 拡張（REF:python/novnow-py）は pyo3 系の vendoring が済むまで解決から外す
+# （REF:docs/add-dependencies.md §2.2、対象一覧は REF:docs/plans.md §5.5）。
+# vendoring 後は exclude を外して member にする。
+exclude = ["python/novnow-py"]
+
 [package]
 name = "novnow"
 version = "0.1.0"

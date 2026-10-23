@@ -16,6 +16,7 @@
 #   BUILD_DIR  展開先。既定は $HOME/build。**スナップショット対象外**なので、サンドボックスが
 #              再作成されたら消える（＝このスクリプトをもう一度回す）。
 #   BRANCH     取り出し元の孤立ブランチ。既定 cache/rust-toolchain。
+#   PYO3_BRANCH pyo3 vendor の孤立ブランチ。既定 cache/pyo3-crates（無ければ警告して続く）。
 #   REPO       owner/name。既定は origin のリモート URL から推定。
 #   FORCE      1 で展開済みでも取り直す。
 #   SMOKE      1 で展開後にリポジトリのテストを回す（コールドビルド込みで約 2 分）。
@@ -39,7 +40,8 @@ done
 if [ -z "${FORCE:-}" ] && [ -x "$BUILD_DIR/sysroot/bin/rustc" ]; then
     if PATH="$BUILD_DIR/sysroot/bin:$PATH" rustc --version >/dev/null 2>&1; then
         if [ -f "$BUILD_DIR/env.sh" ] && [ -f "$BUILD_DIR/cargo-home/config.toml" ] \
-            && [ -d "$BUILD_DIR/vendor-src/criterion" ] && [ -d "$BUILD_DIR/vendor-src/tiniestsegmenter" ]; then
+            && [ -d "$BUILD_DIR/vendor-src/criterion" ] && [ -d "$BUILD_DIR/vendor-src/tiniestsegmenter" ] \
+            && [ -d "$BUILD_DIR/vendor-src/pyo3" ]; then
             say "すでにある: $BUILD_DIR（$(PATH="$BUILD_DIR/sysroot/bin:$PATH" rustc --version)）"
             echo "    使うときは次を各コマンドの前に置く: . $BUILD_DIR/env.sh"
             exit 0
@@ -182,6 +184,65 @@ if [ ! -d "$BUILD_DIR/vendor-src/tiniestsegmenter" ]; then
         557df849c79f8087211ee5f18c335ca69f6a6a501a2aa088fd209b0947578aaa \
         japanese-crates.tar.gz
 fi
+
+# --- pyo3（§19.3 Python API。`python/novnow-py` のビルドに要る）-----------------
+# `python/novnow-py` は root の workspace から外してあるので、pyo3 系だけ別の vendor
+# （孤立ブランチ cache/pyo3-crates。`REF:.github/workflows/sandbox-tools.yml` の
+# `pyo3-crates` ジョブが作る）から取り出して、同じ $BUILD_DIR/vendor-src へ合わせる。
+# ブランチが無い（＝まだ harvest を走らせていない）ときは**警告だけ**して続ける:
+# 本体のビルドには pyo3 が要らない。
+PYO3_BRANCH="${PYO3_BRANCH:-cache/pyo3-crates}"
+install_pyo3_vendor() {
+    if [ -d "$BUILD_DIR/vendor-src/pyo3" ]; then
+        say "pyo3 vendor はすでにある: $BUILD_DIR/vendor-src/pyo3"
+        return 0
+    fi
+    say "pyo3 vendor を取り出す: https://codeload.github.com/$REPO/tar.gz/refs/heads/$PYO3_BRANCH"
+    local tmp="$BUILD_DIR/pyo3-fetch"
+    rm -rf "$tmp"; mkdir -p "$tmp"
+    if ! curl -fsSL -H "Authorization: Bearer $TOKEN" -o "$tmp/src.tgz" \
+        "https://codeload.github.com/$REPO/tar.gz/refs/heads/$PYO3_BRANCH"; then
+        printf '\033[1;33mwarning:\033[0m %s\n' \
+            "ブランチ $PYO3_BRANCH が無い。python/novnow-py はビルドできません。" >&2
+        printf '\033[1;33mwarning:\033[0m %s\n' \
+            "用意するには GitHub Actions の sandbox-tools を workflow_dispatch で回すこと" \
+            "（.github/workflows/sandbox-tools.yml の pyo3-crates ジョブ）。" >&2
+        rm -rf "$tmp"
+        return 0
+    fi
+    tar xzf "$tmp/src.tgz" -C "$tmp"
+    local work
+    work="$(find "$tmp" -maxdepth 1 -type d -name 'novnow-*' | head -1)"
+    [ -n "$work" ] || die "pyo3 vendor の tarball の中に展開先ディレクトリが見つからない"
+    ( cd "$work" && sha256sum -c SHA256SUMS ) || die "pyo3 vendor の sha256 が合わない"
+    say "pyo3 vendor を $BUILD_DIR/vendor-src へ合わせる（$(cat "$work/PYO3_VERSION")）"
+    BUILD_DIR="$BUILD_DIR" python3 - "$work/pyo3-crates.tar.gz" <<'PYEOF'
+import os
+import sys
+import tarfile
+
+build_dir = os.environ["BUILD_DIR"]
+target = os.path.join(build_dir, "vendor-src")
+staging = os.path.join(build_dir, "pyo3-src")
+os.makedirs(target, exist_ok=True)
+with tarfile.open(sys.argv[1]) as archive:
+    archive.extractall(staging)
+added, skipped = [], []
+for name in sorted(os.listdir(staging)):
+    source = os.path.join(staging, name)
+    if not os.path.isdir(source):
+        continue
+    if os.path.exists(os.path.join(target, name)):
+        skipped.append(name)
+        continue
+    os.rename(source, os.path.join(target, name))
+    added.append(name)
+print("    追加 %d: %s" % (len(added), " ".join(added) or "(なし)"))
+print("    既存 %d: %s" % (len(skipped), " ".join(skipped) or "(なし)"))
+PYEOF
+    rm -rf "$tmp"
+}
+install_pyo3_vendor
 
 bash "$ROOT/scripts/bootstrap-jpeg.sh"
 

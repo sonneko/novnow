@@ -260,7 +260,7 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 
 ### [HIST:MILESTONE:M7] 2026-04-21 M7 共通シェル・`write` ワークスペース・保存状態機械・IME（PR #9）
 [HIST-TAG: category=MILESTONE id=M7 topics=ui,shell,workbench,save_machine,ime,theme,PR-9]
-- 共通シェル（`REF:src/ui/app.rs`）、文脈ビュー、節エディタ、参照ペイン、統一パレット、保存状態機械（`REF:src/ui/save_machine.rs`）、IME 状態機械（`REF:src/ui/shell.rs`）、Dark/Light テーマ（`REF:src/ui/theme.rs`）を実装。
+- 共通シェル（`REF:src/ui/app.rs`）、文脈ビュー、節エディタ、参照ペイン、統一パレット、保存状態機械（`REF:src/app/save_machine.rs`）、IME 状態機械（`REF:src/ui/shell.rs`）、Dark/Light テーマ（`REF:src/ui/theme.rs`）を実装。
 
 ### [HIST:MILESTONE:M8] 2026-04-21 M8 残り 7 ワークスペースと人間用提案モード（PR #10, PR #11）
 [HIST-TAG: category=MILESTONE id=M8 topics=workspaces,plot,idea,material,cast,agent,review,proposals,PR-10,PR-11]
@@ -272,7 +272,7 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 
 ### [HIST:MILESTONE:M10] 2026-04-22 M10 エージェント実接続・ドライラン・提案差分レビュー（PR #11, PR #12）
 [HIST-TAG: category=MILESTONE id=M10 topics=agents_ui,mcp_stdio,diff_review,PR-11,PR-12]
-- `agent` ワークスペースからの非同期タスク実行・ドライラン・節単位採否レビュー・MCP サーバ死活監視（`REF:src/ui/agents.rs`）を接続。
+- `agent` ワークスペースからの非同期タスク実行・ドライラン・節単位採否レビュー・MCP サーバ死活監視（`REF:src/app/agents.rs`）を接続。
 
 ### [HIST:MILESTONE:M11] 2026-10-14 M11 性能ベンチマーク・サンプル v1 化・v0 撤去・ドキュメント再編（PR #16）
 [HIST-TAG: category=MILESTONE id=M11 topics=benchmarks,criterion,sample_project,v0_removal,docs_reorg,PR-16]
@@ -1744,3 +1744,32 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - `REF:docs/handoff.md` と `REF:docs/plans.md` の共有表を一意にし、11 文書対・134 節（完了126 / 計画済み8）に揃えた。固定の文書管理規則と段階③の H1〜H7 は保持した。
 - `REF:docs/script/duplicate.py` に共有表の区分重複・集計行単独一致・設計書数の検査を追加し、再発ケースを `REF:docs/script/test_duplicate.py` に固定した。
 - 段階②の GUI 提供と、段階③の API 提供を区別した。操作 ID の追加を無承認で決めず、統合後のカタログ追補を `REF:docs/plans.md#stage-3` の H1 前提作業として明示した。
+
+---
+
+### [HIST:MILESTONE:STAGE-3] 2026-10-22 段階 ③（§19 外部インターフェース）の実装
+
+[HIST-TAG: category=MILESTONE id=STAGE-3 topics=interfaces,rust-api,python,lsp,mcp,cli,parity]
+
+- **単一実装点（§19.1.2）**: 5 つの口（Rust API・Python・LSP・MCP・CLI）がすべて
+  `src/app/ops` の正規操作カタログ（119 件）を呼ぶ形になった。口ごとの再実装は無い。
+- **H1**（app 層の分離）・**H2**（Rust API `Session` / `OPS` 表）・**H4**（MCP を 14 ツールから
+  カタログ全件へ）・**H5**（`src/lsp/` 5 モジュール + `novnow lsp`）・**H3**（CLI のドメイン動詞
+  文法 + `--json` 封筒）・**H7**（`tests/api_parity.rs`・ゴールデン・ウェブサイトの API
+  リファレンス）・**H6**（`python/novnow-py` + 5 構成の wheel CI）。
+- **パリティ検査が見つけた実装のずれ**（`tests/api_parity.rs`）: `project.new` の `L—`・`M—` の
+  宣言漏れ、`project.recent_list` / `project.recent_remove` の状態性宣言漏れ。修正し、
+  拒否の判定を**例外列基準**へ改めた（`C—` の無い操作は CLI でも動く。§19.7 どおり）。
+- **§19.3.4 の GIL 解放**: `novnow::app::Session` は `Send` にできない。Web の `WebHost` が
+  `Rc<RefCell<..>>` を持つので `Host: Send` を supertrait にできない（wasm ビルドが壊れる）。
+  そこで `Session` を待機区間へ持ち込むのではなく、ワーカースレッド 1 本に所有させる
+  `REF:src/app/driver.rs` を挟んだ。`Driver` は `Send`（1 通も応答も `Send` だけ）なので
+  `Python::allow_threads` が包め、ワーカーが 1 通ずつ処理するので同時呼び出しは直列実行になる。
+  設計書 §19.3 の「pyo3 の借用規則で直列化」は「`Mutex<Driver>` + ワーカースレッド 1 本」で
+  満たしている（§19.3.4 の 2 つの MUST はどちらも成立）。設計書の語句の修正は人間の承認待ち。
+- **未検証（意図的）**: pyo3 系の vendoring（`REF:docs/add-dependencies.md` §2.2）が未了で
+  crates.io にも到達できないため、Python 拡張のビルドと pytest は実行していない。CI の
+  `REF:.github/workflows/wheels.yml` が初回の検証になる。
+- 検証: `bash scripts/verify.sh` すべて緑（1339 passed / 0 failed、62 ターゲット）。
+  `REF:tests/api_driver.rs`（9 件）が `Driver: Send`・直列化・イベント配送・待機区間をまたぐ
+  全型の `Send` を実ディレクトリで確かめる。

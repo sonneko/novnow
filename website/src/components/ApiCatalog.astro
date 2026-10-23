@@ -1,0 +1,70 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Header from "./Header.astro";
+import Footer from "./Footer.astro";
+import { operations } from "../data/api";
+
+const { lang } = Astro.props as { lang: "ja" | "en" };
+const japanese = lang === "ja";
+const domains = [...new Set(operations.map((operation) => operation.domain))];
+---
+<BaseLayout title={japanese ? "API リファレンス" : "API reference"} lang={lang}>
+  <Header lang={lang} currentPath={`/${lang}/api`} />
+  <main class="container" style="max-width: 960px; margin: 3rem auto 5rem;">
+    <h1>{japanese ? "API リファレンス" : "API reference"}</h1>
+    <p>
+      {japanese
+        ? "novnow の機能は 119 の正規操作（canonical operation）に整理されていて、Rust API・Python・LSP・MCP・CLI の 5 つの口から同じ実装を呼び出せます。この表は仕様書 §19.7 の写しで、CI が実装と突き合わせています。"
+        : "Every novnow feature is a canonical operation. Five interfaces — Rust, Python, LSP, MCP and the CLI — call the same implementation. This table mirrors §19.7 of the specification and CI checks it against the code."}
+    </p>
+    <h2>{japanese ? "呼び出し方" : "Calling an operation"}</h2>
+    <pre><code>{`# CLI（§19.6）
+novnow section list novel --json
+novnow api list --json
+
+# Rust（§19.2）
+let mut session = Session::open("novel")?;
+let data = session.run("section.list", json!({}))?;
+
+# Python（§19.3）
+with novnow.open("novel") as session:
+    data = session.run("section.list")
+
+# MCP（§19.5）
+tools/call { "name": "novnow.section.list", "arguments": {} }`}</code></pre>
+    <nav aria-label={japanese ? "ドメイン" : "Domains"} style="display:flex;gap:.6rem;flex-wrap:wrap;margin:2rem 0;">
+      {domains.map((domain) => <a href={`#${domain}`}>{domain}</a>)}
+    </nav>
+    {domains.map((domain) => (
+      <section id={domain} style="scroll-margin-top:6rem;border-top:1px solid var(--border-color);padding:1.5rem 0;">
+        <h2><code>{domain}</code></h2>
+        <table style="width:100%;border-collapse:collapse;font-size:.95rem;">
+          <thead>
+            <tr style="text-align:left;border-bottom:1px solid var(--border-color);">
+              <th style="padding:.4rem;">{japanese ? "操作" : "Operation"}</th>
+              <th style="padding:.4rem;">{japanese ? "説明" : "Description"}</th>
+              <th style="padding:.4rem;">{japanese ? "LSP 標準メソッド" : "LSP method"}</th>
+              <th style="padding:.4rem;">{japanese ? "例外" : "Exceptions"}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {operations.filter((operation) => operation.domain === domain).map((operation) => (
+              <tr style="border-bottom:1px solid var(--border-color);">
+                <td style="padding:.4rem;"><code>{operation.id}</code></td>
+                <td style="padding:.4rem;">{japanese ? operation.ja : operation.en}</td>
+                <td style="padding:.4rem;"><code>{operation.lsp || "—"}</code></td>
+                <td style="padding:.4rem;">{operation.exceptions || "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+    ))}
+    <p style="margin-top:2rem;">
+      {japanese
+        ? "例外列の印: `R—` Rust API、`P—` Python、`L—` LSP、`M—` MCP、`C—` CLI で提供しない。`M 門番` は MCP からの書き込みに委譲レベル（role）が必要（§19.1.5）。"
+        : "Exception marks: `R—` Rust, `P—` Python, `L—` LSP, `M—` MCP, `C—` CLI do not offer the operation. `M 門番` means an MCP write needs a delegation role (§19.1.5)."}
+    </p>
+  </main>
+  <Footer lang={lang} />
+</BaseLayout>

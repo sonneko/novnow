@@ -180,6 +180,46 @@ def strip_sync_and_fences(text: str) -> list[tuple[int, str]]:
     return out
 
 
+MOD_REF_RE = re.compile(r"\bREF:([A-Za-z0-9_./-]+)/mod\.rs\b")
+BARE_RS_RE = re.compile(r"`([A-Za-z0-9_]+\.rs)`")
+
+
+def bare_module_files(text: str) -> list[tuple[int, str, list[str]]]:
+    """`REF:<dir>/mod.rs` を含む行に並ぶ素の `<file>.rs` を拾う。
+
+    返り値は (行番号, ファイル名, 候補ディレクトリ一覧)。同じ行に複数の `mod.rs` 参照が
+    あれば、そのどれかに実在すればよい（別ディレクトリの話を並べる行を誤検出しないため）。
+    """
+    found = []
+    for lineno, line in strip_sync_and_fences(text):
+        directories = sorted({m.group(1) for m in MOD_REF_RE.finditer(line)})
+        if not directories:
+            continue
+        for name in BARE_RS_RE.findall(line):
+            found.append((lineno, name, directories))
+    return found
+
+
+def validate_bare_module_files(text: str, exists, label: str = "") -> list[str]:
+    """`REF:` を付けないファイル名の言及が実在するかを検査する（rule-9）。
+
+    `REF:<path>` の形は rule-6 が検証するが、`REF:src/core/features/mod.rs` の後ろに
+    並ぶ `` `review.rs` `` のような**素のファイル名**は誰も見ない。そこで腐る
+    （実在しないファイルを挙げ続ける）ので、ここで実在を確かめる。
+
+    `exists(directory, name)` は判定関数（テストで差し替える）。
+    """
+    errors = []
+    prefix = f"[rule-9] {label}" if label else "[rule-9]"
+    for lineno, name, directories in bare_module_files(text):
+        if not any(exists(directory, name) for directory in directories):
+            errors.append(
+                f"{prefix}:{lineno} の `{name}` は "
+                f"{'・'.join(directory + '/' for directory in directories)} に存在しません"
+            )
+    return errors
+
+
 def main() -> int:
     errors: list[str] = []
 
@@ -321,6 +361,14 @@ def main() -> int:
                     errors.append(
                         f"[rule-6] {rel}:{lineno} に REF: プレフィックスを使わないローカルリンクがあります: {link}"
                     )
+        # 9. `REF:<dir>/mod.rs` の行に並ぶ素の `<file>.rs` が実在するか（rule-6 では見えない）
+        errors.extend(
+            validate_bare_module_files(
+                text,
+                lambda directory, name: (ROOT / directory / name).is_file(),
+                label=str(rel),
+            )
+        )
 
     # 7. docs/history.md の grep 検索構造検査
     hist_path = DOCS / "history.md"

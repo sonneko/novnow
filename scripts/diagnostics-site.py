@@ -10,8 +10,25 @@ SPEC = ROOT / "docs/specifications/diagnostics.md"
 OUT = ROOT / "website/src/data/diagnostics.ts"
 EN = ROOT / "website/src/data/diagnostics-en.json"
 EXAMPLES = ROOT / "website/src/data/diagnostics-examples.json"
+def read_text(target: Path) -> str:
+    """UTF-8 as text, without translating newlines.
+
+    `Path.read_text()` uses the locale encoding and universal newlines, so on
+    Windows it both mangles the Japanese text and silently absorbs CRLF -- which
+    makes `--check` accept a corrupted file (a false negative for drift).
+    """
+    with target.open("r", encoding="utf-8", newline="") as handle:
+        return handle.read()
+
+
+def write_text(target: Path, text: str) -> None:
+    """Write UTF-8 with LF endings, regardless of the OS default."""
+    with target.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(text)
+
+
 rows = []
-for line in SPEC.read_text().splitlines():
+for line in read_text(SPEC).splitlines():
     if not re.match(r'^\| [EWI]\d{3} \|', line):
         continue
     cells = [cell.strip().strip('`') for cell in line.strip('|').split(' | ')]
@@ -29,8 +46,8 @@ result += "export const diagnostics = " + json.dumps(rows, ensure_ascii=False, i
 if '--check' in sys.argv:
     # The English explanation is human-written, but its code coverage and both
     # non-empty fields must track the normative catalog just like the JA data.
-    english = json.loads(EN.read_text())
-    examples = json.loads(EXAMPLES.read_text())
+    english = json.loads(read_text(EN))
+    examples = json.loads(read_text(EXAMPLES))
     expected = {row['code'] for row in rows}
     if set(english) != expected or any(
         not isinstance(pair, list) or len(pair) != 2 or
@@ -44,7 +61,7 @@ if '--check' in sys.argv:
         for pair in examples.values()
     ):
         raise SystemExit(f"{EXAMPLES.relative_to(ROOT)} must illustrate all diagnostic codes in both languages")
-    if not OUT.exists() or OUT.read_text() != result:
+    if not OUT.exists() or read_text(OUT) != result:
         raise SystemExit(f"{OUT.relative_to(ROOT)} is out of sync; run python3 scripts/diagnostics-site.py")
 else:
-    OUT.write_text(result)
+    write_text(OUT, result)

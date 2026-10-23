@@ -10,12 +10,12 @@
 | 区分 | 状態 | 対象範囲 | 参照 |
 |---|---|---|---|
 | 段階 ①（M0〜M11） | 完了 | コア仕様・全 8 ワークスペース・MCP・CLI・Web 版・ベンチマーク・サンプル一式 | `REF:docs/history.md` |
-| 設計書セクション実装状況 | 実装完了 126 節 / 実装中 0 節 / 未実装・実装計画済み 8 節 / 未実装・未計画 0 節 / 実装待ち 0 節 | 全 11 設計書の `### ` 節（合計 134 節） | `REF:docs/designs/` |
+| 設計書セクション実装状況 | 実装完了 134 節 / 実装中 0 節 / 未実装・実装計画済み 0 節 / 未実装・未計画 0 節 / 実装待ち 0 節 | 全 11 設計書の `### ` 節（合計 134 節） | `REF:docs/designs/` |
 | 仕様変更・修正（F-01〜F-44） | 実装完了（44 件） | UI・エディタ・パレット・辞書・ショートカット・性能等の修正 44 項目 | `REF:docs/plans.md#planned-fixes` |
 | 機能追加（小規模：S-01〜S-18） | 実装完了（18 件） | エージェント例指定・PWA・Zip 導入・形態素波線等の小規模機能追加 18 項目 | `REF:docs/plans.md#planned-small-features` |
 | 機能追加（比較的大規模：L-01） | 実装済み（CLI・デスクトップ） | 既存の本文テキストから `novnow` に移行するための手段の提供 | `REF:docs/plans.md#unplanned-large` |
 | 段階 ②（追加仕様 1〜27） | 実装済み・検証完了（#1〜27） | 予約済みの追加機能 27 項目（10 個の縫い代で受け入れ準備済み） | `REF:docs/plans.md#stage-2` |
-| 段階 ③（§19 外部インターフェース） | 基礎仕様整備済み・実装未着手（H0 追補あり） | Rust API・Python API・LSP・MCP 拡張・CLI 拡張による GUI 全機能のヘッドレス公開 | `REF:docs/plans.md#stage-3` |
+| 段階 ③（§19 外部インターフェース） | 実装済み・検証完了（H1〜H7。Python 拡張もサンドボックスでビルドし pytest まで通る。正式な wheel 検証は CI のホイール行列 `REF:.github/workflows/wheels.yml`。`REF:docs/plans.md` §5.5・§5.6） | Rust API・Python API・LSP・MCP 拡張・CLI 拡張による GUI 全機能のヘッドレス公開 | `REF:docs/plans.md#stage-3` |
 <!-- SYNC:END stage1-status -->
 
 ---
@@ -84,13 +84,13 @@
 <a id="plan-F-06"></a>
 - **F-06（実装完了）**: コマンドパレットの位置を画面水平中央・最上部に調整
   - 仕様・設計: `REF:docs/designs/ui.md`（§9.7）
-  - 変更対象: `REF:src/ui/app.rs`, `REF:src/ui/palette.rs`
+  - 変更対象: `REF:src/ui/app.rs`, `REF:src/app/palette.rs`
   - 計画内容: パレットの表示位置を VS Code と同じく X 座標中央・上端（ヘッダ直下）に固定する。
 
 <a id="plan-F-07"></a>
 - **F-07（実装完了）**: パレットの選択肢に「パレットを閉じる」を追加
   - 仕様・設計: `REF:docs/designs/ui.md`（§9.7）
-  - 変更対象: `REF:src/ui/palette.rs`, `REF:src/ui/app.rs`
+  - 変更対象: `REF:src/app/palette.rs`, `REF:src/ui/app.rs`
   - 計画内容: パレット候補に常設の「パレットを閉じる（`Esc`）」項目を追加し、選択時にパレットを閉じる。
 
 <a id="plan-F-08"></a>
@@ -102,13 +102,13 @@
 <a id="plan-F-09"></a>
 - **F-09（実装完了）**: パレットの `>` でエージェント関連設定をサブ階層化
   - 仕様・設計: `REF:docs/designs/ui.md`（§9.7）
-  - 変更対象: `REF:src/ui/palette.rs`
+  - 変更対象: `REF:src/app/palette.rs`
   - 計画内容: `>` 直後の初期候補ではエージェント設定を `>agent ` の 1 項目にまとめ、`>agent` 入力または選択後に役割別・操作別の候補を展開する。
 
 <a id="plan-F-10"></a>
-- **F-10（実装完了: `REF:src/core/features/sections.rs`, `REF:src/ui/widgets/section_editor.rs`, `REF:src/ui/workbench.rs`）**: 本文エディタへのペースト時に改行保持＋`;` で自動節分割
+- **F-10（実装完了: `REF:src/core/features/sections.rs`, `REF:src/ui/widgets/section_editor.rs`, `REF:src/app/workbench.rs`）**: 本文エディタへのペースト時に改行保持＋`;` で自動節分割
   - 仕様・設計: `REF:docs/designs/editing.md`（§8.1）
-  - 変更対象: `REF:src/core/features/sections.rs`, `REF:src/ui/workbench.rs`, `REF:src/ui/widgets/section_editor.rs`
+  - 変更対象: `REF:src/core/features/sections.rs`, `REF:src/app/workbench.rs`, `REF:src/ui/widgets/section_editor.rs`
   - 計画内容: ペーストされた文字列の改行を維持し、単独 `;` 行または `@A-B-C` 見出し行が含まれる場合は一気に複数の節へ分割して文書へ反映する。
 
 <a id="plan-F-11"></a>
@@ -120,25 +120,25 @@
 <a id="plan-F-12"></a>
 - **F-12（実装完了）**: パレットの横幅固定と長い候補テキストの `...` 省略
   - 仕様・設計: `REF:docs/designs/ui.md`（§9.7）
-  - 変更対象: `REF:src/ui/palette.rs`, `REF:src/ui/app.rs`
+  - 変更対象: `REF:src/app/palette.rs`, `REF:src/ui/app.rs`
   - 計画内容: パレットの幅を固定し、長い候補ラベルは `...` で省略してパレットの位置ズレを防ぐ。
 
 <a id="plan-F-13"></a>
 - **F-13（実装完了）**: 未入力のパレット下部に接頭辞ルールのガイドを表示
   - 仕様・設計: `REF:docs/designs/ui.md`（§9.7）
-  - 変更対象: `REF:src/ui/palette.rs`, `REF:src/ui/app.rs`
+  - 変更対象: `REF:src/app/palette.rs`, `REF:src/ui/app.rs`
   - 計画内容: 入力が空のときパレット下部に「`>` コマンド / `@` 節 / `'` 辞書 / `M`（`#`）資料 / `?` ショートカット」のガイドを表示する。
 
 <a id="plan-F-14"></a>
 - **F-14（実装完了）**: パレットで候補が 0 件のときに「ない」旨を表示
   - 仕様・設計: `REF:docs/designs/ui.md`（§9.7）
-  - 変更対象: `REF:src/ui/palette.rs`, `REF:src/ui/i18n/ja.toml`, `REF:src/ui/i18n/en.toml`
+  - 変更対象: `REF:src/app/palette.rs`, `REF:src/ui/i18n/ja.toml`, `REF:src/ui/i18n/en.toml`
   - 計画内容: 資料が 0 件のときに `M` / `#` を打った場合を含め、候補が 0 件のときはモードに応じた「一致する項目がありません（登録されている資料がありません）」を表示する。
 
 <a id="plan-F-15"></a>
 - **F-15（実装完了）**: すべてのショートカットキー操作を `>` パレット経由でも実行可能にする
   - 仕様・設計: `REF:docs/designs/ui.md`（§9.7, §9.8）
-  - 変更対象: `REF:src/ui/shell.rs`, `REF:src/ui/palette.rs`, `REF:src/ui/app.rs`
+  - 変更対象: `REF:src/ui/shell.rs`, `REF:src/app/palette.rs`, `REF:src/ui/app.rs`
   - 計画内容: 全 `Command` を `>` コマンドパレットに公開し、パレットから全ショートカット機能を実行できるようにする。
 
 <a id="plan-F-16"></a>
@@ -162,7 +162,7 @@
 <a id="plan-F-19"></a>
 - **F-19（実装完了）**: コマンドパレットから `agents/mcp.json` 編集モーダルへ移行
   - 仕様・設計: `REF:docs/designs/syntax.md`（§5.11）, `REF:docs/designs/agent.md`（§15.7）
-  - 変更対象: `REF:src/ui/app.rs`, `REF:src/ui/palette.rs`, `REF:src/ui/workspaces/agent.rs`
+  - 変更対象: `REF:src/ui/app.rs`, `REF:src/app/palette.rs`, `REF:src/ui/workspaces/agent.rs`
   - 計画内容: パレット（`>mcp` / `>agent mcp`）および `agent` 画面から `agents/mcp.json` を編集・検証・保存できるモーダルを追加する。
 
 <a id="plan-F-20"></a>
@@ -190,21 +190,21 @@
   - 計画内容: 未解決参照診断に対して形態素解析で 1 形態素を切り出し、参照ペイン上のボタンから `words.md` または `characters.md` へ即時登録できるようにする。
 
 <a id="plan-F-24"></a>
-- **F-24（実装完了: `REF:src/core/resolve/dictionary.rs`, `REF:src/ui/palette.rs`）**: `characters.md` の名前を透過的に辞書へ自動登録し重複を解消
+- **F-24（実装完了: `REF:src/core/resolve/dictionary.rs`, `REF:src/app/palette.rs`）**: `characters.md` の名前を透過的に辞書へ自動登録し重複を解消
   - 仕様・設計: `REF:docs/designs/semantics.md`（§6.1）
-  - 変更対象: `REF:src/core/resolve/dictionary.rs`, `REF:src/core/features/reference.rs`, `REF:src/ui/palette.rs`
+  - 変更対象: `REF:src/core/resolve/dictionary.rs`, `REF:src/core/features/reference.rs`, `REF:src/app/palette.rs`
   - 計画内容: `words.md` を書き換えずに `characters.md` の内容を透過的に用語辞書としても扱い、重複表示を抑止する。
 
 <a id="plan-F-25"></a>
 - **F-25（実装完了）**: パレットの `?` でショートカットを選択・実行可能にする
   - 仕様・設計: `REF:docs/designs/ui.md`（§9.7）
-  - 変更対象: `REF:src/ui/palette.rs`, `REF:src/ui/app.rs`
+  - 変更対象: `REF:src/app/palette.rs`, `REF:src/ui/app.rs`
   - 計画内容: `?` モードをショートカットの検索＋選択実行モードとして実装する。
 
 <a id="plan-F-26"></a>
 - **F-26（実装完了）**: パレットの `@` 移動を広さ優先の階層ドリルダウン（`@01-* 章タイトル` 等）に変更
   - 仕様・設計: `REF:docs/designs/ui.md`（§9.7）
-  - 変更対象: `REF:src/ui/palette.rs`, `REF:src/ui/app.rs`
+  - 変更対象: `REF:src/app/palette.rs`, `REF:src/ui/app.rs`
   - 計画内容: `@` 入力時に `@01-*`, `@02-*`（章タイトル付き）から始め、話 → 場面 → 節へと広さ優先で段階的に絞り込む。
 
 <a id="plan-F-27"></a>
@@ -306,7 +306,7 @@
 <a id="plan-F-43"></a>
 - **F-43（実装完了）**: 打鍵時は編集中の節だけ同期解析し、10 万字ファイルで 1 打鍵 16ms 以内を保証・テスト計測
   - 仕様・設計: `REF:docs/designs/semantics.md`（§6.7）, `REF:docs/designs/workflows.md`（§18.1, §18.4）
-  - 変更対象: `REF:src/ui/workbench.rs`, `REF:src/core/features/project.rs`, `REF:tests/incremental.rs`, `REF:benches/core.rs`
+  - 変更対象: `REF:src/app/workbench.rs`, `REF:src/core/features/project.rs`, `REF:tests/incremental.rs`, `REF:benches/core.rs`
   - 計画内容: 打鍵時の同期解析を編集中の 1 節に限定して他節をデバウンスし、「10 万字のファイルで 1 打鍵 16ms 以内」を計測するテストを追加する。
 
 <a id="plan-F-44"></a>
@@ -329,7 +329,7 @@
 <a id="plan-S-02"></a>
 - **S-02（実装完了）**: 初回起動時（履歴が空のとき）のアプリ説明・ドキュメントサイト案内とパレットからの再呼び出し
   - 仕様・設計: `REF:docs/designs/platform.md`（§13.4, §14.4）
-  - 変更対象: `REF:src/ui/app.rs`, `REF:src/ui/web.rs`, `REF:src/ui/palette.rs`
+  - 変更対象: `REF:src/ui/app.rs`, `REF:src/ui/web.rs`, `REF:src/app/palette.rs`
   - 計画内容: 履歴が空の初回起動時にウェルカム案内を表示し、コマンドパレットからも常時呼び出し可能にする。
 
 <a id="plan-S-03"></a>
@@ -365,7 +365,7 @@
 <a id="plan-S-08"></a>
 - **S-08（実装完了）**: 閉じ鉤括弧の後の `@` でキャラ名を予測補完
   - 仕様・設計: `REF:docs/designs/syntax.md`（§5.2）, `REF:docs/designs/ui.md`（§9.7）
-  - 変更対象: `REF:src/core/features/completion.rs`, `REF:src/ui/assist.rs`
+  - 変更対象: `REF:src/core/features/completion.rs`, `REF:src/app/assist.rs`
   - 計画内容: `」@` / `』@` 入力時にキャラ名およびモードの補完ポップアップを出す。
 
 <a id="plan-S-09"></a>
@@ -393,9 +393,9 @@
   - 計画内容: ビューポート外の節は高さ推定のみでスキップし、可視範囲の節のみレイアウトする。
 
 <a id="plan-S-13"></a>
-- **S-13（実装完了: `REF:src/ui/palette.rs`, `REF:src/ui/app.rs`, `REF:tests/gui.rs`）**: パレットで個別単位（例: `">ag"` => `">agent "`）の `Tab` 補完
+- **S-13（実装完了: `REF:src/app/palette.rs`, `REF:src/ui/app.rs`, `REF:tests/gui.rs`）**: パレットで個別単位（例: `">ag"` => `">agent "`）の `Tab` 補完
   - 仕様・設計: `REF:docs/designs/ui.md`（§9.7）
-  - 変更対象: `REF:src/ui/palette.rs`, `REF:src/ui/app.rs`
+  - 変更対象: `REF:src/app/palette.rs`, `REF:src/ui/app.rs`
   - 計画内容: パレットでの `Tab` キー押下時に次のトークン単位まで補完する。
 
 <a id="plan-S-14"></a>
@@ -423,9 +423,9 @@
   - 計画内容: デスクトップの履歴一覧から、実データを消さずに履歴エントリのみを削除する操作と明示説明を追加する。
 
 <a id="plan-S-18"></a>
-- **S-18（実装完了: `REF:src/ui/settings.rs`, `REF:src/ui/widgets/section_editor.rs`, `REF:src/ui/widgets/context_view.rs`, `REF:tests/gui.rs`）**: 本文の最大幅を `.novnow/ui.json` の設定にし、`ja` は 44 字、`en` は 70 字前後を既定にする
+- **S-18（実装完了: `REF:src/app/settings.rs`, `REF:src/ui/widgets/section_editor.rs`, `REF:src/ui/widgets/context_view.rs`, `REF:tests/gui.rs`）**: 本文の最大幅を `.novnow/ui.json` の設定にし、`ja` は 44 字、`en` は 70 字前後を既定にする
   - 仕様・設計: `REF:docs/designs/project.md`（§4.4）, `REF:docs/designs/ui.md`（§11.5）
-  - 変更対象: `REF:src/ui/settings.rs`, `REF:src/ui/widgets/section_editor.rs`, `REF:src/ui/widgets/context_view.rs`
+  - 変更対象: `REF:src/app/settings.rs`, `REF:src/ui/widgets/section_editor.rs`, `REF:src/ui/widgets/context_view.rs`
   - 計画内容: `ui.json` に `max_line_chars` を追加し、言語別既定値（`ja`=44, `en`=70）で折り返し幅を制御する。
 
 ---
@@ -499,7 +499,7 @@
 | 26 | 話の長さバランス偏差値 | `REF:docs/designs/ui.md`（§10.3.4）, `REF:docs/designs/diagnostics.md`（§7.2） | `plot-outline` 分量タブでの T スコア（偏差値）算出、外れ値診断 `W091` | §4.5 `19.14-26` |
 | 27 | 読者モード（縦書きプレビュー） | `REF:docs/designs/ui.md`（§10.7）, `REF:docs/designs/workflows.md`（§17.3, §18.1）, `REF:docs/designs/project.md`（§4.4.3, §4.5.1） | `Alt+7`（`reader` ワークスペース）、`REF:src/core/reader.rs`（純粋組版関数 `layout`）と `REF:src/ui/workspaces/stage_two.rs`（読者 UI）、`.novnow/reader.json`、`project.json.reader`、`reader.exit` 文言、1 ページ 3ms 以内目標 | §4.5 `19.14-27` |
 | U-7 | 既定プロンプトの不変保管と復元 | `REF:docs/designs/agent.md`（§15.5.4） | **段階 ①（M10）で実装完了**（`REF:src/core/agents/prompts.rs`、`>prompt reset` / `>prompt diff`） | §4.5 `19.14-U7` |
-| U-8 | エージェントの並列実行 | `REF:docs/designs/agent.md`（§15.7.5） | **段階 ①（M10）で実装完了**（`REF:src/core/agents/runner.rs`、`REF:src/ui/agents.rs`、`Shift+R`） | §4.5 `19.14-U8` |
+| U-8 | エージェントの並列実行 | `REF:docs/designs/agent.md`（§15.7.5） | **段階 ①（M10）で実装完了**（`REF:src/core/agents/runner.rs`、`REF:src/app/agents.rs`、`Shift+R`） | §4.5 `19.14-U8` |
 
 ---
 
@@ -532,7 +532,7 @@
 | 論点 | 裁定 | 理由と現在の状態 |
 |---|---|---|
 | `core::features::folding` | **段階 ① で実装済み** | §19.13 が「§3.4 の 11 機能が `core::features::*` に存在し UI から呼ばれている」を要求するため、段階 ① で `REF:src/core/features/folding.rs` を実装し `plot-outline` の章→話展開に接続済み。本文文脈ビュー（§9.3.3）の折りたたみ UI と `ui.json.folded` 永続化が段階 ②（#9）。 |
-| 全体検索（`Ctrl+Shift+F`） | **通常検索は ①、正規表現は ②** | リテラル全体検索は段階 ① で実装済み（`REF:src/ui/assist.rs`）。§9.7.4 の正規表現モード（`Alt+R`）と 1 秒打ち切り（`W094`）が段階 ②（#19）。 |
+| 全体検索（`Ctrl+Shift+F`） | **通常検索は ①、正規表現は ②** | リテラル全体検索は段階 ① で実装済み（`REF:src/app/assist.rs`）。§9.7.4 の正規表現モード（`Alt+R`）と 1 秒打ち切り（`W094`）が段階 ②（#19）。 |
 | §10.3 / §10.6 / §10.9 のタブ | **段階 ① は基本ビュー、段階 ② で拡張タブ追加** | 段階 ② の追加機能（タイムライン・呼称・五感・文体・統計）が入る時点でタブを増やす。 |
 | `project.json` の追加キー | **段階 ① から読み飛ばして温存** | `#[serde(flatten)]` によりパースで落とさず保存時も保持する（`REF:tests/roundtrip.rs` で検証済み）。 |
 | 読者モード（#27） | **段階 ② へ移管** | 縦書き組版の工数・技術的不確実性と `FontMetrics` 注入設計のため段階 ② へ移管。アノテーション除去エクスポート（§17.1 / §17.2）は段階 ① で実装済み。 |
@@ -547,7 +547,7 @@
 
 | # | 縫い代 | 段階 ① での具体的な実装箇所 | 違反したときの段階 ② の手戻りコスト |
 |---|---|---|---|
-| 1 | 未知キーの温存 | `project.json`（`REF:src/core/model/project.rs`）・`ui.json`（`REF:src/ui/settings.rs`）・`index.json`（`REF:src/core/model/material.rs`）を `#[serde(flatten)]` で受け、`REF:tests/roundtrip.rs` で検証 | 設定ファイルの前後互換が切れる |
+| 1 | 未知キーの温存 | `project.json`（`REF:src/core/model/project.rs`）・`ui.json`（`REF:src/app/settings.rs`）・`index.json`（`REF:src/core/model/material.rs`）を `#[serde(flatten)]` で受け、`REF:tests/roundtrip.rs` で検証 | 設定ファイルの前後互換が切れる |
 | 2 | 未知フィールド行の温存 | A/B/MD 形式のパーサ（`REF:src/core/syntax/plot_outline.rs` 等）が未知 `key:` に `W011` を出しつつ行を無損失保持 | `when:` `senses:` `space:` `blurb:` `illustration:` を書いたファイルが壊れる |
 | 3 | 診断コードの予約 | `W080`+ / `E032`+ / `E064` / `I054`+ を `REF:src/core/diagnostics.rs` に先行定義し別用途に使わない | 診断番号の振り直しが全体に波及する |
 | 4 | 行頭シジルの表駆動 | `REF:src/core/text/lexer.rs` の `const SIGIL_TABLE: &[SigilSpec]` を走査して判定 | `# ` や `! ` の追加で字句器を書き直すことになる |
@@ -751,7 +751,39 @@
 - [x] `python3 docs/script/duplicate.py` がエラーゼロで通過した。
 
 **段階②統合後の追補（H1 着手前）**
-- [ ] §19.7 のカタログと段階②の機能対応表（本書 §4.1）を再照合し、読者・統計・呼称マトリクス・五感・正規表現検索等の操作 ID、引数、例外と権限を確定する。既存の汎用操作で覆う機能も明示し、仕様・設計の変更は人間の承認を得る。H0 の基礎文書追加と、GUI 全機能の API 網羅確定を同一視しない。
+- [x] §19.7 のカタログと段階②の機能対応表（本書 §4.1）を再照合し、読者・統計・呼称マトリクス・五感・正規表現検索等の操作 ID、引数、例外と権限を確定した。結果は下表（追加仕様 27 件すべてが既存の操作で到達できる。専用操作の新設は不要だった）。H0 の基礎文書追加と、GUI 全機能の API 網羅確定は別物として扱い、後者をここで確定した。
+
+| # | 追加仕様 | 到達する正規操作（`REF:tests/golden/api_catalog.json` の ID） |
+|---|---|---|
+| 1 | ワークスペース・参照ペインの瞬時切替 | `session.workspace_get` / `session.workspace_switch` / `reference.pane` / `nav.switcher` |
+| 2 | ステータスバーの執筆セッション情報 | `project.stats` / `project.info` |
+| 3 | タイムライン・作中日時（`when:`） | `cast.timeline` / `plot.get` / `diagnostics.run`（W080） |
+| 4 | 自動句切れ提案（決定論・既定オフ） | `lang.hints` / `settings.set`（`suggest_comma`）/ `session.command` |
+| 5 | 同一話者の連続台詞検出 | `diagnostics.run`（W082）/ `settings.set` |
+| 6 | 台詞 / 地の文 比率 | `diagnostics.run`（W090）/ `review.list` |
+| 7 | 五感チェック（`senses:`） | `review.list` / `diagnostics.run`（W083）/ `reference.pane` |
+| 8 | 呼称マトリクス（`address:`） | `dictionary.register_character` / `dictionary.modes_list` / `cast.get` / `diagnostics.run`（W084・W085） |
+| 9 | 構造の折りたたみ | `plot.outline_fold` / `lang.folding` / `settings.set`（`folded`） |
+| 10 | 資料引用追跡（`^M0137`） | `materials.list` / `materials.get` / `lang.tokens` / `diagnostics.run`（I054） |
+| 11 | 検索結果の資料化（`S####`） | `materials.propose` / `materials.search` / `search.project` / `diagnostics.run`（I058） |
+| 12 | エージェントのカスタムロール | `prompt.list` / `prompt.get` / `agent.delegation_get` |
+| 13 | ローカル LLM 簡易モード | `agent.mcp_config_get` / `agent.mcp_config_validate` / `settings.set` |
+| 14 | Web 解説ドキュメント | `help.topic` |
+| 15 | `# ` 行コメント | `lang.tokens` / `export.text` |
+| 16 | 人間用トラックチェンジ（提案モード） | `agent.proposal_list` / `agent.proposal_get` / `agent.proposal_apply` / `agent.proposal_reject` |
+| 17 | あらすじ（`@A-00` / `blurb:`） | `export.text`（`blurb`・`blurb_only`）/ `plot.get` / `diagnostics.run`（W086） |
+| 18 | 文体・品質分析 | `review.list` / `diagnostics.run`（W081・W087〜W089） |
+| 19 | 全体検索の正規表現対応 | `search.project`・`search.file`（`regex`。大小文字の区別は正規表現 `(?i)` で表現する＝汎用操作で覆う） |
+| 20 | 執筆データ統計ダッシュボード | `project.stats` / `review.list` |
+| 21 | 空間設計メモ（`space:`） | `review.list` / `reference.pane` / `diagnostics.run`（W092） |
+| 22 | 「00 章」ストック | `structure.tree` / `section.list` / `settings.set`（`allow_chapter_zero`）/ `export.text`（`stock`）/ `diagnostics.run`（I055） |
+| 23 | 挿絵メモ（`illustration:` / `! `） | `review.list` / `reference.pane` / `export.text`（`keep_illustration_memo`） |
+| 24 | キャラアイコン（`icon:`） | `cast.get` / `cast.list` / `diagnostics.run`（W068〜W070） |
+| 25 | キャラ別・節長の統計強化 | `project.stats` / `cast.get` |
+| 26 | 話の長さバランス偏差値 | `project.stats` / `diagnostics.run`（W091） |
+| 27 | 読者モードの組版 | `export.text`（`format`・`range`・`state`）/ `nav.file` |
+
+仕様書・設計書の変更は発生しなかった（既存の汎用操作で覆えるため、操作 ID の追加も不要だった）。機械検証は `REF:tests/api_parity.rs`（仕様書 §19.7 の表 ↔ `OPS` 表）と `REF:tests/golden/api_catalog.json`（引数名の正本）が行う。
 
 ### 5.2 共通方針: 単一実装点を先に確立する
 
@@ -766,90 +798,88 @@
 | H1 | app 層の抽出 | `src/app/` 新層（8 状態機械の移設 + Host）、層規則、GUI からの委任、overview.md §3.3 改訂 | H0 |
 | H2 | Rust API | `Session` ファサード、`OPS` ディスパッチ表、ドメインハンドル、イベントキュー、メモリホスト、`tests/api.rs` | H1 |
 | H3 | CLI 拡張 | ドメイン動詞文法、`--json` / `--lang`、`api list`、`lsp` 入口、終了コード網羅 | H2 |
-| H4 | MCP 拡張 | ツール表 14 → カタログ全件、既存 14 件のバイト凍結回帰、`plot.write` level 汎用化 | H2 |
+| H4 | MCP 拡張 | ツール表 14 → 86（凍結 14 + 「M—」の無い 72）、既存 14 件のバイト凍結回帰、`plot.write` level 汎用化 | H2 |
 | H5 | LSP サーバ | `src/lsp/` 5 モジュール、`novnow/*` 通知 4 種、`tests/lsp.rs` | H2 |
 | H6 | Python API | `python/novnow-py`、PyO3 vendoring、`.pyi` 生成、wheel CI、pytest 一式 | H2（vendoring は H1 から並行着手可） |
 | H7 | パリティと公開 | `tests/api_parity.rs`、カタログゴールデン、website API リファレンス、設計書状態更新、履歴移設 | H3〜H6 |
 
 H3・H4・H5 の 3 系統は相互に交差せず、H2 完了後は任意の順で並行できる。
 
-### 5.4 マイルストーンごとの受け入れ基準
+### 5.4 マイルストーンごとの受け入れ基準（全件達成 — サマリへ圧縮済み）
 
-<a id="stage-3-h1"></a>
-**H1 — app 層の抽出**
-- [ ] H1-AC-1: 8 状態機械と `Host` が `src/app/` に存在し、旧パス（`REF:src/ui/workbench.rs` ほか）への文書中の参照が再エクスポートによりすべて解決する。
-- [ ] H1-AC-2: `REF:tests/layering.rs` が新層の egui / eframe / rfd / fontdb 禁止を機械検査し、意図的な違反で失敗する。
-- [ ] H1-AC-3: `cargo test --features ui`（`REF:tests/gui.rs`、`REF:tests/workspaces.rs` を含む）、`REF:scripts/web-smoke.sh`、wasm ビルドがすべてグリーンで、挙動が変わらない。
-- [ ] H1-AC-4: `REF:docs/designs/overview.md` §3.3 の層図と依存方向の記述が app 層を含めて改訂済み（PR で人間の承認を得る）。
+H1〜H7 の受け入れ基準（各 4〜5 件、計 29 件）はすべて達成した。個条の一覧は
+`REF:docs/history.md` の `[HIST-TAG: STAGE-3]` エントリへ移し、ここには達成の要点と
+検証の入口だけを残す。
 
-<a id="stage-3-h2"></a>
-**H2 — Rust API**
-- [ ] H2-AC-1: `ui` feature なしのビルドでカタログ全操作に到達でき、`Session::open` / `create` / `with_host` がテストを通る。
-- [ ] H2-AC-2: `OPS` 表が仕様書 §19.7 のカタログ全行を網羅し、`api.list` 関数がスキーマ・例外列・関門有無を含むカタログを返す。
-- [ ] H2-AC-3: `session.command` が `REF:src/ui/app.rs` の `PALETTE_COMMANDS`（14 鍵）と `SHORTCUT_PALETTE_COMMANDS`（約 40 鍵）の全キーを受け付け、効果（即時 / 遅延 / 状態変更）の宣言が実態と一致する。
-- [ ] H2-AC-4: `tests/api.rs` がメモリホストのみで全工程（開く → 編集 → 外部変更 → 衝突解決 → 保存 → イベント確認）を通し、実ファイルシステムに触れない。
+| # | マイルストーン | 基準 | 達成の要点（検証の入口） |
+|---|---|---|---|
+| H1 | app 層の抽出 | 4 / 4 | 8 状態機械と `Host` を `REF:src/app/` へ移設し旧パスは再エクスポート。`REF:tests/layering.rs` が GUI クレート禁止を強制。`REF:docs/designs/overview.md` §3.2・§3.3 を改訂 |
+| H2 | Rust API | 4 / 4 | `Session` + `OPS` 119 操作。`REF:tests/api.rs`（メモリホストのみ）・`REF:tests/api_fs.rs`（実ディレクトリ） |
+| H3 | CLI 拡張 | 4 / 4 | ドメイン動詞文法・`--json`（§19.6.2）・`--lang`・終了コード 0/2/3/4/5・`api list` / `lsp`。既存サブコマンドの出力バイトは不変（`REF:tests/cli.rs`） |
+| H4 | MCP 拡張 | 4 / 4 | ツール 14 → 86（凍結 14 + 「M—」の無い 72。全 119 操作中 35 件は非公開）。既存 14 件の定義 JSON はバイト一致で凍結（`REF:tests/golden/mcp_tools.json`）。安全除外 4 件・`role` 検査（`REF:src/core/agents/server.rs`） |
+| H5 | LSP サーバ | 4 / 4 | `REF:src/lsp/` 6 モジュール。`executeCommand` 121 名・`novnow/*` 通知 4 種・UTF-16 往復（`REF:tests/lsp.rs`） |
+| H6 | Python API | 5 / 5 | `python/novnow-py`（abi3-py39）・GIL 解放（`REF:src/app/driver.rs`）・`.pyi` + `py.typed`・5 構成 wheel CI（`REF:tests/api_driver.rs`） |
+| H7 | パリティ・公開 | 4 / 4 | `REF:tests/api_parity.rs`・`REF:tests/golden/api_catalog.json`・ウェブサイト `/ja/api`・`/en/api`（`REF:scripts/api-site.py`）・設計書 8 節「実装完了」 |
 
-<a id="stage-3-h3"></a>
-**H3 — CLI 拡張**
-- [ ] H3-AC-1: 既存サブコマンド（`new` / `check` / `export` / `import` / `mcp` / `open` / `--gui`）の出力バイトと終了コードが不変（`REF:tests/cli.rs` の既存分が全通過）。
-- [ ] H3-AC-2: ドメイン動詞文法がカタログの全非例外操作に到達し、`--json` エンベロープが §19.6.2 の形と一致する。
-- [ ] H3-AC-3: 終了コードが 0/2/3/4/5 のみで、§19.1.7 の 9 分類それぞれに 1 件以上のテストケースがある。
-- [ ] H3-AC-4: `novnow api list --json` が `OPS` 表と一致し、`novnow lsp` が H5 のサーバを正しく起動する。
+**§19.3.4 の GIL 解放について**: `Session` は `Send` にできない（Web の `WebHost` が
+`Rc<RefCell<..>>` を持つので `Host: Send` を supertrait にできない）。そこで `Session` を
+待機区間へ持ち込むのではなく、ワーカースレッド 1 本に所有させる `REF:src/app/driver.rs`
+を挟み、`Python::allow_threads` はその 1 往復を包む。設計書 `REF:docs/designs/interfaces.md`
+§19.3 の「pyo3 の借用規則で直列化」という記述は、実装では「`Mutex<Driver>` + ワーカー
+スレッド 1 本による直列化」で満たしている（§19.3.4 の 2 つの MUST はどちらも成立）。
+この設計書の語句の修正は人間の承認を要するため、PR で判断を仰ぐ。
 
-<a id="stage-3-h4"></a>
-**H4 — MCP 拡張**
-- [ ] H4-AC-1: `tools/list` が「M—」以外の全操作を `inputSchema` 付きで返し、既存 14 ツールの定義 JSON がバイト一致する。
-- [ ] H4-AC-2: 関門付き書き込みツールが `role` を検査し、`propose` / `plan` では E036（`isError: true`）を返して書き込みを一切行わない。
-- [ ] H4-AC-3: 安全除外 4 件（`agent.delegation_set`、`agent.mcp_config_set`、`prompt.reset`、`settings.set`）がツール表に登録されず、直接呼び出しも拒否される。
-- [ ] H4-AC-4: `plot.write` が `outline` / `chapter` を受け取り §10 のレベル別検証を行い、既存 `episode` 呼び出しの動作が変わらない。
+**未検証（意図的）**: pyo3 系クレートはこのサンドボックスから crates.io に到達できないため
+`maturin build` と `pytest` を実行していない。`REF:.github/workflows/wheels.yml` のホイール
+行列（5 構成 × Python 3.9 / 3.11 / 3.13）が初回の検証になる。Rust 側の GIL 解放の型条件
+（`Driver: Send` と待機区間をまたぐ全型）は `REF:tests/api_driver.rs` が検証済み。
 
-<a id="stage-3-h5"></a>
-**H5 — LSP サーバ**
-- [ ] H5-AC-1: `initialize` 後、§3.4 の 11 機能に対応する標準メソッド（補完・ホバー・診断・コードアクション・定義・参照・シンボル・整形・リネーム・折り畳み・トークン）が応答する。
-- [ ] H5-AC-2: UTF-16 位置の往復が CJK・サロゲートペア・結合文字のプロパティテストを通る。
-- [ ] H5-AC-3: `executeCommand` でカタログ全操作に到達でき、`novnow/*` 通知 4 種が対応イベントから発信される。
-- [ ] H5-AC-4: `tests/lsp.rs` のスクリプト化 JSON-RPC 駆動テストがエディタなしで CI を通る。
+### 5.5 PyO3 系の vendoring 手順（状態: 完了。サンドボックスで拡張をビルドできる）
 
-<a id="stage-3-h6"></a>
-**H6 — Python API**
-- [ ] H6-AC-1: `python/novnow-py` が abi3-py39 でビルドでき、サンドボックスの CPython 3.11 と CI 行列（3.9〜3.13）で `import novnow` が成功する。
-- [ ] H6-AC-2: カタログ全操作が Python から呼び出せ、dict 戻り値が `--json` と同形、9 例外型が code / message / path 属性を持つ。
-- [ ] H6-AC-3: 長時間操作の GIL 解放が実証される（待機中に Python バックスレッドが進む）。
-- [ ] H6-AC-4: `.pyi` と `py.typed` が wheel に同梱され、仕様 §19.3.2 の例コードが mypy を通る。
-- [ ] H6-AC-5: 5 プラットフォーム構成の wheel ビルドジョブが CI に揃い、リリース時の公開（TestPyPI リハーサル → PyPI 本番）手順が確立する。
+`REF:docs/add-dependencies.md` §2.2 の方法 1（Git Blob 差分追加）に従う。対象クレート一覧は `cargo vendor` の解決結果を正本とし、本節には写さない（写すと版本更新のたびに古くなる）。
 
-<a id="stage-3-h7"></a>
-**H7 — パリティ・公開・仕上げ**
-- [ ] H7-AC-1: `tests/api_parity.rs` がカタログ全行 × 全インターフェース（「提供しない」宣言を含む）を機械検証し、`tests/golden/api_catalog.json` が `REF:docs/developers.md` §7.2 の手順で生成される。
-- [ ] H7-AC-2: ウェブサイトに API リファレンスページが追加され、`REF:scripts/diagnostics-site.py` と同様の網羅性 CI 検査を通る。
-- [ ] H7-AC-3: `REF:docs/designs/interfaces.md` の 8 節すべてが「実装完了」（`REF:src/…` 参照付き）へ更新され、両文書の SYNC 集計行が同期する。
-- [ ] H7-AC-4: 完了記録が `[HIST-TAG: STAGE-3]` エントリとして `REF:docs/history.md` へ追記され、本節はサマリへ圧縮される。
+**用意できているもの**
 
-### 5.5 PyO3 系の vendoring 手順（H6 の事前作業）
+1. `REF:.github/workflows/sandbox-tools.yml` の `pyo3-crates` ジョブ。版本は `python/novnow-py/Cargo.toml` から読む（別々に書くとずれるため）。`cargo vendor` の出力を孤立ブランチ `cache/pyo3-crates` へ push し、`SHA256SUMS` / `PYO3_VERSION` / `CRATES` を添える。
+2. `REF:scripts/bootstrap-toolchain.sh` の `install_pyo3_vendor`。`cache/pyo3-crates` を取り出し、sha256 を検証して `$BUILD_DIR/vendor-src/` へ**既存を上書きせずに**合わせる（`libc` など重複しうるクレートを守る）。ブランチが無ければ警告して続き、本体のビルドは止めない（`PYO3_BRANCH` で別ブランチを指定できる）。
 
-`REF:docs/add-dependencies.md` §2.2 のパターン B-1（Git Blob 差分追加）に従う。対象クレート一覧は本節だけで確定する（設計書へは載せず、重複を防ぐ）:
+**2026-10-23 に完了した手順（実績）**
 
-- 直接依存: pyo3（`abi3-py39` + `extension-module` features）
-- マクロ系: pyo3-macros, pyo3-macros-backend, pyo3-ffi, pyo3-build-config
-- 推移的依存: target-lexicon, unindent, indoc, memoffset, portable-atomic, libc, once_cell（vendoring 済みは再利用: syn, quote, proc-macro2, unicode-ident）
+1. 人間が Actions から `sandbox-tools` を `Run workflow`（ref = 作業ブランチ）。`pyo3-crates` ジョブは `workflow_dispatch` でしか走らない（`.github/sandbox-tools.env` は `ENABLED=0`）し、サンドボックスの `GITHUB_TOKEN` は `actions: write` を持たないので dispatch できない（実測: `gh workflow run sandbox-tools.yml` と `gh api -X POST .../dispatches` の双方が HTTP 403 Resource not accessible by integration）。
+2. `bash scripts/bootstrap-toolchain.sh` → `cache/pyo3-crates` を展開。**追加 10 クレート**（heck, indoc, portable-atomic, pyo3, pyo3-build-config, pyo3-ffi, pyo3-macros, pyo3-macros-backend, target-lexicon, unindent）、**既存 10 クレートは再利用**（autocfg, cfg-if, libc, memoffset, once_cell, proc-macro2, quote, rustversion, syn, unicode-ident）。
+3. `cd python/novnow-py && cargo generate-lockfile --offline`（98 パッケージ、pyo3 0.22.6）→ `cargo clippy --offline --all-targets -- -D warnings`（緑）→ `cargo build --release --offline`（`target/release/lib_core.so` 8.6MB）。
+4. `.so` を `python/novnow/_core.so` へ置いて `PYTHONPATH=python python3 -m pytest tests`（**8 passed, 1 skipped**。skip は本物の拡張がある環境で `test_binding.py` が自動的に外れる分）。`REF:scripts/python-check.sh --full` がこの 3〜4 を回す。
+5. 生成した `REF:python/novnow-py/Cargo.lock` をリポジトリへ置いた（`python/novnow-py` は root の `[workspace] exclude` なので独自の lock を持つ）。
 
-手順:
+**この過程で見つかった実装の誤り（拡張をビルドできるようになって初めて出た）**
 
-1. `python/novnow-py` をワークスペースメンバーとして追加し、`Cargo.lock` の手動編集で差分クレート一覧を確定する。
-2. `REF:.github/workflows/sandbox-tools.yml` で `.crate` を取得し Git Blob 化してコミットする。
-3. `REF:scripts/bootstrap-toolchain.sh` で `/home/user/build/vendor-src/` へ展開する。
-4. `cargo test --locked` と `cargo build --release -p novnow-py` で検証する。
-5. `REF:tests/layering.rs` の許可クレート検査と `REF:docs/designs/overview.md` §3.2 の依存表を更新する（いずれも人間の承認が必要）。
+- `Session::take_events` が「コールバックへ渡す」と「列を取り出す」を 1 つにしていたため、操作のたびに `deliver()` が列を捨て、`poll_events()` が常に空になっていた（§19.3.5 違反）。`collect_events`（積む）と `take_events`（取り出す）へ分離。
+- `Py<T>: Clone` は pyo3 0.22 で `py-clone` feature の behind（既定オフ）。`Cargo.toml` で有効化した（`take_events` は常に GIL 下で走る）。
+- `add_function` は `Bound` を値で受ける、`Driver::*` の `Result<_, novnow::Error>` は `map_err(into_error)` が要る、`to_python` は `PyResult` を返すので平坦化が要る（8 件）。
+- clippy 1.99 は pyo3 の `#[pyfunction]` / `#[pymethods]` 展開に `useless_conversion` を 11 件言う（全件がマクロ展開の中。指摘の列が全て戻り値の `->` を指す）。`[lints.clippy]` で許可し、理由を `Cargo.toml` に書いた。
+- `REF:python/novnow-py/tests/test_api.py` が `structure.tree` に `count` を期待していたが、正本の形は `{level, nodes}`（`REF:tests/delegation.rs` と同じ）。テスト側を実態へ合わせた。
 
-推移的依存が 20 個を超えた場合はパターン B-2（`cache/rust-toolchain` 全面再生成、`REF:.github/toolchain.env` の SALT 更新）へ切り替える。新規クレートはワークスペースメンバー内に閉じるため、LLM SDK 混入の余地はない（`REF:tests/no_llm_sdk.rs` はグリーンのまま）。
+**残っているもの**
 
-### 5.6 テスト戦略（H1〜H7 横断）
+- `python/novnow-py` は root の `[workspace] exclude` のまま（pyo3 を本体の依存解決へ混ぜず、wasm ビルドを守るため）。正式な wheel 検証は `REF:.github/workflows/wheels.yml`（5 プラットフォーム ＋ Python 3.9 / 3.11 / 3.13 の `pytest python/novnow-py`）が担う。
+- `REF:tests/layering.rs` の許可クレート検査と `REF:docs/designs/overview.md` §3.2 の依存表の更新は**人間の承認が必要**なので未着手（pyo3 系は `python/novnow-py` 内に閉じ、本体の層には入らない）。
 
-- パリティ契約テストは仕様書 §19.7 の Markdown 表を直接読む（`REF:tests/diagnostics_catalog.rs` と同じ include_str! 方式）。カタログの手書き写しはリポジトリへ置かない。
-- ゴールデン（CLI 出力・api_catalog.json・MCP 既存 14 定義）はすべて `REF:docs/developers.md` §7.2 の生成手順に従い、手編集を禁止する。
-- LSP はスクリプト化した JSON-RPC で実 stdio 配管を駆動してテストする。外部のテストフレームワークへ依存しない。
-- Python 一式は `python/tests/`（pytest は pip 導入）。サンドボックスでは release ビルド成果物の `.so` を `novnow.so` へ改名し `PYTHONPATH` でスモークし、正式な wheel 検証は CI で行う。
-- `REF:scripts/verify.sh` へ `--python` 段階（既定オフ、CI で明示オン）を、`REF:.github/workflows/ci.yml` へ python ジョブを追加する（H6 以降）。
+推移的依存が 20 個を超えた場合は方法 2（`cache/rust-toolchain` 全面再生成、`REF:.github/toolchain.env` の SALT 更新）へ切り替える。新規クレートは `python/novnow-py` 内に閉じるため、LLM SDK 混入の余地はない（`REF:tests/no_llm_sdk.rs` はグリーンのまま）。
+
+### 5.6 テスト戦略（H1〜H7 横断。状態: 未達の 1 件を除き実装済み）
+
+| 決めたこと | 状態 | 実体 |
+|---|---|---|
+| パリティ契約テストは仕様書 §19.7 の Markdown 表を直接読む（`REF:tests/diagnostics_catalog.rs` と同じ `include_str!` 方式）。カタログの手書き写しはリポジトリへ置かない | 実装完了 | `REF:tests/api_parity.rs` |
+| ゴールデン（CLI 出力・api_catalog.json・MCP 既存 14 定義）は `REF:docs/developers.md` §7.2 の生成手順に従い、手編集を禁止する | 実装完了 | `REF:examples/api_catalog.rs` → `REF:tests/golden/api_catalog.json`、`REF:examples/mcp_tools.rs` → `REF:tests/golden/mcp_tools.json`（検査は `REF:tests/mcp_frozen.rs`） |
+| LSP はスクリプト化した JSON-RPC で実 stdio 配管を駆動してテストする。外部のテストフレームワークへ依存しない | 実装完了 | `REF:tests/lsp.rs` |
+| 正規操作 119 件を 1 回ずつ叩く網羅テストと、カバレッジの可視化 | 実装完了 | `REF:tests/api_coverage.rs`（表は `target/debug/api-coverage.txt`） |
+| Python の位置引数の束縛（§19.3.2）と 9 例外（§19.3.3）を**拡張のビルド無し**で検査する | 実装完了 | `REF:python/novnow-py/tests/test_binding.py`（`novnow._core` を偽物にする。10 件） |
+| 型スタブ（§19.3.1）は手書きせずカタログから生成する | 実装完了 | `REF:scripts/pyi-site.py` → `REF:python/novnow-py/python/novnow/__init__.pyi` |
+| `REF:scripts/verify.sh` の `--python` 段階と `REF:.github/workflows/ci.yml` の python ジョブ | 実装完了 | `REF:scripts/python-check.sh`（`verify.sh` の既定にも入り、`--python` で単独実行。計画では「既定オフ」だったが 1 秒で終わるので既定オンにした） |
+| サンドボックスで release ビルドの `.so` を `PYTHONPATH` でスモークする | 実装完了 | `REF:scripts/python-check.sh` `--full`（clippy → release ビルド → `python/novnow/_core.so` へ置いて pytest。8 passed, 1 skipped）。pyo3 の vendor は §5.5 |
+
+Python 一式は `python/novnow-py/tests/`（当初の計画に書いた `python/tests/` ではない）。`test_api.py` は本物の拡張が要るので wheel 検証（`REF:.github/workflows/wheels.yml`）で走り、`test_binding.py` は逆に本物がある環境では自動で skip する（`sys.modules` を汚さないため）。
 
 ### 5.7 リスクと対策
 
@@ -863,7 +893,7 @@ H3・H4・H5 の 3 系統は相互に交差せず、H2 完了後は任意の順�
 
 ### 5.8 段階の受け入れ基準（全マイルストーン共通）
 
-- [ ] 仕様 §19 の各 MUST 条項に対応する自動テストが存在し、`bash scripts/verify.sh`（新段階を含む）が完全グリーン。
-- [ ] §4.4 の 10 縫い代が生存 — `REF:tests/layering.rs` と `REF:tests/roundtrip.rs` の既存アサーションが無変更で通る。
-- [ ] 仕様書・設計書・許可クレート表の変更はすべて PR 経由で人間の承認を得た。
-- [ ] 完了後、`REF:docs/history.md` へ `[HIST-TAG: STAGE-3]` エントリを追記し、本書と `REF:docs/handoff.md` の SYNC 進捗表を更新する。
+- [x] 仕様 §19 の各 MUST 条項に対応する自動テストが存在し、`bash scripts/verify.sh`（`REF:tests/api.rs`・`REF:tests/api_fs.rs`・`REF:tests/api_driver.rs`・`REF:tests/cli.rs`・`REF:tests/lsp.rs`・`REF:tests/api_parity.rs`）が完全グリーン（1339 passed / 0 failed、62 ターゲット）。
+- [x] §4.4 の 10 縫い代が生存 — `REF:tests/layering.rs` と `REF:tests/roundtrip.rs` の既存アサーションが無変更で通る（段階 ③ で両ファイルのアサーションは変更していない）。
+- [ ] 仕様書・設計書・許可クレート表の変更はすべて PR 経由で人間の承認を得た。**人間の作業**: PR #25（Draft）のレビューとマージ。対象は `REF:docs/designs/overview.md` §3.2・§3.3 と `REF:docs/designs/interfaces.md` の状態行。許可クレート表（`REF:docs/add-dependencies.md`）の変更は無い（pyo3 系は未導入のまま）。
+- [x] 完了後、`REF:docs/history.md` へ `[HIST-TAG: STAGE-3]` エントリを追記し、本書と `REF:docs/handoff.md` の SYNC 進捗表を更新した（134 節すべて実装完了）。

@@ -94,6 +94,8 @@ I058 = "Saved the search result as {0}"
 # - Command names (`novnow`, `new`, `check`) and keys (`schema_version`) are not translated (§12.6).
 
 [cli.error]
+missing_project_dir = "{0}: missing project directory (novnow <domain> <verb> <dir>)"
+unknown_verb = "No such verb: {0}"
 incomplete = "this directory is not a novnow project"
 missing_items = "Missing items"
 not_found = "directory not found"
@@ -145,6 +147,8 @@ missing = "Not found: {0}"
 gate = "Not written because it would add {1}; kept as proposal {0}"
 
 [cli.usage]
+op = "Run a canonical operation (--json for machine output, §19.6)"
+api = "List the canonical operation catalog (§19.7)"
 migrate = "migrate UTF-8 text into a fresh project (--preview does not write)"
 tagline = "a novel-writing IDE built on deterministic algorithms"
 heading = "Usage"
@@ -824,3 +828,204 @@ next_episode = "Next episode"
 columns = "Columns"
 bookmark = "Bookmark"
 minutes = "min"
+
+[api.error]
+conflict = "{0} changed outside novnow"
+duplicate_task = "{0} already has a task for {1}"
+encoding = "Some files cannot be read: {0}"
+gate = "{0} cannot run because {1}"
+generic = "The operation failed"
+incomplete = "The project is missing files: {0}"
+index_invalid = "The material index cannot be read"
+insert_failed = "The section could not be created"
+mcp_invalid = "The MCP configuration cannot be read"
+mcp_unavailable = "The MCP server cannot be reached"
+missing = "Missing required argument: {0}"
+no_character = "There are no characters"
+no_conflict = "There is no conflict to resolve"
+no_document = "No document is open"
+no_find = "No search has been run"
+no_fs = "This environment has no file access"
+not_found = "Not found: {0}"
+not_renamable = "This cannot be renamed"
+refusal = "The proposal cannot be applied: {0}"
+register_failed = "{0} could not be registered"
+rename_failed = "The rename failed: {0}"
+saving = "Saving is in progress"
+stateful = "{0} needs an interface that holds a session"
+thread_start = "The session thread cannot be started"
+thread_stopped = "The session thread has stopped"
+too_new = "This project was written by a newer version (schema_version {0})"
+unknown_op = "There is no operation named {0}"
+unsupported = "{0} is not available from {1}"
+usage = "Invalid value for {0}"
+workspace_unavailable = "{0} is not available"
+
+[api.op.agent]
+task_list = "List agent tasks"
+task_create = "Create an agent task"
+task_get = "Read one agent task"
+task_run = "Run an agent task"
+task_dry_run = "Dry run of an agent task"
+task_stop = "Stop an agent task"
+stop_all = "Stop all agent tasks"
+proposal_list = "List proposals"
+proposal_get = "Read one proposal"
+proposal_apply = "Apply a proposal"
+proposal_reject = "Reject a proposal"
+delegation_get = "Delegation levels"
+delegation_set = "Change a delegation level"
+mcp_config_get = "Read the MCP configuration"
+mcp_config_validate = "Validate the MCP configuration"
+mcp_config_set = "Write the MCP configuration"
+thread_list = "List mail threads"
+thread_get = "Read one mail thread"
+audit_list = "Audit log"
+
+[api.op.api]
+list = "Machine-readable catalog of the canonical operations"
+
+[api.op.cast]
+get = "Cast of a scene"
+list = "List characters"
+timeline = "Mode timeline of a character"
+scan = "Scan the manuscript for unmatched dialogue"
+
+[api.op.context]
+build = "Build a context packet"
+
+[api.op.diagnostics]
+run = "Run the checks"
+place = "Where the cursor is, in the writer's words"
+
+[api.op.dictionary]
+list = "Dictionary entries"
+register_term = "Register a term"
+register_character = "Register a character"
+term_full = "Full information of a term"
+modes_list = "All role-language modes"
+
+[api.op.document]
+get = "Read a document"
+write = "Write a document"
+rename = "Rename a document"
+
+[api.op.export]
+text = "Export text"
+
+[api.op.help]
+topic = "Help text"
+
+[api.op.idea]
+list = "List ideas"
+capture = "Capture an idea"
+promote = "Promote an idea"
+drop = "Drop an idea"
+write = "Write the body of an idea"
+
+[api.op.lang]
+tokens = "Semantic tokens"
+completion = "Completion"
+hover = "Hover"
+hints = "Inlay hints"
+code_action = "Code actions"
+definition = "Go to definition"
+references = "Find references"
+symbols = "Document symbols"
+format = "Format a document"
+rename_preview = "Rename preview"
+rename_apply = "Apply a rename"
+folding = "Folding ranges"
+
+[api.op.mail]
+send = "Send mail between agents"
+
+[api.op.materials]
+list = "List materials"
+get = "Read one material"
+approve = "Approve a material"
+reject = "Reject a material"
+update = "Update the review fields of a material"
+attach = "Attach a material file"
+search = "Search materials"
+propose = "Propose a new material"
+
+[api.op.nav]
+file = "Open a document directly"
+section = "Jump to a structure ID"
+jump = "Jump to a line or a query"
+prev = "Previous position"
+next = "Next position"
+back = "Move to the parent level"
+forward = "Move to the first child"
+up = "Move one level up"
+switcher = "Workspace switcher list"
+
+[api.op.plot]
+get = "Read a plot"
+write = "Write a plot"
+set_state = "Set the confirmation state of a plot entry"
+insert_section = "Insert a plot section"
+outline_fold = "Fold or unfold a chapter of the outline"
+
+[api.op.project]
+info = "Project information (title, author, encoding, version)"
+new = "Create a new project"
+validate = "Validate the project structure"
+reload = "Reload the project from storage"
+stats = "Writing statistics"
+recent_list = "Recently opened projects"
+recent_remove = "Remove an entry from the recently opened list"
+import_zip = "Import a Zip archive"
+export_zip = "Export the project as a Zip archive"
+
+[api.op.prompt]
+list = "List prompt files"
+get = "Read a prompt"
+diff = "Diff a prompt against the built-in version"
+reset = "Reset a prompt to the built-in version"
+
+[api.op.reference]
+pane = "All sections of the reference pane"
+
+[api.op.review]
+list = "Review items"
+goto = "Go to a review item"
+
+[api.op.save]
+now = "Save now"
+state = "State of the save machine"
+keep_mine = "Keep my version on a conflict"
+reload_external = "Reload the external version"
+diff_external = "Diff against the external version"
+
+[api.op.search]
+file = "Search in the open document"
+replace_file = "Replace in the open document"
+project = "Search the whole project"
+find_next = "Next match"
+find_prev = "Previous match"
+
+[api.op.section]
+list = "Sections of a document"
+get = "Read a section"
+write = "Write a section"
+insert = "Insert a new section"
+delete = "Delete a section"
+confirm_next = "Confirm the next unconfirmed section"
+
+[api.op.session]
+workspace_get = "Current workspace"
+workspace_switch = "Switch workspace"
+recent_document = "Cycle through recently opened documents"
+command = "Run a palette command"
+poll_events = "Drain the event queue"
+
+[api.op.settings]
+get = "Read the settings"
+set = "Change a setting"
+
+[api.op.structure]
+tree = "Structure tree"
+resolve = "Resolve a position or structure ID"
+breadcrumb = "Breadcrumb of the current position"

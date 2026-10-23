@@ -1,0 +1,38 @@
+[package]
+name = "novnow-py"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.82"
+description = "novnow の Python API（§19.3）。Rust と同じ機能核をインプロセスで呼ぶ。"
+license = "MIT"
+
+[lib]
+# `import novnow._core` として読み込む（`python/novnow/__init__.py` が表の API を組む）。
+name = "_core"
+crate-type = ["cdylib"]
+
+# pyo3 の `create_exception!` は `#[cfg(feature = "gil-refs")]` を展開する。
+# こちらのクレートはその feature を持たないので、`unexpected_cfgs` に「期待する feature 名」と
+# して教えておく（教えておかないと pyo3 側のマクロ展開で警告が出る）。
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("gil-refs"))'] }
+
+[lints.clippy]
+# pyo3 0.22 の `#[pyfunction]` / `#[pymethods]` が展開するコードが `PyErr` への `From` 変換を
+# 挟むため、clippy 1.99 が `useless_conversion` を 11 箇所言う。**すべてマクロ展開の中**で、
+# 指摘の列が全件「戻り値の `->`」を指すのがその証拠（手書きの行は 1 つも指摘されていない）。
+# 展開コードは直せないので、このクレートでは許可する。
+useless_conversion = "allow"
+
+[dependencies]
+novnow = { path = "../..", default-features = false }
+# `py-clone` は `Py<T>: Clone` を有効化する feature（pyo3 0.22 で既定オフ）。
+# `Session::take_events` がコールバック一覧の写しを取ってから呼ぶのに必要
+# （Python 側から `on_event` を再入されても `RefCell` を二重借用しないため）。
+# `Py::clone` は GIL を握っていないと panic するが、`take_events` は常に GIL 下で走る。
+pyo3 = { version = "0.22", features = ["abi3-py39", "extension-module", "py-clone"] }
+serde_json = "1"
+
+# このクレートは pyo3 系の vendoring が済むまで root の workspace 解決から外す
+# （root `Cargo.toml` の `exclude`、REF:docs/add-dependencies.md §2.2）。
+[workspace]

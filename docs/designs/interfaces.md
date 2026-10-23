@@ -8,9 +8,9 @@
 
 ### 19.1 共通原則
 
-状態: 未実装・実装計画済み（REF:src/ui/workbench.rs, REF:docs/plans.md#stage-3）
+状態: 実装完了（REF:src/app/ops/mod.rs, REF:src/app/session.rs, REF:tests/api.rs）
 
-- **単一実装点（H1）**: `Workbench`（`REF:src/ui/workbench.rs`）、`SaveMachine`（`REF:src/ui/save_machine.rs`）、`UiSettings`（`REF:src/ui/settings.rs`）、エージェント実行状態（`REF:src/ui/agents.rs`）、検索状態（`REF:src/ui/assist.rs`）、パレットの純粋論理（`REF:src/ui/palette.rs`）、`Command`（`REF:src/ui/shell.rs`）、`Switcher`（`REF:src/ui/workspaces/mod.rs`）、`Host` トレイト（現在 `REF:src/ui/app.rs` 内）を `src/app/` へ移す。移設は「移動 + 旧パスからの `pub use` 再エクスポート」で段階的に行い、GUI 側テスト（`REF:tests/gui.rs`, `REF:tests/workspaces.rs`）を毎段グリーンに保つ。
+- **単一実装点（H1）**: `Workbench`（`REF:src/app/workbench.rs`）、`SaveMachine`（`REF:src/app/save_machine.rs`）、`UiSettings`（`REF:src/app/settings.rs`）、エージェント実行状態（`REF:src/app/agents.rs`）、検索状態（`REF:src/app/assist.rs`）、パレットの純粋論理（`REF:src/app/palette.rs`）、`Command`（`REF:src/ui/shell.rs`）、`Switcher`（`REF:src/ui/workspaces/mod.rs`）、`Host` トレイト（現在 `REF:src/ui/app.rs` 内）を `src/app/` へ移す。移設は「移動 + 旧パスからの `pub use` 再エクスポート」で段階的に行い、GUI 側テスト（`REF:tests/gui.rs`, `REF:tests/workspaces.rs`）を毎段グリーンに保つ。
 - **層規則**: `REF:tests/layering.rs` に `src/app/` の禁止規則を追加する — egui / eframe / rfd / fontdb の import 禁止。書き込みは従来どおり `FsGate`（`REF:src/adapters/storage_fs.rs`）と `WritePolicy`（`REF:src/core/policy/write_policy.rs`）を経由し、書き込み関門テストの走査対象に新層を含める。
 - **権限モデル**: 委譲関門は MCP ツール境界（`REF:src/core/agents/server.rs`）に集約する。人間経路は関門を迂回するが、規則 10 の制約は全経路で等しく効く。
 - **原子性**: 複数ファイル操作は `Workbench::take_writes()` のバッチに一旦蓄積し、失敗時は全件を破棄する（既存の `write_finished` 失敗経路の拡張）。
@@ -20,18 +20,18 @@
 
 ### 19.2 Rust API
 
-状態: 未実装・実装計画済み（REF:src/ui/app.rs, REF:docs/plans.md#stage-3）
+状態: 実装完了（REF:src/app/session.rs, REF:src/app/ops/mod.rs, REF:tests/api.rs, REF:tests/api_fs.rs）
 
 - `src/app/session.rs`（新設）: `pub struct Session` が移設済み状態機械を合成する。`Session::open` / `create` は `REF:src/cli/open.rs` の起動前検証を再利用し、`with_host` はメモリホストの注入を受ける（`REF:tests/gui.rs` のモックの発想を公開 API へ昇格）。
 - `src/app/ops.rs`（新設）: ディスパッチ表 `OPS: &[OpDef]`（正規操作 ID・引数スキーマ・ハンドラ・関門の有無・例外・対応パレットコマンド）。`api.list`・MCP の `inputSchema`・CLI ヘルプ・Python スタブの単一の真実となる。
 - ドメインハンドルは `&mut Session` を借りる薄いラッパ（`session.section()` → `SectionOps`）とし、メソッド名は正規操作 ID の動詞と 1:1 対応。多階層ドメインは動詞側へ畳む（§19.1.3）。
 - `session.command` のコマンド表は `REF:src/ui/app.rs` の `PALETTE_COMMANDS` / `SHORTCUT_PALETTE_COMMANDS` 定数を app 層へ引き上げ、GUI と API が同一の表を共有する（ドリフト排除）。
-- イベントキュー: セッション内 `VecDeque<AppEvent>` と `poll_events()` / `on_event()`。LLM 呼び出し・URL 取得のワーカは `REF:src/ui/agents.rs` の既存スレッド + チャネル方式を踏襲し、`cancel(handle)` は同じチャネルで中止フラグを伝える。
+- イベントキュー: セッション内 `VecDeque<AppEvent>` と `poll_events()` / `on_event()`。LLM 呼び出し・URL 取得のワーカは `REF:src/app/agents.rs` の既存スレッド + チャネル方式を踏襲し、`cancel(handle)` は同じチャネルで中止フラグを伝える。
 - 検証: `tests/api.rs`（新設・計画パス）でメモリホストによる全操作・エラー分類・イベント順序をカバーし、仕様 §19.2.1 の例は doc-test として常に実行する。
 
 ### 19.3 Python API
 
-状態: 未実装・実装計画済み（REF:docs/add-dependencies.md, REF:docs/plans.md#stage-3）
+状態: 実装完了（REF:python/novnow-py/src/lib.rs, REF:python/novnow-py/python/novnow/__init__.py, REF:src/app/driver.rs, REF:tests/api_driver.rs, REF:.github/workflows/wheels.yml）
 
 - ルート `Cargo.toml` をワークスペース化: `members = [".", "python/novnow-py"]`、`default-members = ["."]`。既存の `cargo test --locked` と `REF:scripts/verify.sh` の挙動は不変で、Cargo.lock は 1 本のまま統合する。
 - `python/novnow-py/`（新クレート）: pyo3（`abi3-py39` + `extension-module`、cdylib）。`#[pyclass] Session` が app 層を包み、メソッドは `OPS` 表からマクロ生成して手書きの写しを置かない。データ受け渡しは dict / list / str、Zip 操作は bytes。
@@ -43,7 +43,7 @@
 
 ### 19.4 LSP（Language Server Protocol）
 
-状態: 未実装・実装計画済み（REF:src/adapters/mcp_stdio.rs, REF:docs/plans.md#stage-3）
+状態: 実装完了（REF:src/lsp/server.rs, REF:src/lsp/methods.rs, REF:src/cli/lsp.rs, REF:tests/lsp.rs）
 
 - `src/lsp/`（新設、`cli` と同じくネイティブターゲット限定でコンパイル）: `framing.rs`（Content-Length フレーミングの手書き実装 — 追加依存ゼロ、serde_json は既存。stdio ループの構成は `REF:src/adapters/mcp_stdio.rs` を踏襲）、`server.rs`（リクエスト路由）、`methods.rs`（§19.4.2 の標準メソッド対応）、`commands.rs`（`executeCommand` → `OPS` ディスパッチ）、`convert.rs`（UTF-16 ↔ バイト位置、`REF:src/core/text/position.rs` の行表を利用）。
 - 文書同期は Full: 受け取った全文を `REF:src/core/text/incremental.rs` の差分編集器で rope に適用する。単節診断は `REF:src/core/features/sections.rs` のスコープ限定機構を再利用し、`publishDiagnostics` を §7.4 の地域化メッセージで配信する。
@@ -53,17 +53,17 @@
 
 ### 19.5 MCP サーバ拡張
 
-状態: 未実装・実装計画済み（REF:src/core/agents/server.rs, REF:docs/plans.md#stage-3）
+状態: 実装完了（REF:src/core/agents/server.rs, REF:src/cli/mcp.rs, REF:tests/cli.rs）
 
-- `REF:src/core/agents/server.rs` のツール表を 14 件からカタログ全件へ拡張する。既存 14 件の名前・スキーマ・挙動はバイト単位で凍結（`REF:tests/mcp_stdio.rs` が回帰ガード）、新規分は app 層の `OPS` 表から生成し `api.list` との二重管理をなくす。
+- `REF:src/core/agents/server.rs` のツール表を 14 件から「凍結 14 件 + §19.7 で「M—」の印が無い操作 72 件（`novnow.` + 操作 ID）= 86 件」へ拡張する。全件ではない: 「M—」の 35 件（状態性・安全性・バイナリ）は載せない。既存 14 件の名前・スキーマ・挙動はバイト単位で凍結（`REF:tests/golden/mcp_tools.json` が定義のゴールデン、`REF:tests/mcp_frozen.rs` が内訳と回帰ガード、`REF:tests/mcp_stdio.rs` がクライアント側の往復）、新規分は app 層の `OPS` 表から生成し `api.list` との二重管理をなくす。
 - 呼び出しごとのプロジェクト読み直しは現行 `run()` の方式を維持する。関門付き書き込みは既存の直接書き込み経路（E036 検証・提案のみ記録・§15.8.4 監査ログ）を再利用する。
 - 安全除外の 4 操作はツール表へ登録せず、直接呼び出しには method-not-found と `isError` の二重で拒否する。
 - `plot.write` の `level` 拡張（`outline` / `chapter`）は `REF:src/core/features/plots.rs` のレベル別検証を汎用化する。既存 `episode` 呼び出しの動作は不変。
-- 検証: `REF:tests/mcp_stdio.rs` を拡張（新規ツール・関門挙動・除外・`tools/list` = `api.list` 一致）。
+- 検証: `REF:tests/mcp_frozen.rs`（凍結 14 件のバイト一致・`inputSchema` の型検査・ツール表の内訳 86 件）と `REF:tests/mcp_stdio.rs`（往復・関門挙動・除外）。
 
 ### 19.6 CLI 拡張
 
-状態: 未実装・実装計画済み（REF:src/cli/mod.rs, REF:docs/plans.md#stage-3）
+状態: 実装完了（REF:src/cli/mod.rs, REF:src/cli/json.rs, REF:src/cli/api.rs, REF:tests/cli.rs）
 
 - `REF:src/cli/mod.rs`: サブコマンド解決表へ `lsp` / `api` と §19.7 の全ドメイン名を追加する。既存コマンド語が最優先（凍結）。`src/cli/` 直下に `api.rs`（`api list`）・`lsp.rs`（サーバ起動）・`json.rs`（`--json` エンベロープと `--lang` の共通処理）を新設する。
 - 1 コマンド = 1 `Session`: 起動検証は `REF:src/cli/open.rs` を再利用 → 操作実行 → `take_writes()` のフラッシュ → §19.1.7 の写像で終了コードを返す。シグナル中断時はフラッシュを行わない。
@@ -72,7 +72,7 @@
 
 ### 19.7 機能パリティカタログ
 
-状態: 未実装・実装計画済み（REF:tests/diagnostics_catalog.rs, REF:docs/plans.md#stage-3）
+状態: 実装完了（REF:src/app/ops/mod.rs, REF:tests/api_parity.rs, REF:tests/golden/api_catalog.json）
 
 - 契約テスト `tests/api_parity.rs`（新設・計画パス）: `REF:docs/specifications/interfaces.md` を include_str! で読み §19.7 の表を行単位で解析する（`REF:tests/diagnostics_catalog.rs` と同じ「仕様直結」方式）。各正規操作について (1) `OPS` 表、(2) CLI ディスパッチ、(3) LSP ルーティング、(4) MCP ツール（または「M—」例外）、(5) Python スタブのメソッド、の存在を検証する。例外列（R— / P— / L— / M— / C—）も解析し、「提供しない」ことも宣言どおりか検証する。
 - `api.list` の機械可読出力は `tests/golden/api_catalog.json`（新設・計画パス）としてゴールデン化し、カタログの意図しないドリフトを双方向に検出する。
@@ -80,7 +80,7 @@
 
 ### 19.8 版・互換性・配布
 
-状態: 未実装・実装計画済み（REF:src/cli/mod.rs, REF:docs/plans.md#stage-3）
+状態: 実装完了（REF:src/app/ops/mod.rs, REF:src/cli/api.rs, REF:tests/golden/api_catalog.json, REF:scripts/api-site.py）
 
 - 版番号は `VERSION` 定数（`env!("CARGO_PKG_VERSION")`、`REF:src/cli/mod.rs`）を単一の真実とし、`Session::version()`・`novnow.__version__`・LSP の `serverInfo`・MCP のサーバ情報が共有する。
 - 互換性の凍結は回帰テストが守る: 既存 14 ツールは `REF:tests/mcp_stdio.rs`、既存サブコマンドと終了コードは `REF:tests/cli.rs`、カタログ全体は `tests/golden/api_catalog.json`。

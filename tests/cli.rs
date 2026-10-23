@@ -22,6 +22,7 @@ use novnow::cli::{
     self, decide, display_path, shell_quote, ArgError, Cli, Command, Exit, Launch, Outcome,
     Terminal,
 };
+use novnow::core::agents::server;
 use novnow::core::model::project::PROJECT_STRUCTURE_DOC_URL;
 use novnow::core::policy::ProjectPath;
 use novnow::core::template;
@@ -1125,7 +1126,19 @@ fn mcp_serves_the_tools_over_json_lines_and_writes_only_inside_the_project() {
     assert_eq!(lines[0]["id"], 1);
     assert_eq!(lines[0]["result"]["serverInfo"]["name"], "novnow");
     assert_eq!(lines[0]["result"]["protocolVersion"], "2024-11-05");
-    assert_eq!(lines[1]["result"]["tools"].as_array().unwrap().len(), 14);
+    // 既存 14 ツールは凍結（§19.8.3）。後ろにカタログ（§19.5.1）が続く。
+    // 比較相手は `REF:tests/golden/mcp_tools.json`（実装そのものと比べると退行を検出できない。
+    // 内訳の機械検査は `REF:tests/mcp_frozen.rs`）
+    let tools = lines[1]["result"]["tools"].as_array().unwrap();
+    assert_eq!(tools.len(), 86, "ツール表の全件数（凍結 14 + 正規操作 72）");
+    let golden: Value = serde_json::from_str(include_str!("golden/mcp_tools.json")).unwrap();
+    for (found, frozen) in tools.iter().zip(golden.as_array().unwrap()) {
+        assert_eq!(
+            found.to_string(),
+            frozen.to_string(),
+            "既存ツールの定義が変わった（§19.8.3。意図した変更なら              `cargo run --locked --example mcp_tools > tests/golden/mcp_tools.json`）"
+        );
+    }
     assert_eq!(lines[2]["result"]["isError"], false);
     let info: Value =
         serde_json::from_str(lines[2]["result"]["content"][0]["text"].as_str().unwrap()).unwrap();
@@ -1656,4 +1669,597 @@ fn migration_refuses_symlink_destinations_without_touching_them() {
         Exit::Io
     );
     assert!(tree(&dir.join("outside")).is_empty());
+}
+
+// ============================================================ MCP のツール表（§19.5.1・段階③ H4）
+
+/// `tools/call` の要求 1 件。
+fn tool_call(id: u32, name: &str, arguments: serde_json::Value) -> serde_json::Value {
+    serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": id,
+        "method": "tools/call",
+        "params": { "name": name, "arguments": arguments }
+    })
+}
+
+/// 応答（標準出力の 1 行 1 メッセージ）を読む。
+fn responses(out: &str) -> Vec<serde_json::Value> {
+    out.lines()
+        .map(|line| serde_json::from_str(line).expect("一行 1 メッセージの JSON"))
+        .collect()
+}
+
+#[test]
+fn mcp_lists_the_whole_catalog_and_refuses_the_human_only_operations() {
+    use serde_json::json;
+    let dir = TempDir::new("cli-mcp-catalog");
+    minimal_project(&dir, "novel");
+    let input = mcp_lines(&[
+        json!({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}),
+        // 人間の専権事項 4 件（§19.1.5）は直接呼んでも断られる
+        tool_call(
+            2,
+            "novnow.settings.set",
+            json!({"key": "theme", "value": "dark"}),
+        ),
+        tool_call(
+            3,
+            "novnow.agent.delegation_set",
+            json!({"role": "writer", "level": "apply"}),
+        ),
+        tool_call(4, "novnow.agent.mcp_config_set", json!({"text": "{}"})),
+        tool_call(5, "novnow.prompt.reset", json!({"name": "writer"})),
+        // カタログの操作は 1 回分で答えが返る（§19.1.6）
+        tool_call(6, "novnow.section.list", json!({})),
+        tool_call(7, "novnow.nope", json!({})),
+    ]);
+    let ran = run_mcp(dir.path(), &env_ja(&dir), "novel", &input);
+    assert_eq!(ran.exit(), Exit::Ok, "{}", ran.err);
+    let lines = responses(&ran.out);
+    assert_eq!(lines.len(), 7, "{}", ran.out);
+
+    let tools = lines[0]["result"]["tools"].as_array().expect("tools");
+    let names: Vec<&str> = tools
+        .iter()
+        .map(|tool| tool["name"].as_str().expect("name"))
+        .collect();
+    // 「M—」以外の全操作が載り、「M—」は載らない（既存 14 ツールは別枠で凍結）
+    for def in novnow::app::ops::OPS {
+        let name = format!("novnow.{}", def.id);
+        let listed = names.contains(&name.as_str());
+        if def.excepts(novnow::app::session::Interface::Mcp).is_none() {
+            assert!(listed, "{name} がツール表に無い（§19.5.1）");
+        } else {
+            assert!(
+                !listed || server::is_tool(&name),
+                "{name} は MCP で提供しないのに載っている"
+            );
+        }
+    }
+    // 全ツールが JSON Schema を持つ（§19.5.3）
+    assert!(
+        tools
+            .iter()
+            .all(|tool| tool["inputSchema"]["type"] == json!("object")),
+        "inputSchema が無いツールがある"
+    );
+    // 安全除外 4 件は登録されない（§19.1.5）
+    for name in [
+        "novnow.settings.set",
+        "novnow.agent.delegation_set",
+        "novnow.agent.mcp_config_set",
+        "novnow.prompt.reset",
+    ] {
+        assert!(!names.contains(&name), "{name} がツール表にある");
+    }
+    // 直接呼び出しも断る（isError）
+    for line in &lines[1..5] {
+        assert_eq!(line["result"]["isError"], true, "{line}");
+    }
+    assert_eq!(lines[5]["result"]["isError"], false, "{}", lines[5]);
+    // カタログに無い名前は未知のツール（既存の文言）
+    assert_eq!(lines[6]["result"]["isError"], true, "{}", lines[6]);
+    assert!(
+        lines[6]["result"]["content"][0]["text"]
+            .as_str()
+            .expect("text")
+            .contains("novnow.nope"),
+        "{}",
+        lines[6]
+    );
+}
+
+#[test]
+fn mcp_write_tools_check_the_role_and_write_nothing() {
+    let dir = TempDir::new("cli-mcp-gate");
+    let root = minimal_project(&dir, "novel");
+    let before = std::fs::read_to_string(root.join("contents/01-01.txt")).expect("read");
+    let input = mcp_lines(&[
+        // role が無い（§19.1.5「省略時は E036」）
+        tool_call(
+            1,
+            "novnow.section.insert",
+            serde_json::json!({"text": "関門を通らない本文"}),
+        ),
+        // 既定の委譲（propose）では role があっても書けない
+        tool_call(
+            2,
+            "novnow.section.insert",
+            serde_json::json!({"text": "まだ書けない本文", "role": "writer"}),
+        ),
+    ]);
+    let ran = run_mcp(dir.path(), &env_ja(&dir), "novel", &input);
+    assert_eq!(ran.exit(), Exit::Ok, "{}", ran.err);
+    let lines = responses(&ran.out);
+    assert_eq!(lines.len(), 2, "{}", ran.out);
+    for line in &lines {
+        assert_eq!(line["result"]["isError"], true, "{line}");
+        assert!(
+            line["result"]["content"][0]["text"]
+                .as_str()
+                .expect("text")
+                .contains("書き込めません"),
+            "E036 の文言ではない: {line}"
+        );
+    }
+    assert_eq!(
+        std::fs::read_to_string(root.join("contents/01-01.txt")).expect("read"),
+        before,
+        "関門を通らないのに書き込んだ"
+    );
+}
+
+#[test]
+fn mcp_plot_write_takes_outline_and_chapter_levels() {
+    use serde_json::json;
+    let dir = TempDir::new("cli-mcp-plot");
+    let root = minimal_project(&dir, "novel");
+    // writer の委譲を apply に（§15.7.6。`agents.roles` の上書き）
+    dir.write(
+        "novel/project.json",
+        "{\n  \"schema_version\": 1,\n  \"title\": \"星屑の時計\",\n  \"agents\": { \"roles\": { \"writer\": \"apply\" } }\n}\n",
+    );
+    dir.write("novel/plots/01.txt", "@01\nsummary: 章のプロット\n;\n");
+    dir.write("novel/plots/01-01.txt", "@01-01-01\n話のプロット\n");
+    let input = mcp_lines(&[
+        tool_call(
+            1,
+            "novnow.plot.write",
+            json!({"role": "writer", "level": "outline", "text": "@01\nsummary: 全体を書き換えた\n;\n"}),
+        ),
+        tool_call(
+            2,
+            "novnow.plot.write",
+            json!({"role": "writer", "level": "chapter", "chapter": 1, "text": "@01\nsummary: 章を書き換えた\n;\n"}),
+        ),
+        // 既存の episode は凍結された実装のまま（§19.8.3）
+        tool_call(
+            3,
+            "novnow.plot.write",
+            json!({"role": "writer", "level": "episode", "scene": "@01-01-01-01", "text": "話を書き換えた\n"}),
+        ),
+    ]);
+    let ran = run_mcp(dir.path(), &env_ja(&dir), "novel", &input);
+    assert_eq!(ran.exit(), Exit::Ok, "{}", ran.err);
+    let lines = responses(&ran.out);
+    assert_eq!(lines.len(), 3, "{}", ran.out);
+    for line in &lines {
+        assert_eq!(line["result"]["isError"], false, "{line}");
+    }
+    let outline = std::fs::read_to_string(root.join("plots/all.txt")).expect("read");
+    assert!(outline.contains("全体を書き換えた"), "{outline}");
+    let chapter = std::fs::read_to_string(root.join("plots/01.txt")).expect("read");
+    assert!(chapter.contains("章を書き換えた"), "{chapter}");
+    let episode = std::fs::read_to_string(root.join("plots/01-01.txt")).expect("read");
+    assert!(episode.contains("話を書き換えた"), "{episode}");
+    // 直接書き込みは監査ログに残る（§15.8.4）
+    let logged = tree(&root.join("agents"))
+        .values()
+        .any(|bytes| String::from_utf8_lossy(bytes).contains("direct_write"));
+    assert!(logged, "監査ログに direct_write が無い");
+}
+
+// ============================================================ novnow lsp
+
+/// `novnow lsp` を、標準入力の代わりに `input`（枠つきの JSON-RPC）を渡して走らせる。
+fn run_lsp(cwd: &Path, env: &FakeEnv, dir: &str, input: &str) -> Ran {
+    let mut out = Vec::new();
+    let mut err = Vec::new();
+    let mut reader = std::io::Cursor::new(input.as_bytes().to_vec());
+    let outcome = {
+        let mut cli = Cli::new(
+            env,
+            &mut out,
+            &mut err,
+            cwd.to_path_buf(),
+            Terminal::default(),
+        );
+        cli.set_input(&mut reader);
+        cli::run(&os_args(&["lsp", dir]), &mut cli)
+    };
+    Ran {
+        outcome,
+        out: String::from_utf8(out).expect("stdout は UTF-8"),
+        err: String::from_utf8(err).expect("stderr は UTF-8"),
+    }
+}
+
+/// 枠つきの 1 通話分を作る。
+fn lsp_frames(messages: &[serde_json::Value]) -> String {
+    messages
+        .iter()
+        .map(|message| novnow::lsp::framing::encode(&message.to_string()))
+        .collect()
+}
+
+/// 標準出力を枠ごとに分解する。
+fn lsp_messages(stdout: &str) -> Vec<serde_json::Value> {
+    let mut cursor = std::io::Cursor::new(stdout.as_bytes().to_vec());
+    let mut messages = Vec::new();
+    while let Some(body) = novnow::lsp::framing::read_message(&mut cursor) {
+        messages.push(serde_json::from_str(&body).expect("JSON"));
+    }
+    messages
+}
+
+#[test]
+fn lsp_checks_the_project_first() {
+    let dir = TempDir::new("cli-lsp-broken");
+    spec_like_incomplete(&dir, "broken");
+    let ran = run_lsp(dir.path(), &env_ja(&dir), "broken", "");
+    assert_eq!(ran.exit(), Exit::Project, "§14.2 の検査が先（{}）", ran.err);
+    assert_eq!(ran.out, "", "プロトコル以外を標準出力に出さない");
+}
+
+#[test]
+fn lsp_speaks_framed_jsonrpc_over_stdio() {
+    let dir = TempDir::new("cli-lsp");
+    minimal_project(&dir, "novel");
+    let project = dir.join("novel");
+    let bodies = lsp_frames(&[
+        serde_json::json!({"id": 1, "jsonrpc": "2.0", "method": "initialize", "params": {"capabilities": {}}}),
+        serde_json::json!({"jsonrpc": "2.0", "method": "initialized", "params": {}}),
+        serde_json::json!({"id": 2, "jsonrpc": "2.0", "method": "workspace/executeCommand",
+               "params": {"arguments": [{}], "command": "api.list"}}),
+        serde_json::json!({"id": 3, "jsonrpc": "2.0", "method": "textDocument/noSuchFeature", "params": {}}),
+        serde_json::json!({"jsonrpc": "2.0", "method": "exit", "params": null}),
+    ]);
+    let ran = run_lsp(
+        dir.path(),
+        &env_ja(&dir),
+        project.to_str().expect("path"),
+        &bodies,
+    );
+    assert_eq!(ran.exit(), Exit::Ok, "{}", ran.err);
+    let messages = lsp_messages(&ran.out);
+    assert!(messages.len() >= 3, "枠が読めない: {:?}", ran.out);
+    let capabilities = &messages[0]["result"]["capabilities"];
+    assert_eq!(capabilities["textDocumentSync"], serde_json::json!(1));
+    assert_eq!(
+        capabilities["executeCommandProvider"]["commands"]
+            .as_array()
+            .expect("commands")
+            .len(),
+        121,
+        "操作 119 件 + 特別な 2 つ"
+    );
+    let api = messages
+        .iter()
+        .find(|message| message["id"] == serde_json::json!(2))
+        .expect("api.list の応答");
+    assert_eq!(
+        api["result"]["count"],
+        serde_json::json!(119),
+        "§19.7 の全行"
+    );
+    let unknown = messages
+        .iter()
+        .find(|message| message["id"] == serde_json::json!(3))
+        .expect("未知のメソッドの応答");
+    assert_eq!(unknown["error"]["code"], serde_json::json!(-32601));
+    assert_eq!(ran.err, "", "標準エラーに何も出さない");
+}
+
+// ============================================================ novnow <domain> <verb>（§19.6）
+
+/// `--json` の封筒を読む（§19.6.2）。
+fn envelope(stdout: &str) -> serde_json::Value {
+    serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|error| panic!("封筒でない: {error} {stdout:?}"))
+}
+
+#[test]
+fn exit_codes_come_only_from_the_documented_table() {
+    use novnow::app::error::Class;
+    use novnow::cli::json::exit_of;
+    // §19.1.7 の表（CLI 終了コード）。§14.2.5 の 0・2・3・4・5 だけで、新しい値は足さない。
+    let table = [
+        (Class::Usage, Exit::Usage),
+        (Class::Project, Exit::Project),
+        (Class::Io, Exit::Io),
+        (Class::Validation, Exit::Diagnostics),
+        (Class::Policy, Exit::Diagnostics),
+        (Class::NotFound, Exit::Project),
+        (Class::Conflict, Exit::Io),
+        (Class::Timeout, Exit::Io),
+        (Class::Cancelled, Exit::Ok),
+    ];
+    for (class, exit) in table {
+        assert_eq!(exit_of(&class), exit, "{class:?}");
+    }
+    assert_eq!(table.len(), 9, "§19.1.7 の 9 分類すべて");
+}
+
+#[test]
+fn the_domain_verb_grammar_reaches_every_catalog_operation() {
+    for def in novnow::app::ops::OPS {
+        let (domain, _) = def.id.split_once('.').expect("id");
+        if novnow::cli::SUBCOMMANDS.contains(&domain) {
+            // 既存のサブコマンド語が優先する（§19.6.1）。`export.text` は `novnow export`、
+            // `api.list` は `novnow api list` から届く（下のテストが見る）。
+            continue;
+        }
+        // 操作はプロジェクトを変える（`section.delete`・`document.rename` など）ので、
+        // 1 件ずつ新しいプロジェクトで見る。
+        let dir = TempDir::new("cli-domain-verb");
+        minimal_project(&dir, "novel");
+        let env = env_ja(&dir);
+        let (_, verb) = def.id.split_once('.').expect("id");
+        let ran = run(dir.path(), &env, &[domain, verb, "novel", "--json"]);
+        assert!(
+            !ran.out.trim().is_empty(),
+            "{}: 何も出ない（{:?} {}）",
+            def.id,
+            ran.exit(),
+            ran.err
+        );
+        let value = envelope(&ran.out);
+        assert_eq!(value["op"], serde_json::json!(def.id), "{}", def.id);
+        assert!(
+            value["ok"].is_boolean(),
+            "{}: `ok` が無い {:?}",
+            def.id,
+            ran.out
+        );
+        if value["ok"] == serde_json::json!(true) {
+            assert!(
+                value["data"].is_object() || value["data"].is_array(),
+                "{}",
+                def.id
+            );
+        } else {
+            for key in ["code", "kind", "message"] {
+                assert!(
+                    value["error"][key].is_string(),
+                    "{}: `error.{key}` が無い {:?}",
+                    def.id,
+                    ran.out
+                );
+            }
+        }
+        // §14.2.5: 終了コードは 0・2・3・4・5 だけ。
+        assert!(
+            matches!(
+                ran.exit(),
+                Exit::Ok | Exit::Usage | Exit::Project | Exit::Io | Exit::Diagnostics
+            ),
+            "{}: {:?}",
+            def.id,
+            ran.exit()
+        );
+    }
+}
+
+#[test]
+fn the_json_envelope_carries_the_error_model() {
+    let dir = TempDir::new("cli-envelope");
+    minimal_project(&dir, "novel");
+    let env = env_ja(&dir);
+    // 対象 ID が無い → not_found（§19.1.7: 終了コード 3）
+    let ran = run(
+        dir.path(),
+        &env,
+        &["materials", "get", "novel", "--json", "--id", "M9999"],
+    );
+    assert_eq!(ran.exit(), Exit::Project, "{} {}", ran.out, ran.err);
+    let value = envelope(&ran.out);
+    assert_eq!(value["ok"], serde_json::json!(false));
+    assert_eq!(value["op"], serde_json::json!("materials.get"));
+    assert_eq!(value["error"]["code"], serde_json::json!("not_found"));
+    assert!(!value["error"]["message"]
+        .as_str()
+        .unwrap_or_default()
+        .is_empty());
+    // 引数の形が誤り → usage（2）。範囲に当てはまる節が無いのも §6.3 では usage。
+    let ran = run(
+        dir.path(),
+        &env,
+        &["section", "get", "novel", "--json", "--id"],
+    );
+    assert_eq!(ran.exit(), Exit::Usage, "{} {}", ran.out, ran.err);
+    let ran = run(
+        dir.path(),
+        &env,
+        &["section", "get", "novel", "--json", "--id", "99-99-99-99"],
+    );
+    assert_eq!(ran.exit(), Exit::Usage, "{} {}", ran.out, ran.err);
+    assert_eq!(
+        envelope(&ran.out)["error"]["code"],
+        serde_json::json!("usage")
+    );
+    // Zip が無い → io（4。§19.1.7）
+    let ran = run(
+        dir.path(),
+        &env,
+        &[
+            "project",
+            "import_zip",
+            "novel",
+            "--json",
+            "--path",
+            "nope.zip",
+        ],
+    );
+    assert_eq!(ran.exit(), Exit::Io, "{} {}", ran.out, ran.err);
+    assert_eq!(
+        envelope(&ran.out)["error"]["code"],
+        serde_json::json!("io"),
+        "{}",
+        ran.out
+    );
+    // CLI は人間経路なので書き込める（MCP では同じ操作が関門で E036＝policy。§19.5.2）。
+    // policy → 5 の写像は上の `exit_codes_come_only_from_the_documented_table` が見る。
+    let ran = run(
+        dir.path(),
+        &env,
+        &[
+            "document",
+            "write",
+            "novel",
+            "--json",
+            "--path",
+            "contents/01-01.txt",
+            "--text",
+            "書き換え",
+        ],
+    );
+    assert_eq!(ran.exit(), Exit::Ok, "{} {}", ran.out, ran.err);
+    assert_eq!(
+        envelope(&ran.out)["data"]["save"]["written"],
+        serde_json::json!(["contents/01-01.txt"]),
+        "{}",
+        ran.out
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.join("novel/contents/01-01.txt")).expect("本文"),
+        "書き換え",
+        "書いていない"
+    );
+}
+
+#[test]
+fn the_operand_can_come_from_stdin() {
+    let dir = TempDir::new("cli-operand");
+    minimal_project(&dir, "novel");
+    let mut out = Vec::new();
+    let mut err = Vec::new();
+    let mut reader = std::io::Cursor::new("星図".as_bytes().to_vec());
+    let env = env_ja(&dir);
+    let outcome = {
+        let mut cli = Cli::new(
+            &env,
+            &mut out,
+            &mut err,
+            dir.path().to_path_buf(),
+            Terminal::default(),
+        );
+        cli.set_input(&mut reader);
+        cli::run(
+            &os_args(&["search", "project", "novel", "-", "--json"]),
+            &mut cli,
+        )
+    };
+    let stdout = String::from_utf8(out).expect("stdout");
+    assert_eq!(outcome, Outcome::Exit(Exit::Ok), "{stdout}");
+    let value = envelope(&stdout);
+    assert_eq!(value["op"], serde_json::json!("search.project"));
+    assert_eq!(value["data"]["query"], serde_json::json!("星図"));
+}
+
+#[test]
+fn api_list_shows_the_catalog_and_takes_json() {
+    let dir = TempDir::new("cli-api");
+    minimal_project(&dir, "novel");
+    let env = env_ja(&dir);
+    // 人間可読: 1 行 1 操作
+    let ran = run(dir.path(), &env, &["api", "list"]);
+    assert_eq!(ran.exit(), Exit::Ok, "{}", ran.err);
+    assert_eq!(
+        ran.out.lines().count(),
+        novnow::app::ops::OPS.len(),
+        "カタログの全行が出ていない"
+    );
+    assert!(ran.out.contains("lang.hover"), "{}", ran.out);
+    // `--json`: 封筒の中の `data` が `api.list` そのもの（§19.8.1）
+    let ran = run(dir.path(), &env, &["api", "list", "--json"]);
+    assert_eq!(ran.exit(), Exit::Ok, "{}", ran.err);
+    let data = &envelope(&ran.out)["data"];
+    assert_eq!(
+        data["count"],
+        serde_json::json!(novnow::app::ops::OPS.len())
+    );
+    assert_eq!(
+        data["interfaces"],
+        serde_json::json!(["rust", "python", "lsp", "mcp", "cli"]),
+    );
+    let operations = data["operations"].as_array().expect("operations");
+    for (index, def) in novnow::app::ops::OPS.iter().enumerate() {
+        assert_eq!(operations[index]["id"], serde_json::json!(def.id));
+    }
+    // 動詞が違えば 2
+    assert_eq!(
+        run(dir.path(), &env, &["api", "show"]).exit(),
+        Exit::Usage,
+        "`api list` だけ"
+    );
+    // `--lang en`（§19.1.8）
+    let ja = run(dir.path(), &env, &["api", "list"]);
+    let en = run(dir.path(), &env, &["api", "list", "--lang", "en"]);
+    assert_eq!(en.exit(), Exit::Ok, "{}", en.err);
+    assert!(
+        en.out.contains("Project information"),
+        "説明文が英語でない: {}",
+        &en.out[..200.min(en.out.len())]
+    );
+    assert_ne!(ja.out, en.out, "§19.1.8 の `--lang` が効いていない");
+}
+
+#[test]
+fn a_directory_named_like_a_domain_still_opens_with_the_slash_form() {
+    let dir = TempDir::new("cli-project-dir");
+    minimal_project(&dir, "project");
+    let env = env_ja(&dir);
+    // §14.1: `./` を付けるとディレクトリ。`novnow project` だけでは動詞が無く GUI 側の解釈。
+    let ran = run(dir.path(), &env, &["./project"]);
+    assert!(
+        matches!(ran.outcome, Outcome::Gui(Some(_))) || ran.exit() == Exit::Ok,
+        "{:?} {}",
+        ran.outcome,
+        ran.err
+    );
+}
+
+#[test]
+fn the_frozen_subcommands_still_win_over_domain_names() {
+    let dir = TempDir::new("cli-frozen");
+    minimal_project(&dir, "novel");
+    let env = env_ja(&dir);
+    // `export` は §17.2 の既存サブコマンド（`export.text` の優先形。§19.6.1 の表）
+    let frozen = run(dir.path(), &env, &["export", "novel"]);
+    assert_eq!(frozen.exit(), Exit::Ok, "{}", frozen.err);
+    // 既存コマンド語が優先するので、`export text` は動詞として読まない（§19.6.1）。
+    assert_eq!(
+        run(dir.path(), &env, &["export", "text", "novel"]).exit(),
+        Exit::Usage,
+        "凍結した `export` が勝つ"
+    );
+    // `check` も同じ（`project.validate` の優先形）。正規形はドメイン名から届く。
+    assert_eq!(run(dir.path(), &env, &["check", "novel"]).exit(), Exit::Ok);
+    let canonical = run(
+        dir.path(),
+        &env,
+        &["project", "validate", "novel", "--json"],
+    );
+    assert_eq!(
+        canonical.exit(),
+        Exit::Ok,
+        "{} {}",
+        canonical.out,
+        canonical.err
+    );
+    assert_eq!(
+        envelope(&canonical.out)["op"],
+        serde_json::json!("project.validate")
+    );
 }

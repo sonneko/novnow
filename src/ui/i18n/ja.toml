@@ -93,6 +93,8 @@ I058 = "検索結果を {0}として保存しました"
 # - `novnow` `new` `check` などのコマンド名・`schema_version` などのキーは翻訳しない（§12.6）。
 
 [cli.error]
+missing_project_dir = "{0}: プロジェクトのディレクトリがありません（novnow <ドメイン> <動詞> <dir>）"
+unknown_verb = "その動詞はありません: {0}"
 incomplete = "このディレクトリは novnow プロジェクトではありません"
 missing_items = "不足しているもの"
 not_found = "ディレクトリが見つかりません"
@@ -144,6 +146,8 @@ missing = "見つかりません: {0}"
 gate = "書くと {1}が増えるので書かず、提案 {0}として残しました"
 
 [cli.usage]
+op = "正規操作を実行する（--json で機械可読。§19.6）"
+api = "正規操作カタログ（§19.7）を一覧する"
 migrate = "既存の UTF-8 本文を新しい作品に移行（--preview は書き込みなし）"
 tagline = "決定論的アルゴリズムによる小説執筆 IDE"
 heading = "使い方"
@@ -849,3 +853,204 @@ next_episode = "次の話"
 columns = "列数"
 bookmark = "しおり"
 minutes = "分"
+
+[api.error]
+conflict = "{0}は外部で変わっています"
+duplicate_task = "{0}の{1}には実行中のタスクがあります"
+encoding = "読み込めないファイルがあります: {0}"
+gate = "{0}は{1}のため実行できません"
+generic = "操作を実行できませんでした"
+incomplete = "プロジェクトのファイルが足りません: {0}"
+index_invalid = "資料の索引が読めません"
+insert_failed = "節を作れませんでした"
+mcp_invalid = "MCP の設定が読めません"
+mcp_unavailable = "MCP サーバを呼び出せません"
+missing = "{0}がありません"
+no_character = "登場人物がありません"
+no_conflict = "解決する衝突がありません"
+no_document = "開いている文書がありません"
+no_find = "検索が実行されていません"
+no_fs = "この環境ではファイルにアクセスできません"
+not_found = "{0}が見つかりません"
+not_renamable = "ここは名前を変えられません"
+refusal = "提案を適用できません: {0}"
+register_failed = "{0}を登録できませんでした"
+rename_failed = "名前を変えられません: {0}"
+saving = "保存中です"
+stateful = "{0}はセッションを持つインターフェースだけで使えます"
+thread_start = "セッションのスレッドを始められません"
+thread_stopped = "セッションのスレッドが止まっています"
+too_new = "このプロジェクトは新しい版で作られています（schema_version {0}）"
+unknown_op = "{0}という操作はありません"
+unsupported = "{0}は{1}からは使えません"
+usage = "{0}の指定が正しくありません"
+workspace_unavailable = "{0}は使えません"
+
+[api.op.agent]
+task_list = "タスク一覧"
+task_create = "タスクの起票"
+task_get = "タスク 1 件の詳細"
+task_run = "タスクの実行"
+task_dry_run = "ドライラン"
+task_stop = "タスクの中止"
+stop_all = "全実行の中止"
+proposal_list = "提案一覧"
+proposal_get = "提案 1 件の内容"
+proposal_apply = "提案の適用"
+proposal_reject = "提案の却下"
+delegation_get = "委譲レベルの参照"
+delegation_set = "委譲レベルの変更"
+mcp_config_get = "MCP 接続設定の参照"
+mcp_config_validate = "MCP 接続設定の検証"
+mcp_config_set = "MCP 接続設定の書き込み"
+thread_list = "メールスレッド一覧"
+thread_get = "スレッド 1 件の内容"
+audit_list = "監査ログ一覧"
+
+[api.op.api]
+list = "正規操作カタログの機械可読出力"
+
+[api.op.cast]
+get = "キャラクター情報・有効なモード"
+list = "キャラクター一覧"
+timeline = "呼称タイムライン"
+scan = "本文スキャンで候補抽出"
+
+[api.op.context]
+build = "コンテキストパケットの構築"
+
+[api.op.diagnostics]
+run = "診断"
+place = "地名解決"
+
+[api.op.dictionary]
+list = "辞書の一覧"
+register_term = "用語の辞書登録"
+register_character = "キャラクターの辞書登録"
+term_full = "用語の完全情報"
+modes_list = "全モード一覧"
+
+[api.op.document]
+get = "ドキュメント全文の取得"
+write = "ドキュメント全文の書き込み"
+rename = "文書のリネーム"
+
+[api.op.export]
+text = "テキストのエクスポート"
+
+[api.op.help]
+topic = "ヘルプ本文"
+
+[api.op.idea]
+list = "着想一覧"
+capture = "着想の記録"
+promote = "着想の昇格"
+drop = "着想の削除"
+write = "着想メモの書き込み"
+
+[api.op.lang]
+tokens = "字句解析"
+completion = "補完候補"
+hover = "カーソル位置の情報"
+hints = "インラインヒント"
+code_action = "クイックフィックス候補"
+definition = "定義へジャンプ"
+references = "参照検索"
+symbols = "シンボル一覧"
+format = "整形"
+rename_preview = "リネームの影響範囲"
+rename_apply = "リネームの実行"
+folding = "折り畳み範囲"
+
+[api.op.mail]
+send = "エージェント間のメール"
+
+[api.op.materials]
+list = "素材インボックス一覧"
+get = "素材カードの取得"
+approve = "素材の採用"
+reject = "素材の却下"
+update = "素材カードの編集"
+attach = "素材の添付"
+search = "素材の検索"
+propose = "素材の提案"
+
+[api.op.nav]
+file = "文書・ファイルの直接指定"
+section = "セクションへの移動"
+jump = "行への移動"
+prev = "前の位置"
+next = "次の位置"
+back = "親ディレクトリへ"
+forward = "子の先頭へ"
+up = "1 つ上の階層へ"
+switcher = "切替パネルの一覧"
+
+[api.op.plot]
+get = "全体／章プロットの取得"
+write = "全体／章／話プロットの書き込み"
+set_state = "プロットの確認状態の切替"
+insert_section = "話プロットへの節挿入"
+outline_fold = "構成ツリーの章→話の展開・折り畳み"
+
+[api.op.project]
+info = "プロジェクト基本情報ワークスペース見出し"
+new = "新規プロジェクト作成"
+validate = "構造検証"
+reload = "再読込"
+stats = "執筆統計"
+recent_list = "最近開いたプロジェクト一覧"
+recent_remove = "最近開いた一覧からの削除"
+import_zip = "Zip 導入"
+export_zip = "Zip 書き出し"
+
+[api.op.prompt]
+list = "プロンプトファイル一覧"
+get = "プロンプト内容の取得"
+diff = "初期版との差分"
+reset = "プロンプトの初期化"
+
+[api.op.reference]
+pane = "参照ペインの全セクション"
+
+[api.op.review]
+list = "見直し項目一覧"
+goto = "見直し項目への移動"
+
+[api.op.save]
+now = "保存"
+state = "保存状態の取得"
+keep_mine = "衝突時に自分の版を維持"
+reload_external = "外部変更の読み込み"
+diff_external = "自分の版と外部変更の差分"
+
+[api.op.search]
+file = "検索／置換"
+replace_file = "全置換"
+project = "全体検索"
+find_next = "次の候補"
+find_prev = "前の候補"
+
+[api.op.section]
+list = "セクション一覧"
+get = "セクション取得"
+write = "セクション保存"
+insert = "節の新設"
+delete = "節の削除"
+confirm_next = "次の未確認節の確認"
+
+[api.op.session]
+workspace_get = "現在のワークスペース"
+workspace_switch = "ワークスペースの切替"
+recent_document = "最近開いた文書の循環"
+command = "パレットコマンドの実行"
+poll_events = "イベントキューの取得"
+
+[api.op.settings]
+get = "設定の取得"
+set = "設定の変更"
+
+[api.op.structure]
+tree = "構成ツリー"
+resolve = "位置・ID の解決"
+breadcrumb = "パンくず"
