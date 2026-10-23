@@ -24,7 +24,11 @@ def test_the_documented_shape_of_section_19_3_2(project):
     with novnow.Session(project) as session:
         info = session.project.info()
         assert info["title"] == "星屑の時計"
-        assert session.structure.tree()["count"] >= 1
+        # `structure.tree` の形は `{level, nodes}`（`REF:tests/delegation.rs` と同じ正本）
+        tree = session.structure.tree()
+        assert set(tree) == {"level", "nodes"}, sorted(tree)
+        assert len(tree["nodes"]) >= 1
+        assert tree["nodes"][0]["id"]
         listed = session.section.list()
         assert listed["count"] >= 1
 

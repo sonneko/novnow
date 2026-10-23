@@ -47,20 +47,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Resolve dependencies into Cargo.lock (reproducibility)
+      - name: Verify the committed Cargo.lock still resolves
         working-directory: python/novnow-py
         run: |
-          # `python/novnow-py` は root の `[workspace] exclude` なので独自の Cargo.lock を持つ。
-          # まだリポジトリへ置けていない（サンドボックスからは crates.io に届かず pyo3 を
-          # 解決できないため）ので、ここで解決したものを成果物として出す。人間が
-          # `python/novnow-py/Cargo.lock` として commit すれば以降は `--locked` で固定できる。
-          cargo generate-lockfile
+          # `python/novnow-py` は root の `[workspace] exclude` なので独自の Cargo.lock を持つ
+          # （pyo3 0.22.6 ＋ 97 パッケージ。`cache/pyo3-crates` の vendor を使って
+          # サンドボックスで生成し、commit したもの）。`--locked` で解決できる＝置いた
+          # lock が Cargo.toml と食い違っていないことを確認する。食い違ったら
+          # `cargo generate-lockfile` して commit し直す。
+          cargo metadata --locked --format-version 1 >/dev/null
           cargo tree --locked --depth 1 | head -20
-      - uses: actions/upload-artifact@v4
-        with:
-          name: cargo-lock-${{ matrix.target }}
-          path: python/novnow-py/Cargo.lock
-          if-no-files-found: error
       - name: Build the wheel (abi3-py39)
         uses: PyO3/maturin-action@v1
         with:

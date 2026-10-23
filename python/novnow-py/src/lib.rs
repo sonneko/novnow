@@ -74,7 +74,7 @@ impl Session {
     /// Python のオブジェクト（`dict`）に写す。コールバックは `Session::push` と同じく
     /// 起きたときに 1 回だけ呼び、`poll_events()` はそれとは別に**同じ列**を返す
     /// （`REF:src/app/session.rs` の `push` / `poll_events` と同じ関係）。
-    fn take_events(&self, py: Python<'_>) -> PyResult<Vec<PyObject>> {
+    fn collect_events(&self, py: Python<'_>) -> PyResult<()> {
         let core = &self.core;
         let drained = py.allow_threads(move || -> PyResult<Result<Vec<Value>, Error>> {
             let Ok(mut driver) = core.lock() else {
@@ -85,28 +85,37 @@ impl Session {
                 .map(|events| events.iter().map(|event| event.to_json()).collect()))
         })?;
         let values = drained.map_err(into_error)?;
-        if !values.is_empty() {
-            // JSON → Python の `dict`（§19.3.2）。GIL を持っているのでここで写す
-            let dicts = values
-                .iter()
-                .map(|value| to_python(py, value))
-                .collect::<PyResult<Vec<_>>>()?;
-            // Python 側から `on_event` を呼ばれても壊れないように、写しを取ってから渡す
-            let callbacks = self.callbacks.borrow().clone();
-            for dict in &dicts {
-                for callback in &callbacks {
-                    let _ = callback.call1(py, (dict,));
-                }
-            }
-            self.pending.borrow_mut().extend(dicts);
+        if values.is_empty() {
+            return Ok(());
         }
-        Ok(std::mem::take(&mut *self.pending.borrow_mut()))
+        // JSON → Python の `dict`（§19.3.2）。GIL を持っているのでここで写す
+        let dicts = values
+            .iter()
+            .map(|value| to_python(py, value))
+            .collect::<PyResult<Vec<_>>>()?;
+        // Python 側から `on_event` を呼ばれても壊れないように、写しを取ってから渡す
+        let callbacks = (*self.callbacks.borrow()).clone();
+        for dict in &dicts {
+            for callback in &callbacks {
+                let _ = callback.call1(py, (dict,));
+            }
+        }
+        self.pending.borrow_mut().extend(dicts);
+        Ok(())
     }
 
-    /// イベントを流すだけ（操作のあと）。`poll_events()` が列を返す。
+    /// イベントを流すだけ（操作のあと）。**取り出さない**＝ `poll_events()` が同じ列を返す。
+    ///
+    /// ここで `mem::take` までやると、操作のたびに列が消えて `poll_events()` が常に空になる
+    /// （コールバックだけが受け取る状態。2026-10-23 に Python 側の実行で発覚）。
     fn deliver(&self, py: Python<'_>) -> PyResult<()> {
-        self.take_events(py)?;
-        Ok(())
+        self.collect_events(py)
+    }
+
+    /// 溜まった分を取り出す（§19.2.4「1 回だけ」）。
+    fn take_events(&self, py: Python<'_>) -> PyResult<Vec<PyObject>> {
+        self.collect_events(py)?;
+        Ok(std::mem::take(&mut *self.pending.borrow_mut()))
     }
 }
 
@@ -114,12 +123,14 @@ impl Session {
 #[pyfunction]
 fn open(py: Python<'_>, path: &str) -> PyResult<Session> {
     let root = std::path::PathBuf::from(path);
-    let opened = py.allow_threads(move || Driver::open_with(&root, Interface::Python))?;
+    let opened = py.allow_threads(move || Driver::open_with(&root, Interface::Python))
+        .map_err(into_error)?;
     Ok(Session::new(opened))
 }
 
 /// `novnow.create(path, title=None)`（`project.new`。§19.3.2）。
 #[pyfunction]
+#[pyo3(signature = (path, title = None))]
 fn create(py: Python<'_>, path: &str, title: Option<&str>) -> PyResult<Session> {
     let root = std::path::PathBuf::from(path);
     let options = CreateOptions {
@@ -127,13 +138,14 @@ fn create(py: Python<'_>, path: &str, title: Option<&str>) -> PyResult<Session> 
         language: "ja".to_owned(),
         title: title.unwrap_or_default().to_owned(),
     };
-    let created = py.allow_threads(move || Driver::create(&root, options))?;
+    let created = py.allow_threads(move || Driver::create(&root, options)).map_err(into_error)?;
     Ok(Session::new(created))
 }
 
 #[pymethods]
 impl Session {
     /// 正規操作を 1 つ実行する（§19.7）。`args` は JSON と同じ構造の `dict`。
+    #[pyo3(signature = (op, args = None))]
     fn run(&self, py: Python<'_>, op: &str, args: Option<Bound<'_, PyDict>>) -> PyResult<PyObject> {
         let args = match args {
             Some(dict) => from_python(&dict)?,
@@ -149,9 +161,8 @@ impl Session {
             Ok(driver.run(&op, args))
         })?;
         self.deliver(py)?;
-        outcome
-            .map(|value| to_python(py, &value))
-            .map_err(into_error)
+        let value = outcome.map_err(into_error)?;
+        to_python(py, &value)
     }
 
     /// パレットのコマンドを実行する（§19.2.3）。
@@ -165,9 +176,8 @@ impl Session {
             Ok(driver.command(&name))
         })?;
         self.deliver(py)?;
-        outcome
-            .map(|value| to_python(py, &value))
-            .map_err(into_error)
+        let value = outcome.map_err(into_error)?;
+        to_python(py, &value)
     }
 
     /// イベントキューを取り出す（§19.2.4・§19.3.5）。登録済みのコールバックにも渡す。
@@ -197,9 +207,8 @@ impl Session {
             Ok(driver.cancel(&handle))
         })?;
         self.deliver(py)?;
-        outcome
-            .map(|value| to_python(py, &value))
-            .map_err(into_error)
+        let value = outcome.map_err(into_error)?;
+        to_python(py, &value)
     }
 
     /// 文言の言語（§19.1.8）。`ja` / `en`。
@@ -250,6 +259,7 @@ impl Session {
         slf
     }
 
+    #[pyo3(signature = (_kind = None, _value = None, _traceback = None))]
     fn __exit__(
         &self,
         py: Python<'_>,
@@ -376,8 +386,8 @@ fn from_python(value: &Bound<'_, PyAny>) -> PyResult<Value> {
 fn _core(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add("NovnowError", module.py().get_type_bound::<NovnowError>())?;
     module.add_class::<Session>()?;
-    module.add_function(&wrap_pyfunction!(open, module)?)?;
-    module.add_function(&wrap_pyfunction!(create, module)?)?;
+    module.add_function(wrap_pyfunction!(open, module)?)?;
+    module.add_function(wrap_pyfunction!(create, module)?)?;
     module.add(
         "OPERATIONS",
         to_python(

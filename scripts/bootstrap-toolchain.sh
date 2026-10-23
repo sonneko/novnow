@@ -40,7 +40,8 @@ done
 if [ -z "${FORCE:-}" ] && [ -x "$BUILD_DIR/sysroot/bin/rustc" ]; then
     if PATH="$BUILD_DIR/sysroot/bin:$PATH" rustc --version >/dev/null 2>&1; then
         if [ -f "$BUILD_DIR/env.sh" ] && [ -f "$BUILD_DIR/cargo-home/config.toml" ] \
-            && [ -d "$BUILD_DIR/vendor-src/criterion" ] && [ -d "$BUILD_DIR/vendor-src/tiniestsegmenter" ]; then
+            && [ -d "$BUILD_DIR/vendor-src/criterion" ] && [ -d "$BUILD_DIR/vendor-src/tiniestsegmenter" ] \
+            && [ -d "$BUILD_DIR/vendor-src/pyo3" ]; then
             say "すでにある: $BUILD_DIR（$(PATH="$BUILD_DIR/sysroot/bin:$PATH" rustc --version)）"
             echo "    使うときは次を各コマンドの前に置く: . $BUILD_DIR/env.sh"
             exit 0

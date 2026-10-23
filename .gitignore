@@ -5,6 +5,8 @@
 
 # Python（`python/novnow-py` の pytest が作る）
 __pycache__/
+# `python/novnow-py` は root の workspace の外なので独自の target/ を持つ
+python/novnow-py/target/
 *.py[cod]
 .pytest_cache/
 .mypy_cache/
