@@ -1,29 +1,48 @@
-// GitHub-like modern dark theme color palette and styling variables
+// React.dev Light Mode color palette and styling tokens
 
-$bg-dark: #0d1117;
-$bg-subtle: #161b22;
-$bg-card: #1f242d;
-$bg-card-hover: #262c36;
+$bg-wash: #ffffff;
+$bg-dark: $bg-wash; // legacy alias -> light canvas
+$bg-card: #f6f7f9; // gray-5
+$bg-subtle: #ebecf0; // gray-10
+$bg-card-hover: #eff1f5;
+$bg-highlight: #e6f7ff; // blue-10
 
-$border-color: #30363d;
-$border-highlight: #484f58;
+$border-color: #ebecf0; // gray-10
+$border-subtle: rgba(0, 0, 0, 0.08);
+$border-highlight: #bcc1cd; // gray-20
 
-$text-primary: #f0f6fc;
-$text-secondary: #8b949e;
-$text-muted: #6e7681;
+$text-primary: #23272f; // gray-90
+$text-secondary: #404756; // gray-70
+$text-muted: #5e687e; // gray-50
 
-$accent-purple: #a371f7;
-$accent-purple-glow: rgba(163, 113, 247, 0.25);
-$accent-blue: #58a6ff;
-$accent-green: #3fb950;
-$accent-orange: #f0883e;
-$accent-pink: #f778ba;
+$accent-brand: #087ea4; // blue-50 (React.dev primary link & brand)
+$accent-cyan: #149eca; // blue-40
+$accent-blue: $accent-brand;
+$accent-purple: #575fb7; // purple-50
+$accent-green: #2b6e62; // green-60
+$accent-orange: #b65700; // yellow-60
+$accent-pink: #c1554d; // red-40
+$accent-red: #c1554d;
 
-$font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans JP", sans-serif;
-$font-family-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+$bg-green: #f4fbf9;
+$border-green: #abded5;
+$bg-orange: #fef5e7;
+$border-orange: #fde7c7;
+$bg-purple: #f3f4fd;
+$bg-red: #faf1f0;
+$border-red: #e5b7b3;
 
-$radius-sm: 6px;
-$radius-md: 12px;
-$radius-lg: 20px;
+$font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans JP", "Helvetica Neue", Arial, sans-serif;
+$font-family-mono: "Source Code Pro", "SFMono-Regular", ui-monospace, Consolas, "Liberation Mono", Menlo, monospace;
 
-$shadow-glow: 0 0 25px rgba(163, 113, 247, 0.15);
+$radius-sm: 8px;
+$radius-md: 16px;
+$radius-lg: 24px;
+$radius-pill: 9999px;
+
+$shadow-inner-border: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+$shadow-secondary-stroke: inset 0 0 0 1px #bcc1cd;
+$shadow-nav: 0 16px 32px -16px rgba(0, 0, 0, 0.08), 0 1px 0 0 rgba(0, 0, 0, 0.06);
+$shadow-card: 0px 0.8px 2px rgba(0, 0, 0, 0.032), 0px 2.7px 6.7px rgba(0, 0, 0, 0.048), 0px 12px 30px rgba(0, 0, 0, 0.08);
+$shadow-card-hover: 0px 1.2px 3px rgba(0, 0, 0, 0.04), 0px 4px 10px rgba(0, 0, 0, 0.06), 0px 16px 36px rgba(0, 0, 0, 0.1);
+$shadow-glow: $shadow-card;

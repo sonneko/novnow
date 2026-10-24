@@ -1,6 +1,7 @@
 ---
 import type { FeatureItem } from "../data/features";
 import type { Language } from "../data/i18n";
+import { splitInlineCode } from "../utils/inlineCode";
 import styles from "./GuideSection.module.scss";
 
 interface Props {
@@ -17,9 +18,17 @@ const { feature, lang } = Astro.props;
     <h2>{feature.title[lang]}</h2>
   </div>
 
-  <p class={styles.guideSummary}>{feature.summary[lang]}</p>
+  <p class={styles.guideSummary}>
+    {splitInlineCode(feature.summary[lang]).map((part) =>
+      part.code ? <code class={styles.inlineCode}>{part.text}</code> : part.text
+    )}
+  </p>
 
   <div class={styles.contentCard}>
-    <p>{feature.nonEngineerSummary[lang]}</p>
+    <p>
+      {splitInlineCode(feature.nonEngineerSummary[lang]).map((part) =>
+        part.code ? <code class={styles.inlineCodeOnCard}>{part.text}</code> : part.text
+      )}
+    </p>
   </div>
 </div>

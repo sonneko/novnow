@@ -23,34 +23,32 @@ const currentPath = current === "users" ? manualHref(slug) : specHref(slug);
 <BaseLayout title={title} lang="ja">
   <Header lang="ja" currentPath={currentPath} />
 
-  <div class="container" style="display: grid; grid-template-columns: 250px 1fr; gap: 2.5rem; margin-top: 2.5rem; margin-bottom: 5rem; align-items: start;">
-    <aside style="position: sticky; top: 90px; max-height: calc(100vh - 120px); overflow-y: auto; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 1.1rem;">
-      <div style="font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.7rem;">
-        ユーザーガイド
-      </div>
-      <nav style="display: flex; flex-direction: column; gap: 0.15rem; margin-bottom: 1.5rem;">
+  <div class="doc-layout">
+    <aside class="doc-sidebar" aria-label="ドキュメント目次">
+      <div class="doc-sidebar-group">ユーザーガイド</div>
+      <nav class="doc-sidebar-nav">
         {manualNav.map((entry) => (
           <a
             href={manualHref(entry.slug)}
             aria-current={current === "users" && entry.slug === slug ? "page" : undefined}
-            style:list={{ color: current === "users" && entry.slug === slug ? "var(--accent-purple)" : "var(--text-secondary)", "font-size": "0.88rem", padding: "0.3rem 0.5rem", "border-radius": "5px", "text-decoration": "none", "font-weight": current === "users" && entry.slug === slug ? "700" : "400" }}
+            class="doc-sidebar-link"
           >
-            {entry.title}
+            <span>{entry.title}</span>
           </a>
         ))}
       </nav>
 
-      <div style="font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.7rem;">
-        仕様書
-      </div>
-      <nav style="display: flex; flex-direction: column; gap: 0.15rem;">
+      <hr class="doc-sidebar-divider" />
+
+      <div class="doc-sidebar-group">仕様書</div>
+      <nav class="doc-sidebar-nav">
         {specificationNav.map((entry) => (
           <a
             href={specHref(entry.slug)}
             aria-current={current === "specifications" && entry.slug === slug ? "page" : undefined}
-            style:list={{ color: current === "specifications" && entry.slug === slug ? "var(--accent-purple)" : "var(--text-secondary)", "font-size": "0.82rem", padding: "0.25rem 0.5rem", "border-radius": "5px", "text-decoration": "none" }}
+            class="doc-sidebar-link"
           >
-            {entry.title}
+            <span>{entry.title}</span>
           </a>
         ))}
       </nav>
@@ -62,7 +60,7 @@ const currentPath = current === "users" ? manualHref(slug) : specHref(slug);
         <slot />
       </article>
 
-      <p style="margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.8rem;">
+      <p class="source-note">
         このページは <code>{source}</code> から自動生成しています。内容の正本はリポジトリのそのファイルです。
       </p>
     </main>
@@ -70,3 +68,25 @@ const currentPath = current === "users" ? manualHref(slug) : specHref(slug);
 
   <Footer lang="ja" />
 </BaseLayout>
+
+<style lang="scss">
+  @use "../styles/variables.scss" as *;
+
+  .source-note {
+    max-width: 820px;
+    margin-top: 3rem;
+    padding-top: 1.15rem;
+    border-top: 1px solid $border-color;
+    color: $text-muted;
+    font-size: 0.84rem;
+    line-height: 1.6;
+
+    code {
+      background-color: rgba(153, 161, 179, 0.15);
+      color: $text-primary;
+      padding: 0.12rem 0.35rem;
+      border-radius: 5px;
+      font-size: 0.88em;
+    }
+  }
+</style>

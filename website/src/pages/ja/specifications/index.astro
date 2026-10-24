@@ -8,29 +8,117 @@ import { specificationNav } from "../../../data/docs-nav";
 <BaseLayout title="仕様書" lang="ja">
   <Header lang="ja" currentPath="/ja/specifications/" />
 
-  <main class="container" style="margin: 3rem auto 5rem; max-width: 900px;">
-    <h1 style="font-size: 2rem; font-weight: 800; margin-bottom: 0.75rem;">仕様書</h1>
-    <p style="color: var(--text-secondary); line-height: 1.8; margin-bottom: 2rem;">
+  <main class="container specs-index">
+    <h1 class="page-title">仕様書</h1>
+    <p class="page-lead">
       novnow の決まりごとの正本です。<strong>読まなくても使えます。</strong>
       手引きで分からない言葉が出たときや、「なぜそうなっているか」を知りたいときに引いてください。
       仕様書はリポジトリの <code>docs/specifications/</code> にあり、このサイトはそれをそのまま表示しています。
     </p>
 
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.75rem;">
+    <div class="spec-grid">
       {specificationNav.map((entry) => (
-        <a
-          href={`/ja/specifications/${entry.slug}`}
-          style="display: block; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 1rem; text-decoration: none;"
-        >
-          <span style="color: var(--text-primary); font-weight: 600;">{entry.title}</span>
+        <a href={`/ja/specifications/${entry.slug}`} class="spec-card">
+          <span class="spec-title">{entry.title}</span>
+          <span class="spec-arrow" aria-hidden="true">→</span>
         </a>
       ))}
     </div>
 
-    <p style="margin-top: 2.5rem; color: var(--text-muted); font-size: 0.85rem;">
+    <p class="footer-note">
       先に読むなら <a href="/ja/manual/">ユーザーガイド</a> から。
     </p>
   </main>
 
   <Footer lang="ja" />
 </BaseLayout>
+
+<style lang="scss">
+  @use "../../../styles/variables.scss" as *;
+
+  .specs-index {
+    margin: 3rem auto 5rem;
+    max-width: 920px;
+  }
+
+  .page-title {
+    font-size: clamp(2rem, 3.4vw, 2.5rem);
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    color: $text-primary;
+    margin-bottom: 0.75rem;
+  }
+
+  .page-lead {
+    color: $text-secondary;
+    font-size: 1.04rem;
+    line-height: 1.8;
+    margin-bottom: 2.25rem;
+
+    strong {
+      color: $text-primary;
+    }
+
+    code {
+      background-color: rgba(153, 161, 179, 0.15);
+      color: $text-primary;
+      padding: 0.14rem 0.38rem;
+      border-radius: 6px;
+      font-size: 0.88em;
+    }
+  }
+
+  .spec-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+    gap: 1rem;
+  }
+
+  .spec-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    background-color: $bg-card;
+    box-shadow: $shadow-inner-border;
+    border-radius: $radius-md;
+    padding: 1.15rem 1.35rem;
+    text-decoration: none;
+    transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+
+    &:hover {
+      background-color: $bg-highlight;
+      box-shadow: inset 0 0 0 1px rgba($accent-brand, 0.28);
+      transform: translateY(-1px);
+      text-decoration: none;
+
+      .spec-title,
+      .spec-arrow {
+        color: $accent-brand;
+      }
+
+      .spec-arrow {
+        transform: translateX(3px);
+      }
+    }
+  }
+
+  .spec-title {
+    color: $text-primary;
+    font-weight: 700;
+    font-size: 0.96rem;
+    transition: color 0.15s ease;
+  }
+
+  .spec-arrow {
+    color: $text-muted;
+    font-weight: 600;
+    transition: color 0.15s ease, transform 0.15s ease;
+  }
+
+  .footer-note {
+    margin-top: 2.5rem;
+    color: $text-muted;
+    font-size: 0.9rem;
+  }
+</style>

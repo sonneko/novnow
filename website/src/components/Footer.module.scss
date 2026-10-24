@@ -2,9 +2,8 @@
 
 .footer {
   border-top: 1px solid $border-color;
-  background-color: $bg-subtle;
-  padding: 2.5rem 0;
-  margin-top: 5rem;
+  background-color: $bg-card;
+  padding: 3rem 0;
   color: $text-secondary;
 }
 
@@ -18,30 +17,35 @@
 
 .creditText {
   font-size: 0.95rem;
+  font-weight: 600;
   color: $text-primary;
   margin-bottom: 0.25rem;
 }
 
 .author {
-  color: $accent-purple;
-  font-weight: 600;
+  color: $accent-brand;
+  font-weight: 700;
 }
 
 .copyright {
-  font-size: 0.85rem;
+  font-size: 0.84rem;
   color: $text-muted;
 }
 
 .links {
   display: flex;
-  gap: 1.25rem;
+  flex-wrap: wrap;
+  gap: 1.4rem;
 
   a {
-    font-size: 0.88rem;
+    font-size: 0.9rem;
+    font-weight: 500;
     color: $text-secondary;
+    text-decoration: none;
 
     &:hover {
-      color: $text-primary;
+      color: $accent-brand;
+      text-decoration: underline;
     }
   }
 }

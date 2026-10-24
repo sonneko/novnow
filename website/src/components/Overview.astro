@@ -5,6 +5,7 @@
 import { platforms, guideLinks } from "../data/site";
 import { manualNav } from "../data/docs-nav";
 import type { Language } from "../data/i18n";
+import { splitInlineCode } from "../utils/inlineCode";
 
 interface Props {
   lang: Language;
@@ -64,7 +65,6 @@ const text = {
 
 const t = text[lang];
 
-// ガイドのカードは docs/users の目次（docs-site.py が生成）から作る。
 const cardNotes: Record<string, { ja: string; en: string }> = {
   start: { ja: "9 段階で、書き上げて書き出すまで", en: "Nine steps from blank page to export" },
   cheatsheet: { ja: "記号とキーだけを 1 枚に", en: "Sigils and keys on one page" },
@@ -91,72 +91,361 @@ const facts = [
 ];
 ---
 
-<section class="container" style="margin: 3rem auto 4rem; text-align: center; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; padding: 2rem;">
-  <h2 style="font-size: 1.6rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.5rem;">{t.startTitle}</h2>
-  <p style="color: var(--text-secondary); max-width: 720px; margin: 0 auto 1.25rem; line-height: 1.7;">{t.startLead}</p>
-  <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
-    <a href={guideLinks.start} style="display: inline-block; background-color: var(--accent-purple); color: #fff; font-weight: 600; padding: 0.7rem 1.5rem; border-radius: 8px; text-decoration: none;">{t.startButton}</a>
-    <a href={guideLinks.index} style="display: inline-block; border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.7rem 1.5rem; border-radius: 8px; text-decoration: none;">{t.startGuideLink}</a>
-  </div>
-</section>
-
-<section class="container" style="margin-bottom: 5rem;">
-  <h2 style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.5rem;">{t.manualTitle}</h2>
-  <p style="color: var(--text-secondary); max-width: 760px; margin-bottom: 1.5rem; line-height: 1.7;">{t.manualLead}</p>
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
-    {guideCards.map((card) => (
-      <a href={card.href} style="display: block; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 1.25rem; text-decoration: none;">
-        <div style="color: var(--text-primary); font-weight: 700; margin-bottom: 0.35rem;">{card.title}</div>
-        <div style="color: var(--text-secondary); font-size: 0.88rem; line-height: 1.6;">{card.note[lang]}</div>
-      </a>
-    ))}
-  </div>
-</section>
-
-<section class="container" style="margin-bottom: 5rem;">
-  <h2 style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.5rem;">{t.platformsTitle}</h2>
-  <p style="color: var(--text-secondary); max-width: 760px; margin-bottom: 1.5rem; line-height: 1.7;">{t.platformsLead}</p>
-  <div style="overflow-x: auto; border: 1px solid var(--border-color); border-radius: 10px;">
-    <table style="width: 100%; border-collapse: collapse; font-size: 0.92rem;">
-      <thead>
-        <tr style="background-color: var(--bg-subtle); color: var(--text-muted); text-align: left;">
-          <th style="padding: 0.7rem 1rem; font-weight: 600;">{t.platformColumns.name}</th>
-          <th style="padding: 0.7rem 1rem; font-weight: 600;">{t.platformColumns.setup}</th>
-          <th style="padding: 0.7rem 1rem; font-weight: 600;">{t.platformColumns.bestFor}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {platforms.map((row) => (
-          <tr style="border-top: 1px solid var(--border-color);">
-            <td style="padding: 0.7rem 1rem; white-space: nowrap; color: var(--text-primary); font-weight: 600;">{row.name}</td>
-            <td style="padding: 0.7rem 1rem; color: var(--text-secondary);">{row.setup[lang]}</td>
-            <td style="padding: 0.7rem 1rem; color: var(--text-secondary);">{row.bestFor[lang]}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-</section>
-
-<section class="container" style="margin-bottom: 5rem;">
-  <h2 style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary); text-align: center; margin-bottom: 1.5rem;">{t.factsTitle}</h2>
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
-    {facts.map((fact) => (
-      <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 1.25rem; text-align: center;">
-        <div style="font-size: 2rem; font-weight: 800; color: var(--accent-purple); line-height: 1.1;">{fact.value}</div>
-        <div style="color: var(--text-primary); font-weight: 600; margin-top: 0.35rem;">{fact.label[lang]}</div>
-        <div style="color: var(--text-muted); font-size: 0.8rem; margin-top: 0.25rem;">{fact.note[lang]}</div>
+<section class="section-band-wash">
+  <div class="container">
+    <div class="start-callout">
+      <h2 class="section-heading">{t.startTitle}</h2>
+      <p class="section-lead centered">{t.startLead}</p>
+      <div class="start-actions">
+        <a href={guideLinks.start} class="btn-primary">{t.startButton}</a>
+        <a href={guideLinks.index} class="btn-secondary">{t.startGuideLink}</a>
       </div>
-    ))}
+    </div>
   </div>
 </section>
 
-<section class="container" style="margin-bottom: 5rem; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 2rem;">
-  <h2 style="font-size: 1.5rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.5rem;">{t.specsTitle}</h2>
-  <p style="color: var(--text-secondary); max-width: 780px; margin-bottom: 1.25rem; line-height: 1.7;">{t.specsLead}</p>
-  <div style="display: flex; flex-wrap: wrap; gap: 0.6rem;">
-    {t.specsLinks.map((link) => (
-      <a href={link.href} style="display: inline-block; border: 1px solid var(--border-color); border-radius: 999px; padding: 0.45rem 1rem; color: var(--text-primary); text-decoration: none; font-size: 0.88rem;">{link.label}</a>
-    ))}
+<section class="section-band-tinted">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-heading">{t.manualTitle}</h2>
+      <p class="section-lead">{t.manualLead}</p>
+    </div>
+    <div class="guide-grid">
+      {guideCards.map((card) => (
+        <a href={card.href} class="guide-card">
+          <div class="guide-card-top">
+            <span class="guide-card-title">{card.title}</span>
+            <span class="guide-card-arrow" aria-hidden="true">→</span>
+          </div>
+          <div class="guide-card-note">{card.note[lang]}</div>
+        </a>
+      ))}
+    </div>
   </div>
 </section>
+
+<section class="section-band-wash">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-heading">{t.platformsTitle}</h2>
+      <p class="section-lead">{t.platformsLead}</p>
+    </div>
+    <div class="platform-table-wrap">
+      <table class="platform-table">
+        <thead>
+          <tr>
+            <th>{t.platformColumns.name}</th>
+            <th>{t.platformColumns.setup}</th>
+            <th>{t.platformColumns.bestFor}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {platforms.map((row) => (
+            <tr class:list={{ highlight: row.highlight }}>
+              <td class="platform-name">
+                <span>{row.name}</span>
+                {row.highlight && <span class="recommended-pill">{lang === "ja" ? "推奨" : "Web"}</span>}
+              </td>
+              <td>
+                {splitInlineCode(row.setup[lang]).map((part) =>
+                  part.code ? <code class="inline-code">{part.text}</code> : part.text
+                )}
+              </td>
+              <td>{row.bestFor[lang]}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="section-band-tinted">
+  <div class="container">
+    <h2 class="section-heading centered-heading">{t.factsTitle}</h2>
+    <div class="facts-grid">
+      {facts.map((fact) => (
+        <div class="fact-card">
+          <div class="fact-value">{fact.value}</div>
+          <div class="fact-label">{fact.label[lang]}</div>
+          <div class="fact-note">{fact.note[lang]}</div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<section class="section-band-wash">
+  <div class="container">
+    <div class="specs-card">
+      <h2 class="specs-heading">{t.specsTitle}</h2>
+      <p class="section-lead">{t.specsLead}</p>
+      <div class="specs-links">
+        {t.specsLinks.map((link) => (
+          <a href={link.href} class="spec-pill">{link.label}</a>
+        ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<style lang="scss">
+  @use "../styles/variables.scss" as *;
+
+  .section-header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+  }
+
+  .section-heading {
+    font-size: clamp(1.75rem, 3vw, 2.35rem);
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    line-height: 1.25;
+    color: $text-primary;
+    margin-bottom: 0.65rem;
+  }
+
+  .centered-heading {
+    text-align: center;
+    margin-bottom: 2.25rem;
+  }
+
+  .section-lead {
+    color: $text-secondary;
+    font-size: 1.05rem;
+    max-width: 720px;
+    margin: 0 auto;
+    line-height: 1.7;
+  }
+
+  .start-callout {
+    text-align: center;
+    background-color: $bg-card;
+    box-shadow: $shadow-inner-border;
+    border-radius: $radius-lg;
+    padding: 3rem 2rem;
+
+    .section-lead.centered {
+      margin-bottom: 1.75rem;
+    }
+  }
+
+  .start-actions {
+    display: flex;
+    gap: 0.85rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .guide-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.15rem;
+  }
+
+  .guide-card {
+    display: flex;
+    flex-direction: column;
+    background-color: $bg-wash;
+    box-shadow: $shadow-card, $shadow-inner-border;
+    border-radius: $radius-md;
+    padding: 1.35rem 1.45rem;
+    text-decoration: none;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: $shadow-card-hover, inset 0 0 0 1px rgba($accent-brand, 0.28);
+      text-decoration: none;
+
+      .guide-card-title,
+      .guide-card-arrow {
+        color: $accent-brand;
+      }
+
+      .guide-card-arrow {
+        transform: translateX(3px);
+      }
+    }
+  }
+
+  .guide-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.45rem;
+  }
+
+  .guide-card-title {
+    color: $text-primary;
+    font-weight: 700;
+    font-size: 1rem;
+    transition: color 0.15s ease;
+  }
+
+  .guide-card-arrow {
+    color: $text-muted;
+    font-weight: 600;
+    transition: color 0.15s ease, transform 0.15s ease;
+  }
+
+  .guide-card-note {
+    color: $text-secondary;
+    font-size: 0.9rem;
+    line-height: 1.6;
+  }
+
+  .platform-table-wrap {
+    overflow-x: auto;
+    border-radius: $radius-md;
+    box-shadow: $shadow-inner-border;
+    background-color: $bg-wash;
+  }
+
+  .platform-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.94rem;
+
+    thead tr {
+      background-color: $bg-card;
+      color: $text-muted;
+      text-align: left;
+      border-bottom: 1px solid $border-color;
+    }
+
+    th {
+      padding: 0.85rem 1.15rem;
+      font-weight: 700;
+      font-size: 0.84rem;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+
+    tbody tr {
+      border-top: 1px solid $border-color;
+
+      &.highlight {
+        background-color: rgba($bg-highlight, 0.55);
+      }
+    }
+
+    td {
+      padding: 0.85rem 1.15rem;
+      color: $text-secondary;
+      line-height: 1.6;
+    }
+
+    td.platform-name {
+      white-space: nowrap;
+      color: $text-primary;
+      font-weight: 700;
+    }
+  }
+
+  .recommended-pill {
+    display: inline-block;
+    margin-left: 0.5rem;
+    padding: 0.12rem 0.5rem;
+    border-radius: $radius-pill;
+    background-color: $bg-highlight;
+    box-shadow: inset 0 0 0 1px rgba($accent-brand, 0.22);
+    color: $accent-brand;
+    font-size: 0.72rem;
+    font-weight: 700;
+    vertical-align: middle;
+  }
+
+  .inline-code {
+    background-color: rgba(153, 161, 179, 0.16);
+    color: $text-primary;
+    padding: 0.14rem 0.4rem;
+    border-radius: 6px;
+    font-size: 0.86em;
+  }
+
+  .facts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.15rem;
+  }
+
+  .fact-card {
+    background-color: $bg-wash;
+    box-shadow: $shadow-card, $shadow-inner-border;
+    border-radius: $radius-md;
+    padding: 1.65rem 1.25rem;
+    text-align: center;
+  }
+
+  .fact-value {
+    font-size: 2.35rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: $accent-brand;
+    line-height: 1.1;
+  }
+
+  .fact-label {
+    color: $text-primary;
+    font-weight: 700;
+    font-size: 1rem;
+    margin-top: 0.45rem;
+  }
+
+  .fact-note {
+    color: $text-muted;
+    font-size: 0.84rem;
+    margin-top: 0.3rem;
+  }
+
+  .specs-card {
+    background-color: $bg-card;
+    box-shadow: $shadow-inner-border;
+    border-radius: $radius-lg;
+    padding: 2.75rem 2.25rem;
+    text-align: center;
+
+    .section-lead {
+      margin-bottom: 1.65rem;
+    }
+  }
+
+  .specs-heading {
+    font-size: clamp(1.55rem, 2.6vw, 2rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: $text-primary;
+    margin-bottom: 0.6rem;
+  }
+
+  .specs-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.65rem;
+  }
+
+  .spec-pill {
+    display: inline-flex;
+    align-items: center;
+    background-color: $bg-wash;
+    box-shadow: $shadow-secondary-stroke;
+    border-radius: $radius-pill;
+    padding: 0.55rem 1.15rem;
+    color: $text-primary;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+
+    &:hover {
+      background-color: $bg-highlight;
+      box-shadow: inset 0 0 0 1px rgba($accent-brand, 0.35);
+      color: $accent-brand;
+      text-decoration: none;
+    }
+  }
+</style>
