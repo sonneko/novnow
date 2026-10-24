@@ -61,22 +61,21 @@ export const troubleshootingData: TroubleshootingItem[] = [
       en: "Migration",
     },
     title: {
-      ja: "v0形式のプロジェクト（characters.json）が開けない",
-      en: "Cannot open legacy v0 projects (characters.json detected)",
+      ja: "旧形式のプロジェクト（characters.json）が開けない",
+      en: "Cannot open legacy projects (characters.json detected)",
     },
     problem: {
-      ja: "旧バージョン (v0) のプロジェクトフォルダを開こうとするとエラーになり起動しない。",
-      en: "Opening a v0 directory results in a legacy format error.",
+      ja: "旧版のプロジェクトフォルダを開こうとするとエラーになり起動しない。",
+      en: "Opening a legacy directory results in a legacy format error.",
     },
     cause: {
       ja: "NovNow v0.1.0 は `characters.json` ではなく `characters.md` を使用する新しいファイル形式を採用しています。",
       en: "NovNow v0.1.0 uses `characters.md` instead of legacy `characters.json`.",
     },
     solution: {
-      ja: "ターミナルで `novnow migrate <プロジェクトパス>` を実行してください。既存データを無損失で自動変換・バックアップ作成のうえ移行します。",
-      en: "Run `novnow migrate <project-path>` in your terminal. Automatically converts project files with full backup.",
+      ja: "元の作品は変更せず、対応する旧版で開いて本文を通常のテキストに書き出してください。v1 までは形式互換性を保証せず、v0 → v1 の移行機能も提供しません。CLI の `migrate` は本文テキストを新しい作品に取り込む機能で、旧形式の自動変換ではありません。",
+      en: "Keep the original project unchanged and use its compatible older release to export plain text. Project format compatibility is not guaranteed before v1, and no v0-to-v1 migration feature will be provided. The CLI `migrate` command imports prose text into a new project; it does not convert old project formats.",
     },
-    code: `novnow migrate ./my-novel`,
   },
   {
     id: "character-mode-error",
@@ -108,20 +107,20 @@ export const troubleshootingData: TroubleshootingItem[] = [
       en: "AI Agent & MCP",
     },
     title: {
-      ja: "AIエージェント実行時に E030 / E063 エラーが発生する",
-      en: "E030 / E063 error when executing AI tasks",
+      ja: "AIエージェント実行時に E030 / E063 / E064 が出る",
+      en: "E030 / E063 / E064 when executing AI tasks",
     },
     problem: {
       ja: "プロット生成や本文執筆タスクを実行すると「環境変数が設定されていません」「MCPに接続できません」と表示される。",
       en: "AI task execution fails with missing environment variables or unreachable MCP server messages.",
     },
     cause: {
-      ja: "`agents/mcp.json` 内で指定された環境変数 (`NOVNOW_LLM_KEY` 等) が未設定であるか、ローカルLLMサーバが起動していません。",
-      en: "Required environment variables in `agents/mcp.json` are missing, or the local LLM endpoint is offline.",
+      ja: "E030 は MCP 用の環境変数が未設定、E063 は MCP サーバへの接続失敗、E064 はローカル LLM への接続失敗です。",
+      en: "E030 means a missing MCP environment variable; E063 means the MCP server is unreachable; E064 means the local LLM is unreachable.",
     },
     solution: {
-      ja: "環境変数を設定してアプリを再起動するか、`agent` ワークスペースのローカルLLM設定で `http://localhost:11434` (Ollama等) の接続確認を行ってください。",
-      en: "Set the required env variables and restart, or check the Local LLM settings tab in the `agent` workspace (`http://localhost:11434`).",
+      ja: "MCP は `agents/mcp.json` の設定とサーバの起動を確認してください。ローカル LLM は `agent` ワークスペースで接続先を確認します。Web 版からデスクトップ専用の stdio サーバは起動できません。",
+      en: "For MCP, check `agents/mcp.json`, the required environment variables, and the server process. For a local LLM, check its endpoint in the agent workspace. The browser cannot launch desktop-only stdio servers.",
     },
   },
   {
@@ -166,8 +165,8 @@ export const troubleshootingData: TroubleshootingItem[] = [
       en: "An external text editor saved files in Shift_JIS or UTF-16 instead of UTF-8.",
     },
     solution: {
-      ja: "VS Codeやテキストエディタで該当ファイルを開き、文字コードを「UTF-8 (BOMなし) / 改行LF」で保存し直して `F5` キーを押してください。",
-      en: "Re-open the file in VS Code or any editor, save as UTF-8 (no BOM) with LF line endings, and press `F5` in NovNow.",
+      ja: "VS Codeやテキストエディタで該当ファイルを開き、文字コードを「UTF-8」で保存し直して `F5` キーを押してください。",
+      en: "Re-open the file in VS Code or any editor, save as UTF-8 (BOM and CRLF are also accepted), and press `F5` in NovNow.",
     },
   },
 ];

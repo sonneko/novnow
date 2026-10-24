@@ -1,0 +1,13 @@
+---
+import { version } from "../data/release";
+const { lang = "ja" } = Astro.props;
+---
+<aside class="release-notice" aria-label={lang === "ja" ? "リリースとデータ互換性" : "Release and data compatibility"}>
+  <strong>v{version}</strong>
+  {lang === "ja" ? "：v1 までは保存形式が変わる場合があります。v0 → v1 の移行機能は提供しません。更新前に Zip と本文テキストを保管してください。" : ": Project formats may change before v1. No v0-to-v1 migration feature will be provided. Keep Zip and plain-text backups before updating."}
+  <a href={`/${lang}/troubleshooting/#legacy-v0-project`}>{lang === "ja" ? "詳しく" : "Details"}</a>
+</aside>
+<style>
+  .release-notice { padding: .75rem max(1rem, calc((100vw - 1200px) / 2)); background: #fff3cc; color: #44320c; font-size: .875rem; line-height: 1.6; }
+  a { color: #674800; text-decoration: underline; margin-inline-start: .5em; }
+</style>

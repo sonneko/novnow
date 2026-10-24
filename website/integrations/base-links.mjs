@@ -4,10 +4,11 @@ import path from 'node:path';
 
 // Astro prefixes generated assets, but not handwritten or Markdown root links.
 // Normalize the emitted HTML so both content sources use the configured base.
-export function prefixLinks(html, base) {
+/** @param {string} html @param {string} base @param {boolean} [development] */
+export function prefixLinks(html, base, development = false) {
   const prefix = base.replace(/\/$/, '');
   return html.replace(/\b(href|src|action)=(['"])(\/(?!\/)[^'"\s]*)\2/g,
-    (match, attr, quote, url) => url === prefix || url.startsWith(`${prefix}/`)
+    (match, attr, quote, url) => (development && url.startsWith('/@vite/')) || url.split(/[?#]/, 1)[0] === prefix || url.startsWith(`${prefix}/`)
       ? match : `${attr}=${quote}${prefix}${url}${quote}`);
 }
 

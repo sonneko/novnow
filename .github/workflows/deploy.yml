@@ -63,11 +63,17 @@ jobs:
           python3 scripts/docs-site.py --check
           npm ci --prefix website
           npm run build --prefix website
+      - name: Verify the website before combining it with the app
+        run: |
+          node --test website/integrations/base-links.test.mjs
+          python3 scripts/website-check.py --website-only
+
       - name: Build with Trunk
         run: |
           trunk build --release --public-url "/novnow/app/"
           test ! -e website/dist/app
           cp -a dist website/dist/app
+          python3 scripts/website-check.py
 
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3

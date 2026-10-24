@@ -10,3 +10,13 @@ test('preserve anchors, external URLs and relative app paths', () => {
   const html = `<a href="#x"></a><a href="https://example.com/"></a><a href="//example.com/"></a><a href="./app/"></a>`;
   assert.equal(prefixLinks(html, '/novnow'), html);
 });
+
+test('base root URLs with queries and fragments remain idempotent', () => {
+  const html = '<a href="/novnow?lang=ja"></a><a href="/novnow#top"></a>';
+  assert.equal(prefixLinks(html, '/novnow/'), html);
+});
+
+test('development keeps the root Vite HMR endpoint while prefixing page links', () => {
+  assert.equal(prefixLinks('<script src="/@vite/client"></script><a href="/ja/">JA</a>', '/novnow', true),
+    '<script src="/@vite/client"></script><a href="/novnow/ja/">JA</a>');
+});

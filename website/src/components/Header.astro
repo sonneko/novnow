@@ -2,6 +2,7 @@
 import { translations, type Language } from "../data/i18n";
 import LanguageSwitcher from "./LanguageSwitcher.astro";
 import styles from "./Header.module.scss";
+import { version } from "../data/release";
 
 interface Props {
   lang: Language;
@@ -25,7 +26,7 @@ const t = translations[lang].nav;
         </svg>
         <span class={styles.logoText}>NovNow</span>
       </a>
-      <span class={styles.versionTag}>v1</span>
+      <span class={styles.versionTag}>v{version}</span>
     </div>
 
     <nav class={styles.nav} aria-label="Primary">

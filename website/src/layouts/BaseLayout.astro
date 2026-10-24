@@ -1,5 +1,6 @@
 ---
 import "../styles/global.scss";
+import ReleaseNotice from "../components/ReleaseNotice.astro";
 
 interface Props {
   title: string;
@@ -8,6 +9,9 @@ interface Props {
 }
 
 const { title, description = "NovNow - Dedicated Novel & Scenario IDE for Writers & Engineers", lang = "ja" } = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site);
+const languagePath = Astro.url.pathname.replace(/\/(ja|en)(?=\/|$)/, '/LANG');
+const translatedUrl = (language: string) => new URL(languagePath.replace('/LANG', `/${language}`), Astro.site);
 ---
 
 <!DOCTYPE html>
@@ -18,9 +22,13 @@ const { title, description = "NovNow - Dedicated Novel & Scenario IDE for Writer
     <meta name="theme-color" content="#ffffff" />
     <title>{title} | NovNow</title>
     <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="alternate" hreflang="ja" href={translatedUrl("ja")} />
+    <link rel="alternate" hreflang="en" href={translatedUrl("en")} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   </head>
   <body>
+    <ReleaseNotice lang={lang} />
     <slot />
   </body>
 </html>

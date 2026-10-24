@@ -2063,3 +2063,9 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - 自動検査では見逃していた、配布設計の旧 PyPI トークン認証・Rust 公開の否定・廃止済み VSCode 設定・古い探索順・Actions 引数形式・公開状態の自動判定という記述を実装と照合し訂正した。18 通りの導入選択肢と、全ソースを含む 17 添付成果物は別の数として扱う。
 - API 設計に残っていた未移設の説明、Python ワークスペース統合・型スタブ生成先、存在しない実装パスを訂正した。現在の設計は `REF:docs/designs/interfaces.md` と `REF:docs/designs/external.md` に記す。
 - TestPyPI の事前公開と本番同版アップロードの衝突を手順に明記し、実在しない仕様節への参照とスキーマ識別子の誤記を除いた。`REF:docs/script/reference.py` の配布検査に、古い公開設計と最終成果物数の回帰ガードを追加した。
+
+## 2026-10-24: Web サイトの全ページ・ブラウザ監査
+
+- ヘッダーの製品版表示を本体から読み、v1 の固定表示を訂正した。旧プロジェクトを migrate で無損失変換できるという誤った紹介を除き、データ互換性告知を全言語ページへ追加した。
+- 手引きの壊れたアンカー、詳細ページの言語切替、開発モードの base パス、ローカル LLM の診断コードと文字コード説明を修正した。canonical / hreflang を付け、Astro の非推奨 Zod import を更新した。
+- `REF:scripts/website-check.py` に出力 HTML 全体のリンク・アンカー・CSS/画像・言語切替・版表示・告知の検証を追加し、`REF:.github/workflows/website.yml` と Pages 結合前後の検査で再発を防ぐ。既存の仕様の変更ではなく、紹介文・導線・検証の整備である。

@@ -1,4 +1,5 @@
-import { defineCollection, z } from "astro:content";
+import { defineCollection } from "astro:content";
+import { z } from "astro/zod";
 import { glob } from "astro/loaders";
 
 // docs/ から scripts/docs-site.py が写したものだけを読む（手で書いた原稿は置かない）。

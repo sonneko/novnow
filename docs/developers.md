@@ -329,6 +329,12 @@ GitHub Actions は**走った分だけ**課金される。このリポジトリ�
 
 ### 4.8 ユーザー向け文書（`REF:docs/users/`）
 
+Web サイト側を変更したら `npm ci --prefix website && npm run check:site --prefix website` も実行する。
+これは通常の `REF:scripts/verify.sh` に含まれない Node ビルドと生成 HTML の検証で、
+`REF:.github/workflows/website.yml` と `REF:.github/workflows/deploy.yml` でも実行する。
+検査範囲と開発時の base 補正は `REF:website/README.md` を参照する。
+
+
 `REF:docs/specifications/` は「決まり」、`REF:docs/users/` は「使い方」である。両者は読者が違うので分ける。
 
 | 文書 | 中身 | 読者 |
