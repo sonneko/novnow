@@ -456,6 +456,24 @@ fn release_gates_and_cached_action_binaries_stay_safe() {
 }
 
 #[test]
+fn wheel_workflows_use_container_builds_and_targeted_caches() {
+    let wheels = include_str!("../.github/workflows/wheels.yml");
+    let release = include_str!("../.github/workflows/release.yml");
+    for workflow in [wheels, release] {
+        assert_eq!(workflow.matches("uses: PyO3/maturin-action@v1").count(), 2);
+        assert_eq!(workflow.matches("target: ${{ matrix.target }}").count(), 2);
+        assert_eq!(workflow.matches("sccache: true").count(), 2);
+        assert!(workflow.contains("manylinux: 2_28"));
+        assert!(workflow.contains("shared-key: python-wheel-${{ matrix.target }}"));
+        assert!(workflow.contains("cache-on-failure: true"));
+        assert!(workflow.contains("python=(arch -x86_64 python)"));
+        assert!(!workflow.contains("--target ${{ matrix.target }} --out dist"));
+        assert!(!workflow.contains("--out dist --manylinux"));
+    }
+    assert!(release.contains("shared-key: desktop-${{ matrix.target }}-${{ matrix.gui }}"));
+}
+
+#[test]
 fn status_distinguishes_published_browser_from_local_release_readiness() {
     let status = json(&["--status"]);
     assert_eq!(status["version"].as_str(), Some(env!("CARGO_PKG_VERSION")));

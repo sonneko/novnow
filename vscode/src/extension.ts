@@ -9,6 +9,10 @@ import {
 import { resolveBinary } from "./binary";
 import { NovnowCommands } from "./commands";
 
+export interface NovnowExtensionApi {
+  isLanguageServerActive(): boolean;
+}
+
 let client: LanguageClient | undefined;
 let starting: Promise<LanguageClient | undefined> | undefined;
 
@@ -72,7 +76,7 @@ async function startServer(context: vscode.ExtensionContext): Promise<LanguageCl
   }
 }
 
-export async function activate(context: vscode.ExtensionContext): Promise<void> {
+export async function activate(context: vscode.ExtensionContext): Promise<NovnowExtensionApi> {
   const output = vscode.window.createOutputChannel("novnow");
   context.subscriptions.push(output);
   const commands = new NovnowCommands(
@@ -103,6 +107,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }),
   );
   await startServer(context);
+  return { isLanguageServerActive };
 }
 
 export function isLanguageServerActive(): boolean {

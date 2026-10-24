@@ -2029,3 +2029,14 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - **文書**: 設計 §20 の 6 節を実装完了へ更新し、README・手引き・サイトに実際の取得先を載せた。初回リリース前の形態は「未提供」と明示する。生成物は `REF:scripts/docs-site.py` で再生成した。
 - **検証**: `REF:scripts/verify.sh` の全 12 ステップが緑（GUI あり 1371 件・GUI なし 1185 件、clippy・fmt・wasm32 を含む）。`REF:scripts/web-smoke.sh` は全項目成功、Astro は 208 ページを生成した。
 - **未実施**: 実際のリリース公開、署名・公証、VSCode Electron、5 対象環境のリモート wheel 検査、3 OS の Action スモーク。これらはローカル成功と区別し、対応する Actions の結果で確認する。
+
+### [HIST:MILESTONE:DISTRIBUTION-CI-CACHE] 2026-10-24 配布 CI のキャッシュと報告された失敗への修正を実装
+
+[HIST-TAG: category=MILESTONE id=DISTRIBUTION-CI-CACHE topics=distribution,ci,cache,wheels,vscode]
+
+- **キャッシュ**: `REF:.github/workflows/wheels.yml` と `REF:.github/workflows/release.yml` のホイールビルドに `sccache` と `Swatinem/rust-cache` を追加した。Rust キャッシュは対象環境ごとの鍵にし、デスクトップは GUI の有無も鍵へ加えた。失敗したジョブでも依存関係のキャッシュを残す。キャッシュの節約量はまだ測っていない。
+- **manylinux**: `PyO3/maturin-action` の `args` だけに `--target` / `--manylinux` を書く方式をやめ、コンテナ選択に使われる `target` / `manylinux` 入力へ分けた。ホスト上の glibc へリンクした wheel を manylinux 用と誤認しないための修正である。
+- **Intel macOS**: ARM64 の `macos-latest` 上で universal2 Python が ARM64 として動く場合に備え、x86_64 ホイールの導入と import は `arch -x86_64` で明示的に Intel 側を選ぶ。5 対象環境と `macosx_11_0_x86_64` のタグは変えない。
+- **VSCode**: Electron テストが `extension.ts` を直接 import すると、VSCode が起動した `dist/extension.js` とは別のモジュール状態を読んでいた。`activate()` が公開 API を返し、テストは起動済み拡張の API から LSP 状態を読むようにした（`REF:vscode/src/extension.ts`・`REF:vscode/src/test/suite/extension.test.ts`）。
+- **回帰検査**: `REF:tests/distribution.rs` にワークフロー入力とキャッシュ鍵の検査を加え、配布テストは 10 件になった。`REF:scripts/verify.sh` は全 12 ステップ緑（GUI あり 1372 件・GUI なし 1186 件）、VSCode の型検査・単体テスト 6 件・VSIX 生成も成功した。
+- **ホスト検証の保留**: ユーザー指示により今回の修正では Actions を再実行しない。manylinux 適合、Intel macOS の導入、Electron の LSP 状態、キャッシュ命中と時間短縮は次回のホスト実行まで未確認のまま残す。

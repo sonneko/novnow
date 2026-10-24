@@ -75,6 +75,14 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: python-wheel-${{ matrix.target }}
+          cache-all-crates: true
+          cache-on-failure: true
+          workspaces: |
+            . -> target
+            python/novnow-py -> target
       - name: Prepare Rosetta for the Intel macOS Python
         if: matrix.target == 'x86_64-apple-darwin' && runner.arch == 'ARM64'
         run: sudo /usr/sbin/softwareupdate --install-rosetta --agree-to-license
@@ -100,14 +108,19 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: build
-          args: --locked --release --target ${{ matrix.target }} --out dist --manylinux 2_28
+          target: ${{ matrix.target }}
+          manylinux: 2_28
+          sccache: true
+          args: --locked --release --out dist
           working-directory: python/novnow-py
       - name: Build the macOS or Windows wheel (abi3-py39)
         if: ${{ !contains(matrix.target, 'linux') }}
         uses: PyO3/maturin-action@v1
         with:
           command: build
-          args: --locked --release --target ${{ matrix.target }} --out dist
+          target: ${{ matrix.target }}
+          sccache: true
+          args: --locked --release --out dist
           working-directory: python/novnow-py
         env:
           MACOSX_DEPLOYMENT_TARGET: "11.0"
@@ -118,8 +131,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -m pip install --force-reinstall "dist/${{ matrix.artifact }}"
-          python -c 'import novnow,os,tomllib; expected=tomllib.load(open(os.path.join(os.environ["GITHUB_WORKSPACE"],"Cargo.toml"),"rb"))["package"]["version"]; assert novnow.__version__ == expected; assert novnow.operations(); print(novnow.__version__, len(novnow.operations()))'
+          python=(python)
+          if [ "${{ matrix.target }}" = x86_64-apple-darwin ]; then
+            # setup-python can select a universal2 interpreter on an arm64 runner.
+            # Run its x86_64 slice explicitly when checking the Intel wheel.
+            python=(arch -x86_64 python)
+          fi
+          "${python[@]}" -m pip install --force-reinstall "dist/${{ matrix.artifact }}"
+          "${python[@]}" -c 'import novnow,os,tomllib; expected=tomllib.load(open(os.path.join(os.environ["GITHUB_WORKSPACE"],"Cargo.toml"),"rb"))["package"]["version"]; assert novnow.__version__ == expected; assert novnow.operations(); print(novnow.__version__, len(novnow.operations()))'
       - uses: actions/upload-artifact@v4
         with:
           name: wheel-${{ matrix.target }}
