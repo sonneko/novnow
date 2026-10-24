@@ -18,7 +18,12 @@ suite("novnow VSCode extension", () => {
     api = (await extension.activate()) as NovnowExtensionApi;
   });
 
-  test("an explicit executable starts the LSP server", () => {
+  test("an explicit executable starts the LSP server", async () => {
+    // Changing executablePath can restart an extension that VSCode already
+    // activated while opening the sample workspace. Wait for that restart.
+    for (let attempt = 0; attempt < 50 && !api.isLanguageServerActive(); attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
     assert.equal(api.isLanguageServerActive(), true);
   });
 

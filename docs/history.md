@@ -2040,3 +2040,13 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - **VSCode**: Electron テストが `extension.ts` を直接 import すると、VSCode が起動した `dist/extension.js` とは別のモジュール状態を読んでいた。`activate()` が公開 API を返し、テストは起動済み拡張の API から LSP 状態を読むようにした（`REF:vscode/src/extension.ts`・`REF:vscode/src/test/suite/extension.test.ts`）。
 - **回帰検査**: `REF:tests/distribution.rs` にワークフロー入力とキャッシュ鍵の検査を加え、配布テストは 10 件になった。`REF:scripts/verify.sh` は全 12 ステップ緑（GUI あり 1372 件・GUI なし 1186 件）、VSCode の型検査・単体テスト 6 件・VSIX 生成も成功した。
 - **ホスト検証の保留**: ユーザー指示により今回の修正では Actions を再実行しない。manylinux 適合、Intel macOS の導入、Electron の LSP 状態、キャッシュ命中と時間短縮は次回のホスト実行まで未確認のまま残す。
+
+### [HIST:MILESTONE:DISTRIBUTION-CI-VALIDATION] 2026-10-24 配布ワークフローのホスト検証と 3.9 / Electron の修正
+
+[HIST-TAG: category=MILESTONE id=DISTRIBUTION-CI-VALIDATION topics=distribution,ci,wheels,python,vscode,tests]
+
+- **ユーザーの実行承認**: 前記の保留を解除し、現在の修正を対象に CI・wheels・VSCode Extension を実行した。
+- **成功した範囲**: CI `40049130837` は全ジョブ成功。wheels `40049130861` は 5 対象すべてのビルド・導入・import に成功し、manylinux_2_28 と Intel macOS の修正をホストで確認した。Python 3.11 / 3.13 のテストも成功した。
+- **Python 3.9**: 同じホイール検査が `tomllib`（3.11 以降）を使っていたため、3.9 ジョブだけ失敗した。`REF:.github/workflows/wheels.yml` と `REF:.github/workflows/release.yml` の版読み取りを標準ライブラリの文字列処理へ変え、3.9 の文法と実行をローカルで検査した。
+- **Electron**: VSCode `40049130929` は型・単体・VSIX が成功し、Electron が失敗した。テストは起動済み拡張の API を使うが、設定変更による LSP 再起動の完了を待たずに状態を読んでいた。`REF:vscode/src/test/suite/extension.test.ts` で正しい API のまま再起動を待つ。実バイナリとの LSP `initialize` / `shutdown` はローカルで成功した。
+- **検証**: 配布テスト 10 件、VSCode の型検査・Electron テストのコンパイル・単体テスト 6 件、ワークフロー YAML の解析が成功した。修正後のホスト結果は PR #28 の後続実行で確認する。

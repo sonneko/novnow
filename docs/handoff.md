@@ -26,10 +26,10 @@
 
 - 作業ブランチ: `arena/b97c5fbe-novnow`（`main` の `38c6244` から分岐）。配布の D-01〜D-20 を実装し、PR #28 の検証を進める。マージは人間が行う。
 - 段階 ①〜③（M0〜M11・追加仕様 1〜27・L-01・§19 の H1〜H7）は `main` にマージ済み（PR #25 は 2026-10-23 にマージ）。
-- 直近の作業: 配布ワークフローへ対象別 Rust キャッシュと `sccache` を追加し、manylinux コンテナの選択、ARM64 ランナーでの Intel macOS ホイール検査、VSCode Electron テストのモジュール境界を修正した（`REF:.github/workflows/wheels.yml`・`REF:.github/workflows/release.yml`・`REF:vscode/src/extension.ts`・`REF:vscode/src/test/suite/extension.test.ts`）。
+- 直近の作業: 配布ワークフローへ対象別 Rust キャッシュと `sccache` を追加し、manylinux コンテナの選択、ARM64 ランナーでの Intel macOS ホイール検査、VSCode Electron テストのモジュール境界を修正した。続くホスト検証で見つかった Python 3.9 の版読み取りと Electron の LSP 再起動待機も直した（`REF:.github/workflows/wheels.yml`・`REF:.github/workflows/release.yml`・`REF:vscode/src/extension.ts`・`REF:vscode/src/test/suite/extension.test.ts`）。
 - **コミットは既定で `[ci skip]`**（`REF:.githooks/commit-msg`）。CI は必要なときだけ `bash REF:scripts/ci-run.sh ci watch` で回す。今回はユーザーの指示によりホストジョブを再実行しない。
 - サンドボックスでの検証は全件通る: `REF:scripts/verify.sh` の全 12 ステップ、cargo test 1372 件（GUI あり）・1186 件（GUI なし）、clippy・fmt・wasm32。配布テスト 10 件、VSCode の型検査・単体テスト 6 件・VSIX 生成、実ホイールの版/タグ検査と pytest（8 件成功・1 件 skip）、Astro 208 ページも通る。Web 実機スモーク（`REF:scripts/web-smoke.sh`）も全項目成功。
-- ホスト CI `40039473280` は全ジョブ成功。ホイール `40039473246` は ARM64 macOS / Windows が成功し、Linux の manylinux 適合と Intel macOS の導入で失敗。VSCode `40039473317` は型・単体・VSIX が成功し、Electron が 1 件成功・1 件失敗だった。これらへの修正はローカル検証済みだが、ユーザー指示により再実行せず、ホストでの確認は保留中。
+- ホスト CI `40049130837` は全ジョブ成功。ホイール `40049130861` は 5 対象すべてのビルド・導入・import と Python 3.11 / 3.13 テストが成功し、Python 3.9 は検査コードの `tomllib` 使用で失敗。VSCode `40049130929` は型・単体・VSIX が成功し、Electron は失敗。3.9 非対応の版読み取りと Electron の再起動待機を修正済み。最新のホスト結果は PR #28 で確認する。
 - 3 OS の Action スモーク、実リリース、署名・公証・公開は未実施。ローカル成功とホスト検証を区別する。
 
 ## 3. 継続作業の手順

@@ -467,6 +467,7 @@ fn wheel_workflows_use_container_builds_and_targeted_caches() {
         assert!(workflow.contains("shared-key: python-wheel-${{ matrix.target }}"));
         assert!(workflow.contains("cache-on-failure: true"));
         assert!(workflow.contains("python=(arch -x86_64 python)"));
+        assert!(!workflow.contains("import novnow,tomllib"));
         assert!(!workflow.contains("--target ${{ matrix.target }} --out dist"));
         assert!(!workflow.contains("--out dist --manylinux"));
     }
