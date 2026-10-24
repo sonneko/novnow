@@ -106,7 +106,7 @@ novnow-<版>-<対象環境>-<gui|nogui>.<拡張子>
 
 1. デスクトップ版のリリースが緑になったことを確認する（仕様 §20.6.1 の順序）。
 2. リハーサルには `REF:.github/workflows/wheels.yml` の手動 TestPyPI 公開を使う。本番の Release タグ実行は TestPyPI だけで止まらず、承認後に PyPI も公開する。同じ版を TestPyPI に事前公開すると本番のアップロードが重複で失敗するため、試験には別のプレリリース版を使う。
-3. タグ実行では自動で、手動実行では公開入力で PyPI を選び、`environment: pypi` の承認を通して本番の PyPI へ公開する。
+3. 本番 PyPI は統合 `REF:.github/workflows/release.yml` だけが公開する。タグ実行では自動で、同ワークフローの手動実行では公開入力で PyPI を選び、`environment: pypi` の承認を通して本番の PyPI へ公開する。
 4. 5 つのホイールが揃っていること、`novnow.__version__` が `REF:Cargo.toml` と一致することを確認する。
 5. 壊れた版は削除せず、PyPI の yank で印を付ける（仕様 §20.6.3）。
 
@@ -194,7 +194,7 @@ novnow-<版>-<対象環境>-<gui|nogui>.<拡張子>
 | 版が 5 形態で同じ | `--version`・`novnow.__version__`・拡張の版・Actions のタグ |
 | 照合値が一致する | `sha256sum -c SHA256SUMS`（macOS は `shasum -a 256 -c`） |
 | 実行時に通信しない | 起動して何も取得しないこと（プロキシを切って起動する） |
-| プロジェクトの外へ書かない | 起動と執筆の前後で、プロジェクトの外のファイル一覧が変わらないこと（履歴ファイルだけが変わる） |
+| プロジェクトの外へ書かない | 起動と執筆の前後で、プロジェクトの外のファイル一覧が変わらないこと（本体では履歴だけ。配布物の取得時は専用領域の限定例外を別に検査） |
 
 ---
 
@@ -215,7 +215,7 @@ novnow-<版>-<対象環境>-<gui|nogui>.<拡張子>
 | Apple 公証（任意、署名が前提） | Developer Program の Apple ID、アプリ用パスワード、Team ID。未設定なら公証しない | Repository secrets: `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID` |
 
 - `crates-io`・`testpypi`・`pypi`・`vscode` は版タグからのみ実行できる deployment policy にし、公開担当者の承認を必須にする。環境名と Trusted Publisher の設定は完全一致が必要。
-- ホイール単独試験の `REF:.github/workflows/wheels.yml` から公開する場合は、その workflow 名で **別の** Trusted Publisher が必要。本番は `release.yml` に一本化し、通常は wheels の公開入力を使わない。
+- ホイール単独試験の `REF:.github/workflows/wheels.yml` から公開する場合は、その workflow 名で **別の** Trusted Publisher が必要。本番 PyPI の Trusted Publisher は `release.yml` だけに設定する。wheels の公開入力は TestPyPI 専用である。
 - GitFlow の `main` と `develop` は保護する。直接 push・force push・削除を禁止し、PR、承認、会話の解決、必要な CI 成功を要求する。`main` には release / hotfix の版更新 PR だけを承認する。GitHub 標準の保護だけでは「版更新のみ」は判定できないため、レビューで版差分と PR の由来を確認する。
 - CI の `[ci skip]` 既定と必須チェックを併用するとチェック待ちになる。リリース PR は `[ci run]` で CI を起動し、保護が要求するチェックが実際にその SHA で報告されていることを確認する。手動 CI の結果だけで保護を迂回しない。
 - `develop` の作成・既定ブランチの変更・rulesets・環境・秘密情報・公開名の確保は管理者が行う。この作業セッションでは実施しない。
@@ -246,3 +246,12 @@ novnow-<版>-<対象環境>-<gui|nogui>.<拡張子>
 ### 10.1 このセッションで確認できた外部状態（2026-10-24）
 
 GitHub API の environment 一覧には `github-pages` のみ存在した。`crates-io`・`testpypi`・`pypi`・`vscode` は公開担当者が新設・保護する必要がある。Pages 設定と repository secrets 一覧の API は権限不足（403）で取得できず、登録状況を確認できなかった。各レジストリ側の所有権・Trusted Publisher も未確認。§8 の設定が済んだと推測してタグを push しない。
+
+### 10.2 承認済みの例外と版表現
+
+- IPA Gothic 003.03 のフォントは改変せず、配布ミラーの固定コミットと SHA-256 を `REF:licenses/README.txt` に記録する。同じ配布元の許諾原文は `REF:licenses/IPA_Font_License_Agreement_v1.0.txt`。フォント自体のハッシュ一致を確認済み。本体 MIT とは別の許諾である。外部ライセンス文書だけは資源の外置き禁止の例外とし、配布アーカイブと Web の公開物へ含め、アプリのヘルプでも読めるようにする。
+- VSCode の globalStorage と Actions の実行ファイルキャッシュは配布物の取得専用として規則10の例外。実行ファイル・検証情報・短命な展開物に限り、原稿・作品設定・ログには使わない。本体の書き込み境界は変えない。
+- Python 配布では PEP 440 表現を使う（例: `0.1.0-rc.1` → `0.1.0rc1`）。`pip install novnow==0.1.0rc1` と wheel 名・METADATA は正規化後の表記、`novnow.__version__` は製品の SemVer。対応は alpha/beta/rc と非負整数だけとし、別の接尾辞やビルドメタデータを混ぜない。
+- 補助 wheels の公開入力は TestPyPI だけ。本番 PyPI の Trusted Publisher は統合 Release にのみ紐づける。TestPyPI の所有権・承認は別途管理者が設定する。
+
+- 統合 Release は通常版のみを公開する。VSCode Marketplace は SemVer の `-rc.N` を拡張版番号として受け付けないため、試験版のタグは成果物公開前の prepare で拒否する。Python 試験版は補助 wheels → TestPyPI で検証できる。Marketplace を含む全形態の試験版公開を実装済みとは扱わず、将来対応する場合は別途等価版の対応規則を決める。

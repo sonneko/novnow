@@ -8,3 +8,9 @@ ignore = []
 [serve]
 address = "127.0.0.1"
 port = 8080
+
+# Seal hashed JS/WASM and all local dependencies before anything is deployed.
+[[hooks]]
+stage = "post_build"
+command = "python3"
+command_arguments = ["scripts/pwa-assets.py"]

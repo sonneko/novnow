@@ -355,6 +355,7 @@ copied = "Copied to the clipboard ({0} characters)"
 failed = "Could not export: {0}"
 
 [help]
+licenses = "Third-party licenses — IPA Font"
 guide = "Move the Getting Started tour (while it is open)"
 save_mcp = "Save"
 edit_mcp = "Edit MCP server configuration"

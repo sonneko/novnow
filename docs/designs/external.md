@@ -23,7 +23,7 @@
 
 - **feature の追加はしない**: 10 通りは「`ui` feature の有無」×「`--target`」だけで作る（2 × 5）。新しい feature も、配布物を分けるビルドスイッチも足さない。同梱物（`REF:src/ui/theme.rs` の `BUNDLED_FONT`、`REF:src/core/template/mod.rs` の `include_str!` 群）は現状どおり常に実行ファイルへ埋め込む。
 - **成果物の名前**: `scripts/release-matrix.py` の `artifact_name(version, target, gui)` が唯一の実装点。命名は仕様 §20.2.2 の 1 形だけを許し、テストで 10 通りを列挙して重複が無いことを確かめる。
-- **アーカイブの中身**: 実行ファイル・`LICENSE`・`README.txt`（起動方法 3 行）。同梱物のファイルは入れない（実行ファイルに入っている）。macOS の GUI あり版だけ `.app` を組み立てる（`Contents/MacOS/novnow` と `Info.plist`、`CFBundleExecutable=novnow`、`LSMinimumSystemVersion`）。`.app` を作るのは CI のスクリプト（`scripts/release-matrix.py --bundle-macos`）とする。
+- **アーカイブの中身**: 実行ファイル・`LICENSE`・`README.txt`（起動方法 3 行）。実行時資源のファイルは入れない（実行ファイルに入っている）。再配布条件の例外として `REF:licenses/IPA_Font_License_Agreement_v1.0.txt` を添付し、`REF:src/ui/theme.rs` にも同じ本文を埋め込みヘルプで表示する。macOS の GUI あり版だけ `.app` を組み立てる（`Contents/MacOS/novnow` と `Info.plist`、`CFBundleExecutable=novnow`、`LSMinimumSystemVersion`）。`.app` を作るのは CI のスクリプト（`scripts/release-matrix.py --bundle-macos`）とする。
 - **同時起動**: 制限しない（仕様 §20.2.3）。ロックファイルも排他も作らないので、新しいファイルはプロジェクト外に増えない。
 - **なぜ軸を置かないか**: 同梱物を外に置く版を作ると、(1) 配布物の置き場所に依存する読み取り経路が増え、(2) 「実行ファイル 1 個で動く」という検証が 2 通りになり、(3) 得られる削減が同梱フォントの約 6 MB だけである。履歴ファイル以外をプロジェクト外に置かない現状では、利用者から見た違いがほぼ無いため、軸そのものを持たない（2026-10-23 の裁定）。
 - **GUI なしのビルド**: `ui` feature を付けない。`--gui` は既存の `Exit::Usage`（`REF:src/cli/mod.rs`）へ流す。`tests/cli.rs` に「引数なし + 非 TTY + GUI なしビルド → 使い方表示・終了コード 2」を足す。
@@ -37,8 +37,9 @@
 
 - **5 構成への拡張**: `REF:.github/workflows/wheels.yml` は Linux x64 / arm64、macOS x64 / arm64、Windows x64 の 5 構成。macOS x64 は ARM64 ランナーからクロスビルドし、Rosetta 上の Intel Python で導入を検査する。`abi3-py39` により CPython 3.9 以降を賄う。
 - **manylinux**: Linux は `maturin build --manylinux 2_28` を明示し、ビルドした glibc の下限をホイール名に固定する（`auditwheel` の自動判定に任せない）。
-- **版の一致**: ホイールの `version` は `Cargo.toml` から取る。`maturin` は `REF:python/novnow-py/pyproject.toml`の `dynamic = ["version"]` で読む。リリース時に `pyproject.toml` の `project.name = "novnow"` を確認する（現在のフォルダ名 `novnow-py` と公開名は別でよい）。
-- **公開**: `REF:.github/workflows/release.yml` のタグ実行は TestPyPI → PyPI を公開する。手動実行は公開入力で選択する。認証は各 environment に紐づく Trusted Publisher（OIDC）であり、PyPI API トークンは不要。
+- 統合 Release の prepare は通常版以外を不可逆な公開前に拒否する。Python 試験版だけは補助 wheels で TestPyPI へ送る。
+- **版の一致**: ホイールの `version` は `Cargo.toml` から取り、`REF:scripts/release-matrix.py` の `python_version` が PEP 440 の等価表現へ写像する。実行時の製品版は正準 SemVer のままとする。`maturin` は `REF:python/novnow-py/pyproject.toml`の `dynamic = ["version"]` で読む。リリース時に `pyproject.toml` の `project.name = "novnow"` を確認する（現在のフォルダ名 `novnow-py` と公開名は別でよい）。
+- **公開**: `REF:.github/workflows/release.yml` のタグ実行は TestPyPI → PyPI を公開する。手動実行は公開入力で選択する。補助の `REF:.github/workflows/wheels.yml` は TestPyPI リハーサル専用で、本番 PyPI を公開しない。認証は各 environment に紐づく Trusted Publisher（OIDC）であり、PyPI API トークンは不要。
 - **ソース配布を出さない**: Python 拡張は `maturin build` だけでホイールを作り、PyPI 用 sdist は作らない。本体の Rust クレートは `REF:.github/workflows/release.yml` が crates.io に公開する。全ソースの Releases 添付とは別経路である。
 - **テスト**: `REF:scripts/python-check.sh --wheel <ファイル>` でホイールの版とタグを検査する。`--full` は拡張のビルドと pytest も実行する。各対象への導入・import・版一致はホイールワークフローで検査する。
 

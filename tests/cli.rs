@@ -2264,3 +2264,14 @@ fn the_frozen_subcommands_still_win_over_domain_names() {
         serde_json::json!("project.validate")
     );
 }
+
+#[test]
+fn api_reserved_words_can_be_opened_as_explicit_relative_directories() {
+    for name in ["api", "lsp", "project", "section"] {
+        let path = format!("./{name}");
+        assert_eq!(
+            decide(&os_args(&[&path]), Terminal::default()),
+            Launch::Open(PathBuf::from(&path))
+        );
+    }
+}

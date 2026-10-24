@@ -8,6 +8,7 @@
     <meta name="theme-color" content="#1a1a1a">
     <meta name="novnow-version" content="0.1.0">
     <link data-trunk rel="copy-file" href="sw.js">
+    <link data-trunk rel="copy-dir" href="licenses">
     <link data-trunk rel="copy-file" href="manifest.webmanifest">
     <link data-trunk rel="copy-file" href="icon.svg">
     <!-- ユーザーガイド（`docs/users` から scripts/docs-site.py が作る。§14.2.1 の 3 URL がここに実在する） -->
@@ -39,10 +40,35 @@
     </style>
 </head>
 <body>
+    <div id="offline-status" role="status" aria-live="polite" style="position:fixed;bottom:0;right:0;z-index:10;font:12px sans-serif;color:#ccc;background:#1a1a1a;padding:2px 6px">Preparing offline / オフライン準備中</div>
     <canvas id="the_canvas_id"></canvas>
     <script>
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(console.warn));
+        window.addEventListener('load', async () => {
+          const status = document.getElementById('offline-status');
+          try {
+            const registration = await navigator.serviceWorker.register('./sw.js');
+            const worker = registration.installing || registration.waiting || registration.active;
+            if (worker && worker.state !== 'activated') {
+              await new Promise((resolve, reject) => {
+                const changed = () => {
+                  if (worker.state === 'activated') resolve();
+                  if (worker.state === 'redundant') reject(new Error('offline installation failed'));
+                };
+                worker.addEventListener('statechange', changed);
+                changed();
+              });
+            }
+            await navigator.serviceWorker.ready;
+            status.textContent = navigator.language.startsWith('ja') ? 'オフライン準備完了' : 'Ready offline';
+            status.dataset.ready = 'true';
+          } catch (error) {
+            status.textContent = navigator.language.startsWith('ja') ? 'オフライン準備未完了' : 'Offline setup incomplete';
+            console.warn(error);
+          }
+        });
+      } else {
+        document.getElementById('offline-status').textContent = 'Offline setup unavailable / オフライン非対応';
       }
     </script>
 </body>

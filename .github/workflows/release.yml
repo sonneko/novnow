@@ -56,6 +56,13 @@ jobs:
           set -euo pipefail
           python3 scripts/release-matrix.py --check
           version="$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["package"]["version"])')"
+          # Marketplace does not accept SemVer prerelease identifiers as its
+          # extension version. Reject before publishing any immutable artifact;
+          # Python prerelease rehearsals use wheels.yml + TestPyPI instead.
+          if [[ "$version" == *-* || "$version" == *+* ]]; then
+            echo "::error::Integrated Release supports stable versions only; use wheels.yml for TestPyPI prerelease rehearsals"
+            exit 1
+          fi
           tag="v$version"
           if [ "$EVENT_NAME" = push ]; then
             tag="$REF_NAME"

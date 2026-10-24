@@ -1,0 +1,2 @@
+# Preserve the third-party license verbatim (upstream CRLF and whitespace).
+licenses/IPA_Font_License_Agreement_v1.0.txt -text -whitespace

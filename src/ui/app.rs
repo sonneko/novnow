@@ -3723,6 +3723,13 @@ impl NovnowApp {
                         RichText::new(i18n::text(locale, "help.title")).color(colors.fg_faint),
                     );
                     ui.add_space(6.0);
+                    ui.collapsing(i18n::text(locale, "help.licenses"), |ui| {
+                        egui::ScrollArea::vertical()
+                            .max_height(220.0)
+                            .show(ui, |ui| {
+                                ui.label(crate::ui::theme::IPA_FONT_LICENSE);
+                            });
+                    });
                     egui::Grid::new("help-keys")
                         .num_columns(2)
                         .spacing([16.0, 4.0])

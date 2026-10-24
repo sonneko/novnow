@@ -4,7 +4,7 @@
 # Intel Mac は macos-latest（arm64）から `--target x86_64-apple-darwin` で作る。
 #
 # - push / pull_request: ビルドだけ（公開しない）。
-# - workflow_dispatch: 選択したときだけ TestPyPI / PyPI へ公開。
+# - workflow_dispatch: 選択したときだけ TestPyPI へリハーサル公開（本番 PyPI は release.yml のみ）。
 # - タグ公開の本流は release.yml（15 成果物の後に TestPyPI）が担う。
 #
 # 前提: pyo3 系のクレートの vendoring（REF:docs/add-dependencies.md §2.2、
@@ -20,10 +20,6 @@ on:
     inputs:
       publish_testpypi:
         description: Publish to TestPyPI after all tests pass
-        type: boolean
-        default: false
-      publish_pypi:
-        description: Publish to PyPI after all tests pass (requires approval)
         type: boolean
         default: false
 
@@ -49,15 +45,18 @@ jobs:
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
           PUBLISH_TESTPYPI: ${{ inputs.publish_testpypi }}
-          PUBLISH_PYPI: ${{ inputs.publish_pypi }}
         run: |
           set -euo pipefail
-          if [ "$EVENT_NAME" = workflow_dispatch ] && [ "$PUBLISH_PYPI" = true ] && [ "$PUBLISH_TESTPYPI" != true ]; then
-            echo "::error::PyPI publication requires the TestPyPI gate in the same run"
-            exit 1
-          fi
           python3 scripts/release-matrix.py --check
+          if [ "$PUBLISH_TESTPYPI" = true ]; then
+            version="$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["package"]["version"])')"
+            if [ "$REF_NAME" != "v$version" ] || [[ "$version" != *-* ]]; then
+              echo "::error::TestPyPI rehearsal requires the matching prerelease version tag"
+              exit 1
+            fi
+          fi
           echo "wheels=$(python3 scripts/release-matrix.py --wheels)" >> "$GITHUB_OUTPUT"
 
   build:
@@ -184,18 +183,3 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
-
-  publish-pypi:
-    if: always() && needs.test.result == 'success' && github.event_name == 'workflow_dispatch' && inputs.publish_pypi && needs.publish-testpypi.result != 'failure' && needs.publish-testpypi.result != 'cancelled'
-    needs: [test, publish-testpypi]
-    runs-on: ubuntu-latest
-    environment: pypi
-    permissions:
-      id-token: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: wheel-*
-          path: dist
-          merge-multiple: true
-      - uses: pypa/gh-action-pypi-publish@release/v1

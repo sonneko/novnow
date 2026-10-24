@@ -108,10 +108,20 @@ def artifact_name(release_version: str, target: str, gui: str | bool) -> str:
     return f"novnow-{release_version}-{target}-{mode}{extension}"
 
 
+def python_version(release_version: str) -> str:
+    """PEP 440 spelling of the same logical product version (not a new release)."""
+    validate_version(release_version)
+    match = re.fullmatch(r"(\d+\.\d+\.\d+)(?:-(alpha|beta|rc)\.(0|[1-9]\d*))?", release_version)
+    if not match:
+        raise ValueError("Python distribution supports stable or alpha.N/beta.N/rc.N versions only (no build metadata)")
+    base, stage, number = match.groups()
+    return base if stage is None else base + {"alpha": "a", "beta": "b", "rc": "rc"}[stage] + number
+
+
 def wheel_name(release_version: str, target: str) -> str:
     validate_version(release_version)
     row = target_row(target)
-    return f"novnow-{release_version}-cp39-abi3-{row['wheel_tag']}.whl"
+    return f"novnow-{python_version(release_version)}-cp39-abi3-{row['wheel_tag']}.whl"
 
 
 def vsix_name(release_version: str) -> str:
@@ -354,6 +364,8 @@ def archive_entries(
         name = "novnow.exe" if target.endswith("pc-windows-msvc") else "novnow"
         entries.append((name, binary, not name.endswith(".exe")))
     entries.append(("LICENSE", ROOT / "LICENSE", False))
+    entries.append(("licenses/IPA_Font_License_Agreement_v1.0.txt", ROOT / "licenses/IPA_Font_License_Agreement_v1.0.txt", False))
+    entries.append(("licenses/README.txt", ROOT / "licenses/README.txt", False))
     entries.append(("README.txt", readme_text(release_version, target, gui), False))
     return entries
 
@@ -411,6 +423,8 @@ def verify_archive(path: Path, release_version: str, target: str, gui: str) -> N
     files = {name.rstrip("/") for name in names}
     if "LICENSE" not in files or "README.txt" not in files:
         raise ValueError(f"LICENSE or README.txt is missing: {path}")
+    if "licenses/IPA_Font_License_Agreement_v1.0.txt" not in files:
+        raise ValueError(f"IPA Font license is missing: {path}")
     if target.endswith("apple-darwin") and gui == "gui":
         required = "novnow.app/Contents/MacOS/novnow"
         if required not in files or "novnow.app/Contents/Info.plist" not in files:
@@ -482,7 +496,7 @@ def verify_wheel(path: Path, release_version: str, target: str) -> None:
         wheel = archive.read(wheel_name_in_archive).decode("utf-8")
     if not re.search(r"^Name: novnow$", metadata, re.MULTILINE):
         raise ValueError(f"wheel package name is not novnow: {path.name}")
-    if not re.search(rf"^Version: {re.escape(release_version)}$", metadata, re.MULTILINE):
+    if not re.search(rf"^Version: {re.escape(python_version(release_version))}$", metadata, re.MULTILINE):
         raise ValueError(f"wheel version differs from Cargo.toml: {path.name}")
     expected_tag = f"cp39-abi3-{target_row(target)['wheel_tag']}"
     if not re.search(rf"^Tag: {re.escape(expected_tag)}$", wheel, re.MULTILINE):

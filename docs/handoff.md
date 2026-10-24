@@ -32,8 +32,10 @@
 - 監査範囲: 文書規約・参照/アンカー・SYNC・仕様/設計見出し・文書と実装の突き合わせ・生成ガイド/サイト・読みやすさ・配布手順とワークフロー・API/VSCode/Actions の入口を確認した。仕様の新設や互換性方針の変更はしていない。実サービス上の動作や全機能の散文の意味まで完全に保証する検査ではない。
 - 外部状態と公開前ゲートは `REF:docs/distribution.md` §8〜§10。公開用の 4 environment は未作成。Pages / secrets 設定は API 権限不足で未確認。ホスト CI、実際の cargo publish dry-run、各レジストリ公開、署名・公証、Pages 実デプロイと Web アプリの新配置での E2E は未実施。公式サイトはローカルで本番相当 24 回・開発モード 8 回の Chromium 表示と実際の言語切替を確認済み（幅 1440 / 390）。
 - 末尾スラッシュ修正: Astro の `trailingSlash` を `ignore` に変更し、canonical / hreflang のみ末尾 `/` に統一。209 経路 × `/` 有無 × preview/dev の 836 HTTP 要求がすべて 200。その後、承認された6領域の横断監査を実施。PyPI公開のテスト成功ゲート、Python/GIL/API例、導入手順、LSPヘルプの明白な誤りを修正した。
-- 横断監査の判断待ちは PR #31 の監査コメントへ集約する。IPAフォントの許諾表示・配布物キャッシュと規則10・初回オフライン保証・CLI仕様内の新旧規則・プレリリース版番号の表現・補助workflowからの本番公開経路の6件。規範を実装へ合わせて弱める変更はしていない。既存の完了表だけで公開準備完了と判断しない。
-- 最新の追加検証: 全verify成功（GUIあり1372件、GUIなし1186件、文書46件）、実Python拡張buildとpytest 9成功/1モジュールskip（偽_core検査は別実行）、VSCode型検査/build/単体6件、サイト219 HTML/Node5件、preview418 HTTP要求、Chromium24ページ訪問成功。PWA初回オフラインの失敗は現行workerを使う分離ハーネスで再現したものであり、Trunk結合アプリ全体のE2Eではない。ライセンス/外部承認/実デプロイ/実各OS検証は引き続き公開前ゲート。
+- 横断監査のD-01〜D-06はユーザー承認に基づき反映した。外部ライセンス文書・配布物取得専用領域の例外を仕様へ明示し、IPA許諾の添付/ヘルプ表示、初回の全資源precache、CLI規則統合、Python版のPEP 440表現、本番PyPI公開経路の一本化を実装した。詳細と検証はPR #31の対応コメントに集約する。
+- 最新検証は全verify成功（GUIあり1373件、GUIなし1187件、文書単体52件）。実release WASMを手動wasm-bindgen builderで `/novnow/app/` 相当に配信し、新規profile/HTTP cache無効/追加オンラインreloadなし/サーバ接続遮断でもWASM再起動・作品保持、更新失敗時の旧cache保持と既存のUI/Zip/保存の全smokeを確認した。これはTrunkそのものとAstroを結合した本番Pagesの検証ではない。Trunk取得は配布assetへの接続制約で失敗し、post_buildフックの構造・同じsealerの実行を検証した。
+- Python試験版はリポジトリ外の隔離コピーを0.1.0-rc.1として実wheelをbuildし、wheel名/METADATAの0.1.0rc1とimport後の製品版0.1.0-rc.1を確認した（linux_x86_64でありmanylinux適合性の検証ではない）。Marketplaceを含む全形態のプレリリース公開は未対応のため、統合Releaseは通常版以外を公開前に安全停止する。Marketplace向け試験版の対応規則は別途必要であり、承認済みの製品SemVerを別番号へ勝手に変えていない。
+- 公開用environment/registry所有権・署名/公証・旧root workerの実データ付き移行・Firefox/Safari・各OS成果物・実デプロイは引き続き未検証。公開・タグ作成・マージ・外部設定変更は行っていない。
 - コミットの `[ci skip]` とタグ実行・必須チェックの関係に注意する。初回本番を実行する前に、人間が外部設定・ブランチ保護・main へのリリース PR を確認する。
 
 ## 3. 継続作業の手順
