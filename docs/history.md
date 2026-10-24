@@ -2016,3 +2016,37 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - **利用者向け**: `REF:docs/users/install.md` を新設。窓の要否 1 つの質問とパソコンの種類でデスクトップ版を選ぶ表、OS 別のファイル名、展開と起動、Gatekeeper / SmartScreen の警告、削除のしかた（実行ファイルだけなので同梱物は消さなくてよい）、拡張の自動取得、`pip install novnow`、`uses:` の例を、`REF:docs/script/easy-read.py` の規則で書いた。`REF:docs/users/README.md`・`REF:docs/users/start.md`・`REF:docs/users/faq.md` から引けるようにし、`guide/install.html` を生成した。
 - **未実施（意図的）**: `release.yml`・`release-matrix.py`・VSCode 拡張・`action.yml`・`release-check.sh` は計画のみ（`REF:docs/plans.md#distribution` の Phase 1〜6）。「準備中」の実値への差し替えは Phase 6（D-20）。
 - **再発防止**: `REF:docs/script/reference.py` に検査 12（配布形態）を足した。仕様 §20.1.1 の表から選択肢の数（1・10・5・1・1）を読み、設計・計画・手順の数と一致すること、名前の形が `novnow-<版>-<対象環境>-<gui|nogui>` であること、廃止した軸（同時起動の制限・同梱物の外置き）が仕様・設計・手順・利用者向けへ戻っていないことを見る（`REF:docs/developers.md` §4.6 の表にも追記）。
+
+### [HIST:MILESTONE:DISTRIBUTION-IMPLEMENTATION] 2026-10-23 5 形態の配布実装と公開ゲートを追加
+
+[HIST-TAG: category=MILESTONE id=DISTRIBUTION-IMPLEMENTATION topics=distribution,release,desktop,python,wheels,vscode,actions,tests]
+
+- **行列と成果物**: `REF:scripts/release-matrix.py` を正本に、デスクトップ 10 通りと `cp39-abi3` ホイール 5 通りを生成する。版の同期、アーカイブ作成、macOS `.app`、SHA256SUMS、wheel / VSIX / 16 成果物の検査を同じスクリプトに置いた。`REF:tests/distribution.rs` が命名・同梱物・版・出力を検査する。
+- **デスクトップ**: `REF:src/main.rs` で Windows の subsystem を `ui` feature だけに結び付けた。`REF:.github/workflows/release.yml` はタグと手動実行だけで 10 個を作り、Windows 署名と macOS 署名・公証を秘密情報があるときだけ行う。既に成果物がある Release は最初に拒否し、公開済みバイナリを上書きしない。
+- **Python**: `REF:.github/workflows/wheels.yml` を 5 対象環境へ拡張し、release 側でも同じ行列を使う。各環境で wheel を導入して版と import を確かめ、Linux では Python 3.9 / 3.11 / 3.13 でも検査する。PyPI は同じ実行の TestPyPI 成功を前置条件にした。サンドボックスでも実 wheel のファイル名・メタデータ・`cp39-abi3` タグを検査し、現在の Python 3.11 で pytest 8 件成功・1 件 skip を確認した。manylinux の互換性は専用コンテナの CI で確かめる。
+- **VSCode**: `REF:vscode/` に言語 ID、LSP 接続、4 コマンド、設定されたパス → PATH → キャッシュ → 公式取得の探索を実装した。取得は拡張と同じ版の `nogui` に固定し、SHA-256 と安全な展開を必須にする。実行ファイルは VSIX に入れない。型検査・単体テスト 6 件・VSIX 生成が通った。
+- **GitHub Actions**: `REF:action.yml` と `REF:scripts/action/install.sh` の複合アクションを追加した。5 入力・3 出力、終了コードの伝搬、E 診断の失敗、export の出力を検査する。キャッシュでは SHA256SUMS を毎回取得し直し、検証済みアーカイブから実行ファイルも毎回展開する。`REF:scripts/release-tags.sh` は固定版タグを動かさず、安定版だけ `v1` を進める。偽の `gh` を使い、不変性とプレリリースの分岐も検査した。
+- **文書**: 設計 §20 の 6 節を実装完了へ更新し、README・手引き・サイトに実際の取得先を載せた。初回リリース前の形態は「未提供」と明示する。生成物は `REF:scripts/docs-site.py` で再生成した。
+- **検証**: `REF:scripts/verify.sh` の全 12 ステップが緑（GUI あり 1371 件・GUI なし 1185 件、clippy・fmt・wasm32 を含む）。`REF:scripts/web-smoke.sh` は全項目成功、Astro は 208 ページを生成した。
+- **未実施**: 実際のリリース公開、署名・公証、VSCode Electron、5 対象環境のリモート wheel 検査、3 OS の Action スモーク。これらはローカル成功と区別し、対応する Actions の結果で確認する。
+
+### [HIST:MILESTONE:DISTRIBUTION-CI-CACHE] 2026-10-24 配布 CI のキャッシュと報告された失敗への修正を実装
+
+[HIST-TAG: category=MILESTONE id=DISTRIBUTION-CI-CACHE topics=distribution,ci,cache,wheels,vscode]
+
+- **キャッシュ**: `REF:.github/workflows/wheels.yml` と `REF:.github/workflows/release.yml` のホイールビルドに `sccache` と `Swatinem/rust-cache` を追加した。Rust キャッシュは対象環境ごとの鍵にし、デスクトップは GUI の有無も鍵へ加えた。失敗したジョブでも依存関係のキャッシュを残す。キャッシュの節約量はまだ測っていない。
+- **manylinux**: `PyO3/maturin-action` の `args` だけに `--target` / `--manylinux` を書く方式をやめ、コンテナ選択に使われる `target` / `manylinux` 入力へ分けた。ホスト上の glibc へリンクした wheel を manylinux 用と誤認しないための修正である。
+- **Intel macOS**: ARM64 の `macos-latest` 上で universal2 Python が ARM64 として動く場合に備え、x86_64 ホイールの導入と import は `arch -x86_64` で明示的に Intel 側を選ぶ。5 対象環境と `macosx_11_0_x86_64` のタグは変えない。
+- **VSCode**: Electron テストが `extension.ts` を直接 import すると、VSCode が起動した `dist/extension.js` とは別のモジュール状態を読んでいた。`activate()` が公開 API を返し、テストは起動済み拡張の API から LSP 状態を読むようにした（`REF:vscode/src/extension.ts`・`REF:vscode/src/test/suite/extension.test.ts`）。
+- **回帰検査**: `REF:tests/distribution.rs` にワークフロー入力とキャッシュ鍵の検査を加え、配布テストは 10 件になった。`REF:scripts/verify.sh` は全 12 ステップ緑（GUI あり 1372 件・GUI なし 1186 件）、VSCode の型検査・単体テスト 6 件・VSIX 生成も成功した。
+- **ホスト検証の保留**: ユーザー指示により今回の修正では Actions を再実行しない。manylinux 適合、Intel macOS の導入、Electron の LSP 状態、キャッシュ命中と時間短縮は次回のホスト実行まで未確認のまま残す。
+
+### [HIST:MILESTONE:DISTRIBUTION-CI-VALIDATION] 2026-10-24 配布ワークフローのホスト検証と 3.9 / Electron の修正
+
+[HIST-TAG: category=MILESTONE id=DISTRIBUTION-CI-VALIDATION topics=distribution,ci,wheels,python,vscode,tests]
+
+- **ユーザーの実行承認**: 前記の保留を解除し、現在の修正を対象に CI・wheels・VSCode Extension を実行した。
+- **成功した範囲**: CI `40049130837` は全ジョブ成功。wheels `40049130861` は 5 対象すべてのビルド・導入・import に成功し、manylinux_2_28 と Intel macOS の修正をホストで確認した。Python 3.11 / 3.13 のテストも成功した。
+- **Python 3.9**: 同じホイール検査が `tomllib`（3.11 以降）を使っていたため、3.9 ジョブだけ失敗した。`REF:.github/workflows/wheels.yml` と `REF:.github/workflows/release.yml` の版読み取りを標準ライブラリの文字列処理へ変え、3.9 の文法と実行をローカルで検査した。
+- **Electron**: VSCode `40049130929` は型・単体・VSIX が成功し、Electron が失敗した。テストは起動済み拡張の API を使うが、設定変更による LSP 再起動の完了を待たずに状態を読んでいた。`REF:vscode/src/test/suite/extension.test.ts` で正しい API のまま再起動を待つ。実バイナリとの LSP `initialize` / `shutdown` はローカルで成功した。
+- **検証**: 配布テスト 10 件、VSCode の型検査・Electron テストのコンパイル・単体テスト 6 件、ワークフロー YAML の解析が成功した。修正後のホスト結果は PR #28 の後続実行で確認する。

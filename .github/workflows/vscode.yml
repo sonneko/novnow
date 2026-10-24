@@ -1,0 +1,78 @@
+name: VSCode Extension
+
+on:
+  push:
+    branches: [main]
+    paths: ["vscode/**", "src/lsp/**", "src/cli/**", "Cargo.toml", "Cargo.lock", ".github/workflows/vscode.yml"]
+  pull_request:
+    paths: ["vscode/**", "src/lsp/**", "src/cli/**", "Cargo.toml", "Cargo.lock", ".github/workflows/vscode.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vscode-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  unit:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: vscode
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: vscode/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - run: npm run test:unit
+      - run: npm run package
+      - name: Verify that VSIX contains no novnow executable
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import glob, zipfile
+          paths = glob.glob("novnow-*.vsix")
+          assert len(paths) == 1, paths
+          with zipfile.ZipFile(paths[0]) as archive:
+              names = archive.namelist()
+          assert "extension/dist/extension.js" in names
+          assert not any(name.endswith("/novnow") or name.endswith("/novnow.exe") for name in names)
+          PY
+
+  electron:
+    needs: unit
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NOVNOW_TEST_EXECUTABLE: ${{ github.workspace }}/target/debug/novnow
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+      - name: Build the nogui LSP server used by the extension test
+        run: cargo build --locked
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: vscode/package-lock.json
+      - name: Compile the extension and Electron tests
+        working-directory: vscode
+        run: |
+          npm ci
+          npm run check
+          npm run pretest:electron
+      - name: Run VSCode Electron integration tests
+        working-directory: vscode
+        run: xvfb-run -a npm run test:electron

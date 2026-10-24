@@ -14,7 +14,7 @@ source: "docs/users/faq.md"
 ### インストールは必要？
 
 ブラウザ版は不要です。`https://novnow.sonneko.com/app/` を開くだけです。
-デスクトップ版などの配布物は準備中です（[入れ方](/ja/manual/install)）。
+デスクトップ版などは初回リリースまで未提供です（[入れ方](/ja/manual/install)）。
 
 ### 無料？ あとで有料にならない？
 

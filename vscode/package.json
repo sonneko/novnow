@@ -1,0 +1,123 @@
+{
+  "name": "novnow",
+  "displayName": "novnow",
+  "description": "novnow language support through the official LSP server",
+  "version": "0.1.0",
+  "publisher": "sonneko",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sonneko/novnow"
+  },
+  "homepage": "https://novnow.sonneko.com/",
+  "bugs": {
+    "url": "https://github.com/sonneko/novnow/issues"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters"
+  ],
+  "activationEvents": [
+    "workspaceContains:project.json",
+    "onLanguage:novnow"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "novnow",
+        "aliases": [
+          "novnow"
+        ],
+        "filenamePatterns": [
+          "**/contents/**/*.txt",
+          "**/plots/**/*.txt"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "novnow.check",
+        "title": "novnow: Check Project",
+        "category": "novnow"
+      },
+      {
+        "command": "novnow.export",
+        "title": "novnow: Export Text",
+        "category": "novnow"
+      },
+      {
+        "command": "novnow.newProject",
+        "title": "novnow: New Project",
+        "category": "novnow"
+      },
+      {
+        "command": "novnow.restartServer",
+        "title": "novnow: Restart Language Server",
+        "category": "novnow"
+      }
+    ],
+    "configuration": {
+      "title": "novnow",
+      "properties": {
+        "novnow.executablePath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the novnow executable. When empty, PATH, the extension cache, and the official release are searched in that order."
+        },
+        "novnow.autoDownload": {
+          "type": "boolean",
+          "default": true,
+          "description": "Download the checksum-verified nogui executable from the official GitHub release when no executable is installed."
+        },
+        "novnow.extraArgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Additional arguments passed to novnow before the lsp subcommand."
+        }
+      }
+    }
+  },
+  "novnow": {
+    "artifact": {
+      "x86_64-unknown-linux-gnu": "novnow-0.1.0-x86_64-unknown-linux-gnu-nogui.tar.gz",
+      "aarch64-unknown-linux-gnu": "novnow-0.1.0-aarch64-unknown-linux-gnu-nogui.tar.gz",
+      "x86_64-apple-darwin": "novnow-0.1.0-x86_64-apple-darwin-nogui.tar.gz",
+      "aarch64-apple-darwin": "novnow-0.1.0-aarch64-apple-darwin-nogui.tar.gz",
+      "x86_64-pc-windows-msvc": "novnow-0.1.0-x86_64-pc-windows-msvc-nogui.zip"
+    }
+  },
+  "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true});require('node:fs').rmSync('out',{recursive:true,force:true})\"",
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "check": "tsc --noEmit && node esbuild.mjs",
+    "test:unit": "node esbuild.mjs --unit && node --test test/*.test.cjs",
+    "test:electron": "node out/test/runTest.js",
+    "pretest:electron": "tsc -p tsconfig.test.json",
+    "prepackage": "npm run check",
+    "package": "vsce package --no-dependencies",
+    "publish": "vsce publish --no-dependencies"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1",
+    "vscode-languageserver-protocol": "^3.17.5"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.10.2",
+    "@types/vscode": "~1.85.0",
+    "@vscode/test-electron": "^2.4.1",
+    "@vscode/vsce": "^3.2.1",
+    "esbuild": "^0.24.2",
+    "mocha": "^11.0.1",
+    "typescript": "^5.7.2"
+  }
+}

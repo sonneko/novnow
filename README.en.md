@@ -9,12 +9,13 @@ The novnow editor, built to manage the novnow format, runs both as a desktop app
 | Way to run it | Setup | Best for |
 |---|---|---|
 | **Browser** (no install) | Open `https://novnow.sonneko.com/app/` | Trying it first, keeping your machine clean |
-| Desktop (Windows / macOS / Linux) | Releases are in preparation ([how to install](./docs/users/install.md#desktop)) | Managing manuscripts in a local folder |
+| Desktop (Windows / macOS / Linux) | [GitHub Releases](https://github.com/sonneko/novnow/releases) (unavailable until the first release) | Managing manuscripts in a local folder |
 | Command line (CLI) | Same as above | Checking and exporting a whole manuscript at once |
 | Editor integration (LSP) | Same as above | Writing in VS Code or another editor |
 | AI integration (MCP) | Same as above | Letting AI read and propose changes |
-| Python | `pip install novnow` (in preparation) | Automating your own workflow |
-| VS Code extension | Install from the marketplace (in preparation) | Writing in VS Code every day |
+| Python | `pip install novnow` from [PyPI](https://pypi.org/project/novnow/) (unavailable until the first release) | Automating your own workflow |
+| VS Code extension | [Marketplace](https://marketplace.visualstudio.com/items?itemName=sonneko.novnow) (unavailable until the first release) | Writing in VS Code every day |
+| GitHub Actions | `uses: sonneko/novnow@v1` (unavailable until `v1` is published) | Checking or exporting in CI |
 
 The layout, the keys, and what gets saved are the same in the browser and on the desktop.
 Whichever door you use, you get the same result from one shared implementation.
@@ -112,7 +113,7 @@ In the future, following continued research and development, we plan to implemen
 
 ## Install and Run
 
-Distribution covers 10 desktop builds (with or without a window, across 5 OS/CPU targets), 5 Python wheels, a VS Code extension, and a GitHub Action (publication is in preparation). See [how to install](./docs/users/install.md) for users and [distribution.md](./docs/distribution.md) for the release procedure and rules.
+The distribution channels are the browser, GitHub Releases, PyPI, the VS Code Marketplace, and GitHub Actions tags. There are 10 desktop builds (with or without a window, across 5 OS/CPU targets) and 5 Python wheels. Everything except the browser build is unavailable until the first release. See [how to install](./docs/users/install.md) for users and [distribution.md](./docs/distribution.md) for the release procedure and rules.
 
 Until then, novnow can be built from source. A stable Rust toolchain is required.
 

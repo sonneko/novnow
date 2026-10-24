@@ -2,7 +2,7 @@
 
 本書は、novnow を利用者の手元へ届ける**手順**をまとめる。何を配るか（形・選択肢・名前・MUST）は `REF:docs/specifications/external.md` §20、どう作るかは `REF:docs/designs/external.md` §20 が正本である。本書は「だれが、どこへ、どの順で置くか」だけを扱う。
 
-**いまの状態（2026-10-23）**: ブラウザ版だけが公開済み。デスクトップ版と Python ライブラリ版は作られているが、公開の経路はこれから用意する。VSCode 拡張版と GitHub Actions 版はこれから作る（`REF:docs/plans.md#distribution` の Phase 1〜6）。
+**いまの状態（2026-10-23）**: ブラウザ版だけが公開済み。デスクトップ版・Python ライブラリ版・VSCode 拡張版・GitHub Actions 版の実装と公開用ワークフローは用意済み。初回リリースはまだ実行しておらず、ブラウザ版以外は未提供である（`REF:docs/plans.md#distribution`）。
 
 ---
 
@@ -26,7 +26,7 @@
 - 配布は `REF:.github/workflows/deploy.yml` が行う。`main` の `dist` を GitHub Pages へ出し、公式サイト（`novnow.sonneko.com`）から同じアプリを開ける。
 - 成果物は trunk の `dist`（`index.html`・`sw.js`・`manifest.webmanifest`・WASM・`assets/`・`guide/`）。`REF:index.html` の `copy-dir` が `guide/` を dist に載せる。
 - 更新はタグではなく `main` へのマージで反映される。版番号は画面の情報に表示し、`REF:Cargo.toml` と一致させる。
-- Service Worker が古い資産を配り続けないよう、`REF:sw.js` のキャッシュ名（現在は `novnow-offline-v1`）に版を含める運用へ変える（計画）。公開後に `https://sonneko.github.io/novnow/app/` をシークレットウィンドウで開き、読み込みとオフライン起動を確かめる。
+- Service Worker が古い資産を配り続けないよう、`REF:sw.js` のキャッシュ名を `novnow-offline-v<版>` とし、`REF:scripts/release-matrix.py` の `--check` で版の一致を確かめる。公開後に `https://sonneko.github.io/novnow/app/` をシークレットウィンドウで開き、読み込みとオフライン起動を確かめる。
 - ブラウザ版だけは「取得」が無いので、照合値もタグも持たない。この非対称は仕様 §20.1.3 のとおり。
 
 ---
@@ -78,10 +78,10 @@ novnow-<版>-<対象環境>-<gui|nogui>.<拡張子>
 
 ### 2.5 公開の手順（保守）
 
-1. タグ `v<版>` を打つ。
-2. `.github/workflows/release.yml`（計画パス）を `workflow_dispatch` でも指定して、10 個の成果物と `SHA256SUMS` を作る。
+1. `REF:scripts/release-matrix.py` の `--bump <版>` で版をそろえ、`--check` と `REF:scripts/verify.sh` を通してからタグ `v<版>` を打つ。
+2. タグの push、または `REF:.github/workflows/release.yml` の `workflow_dispatch` で、デスクトップ 10 個・ホイール 5 個と `SHA256SUMS` を作る。
 3. リリースノートに、版と 10 通りの一覧（対象環境 × `gui` / `nogui`）を書く。壊れた成果物があれば、その版ごと出し直す（成果物だけを差し替えない）。
-4. `scripts/release-check.sh`（計画パス）で、10 + 5 の成果物・照合値の行数・版の一致を確かめる。
+4. `REF:scripts/release-check.sh` で、`.vsix` を含む 16 個の成果物・照合値の行数・版の一致を確かめる。公開後のタグ検査には `--remote` を付ける。
 
 ---
 
@@ -105,14 +105,14 @@ novnow-<版>-<対象環境>-<gui|nogui>.<拡張子>
 ### 3.1 公開の手順（保守）
 
 1. デスクトップ版のリリースが緑になったことを確認する（仕様 §20.6.1 の順序）。
-2. タグ `v<版>` の push で TestPyPI へリハーサル公開する（`REF:.github/workflows/wheels.yml`）。
-3. `workflow_dispatch` で `environment: pypi` の承認を通し、本番の PyPI へ公開する。
+2. `REF:.github/workflows/release.yml` をタグで起動し、TestPyPI へリハーサル公開する。手動の公開試験には `REF:.github/workflows/wheels.yml` を使う。
+3. 公開入力で PyPI を選び、`environment: pypi` の承認を通して本番の PyPI へ公開する。
 4. 5 つのホイールが揃っていること、`novnow.__version__` が `REF:Cargo.toml` と一致することを確認する。
 5. 壊れた版は削除せず、PyPI の yank で印を付ける（仕様 §20.6.3）。
 
 ---
 
-## 4. VSCode 拡張版（1 通り・これから作る）
+## 4. VSCode 拡張版（1 通り・実装済み）
 
 - 識別子は `sonneko.novnow`。市場から入れるか、Releases の `.vsix` から入れる。
 - 拡張機能は novnow の実行ファイルを同梱しない。プロジェクトを開いたときに、次の順で探す（仕様 §20.4.2）。
@@ -132,7 +132,7 @@ novnow-<版>-<対象環境>-<gui|nogui>.<拡張子>
 
 ---
 
-## 5. GitHub Actions 版（1 通り・これから作る）
+## 5. GitHub Actions 版（1 通り・実装済み）
 
 ```yaml
 - uses: sonneko/novnow@v1
@@ -163,7 +163,7 @@ novnow-<版>-<対象環境>-<gui|nogui>.<拡張子>
 
 1. `action.yml` と `scripts/action/install.sh` を含む版をタグ `v<版>` で公開する。
 2. `v1` をそのコミットへ付け替える（互換性を壊す版を出すときだけ `v2` を作る）。
-3. `action-smoke.yml`（計画パス）を `workflow_dispatch` で 3 OS に対して 1 回だけ走らせる。
+3. `REF:.github/workflows/action-smoke.yml` は完全なリリースの成功後に自動で走る。手動でやり直すときは `workflow_dispatch` を使う。3 OS で E 診断の失敗も確かめる。
 
 ---
 
@@ -178,7 +178,7 @@ novnow-<版>-<対象環境>-<gui|nogui>.<拡張子>
 | 3 | ホイール 5 を作り、TestPyPI → PyPI へ公開する | 以降を止める。タグは残す |
 | 4 | `.vsix` を添付し、市場へ公開する | 以降を止める。市場の版で直す |
 | 5 | Actions の `v<版>` と `v1` を公開する | 利用者へ「未提供」と表示する |
-| 6 | README・サイト・手引きの「準備中」を、実際の取得先へ差し替える | 文書だけが古い状態になる。次の版までに直す |
+| 6 | README・サイト・手引きに実際の取得先を載せ、未公開の形態は「未提供」と記す | 文書だけが古い状態になる。次の版までに直す |
 
 - 版ごとの成果物は削除しない。重大な不具合は新しい版で直す（仕様 §20.6.3）。
 - 公開を止めるときは、同じ版の 5 形態をまとめて「未提供」に戻す。形態ごとに残さない。
@@ -189,7 +189,7 @@ novnow-<版>-<対象環境>-<gui|nogui>.<拡張子>
 
 | 確かめたいこと | 見るもの |
 |---|---|
-| 成果物が 10 + 5 揃っている | `SHA256SUMS` の行数と Releases の添付 |
+| デスクトップ 10・ホイール 5・`.vsix` 1 が揃っている | `SHA256SUMS` の行数と Releases の添付 |
 | 名前が仕様どおり | `novnow-<版>-<対象環境>-<gui\|nogui>` の 1 形だけか |
 | 版が 5 形態で同じ | `--version`・`novnow.__version__`・拡張の版・Actions のタグ |
 | 照合値が一致する | `sha256sum -c SHA256SUMS`（macOS は `shasum -a 256 -c`） |

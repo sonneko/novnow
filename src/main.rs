@@ -1,6 +1,6 @@
 //! novnow の起動（§14.3）。ここは薄く保つ: 判定とサブコマンドは `novnow::cli`、GUI は M7 の `ui`。
 //!
-//! - Windows のリリースビルドは GUI サブシステム（`windows_subsystem = "windows"`）。エクスプローラから
+//! - Windows の GUI 付きビルドは GUI サブシステム（`windows_subsystem = "windows"`）。エクスプローラから
 //!   起動しても**コンソールウィンドウを作らない**（`AllocConsole` は使わない）。端末から起動された
 //!   ときだけ `AttachConsole(ATTACH_PARENT_PROCESS)` で親のコンソールにつなぎ、CLI として振る舞う。
 //! - 実プロセスの標準入出力・環境変数・カレントディレクトリを `cli::Cli` に渡すのはここだけ。
@@ -9,7 +9,7 @@
 //! - GUI は `ui` feature のビルドだけが持つ（`novnow::cli::GUI_AVAILABLE`）。持たないビルドで GUI を
 //!   求められたら、案内を出して終了コード 2（§14.2.5）。
 
-#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
+#![cfg_attr(all(windows, feature = "ui"), windows_subsystem = "windows")]
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> std::process::ExitCode {
