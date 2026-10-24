@@ -2,7 +2,7 @@
 
 本文に波線が出たときは、このページを見てください。**コードごとに直し方が決まっています。**
 
-コードの一覧は [診断の一覧](https://novnow.sonneko.com/ja/diagnostics) にあります。ここでは、書きながら
+コードの一覧は [診断の一覧](https://sonneko.github.io/novnow/ja/diagnostics) にあります。ここでは、書きながら
 よく出る 12 件だけを、直す順番で並べます。
 
 ## 直すときの基本
@@ -104,5 +104,5 @@
 ## それでも直らないとき
 
 - `Alt+9`（点検）で、エラーの全文と場所を見ます。
-- [よくある質問](./faq.md) と [トラブルシューティング](https://novnow.sonneko.com/ja/troubleshooting) も見てください。
+- [よくある質問](./faq.md) と [トラブルシューティング](https://sonneko.github.io/novnow/ja/troubleshooting) も見てください。
 - 仕様の正確な条件は [診断カタログ](../specifications/diagnostics.md) §7 にあります。

@@ -163,7 +163,7 @@ export interface PlatformRow {
 export const platforms: PlatformRow[] = [
   {
     name: "Browser",
-    setup: { ja: "`https://novnow.sonneko.com/app/` を開くだけ", en: "Just open `https://novnow.sonneko.com/app/`" },
+    setup: { ja: "`https://sonneko.github.io/novnow/app/` を開くだけ", en: "Just open `https://sonneko.github.io/novnow/app/`" },
     bestFor: { ja: "まず試したい・環境を変えたくない", en: "Trying it first, keeping your machine clean" },
     highlight: true,
   },

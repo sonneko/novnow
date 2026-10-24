@@ -4,26 +4,223 @@ import Header from "./Header.astro";
 import Footer from "./Footer.astro";
 import { diagnostics } from "../data/diagnostics";
 import diagnosticEnglish from "../data/diagnostics-en.json";
+
 const { lang } = Astro.props as { lang: "ja" | "en" };
 const japanese = lang === "ja";
 ---
+
 <BaseLayout title={japanese ? "診断コード一覧" : "Diagnostic code reference"} lang={lang}>
   <Header lang={lang} currentPath={`/${lang}/diagnostics`} />
-  <main class="container" style="max-width: 900px; margin: 3rem auto 5rem;">
-    <h1>{japanese ? "診断コード一覧" : "Diagnostic code reference"}</h1>
-    <p>{japanese ? "診断のコードを選ぶと発生条件と対応方法を確認できます。" : "Find a diagnostic code to see its cause and available action."}</p>
-    <nav aria-label={japanese ? "診断コード" : "Diagnostic codes"} style="display:flex;gap:.6rem;flex-wrap:wrap;margin:2rem 0;">
-      {diagnostics.map(({code}) => <a href={`#${code}`}>{code}</a>)}
+
+  <main class="container diag-main">
+    <h1 class="page-title">{japanese ? "診断コード一覧" : "Diagnostic code reference"}</h1>
+    <p class="page-lead">
+      {japanese
+        ? "診断のコードを選ぶと発生条件と対応方法を確認できます。"
+        : "Find a diagnostic code to see its cause and available action."}
+    </p>
+
+    <nav aria-label={japanese ? "診断コード" : "Diagnostic codes"} class="code-pills">
+      {diagnostics.map(({ code, severity }) => (
+        <a href={`#${code}`} class:list={["code-pill", `sev-${severity.toLowerCase()}`]}>
+          {code}
+        </a>
+      ))}
     </nav>
-    {diagnostics.map(({code, severity, condition, ja, en, action}) => (
-      <section id={code} style="scroll-margin-top:6rem;border-top:1px solid var(--border-color);padding:1.5rem 0;">
-        <h2><code>{code}</code> <small>{severity === "E" ? (japanese ? "エラー" : "Error") : severity === "W" ? (japanese ? "警告" : "Warning") : (japanese ? "情報" : "Info")}</small></h2>
-        <p><strong>{japanese ? ja : en}</strong></p>
-        <p>{japanese ? "発生条件: " : "Cause: "}{japanese ? condition : diagnosticEnglish[code][0]}</p>
-        <p>{japanese ? "対応: " : "Available action: "}{japanese ? (action === "—" ? "自動修正なし。該当箇所を確認してください。" : action) : diagnosticEnglish[code][1]}</p>
-        <p><a href={`/${lang}/diagnostics/${code}/`}>{japanese ? "具体例と解消手順を見る →" : "See example and resolution →"}</a></p>
-      </section>
-    ))}
+
+    <div class="diag-list">
+      {diagnostics.map(({ code, severity, condition, ja, en, action }) => (
+        <section id={code} class="diag-card">
+          <div class="diag-header">
+            <h2 class="diag-code">
+              <code>{code}</code>
+            </h2>
+            <span class:list={["sev-badge", `sev-${severity.toLowerCase()}`]}>
+              {severity === "E"
+                ? japanese ? "エラー" : "Error"
+                : severity === "W"
+                  ? japanese ? "警告" : "Warning"
+                  : japanese ? "情報" : "Info"}
+            </span>
+          </div>
+
+          <p class="diag-summary">{japanese ? ja : en}</p>
+
+          <dl class="diag-details">
+            <div>
+              <dt>{japanese ? "発生条件" : "Cause"}</dt>
+              <dd>{japanese ? condition : diagnosticEnglish[code][0]}</dd>
+            </div>
+            <div>
+              <dt>{japanese ? "対応" : "Available action"}</dt>
+              <dd>
+                {japanese
+                  ? action === "—"
+                    ? "自動修正なし。該当箇所を確認してください。"
+                    : action
+                  : diagnosticEnglish[code][1]}
+              </dd>
+            </div>
+          </dl>
+
+          <a href={`/${lang}/diagnostics/${code}/`} class="detail-link">
+            {japanese ? "具体例と解消手順を見る →" : "See example and resolution →"}
+          </a>
+        </section>
+      ))}
+    </div>
   </main>
+
   <Footer lang={lang} />
 </BaseLayout>
+
+<style lang="scss">
+  @use "../styles/variables.scss" as *;
+
+  .diag-main {
+    max-width: 960px;
+    margin: 3rem auto 5rem;
+  }
+
+  .page-title {
+    font-size: clamp(2rem, 3.4vw, 2.5rem);
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    color: $text-primary;
+    margin-bottom: 0.65rem;
+  }
+
+  .page-lead {
+    color: $text-secondary;
+    font-size: 1.06rem;
+    line-height: 1.7;
+    margin-bottom: 2rem;
+  }
+
+  .code-pills {
+    display: flex;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+    background-color: $bg-card;
+    box-shadow: $shadow-inner-border;
+    border-radius: $radius-md;
+    padding: 1.15rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .code-pill {
+    font-family: $font-family-mono;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.25rem 0.6rem;
+    border-radius: $radius-pill;
+    background-color: $bg-wash;
+    box-shadow: $shadow-inner-border;
+    color: $text-primary;
+    text-decoration: none;
+    transition: background-color 0.14s ease, color 0.14s ease;
+
+    &:hover {
+      background-color: $bg-highlight;
+      color: $accent-brand;
+      text-decoration: none;
+    }
+  }
+
+  .diag-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+  }
+
+  .diag-card {
+    scroll-margin-top: 5.5rem;
+    background-color: $bg-wash;
+    box-shadow: $shadow-card, $shadow-inner-border;
+    border-radius: $radius-md;
+    padding: 1.65rem 1.8rem;
+  }
+
+  .diag-header {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    margin-bottom: 0.65rem;
+  }
+
+  .diag-code {
+    font-size: 1.25rem;
+    margin: 0;
+
+    code {
+      color: $text-primary;
+      font-weight: 700;
+    }
+  }
+
+  .sev-badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.18rem 0.65rem;
+    border-radius: $radius-pill;
+
+    &.sev-e {
+      background-color: $bg-red;
+      box-shadow: inset 0 0 0 1px $border-red;
+      color: $accent-red;
+    }
+
+    &.sev-w {
+      background-color: $bg-orange;
+      box-shadow: inset 0 0 0 1px $border-orange;
+      color: $accent-orange;
+    }
+
+    &.sev-i {
+      background-color: $bg-highlight;
+      box-shadow: inset 0 0 0 1px rgba($accent-brand, 0.22);
+      color: $accent-brand;
+    }
+  }
+
+  .diag-summary {
+    color: $text-primary;
+    font-weight: 700;
+    font-size: 1.02rem;
+    margin-bottom: 1rem;
+    line-height: 1.55;
+  }
+
+  .diag-details {
+    display: grid;
+    gap: 0.65rem;
+    background-color: $bg-card;
+    box-shadow: $shadow-inner-border;
+    border-radius: 12px;
+    padding: 1rem 1.15rem;
+    margin-bottom: 1rem;
+
+    dt {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: $text-muted;
+      margin-bottom: 0.15rem;
+    }
+
+    dd {
+      font-size: 0.93rem;
+      color: $text-secondary;
+      line-height: 1.6;
+    }
+  }
+
+  .detail-link {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: $accent-brand;
+  }
+</style>

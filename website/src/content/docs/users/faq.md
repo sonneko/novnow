@@ -13,7 +13,7 @@ source: "docs/users/faq.md"
 
 ### インストールは必要？
 
-ブラウザ版は不要です。`https://novnow.sonneko.com/app/` を開くだけです。
+ブラウザ版は不要です。[`https://sonneko.github.io/novnow/app/`](https://sonneko.github.io/novnow/app/) を開くだけです。
 デスクトップ版などは初回リリースまで未提供です（[入れ方](/ja/manual/install)）。
 
 ### 無料？ あとで有料にならない？
@@ -62,7 +62,7 @@ Zip で書き出して、新しい環境で「Zip 読み込み」をします。
 3. 一覧で見たいときは `Alt+9`（点検）へ。
 
 意味が分からないコード（`E001` など）は [よく出るエラーと直し方](/ja/manual/errors) か
-[診断の一覧](https://novnow.sonneko.com/ja/diagnostics) で調べられます。
+[診断の一覧](https://sonneko.github.io/novnow/ja/diagnostics) で調べられます。
 
 ### `'` の後ろに候補が出ない
 
@@ -139,6 +139,6 @@ Zip で書き出して、新しい環境で「Zip 読み込み」をします。
 
 ## 困ったとき
 
-- 起動しない・作品が見つからない: [トラブルシューティング](https://novnow.sonneko.com/ja/troubleshooting)
+- 起動しない・作品が見つからない: [トラブルシューティング](https://sonneko.github.io/novnow/ja/troubleshooting)
 - 用語が分からない: [用語集](/ja/manual/glossary)
 - 手順を最初から: [はじめての手引き](/ja/manual/start)

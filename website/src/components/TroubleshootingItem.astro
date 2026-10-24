@@ -1,6 +1,7 @@
 ---
 import type { TroubleshootingItem } from "../data/troubleshooting";
 import type { Language } from "../data/i18n";
+import { splitInlineCode } from "../utils/inlineCode";
 import styles from "./TroubleshootingItem.module.scss";
 
 interface Props {
@@ -34,17 +35,53 @@ const l = labels[lang];
 
   <div class={styles.section}>
     <strong class={styles.sectionLabelProblem}>{l.problem}</strong>
-    <p>{item.problem[lang]}</p>
+    <p>
+      {splitInlineCode(item.problem[lang]).map((part) =>
+        part.href ? (
+          <a href={part.href} target={part.href.startsWith("http") ? "_blank" : undefined} rel={part.href.startsWith("http") ? "noopener noreferrer" : undefined}>
+            {part.code ? <code class={styles.inlineCode}>{part.text}</code> : part.text}
+          </a>
+        ) : part.code ? (
+          <code class={styles.inlineCode}>{part.text}</code>
+        ) : (
+          part.text
+        )
+      )}
+    </p>
   </div>
 
   <div class={styles.section}>
     <strong class={styles.sectionLabelCause}>{l.cause}</strong>
-    <p>{item.cause[lang]}</p>
+    <p>
+      {splitInlineCode(item.cause[lang]).map((part) =>
+        part.href ? (
+          <a href={part.href} target={part.href.startsWith("http") ? "_blank" : undefined} rel={part.href.startsWith("http") ? "noopener noreferrer" : undefined}>
+            {part.code ? <code class={styles.inlineCode}>{part.text}</code> : part.text}
+          </a>
+        ) : part.code ? (
+          <code class={styles.inlineCode}>{part.text}</code>
+        ) : (
+          part.text
+        )
+      )}
+    </p>
   </div>
 
   <div class={styles.solutionBox}>
     <strong class={styles.sectionLabelSolution}>{l.solution}</strong>
-    <p>{item.solution[lang]}</p>
+    <p>
+      {splitInlineCode(item.solution[lang]).map((part) =>
+        part.href ? (
+          <a href={part.href} target={part.href.startsWith("http") ? "_blank" : undefined} rel={part.href.startsWith("http") ? "noopener noreferrer" : undefined}>
+            {part.code ? <code class={styles.inlineCodeOnSolution}>{part.text}</code> : part.text}
+          </a>
+        ) : part.code ? (
+          <code class={styles.inlineCodeOnSolution}>{part.text}</code>
+        ) : (
+          part.text
+        )
+      )}
+    </p>
 
     {item.code && (
       <pre class={styles.codeBlock}><code>{item.code}</code></pre>

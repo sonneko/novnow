@@ -11,7 +11,7 @@ novnow形式を管理するためのnovnowエディタは、デスクトップ�
 
 | 動かし方 | 準備 | 向いている人 |
 |---|---|---|
-| **ブラウザ**（インストール不要） | `https://novnow.sonneko.com/app/` を開くだけ | まず試したい・環境を変えたくない |
+| **ブラウザ**（インストール不要） | [`https://sonneko.github.io/novnow/app/`](https://sonneko.github.io/novnow/app/) を開くだけ | まず試したい・環境を変えたくない |
 | デスクトップ（Windows / macOS / Linux） | [GitHub Releases](https://github.com/sonneko/novnow/releases)（初回公開まで未提供） | 手元のフォルダで原稿を管理したい |
 | コマンド（CLI） | 同上 | 原稿をまとめて検査・書き出ししたい |
 | エディタ連携（LSP） | 同上 | VS Code など手持ちのエディタで書きたい |
@@ -182,7 +182,7 @@ novnow structure tree my-novel --json                    # 正規操作も --jso
 - [`interfaces.md`](./docs/specifications/interfaces.md): CLI・LSP・MCP・Python・Rust の外部インターフェース
 - [`external.md`](./docs/specifications/external.md): 配布形態（デスクトップ 10 通り・Python 5 通り・VSCode 拡張・GitHub Actions）
 
-公式サイト（[https://novnow.sonneko.com/](https://novnow.sonneko.com/)）では、機能ガイド・診断コードの一覧・API リファレンスを読めます。仕様書はすべてこのリポジトリの [`docs/specifications/`](./docs/specifications/) にあり、実装と同じコミットで管理されています。
+公式サイト（[https://sonneko.github.io/novnow/](https://sonneko.github.io/novnow/)）では、機能ガイド・診断コードの一覧・API リファレンスを読めます。仕様書はすべてこのリポジトリの [`docs/specifications/`](./docs/specifications/) にあり、実装と同じコミットで管理されています。
 
 開発に参加する場合は [`GUIDE.md`](./GUIDE.md)（ビルドと執筆の手順）と [`docs/developers.md`](./docs/developers.md)（開発環境・文書規則・検証手順）から始めてください。
 

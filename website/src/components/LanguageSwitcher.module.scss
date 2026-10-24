@@ -3,20 +3,22 @@
 .switcher {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 2px;
   background-color: $bg-card;
-  border: 1px solid $border-color;
-  border-radius: $radius-sm;
-  padding: 0.25rem 0.5rem;
+  box-shadow: $shadow-inner-border;
+  border-radius: $radius-pill;
+  padding: 3px;
 }
 
 .langBtn {
-  font-size: 0.85rem;
-  color: $text-secondary;
-  font-weight: 500;
-  padding: 0.15rem 0.4rem;
-  border-radius: 4px;
+  font-size: 0.8rem;
+  color: $text-muted;
+  font-weight: 600;
+  padding: 0.24rem 0.65rem;
+  border-radius: $radius-pill;
   text-decoration: none;
+  line-height: 1.2;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 
   &:hover {
     color: $text-primary;
@@ -24,12 +26,8 @@
   }
 
   &.active {
-    color: $accent-purple;
-    background-color: rgba($accent-purple, 0.15);
+    color: $accent-brand;
+    background-color: $bg-wash;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04);
   }
-}
-
-.divider {
-  color: $border-color;
-  font-size: 0.8rem;
 }

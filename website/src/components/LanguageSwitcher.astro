@@ -8,7 +8,6 @@ interface Props {
 
 const { currentLang, currentPath } = Astro.props;
 
-// Convert path between languages
 const getTargetUrl = (targetLang: "ja" | "en") => {
   if (currentLang === targetLang) return currentPath;
   if (currentPath.startsWith("/ja")) {
@@ -20,18 +19,17 @@ const getTargetUrl = (targetLang: "ja" | "en") => {
 };
 ---
 
-<div class={styles.switcher}>
+<div class={styles.switcher} role="group" aria-label="Language">
   <a
     href={getTargetUrl("ja")}
     class:list={[styles.langBtn, { [styles.active]: currentLang === "ja" }]}
   >
     日本語
   </a>
-  <span class={styles.divider}>|</span>
   <a
     href={getTargetUrl("en")}
     class:list={[styles.langBtn, { [styles.active]: currentLang === "en" }]}
   >
-    English
+    EN
   </a>
 </div>

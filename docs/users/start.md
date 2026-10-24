@@ -16,7 +16,7 @@
 
 ### ブラウザ版（インストール不要・おすすめ）
 
-`https://novnow.sonneko.com/app/` を開くだけです。作品はブラウザの中（IndexedDB）に保存されます。
+[`https://sonneko.github.io/novnow/app/`](https://sonneko.github.io/novnow/app/) を開くだけです。作品はブラウザの中（IndexedDB）に保存されます。
 
 - 一度開けば、ホーム画面に追加してオフラインでも起動できます（PWA）。
 - ブラウザのデータを消すと作品も消えます。**書き上がったら Zip で書き出して保管**してください（[8. 書き出す](#8-書き出す)）。

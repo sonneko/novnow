@@ -8,7 +8,7 @@ The novnow editor, built to manage the novnow format, runs both as a desktop app
 
 | Way to run it | Setup | Best for |
 |---|---|---|
-| **Browser** (no install) | Open `https://novnow.sonneko.com/app/` | Trying it first, keeping your machine clean |
+| **Browser** (no install) | Open [`https://sonneko.github.io/novnow/app/`](https://sonneko.github.io/novnow/app/) | Trying it first, keeping your machine clean |
 | Desktop (Windows / macOS / Linux) | [GitHub Releases](https://github.com/sonneko/novnow/releases) (unavailable until the first release) | Managing manuscripts in a local folder |
 | Command line (CLI) | Same as above | Checking and exporting a whole manuscript at once |
 | Editor integration (LSP) | Same as above | Writing in VS Code or another editor |
@@ -179,7 +179,7 @@ All specifications for the editor and the novnow format are fully documented:
 - [`interfaces.md`](./docs/specifications/interfaces.md): CLI, LSP, MCP, Python, and Rust interfaces
 - [`external.md`](./docs/specifications/external.md): Distribution formats (10 desktop builds, 5 wheels, a VS Code extension, and a GitHub Action)
 
-Our website ([https://novnow.sonneko.com/](https://novnow.sonneko.com/)) has a feature guide, the full diagnostics catalog, and an API reference. The specifications themselves live in this repository under [`docs/specifications/`](./docs/specifications/) and are versioned with the implementation.
+Our website ([https://sonneko.github.io/novnow/](https://sonneko.github.io/novnow/)) has a feature guide, the full diagnostics catalog, and an API reference. The specifications themselves live in this repository under [`docs/specifications/`](./docs/specifications/) and are versioned with the implementation.
 
 To contribute, start with [`GUIDE.md`](./GUIDE.md) (build and writing walkthrough) and [`docs/developers.md`](./docs/developers.md) (dev environment, document rules, and verification).
 

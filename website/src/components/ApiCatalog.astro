@@ -8,17 +8,33 @@ const { lang } = Astro.props as { lang: "ja" | "en" };
 const japanese = lang === "ja";
 const domains = [...new Set(operations.map((operation) => operation.domain))];
 ---
+
 <BaseLayout title={japanese ? "API リファレンス" : "API reference"} lang={lang}>
   <Header lang={lang} currentPath={`/${lang}/api`} />
-  <main class="container" style="max-width: 960px; margin: 3rem auto 5rem;">
-    <h1>{japanese ? "API リファレンス" : "API reference"}</h1>
-    <p>
-      {japanese
-        ? "novnow の機能は 119 の正規操作（canonical operation）に整理されていて、Rust API・Python・LSP・MCP・CLI の 5 つの口から同じ実装を呼び出せます。この表は仕様書 §19.7 の写しで、CI が実装と突き合わせています。"
-        : "Every novnow feature is a canonical operation. Five interfaces — Rust, Python, LSP, MCP and the CLI — call the same implementation. This table mirrors §19.7 of the specification and CI checks it against the code."}
-    </p>
-    <h2>{japanese ? "呼び出し方" : "Calling an operation"}</h2>
-    <pre><code>{`# CLI（§19.6）
+
+  <div class="doc-layout">
+    <aside class="doc-sidebar" aria-label={japanese ? "ドメイン" : "Domains"}>
+      <div class="doc-sidebar-group">{japanese ? "操作ドメイン" : "Operation Domains"}</div>
+      <nav class="doc-sidebar-nav">
+        {domains.map((domain) => (
+          <a href={`#${domain}`} class="doc-sidebar-link">
+            <code class="sidebar-code">{domain}</code>
+            <span class="domain-count">{operations.filter((op) => op.domain === domain).length}</span>
+          </a>
+        ))}
+      </nav>
+    </aside>
+
+    <main class="api-main">
+      <h1 class="page-title">{japanese ? "API リファレンス" : "API reference"}</h1>
+      <p class="page-lead">
+        {japanese
+          ? "novnow の機能は 119 の正規操作（canonical operation）に整理されていて、Rust API・Python・LSP・MCP・CLI の 5 つの口から同じ実装を呼び出せます。この表は仕様書 §19.7 の写しで、CI が実装と突き合わせています。"
+          : "Every novnow feature is a canonical operation. Five interfaces — Rust, Python, LSP, MCP and the CLI — call the same implementation. This table mirrors §19.7 of the specification and CI checks it against the code."}
+      </p>
+
+      <h2 class="section-title">{japanese ? "呼び出し方" : "Calling an operation"}</h2>
+      <pre class="code-box"><code>{`# CLI（§19.6）
 novnow section list novel --json
 novnow api list --json
 
@@ -32,39 +48,246 @@ with novnow.open("novel") as session:
 
 # MCP（§19.5）
 tools/call { "name": "novnow.section.list", "arguments": {} }`}</code></pre>
-    <nav aria-label={japanese ? "ドメイン" : "Domains"} style="display:flex;gap:.6rem;flex-wrap:wrap;margin:2rem 0;">
-      {domains.map((domain) => <a href={`#${domain}`}>{domain}</a>)}
-    </nav>
-    {domains.map((domain) => (
-      <section id={domain} style="scroll-margin-top:6rem;border-top:1px solid var(--border-color);padding:1.5rem 0;">
-        <h2><code>{domain}</code></h2>
-        <table style="width:100%;border-collapse:collapse;font-size:.95rem;">
-          <thead>
-            <tr style="text-align:left;border-bottom:1px solid var(--border-color);">
-              <th style="padding:.4rem;">{japanese ? "操作" : "Operation"}</th>
-              <th style="padding:.4rem;">{japanese ? "説明" : "Description"}</th>
-              <th style="padding:.4rem;">{japanese ? "LSP 標準メソッド" : "LSP method"}</th>
-              <th style="padding:.4rem;">{japanese ? "例外" : "Exceptions"}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {operations.filter((operation) => operation.domain === domain).map((operation) => (
-              <tr style="border-bottom:1px solid var(--border-color);">
-                <td style="padding:.4rem;"><code>{operation.id}</code></td>
-                <td style="padding:.4rem;">{japanese ? operation.ja : operation.en}</td>
-                <td style="padding:.4rem;"><code>{operation.lsp || "—"}</code></td>
-                <td style="padding:.4rem;">{operation.exceptions || "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-    ))}
-    <p style="margin-top:2rem;">
-      {japanese
-        ? "例外列の印: `R—` Rust API、`P—` Python、`L—` LSP、`M—` MCP、`C—` CLI で提供しない。`M 門番` は MCP からの書き込みに委譲レベル（role）が必要（§19.1.5）。"
-        : "Exception marks: `R—` Rust, `P—` Python, `L—` LSP, `M—` MCP, `C—` CLI do not offer the operation. `M 門番` means an MCP write needs a delegation role (§19.1.5)."}
-    </p>
-  </main>
+
+      <nav aria-label={japanese ? "ドメイン一覧" : "Domain index"} class="domain-pills">
+        {domains.map((domain) => (
+          <a href={`#${domain}`} class="domain-pill">
+            <code>{domain}</code>
+          </a>
+        ))}
+      </nav>
+
+      {domains.map((domain) => (
+        <section id={domain} class="domain-section">
+          <h2 class="domain-heading">
+            <code>{domain}</code>
+          </h2>
+          <div class="table-wrap">
+            <table class="api-table">
+              <thead>
+                <tr>
+                  <th>{japanese ? "操作" : "Operation"}</th>
+                  <th>{japanese ? "説明" : "Description"}</th>
+                  <th>{japanese ? "LSP 標準メソッド" : "LSP method"}</th>
+                  <th>{japanese ? "例外" : "Exceptions"}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {operations
+                  .filter((operation) => operation.domain === domain)
+                  .map((operation) => (
+                    <tr>
+                      <td class="cell-op">
+                        <code class="op-code">{operation.id}</code>
+                      </td>
+                      <td>{japanese ? operation.ja : operation.en}</td>
+                      <td class="cell-lsp">
+                        {operation.lsp ? <code class="inline-chip">{operation.lsp}</code> : <span class="muted-dash">—</span>}
+                      </td>
+                      <td class="cell-exc">{operation.exceptions || <span class="muted-dash">—</span>}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ))}
+
+      <div class="legend-callout">
+        {japanese ? (
+          <p>
+            <strong>例外列の印:</strong> <code>R—</code> Rust API、<code>P—</code> Python、<code>L—</code> LSP、<code>M—</code> MCP、<code>C—</code> CLI で提供しない。<code>M 門番</code> は MCP からの書き込みに委譲レベル（role）が必要（§19.1.5）。
+          </p>
+        ) : (
+          <p>
+            <strong>Exception marks:</strong> <code>R—</code> Rust, <code>P—</code> Python, <code>L—</code> LSP, <code>M—</code> MCP, <code>C—</code> CLI do not offer the operation. <code>M 門番</code> means an MCP write needs a delegation role (§19.1.5).
+          </p>
+        )}
+      </div>
+    </main>
+  </div>
+
   <Footer lang={lang} />
 </BaseLayout>
+
+<style lang="scss">
+  @use "../styles/variables.scss" as *;
+
+  .api-main {
+    max-width: 920px;
+  }
+
+  .sidebar-code {
+    font-size: 0.86rem;
+    font-family: $font-family-mono;
+  }
+
+  .domain-count {
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: $text-muted;
+    background-color: $bg-card;
+    padding: 0.08rem 0.48rem;
+    border-radius: $radius-pill;
+  }
+
+  .page-title {
+    font-size: clamp(2rem, 3.4vw, 2.5rem);
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    color: $text-primary;
+    margin-bottom: 0.75rem;
+  }
+
+  .page-lead {
+    color: $text-secondary;
+    font-size: 1.05rem;
+    line-height: 1.75;
+    margin-bottom: 2.25rem;
+  }
+
+  .section-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: $text-primary;
+    margin-bottom: 0.85rem;
+  }
+
+  .code-box {
+    background-color: $bg-card;
+    box-shadow: $shadow-inner-border;
+    border-radius: $radius-md;
+    padding: 1.2rem 1.4rem;
+    overflow-x: auto;
+    font-size: 0.88rem;
+    line-height: 1.65;
+    color: $text-primary;
+    margin-bottom: 1.75rem;
+  }
+
+  .domain-pills {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 2.25rem;
+  }
+
+  .domain-pill {
+    display: inline-flex;
+    align-items: center;
+    background-color: $bg-card;
+    box-shadow: $shadow-inner-border;
+    padding: 0.35rem 0.85rem;
+    border-radius: $radius-pill;
+    color: $text-primary;
+    font-size: 0.86rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background-color 0.15s ease, color 0.15s ease;
+
+    &:hover {
+      background-color: $bg-highlight;
+      color: $accent-brand;
+      text-decoration: none;
+    }
+  }
+
+  .domain-section {
+    scroll-margin-top: 5.5rem;
+    padding: 1.75rem 0;
+    border-top: 1px solid $border-color;
+  }
+
+  .domain-heading {
+    font-size: 1.35rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+
+    code {
+      color: $accent-brand;
+      background-color: $bg-highlight;
+      padding: 0.2rem 0.65rem;
+      border-radius: 8px;
+      font-size: 0.92em;
+    }
+  }
+
+  .table-wrap {
+    overflow-x: auto;
+    border-radius: 12px;
+    box-shadow: $shadow-inner-border;
+    background-color: $bg-wash;
+  }
+
+  .api-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+
+    thead tr {
+      background-color: $bg-card;
+      color: $text-muted;
+      text-align: left;
+      border-bottom: 1px solid $border-color;
+    }
+
+    th {
+      padding: 0.7rem 0.95rem;
+      font-weight: 700;
+      font-size: 0.82rem;
+      white-space: nowrap;
+    }
+
+    tbody tr {
+      border-top: 1px solid $border-color;
+    }
+
+    td {
+      padding: 0.7rem 0.95rem;
+      color: $text-secondary;
+      vertical-align: top;
+      line-height: 1.55;
+    }
+  }
+
+  .op-code {
+    color: $text-primary;
+    font-weight: 600;
+    background-color: rgba(153, 161, 179, 0.14);
+    padding: 0.15rem 0.42rem;
+    border-radius: 6px;
+    font-size: 0.88em;
+    white-space: nowrap;
+  }
+
+  .inline-chip {
+    color: $text-secondary;
+    background-color: $bg-card;
+    padding: 0.12rem 0.38rem;
+    border-radius: 5px;
+    font-size: 0.86em;
+    white-space: nowrap;
+  }
+
+  .muted-dash {
+    color: $text-muted;
+  }
+
+  .legend-callout {
+    margin-top: 2rem;
+    padding: 1.15rem 1.35rem;
+    background-color: $bg-highlight;
+    box-shadow: inset 0 0 0 1px rgba($accent-brand, 0.18);
+    border-radius: $radius-md;
+    font-size: 0.92rem;
+    color: $text-primary;
+    line-height: 1.7;
+
+    code {
+      background-color: rgba(255, 255, 255, 0.75);
+      padding: 0.12rem 0.38rem;
+      border-radius: 5px;
+      font-size: 0.88em;
+    }
+  }
+</style>

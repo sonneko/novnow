@@ -1,17 +1,16 @@
 @use "../styles/variables.scss" as *;
 
 .card {
-  background-color: $bg-card;
-  border: 1px solid $border-color;
+  background-color: $bg-wash;
+  box-shadow: $shadow-card, $shadow-inner-border;
   border-radius: $radius-md;
-  padding: 1.5rem;
-  transition: all 0.25 ease;
+  padding: 1.6rem;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
   display: flex;
   flex-direction: column;
 
   &:hover {
-    border-color: $border-highlight;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    box-shadow: $shadow-card-hover, inset 0 0 0 1px rgba($accent-brand, 0.25);
     transform: translateY(-2px);
   }
 }
@@ -19,17 +18,18 @@
 .header {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.5rem;
   margin-bottom: 0.75rem;
 }
 
 .badge {
   font-family: $font-family-mono;
-  font-size: 0.72rem;
-  color: $accent-purple;
-  background-color: rgba($accent-purple, 0.12);
-  padding: 0.15rem 0.5rem;
-  border-radius: 4px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: $accent-brand;
+  background-color: $bg-highlight;
+  padding: 0.18rem 0.6rem;
+  border-radius: $radius-pill;
   align-self: flex-start;
 }
 
@@ -37,14 +37,15 @@
   font-size: 1.15rem;
   font-weight: 700;
   color: $text-primary;
-  line-height: 1.35;
+  line-height: 1.38;
+  letter-spacing: -0.01em;
 }
 
 .summary {
   font-size: 0.95rem;
   color: $text-secondary;
   margin-bottom: 1.25rem;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 .viewpoints {
@@ -53,33 +54,35 @@
   gap: 0.75rem;
   margin-top: auto;
   padding-top: 1rem;
-  border-top: 1px solid rgba($border-color, 0.6);
+  border-top: 1px solid $border-color;
 }
 
-.viewpointNonEngineer, .viewpointEngineer {
-  padding: 0.75rem;
-  border-radius: $radius-sm;
+.viewpointNonEngineer,
+.viewpointEngineer {
+  padding: 0.85rem 0.95rem;
+  border-radius: 12px;
   font-size: 0.88rem;
 
   p {
     color: $text-secondary;
-    line-height: 1.5;
-    margin-top: 0.25rem;
+    line-height: 1.6;
+    margin: 0;
   }
 }
 
 .viewpointNonEngineer {
-  background-color: rgba($accent-blue, 0.08);
-  border-left: 3px solid $accent-blue;
+  background-color: $bg-card;
+  box-shadow: $shadow-inner-border;
 }
 
 .viewpointEngineer {
-  background-color: rgba($accent-purple, 0.08);
-  border-left: 3px solid $accent-purple;
+  background-color: $bg-purple;
+  box-shadow: inset 0 0 0 1px rgba($accent-purple, 0.16);
   font-family: $font-family;
 }
 
-.viewLabel, .viewLabelEng {
+.viewLabel,
+.viewLabelEng {
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -89,5 +92,27 @@
   letter-spacing: 0.02em;
 }
 
-.viewLabel { color: $accent-blue; }
-.viewLabelEng { color: $accent-purple; }
+.viewLabel {
+  color: $accent-brand;
+}
+
+.viewLabelEng {
+  color: $accent-purple;
+}
+
+.inlineCode {
+  background-color: rgba(153, 161, 179, 0.16);
+  color: $text-primary;
+  padding: 0.12rem 0.36rem;
+  border-radius: 5px;
+  font-size: 0.86em;
+}
+
+.inlineCodeOnCard {
+  background-color: $bg-wash;
+  box-shadow: $shadow-inner-border;
+  color: $text-primary;
+  padding: 0.1rem 0.36rem;
+  border-radius: 5px;
+  font-size: 0.86em;
+}

@@ -16,17 +16,21 @@ const japanese = slug ? `/ja/specifications/${slug}` : "/ja/specifications/";
 
 <BaseLayout title="Specifications" lang="en">
   <Header lang="en" currentPath="/en/specifications/" />
-  <main class="container" style="max-width: 760px; margin: 3rem auto 6rem;">
-    <h1 style="font-size: 1.9rem; font-weight: 800; margin-bottom: 1rem;">Specifications (Japanese)</h1>
-    <p style="color: var(--text-secondary); line-height: 1.8;">
-      The canonical specifications live in <code>docs/specifications/</code> and are currently Japanese only.
-      This site renders them directly, so there is only one copy to maintain.
-    </p>
-    <p style="margin-top: 2rem;">
-      <a href={japanese} style="display: inline-block; background-color: var(--accent-purple); color: #fff; font-weight: 600; padding: 0.7rem 1.4rem; border-radius: 8px; text-decoration: none;">
-        Read in Japanese
-      </a>
-    </p>
+  <main class="container" style="max-width: 760px; margin: 3.5rem auto 6rem;">
+    <div style="background-color: var(--bg-card); box-shadow: var(--shadow-inner-border); border-radius: 24px; padding: 2.5rem;">
+      <h1 style="font-size: clamp(1.75rem, 3vw, 2.2rem); font-weight: 800; letter-spacing: -0.025em; color: var(--text-primary); margin-bottom: 1rem;">
+        Specifications (Japanese)
+      </h1>
+      <p style="color: var(--text-secondary); line-height: 1.8; font-size: 1.02rem;">
+        The canonical specifications live in <code style="background-color: rgba(153,161,179,0.16); padding: 0.14rem 0.38rem; border-radius: 6px;">docs/specifications/</code> and are currently Japanese only.
+        This site renders them directly, so there is only one copy to maintain.
+      </p>
+      <div style="margin-top: 1.85rem;">
+        <a href={japanese} class="btn-primary">
+          Read in Japanese →
+        </a>
+      </div>
+    </div>
   </main>
   <Footer lang="en" />
 </BaseLayout>

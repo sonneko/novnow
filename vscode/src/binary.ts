@@ -12,7 +12,7 @@ import {
   verifyArchiveChecksum,
 } from "./release";
 
-const INSTALL_GUIDE = "https://novnow.sonneko.com/ja/manual/install";
+const INSTALL_GUIDE = "https://sonneko.github.io/novnow/ja/manual/install";
 
 interface ExtensionManifest {
   version: string;

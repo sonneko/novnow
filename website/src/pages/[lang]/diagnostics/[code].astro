@@ -19,19 +19,186 @@ const [causeEn, actionEn] = diagnosticEnglish[row.code];
 const [exampleJa, exampleEn] = examples[row.code];
 const actionJa = row.action === "—" ? "自動修正なし。該当箇所を確認してください。" : row.action;
 ---
+
 <BaseLayout title={`${code} — ${japanese ? "診断コード解説" : "Diagnostic explanation"}`} lang={lang}>
   <Header lang={lang} currentPath={`/${lang}/diagnostics`} />
-  <main class="container" style="max-width: 900px; margin: 3rem auto 5rem;">
-    <p><a href={`/${lang}/diagnostics/`}>{japanese ? "← 診断コード一覧" : "← All diagnostic codes"}</a></p>
-    <h1><code>{code}</code> — {japanese ? row.ja : row.en}</h1>
-    <p>{japanese ? "重大度: " : "Severity: "}{row.severity === "E" ? (japanese ? "エラー" : "Error") : row.severity === "W" ? (japanese ? "警告" : "Warning") : (japanese ? "情報" : "Info")}</p>
-    <h2>{japanese ? "発生条件" : "Cause"}</h2>
-    <p>{japanese ? row.condition : causeEn}</p>
-    <h2>{japanese ? "具体例" : "Example"}</h2>
-    <p>{japanese ? exampleJa : exampleEn}</p>
-    <h2>{japanese ? "解消手順" : "What to do"}</h2>
-    <p>{japanese ? actionJa : actionEn}</p>
-    <p><a href={`/${japanese ? "en" : "ja"}/diagnostics/${code}/`}>{japanese ? "English" : "日本語"}</a></p>
+
+  <main class="container code-main">
+    <div class="top-bar">
+      <a href={`/${lang}/diagnostics/`} class="back-pill">
+        {japanese ? "← 診断コード一覧" : "← All diagnostic codes"}
+      </a>
+      <a href={`/${japanese ? "en" : "ja"}/diagnostics/${code}/`} class="lang-link">
+        {japanese ? "Read in English →" : "日本語で読む →"}
+      </a>
+    </div>
+
+    <div class="heading-block">
+      <div class="meta-row">
+        <code class="code-chip">{code}</code>
+        <span class:list={["sev-badge", `sev-${row.severity.toLowerCase()}`]}>
+          {japanese ? "重大度: " : "Severity: "}
+          {row.severity === "E"
+            ? japanese ? "エラー" : "Error"
+            : row.severity === "W"
+              ? japanese ? "警告" : "Warning"
+              : japanese ? "情報" : "Info"}
+        </span>
+      </div>
+      <h1 class="title">{japanese ? row.ja : row.en}</h1>
+    </div>
+
+    <div class="cards">
+      <section class="info-card">
+        <h2>{japanese ? "発生条件" : "Cause"}</h2>
+        <p>{japanese ? row.condition : causeEn}</p>
+      </section>
+
+      <section class="info-card">
+        <h2>{japanese ? "具体例" : "Example"}</h2>
+        <p>{japanese ? exampleJa : exampleEn}</p>
+      </section>
+
+      <section class="info-card resolution-card">
+        <h2>{japanese ? "解消手順" : "What to do"}</h2>
+        <p>{japanese ? actionJa : actionEn}</p>
+      </section>
+    </div>
   </main>
+
   <Footer lang={lang} />
 </BaseLayout>
+
+<style lang="scss">
+  @use "../../../styles/variables.scss" as *;
+
+  .code-main {
+    max-width: 860px;
+    margin: 2.75rem auto 5rem;
+  }
+
+  .top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 2rem;
+  }
+
+  .back-pill {
+    display: inline-flex;
+    align-items: center;
+    background-color: $bg-card;
+    box-shadow: $shadow-inner-border;
+    border-radius: $radius-pill;
+    padding: 0.42rem 0.95rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: $text-secondary;
+    text-decoration: none;
+
+    &:hover {
+      background-color: $bg-highlight;
+      color: $accent-brand;
+      text-decoration: none;
+    }
+  }
+
+  .lang-link {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: $accent-brand;
+  }
+
+  .heading-block {
+    margin-bottom: 2rem;
+  }
+
+  .meta-row {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .code-chip {
+    font-size: 1rem;
+    font-weight: 700;
+    background-color: $bg-card;
+    box-shadow: $shadow-inner-border;
+    color: $text-primary;
+    padding: 0.22rem 0.65rem;
+    border-radius: 8px;
+  }
+
+  .sev-badge {
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 0.22rem 0.7rem;
+    border-radius: $radius-pill;
+
+    &.sev-e {
+      background-color: $bg-red;
+      box-shadow: inset 0 0 0 1px $border-red;
+      color: $accent-red;
+    }
+
+    &.sev-w {
+      background-color: $bg-orange;
+      box-shadow: inset 0 0 0 1px $border-orange;
+      color: $accent-orange;
+    }
+
+    &.sev-i {
+      background-color: $bg-highlight;
+      box-shadow: inset 0 0 0 1px rgba($accent-brand, 0.22);
+      color: $accent-brand;
+    }
+  }
+
+  .title {
+    font-size: clamp(1.65rem, 3vw, 2.15rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+    color: $text-primary;
+  }
+
+  .cards {
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+  }
+
+  .info-card {
+    background-color: $bg-card;
+    box-shadow: $shadow-inner-border;
+    border-radius: $radius-md;
+    padding: 1.45rem 1.65rem;
+
+    h2 {
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: $text-muted;
+      margin-bottom: 0.45rem;
+    }
+
+    p {
+      color: $text-primary;
+      font-size: 0.98rem;
+      line-height: 1.75;
+    }
+  }
+
+  .resolution-card {
+    background-color: $bg-green;
+    box-shadow: inset 0 0 0 1px $border-green;
+
+    h2 {
+      color: $accent-green;
+    }
+  }
+</style>
