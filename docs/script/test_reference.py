@@ -159,5 +159,19 @@ class IncludePathTests(unittest.TestCase):
         )
 
 
+class ReleaseDocumentationTests(unittest.TestCase):
+    def test_retired_credentials_and_settings_are_detected(self):
+        errors = reference.stale_release_claims(
+            "PYPI_API_TOKEN novnow.downloadVersion cargo publish` は行わない", 17)
+        self.assertEqual(len(errors), 3)
+
+    def test_source_archive_is_included_in_final_count(self):
+        self.assertEqual(len(reference.stale_release_claims("VSIX 1 の 16 成果物", 17)), 1)
+        self.assertEqual(reference.stale_release_claims("全ソース 1 の 17 成果物", 17), [])
+
+    def test_form_choices_are_not_artifact_counts(self):
+        self.assertEqual(reference.stale_release_claims("5 形態・18 通り", 17), [])
+
+
 if __name__ == "__main__":
     unittest.main()

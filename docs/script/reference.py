@@ -3,7 +3,7 @@
 docs/script/reference.py — ドキュメントとコードの**実物の突き合わせ**を行う検査。
 
 `duplicate.py` は「文書の規約」（構成・重複・`REF:` の実在・見出し一致・`SYNC` の一致）を見る。
-それに対してこのスクリプトは、**規約では守れない「中身のずれ」**を見る。対象は次の 10 個。
+それに対してこのスクリプトは、**規約では守れない「中身のずれ」**を見る。対象は次の 12 個。
 
 1. 廃止済みの文書名（`SPECIFICATIONS.md` / `PLANS.md` / `DEVELOPERS.md`）を
    コード・スクリプト・CI から参照していないこと。
@@ -565,6 +565,18 @@ DISTRIBUTION_FORMS = {
 RETIRED_AXES = ("シングルトン", "マルチプル", "スタンドアロン", "standalone", "single-instance", "-single", "-multi")
 
 
+def stale_release_claims(text: str, expected_artifacts: int) -> list[str]:
+    """Completed release docs must not reintroduce retired settings or counts."""
+    errors = []
+    for obsolete in ("PYPI_API_TOKEN", "novnow.downloadVersion", "cargo publish` は行わない"):
+        if obsolete in text:
+            errors.append(f"廃止済みの公開設計: {obsolete}")
+    for count in re.findall(r"の\s*([0-9]+)\s*成果物", text):
+        if int(count) != expected_artifacts:
+            errors.append(f"最終成果物が {count} 個（全ソース込み {expected_artifacts} 個）")
+    return errors
+
+
 def check_distribution_forms() -> list[str]:
     """配布形態の数と、廃止した軸が文書へ戻っていないこと。
 
@@ -643,6 +655,12 @@ def check_distribution_forms() -> list[str]:
                         f"[12] {rel(path)}:{number} に廃止した軸「{axis}」がある"
                         "（デスクトップ版は GUI あり / なし × 対象環境 5 の 10 通りだけ）"
                     )
+    # Binary forms plus the complete source attachment; not the 18 installation choices.
+    artifact_count = sum(DISTRIBUTION_FORMS[name] for name in (
+        "デスクトップ版", "Python ライブラリ版", "VSCode 拡張版")) + 1
+    for path in (ROOT / "docs/designs/external.md", ROOT / "docs/plans.md"):
+        errors.extend(f"[12] {rel(path)}: {message}"
+                      for message in stale_release_claims(read(path), artifact_count))
     return errors
 
 

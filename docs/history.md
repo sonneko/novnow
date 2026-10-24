@@ -2057,3 +2057,9 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - v1 到達までは novnow 形式の版間互換性を保証せず、実装コスト最小化のため v0 → v1 の移行機能は提供しない。通常の本文取り込みや既存ブラウザストレージの読み込みとは区別する。
 - v0.1.0 以降は GitHubFlow ではなく GitFlow。main は公開版を死守し、版更新 PR のみマージする。通常の統合先は develop とする。運用の正本は `REF:docs/developers.md` §5。
 - サイト `/novnow/` と Web アプリ `/novnow/app/` は単一の Pages ワークフローで配信する。crates.io 公開、ドキュメントを含む全ソース添付、認証・外部設定の手順を `REF:docs/distribution.md` に追加する。実際の初回公開と外部設定は別途実施し、実装だけで公開完了とはしない。
+
+## 2026-10-24: リリース文書の整合性監査
+
+- 自動検査では見逃していた、配布設計の旧 PyPI トークン認証・Rust 公開の否定・廃止済み VSCode 設定・古い探索順・Actions 引数形式・公開状態の自動判定という記述を実装と照合し訂正した。18 通りの導入選択肢と、全ソースを含む 17 添付成果物は別の数として扱う。
+- API 設計に残っていた未移設の説明、Python ワークスペース統合・型スタブ生成先、存在しない実装パスを訂正した。現在の設計は `REF:docs/designs/interfaces.md` と `REF:docs/designs/external.md` に記す。
+- TestPyPI の事前公開と本番同版アップロードの衝突を手順に明記し、実在しない仕様節への参照とスキーマ識別子の誤記を除いた。`REF:docs/script/reference.py` の配布検査に、古い公開設計と最終成果物数の回帰ガードを追加した。
