@@ -69,8 +69,8 @@ export const troubleshootingData: TroubleshootingItem[] = [
       en: "Opening a v0 directory results in a legacy format error.",
     },
     cause: {
-      ja: "NovNow v1 は `characters.json` ではなく `characters.md` を使用する新しいファイル形式を採用しています。",
-      en: "NovNow v1 uses `characters.md` instead of legacy `characters.json`.",
+      ja: "NovNow v0.1.0 は `characters.json` ではなく `characters.md` を使用する新しいファイル形式を採用しています。",
+      en: "NovNow v0.1.0 uses `characters.md` instead of legacy `characters.json`.",
     },
     solution: {
       ja: "ターミナルで `novnow migrate <プロジェクトパス>` を実行してください。既存データを無損失で自動変換・バックアップ作成のうえ移行します。",

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Publish or verify the immutable version tag and the moving v1 action tag.
+# Publish or verify the immutable version tag and the moving v0 action tag.
 set -euo pipefail
 
 MODE="${1:-}"
@@ -51,11 +51,11 @@ fi
 printf 'ok: %s -> %s\n' "$fixed" "$SHA"
 
 # Release candidates have their own fixed tags but do not move the stable
-# major-channel tag. The current action's stable channel is v1 (§20.5.4).
+# major-channel tag. The current action's stable channel is v0 (§20.5.4).
 case "$VERSION" in
-  *-*) printf 'ok: prerelease does not move v1\n'; exit 0 ;;
+  *-*) printf 'ok: prerelease does not move v0\n'; exit 0 ;;
 esac
-major="v1"
+major="v${VERSION%%.*}"
 if [ "$MODE" = --publish ]; then
   if tag_exists "$major"; then
     gh api "repos/$REPOSITORY/git/refs/tags/$major" --method PATCH -f "sha=$SHA" -F force=true >/dev/null

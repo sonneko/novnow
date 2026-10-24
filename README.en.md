@@ -4,6 +4,12 @@
 
 The novnow editor, built to manage the novnow format, runs both as a desktop application (Windows / macOS / Linux) and in the browser (WebAssembly + IndexedDB). The layout and the keyboard bindings are the same on both, and the same project opens in either.
 
+## Release and compatibility
+
+The current release target is **v0.1.0**. Until v1, **novnow project formats have no cross-version compatibility guarantee**; an update may make existing projects unreadable. **No v0-to-v1 migration feature will be provided**, deliberately minimizing implementation cost. Before updating, back up your work as both Zip and plain text, and pin your version where needed. The CLI `migrate` command imports prose text; it does not migrate novnow format versions.
+
+Development follows GitFlow. Merges into `main` are reserved for version updates. See `REF:docs/developers.md` and `REF:docs/distribution.md` for development and release procedures.
+
 ## Where it runs
 
 | Way to run it | Setup | Best for |
@@ -15,7 +21,7 @@ The novnow editor, built to manage the novnow format, runs both as a desktop app
 | AI integration (MCP) | Same as above | Letting AI read and propose changes |
 | Python | `pip install novnow` from [PyPI](https://pypi.org/project/novnow/) (unavailable until the first release) | Automating your own workflow |
 | VS Code extension | [Marketplace](https://marketplace.visualstudio.com/items?itemName=sonneko.novnow) (unavailable until the first release) | Writing in VS Code every day |
-| GitHub Actions | `uses: sonneko/novnow@v1` (unavailable until `v1` is published) | Checking or exporting in CI |
+| GitHub Actions | `uses: sonneko/novnow@v0` (unavailable until `v0` is published) | Checking or exporting in CI |
 
 The layout, the keys, and what gets saved are the same in the browser and on the desktop.
 Whichever door you use, you get the same result from one shared implementation.

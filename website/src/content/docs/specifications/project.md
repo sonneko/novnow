@@ -7,7 +7,7 @@ source: "docs/specifications/project.md"
 
 ## 4. プロジェクト構造
 
-### 4.1 ディレクトリレイアウト（v1）
+### 4.1 ディレクトリレイアウト（v0.1.0）
 
 ```
 [title]/
@@ -156,7 +156,7 @@ source: "docs/specifications/project.md"
 - `.novnow/ui.json` に任意キー `max_line_chars`（整数、有効範囲 `20..=120`、範囲外はクランプ）を追加する。
 - 未指定時の既定値は、日本語表示（`ja`）では全角 **44 字**相当、英語表示（`en`）では半角 **70 字**前後相当とし、言語ごとの字面幅に応じて右側に不自然な余白が残らないようにする。コマンドパレットからも変更できる。
 
-### 4.5 `project.json` スキーマ（v1）
+### 4.5 `project.json` スキーマ（v0.1.0）
 
 ```json
 {
@@ -256,7 +256,7 @@ sample/
   characters.md          アルス（モード A/B）、リリア（モード A/B/C）、学院長（モード A）
   words.md               星屑の時計 / 魔法学院 / 旧校舎
   ideas.md               I0001 学院長の動機（inbox）
-  contents/01-04.txt     既存の本文（`'『…』` は `『'…』` に直した v1 版）
+  contents/01-04.txt     既存の本文（`'『…』` は `『'…』` に直した v0.1.0 版）
   plots/all.txt          @01, @02 の 2 ブロック（summary 必須）
   plots/01.txt           @01-04 を含む話ブロック
   plots/01-04.txt        @01-04-01, @01-04-02（mode: と check: と material: の実例つき）

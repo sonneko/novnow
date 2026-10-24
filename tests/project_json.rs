@@ -15,7 +15,7 @@ const SPEC: &str = include_str!("../docs/specifications/project.md");
 
 /// §4.5 の `project.json` の例（仕様書から切り出す）。
 fn spec_example() -> &'static str {
-    let head = "### 4.5 `project.json` スキーマ（v1）\n\n```json\n";
+    let head = "### 4.5 `project.json` スキーマ（v0.1.0）\n\n```json\n";
     let start = SPEC.find(head).expect("§4.5") + head.len();
     let len = SPEC[start..].find("\n```").expect("end of block");
     &SPEC[start..start + len + 1]
@@ -36,7 +36,7 @@ fn the_spec_example_reads_without_diagnostics() {
     assert_eq!(parsed.diagnostics, vec![]);
     assert_eq!(parsed.settings.title, "星屑の時計");
     assert_eq!(parsed.settings.lexicon.word_classes.len(), 1);
-    // §4.5 の `reader` は v1 本体では読まない（未知キーとして温存）
+    // §4.5 の `reader` は v0.1.0 本体では読まない（未知キーとして温存）
     assert!(parsed.settings.unknown.contains_key("reader"));
 }
 

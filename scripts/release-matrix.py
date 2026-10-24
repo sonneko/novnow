@@ -429,6 +429,7 @@ def expected_artifacts(release_version: str, include_vsix: bool) -> list[str]:
     names += [str(row["artifact"]) for row in wheel_rows(release_version)]
     if include_vsix:
         names.append(vsix_name(release_version))
+        names.append(f"novnow-{release_version}-source.tar.gz")
     return names
 
 
@@ -502,6 +503,24 @@ def verify_vsix(path: Path, release_version: str) -> None:
         raise ValueError(f"VSIX must not bundle the novnow executable: {path.name}")
 
 
+def verify_source(path: Path, release_version: str) -> None:
+    prefix = f"novnow-{release_version}/"
+    with tarfile.open(path, "r:gz") as archive:
+        names = set(archive.getnames())
+        required = {prefix + name for name in (
+            "Cargo.toml", "Cargo.lock", "README.md", "LICENSE",
+            "docs/developers.md", "docs/specifications/external.md", "src/lib.rs",
+        )}
+        if not required <= names:
+            raise ValueError("source archive must include source, lockfile, license and documentation")
+        if any((name != prefix.rstrip("/") and not name.startswith(prefix)) or ".." in Path(name).parts
+               or ".git" in Path(name).parts for name in names):
+            raise ValueError("source archive contains an unsafe or non-source path")
+        manifest_file = archive.extractfile(prefix + "Cargo.toml")
+        if manifest_file is None or tomllib.loads(manifest_file.read().decode())["package"]["version"] != release_version:
+            raise ValueError("source archive version differs from release")
+
+
 def verify_release(directory: Path, release_version: str, artifacts_only: bool) -> None:
     include_vsix = not artifacts_only
     expected = set(expected_artifacts(release_version, include_vsix))
@@ -540,6 +559,7 @@ def verify_release(directory: Path, release_version: str, artifacts_only: bool) 
         )
     if include_vsix:
         verify_vsix(directory / vsix_name(release_version), release_version)
+        verify_source(directory / f"novnow-{release_version}-source.tar.gz", release_version)
     print(
         f"OK: {len(expected)} artifacts, SHA256SUMS, versions, and desktop archive contents"
     )

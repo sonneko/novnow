@@ -30,9 +30,9 @@ else
   python3 scripts/release-matrix.py --verify-release "$DIRECTORY"
 fi
 
-# All 10 desktop archives + five wheel files + one VSIX are covered by the
+# All 10 desktop archives + five wheel files + one VSIX + full source archive are covered by the
 # verifier above. Browser and Actions are source-distributed and therefore add
-# no binary to SHA256SUMS.
+# no binary to SHA256SUMS; the full source archive is included separately.
 if [ "$REMOTE" = 1 ]; then
   SHA="$(git rev-parse HEAD)"
   bash scripts/release-tags.sh --check --version "$VERSION" --sha "$SHA"

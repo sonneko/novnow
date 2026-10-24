@@ -180,7 +180,7 @@ fn the_storage_table_has_no_document_position() {
 
 #[test]
 fn the_default_toggles_match_the_spec() {
-    let on = codes_on_the_line("v1 の既定で **有効** なのは");
+    let on = codes_on_the_line("v0.1.0 の既定で **有効** なのは");
     let off = codes_on_the_line("は **既定で無効** とし");
     assert_eq!(on.len(), 9);
     assert_eq!(off.len(), 7);

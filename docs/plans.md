@@ -4,6 +4,8 @@
 
 ---
 
+現在のマイルストーンは **v0.1.0 の初回配布**。以下の実装済み項目はすべて v0.1.0 向けであり、v1 到達を意味しない。公開前のゲートは `REF:docs/distribution.md` §8〜§10 に集約する。
+
 ## 1. 全体進捗サマリ
 
 <!-- SYNC:START stage1-status -->
@@ -1094,9 +1096,9 @@ CI の docs ジョブに入れた。規則は 1 文 60 字・1 段落 3 文・�
 
 | # | すること | 完了条件 |
 |---|---|---|
-| D-16 | `action.yml`（複合アクション）と `scripts/action/install.sh` を作る | 3 OS で `uses: sonneko/novnow@v1` が点検を実行し、E 診断でジョブが失敗する |
+| D-16 | `action.yml`（複合アクション）と `scripts/action/install.sh` を作る | 3 OS で `uses: sonneko/novnow@v0` が点検を実行し、E 診断でジョブが失敗する |
 | D-17 | 入力（`path` / `command` / `args` / `version` / `target`）と出力（`exit-code` / `findings` / `export-path`）を実装する | 省略時は点検になり、終了コードがジョブへ伝わる |
-| D-18 | リリース時に `v<版>` と `v1` のタグを公開する | 版を固定しても `@v1` でも動く |
+| D-18 | リリース時に `v<版>` と `v0` のタグを公開する | 版を固定しても `@v0` でも動く |
 
 <a id="plan-distribution-publish"></a>
 #### Phase 6: 公開と掲載（1 日）

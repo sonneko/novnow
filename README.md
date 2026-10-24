@@ -7,6 +7,12 @@
 
 novnow形式を管理するためのnovnowエディタは、デスクトップアプリ（Windows / macOS / Linux）とブラウザの両方で動きます。画面もキーボード操作も共通で、同じプロジェクトをそのまま開けます。
 
+## リリースと互換性
+
+現在のリリース対象は **v0.1.0** です。v1 に到達するまでは、novnow 形式のバージョン間互換性を保証しません。更新によって既存プロジェクトを開けなくなる場合があります。**v0 → v1 の移行機能は、実装コストを最小化するため提供しません。** 更新前に作品を Zip と通常のテキストでバックアップし、必要に応じて利用する版を固定してください。CLI の `migrate` は本文テキストの取り込み用であり、novnow 形式の版間移行ではありません。
+
+開発は GitFlow を採用し、`main` へのマージはバージョン更新時だけに限定します。開発・リリース手順は `REF:docs/developers.md` と `REF:docs/distribution.md` を参照してください。
+
 ## どこで動くか
 
 | 動かし方 | 準備 | 向いている人 |
@@ -18,7 +24,7 @@ novnow形式を管理するためのnovnowエディタは、デスクトップ�
 | AI 連携（MCP） | 同上 | AI に作品を読ませたい |
 | Python | [PyPI](https://pypi.org/project/novnow/) の `pip install novnow`（初回公開まで未提供） | 作業を自動化したい |
 | VSCode 拡張 | [Marketplace](https://marketplace.visualstudio.com/items?itemName=sonneko.novnow)（初回公開まで未提供） | ふだん VSCode で書いている |
-| GitHub Actions | `uses: sonneko/novnow@v1`（`v1` 公開まで未提供） | 点検や書き出しを CI で行いたい |
+| GitHub Actions | `uses: sonneko/novnow@v0`（`v0` 公開まで未提供） | 点検や書き出しを CI で行いたい |
 
 画面の構成・キー操作・保存される内容は、ブラウザとデスクトップで同じです。
 どの入口から触っても同じ結果になります（同じ 1 本の実装を共有しています）。

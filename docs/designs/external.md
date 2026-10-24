@@ -68,14 +68,15 @@
 - **出力**: `exit-code` は `$GITHUB_OUTPUT` へ書く。`findings` は `--json` の出力から数える（人間向けの 1 行出力を数えない）。`export-path` は `--out` に渡した値を返す。
 - **失敗の伝え方**: スクリプトは novnow の終了コードをそのまま返し、複合アクション側で `exit $code` する。`continue-on-error` を既定にしない。
 - **キャッシュ**: `actions/cache@v4` のキーは `novnow-<版>-<三重項>`。キャッシュを当てても照合は毎回行う（キャッシュの汚染を検出する）。キャッシュの失敗はジョブを止めない。
-- **タグ**: リリース時に `v<版>` を打ち、同じコミットへ `v1` を付け替える。付け替えは `scripts/release-tags.sh`（新設・計画パス）に閉じ、`git push --force-with-lease` を使わない（`gh api` で ref を更新する）。
-- **テスト**: `.github/workflows/action-smoke.yml`（新設・計画パス）を `workflow_dispatch` とタグだけで走らせ、3 OS で `uses: ./` の自己参照により点検を 1 回実行する。PR では走らせない（Actions の使用量を抑える。`REF:docs/developers.md` §4.7）。
+- **タグ**: リリース時に `v<版>` を打ち、同じコミットへ `v0` を付け替える。付け替えは `REF:scripts/release-tags.sh`に閉じ、`git push --force-with-lease` を使わない（`gh api` で ref を更新する）。
+- **テスト**: `REF:.github/workflows/action-smoke.yml` を `workflow_dispatch` または Release 成功後に走らせ、3 OS で `uses: ./` の自己参照により点検を 1 回実行する。PR では走らせない（Actions の使用量を抑える。`REF:docs/developers.md` §4.7）。
 
 ### 20.6 公開・版・廃止
 
 状態: 実装完了（REF:src/main.rs, REF:scripts/release-check.sh, REF:scripts/release-tags.sh, REF:scripts/release-matrix.py, REF:.github/workflows/release.yml）
 
-- **公開の順序**: `release.yml` を 4 つのジョブに分け、`needs` で直列化する。`artifacts`（デスクトップ 10 + 照合値）→ `pypi`（environment の承認）→ `vscode`（`workflow_dispatch` で承認）→ `tags`（`v1` の付け替え）。前が失敗したら後を起動しない。
+- **追加の公開物**: `REF:Cargo.toml` のクレートを crates.io に公開し、追跡対象全体（文書を含む）を `git archive` でソースアーカイブ化する。最終照合は `REF:scripts/release-matrix.py` がソースを含めて行う。
+- **公開の順序**: `REF:.github/workflows/release.yml` の `needs` で、デスクトップ・ホイール試験・クレート dry-run → Releases 添付 → TestPyPI → PyPI → VSIX 作成 → Marketplace → 最終照合 → 可動タグの順を制御する。crates.io 公開は Releases 添付後に進め、最終照合の前提にする。タグ実行は環境承認後に全公開を行い、手動実行は選択したレジストリのみ公開する。失敗した公開を成功扱いにしない。
 - **未提供の表示**: サイトと `REF:README.md` の「どこで動くか」表は、`scripts/release-matrix.py --status` の出力（公開済みの形態）を読んで「未提供」を出す。文書へ手で書かない。
 - **取り下げ**: リリースの成果物は削除しない。PyPI は `yank` を使い、`SHA256SUMS` とリリースノートに理由を書く。市場と Actions のタグは戻さず、修正版を出す。
-- **検査**: `scripts/release-check.sh`（新設・計画パス）が (1) 10 + 5 の成果物が揃う、(2) `SHA256SUMS` の行数が成果物と一致する、(3) 各形態の版が `Cargo.toml` と一致する、(4) 主要版タグが最新の版を指す、を確かめる。`REF:scripts/verify.sh` には入れない（リリース時だけの検査なので、通常のコミットで走らせない）。
+- **検査**: `scripts/release-check.sh`（新設・計画パス）が (1) 10 + 5 + VSIX + 全ソースの成果物が揃う、(2) `SHA256SUMS` の行数が成果物と一致する、(3) 各形態の版が `Cargo.toml` と一致する、(4) 主要版タグが最新の版を指す、を確かめる。`REF:scripts/verify.sh` には入れない（リリース時だけの検査なので、通常のコミットで走らせない）。

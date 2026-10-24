@@ -137,7 +137,7 @@ python -c "import novnow; print(novnow.__version__)"
 GitHub のリポジトリで、点検や書き出しを自動で回せます。ふだんの執筆では使いません。
 
 ```yaml
-- uses: sonneko/novnow@v1
+- uses: sonneko/novnow@v0
   with:
     path: .
     command: check

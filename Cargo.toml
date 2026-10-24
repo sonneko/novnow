@@ -12,6 +12,9 @@ version = "0.1.0"
 edition = "2021"
 description = "小説プロジェクト（[title]/ レイアウト）向け執筆 IDE — egui + ropey"
 license = "MIT"
+repository = "https://github.com/sonneko/novnow"
+homepage = "https://sonneko.github.io/novnow/"
+readme = "README.md"
 
 [lib]
 name = "novnow"

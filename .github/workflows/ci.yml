@@ -22,7 +22,7 @@ on:
   push:
     branches:
       - main
-      - master
+      - develop
     paths-ignore:
       - 'screenshot.png'
       - 'LICENSE'
@@ -35,7 +35,7 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     branches:
       - main
-      - master
+      - develop
     paths-ignore:
       - 'screenshot.png'
       - 'LICENSE'

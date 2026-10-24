@@ -4,8 +4,8 @@
 
 ```bash
 cd website
-npm install
-npm run dev      # http://localhost:4321（ルートは /en へリダイレクト）
+npm ci
+npm run dev      # http://localhost:4321/novnow/（/novnow/en/ へリダイレクト）
 npm run build    # ./dist へ静的出力
 npm run preview  # ビルド結果をローカルで確認
 ```
@@ -48,3 +48,18 @@ python3 scripts/api-site.py --check
 `src/content/docs/{users,specifications}/` と `src/data/docs-nav.ts` に写す。本文を直すときは
 `docs/` を直してから生成器を回す（`scripts/verify.sh` が食い違いを落とす）。ページの枠は
 `src/components/DocShell.astro`（左に目次）と `src/styles/doc.scss` が担う。
+
+## 公開とサブパス
+
+本番 URL は `https://sonneko.github.io/novnow/`。上表のパスには `/novnow` を付ける。
+`REF:website/astro.config.mjs` で `site` と `base` を設定し、
+`REF:website/integrations/base-links.mjs` が静的 HTML の手書き・Markdown リンクも補正する。
+言語切替とナビゲーションは base を除いたパスで言語・現在位置を判定する。
+
+`REF:.github/workflows/deploy.yml` がサイトと Web アプリを一括デプロイする。
+Astro の出力に Trunk の出力を `app/` として追加し、Pages へ渡す artifact は 1 つだけにする。
+別ワークフローから Pages をデプロイしない。認証と公開ゲートは `REF:docs/distribution.md` §8〜§10。
+
+```bash
+node --test website/integrations/base-links.test.mjs  # リポジトリ直下から
+```

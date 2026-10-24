@@ -2050,3 +2050,10 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - **Python 3.9**: 同じホイール検査が `tomllib`（3.11 以降）を使っていたため、3.9 ジョブだけ失敗した。`REF:.github/workflows/wheels.yml` と `REF:.github/workflows/release.yml` の版読み取りを標準ライブラリの文字列処理へ変え、3.9 の文法と実行をローカルで検査した。
 - **Electron**: VSCode `40049130929` は型・単体・VSIX が成功し、Electron が失敗した。テストは起動済み拡張の API を使うが、設定変更による LSP 再起動の完了を待たずに状態を読んでいた。`REF:vscode/src/test/suite/extension.test.ts` で正しい API のまま再起動を待つ。実バイナリとの LSP `initialize` / `shutdown` はローカルで成功した。
 - **検証**: 配布テスト 10 件、VSCode の型検査・Electron テストのコンパイル・単体テスト 6 件、ワークフロー YAML の解析が成功した。修正後のホスト結果は PR #28 の後続実行で確認する。
+
+## 2026-10-24: v0.1.0 へリリース目標を確定、GitFlow と公開先を整理
+
+- 過去の `v0-final` 公開後に「v1 向け」と呼んでいた段階①〜③・配布の開発は、すべて v0.1.0 向けとして扱う。v1 は延期する。過去の記録は改変せず、この決定で現行の呼称を更新する。
+- v1 到達までは novnow 形式の版間互換性を保証せず、実装コスト最小化のため v0 → v1 の移行機能は提供しない。通常の本文取り込みや既存ブラウザストレージの読み込みとは区別する。
+- v0.1.0 以降は GitHubFlow ではなく GitFlow。main は公開版を死守し、版更新 PR のみマージする。通常の統合先は develop とする。運用の正本は `REF:docs/developers.md` §5。
+- サイト `/novnow/` と Web アプリ `/novnow/app/` は単一の Pages ワークフローで配信する。crates.io 公開、ドキュメントを含む全ソース添付、認証・外部設定の手順を `REF:docs/distribution.md` に追加する。実際の初回公開と外部設定は別途実施し、実装だけで公開完了とはしない。

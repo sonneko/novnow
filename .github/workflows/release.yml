@@ -4,9 +4,13 @@ name: Release
 # explicit manual runs. Pull requests use the ordinary CI / wheels workflows.
 on:
   push:
-    tags: ["v*"]
+    tags: ["v[0-9]*.[0-9]*.[0-9]*"]
   workflow_dispatch:
     inputs:
+      publish_crates:
+        description: Publish to crates.io (requires crates-io approval)
+        type: boolean
+        default: false
       publish_testpypi:
         description: Publish the five wheels to TestPyPI
         type: boolean
@@ -37,6 +41,9 @@ jobs:
       wheels: ${{ steps.meta.outputs.wheels }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: git fetch origin main --no-tags
       - id: meta
         shell: bash
         env:
@@ -60,6 +67,11 @@ jobs:
             echo "::error::PyPI publication requires the TestPyPI gate in the same run"
             exit 1
           fi
+          if [[ ! "$REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || [ "$REF_NAME" != "$tag" ]; then
+            echo "::error::Release must run on the matching immutable version tag (not a branch)"
+            exit 1
+          fi
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
           if gh release view "$tag" --json assets --jq '.assets | length' 2>/dev/null | grep -Eq '^[1-9][0-9]*$'; then
             echo "::error::release $tag already has artifacts; published artifacts are immutable"
             exit 1
@@ -301,8 +313,18 @@ jobs:
           python -c 'import novnow,pathlib; expected=next(line.split("=",1)[1].strip().strip(chr(34)) for line in pathlib.Path("Cargo.toml").read_text().splitlines() if line.startswith("version = ")); assert novnow.__version__ == expected, (novnow.__version__, expected); print(novnow.__version__, len(novnow.operations()))'
           pytest python/novnow-py
 
+  crate-check:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Verify the crates.io package (including compilation)
+        run: cargo publish --locked --dry-run
+
   stage-artifacts:
-    needs: [prepare, desktop, wheel-test]
+    needs: [prepare, desktop, wheel-test, crate-check]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -333,6 +355,22 @@ jobs:
           fi
           gh release upload "$TAG" release/*
 
+  publish-crates:
+    needs: stage-artifacts
+    if: github.event_name == 'push' || inputs.publish_crates
+    runs-on: ubuntu-latest
+    environment: crates-io
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Publish novnow to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish --locked
+
   publish-testpypi:
     needs: stage-artifacts
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish_testpypi)
@@ -353,7 +391,7 @@ jobs:
 
   publish-pypi:
     needs: publish-testpypi
-    if: always() && github.event_name == 'workflow_dispatch' && inputs.publish_pypi && needs.publish-testpypi.result == 'success'
+    if: (github.event_name == 'push' || inputs.publish_pypi) && needs.publish-testpypi.result == 'success'
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
@@ -393,7 +431,7 @@ jobs:
 
   publish-vscode:
     needs: vscode-package
-    if: github.event_name == 'workflow_dispatch' && inputs.publish_vscode
+    if: github.event_name == 'push' || inputs.publish_vscode
     runs-on: ubuntu-latest
     environment: vscode
     defaults:
@@ -414,8 +452,8 @@ jobs:
         run: npx vsce publish --no-dependencies
 
   finalize:
-    needs: [prepare, vscode-package, publish-vscode]
-    if: always() && needs.prepare.result == 'success' && needs.vscode-package.result == 'success' && needs.publish-vscode.result != 'failure' && needs.publish-vscode.result != 'cancelled'
+    needs: [prepare, vscode-package, publish-vscode, publish-crates]
+    if: always() && needs.prepare.result == 'success' && needs.vscode-package.result == 'success' && needs.publish-vscode.result != 'failure' && needs.publish-vscode.result != 'cancelled' && needs.publish-crates.result != 'failure' && needs.publish-crates.result != 'cancelled'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -433,7 +471,13 @@ jobs:
         with:
           name: vscode
           path: release
-      - name: Add VSIX, regenerate SHA256SUMS, and verify all 16 files
+      - name: Archive the complete tracked source tree including documentation
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          git archive --format=tar --prefix="novnow-$VERSION/" HEAD | gzip -n > "release/novnow-$VERSION-source.tar.gz"
+      - name: Add VSIX and source, regenerate SHA256SUMS, and verify all 17 files
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -450,7 +494,7 @@ jobs:
           fi
           python3 scripts/release-matrix.py --checksums release --signature-note "$note"
           bash scripts/release-check.sh --dir release
-          gh release upload "$TAG" release/*.vsix
+          gh release upload "$TAG" release/*.vsix release/*-source.tar.gz
           gh release upload "$TAG" release/SHA256SUMS --clobber
 
   action-tags:
@@ -460,7 +504,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Publish immutable version and moving v1 action tags
+      - name: Publish immutable version and moving major action tags
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -468,7 +512,7 @@ jobs:
         run: bash scripts/release-tags.sh --publish --version "$VERSION" --sha "$GITHUB_SHA"
 
   release-check:
-    needs: action-tags
+    needs: [prepare, action-tags]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -488,6 +532,11 @@ jobs:
         with:
           name: vscode
           path: release
+      - name: Download the published source archive
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: gh release download "$TAG" --pattern '*-source.tar.gz' --dir release
       - name: Rebuild the verified manifest and check local files and remote tags
         shell: bash
         env:
