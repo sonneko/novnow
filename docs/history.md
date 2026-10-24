@@ -2069,3 +2069,8 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - ヘッダーの製品版表示を本体から読み、v1 の固定表示を訂正した。旧プロジェクトを migrate で無損失変換できるという誤った紹介を除き、データ互換性告知を全言語ページへ追加した。
 - 手引きの壊れたアンカー、詳細ページの言語切替、開発モードの base パス、ローカル LLM の診断コードと文字コード説明を修正した。canonical / hreflang を付け、Astro の非推奨 Zod import を更新した。
 - `REF:scripts/website-check.py` に出力 HTML 全体のリンク・アンカー・CSS/画像・言語切替・版表示・告知の検証を追加し、`REF:.github/workflows/website.yml` と Pages 結合前後の検査で再発を防ぐ。既存の仕様の変更ではなく、紹介文・導線・検証の整備である。
+
+## 2026-10-24: 末尾スラッシュ強制による 404 を修正
+
+- `REF:website/astro.config.mjs` の `trailingSlash: always` が、末尾 `/` の無い既存リンクへのアクセスを拒否していたため `ignore` に変更した。canonical / hreflang の表記のみ `/` 付きに統一し、アクセスは両方許可する。
+- 前回のブラウザ検証は `/` 付き URL のみであり、この問題を検出できなかった。修正後は全 209 経路の両表記を preview と dev で HTTP 検証し、836 要求の 200 応答を確認した。設定の回帰テストを追加した。

@@ -6,7 +6,8 @@ import baseLinks from './integrations/base-links.mjs';
 export default defineConfig({
   site: 'https://sonneko.github.io',
   base: '/novnow',
-  trailingSlash: 'always',
+  // Existing links use both forms; neither should become a 404.
+  trailingSlash: 'ignore',
   integrations: [baseLinks()],
   redirects: {
     '/': '/novnow/en/',

@@ -9,8 +9,9 @@ interface Props {
 }
 
 const { title, description = "NovNow - Dedicated Novel & Scenario IDE for Writers & Engineers", lang = "ja" } = Astro.props;
-const canonical = new URL(Astro.url.pathname, Astro.site);
-const languagePath = Astro.url.pathname.replace(/\/(ja|en)(?=\/|$)/, '/LANG');
+const canonicalPath = Astro.url.pathname.replace(/\/?$/, "/");
+const canonical = new URL(canonicalPath, Astro.site);
+const languagePath = canonicalPath.replace(/\/(ja|en)(?=\/|$)/, '/LANG');
 const translatedUrl = (language: string) => new URL(languagePath.replace('/LANG', `/${language}`), Astro.site);
 ---
 

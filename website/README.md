@@ -55,6 +55,8 @@ python3 scripts/api-site.py --check
 `REF:website/astro.config.mjs` で `site` と `base` を設定し、
 `REF:website/integrations/base-links.mjs` が静的 HTML の手書き・Markdown リンクも補正する。
 言語切替とナビゲーションは base を除いたパスで言語・現在位置を判定する。
+`trailingSlash: ignore` により末尾 `/` の有無を両方受け付ける。
+canonical / hreflang は末尾 `/` 付きに統一するが、アクセス時には強制しない。
 
 `REF:.github/workflows/deploy.yml` がサイトと Web アプリを一括デプロイする。
 Astro の出力に Trunk の出力を `app/` として追加し、Pages へ渡す artifact は 1 つだけにする。
