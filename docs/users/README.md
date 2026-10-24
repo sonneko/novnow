@@ -2,8 +2,8 @@
 
 `novnow` を使う人向けの手引きです。**プログラミングの知識は要りません。**
 
-このディレクトリの文書は、公開サイト（https://novnow.sonneko.com/）の「ユーザー向けガイド」と、
-アプリの中に出る**ガイドモード**の文言の元になります。3 つは同じ内容です（手で書き写しません）。
+これらの文書は、公開サイト（[`https://sonneko.github.io/novnow/`](https://sonneko.github.io/novnow/)）の「ユーザー向けガイド」と、
+アプリ内の**ガイドモード**の文言の元になります。3 つは同じ内容です（手で書き写しません）。
 
 ## 読む順路
 
@@ -18,7 +18,7 @@
 
 ## この手引きの前提
 
-- **ブラウザだけで使えます。** インストールは要りません（`https://novnow.sonneko.com/app/` を開く）。
+- **ブラウザだけで使えます。** インストールは要りません（[`https://sonneko.github.io/novnow/app/`](https://sonneko.github.io/novnow/app/) を開く）。
 - **デスクトップ版**（Windows / macOS / Linux）もあります。画面とキー操作はブラウザ版と同じです。
   入れ方は [デスクトップ版の入れ方](./install.md#desktop) にあります。
 - **コマンドや AI からも使えます**（CLI・LSP・MCP・Python）。ふだんは意識しなくて構いません。

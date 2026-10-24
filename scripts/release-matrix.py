@@ -552,7 +552,7 @@ def release_status(directory: Path | None, release_version: str) -> str:
             "id": "browser",
             "choices": 1,
             "status": "published",
-            "url": "https://novnow.sonneko.com/app/",
+            "url": "https://sonneko.github.io/novnow/app/",
         }
     ]
     groups = (

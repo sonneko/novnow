@@ -193,7 +193,7 @@ footer {{ max-width: 46rem; margin: 3rem auto 0; padding-top: 1rem; border-top: 
   <a href="errors.html">エラーの直し方</a>
   <a href="install.html">入れ方</a>
   <span class="spacer"></span>
-  <a href="https://novnow.sonneko.com/app/">アプリを開く</a>
+  <a href="https://sonneko.github.io/novnow/app/">アプリを開く</a>
 </header>
 <main>
 """

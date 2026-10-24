@@ -148,7 +148,20 @@ const facts = [
               </td>
               <td>
                 {splitInlineCode(row.setup[lang]).map((part) =>
-                  part.code ? <code class="inline-code">{part.text}</code> : part.text
+                  part.href ? (
+                    <a
+                      href={part.href}
+                      target={part.href.startsWith("http") ? "_blank" : undefined}
+                      rel={part.href.startsWith("http") ? "noopener noreferrer" : undefined}
+                      class="inline-url-link"
+                    >
+                      {part.code ? <code class="inline-code inline-code-link">{part.text}</code> : part.text}
+                    </a>
+                  ) : part.code ? (
+                    <code class="inline-code">{part.text}</code>
+                  ) : (
+                    part.text
+                  )
                 )}
               </td>
               <td>{row.bestFor[lang]}</td>
@@ -364,6 +377,30 @@ const facts = [
     padding: 0.14rem 0.4rem;
     border-radius: 6px;
     font-size: 0.86em;
+  }
+
+  .inline-url-link {
+    color: $accent-brand;
+    text-decoration: underline;
+    text-decoration-color: rgba($accent-brand, 0.4);
+    text-underline-offset: 3px;
+    transition: text-decoration-color 0.15s ease;
+
+    &:hover {
+      text-decoration-color: $accent-brand;
+
+      .inline-code-link {
+        background-color: rgba($accent-brand, 0.15);
+        box-shadow: inset 0 0 0 1px rgba($accent-brand, 0.36);
+      }
+    }
+  }
+
+  .inline-code-link {
+    background-color: $bg-highlight;
+    color: $accent-brand;
+    box-shadow: inset 0 0 0 1px rgba($accent-brand, 0.22);
+    transition: background-color 0.15s ease, box-shadow 0.15s ease;
   }
 
   .facts-grid {

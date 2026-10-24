@@ -34,7 +34,7 @@ novnow には 5 つの入り方があります。むずかしい準備が要る�
 
 ## 2. ブラウザ版（インストール不要）
 
-1. ブラウザで `https://novnow.sonneko.com/app/` を開きます。
+1. ブラウザで [`https://sonneko.github.io/novnow/app/`](https://sonneko.github.io/novnow/app/) を開きます。
 2. 作品の一覧が出たら「＋ 新規作成」を押します。
 3. 名前を入れると、そのまま書き始められます。
 

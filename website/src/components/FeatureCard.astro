@@ -20,7 +20,15 @@ const { feature, lang } = Astro.props;
 
   <p class={styles.summary}>
     {splitInlineCode(feature.summary[lang]).map((part) =>
-      part.code ? <code class={styles.inlineCode}>{part.text}</code> : part.text
+      part.href ? (
+        <a href={part.href} target={part.href.startsWith("http") ? "_blank" : undefined} rel={part.href.startsWith("http") ? "noopener noreferrer" : undefined}>
+          {part.code ? <code class={styles.inlineCode}>{part.text}</code> : part.text}
+        </a>
+      ) : part.code ? (
+        <code class={styles.inlineCode}>{part.text}</code>
+      ) : (
+        part.text
+      )
     )}
   </p>
 
@@ -28,7 +36,15 @@ const { feature, lang } = Astro.props;
     <div class={styles.viewpointNonEngineer}>
       <p>
         {splitInlineCode(feature.nonEngineerSummary[lang]).map((part) =>
-          part.code ? <code class={styles.inlineCodeOnCard}>{part.text}</code> : part.text
+          part.href ? (
+            <a href={part.href} target={part.href.startsWith("http") ? "_blank" : undefined} rel={part.href.startsWith("http") ? "noopener noreferrer" : undefined}>
+              {part.code ? <code class={styles.inlineCodeOnCard}>{part.text}</code> : part.text}
+            </a>
+          ) : part.code ? (
+            <code class={styles.inlineCodeOnCard}>{part.text}</code>
+          ) : (
+            part.text
+          )
         )}
       </p>
     </div>

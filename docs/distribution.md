@@ -10,7 +10,7 @@
 
 | 形態 | 選択肢 | 成果物 | 置き場所（公開先） | 利用者の取り方 |
 |---|---|---|---|---|
-| ブラウザ版 | 1 | サイトの公開物（PWA） | GitHub Pages（`https://sonneko.github.io/novnow/app/`）と公式サイト（`https://novnow.sonneko.com/app/`） | URL を開く |
+| ブラウザ版 | 1 | サイトの公開物（PWA） | GitHub Pages（[`https://sonneko.github.io/novnow/app/`](https://sonneko.github.io/novnow/app/)） | URL を開く |
 | デスクトップ版 | 10 | `.tar.gz` / `.zip` の 10 個 | GitHub Releases（タグ `v<版>`） | ダウンロードして展開 |
 | Python ライブラリ版 | 5 | ホイール 5 個 | PyPI（`novnow`）と Releases（控え） | `pip install novnow` |
 | VSCode 拡張版 | 1 | `.vsix` 1 個＋市場の公開物 | VSCode の市場（`sonneko.novnow`）と Releases | 拡張機能の画面から導入 |
@@ -18,15 +18,15 @@
 
 - 版番号は 5 形態で共通（`REF:Cargo.toml` の `version`）。
 - 実行ファイル・ホイール・`.vsix` の照合値（SHA-256）は、同じリリースに `SHA256SUMS` として置く。
-- デスクトップ版の配布ページは `https://github.com/sonneko/novnow/releases/latest`（版を固定するときは `/releases/tag/v<版>`）。
+- デスクトップ版の配布ページは [`https://github.com/sonneko/novnow/releases/latest`](https://github.com/sonneko/novnow/releases/latest)（版を固定するときは `/releases/tag/v<版>`）。
 - どの形態も、導入後に配布元へ自動で問い合わせない（更新確認をしない）。
 
 ### 1.1 ブラウザ版（公開済み）
 
-- 配布は `REF:.github/workflows/deploy.yml` が行う。`main` の `dist` を GitHub Pages へ出し、公式サイト（`novnow.sonneko.com`）から同じアプリを開ける。
+- 配布は `REF:.github/workflows/deploy.yml` が行う。`main` の `dist` を GitHub Pages（[`https://sonneko.github.io/novnow/`](https://sonneko.github.io/novnow/)）へ出す。
 - 成果物は trunk の `dist`（`index.html`・`sw.js`・`manifest.webmanifest`・WASM・`assets/`・`guide/`）。`REF:index.html` の `copy-dir` が `guide/` を dist に載せる。
 - 更新はタグではなく `main` へのマージで反映される。版番号は画面の情報に表示し、`REF:Cargo.toml` と一致させる。
-- Service Worker が古い資産を配り続けないよう、`REF:sw.js` のキャッシュ名を `novnow-offline-v<版>` とし、`REF:scripts/release-matrix.py` の `--check` で版の一致を確かめる。公開後に `https://sonneko.github.io/novnow/app/` をシークレットウィンドウで開き、読み込みとオフライン起動を確かめる。
+- Service Worker が古い資産を配り続けないよう、`REF:sw.js` のキャッシュ名を `novnow-offline-v<版>` とし、`REF:scripts/release-matrix.py` の `--check` で版の一致を確かめる。公開後に [`https://sonneko.github.io/novnow/app/`](https://sonneko.github.io/novnow/app/) をシークレットウィンドウで開き、読み込みとオフライン起動を確かめる。
 - ブラウザ版だけは「取得」が無いので、照合値もタグも持たない。この非対称は仕様 §20.1.3 のとおり。
 
 ---

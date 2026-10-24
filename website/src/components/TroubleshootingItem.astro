@@ -37,7 +37,15 @@ const l = labels[lang];
     <strong class={styles.sectionLabelProblem}>{l.problem}</strong>
     <p>
       {splitInlineCode(item.problem[lang]).map((part) =>
-        part.code ? <code class={styles.inlineCode}>{part.text}</code> : part.text
+        part.href ? (
+          <a href={part.href} target={part.href.startsWith("http") ? "_blank" : undefined} rel={part.href.startsWith("http") ? "noopener noreferrer" : undefined}>
+            {part.code ? <code class={styles.inlineCode}>{part.text}</code> : part.text}
+          </a>
+        ) : part.code ? (
+          <code class={styles.inlineCode}>{part.text}</code>
+        ) : (
+          part.text
+        )
       )}
     </p>
   </div>
@@ -46,7 +54,15 @@ const l = labels[lang];
     <strong class={styles.sectionLabelCause}>{l.cause}</strong>
     <p>
       {splitInlineCode(item.cause[lang]).map((part) =>
-        part.code ? <code class={styles.inlineCode}>{part.text}</code> : part.text
+        part.href ? (
+          <a href={part.href} target={part.href.startsWith("http") ? "_blank" : undefined} rel={part.href.startsWith("http") ? "noopener noreferrer" : undefined}>
+            {part.code ? <code class={styles.inlineCode}>{part.text}</code> : part.text}
+          </a>
+        ) : part.code ? (
+          <code class={styles.inlineCode}>{part.text}</code>
+        ) : (
+          part.text
+        )
       )}
     </p>
   </div>
@@ -55,7 +71,15 @@ const l = labels[lang];
     <strong class={styles.sectionLabelSolution}>{l.solution}</strong>
     <p>
       {splitInlineCode(item.solution[lang]).map((part) =>
-        part.code ? <code class={styles.inlineCodeOnSolution}>{part.text}</code> : part.text
+        part.href ? (
+          <a href={part.href} target={part.href.startsWith("http") ? "_blank" : undefined} rel={part.href.startsWith("http") ? "noopener noreferrer" : undefined}>
+            {part.code ? <code class={styles.inlineCodeOnSolution}>{part.text}</code> : part.text}
+          </a>
+        ) : part.code ? (
+          <code class={styles.inlineCodeOnSolution}>{part.text}</code>
+        ) : (
+          part.text
+        )
       )}
     </p>
 

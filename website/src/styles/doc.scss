@@ -69,9 +69,21 @@
     text-decoration: none;
     transition: border-color 0.15s ease, color 0.15s ease;
 
+    code {
+      color: $accent-brand;
+      background-color: $bg-highlight;
+      box-shadow: inset 0 0 0 1px rgba($accent-brand, 0.22);
+      transition: background-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
     &:hover {
       border-bottom-color: $accent-brand;
       text-decoration: none;
+
+      code {
+        background-color: rgba($accent-brand, 0.14);
+        box-shadow: inset 0 0 0 1px rgba($accent-brand, 0.36);
+      }
     }
   }
 
