@@ -186,7 +186,7 @@ jobs:
           repository-url: https://test.pypi.org/legacy/
 
   publish-pypi:
-    if: always() && github.event_name == 'workflow_dispatch' && inputs.publish_pypi && needs.publish-testpypi.result != 'failure' && needs.publish-testpypi.result != 'cancelled'
+    if: always() && needs.test.result == 'success' && github.event_name == 'workflow_dispatch' && inputs.publish_pypi && needs.publish-testpypi.result != 'failure' && needs.publish-testpypi.result != 'cancelled'
     needs: [test, publish-testpypi]
     runs-on: ubuntu-latest
     environment: pypi

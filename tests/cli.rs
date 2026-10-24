@@ -1280,6 +1280,7 @@ fn help_goes_to_stdout_and_explains_how_to_open_a_directory_named_new() {
             "novnow check <dir>",
             "novnow export <dir> [options]",
             "novnow mcp <dir>",
+            "novnow lsp [<dir>]",
             "novnow --gui",
             "novnow --help | -h",
             "novnow --version | -V",

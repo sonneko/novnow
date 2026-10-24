@@ -458,6 +458,19 @@ fn release_gates_and_cached_action_binaries_stay_safe() {
     assert!(!release.contains("pull_request:"));
     assert!(release.contains("published artifacts are immutable"));
     assert!(release.contains("needs.publish-testpypi.result == 'success'"));
+    // `always()` overrides implicit success(): an optional TestPyPI job may be
+    // skipped after failed tests, so checking that job alone can publish bad wheels.
+    let wheels = include_str!("../.github/workflows/wheels.yml");
+    let publish = wheels.split("  publish-pypi:\n").nth(1).expect("PyPI job");
+    let condition = publish
+        .lines()
+        .find(|line| line.trim_start().starts_with("if:"))
+        .expect("explicit PyPI gate");
+    assert!(
+        condition.contains("needs.test.result == 'success'"),
+        "PyPI must require passing wheel tests even when TestPyPI is skipped"
+    );
+    assert!(publish.contains("needs: [test, publish-testpypi]"));
     assert!(release.contains("Install and import this target's wheel"));
     assert!(release.contains("cargo publish --locked --dry-run"));
     assert!(release.contains("CARGO_REGISTRY_TOKEN"));

@@ -27,15 +27,15 @@
 - ドメインハンドルは `&mut Session` を借りる薄いラッパ（`session.section()` → `SectionOps`）とし、メソッド名は正規操作 ID の動詞と 1:1 対応。多階層ドメインは動詞側へ畳む（§19.1.3）。
 - `session.command` のコマンド表は `REF:src/app/commands.rs` の `PALETTE_COMMANDS` / `SHORTCUT_PALETTE_COMMANDS` を使い、GUI と API が同じ表を共有する（ドリフト排除）。
 - イベントキュー: セッション内 `VecDeque<AppEvent>` と `poll_events()` / `on_event()`。LLM 呼び出し・URL 取得のワーカは `REF:src/app/agents.rs` の既存スレッド + チャネル方式を踏襲し、`cancel(handle)` は同じチャネルで中止フラグを伝える。
-- 検証: `REF:tests/api.rs`でメモリホストによる全操作・エラー分類・イベント順序をカバーし、仕様 §19.2.1 の例は doc-test として常に実行する。
+- 検証: `REF:tests/api.rs`でメモリホストによる全操作・エラー分類・イベント順序をカバーし、基本形に対応する API 呼び出しは `REF:tests/api_fs.rs` とライブラリの doc-test で検証する。
 
 ### 19.3 Python API
 
 状態: 実装完了（REF:python/novnow-py/src/lib.rs, REF:python/novnow-py/python/novnow/__init__.py, REF:src/app/driver.rs, REF:tests/api_driver.rs, REF:.github/workflows/wheels.yml）
 
 - `REF:Cargo.toml` は `default-members = ["."]`、`exclude = ["python/novnow-py"]` とする。Python 拡張は独立ワークスペースと `REF:python/novnow-py/Cargo.lock` を持ち、本体の既定ビルドへ巻き込まない。
-- `python/novnow-py/`（新クレート）: pyo3（`abi3-py39` + `extension-module`、cdylib）。`#[pyclass] Session` が app 層を包み、メソッドは `OPS` 表からマクロ生成して手書きの写しを置かない。データ受け渡しは dict / list / str、Zip 操作は bytes。
-- GIL: ブロック区間（FsGate I/O・LLM・URL 取得）は `Python::allow_threads` で解放する。Session のメソッド呼び出しは pyo3 の借用規則で直列化され、§19.2.5 の排他的所有にそのまま対応する。
+- `python/novnow-py/`（新クレート）: pyo3（`abi3-py39` + `extension-module`、cdylib）。`#[pyclass] Session` はワーカーへの汎用呼び出し口を持つ。Python のドメインメソッドは正規操作カタログを使って動的に解決し、操作本体の写しを置かない。データ受け渡しは dict / list / str、Zip 操作は bytes。
+- GIL: ブロック区間（FsGate I/O・LLM・URL 取得）は `Python::allow_threads` で解放する。`REF:src/app/driver.rs` のワーカースレッドが Session を所有し、Python 側の `Mutex<Driver>` が操作を直列化する。ロック取得も GIL を解放した区間で行う（`REF:python/novnow-py/src/lib.rs`）。
 - 型スタブ `REF:python/novnow-py/python/novnow/__init__.pyi` は `REF:scripts/pyi-site.py` がカタログから生成する。`REF:python/novnow-py/python/novnow/py.typed` とともにホイールへ同梱する。
 - ビルド・配布は maturin（pip で導入 — pypi.org はサンドボックスから到達可能）。pyo3-ffi は生成済みバインディングを使うため、extension-module のビルドに Python.h も libpython リンクも要らず、サンドボックスの python3（3.11）で `pyo3-build-config` のインタプリタ検出が足りる。
 - pyo3 系クレートの vendoring 手順は `REF:docs/plans.md#stage-3` の §5.3（`REF:.github/workflows/sandbox-tools.yml` の Git Blob 差分追加）に従う。
