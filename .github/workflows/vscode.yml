@@ -57,7 +57,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     env:
-      NOVNOW_TEST_EXECUTABLE: ${{ github.workspace }}/target/debug/novnow${{ runner.os == 'Windows' && '.exe' || '' }}
+      NOVNOW_TEST_EXECUTABLE: ${{ github.workspace }}/target/debug/novnow${{ matrix.os == 'windows-latest' && '.exe' || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
