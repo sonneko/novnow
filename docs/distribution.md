@@ -243,9 +243,18 @@ novnow-<版>-<対象環境>-<gui|nogui>.<拡張子>
 - **バージョン境界**: v0 は安定形式ではない。スキーマ識別子（例: `schema_version: 1`）と製品の v1 リリースは別概念。既存の LocalStorage 読み込みや本文インポートが存在しても、v0 → v1 の形式移行を提供する意味ではない。
 - **完全ソース**: `git archive HEAD` の追跡対象全体を含み、`.git`・未追跡ファイル・Secrets・ローカル生成キャッシュを含まない。外部依存そのものは同梱しないため、オフラインビルド用の vendoring 配布ではない。
 
-### 10.1 このセッションで確認できた外部状態（2026-10-24）
+### 10.1 このセッションで確認できた外部状態（2026-10-25）
 
-GitHub API の environment 一覧には `github-pages` のみ存在した。`crates-io`・`testpypi`・`pypi`・`vscode` は公開担当者が新設・保護する必要がある。Pages 設定と repository secrets 一覧の API は権限不足（403）で取得できず、登録状況を確認できなかった。各レジストリ側の所有権・Trusted Publisher も未確認。§8 の設定が済んだと推測してタグを push しない。
+GitHub APIでpublic化、4公開environmentとgithub-pages、developの存在、Pagesのworkflow設定を確認した。push起動のCIは実行できた。Secrets一覧とActions手動dispatchは403。CARGO_REGISTRY_TOKEN登録と各Trusted Publisherは所有者からの申告であり、値やレジストリ認証は検証していない。§8の設定がすべて完了したと推測してタグをpushしない。
+
+所有者による修正・確認が必要な点:
+
+- pypi/testpypiの版パターンがtype=branchになっている。crates-io/vscodeと同じtype=tagに直す。mainのbranch許可と版タグ許可を混同しない。
+- TestPyPIの申告名pypi-testを実際のtestpypiに揃える。補助wheels用には別Trusted Publisherも必要。
+- protect-developのref_name.includeが空。両rulesetに必須status checksがなく、必要レビュー数0・会話解決必須も無効。type=updateとbypass_actors=[]による通常のPRマージ阻害の可能性も確認する。
+- 4公開environmentにrequired_reviewersがなくbranch_policyだけ。§8の公開承認ゲートを設けるには承認者を設定する。VSCE_PAT、Marketplace所有権、署名/公証の有無は別途確認する。
+
+公開しない事前検査には `REF:.github/workflows/pages-check.yml` と `REF:.github/workflows/desktop-check.yml` を追加した。前者は実Trunk/Astro結合物・3ブラウザエンジン・クレートdry-run、後者は10デスクトップアーカイブと展開後のCLI起動を検査する。GUIの画面/IME/Zip操作、実公開と実デプロイは別の受け入れ確認として残す。個々の最終結果はPR #31のChecksとコメントを参照する。
 
 ### 10.2 承認済みの例外と版表現
 

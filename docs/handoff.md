@@ -24,19 +24,15 @@
 
 ## 2. 現在のブランチ・PR・直近の作業状態
 
-- 作業ブランチ: `arena/cd84f800-novnow`（`main` の `c00cf2d` から分岐）。今回の目標は v0.1.0 リリース準備。公開・タグ作成・マージは未実施。準備変更は `0dad09e` として push 済み。続く文書監査では、配布・API 設計と手順の実装追従漏れを訂正した。
-- 段階①〜③・配布整備はすべて v0.1.0 向け。v1 到達前の形式非互換・v0→v1 移行機能を提供しない方針、GitFlow と main の版更新限定運用を反映した。
-- Release に crates.io 公開と全ソース添付を追加。タグ実行は環境承認付きで全公開する。Pages は Astro を `/novnow/`、Trunk を `/novnow/app/` にまとめる。旧ルートの Service Worker は登録解除用に置換する。
-- 検証: `REF:scripts/verify.sh` 全項目成功（GUI あり 1372 件・GUI なし 1186 件）、文書検査器の単体 46 件（サイト監査の回帰 5 件を追加）、Astro 208 ページ、リンク補正・設定の Node テスト 5 件、生成 HTML のルート相対リンク検査が成功。Cargo のパッケージ対象一覧も確認した。GitHub Actions YAML とジョブ依存の構造検証は成功したが、actionlint の取得は通信制約で失敗した。
-- Web サイト追加監査: 製品版・互換性/移行説明・手引きアンカー・詳細記事の言語切替を訂正。静的 HTML 全 219 ファイルと CSS/画像を検査し、Astro 7.3.8 の型検査はエラー・警告・ヒント 0 件。`REF:website/README.md` に再現手順、PR と Pages 結合前後に検査を追加した。型検査・Chromium の追加パッケージはローカル検証用だけで、プロジェクト依存は追加していない。
-- 監査範囲: 文書規約・参照/アンカー・SYNC・仕様/設計見出し・文書と実装の突き合わせ・生成ガイド/サイト・読みやすさ・配布手順とワークフロー・API/VSCode/Actions の入口を確認した。仕様の新設や互換性方針の変更はしていない。実サービス上の動作や全機能の散文の意味まで完全に保証する検査ではない。
-- 外部状態と公開前ゲートは `REF:docs/distribution.md` §8〜§10。公開用の 4 environment は未作成。Pages / secrets 設定は API 権限不足で未確認。ホスト CI、実際の cargo publish dry-run、各レジストリ公開、署名・公証、Pages 実デプロイと Web アプリの新配置での E2E は未実施。公式サイトはローカルで本番相当 24 回・開発モード 8 回の Chromium 表示と実際の言語切替を確認済み（幅 1440 / 390）。
-- 末尾スラッシュ修正: Astro の `trailingSlash` を `ignore` に変更し、canonical / hreflang のみ末尾 `/` に統一。209 経路 × `/` 有無 × preview/dev の 836 HTTP 要求がすべて 200。その後、承認された6領域の横断監査を実施。PyPI公開のテスト成功ゲート、Python/GIL/API例、導入手順、LSPヘルプの明白な誤りを修正した。
-- 横断監査のD-01〜D-06はユーザー承認に基づき反映した。外部ライセンス文書・配布物取得専用領域の例外を仕様へ明示し、IPA許諾の添付/ヘルプ表示、初回の全資源precache、CLI規則統合、Python版のPEP 440表現、本番PyPI公開経路の一本化を実装した。詳細と検証はPR #31の対応コメントに集約する。
-- 最新検証は全verify成功（GUIあり1373件、GUIなし1187件、文書単体52件）。実release WASMを手動wasm-bindgen builderで `/novnow/app/` 相当に配信し、新規profile/HTTP cache無効/追加オンラインreloadなし/サーバ接続遮断でもWASM再起動・作品保持、更新失敗時の旧cache保持と既存のUI/Zip/保存の全smokeを確認した。これはTrunkそのものとAstroを結合した本番Pagesの検証ではない。Trunk取得は配布assetへの接続制約で失敗し、post_buildフックの構造・同じsealerの実行を検証した。
-- Python試験版はリポジトリ外の隔離コピーを0.1.0-rc.1として実wheelをbuildし、wheel名/METADATAの0.1.0rc1とimport後の製品版0.1.0-rc.1を確認した（linux_x86_64でありmanylinux適合性の検証ではない）。Marketplaceを含む全形態のプレリリース公開は未対応のため、統合Releaseは通常版以外を公開前に安全停止する。Marketplace向け試験版の対応規則は別途必要であり、承認済みの製品SemVerを別番号へ勝手に変えていない。
-- 公開用environment/registry所有権・署名/公証・旧root workerの実データ付き移行・Firefox/Safari・各OS成果物・実デプロイは引き続き未検証。公開・タグ作成・マージ・外部設定変更は行っていない。
-- コミットの `[ci skip]` とタグ実行・必須チェックの関係に注意する。初回本番を実行する前に、人間が外部設定・ブランチ保護・main へのリリース PR を確認する。
+- 作業ブランチ: `arena/cd84f800-novnow`、PR #31。v0.1.0公開準備。公開・タグ作成・マージ・外部設定変更は行っていない。承認済みD-01〜D-06の実装を維持する。
+- 現行方針はv0.1.0からの番号付き配布、v1前の非互換許容・v0→v1移行保証なし、GitFlow、mainは版更新限定。既存本文のimport/migrate機能の廃止とは異なる。Marketplaceを含む統合Releaseは通常版だけ。Pythonの試験版はPEP 440等価表現で補助wheels→TestPyPIへ公開する。
+- サイトはAstroを `/novnow/`、実Trunkを `/novnow/app/` に結合。末尾スラッシュは両表記を許可する。完全precacheと旧root workerの登録解除はIndexedDBを消さない。
+- 2026-10-25のローカル `REF:scripts/verify.sh` は全項目成功（GUIあり1373件/なし1187件、文書単体52件）。VSCodeの型検査・Electron用コンパイル・Node単体6件も成功した。
+- 公開リポジトリでホストCIを実行した。通常CI全ジョブ、5ターゲットwheel作成とPython 3.9/3.11/3.13テスト、3 OSの実VSCode Electronテスト、実クレートのpublish dry-run、実Trunk/Astroの結合buildの成功を確認。macOS VSCodeのbundle実行ファイル名、Windowsのexe/UTF-8、macOS既定bashの空配列を修正した。
+- `REF:.github/workflows/pages-check.yml` / `REF:scripts/pages-e2e.mjs` は結合サイト・言語切替・初回オフラインWASM・旧worker登録解除と作品保持・新scope分離を3エンジンで検査する。Chromium/WebKitのシナリオは成功し、Firefox用の非同期条件の再評価を修正した。最終SHAの結果はPR #31のChecks/対応コメントを確認する。Playwright WebKitは実Apple Safariそのものの動作保証ではない。
+- `REF:.github/workflows/desktop-check.yml` / `REF:scripts/desktop-check.sh` は5ターゲット×GUI有無の10実アーカイブを作り、ライセンス・構造・展開後の実行ファイルの版とサンプル診断を検査する。署名・公証・GUI画面/IME/ファイルダイアログの実機検証とは区別する。公開処理はない。
+- 外部状態・所有者側の修正点は `REF:docs/distribution.md` §10.1 とPR #31コメントに集約する。4公開environmentとdevelop、Pages Actions設定は存在するが、tag policyの型・TestPyPI名・ruleset対象/チェック/レビュー・environment承認者の修正が必要。秘密情報APIと手動Actions dispatchは403だが、push起動は動作する。CIはユーザー承認により抑制せず実行した。
+- 未実施: 実公開・本番Pagesデプロイ・レジストリ認証の実動確認、署名/公証、対象実機でのGUI/IME/Zip往復。公開名/Marketplace所有権も未確認。テスト成功を公開完了と表現しない。
 
 ## 3. 継続作業の手順
 

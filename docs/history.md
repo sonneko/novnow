@@ -2089,3 +2089,9 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - `REF:scripts/pwa-assets.py` とTrunk post_buildで全資源一覧・内容/workerのハッシュを封入し、初回installの全件成功後のみactivateする形へ変更した。オンライン再読み込みを挟まず実release WASMのオフライン再起動と作品保持を確認し、失敗した更新が旧cacheを消さない回帰も追加した。実行はwasm-bindgenの手動builderであり、Trunk/実Pagesの確認とは区別する。
 - CLIの予約語とフラグ規則を統合し、予約語ディレクトリを `./` で開く回帰を追加した。Pythonの試験版はalpha/beta/rcの対応表現を検査し、隔離コピーの実RC wheelでも版の等価性を確認した。Marketplaceの試験版公開は未対応なので、部分公開を起こす前に統合Releaseのprepareで停止する安全策を入れた。補助wheelsから本番PyPIの入力・ジョブ・旧条件を除去し、TestPyPIは一致する試験版タグでのみ公開する。
 - 全verify成功（GUIあり1373/GUIなし1187、文書単体52）。公開・タグ作成・マージ・外部設定変更は行わず、外部サービスでの公開検証は別途必要とした。
+
+## 2026-10-25: 公開しないホスト検証の拡張
+
+- public化とCI実行許可に基づき、実Trunk/Astro結合物の3エンジンE2E・cargo publish dry-run・10デスクトップ成果物の作成/検査/展開後CLI smokeを追加した。VSCode Electronを3 OSへ拡張し、macOS bundleの実行名、Windowsのexe名/文字コード、macOS bash互換、ブラウザの非同期処理差を修正した。
+- ローカル全verifyと、ホストの通常CI・5ターゲットwheelと3 Python版・3 OS Electron・実結合build・クレートdry-runの成功を確認した。ブラウザと10デスクトップ行列は追加回帰を繰り返し、最終結果をPR #31のChecks/コメントへ記録する。署名/公証・実機のGUI操作や実サービス公開を代替する検証とは扱わない。
+- 外部設定を読み取り確認し、存在するenvironment/develop/Pagesと、deployment policyのbranch/tag不一致・TestPyPI environment名・ruleset対象/必須チェック/承認・公開environmentの承認者不足を区別して報告した。設定変更・公開・タグ・マージは行っていない。監査計画はplansへ追記していない。

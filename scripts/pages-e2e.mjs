@@ -53,10 +53,17 @@ async function instrument(context) {
     }
   });
 }
+async function waitUntil(predicate, description) {
+  const deadline = Date.now() + 60000;
+  while (!(await predicate())) {
+    assert(Date.now() < deadline, `Timed out waiting for ${description}`);
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+}
 async function appReady(page) {
   await page.waitForFunction(() => window.wasmInitialized === true && document.querySelector('canvas'), null, { timeout: 60000 });
   await page.waitForFunction(() => document.getElementById('offline-status')?.dataset.ready === 'true', null, { timeout: 60000 });
-  await page.waitForFunction(async () => {
+  await waitUntil(() => page.evaluate(async () => {
     if (!(await indexedDB.databases()).some(db => db.name === 'novnow')) return false;
     return new Promise(resolve => {
       const request = indexedDB.open('novnow');
@@ -69,7 +76,7 @@ async function appReady(page) {
         sample.onerror = () => { db.close(); resolve(false); };
       };
     });
-  });
+  }), "sample project to commit");
 }
 try {
   const context = await browser.newContext();
@@ -131,7 +138,7 @@ try {
     // WebKit may already have performed the update and unregistered the worker.
     if (reg) await reg.update();
   });
-  await legacy.waitForFunction(async () => (await navigator.serviceWorker.getRegistrations()).length === 0);
+  await waitUntil(() => legacy.evaluate(async () => (await navigator.serviceWorker.getRegistrations()).length === 0), "legacy worker retirement");
   assert.deepEqual(await snapshot(legacy), before);
   await legacy.goto(`${origin}/novnow/app/`); await appReady(legacy);
   assert.deepEqual(await snapshot(legacy), before);
