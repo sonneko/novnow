@@ -57,7 +57,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     env:
-      NOVNOW_TEST_EXECUTABLE: ${{ github.workspace }}/target/debug/novnow
+      NOVNOW_TEST_EXECUTABLE: ${{ github.workspace }}/target/debug/novnow${{ runner.os == 'Windows' && '.exe' || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -77,11 +77,16 @@ jobs:
           npm ci
           npm run check
           npm run pretest:electron
-      - name: Run VSCode Electron integration tests (Linux)
-        if: runner.os == 'Linux'
+      - name: Run VSCode Electron integration tests
+        shell: bash
         working-directory: vscode
-        run: xvfb-run -a npm run test:electron
-      - name: Run VSCode Electron integration tests (macOS and Windows)
-        if: runner.os != 'Linux'
-        working-directory: vscode
-        run: npm run test:electron
+        run: |
+          set -o pipefail
+          command=(npm run test:electron)
+          if [ "$RUNNER_OS" = Linux ]; then command=(xvfb-run -a "${command[@]}"); fi
+          status=0
+          "${command[@]}" 2>&1 | tee "$RUNNER_TEMP/electron.log" || status=$?
+          if [ "$status" != 0 ]; then
+            node -e 'const fs=require("fs"); const text=fs.readFileSync(process.env.RUNNER_TEMP+"/electron.log","utf8").slice(-18000); console.log("::error::"+text.replace(/%/g,"%25").replace(/\r/g,"%0D").replace(/\n/g,"%0A"));'
+          fi
+          exit "$status"
