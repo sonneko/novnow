@@ -169,7 +169,7 @@ export const platforms: PlatformRow[] = [
   },
   {
     name: "Desktop",
-    setup: { ja: "GitHub Releases（初回公開まで未提供）", en: "GitHub Releases (unavailable until the first release)" },
+    setup: { ja: "GitHub Releases", en: "GitHub Releases" },
     bestFor: { ja: "手元のフォルダで原稿を管理したい", en: "Managing manuscripts in a local folder" },
   },
   {
@@ -189,17 +189,17 @@ export const platforms: PlatformRow[] = [
   },
   {
     name: "Python",
-    setup: { ja: "PyPI の `pip install novnow`（初回公開まで未提供）", en: "`pip install novnow` from PyPI (unavailable until the first release)" },
+    setup: { ja: "PyPI の `pip install novnow`", en: "`pip install novnow` from PyPI" },
     bestFor: { ja: "作業を自動化したい", en: "Automating your own workflow" },
   },
   {
     name: "VS Code",
-    setup: { ja: "VSCode Marketplace（初回公開まで未提供）", en: "VS Code Marketplace (unavailable until the first release)" },
+    setup: { ja: "GitHub Releases の VSIX", en: "VSIX on GitHub Releases" },
     bestFor: { ja: "ふだん VS Code で書いている", en: "Writing in VS Code every day" },
   },
   {
     name: "GitHub Actions",
-    setup: { ja: "`uses: sonneko/novnow@v0`（v0 公開まで未提供）", en: "`uses: sonneko/novnow@v0` (unavailable until v0 is published)" },
+    setup: { ja: "`uses: sonneko/novnow@v0`", en: "`uses: sonneko/novnow@v0`" },
     bestFor: { ja: "点検や書き出しを CI で行いたい", en: "Checking or exporting in CI" },
   },
 ];
