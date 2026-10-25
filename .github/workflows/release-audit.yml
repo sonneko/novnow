@@ -4,7 +4,7 @@ name: Published v0.1.0 audit
 on:
   push:
     branches: ['arena/**']
-    paths: ['.github/workflows/release-audit.yml']
+    paths: ['.github/workflows/release-audit.yml', 'scripts/action/**', 'scripts/verify.sh', 'action.yml']
   workflow_dispatch:
 
 permissions:
