@@ -1,0 +1,30 @@
+---
+import { version, releaseUrl, assetUrl, binaryTargets } from "../data/release";
+const { lang } = Astro.props;
+const ja = lang === "ja";
+---
+<section id="downloads" class="container" style="padding-block: 3rem;">
+  <h2>{ja ? `novnow v${version}を公開しました` : `novnow v${version} is available`}</h2>
+  <p>{ja ? "OSとCPUを選ぶと、公開済みの圧縮ファイルを直接ダウンロードできます。展開してから起動してください。" : "Choose your OS and CPU to download a published archive directly. Extract it before running."}</p>
+  <div style="overflow-x:auto;">
+    <table style="width:100%; text-align:left; border-spacing:0 1rem;">
+      <thead><tr><th>OS / CPU</th><th>{ja ? "デスクトップ" : "Desktop"}</th><th>CLI / LSP / MCP</th></tr></thead>
+      <tbody>{binaryTargets.map(([label, target, ext]) => <tr>
+        <th scope="row">{label}</th>
+        <td><a aria-label={`${label} GUI v${version}`} href={assetUrl(`novnow-${version}-${target}-gui${ext}`)}>{ja ? "ダウンロード" : "Download"} (GUI)</a></td>
+        <td><a aria-label={`${label} CLI v${version}`} href={assetUrl(`novnow-${version}-${target}-nogui${ext}`)}>{ja ? "ダウンロード" : "Download"} (CLI)</a></td>
+      </tr>)}</tbody>
+    </table>
+  </div>
+  <p><a href={assetUrl(`novnow-${version}.vsix`)}>VSCode VSIX</a> · <a href="https://pypi.org/project/novnow/">PyPI</a> · <a href="https://crates.io/crates/novnow">crates.io</a> · <a href={assetUrl("SHA256SUMS")}>SHA256SUMS</a> · <a href={releaseUrl}>{ja ? "リリース詳細" : "Release details"}</a></p>
+  <p><code>pip install novnow=={version}</code></p>
+  <p>{ja ? "Windows/macOSの配布元署名・macOS公証は行っていません。MarketplaceではなくVSIXで拡張を配布しています。" : "Windows/macOS binaries are unsigned and macOS binaries are not notarized. The extension is distributed as a VSIX, not through Marketplace."}</p>
+  <p><a href={`/${lang}/known-issues`}>{ja ? "既知の問題" : "Known issues"}</a> · <a href={`/${lang}/manual/install`}>{ja ? "導入ガイド" : "Installation guide"}</a></p>
+</section>
+<style>
+  section h2 { font-size: clamp(1.6rem, 3vw, 2.2rem); margin-bottom: 1rem; }
+  section p { margin-block: 1rem; max-width: 85ch; }
+  th, td { padding: .5rem .75rem; vertical-align: middle; }
+  td a { display: inline-block; border: 1px solid var(--border-color); border-radius: .5rem; padding: .45rem .8rem; background: var(--bg-card); white-space: nowrap; }
+  td a:hover { background: var(--bg-highlight); }
+</style>

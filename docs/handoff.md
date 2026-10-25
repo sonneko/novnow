@@ -17,21 +17,18 @@
 | 機能追加（比較的大規模：L-01） | 実装済み（CLI・デスクトップ） | 既存の本文テキストから `novnow` に移行するための手段の提供 | `REF:docs/plans.md#unplanned-large` |
 | 段階 ②（追加仕様 1〜27） | 実装済み・検証完了（#1〜27） | 予約済みの追加機能 27 項目（10 個の縫い代で受け入れ準備済み） | `REF:docs/plans.md#stage-2` |
 | 段階 ③（§19 外部インターフェース） | 実装済み・検証完了（H1〜H7。Python 拡張もサンドボックスでビルドし pytest まで通る。正式な wheel 検証は CI のホイール行列 `REF:.github/workflows/wheels.yml`。`REF:docs/plans.md` §5.5・§5.6） | Rust API・Python API・LSP・MCP 拡張・CLI 拡張による GUI 全機能のヘッドレス公開 | `REF:docs/plans.md#stage-3` |
-| 配布（D-01〜D-20） | 実装済み。ブラウザ版以外は初回リリースまで未提供 | 5 形態・18 通りの成果物、VSCode 拡張、複合アクション、公開・検査ワークフロー | `REF:docs/plans.md#distribution` |
+| 配布（D-01〜D-20） | v0.1.0公開済み。既知の問題は公開版一覧で管理 | 5 形態・17 成果物とSHA256SUMS、公開・検査ワークフロー | `REF:docs/plans.md#distribution` |
 <!-- SYNC:END stage1-status -->
 
 ---
 
 ## 2. 現在のブランチ・PR・直近の作業状態
 
-- 作業ブランチ: `arena/35b388c5-novnow`。前のPR #31は通常merge済み。公開対象はmainの `25725ba6c01c9b8294c83ccfc3c58093004a4eaa`、タグ `v0.1.0` と可動 `v0` は同じコミットを指す。
-- Release run 40159636238は全ジョブ成功。デスクトップ10・wheel5・VSIX1・全ソース1とSHA256SUMSを添付し、crates.io/TestPyPI/PyPIの公開も成功。本番Pages deployも成功。Marketplaceは延期（遅くともv1到達までに開始）。Windows/macOSの配布元署名・macOS公証は行わない。
-- 公開後のComposite Action Smoke run 40161112987はLinux成功、macOS/Windows失敗。**全形態が正常という判定ではない**。不変のv0.1.0タグ/成果物は変更しない。リリースノートに失敗を明記した。
-- 公開物再取得の監査run 40161414239: 17成果物全件のSHA256SUMS/構造/版、ソースtarと版タグの内容一致、両Python registryの5wheelのhash一致、両registryからの実install、公開crates.ioからのcargo installとCLI実行、本番Pages/WASM取得は成功。
-- サンドボックスでも実PyPI wheelを隔離venvへinstallし、実API pytest 9件成功・1件skip（150.48秒）。ネットワーク制約でGitHub release-assetsとcrates.ioへ直接接続できない部分は、公開物を取得するread-only CIで検証した。
-- Actions失敗の診断: macOSは標準Bash 3.2+nounsetで空配列展開がエラー。WindowsはWindows式パスのバックスラッシュでsha256sumが出力先頭をエスケープし、hash比較が誤判定する。公開ZIPのhash自体は監査で正常。前者は常に非空のargv、後者はstdin経由のhash計算で修正候補を準備した。hash修正後、WindowsのGNU tarがドライブ文字をリモートホスト扱いする問題も確認し、ZIP対応のWindows標準BSD tarを明示する候補へ修正した。
-- `REF:.github/workflows/release-audit.yml` は既存公開物の検証と**未公開の修正候補**の3 OS実行を分ける。`REF:scripts/action/test_install.py` の認証済みキャッシュの展開を含む回帰6件を `REF:scripts/verify.sh` へ追加。修正候補はdevelop向けPR #32（Ready for review）。最終CI結果はこのブランチのChecksを確認する。
-- 所有者決定: この不具合の影響はGitHub Actions版のmacOS/Windows実行に限定されるため、単独のパッチリリースは行わず、修正は次回リリースへ含める。PR #32はdevelop向けの修正として扱い、次回の版番号はここでは決めない。公開済みv0.1.0/v0のタグ・成果物は維持し、公開済み版が修正されたとは表記しない。版更新・mainへのマージ・追加公開は今回行わない。
+- 作業ブランチは `arena/d5b347ed-novnow`。Actions修正PR #32は所有者がdevelopへmerge済み。developをこの作業ブランチへ統合した。
+- v0.1.0は公開済み。既存の版タグ・可動v0・配布バイナリは変更しない。公開物の監査と修正候補の3 OS検証は成功済み。
+- README・サイト・導入手引きを公開済み表記へ更新する。OS/CPU別のGUI/CLI全10アーカイブとVSIXへの直接ダウンロードを用意し、公開版表示を開発版番号から分離する。
+- 既知の問題の原本は `REF:docs/known-issues/ja.md` と `REF:docs/known-issues/en.md`。サイトで直接表示し、修正版公開後に削除する運用は `REF:docs/developers.md` §9に従う。READMEに不具合本文を重複させない。
+- 所有者指示: このブランチ→develop→mainの順で統合する。両方のmergeは所有者自身が行う。今回に限り版更新なしの公開告知・Actions修正のmain統合を承認。追加リリース・タグ更新はしない。単独のパッチリリースはせず、Actionsの公開版修正は次回リリースへ含める。
 
 ## 3. 継続作業の手順
 
