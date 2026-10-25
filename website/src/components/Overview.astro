@@ -4,7 +4,7 @@
 // （ガイドの中身は docs/users から、入口の一覧は src/data/site.ts から取る）。
 import { platforms, guideLinks } from "../data/site";
 import { manualNav } from "../data/docs-nav";
-import type { Language } from "../data/i18n";
+import { translations, type Language } from "../data/i18n";
 import { splitInlineCode } from "../utils/inlineCode";
 
 interface Props {
@@ -29,7 +29,7 @@ const text = {
     factsTitle: "ひと目で分かる novnow",
     specsTitle: "仕様はすべて公開されています",
     specsLead:
-      "12 冊の仕様書と 12 冊の設計書がリポジトリにあり、サイトは仕様書をそのまま表示しています。ガイドで分からない言葉が出たら、そこから引いてください。",
+      "13 冊の仕様書と 13 冊の設計書がリポジトリにあり、サイトは仕様書をそのまま表示しています。ガイドで分からない言葉が出たら、そこから引いてください。",
     specsLinks: [
       { label: "仕様書（全 12 冊）", href: "/ja/specifications/" },
       { label: "診断コードの一覧", href: "/ja/diagnostics" },
@@ -53,7 +53,7 @@ const text = {
     factsTitle: "novnow at a glance",
     specsTitle: "Every specification is public",
     specsLead:
-      "Twelve specifications and twelve design documents live in the repository, and this site renders them directly. When a word in the guide is unclear, look it up there.",
+      "Thirteen specifications and thirteen design documents live in the repository, and this site renders them directly. When a word in the guide is unclear, look it up there.",
     specsLinks: [
       { label: "Specifications (12 volumes)", href: "/en/specifications/" },
       { label: "Diagnostics catalog", href: "/en/diagnostics" },
@@ -64,6 +64,7 @@ const text = {
 } as const;
 
 const t = text[lang];
+const community = translations[lang].community;
 
 const cardNotes: Record<string, { ja: string; en: string }> = {
   start: { ja: "9 段階で、書き上げて書き出すまで", en: "Nine steps from blank page to export" },
@@ -184,6 +185,19 @@ const facts = [
           <div class="fact-note">{fact.note[lang]}</div>
         </div>
       ))}
+    </div>
+  </div>
+</section>
+
+<section class="section-band-wash" aria-labelledby="community-title">
+  <div class="container">
+    <div class="specs-card">
+      <h2 id="community-title" class="specs-heading">{community.title}</h2>
+      <p class="section-lead">{community.description}</p>
+      <div class="specs-links" style="margin-top: 1.65rem">
+        <a class="spec-pill" href="https://github.com/sonneko/novnow/issues">{community.contributeTitle} · {community.githubBtn}</a>
+        <a class="spec-pill" href="https://github.com/sponsors/sonneko">{community.sponsorTitle}</a>
+      </div>
     </div>
   </div>
 </section>

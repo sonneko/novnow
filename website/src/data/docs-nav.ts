@@ -32,4 +32,5 @@ export const specificationNav: DocEntry[] = [
   { slug: "workflows", title: "novnow 仕様書 — 資料収集・エクスポート・性能品質" },
   { slug: "interfaces", title: "novnow 仕様書 — 外部インターフェース（ヘッドレス全機能 API 群）" },
   { slug: "external", title: "novnow 仕様書 — 配布形態（外部提供物）" },
+  { slug: "website", title: "novnow Web サイト仕様" },
 ];
