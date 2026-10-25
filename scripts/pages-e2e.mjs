@@ -32,7 +32,8 @@ const server = http.createServer(async (req, res) => {
 });
 await new Promise(resolve => server.listen(0, '0.0.0.0', resolve));
 const origin = `http://127.0.0.1:${server.address().port}`;
-const browser = await playwright[engine].launch(engine === 'chromium' ? { args: ['--enable-unsafe-swiftshader'] } : {});
+const launchBrowser = () => playwright[engine].launch(engine === 'chromium' ? { args: ['--enable-unsafe-swiftshader'] } : {});
+const browser = await launchBrowser();
 async function snapshot(page) {
   return JSON.parse(await page.evaluate(async () => {
     const db = await new Promise((resolve, reject) => { const r = indexedDB.open('novnow'); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error); });
@@ -60,9 +61,9 @@ async function waitUntil(predicate, description) {
     await new Promise(resolve => setTimeout(resolve, 100));
   }
 }
-async function appReady(page, { offlineReady = true } = {}) {
+async function appReady(page) {
   await page.waitForFunction(() => window.wasmInitialized === true && document.querySelector('canvas'), null, { timeout: 60000 });
-  if (offlineReady) await page.waitForFunction(() => document.getElementById('offline-status')?.dataset.ready === 'true', null, { timeout: 60000 });
+  await page.waitForFunction(() => document.getElementById('offline-status')?.dataset.ready === 'true', null, { timeout: 60000 });
   await waitUntil(() => page.evaluate(async () => {
     if (!(await indexedDB.databases()).some(db => db.name === 'novnow')) return false;
     return new Promise(resolve => {
@@ -119,21 +120,6 @@ try {
   assert.deepEqual(errors, []);
   console.log(`${engine}: real Trunk first-load offline WASM and IndexedDB preservation PASS`);
 
-  // A browser permission prompt must never gate project initialization.
-  const permissionPending = await browser.newContext();
-  await permissionPending.addInitScript(() => {
-    navigator.storage.persist = () => new Promise(() => {});
-  });
-  await instrument(permissionPending);
-  const pendingApp = await permissionPending.newPage();
-  await pendingApp.goto(`${origin}/novnow/app/`);
-  // This isolates application initialization, not a second offline installation.
-  // The real first-install/offline contract is checked above in every engine.
-  await appReady(pendingApp, { offlineReady: false });
-  assert((await snapshot(pendingApp))[0].some(project => project.id === 'sample'));
-  await permissionPending.close();
-  console.log(`${engine}: unanswered persistence permission does not block startup PASS`);
-
   // Retire a legacy root-scoped worker using the actual retirement script.
   // Unload app scripts before registering the legacy root worker: the app's
   // compatibility cleanup must not race with this synthetic old installation.
@@ -163,6 +149,24 @@ try {
   assert.equal(await legacy.evaluate(() => navigator.serviceWorker.controller), null);
   console.log(`${engine}: root worker retirement, project preservation, app scope and website isolation PASS`);
   await fresh.close();
+
+  // Run the independent permission fixture in its own browser process. WebKit
+  // cannot reliably initialize a second instrumented WASM app in parallel.
+  await browser.close();
+  const permissionBrowser = await launchBrowser();
+  try {
+    const permissionPending = await permissionBrowser.newContext();
+    await permissionPending.addInitScript(() => {
+      navigator.storage.persist = () => new Promise(() => {});
+    });
+    await instrument(permissionPending);
+    const pendingApp = await permissionPending.newPage();
+    pendingApp.on('pageerror', error => console.error(`${engine}: permission fixture: ${error}`));
+    await pendingApp.goto(`${origin}/novnow/app/`);
+    await appReady(pendingApp);
+    assert((await snapshot(pendingApp))[0].some(project => project.id === 'sample'));
+    console.log(`${engine}: unanswered persistence permission does not block startup PASS`);
+  } finally { await permissionBrowser.close(); }
 } finally {
   offline = false;
   await browser.close();
