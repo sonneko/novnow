@@ -95,15 +95,23 @@ class ActionShellTests(unittest.TestCase):
                 bundle.addfile(entry, io.BytesIO(payload))
         manifest = self.root / "manifest"
         manifest.write_text(f"{hashlib.sha256(archive.read_bytes()).hexdigest()}  {archive.name}\n", newline="\n")
-        tools = self.root / "bin"
-        tools.mkdir()
-        curl = tools / "curl"
-        curl.write_text('#!/usr/bin/env bash\nfor arg in "$@"; do destination="$arg"; done\ncp "$FAKE_MANIFEST" "$destination"\n', newline="\n")
-        curl.chmod(0o755)
+        # Override only network I/O in the sourced helper. Git's bash launcher
+        # may prepend its own tools to PATH, defeating a fake curl executable.
         env = dict(self.env, NOVNOW_VERSION="0.1.0", NOVNOW_TARGET=target,
-                   NOVNOW_CACHE_DIR=str(self.root / "cache"), FAKE_MANIFEST=str(manifest),
-                   PATH=str(tools) + os.pathsep + self.env["PATH"])
-        result = subprocess.run([BASH, str(SCRIPT), "--install"], env=env,
+                   INPUT_VERSION="0.1.0", INPUT_TARGET=target,
+                   NOVNOW_CACHE_DIR=str(self.root / "cache"), FAKE_MANIFEST=str(manifest))
+        command = '''
+          source "$1" --resolve >/dev/null
+          fetch() {
+            [ -f "$2" ] && return 0
+            case "$1" in
+              */SHA256SUMS) cp "$FAKE_MANIFEST" "$2" ;;
+              *) echo "offline fixture archive cache miss: $2" >&2; return 91 ;;
+            esac
+          }
+          install_release
+        '''
+        result = subprocess.run([BASH, "-c", command, "bash", str(SCRIPT)], env=env,
                                 capture_output=True, text=True, encoding="utf-8", timeout=10)
         self.assertEqual(result.returncode, 0, f"{BASH}: {result.stderr}\n{result.stdout}")
         self.assertEqual((cache / executable).read_bytes(), payload)
