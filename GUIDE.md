@@ -31,6 +31,8 @@ cargo build --release
 cargo build --release --features ui
 ```
 
+ビルドだけでは `novnow` は PATH に入りません。以下の `novnow` は、リポジトリのルートからは `./target/release/novnow`（Windows の PowerShell では `.\target\release\novnow.exe`）に読み替えてください。PATH に追加済みの場合はそのまま使えます。
+
 ### 2. 新規プロジェクトの作成と検証（CLI）
 
 ```bash

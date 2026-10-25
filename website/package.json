@@ -9,7 +9,8 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "check:site": "astro build && node --test integrations/base-links.test.mjs && python3 ../scripts/website-check.py --dir dist --website-only"
   },
   "dependencies": {
     "astro": "^7.3.8"

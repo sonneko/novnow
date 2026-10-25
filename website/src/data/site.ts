@@ -199,7 +199,7 @@ export const platforms: PlatformRow[] = [
   },
   {
     name: "GitHub Actions",
-    setup: { ja: "`uses: sonneko/novnow@v1`（v1 公開まで未提供）", en: "`uses: sonneko/novnow@v1` (unavailable until v1 is published)" },
+    setup: { ja: "`uses: sonneko/novnow@v0`（v0 公開まで未提供）", en: "`uses: sonneko/novnow@v0` (unavailable until v0 is published)" },
     bestFor: { ja: "点検や書き出しを CI で行いたい", en: "Checking or exporting in CI" },
   },
 ];

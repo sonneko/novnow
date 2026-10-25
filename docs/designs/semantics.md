@@ -87,7 +87,7 @@
 ]*?`）、`ELLIPSIS_REGEX`（`[…‥.。]{1,6}`）、`ANY_CHAR_REGEX`（`[^
 ]`）、および `Lexicon::word_classes` の展開は `core::resolve::role_language::to_regex`（`REF:src/core/resolve/role_language.rs`）に実装する。
 
-### B.2 提示された役割語の v1 表記
+### B.2 提示された役割語の v0.1.0 表記
 
 状態: 実装完了（REF:src/core/syntax/characters_md.rs, REF:tests/role_language.rs）
 

@@ -11,6 +11,7 @@
 - **境界判定（`WritePolicy`）**: `REF:src/core/policy/write_policy.rs` がシンボリックリンク解決後の絶対パスを受け取り、現在開いている `project_root` 配下または `history_file` 1 個のみを許可する（`B-54`）。
 - **明示エクスポート先の特例（`ChosenPath` 関門、`B-108`）**: `ChosenPath`（`REF:src/ports/dialog.rs`、プライベートフィールドにより保存ダイアログまたは CLI の `--out` 引数解析以外での構築を型レベルで禁止）と `WritePolicy::check_chosen_export` / `FsGate::write_chosen_export`（`REF:src/adapters/storage_fs.rs`）のみが、ユーザーが明示指定した拡張子一致ファイル 1 個への単発書き込みを許可する。
 - **単一関門の強制と違反時の挙動（`B-20`, `B-107`）**: `src/` 全体でファイル書き込み API を呼んでよいのは `REF:src/adapters/storage_fs.rs` のみであり、`REF:tests/layering.rs`（`only_the_write_gate_touches_the_file_system_for_writing`）と `REF:tests/storage_policy.rs` で機械的に強制する。ポリシー違反時はデバッグビルドでは `debug_assert!` で即座にパニックし、リリースビルドでは `Err(WriteViolation::ForbiddenTarget)`（診断 `E060`）を返してシステムコールを一切発行しない。
+- 配布物取得の限定例外は `REF:vscode/src/binary.ts` と `REF:scripts/action/install.sh` の専用保存領域で扱い、作品の `FsGate` / `WritePolicy` を緩めない。原稿・設定・ログを取得キャッシュへ保存しない。
 - **外部シンボリックリンクの遮断**: プロジェクト内から外部を指すシンボリックリンクは `REF:src/adapters/storage_fs.rs` の列挙・読み取りで除外する。
 
 ### 13.2 デスクトップ: パス履歴ファイル
@@ -27,7 +28,7 @@
 - スキーマ定数と仕様表の一致は `REF:tests/storage_idb.rs` が `include_str!` で検証し、ブラウザ実機動作は `REF:scripts/web-smoke.mjs` で検証する。
 
 - **[S-03] Web 版の PWA 化とオフライン動作（実装完了: `REF:index.html`, `REF:sw.js`, `REF:README.md`, `REF:scripts/web-smoke.mjs`）**:
-  - `REF:index.html` に Web App Manifest（`REF:manifest.webmanifest`）と Service Worker（`REF:sw.js`）登録を設け、オフラインキャッシュと `REF:README.md` への PWA 案内を実装する。`REF:scripts/web-smoke.mjs` でオフライン再起動と IndexedDB の継続性を確認する。
+  - `REF:index.html` に Web App Manifest（`REF:manifest.webmanifest`）と Service Worker（`REF:sw.js`）登録を設け、オフラインキャッシュと `REF:README.md` への PWA 案内を実装する。`REF:scripts/pwa-assets.py` を Trunk post_build で実行し、全資源の一覧と内容ハッシュを worker に封入する。`REF:sw.js` は全件キャッシュが成功したときだけ activate する。旧キャッシュを install 中に消さない。`REF:scripts/web-smoke.mjs` では追加のオンライン再読み込みを挟まず、オフライン再起動と IndexedDB の継続性を確認する。
 
 ### 13.4 プロジェクト選択モーダル（Web）
 

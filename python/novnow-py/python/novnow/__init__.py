@@ -8,7 +8,8 @@
 
     with novnow.Session("my-novel") as session:
         info = session.project.info()
-        session.section.write("@03:01", "新しい本文\\n")
+        scene = session.section.list()["sections"][0]["id"]
+        session.section.write(scene, "新しい本文\\n")
         session.save.now()
 """
 

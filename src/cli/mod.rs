@@ -647,7 +647,7 @@ impl<'a, E: Env> Cli<'a, E> {
     /// 使い方（`--help` と、端末から引数なしで起動されたとき）。`new` という名前のディレクトリの
     /// 開き方を必ず書く（§14.1）。
     pub fn usage(&self) -> String {
-        const ROWS: [(&str, &str); 12] = [
+        const ROWS: [(&str, &str); 13] = [
             ("novnow <dir>", "cli.usage.open"),
             ("novnow <domain> <verb> <dir> …", "cli.usage.op"),
             ("novnow api list [--json]", "cli.usage.api"),
@@ -655,6 +655,7 @@ impl<'a, E: Env> Cli<'a, E> {
             ("novnow check <dir>", "cli.usage.check"),
             ("novnow export <dir> [options]", "cli.usage.export"),
             ("novnow mcp <dir>", "cli.usage.mcp"),
+            ("novnow lsp [<dir>]", "cli.usage.lsp"),
             ("novnow import <zip> <dir>", "cli.usage.import"),
             (
                 "novnow migrate <text> <dir> [--preview]",

@@ -35,7 +35,7 @@ export const translations = {
     },
     installNotice: {
       title: "インストール・導入方法について",
-      status: "v1 実装完了 / ブラウザ版以外は初回公開まで未提供",
+      status: "v0.1.0 リリース準備 / ブラウザ版以外は初回公開まで未提供",
       desc: "ブラウザ版はインストール不要で使えます。デスクトップ版（Windows / macOS / Linux）とブラウザ版（WebAssembly）は同じ画面・同じキー操作で、同じプロジェクトをそのまま開けます。デスクトップ版はソースからビルドできます（cargo build --release --features ui）。配布バイナリは初回リリースで GitHub Releases に公開します。",
     }
   },
@@ -73,7 +73,7 @@ export const translations = {
     },
     installNotice: {
       title: "Installation & Setup Guide",
-      status: "v1 complete / browser available; other downloads await the first release",
+      status: "v0.1.0 release preparation / browser available; other downloads await the first release",
       desc: "The browser build needs no installation. The desktop build (Windows / macOS / Linux) and browser build (WebAssembly) share the same layout, the same keys, and open the same project. You can build the desktop app from source (cargo build --release --features ui). Distribution binaries will be published on GitHub Releases with the first release.",
     }
   }

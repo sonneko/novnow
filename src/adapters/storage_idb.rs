@@ -308,6 +308,75 @@ mod web {
         result.map_err(js_error)
     }
 
+    /// Queue dependent writes inside the request event, while the transaction
+    /// is active. Awaiting a WASM future before queuing them can auto-commit it.
+    async fn mutate_after_read<F>(
+        transaction: &IdbTransaction,
+        request: &IdbRequest,
+        action: F,
+    ) -> Result<(), StorageError>
+    where
+        F: Fn(JsValue) -> Result<(), StorageError> + 'static,
+    {
+        use std::cell::RefCell;
+        use std::rc::Rc;
+
+        let failure = Rc::new(RefCell::new(None));
+        let action = Rc::new(action);
+        let mut handlers: Option<(Handler, Handler, Handler, Handler)> = None;
+        let promise = Promise::new(&mut |resolve: Function, reject: Function| {
+            let read = request.clone();
+            let write = transaction.clone();
+            let failed = Rc::clone(&failure);
+            let action = Rc::clone(&action);
+            let on_read: Handler = Closure::new(move |_: Event| {
+                let result = read
+                    .result()
+                    .map_err(js_error)
+                    .and_then(|value| action(value));
+                if let Err(error) = result {
+                    *failed.borrow_mut() = Some(error);
+                    let _ = write.abort();
+                }
+            });
+            let on_complete: Handler = Closure::new(move |_: Event| {
+                let _ = resolve.call0(&JsValue::UNDEFINED);
+            });
+            let write = transaction.clone();
+            let reject_error = reject.clone();
+            let on_error: Handler = Closure::new(move |_: Event| {
+                let error = write
+                    .error()
+                    .map(JsValue::from)
+                    .unwrap_or(JsValue::UNDEFINED);
+                let _ = reject_error.call1(&JsValue::UNDEFINED, &error);
+            });
+            let write = transaction.clone();
+            let on_abort: Handler = Closure::new(move |_: Event| {
+                let error = write
+                    .error()
+                    .map(JsValue::from)
+                    .unwrap_or(JsValue::UNDEFINED);
+                let _ = reject.call1(&JsValue::UNDEFINED, &error);
+            });
+            request.set_onsuccess(Some(on_read.as_ref().unchecked_ref()));
+            transaction.set_oncomplete(Some(on_complete.as_ref().unchecked_ref()));
+            transaction.set_onerror(Some(on_error.as_ref().unchecked_ref()));
+            transaction.set_onabort(Some(on_abort.as_ref().unchecked_ref()));
+            handlers = Some((on_read, on_complete, on_error, on_abort));
+        });
+        let result = JsFuture::from(promise).await;
+        request.set_onsuccess(None);
+        transaction.set_oncomplete(None);
+        transaction.set_onerror(None);
+        transaction.set_onabort(None);
+        drop(handlers);
+        if let Some(error) = failure.borrow_mut().take() {
+            return Err(error);
+        }
+        result.map(|_| ()).map_err(js_error)
+    }
+
     /// トランザクションの完了を待つ（§8.3「トランザクション成功 = 保存成功」）。
     async fn commit(transaction: &IdbTransaction) -> Result<(), StorageError> {
         let mut handlers: Option<(Handler, Handler, Handler)> = None;
@@ -441,23 +510,27 @@ mod web {
             let transaction =
                 self.transaction(&[PROJECTS, FILES], IdbTransactionMode::Readwrite)?;
             let projects = transaction.object_store(PROJECTS).map_err(js_error)?;
-            // Check inside the same write transaction as the insert. IndexedDB
-            // serializes overlapping write transactions across tabs, so another
-            // tab cannot create the same title between the check and the add.
-            let existing: Vec<ProjectRecord> =
-                from_js(&wait(&projects.get_all().map_err(js_error)?).await?)?;
-            if !name_available(&existing, &record.name, None) {
-                return Err(other(format!(
-                    "project name already exists: {}",
-                    record.name
-                )));
-            }
             let store = transaction.object_store(FILES).map_err(js_error)?;
-            projects.add(&to_js(record)?).map_err(js_error)?;
-            for file in records {
-                store.put(&to_js(file)?).map_err(js_error)?;
-            }
-            commit(&transaction).await
+            let request = projects.get_all().map_err(js_error)?;
+            let record = record.clone();
+            let records = records.to_vec();
+            // Keep the uniqueness check and all inserts in one write transaction,
+            // but enqueue writes synchronously in its read-success event.
+            mutate_after_read(&transaction, &request, move |value| {
+                let existing: Vec<ProjectRecord> = from_js(&value)?;
+                if !name_available(&existing, &record.name, None) {
+                    return Err(other(format!(
+                        "project name already exists: {}",
+                        record.name
+                    )));
+                }
+                projects.add(&to_js(&record)?).map_err(js_error)?;
+                for file in &records {
+                    store.put(&to_js(file)?).map_err(js_error)?;
+                }
+                Ok(())
+            })
+            .await
         }
 
         /// 新しい ID（UUIDv4）でプロジェクトを作る（選択モーダルの新規作成、§13.4）。

@@ -89,7 +89,7 @@ footer { max-width: 46rem; margin: 3rem auto 0; padding-top: 1rem; border-top: 1
 </tr>
 </tbody></table>
 <p>はじめての人は、ブラウザ版から始めてください。作品はブラウザの中に保存されます。</p>
-<p>画面とキー操作は、どの版でも同じです。作品のフォルダは、版を変えてもそのまま使えます。</p>
+<p>画面とキー操作は、ブラウザ版とデスクトップ版で共通です。Python と GitHub Actions は画面を持たず、VSCode 拡張は VSCode の画面を使います。同じ製品版の作品は、ブラウザ版では Zip で、デスクトップ版ではフォルダを指定して開けます。</p>
 <hr>
 <a id="browser"></a>
 <h2 id="2-ブラウザ版インストール不要">2. ブラウザ版（インストール不要）</h2>
@@ -99,7 +99,8 @@ footer { max-width: 46rem; margin: 3rem auto 0; padding-top: 1rem; border-top: 1
 <li>名前を入れると、そのまま書き始められます。</li>
 </ol>
 <ul>
-<li>一度開けば、ホーム画面に追加してオフラインでも起動できます（PWA）。</li>
+<li>初回は「オフライン準備完了」が出るまで待ってください。</li>
+<li>完了後はホーム画面に追加してオフラインでも起動できます（PWA）。オンラインで開き直す必要はありません。</li>
 <li>作品はブラウザの中（IndexedDB）に保存されます。</li>
 <li>ブラウザのデータを消すと、作品も消えます。書き上がったら Zip で書き出してください。</li>
 </ul>
@@ -151,14 +152,14 @@ footer { max-width: 46rem; margin: 3rem auto 0; padding-top: 1rem; border-top: 1
 <li>インストーラはありません。展開するだけで使えます。</li>
 <li>PATH の追加や、ファイルの関連付けは行いません。</li>
 <li>Mac の窓あり版には <code>novnow.app</code> が入っています。これを開いてください。</li>
-<li>ファイルは実行ファイルだけです（Mac は <code>novnow.app</code> だけ）。フォントや雛形は中に入っています。</li>
+<li>実行に必要なのは実行ファイルだけです（Mac は <code>novnow.app</code>）。フォントや雛形は中に入っています。アーカイブには利用許諾と短い説明も入っています。</li>
 <li>Linux では、展開した <code>novnow</code> に実行の権限が付いています。</li>
 </ul>
 <h3 id="34-警告が出たとき">3.4 警告が出たとき</h3>
 <ul>
 <li><strong>Mac</strong>: 「開発元を確認できません」と出たら、システム設定の「プライバシーとセキュリティ」を開きます。下のほうの「このまま開く」を押します。</li>
 <li><strong>Windows</strong>: 「Windows によって PC が保護されました」と出ることがあります。そのときは「詳細情報」を押し、次に「実行」を押します。</li>
-<li>どちらも、配布元の署名が付いていない間だけ出ます。</li>
+<li>Windows版・Mac版には配布元の署名を付けません。Mac版の公証も行わないため、これらの警告が出ることがあります。</li>
 </ul>
 <h3 id="35-消したいとき">3.5 消したいとき</h3>
 <p>展開したフォルダを削除するだけです。同梱のフォントやサンプルは実行ファイルの中にあるので、ほかに消すものはありません。</p>
@@ -172,10 +173,11 @@ footer { max-width: 46rem; margin: 3rem auto 0; padding-top: 1rem; border-top: 1
 <a id="vscode"></a>
 <h2 id="4-vscode-拡張版">4. VSCode 拡張版</h2>
 <ol>
-<li>VSCode を開き、左の「拡張機能」を押します。</li>
-<li><code>novnow</code> で検索し、<code>sonneko.novnow</code> を入れます。</li>
-<li>novnow の作品フォルダを VSCode で開きます。</li>
+<li>GitHub Releasesから <code>novnow-&lt;版&gt;.vsix</code> をダウンロードします。初回リリースまでは未提供です。</li>
+<li>VSCodeの「拡張機能」で「…」→「VSIXからのインストール」を選び、そのファイルを開きます。</li>
+<li>novnowの作品フォルダをVSCodeで開きます。</li>
 </ol>
+<p>Marketplaceへの公開は延期しています。遅くともv1到達までに開始する予定です。</p>
 <ul>
 <li>作品フォルダを開くと、診断や補完が使えます。</li>
 <li>novnow 本体が入っていないときは、拡張機能が自動で 1 つだけ落としてきます。</li>
@@ -199,7 +201,7 @@ python -c &quot;import novnow; print(novnow.__version__)&quot;</code></pre>
 <a id="actions"></a>
 <h2 id="6-github-actions-版自動化したい人向け">6. GitHub Actions 版（自動化したい人向け）</h2>
 <p>GitHub のリポジトリで、点検や書き出しを自動で回せます。ふだんの執筆では使いません。</p>
-<pre><code class="language-yaml">- uses: sonneko/novnow@v1
+<pre><code class="language-yaml">- uses: sonneko/novnow@v0
   with:
     path: .
     command: check</code></pre>

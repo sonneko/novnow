@@ -112,9 +112,11 @@ let mut session = Session::create("new-novel", CreateOptions::default())?;
 let mut session = Session::with_host(mock_host);
 
 let info = session.project().info()?;          // project.info
-let tree = session.structure().tree()?;        // structure.tree
-let body = session.section().get("@03:01")?;   // section.get
-session.section().write("@03:01", "新しい本文\n")?;  // section.write（メモリ上）
+let tree = session.structure().tree(None)?;        // structure.tree
+let sections = session.section().list(None)?;
+let scene = sections["sections"][0]["id"].as_str().expect("section ID");
+let body = session.section().get(scene)?;   // section.get
+session.section().write(scene, "新しい本文\n")?;  // section.write（メモリ上）
 session.save().now()?;                         // save.now（ここで書き込み）
 let text = session.export().text(ExportQuery::default())?;  // export.text
 ```
@@ -169,14 +171,17 @@ import novnow
 with novnow.Session("my-novel") as session:      # open。with 終了で閉じる
     info = session.project.info()                 # dict（JSON と同じ構造）
     tree = session.structure.tree()
-    text = session.section.get("@03:01")
-    session.section.write("@03:01", "新しい本文\n")
+    scene = session.section.list()["sections"][0]["id"]
+    text = session.section.get(scene)
+    session.section.write(scene, "新しい本文\n")
     session.save.now()
-    for d in session.diagnostics.run(scope="file", path="docs/03.md"):
+    report = session.diagnostics.run(path="contents/01-01.txt")
+    for d in report["diagnostics"]:
         print(d["code"], d["line"], d["message"])
 
 session = novnow.create("new-novel")              # project.new
-report = session.agent.task_run("T012")           # LLM 利用（§15 と同じ規則）
+# 既存のタスク T012 と MCP 接続が用意されたプロジェクトでのみ実行する:
+# report = session.agent.task_run("T012")           # LLM 利用（§15 と同じ規則）
 ```
 
 - `Session` はコンテキストマネージャであり、`with` 終了時に閉じる（未保存変更の破棄は §19.2.5 と同じ）。明示的な `session.close()` も持つ。

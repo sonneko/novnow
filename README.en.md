@@ -4,6 +4,12 @@
 
 The novnow editor, built to manage the novnow format, runs both as a desktop application (Windows / macOS / Linux) and in the browser (WebAssembly + IndexedDB). The layout and the keyboard bindings are the same on both, and the same project opens in either.
 
+## Release and compatibility
+
+The current release target is **v0.1.0**. Until v1, **novnow project formats have no cross-version compatibility guarantee**; an update may make existing projects unreadable. **No v0-to-v1 migration feature will be provided**, deliberately minimizing implementation cost. Before updating, back up your work as both Zip and plain text, and pin your version where needed. The CLI `migrate` command imports prose text; it does not migrate novnow format versions.
+
+Development follows GitFlow. Merges into `main` are reserved for version updates. See `REF:docs/developers.md` and `REF:docs/distribution.md` for development and release procedures.
+
 ## Where it runs
 
 | Way to run it | Setup | Best for |
@@ -14,8 +20,8 @@ The novnow editor, built to manage the novnow format, runs both as a desktop app
 | Editor integration (LSP) | Same as above | Writing in VS Code or another editor |
 | AI integration (MCP) | Same as above | Letting AI read and propose changes |
 | Python | `pip install novnow` from [PyPI](https://pypi.org/project/novnow/) (unavailable until the first release) | Automating your own workflow |
-| VS Code extension | [Marketplace](https://marketplace.visualstudio.com/items?itemName=sonneko.novnow) (unavailable until the first release) | Writing in VS Code every day |
-| GitHub Actions | `uses: sonneko/novnow@v1` (unavailable until `v1` is published) | Checking or exporting in CI |
+| VS Code extension | [VSIX on GitHub Releases](https://github.com/sonneko/novnow/releases/latest) (unavailable until the first release) | Writing in VS Code every day |
+| GitHub Actions | `uses: sonneko/novnow@v0` (unavailable until `v0` is published) | Checking or exporting in CI |
 
 The layout, the keys, and what gets saved are the same in the browser and on the desktop.
 Whichever door you use, you get the same result from one shared implementation.
@@ -113,7 +119,7 @@ In the future, following continued research and development, we plan to implemen
 
 ## Install and Run
 
-The distribution channels are the browser, GitHub Releases, PyPI, the VS Code Marketplace, and GitHub Actions tags. There are 10 desktop builds (with or without a window, across 5 OS/CPU targets) and 5 Python wheels. Everything except the browser build is unavailable until the first release. See [how to install](./docs/users/install.md) for users and [distribution.md](./docs/distribution.md) for the release procedure and rules.
+The distribution channels are the browser, GitHub Releases, PyPI, VSIX files on GitHub Releases, and GitHub Actions tags. There are 10 desktop builds (with or without a window, across 5 OS/CPU targets) and 5 Python wheels. Everything except the browser build is unavailable until the first release. See [how to install](./docs/users/install.md) for users and [distribution.md](./docs/distribution.md) for the release procedure and rules.
 
 Until then, novnow can be built from source. A stable Rust toolchain is required.
 

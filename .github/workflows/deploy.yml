@@ -1,21 +1,10 @@
 name: Deploy to GitHub Pages
 
-# main ブランチのうち Web 版ビルドに影響するファイルが更新されたとき、または手動実行時のみ走らせる。
-# ドキュメント（docs/**, README.md）や CLI 専用コード（src/cli/**）、テスト・ベンチマークのみの
-# 変更では不要な WASM リリースビルドをスキップする。
+# One Pages deployment contains the website at /novnow/ and the app at /novnow/app/.
+# main is release-only under GitFlow; feature branches never publish Pages.
 on:
   push:
     branches: [main]
-    paths:
-      - 'src/**'
-      - '!src/cli/**'
-      - 'assets/**'
-      - 'examples/sample-novel/**'
-      - 'index.html'
-      - 'Trunk.toml'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - '.github/workflows/deploy.yml'
   workflow_dispatch:
 
 permissions:
@@ -29,6 +18,7 @@ concurrency:
 
 jobs:
   build:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -52,24 +42,43 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cargo/bin/trunk
-          key: trunk-v0.21.5-x86_64-unknown-linux-gnu
+          key: trunk-v0.21.14-x86_64-unknown-linux-gnu
 
       - name: Download Trunk
         if: steps.trunk-cache.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
-          curl -fsSL --retry 3 https://github.com/trunk-rs/trunk/releases/download/v0.21.5/trunk-x86_64-unknown-linux-gnu.tar.gz \
+          curl -fsSL --retry 3 https://github.com/trunk-rs/trunk/releases/download/v0.21.14/trunk-x86_64-unknown-linux-gnu.tar.gz \
             | tar -xzf - -C "$HOME/.cargo/bin"
           trunk --version
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - uses: actions/configure-pages@v5
+      - name: Build the official website
+        run: |
+          python3 scripts/docs-site.py --check
+          npm ci --prefix website
+          npm run build --prefix website
+      - name: Verify the website before combining it with the app
+        run: |
+          node --test website/integrations/base-links.test.mjs
+          python3 scripts/website-check.py --website-only
+
       - name: Build with Trunk
         run: |
-          trunk build --release --public-url "/${{ github.event.repository.name }}/"
+          trunk build --release --public-url "/novnow/app/"
+          test ! -e website/dist/app
+          cp -a dist website/dist/app
+          python3 scripts/website-check.py
 
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./dist
+          path: ./website/dist
 
   deploy:
     needs: build

@@ -104,6 +104,7 @@ if [ "$BUILD" = 1 ] || [ ! -f "$DIST/novnow_bg.wasm" ]; then
     rm -rf "$DIST" && mkdir -p "$DIST"
     "$WB" --target web --no-typescript --out-dir "$DIST" --out-name novnow \
         "$ROOT/target/wasm32-unknown-unknown/release/novnow.wasm"
+    cp -R "$ROOT/licenses" "$ROOT/guide" "$DIST/"
     cp "$ROOT/sw.js" "$ROOT/manifest.webmanifest" "$ROOT/icon.svg" "$DIST/"
     python3 - "$ROOT/index.html" "$DIST/index.html" <<'PY'
 import re, sys
@@ -111,6 +112,7 @@ source = open(sys.argv[1], encoding="utf-8").read()
 script = '<script type="module">import init from "./novnow.js"; init({ module_or_path: "./novnow_bg.wasm" });</script>'
 open(sys.argv[2], "w", encoding="utf-8").write(re.sub(r'<link rel="rust"[^>]*/>', script, source))
 PY
+    python3 "$ROOT/scripts/pwa-assets.py" --dir "$DIST"
 fi
 
 say "筋書きを回す（$MODE）"

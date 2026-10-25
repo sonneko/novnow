@@ -15,7 +15,10 @@ const OUT = process.env.OUT_DIR;
 const DOWNLOADS = path.join(OUT, 'downloads');
 const MODE = process.env.MODE || 'all';
 const PORT = 8765;
-const ADDRESS = `http://127.0.0.1:${PORT}/`;
+const BASE = '/novnow/app/';
+const ADDRESS = `http://127.0.0.1:${PORT}${BASE}`;
+let serverOffline = false;
+let candidateWorker = null;
 
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.wasm': 'application/wasm' };
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -28,8 +31,15 @@ function check(ok, label) {
 
 function serve() {
   const server = http.createServer((req, res) => {
+    if (serverOffline) { req.socket.destroy(); return; }
     const url = new URL(req.url, 'http://x');
-    const file = path.join(DIST, url.pathname === '/' ? 'index.html' : decodeURIComponent(url.pathname));
+    if (!url.pathname.startsWith(BASE)) { res.writeHead(404); res.end(); return; }
+    const relative = decodeURIComponent(url.pathname.slice(BASE.length));
+    if (relative === 'sw.js' && candidateWorker) {
+      res.writeHead(200, { 'Content-Type': 'text/javascript', 'Cache-Control': 'no-store' });
+      res.end(candidateWorker); return;
+    }
+    const file = path.join(DIST, relative || 'index.html');
     fs.readFile(file, (err, data) => {
       if (err) {
         res.writeHead(404);
@@ -80,6 +90,18 @@ async function page(browser, setup) {
   await tab.evaluateOnNewDocument((language) => {
     Object.defineProperty(navigator, 'language', { get: () => language });
   }, process.env.UI_LANG || 'ja-JP');
+  await tab.setCacheEnabled(false);
+  await tab.evaluateOnNewDocument(() => {
+    for (const name of ['instantiate', 'instantiateStreaming']) {
+      const original = WebAssembly[name];
+      if (!original) continue;
+      WebAssembly[name] = async function (...args) {
+        const result = await original.apply(this, args);
+        window.__novnowWasmInitialized = true;
+        return result;
+      };
+    }
+  });
   if (setup) await tab.evaluateOnNewDocument(setup);
   await tab.goto(ADDRESS, { waitUntil: 'load' });
   return tab;
@@ -196,6 +218,37 @@ async function main() {
     check(first?.projects.length === 1 && first.projects[0].id === 'sample', 'projects は sample の 1 件');
     if (!first) throw new Error('起動しなかった（00-picker.png を見る）');
     check((first?.app ?? []).length === 0, '開く前の app ストアは空');
+    // Fresh profile + HTTP cache disabled: no online reload before disconnect.
+    await tab.waitForFunction(() => document.getElementById('offline-status')?.dataset.ready === 'true', { timeout: 60000 });
+    await tab.waitForFunction(() => navigator.serviceWorker.controller !== null);
+    const originalCaches = await tab.evaluate(() => caches.keys());
+    // A broken update must neither activate nor delete the current offline app.
+    candidateWorker = fs.readFileSync(path.join(DIST, 'sw.js'), 'utf8')
+      .replace(/const BUILD = '[^']+';/, "const BUILD = 'failed-update-test';")
+      .replace('const PRECACHE = [', 'const PRECACHE = ["./missing-for-test.wasm", ');
+    try {
+      const state = await tab.evaluate(async () => {
+        const registration = await navigator.serviceWorker.getRegistration();
+        await registration.update();
+        const worker = registration.installing;
+        if (!worker) throw new Error('expected installing update');
+        return new Promise(resolve => {
+          const changed = () => { if (['redundant', 'activated'].includes(worker.state)) resolve(worker.state); };
+          worker.addEventListener('statechange', changed); changed();
+        });
+      });
+      check(state === 'redundant', '欠けた資源の更新は activate しない');
+      check(JSON.stringify(await tab.evaluate(() => caches.keys())) === JSON.stringify(originalCaches),
+        '更新失敗でも旧オフラインキャッシュを保持する');
+    } finally { candidateWorker = null; }
+    serverOffline = true; // Also disconnect worker fetches, not only page CDP.
+    try {
+      await tab.reload({ waitUntil: 'load' });
+      await tab.waitForFunction(() => window.__novnowWasmInitialized === true, { timeout: 30000 });
+      check((await db(tab))?.projects?.some(p => p.id === 'sample'),
+        '初回ロード直後、追加オンライン再読み込みなしで WASM 起動・作品保持');
+    } finally { serverOffline = false; }
+
 
     // 2. Enter で開く → 本文を打つ → IndexedDB に保存される
     await key(tab, 'Enter');
@@ -306,12 +359,9 @@ async function main() {
     await key(tab, 'Enter');
     await sleep(1500);
     await shot(tab, '03-reloaded');
-    // PWA: a controlled online reload caches the hashed JS/WASM. The next
-    // navigation must boot from the service worker with the network disabled.
+    // Installation precaches the entire app: no extra online reload is allowed.
     await tab.evaluate(() => navigator.serviceWorker.ready);
     await tab.waitForFunction(() => navigator.serviceWorker.controller !== null, { timeout: 15000 });
-    await tab.reload({ waitUntil: 'load' });
-    await sleep(2500);
     const cached = await tab.evaluate(async () => {
       const keys = await caches.keys();
       const urls = (await Promise.all(keys.map(async (key) => (await (await caches.open(key)).keys()).map((req) => req.url)))).flat();
@@ -320,6 +370,7 @@ async function main() {
     check(cached, 'PWA の JS と WASM がキャッシュされた');
     const network = await tab.target().createCDPSession();
     await network.send('Network.enable');
+    serverOffline = true;
     await network.send('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: 0, uploadThroughput: 0 });
     try {
       await tab.reload({ waitUntil: 'load' });
@@ -328,6 +379,7 @@ async function main() {
       check(!!offlineStarted && (await db(tab))?.projects?.some((p) => p.id === 'sample'),
         'オフライン再起動でも IndexedDB の作品が残る');
     } finally {
+      serverOffline = false;
       await network.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
       await network.detach();
     }

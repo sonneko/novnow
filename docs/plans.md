@@ -4,6 +4,8 @@
 
 ---
 
+現在のマイルストーンは **v0.1.0 の初回配布**。以下の実装済み項目はすべて v0.1.0 向けであり、v1 到達を意味しない。公開前のゲートは `REF:docs/distribution.md` §8〜§10 に集約する。
+
 ## 1. 全体進捗サマリ
 
 <!-- SYNC:START stage1-status -->
@@ -1087,23 +1089,23 @@ CI の docs ジョブに入れた。規則は 1 文 60 字・1 段落 3 文・�
 |---|---|---|
 | D-13 | `vscode/` を作る（`package.json`・LSP 接続・4 つのコマンド・言語 ID） | プロジェクトを開くと診断が出る。拡張がプロジェクトのファイルを直接書かない |
 | D-14 | 実行ファイルの探索 4 段と、GUI なしの自動取得（照合つき）を実装する | 未導入の環境で自動取得して接続する。照合の不一致で破棄する。`novnow.autoDownload=false` で取得しない |
-| D-15 | `.vsix` をリリースへ添付し、市場への公開は `workflow_dispatch` で行う | 市場と `.vsix` の両方から導入できる |
+| D-15 | `.vsix` をリリースへ添付し、市場への公開はタグ実行または手動の公開入力と environment 承認で行う | 市場と `.vsix` の両方から導入できる |
 
 <a id="plan-distribution-action"></a>
 #### Phase 5: GitHub Actions 版（2 日）
 
 | # | すること | 完了条件 |
 |---|---|---|
-| D-16 | `action.yml`（複合アクション）と `scripts/action/install.sh` を作る | 3 OS で `uses: sonneko/novnow@v1` が点検を実行し、E 診断でジョブが失敗する |
+| D-16 | `action.yml`（複合アクション）と `scripts/action/install.sh` を作る | 3 OS で `uses: sonneko/novnow@v0` が点検を実行し、E 診断でジョブが失敗する |
 | D-17 | 入力（`path` / `command` / `args` / `version` / `target`）と出力（`exit-code` / `findings` / `export-path`）を実装する | 省略時は点検になり、終了コードがジョブへ伝わる |
-| D-18 | リリース時に `v<版>` と `v1` のタグを公開する | 版を固定しても `@v1` でも動く |
+| D-18 | リリース時に `v<版>` と `v0` のタグを公開する | 版を固定しても `@v0` でも動く |
 
 <a id="plan-distribution-publish"></a>
 #### Phase 6: 公開と掲載（1 日）
 
 | # | すること | 完了条件 |
 |---|---|---|
-| D-19 | `REF:scripts/release-check.sh` を作る | デスクトップ 10・ホイール 5・`.vsix` 1 の 16 成果物・照合値の行数・版の一致・タグの指し先を検査する |
+| D-19 | `REF:scripts/release-check.sh` を作る | デスクトップ 10・ホイール 5・`.vsix` 1・全ソース 1 の 17 成果物・照合値の行数・版の一致・タグの指し先を検査する |
 | D-20 | 「準備中」を実値へ差し替える（`REF:README.md`・`REF:README.en.md`・`REF:docs/users/install.md`・サイト） | 5 形態の取得先が文書とサイトで同じ。未提供の形態は「未提供」と表示する |
 
 ### 7.2 受け入れ基準

@@ -6,7 +6,9 @@ interface Props {
   currentPath: string;
 }
 
-const { currentLang, currentPath } = Astro.props;
+const { currentLang, currentPath: fullPath } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const currentPath = fullPath.startsWith(base + "/") ? fullPath.slice(base.length) : fullPath;
 
 const getTargetUrl = (targetLang: "ja" | "en") => {
   if (currentLang === targetLang) return currentPath;
