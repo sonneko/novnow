@@ -70,9 +70,9 @@ resolve_version() {
 
 sha256() {
   if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum "$1" | awk '{print $1}'
+    sha256sum < "$1" | awk '{print $1}'
   elif command -v shasum >/dev/null 2>&1; then
-    shasum -a 256 "$1" | awk '{print $1}'
+    shasum -a 256 < "$1" | awk '{print $1}'
   else
     echo "sha256sum or shasum is required" >&2
     return 2
@@ -166,15 +166,18 @@ finding_count() {
 run_novnow() {
   local binary="${NOVNOW_BINARY:?NOVNOW_BINARY is required}"
   local command="${INPUT_COMMAND:-check}" path="${INPUT_PATH:-.}"
+  # argv always has three elements: Bash 3.2 + nounset rejects empty arrays.
+  local argv=("$binary" "$command" "$path")
   local extra=()
   if [ -n "${INPUT_ARGS:-}" ]; then
     # Deliberately no eval and no quote processing (§20.5.2).
     read -r -a extra <<< "$INPUT_ARGS"
+    argv+=(${extra[@]+"${extra[@]}"})
   fi
 
   local code=0 findings="" export_path=""
   set +e
-  "$binary" "$command" "$path" "${extra[@]}"
+  "${argv[@]}"
   code=$?
   set -e
 
@@ -185,12 +188,12 @@ run_novnow() {
     fi
   elif [ "$command" = export ] && [ "$code" = 0 ]; then
     local index=0 argument
-    for ((index = 0; index < ${#extra[@]}; index += 1)); do
-      argument="${extra[$index]}"
+    for ((index = 3; index < ${#argv[@]}; index += 1)); do
+      argument="${argv[$index]}"
       case "$argument" in
         --out)
-          if [ $((index + 1)) -lt ${#extra[@]} ]; then
-            export_path="${extra[$((index + 1))]}"
+          if [ $((index + 1)) -lt ${#argv[@]} ]; then
+            export_path="${argv[$((index + 1))]}"
           fi
           ;;
         --out=*) export_path="${argument#--out=}" ;;

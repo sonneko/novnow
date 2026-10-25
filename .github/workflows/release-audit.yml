@@ -92,7 +92,7 @@ jobs:
               print(f'Pages: {route} PASS')
           PY
 
-  released-action:
+  candidate-action:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:
@@ -101,12 +101,12 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: v0.1.0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Run the immutable released action with failure diagnostics
+      - name: Check shell regressions on the candidate (not the published tag)
+        run: python3 scripts/action/test_install.py
+      - name: Run the candidate action against immutable v0.1.0 assets with diagnostics
         shell: bash
         env:
           NOVNOW_ACTION_VERSION: '0.1.0'
