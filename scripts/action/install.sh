@@ -70,9 +70,9 @@ resolve_version() {
 
 sha256() {
   if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum "$1" | awk '{print $1}'
+    sha256sum -b < "$1" | awk '{print $1}'
   elif command -v shasum >/dev/null 2>&1; then
-    shasum -a 256 "$1" | awk '{print $1}'
+    shasum -b -a 256 < "$1" | awk '{print $1}'
   else
     echo "sha256sum or shasum is required" >&2
     return 2
@@ -96,6 +96,7 @@ fetch() {
 
 install_release() {
   local version target artifact extension archive sums expected actual work executable temporary
+  local archive_tar=tar entries
   version="$(validate_version "${NOVNOW_VERSION:?NOVNOW_VERSION is required}")"
   target="$(validate_target "${NOVNOW_TARGET:?NOVNOW_TARGET is required}")"
   extension=".tar.gz"
@@ -103,6 +104,9 @@ install_release() {
   if [ "$target" = x86_64-pc-windows-msvc ]; then
     extension=".zip"
     executable="novnow.exe"
+    # Git Bash's GNU tar treats drive letters as remote hosts and cannot read
+    # ZIP archives. Windows ships libarchive/bsdtar, which supports both.
+    archive_tar="$(cygpath -u "${WINDIR:-${windir:-C:/Windows}}/System32/tar.exe")"
   fi
   artifact="novnow-${version}-${target}-nogui${extension}"
   work="${NOVNOW_CACHE_DIR:-${RUNNER_TEMP:?RUNNER_TEMP or NOVNOW_CACHE_DIR is required}/novnow-bin}/${version}/${target}"
@@ -132,6 +136,10 @@ install_release() {
   temporary="$work/.extract.$$"
   rm -rf "$temporary"
   mkdir -p "$temporary"
+  if ! entries="$("$archive_tar" -tf "$archive")"; then
+    rm -rf "$temporary"
+    return 1
+  fi
   while IFS= read -r entry; do
     [ -z "$entry" ] && continue
     case "$entry" in
@@ -141,8 +149,8 @@ install_release() {
         return 1
         ;;
     esac
-  done < <(tar -tf "$archive")
-  tar -xf "$archive" -C "$temporary" "$executable"
+  done <<< "$entries"
+  "$archive_tar" -xf "$archive" -C "$temporary" "$executable"
   if [ ! -f "$temporary/$executable" ]; then
     rm -rf "$temporary"
     echo "$artifact did not contain $executable" >&2
@@ -166,15 +174,18 @@ finding_count() {
 run_novnow() {
   local binary="${NOVNOW_BINARY:?NOVNOW_BINARY is required}"
   local command="${INPUT_COMMAND:-check}" path="${INPUT_PATH:-.}"
+  # argv always has three elements: Bash 3.2 + nounset rejects empty arrays.
+  local argv=("$binary" "$command" "$path")
   local extra=()
   if [ -n "${INPUT_ARGS:-}" ]; then
     # Deliberately no eval and no quote processing (§20.5.2).
     read -r -a extra <<< "$INPUT_ARGS"
+    argv+=(${extra[@]+"${extra[@]}"})
   fi
 
   local code=0 findings="" export_path=""
   set +e
-  "$binary" "$command" "$path" "${extra[@]}"
+  "${argv[@]}"
   code=$?
   set -e
 
@@ -185,12 +196,12 @@ run_novnow() {
     fi
   elif [ "$command" = export ] && [ "$code" = 0 ]; then
     local index=0 argument
-    for ((index = 0; index < ${#extra[@]}; index += 1)); do
-      argument="${extra[$index]}"
+    for ((index = 3; index < ${#argv[@]}; index += 1)); do
+      argument="${argv[$index]}"
       case "$argument" in
         --out)
-          if [ $((index + 1)) -lt ${#extra[@]} ]; then
-            export_path="${extra[$((index + 1))]}"
+          if [ $((index + 1)) -lt ${#argv[@]} ]; then
+            export_path="${argv[$((index + 1))]}"
           fi
           ;;
         --out=*) export_path="${argument#--out=}" ;;

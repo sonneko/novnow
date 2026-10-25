@@ -19,6 +19,16 @@ session = novnow.create("new-novel")              # project.new
 - 対応プラットフォーム: Linux x86_64 / aarch64、macOS x86_64 / arm64、Windows x86_64。
 - 型スタブ（`__init__.pyi`）と `py.typed` を同梱。
 
+## 公開版のインストール
+
+v0.1.0は [PyPI](https://pypi.org/project/novnow/0.1.0/) からインストールできます。
+
+```bash
+pip install novnow==0.1.0
+```
+
+公開バイナリと導入ガイドは [公式サイト](https://sonneko.github.io/novnow/ja/#downloads) を参照してください。
+
 ## ビルドとテスト
 
 ```bash

@@ -2115,3 +2115,24 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 
 - 3ba7150のFirefox失敗は「WebGL isn't supported」が先行し、IndexedDB操作履歴は空だった。サンプル作成timeoutは二次的症状。前の5連続成功だけで環境の安定性まで確認できたとは言えず、過去の同型timeoutも保存処理だけに原因を限定しない。
 - FirefoxをXvfb上のheadedモードとMesa llvmpipeへ固定し、GLX/WebGL rendererの事前診断を追加。アプリconsole.errorも初期化失敗として即時報告する。ブラウザチェックを削除せず、Firefoxの新規profile5回の全シナリオを維持した。実機GPU/Safariの保証とは区別する。
+
+## 2026-10-25: v0.1.0公開と公開後消費テストの不具合検出
+
+- 所有者の公開承認に基づきPR #31を通常mergeし、mainの25725ba6へv0.1.0タグを作成した。所有者が各environmentを承認し、Release 40159636238全ジョブ成功、17成果物と照合表・crates.io/TestPyPI/PyPI・v0タグ・Pagesが公開された。Marketplaceは延期、配布元署名/公証は行わない。
+- 公開後Action smokeはLinux成功、macOS/Windows失敗。新ブランチarena/35b388c5-novnowで不変タグから再取得する監査CIを追加し、公開17ファイル全hash/形式/版、ソース内容、両Python registryとcrates.ioの実install、Pages/WASM取得の成功を確認した。PyPI実wheelのローカルAPI検査も9件成功・1件skip。
+- macOSはBash 3.2の空配列+nounset、Windowsはバックスラッシュを含むパスでsha256sumがhash先頭へescape文字を付けることによる誤判定を確認した。公開ZIPの破損ではない。stdin hash計算と非空argvの修正候補・回帰5件を準備するが、不変タグや公開物は上書きしない。追加パッチリリースには別途所有者の承認が必要。
+
+## 2026-10-25: Windowsのアーカイブ展開と回帰実行環境の追加修正
+
+- hash修正後の公開物消費run 40162433524ではLinux/macOS成功、WindowsはGNU tarのドライブ文字解釈で失敗。Windows標準BSD tarの明示と一覧取得失敗時の中止を修正候補へ追加した。
+- Windows回帰実行ではWSL版bashを選ばず、Gitのcmd/mingw64双方からGit Bashを検出する。認証済みキャッシュの実展開回帰を加え計6件とした。ローカル全verifyも成功。develop向けPR #32を作成しReady for reviewにした。公開済み版のタグ・成果物・版番号は変えていない。
+
+## 2026-10-25: Actions互換性修正は次回リリースへ同梱
+
+- 所有者は、再現環境がGitHub Actions版のmacOS/Windows実行で影響範囲が狭いことから、この不具合だけのパッチリリースを行わず、修正を次回リリースへ含めると決定した。v0.1.1の単独公開提案は採用しない。次回の版番号はこの決定では指定しない。
+- 修正はdevelop向けPR #32で管理する。修正候補の3 OS監査run 40162925926と通常6系統CIは成功済みだが、公開済みv0.1.0/v0は未修正のまま維持する。タグ・成果物の差し替えや追加公開は行わない。
+
+## 2026-10-25: v0.1.0公開告知と既知の問題のサイト掲載運用
+
+- 所有者は公開バイナリへの直接ダウンロード導線と、文書原本をそのままサイトで表示する既知の問題一覧を承認した。不具合本文はREADMEには掲載せず、修正版が公開・確認された時点で現行一覧から削除する。
+- Actions修正PR #32は所有者がdevelopへmerge済み。現在の作業ブランチで告知整備を行い、develop→mainの順で所有者が統合する。今回に限り版更新なしでサイト・文書と修正をmainへ含めるが、タグ変更や追加リリースは行わない。

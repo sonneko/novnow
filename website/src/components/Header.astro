@@ -30,6 +30,8 @@ const t = translations[lang].nav;
     </div>
 
     <nav class={styles.nav} aria-label="Primary">
+      <a href={`/${lang}/#downloads`} class={styles.navLink}>{lang === "ja" ? "ダウンロード" : "Downloads"}</a>
+      <a href={`/${lang}/known-issues`} class={styles.navLink}>{lang === "ja" ? "既知の問題" : "Known issues"}</a>
       <a href={`/${lang}`} class:list={[styles.navLink, { [styles.active]: currentPath === `/${lang}` || currentPath === `/${lang}/` }]}>
         {t.home}
       </a>

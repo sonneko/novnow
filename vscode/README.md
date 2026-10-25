@@ -10,4 +10,4 @@ The extension identifier is `sonneko.novnow`. The extension and novnow share one
 
 ## Installation
 
-Download `novnow-<version>.vsix` from the official GitHub Release, then use VSCode's Extensions → … → Install from VSIX. The first numbered release has not been published yet. Marketplace publication is deferred and will start no later than product v1.
+Download [novnow-0.1.0.vsix](https://github.com/sonneko/novnow/releases/download/v0.1.0/novnow-0.1.0.vsix), then use VSCode's Extensions → … → Install from VSIX. Version v0.1.0 is published. Marketplace publication is deferred and will start no later than product v1.

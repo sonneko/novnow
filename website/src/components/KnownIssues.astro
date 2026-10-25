@@ -1,0 +1,23 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Header from "./Header.astro";
+import Footer from "./Footer.astro";
+import { Content as Japanese } from "../../../docs/known-issues/ja.md";
+import { Content as English } from "../../../docs/known-issues/en.md";
+const { lang } = Astro.props;
+---
+<BaseLayout title={lang === "ja" ? "既知の問題" : "Known issues"} lang={lang}>
+  <Header lang={lang} currentPath={`/${lang}/known-issues`} />
+  <main class="container" style="max-width: 900px; padding-block: 3rem; line-height: 1.9;">
+    {lang === "ja" ? <Japanese /> : <English />}
+  </main>
+  <Footer lang={lang} />
+</BaseLayout>
+<style>
+  main :global(h1) { font-size: clamp(2rem, 4vw, 2.8rem); margin-bottom: 1rem; }
+  main :global(h2) { font-size: 1.4rem; margin: 2rem 0 1rem; }
+  main :global(p) { margin-bottom: 1rem; }
+  main :global(ul) { padding-left: 1.5rem; }
+  main :global(li) { margin-bottom: .75rem; }
+  main :global(code) { background: var(--bg-subtle); padding: .1rem .3rem; border-radius: .25rem; }
+</style>

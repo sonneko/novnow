@@ -168,6 +168,8 @@ novnow/
 
 ### 4.1 `bash scripts/verify.sh`（コミット前の必須検証）
 
+Actions取得スクリプトのオフライン回帰は `REF:scripts/action/test_install.py` で検査する。macOSでは標準Bash 3.2を明示し、空引数・終了コード・export先・バックスラッシュを含むパスのSHA-256を確認する。
+
 `REF:scripts/verify.sh` は次を一括で実行する（`--quick` で wasm を、`--python` で Python だけに絞れる）。コミット・プッシュ前に必ず実行し、すべて通ることを確認する。
 
 1. `python3 docs/script/duplicate.py`（ドキュメント規則・重複・`REF:` リンク・仕様/設計見出し一致の検査）
@@ -386,7 +388,7 @@ Web サイト側を変更したら `npm ci --prefix website && npm run check:sit
 
 ## 5. ユーザーの開発の進め方（作業の作法）
 
-現在の開発目標は **v0.1.0**。段階①〜③および配布整備はすべてこの版へ向けた開発として扱う。v1 は将来の安定化目標であり、完了済みと表記しない。過去の呼称と決定の記録は `REF:docs/history.md` に隔離する。
+公開版と現在の開発状況は `REF:docs/handoff.md` を参照する。v1 は将来の安定化目標であり、完了済みと表記しない。過去の呼称と決定の記録は `REF:docs/history.md` に隔離する。
 
 1. **段階 ① と段階 ② の区分**:
    - **段階 ①（M0〜M11）**: コア仕様一式の実装・検証・リリース準備（完了）。
@@ -533,3 +535,11 @@ GUI の見た目（パレット位置、下線・波線の座標、枠線やバ�
 28. **`gh pr edit` の Classic Projects 廃止エラー**: `gh pr edit` は GraphQL の Classic Projects 廃止エラーで失敗するため、PR のタイトル・本文更新には `gh api repos/sonneko/novnow/pulls/<PR番号> -X PATCH --input -` を使用する。
 29. **ロックファイル v4（`Cargo.lock`）**: 本リポジトリの `Cargo.lock` は format version 4（Rust 1.78 以降）を使用しているため、古い `cargo`（1.77 等）では `--locked` が読めない。GitHub Actions 等で扱う際は `dtolnay/rust-toolchain@stable` などの新しいツールチェーンを使う。
 
+
+## 9. 公開版の既知の問題の管理
+
+- 利用者向けの現行一覧は `REF:docs/known-issues/ja.md` と `REF:docs/known-issues/en.md` を原本とする。`REF:website/src/components/KnownIssues.astro` がMarkdownを直接表示する。Web側に本文を転記しない。
+- 発見時に識別子・対象の公開版・環境・症状・回避策・対応状況を両言語で記録する。READMEには不具合本文を重複掲載しない。
+- コード修正、develop/mainへのマージだけでは一覧から削除しない。修正版の公開と修正確認が完了してから、当該項目を両言語の現行一覧から削除する。公開済みの履歴はリリースノートと `REF:docs/history.md` に残す。項目がなくなった場合も一覧ページは維持する。
+- ダウンロード先と公開版の表示は `REF:website/src/data/release.ts` で管理する。開発版のCargo.tomlから自動推測せず、公開済みの版・成果物を確認したときだけ更新する。
+- 今回のv0.1.0公開告知に限り、所有者承認により版更新なしでサイト・文書とActions修正をmainへ統合する。順序は作業ブランチ→develop→mainとし、両マージは所有者が行う。タグ変更・追加リリースは行わない。通常のGitFlow規則を一般的に緩和するものではない。
