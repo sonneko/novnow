@@ -2110,3 +2110,8 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - 所有者がmain/developのRestrict updatesとlinear historyを解除し、許可マージ方法mergeのみ・必要承認数0へ変更したことをAPIで確認した。通常のmerge commitで統合する。こちらからマージや外部設定変更は行っていない。
 - crates.io/PyPI/TestPyPIの設定は所有者確認済み。Azure DevOps登録の事情によりMarketplace公開を延期し、遅くとも製品v1到達までに開始する方針を承認。VSIXはGitHub Releasesへ添付し、手動インストール手順を利用者文書へ反映した。ReleaseからMarketplace公開入力・ジョブ・最終処理の依存とPAT参照を除去した。
 - Windows/macOSの配布元署名およびmacOS公証は行わない。署名処理・Secrets参照を除去し、最終SHA256SUMSへ方針を明記。仕様・設計・公開手順・日英README・拡張README・手引きと生成サイトを同期した。通常版限定のReleaseゲートは維持する。
+
+## 2026-10-25: Firefox CIのWebGL起動失敗を分離
+
+- 3ba7150のFirefox失敗は「WebGL isn't supported」が先行し、IndexedDB操作履歴は空だった。サンプル作成timeoutは二次的症状。前の5連続成功だけで環境の安定性まで確認できたとは言えず、過去の同型timeoutも保存処理だけに原因を限定しない。
+- FirefoxをXvfb上のheadedモードとMesa llvmpipeへ固定し、GLX/WebGL rendererの事前診断を追加。アプリconsole.errorも初期化失敗として即時報告する。ブラウザチェックを削除せず、Firefoxの新規profile5回の全シナリオを維持した。実機GPU/Safariの保証とは区別する。

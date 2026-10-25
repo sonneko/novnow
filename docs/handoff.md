@@ -32,6 +32,7 @@
 - `REF:.github/workflows/pages-check.yml` / `REF:scripts/pages-e2e.mjs` は結合サイト・言語切替・初回オフラインWASM・旧worker登録解除と作品保持・新scope分離を3エンジンで検査する。Chromium/WebKitのシナリオは成功し、Firefox用の非同期条件の再評価を修正した。最終SHAの結果はPR #31のChecks/対応コメントを確認する。Playwright WebKitは実Apple Safariそのものの動作保証ではない。
 - `REF:.github/workflows/desktop-check.yml` / `REF:scripts/desktop-check.sh` は5ターゲット×GUI有無の10実アーカイブを作り、ライセンス・構造・展開後の実行ファイルの版とサンプル診断を検査する。署名・公証・GUI画面/IME/ファイルダイアログの実機検証とは区別する。公開処理はない。
 - 外部状態は `REF:docs/distribution.md` §10.1。APIでmain/developのRestrict updates・linear history解除、mergeのみ許可、必要承認数0を確認した。必須チェックは現行名に一致し、公開用environmentのtag型/reviewerも確認済み。crates.io/PyPI/TestPyPIの設定は所有者確認済み（実公開成功とは別）。今回はVSCE_PAT不要。外部設定は変更していない。
+- Firefox描画環境追補: 3ba7150の失敗ではconsoleにWebGL未対応、IDB履歴は空だった。保存不具合と断定できない。CIをXvfb上のheaded Firefox + Mesa llvmpipeへ固定し、rendererの事前確認とアプリ起動エラーの即時報告を追加。チェック削除や自動retryは行わず、新規profile5回の検証を維持する。
 - ブラウザ追補: WebKitの独立permission fixtureにStorageManager不在のガードを追加。Firefoxの作品初期化はサンプルの重複名確認後の書き込みをIDBリクエスト成功イベント内へ移し、トランザクション寿命へのawait依存を除去した。Firefoxは新規profileで5回繰り返す。Desktop検査のGUI行にui feature指定漏れも修正し、以前の行列成功を実GUIビルドの保証に使わない。最終結果はPRを確認する。
 - 未実施: 実公開・本番Pagesデプロイ・レジストリ認証の実動確認、対象実機でのGUI/IME/Zip往復。署名/公証は行わず、Marketplace公開は延期。テスト成功を公開完了と表現しない。
 

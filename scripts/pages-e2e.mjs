@@ -32,7 +32,15 @@ const server = http.createServer(async (req, res) => {
 });
 await new Promise(resolve => server.listen(0, '0.0.0.0', resolve));
 const origin = `http://127.0.0.1:${server.address().port}`;
-const launchBrowser = () => playwright[engine].launch(engine === 'chromium' ? { args: ['--enable-unsafe-swiftshader'] } : {});
+const launchBrowser = () => playwright[engine].launch(engine === 'chromium'
+  ? { args: ['--enable-unsafe-swiftshader'] }
+  : engine === 'firefox' ? {
+    // Firefox headless WebGL availability varies with the runner graphics stack.
+    // Use Xvfb and an explicit Mesa software renderer, not a detected GPU.
+    headless: false,
+    env: { ...process.env, LIBGL_ALWAYS_SOFTWARE: '1', GALLIUM_DRIVER: 'llvmpipe' },
+    firefoxUserPrefs: { 'webgl.disabled': false, 'webgl.force-enabled': true, 'gfx.webrender.software': true },
+  } : {});
 const browser = await launchBrowser();
 async function snapshot(page) {
   return JSON.parse(await page.evaluate(async () => {
@@ -46,6 +54,12 @@ async function snapshot(page) {
 }
 async function instrument(context) {
   await context.addInitScript(() => {
+    window.startupErrors = [];
+    const consoleError = console.error;
+    console.error = function (...args) {
+      window.startupErrors.push(args.map(String).join(' '));
+      return consoleError.apply(this, args);
+    };
     window.idbTrace = [];
     const trace = text => { if (window.idbTrace.length < 80) window.idbTrace.push(text); };
     for (const name of ['add', 'put', 'getAll', 'get']) {
@@ -84,9 +98,11 @@ async function waitUntil(predicate, description) {
   }
 }
 async function appReady(page) {
-  await page.waitForFunction(() => window.wasmInitialized === true && document.querySelector('canvas'), null, { timeout: 60000 });
+  await page.waitForFunction(() => window.startupErrors?.length || (window.wasmInitialized === true && document.querySelector('canvas')), null, { timeout: 60000 });
+  assert.deepEqual(await page.evaluate(() => window.startupErrors), [], 'Web app initialization failed before storage setup');
   await page.waitForFunction(() => document.getElementById('offline-status')?.dataset.ready === 'true', null, { timeout: 60000 });
   try { await waitUntil(() => page.evaluate(async () => {
+    if (window.startupErrors.length) throw new Error(`Web app initialization failed: ${window.startupErrors.join('; ')}`);
     if (!(await indexedDB.databases()).some(db => db.name === 'novnow')) return false;
     return new Promise(resolve => {
       const request = indexedDB.open('novnow');
@@ -106,6 +122,22 @@ async function appReady(page) {
   }
 }
 try {
+  if (engine === 'firefox') {
+    const probe = await browser.newPage();
+    await probe.goto(`${origin}/novnow/legacy.html`);
+    const graphics = await probe.evaluate(() => {
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+      if (!gl) return null;
+      const debug = gl.getExtension('WEBGL_debug_renderer_info');
+      const renderer = debug ? gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+      gl.getExtension('WEBGL_lose_context')?.loseContext();
+      return renderer;
+    });
+    await probe.close();
+    assert(graphics, 'Firefox runner WebGL unavailable: check Xvfb/Mesa, not IndexedDB');
+    console.log(`firefox: WebGL renderer: ${graphics}`);
+  }
   const context = await browser.newContext();
   const page = await context.newPage();
   for (const width of [1440, 390]) {
