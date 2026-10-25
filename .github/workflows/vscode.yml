@@ -48,9 +48,13 @@ jobs:
           PY
 
   electron:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
     needs: unit
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     env:
       NOVNOW_TEST_EXECUTABLE: ${{ github.workspace }}/target/debug/novnow
@@ -73,6 +77,11 @@ jobs:
           npm ci
           npm run check
           npm run pretest:electron
-      - name: Run VSCode Electron integration tests
+      - name: Run VSCode Electron integration tests (Linux)
+        if: runner.os == 'Linux'
         working-directory: vscode
         run: xvfb-run -a npm run test:electron
+      - name: Run VSCode Electron integration tests (macOS and Windows)
+        if: runner.os != 'Linux'
+        working-directory: vscode
+        run: npm run test:electron

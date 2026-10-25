@@ -1,0 +1,90 @@
+name: Pages integration
+
+# Build and test only: no Pages deployment, registry publication, or environment.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - name: Build the same combined tree as Pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/trunk"
+          curl -fsSL --retry 3 https://github.com/trunk-rs/trunk/releases/download/v0.21.14/trunk-x86_64-unknown-linux-gnu.tar.gz | tar xzf - -C "$RUNNER_TEMP/trunk"
+          python3 scripts/docs-site.py --check
+          npm ci --prefix website
+          npm run check:site --prefix website
+          "$RUNNER_TEMP/trunk/trunk" build --release --public-url /novnow/app/
+          cp -a dist website/dist/app
+          python3 scripts/website-check.py
+          ! grep -q 'const PRECACHE = null' website/dist/app/sw.js
+      - uses: actions/upload-artifact@v4
+        with:
+          name: combined-pages
+          path: website/dist
+          retention-days: 7
+
+  browsers:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: combined-pages
+          path: website/dist
+      - name: Install the browser
+        run: |
+          npm install --prefix "$RUNNER_TEMP/browser" playwright@1.58.2
+          "$RUNNER_TEMP/browser/node_modules/.bin/playwright" install --with-deps ${{ matrix.browser }}
+      - name: Test website, real app, first offline boot and old worker migration
+        env:
+          NODE_DIR: ${{ runner.temp }}/browser
+          BROWSER: ${{ matrix.browser }}
+        run: xvfb-run -a node scripts/pages-e2e.mjs
+
+  crate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Check the real crates.io package without publishing
+        run: cargo publish --locked --dry-run
