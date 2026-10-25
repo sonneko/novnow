@@ -2095,3 +2095,5 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - public化とCI実行許可に基づき、実Trunk/Astro結合物の3エンジンE2E・cargo publish dry-run・10デスクトップ成果物の作成/検査/展開後CLI smokeを追加した。VSCode Electronを3 OSへ拡張し、macOS bundleの実行名、Windowsのexe名/文字コード、macOS bash互換、ブラウザの非同期処理差を修正した。
 - ローカル全verifyと、ホストの通常CI・5ターゲットwheelと3 Python版・3 OS Electron・実結合build・クレートdry-runの成功を確認した。ブラウザと10デスクトップ行列は追加回帰を繰り返し、最終結果をPR #31のChecks/コメントへ記録する。署名/公証・実機のGUI操作や実サービス公開を代替する検証とは扱わない。
 - 外部設定を読み取り確認し、存在するenvironment/develop/Pagesと、deployment policyのbranch/tag不一致・TestPyPI environment名・ruleset対象/必須チェック/承認・公開environmentの承認者不足を区別して報告した。設定変更・公開・タグ・マージは行っていない。監査計画はplansへ追記していない。
+
+- Firefoxの初回実行でDBが空のまま起動が止まる回帰を検出。永続化許可の応答を作品一覧の前で待つ構造をやめ、要求は並行して行う。応答しないpersist()を注入しても実WASMが作品を初期化するE2Eを3エンジンに追加した。

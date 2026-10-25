@@ -119,6 +119,19 @@ try {
   assert.deepEqual(errors, []);
   console.log(`${engine}: real Trunk first-load offline WASM and IndexedDB preservation PASS`);
 
+  // A browser permission prompt must never gate project initialization.
+  const permissionPending = await browser.newContext();
+  await permissionPending.addInitScript(() => {
+    navigator.storage.persist = () => new Promise(() => {});
+  });
+  await instrument(permissionPending);
+  const pendingApp = await permissionPending.newPage();
+  await pendingApp.goto(`${origin}/novnow/app/`);
+  await appReady(pendingApp);
+  assert((await snapshot(pendingApp))[0].some(project => project.id === 'sample'));
+  await permissionPending.close();
+  console.log(`${engine}: unanswered persistence permission does not block startup PASS`);
+
   // Retire a legacy root-scoped worker using the actual retirement script.
   // Unload app scripts before registering the legacy root worker: the app's
   // compatibility cleanup must not race with this synthetic old installation.

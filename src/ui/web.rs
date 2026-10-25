@@ -666,7 +666,7 @@ impl WebPicker {
         });
     }
 
-    /// 起動（DB を開く → 永続化の要求 → サンプルの投入 → 一覧）。
+    /// 起動（DB を開く → 永続化を並行要求 → サンプルの投入 → 一覧）。
     fn start(&self, locale: Locale) {
         let shared = Rc::clone(&self.shared);
         let ctx = self.ctx.clone();
@@ -679,7 +679,9 @@ impl WebPicker {
                     return;
                 }
             };
-            storage_idb::request_persist().await;
+            // Permission UI may remain pending indefinitely (notably Firefox).
+            // Persistence is best-effort, so it must not block loading projects.
+            spawn_local(storage_idb::request_persist());
             let first_visit = idb
                 .recent()
                 .await
