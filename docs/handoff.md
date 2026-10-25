@@ -24,17 +24,14 @@
 
 ## 2. 現在のブランチ・PR・直近の作業状態
 
-- 作業ブランチ: `arena/cd84f800-novnow`、PR #31。v0.1.0公開準備。公開・タグ作成・マージ・外部設定変更は行っていない。承認済みD-01〜D-06の実装を維持する。
-- 現行方針はv0.1.0からの番号付き配布、v1前の非互換許容・v0→v1移行保証なし、GitFlow、mainは版更新限定。既存本文のimport/migrate機能の廃止とは異なる。統合Releaseは通常版だけ。VSIXはGitHub Releasesで配布し、Marketplace公開は遅くともv1到達までに開始する。Windows/macOSの配布元署名・macOS公証は行わない。Pythonの試験版はPEP 440等価表現で補助wheels→TestPyPIへ公開する。
-- サイトはAstroを `/novnow/`、実Trunkを `/novnow/app/` に結合。末尾スラッシュは両表記を許可する。完全precacheと旧root workerの登録解除はIndexedDBを消さない。
-- 2026-10-25のローカル `REF:scripts/verify.sh` は全項目成功（GUIあり1374件/なし1188件、文書単体52件）。VSCodeの型検査・Electron用コンパイル・Node単体6件も成功した。Marketplace/PATなしのローカルVSIX生成も成功（8 files）。
-- 公開リポジトリでホストCIを実行した。通常CI全ジョブ、5ターゲットwheel作成とPython 3.9/3.11/3.13テスト、3 OSの実VSCode Electronテスト、実クレートのpublish dry-run、実Trunk/Astroの結合buildの成功を確認。macOS VSCodeのbundle実行ファイル名、Windowsのexe/UTF-8、macOS既定bashの空配列を修正した。
-- `REF:.github/workflows/pages-check.yml` / `REF:scripts/pages-e2e.mjs` は結合サイト・言語切替・初回オフラインWASM・旧worker登録解除と作品保持・新scope分離を3エンジンで検査する。Chromium/WebKitのシナリオは成功し、Firefox用の非同期条件の再評価を修正した。最終SHAの結果はPR #31のChecks/対応コメントを確認する。Playwright WebKitは実Apple Safariそのものの動作保証ではない。
-- `REF:.github/workflows/desktop-check.yml` / `REF:scripts/desktop-check.sh` は5ターゲット×GUI有無の10実アーカイブを作り、ライセンス・構造・展開後の実行ファイルの版とサンプル診断を検査する。署名・公証・GUI画面/IME/ファイルダイアログの実機検証とは区別する。公開処理はない。
-- 外部状態は `REF:docs/distribution.md` §10.1。APIでmain/developのRestrict updates・linear history解除、mergeのみ許可、必要承認数0を確認した。必須チェックは現行名に一致し、公開用environmentのtag型/reviewerも確認済み。crates.io/PyPI/TestPyPIの設定は所有者確認済み（実公開成功とは別）。今回はVSCE_PAT不要。外部設定は変更していない。
-- Firefox描画環境追補: 3ba7150の失敗ではconsoleにWebGL未対応、IDB履歴は空だった。保存不具合と断定できない。CIをXvfb上のheaded Firefox + Mesa llvmpipeへ固定し、rendererの事前確認とアプリ起動エラーの即時報告を追加。チェック削除や自動retryは行わず、新規profile5回の検証を維持する。
-- ブラウザ追補: WebKitの独立permission fixtureにStorageManager不在のガードを追加。Firefoxの作品初期化はサンプルの重複名確認後の書き込みをIDBリクエスト成功イベント内へ移し、トランザクション寿命へのawait依存を除去した。Firefoxは新規profileで5回繰り返す。Desktop検査のGUI行にui feature指定漏れも修正し、以前の行列成功を実GUIビルドの保証に使わない。最終結果はPRを確認する。
-- 未実施: 実公開・本番Pagesデプロイ・レジストリ認証の実動確認、対象実機でのGUI/IME/Zip往復。署名/公証は行わず、Marketplace公開は延期。テスト成功を公開完了と表現しない。
+- 作業ブランチ: `arena/35b388c5-novnow`。前のPR #31は通常merge済み。公開対象はmainの `25725ba6c01c9b8294c83ccfc3c58093004a4eaa`、タグ `v0.1.0` と可動 `v0` は同じコミットを指す。
+- Release run 40159636238は全ジョブ成功。デスクトップ10・wheel5・VSIX1・全ソース1とSHA256SUMSを添付し、crates.io/TestPyPI/PyPIの公開も成功。本番Pages deployも成功。Marketplaceは延期（遅くともv1到達までに開始）。Windows/macOSの配布元署名・macOS公証は行わない。
+- 公開後のComposite Action Smoke run 40161112987はLinux成功、macOS/Windows失敗。**全形態が正常という判定ではない**。不変のv0.1.0タグ/成果物は変更しない。リリースノートに失敗を明記した。
+- 公開物再取得の監査run 40161414239: 17成果物全件のSHA256SUMS/構造/版、ソースtarと版タグの内容一致、両Python registryの5wheelのhash一致、両registryからの実install、公開crates.ioからのcargo installとCLI実行、本番Pages/WASM取得は成功。
+- サンドボックスでも実PyPI wheelを隔離venvへinstallし、実API pytest 9件成功・1件skip（150.48秒）。ネットワーク制約でGitHub release-assetsとcrates.ioへ直接接続できない部分は、公開物を取得するread-only CIで検証した。
+- Actions失敗の診断: macOSは標準Bash 3.2+nounsetで空配列展開がエラー。WindowsはWindows式パスのバックスラッシュでsha256sumが出力先頭をエスケープし、hash比較が誤判定する。公開ZIPのhash自体は監査で正常。前者は常に非空のargv、後者はstdin経由のhash計算で修正候補を準備した。
+- `REF:.github/workflows/release-audit.yml` は既存公開物の検証と**未公開の修正候補**の3 OS実行を分ける。`REF:scripts/action/test_install.py` の回帰5件を `REF:scripts/verify.sh` へ追加。修正候補の最終CI結果はこのブランチのChecksを確認する。
+- v0.1.1等の追加公開・版更新・mainへのマージ・タグ変更は未承認。修正候補が成功しても公開済みv0.1.0が直ったとは言わない。利用者向けの「未提供」解除は、部分失敗の方針を所有者と確認してから行う。
 
 ## 3. 継続作業の手順
 

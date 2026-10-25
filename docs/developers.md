@@ -168,6 +168,8 @@ novnow/
 
 ### 4.1 `bash scripts/verify.sh`（コミット前の必須検証）
 
+Actions取得スクリプトのオフライン回帰は `REF:scripts/action/test_install.py` で検査する。macOSでは標準Bash 3.2を明示し、空引数・終了コード・export先・バックスラッシュを含むパスのSHA-256を確認する。
+
 `REF:scripts/verify.sh` は次を一括で実行する（`--quick` で wasm を、`--python` で Python だけに絞れる）。コミット・プッシュ前に必ず実行し、すべて通ることを確認する。
 
 1. `python3 docs/script/duplicate.py`（ドキュメント規則・重複・`REF:` リンク・仕様/設計見出し一致の検査）
