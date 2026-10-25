@@ -94,7 +94,7 @@ class ActionShellTests(unittest.TestCase):
                 entry.size = len(payload)
                 bundle.addfile(entry, io.BytesIO(payload))
         manifest = self.root / "manifest"
-        manifest.write_text(f"{hashlib.sha256(archive.read_bytes()).hexdigest()}  {archive.name}\n")
+        manifest.write_text(f"{hashlib.sha256(archive.read_bytes()).hexdigest()}  {archive.name}\n", newline="\n")
         tools = self.root / "bin"
         tools.mkdir()
         curl = tools / "curl"
@@ -112,7 +112,7 @@ class ActionShellTests(unittest.TestCase):
     def test_backslash_path_cannot_escape_the_digest(self):
         # On Windows the directory already has backslashes; on Unix make one.
         file = self.root / ("payload.zip" if os.name == "nt" else "windows\\payload.zip")
-        file.write_bytes(b"published release checksum regression")
+        file.write_bytes(b"published release checksum regression\r\n\x1a\x00\xff")
         result = subprocess.run(
             [BASH, "-c", 'source "$1" --resolve >/dev/null; sha256 "$2"',
              "bash", str(SCRIPT), str(file)],

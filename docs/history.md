@@ -2121,3 +2121,8 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - 所有者の公開承認に基づきPR #31を通常mergeし、mainの25725ba6へv0.1.0タグを作成した。所有者が各environmentを承認し、Release 40159636238全ジョブ成功、17成果物と照合表・crates.io/TestPyPI/PyPI・v0タグ・Pagesが公開された。Marketplaceは延期、配布元署名/公証は行わない。
 - 公開後Action smokeはLinux成功、macOS/Windows失敗。新ブランチarena/35b388c5-novnowで不変タグから再取得する監査CIを追加し、公開17ファイル全hash/形式/版、ソース内容、両Python registryとcrates.ioの実install、Pages/WASM取得の成功を確認した。PyPI実wheelのローカルAPI検査も9件成功・1件skip。
 - macOSはBash 3.2の空配列+nounset、Windowsはバックスラッシュを含むパスでsha256sumがhash先頭へescape文字を付けることによる誤判定を確認した。公開ZIPの破損ではない。stdin hash計算と非空argvの修正候補・回帰5件を準備するが、不変タグや公開物は上書きしない。追加パッチリリースには別途所有者の承認が必要。
+
+## 2026-10-25: Windowsのアーカイブ展開と回帰実行環境の追加修正
+
+- hash修正後の公開物消費run 40162433524ではLinux/macOS成功、WindowsはGNU tarのドライブ文字解釈で失敗。Windows標準BSD tarの明示と一覧取得失敗時の中止を修正候補へ追加した。
+- Windows回帰実行ではWSL版bashを選ばず、Gitのcmd/mingw64双方からGit Bashを検出する。認証済みキャッシュの実展開回帰を加え計6件とした。ローカル全verifyも成功。develop向けPR #32を作成しReady for reviewにした。公開済み版のタグ・成果物・版番号は変えていない。
