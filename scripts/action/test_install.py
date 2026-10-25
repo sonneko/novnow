@@ -4,12 +4,19 @@ import hashlib
 import os
 from pathlib import Path
 import subprocess
+import shutil
 import sys
 import tempfile
 import unittest
 
 SCRIPT = Path(__file__).with_name("install.sh").resolve()
 BASH = "/bin/bash" if sys.platform == "darwin" else "bash"
+if sys.platform == "win32":
+    # Do not accidentally launch Windows System32/WSL bash instead of Git Bash.
+    git = shutil.which("git")
+    git_bash = Path(git).resolve().parent.parent / "bin/bash.exe" if git else None
+    if git_bash and git_bash.is_file():
+        BASH = str(git_bash)
 
 
 class ActionShellTests(unittest.TestCase):
