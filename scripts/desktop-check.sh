@@ -3,8 +3,9 @@
 set -euo pipefail
 : "${TARGET:?TARGET is required}"
 : "${GUI:?GUI is required}"
-case "$GUI" in gui) features=();; nogui) features=(--no-default-features);; *) exit 2;; esac
-cargo build --locked --release --target "$TARGET" "${features[@]}"
+command=(cargo build --locked --release --target "$TARGET")
+case "$GUI" in gui) ;; nogui) command+=(--no-default-features);; *) exit 2;; esac
+"${command[@]}"
 binary="target/$TARGET/release/novnow"
 if [[ "$TARGET" == *pc-windows-msvc ]]; then binary+=.exe; fi
 artifact=$(python3 scripts/release-matrix.py --artifact --target "$TARGET" --gui "$GUI")
@@ -38,9 +39,9 @@ with tempfile.TemporaryDirectory() as directory:
         with tarfile.open(artifact) as archive:
             archive.extractall(root, filter='data')
         binary = root / ('novnow.app/Contents/MacOS/novnow' if 'apple-darwin' in os.environ['TARGET'] and os.environ['GUI'] == 'gui' else 'novnow')
-    result = subprocess.run([str(binary), '--version'], check=True, capture_output=True, text=True, timeout=60)
+    result = subprocess.run([str(binary), '--version'], check=True, capture_output=True, text=True, encoding="utf-8", timeout=60)
     assert result.stdout.strip() == f'novnow {version}', result
-    result = subprocess.run([str(binary), 'check', 'examples/sample-novel'], check=True, capture_output=True, text=True, timeout=60)
+    result = subprocess.run([str(binary), 'check', 'examples/sample-novel'], check=True, capture_output=True, text=True, encoding="utf-8", timeout=60)
     print(result.stdout)
     print(f'{artifact.name}: unpacked executable --version and sample check PASS')
 PY

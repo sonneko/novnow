@@ -34,14 +34,14 @@ await new Promise(resolve => server.listen(0, '0.0.0.0', resolve));
 const origin = `http://127.0.0.1:${server.address().port}`;
 const browser = await playwright[engine].launch(engine === 'chromium' ? { args: ['--enable-unsafe-swiftshader'] } : {});
 async function snapshot(page) {
-  return page.evaluate(async () => {
+  return JSON.parse(await page.evaluate(async () => {
     const db = await new Promise((resolve, reject) => { const r = indexedDB.open('novnow'); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error); });
     try {
-      return await Promise.all(['projects', 'files', 'app'].map(store => new Promise((resolve, reject) => {
+      return JSON.stringify(await Promise.all(['projects', 'files', 'app'].map(store => new Promise((resolve, reject) => {
         const r = db.transaction(store).objectStore(store).getAll(); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error);
-      })));
+      }))));
     } finally { db.close(); }
-  });
+  }));
 }
 async function instrument(context) {
   await context.addInitScript(() => {
@@ -102,7 +102,7 @@ try {
   await app.goto(`${origin}/novnow/app/`);
   await appReady(app);
   const before = await snapshot(app);
-  assert(before[0].some(project => project.id === 'sample'));
+  assert(before[0].some(project => project.id === 'sample'), JSON.stringify(before[0]));
   // The server disconnects worker fetches too; page-only offline emulation is insufficient.
   offline = true;
   try {
@@ -113,10 +113,11 @@ try {
   console.log(`${engine}: real Trunk first-load offline WASM and IndexedDB preservation PASS`);
 
   // Retire a legacy root-scoped worker using the actual retirement script.
-  await app.evaluate(async () => { for (const reg of await navigator.serviceWorker.getRegistrations()) await reg.unregister(); });
-  await app.close();
-  const legacy = await fresh.newPage();
+  // Unload app scripts before registering the legacy root worker: the app's
+  // compatibility cleanup must not race with this synthetic old installation.
+  const legacy = app;
   await legacy.goto(`${origin}/novnow/legacy.html`);
+  await legacy.evaluate(async () => { for (const reg of await navigator.serviceWorker.getRegistrations()) await reg.unregister(); });
   await legacy.evaluate(async () => {
     await navigator.serviceWorker.register('./legacy-sw.js', { scope: './' });
     await navigator.serviceWorker.ready;

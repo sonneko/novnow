@@ -56,12 +56,14 @@ jobs:
         env:
           TARGET: ${{ matrix.target }}
           GUI: ${{ matrix.gui }}
+          PYTHONUTF8: "1"
+          CARGO_TERM_COLOR: never
         run: |
           set -o pipefail
           status=0
           bash scripts/desktop-check.sh 2>&1 | tee "$RUNNER_TEMP/desktop-check.log" || status=$?
           if [ "$status" != 0 ]; then
-            python3 -c 'import os,pathlib; text=pathlib.Path(os.environ["RUNNER_TEMP"],"desktop-check.log").read_text()[-18000:]; print("::error::"+text.replace("%","%25").replace("\r","%0D").replace("\n","%0A"))'
+            python3 -c 'import os,pathlib; text=pathlib.Path(os.environ["RUNNER_TEMP"],"desktop-check.log").read_text()[-3000:]; print("::error::"+text.replace("%","%25").replace("\r","%0D").replace("\n","%0A"))'
           fi
           exit "$status"
       - uses: actions/upload-artifact@v4

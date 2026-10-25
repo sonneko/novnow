@@ -87,6 +87,6 @@ jobs:
           status=0
           "${command[@]}" 2>&1 | tee "$RUNNER_TEMP/electron.log" || status=$?
           if [ "$status" != 0 ]; then
-            node -e 'const fs=require("fs"); const text=fs.readFileSync(process.env.RUNNER_TEMP+"/electron.log","utf8").slice(-18000); console.log("::error::"+text.replace(/%/g,"%25").replace(/\r/g,"%0D").replace(/\n/g,"%0A"));'
+            node -e 'const fs=require("fs"); const text=fs.readFileSync(process.env.RUNNER_TEMP+"/electron.log","utf8").slice(-3000); console.log("::error::"+text.replace(/%/g,"%25").replace(/\r/g,"%0D").replace(/\n/g,"%0A"));'
           fi
           exit "$status"
