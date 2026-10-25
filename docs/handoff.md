@@ -31,7 +31,8 @@
 - 公開リポジトリでホストCIを実行した。通常CI全ジョブ、5ターゲットwheel作成とPython 3.9/3.11/3.13テスト、3 OSの実VSCode Electronテスト、実クレートのpublish dry-run、実Trunk/Astroの結合buildの成功を確認。macOS VSCodeのbundle実行ファイル名、Windowsのexe/UTF-8、macOS既定bashの空配列を修正した。
 - `REF:.github/workflows/pages-check.yml` / `REF:scripts/pages-e2e.mjs` は結合サイト・言語切替・初回オフラインWASM・旧worker登録解除と作品保持・新scope分離を3エンジンで検査する。Chromium/WebKitのシナリオは成功し、Firefox用の非同期条件の再評価を修正した。最終SHAの結果はPR #31のChecks/対応コメントを確認する。Playwright WebKitは実Apple Safariそのものの動作保証ではない。
 - `REF:.github/workflows/desktop-check.yml` / `REF:scripts/desktop-check.sh` は5ターゲット×GUI有無の10実アーカイブを作り、ライセンス・構造・展開後の実行ファイルの版とサンプル診断を検査する。署名・公証・GUI画面/IME/ファイルダイアログの実機検証とは区別する。公開処理はない。
-- 外部状態・所有者側の修正点は `REF:docs/distribution.md` §10.1 とPR #31コメントに集約する。4公開environmentとdevelop、Pages Actions設定は存在するが、tag policyの型・TestPyPI名・ruleset対象/チェック/レビュー・environment承認者の修正が必要。秘密情報APIと手動Actions dispatchは403だが、push起動は動作する。CIはユーザー承認により抑制せず実行した。
+- 外部状態・所有者側の修正点は `REF:docs/distribution.md` §10.1 とPR #31コメントに集約する。4公開environmentとdevelop、Pages Actions設定は存在するが、tag policyの型・ruleset対象・承認人数1・公開4 environmentのreviewerは修正済み。TestPyPI名は修正済みとの所有者申告。旧必須チェック名とRestrict updatesの確認が残る。秘密情報APIと手動Actions dispatchは403だが、push起動は動作する。CIはユーザー承認により抑制せず実行した。
+- ブラウザ追補: WebKitの独立permission fixtureにStorageManager不在のガードを追加。Firefoxの作品初期化はサンプルの重複名確認後の書き込みをIDBリクエスト成功イベント内へ移し、トランザクション寿命へのawait依存を除去した。Firefoxは新規profileで5回繰り返す。Desktop検査のGUI行にui feature指定漏れも修正し、以前の行列成功を実GUIビルドの保証に使わない。最終結果はPRを確認する。
 - 未実施: 実公開・本番Pagesデプロイ・レジストリ認証の実動確認、署名/公証、対象実機でのGUI/IME/Zip往復。公開名/Marketplace所有権も未確認。テスト成功を公開完了と表現しない。
 
 ## 3. 継続作業の手順

@@ -4,7 +4,7 @@ set -euo pipefail
 : "${TARGET:?TARGET is required}"
 : "${GUI:?GUI is required}"
 command=(cargo build --locked --release --target "$TARGET")
-case "$GUI" in gui) ;; nogui) command+=(--no-default-features);; *) exit 2;; esac
+case "$GUI" in gui) command+=(--features ui);; nogui) command+=(--no-default-features);; *) exit 2;; esac
 "${command[@]}"
 binary="target/$TARGET/release/novnow"
 if [[ "$TARGET" == *pc-windows-msvc ]]; then binary+=.exe; fi

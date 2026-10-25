@@ -81,7 +81,13 @@ jobs:
         run: |
           set -o pipefail
           status=0
-          xvfb-run -a node scripts/pages-e2e.mjs 2>&1 | tee "$RUNNER_TEMP/pages-e2e.log" || status=$?
+          repetitions=1
+          if [ "$BROWSER" = firefox ]; then repetitions=5; fi
+          for iteration in $(seq 1 "$repetitions"); do
+            echo "$BROWSER clean-profile run $iteration/$repetitions"
+            xvfb-run -a node scripts/pages-e2e.mjs 2>&1 | tee "$RUNNER_TEMP/pages-e2e.log" || status=$?
+            if [ "$status" != 0 ]; then break; fi
+          done
           if [ "$status" != 0 ]; then
             node -e 'const fs=require("fs"); const text=fs.readFileSync(process.env.RUNNER_TEMP+"/pages-e2e.log","utf8").slice(-3000); console.log("::error::"+text.replace(/%/g,"%25").replace(/\r/g,"%0D").replace(/\n/g,"%0A"));'
           fi

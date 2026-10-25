@@ -2097,3 +2097,10 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - 外部設定を読み取り確認し、存在するenvironment/develop/Pagesと、deployment policyのbranch/tag不一致・TestPyPI environment名・ruleset対象/必須チェック/承認・公開environmentの承認者不足を区別して報告した。設定変更・公開・タグ・マージは行っていない。監査計画はplansへ追記していない。
 
 - Firefoxの初回実行でDBが空のまま起動が止まる回帰を検出。永続化許可の応答を作品一覧の前で待つ構造をやめ、要求は並行して行う。応答しないpersist()を注入しても実WASMが作品を初期化するE2Eを3エンジンに追加した。
+
+## 2026-10-25: ブラウザ回帰の再発と公開設定の再確認
+
+- Firefoxの初期化停止が再発したため、永続化許可だけが原因という断定を撤回した。IndexedDB操作の診断を追加し、サンプル作成は読み取り成功イベント内で全書き込みを登録してトランザクション完了を待つ形へ変更した。重複名確認と挿入の原子性を保ち、非同期継続時のauto-commitに依存しない。新規profileのFirefox反復をCIへ追加した。
+- WebKitは本体のoffline/旧worker解除/作品保持の成功と追加fixtureの失敗を区別し、about:blank等でStorageManagerが無い場合のガードを追加した。3エンジンの一度の成功だけで再発防止完了とは扱わない。
+- Desktop検査でGUIラベルにui feature指定が不足していたため訂正。以前のラベル付き行列の成功は実GUIビルドの成功を意味しない。
+- 所有者修正後のEnvironment版タグ型/公開レビューとdevelop適用/レビュー人数1/必須チェックをAPIで再確認。旧チェック名・Restrict updatesの残存をPRへ報告し、設定は変更していない。

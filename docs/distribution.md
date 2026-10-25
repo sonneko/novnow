@@ -247,12 +247,14 @@ novnow-<版>-<対象環境>-<gui|nogui>.<拡張子>
 
 GitHub APIでpublic化、4公開environmentとgithub-pages、developの存在、Pagesのworkflow設定を確認した。push起動のCIは実行できた。Secrets一覧とActions手動dispatchは403。CARGO_REGISTRY_TOKEN登録と各Trusted Publisherは所有者からの申告であり、値やレジストリ認証は検証していない。§8の設定がすべて完了したと推測してタグをpushしない。
 
-所有者による修正・確認が必要な点:
+所有者修正後のAPI再確認では、4公開environmentはmain=branch・版パターン=tag、required_reviewers=sonneko。developの適用対象とmain/developの必要レビュー数1・必須チェックも設定済み。TestPyPI側のtestpypiへの名称修正は所有者申告であり、OIDC公開成功は未検証。
 
-- pypi/testpypiの版パターンがtype=branchになっている。crates-io/vscodeと同じtype=tagに直す。mainのbranch許可と版タグ許可を混同しない。
-- TestPyPIの申告名pypi-testを実際のtestpypiに揃える。補助wheels用には別Trusted Publisherも必要。
-- protect-developのref_name.includeが空。両rulesetに必須status checksがなく、必要レビュー数0・会話解決必須も無効。type=updateとbypass_actors=[]による通常のPRマージ阻害の可能性も確認する。
-- 4公開environmentにrequired_reviewersがなくbranch_policyだけ。§8の公開承認ゲートを設けるには承認者を設定する。VSCE_PAT、Marketplace所有権、署名/公証の有無は別途確認する。
+残っている確認点（再確認時点）:
+
+- 両rulesetのtype=updateとbypass_actors=[]が残り、通常PRの更新も阻害する。Restrict updatesを外し、PR/レビュー/必須チェック/force-push禁止を使う。
+- 必須チェックに旧macos-13等の廃止された行列名、単独のbrowsersが含まれる。現行Checksに現れない名前を削除する。公開ジョブpublish-testpypiは必須PRチェックにしない。版を含む自動行列名は版更新で変わる点にも注意する。
+- 会話解決必須はfalse、linear historyは有効。後者を維持するならsquash/rebaseでマージする。github-pagesはmainのbranch policyだけで公開用4環境のレビューゲートとは別。これは自動デプロイを継続する設定である。
+- VSCE_PAT、Marketplace所有権、署名/公証の有無は別途確認する。秘密情報の値をログやチャットで確認しない。
 
 公開しない事前検査には `REF:.github/workflows/pages-check.yml` と `REF:.github/workflows/desktop-check.yml` を追加した。前者は実Trunk/Astro結合物・3ブラウザエンジン・クレートdry-run、後者は10デスクトップアーカイブと展開後のCLI起動を検査する。GUIの画面/IME/Zip操作、実公開と実デプロイは別の受け入れ確認として残す。個々の最終結果はPR #31のChecksとコメントを参照する。
 
