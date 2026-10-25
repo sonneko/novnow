@@ -60,9 +60,9 @@ async function waitUntil(predicate, description) {
     await new Promise(resolve => setTimeout(resolve, 100));
   }
 }
-async function appReady(page) {
+async function appReady(page, { offlineReady = true } = {}) {
   await page.waitForFunction(() => window.wasmInitialized === true && document.querySelector('canvas'), null, { timeout: 60000 });
-  await page.waitForFunction(() => document.getElementById('offline-status')?.dataset.ready === 'true', null, { timeout: 60000 });
+  if (offlineReady) await page.waitForFunction(() => document.getElementById('offline-status')?.dataset.ready === 'true', null, { timeout: 60000 });
   await waitUntil(() => page.evaluate(async () => {
     if (!(await indexedDB.databases()).some(db => db.name === 'novnow')) return false;
     return new Promise(resolve => {
@@ -127,7 +127,9 @@ try {
   await instrument(permissionPending);
   const pendingApp = await permissionPending.newPage();
   await pendingApp.goto(`${origin}/novnow/app/`);
-  await appReady(pendingApp);
+  // This isolates application initialization, not a second offline installation.
+  // The real first-install/offline contract is checked above in every engine.
+  await appReady(pendingApp, { offlineReady: false });
   assert((await snapshot(pendingApp))[0].some(project => project.id === 'sample'));
   await permissionPending.close();
   console.log(`${engine}: unanswered persistence permission does not block startup PASS`);
