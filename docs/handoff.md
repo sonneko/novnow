@@ -31,7 +31,7 @@
 - サンドボックスでも実PyPI wheelを隔離venvへinstallし、実API pytest 9件成功・1件skip（150.48秒）。ネットワーク制約でGitHub release-assetsとcrates.ioへ直接接続できない部分は、公開物を取得するread-only CIで検証した。
 - Actions失敗の診断: macOSは標準Bash 3.2+nounsetで空配列展開がエラー。WindowsはWindows式パスのバックスラッシュでsha256sumが出力先頭をエスケープし、hash比較が誤判定する。公開ZIPのhash自体は監査で正常。前者は常に非空のargv、後者はstdin経由のhash計算で修正候補を準備した。hash修正後、WindowsのGNU tarがドライブ文字をリモートホスト扱いする問題も確認し、ZIP対応のWindows標準BSD tarを明示する候補へ修正した。
 - `REF:.github/workflows/release-audit.yml` は既存公開物の検証と**未公開の修正候補**の3 OS実行を分ける。`REF:scripts/action/test_install.py` の認証済みキャッシュの展開を含む回帰6件を `REF:scripts/verify.sh` へ追加。修正候補はdevelop向けPR #32（Ready for review）。最終CI結果はこのブランチのChecksを確認する。
-- v0.1.1等の追加公開・版更新・mainへのマージ・タグ変更は未承認。修正候補が成功しても公開済みv0.1.0が直ったとは言わない。利用者向けの「未提供」解除は、部分失敗の方針を所有者と確認してから行う。
+- 所有者決定: この不具合の影響はGitHub Actions版のmacOS/Windows実行に限定されるため、単独のパッチリリースは行わず、修正は次回リリースへ含める。PR #32はdevelop向けの修正として扱い、次回の版番号はここでは決めない。公開済みv0.1.0/v0のタグ・成果物は維持し、公開済み版が修正されたとは表記しない。版更新・mainへのマージ・追加公開は今回行わない。
 
 ## 3. 継続作業の手順
 

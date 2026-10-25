@@ -2126,3 +2126,8 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 
 - hash修正後の公開物消費run 40162433524ではLinux/macOS成功、WindowsはGNU tarのドライブ文字解釈で失敗。Windows標準BSD tarの明示と一覧取得失敗時の中止を修正候補へ追加した。
 - Windows回帰実行ではWSL版bashを選ばず、Gitのcmd/mingw64双方からGit Bashを検出する。認証済みキャッシュの実展開回帰を加え計6件とした。ローカル全verifyも成功。develop向けPR #32を作成しReady for reviewにした。公開済み版のタグ・成果物・版番号は変えていない。
+
+## 2026-10-25: Actions互換性修正は次回リリースへ同梱
+
+- 所有者は、再現環境がGitHub Actions版のmacOS/Windows実行で影響範囲が狭いことから、この不具合だけのパッチリリースを行わず、修正を次回リリースへ含めると決定した。v0.1.1の単独公開提案は採用しない。次回の版番号はこの決定では指定しない。
+- 修正はdevelop向けPR #32で管理する。修正候補の3 OS監査run 40162925926と通常6系統CIは成功済みだが、公開済みv0.1.0/v0は未修正のまま維持する。タグ・成果物の差し替えや追加公開は行わない。
