@@ -46,6 +46,28 @@ async function snapshot(page) {
 }
 async function instrument(context) {
   await context.addInitScript(() => {
+    window.idbTrace = [];
+    const trace = text => { if (window.idbTrace.length < 80) window.idbTrace.push(text); };
+    for (const name of ['add', 'put', 'getAll', 'get']) {
+      const original = IDBObjectStore.prototype[name];
+      IDBObjectStore.prototype[name] = function (...args) {
+        const label = `${this.name}.${name}`;
+        try {
+          const request = original.apply(this, args);
+          if (!(name === 'get' && args[0] === 'sample')) {
+            trace(label);
+            request.addEventListener('success', () => trace(`${label}: success`));
+            request.addEventListener('error', () => trace(`${label}: ${request.error?.name}`));
+          }
+          return request;
+        } catch (error) { trace(`${label}: ${error}`); throw error; }
+      };
+    }
+    const objectStore = IDBTransaction.prototype.objectStore;
+    IDBTransaction.prototype.objectStore = function (...args) {
+      try { return objectStore.apply(this, args); }
+      catch (error) { trace(`objectStore(${args[0]}): ${error}`); throw error; }
+    };
     for (const name of ['instantiate', 'instantiateStreaming']) {
       const original = WebAssembly[name];
       if (original) WebAssembly[name] = async function (...args) {
@@ -64,7 +86,7 @@ async function waitUntil(predicate, description) {
 async function appReady(page) {
   await page.waitForFunction(() => window.wasmInitialized === true && document.querySelector('canvas'), null, { timeout: 60000 });
   await page.waitForFunction(() => document.getElementById('offline-status')?.dataset.ready === 'true', null, { timeout: 60000 });
-  await waitUntil(() => page.evaluate(async () => {
+  try { await waitUntil(() => page.evaluate(async () => {
     if (!(await indexedDB.databases()).some(db => db.name === 'novnow')) return false;
     return new Promise(resolve => {
       const request = indexedDB.open('novnow');
@@ -78,6 +100,10 @@ async function appReady(page) {
       };
     });
   }), "sample project to commit");
+  } catch (error) {
+    const trace = await page.evaluate(() => window.idbTrace);
+    throw new Error(`${error.message}; IndexedDB trace: ${JSON.stringify(trace)}`);
+  }
 }
 try {
   const context = await browser.newContext();
@@ -104,6 +130,7 @@ try {
   const app = await fresh.newPage();
   const errors = [];
   app.on('pageerror', error => errors.push(error.message));
+  app.on('console', message => { if (message.type() === 'error') console.error(`${engine}: ${message.text()}`); });
   if (engine === 'chromium') {
     const cdp = await fresh.newCDPSession(app); await cdp.send('Network.enable'); await cdp.send('Network.setCacheDisabled', { cacheDisabled: true });
   }
@@ -150,14 +177,17 @@ try {
   console.log(`${engine}: root worker retirement, project preservation, app scope and website isolation PASS`);
   await fresh.close();
 
-  // Run the independent permission fixture in its own browser process. WebKit
-  // cannot reliably initialize a second instrumented WASM app in parallel.
+  // Keep this independent fault-injection fixture isolated from migration state.
   await browser.close();
   const permissionBrowser = await launchBrowser();
   try {
     const permissionPending = await permissionBrowser.newContext();
     await permissionPending.addInitScript(() => {
-      navigator.storage.persist = () => new Promise(() => {});
+      // Init scripts also run on about:blank, where StorageManager may be absent.
+      if (navigator.storage && typeof navigator.storage.persist === 'function') {
+        navigator.storage.persist = () => new Promise(() => {});
+        window.persistencePermissionMocked = true;
+      }
     });
     await instrument(permissionPending);
     const pendingApp = await permissionPending.newPage();
@@ -165,7 +195,8 @@ try {
     await pendingApp.goto(`${origin}/novnow/app/`);
     await appReady(pendingApp);
     assert((await snapshot(pendingApp))[0].some(project => project.id === 'sample'));
-    console.log(`${engine}: unanswered persistence permission does not block startup PASS`);
+    const mocked = await pendingApp.evaluate(() => window.persistencePermissionMocked === true);
+    console.log(`${engine}: ${mocked ? 'unanswered persistence permission does not block startup PASS' : 'persistence API unavailable; normal startup PASS (pending-permission injection not applicable)'}`);
   } finally { await permissionBrowser.close(); }
 } finally {
   offline = false;

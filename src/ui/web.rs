@@ -689,6 +689,7 @@ impl WebPicker {
             let mut notice = None;
             // §13.3.5: 空なら `sample`（付録 C）を 1 つだけ作る（自動では開かない）
             if let Err(error) = idb.seed_sample(&sample_files()).await {
+                web_sys::console::error_1(&wasm_bindgen::JsValue::from_str(&message(&error)));
                 notice = Some(i18n::format(
                     locale,
                     "project.pick.failed",
