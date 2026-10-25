@@ -56,7 +56,20 @@ async function instrument(context) {
 async function appReady(page) {
   await page.waitForFunction(() => window.wasmInitialized === true && document.querySelector('canvas'), null, { timeout: 60000 });
   await page.waitForFunction(() => document.getElementById('offline-status')?.dataset.ready === 'true', null, { timeout: 60000 });
-  await page.waitForFunction(async () => (await indexedDB.databases()).some(db => db.name === 'novnow'));
+  await page.waitForFunction(async () => {
+    if (!(await indexedDB.databases()).some(db => db.name === 'novnow')) return false;
+    return new Promise(resolve => {
+      const request = indexedDB.open('novnow');
+      request.onerror = () => resolve(false);
+      request.onsuccess = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains('projects')) { db.close(); resolve(false); return; }
+        const sample = db.transaction('projects').objectStore('projects').get('sample');
+        sample.onsuccess = () => { db.close(); resolve(!!sample.result); };
+        sample.onerror = () => { db.close(); resolve(false); };
+      };
+    });
+  });
 }
 try {
   const context = await browser.newContext();
@@ -110,8 +123,13 @@ try {
   });
   await legacy.waitForFunction(() => navigator.serviceWorker.controller !== null);
   assert.deepEqual(await snapshot(legacy), before);
+  assert((await legacy.evaluate(async () => (await navigator.serviceWorker.getRegistrations()).map(r => new URL(r.scope).pathname))).includes('/novnow/'));
   retire = true;
-  await legacy.evaluate(async () => { const reg = await navigator.serviceWorker.getRegistration(); await reg.update(); });
+  await legacy.evaluate(async () => {
+    const reg = (await navigator.serviceWorker.getRegistrations()).find(r => new URL(r.scope).pathname === '/novnow/');
+    // WebKit may already have performed the update and unregistered the worker.
+    if (reg) await reg.update();
+  });
   await legacy.waitForFunction(async () => (await navigator.serviceWorker.getRegistrations()).length === 0);
   assert.deepEqual(await snapshot(legacy), before);
   await legacy.goto(`${origin}/novnow/app/`); await appReady(legacy);

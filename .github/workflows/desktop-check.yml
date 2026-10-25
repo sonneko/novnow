@@ -1,0 +1,71 @@
+name: Desktop artifacts
+
+# Read-only release rehearsal: build and inspect archives, never publish or sign.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prepare:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    outputs:
+      desktop: ${{ steps.matrix.outputs.desktop }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: matrix
+        run: echo "desktop=$(python3 scripts/release-matrix.py --desktop)" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.desktop) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: desktop-check-${{ matrix.target }}-${{ matrix.gui }}
+          cache-all-crates: true
+      - name: Install Linux GUI build dependencies
+        if: matrix.gui == 'gui' && contains(matrix.target, 'linux')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev libgtk-3-dev
+      - name: Enable Intel executable smoke test on Apple Silicon
+        if: matrix.target == 'x86_64-apple-darwin' && runner.arch == 'ARM64'
+        run: sudo /usr/sbin/softwareupdate --install-rosetta --agree-to-license
+      - name: Build, run CLI smoke checks, and verify the real archive
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          GUI: ${{ matrix.gui }}
+        run: |
+          set -o pipefail
+          status=0
+          bash scripts/desktop-check.sh 2>&1 | tee "$RUNNER_TEMP/desktop-check.log" || status=$?
+          if [ "$status" != 0 ]; then
+            python3 -c 'import os,pathlib; text=pathlib.Path(os.environ["RUNNER_TEMP"],"desktop-check.log").read_text()[-18000:]; print("::error::"+text.replace("%","%25").replace("\r","%0D").replace("\n","%0A"))'
+          fi
+          exit "$status"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: checked-desktop-${{ matrix.target }}-${{ matrix.gui }}
+          path: release-check/*
+          retention-days: 7
