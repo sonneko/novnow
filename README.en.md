@@ -20,7 +20,7 @@ Development follows GitFlow. Merges into `main` are reserved for version updates
 | Editor integration (LSP) | Same as above | Writing in VS Code or another editor |
 | AI integration (MCP) | Same as above | Letting AI read and propose changes |
 | Python | `pip install novnow` from [PyPI](https://pypi.org/project/novnow/) (unavailable until the first release) | Automating your own workflow |
-| VS Code extension | [Marketplace](https://marketplace.visualstudio.com/items?itemName=sonneko.novnow) (unavailable until the first release) | Writing in VS Code every day |
+| VS Code extension | [VSIX on GitHub Releases](https://github.com/sonneko/novnow/releases/latest) (unavailable until the first release) | Writing in VS Code every day |
 | GitHub Actions | `uses: sonneko/novnow@v0` (unavailable until `v0` is published) | Checking or exporting in CI |
 
 The layout, the keys, and what gets saved are the same in the browser and on the desktop.
@@ -119,7 +119,7 @@ In the future, following continued research and development, we plan to implemen
 
 ## Install and Run
 
-The distribution channels are the browser, GitHub Releases, PyPI, the VS Code Marketplace, and GitHub Actions tags. There are 10 desktop builds (with or without a window, across 5 OS/CPU targets) and 5 Python wheels. Everything except the browser build is unavailable until the first release. See [how to install](./docs/users/install.md) for users and [distribution.md](./docs/distribution.md) for the release procedure and rules.
+The distribution channels are the browser, GitHub Releases, PyPI, VSIX files on GitHub Releases, and GitHub Actions tags. There are 10 desktop builds (with or without a window, across 5 OS/CPU targets) and 5 Python wheels. Everything except the browser build is unavailable until the first release. See [how to install](./docs/users/install.md) for users and [distribution.md](./docs/distribution.md) for the release procedure and rules.
 
 Until then, novnow can be built from source. A stable Rust toolchain is required.
 

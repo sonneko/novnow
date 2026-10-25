@@ -25,15 +25,15 @@
 ## 2. 現在のブランチ・PR・直近の作業状態
 
 - 作業ブランチ: `arena/cd84f800-novnow`、PR #31。v0.1.0公開準備。公開・タグ作成・マージ・外部設定変更は行っていない。承認済みD-01〜D-06の実装を維持する。
-- 現行方針はv0.1.0からの番号付き配布、v1前の非互換許容・v0→v1移行保証なし、GitFlow、mainは版更新限定。既存本文のimport/migrate機能の廃止とは異なる。Marketplaceを含む統合Releaseは通常版だけ。Pythonの試験版はPEP 440等価表現で補助wheels→TestPyPIへ公開する。
+- 現行方針はv0.1.0からの番号付き配布、v1前の非互換許容・v0→v1移行保証なし、GitFlow、mainは版更新限定。既存本文のimport/migrate機能の廃止とは異なる。統合Releaseは通常版だけ。VSIXはGitHub Releasesで配布し、Marketplace公開は遅くともv1到達までに開始する。Windows/macOSの配布元署名・macOS公証は行わない。Pythonの試験版はPEP 440等価表現で補助wheels→TestPyPIへ公開する。
 - サイトはAstroを `/novnow/`、実Trunkを `/novnow/app/` に結合。末尾スラッシュは両表記を許可する。完全precacheと旧root workerの登録解除はIndexedDBを消さない。
-- 2026-10-25のローカル `REF:scripts/verify.sh` は全項目成功（GUIあり1373件/なし1187件、文書単体52件）。VSCodeの型検査・Electron用コンパイル・Node単体6件も成功した。
+- 2026-10-25のローカル `REF:scripts/verify.sh` は全項目成功（GUIあり1374件/なし1188件、文書単体52件）。VSCodeの型検査・Electron用コンパイル・Node単体6件も成功した。Marketplace/PATなしのローカルVSIX生成も成功（8 files）。
 - 公開リポジトリでホストCIを実行した。通常CI全ジョブ、5ターゲットwheel作成とPython 3.9/3.11/3.13テスト、3 OSの実VSCode Electronテスト、実クレートのpublish dry-run、実Trunk/Astroの結合buildの成功を確認。macOS VSCodeのbundle実行ファイル名、Windowsのexe/UTF-8、macOS既定bashの空配列を修正した。
 - `REF:.github/workflows/pages-check.yml` / `REF:scripts/pages-e2e.mjs` は結合サイト・言語切替・初回オフラインWASM・旧worker登録解除と作品保持・新scope分離を3エンジンで検査する。Chromium/WebKitのシナリオは成功し、Firefox用の非同期条件の再評価を修正した。最終SHAの結果はPR #31のChecks/対応コメントを確認する。Playwright WebKitは実Apple Safariそのものの動作保証ではない。
 - `REF:.github/workflows/desktop-check.yml` / `REF:scripts/desktop-check.sh` は5ターゲット×GUI有無の10実アーカイブを作り、ライセンス・構造・展開後の実行ファイルの版とサンプル診断を検査する。署名・公証・GUI画面/IME/ファイルダイアログの実機検証とは区別する。公開処理はない。
-- 外部状態・所有者側の修正点は `REF:docs/distribution.md` §10.1 とPR #31コメントに集約する。4公開environmentとdevelop、Pages Actions設定は存在するが、tag policyの型・ruleset対象・承認人数1・公開4 environmentのreviewerは修正済み。TestPyPI名は修正済みとの所有者申告。旧必須チェック名とRestrict updatesの確認が残る。秘密情報APIと手動Actions dispatchは403だが、push起動は動作する。CIはユーザー承認により抑制せず実行した。
+- 外部状態は `REF:docs/distribution.md` §10.1。APIでmain/developのRestrict updates・linear history解除、mergeのみ許可、必要承認数0を確認した。必須チェックは現行名に一致し、公開用environmentのtag型/reviewerも確認済み。crates.io/PyPI/TestPyPIの設定は所有者確認済み（実公開成功とは別）。今回はVSCE_PAT不要。外部設定は変更していない。
 - ブラウザ追補: WebKitの独立permission fixtureにStorageManager不在のガードを追加。Firefoxの作品初期化はサンプルの重複名確認後の書き込みをIDBリクエスト成功イベント内へ移し、トランザクション寿命へのawait依存を除去した。Firefoxは新規profileで5回繰り返す。Desktop検査のGUI行にui feature指定漏れも修正し、以前の行列成功を実GUIビルドの保証に使わない。最終結果はPRを確認する。
-- 未実施: 実公開・本番Pagesデプロイ・レジストリ認証の実動確認、署名/公証、対象実機でのGUI/IME/Zip往復。公開名/Marketplace所有権も未確認。テスト成功を公開完了と表現しない。
+- 未実施: 実公開・本番Pagesデプロイ・レジストリ認証の実動確認、対象実機でのGUI/IME/Zip往復。署名/公証は行わず、Marketplace公開は延期。テスト成功を公開完了と表現しない。
 
 ## 3. 継続作業の手順
 

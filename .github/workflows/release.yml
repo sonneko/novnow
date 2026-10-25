@@ -19,10 +19,6 @@ on:
         description: Publish the five wheels to PyPI (requires pypi approval)
         type: boolean
         default: false
-      publish_vscode:
-        description: Publish the extension to the marketplace (requires vscode approval)
-        type: boolean
-        default: false
 
 permissions:
   contents: write
@@ -56,8 +52,8 @@ jobs:
           set -euo pipefail
           python3 scripts/release-matrix.py --check
           version="$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["package"]["version"])')"
-          # Marketplace does not accept SemVer prerelease identifiers as its
-          # extension version. Reject before publishing any immutable artifact;
+          # The current VSIX version scheme supports stable versions only.
+          # Reject before publishing any immutable artifact;
           # Python prerelease rehearsals use wheels.yml + TestPyPI instead.
           if [[ "$version" == *-* || "$version" == *+* ]]; then
             echo "::error::Integrated Release supports stable versions only; use wheels.yml for TestPyPI prerelease rehearsals"
@@ -127,26 +123,6 @@ jobs:
           else
             cargo build --locked --release --target "$TARGET"
           fi
-      - name: Sign Windows executable when a certificate is configured
-        if: contains(matrix.target, 'windows')
-        shell: pwsh
-        env:
-          TARGET: ${{ matrix.target }}
-          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-        run: |
-          if ([string]::IsNullOrEmpty($env:WINDOWS_CERTIFICATE_BASE64)) {
-            Write-Host "Windows signing not configured; leaving this executable unsigned."
-            exit 0
-          }
-          $certificate = Join-Path $env:RUNNER_TEMP "novnow-signing.pfx"
-          [IO.File]::WriteAllBytes($certificate, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64))
-          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe |
-            Where-Object { $_.FullName -match '\\x64\\' } | Select-Object -First 1 -ExpandProperty FullName
-          if (-not $signtool) { throw "signtool.exe was not found" }
-          & $signtool sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f $certificate /p $env:WINDOWS_CERTIFICATE_PASSWORD "target/$env:TARGET/release/novnow.exe"
-          if ($LASTEXITCODE -ne 0) { throw "signtool failed" }
-          Remove-Item $certificate -Force
       - name: Prepare macOS app bundle
         if: contains(matrix.target, 'apple') && matrix.gui == 'gui'
         shell: bash
@@ -155,50 +131,6 @@ jobs:
           python3 scripts/release-matrix.py --bundle-macos \
             --binary "target/${{ matrix.target }}/release/novnow" \
             --output "$RUNNER_TEMP/novnow.app"
-      - name: Sign and notarize macOS output when credentials are configured
-        if: contains(matrix.target, 'apple')
-        shell: bash
-        env:
-          TARGET: ${{ matrix.target }}
-          GUI: ${{ matrix.gui }}
-          MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
-          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
-          MACOS_CERTIFICATE_NAME: ${{ secrets.MACOS_CERTIFICATE_NAME }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          set -euo pipefail
-          if [ -z "$MACOS_CERTIFICATE_BASE64" ]; then
-            echo "macOS signing/notarization not configured; leaving this output unsigned."
-            exit 0
-          fi
-          certificate="$RUNNER_TEMP/novnow-signing.p12"
-          keychain="$RUNNER_TEMP/novnow-signing.keychain-db"
-          python3 -c 'import base64,os; open(os.environ["RUNNER_TEMP"]+"/novnow-signing.p12","wb").write(base64.b64decode(os.environ["MACOS_CERTIFICATE_BASE64"]))'
-          security create-keychain -p "$MACOS_CERTIFICATE_PASSWORD" "$keychain"
-          security set-keychain-settings "$keychain"
-          security unlock-keychain -p "$MACOS_CERTIFICATE_PASSWORD" "$keychain"
-          security import "$certificate" -k "$keychain" -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple: -s -k "$MACOS_CERTIFICATE_PASSWORD" "$keychain"
-          if [ "$GUI" = gui ]; then
-            codesign --deep --force --options runtime --keychain "$keychain" --sign "$MACOS_CERTIFICATE_NAME" "$RUNNER_TEMP/novnow.app"
-          else
-            codesign --force --options runtime --keychain "$keychain" --sign "$MACOS_CERTIFICATE_NAME" "target/$TARGET/release/novnow"
-          fi
-          rm -f "$certificate"
-          if [ -n "$APPLE_ID" ] && [ -n "$APPLE_PASSWORD" ] && [ -n "$APPLE_TEAM_ID" ]; then
-            if [ "$GUI" = gui ]; then
-              (cd "$RUNNER_TEMP" && ditto -c -k --keepParent novnow.app novnow-notary.zip)
-              xcrun notarytool submit "$RUNNER_TEMP/novnow-notary.zip" --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait
-              xcrun stapler staple "$RUNNER_TEMP/novnow.app"
-            else
-              (cd "target/$TARGET/release" && zip -q "$RUNNER_TEMP/novnow-notary.zip" novnow)
-              xcrun notarytool submit "$RUNNER_TEMP/novnow-notary.zip" --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait
-            fi
-          else
-            echo "Notarization credentials are absent; the signed output is not notarized."
-          fi
       - name: Package and verify archive
         shell: bash
         run: |
@@ -436,31 +368,9 @@ jobs:
           path: vscode/novnow-${{ needs.prepare.outputs.version }}.vsix
           if-no-files-found: error
 
-  publish-vscode:
-    needs: vscode-package
-    if: github.event_name == 'push' || inputs.publish_vscode
-    runs-on: ubuntu-latest
-    environment: vscode
-    defaults:
-      run:
-        working-directory: vscode
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: vscode/package-lock.json
-      - run: npm ci
-      - run: npm run build
-      - name: Publish sonneko.novnow to the marketplace
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
-        run: npx vsce publish --no-dependencies
-
   finalize:
-    needs: [prepare, vscode-package, publish-vscode, publish-crates]
-    if: always() && needs.prepare.result == 'success' && needs.vscode-package.result == 'success' && needs.publish-vscode.result != 'failure' && needs.publish-vscode.result != 'cancelled' && needs.publish-crates.result != 'failure' && needs.publish-crates.result != 'cancelled'
+    needs: [prepare, vscode-package, publish-crates]
+    if: always() && needs.prepare.result == 'success' && needs.vscode-package.result == 'success' && needs.publish-crates.result != 'failure' && needs.publish-crates.result != 'cancelled'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -489,16 +399,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ needs.prepare.outputs.tag }}
-          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
-          MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
         run: |
           set -euo pipefail
-          note="Windows and macOS signing credentials were configured; see the platform job logs for signing/notarization status."
-          if [ -z "$WINDOWS_CERTIFICATE_BASE64" ] && [ -z "$MACOS_CERTIFICATE_BASE64" ]; then
-            note="Windows and macOS signing keys were not configured; those executables are unsigned."
-          elif [ -z "$WINDOWS_CERTIFICATE_BASE64" ] || [ -z "$MACOS_CERTIFICATE_BASE64" ]; then
-            note="One or more platforms did not have signing keys configured; see the platform job logs for unsigned artifacts."
-          fi
+          note="Windows and macOS executables are distributed without publisher signing; macOS notarization is not performed."
           python3 scripts/release-matrix.py --checksums release --signature-note "$note"
           bash scripts/release-check.sh --dir release
           gh release upload "$TAG" release/*.vsix release/*-source.tar.gz

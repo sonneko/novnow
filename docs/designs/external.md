@@ -14,7 +14,7 @@
 - **成果物の生成**: `scripts/release-matrix.py` が 10 行のデスクトップ行列（対象環境 × gui/nogui）と 5 行のホイール行列を JSON で出す。`REF:.github/workflows/release.yml` はこの JSON を `strategy.matrix` に渡す。
 - **照合値**: 初期添付（デスクトップ・ホイール）と最終添付（VSIX・全ソース）の各段階で `REF:scripts/release-matrix.py` が SHA-256 を生成・検証する。初期添付成功後にレジストリ公開を進め、最終添付時に全 17 成果物の `SHA256SUMS` を確定する。
 - **実行時の非通信**: 更新確認のコードを置かない。`tests/no_llm_sdk.rs` と同じ発想で、`reqwest` / `ureq` などの HTTP クライアントを本体の依存へ足さない（`REF:tests/layering.rs` の許可リストに追加しない）。
-- **署名**: Windows は `signtool`、macOS は `codesign` + `notarytool` をリリースジョブの任意ステップにする。秘密鍵が無い環境（フォーク・サンドボックス）では署名を飛ばし、`SHA256SUMS` にその旨を書く。
+- **署名**: Windows・macOS の配布元署名とmacOS公証は行わない。署名・公証ジョブと認証情報への参照を置かず、`SHA256SUMS` に未署名・公証なしを明記する。
 - **ブラウザ版**: `REF:.github/workflows/deploy.yml` が Astro の出力に Trunk の出力を `app/` として追加し、単一の Pages artifact を配信する。版は `REF:index.html` の `novnow-version` メタ情報と画面に表示し、`REF:scripts/release-matrix.py` の `--bump` / `--check` で揃える。
 
 ### 20.2 デスクトップ版
@@ -56,7 +56,7 @@
 - **言語 ID**: `novnow` を定義し、`contents/**/*.txt` と `plots/**/*.txt` を対象にする。`contributes.languages` に拡張子ではなく `filenames` / `filenamePatterns` で書く（`.txt` 全体を奪わない）。
 - **失敗時の見え方**: 取得に失敗したら `window.showErrorMessage` に「手動で入れる場所」の URL を添える。同じ版・対象環境では失敗状態を保存し、自動再試行を止め、`novnow.autoDownload` を無効にしたのと同じ状態にする。
 - **テスト**: `@vscode/test-electron` で (1) `executablePath` を与えたときにサーバが起動する、(2) 取得関数が照合値の不一致で例外になる、(3) コマンドが CLI を呼ぶ、の 3 件。CI では `xvfb-run` を使う。
-- **公開**: `vsce package` で `.vsix` を作り、リリースへ添付する。市場への公開は `vsce publish` を `workflow_dispatch` で行う（タグ実行でも environment 承認後に公開する）。
+- **公開**: `vsce package` で `.vsix` を作り、リリースへ添付する。Marketplace公開は遅くとも製品v1到達までに開始する保留事項とし、現在のworkflowには公開ジョブ・入力・PAT依存を置かない。
 
 ### 20.5 GitHub Actions 版
 
@@ -77,7 +77,7 @@
 状態: 実装完了（REF:src/main.rs, REF:scripts/release-check.sh, REF:scripts/release-tags.sh, REF:scripts/release-matrix.py, REF:.github/workflows/release.yml）
 
 - **追加の公開物**: `REF:Cargo.toml` のクレートを crates.io に公開し、追跡対象全体（文書を含む）を `git archive` でソースアーカイブ化する。最終照合は `REF:scripts/release-matrix.py` がソースを含めて行う。
-- **公開の順序**: `REF:.github/workflows/release.yml` の `needs` で、デスクトップ・ホイール試験・クレート dry-run → Releases 添付 → TestPyPI → PyPI → VSIX 作成 → Marketplace → 最終照合 → 可動タグの順を制御する。crates.io 公開は Releases 添付後に進め、最終照合の前提にする。タグ実行は環境承認後に全公開を行い、手動実行は選択したレジストリのみ公開する。失敗した公開を成功扱いにしない。
+- **公開の順序**: `REF:.github/workflows/release.yml` の `needs` で、デスクトップ・ホイール試験・クレート dry-run → Releases 添付 → TestPyPI → PyPI → VSIX 作成 → 最終照合 → 可動タグの順を制御する。crates.io 公開は Releases 添付後に進め、最終照合の前提にする。タグ実行は環境承認後に全公開を行い、手動実行は選択したレジストリのみ公開する。失敗した公開を成功扱いにしない。
 - **未提供の表示**: `REF:scripts/release-matrix.py --status` はローカル成果物の準備状態を返す。レジストリの公開成功を判定する API ではない。README・手引き・サイトは公開確認後に保守担当者が更新し、未公開の形態は「未提供」を維持する。
 - **取り下げ**: リリースの成果物は削除しない。PyPI は `yank` を使い、`SHA256SUMS` とリリースノートに理由を書く。市場と Actions のタグは戻さず、修正版を出す。
 - **検査**: `REF:scripts/release-check.sh` が (1) 10 + 5 + VSIX + 全ソースの成果物が揃う、(2) `SHA256SUMS` の行数が成果物と一致する、(3) 各形態の版が `Cargo.toml` と一致する、(4) 主要版タグが最新の版を指す、を確かめる。`REF:scripts/verify.sh` には入れない（リリース時だけの検査なので、通常のコミットで走らせない）。

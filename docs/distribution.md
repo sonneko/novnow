@@ -2,7 +2,7 @@
 
 本書は、novnow を利用者の手元へ届ける**手順**をまとめる。何を配るか（形・選択肢・名前・MUST）は `REF:docs/specifications/external.md` §20、どう作るかは `REF:docs/designs/external.md` §20 が正本である。本書は「だれが、どこへ、どの順で置くか」だけを扱う。
 
-**いまの状態（2026-10-24）**: ブラウザ版だけが公開済み。デスクトップ版・Python ライブラリ版・VSCode 拡張版・GitHub Actions 版の実装と公開用ワークフローは用意済み。初回リリースはまだ実行しておらず、ブラウザ版以外は未提供である（`REF:docs/plans.md#distribution`）。
+**いまの状態（2026-10-25）**: ブラウザ版だけが公開済み。デスクトップ版・Python ライブラリ版・VSCode 拡張版・GitHub Actions 版の実装と公開用ワークフローは用意済み。初回リリースはまだ実行しておらず、ブラウザ版以外は未提供である（`REF:docs/plans.md#distribution`）。
 
 ---
 
@@ -13,7 +13,7 @@
 | ブラウザ版 | 1 | サイトの公開物（PWA） | GitHub Pages（[`https://sonneko.github.io/novnow/app/`](https://sonneko.github.io/novnow/app/)） | URL を開く |
 | デスクトップ版 | 10 | `.tar.gz` / `.zip` の 10 個 | GitHub Releases（タグ `v<版>`） | ダウンロードして展開 |
 | Python ライブラリ版 | 5 | ホイール 5 個 | PyPI（`novnow`）と Releases（控え） | `pip install novnow` |
-| VSCode 拡張版 | 1 | `.vsix` 1 個＋市場の公開物 | VSCode の市場（`sonneko.novnow`）と Releases | 拡張機能の画面から導入 |
+| VSCode 拡張版 | 1 | `.vsix` 1 個 | GitHub Releases（Marketplaceはv1到達までに開始） | VSIXから手動導入 |
 | GitHub Actions 版 | 1 | 複合アクション（タグ） | GitHub のリポジトリ（`sonneko/novnow@v0`） | `uses:` に書く |
 
 - 版番号は 5 形態で共通（`REF:Cargo.toml` の `version`）。
@@ -114,7 +114,7 @@ novnow-<版>-<対象環境>-<gui|nogui>.<拡張子>
 
 ## 4. VSCode 拡張版（1 通り・実装済み）
 
-- 識別子は `sonneko.novnow`。市場から入れるか、Releases の `.vsix` から入れる。
+- 識別子は `sonneko.novnow`。今回はReleasesの `.vsix` から入れる。Marketplace公開は延期し、遅くともv1到達までに開始する。
 - 拡張機能は novnow の実行ファイルを同梱しない。プロジェクトを開いたときに、次の順で探す（仕様 §20.4.2）。
   1. 設定 `novnow.executablePath`
   2. `PATH` 上の `novnow`
@@ -127,8 +127,8 @@ novnow-<版>-<対象環境>-<gui|nogui>.<拡張子>
 ### 4.1 公開の手順（保守）
 
 1. `vsce package` で `.vsix` を作り、リリースへ添付する。
-2. `workflow_dispatch` で `vsce publish` を実行する（タグ実行では承認後に自動公開する）。
-3. 市場の版と `.vsix` の版が同じであることを確認する。
+2. `SHA256SUMS`とVSIXの版を確認し、VSCodeの「VSIXからのインストール」で導入を確認する。
+3. Marketplace公開を再開するときは、所有権・PAT・承認ゲートと同じ版の配布を別途整備する。現在のReleaseにMarketplace公開処理はない。
 
 ---
 
@@ -176,7 +176,7 @@ novnow-<版>-<対象環境>-<gui|nogui>.<拡張子>
 | 1 | 版番号を `REF:Cargo.toml` で決め、`python3 scripts/release-matrix.py --bump` で Python・拡張・Actions の版を揃える | 公開しない |
 | 2 | デスクトップ 10・ホイール 5 とクレート dry-run を検証し、15 成果物と照合値をリリースへ添付する | 公開しない（成果物だけ差し替えない） |
 | 3 | crates.io と、TestPyPI → PyPI の公開を並行して進める | 以降を止める。タグは残す |
-| 4 | `.vsix` を作り市場へ公開後、VSIX と全ソースを添付し、17 成果物の最終照合を行う | 以降を止める。市場の版で直す |
+| 4 | VSIX と全ソースをReleasesへ添付し、17 成果物の最終照合を行う（Marketplaceには公開しない） | 以降を止める。新しい版で直す |
 | 5 | Actions の `v<版>` と `v0` を公開する | 利用者へ「未提供」と表示する |
 | 6 | README・サイト・手引きに実際の取得先を載せ、未公開の形態は「未提供」と記す | 文書だけが古い状態になる。次の版までに直す |
 
@@ -200,23 +200,20 @@ novnow-<版>-<対象環境>-<gui|nogui>.<拡張子>
 
 ## 8. 外部設定と秘密情報（初回必須）
 
-以下はリポジトリへの変更だけでは完了しない。値を文書・ログ・ソースへ書かず、GitHub の Settings → Environments / Secrets and variables で登録する。公開名の所有権は各サービス上で事前に確認する。
+以下はリポジトリへの変更だけでは完了しない。値を文書・ログ・ソースへ書かず、GitHub の Settings → Environments / Secrets and variables で登録する。crates.io・PyPI・TestPyPIの設定は所有者が確認済み。実公開成功とは区別する。
 
 | サービス / Environment | 必要な設定・権限 | Secret / 認証方式 |
 |---|---|---|
 | crates.io / `crates-io` | `novnow` 名の利用可否・所有者、GitHub 連携アカウントのメール認証。初回の新規クレート公開が可能で、以降は `novnow` だけに限定した publish token を発行。期限を管理する | `CARGO_REGISTRY_TOKEN`（environment secret）。`cargo publish --locked` が使用 |
 | TestPyPI / `testpypi` | `novnow` プロジェクト（初回は pending publisher 可）。Trusted Publisher の owner=`sonneko`、repository=`novnow`、workflow=`release.yml`、environment=`testpypi` | OIDC。API トークン不要。job に `id-token: write` |
 | PyPI / `pypi` | TestPyPI と別に同じ公開名を確保。Trusted Publisher の environment=`pypi`、それ以外は上と同じ。必須 reviewer を登録 | OIDC。API トークン不要 |
-| VSCode Marketplace / `vscode` | publisher `sonneko` を作成・所有権確認。Azure DevOps の Marketplace (Manage) 権限を持つ PAT を発行し、期限を管理する。必須 reviewer を登録 | `VSCE_PAT`（environment secret） |
+| VSCode / VSIX | GitHub Releases添付のみ。Marketplaceはv1到達までに開始する保留事項 | 今回はVSCE_PAT不要 |
 | GitHub Releases / Actions tags | Actions の書き込み許可、タグ作成権限。バージョンタグは変更・削除を保護し、可動の `v0` はワークフローの更新を許可する | 自動発行の `GITHUB_TOKEN`（`contents: write`）。個人 PAT は不要 |
 | GitHub Pages / `github-pages` | Settings → Pages → Source=`GitHub Actions`。main からだけデプロイを許可。カスタムドメインは設定しない | 自動トークン（`pages: write`, `id-token: write`） |
-| Windows 署名（任意） | コード署名証明書の PFX。未設定なら未署名として公開する | Repository secrets: `WINDOWS_CERTIFICATE_BASE64`, `WINDOWS_CERTIFICATE_PASSWORD` |
-| macOS 署名（任意） | Developer ID Application の p12 と証明書名 | Repository secrets: `MACOS_CERTIFICATE_BASE64`, `MACOS_CERTIFICATE_PASSWORD`, `MACOS_CERTIFICATE_NAME` |
-| Apple 公証（任意、署名が前提） | Developer Program の Apple ID、アプリ用パスワード、Team ID。未設定なら公証しない | Repository secrets: `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID` |
 
-- `crates-io`・`testpypi`・`pypi`・`vscode` は版タグからのみ実行できる deployment policy にし、公開担当者の承認を必須にする。環境名と Trusted Publisher の設定は完全一致が必要。
+- `crates-io`・`testpypi`・`pypi` は版タグからのみ実行できる deployment policy にし、公開担当者の承認を必須にする。環境名と Trusted Publisher の設定は完全一致が必要。
 - ホイール単独試験の `REF:.github/workflows/wheels.yml` から公開する場合は、その workflow 名で **別の** Trusted Publisher が必要。本番 PyPI の Trusted Publisher は `release.yml` だけに設定する。wheels の公開入力は TestPyPI 専用である。
-- GitFlow の `main` と `develop` は保護する。直接 push・force push・削除を禁止し、PR、承認、会話の解決、必要な CI 成功を要求する。`main` には release / hotfix の版更新 PR だけを承認する。GitHub 標準の保護だけでは「版更新のみ」は判定できないため、レビューで版差分と PR の由来を確認する。
+- GitFlow の `main` と `develop` は保護する。直接 push・force push・削除を禁止し、PR、必要な CI 成功を要求する。現在の必要承認数は0、通常のmerge commitで統合する。`main` には release / hotfix の版更新 PR だけを承認する。GitHub 標準の保護だけでは「版更新のみ」は判定できないため、レビューで版差分と PR の由来を確認する。
 - CI の `[ci skip]` 既定と必須チェックを併用するとチェック待ちになる。リリース PR は `[ci run]` で CI を起動し、保護が要求するチェックが実際にその SHA で報告されていることを確認する。手動 CI の結果だけで保護を迂回しない。
 - `develop` の作成・既定ブランチの変更・rulesets・環境・秘密情報・公開名の確保は管理者が行う。この作業セッションでは実施しない。
 
@@ -225,7 +222,7 @@ novnow-<版>-<対象環境>-<gui|nogui>.<拡張子>
 1. §8 の設定を済ませ、`REF:scripts/release-matrix.py --check`、`REF:scripts/verify.sh`、Web スモーク、ホスト CI・wheels・VSCode Electron・3 OS の実行確認を通す。各 OS の起動、IME、Zip 入出力も確認する。
 2. release PR で版を揃え、リリースノート・互換性警告・未署名の有無・既知の制約を確認する。v0.1.0 は最初の番号付き配布であり、過去の `v0-final` とは別物。初回は既存の版番号がすでに 0.1.0 なので、形式的に別の版へ上げ下げしない。
 3. 人間が版更新 PR を `main` にマージし、そのコミットに `v0.1.0` を付けて push する。タグは上書きしない。コミットメッセージに `[ci skip]` を残すとタグ起動も止まるので、タグ対象のマージコミットから除く。
-4. Release は版一致・main の祖先であることを確認し、デスクトップ 10・wheel 5 とクレート dry-run を検証する。Releases 添付後、crates.io・TestPyPI → PyPI・Marketplace の環境承認を進める。承認待ちは失敗ではない。
+4. Release は版一致・main の祖先であることを確認し、デスクトップ 10・wheel 5 とクレート dry-run を検証する。Releases 添付後、crates.io・TestPyPI → PyPI の環境承認を進める。承認待ちは失敗ではない。
 5. 最後に VSIX と `novnow-<版>-source.tar.gz`（ドキュメントを含む追跡対象全体）を添付し、17 成果物の `SHA256SUMS` を検証して可動タグを更新する。GitHub 自動生成の Source code (zip/tar.gz) も利用できるが、照合対象は明示添付したソースアーカイブ。PyPI の sdist は作らない。
 6. Pages は main 更新でサイトとアプリを一括配置する。Release と別ワークフローなので、両方の成功を確認してから公開完了とする。自動公開が skip された場合は main 上で Deploy を手動起動する。
 7. 全公開先とインストール・照合を実測してから、README・サイト・手引きの「未提供」を次の版更新 PR で解除する。公開前に利用可能と書き換えない。リリースノートにはその場で実際の状態を記載できる。
@@ -236,7 +233,7 @@ novnow-<版>-<対象環境>-<gui|nogui>.<拡張子>
 
 ## 10. 初回公開の追加確認と既知の未検証事項
 
-- **公開設定は未検証**: Secrets の値は読み出して確認しない。所有者がサービス画面で登録・期限・権限を確認し、環境承認後のホスト実行で検証する。crates.io / PyPI / Marketplace の公開は不可逆に近いため、この修正だけで公開しない。
+- **公開設定は未検証**: Secrets の値は読み出して確認しない。所有者がサービス画面で登録・期限・権限を確認し、環境承認後のホスト実行で検証する（crates.io・PyPI・TestPyPIの設定は所有者確認済み）。crates.io / PyPI / Marketplace の公開は不可逆に近いため、この修正だけで公開しない。
 - **Pages のリンク**: `/novnow/` から日本語・英語・手引き・診断・API・画像・言語切替、`/novnow/app/` の WASM・PWA とオフライン起動を確認する。Astro の base 設定に加え、`REF:website/integrations/base-links.mjs` がビルド済み HTML のルート相対 URL を補正する。
 - **旧 PWA**: 旧 `/novnow/` スコープの worker は `REF:website/public/sw.js` で登録解除し、サイトとの干渉を止める。作品の IndexedDB は消さない。旧画面が残る場合はオンラインで再読込し、必要ならサイトデータ全消去ではなく Service Worker の登録だけを解除する。新アプリの worker は `/novnow/app/` のみを担当する。
 - **署名・ライセンス**: 実物の署名・公証状況と警告回避手順、MIT と同梱 IPA フォントのライセンスを確認する。Linux は glibc / GUI ライブラリの依存を対象機で確認する。未署名のときに署名済みと宣伝しない。
@@ -249,12 +246,12 @@ GitHub APIでpublic化、4公開environmentとgithub-pages、developの存在、
 
 所有者修正後のAPI再確認では、4公開environmentはmain=branch・版パターン=tag、required_reviewers=sonneko。developの適用対象とmain/developの必要レビュー数1・必須チェックも設定済み。TestPyPI側のtestpypiへの名称修正は所有者申告であり、OIDC公開成功は未検証。
 
-残っている確認点（再確認時点）:
+現在の追加確認（所有者の変更後にAPI再確認）:
 
-- 両rulesetのtype=updateとbypass_actors=[]が残り、通常PRの更新も阻害する。Restrict updatesを外し、PR/レビュー/必須チェック/force-push禁止を使う。
-- 必須チェックに旧macos-13等の廃止された行列名、単独のbrowsersが含まれる。現行Checksに現れない名前を削除する。公開ジョブpublish-testpypiは必須PRチェックにしない。版を含む自動行列名は版更新で変わる点にも注意する。
-- 会話解決必須はfalse、linear historyは有効。後者を維持するならsquash/rebaseでマージする。github-pagesはmainのbranch policyだけで公開用4環境のレビューゲートとは別。これは自動デプロイを継続する設定である。
-- VSCE_PAT、Marketplace所有権、署名/公証の有無は別途確認する。秘密情報の値をログやチャットで確認しない。
+- main/developともRestrict updatesとlinear history制限は解除済み。PRの許可マージ方法はmergeのみ、必要承認数0。通常のmerge commitを使う。必須CI・force-push/削除禁止は維持されている。リポジトリ全体ではsquash/rebaseも有効だが、この2 rulesetではmergeだけを許可する。
+- mainの必須18件、developの25件は現行チェック名と一致する。版を含む行列名は将来の版更新で変わるため固定名への改善は別途必要。
+- crates.io/PyPI/TestPyPIの設定は所有者が確認済み。こちらからの実公開・OIDC/tokenの実動確認とは区別する。Marketplaceは今回は公開せず、VSIXをReleasesへ添付する。
+- Windows/macOSの配布元署名・macOS公証は行わない。署名用Secretsは不要。未署名の警告と導入方法を手引きで案内する。
 
 公開しない事前検査には `REF:.github/workflows/pages-check.yml` と `REF:.github/workflows/desktop-check.yml` を追加した。前者は実Trunk/Astro結合物・3ブラウザエンジン・クレートdry-run、後者は10デスクトップアーカイブと展開後のCLI起動を検査する。GUIの画面/IME/Zip操作、実公開と実デプロイは別の受け入れ確認として残す。個々の最終結果はPR #31のChecksとコメントを参照する。
 
@@ -265,4 +262,4 @@ GitHub APIでpublic化、4公開environmentとgithub-pages、developの存在、
 - Python 配布では PEP 440 表現を使う（例: `0.1.0-rc.1` → `0.1.0rc1`）。`pip install novnow==0.1.0rc1` と wheel 名・METADATA は正規化後の表記、`novnow.__version__` は製品の SemVer。対応は alpha/beta/rc と非負整数だけとし、別の接尾辞やビルドメタデータを混ぜない。
 - 補助 wheels の公開入力は TestPyPI だけ。本番 PyPI の Trusted Publisher は統合 Release にのみ紐づける。TestPyPI の所有権・承認は別途管理者が設定する。
 
-- 統合 Release は通常版のみを公開する。VSCode Marketplace は SemVer の `-rc.N` を拡張版番号として受け付けないため、試験版のタグは成果物公開前の prepare で拒否する。Python 試験版は補助 wheels → TestPyPI で検証できる。Marketplace を含む全形態の試験版公開を実装済みとは扱わず、将来対応する場合は別途等価版の対応規則を決める。
+- 統合 Release は通常版のみを公開する。現在のVSIX版番号規則は通常版だけを扱うため、試験版のタグは成果物公開前の prepare で拒否する。Python 試験版は補助 wheels → TestPyPI で検証できる。Marketplace を含む全形態の試験版公開を実装済みとは扱わず、将来対応する場合は別途等価版の対応規則を決める。

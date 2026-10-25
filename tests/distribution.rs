@@ -520,3 +520,28 @@ fn status_distinguishes_published_browser_from_local_release_readiness() {
         18
     );
 }
+
+#[test]
+fn release_distributes_vsix_without_marketplace_or_publisher_signing() {
+    let release = include_str!("../.github/workflows/release.yml");
+    for forbidden in [
+        "publish_vscode",
+        "publish-vscode",
+        "VSCE_PAT",
+        "vsce publish",
+        "WINDOWS_CERTIFICATE",
+        "MACOS_CERTIFICATE",
+        "APPLE_PASSWORD",
+        "notarytool",
+        "signtool",
+    ] {
+        assert!(
+            !release.contains(forbidden),
+            "unexpected release dependency: {forbidden}"
+        );
+    }
+    assert!(release.contains("run: npm run package"));
+    assert!(release.contains("gh release upload \"$TAG\" release/*.vsix release/*-source.tar.gz"));
+    assert!(release.contains("needs: [prepare, vscode-package, publish-crates]"));
+    assert!(release.contains("without publisher signing; macOS notarization is not performed"));
+}

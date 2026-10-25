@@ -2104,3 +2104,9 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - WebKitは本体のoffline/旧worker解除/作品保持の成功と追加fixtureの失敗を区別し、about:blank等でStorageManagerが無い場合のガードを追加した。3エンジンの一度の成功だけで再発防止完了とは扱わない。
 - Desktop検査でGUIラベルにui feature指定が不足していたため訂正。以前のラベル付き行列の成功は実GUIビルドの成功を意味しない。
 - 所有者修正後のEnvironment版タグ型/公開レビューとdevelop適用/レビュー人数1/必須チェックをAPIで再確認。旧チェック名・Restrict updatesの残存をPRへ報告し、設定は変更していない。
+
+## 2026-10-25: 通常マージ・VSIX先行配布・未署名方針の承認
+
+- 所有者がmain/developのRestrict updatesとlinear historyを解除し、許可マージ方法mergeのみ・必要承認数0へ変更したことをAPIで確認した。通常のmerge commitで統合する。こちらからマージや外部設定変更は行っていない。
+- crates.io/PyPI/TestPyPIの設定は所有者確認済み。Azure DevOps登録の事情によりMarketplace公開を延期し、遅くとも製品v1到達までに開始する方針を承認。VSIXはGitHub Releasesへ添付し、手動インストール手順を利用者文書へ反映した。ReleaseからMarketplace公開入力・ジョブ・最終処理の依存とPAT参照を除去した。
+- Windows/macOSの配布元署名およびmacOS公証は行わない。署名処理・Secrets参照を除去し、最終SHA256SUMSへ方針を明記。仕様・設計・公開手順・日英README・拡張README・手引きと生成サイトを同期した。通常版限定のReleaseゲートは維持する。

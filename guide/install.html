@@ -159,7 +159,7 @@ footer { max-width: 46rem; margin: 3rem auto 0; padding-top: 1rem; border-top: 1
 <ul>
 <li><strong>Mac</strong>: 「開発元を確認できません」と出たら、システム設定の「プライバシーとセキュリティ」を開きます。下のほうの「このまま開く」を押します。</li>
 <li><strong>Windows</strong>: 「Windows によって PC が保護されました」と出ることがあります。そのときは「詳細情報」を押し、次に「実行」を押します。</li>
-<li>どちらも、配布元の署名が付いていない間だけ出ます。</li>
+<li>Windows版・Mac版には配布元の署名を付けません。Mac版の公証も行わないため、これらの警告が出ることがあります。</li>
 </ul>
 <h3 id="35-消したいとき">3.5 消したいとき</h3>
 <p>展開したフォルダを削除するだけです。同梱のフォントやサンプルは実行ファイルの中にあるので、ほかに消すものはありません。</p>
@@ -173,10 +173,11 @@ footer { max-width: 46rem; margin: 3rem auto 0; padding-top: 1rem; border-top: 1
 <a id="vscode"></a>
 <h2 id="4-vscode-拡張版">4. VSCode 拡張版</h2>
 <ol>
-<li>VSCode を開き、左の「拡張機能」を押します。</li>
-<li><code>novnow</code> で検索し、<code>sonneko.novnow</code> を入れます。</li>
-<li>novnow の作品フォルダを VSCode で開きます。</li>
+<li>GitHub Releasesから <code>novnow-&lt;版&gt;.vsix</code> をダウンロードします。初回リリースまでは未提供です。</li>
+<li>VSCodeの「拡張機能」で「…」→「VSIXからのインストール」を選び、そのファイルを開きます。</li>
+<li>novnowの作品フォルダをVSCodeで開きます。</li>
 </ol>
+<p>Marketplaceへの公開は延期しています。遅くともv1到達までに開始する予定です。</p>
 <ul>
 <li>作品フォルダを開くと、診断や補完が使えます。</li>
 <li>novnow 本体が入っていないときは、拡張機能が自動で 1 つだけ落としてきます。</li>

@@ -23,7 +23,7 @@ novnow形式を管理するためのnovnowエディタは、デスクトップ�
 | エディタ連携（LSP） | 同上 | VS Code など手持ちのエディタで書きたい |
 | AI 連携（MCP） | 同上 | AI に作品を読ませたい |
 | Python | [PyPI](https://pypi.org/project/novnow/) の `pip install novnow`（初回公開まで未提供） | 作業を自動化したい |
-| VSCode 拡張 | [Marketplace](https://marketplace.visualstudio.com/items?itemName=sonneko.novnow)（初回公開まで未提供） | ふだん VSCode で書いている |
+| VSCode 拡張 | [GitHub ReleasesのVSIX](https://github.com/sonneko/novnow/releases/latest)（初回公開まで未提供） | ふだん VSCode で書いている |
 | GitHub Actions | `uses: sonneko/novnow@v0`（`v0` 公開まで未提供） | 点検や書き出しを CI で行いたい |
 
 画面の構成・キー操作・保存される内容は、ブラウザとデスクトップで同じです。
@@ -123,7 +123,7 @@ novnow形式は、小説をテキストデータでエクスポートする機�
 
 ## インストールと起動
 
-配布経路は、ブラウザ・GitHub Releases・PyPI・VSCode Marketplace・GitHub Actions のタグです。デスクトップは 10 通り（窓あり / なし × 5 つの OS・CPU）、Python ホイールは 5 通りです。ブラウザ版以外は初回リリースまで未提供です。利用者向けの手順は [入れ方](./docs/users/install.md)、配布の決まりと手順は [distribution.md](./docs/distribution.md) にあります。
+配布経路は、ブラウザ・GitHub Releases・PyPI・VSIX（GitHub Releases）・GitHub Actions のタグです。デスクトップは 10 通り（窓あり / なし × 5 つの OS・CPU）、Python ホイールは 5 通りです。ブラウザ版以外は初回リリースまで未提供です。利用者向けの手順は [入れ方](./docs/users/install.md)、配布の決まりと手順は [distribution.md](./docs/distribution.md) にあります。
 
 それまではソースからビルドできます。Rust の stable ツールチェーンが必要です。
 
