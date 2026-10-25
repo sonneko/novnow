@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """Offline regressions for the composite action; use macOS's Bash 3.2 explicitly."""
 import hashlib
+import io
 import os
 from pathlib import Path
 import subprocess
 import shutil
 import sys
 import tempfile
+import tarfile
+import zipfile
 import unittest
 
 SCRIPT = Path(__file__).with_name("install.sh").resolve()
@@ -73,6 +76,38 @@ class ActionShellTests(unittest.TestCase):
         self.assertIn("export-path=result.txt", self.outputs.read_text())
         self.assertEqual(self.capture.read_text().splitlines(),
                          ["export", "a project with spaces", "--out", "result.txt"])
+
+    def test_install_from_authenticated_cached_archive(self):
+        target = "x86_64-pc-windows-msvc" if os.name == "nt" else "x86_64-unknown-linux-gnu"
+        executable = "novnow.exe" if os.name == "nt" else "novnow"
+        extension = ".zip" if os.name == "nt" else ".tar.gz"
+        cache = self.root / "cache" / "0.1.0" / target
+        cache.mkdir(parents=True)
+        archive = cache / f"novnow-0.1.0-{target}-nogui{extension}"
+        payload = b"authenticated offline fixture"
+        if os.name == "nt":
+            with zipfile.ZipFile(archive, "w") as bundle:
+                bundle.writestr(executable, payload)
+        else:
+            with tarfile.open(archive, "w:gz") as bundle:
+                entry = tarfile.TarInfo(executable)
+                entry.size = len(payload)
+                bundle.addfile(entry, io.BytesIO(payload))
+        manifest = self.root / "manifest"
+        manifest.write_text(f"{hashlib.sha256(archive.read_bytes()).hexdigest()}  {archive.name}\n")
+        tools = self.root / "bin"
+        tools.mkdir()
+        curl = tools / "curl"
+        curl.write_text('#!/usr/bin/env bash\nfor arg in "$@"; do destination="$arg"; done\ncp "$FAKE_MANIFEST" "$destination"\n', newline="\n")
+        curl.chmod(0o755)
+        env = dict(self.env, NOVNOW_VERSION="0.1.0", NOVNOW_TARGET=target,
+                   NOVNOW_CACHE_DIR=str(self.root / "cache"), FAKE_MANIFEST=str(manifest),
+                   PATH=str(tools) + os.pathsep + self.env["PATH"])
+        result = subprocess.run([BASH, str(SCRIPT), "--install"], env=env,
+                                capture_output=True, text=True, encoding="utf-8", timeout=10)
+        self.assertEqual(result.returncode, 0, f"{BASH}: {result.stderr}\n{result.stdout}")
+        self.assertEqual((cache / executable).read_bytes(), payload)
+        self.assertIn("binary=", self.outputs.read_text())
 
     def test_backslash_path_cannot_escape_the_digest(self):
         # On Windows the directory already has backslashes; on Unix make one.
