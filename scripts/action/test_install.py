@@ -14,9 +14,13 @@ BASH = "/bin/bash" if sys.platform == "darwin" else "bash"
 if sys.platform == "win32":
     # Do not accidentally launch Windows System32/WSL bash instead of Git Bash.
     git = shutil.which("git")
-    git_bash = Path(git).resolve().parent.parent / "bin/bash.exe" if git else None
-    if git_bash and git_bash.is_file():
-        BASH = str(git_bash)
+    if git:
+        # Git Bash puts mingw64/bin/git.exe before cmd/git.exe on PATH.
+        for parent in Path(git).resolve().parents:
+            git_bash = parent / "bin/bash.exe"
+            if git_bash.is_file():
+                BASH = str(git_bash)
+                break
 
 
 class ActionShellTests(unittest.TestCase):
@@ -46,26 +50,26 @@ class ActionShellTests(unittest.TestCase):
 
     def test_no_extra_arguments_on_bash_32(self):
         result = self.run_action()
-        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.returncode, 0, f"{BASH}: {result.stderr}\n{result.stdout}")
         self.assertEqual(self.capture.read_text().splitlines()[:2],
                          ["check", "a project with spaces"])
         self.assertIn("findings=1", self.outputs.read_text())
 
     def test_whitespace_only_arguments(self):
         result = self.run_action(INPUT_ARGS="   ")
-        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.returncode, 0, f"{BASH}: {result.stderr}\n{result.stdout}")
         self.assertEqual(self.capture.read_text().splitlines()[:3],
                          ["check", "a project with spaces", "diagnostics"])
 
     def test_failure_exit_code_is_not_hidden(self):
         result = self.run_action(FAKE_EXIT_CODE="5")
-        self.assertEqual(result.returncode, 5, result.stderr)
+        self.assertEqual(result.returncode, 5, f"{BASH}: {result.stderr}\n{result.stdout}")
         self.assertIn("exit-code=5", self.outputs.read_text())
         self.assertIn("findings=1", self.outputs.read_text())
 
     def test_export_path_is_preserved(self):
         result = self.run_action(INPUT_COMMAND="export", INPUT_ARGS="--out result.txt")
-        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.returncode, 0, f"{BASH}: {result.stderr}\n{result.stdout}")
         self.assertIn("export-path=result.txt", self.outputs.read_text())
         self.assertEqual(self.capture.read_text().splitlines(),
                          ["export", "a project with spaces", "--out", "result.txt"])
@@ -80,7 +84,7 @@ class ActionShellTests(unittest.TestCase):
             env=dict(os.environ, INPUT_VERSION="0.1.0", INPUT_TARGET="x86_64-unknown-linux-gnu"),
             capture_output=True, text=True, encoding="utf-8", timeout=10,
         )
-        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.returncode, 0, f"{BASH}: {result.stderr}\n{result.stdout}")
         self.assertEqual(result.stdout.strip(), hashlib.sha256(file.read_bytes()).hexdigest())
 
 
