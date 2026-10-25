@@ -24,13 +24,14 @@
 
 ## 2. 現在のブランチ・PR・直近の作業状態
 
-- 作業ブランチ: `arena/b97c5fbe-novnow`（`main` の `38c6244` から分岐）。配布の D-01〜D-20 を実装し、PR #28 の検証を進める。マージは人間が行う。
-- 段階 ①〜③（M0〜M11・追加仕様 1〜27・L-01・§19 の H1〜H7）は `main` にマージ済み（PR #25 は 2026-10-23 にマージ）。
-- 直近の作業: 配布ワークフローへ対象別 Rust キャッシュと `sccache` を追加し、manylinux コンテナの選択、ARM64 ランナーでの Intel macOS ホイール検査、VSCode Electron テストのモジュール境界を修正した。続くホスト検証で見つかった Python 3.9 の版読み取りと Electron の LSP 再起動待機も直した（`REF:.github/workflows/wheels.yml`・`REF:.github/workflows/release.yml`・`REF:vscode/src/extension.ts`・`REF:vscode/src/test/suite/extension.test.ts`）。
-- **コミットは既定で `[ci skip]`**（`REF:.githooks/commit-msg`）。CI は必要なときだけ `bash REF:scripts/ci-run.sh ci watch` で回す。今回はユーザーの指示によりホストジョブを再実行しない。
-- サンドボックスでの検証は全件通る: `REF:scripts/verify.sh` の全 12 ステップ、cargo test 1372 件（GUI あり）・1186 件（GUI なし）、clippy・fmt・wasm32。配布テスト 10 件、VSCode の型検査・単体テスト 6 件・VSIX 生成、実ホイールの版/タグ検査と pytest（8 件成功・1 件 skip）、Astro 208 ページも通る。Web 実機スモーク（`REF:scripts/web-smoke.sh`）も全項目成功。
-- ホスト CI `40049130837` は全ジョブ成功。ホイール `40049130861` は 5 対象すべてのビルド・導入・import と Python 3.11 / 3.13 テストが成功し、Python 3.9 は検査コードの `tomllib` 使用で失敗。VSCode `40049130929` は型・単体・VSIX が成功し、Electron は失敗。3.9 非対応の版読み取りと Electron の再起動待機を修正済み。最新のホスト結果は PR #28 で確認する。
-- 3 OS の Action スモーク、実リリース、署名・公証・公開は未実施。ローカル成功とホスト検証を区別する。
+- 作業ブランチ: `arena/35b388c5-novnow`。前のPR #31は通常merge済み。公開対象はmainの `25725ba6c01c9b8294c83ccfc3c58093004a4eaa`、タグ `v0.1.0` と可動 `v0` は同じコミットを指す。
+- Release run 40159636238は全ジョブ成功。デスクトップ10・wheel5・VSIX1・全ソース1とSHA256SUMSを添付し、crates.io/TestPyPI/PyPIの公開も成功。本番Pages deployも成功。Marketplaceは延期（遅くともv1到達までに開始）。Windows/macOSの配布元署名・macOS公証は行わない。
+- 公開後のComposite Action Smoke run 40161112987はLinux成功、macOS/Windows失敗。**全形態が正常という判定ではない**。不変のv0.1.0タグ/成果物は変更しない。リリースノートに失敗を明記した。
+- 公開物再取得の監査run 40161414239: 17成果物全件のSHA256SUMS/構造/版、ソースtarと版タグの内容一致、両Python registryの5wheelのhash一致、両registryからの実install、公開crates.ioからのcargo installとCLI実行、本番Pages/WASM取得は成功。
+- サンドボックスでも実PyPI wheelを隔離venvへinstallし、実API pytest 9件成功・1件skip（150.48秒）。ネットワーク制約でGitHub release-assetsとcrates.ioへ直接接続できない部分は、公開物を取得するread-only CIで検証した。
+- Actions失敗の診断: macOSは標準Bash 3.2+nounsetで空配列展開がエラー。WindowsはWindows式パスのバックスラッシュでsha256sumが出力先頭をエスケープし、hash比較が誤判定する。公開ZIPのhash自体は監査で正常。前者は常に非空のargv、後者はstdin経由のhash計算で修正候補を準備した。hash修正後、WindowsのGNU tarがドライブ文字をリモートホスト扱いする問題も確認し、ZIP対応のWindows標準BSD tarを明示する候補へ修正した。
+- `REF:.github/workflows/release-audit.yml` は既存公開物の検証と**未公開の修正候補**の3 OS実行を分ける。`REF:scripts/action/test_install.py` の認証済みキャッシュの展開を含む回帰6件を `REF:scripts/verify.sh` へ追加。修正候補はdevelop向けPR #32（Ready for review）。最終CI結果はこのブランチのChecksを確認する。
+- 所有者決定: この不具合の影響はGitHub Actions版のmacOS/Windows実行に限定されるため、単独のパッチリリースは行わず、修正は次回リリースへ含める。PR #32はdevelop向けの修正として扱い、次回の版番号はここでは決めない。公開済みv0.1.0/v0のタグ・成果物は維持し、公開済み版が修正されたとは表記しない。版更新・mainへのマージ・追加公開は今回行わない。
 
 ## 3. 継続作業の手順
 

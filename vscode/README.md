@@ -7,3 +7,7 @@ When `novnow` is not installed, the extension can download the GUI-less archive 
 Commands: **Check Project**, **Export Text**, **New Project**, and **Restart Language Server**.
 
 The extension identifier is `sonneko.novnow`. The extension and novnow share one version number.
+
+## Installation
+
+Download `novnow-<version>.vsix` from the official GitHub Release, then use VSCode's Extensions → … → Install from VSIX. The first numbered release has not been published yet. Marketplace publication is deferred and will start no later than product v1.

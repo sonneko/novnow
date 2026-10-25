@@ -21,7 +21,7 @@ const actionJa = row.action === "—" ? "自動修正なし。該当箇所を確
 ---
 
 <BaseLayout title={`${code} — ${japanese ? "診断コード解説" : "Diagnostic explanation"}`} lang={lang}>
-  <Header lang={lang} currentPath={`/${lang}/diagnostics`} />
+  <Header lang={lang} currentPath={Astro.url.pathname} />
 
   <main class="container code-main">
     <div class="top-bar">

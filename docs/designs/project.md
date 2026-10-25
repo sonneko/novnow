@@ -4,7 +4,7 @@
 
 ## 4. プロジェクト構造
 
-### 4.1 ディレクトリレイアウト（v1）
+### 4.1 ディレクトリレイアウト（v0.1.0）
 
 状態: 実装完了（REF:src/core/model/project.rs, REF:src/core/policy/write_policy.rs, REF:src/core/template/mod.rs）
 
@@ -34,7 +34,7 @@
   - `REF:src/app/settings.rs` の `UiSettings` 構造体に `pub max_line_chars: Option<usize>` を追加し、`clamp` 時に `20..=120` に丸める。
   - 実効幅取得メソッド `line_chars(english: bool) -> usize` を設け、未設定時は `Locale::Ja => 44`、`Locale::En => 70` を返す。
 
-### 4.5 `project.json` スキーマ（v1）
+### 4.5 `project.json` スキーマ（v0.1.0）
 
 状態: 実装完了（REF:src/core/model/project.rs, REF:src/core/syntax/project_json.rs, REF:tests/project_json.rs）
 

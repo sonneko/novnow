@@ -1,0 +1,46 @@
+name: Website checks
+
+on:
+  push:
+    branches: [main, develop]
+    paths: &website-paths
+      - 'website/**'
+      - 'docs/users/**'
+      - 'docs/specifications/**'
+      - 'docs/script/test_website.py'
+      - 'scripts/*site*.py'
+      - 'Cargo.toml'
+      - 'screenshot.png'
+      - '.github/workflows/website.yml'
+      - '.github/workflows/deploy.yml'
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths: *website-paths
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: website-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  website:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - name: Verify generated content
+        run: |
+          python3 scripts/docs-site.py --check
+          python3 scripts/api-site.py --check
+          python3 scripts/diagnostics-site.py --check
+      - run: npm ci --prefix website
+      - run: npm run check:site --prefix website

@@ -227,6 +227,23 @@ fn all_archives_are_self_contained_and_release_checksums_cover_every_artifact() 
         &release.join(format!("novnow-{version}.vsix")),
         &[("extension/package.json", &vsix_manifest)],
     );
+    let source = Command::new("git")
+        .current_dir(root())
+        .args([
+            "archive",
+            "--format=tar.gz",
+            &format!("--prefix=novnow-{version}/"),
+        ])
+        .arg(format!(
+            "--output={}",
+            release
+                .join(format!("novnow-{version}-source.tar.gz"))
+                .display()
+        ))
+        .arg("HEAD")
+        .output()
+        .expect("archive full tracked source");
+    assert!(source.status.success());
     run(&["--checksums", release.to_str().expect("utf8 path")]);
     run(&["--verify-release", release.to_str().expect("utf8 path")]);
 }
@@ -329,7 +346,7 @@ fn composite_action_preserves_check_and_export_results() {
 
 #[cfg(unix)]
 #[test]
-fn release_tag_publication_is_immutable_and_prereleases_do_not_move_v1() {
+fn release_tag_publication_is_immutable_and_prereleases_do_not_move_major_tag() {
     use std::os::unix::fs::PermissionsExt;
 
     let temp = TempDir::new("release-tags");
@@ -404,7 +421,7 @@ raise SystemExit("unexpected gh invocation: " + repr(args))
         String::from_utf8_lossy(&published.stderr)
     );
     assert_eq!(
-        std::fs::read_to_string(state.join("v1")).expect("v1"),
+        std::fs::read_to_string(state.join("v0")).expect("v0"),
         original
     );
     let checked = invoke("--check", version, &original);
@@ -426,7 +443,7 @@ raise SystemExit("unexpected gh invocation: " + repr(args))
         String::from_utf8_lossy(&candidate.stderr)
     );
     assert_eq!(
-        std::fs::read_to_string(state.join("v1")).expect("stable v1"),
+        std::fs::read_to_string(state.join("v0")).expect("stable v0"),
         original
     );
     assert_eq!(
@@ -441,7 +458,20 @@ fn release_gates_and_cached_action_binaries_stay_safe() {
     assert!(!release.contains("pull_request:"));
     assert!(release.contains("published artifacts are immutable"));
     assert!(release.contains("needs.publish-testpypi.result == 'success'"));
+    let wheels = include_str!("../.github/workflows/wheels.yml");
+    assert!(!wheels.contains("publish-pypi:"));
+    assert!(!wheels.contains("publish_pypi:"));
+    assert!(wheels.contains("repository-url: https://test.pypi.org/legacy/"));
     assert!(release.contains("Install and import this target's wheel"));
+    assert!(release.contains("cargo publish --locked --dry-run"));
+    assert!(release.contains("CARGO_REGISTRY_TOKEN"));
+    assert!(release.contains("git merge-base --is-ancestor"));
+    assert!(release.contains("git archive --format=tar"));
+    assert!(release.contains("release/*-source.tar.gz"));
+    let pages = include_str!("../.github/workflows/deploy.yml");
+    assert!(pages.contains("--public-url \"/novnow/app/\""));
+    assert!(pages.contains("cp -a dist website/dist/app"));
+    assert!(pages.contains("path: ./website/dist"));
 
     let action = include_str!("../scripts/action/install.sh");
     let manifest_refresh = action.find("rm -f \"$sums\"").expect("refresh checksums");
@@ -489,4 +519,29 @@ fn status_distinguishes_published_browser_from_local_release_readiness() {
             .sum::<u64>(),
         18
     );
+}
+
+#[test]
+fn release_distributes_vsix_without_marketplace_or_publisher_signing() {
+    let release = include_str!("../.github/workflows/release.yml");
+    for forbidden in [
+        "publish_vscode",
+        "publish-vscode",
+        "VSCE_PAT",
+        "vsce publish",
+        "WINDOWS_CERTIFICATE",
+        "MACOS_CERTIFICATE",
+        "APPLE_PASSWORD",
+        "notarytool",
+        "signtool",
+    ] {
+        assert!(
+            !release.contains(forbidden),
+            "unexpected release dependency: {forbidden}"
+        );
+    }
+    assert!(release.contains("run: npm run package"));
+    assert!(release.contains("gh release upload \"$TAG\" release/*.vsix release/*-source.tar.gz"));
+    assert!(release.contains("needs: [prepare, vscode-package, publish-crates]"));
+    assert!(release.contains("without publisher signing; macOS notarization is not performed"));
 }

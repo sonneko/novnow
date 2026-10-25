@@ -100,6 +100,7 @@ fi
 
 # GUI 込み（`--features ui`）と GUI を含まない既定のビルドの双方を clippy とテストで確かめる。
 : "$UI"
+run action-shell python3 "$ROOT/scripts/action/test_install.py"
 run docs        python3 "$ROOT/docs/script/duplicate.py"
 run docs-tests  python3 -B -m unittest discover -s "$ROOT/docs/script" -p 'test_*.py'
 # ドキュメントと実装の突き合わせ（廃止名 / 仕様書の節番号 / history ID / src ツリー / 数の主張）

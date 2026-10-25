@@ -8,7 +8,8 @@ import novnow
 
 with novnow.Session("my-novel") as session:      # open。with 終了で閉じる
     info = session.project.info()                 # dict（JSON と同じ構造）
-    session.section.write("@03:01", "新しい本文\n")
+    scene = session.section.list()["sections"][0]["id"]
+    session.section.write(scene, "新しい本文\n")
     session.save.now()
 
 session = novnow.create("new-novel")              # project.new
@@ -32,11 +33,11 @@ pytest                     # tests/test_api.py
 - 表の API（`Session`・9 例外・ドメイン呼び出し）は `python/novnow/__init__.py`。
   ネイティブ側（`src/lib.rs`）は `run` / `command` / `poll_events` / `on_event` / `cancel`
   だけを公開し、**正規操作カタログ（§19.7）が唯一の実装点**（§19.1.2）。
-- 直列化（§19.3.4）: 1 つの `Session` は `Mutex` で守る。
-- **GIL の解放（§19.3.4）は未実装**: `novnow::app::Session` が `Send` でない
-  （`Host` と `on_event` のコールバックに `Send` が付いていない）ため、
-  `Python::allow_threads` で包めない。`Host: Send` + `Callback: Send` が前提作業
-  （`REF:docs/plans.md#stage-3` H6-AC-3）。
+- GIL と直列化（§19.3.4）: 機能核は専用ワーカースレッドが所有し、
+  `Mutex<Driver>` のロックと応答待ちは `Python::allow_threads` 内で行います。
+  `Host: Send` への変更は不要です。実装は `REF:src/app/driver.rs` と
+  `REF:python/novnow-py/src/lib.rs`、実スレッドの検証は
+  `REF:python/novnow-py/tests/test_api.py` を参照してください。
 - pyo3 系のクレートは vendoring が必要（`REF:docs/add-dependencies.md` §2.2・パターン B-1。
   対象一覧は `REF:docs/plans.md` §5.5）。vendoring が済むまで root の workspace 解決から
   外してある（root `Cargo.toml` の `exclude`）。

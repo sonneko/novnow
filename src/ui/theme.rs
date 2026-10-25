@@ -204,6 +204,9 @@ pub fn visuals(mode: Mode) -> Visuals {
 
 /// 同梱フォント（IPA ゴシック。Web は常にこれ、デスクトップは CJK フォントが見つからないときの
 /// 代わり。§11.5）。
+pub const IPA_FONT_LICENSE: &str =
+    include_str!("../../licenses/IPA_Font_License_Agreement_v1.0.txt");
+
 pub const BUNDLED_FONT: &[u8] = include_bytes!("../../assets/ipag.ttf");
 
 /// フォントの名前（egui の `FontDefinitions` の中の）。

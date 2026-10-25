@@ -16,7 +16,7 @@ const japanese = slug ? `/ja/manual/${slug}` : "/ja/manual/";
 ---
 
 <BaseLayout title="Guide" lang="en">
-  <Header lang="en" currentPath="/en/manual/" />
+  <Header lang="en" currentPath={Astro.url.pathname} />
   <main class="container" style="max-width: 760px; margin: 3.5rem auto 6rem;">
     <div style="background-color: var(--bg-card); box-shadow: var(--shadow-inner-border); border-radius: 24px; padding: 2.5rem;">
       <h1 style="font-size: clamp(1.75rem, 3vw, 2.2rem); font-weight: 800; letter-spacing: -0.025em; color: var(--text-primary); margin-bottom: 1rem;">

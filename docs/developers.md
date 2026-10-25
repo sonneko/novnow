@@ -168,6 +168,8 @@ novnow/
 
 ### 4.1 `bash scripts/verify.sh`（コミット前の必須検証）
 
+Actions取得スクリプトのオフライン回帰は `REF:scripts/action/test_install.py` で検査する。macOSでは標準Bash 3.2を明示し、空引数・終了コード・export先・バックスラッシュを含むパスのSHA-256を確認する。
+
 `REF:scripts/verify.sh` は次を一括で実行する（`--quick` で wasm を、`--python` で Python だけに絞れる）。コミット・プッシュ前に必ず実行し、すべて通ることを確認する。
 
 1. `python3 docs/script/duplicate.py`（ドキュメント規則・重複・`REF:` リンク・仕様/設計見出し一致の検査）
@@ -257,7 +259,7 @@ CI_LOG=/tmp/ci.log CI_JOB="Local test run" CI_KIND=test CI_STATUS=success \
 | 9 | リンクとアンカー | ルート文書の相対リンク・画像、`REF:…` の `#アンカー` が飛べない | 見出しを書き換えた後の `REF:` のアンカー |
 | 10 | Actions の節約 | `concurrency` の無いワークフロー、draft で走る PR ジョブ、廃止ランナー（`macos-13`）、変更フィルタの消失、`[ci skip]` フックの欠落 | `REF:.github/workflows/wheels.yml` に `concurrency` が無かった（4 OS の行列が二重に走る） |
 | 11 | 公開する手引き | 仕様 §14.2.1 の 3 URL の実体、`docs/users` の参照方向、ガイドモードの段階と手引きの一致 | 生成前の `guide/publish.html` の 404（アプリのヘルプから開けなかった） |
-| 12 | 配布形態 | 仕様 §20 の選択肢の数（1・10・5・1・1）、名前の形、廃止した軸（同時起動の制限・同梱物の外置き）が仕様・設計・手順・利用者向けへ戻る。数を書き写した README・`docs/users/install.md` の値も見る | デスクトップ版を 20 通りと書いたまま残った表（軸を廃止した直後） |
+| 12 | 配布形態 | 仕様 §20 の選択肢の数（1・10・5・1・1）、名前の形、廃止した軸（同時起動の制限・同梱物の外置き）が仕様・設計・手順・利用者向けへ戻る。数を書き写した README・`docs/users/install.md` の値、全ソースを含む最終成果物数、配布設計の廃止済み認証・設定も見る | デスクトップ版を 20 通りと書いたまま残った表（軸を廃止した直後） |
 
 ```bash
 python3 docs/script/reference.py          # 検査（違反があれば終了コード 1）
@@ -329,6 +331,12 @@ GitHub Actions は**走った分だけ**課金される。このリポジトリ�
 
 ### 4.8 ユーザー向け文書（`REF:docs/users/`）
 
+Web サイト側を変更したら `npm ci --prefix website && npm run check:site --prefix website` も実行する。
+これは通常の `REF:scripts/verify.sh` に含まれない Node ビルドと生成 HTML の検証で、
+`REF:.github/workflows/website.yml` と `REF:.github/workflows/deploy.yml` でも実行する。
+検査範囲と開発時の base 補正は `REF:website/README.md` を参照する。
+
+
 `REF:docs/specifications/` は「決まり」、`REF:docs/users/` は「使い方」である。両者は読者が違うので分ける。
 
 | 文書 | 中身 | 読者 |
@@ -380,10 +388,16 @@ GitHub Actions は**走った分だけ**課金される。このリポジトリ�
 
 ## 5. ユーザーの開発の進め方（作業の作法）
 
+現在の開発目標は **v0.1.0**。段階①〜③および配布整備はすべてこの版へ向けた開発として扱う。v1 は将来の安定化目標であり、完了済みと表記しない。過去の呼称と決定の記録は `REF:docs/history.md` に隔離する。
+
 1. **段階 ① と段階 ② の区分**:
    - **段階 ①（M0〜M11）**: コア仕様一式の実装・検証・リリース準備（完了）。
    - **段階 ②**: `REF:docs/plans.md#stage-2` に記載された追加仕様 27 項目。段階 ① で設けた 10 個の縫い代（`REF:docs/designs/overview.md` §3.3）を壊さずに段階的に実装する。
-2. **ブランチと PR の運用**:
+2. **ブランチと PR の運用（v0.1.0 以降は GitFlow）**:
+   - `main` は死守する。公開版だけを置き、**バージョン更新を伴う release / hotfix PR 以外はマージ禁止**。通常の修正や文書更新も直接入れない。
+   - `develop` は次版の統合先。通常は作業ブランチ → `develop`、リリース時は `develop` → `release/<版>` → `main` の順に PR を作る。安定化中の修正は `develop` にも戻す。
+   - 緊急修正は公開版から `hotfix/<版>` を準備し、必ず版を上げて `main` と `develop` の両方へ戻す。リリースタグはマージ後の `main` 上のコミットへ付ける。
+   - ブランチ保護・必須チェック・承認・公開設定は `REF:docs/distribution.md` §8 に従う。GitFlow の長期ブランチとリリース用ブランチの準備は人間が別セッションで行う。この Arena セッションのブランチ制約は優先される。
    - セッションに紐づく専用作業ブランチ（`arena/...`）でのみ作業し、別ブランチの作成や切り替えは行わない。
    - **作業の区切りごとにこまめにコミット & プッシュ**する。
    - PR の作成・更新はエージェントが行うが、**PR のマージは必ずユーザー自身が行う**（エージェントが勝手に `gh pr merge` を実行してはならない）。

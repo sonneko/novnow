@@ -2050,3 +2050,84 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - **Python 3.9**: 同じホイール検査が `tomllib`（3.11 以降）を使っていたため、3.9 ジョブだけ失敗した。`REF:.github/workflows/wheels.yml` と `REF:.github/workflows/release.yml` の版読み取りを標準ライブラリの文字列処理へ変え、3.9 の文法と実行をローカルで検査した。
 - **Electron**: VSCode `40049130929` は型・単体・VSIX が成功し、Electron が失敗した。テストは起動済み拡張の API を使うが、設定変更による LSP 再起動の完了を待たずに状態を読んでいた。`REF:vscode/src/test/suite/extension.test.ts` で正しい API のまま再起動を待つ。実バイナリとの LSP `initialize` / `shutdown` はローカルで成功した。
 - **検証**: 配布テスト 10 件、VSCode の型検査・Electron テストのコンパイル・単体テスト 6 件、ワークフロー YAML の解析が成功した。修正後のホスト結果は PR #28 の後続実行で確認する。
+
+## 2026-10-24: v0.1.0 へリリース目標を確定、GitFlow と公開先を整理
+
+- 過去の `v0-final` 公開後に「v1 向け」と呼んでいた段階①〜③・配布の開発は、すべて v0.1.0 向けとして扱う。v1 は延期する。過去の記録は改変せず、この決定で現行の呼称を更新する。
+- v1 到達までは novnow 形式の版間互換性を保証せず、実装コスト最小化のため v0 → v1 の移行機能は提供しない。通常の本文取り込みや既存ブラウザストレージの読み込みとは区別する。
+- v0.1.0 以降は GitHubFlow ではなく GitFlow。main は公開版を死守し、版更新 PR のみマージする。通常の統合先は develop とする。運用の正本は `REF:docs/developers.md` §5。
+- サイト `/novnow/` と Web アプリ `/novnow/app/` は単一の Pages ワークフローで配信する。crates.io 公開、ドキュメントを含む全ソース添付、認証・外部設定の手順を `REF:docs/distribution.md` に追加する。実際の初回公開と外部設定は別途実施し、実装だけで公開完了とはしない。
+
+## 2026-10-24: リリース文書の整合性監査
+
+- 自動検査では見逃していた、配布設計の旧 PyPI トークン認証・Rust 公開の否定・廃止済み VSCode 設定・古い探索順・Actions 引数形式・公開状態の自動判定という記述を実装と照合し訂正した。18 通りの導入選択肢と、全ソースを含む 17 添付成果物は別の数として扱う。
+- API 設計に残っていた未移設の説明、Python ワークスペース統合・型スタブ生成先、存在しない実装パスを訂正した。現在の設計は `REF:docs/designs/interfaces.md` と `REF:docs/designs/external.md` に記す。
+- TestPyPI の事前公開と本番同版アップロードの衝突を手順に明記し、実在しない仕様節への参照とスキーマ識別子の誤記を除いた。`REF:docs/script/reference.py` の配布検査に、古い公開設計と最終成果物数の回帰ガードを追加した。
+
+## 2026-10-24: Web サイトの全ページ・ブラウザ監査
+
+- ヘッダーの製品版表示を本体から読み、v1 の固定表示を訂正した。旧プロジェクトを migrate で無損失変換できるという誤った紹介を除き、データ互換性告知を全言語ページへ追加した。
+- 手引きの壊れたアンカー、詳細ページの言語切替、開発モードの base パス、ローカル LLM の診断コードと文字コード説明を修正した。canonical / hreflang を付け、Astro の非推奨 Zod import を更新した。
+- `REF:scripts/website-check.py` に出力 HTML 全体のリンク・アンカー・CSS/画像・言語切替・版表示・告知の検証を追加し、`REF:.github/workflows/website.yml` と Pages 結合前後の検査で再発を防ぐ。既存の仕様の変更ではなく、紹介文・導線・検証の整備である。
+
+## 2026-10-24: 末尾スラッシュ強制による 404 を修正
+
+- `REF:website/astro.config.mjs` の `trailingSlash: always` が、末尾 `/` の無い既存リンクへのアクセスを拒否していたため `ignore` に変更した。canonical / hreflang の表記のみ `/` 付きに統一し、アクセスは両方許可する。
+- 前回のブラウザ検証は `/` 付き URL のみであり、この問題を検出できなかった。修正後は全 209 経路の両表記を preview と dev で HTTP 検証し、836 要求の 200 応答を確認した。設定の回帰テストを追加した。
+
+## 2026-10-24: 6領域の横断整合性監査
+
+- ユーザー承認の監査に基づき、文書119件・仕様設計12対・実装/生成物・CLI/Python/VSCode/Actions/Pages・公開手順を横断確認した。監査計画は `REF:docs/plans.md` へ追記していない。
+- `REF:.github/workflows/wheels.yml` の本番公開条件にテスト成功を必須化し、`REF:tests/distribution.rs` の回帰検査を追加した。Python READMEの未実装という古いGIL説明、API例の無効IDと診断の戻り値、GUIDEの実行ファイル指定、導入ガイドの画面/同梱物説明、LSPの日英ヘルプ列挙漏れを訂正した。Python仕様のコード例そのものを実拡張で実行する回帰を追加し、サイト/guideを再生成した。
+- 規範や公開運用の判断が必要な6件はPR #31へ重大度・場所・矛盾・根拠・再現・提案・承認事項の形で報告する。ライセンス確認、規則10の適用範囲、初回オフライン、CLI規則、版番号の配布先表現、公開経路が対象。公開・タグ作成・マージ・外部設定変更は行っていない。
+- 全verifyは成功したが、初回オフラインの分離再現では資源不足を検出した。旧worker更新/実TrunkアプリE2E/複数ブラウザ/各OS配布/外部レジストリ/署名/実デプロイの検証完了を意味しない。
+
+## 2026-10-25: 横断監査D-01〜D-06の承認反映
+
+- ユーザーが、外部ライセンス文書の同梱例外、配布物取得専用領域の限定例外、初回ロードだけでのオフライン資源確保、§19のCLI拡張を正とする規則統合、Python配布のPEP 440等価表現、補助workflowをTestPyPI専用にする方針を承認した。
+- IPA Gothic 003.03は固定ミラーの原本とハッシュ一致を確認し、同じ配布元の許諾原文を `REF:licenses/IPA_Font_License_Agreement_v1.0.txt` に保存した。配布アーカイブへ添付しGUIのヘルプにも埋め込んだ。許諾・取得専用領域の例外を仕様/設計/手順へ反映した。
+- `REF:scripts/pwa-assets.py` とTrunk post_buildで全資源一覧・内容/workerのハッシュを封入し、初回installの全件成功後のみactivateする形へ変更した。オンライン再読み込みを挟まず実release WASMのオフライン再起動と作品保持を確認し、失敗した更新が旧cacheを消さない回帰も追加した。実行はwasm-bindgenの手動builderであり、Trunk/実Pagesの確認とは区別する。
+- CLIの予約語とフラグ規則を統合し、予約語ディレクトリを `./` で開く回帰を追加した。Pythonの試験版はalpha/beta/rcの対応表現を検査し、隔離コピーの実RC wheelでも版の等価性を確認した。Marketplaceの試験版公開は未対応なので、部分公開を起こす前に統合Releaseのprepareで停止する安全策を入れた。補助wheelsから本番PyPIの入力・ジョブ・旧条件を除去し、TestPyPIは一致する試験版タグでのみ公開する。
+- 全verify成功（GUIあり1373/GUIなし1187、文書単体52）。公開・タグ作成・マージ・外部設定変更は行わず、外部サービスでの公開検証は別途必要とした。
+
+## 2026-10-25: 公開しないホスト検証の拡張
+
+- public化とCI実行許可に基づき、実Trunk/Astro結合物の3エンジンE2E・cargo publish dry-run・10デスクトップ成果物の作成/検査/展開後CLI smokeを追加した。VSCode Electronを3 OSへ拡張し、macOS bundleの実行名、Windowsのexe名/文字コード、macOS bash互換、ブラウザの非同期処理差を修正した。
+- ローカル全verifyと、ホストの通常CI・5ターゲットwheelと3 Python版・3 OS Electron・実結合build・クレートdry-runの成功を確認した。ブラウザと10デスクトップ行列は追加回帰を繰り返し、最終結果をPR #31のChecks/コメントへ記録する。署名/公証・実機のGUI操作や実サービス公開を代替する検証とは扱わない。
+- 外部設定を読み取り確認し、存在するenvironment/develop/Pagesと、deployment policyのbranch/tag不一致・TestPyPI environment名・ruleset対象/必須チェック/承認・公開environmentの承認者不足を区別して報告した。設定変更・公開・タグ・マージは行っていない。監査計画はplansへ追記していない。
+
+- Firefoxの初回実行でDBが空のまま起動が止まる回帰を検出。永続化許可の応答を作品一覧の前で待つ構造をやめ、要求は並行して行う。応答しないpersist()を注入しても実WASMが作品を初期化するE2Eを3エンジンに追加した。
+
+## 2026-10-25: ブラウザ回帰の再発と公開設定の再確認
+
+- Firefoxの初期化停止が再発したため、永続化許可だけが原因という断定を撤回した。IndexedDB操作の診断を追加し、サンプル作成は読み取り成功イベント内で全書き込みを登録してトランザクション完了を待つ形へ変更した。重複名確認と挿入の原子性を保ち、非同期継続時のauto-commitに依存しない。新規profileのFirefox反復をCIへ追加した。
+- WebKitは本体のoffline/旧worker解除/作品保持の成功と追加fixtureの失敗を区別し、about:blank等でStorageManagerが無い場合のガードを追加した。3エンジンの一度の成功だけで再発防止完了とは扱わない。
+- Desktop検査でGUIラベルにui feature指定が不足していたため訂正。以前のラベル付き行列の成功は実GUIビルドの成功を意味しない。
+- 所有者修正後のEnvironment版タグ型/公開レビューとdevelop適用/レビュー人数1/必須チェックをAPIで再確認。旧チェック名・Restrict updatesの残存をPRへ報告し、設定は変更していない。
+
+## 2026-10-25: 通常マージ・VSIX先行配布・未署名方針の承認
+
+- 所有者がmain/developのRestrict updatesとlinear historyを解除し、許可マージ方法mergeのみ・必要承認数0へ変更したことをAPIで確認した。通常のmerge commitで統合する。こちらからマージや外部設定変更は行っていない。
+- crates.io/PyPI/TestPyPIの設定は所有者確認済み。Azure DevOps登録の事情によりMarketplace公開を延期し、遅くとも製品v1到達までに開始する方針を承認。VSIXはGitHub Releasesへ添付し、手動インストール手順を利用者文書へ反映した。ReleaseからMarketplace公開入力・ジョブ・最終処理の依存とPAT参照を除去した。
+- Windows/macOSの配布元署名およびmacOS公証は行わない。署名処理・Secrets参照を除去し、最終SHA256SUMSへ方針を明記。仕様・設計・公開手順・日英README・拡張README・手引きと生成サイトを同期した。通常版限定のReleaseゲートは維持する。
+
+## 2026-10-25: Firefox CIのWebGL起動失敗を分離
+
+- 3ba7150のFirefox失敗は「WebGL isn't supported」が先行し、IndexedDB操作履歴は空だった。サンプル作成timeoutは二次的症状。前の5連続成功だけで環境の安定性まで確認できたとは言えず、過去の同型timeoutも保存処理だけに原因を限定しない。
+- FirefoxをXvfb上のheadedモードとMesa llvmpipeへ固定し、GLX/WebGL rendererの事前診断を追加。アプリconsole.errorも初期化失敗として即時報告する。ブラウザチェックを削除せず、Firefoxの新規profile5回の全シナリオを維持した。実機GPU/Safariの保証とは区別する。
+
+## 2026-10-25: v0.1.0公開と公開後消費テストの不具合検出
+
+- 所有者の公開承認に基づきPR #31を通常mergeし、mainの25725ba6へv0.1.0タグを作成した。所有者が各environmentを承認し、Release 40159636238全ジョブ成功、17成果物と照合表・crates.io/TestPyPI/PyPI・v0タグ・Pagesが公開された。Marketplaceは延期、配布元署名/公証は行わない。
+- 公開後Action smokeはLinux成功、macOS/Windows失敗。新ブランチarena/35b388c5-novnowで不変タグから再取得する監査CIを追加し、公開17ファイル全hash/形式/版、ソース内容、両Python registryとcrates.ioの実install、Pages/WASM取得の成功を確認した。PyPI実wheelのローカルAPI検査も9件成功・1件skip。
+- macOSはBash 3.2の空配列+nounset、Windowsはバックスラッシュを含むパスでsha256sumがhash先頭へescape文字を付けることによる誤判定を確認した。公開ZIPの破損ではない。stdin hash計算と非空argvの修正候補・回帰5件を準備するが、不変タグや公開物は上書きしない。追加パッチリリースには別途所有者の承認が必要。
+
+## 2026-10-25: Windowsのアーカイブ展開と回帰実行環境の追加修正
+
+- hash修正後の公開物消費run 40162433524ではLinux/macOS成功、WindowsはGNU tarのドライブ文字解釈で失敗。Windows標準BSD tarの明示と一覧取得失敗時の中止を修正候補へ追加した。
+- Windows回帰実行ではWSL版bashを選ばず、Gitのcmd/mingw64双方からGit Bashを検出する。認証済みキャッシュの実展開回帰を加え計6件とした。ローカル全verifyも成功。develop向けPR #32を作成しReady for reviewにした。公開済み版のタグ・成果物・版番号は変えていない。
+
+## 2026-10-25: Actions互換性修正は次回リリースへ同梱
+
+- 所有者は、再現環境がGitHub Actions版のmacOS/Windows実行で影響範囲が狭いことから、この不具合だけのパッチリリースを行わず、修正を次回リリースへ含めると決定した。v0.1.1の単独公開提案は採用しない。次回の版番号はこの決定では指定しない。
+- 修正はdevelop向けPR #32で管理する。修正候補の3 OS監査run 40162925926と通常6系統CIは成功済みだが、公開済みv0.1.0/v0は未修正のまま維持する。タグ・成果物の差し替えや追加公開は行わない。

@@ -102,7 +102,7 @@ def test_calls_from_several_threads_are_serialised(project):
             thread.join()
 
     assert not failures, failures
-    assert len(answers) == 80, "100 往復のうち欠けたものがある"
+    assert len(answers) == 80, "80 往復のうち欠けたものがある"
     assert all(answers), "応答が壊れている"
 
 
@@ -139,3 +139,25 @@ def test_the_gil_is_released_while_an_operation_runs(project):
         thread.join(timeout=10.0)
 
     assert ticks > 100, f"GIL が解放されていない（{ticks} 歩）"
+
+
+def test_specification_python_example_runs_against_native_extension(project):
+    """§19.3.2 のコードそのものを実行し、例だけの古い ID や戻り値を検出する。"""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[3]
+    specification = (root / "docs/specifications/interfaces.md").read_text()
+    section = specification.split("#### 19.3.2 基本形", 1)[1]
+    example = section.split("```python\n", 1)[1].split("```", 1)[0]
+    # 新規作成のパスだけをテスト領域に置き換える。API 呼び出しは変更しない。
+    example = example.replace('"my-novel"', repr(project))
+    example = example.replace('"new-novel"', repr(str(Path(project).parent / "new-novel")))
+    namespace = {}
+    try:
+        exec(compile(example, "specifications/interfaces.md:19.3.2", "exec"), namespace)
+        assert namespace["info"]["title"] == "星屑の時計"
+        assert isinstance(namespace["text"], dict)
+        assert "diagnostics" in namespace["report"]
+    finally:
+        if "session" in namespace:
+            namespace["session"].close()
