@@ -1,0 +1,46 @@
+name: 不具合報告
+description: 動作のおかしいところを報告する
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        報告ありがとうございます。公開済みの版の既知の問題は `docs/known-issues/ja.md` にあります。同じ内容でなければ、以下へ記入してください。
+  - type: input
+    id: version
+    attributes:
+      label: novnow の版
+      placeholder: "例: v0.1.0 / Web 版"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: 環境
+      placeholder: "例: Windows 11 / iOS Safari（PWA）+ 物理キーボード"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 再現手順
+      description: どの操作で起きるかを順に書いてください。
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 実際に起きたこと
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待した動き
+    validations:
+      required: true
+  - type: input
+    id: diagnostic
+    attributes:
+      label: 診断コードや表示された文言（あれば）
+      placeholder: "例: E001"

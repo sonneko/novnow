@@ -189,7 +189,7 @@ All specifications for the editor and the novnow format are fully documented:
 
 Our website ([https://sonneko.github.io/novnow/](https://sonneko.github.io/novnow/)) has a feature guide, the full diagnostics catalog, and an API reference. The specifications themselves live in this repository under [`docs/specifications/`](./docs/specifications/) and are versioned with the implementation.
 
-To contribute, start with [`GUIDE.md`](./GUIDE.md) (build and writing walkthrough) and [`docs/developers.md`](./docs/developers.md) (dev environment, document rules, and verification).
+For bug reports and proposals, see [`CONTRIBUTING.md`](./CONTRIBUTING.md) (code pull requests are not accepted for the time being). For the development environment, start with [`GUIDE.md`](./GUIDE.md) (build and writing walkthrough) and [`docs/developers.md`](./docs/developers.md) (dev environment, document rules, and verification).
 
 ## About the License
 

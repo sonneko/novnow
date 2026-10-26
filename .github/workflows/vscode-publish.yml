@@ -1,0 +1,94 @@
+name: VSCode Publish
+
+# VS Code Marketplace / Open VSX への公開（Issue #29 B9、N29-26）。
+# 手動実行（workflow_dispatch）だけが入口で、タグや PR では自動公開しない。
+# 公開ジョブは environment `vscode-publish` の承認を挟む想定（リポジトリ設定で
+# Required reviewers を付けて使う）。発行者トークン（VSCE_PAT / OVSX_PAT）が
+# 無ければ、ジョブは何もせず成功して終わる（初回公開は登録とトークンの用意の後）。
+
+on:
+  workflow_dispatch:
+    inputs:
+      market:
+        description: "公開先"
+        type: choice
+        options: [both, marketplace, openvsx]
+        default: both
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vscode-publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: vscode
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: vscode/package-lock.json
+      - run: npm ci
+      - run: npm run package
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vsix
+          path: vscode/novnow-*.vsix
+          if-no-files-found: error
+
+  publish-marketplace:
+    if: inputs.market != 'openvsx'
+    needs: package
+    runs-on: ubuntu-latest
+    environment: vscode-publish
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/download-artifact@v4
+        with:
+          name: vsix
+      - name: Publish to VS Code Marketplace
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${VSCE_PAT}" ]; then
+            echo "::notice::VSCE_PAT が無いので Marketplace への公開をしません（発行者トークンの用意が先です）。"
+            exit 0
+          fi
+          vsix=$(ls novnow-*.vsix)
+          npx --yes @vscode/vsce publish --packagePath "$vsix" --pat "$VSCE_PAT"
+
+  publish-openvsx:
+    if: inputs.market != 'marketplace'
+    needs: package
+    runs-on: ubuntu-latest
+    environment: vscode-publish
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/download-artifact@v4
+        with:
+          name: vsix
+      - name: Publish to Open VSX
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${OVSX_PAT}" ]; then
+            echo "::notice::OVSX_PAT が無いので Open VSX への公開をしません（発行者トークンの用意が先です）。"
+            exit 0
+          fi
+          vsix=$(ls novnow-*.vsix)
+          npx --yes ovsx publish "$vsix" --pat "$OVSX_PAT"

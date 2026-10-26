@@ -1,0 +1,27 @@
+name: 提案
+description: 機能や仕様の提案をする
+labels: [proposal]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提案ありがとうございます。novnow の仕様変更は承認制です（`CONTRIBUTING.md` 参照）。まず「困っていること」から書いてください。
+  - type: textarea
+    id: problem
+    attributes:
+      label: 困っていること
+      description: どのような場面で、何が不便・不足ですか。
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 提案内容
+      description: どう変わるとよいと思いますか。
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 代替案・回避策（あれば）
+      description: 今どうしているか、ほかの進め方があれば書いてください。

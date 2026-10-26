@@ -192,7 +192,7 @@ novnow structure tree my-novel --json                    # 正規操作も --jso
 
 公式サイト（[https://sonneko.github.io/novnow/](https://sonneko.github.io/novnow/)）では、機能ガイド・診断コードの一覧・API リファレンスを読めます。仕様書はすべてこのリポジトリの [`docs/specifications/`](./docs/specifications/) にあり、実装と同じコミットで管理されています。
 
-開発に参加する場合は [`GUIDE.md`](./GUIDE.md)（ビルドと執筆の手順）と [`docs/developers.md`](./docs/developers.md)（開発環境・文書規則・検証手順）から始めてください。
+不具合の報告と提案の出し方は [`CONTRIBUTING.md`](./CONTRIBUTING.md) にあります（コードのプルリクエストは当面受け付けていません）。開発環境については [`GUIDE.md`](./GUIDE.md)（ビルドと執筆の手順）と [`docs/developers.md`](./docs/developers.md)（開発環境・文書規則・検証手順）から始めてください。
 
 
 ## ライセンスについて
