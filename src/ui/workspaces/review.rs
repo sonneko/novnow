@@ -325,10 +325,13 @@ pub fn show(
                 None => {}
             }
             super::separator(ui, view.mode);
-            let clicked = match state.tab {
+            let (clicked, level) = match state.tab {
                 Tab::Diagnostics => diagnostics_tab(ui, state, bench, view),
-                Tab::Progress => progress_tab(ui, state, bench, view),
+                Tab::Progress => (progress_tab(ui, state, bench, view), None),
             };
+            if level.is_some() {
+                request = level;
+            }
             if let Some((index, double)) = clicked {
                 let tab = state.tab_index();
                 state.selected[tab] = index;
@@ -396,13 +399,13 @@ fn tabs(ui: &mut Ui, state: &mut State, view: &View) -> (bool, Option<Guide>) {
     (rerun, guide)
 }
 
-/// 診断タブ。クリックされた行（と、ダブルクリックか）を返す。
+/// 診断タブ。クリックされた行（と、ダブルクリックか）と有効設定の要求を返す。
 fn diagnostics_tab(
     ui: &mut Ui,
     state: &mut State,
     bench: &Workbench,
     view: &View,
-) -> Option<(usize, bool)> {
+) -> (Option<(usize, bool)>, Option<Request>) {
     let colors = theme::palette(view.mode);
     let scale = view.scale;
     let locale = view.locale;
@@ -454,6 +457,58 @@ fn diagnostics_tab(
     });
     ui.add_space(4.0);
     let rows = state.visible(bench, locale);
+    // 選択中コードの有効設定（§10.9.6。[features.diagnostics] へ保存する）
+    let mut level_request = None;
+    if let Some(row) = rows.get(state.selected()) {
+        let overrides = &bench.project().settings().features.diagnostics;
+        let current = diagnostics::CATALOG
+            .iter()
+            .find(|(code, _)| code.as_str() == row.code)
+            .and_then(|(code, _)| diagnostics::level_for(*code, overrides));
+        ui.horizontal(|ui| {
+            ui.label(
+                RichText::new(i18n::format(locale, "review.level_for", &[&row.code]))
+                    .font(FontId::new(12.0 * scale, FontFamily::Proportional))
+                    .color(colors.fg_muted),
+            );
+            for (value, key, level) in [
+                ("off", "review.level_off", diagnostics::DiagnosticLevel::Off),
+                (
+                    "warn",
+                    "review.level_warn",
+                    diagnostics::DiagnosticLevel::Warn,
+                ),
+                (
+                    "error",
+                    "review.level_error",
+                    diagnostics::DiagnosticLevel::Error,
+                ),
+            ] {
+                let selected = current == Some(level);
+                let text = RichText::new(i18n::text(locale, key))
+                    .font(FontId::new(12.0 * scale, FontFamily::Proportional))
+                    .color(if selected {
+                        colors.accent
+                    } else {
+                        colors.fg_muted
+                    });
+                if super::selectable_action(ui, selected, text).clicked() {
+                    level_request = Some(Request::SetDiagnosticLevel {
+                        code: row.code.clone(),
+                        level: value.to_owned(),
+                    });
+                }
+            }
+            if current.is_none() {
+                ui.label(
+                    RichText::new(i18n::text(locale, "review.level_default"))
+                        .font(FontId::new(11.0 * scale, FontFamily::Proportional))
+                        .color(colors.fg_muted),
+                );
+            }
+        });
+        ui.add_space(4.0);
+    }
     if rows.is_empty() {
         super::hint(
             ui,
@@ -461,7 +516,7 @@ fn diagnostics_tab(
             scale,
             i18n::text(locale, "review.no_diagnostics"),
         );
-        return None;
+        return (None, level_request);
     }
     let selected = state.selected().min(rows.len() - 1);
     let reveal = state.reveal;
@@ -509,7 +564,7 @@ fn diagnostics_tab(
                 }
             }
         });
-    clicked
+    (clicked, level_request)
 }
 
 /// 進捗タブ。

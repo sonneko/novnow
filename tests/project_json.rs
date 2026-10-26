@@ -233,3 +233,31 @@ fn features_diagnostics_is_read_from_the_table() {
     assert_eq!(map.get("writing").map(String::as_str), Some("error"));
     assert_eq!(map.get("default").map(String::as_str), Some("warn"));
 }
+
+#[test]
+fn set_diagnostic_level_writes_the_features_table_losslessly() {
+    // §10.9.6: 既存キーは装飾を残して更新し、無ければコードキーを足す
+    let source = "# 先頭コメント\nschema_version = 2\n\n[features.diagnostics]\nW012 = \"off\" # 行末コメント\n";
+    let edited =
+        project_toml::set_diagnostic_level(source, "W012", "error").expect("既存キーの更新");
+    assert!(
+        edited.contains("W012 = \"error\" # 行末コメント"),
+        "{edited}"
+    );
+    assert!(edited.starts_with("# 先頭コメント"));
+
+    let edited =
+        project_toml::set_diagnostic_level(&edited, "W096", "warn").expect("新しいコードキー");
+    let settings = project_toml::settings(&edited);
+    assert_eq!(settings.features.diagnostics["W012"], "error");
+    assert_eq!(settings.features.diagnostics["W096"], "warn");
+
+    // テーブル自体が無い場合も作る。壊れた TOML は直さない
+    let bare = "schema_version = 2\n";
+    let edited = project_toml::set_diagnostic_level(bare, "W096", "off").expect("作る");
+    assert_eq!(
+        project_toml::settings(&edited).features.diagnostics["W096"],
+        "off"
+    );
+    assert!(project_toml::set_diagnostic_level("title = ", "W096", "off").is_none());
+}

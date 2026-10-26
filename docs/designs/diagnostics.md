@@ -33,19 +33,18 @@
 
 ### 7.2 執筆支援系の診断
 
-状態: 未実装・実装計画済み（REF:src/core/diagnostics.rs, REF:src/core/features/project.rs, REF:tests/diagnostics_document.rs, REF:docs/plans.md#plan-S-15, REF:docs/plans.md#issue-29-b7）
+状態: 実装完了（REF:src/core/diagnostics.rs, REF:src/core/features/project.rs, REF:tests/diagnostics_document.rs）
 
-- 執筆支援系の 27 コード（`W080`〜`W099`, `E032`〜`E036`, `E064`, `I054`）は `Group::Writing` として `REF:src/core/diagnostics.rs` に定義する。
+- 執筆支援系の 28 コード（`W080`〜`W099`, `E032`〜`E036`, `E064`, `I054`）は `Group::Writing` として `REF:src/core/diagnostics.rs` に定義する。
 - 既定の有効（`TOGGLE_ON`: 11 件）/ 無効（`TOGGLE_OFF`: 7 件）および実行コスト制御テーブル（`COST`: 16 件の `Trigger` × `Scope`）は `REF:src/core/diagnostics.rs` に定数表として持ち、`REF:tests/diagnostics_catalog.rs` で仕様表との完全一致を検証する。
 - 段階 ① 対象の執筆支援診断（`W081` 文長、`W082` 連続文末、`W083` 話者不明会話、`W084` 非定義視点、`W085` 助詞連続、`W086` 指示語過多、`W087` 漢字率、`W094` 台詞長、`W098` 表記揺れ、`E032`〜`E036` / `E064` / `I054` エージェント系）は `REF:src/core/features/project.rs` および `REF:src/core/agents/runner.rs` で実装済みであり、段階 ② の構文（`when:` / `senses:` / `space:` 等）に依存するコードは縫い代 3 に従いカタログ定義と設定トグルを保持している（`REF:docs/plans.md#stage-2`）。
 - 執筆支援診断の算出規約（`REF:docs/history.md` の `B-78`, `B-79`）:
   - `W082`（連続文末）は段落内の文ごとに末尾の句点・感嘆符・閉じ括弧を除いた最後の 2 文字（ひらがな・カタカナの語尾）を比較し 3 文連続一致で警告する。
-  - `W085`（助詞連続）は文内の平仮名 1 文字助詞（`の` / `が` / `を` / `に` / `で` / `と` / `は`）の出現間隔と回数を検査し、`W087`（漢字率）は段落単位（50 字以上）の CJK 統合漢字比率が `project.json` の範囲（既定 20%〜45%）を外れた場合に報告する。
+  - `W085`（助詞連続）は文内の平仮名 1 文字助詞（`の` / `が` / `を` / `に` / `で` / `と` / `は`）の出現間隔と回数を検査し、`W087`（漢字率）は段落単位（50 字以上）の CJK 統合漢字比率が `project.toml` の範囲（既定 20%〜45%）を外れた場合に報告する。
 
 - **[S-15] 全診断コードの Web サイト解説と CI 網羅検査（実装完了: `REF:website/src/pages/[lang]/diagnostics/[code].astro`, `REF:scripts/diagnostics-site.py`）**:
-  - `REF:website/src/data/diagnostics.ts` は仕様表から生成し、`REF:website/src/data/diagnostics-en.json` と `REF:website/src/data/diagnostics-examples.json` に全 76 コードの日英の原因・例・対処法を置く。`REF:website/src/pages/[lang]/diagnostics/[code].astro` でコードごとの解説ページを生成し、`REF:scripts/diagnostics-site.py` の `--check` を CI（`REF:.github/workflows/ci.yml`）で実行して仕様表とのコード集合一致と内容の非空性を検査する。
+  - `REF:website/src/data/diagnostics.ts` は仕様表から生成し、`REF:website/src/data/diagnostics-en.json` と `REF:website/src/data/diagnostics-examples.json` に全 77 コードの日英の原因・例・対処法を置く。`REF:website/src/pages/[lang]/diagnostics/[code].astro` でコードごとの解説ページを生成し、`REF:scripts/diagnostics-site.py` の `--check` を CI（`REF:.github/workflows/ci.yml`）で実行して仕様表とのコード集合一致と内容の非空性を検査する。
 
-- **[Issue #29 / B7] トグルの feature 化と W096 の追加（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b7`）**:
-  - 現行のセッション内トグル（`TOGGLE_ON` / `TOGGLE_OFF` 定数）は「組み込み既定」として残し、作者の上書きは `[features.diagnostics]` が持つ（§7.0 の B10 の設計）。UI 側の切替は設定ファイルへ保存する（§10.9.6）。表示フィルタは従来どおり保存しない。
-  - W096 は §7.2.2 の散文定義が正本であり、B7 の実装時に §7.2 の表へ行として取り込み、コード・日英カタログ・Web サイトの解説データ（§7.2.1）・コスト/トグルの定数表を同時に更新して、仕様表と実装の一致（76 件 → 77 件）を一度に成立させる。
-  - 集計は作品全体から取り、編集フローでは編集中の節だけを再走査する。全体集計の再計算は、文体タブを開いたときと節の確定時に限る。文字種による対象判定（日本語主体かどうか）は本文の文字の素性だけで決め、表示言語は使わない。
+- **[Issue #29 / B7] トグルの feature 化と W096 の追加（実装完了: `REF:docs/plans.md#issue-29-b7`）**:
+  - セッション内トグルだった有効/無効は「組み込み既定」（`TOGGLE_ON` / `TOGGLE_OFF` 定数）として残し、作者の上書きは `[features.diagnostics]`（§7.0、B10）が持つ。点検画面の編集面は §10.9（`REF:docs/designs/ui.md`）。
+  - W096（台詞内の句読点直後の空白、§7.2.2）を追加し、仕様 §7.2 の表・コード・日英カタログ・サイト解説データ・コスト/トグルの定数表を同時に揃えた（77 件）。生成は `stage_two::diagnose::dialogue_spacing`（`REF:src/core/stage_two/diagnose.rs`）で、記号（`。`・`！`・`？`）ごとに作品全体から集計し、合計 5 件以上かつ差 2 件以上のときだけ少数派の箇所へ出す。組み込み既定は無効で、有効化は `[features.diagnostics]`。文体タブの明示操作では未有効化でも計算する。対象判定（日本語主体か）は本文の文字種だけで決める。クイックフィックスは空白を入れる／取る 1 操作（`MatchDialogueSpacing`、`REF:src/core/features/code_action.rs`）。

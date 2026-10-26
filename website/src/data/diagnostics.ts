@@ -522,6 +522,14 @@ export const diagnostics = [
     "action": "上限を引き上げる / 人間が引き継ぐ"
   },
   {
+    "code": "W096",
+    "severity": "W",
+    "condition": "台詞内の句読点直後の空白が作品内多数派と揃っていない（§7.2.2）",
+    "ja": "台詞内の句読点「{0}」の後の書き方が、作品内の大勢と揃っていません",
+    "en": "Spacing after \"{0}\" inside dialogue differs from the majority style in this work",
+    "action": "空白を多数派に合わせる"
+  },
+  {
     "code": "E032",
     "severity": "E",
     "condition": "カスタムロール名が不正（§5.9.2）",

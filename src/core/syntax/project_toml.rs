@@ -115,6 +115,36 @@ pub fn edit(text: &str, apply: impl FnOnce(&mut toml_edit::DocumentMut)) -> Opti
     Some(document.to_string())
 }
 
+/// `key` の子テーブル（無ければ作る）。テーブルでない値が書かれていれば `None`。
+fn child_table<'a>(
+    table: &'a mut dyn toml_edit::TableLike,
+    key: &str,
+) -> Option<&'a mut dyn toml_edit::TableLike> {
+    if table.get(key).is_none() {
+        table.insert(key, toml_edit::Item::Table(toml_edit::Table::new()));
+    }
+    table.get_mut(key)?.as_table_like_mut()
+}
+
+/// `[features.diagnostics]` のコードキーを無損失編集で設定する（§10.9.6）。
+///
+/// 既に書かれているキーを優先して更新し、無ければコードキーを足す。
+/// 壊れた TOML は直さない（`None`）。
+pub fn set_diagnostic_level(text: &str, code: &str, level: &str) -> Option<String> {
+    let mut done = false;
+    let edited = edit(text, |document| {
+        let Some(features) = child_table(document.as_table_mut(), "features") else {
+            return;
+        };
+        let Some(diagnostics) = child_table(features, "diagnostics") else {
+            return;
+        };
+        set_string(diagnostics, code, level);
+        done = true;
+    })?;
+    done.then_some(edited)
+}
+
 /// テーブルへ文字列のキーを書く。既存の値がある場合は、その前後の装飾
 /// （空白と行末コメント）を保ったまま値だけを差し替える（§4.5 の無損失編集）。
 pub fn set_string(table: &mut dyn toml_edit::TableLike, key: &str, value: &str) {

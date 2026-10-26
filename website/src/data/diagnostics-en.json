@@ -64,6 +64,7 @@
   "W093": ["A proposal's before text no longer matches the current prose.", "Compare both versions side by side or discard the proposal."],
   "W094": ["A regular-expression search was stopped after one second.", "Narrow the search query."],
   "W095": ["An autonomous task reached the agents.limits session limit and stopped.", "Raise the limit or continue the task manually."],
+  "W096": ["Spacing after a punctuation mark inside dialogue differs from the majority style in this work.", "Unify the spacing after the mark inside dialogue, or change this check under [features.diagnostics]."],
   "E032": ["A custom agent role has an invalid name.", "Correct the role name."],
   "E033": ["A custom agent role conflicts with a built-in role.", "Choose a different name."],
   "E034": ["More than 16 custom agent roles are configured.", "Remove unneeded roles."],

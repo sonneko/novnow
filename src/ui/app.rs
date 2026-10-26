@@ -3378,6 +3378,19 @@ impl NovnowApp {
                         register_entry(session, kind, &name, locale, now);
                     }
                 }
+                Some(workspaces::Request::SetDiagnosticLevel { code, level }) => {
+                    if let Stage::Open(session) = &mut self.stage {
+                        let path = crate::core::model::project::PROJECT_FILE;
+                        let current = session.bench.project().text(path).to_owned();
+                        if let Some(edited) =
+                            crate::core::syntax::project_toml::set_diagnostic_level(
+                                &current, &code, &level,
+                            )
+                        {
+                            session.bench.replace_document(path, edited, now);
+                        }
+                    }
+                }
                 None => {}
             }
             if !agent_actions.is_empty() {
@@ -6555,6 +6568,7 @@ fn action_label(locale: Locale, action: &crate::core::features::code_action::Cod
         ActionKind::EscapeAt => "action.EscapeAt",
         ActionKind::ReplaceKey => "action.ReplaceKey",
         ActionKind::RemoveSection => "action.RemoveSection",
+        ActionKind::MatchDialogueSpacing => "action.MatchDialogueSpacing",
         ActionKind::UseExplicitForm => "action.UseExplicitForm",
     };
     format!(

@@ -106,7 +106,7 @@ pub enum Scope {
     Session,
 }
 
-/// 診断コード（§7 / §7.1 / §7.2 の全 76 件）。
+/// 診断コード（§7 / §7.1 / §7.2 の全 77 件）。
 ///
 /// **variant 名はコード文字列そのもの**（`E001` → `"E001"`）。i18n のキーは
 /// `diag.` を前に付けた形（`diag.E001`、§12.3「キー命名」）で、core は文言を持たない。
@@ -251,6 +251,8 @@ pub enum DiagnosticCode {
     W094,
     /// 自律タスクがセッション上限（`agents.limits`）に達して停止した（§15.1.1 A8）（§7.2）
     W095,
+    /// 台詞内の句読点直後の空白が作品内多数派と揃っていない（§7.2.2）（§7.2）
+    W096,
     /// 既定プロンプトを生成した（§7）
     I050,
     /// 未保存の変更がある（§7）
@@ -344,6 +346,7 @@ impl DiagnosticCode {
             Self::W093 => "W093",
             Self::W094 => "W094",
             Self::W095 => "W095",
+            Self::W096 => "W096",
             Self::I050 => "I050",
             Self::I051 => "I051",
             Self::I052 => "I052",
@@ -531,6 +534,7 @@ pub const CATALOG: &[CatalogRow] = &[
     (DiagnosticCode::W093, 1),
     (DiagnosticCode::W094, 0),
     (DiagnosticCode::W095, 1),
+    (DiagnosticCode::W096, 1),
     (DiagnosticCode::I050, 0),
     (DiagnosticCode::I051, 0),
     (DiagnosticCode::I052, 1),
@@ -586,7 +590,7 @@ pub const STATUS_ANCHOR: &[DiagnosticCode] = &[
 ///
 /// 文体ワークスペース（§10.9）を開いたときだけ計算・表示する。理由は仕様書どおり
 /// 「書いている最中に言われたくない種類の指摘」で、P3（ノイズを増やさない）に抵触するため。
-/// 有効 / 無効は設定ファイルに書かず **UI のトグルのみ**（セッション内の一時設定）。
+/// 有効 / 無効の上書きは `project.toml` の `[features.diagnostics]`（§4.5.2）が持つ（§7.0）。
 pub const TOGGLE_OFF: &[DiagnosticCode] = &[
     DiagnosticCode::W081,
     DiagnosticCode::W083,
@@ -595,6 +599,7 @@ pub const TOGGLE_OFF: &[DiagnosticCode] = &[
     DiagnosticCode::W089,
     DiagnosticCode::W090,
     DiagnosticCode::W091,
+    DiagnosticCode::W096,
 ];
 
 /// 既定で**有効**だがトグルできる診断（§7.2「既定の有効 / 無効」）。
@@ -621,7 +626,7 @@ pub type CostRow = (DiagnosticCode, Trigger, Scope);
 
 /// 実行コストの制御表（§7.2「実行コストの制御（MUST）」）。
 ///
-/// 載っているのは §7.2 の 16 件のみ。それ以外は [`Trigger::Unspecified`] で、
+/// 載っているのは §7.2 の 17 件のみ。それ以外は [`Trigger::Unspecified`] で、
 /// 実行タイミングは M4（診断）で決める。**範囲は MUST** なので、
 /// `Scope::Section` の診断をプロジェクト全体で計算してはいけない。
 pub const COST: &[CostRow] = &[
@@ -636,6 +641,7 @@ pub const COST: &[CostRow] = &[
     (DiagnosticCode::W080, Trigger::Idle, Scope::Project),
     (DiagnosticCode::W083, Trigger::Idle, Scope::Project),
     (DiagnosticCode::W091, Trigger::Idle, Scope::Project),
+    (DiagnosticCode::W096, Trigger::Idle, Scope::Project),
     (DiagnosticCode::I054, Trigger::Startup, Scope::Project),
     (DiagnosticCode::I055, Trigger::Startup, Scope::Project),
     (DiagnosticCode::I056, Trigger::Startup, Scope::Project),

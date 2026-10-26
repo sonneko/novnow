@@ -419,6 +419,169 @@ pub fn document(doc: &Document, project: &Project, explicit: bool) -> Vec<Diagno
             }
         }
     }
+    // W096（§7.2.2）は組み込み既定では無効。有効化されているか、文体の明示操作のときだけ出す。
+    if doc.format == DocumentFormat::Contents
+        && (explicit
+            || crate::core::diagnostics::level_for(
+                C::W096,
+                &project.settings().features.diagnostics,
+            )
+            .is_some_and(|level| level != crate::core::diagnostics::DiagnosticLevel::Off))
+    {
+        out.extend(dialogue_spacing(doc, project));
+    }
+    out
+}
+
+/// 台詞内の句読点の後の空白を集計する記号（§7.2.2）。
+const DIALOGUE_MARKS: [char; 3] = ['。', '！', '？'];
+
+/// 台詞内 1 件（記号の位置〔文書内 byte〕、記号の添字、全角空白の有無）。
+struct SpacingEvent {
+    range: std::ops::Range<usize>,
+    mark: usize,
+    spaced: bool,
+}
+
+/// 1 つの本文行から台詞内の句読点イベントを拾う（`base` は文書内での行頭 byte）。
+fn spacing_events(body: &str, base: usize, out: &mut Vec<SpacingEvent>) {
+    let chars: Vec<(usize, char)> = body.char_indices().collect();
+    let mut stack: Vec<char> = Vec::new();
+    for (index, (at, character)) in chars.iter().enumerate() {
+        match character {
+            '「' => {
+                stack.push('」');
+                continue;
+            }
+            '『' => {
+                stack.push('』');
+                continue;
+            }
+            _ => {}
+        }
+        if stack.last() == Some(character) {
+            stack.pop();
+            continue;
+        }
+        if stack.is_empty() {
+            continue;
+        }
+        let Some(mark) = DIALOGUE_MARKS.iter().position(|m| m == character) else {
+            continue;
+        };
+        // 記号の次を見る。全角空白だけを「空白あり」とし、同じ台詞内に文字が
+        // 続く場合だけを数える（閉じ括弧の直前は集計にも診断にも含めない）。
+        let mut cursor = index + 1;
+        let mut spaced = false;
+        if chars.get(cursor).is_some_and(|(_, c)| *c == '　') {
+            spaced = true;
+            cursor += 1;
+        }
+        match chars.get(cursor) {
+            Some((_, next)) if *next != '」' && *next != '』' => {
+                let end = if spaced {
+                    chars[index + 1].0 + '　'.len_utf8()
+                } else {
+                    at + character.len_utf8()
+                };
+                out.push(SpacingEvent {
+                    range: base + at..base + end,
+                    mark,
+                    spaced,
+                });
+            }
+            _ => {}
+        }
+    }
+}
+
+/// プロジェクトの全本文からイベントを集める（W096 の作品全体集計）。
+fn all_spacing_events(project: &Project) -> Vec<(String, SpacingEvent)> {
+    let mut out = Vec::new();
+    for document in project
+        .documents()
+        .filter(|d| d.format == DocumentFormat::Contents)
+    {
+        let tree = contents::parse_with(&document.text, &project.contents_options());
+        let mut offset = 0usize;
+        for line in &tree.lines {
+            if let contents::Line::Text(text) = line {
+                // body は raw の部分文字列。raw 内での開始位置をポインタ差で取る。
+                let within = text.body.as_ptr() as usize - text.raw.as_ptr() as usize;
+                let mut events = Vec::new();
+                spacing_events(text.body, offset + within, &mut events);
+                out.extend(
+                    events
+                        .into_iter()
+                        .map(|event| (document.path.clone(), event)),
+                );
+            }
+            offset += line.raw().len() + 1;
+        }
+    }
+    out
+}
+
+/// 日本語主体かどうかを本文の文字種だけで決める（表示言語は使わない、§7.2.2）。
+fn japanese_dominant(project: &Project) -> bool {
+    let mut japanese = 0usize;
+    let mut latin = 0usize;
+    for document in project
+        .documents()
+        .filter(|d| d.format == DocumentFormat::Contents)
+    {
+        for character in document.text.chars() {
+            match character {
+                '\u{3041}'..='\u{3096}'
+                | '\u{30a1}'..='\u{30f6}'
+                | '\u{30fc}'
+                | '\u{4e00}'..='\u{9fff}' => japanese += 1,
+                'a'..='z' | 'A'..='Z' => latin += 1,
+                _ => {}
+            }
+        }
+    }
+    japanese > latin
+}
+
+/// W096: 作品全体の多数派に揃っていない箇所だけを、この文書について出す（§7.2.2）。
+fn dialogue_spacing(doc: &Document, project: &Project) -> Vec<Diagnostic> {
+    if !japanese_dominant(project) {
+        return Vec::new();
+    }
+    let events = all_spacing_events(project);
+    // 記号ごとに（空白あり, 空白なし）を数え、合計 5 件以上かつ差 2 件以上の
+    // ときだけ少数派を指摘する。
+    let mut counts = [(0usize, 0usize); 3];
+    for (_, event) in &events {
+        if event.spaced {
+            counts[event.mark].0 += 1;
+        } else {
+            counts[event.mark].1 += 1;
+        }
+    }
+    let mut out = Vec::new();
+    for (path, event) in &events {
+        if path != &doc.path {
+            continue;
+        }
+        let (spaced, unspaced) = counts[event.mark];
+        if spaced + unspaced < 5 || spaced.abs_diff(unspaced) < 2 {
+            continue;
+        }
+        let minority = if spaced > unspaced {
+            !event.spaced
+        } else {
+            event.spaced
+        };
+        if minority {
+            out.push(diag(
+                C::W096,
+                event.range.clone(),
+                vec![Arg::text(DIALOGUE_MARKS[event.mark].to_string())],
+            ));
+        }
+    }
     out
 }
 /// i18n: format-vocabulary

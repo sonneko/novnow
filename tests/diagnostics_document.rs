@@ -2,7 +2,7 @@
 
 mod world;
 
-use novnow::core::diagnostics::{self, Arg, Diagnostic};
+use novnow::core::diagnostics::{self, Arg, Diagnostic, DiagnosticCode};
 use novnow::core::features::Project;
 
 use world::*;
@@ -265,4 +265,126 @@ fn features_diagnostics_overrides_follow_4_5_2() {
     // 値でない文字列は書かれていないものとして次へ進む
     let invalid = with("[features.diagnostics]\nW012 = \"loud\"\ndefault = \"error\"\n");
     assert_eq!(w012(&invalid).expect("出る").severity(), Severity::Error);
+}
+
+/// §7.2.2（W096）用: 本文を差し替え、任意で `[features.diagnostics]` を足す。
+fn project_with_dialogue(texts: &[&str], settings: Option<&str>) -> Project {
+    use novnow::core::model::document::Document;
+    let mut project = world_with(CONTENTS_PATH, &texts.join(""));
+    if let Some(extra) = settings {
+        project.insert(Document::new(
+            "project.toml",
+            format!("schema_version = 2\n\n[features.diagnostics]\n{extra}"),
+        ));
+    }
+    project
+}
+
+fn w096_args(found: &[Diagnostic]) -> Vec<String> {
+    found
+        .iter()
+        .filter(|d| d.code == DiagnosticCode::W096)
+        .map(|d| match &d.args[0] {
+            Arg::Text(mark) => mark.clone(),
+            Arg::Number(n) => n.to_string(),
+        })
+        .collect()
+}
+
+#[test]
+fn w096_flags_the_minority_spacing_per_mark() {
+    // ！ の後は空白ありが 5 件・なしが 1 件（合計 6、差 4）→ なしの 1 件だけ
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n\
+             「行くぞ！　待て」\n\
+             「止まれ！　聞け」\n\
+             「来い！　早く」\n\
+             「逃げろ！　今だ」\n\
+             「見ろ！　あれを」\n\
+             「進め！続け」\n"],
+        Some("W096 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    assert_eq!(w096_args(&found), vec!["！".to_string()]);
+    // 範囲は記号そのもの
+    let w096 = found
+        .iter()
+        .find(|d| d.code == DiagnosticCode::W096)
+        .unwrap();
+    let range = w096.range.clone().unwrap();
+    assert_eq!(&document.text[range], "！");
+
+    // 記号ごとに別集計: 。 は空白なしが多数派なら、空白ありが少数派になる
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n\
+             「行くぞ！　待て」\n\
+             「止まれ！　聞け」\n\
+             「来い！　早く」\n\
+             「逃げろ！　今だ」\n\
+             「見ろ！　あれを」\n\
+             「進め！続け」\n\
+             「分かった。行く」\n\
+             「そうだ。始める」\n\
+             「違う。止まれ」\n\
+             「いいよ。来て」\n\
+             「駄目だ。帰る」\n\
+             「本当だ。　信じて」\n"],
+        Some("W096 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    let mut marks = w096_args(&found);
+    marks.sort();
+    assert_eq!(marks, vec!["。".to_string(), "！".to_string()]);
+    // 空白あり側の範囲には空白も含まれる（クイックフィックスで取るため）
+    let spaced = found
+        .iter()
+        .find(|d| d.code == DiagnosticCode::W096 && d.args[0] == Arg::Text("。".into()))
+        .unwrap();
+    assert_eq!(&document.text[spaced.range.clone().unwrap()], "。　");
+}
+
+#[test]
+fn w096_stays_silent_without_a_clear_majority_or_enablement() {
+    let lines = &["@01-01-01-01\n\
+         「行くぞ！　待て」\n\
+         「止まれ！　聞け」\n\
+         「来い！早く」\n\
+         「逃げろ！今だ」\n"];
+    // 件数不足（合計 4）かつ同数 → 出ない
+    let project = project_with_dialogue(lines, Some("W096 = \"warn\"\n"));
+    let document = doc(&project, CONTENTS_PATH);
+    assert!(w096_args(&diagnostics::document(&document, &project)).is_empty());
+
+    // [features.diagnostics] で有効化しなければ出ない（組み込み既定は無効）
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n\
+             「行くぞ！　待て」\n\
+             「止まれ！　聞け」\n\
+             「来い！　早く」\n\
+             「逃げろ！　今だ」\n\
+             「見ろ！　あれを」\n\
+             「進め！続け」\n"],
+        None,
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    assert!(w096_args(&diagnostics::document(&document, &project)).is_empty());
+    // 明示操作（文体タブ）では計算できる
+    let explicit = novnow::core::stage_two::diagnose::document(&document, &project, true);
+    assert_eq!(w096_args(&explicit).len(), 1);
+
+    // 日本語主体でない本文では出ない（文字種で決める）
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n\
+             「Go now！　Wait here please」\n\
+             「Stop！　Listen to me now」\n\
+             「Come！　Hurry up please」\n\
+             「Run！　This is the moment」\n\
+             「Look！　Over there it is」\n\
+             「Move！Keep going forward」\n"],
+        Some("W096 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    assert!(w096_args(&diagnostics::document(&document, &project)).is_empty());
 }

@@ -836,6 +836,42 @@ fn ctrl_shift_e_opens_the_project_diagnostics_and_enter_jumps_to_the_section() {
 }
 
 #[test]
+fn the_review_screen_saves_a_diagnostic_level_to_project_toml() {
+    // §10.9.6: 点検画面の「出さない」が [features.diagnostics] へ保存され、
+    // そのコードは診断から消える（表示フィルタではなく有効性そのもの）
+    let mut project = novel::novel();
+    let text = project
+        .text("contents/01-02.cnov")
+        .replace("扉の向こうは暗かった。", "扉の向こうは'未登録の闇 だった。");
+    project.insert(Document::new("contents/01-02.cnov", text));
+    let mut harness = Harness::start_with(project, true).0;
+    harness.frame(vec![key(Key::E, CTRL_SHIFT)]);
+    harness.frame(Vec::new());
+    let index = harness
+        .app
+        .spaces()
+        .and_then(|spaces| spaces.review.cached())
+        .and_then(|rows| rows.iter().position(|row| row.code == "E001"))
+        .expect("E001 の行");
+    for _ in 0..index {
+        harness.frame(vec![key(Key::ArrowDown, Modifiers::NONE)]);
+    }
+    let rect = harness.rect_of("出さない").expect("有効設定の選択肢");
+    harness.click_at(rect.center());
+    harness.frame(Vec::new());
+    harness.frame(Vec::new());
+    let rows = harness
+        .app
+        .spaces()
+        .and_then(|spaces| spaces.review.cached())
+        .expect("数え直した診断");
+    assert!(
+        rows.iter().all(|row| row.code != "E001"),
+        "E001 = off が効いている: {rows:?}"
+    );
+}
+
+#[test]
 fn the_progress_tab_lists_the_tree_and_opens_a_section() {
     let mut harness = novel_harness();
     harness.frame(vec![key(Key::Num9, ALT)]);
