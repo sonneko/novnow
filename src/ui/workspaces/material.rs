@@ -490,21 +490,38 @@ pub fn show(
                 .inner_margin(Margin::symmetric(16.0, 8.0)),
         )
         .show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                if super::action_button(ui, i18n::text(locale, "material.new_button")).clicked() {
+            // キー案内（項目ごとにボタン。実行はキーと同じ経路）
+            let guide = [
+                i18n::text(locale, "material.key_approve"),
+                i18n::text(locale, "material.key_reject"),
+                i18n::text(locale, "material.new_button"),
+                i18n::text(locale, "material.key_search"),
+                i18n::text(locale, "material.key_form"),
+            ];
+            match crate::ui::widgets::key_guide(
+                ui,
+                &guide,
+                FontId::new(11.0 * scale, FontFamily::Proportional),
+                &colors,
+            ) {
+                Some(0) => request = Some(Request::Down),
+                Some(1) => request = Some(Request::Drop),
+                Some(2) => {
                     request = Some(Request::Shortcut(crate::ui::shell::Command::InsertSection));
                 }
-                // Do not let the long keyboard guide expand the central panel
-                // and steal the width reserved for the material review form.
-                ui.add(
-                    egui::Label::new(
-                        RichText::new(i18n::text(locale, "material.keys"))
-                            .font(FontId::new(11.0 * scale, FontFamily::Proportional))
-                            .color(colors.fg_faint),
-                    )
-                    .truncate(true),
-                );
-            });
+                Some(3) => {
+                    request = Some(Request::Shortcut(crate::ui::shell::Command::MaterialSearch));
+                }
+                Some(4) => {
+                    // 審査フォームの最初の欄へ（`Tab` と同じ移動）
+                    if let Some(id) = state.current(bench).and_then(|entry| entry.id.clone()) {
+                        ui.ctx().memory_mut(|memory| {
+                            memory.request_focus(Id::new(("material-title", &id)));
+                        });
+                    }
+                }
+                _ => {}
+            }
             super::separator(ui, view.mode);
             match bench.slice().map(|slice| slice.path.clone()) {
                 Some(path) => {

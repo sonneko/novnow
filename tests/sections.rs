@@ -311,3 +311,33 @@ fn pasting_in_the_middle_leaves_the_rest_in_the_last_section() {
         Some(vec!["前半".to_owned(), "新しい節。後半".to_owned()])
     );
 }
+
+#[test]
+fn reference_rows_carry_their_navigation_targets() {
+    use novnow::core::features::reference::Nav;
+    let project = world();
+    let document: Document = project.document(CONTENTS_PATH).cloned().expect("doc");
+    let list = sections::all(&project);
+    let second = reference::at(&document, list[1].lines.clone(), list[1].id, &project);
+    // プロット（と五感・空間・挿絵）は話プロットの当該節
+    assert_eq!(second.plot_nav, Some(Nav::Plot(list[1].id)));
+    // 上位プロットは全体プロットの @01 ブロック
+    assert!(matches!(second.upper[0].nav, Nav::Outline(id) if id.chapter == 1 && id.episode == 0));
+    // 配役はキャラの順序
+    assert!(second
+        .cast
+        .iter()
+        .all(|cast| matches!(cast.nav, Nav::Character(_))));
+    // 用語は全文表示、資料は明示参照＝開く・候補＝追加
+    assert!(second
+        .words
+        .iter()
+        .all(|word| matches!(word.nav, Nav::Term(_))));
+    for material in &second.materials {
+        if material.candidate {
+            assert_eq!(material.nav, Nav::AddMaterial(material.id.clone()));
+        } else {
+            assert_eq!(material.nav, Nav::OpenMaterial(material.id.clone()));
+        }
+    }
+}

@@ -772,6 +772,30 @@ pub fn review_goto(session: &mut Session, args: &Args) -> Result<Value> {
     }))
 }
 
+/// 行の移動先の JSON 表現（GUI と同じ `reference::Nav`）。
+fn nav_json(session: &Session, nav: &reference::Nav) -> Value {
+    match nav {
+        reference::Nav::Plot(scene) => {
+            json!({ "kind": "plot", "scene": crate::app::ops::id_text(session, *scene) })
+        }
+        reference::Nav::Outline(scene) => {
+            let digits = session.aggregate().digits();
+            let full = scene.display(digits);
+            let mut parts: Vec<&str> = full.split('-').collect();
+            let values = [scene.chapter, scene.episode, scene.scene, scene.section];
+            while parts.len() > 1 && values[parts.len() - 1] == 0 {
+                parts.pop();
+            }
+            json!({ "kind": "outline", "scene": parts.join("-") })
+        }
+        reference::Nav::Character(index) => json!({ "kind": "character", "index": index }),
+        reference::Nav::Term(index) => json!({ "kind": "term", "index": index }),
+        reference::Nav::OpenMaterial(id) => json!({ "kind": "material.open", "id": id }),
+        reference::Nav::AddMaterial(id) => json!({ "kind": "material.add", "id": id }),
+        reference::Nav::At(range) => json!({ "kind": "at", "byte": range.start }),
+    }
+}
+
 /// `reference.pane`（§9.5.2 の 1〜9 セクション）。
 pub fn reference_pane(session: &mut Session, args: &Args) -> Result<Value> {
     let locale = session.locale;
@@ -798,7 +822,7 @@ pub fn reference_pane(session: &mut Session, args: &Args) -> Result<Value> {
     let upper: Vec<Value> = pane
         .upper
         .iter()
-        .map(|row| json!({ "id": row.id, "summary": row.summary }))
+        .map(|row| json!({ "id": row.id, "nav": nav_json(session, &row.nav), "summary": row.summary }))
         .collect();
     let cast_items: Vec<Value> = pane
         .cast
@@ -808,6 +832,7 @@ pub fn reference_pane(session: &mut Session, args: &Args) -> Result<Value> {
                 "emotion": row.emotion,
                 "modes": row.modes,
                 "name": row.name,
+                "nav": nav_json(session, &row.nav),
                 "personality": row.personality,
                 "role": row.role,
                 "tone": row.tone,
@@ -817,7 +842,7 @@ pub fn reference_pane(session: &mut Session, args: &Args) -> Result<Value> {
     let words: Vec<Value> = pane
         .words
         .iter()
-        .map(|row| json!({ "definition": row.definition, "term": row.term }))
+        .map(|row| json!({ "definition": row.definition, "nav": nav_json(session, &row.nav), "term": row.term }))
         .collect();
     let materials: Vec<Value> = pane
         .materials
@@ -826,6 +851,7 @@ pub fn reference_pane(session: &mut Session, args: &Args) -> Result<Value> {
             json!({
                 "candidate": row.candidate,
                 "id": row.id,
+                "nav": nav_json(session, &row.nav),
                 "source": row.source,
                 "summary": row.summary,
                 "title": row.title,
@@ -837,8 +863,10 @@ pub fn reference_pane(session: &mut Session, args: &Args) -> Result<Value> {
         .iter()
         .map(|diagnostic| {
             json!({
+                "byte": diagnostic.range.as_ref().map(|range| range.start),
                 "code": diagnostic.code.as_str(),
                 "message": i18n::diagnostic(locale, diagnostic),
+                "path": document.path,
                 "severity": crate::app::ops::severity_name(diagnostic.severity()),
             })
         })
@@ -849,6 +877,7 @@ pub fn reference_pane(session: &mut Session, args: &Args) -> Result<Value> {
         "illustrations": pane.illustrations,
         "materials": materials,
         "plot": pane.plot,
+        "plot_nav": pane.plot_nav.as_ref().map(|nav| nav_json(session, nav)),
         "scene": crate::app::ops::id_text(session, scene),
         "senses": pane.senses,
         "space": pane.space,

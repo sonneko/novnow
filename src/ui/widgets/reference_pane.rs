@@ -7,7 +7,7 @@
 //! - 更新はカーソル移動から 80ms のデバウンス。待つ間も前の内容をそのまま出す（スピナーを出さない、§9.5.4 MUST）。
 
 use egui::text::{LayoutJob, TextFormat};
-use egui::{FontFamily, FontId, RichText, Sense, Stroke, Ui};
+use egui::{FontFamily, FontId, Key, Modifiers, Rect, Response, RichText, Sense, Stroke, Ui};
 
 use crate::core::diagnostics::{Arg, Diagnostic, DiagnosticCode};
 use crate::core::features::reference::{self, Reference};
@@ -29,6 +29,8 @@ pub enum Chosen {
     Material(String),
     /// Open the full source when a summary is truncated.
     OpenMaterial(String),
+    /// 行からの移動（§9.5.5。コアの行モデルが持つ移動先）。
+    Navigate(reference::Nav),
     /// 診断からの自動回復（§6.2.6 / §9.5.4、F-23）。1 形態素を辞書へ登録する。
     Register {
         /// 登録先（`words.md` = [`EntryKind::Word`] / `characters.md` = [`EntryKind::Character`]）。
@@ -148,7 +150,7 @@ pub fn sections(
         ui.add_space(2.0);
     };
     let body_font = FontId::new(13.0 * scale, FontFamily::Proportional);
-    let body = |ui: &mut Ui, text: &str| {
+    let body = |ui: &mut Ui, text: &str| -> Response {
         let job = LayoutJob::single_section(
             text.to_owned(),
             TextFormat {
@@ -158,9 +160,9 @@ pub fn sections(
                 ..Default::default()
             },
         );
-        ui.label(job);
+        ui.label(job)
     };
-    let muted = |ui: &mut Ui, label: &str, text: &str| {
+    let muted = |ui: &mut Ui, label: &str, text: &str| -> Response {
         let mut job = LayoutJob::default();
         let format = TextFormat {
             font_id: body_font.clone(),
@@ -177,8 +179,10 @@ pub fn sections(
                 ..format
             },
         );
-        ui.label(job);
+        ui.label(job)
     };
+    // 移動できる行の ID（表示順。`Ctrl+3` 後の `↑`/`↓` でフォーカスを移す）
+    let mut rows: Vec<egui::Id> = Vec::new();
     {
         {
             // 表示順は固定（§9.5.2。`context_rules::PaneSection` の順）
@@ -197,23 +201,40 @@ pub fn sections(
                 match section {
                     PaneSection::Plot if !content.plot.is_empty() => {
                         heading(ui, "pane.plot");
-                        for line in &content.plot {
-                            body(ui, line);
+                        for (index, line) in content.plot.iter().enumerate() {
+                            let row = body(ui, line);
+                            if let Some(nav) = &content.plot_nav {
+                                let id = row_id(&format!("plot-{index}"));
+                                rows.push(id);
+                                if row_hit(ui, row.rect, id, &colors) {
+                                    chosen = Some(Chosen::Navigate(nav.clone()));
+                                }
+                            }
                         }
                     }
                     PaneSection::UpperPlot if !content.upper.is_empty() => {
                         heading(ui, "pane.upper");
-                        for upper in &content.upper {
-                            muted(ui, &upper.id, &upper.summary);
+                        for (index, upper) in content.upper.iter().enumerate() {
+                            let row = muted(ui, &upper.id, &upper.summary);
+                            let id = row_id(&format!("upper-{index}"));
+                            rows.push(id);
+                            if row_hit(ui, row.rect, id, &colors) {
+                                chosen = Some(Chosen::Navigate(upper.nav.clone()));
+                            }
                         }
                     }
                     PaneSection::Cast if !content.cast.is_empty() => {
                         heading(ui, "pane.cast");
-                        for cast in &content.cast {
+                        for (index, cast) in content.cast.iter().enumerate() {
                             if let Some(bytes) = &cast.icon {
                                 super::portrait::show(ui, bytes, 16.0 * scale);
                             }
-                            muted(ui, &cast.name, &cast.modes.join(" + "));
+                            let row = muted(ui, &cast.name, &cast.modes.join(" + "));
+                            let id = row_id(&format!("cast-{index}"));
+                            rows.push(id);
+                            if row_hit(ui, row.rect, id, &colors) {
+                                chosen = Some(Chosen::Navigate(cast.nav.clone()));
+                            }
                             if let Some(text) = &cast.personality {
                                 muted(ui, i18n::text(locale, "pane.personality"), first_line(text));
                             }
@@ -233,14 +254,26 @@ pub fn sections(
                     }
                     PaneSection::Words if !content.words.is_empty() => {
                         heading(ui, "pane.words");
-                        for word in &content.words {
-                            muted(ui, &word.term, &word.definition);
+                        for (index, word) in content.words.iter().enumerate() {
+                            let row = muted(ui, &word.term, &word.definition);
+                            let id = row_id(&format!("word-{index}"));
+                            rows.push(id);
+                            if row_hit(ui, row.rect, id, &colors) {
+                                chosen = Some(Chosen::Navigate(word.nav.clone()));
+                            }
                         }
                     }
                     PaneSection::Senses if !content.senses.is_empty() => {
                         heading(ui, "stage.senses");
-                        for line in &content.senses {
-                            body(ui, line);
+                        for (index, line) in content.senses.iter().enumerate() {
+                            let row = body(ui, line);
+                            if let Some(nav) = &content.plot_nav {
+                                let id = row_id(&format!("senses-{index}"));
+                                rows.push(id);
+                                if row_hit(ui, row.rect, id, &colors) {
+                                    chosen = Some(Chosen::Navigate(nav.clone()));
+                                }
+                            }
                         }
                     }
                     PaneSection::Space if !content.space.is_empty() => {
@@ -249,29 +282,51 @@ pub fn sections(
                             .id_source("space-scroll")
                             .show(ui, |ui| {
                                 for line in &content.space {
-                                    ui.collapsing(i18n::text(locale, "stage.space"), |ui| {
-                                        if content.space_ascii {
-                                            ui.add(
-                                                egui::Label::new(RichText::new(line).monospace())
+                                    let opened =
+                                        ui.collapsing(i18n::text(locale, "stage.space"), |ui| {
+                                            if content.space_ascii {
+                                                ui.add(
+                                                    egui::Label::new(
+                                                        RichText::new(line).monospace(),
+                                                    )
                                                     .wrap(false),
-                                            );
-                                        } else {
-                                            ui.label(line);
+                                                );
+                                            } else {
+                                                ui.label(line);
+                                            }
+                                        });
+                                    // 見出しのダブルクリックで話プロットの当該フィールドへ
+                                    if opened.header_response.double_clicked() {
+                                        if let Some(nav) = &content.plot_nav {
+                                            chosen = Some(Chosen::Navigate(nav.clone()));
                                         }
-                                    });
+                                    }
                                 }
                             });
                     }
                     PaneSection::Illustrations if !content.illustrations.is_empty() => {
                         heading(ui, "stage.illustrations");
-                        for line in &content.illustrations {
-                            body(ui, line);
+                        for (index, line) in content.illustrations.iter().enumerate() {
+                            let row = body(ui, line);
+                            if let Some(nav) = &content.plot_nav {
+                                let id = row_id(&format!("illustration-{index}"));
+                                rows.push(id);
+                                if row_hit(ui, row.rect, id, &colors) {
+                                    chosen = Some(Chosen::Navigate(nav.clone()));
+                                }
+                            }
                         }
                     }
                     PaneSection::Materials if !content.materials.is_empty() => {
                         heading(ui, "pane.materials");
                         for material in content.materials.iter().filter(|found| !found.candidate) {
-                            muted(ui, &material.id, &material.title);
+                            // 明示参照は「開く」（下線なし）。候補は「追加」（下線＋薄色）
+                            let row = muted(ui, &material.id, &material.title);
+                            let id = row_id(&format!("material-{}", material.id));
+                            rows.push(id);
+                            if row_hit(ui, row.rect, id, &colors) {
+                                chosen = Some(Chosen::Navigate(material.nav.clone()));
+                            }
                             if material.source.starts_with("https://")
                                 || material.source.starts_with("http://")
                             {
@@ -300,6 +355,7 @@ pub fn sections(
                             }
                         }
                         for material in content.materials.iter().filter(|found| found.candidate) {
+                            rows.push(candidate_id(&material.id));
                             if candidate(ui, material, locale, mode, scale) {
                                 chosen = Some(Chosen::Material(material.id.clone()));
                             }
@@ -307,7 +363,7 @@ pub fn sections(
                     }
                     PaneSection::Diagnostics if !content.diagnostics.is_empty() => {
                         heading(ui, "pane.diagnostics");
-                        let mut draw = |ui: &mut Ui, found: &Diagnostic| {
+                        let mut draw = |ui: &mut Ui, index: usize, found: &Diagnostic| {
                             let color = match found.severity() {
                                 crate::core::diagnostics::Severity::Error => colors.error,
                                 _ => colors.warn,
@@ -331,7 +387,15 @@ pub fn sections(
                                     ..Default::default()
                                 },
                             );
-                            ui.label(job);
+                            let row = ui.label(job);
+                            if let Some(range) = &found.range {
+                                let id = row_id(&format!("diagnostic-{index}"));
+                                rows.push(id);
+                                if row_hit(ui, row.rect, id, &colors) {
+                                    chosen =
+                                        Some(Chosen::Navigate(reference::Nav::At(range.clone())));
+                                }
+                            }
                             // §6.2.6 / §9.5.4（F-23）: 形態素解析で切った 1 形態素をその場で登録する
                             let recovery = recovery(found);
                             if !recovery.is_empty() {
@@ -387,19 +451,17 @@ pub fn sections(
                                 )
                                 .id_source(("diagnostic-group", found.code.as_str()))
                                 .show(ui, |ui| {
-                                    for item in content
-                                        .diagnostics
-                                        .iter()
-                                        .filter(|item| item.code == found.code)
-                                    {
-                                        draw(ui, item);
+                                    for (at, item) in content.diagnostics.iter().enumerate() {
+                                        if item.code == found.code {
+                                            draw(ui, at, item);
+                                        }
                                     }
                                 });
                                 if group.header_response.hovered() {
                                     ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
                                 }
                             } else {
-                                draw(ui, found);
+                                draw(ui, index, found);
                             }
                         }
                     }
@@ -408,7 +470,90 @@ pub fn sections(
             }
         }
     }
+    // `Ctrl+3` でフォーカスしたあと、`↑`/`↓` で行を移る（フォーカスが行にあるときだけ）
+    let focused = ui.ctx().memory(|memory| memory.focused());
+    if let Some(at) = focused.and_then(|id| rows.iter().position(|row| *row == id)) {
+        let down = ui
+            .ctx()
+            .input_mut(|input| input.consume_key(Modifiers::NONE, Key::ArrowDown));
+        let up = ui
+            .ctx()
+            .input_mut(|input| input.consume_key(Modifiers::NONE, Key::ArrowUp));
+        if down && at + 1 < rows.len() {
+            ui.ctx()
+                .memory_mut(|memory| memory.request_focus(rows[at + 1]));
+        }
+        if up && at > 0 {
+            ui.ctx()
+                .memory_mut(|memory| memory.request_focus(rows[at - 1]));
+        }
+        if down || up {
+            // アプリ側の「矢印で動いたフォーカスの打ち消し」に、ペイン内の意図した
+            // 移動まで戻させない（`NovnowApp::frame` の refocus）
+            ui.ctx().data_mut(|data| {
+                data.insert_temp(egui::Id::new("pane-arrow-focus"), true);
+            });
+        }
+    }
     chosen
+}
+
+/// 移動できる行の ID。
+fn row_id(salt: &str) -> egui::Id {
+    egui::Id::new(("reference-row", salt))
+}
+
+/// 最初の移動できる行の ID（`Ctrl+3` のフォーカス先）。
+pub fn first_row_id(content: &Reference) -> Option<egui::Id> {
+    if content.plot_nav.is_some() && !content.plot.is_empty() {
+        return Some(row_id("plot-0"));
+    }
+    if !content.upper.is_empty() {
+        return Some(row_id("upper-0"));
+    }
+    if !content.cast.is_empty() {
+        return Some(row_id("cast-0"));
+    }
+    if !content.words.is_empty() {
+        return Some(row_id("word-0"));
+    }
+    if content.plot_nav.is_some() && !content.senses.is_empty() {
+        return Some(row_id("senses-0"));
+    }
+    if let Some(material) = content.materials.iter().find(|found| !found.candidate) {
+        return Some(row_id(&format!("material-{}", material.id)));
+    }
+    if let Some(material) = content.materials.iter().find(|found| found.candidate) {
+        return Some(candidate_id(&material.id));
+    }
+    if content.plot_nav.is_some() && !content.illustrations.is_empty() {
+        return Some(row_id("illustration-0"));
+    }
+    content
+        .diagnostics
+        .iter()
+        .position(|found| found.range.is_some())
+        .map(|index| row_id(&format!("diagnostic-{index}")))
+}
+
+/// 行の当たり判定。活性化はダブルクリック、またはフォーカスして `Enter` のみ
+/// （シングルクリックでは移動しない、§9.5.5）。
+fn row_hit(ui: &mut Ui, rect: Rect, id: egui::Id, colors: &theme::Palette) -> bool {
+    let hover_background = ui.painter().add(egui::Shape::Noop);
+    let hit = super::hit_rect(rect);
+    let response = ui.interact(hit, id, Sense::click());
+    if response.hovered() {
+        ui.painter().set(
+            hover_background,
+            egui::Shape::rect_filled(hit, 2.0, colors.bg_selection.gamma_multiply(0.6)),
+        );
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    if response.has_focus() {
+        ui.painter()
+            .rect_stroke(rect.expand(2.0), 2.0, Stroke::new(1.0_f32, colors.accent));
+    }
+    response.double_clicked() || (response.clicked() && response.fake_primary_click)
 }
 
 /// 条件一致の候補の 1 行（`fg.faint`。ダブルクリック・フォーカスして `Enter` で `true`）。

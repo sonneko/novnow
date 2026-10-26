@@ -1067,7 +1067,13 @@ impl NovnowApp {
         self.guide_frame(ctx, mode, locale);
         self.close_guard(ctx, now);
         if arrow_pressed {
-            self.refocus = ctx.memory(|memory| memory.focused());
+            // 参照ペインの行移動（`Ctrl+3` + `↑`/`↓`、§9.5.5）は意図した移動なので戻さない
+            let pane_moved = ctx
+                .data_mut(|data| data.remove_temp::<bool>(Id::new("pane-arrow-focus")))
+                .unwrap_or(false);
+            if !pane_moved {
+                self.refocus = ctx.memory(|memory| memory.focused());
+            }
         }
         // 次の再描画（保存のタイマ・外部変更の監視 1s・OS の配色の追従 1s、§11.4）
         ctx.request_repaint_after(std::time::Duration::from_millis(1000));
@@ -1233,14 +1239,8 @@ impl NovnowApp {
             Command::FocusReference => {
                 self.focus = Pane::Reference;
                 self.settings.reference_visible = true;
-                // 資料の候補があれば最初の候補へ（`Enter` でプロットの `material:` に足す、B-136）
-                let first = session
-                    .reference_cache
-                    .content()
-                    .materials
-                    .iter()
-                    .find(|found| found.candidate)
-                    .map(|found| reference_pane::candidate_id(&found.id));
+                // 最初の移動できる行へ（`↑`/`↓` で移り、`Enter` で移動する。§9.5.5）
+                let first = reference_pane::first_row_id(session.reference_cache.content());
                 if let Some(id) = first {
                     ctx.memory_mut(|memory| memory.request_focus(id));
                 }
@@ -2335,6 +2335,76 @@ impl NovnowApp {
     /// 開くワークスペースが決まる（本文 → write、話プロット → plot-episode、全体 / 章プロット →
     /// plot-outline、`ideas.md` → idea、`characters.md` → cast、資料 MD と `materials/index.json` →
     /// material）。それ以外は開く画面が無いので知らせるだけ。
+    /// 参照ペインの行からの移動（§9.5.5。飛び先はコアの行モデルの `Nav`）。
+    fn navigate_pane(
+        &mut self,
+        ctx: &Context,
+        nav: crate::core::features::reference::Nav,
+        now: f64,
+    ) {
+        use crate::core::features::reference::Nav;
+        match nav {
+            Nav::Plot(scene) => {
+                if let Stage::Open(session) = &mut self.stage {
+                    session.bench.commit();
+                    session.spaces.episode.land(&session.bench, scene);
+                }
+                self.switch_to(ctx, Workspace::PlotEpisode, now);
+            }
+            Nav::Outline(scene) => {
+                if let Stage::Open(session) = &mut self.stage {
+                    session.bench.commit();
+                    if scene.episode > 0 {
+                        session.spaces.outline.land_chapter(
+                            &session.bench,
+                            scene.chapter,
+                            scene.episode,
+                        );
+                    } else {
+                        session
+                            .spaces
+                            .outline
+                            .land_all(&session.bench, scene.chapter);
+                    }
+                }
+                self.switch_to(ctx, Workspace::PlotOutline, now);
+            }
+            Nav::Character(index) => {
+                if let Stage::Open(session) = &mut self.stage {
+                    session.spaces.cast.select(index);
+                }
+                self.switch_to(ctx, Workspace::Cast, now);
+            }
+            Nav::Term(index) => {
+                // 定義行へは飛ばず全文表示（`Ctrl+Shift+W` と同じ形）
+                if let Stage::Open(session) = &self.stage {
+                    let lines = term_lines(session.bench.project(), index);
+                    if !lines.is_empty() {
+                        self.overlay = Overlay::Info { lines };
+                    }
+                }
+            }
+            Nav::OpenMaterial(id) => {
+                self.switch_to(ctx, Workspace::Material, now);
+                if let Stage::Open(session) = &mut self.stage {
+                    session.spaces.material.select(&session.bench, &id);
+                }
+            }
+            Nav::AddMaterial(id) => self.append_material(ctx, &id, now),
+            Nav::At(range) => {
+                if let Stage::Open(session) = &mut self.stage {
+                    if let Some(current) = session.bench.current() {
+                        let path = current.path.clone();
+                        if let Some(offset) = session.bench.reveal(&path, range.start) {
+                            session.pending_selection = Some(offset..offset + range.len());
+                        }
+                    }
+                }
+                self.focus = Pane::Editor;
+            }
+        }
+    }
+
     fn review_jump(&mut self, ctx: &Context, target: workspaces::review::Target, now: f64) {
         use crate::core::model::document::DocumentFormat;
         use workspaces::review::Target;
@@ -3239,6 +3309,9 @@ impl NovnowApp {
                         session.notice = Some((message, now));
                     }
                 }
+                Some(workspaces::Request::Navigate(nav)) => {
+                    self.navigate_pane(ctx, nav, now);
+                }
                 Some(workspaces::Request::AppendMaterial(id)) => {
                     self.append_material(ctx, &id, now);
                 }
@@ -3311,6 +3384,7 @@ impl NovnowApp {
                         session.spaces.material.select(&session.bench, &id);
                     }
                 }
+                Some(reference_pane::Chosen::Navigate(nav)) => self.navigate_pane(ctx, nav, now),
                 // §6.2.6（F-23）: 診断からの自動回復（1 形態素の登録）
                 Some(reference_pane::Chosen::Register { kind, name }) => {
                     if let Stage::Open(session) = &mut self.stage {
@@ -4187,31 +4261,63 @@ impl NovnowApp {
                 }
             }
             Overlay::Help => {
+                let mut help_command: Option<crate::app::command::Command> = None;
                 popup(ctx, "help", colors, style, |ui| {
                     ui.label(
                         RichText::new(i18n::text(locale, "help.title")).color(colors.fg_faint),
                     );
                     ui.add_space(6.0);
-                    ui.collapsing(i18n::text(locale, "help.licenses"), |ui| {
-                        egui::ScrollArea::vertical()
-                            .max_height(220.0)
-                            .show(ui, |ui| {
-                                ui.label(crate::ui::theme::IPA_FONT_LICENSE);
-                            });
-                    });
-                    egui::Grid::new("help-keys")
-                        .num_columns(2)
-                        .spacing([16.0, 4.0])
+                    // キー一覧は画面より長いのでスクロールさせる（先頭の行が画面外に出ないように）
+                    egui::ScrollArea::vertical()
+                        .id_source("help-scroll")
+                        .max_height(560.0)
                         .show(ui, |ui| {
-                            for (keys, description) in HELP_KEYS {
-                                ui.label(
-                                    RichText::new(*keys)
-                                        .font(FontId::new(12.0, FontFamily::Monospace))
-                                        .color(colors.fg_muted),
-                                );
-                                ui.label(i18n::text(locale, description));
-                                ui.end_row();
-                            }
+                            ui.collapsing(i18n::text(locale, "help.licenses"), |ui| {
+                                egui::ScrollArea::vertical()
+                                    .max_height(220.0)
+                                    .show(ui, |ui| {
+                                        ui.label(crate::ui::theme::IPA_FONT_LICENSE);
+                                    });
+                            });
+                            egui::Grid::new("help-keys")
+                                .num_columns(2)
+                                .spacing([16.0, 4.0])
+                                .show(ui, |ui| {
+                                    for (keys, description, name) in HELP_KEYS {
+                                        // コマンド表に対応がある項目はボタンにし、
+                                        // ヘルプを閉じてから実行する
+                                        let command = name.and_then(help_command_of);
+                                        match command {
+                                            Some(command) => {
+                                                let row = crate::ui::widgets::clickable_label(
+                                                    ui,
+                                                    RichText::new(*keys)
+                                                        .font(FontId::new(
+                                                            12.0,
+                                                            FontFamily::Monospace,
+                                                        ))
+                                                        .color(colors.fg_muted),
+                                                    Id::new(("help-key", *keys)),
+                                                );
+                                                if row.clicked() {
+                                                    help_command = Some(command);
+                                                }
+                                            }
+                                            None => {
+                                                ui.label(
+                                                    RichText::new(*keys)
+                                                        .font(FontId::new(
+                                                            12.0,
+                                                            FontFamily::Monospace,
+                                                        ))
+                                                        .color(colors.fg_muted),
+                                                );
+                                            }
+                                        }
+                                        ui.label(i18n::text(locale, description));
+                                        ui.end_row();
+                                    }
+                                });
                         });
                     ui.add_space(8.0);
                     if crate::ui::widgets::action_button(ui, i18n::text(locale, "guide.reopen"))
@@ -4220,6 +4326,11 @@ impl NovnowApp {
                         session.guide_restart = true;
                     }
                 });
+                if let Some(command) = help_command {
+                    self.overlay = Overlay::None;
+                    self.run(ctx, command, now);
+                    return;
+                }
             }
             Overlay::SaveError => {
                 let message = session.bench.save.error().unwrap_or_default().to_owned();
@@ -4456,7 +4567,7 @@ impl NovnowApp {
                 let down = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::ArrowDown));
                 let up = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::ArrowUp));
                 let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
-                let open = ctx.input_mut(|i| i.consume_key(Modifiers::SHIFT, Key::Enter));
+                let mut open = ctx.input_mut(|i| i.consume_key(Modifiers::SHIFT, Key::Enter));
                 let generation = session.bench.generation();
                 let stale = !matches!(
                     &session.material_cache,
@@ -4482,6 +4593,7 @@ impl NovnowApp {
                 }
                 *selected = (*selected).min(hits.len().saturating_sub(1));
                 let mut chosen = enter.then_some(*selected);
+                let mut guide_close = false;
                 popup(ctx, "materials", colors, style, |ui| {
                     let edit = ui.add(
                         egui::TextEdit::singleline(query)
@@ -4536,12 +4648,29 @@ impl NovnowApp {
                         }
                     });
                     ui.add_space(4.0);
-                    ui.label(
-                        RichText::new(i18n::text(locale, "material.search_keys"))
-                            .small()
-                            .color(colors.fg_faint),
-                    );
+                    // キー案内（項目ごとにボタン。実行はキーと同じ経路）
+                    let guide = [
+                        i18n::text(locale, "material.search_key_insert"),
+                        i18n::text(locale, "material.search_key_open"),
+                        i18n::text(locale, "material.search_key_create"),
+                        i18n::text(locale, "material.search_key_close"),
+                    ];
+                    match crate::ui::widgets::key_guide(
+                        ui,
+                        &guide,
+                        FontId::new(11.0, FontFamily::Proportional),
+                        &colors,
+                    ) {
+                        Some(0) => chosen = Some(*selected),
+                        Some(1) => open = true,
+                        Some(2) => *create = true,
+                        Some(3) => guide_close = true,
+                        _ => {}
+                    }
                 });
+                if guide_close {
+                    close = true;
+                }
                 if std::mem::take(create) {
                     material = Some(MaterialAction::Create(query.clone()));
                 } else if open {
@@ -7312,51 +7441,85 @@ fn palette_items(
 }
 
 /// キーボードヘルプ（§9.8 のうち M7・M8 で動くもの）。左はキー、右はカタログのキー。
-const HELP_KEYS: &[(&str, &str)] = &[
-    ("Alt+Enter / Alt+Backspace", "help.guide"),
-    ("Ctrl+P", "help.palette"),
-    ("Ctrl+G", "help.jump"),
-    ("Ctrl+S", "help.save"),
-    ("Alt+↑ / Alt+↓", "help.section"),
-    ("Alt+← / Alt+→", "help.scene"),
-    ("Ctrl+Alt+← / →", "help.file"),
-    ("Ctrl+Enter", "help.confirm_next"),
-    ("Ctrl+;", "help.new_section"),
-    ("Ctrl+1 / 2 / 3", "help.focus"),
-    ("Ctrl+\\", "help.reference"),
-    ("Ctrl+Shift+\\", "help.swap"),
-    ("Ctrl+Alt+↑ / ↓", "help.context_ratio"),
-    ("Ctrl+Alt+Shift+← / →", "help.main_ratio"),
-    ("Ctrl+Plus / Minus / 0", "help.font"),
-    ("Ctrl+Alt+L", "help.language"),
-    ("Ctrl+Alt+T", "help.theme"),
-    ("Alt+H", "help.inlay_hints"),
-    ("F5", "help.reload"),
-    ("Ctrl+F / Ctrl+H", "help.find"),
-    ("F3 / Shift+F3", "help.find_next"),
-    ("Ctrl+Shift+F", "help.search"),
-    ("Ctrl+Space", "help.complete"),
-    ("Ctrl+Shift+M", "help.modes"),
-    ("Ctrl+Shift+W", "help.term"),
-    ("Ctrl+Shift+;", "help.delete_section"),
-    ("Ctrl+Tab", "help.recent"),
-    ("Ctrl+O", "help.open"),
-    ("Ctrl+.", "help.quick_fix"),
-    ("Ctrl+T / Ctrl+Shift+T", "help.register"),
-    ("Ctrl+Shift+D", "help.diff"),
-    ("Alt+1..9 / Alt+0", "help.workspace"),
-    ("Ctrl+B", "help.up"),
-    ("Ctrl+Shift+I", "help.capture"),
-    ("Ctrl+Shift+E", "help.review"),
-    ("Ctrl+M", "help.material"),
-    ("Ctrl+Shift+N", "help.insert"),
-    ("Ctrl+Delete", "help.drop"),
-    ("Ctrl+Shift+← / →", "help.tab"),
-    ("Ctrl+Shift+V", "help.scan"),
-    ("F2", "help.rename"),
-    ("Ctrl+Shift+[ / ]", "help.fold"),
-    ("Esc", "help.escape"),
+/// ヘルプのキー一覧（キー、説明の文言キー、コマンド表の名前）。
+/// 名前がある項目はボタンになり、ヘルプを閉じてから実行される。名前は
+/// `crate::app::commands` の表にあるものだけ（契約テストで突き合わせる）。
+const HELP_KEYS: &[(&str, &str, Option<&str>)] = &[
+    ("Alt+Enter / Alt+Backspace", "help.guide", None),
+    ("Ctrl+P", "help.palette", Some("palette")),
+    ("Ctrl+G", "help.jump", Some("jump")),
+    ("Ctrl+S", "help.save", Some("save")),
+    ("Alt+↑ / Alt+↓", "help.section", None),
+    ("Alt+← / Alt+→", "help.scene", None),
+    ("Ctrl+Alt+← / →", "help.file", None),
+    ("Ctrl+Enter", "help.confirm_next", Some("confirm-next")),
+    ("Ctrl+;", "help.new_section", Some("new-section")),
+    ("Ctrl+1 / 2 / 3", "help.focus", None),
+    ("Ctrl+\\", "help.reference", Some("reference")),
+    ("Ctrl+Shift+\\", "help.swap", Some("swap-reference")),
+    ("Ctrl+Alt+↑ / ↓", "help.context_ratio", None),
+    ("Ctrl+Alt+Shift+← / →", "help.main_ratio", None),
+    ("Ctrl+Plus / Minus / 0", "help.font", None),
+    ("Ctrl+Alt+L", "help.language", Some("language")),
+    ("Ctrl+Alt+T", "help.theme", Some("theme")),
+    ("Alt+H", "help.inlay_hints", Some("inlay-hints")),
+    ("F5", "help.reload", Some("reload")),
+    ("Ctrl+F / Ctrl+H", "help.find", None),
+    ("F3 / Shift+F3", "help.find_next", None),
+    ("Ctrl+Shift+F", "help.search", Some("search")),
+    ("Ctrl+Space", "help.complete", Some("complete")),
+    ("Ctrl+Shift+M", "help.modes", Some("modes")),
+    ("Ctrl+Shift+W", "help.term", Some("term")),
+    (
+        "Ctrl+Shift+;",
+        "help.delete_section",
+        Some("delete-section"),
+    ),
+    ("Ctrl+Tab", "help.recent", Some("recent-next")),
+    ("Ctrl+O", "help.open", Some("open")),
+    ("Ctrl+.", "help.quick_fix", Some("quick-fix")),
+    ("Ctrl+T / Ctrl+Shift+T", "help.register", None),
+    ("Ctrl+Shift+D", "help.diff", Some("diff")),
+    ("Alt+1..9 / Alt+0", "help.workspace", None),
+    ("Ctrl+B", "help.up", Some("up")),
+    ("Ctrl+Shift+I", "help.capture", Some("capture")),
+    ("Ctrl+Shift+E", "help.review", Some("review")),
+    ("Ctrl+M", "help.material", Some("material-search")),
+    ("Ctrl+Shift+N", "help.insert", Some("new-item")),
+    ("Ctrl+Delete", "help.drop", Some("drop")),
+    ("Ctrl+Shift+← / →", "help.tab", None),
+    ("Ctrl+Shift+V", "help.scan", Some("scan")),
+    ("F2", "help.rename", Some("rename")),
+    ("Ctrl+Shift+[ / ]", "help.fold", None),
+    ("Esc", "help.escape", None),
 ];
+
+/// ヘルプ項目のコマンド名 → コマンド（コマンド表が単一の真実）。
+fn help_command_of(name: &str) -> Option<crate::app::command::Command> {
+    crate::app::commands::PALETTE_COMMANDS
+        .iter()
+        .chain(crate::app::commands::SHORTCUT_PALETTE_COMMANDS.iter())
+        .find(|(found, _, _)| *found == name)
+        .map(|(_, _, command)| *command)
+}
+
+#[cfg(test)]
+mod help_keys_tests {
+    use super::{help_command_of, HELP_KEYS};
+
+    /// 案内項目とコマンド表の対応（名前がある項目は必ず表に実在する）。
+    #[test]
+    fn every_help_item_name_resolves_in_the_command_tables() {
+        for (keys, _, name) in HELP_KEYS {
+            if let Some(name) = name {
+                assert!(
+                    help_command_of(name).is_some(),
+                    "{keys}: command name {name} is not in the command tables"
+                );
+            }
+        }
+    }
+}
 
 // ============================================================ デスクトップ
 

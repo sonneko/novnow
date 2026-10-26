@@ -2028,7 +2028,7 @@ fn context_unsaved_indicator_has_a_ten_pixel_diameter() {
 
 #[test]
 fn reference_sections_have_one_pixel_separator_between_headings() {
-    use novnow::core::features::reference::{Reference, Upper};
+    use novnow::core::features::reference::{Nav, Reference, Upper};
     let ctx = egui::Context::default();
     let colors = novnow::ui::theme::palette(novnow::ui::theme::Mode::Light);
     let reference = Reference {
@@ -2036,6 +2036,12 @@ fn reference_sections_have_one_pixel_separator_between_headings() {
         upper: vec![Upper {
             id: "01".into(),
             summary: "Chapter".into(),
+            nav: Nav::Outline(novnow::core::id::SceneId {
+                chapter: 1,
+                episode: 0,
+                scene: 0,
+                section: 0,
+            }),
         }],
         ..Default::default()
     };
@@ -2281,7 +2287,7 @@ fn four_matching_diagnostics_collapse_but_three_stay_expanded() {
 
 #[test]
 fn truncated_material_summary_has_a_link_to_the_full_material() {
-    use novnow::core::features::reference::{MaterialRef, Reference};
+    use novnow::core::features::reference::{MaterialRef, Nav, Reference};
     use novnow::ui::widgets::reference_pane::{self, Chosen};
     let ctx = egui::Context::default();
     let content = Reference {
@@ -2291,6 +2297,7 @@ fn truncated_material_summary_has_a_link_to_the_full_material() {
             summary: "要".repeat(121),
             source: String::new(),
             candidate: false,
+            nav: Nav::OpenMaterial("M0001".into()),
         }],
         ..Default::default()
     };
@@ -2357,7 +2364,7 @@ fn truncated_material_summary_has_a_link_to_the_full_material() {
 
 #[test]
 fn material_summary_truncated_after_five_lines_shows_continuation() {
-    use novnow::core::features::reference::{MaterialRef, Reference};
+    use novnow::core::features::reference::{MaterialRef, Nav, Reference};
     let content = Reference {
         materials: vec![MaterialRef {
             id: "M0001".into(),
@@ -2368,6 +2375,7 @@ fn material_summary_truncated_after_five_lines_shows_continuation() {
                 .join("\n"),
             source: String::new(),
             candidate: false,
+            nav: Nav::OpenMaterial("M0001".into()),
         }],
         ..Default::default()
     };
@@ -3267,5 +3275,73 @@ fn header_crumb_and_project_name_are_buttons_and_fold_by_measured_width() {
     assert!(
         harness.app.workbench().is_none(),
         "project name returns to the project list"
+    );
+}
+
+/// B5（§9.5.5）: 参照ペインの行はダブルクリックで移動し、シングルクリックでは動かない。
+#[test]
+fn reference_pane_rows_navigate_on_double_click_but_not_on_single_click() {
+    use novnow::ui::workspaces::Workspace;
+    let mut harness = Harness::new();
+    harness.idle(0.3);
+    assert_eq!(harness.app.workspace(), Some(Workspace::Write));
+    let output = harness.frame(Vec::new());
+    // 参照ペイン（右側）の配役の行
+    let row = harness::painted_texts(&output)
+        .into_iter()
+        .filter(|(_, rect)| rect.min.x > 790.0)
+        .find(|(text, _)| text.contains("リリア") && text.contains("呆れ"))
+        .map(|(_, rect)| rect)
+        .expect("cast row in the reference pane");
+    harness.click_at(row.center());
+    harness.frame(Vec::new());
+    assert_eq!(
+        harness.app.workspace(),
+        Some(Workspace::Write),
+        "a single click must not navigate"
+    );
+    harness.click_at(row.center());
+    harness.click_at(row.center());
+    harness.frame(Vec::new());
+    assert_eq!(
+        harness.app.workspace(),
+        Some(Workspace::Cast),
+        "a double click opens the cast workspace"
+    );
+}
+
+/// B5: ヘルプのキー項目はボタンで、押すとヘルプを閉じてから実行される。
+#[test]
+fn help_key_items_run_their_command_after_closing_the_help() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text("?".into())]);
+    harness.frame(Vec::new());
+    if harness.app.overlay_kind() != Some(novnow::ui::app::OverlayKind::Help) {
+        // `?` が本文へ入った場合はヘッダの `?` ボタンから開く
+        let output = harness.frame(Vec::new());
+        let button = harness::painted_texts(&output)
+            .into_iter()
+            .find(|(text, rect)| text == "?" && rect.min.y < 28.0)
+            .map(|(_, rect)| rect)
+            .expect("help button in the header");
+        harness.click_at(button.center());
+    }
+    assert_eq!(
+        harness.app.overlay_kind(),
+        Some(novnow::ui::app::OverlayKind::Help)
+    );
+    let output = harness.frame(Vec::new());
+    let row = harness::painted_texts(&output)
+        .into_iter()
+        .find(|(text, rect)| text == "Ctrl+P" && rect.min.y > 28.0)
+        .map(|(_, rect)| rect)
+        .expect("palette row in the help");
+    harness.click_at(row.center());
+    harness.frame(Vec::new());
+    assert_eq!(
+        harness.app.overlay_kind(),
+        Some(novnow::ui::app::OverlayKind::Palette),
+        "the help closes and the palette command runs"
     );
 }

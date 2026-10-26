@@ -1307,11 +1307,52 @@ impl WebPicker {
             }
         });
         ui.add_space(8.0);
-        ui.label(
-            RichText::new(i18n::text(locale, "project.pick.keys"))
-                .small()
-                .color(colors.fg_faint),
-        );
+        // キー案内（項目ごとにボタン。実行はキーと同じ経路）
+        let guide = [
+            i18n::text(locale, "project.pick.key_select"),
+            i18n::text(locale, "project.pick.key_open"),
+            i18n::text(locale, "project.pick.key_search"),
+            i18n::text(locale, "project.pick.key_new"),
+            i18n::text(locale, "project.pick.key_import"),
+            i18n::text(locale, "project.pick.key_rename"),
+            i18n::text(locale, "project.pick.key_delete"),
+        ];
+        if !editing && !blocked {
+            match crate::ui::widgets::key_guide(
+                ui,
+                &guide,
+                FontId::new(11.0, FontFamily::Proportional),
+                &colors,
+            ) {
+                Some(0) => {
+                    if self.selected + 1 < rows.len() {
+                        self.selected += 1;
+                    }
+                }
+                Some(1) => {
+                    open = rows.get(self.selected).map(|row| row.record.clone());
+                }
+                Some(2) => self.focus_search = true,
+                Some(3) => {
+                    self.edit = Edit::New(String::new());
+                    self.focus_edit = true;
+                }
+                Some(4) => self.import(locale),
+                Some(5) => {
+                    if let Some(row) = rows.get(self.selected) {
+                        self.edit = Edit::Rename(row.record.id.clone(), row.record.name.clone());
+                        self.focus_edit = true;
+                    }
+                }
+                Some(6) => {
+                    if let Some(row) = rows.get(self.selected) {
+                        self.edit = Edit::Delete(row.record.clone(), String::new());
+                        self.focus_edit = true;
+                    }
+                }
+                _ => {}
+            }
+        }
         ui.add_space(4.0);
         ui.label(
             RichText::new(i18n::text(locale, "project.pick.single_tab"))

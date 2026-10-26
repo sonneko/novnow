@@ -409,6 +409,9 @@ pub fn show(
                                 Some(Chosen::OpenMaterial(id)) => {
                                     request = Some(Request::OpenMaterial(id));
                                 }
+                                Some(Chosen::Navigate(nav)) => {
+                                    request = Some(Request::Navigate(nav));
+                                }
                                 Some(Chosen::Register { kind, name }) => {
                                     request = Some(Request::Register { kind, name });
                                 }

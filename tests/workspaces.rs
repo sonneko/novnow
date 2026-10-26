@@ -1218,6 +1218,19 @@ fn a_condition_match_in_the_reference_pane_is_added_to_the_plot_with_enter() {
     assert!(text.contains("図書室の書架"), "条件一致の候補: {text}");
     harness.frame(vec![key(Key::Num3, CTRL)]);
     harness.frame(Vec::new());
+    // Ctrl+3 では最初の行にフォーカスするので、候補の行まで ↓ で移る（§9.5.5）
+    let candidate = novnow::ui::widgets::reference_pane::candidate_id("M0139");
+    for _ in 0..30 {
+        if harness.ctx.memory(|memory| memory.focused()) == Some(candidate) {
+            break;
+        }
+        harness.frame(vec![key(Key::ArrowDown, Modifiers::NONE)]);
+    }
+    assert_eq!(
+        harness.ctx.memory(|memory| memory.focused()),
+        Some(candidate),
+        "the candidate row must be reachable with ArrowDown"
+    );
     harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
     harness.idle(0.6);
     let plot = written(&harness, "plots/01-01.txt");
@@ -2399,6 +2412,9 @@ fn review_and_cast_shortcut_buttons_execute_their_actions() {
         harness.app.spaces().unwrap().review.tab,
         novnow::ui::workspaces::review::Tab::Progress
     );
+    // キー案内は折り返しレイアウトなので、安定したフレームで位置を取る
+    harness.frame(Vec::new());
+    harness.frame(Vec::new());
     let rect = harness
         .rect_of("Ctrl+Shift+E 数え直す")
         .expect("review rerun button");
@@ -2658,6 +2674,9 @@ fn review_and_agent_bare_arrows_work_with_a_focused_header_button() {
 fn idea_capture_guide_is_a_clickable_shortcut_button() {
     let mut harness = novel_harness();
     harness.frame(vec![key(Key::Num4, ALT)]);
+    // キー案内は折り返しレイアウトなので、安定したフレームで位置を取る
+    harness.frame(Vec::new());
+    harness.frame(Vec::new());
     let button = harness
         .rect_of("Ctrl+Shift+I 即時入力")
         .expect("visible capture button");

@@ -172,6 +172,49 @@ pub fn follow_selection(response: &Response, selected: bool) {
     }
 }
 
+/// キー案内の項目列（各項目がボタン。押された項目の番号を返す）。
+/// 項目は「キー＋動作」の文言キー単位で持ち、実行は呼び出し側がキーの経路と同じ
+/// 処理へつなぐ（案内と実行がずれないように）。
+pub fn key_guide(ui: &mut Ui, items: &[&str], font: FontId, colors: &Palette) -> Option<usize> {
+    let mut chosen = None;
+    ui.horizontal_wrapped(|ui| {
+        for (index, item) in items.iter().enumerate() {
+            if index > 0 {
+                ui.label(RichText::new("·").font(font.clone()).color(colors.fg_faint));
+            }
+            // `link_button` と同じ自前描画（折り返しレイアウトの中で `Label` の
+            // 矩形が行幅いっぱいに広がり、当たり判定と見た目がずれるのを避ける）
+            let galley = ui.fonts(|fonts| {
+                fonts.layout_no_wrap((*item).to_owned(), font.clone(), colors.fg_faint)
+            });
+            let size = galley.size();
+            let (rect, response) = ui.allocate_exact_size(
+                Vec2::new(size.x.max(MIN_HIT), size.y.max(MIN_HIT)),
+                Sense::click(),
+            );
+            let at = egui::pos2(rect.min.x, rect.center().y - size.y / 2.0);
+            let text_rect = egui::Rect::from_min_size(at, size);
+            let painter = ui.painter();
+            if response.hovered() {
+                painter.rect_filled(rect, 2.0, colors.bg_selection.gamma_multiply(0.6));
+                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+            }
+            painter.galley(at, galley, colors.fg_faint);
+            painter.line_segment(
+                [
+                    text_rect.left_bottom() + Vec2::new(0.0, 1.0),
+                    text_rect.right_bottom() + Vec2::new(0.0, 1.0),
+                ],
+                Stroke::new(1.0_f32, colors.border),
+            );
+            if response.clicked() {
+                chosen = Some(index);
+            }
+        }
+    });
+    chosen
+}
+
 /// 編集面の左線の状態（§9.2.4）。青 = 編集面とフォーカス、橙・緑・灰 = 状態で分け、
 /// 同じ左端で重なる場合は状態表示を優先する。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -67,7 +67,7 @@
 
 ### 9.5 参照ペイン
 
-状態: 未実装・実装計画済み（REF:src/core/features/reference.rs, REF:src/ui/widgets/reference_pane.rs, REF:tests/context_rules.rs, REF:tests/gui.rs, REF:docs/plans.md#issue-29-b5）
+状態: 実装完了（REF:src/core/features/reference.rs, REF:src/ui/widgets/reference_pane.rs, REF:tests/context_rules.rs, REF:tests/gui.rs）
 
 - 段階 ① の 6 セクション（プロット・上位プロット・配役・用語・資料・診断）のデータ組み立ては `core::features::reference::build`（`REF:src/core/features/reference.rs`）が `Vec<Section>` として返し（縫い代 6）、`REF:src/ui/widgets/reference_pane.rs` が枠線なしで描画する（80ms デバウンス）。
 - ※五感・空間・挿絵の 3 セクションは段階 ②（`REF:docs/plans.md#stage-2`）対象。
@@ -79,9 +79,9 @@
 - **[F-23] 参照ペインの診断からの自動回復（実装完了: `REF:src/ui/widgets/reference_pane.rs`, `REF:src/ui/app.rs`）**:
   - 未解決参照診断には、形態素解析で区切った 1 形態素を `words.md` / `characters.md` へ登録するボタンを配置する。
 
-- **[Issue #29 / B5] 参照ペインの行からの移動（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b5`）**:
-  - `core::features::reference::build` の返す各行に、表示文字列と並べて移動先（文書と位置、または開く対象と動作の種別）を持たせる。`REF:src/ui/widgets/reference_pane.rs` はダブルクリックと `Ctrl+3` フォーカス後の `↑`/`↓`・`Enter` でその移動を実行し、シングルクリックでは動かさない。
-  - 明示参照の資料は「開く」、条件一致の候補は従来どおり「追加」であり、下線の有無で見分けられる表示にする。用語の行は定義行へ飛ばず全文表示（`Ctrl+Shift+W` 相当）を開く。
+- **[Issue #29 / B5] 参照ペインの行からの移動（実装完了: `REF:docs/plans.md#issue-29-b5`）**:
+  - `core::features::reference` の各行に、表示文字列と並べて移動先 `Nav`（話プロット／上位プロット／配役／用語の全文／資料を開く・追加／文書内の位置）を持たせた。`REF:src/ui/widgets/reference_pane.rs` はダブルクリックと `Ctrl+3` フォーカス後の `↑`/`↓`・`Enter` でその移動を実行し、シングルクリックでは動かさない。実行は `NovnowApp::navigate_pane`（`REF:src/ui/app.rs`）。矢印でのフォーカス移動はアプリ側の打ち消し（refocus）の対象外にする。
+  - 明示参照の資料は「開く」（下線なし）、条件一致の候補は従来どおり「追加」（下線＋薄色）であり、見た目で見分けられる。用語の行は定義行へ飛ばず全文表示（`Ctrl+Shift+W` 相当）を開く。ヘッドレス `reference.pane` は各行に `nav`、診断に `byte`/`path` を足して返す（検証: `REF:tests/sections.rs` の `reference_rows_carry_their_navigation_targets`、`REF:tests/gui.rs` の `reference_pane_rows_navigate_on_double_click_but_not_on_single_click`、`REF:tests/workspaces.rs` の候補の `Enter` テスト）。
 
 ### 9.6 ステータスバー
 
@@ -123,7 +123,7 @@
 
 ### 9.8 キーボード一覧
 
-状態: 未実装・実装計画済み（REF:src/ui/shell.rs, REF:src/ui/web.rs, REF:tests/gui.rs, REF:tests/gui.rs, REF:docs/plans.md#issue-29-b5）
+状態: 実装完了（REF:src/ui/shell.rs, REF:src/ui/web.rs, REF:tests/gui.rs）
 
 - 全ショートカットの解釈と macOS での `Alt` → `Ctrl+Alt` 読み替えは `ui::shell`（`REF:src/ui/shell.rs`）に実装する。
 - **egui 0.27.2 における IME 実装規約（6 原則、`B-132`, `B-152`）**:
@@ -140,9 +140,9 @@
   - `REF:src/ui/shell.rs` と各ワークスペースで「一覧選択は素の `↑`/`↓`、確定して節移動は `Alt+↑`/`Alt+↓`」に統一し（F-35）。`REF:src/ui/workspaces/mod.rs` の `browse_keys` は入力欄・重ね物がないときだけ一覧移動し、`REF:tests/workspaces.rs` で編集中 Slice の非コミットを確かめる。
   - `Ctrl+3` を全画面で「参照ペインへフォーカス」に統一して資料内の移動は `Tab` に移し（F-36）、デスクトップの `Ctrl+O` を「保存して一覧へ戻る」に統一する（F-40）。
 
-- **[Issue #29 / B5] キー案内の項目化とクリック実行（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b5`）**:
-  - `*.keys` の 1 本の文字列を項目単位の文言キーへ分け（`REF:src/ui/i18n/ja.toml`・`REF:src/ui/i18n/en.toml`）、ヘルプのキー一覧と各画面末尾の案内を項目ボタンの列として描く。実行はコマンド表（`REF:src/app/commands.rs`）を経由させ、ヘルプからは閉じてから実行する。陳腐化した案内文言（資料画面の審査フォーム移動など）はこの分割の際に現行の割当へ直す。
-  - 案内の項目とコマンド表の対応を突き合わせる契約テストと、代表画面で実際にボタンを押す GUI テストを加える。
+- **[Issue #29 / B5] キー案内の項目化とクリック実行（実装完了: `REF:docs/plans.md#issue-29-b5`）**:
+  - `*.keys` の 1 本の文字列を項目単位の文言キーへ分け（`REF:src/ui/i18n/ja.toml`・`REF:src/ui/i18n/en.toml`）、各画面の案内を共通部品 `key_guide`（`REF:src/ui/widgets/mod.rs`）で項目ボタンの列として描く。実行はキーと同じ経路（ `Request::Down` / `Drop` / `Shortcut` 、資料検索の確定経路、選択画面の内部操作）へつなぐ。ヘルプのキー一覧は `HELP_KEYS` にコマンド名を持ち、コマンド表（`REF:src/app/commands.rs`）を経由してヘルプを閉じてから実行する（対応が単一コマンドでない項目はラベルのまま）。陳腐化した案内文言（資料画面の「Ctrl+3 審査フォーム」）は現行の割当（ `Tab` ）へ直した。ヘルプ本文は画面より長いのでスクロールさせる。
+  - 案内の項目とコマンド表の対応は `REF:src/ui/app.rs` の `every_help_item_name_resolves_in_the_command_tables` で、実際のボタン実行は `REF:tests/gui.rs` の `help_key_items_run_their_command_after_closing_the_help` と `REF:tests/workspaces.rs` の案内ボタンのテストで検証する。
 
 ### 9.9 アクセシビリティ
 
