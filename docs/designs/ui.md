@@ -6,7 +6,7 @@
 
 ### 9.1 全体レイアウト
 
-状態: 実装完了（REF:src/ui/app.rs, REF:src/app/settings.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-16）
+状態: 未実装・実装計画済み（REF:src/ui/app.rs, REF:src/app/settings.rs, REF:tests/gui.rs, REF:docs/plans.md#issue-29-b4）
 
 - 共通シェル（上端 28px アイコンバー、下端 22px ステータスバー、中央のメインカラム＋参照ペイン 2 カラム分割）は `NovnowApp`（`REF:src/ui/app.rs`）が描画する。
 - メイン/参照の比率（既定 `62 : 38`、`Ctrl+Alt+Shift+←/→`）と文脈/節エディタの比率（既定 `45 : 55`、`Ctrl+Alt+↑/↓`）は `UiSettings`（`REF:src/app/settings.rs`）に保持する。
@@ -18,6 +18,9 @@
 - **[F-16 / F-29 / F-30] 視覚的アクションボタン・押せる要素の下線・静的ラベルの非選択化（実装完了: `REF:docs/plans.md#plan-F-16`, `REF:docs/plans.md#plan-F-29`, `REF:docs/plans.md#plan-F-30`）**:
   - F-29 は実装完了。`REF:src/ui/app.rs` で `style.interaction.selectable_labels = false` を設定し、押せないラベルのダブルクリック青選択を防ぐ（検証: `REF:tests/gui.rs`）。
   - `REF:src/ui/widgets/mod.rs` に共通クリック部品を設けて全ボタン・クリック対象に薄い下線＋ホバー背景＋ショートカット併記を適用する。
+
+- **[Issue #29 / B4] ヘッダの省略優先順とプロジェクト名・パンくずのボタン化（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b4`）**:
+  - `REF:src/ui/app.rs` のヘッダ描画で各要素の実測幅から省略を決め（画面名の一時表示 → プロジェクト名 → パンくず）、プロジェクト名は既存の `Ctrl+O` の経路へ、パンくずは `@` を初期入力とするパレット起動へ接続する。幅を変えたフレームではみ出しが無いことを `REF:tests/gui.rs` で確かめる行を足す。
 
 ### 9.2 ラベル撤廃規則
 
@@ -78,7 +81,7 @@
 
 ### 9.7 ナビゲーション
 
-状態: 実装完了（REF:src/app/palette.rs, REF:src/app/assist.rs, REF:src/ui/app.rs, REF:tests/gui.rs）
+状態: 未実装・実装計画済み（REF:src/app/palette.rs, REF:src/app/assist.rs, REF:src/ui/app.rs, REF:tests/gui.rs, REF:docs/plans.md#issue-29-b1, REF:docs/plans.md#issue-29-b4）
 
 - 統一パレット（`Ctrl+P` / `Ctrl+G` / `Ctrl+Shift+P`）の先頭文字によるモード切替（通常 / `@` 構造 / `'` 辞書 / `#` 資料 / `>` コマンド）と決定論的ファジースコアリング（完全一致 +1000、先頭一致 +500、連続一致 +200、頭文字 +100、50 件上限）は `ui::palette`（`REF:src/app/palette.rs`）に実装する。
 - `'名前` パレットでの `Enter`（`core::features::definition::at` による定義ジャンプ）と `Shift+Enter`（`core::features::references::find` による使用箇所一覧）、および入力中補完ポップアップ（`REF:src/app/assist.rs`）は `REF:src/ui/app.rs` で接続されている（検証: `REF:tests/gui.rs`, `REF:tests/workspaces.rs`）。
@@ -88,9 +91,17 @@
   - パレット幅を固定して長文候補を `...` で省略し（F-12）、候補に「パレットを閉じる」を追加し（F-07）、未入力時の下部ガイド（F-13）と 0 件時の「ない」表示（F-14）を追加する。
   - `>` でエージェント系を `>agent ` 階層にまとめ（F-09）、全ショートカット操作を `>` から実行可能にし（F-15）、`?` をショートカット選択実行モードにし（F-25）、`@` を広さ優先の階層ドリルダウン（`@01-* 章タイトル` → `@01-01-* 話タイトル` → …）に変更し（F-26）、`Tab` によるトークン単位補完（S-13）を実装する。
 
+- **[Issue #29 / B1] 重ね物の共通規則（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b1`）**:
+  - 共通部品 `popup()`（`REF:src/ui/app.rs`）の「外側を押されたか」の戻り値を全呼び出し側で受け、仕様 §9.7.5 の階層（通常は閉じる／確認はキャンセル扱い／保存失敗と終了ガードは閉じない）へ接続する。配置は画面中央と上部（パレット系）の 2 系統に分け、閉じられるモーダルには共通フッタの閉じる案内を付ける。配置変更後は見た目の確認（ヘッドレス描画）を行う。
+  - 複雑なフォーム（MCP 設定・タスク作成・エクスポート設定・却下／差し戻しコメント・アイデア即時入力）の下書きはセッション状態に重ね物ごとに保持し、ファイルへは書かない。
+  - 網羅テストは `REF:tests/gui.rs` のハーネスで全重ね物を開いて外側を押し、閉じるべきものが閉じること・閉じてはいけないものが閉じないこと・背面が操作されないこと・本文が変わらないことを検証する。全バリアントを列挙するテスト用関数に `match` の網羅性を持たせ、後から増えた重ね物のテスト漏れをコンパイル時に検出できるようにする。
+- **[Issue #29 / B4] 最近使った項目と候補一覧の追従ス（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b4`）**:
+  - 履歴は GUI セッション状態にモード別（`>` / `@`）で最大 10 件まで持ち、`REF:src/app/palette.rs` の候補生成では入力が空のときだけ先頭へ差し込む（固定スコアの計算には入れない）。
+  - 選択行への最小移動の追従と、枠の右端に寄せた細いスクロールバーは、候補一覧を持つ重ね物で共有する部品として実装する。候補を末尾まで送ったとき選択行の矩形がスクロール領域内にあることを `REF:tests/gui.rs` で検証する。
+
 ### 9.8 キーボード一覧（v0.1.0 確定版）
 
-状態: 実装完了（REF:src/ui/shell.rs, REF:src/ui/web.rs, REF:tests/gui.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-17）
+状態: 未実装・実装計画済み（REF:src/ui/shell.rs, REF:src/ui/web.rs, REF:tests/gui.rs, REF:tests/gui.rs, REF:docs/plans.md#issue-29-b5）
 
 - 全ショートカットの解釈と macOS での `Alt` → `Ctrl+Alt` 読み替えは `ui::shell`（`REF:src/ui/shell.rs`）に実装する。
 - **egui 0.27.2 における IME 実装規約（6 原則、`B-132`, `B-152`）**:
@@ -106,6 +117,10 @@
   - `REF:src/ui/shell.rs` は Web の予約キーに `Ctrl+Alt+Shift+I/N/T/W` を代替割当にし、ブラウザの開発者ツール等を妨げない。`REF:src/ui/web.rs` の key guard と `REF:tests/gui.rs` で確認する。
   - `REF:src/ui/shell.rs` と各ワークスペースで「一覧選択は素の `↑`/`↓`、確定して節移動は `Alt+↑`/`Alt+↓`」に統一し（F-35）。`REF:src/ui/workspaces/mod.rs` の `browse_keys` は入力欄・重ね物がないときだけ一覧移動し、`REF:tests/workspaces.rs` で編集中 Slice の非コミットを確かめる。
   - `Ctrl+3` を全画面で「参照ペインへフォーカス」に統一して資料内の移動は `Tab` に移し（F-36）、デスクトップの `Ctrl+O` を「保存して一覧へ戻る」に統一する（F-40）。
+
+- **[Issue #29 / B5] キー案内の項目化とクリック実行（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b5`）**:
+  - `*.keys` の 1 本の文字列を項目単位の文言キーへ分け（`REF:src/ui/i18n/ja.toml`・`REF:src/ui/i18n/en.toml`）、ヘルプのキー一覧と各画面末尾の案内を項目ボタンの列として描く。実行はコマンド表（`REF:src/app/commands.rs`）を経由させ、ヘルプからは閉じてから実行する。陳腐化した案内文言（資料画面の審査フォーム移動など）はこの分割の際に現行の割当へ直す。
+  - 案内の項目とコマンド表の対応を突き合わせる契約テストと、代表画面で実際にボタンを押す GUI テストを加える。
 
 ### 9.9 アクセシビリティ
 
