@@ -80,8 +80,10 @@ enum Overlay {
     Info {
         lines: Vec<String>,
     },
-    /// `Ctrl+Shift+;` の確認（§9.2.1-2: 破壊的操作の確認には文字ラベルを置いてよい）。
-    ConfirmDelete,
+    /// 節の削除の確認（§8.1.2・§9.2.1-2: 破壊的操作の確認には文字ラベルを置いてよい）。
+    ConfirmDelete {
+        id: crate::core::id::SceneId,
+    },
     /// 開けなかったときなどの表示（§14.2.2 と同じ内容）。
     Message(String),
     /// `Ctrl+.`。キャレットの下に出す。
@@ -296,7 +298,7 @@ impl Overlay {
             Overlay::Search { .. } => OverlayKind::Search,
             Overlay::Completion { .. } => OverlayKind::Completion,
             Overlay::Info { .. } => OverlayKind::Info,
-            Overlay::ConfirmDelete => OverlayKind::ConfirmDelete,
+            Overlay::ConfirmDelete { .. } => OverlayKind::ConfirmDelete,
             Overlay::Message(_) => OverlayKind::Message,
             Overlay::QuickFix { .. } => OverlayKind::QuickFix,
             Overlay::Diff => OverlayKind::Diff,
@@ -367,7 +369,14 @@ impl Overlay {
             OverlayKind::Info => Overlay::Info {
                 lines: vec!["sample".to_owned()],
             },
-            OverlayKind::ConfirmDelete => Overlay::ConfirmDelete,
+            OverlayKind::ConfirmDelete => Overlay::ConfirmDelete {
+                id: crate::core::id::SceneId {
+                    chapter: 1,
+                    episode: 1,
+                    scene: 1,
+                    section: 1,
+                },
+            },
             OverlayKind::Message => Overlay::Message("sample".to_owned()),
             OverlayKind::QuickFix => Overlay::QuickFix {
                 actions: Vec::new(),
@@ -559,6 +568,18 @@ struct ExportDraft {
 }
 
 impl Session {
+    /// 節の一体削除を実行する（§8.1.2 の単一経路。対応が一意でないときは何も消さず知らせる）。
+    fn delete_section_now(&mut self, locale: Locale, id: crate::core::id::SceneId, now: f64) {
+        use crate::ui::workbench::DeleteOutcome;
+        match self.bench.delete_section_at(id, now) {
+            DeleteOutcome::Deleted => self.settings_dirty = true,
+            DeleteOutcome::Ambiguous => {
+                self.notice = Some((i18n::text(locale, "delete.ambiguous").to_owned(), now));
+            }
+            DeleteOutcome::NotFound => {}
+        }
+    }
+
     /// 読み込んだプロジェクトから作る。
     pub fn new(host: Box<dyn Host>, project: Project, settings: &UiSettings) -> Self {
         let bench = Workbench::new(
@@ -991,7 +1012,7 @@ impl NovnowApp {
         // （`Enter` や矢印が、重ね物と同時にエディタの改行・カーソル移動にもなるため）。閉じたら戻す
         if matches!(
             self.overlay,
-            Overlay::ConfirmDelete
+            Overlay::ConfirmDelete { .. }
                 | Overlay::ConfirmApprove { .. }
                 | Overlay::Promote { .. }
                 | Overlay::AgentConfirm { .. }
@@ -1281,9 +1302,22 @@ impl NovnowApp {
                 }
             }
             Command::ConfirmNext => {
-                if bench.confirm_next(now) {
+                // `Ctrl+Enter` はカーソルのバイト位置で節を分割する（§8.1.1・§9.4.1。
+                // 正規操作 `section.split` と同じ経路）。エディタにフォーカスが無いときは
+                // 末尾として扱う（従来の「確定して次の節へ」と等価）。
+                let at = if self.focus == Pane::Editor {
+                    session
+                        .selection
+                        .as_ref()
+                        .map_or(usize::MAX, |range| range.start)
+                } else {
+                    usize::MAX
+                };
+                if bench.split_section(at, now) {
                     session.settings_dirty = true;
+                    session.selection = Some(0..0);
                     ctx.memory_mut(|memory| memory.request_focus(section_editor::editor_id(bench)));
+                    section_editor::select(ctx, bench, 0..0);
                 }
             }
             Command::NewSection => {
@@ -1379,8 +1413,8 @@ impl NovnowApp {
                 }
             }
             Command::DeleteSection => {
-                if session.bench.current().is_some() {
-                    self.overlay = Overlay::ConfirmDelete;
+                if let Some(id) = session.bench.current_id() {
+                    self.request_delete(id, now);
                 }
             }
             Command::Export => {
@@ -2336,6 +2370,21 @@ impl NovnowApp {
     /// plot-outline、`ideas.md` → idea、`characters.md` → cast、資料 MD と `materials/index.json` →
     /// material）。それ以外は開く画面が無いので知らせるだけ。
     /// 参照ペインの行からの移動（§9.5.5。飛び先はコアの行モデルの `Nav`）。
+    /// 節の削除の入口（§8.1.2）: 空の節、または個人設定で確認を省くときは即削除し、
+    /// そうでなければ確認モーダルを出す。全入口（ショートカット・パレット・文脈ビューと
+    /// プロット一覧のボタン）がここを通る。
+    fn request_delete(&mut self, id: crate::core::id::SceneId, now: f64) {
+        let locale = self.locale();
+        let Stage::Open(session) = &mut self.stage else {
+            return;
+        };
+        if session.bench.delete_is_empty(id) || !self.settings.confirm_section_delete {
+            session.delete_section_now(locale, id, now);
+        } else {
+            self.overlay = Overlay::ConfirmDelete { id };
+        }
+    }
+
     fn navigate_pane(
         &mut self,
         ctx: &Context,
@@ -3312,6 +3361,9 @@ impl NovnowApp {
                 Some(workspaces::Request::Navigate(nav)) => {
                     self.navigate_pane(ctx, nav, now);
                 }
+                Some(workspaces::Request::DeleteSection(id)) => {
+                    self.request_delete(id, now);
+                }
                 Some(workspaces::Request::AppendMaterial(id)) => {
                     self.append_material(ctx, &id, now);
                 }
@@ -3545,13 +3597,17 @@ impl NovnowApp {
                 self.overlay = Overlay::None;
             }
         }
-        if let Some(index) = clicked {
-            if session.bench.go_to(index) {
-                session.settings_dirty = true;
-                ctx.memory_mut(|memory| {
-                    memory.request_focus(section_editor::editor_id(&session.bench))
-                });
+        match clicked {
+            Some(context_view::Action::Go(index)) => {
+                if session.bench.go_to(index) {
+                    session.settings_dirty = true;
+                    ctx.memory_mut(|memory| {
+                        memory.request_focus(section_editor::editor_id(&session.bench))
+                    });
+                }
             }
+            Some(context_view::Action::Delete(id)) => self.request_delete(id, now),
+            None => {}
         }
         self.common_tail(ctx, locale, now);
     }
@@ -5197,7 +5253,8 @@ impl NovnowApp {
                             });
                     });
             }
-            Overlay::ConfirmDelete => {
+            Overlay::ConfirmDelete { id } => {
+                let id = *id;
                 let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
                 let mut confirmed = enter;
                 popup(ctx, "confirm-delete", colors, style, |ui| {
@@ -5217,8 +5274,7 @@ impl NovnowApp {
                     });
                 });
                 if confirmed {
-                    session.bench.delete_section(now);
-                    session.settings_dirty = true;
+                    session.delete_section_now(locale, id, now);
                     close = true;
                 }
             }
@@ -7490,7 +7546,7 @@ const HELP_KEYS: &[(&str, &str, Option<&str>)] = &[
     ("Ctrl+Shift+M", "help.modes", Some("modes")),
     ("Ctrl+Shift+W", "help.term", Some("term")),
     (
-        "Ctrl+Shift+;",
+        "Ctrl+Shift+; / Ctrl+Shift+Delete / Ctrl+:",
         "help.delete_section",
         Some("delete-section"),
     ),

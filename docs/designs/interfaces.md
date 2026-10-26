@@ -72,15 +72,15 @@
 
 ### 19.7 機能パリティカタログ
 
-状態: 未実装・実装計画済み（REF:src/app/ops/mod.rs, REF:tests/api_parity.rs, REF:tests/golden/api_catalog.json, REF:docs/plans.md#issue-29-b3）
+状態: 実装完了（REF:src/app/ops/mod.rs, REF:tests/api_parity.rs, REF:tests/golden/api_catalog.json）
 
 - 契約テスト `REF:tests/api_parity.rs`: `REF:docs/specifications/interfaces.md` を include_str! で読み §19.7 の表を行単位で解析する（`REF:tests/diagnostics_catalog.rs` と同じ「仕様直結」方式）。各正規操作について (1) `OPS` 表、(2) CLI ディスパッチ、(3) LSP ルーティング、(4) MCP ツール（または「M—」例外）、(5) Python スタブのメソッド、の存在を検証する。例外列（R— / P— / L— / M— / C—）も解析し、「提供しない」ことも宣言どおりか検証する。
 - `api.list` の機械可読出力は `REF:tests/golden/api_catalog.json` としてゴールデン化し、カタログの意図しないドリフトを双方向に検出する。
 - 表の行の追加・削除は仕様変更にあたるため、`REF:docs/developers.md` §5 の規則により人間の承認を経る。
 
-- **[Issue #29 / B3・B5] `section.split` の追加と `reference.pane` の返却値拡張（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b3`）**:
-  - `section.split` は所有者の承認済み判断（Issue #29）に基づき、B3 の実装時に表の `section.confirm_next` の次へ行を足し、OPS・各インターフェース・ゴールデン・Web サイトの API 表を同時に更新する。それまでは仕様 §19.7 の表の後ろの定義文が正本であり、表と OPS の一致は現行の 119 操作で保つ。
-  - `reference.pane` の各行へ移動先と動作（§9.5.5）を含める変更は B5 で行い、ゴールデンの差分としてレビューする。
+- **[Issue #29 / B3・B5] `section.split` の追加と `reference.pane` の返却値拡張（実装完了: `REF:docs/plans.md#issue-29-b3`）**:
+  - `section.split` を仕様 §19.7 の表の `section.confirm_next` の次へ足し（120 操作、カタログ版 1.1）、OPS・型付き Rust API（`Session::section().split`）・ゴールデン・Python スタブ・Web サイトの API 表を同時に更新した。引数は対象の節（省略時は今の節）と節先頭からのバイト位置で、意味は §8.1.1（検証: `REF:tests/api.rs` の `section_split_splits_at_a_byte_position_and_delete_takes_the_plot_too`）。
+  - `reference.pane` の各行へ移動先と動作（§9.5.5）を含める変更は B5 で行った。
 
 ### 19.8 版・互換性・配布
 

@@ -580,7 +580,7 @@ fn every_api_key_matches_the_canonical_operations() {
     );
 
     let ids = canonical_op_ids();
-    assert_eq!(ids.len(), 119, "§19.7 の行数と合わない: {}", ids.len());
+    assert_eq!(ids.len(), 120, "§19.7 の行数と合わない: {}", ids.len());
     for id in &ids {
         let key = format!("api.op.{id}");
         assert!(ja.contains_key(&key), "ja.toml に {key} が無い");
@@ -602,7 +602,7 @@ fn every_api_key_matches_the_canonical_operations() {
     for locale in [Locale::Ja, Locale::En] {
         let catalog = novnow::app::ops::catalog(locale);
         let operations = catalog["operations"].as_array().expect("operations");
-        assert_eq!(operations.len(), 119);
+        assert_eq!(operations.len(), 120);
         for operation in operations {
             let id = operation["id"].as_str().expect("id");
             let description = operation["description"].as_str().expect("description");

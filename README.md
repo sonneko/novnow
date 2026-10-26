@@ -164,11 +164,11 @@ GUI でできることは、すべてヘッドレスからも操作できます�
 | CLI | `novnow new` / `check` / `export` / `import` / `migrate` / `api` / `mcp` / `lsp` | プロジェクト作成・診断・書き出し・移行・API 一覧。`novnow <domain> <verb> <dir>` の統一書式 |
 | LSP | `novnow lsp <dir>` | エディタから補完・ホバー・定義移動・診断・整形・折りたたみ（LSP 3.17） |
 | MCP | `novnow mcp <dir>` | AI クライアント向けの 14 ツール |
-| Python | `import novnow` | 同じ 119 の正規操作を Python から（PyO3・abi3-py39 のホイール） |
+| Python | `import novnow` | 同じ 120 の正規操作を Python から（PyO3・abi3-py39 のホイール） |
 | Rust | `novnow` クレート | `core` / `app` の API を直接利用 |
 
 ```bash
-novnow api list             # 119 の正規操作の一覧（--json で機械可読）
+novnow api list             # 120 の正規操作の一覧（--json で機械可読）
 novnow check my-novel       # 診断を出して終了する（エラーがあれば終了コード 5）
 novnow structure tree my-novel --json                    # 正規操作も --json で機械可読
 ```

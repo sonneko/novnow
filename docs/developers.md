@@ -142,7 +142,7 @@ novnow/
 │   ├── ports/                 # 外部境界 trait（storage, clock, mcp, env, dialog）
 │   ├── adapters/              # 環境別実装（storage_fs, storage_idb, recent_file, zip, project_load,
 │   │                          #   env_system, mcp_stdio, mcp_http, clock_system, dialog_rfd）
-│   ├── app/                   # 描画と無縁の状態機械と 119 操作の機能核（REF:docs/specifications/interfaces.md §19）
+│   ├── app/                   # 描画と無縁の状態機械と 120 操作の機能核（REF:docs/specifications/interfaces.md §19）
 │   │   ├── session.rs / driver.rs / workbench.rs / save_machine.rs / settings.rs
 │   │   ├── palette.rs / assist.rs / agents.rs / command.rs / commands.rs
 │   │   ├── host.rs / memory_host.rs / fs_host.rs / event.rs / error.rs / workspace.rs

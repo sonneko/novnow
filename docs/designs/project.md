@@ -35,9 +35,10 @@
 
 ### 4.4 `.novnow/`（ローカル状態）
 
-状態: 未実装・実装計画済み（REF:src/app/settings.rs, REF:src/ui/widgets/section_editor.rs, REF:src/ui/widgets/context_view.rs, REF:tests/gui.rs, REF:docs/plans.md#issue-29-b3）
+状態: 実装完了（REF:src/app/settings.rs, REF:src/ui/widgets/section_editor.rs, REF:src/ui/widgets/context_view.rs, REF:tests/gui.rs）
 
 - `.novnow/ui.json` の読み書きと未知キー温存・数値範囲のクランプ（`font_scale`, `main_ref_ratio`, `context_editor_ratio`, `autosave_ms`）は `ui::settings::UiSettings`（`REF:src/app/settings.rs`）が担う（検証: `REF:tests/gui.rs`）。
+- **[Issue #29 / B3] `confirm_section_delete` の消費（実装完了: `REF:docs/plans.md#issue-29-b3`）**: 空でない節の削除確認の有無は `UiSettings.confirm_section_delete`（`REF:src/app/settings.rs`、既定 `true`）で読み書きし、`NovnowApp::request_delete`（`REF:src/ui/app.rs`）が消費する。
 
 - **[S-18] 本文最大行幅設定 `max_line_chars`（実装完了: `REF:docs/plans.md#plan-S-18`）**:
   - `REF:src/app/settings.rs` の `UiSettings` 構造体に `pub max_line_chars: Option<usize>` を追加し、`clamp` 時に `20..=120` に丸める。

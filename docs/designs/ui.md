@@ -34,7 +34,7 @@
 
 ### 9.3 文脈ビュー（メインカラム上段）
 
-状態: 未実装・実装計画済み（REF:src/ui/widgets/context_view.rs, REF:tests/gui.rs, REF:docs/plans.md#issue-29-b3）
+状態: 実装完了（REF:src/ui/widgets/context_view.rs, REF:tests/gui.rs）
 
 - 前後最大 3 節の読み取り専用表示と、編集中の節の位置に本文を重複描画せず 1 行プレースホルダ `─── @01-04-02-03 ───` のみを置く処理は `ui::widgets::context_view`（`REF:src/ui/widgets/context_view.rs`）に実装する（検証: `REF:tests/gui.rs` の `the_context_view_never_paints_the_section_being_edited`）。
 - ※§9.3.3 の折りたたみ UI は段階 ②（追加仕様 9、`REF:docs/plans.md#stage-2`）対象。
@@ -44,12 +44,12 @@
   - 編集中プレースホルダ行の左端に 3px の `accent` 縦線を描画して節エディタと対にし（F-41）、未保存ドットを直径 10px で描く（F-39、`REF:src/ui/widgets/context_view.rs`・`REF:tests/gui.rs` で検証済み）。
   - 本文が 0 文字のときは `fg.faint` で 3 行ガイド（`Alt+数字=画面 / Alt+矢印=節移動 / Ctrl+P=一覧`）を描画する（S-04 は `REF:tests/gui.rs` で検証済み）。スクロール可視範囲内の節のみ `Galley` レイアウトを行う（S-12）。`REF:src/ui/widgets/context_view.rs` ではビューポート外を文字数からの高さ推定で確保し、可視節の実測高さを世代・幅・フォントサイズごとにキャッシュする（検証: `REF:src/ui/widgets/context_view.rs` の `viewport_tests`）。
 
-- **[Issue #29 / B3] 文脈ビューの節削除ボタン（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b3`）**:
-  - `REF:src/ui/widgets/context_view.rs` の各節に削除ボタンを置き、削除の実行は節操作の単一経路（`REF:docs/designs/editing.md` §8.1）へ寄せる。本文を描かない編集中プレースホルダの行にも同じボタンを置く。
+- **[Issue #29 / B3] 文脈ビューの節削除ボタン（実装完了: `REF:docs/plans.md#issue-29-b3`）**:
+  - `REF:src/ui/widgets/context_view.rs` の各節の番号の横と編集中プレースホルダの行に削除ボタンを置き、`Action::Delete(SceneId)` として返す。実行は `NovnowApp::request_delete`（`REF:src/ui/app.rs`）から節操作の単一経路（`REF:docs/designs/editing.md` §8.1）へ寄せる。右から左のレイアウトでは `Label` の割当矩形と描画位置がずれるため、ボタンは共通部品 `selectable_action` で描く（検証: `REF:tests/gui.rs` の `context_view_delete_buttons_follow_the_confirmation_rules`）。
 
 ### 9.4 節エディタ（メインカラム下段）
 
-状態: 未実装・実装計画済み（REF:src/ui/widgets/section_editor.rs, REF:src/ui/widgets/syntax_text.rs, REF:tests/gui.rs, REF:docs/plans.md#issue-29-b2, REF:docs/plans.md#issue-29-b3）
+状態: 実装完了（REF:src/ui/widgets/section_editor.rs, REF:src/ui/widgets/syntax_text.rs, REF:tests/gui.rs）
 
 - 1 行ミニヘッダー（パンくず `01 › 04 › 02 › 03` と有効モードバッジ）および構文ハイライト・インレイヒント・ベースライン基準の下線/波線描画を伴う複数行エディタは `REF:src/ui/widgets/section_editor.rs` と `REF:src/ui/widgets/syntax_text.rs` に実装する。
 - ※§9.4.2 の台詞比率バー、§9.4.3 のゴーストテキスト、§9.4.4 のタイプライタスクロールは段階 ②（`REF:docs/plans.md#stage-2`）対象。
@@ -62,8 +62,8 @@
 - **[Issue #29 / B2] 台詞比率バーの仕様形への復帰とベースライン整列の幾何テスト（実装完了: `REF:docs/plans.md#issue-29-b2`）**:
   - 比率バーは仕様 §9.4.2 の形（幅 64px の横棒＋右に 10px の %）へ戻し、全面幅の `ProgressBar` への % 重ね描きをやめた。話プロット側の幅 48px バーも共通部品 `ratio_bar`（`REF:src/ui/widgets/mod.rs`）を使う。分母 0 の節では描かない。
   - 行番号とキャレットは本文グリフのベースライン基準でそろえた（中心基準をやめた）。`row_baseline`（`REF:src/ui/widgets/syntax_text.rs`）がグリフのある行はそのベースラインを、空行は他の行と同じオフセットを返し、0 文字行と通常行の双方を `Galley` の幾何で検証する単体テスト（`row_baseline_uses_glyph_baselines_even_for_empty_rows`）を足した。
-- **[Issue #29 / B3] `Ctrl+Enter` の分割化（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b3`）**:
-  - 節エディタの `Ctrl+Enter` は、カーソルのバイト位置を正規操作 `section.split`（§19.7）へ渡して分割する。節先頭では何もせず、節末尾では従来の `confirm_next` と等価に振る舞う。何も書かれていない節（W012 の定義に一致）では新たな空節を作らない。
+- **[Issue #29 / B3] `Ctrl+Enter` の分割化（実装完了: `REF:docs/plans.md#issue-29-b3`）**:
+  - 節エディタの `Ctrl+Enter`（`Command::ConfirmNext`）は、直前フレームの選択範囲の開始バイトを `Workbench::split_section`（正規操作 `section.split` と同じ経路）へ渡して分割する。節先頭では何もせず、節末尾では従来の `confirm_next` と等価に振る舞う。何も書かれていない節（W012 の定義に一致）では新たな空節を作らない。エディタ以外にフォーカスがあるときは末尾として扱う（検証: `REF:tests/gui.rs` の `ctrl_enter_splits_the_section_at_the_caret`）。
 
 ### 9.5 参照ペイン
 
@@ -206,12 +206,12 @@
 
 ### 10.2 `plot-episode` — 話プロット
 
-状態: 未実装・実装計画済み（REF:src/core/features/plots.rs, REF:src/ui/workspaces/plot_episode.rs, REF:tests/plots.rs, REF:tests/workspaces.rs, REF:docs/plans.md#issue-29-b3）
+状態: 実装完了（REF:src/core/features/plots.rs, REF:src/ui/workspaces/plot_episode.rs, REF:tests/plots.rs, REF:tests/workspaces.rs）
 
 - 場面・節のカード一覧と本文冒頭 1 行プレビュー・文字数集計・状態バッジは `core::features::plots`（`REF:src/core/features/plots.rs`）が計算し、`REF:src/ui/workspaces/plot_episode.rs` が描画・編集（`Enter` で `write` へ移動、`Space` で `state` 巡回、`M` でモード選択）を担う。
 
-- **[Issue #29 / B3] 節リストの削除ボタン（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b3`）**:
-  - `REF:src/ui/workspaces/plot_episode.rs` の節リストの各行に削除ボタンを置く。削除の意味（本文と対応プロットの一体削除）と確認は §8.1.2 の単一経路に従う。
+- **[Issue #29 / B3] 節リストの削除ボタン（実装完了: `REF:docs/plans.md#issue-29-b3`）**:
+  - `REF:src/ui/workspaces/plot_episode.rs` の節リストの各行（場面見出しの行を除く）の右端に削除ボタンを置き、`Request::DeleteSection` として返す。削除の意味（本文と対応プロットの一体削除）と確認は §8.1.2 の単一経路に従う（検証: `REF:tests/workspaces.rs` の `plot_list_delete_button_uses_the_unified_delete`）。
 
 ### 10.3 `plot-outline` — 全体 / 章プロット
 

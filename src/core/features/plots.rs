@@ -140,6 +140,77 @@ pub fn row_near(rows: &[EpisodeRow], id: SceneId) -> Option<usize> {
         .or(if rows.is_empty() { None } else { Some(0) })
 }
 
+/// 節 `id` に対応する話プロットのブロック 1 つ（§8.1.2 の一体削除の対応判定）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SectionBlock {
+    /// ブロックの行（末尾の空行を含む。区切り `;` を含まない）。
+    pub span: Range<usize>,
+    /// 内容の行（末尾の空行を含まない）。
+    pub content: Range<usize>,
+}
+
+/// 節 `id` に対応する話プロットのブロックすべて（場面見出しの ID が壊れた場面は数えない）。
+/// 一体削除（§8.1.2）は、結果が 1 件のときだけ一意とみなす。
+pub fn section_blocks(project: &Project, id: SceneId) -> Vec<SectionBlock> {
+    let Some(plot) = project.episode_plot(id.chapter, id.episode) else {
+        return Vec::new();
+    };
+    let scene_of = SceneId { section: 0, ..id };
+    let mut out = Vec::new();
+    for scene in &plot.scenes {
+        let Some(scene_id) = scene.id else {
+            continue;
+        };
+        let of_scene = SceneId {
+            section: 0,
+            ..scene_id
+        };
+        if of_scene != scene_of {
+            continue;
+        }
+        for section in &scene.sections {
+            if section.number == id.section {
+                out.push(SectionBlock {
+                    span: section.span.clone(),
+                    content: section.content.clone(),
+                });
+            }
+        }
+    }
+    out
+}
+
+/// ブロックを消したファイル全体（ブロックの行と区切り `;` を消す。本文側の
+/// `sections::remove` と同じ規則、§8.1.2）。
+pub fn remove_block(text: &str, block: &SectionBlock) -> String {
+    let mut lines: Vec<&str> = text.split('\n').collect();
+    let end = block.span.end.min(lines.len());
+    let start = block.span.start.min(end);
+    let is_break = |line: Option<&&str>| {
+        line.is_some_and(|line| {
+            matches!(
+                lexer::classify(line, lexer::TextFormat::PlotEpisode),
+                lexer::LineKind::SectionBreak
+            )
+        })
+    };
+    let (from, to) = if is_break(lines.get(end)) {
+        (start, end + 1)
+    } else if start > 0 && is_break(lines.get(start - 1)) {
+        (start - 1, end)
+    } else {
+        (start, end)
+    };
+    // ファイル末尾の改行の後ろの空の「行」は残す
+    let to = if to == lines.len() && text.ends_with('\n') && to > from {
+        to - 1
+    } else {
+        to
+    };
+    lines.drain(from..to.max(from));
+    lines.join("\n")
+}
+
 /// 話プロットに新しい（空の）節を足したファイル全体と、新しい節の位置の行（§10.2 `Ctrl+Shift+N`）。
 ///
 /// 新しい節は**空**で、返す行は新しい節を閉じる `;` の行（エディタはその位置の空範囲を開き、書くと

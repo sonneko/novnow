@@ -1,4 +1,4 @@
-//! 正規操作カタログ（§19.7 の 119 操作）**全件**を 1 回ずつ叩く網羅テスト。
+//! 正規操作カタログ（§19.7 の 120 操作）**全件**を 1 回ずつ叩く網羅テスト。
 //!
 //! `REF:tests/api.rs` は操作を 1 つずつ手で書くので、カタログへ操作を足しても誰も呼ばない
 //! まま CI が緑になる。ここでは app 層の `OPS` 表（`REF:src/app/ops/mod.rs`）を走査して
@@ -205,7 +205,7 @@ fn render(results: &[(&'static OpDef, &Outcome)]) -> String {
     out
 }
 
-/// 全 119 操作を叩き、表を書いて、合格条件を検査する。
+/// 全 120 操作を叩き、表を書いて、合格条件を検査する。
 #[test]
 fn every_catalog_operation_is_callable_and_classified() {
     let mut results: Vec<(&'static OpDef, Outcome)> = Vec::with_capacity(OPS.len());
@@ -285,13 +285,13 @@ fn every_catalog_operation_is_callable_and_classified() {
         .iter()
         .filter(|(_, outcome)| matches!(outcome, Outcome::Done))
         .count();
-    assert_eq!(results.len(), 119, "カタログの全操作数");
+    assert_eq!(results.len(), 120, "カタログの全操作数");
     assert!(
         done >= 86,
         "実行できた操作が {done} 件まで減った（期待 86 以上）:\n{table}"
     );
 
-    // 4. カタログ（§19.8.2）と `OPS` 表は同じ 119 件（二重管理が無いことの確認）
+    // 4. カタログ（§19.8.2）と `OPS` 表は同じ 120 件（二重管理が無いことの確認）
     let catalog = ops::catalog(novnow::ui::i18n::Locale::Ja);
     assert_eq!(
         catalog["count"].as_u64(),

@@ -62,7 +62,7 @@ fn open_first_section(session: &mut Session) -> String {
 fn the_catalog_lists_every_canonical_operation() {
     let (mut session, _) = open();
     let catalog = session.run("api.list", json!({})).expect("api.list");
-    assert_eq!(catalog["count"], json!(119), "§19.7 の行数と合わない");
+    assert_eq!(catalog["count"], json!(120), "§19.7 の行数と合わない");
     assert_eq!(catalog["catalog_version"], json!(CATALOG_VERSION));
     assert_eq!(
         catalog["interfaces"],
@@ -71,7 +71,7 @@ fn the_catalog_lists_every_canonical_operation() {
     );
     assert_eq!(catalog["version"], json!(Session::version()));
     let operations = catalog["operations"].as_array().expect("operations");
-    assert_eq!(operations.len(), 119);
+    assert_eq!(operations.len(), 120);
     for operation in operations {
         for key in [
             "id",
@@ -1056,4 +1056,48 @@ fn resolving_a_conflict_twice_is_a_conflict_error() {
         .run("save.keep_mine", json!({}))
         .expect_err("衝突が無いのに解決できた");
     assert_eq!(error.class, Class::Conflict, "{error:?}");
+}
+
+#[test]
+fn section_split_splits_at_a_byte_position_and_delete_takes_the_plot_too() {
+    let (mut session, _) = open();
+    let scene = first_section(&mut session);
+    let text = session.section().get(&scene).expect("section.get");
+    assert!(!text.is_empty());
+    let before = session
+        .run("section.list", json!({}))
+        .expect("section.list")["count"]
+        .as_u64()
+        .unwrap();
+    // 先頭では割らない（Ok で split=false）
+    let refused = session
+        .run("section.split", json!({ "scene": scene, "at": 0 }))
+        .expect("section.split at 0");
+    assert_eq!(refused["split"], json!(false));
+    // 途中の文字境界で割る（§8.1.1）
+    let at = text.char_indices().nth(3).map(|(at, _)| at).unwrap_or(1);
+    let done = session
+        .section()
+        .split(Some(&scene), at)
+        .expect("section.split");
+    assert_eq!(done["split"], json!(true));
+    let after = session
+        .run("section.list", json!({}))
+        .expect("section.list")["count"]
+        .as_u64()
+        .unwrap();
+    assert_eq!(after, before + 1, "節が 1 つ増える");
+    let upper = session.section().get(&scene).expect("upper");
+    assert_eq!(upper, text[..at].trim_end_matches('\n'));
+    // section.delete は本文と対応プロットを一緒に消す（§8.1.2）: 消した節の本文は戻らない
+    let deleted = session
+        .run("section.delete", json!({ "scene": scene }))
+        .expect("section.delete");
+    assert_eq!(deleted["deleted"], json!(scene));
+    let last = session
+        .run("section.list", json!({}))
+        .expect("section.list")["count"]
+        .as_u64()
+        .unwrap();
+    assert_eq!(last, before, "分割で増えた分が削除で戻る");
 }

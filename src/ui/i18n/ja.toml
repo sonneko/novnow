@@ -378,7 +378,7 @@ save = "今すぐ全部書き出す（任意）"
 section = "前 / 次の節（編集を確定して保存）"
 scene = "前 / 次の場面"
 file = "前 / 次の話"
-confirm_next = "確定して次の節へ（無ければ新しい節）"
+confirm_next = "カーソル位置で節を分割（末尾では次の節へ、無ければ新規作成）"
 new_section = "直後に新しい節を作って移動"
 focus = "文脈ビュー / 節エディタ / 参照ペインへ"
 reference = "参照ペインの表示"
@@ -445,8 +445,10 @@ replace_all = "すべて置換"
 placeholder = "本文の全体から検索"
 
 [delete]
-confirm = "この節を削除しますか？（取り消しは Ctrl+Z ではできません）"
+confirm = "この節を削除しますか？（対応するプロットも一緒に削除します。取り消しは Ctrl+Z ではできません）"
 yes = "削除する"
+button = "削除"
+ambiguous = "対応するプロットが一意に定まらないため、削除しませんでした"
 
 [quickfix]
 none = "この位置に直せるものはありません"
@@ -1057,6 +1059,7 @@ write = "セクション保存"
 insert = "節の新設"
 delete = "節の削除"
 confirm_next = "次の未確認節の確認"
+split = "節の分割"
 
 [api.op.session]
 workspace_get = "現在のワークスペース"

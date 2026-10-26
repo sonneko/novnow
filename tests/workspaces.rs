@@ -2720,3 +2720,39 @@ fn cast_timeline_hover_covers_a_full_minimum_height_row() {
         egui::Shape::Rect(shape) if shape.fill == fill && shape.rect.height() >= 24.0 && shape.rect.contains(label.center())
     )), "timeline hover must cover a 24px band");
 }
+
+#[test]
+fn plot_list_delete_button_uses_the_unified_delete() {
+    let mut harness = novel_harness();
+    let before = harness
+        .app
+        .workbench()
+        .map(|bench| bench.sections().len())
+        .unwrap();
+    harness.frame(vec![key(Key::Num2, ALT)]);
+    harness.frame(Vec::new());
+    assert_eq!(harness.app.workspace(), Some(Workspace::PlotEpisode));
+    let output = harness.frame(Vec::new());
+    // 節リストの各行の右端に削除ボタンがある（§8.1.2）
+    let mut buttons: Vec<egui::Rect> = harness::painted_texts(&output)
+        .into_iter()
+        .filter(|(text, _)| text == "削除")
+        .map(|(_, rect)| rect)
+        .collect();
+    assert!(!buttons.is_empty(), "プロット一覧の削除ボタン");
+    buttons.sort_by(|a, b| a.min.y.total_cmp(&b.min.y));
+    harness.click_at(buttons[0].center());
+    // 空でない節は既定で確認する（文脈ビューと同じ入口）
+    assert_eq!(
+        harness.app.overlay_kind(),
+        Some(novnow::ui::app::OverlayKind::ConfirmDelete)
+    );
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    let bench = harness.app.workbench().expect("bench");
+    assert_eq!(
+        bench.sections().len(),
+        before - 1,
+        "本文の節も一緒に消える（§8.1.2）"
+    );
+    assert_eq!(harness.app.overlay_kind(), None);
+}

@@ -8,7 +8,7 @@ use crate::app::ops::{audit, commit, gate, via_mcp, Args};
 use crate::app::session::{
     bool_or, nav_of, scene_arg, str_arg, str_or, usize_opt, usize_or, Find, Place, Session,
 };
-use crate::app::workbench::Nav;
+use crate::app::workbench::{DeleteOutcome, Nav};
 use crate::app::workspace::Workspace;
 use crate::core::features::{plots, sections, Project};
 use crate::core::id::SceneId;
@@ -116,11 +116,53 @@ pub fn section_insert(session: &mut Session, args: &Args) -> Result<Value> {
     Ok(json!({ "id": id, "pending": pending, "save": saved }))
 }
 
-/// `section.delete`（`>` + `delete-section`。§9.4.2）。
+/// `section.delete`（`>` + `delete-section`。§8.1.2。本文と対応するプロットを一緒に削除）。
 pub fn section_delete(session: &mut Session, args: &Args) -> Result<Value> {
     let locale = session.locale;
     let role = gate(session, args)?;
     // `>` + `delete-section` は今の節（§9.4.2）
+    let scene = match args.get("scene").and_then(Value::as_str) {
+        Some(_) => scene_arg(locale, args, "scene")?,
+        None => session
+            .bench
+            .current_id()
+            .ok_or_else(|| Error::missing(locale, "scene"))?,
+    };
+    match session.bench.delete_section_at(scene, session.clock) {
+        DeleteOutcome::Deleted => {}
+        DeleteOutcome::Ambiguous => {
+            return Err(Error::new(
+                Class::Validation,
+                i18n::text(locale, "delete.ambiguous").to_owned(),
+            ));
+        }
+        DeleteOutcome::NotFound => {
+            return Err(Error::not_found(
+                locale,
+                &crate::app::ops::id_text(session, scene),
+                None,
+            ));
+        }
+    }
+    if role.is_some() {
+        audit(
+            session,
+            "direct_write",
+            &format!(
+                "op:section.delete {}",
+                crate::app::ops::id_text(session, scene)
+            ),
+        );
+    }
+    let saved = commit(session)?;
+    Ok(json!({ "deleted": crate::app::ops::id_text(session, scene), "save": saved }))
+}
+
+/// `section.split`（節の分割。§8.1.1・§9.4.1。MCP では `section.delete` と同じ関門付き）。
+pub fn section_split(session: &mut Session, args: &Args) -> Result<Value> {
+    let locale = session.locale;
+    let role = gate(session, args)?;
+    let at = usize_opt(args, "at").ok_or_else(|| Error::missing(locale, "at"))?;
     let scene = match args.get("scene").and_then(Value::as_str) {
         Some(_) => scene_arg(locale, args, "scene")?,
         None => session
@@ -138,26 +180,23 @@ pub fn section_delete(session: &mut Session, args: &Args) -> Result<Value> {
             None,
         ));
     }
-    let deleted = session.bench.delete_section(session.clock);
-    if !deleted {
-        return Err(Error::not_found(
-            locale,
-            &crate::app::ops::id_text(session, scene),
-            None,
-        ));
-    }
+    let split = session.bench.split_section(at, session.clock);
     if role.is_some() {
         audit(
             session,
             "direct_write",
             &format!(
-                "op:section.delete {}",
+                "op:section.split {}",
                 crate::app::ops::id_text(session, scene)
             ),
         );
     }
     let saved = commit(session)?;
-    Ok(json!({ "deleted": crate::app::ops::id_text(session, scene), "save": saved }))
+    Ok(json!({
+        "scene": session.bench.current_id().map(|id| crate::app::ops::id_text(session, id)),
+        "split": split,
+        "save": saved,
+    }))
 }
 
 /// `section.confirm_next`（`Ctrl+Enter`。§12.5。M—・C—）。

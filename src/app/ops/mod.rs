@@ -395,6 +395,12 @@ pub const OPS: &[OpDef] = &[
         exceptions = &[("M", "stateful"), ("C", "stateful")],
         command = Some("confirm-next")
     ),
+    opdef!(
+        "section.split",
+        &[ArgDef::opt_string("scene"), ArgDef::integer("at")],
+        editing::section_split,
+        gate = true
+    ),
     // --- nav ---
     opdef!(
         "nav.file",
@@ -1071,7 +1077,7 @@ pub fn id_text(session: &Session, scene: crate::core::id::SceneId) -> String {
 }
 
 /// カタログの版（§19.8.1。操作の追加はマイナー版を上げる）。
-pub const CATALOG_VERSION: &str = "1.0";
+pub const CATALOG_VERSION: &str = "1.1";
 
 /// 正規操作 ID で引く。
 pub fn find(id: &str) -> Option<&'static OpDef> {

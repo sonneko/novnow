@@ -352,6 +352,7 @@ GUI の全機能を正規操作 ID に対応づけるカタログ。この表が
 | section.insert | 節の新設（`Ctrl+;`、§9.4.1） | | M 門番 |
 | section.delete | 節の削除（`>` + `delete-section`、§8.1.2。本文と対応するプロットを一緒に削除） | | M 門番 |
 | section.confirm_next | 次の未確認節の確認（節の末尾での `Ctrl+Enter`、§9.4.1） | | M—・C—（状態性） |
+| section.split | 節の分割（節エディタの `Ctrl+Enter`、§8.1.1・§9.4.1） | | M 門番 |
 | nav.file | 文書・ファイルの直接指定 | | M—・C—（状態性） |
 | nav.section | セクションへの移動（`Ctrl+G`） | | M—・C—（状態性） |
 | nav.jump | 行への移動（`Ctrl+L`） | | M—・C—（状態性） |

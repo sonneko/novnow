@@ -380,7 +380,7 @@ save = "Write everything now (optional)"
 section = "Previous / next section (commits and saves)"
 scene = "Previous / next scene"
 file = "Previous / next episode"
-confirm_next = "Commit and go to the next section (adds one at the end)"
+confirm_next = "Split the section at the cursor (at the end: next section, or a new one)"
 new_section = "Add a section after this one and go there"
 focus = "Context view / section editor / reference pane"
 reference = "Show the reference pane"
@@ -447,8 +447,10 @@ replace_all = "Replace all"
 placeholder = "Search all prose"
 
 [delete]
-confirm = "Delete this section? (Ctrl+Z cannot undo this)"
+confirm = "Delete this section? (Its plot block is deleted too. Ctrl+Z cannot undo this)"
 yes = "Delete"
+button = "Delete"
+ambiguous = "Not deleted: the corresponding plot block is not unique"
 
 [quickfix]
 none = "Nothing to fix here"
@@ -1032,6 +1034,7 @@ write = "Write a section"
 insert = "Insert a new section"
 delete = "Delete a section"
 confirm_next = "Confirm the next unconfirmed section"
+split = "Split a section"
 
 [api.op.session]
 workspace_get = "Current workspace"

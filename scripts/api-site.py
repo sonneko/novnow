@@ -86,8 +86,8 @@ def descriptions(language: str) -> dict[str, str]:
 
 def main() -> int:
     rows = catalog_rows(read_text(SPEC))
-    if len(rows) != 119 or len({row["id"] for row in rows}) != len(rows):
-        raise SystemExit(f"expected 119 unique operations, found {len(rows)}")
+    if len(rows) != 120 or len({row["id"] for row in rows}) != len(rows):
+        raise SystemExit(f"expected 120 unique operations, found {len(rows)}")
     words = {language: descriptions(language) for language in DICTIONARIES}
     for language, table in words.items():
         missing = [row["id"] for row in rows if row["id"] not in table]

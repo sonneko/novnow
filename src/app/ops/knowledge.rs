@@ -790,8 +790,8 @@ fn nav_json(session: &Session, nav: &reference::Nav) -> Value {
         }
         reference::Nav::Character(index) => json!({ "kind": "character", "index": index }),
         reference::Nav::Term(index) => json!({ "kind": "term", "index": index }),
-        reference::Nav::OpenMaterial(id) => json!({ "kind": "material.open", "id": id }),
-        reference::Nav::AddMaterial(id) => json!({ "kind": "material.add", "id": id }),
+        reference::Nav::OpenMaterial(id) => json!({ "kind": "material_open", "id": id }),
+        reference::Nav::AddMaterial(id) => json!({ "kind": "material_add", "id": id }),
         reference::Nav::At(range) => json!({ "kind": "at", "byte": range.start }),
     }
 }

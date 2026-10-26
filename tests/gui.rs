@@ -1490,7 +1490,8 @@ fn the_workbench_reveals_a_byte_and_deletes_or_replaces_sections() {
         .replace("リリア", "リリィ");
     assert!(bench.replace_current_file(replaced, 2.0));
     assert!(!bench.project().text(CONTENTS_PATH).contains("リリア"));
-    assert!(bench.unsaved().count() == 1);
+    // 削除は対応プロットも一緒に消す（§8.1.2）ので、未保存は本文と話プロットの 2 件
+    assert!(bench.unsaved().count() == 2);
 }
 
 #[test]
@@ -3402,4 +3403,182 @@ fn bundled_font_bracket_coverage_drives_reader_substitution() {
             assert!(glyph.rotate, "{} は回転して描く", glyph.ch);
         }
     }
+}
+
+#[test]
+fn split_section_splits_at_the_byte_and_survives_a_reparse() {
+    use novnow::core::features::sections;
+    let mut bench = Workbench::new(world(), Some("01-04-02-01"), 400);
+    let body = bench.buffer().to_owned();
+    let at = body.find("呆れたような").expect("第二段落");
+    assert!(bench.split_section(at, 1.0));
+    // 下側の新しい節へ移り、元の 2 節目は 3 節目になる
+    assert_eq!(bench.current_id(), Some(id(1, 4, 2, 2)));
+    assert!(bench.buffer().starts_with("呆れたような"));
+    assert_eq!(bench.sections().len(), 4);
+    // 保存→再読込の往復: 文書から解析し直しても上・下が保たれる（受け入れ条件）
+    let project = bench.project();
+    let list = sections::all(project);
+    let upper = sections::text_of(project.text(CONTENTS_PATH), &list[0]);
+    let lower = sections::text_of(project.text(CONTENTS_PATH), &list[1]);
+    assert_eq!(upper, "「やっぱり'アルス、ここにいたのね」@リリア:A");
+    assert!(lower.starts_with("呆れたような声"));
+    assert_eq!(format!("{upper}\n\n{lower}"), body);
+}
+
+#[test]
+fn split_section_at_the_edges_and_never_chains_empty_sections() {
+    let mut bench = Workbench::new(world(), Some("01-04-02-03"), 400);
+    // 先頭では何もしない
+    assert!(!bench.split_section(0, 1.0));
+    assert_eq!(bench.sections().len(), 3);
+    // 末尾は従来の「確定して次の節へ」と等価（次が無ければ作って移る）
+    let len = bench.buffer().len();
+    assert!(bench.split_section(len, 1.0));
+    assert_eq!(bench.buffer(), "");
+    // 何も書かれていない節では、新たな空節を作らない（連鎖しない）
+    let before = bench.project().text(CONTENTS_PATH).to_owned();
+    assert!(!bench.split_section(usize::MAX, 2.0));
+    assert_eq!(bench.project().text(CONTENTS_PATH), before);
+    // コメントのみの節は「書かれている」ので末尾で次を作れる（W012 の定義、§8.1.1）
+    let mut bench = Workbench::new(
+        world_with(CONTENTS_PATH, "@01-04-02 題\n// メモだけの節\n"),
+        None,
+        400,
+    );
+    let len = bench.buffer().len();
+    assert!(bench.split_section(len, 1.0));
+    assert_eq!(bench.buffer(), "");
+}
+
+#[test]
+fn ctrl_enter_splits_the_section_at_the_caret() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text("ZZZ".into())]);
+    assert!(harness
+        .app
+        .workbench()
+        .is_some_and(|bench| bench.buffer().ends_with("ZZZ")));
+    // キャレットを ZZZ の前へ戻して分割する
+    harness.frame(vec![
+        key(Key::ArrowLeft, Modifiers::NONE),
+        key(Key::ArrowLeft, Modifiers::NONE),
+        key(Key::ArrowLeft, Modifiers::NONE),
+    ]);
+    harness.frame(vec![]);
+    harness.frame(vec![key(Key::Enter, Modifiers::CTRL)]);
+    let bench = harness.app.workbench().expect("bench");
+    assert_eq!(bench.sections().len(), 4, "カーソル位置で 2 つに分かれる");
+    assert_eq!(bench.current_id(), Some(id(1, 4, 2, 2)), "下側の節へ移る");
+    assert_eq!(bench.buffer(), "ZZZ");
+    // 先頭（キャレット 0）でもう一度押しても何も起きない
+    harness.frame(vec![key(Key::Enter, Modifiers::CTRL)]);
+    let bench = harness.app.workbench().expect("bench");
+    assert_eq!(bench.sections().len(), 4);
+    assert_eq!(bench.buffer(), "ZZZ");
+}
+
+#[test]
+fn delete_section_at_removes_plot_too_and_refuses_ambiguous_targets() {
+    use novnow::ui::workbench::DeleteOutcome;
+    use world::EPISODE_PATH;
+    let mut bench = Workbench::new(world(), Some("01-04-02-01"), 400);
+    assert!(!bench.delete_is_empty(id(1, 4, 2, 2)));
+    assert_eq!(
+        bench.delete_section_at(id(1, 4, 2, 2), 1.0),
+        DeleteOutcome::Deleted
+    );
+    assert_eq!(bench.sections().len(), 2);
+    assert!(!bench
+        .project()
+        .text(CONTENTS_PATH)
+        .contains("旧校舎の地下遺跡に眠っている"));
+    assert!(!bench
+        .project()
+        .text(EPISODE_PATH)
+        .contains("謎を解こうとしていると明かす"));
+    assert_eq!(bench.current_id(), Some(id(1, 4, 2, 1)), "今の節はそのまま");
+    // プロットにしか無い節（繰り上がり後の 3 番）はプロットだけ消える
+    assert_eq!(
+        bench.delete_section_at(id(1, 4, 2, 3), 2.0),
+        DeleteOutcome::Deleted
+    );
+    assert_eq!(bench.sections().len(), 2, "本文は変わらない");
+    assert!(!bench
+        .project()
+        .text(EPISODE_PATH)
+        .contains("放課後に旧校舎へ向かうことを決める"));
+    assert_eq!(
+        bench.delete_section_at(id(1, 4, 2, 9), 3.0),
+        DeleteOutcome::NotFound
+    );
+    // 対応が一意でない（場面見出しの重複）ときは何も消さない（受け入れ条件）
+    let duplicated = "@01-04-02 題\nプロット一\n;\n@01-04-02 題\nプロット二\n";
+    let mut bench = Workbench::new(
+        world_with(EPISODE_PATH, duplicated),
+        Some("01-04-02-01"),
+        400,
+    );
+    let contents_before = bench.project().text(CONTENTS_PATH).to_owned();
+    assert_eq!(
+        bench.delete_section_at(id(1, 4, 2, 1), 1.0),
+        DeleteOutcome::Ambiguous
+    );
+    assert_eq!(bench.project().text(CONTENTS_PATH), contents_before);
+    assert_eq!(bench.project().text(EPISODE_PATH), duplicated);
+    assert_eq!(bench.unsaved().count(), 0);
+}
+
+#[test]
+fn context_view_delete_buttons_follow_the_confirmation_rules() {
+    use novnow::core::model::document::Document;
+    use novnow::ui::app::OverlayKind;
+    use world::EPISODE_PATH;
+    let delete_buttons = |harness: &mut Harness| -> Vec<egui::Rect> {
+        let output = harness.frame(Vec::new());
+        let mut rects: Vec<egui::Rect> = harness::painted_texts(&output)
+            .into_iter()
+            .filter(|(text, _)| text == "削除")
+            .map(|(_, rect)| rect)
+            .collect();
+        rects.sort_by(|a, b| a.min.y.total_cmp(&b.min.y));
+        rects
+    };
+    // 空の節は確認なしで消える
+    let mut project = world_with(CONTENTS_PATH, "@01-04-02 題\n一節目\n;\n\n;\n三節目\n");
+    project.insert(Document::new(
+        EPISODE_PATH,
+        "@01-04-02 題\nプロット一\n;\n\n;\nプロット三\n",
+    ));
+    let (mut harness, _) = Harness::start_with(project, true);
+    harness.frame(Vec::new());
+    let buttons = delete_buttons(&mut harness);
+    assert!(
+        buttons.len() >= 3,
+        "各節とプレースホルダのボタン: {buttons:?}"
+    );
+    // 上から 2 つ目 = 空の 2 節目
+    harness.click_at(buttons[1].center());
+    assert_eq!(
+        harness.app.overlay_kind(),
+        None,
+        "空の節は確認モーダルを出さない"
+    );
+    assert_eq!(harness.app.workbench().expect("bench").sections().len(), 2);
+    // 空でない節は既定で確認し、確定で本文とプロットが一緒に消える
+    let mut harness = Harness::new();
+    harness.frame(Vec::new());
+    let buttons = delete_buttons(&mut harness);
+    harness.click_at(buttons[0].center());
+    assert_eq!(
+        harness.app.overlay_kind(),
+        Some(OverlayKind::ConfirmDelete),
+        "編集中の節（プレースホルダ）のボタンは確認を出す"
+    );
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    let bench = harness.app.workbench().expect("bench");
+    assert_eq!(bench.sections().len(), 2);
+    assert!(!bench.project().text(EPISODE_PATH).contains("咎める"));
+    assert_eq!(harness.app.overlay_kind(), None);
 }

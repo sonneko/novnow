@@ -1130,7 +1130,7 @@ fn mcp_serves_the_tools_over_json_lines_and_writes_only_inside_the_project() {
     // 比較相手は `REF:tests/golden/mcp_tools.json`（実装そのものと比べると退行を検出できない。
     // 内訳の機械検査は `REF:tests/mcp_frozen.rs`）
     let tools = lines[1]["result"]["tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 86, "ツール表の全件数（凍結 14 + 正規操作 72）");
+    assert_eq!(tools.len(), 87, "ツール表の全件数（凍結 14 + 正規操作 73）");
     let golden: Value = serde_json::from_str(include_str!("golden/mcp_tools.json")).unwrap();
     for (found, frozen) in tools.iter().zip(golden.as_array().unwrap()) {
         assert_eq!(
@@ -1942,8 +1942,8 @@ fn lsp_speaks_framed_jsonrpc_over_stdio() {
             .as_array()
             .expect("commands")
             .len(),
-        121,
-        "操作 119 件 + 特別な 2 つ"
+        122,
+        "操作 120 件 + 特別な 2 つ"
     );
     let api = messages
         .iter()
@@ -1951,7 +1951,7 @@ fn lsp_speaks_framed_jsonrpc_over_stdio() {
         .expect("api.list の応答");
     assert_eq!(
         api["result"]["count"],
-        serde_json::json!(119),
+        serde_json::json!(120),
         "§19.7 の全行"
     );
     let unknown = messages

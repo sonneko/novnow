@@ -118,6 +118,8 @@ pub enum Request {
     OpenMaterial(String),
     /// 参照ペインの行からの移動（§9.5.5）。
     Navigate(crate::core::features::reference::Nav),
+    /// 節の削除ボタン（プロット一覧。§8.1.2 の一体削除は `NovnowApp` の単一入口）。
+    DeleteSection(crate::core::id::SceneId),
     /// 参照ペインの診断からの自動回復（§6.2.6 / §9.5.4、F-23）: 1 形態素を登録する。
     Register {
         /// 登録先（`words.md` / `characters.md`）。

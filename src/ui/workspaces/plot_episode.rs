@@ -551,18 +551,34 @@ fn list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) -> Optio
                     )
                 } else {
                     let number = format!("{:02}", row.id.section);
-                    list_row(
-                        ui,
-                        view.mode,
-                        view.scale,
-                        Row {
-                            selected: is_selected,
-                            bar: Some(state_color(view.mode, row.state.or(Some(PlotState::Draft)))),
-                            label: &number,
-                            text: &row.summary,
-                            muted: false,
-                        },
-                    )
+                    // 節の行の右端に削除ボタン（§8.1.2。一体削除は App の単一入口）
+                    let mut row_response = None;
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if crate::ui::widgets::action_button(
+                            ui,
+                            i18n::text(view.locale, "delete.button"),
+                        )
+                        .clicked()
+                        {
+                            request = Some(Request::DeleteSection(row.id));
+                        }
+                        row_response = Some(list_row(
+                            ui,
+                            view.mode,
+                            view.scale,
+                            Row {
+                                selected: is_selected,
+                                bar: Some(state_color(
+                                    view.mode,
+                                    row.state.or(Some(PlotState::Draft)),
+                                )),
+                                label: &number,
+                                text: &row.summary,
+                                muted: false,
+                            },
+                        ));
+                    });
+                    row_response.expect("list_row in the same layout")
                 };
                 if !row.is_scene() {
                     if let Some(section) = prose_sections.iter().find(|s| s.id == row.id) {

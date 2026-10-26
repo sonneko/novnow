@@ -1030,6 +1030,11 @@ impl<'s> SectionOps<'s> {
         // 節の削除（`section.delete`）。
         pub fn delete(scene: &str) -> "section.delete"
     );
+    /// 節の分割（`section.split`）。`at` は節のテキスト先頭からのバイト位置（§8.1.1）。
+    pub fn split(&mut self, scene: Option<&str>, at: usize) -> Result<Value> {
+        self.0
+            .run("section.split", json!({ "scene": scene, "at": at }))
+    }
     op!(
         // 次の未確認節の確認（`section.confirm_next`）。
         pub fn confirm_next() -> "section.confirm_next"
