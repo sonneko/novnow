@@ -58,14 +58,14 @@
 
 ### 14.1 CLI 文法
 
-状態: 未実装・実装計画済み（REF:src/cli/mod.rs, REF:src/main.rs, REF:tests/cli.rs, REF:docs/plans.md#issue-29）
+状態: 未実装・実装計画済み（REF:src/cli/mod.rs, REF:src/main.rs, REF:tests/cli.rs, REF:docs/plans.md#issue-29-x1）
 
 - 引数解析とサブコマンド（`<dir>`, `new`, `check`, `export`, `mcp`, `import`, `migrate`）およびフラグ（`--gui`, `-h`/`--help`, `-V`/`--version`）の振り分けは `REF:src/cli/mod.rs` に実装する（検証: `REF:tests/cli.rs`）。
 
 - **[S-10] `novnow import <zip> <dir>` サブコマンド（実装完了: `REF:docs/plans.md#plan-S-10`）**:
   - `REF:src/cli/mod.rs` に `import <zip> <dir>` を追加し、`REF:src/adapters/zip.rs` で展開・検証を行う。
 
-- **[Issue #29] `migrate` の引数拡張（未実装・実装計画済み: `REF:docs/plans.md#issue-29`）**:
+- **[Issue #29 / X1] `migrate` の引数拡張（未実装・実装計画済み: `REF:docs/plans.md#issue-29-x1`）**:
   - 複数ファイル・フォルダ入力（§14.6）の CLI 形式は、§14.6 の拡張（別 PR）の実装時に本節の文法へ合わせて取り込む。既存の `migrate <text> <dir>` の並びがそのまま使える形（最後の引数が移行先）を保つ。
 
 ### 14.2 起動時のスキャンとエラー出力
@@ -111,13 +111,13 @@
 
 ### 14.6 既存本文テキストからの移行支援
 
-状態: 未実装・実装計画済み（REF:src/core/migration.rs, REF:src/cli/migrate.rs, REF:src/adapters/storage_fs.rs, REF:src/ui/app.rs, REF:docs/plans.md#issue-29）
+状態: 未実装・実装計画済み（REF:src/core/migration.rs, REF:src/cli/migrate.rs, REF:src/adapters/storage_fs.rs, REF:src/ui/app.rs, REF:docs/plans.md#issue-29-x1）
 
 - 純粋な変換関数 `convert` は `REF:src/core/migration.rs`。既定雛形からサンプルを除去し、1 節の本文と空の構造を生成する。
 - CLI の読み取り・プレビュー・確定は `REF:src/cli/migrate.rs`。移行先を排他的に作成する `FsStorage::create_fresh`（`REF:src/adapters/storage_fs.rs`）で既存先を拒否する。書き込みは既存の単一関門を使用する。
 - `REF:tests/migration.rs` で記号の往復・正規化、`REF:tests/cli.rs` でプレビュー非変更・入力不正・既存先拒否・入力元保持を検証する。
 - デスクトップは `REF:src/ui/app.rs` の NativePicker とダイアログポートから入力選択→プレビュー→新規先へ作成→開くを接続する。Web は初期移行の対象外。
 
-- **[Issue #29] 候補提示型の分割と Shift_JIS 対応（未実装・実装計画済み: `REF:docs/plans.md#issue-29`、別 PR）**:
+- **[Issue #29 / X1] 候補提示型の分割と Shift_JIS 対応（未実装・実装計画済み: `REF:docs/plans.md#issue-29-x1`）**:
   - 文字コードはファイル取り込みでのみバイト列から判定し、UTF-8 を優先して読めなければ Shift_JIS として変換する（曖昧な場合はプレビュー切替）。GUI の貼り付けは Unicode のままで、文字化けらしい場合だけ修復候補を出す。Web は対象外を維持する。
   - 候補生成は見出し行（「第○章」「第○話」等と固有名詞の章名）・記号だけの区切り行・連続空行・段落区切りを用い、章/話/場面/節のツリーをプレビューで直せるようにする。複数入力は自然順で 1 ファイル = 1 話、1 フォルダ = 1 章。見出しのタイトル部分はタイトルへ使い、構造番号は出現順に振り直す。話者推定はしない。
