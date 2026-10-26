@@ -260,7 +260,7 @@
 
 ### 10.9 `review` — 点検
 
-状態: 実装完了（REF:src/core/features/project.rs, REF:src/ui/workspaces/review.rs, REF:src/ui/workspaces/mod.rs, REF:tests/workspaces.rs, REF:tests/gui.rs）
+状態: 未実装・実装計画済み（REF:src/core/features/project.rs, REF:src/ui/workspaces/review.rs, REF:src/ui/workspaces/mod.rs, REF:tests/workspaces.rs, REF:tests/gui.rs, REF:docs/plans.md#issue-29-b7）
 
 - 診断一覧タブ（重大度・コード・位置・クイックフィックス適用）と進捗ツリータブ（章・話・節ごとの `state` と文字数集計）は `REF:src/core/features/project.rs` と `REF:src/ui/workspaces/review.rs` に実装する。
 - ※伏線一覧・文体・統計の 3 タブは段階 ②（`REF:docs/plans.md#stage-2`）対象。
@@ -269,6 +269,10 @@
   - `REF:src/ui/app.rs` のヘッダアイコン描画でエラー/警告件数に応じたバッジ・色変化を表示する。
 
 ## 11. テーマ・配色・タイポグラフィ
+
+- **[Issue #29 / B7] 診断の有効設定の編集と W096 指標（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b7`）**:
+  - 診断タブ（または文体タブ）の指標行から、コードごとの「出さない / 警告 / エラー扱い」を切り替えられるようにし、切り替えは `project.toml` の `[features.diagnostics]` へ無損失編集（§4.5）で保存する。保存先の形（コードキーかグループか）は、既に書かれているキーを優先して更新する。
+  - W096 を文体タブの指標に加える（既定では出さない）。フィルタは表示の絞り込みのままであり、設定の有効性とは混ぜない。
 
 ### 11.1 セマンティックカラートークン
 
