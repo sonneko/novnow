@@ -138,7 +138,7 @@
 
 ### 3.4 言語機能サービス（LSP 相当機能）
 
-状態: 実装完了（REF:src/core/features/mod.rs, REF:src/ui/app.rs, REF:tests/layering.rs）
+状態: 未実装・実装計画済み（REF:src/core/features/mod.rs, REF:src/ui/app.rs, REF:tests/layering.rs, REF:docs/plans.md#issue-29-b5）
 
 11 個の LSP 相当モジュールはすべて `src/core/features/` に純粋関数として実装され、`src/ui/` から直接呼び出されている（`REF:tests/layering.rs` の `ui_calls_all_eleven_lsp_feature_modules` で強制）。
 
@@ -156,6 +156,9 @@
 | `formatting` | `REF:src/core/features/formatting.rs` | `REF:src/ui/app.rs`（`>format`） |
 | `rename` | `REF:src/core/features/rename.rs` | `REF:src/ui/app.rs`（`F2` / `>rename`） |
 | `folding` | `REF:src/core/features/folding.rs` | `REF:src/ui/workspaces/plot_outline.rs`, `REF:src/ui/app.rs` |
+
+- **[Issue #29 / B5] 参照ペイン行への移動先の付与（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b5`）**:
+  - `REF:src/core/features/reference.rs` の行モデルへ、表示文字列とは別に移動先（文書と位置）または開く対象と動作の種別を持たせる。GUI（§9.5.5）とヘッドレス（`reference.pane`）は同じ値を共有する。
 
 ### 3.5 状態フロー（1 キーストロークの流れ）
 

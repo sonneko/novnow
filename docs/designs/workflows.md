@@ -21,9 +21,12 @@
 
 ### 16.3 検索 UX
 
-状態: 実装完了（REF:src/core/features/reference.rs, REF:src/ui/app.rs, REF:tests/materials_ops.rs, REF:tests/workspaces.rs）
+状態: 未実装・実装計画済み（REF:src/core/features/reference.rs, REF:src/ui/app.rs, REF:tests/materials_ops.rs, REF:tests/workspaces.rs, REF:docs/plans.md#issue-29-b6）
 
 - `Ctrl+M` 資料検索モーダルのクエリ解析（`tag:`, `cat:`, `id:`, `scene:`, `status:`, `!status:`）と決定論的スコアリング（ID 完全一致 +500、タイトル先頭一致 +400、部分一致 +250、タグ完全一致 +200、要約一致 +100、本文一致 +50）、および `Enter`（参照挿入）/ `Shift+Enter`（`material` で開く）/ `Ctrl+Enter`（新規提案作成）は `REF:src/core/features/reference.rs` と `REF:src/ui/app.rs` に実装する。
+
+- **[Issue #29 / B6] 検索結果の表示と保存の分離（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b6`）**:
+  - 正規表現検索（`REF:src/core/stage_two/search.rs`）の抜粋は「前文・一致・後文」の構造で返し、画面は一致範囲だけを強調して描く。資料として保存する MD は §16.3.1 の固定形（タイトル見出し、`query` / `regex` / `case_sensitive` / `searched_at` / `hits`、節 ID 付きの結果箇条書き）で組み立てるよう実装を寄せる。表示用の記法をコアのデータへ埋め込むことはしない。
 
 ### 16.4 「必要になる条件」と自動提示
 
@@ -69,11 +72,15 @@
 
 ### 17.3 読者モード（`reader` ワークスペース）
 
-状態: 実装完了（REF:src/core/reader.rs, REF:src/ui/workspaces/stage_two.rs, REF:tests/stage_two.rs）
+状態: 未実装・実装計画済み（REF:src/core/reader.rs, REF:src/ui/workspaces/stage_two.rs, REF:tests/stage_two.rs, REF:docs/plans.md#issue-29-b6）
 
 - 組版は `REF:src/core/reader.rs` の純粋関数 `layout(text, options, metrics)`。実測送り幅と縦書き字形の有無を引数として注入し、禁則・縦中横・Unicode 縦字形・回転・モノルビを座標列へ変換する。
 - 描画とページ操作・章表紙・目次・しおりは `REF:src/ui/workspaces/stage_two.rs`。原稿と章プロットの指紋および組版設定をキーにページをキャッシュし、ページ送りで再組版しない。
 - 読書位置と表示設定はローカル状態のみ。未知キーを保持し、原稿の変更経路とは分離する。
+
+- **[Issue #29 / B6] 縦書き括弧の豆腐解消（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b6`）**:
+  - 括弧の互換形置換は、使用フォントに置換先の字が収録されている場合だけ行う。組版（`REF:src/core/reader.rs`）へフォントの収録字判定を注入する口は既にあるため、UI 側（`REF:src/ui/workspaces/stage_two.rs`）から実際に判定結果を渡し、括弧の置換でもその判定を見るようにする。互換形が無い字は元の括弧を 90° 回転して描く。
+  - 検証は、置換先のコードポイントが同梱フォントに在るかを確かめる単体テストと、ヘッドレス描画のスクリーンショット目視の両方で行う。
 
 ## 18. 性能・品質要件
 
