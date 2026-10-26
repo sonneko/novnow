@@ -27,7 +27,7 @@ severity: `E`=エラー（赤波線） / `W`=警告（黄波線） / `I`=情報�
 | E024 | E | `materials` 外を指す `path` | `資料ファイルは materials/ 配下に置いてください` | `Material files must live under materials/` | 移動して path 修正 |
 | E025 | E | JSON ファイルがパースできない（§4.3-4） | `JSON として読み込めません: {0}` | `Cannot parse as JSON: {0}` | 既定値で開く / 手動で修正 |
 | E026 | E | 修飾子を付けられない参照に修飾子（§6.1.1） | `この参照に修飾子は付けられません` | `Modifiers are not allowed on this reference` | 修飾子を削除 |
-| E027 | E | `project.json` の `lexicon.word_classes` の正規表現が不正（§6.5.1） | `語クラス {0}の正規表現が不正です` | `Invalid regular expression for word class {0}` | 正規表現を直す / 項目を削除する |
+| E027 | E | `project.toml` の `lexicon.word_classes` の正規表現が不正（§6.5.1） | `語クラス {0}の正規表現が不正です` | `Invalid regular expression for word class {0}` | 正規表現を直す / 項目を削除する |
 | E028 | E | 辞書キーが 96 バイト超 | `辞書の項目名が長すぎます` | `Dictionary key is too long` | — |
 | E029 | E | プロンプトに必須のセクション（`## system` / `## task`）が無い（§15.5.4 (2)） | `プロンプトに必須のセクションがありません: {0}` | `The prompt is missing a required section: {0}` | `>prompt reset` で既定に戻す |
 | E030 | E | MCP サーバの環境変数未解決 | `環境変数 {0}が設定されていません` | `Environment variable {0} is not set` | 設定方法を表示 |

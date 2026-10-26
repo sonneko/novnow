@@ -11,14 +11,63 @@ use novnow::core::model::project::Project as Settings;
 use novnow::core::resolve::role_language::MatcherSet;
 use novnow::core::syntax::project_json;
 
-const SPEC: &str = include_str!("../docs/specifications/project.md");
-
-/// §4.5 の `project.json` の例（仕様書から切り出す）。
+/// 旧形式 `project.json` の例（従来の仕様 §4.5 の例をそのまま埋め込む）。
+///
+/// Issue #29 の仕様更新で §4.5 は `project.toml`（`schema_version = 2`）へ移行したが、
+/// 実装の追随は別バッチ（B10）である。ここでは現行の JSON パーサを守るため、旧形式の例を
+/// テスト内に固定し、B10 で §4.5 の TOML の例を仕様書から読む形へ戻す。
 fn spec_example() -> &'static str {
-    let head = "### 4.5 `project.json` スキーマ（v0.1.0）\n\n```json\n";
-    let start = SPEC.find(head).expect("§4.5") + head.len();
-    let len = SPEC[start..].find("\n```").expect("end of block");
-    &SPEC[start..start + len + 1]
+    r#"{
+  "schema_version": 1,
+  "title": "星屑の時計",
+  "author": "",
+  "content_encoding": "utf-8",
+  "newline": "lf",
+  "structure": {
+    "scene_id_format": "A-B-C-D",
+    "chapter_digits": 2,
+    "episode_digits": 2,
+    "scene_digits": 2,
+    "section_digits": 2,
+    "allow_chapter_zero": true
+  },
+  "writing": {
+    "section_target_chars": 400,
+    "section_warn_chars": 1200,
+    "episode_target_chars": 6000,
+    "manuscript_page_chars": 400,
+    "max_consecutive_speeches": 3,
+    "dialogue_ratio_target": 0.3,
+    "long_sentence_chars": 120,
+    "particle_run_threshold": 4
+  },
+  "lexicon": {
+    "word_classes": {
+      "体言": "[\\p{Han}\\p{Katakana}\\p{Hiragana}A-Za-z0-9ー]{1,24}"
+    }
+  },
+  "export": {
+    "paragraph_break": "blank-line",
+    "indent_first_line": false,
+    "keep_ruby": true,
+    "insert_headings": false,
+    "include_blurb": false,
+    "newline": "crlf"
+  },
+  "reader": { "columns": 18, "chars_per_column": 42, "ruby": true },
+  "agents": {
+    "enabled": true,
+    "delegation": "propose",
+    "roles": {},
+    "limits": { "max_tasks_per_session": 100, "max_chain_hops": 10, "max_input_chars_per_session": 2000000 },
+    "max_chars_per_request": 12000,
+    "integrator": "human",
+    "max_parallel": 2,
+    "custom_roles": [],
+    "local_llm": { "enabled": false, "url": "http://localhost:11434", "model": "" }
+  }
+}
+"#
 }
 
 /// §4.5 の例の `体言` を `value` に差し替えたもの。

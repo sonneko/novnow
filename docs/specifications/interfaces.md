@@ -175,7 +175,7 @@ with novnow.Session("my-novel") as session:      # open。with 終了で閉じ�
     text = session.section.get(scene)
     session.section.write(scene, "新しい本文\n")
     session.save.now()
-    report = session.diagnostics.run(path="contents/01-01.txt")
+    report = session.diagnostics.run(path="contents/01-01.cnov")
     for d in report["diagnostics"]:
         print(d["code"], d["line"], d["message"])
 

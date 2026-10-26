@@ -153,7 +153,7 @@ pub enum DiagnosticCode {
     E025,
     /// 修飾子を付けられない参照に修飾子（§6.1.1）（§7）
     E026,
-    /// `project.json` の `lexicon.word_classes` の正規表現が不正（§6.5.1）（§7）
+    /// `project.toml` の `lexicon.word_classes` の正規表現が不正（§6.5.1）（§7）
     E027,
     /// 辞書キーが 96 バイト超（§7）
     E028,

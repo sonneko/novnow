@@ -32,16 +32,19 @@
 
 ### 13.4 プロジェクト選択モーダル（Web）
 
-状態: 実装完了（REF:src/ui/web.rs, REF:src/adapters/storage_idb.rs, REF:scripts/web-smoke.mjs, REF:tests/gui.rs）
+状態: 未実装・実装計画済み（REF:src/ui/web.rs, REF:src/adapters/storage_idb.rs, REF:scripts/web-smoke.mjs, REF:tests/gui.rs, REF:docs/plans.md#issue-29-b8）
 
 - Web 起動時および `Ctrl+O` 時のプロジェクト選択モーダル（一覧・検索 `/`・新規作成 `Ctrl+N`・Zip 取込 `Ctrl+I`・改名 `F2`・削除 `Delete`・単一タブ利用の注記 `project.pick.single_tab`）は `WebPicker`（`REF:src/ui/web.rs`）に実装する（検証: `REF:scripts/web-smoke.mjs`）。
 
 - **[F-33 / S-02] Web 版の同名プロジェクト作成禁止と初回起動ウェルカム案内（実装完了: `REF:docs/plans.md#plan-F-33`, `REF:docs/plans.md#plan-S-02`）**:
   - `REF:src/ui/web.rs` と `REF:src/adapters/storage_idb.rs` で既存プロジェクトと同一タイトルの作成・改名を拒否する（F-33 は実装完了。`REF:tests/storage_idb.rs` と実ブラウザ `REF:scripts/web-smoke.mjs` で検証済み）。履歴が空の初回起動時に案内を表示し、`>welcome` パレットからウェルカム案内モーダルを再表示する（S-02 は `REF:src/ui/app.rs`, `REF:src/ui/web.rs`, `REF:tests/gui.rs` で確認済み）。
 
+- **[Issue #29 / B8] 入口ページの初期言語（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b8`）**:
+  - `REF:index.html` の言語固定を解き、本体読み込み前の静的な表示もブラウザ（OS）のロケールで出す（`lang` 属性と読み込み中文言の出し分け）。選択画面に言語切替ボタンは置かない現行維持を確認し、`REF:scripts/web-smoke.mjs` で ja/en 両ロケールの初期表示を確かめる。
+
 ### 13.5 Zip インポート / エクスポート
 
-状態: 実装完了（REF:src/core/policy/archive.rs, REF:src/adapters/zip.rs, REF:src/cli/import.rs, REF:src/ui/app.rs, REF:tests/zip_roundtrip.rs, REF:tests/cli.rs）
+状態: 未実装・実装計画済み（REF:src/core/policy/archive.rs, REF:src/adapters/zip.rs, REF:src/cli/import.rs, REF:src/ui/app.rs, REF:tests/zip_roundtrip.rs, REF:tests/cli.rs, REF:docs/plans.md#issue-29-b10）
 
 - アーカイブ対象の選別（ドット始まりファイルの除外と `.gitignore` / `.gitkeep` の例外許可、パストラバーサル `..` の拒否）は `core::policy::archive`（`REF:src/core/policy/archive.rs`）が担い、Deflate 圧縮・展開は `adapters::zip`（`REF:src/adapters/zip.rs`）が担う（検証: `REF:tests/zip_roundtrip.rs`）。
 
@@ -50,18 +53,24 @@
 
 ## 14. 起動仕様
 
+- **[Issue #29 / B10] `.novnow` パッケージ（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b10`）**:
+  - `.novnow` は実体が通常の Zip で、`.zip` と同じ安全規則（パス検証・未知ファイルの保持・上書き禁止）で扱う。インポート時に novnow が知らないファイルを落とさないことを往復テストへ足す（§4.3 の未知ファイルの扱いと整合させる）。
+
 ### 14.1 CLI 文法
 
-状態: 実装完了（REF:src/cli/mod.rs, REF:src/main.rs, REF:tests/cli.rs）
+状態: 未実装・実装計画済み（REF:src/cli/mod.rs, REF:src/main.rs, REF:tests/cli.rs, REF:docs/plans.md#issue-29）
 
 - 引数解析とサブコマンド（`<dir>`, `new`, `check`, `export`, `mcp`, `import`, `migrate`）およびフラグ（`--gui`, `-h`/`--help`, `-V`/`--version`）の振り分けは `REF:src/cli/mod.rs` に実装する（検証: `REF:tests/cli.rs`）。
 
 - **[S-10] `novnow import <zip> <dir>` サブコマンド（実装完了: `REF:docs/plans.md#plan-S-10`）**:
   - `REF:src/cli/mod.rs` に `import <zip> <dir>` を追加し、`REF:src/adapters/zip.rs` で展開・検証を行う。
 
+- **[Issue #29] `migrate` の引数拡張（未実装・実装計画済み: `REF:docs/plans.md#issue-29`）**:
+  - 複数ファイル・フォルダ入力（§14.6）の CLI 形式は、§14.6 の拡張（別 PR）の実装時に本節の文法へ合わせて取り込む。既存の `migrate <text> <dir>` の並びがそのまま使える形（最後の引数が移行先）を保つ。
+
 ### 14.2 起動時のスキャンとエラー出力
 
-状態: 実装完了（REF:src/cli/open.rs, REF:src/cli/check.rs, REF:src/core/features/place.rs, REF:tests/cli.rs）
+状態: 未実装・実装計画済み（REF:src/cli/open.rs, REF:src/cli/check.rs, REF:src/core/features/place.rs, REF:tests/cli.rs, REF:docs/plans.md#issue-29-b10）
 
 - 起動前スキャン、不足項目一覧の表示、`novnow new` の案内、作家の言葉での診断位置表記 `[本文 @01-04-02-03]`（`REF:src/core/features/place.rs`）、および終了コード `0`〜`5` の制御は `REF:src/cli/open.rs` と `REF:src/cli/check.rs` に実装する。
 - 仕様書 §14.2.2〜§14.2.4 の出力例との一字一句の一致は `REF:tests/cli.rs` で検証する。
@@ -70,6 +79,9 @@
   `REF:docs/script/reference.py` の検査 11 が照合する（対応するページは `guide/` 配下に生成する）。
 - 案内文は「何が足りないか」の列挙で終わらせず、次にすること（`novnow new` / フォルダを開く）を
   最後の 1 文に必ず置く（利用者向けガイドと同じ言い回しにする）。
+
+- **[Issue #29 / B10] 出力例の新名称への差し替え（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b10`）**:
+  - 仕様 §14.2.2 / §14.2.3 の出力ブロックは現実装の stderr とバイト単位で照合されるため、B10 で不足一覧の実装（`project.toml` / `plots/all.cnov`）と同時に仕様のブロックも差し替える。それまでは現行のブロックが現実装の正本である。
 
 ### 14.3 GUI 直接起動の判定
 
@@ -90,15 +102,22 @@
 
 ### 14.5 `novnow new` の生成物
 
-状態: 実装完了（REF:src/core/template/mod.rs, REF:src/cli/new.rs, REF:tests/template.rs, REF:tests/cli.rs）
+状態: 未実装・実装計画済み（REF:src/core/template/mod.rs, REF:src/cli/new.rs, REF:tests/template.rs, REF:tests/cli.rs, REF:docs/plans.md#issue-29-b10）
 
 - 初期ファイル一式の生成と既存ファイル保護（上書きせず `kept` / `created` を表示）、生成直後の `novnow check` 診断 0 件保証は `REF:src/core/template/mod.rs` と `REF:src/cli/new.rs` に実装し、`REF:tests/template.rs` と `REF:tests/cli.rs` で検証する。
 
+- **[Issue #29 / B10] 生成物の改名（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b10`）**:
+  - `novnow new` の生成物は新しい名前（`project.toml` / `.cnov`、`schema_version = 2`）で作る。仕様 §14.5 の一覧と `REF:tests/template.rs` の照合リストは先に新名称へ更新済みであり、B10 で生成側を合わせる。
+
 ### 14.6 既存本文テキストからの移行支援
 
-状態: 実装完了（REF:src/core/migration.rs, REF:src/cli/migrate.rs, REF:src/adapters/storage_fs.rs, REF:src/ui/app.rs）
+状態: 未実装・実装計画済み（REF:src/core/migration.rs, REF:src/cli/migrate.rs, REF:src/adapters/storage_fs.rs, REF:src/ui/app.rs, REF:docs/plans.md#issue-29）
 
 - 純粋な変換関数 `convert` は `REF:src/core/migration.rs`。既定雛形からサンプルを除去し、1 節の本文と空の構造を生成する。
 - CLI の読み取り・プレビュー・確定は `REF:src/cli/migrate.rs`。移行先を排他的に作成する `FsStorage::create_fresh`（`REF:src/adapters/storage_fs.rs`）で既存先を拒否する。書き込みは既存の単一関門を使用する。
 - `REF:tests/migration.rs` で記号の往復・正規化、`REF:tests/cli.rs` でプレビュー非変更・入力不正・既存先拒否・入力元保持を検証する。
 - デスクトップは `REF:src/ui/app.rs` の NativePicker とダイアログポートから入力選択→プレビュー→新規先へ作成→開くを接続する。Web は初期移行の対象外。
+
+- **[Issue #29] 候補提示型の分割と Shift_JIS 対応（未実装・実装計画済み: `REF:docs/plans.md#issue-29`、別 PR）**:
+  - 文字コードはファイル取り込みでのみバイト列から判定し、UTF-8 を優先して読めなければ Shift_JIS として変換する（曖昧な場合はプレビュー切替）。GUI の貼り付けは Unicode のままで、文字化けらしい場合だけ修復候補を出す。Web は対象外を維持する。
+  - 候補生成は見出し行（「第○章」「第○話」等と固有名詞の章名）・記号だけの区切り行・連続空行・段落区切りを用い、章/話/場面/節のツリーをプレビューで直せるようにする。複数入力は自然順で 1 ファイル = 1 話、1 フォルダ = 1 章。見出しのタイトル部分はタイトルへ使い、構造番号は出現順に振り直す。話者推定はしない。
