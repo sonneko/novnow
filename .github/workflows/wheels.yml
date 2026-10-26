@@ -15,6 +15,7 @@ on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths: ["python/**", ".github/workflows/wheels.yml", "src/**", "Cargo.toml"]
   workflow_dispatch:
     inputs:
@@ -168,7 +169,7 @@ jobs:
           pytest python/novnow-py
 
   publish-testpypi:
-    if: github.event_name == 'workflow_dispatch' && inputs.publish_testpypi
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_testpypi && (github.event_name != 'pull_request' || !github.event.pull_request.draft)
     needs: test
     runs-on: ubuntu-latest
     environment: testpypi

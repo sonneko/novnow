@@ -26,6 +26,7 @@ jobs:
 
   build:
     needs: prepare
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     strategy:

@@ -15,7 +15,7 @@ docs/script/reference.py — ドキュメントとコードの**実物の突き�
 7. 文書に書いた**数の主張**（ワークスペース数・MCP ツール数・正規操作数）が実装と一致するか。
 8. `include_str!` で読み込むパス（仕様書・カタログ・ゴールデン）が**実在するか**。
 9. ルート文書の相対リンク・画像と、`REF:` のアンカーが**実在するか**。
-10. Actions を無駄に使わない設定（全ワークフローの `concurrency`・変更フィルタ・`[ci skip]` のフック）が揃っているか。
+10. Actions を無駄に使わない設定（全ワークフローの `concurrency`・PR の全ジョブの draft 条件・変更フィルタ・`[ci skip]` のフック）が揃っているか。
 11. 公開する手引き（仕様 §14.2.1 の 3 URL・§18.5）が実在し、`docs/users` の参照が仕様書だけを指し、
     ガイドモードの段階と `docs/users/start.md` の段階が一致するか。
 12. 配布形態（仕様 §20）の選択肢の数が 1・10・5・1・1 で、廃止した軸（同時起動の制限・同梱物の外置き）が
@@ -402,13 +402,86 @@ def check_links() -> list[str]:
 # ============================================================ 10. Actions の節約
 
 
+def workflow_triggers(text: str) -> set[str]:
+    """ワークフロー YAML の `on:` に書かれたトリガ名の集合（テキスト走査）。
+
+    標準ライブラリだけで読むため、GitHub Actions の慣用的な字下げ
+    （`on:` 直下 2 空白がトリガ名）を前提にする。`on: [push, pull_request]` の
+    1 行形式も拾う。
+    """
+    triggers: set[str] = set()
+    in_on = False
+    for line in text.splitlines():
+        if not in_on:
+            shorthand = re.match(r"^on:\s*\[([^\]]*)\]\s*$", line)
+            if shorthand:
+                triggers.update(
+                    part.strip().strip("'\"")
+                    for part in shorthand.group(1).split(",")
+                    if part.strip()
+                )
+                continue
+            single = re.match(r"^on:\s*([A-Za-z_]+)\s*$", line)
+            if single:
+                triggers.add(single.group(1))
+                continue
+            if re.match(r"^on:\s*$", line):
+                in_on = True
+            continue
+        if line and not line[0].isspace() and not line.startswith("#"):
+            break
+        entry = re.match(r"^  ([A-Za-z_]+):", line)
+        if entry:
+            triggers.add(entry.group(1))
+    return triggers
+
+
+def workflow_job_ifs(text: str) -> dict[str, str | None]:
+    """各ジョブのジョブレベル `if:` 式（無いジョブは `None`）。
+
+    `jobs:` 直下 2 空白をジョブ名、4 空白をジョブのキーとして走査する。
+    ステップの `if:`（8 空白）はジョブの条件と取り違えない。
+    """
+    jobs: dict[str, str | None] = {}
+    lines = text.splitlines()
+    in_jobs = False
+    current: str | None = None
+    for index, line in enumerate(lines):
+        if not in_jobs:
+            if re.match(r"^jobs:\s*$", line):
+                in_jobs = True
+            continue
+        if line and not line[0].isspace() and not line.startswith("#"):
+            break
+        job = re.match(r"^  ([A-Za-z0-9_-]+):\s*$", line)
+        if job:
+            current = job.group(1)
+            jobs[current] = None
+            continue
+        if current is None or jobs[current] is not None:
+            continue
+        cond = re.match(r"^    if:\s*(.*)$", line)
+        if cond:
+            expr = cond.group(1).strip()
+            follow = index + 1
+            while follow < len(lines) and re.match(r"^      \S", lines[follow]):
+                expr += " " + lines[follow].strip()
+                follow += 1
+            jobs[current] = expr
+    return jobs
+
+
 def check_actions_budget() -> list[str]:
     """Actions を無駄に走らせない設定が揃っていること。
 
     課金は「走った分」に付くので、**走らせない仕組み**そのものを検査する。
 
     - 全ワークフローに `concurrency`（同じブランチの古い実行を取り消す）
-    - PR で走るワークフローは draft では起動しない（`pull_request.draft`）
+    - PR で走るワークフローの**全ジョブ**が draft では skip される（`pull_request.draft` を
+      ジョブごとに明示し、`needs` 先の skip には頼らない）。draft を外したら走る
+      `ready_for_review` も含める
+    - `workflow_run` で起動するジョブは、上流の結論が `success` のときだけ続く
+      （draft で全 skip された上流の結論は `skipped` になるため連鎖起動しない）
     - 廃止したランナー（`macos-13`）を使っていない
     - `ci.yml` に変更フィルタ（`rust_changed`）がある
     - コミット既定で `[ci skip]` を付けるフックと、その有効化スクリプトがある
@@ -422,9 +495,32 @@ def check_actions_budget() -> list[str]:
             errors.append(f"[10] {name}: concurrency が無い（古い実行が取り消されない）")
         elif "cancel-in-progress" not in text:
             errors.append(f"[10] {name}: cancel-in-progress が無い（自動では取り消されない）")
-        # PR で走るワークフローは、draft の間は走らせない（全ワークフローで同じ条件に統一）。
-        if re.search(r"^  pull_request:", text, re.MULTILINE) and "pull_request.draft" not in text:
-            errors.append(f"[10] {name}: draft の PR でも走ってしまう（pull_request.draft の条件が無い）")
+        # PR で走るワークフローは、全ジョブが draft では skip されること。
+        # `needs` 先の skip に頼ると依存の無いジョブが素通りして draft でも走る
+        # （`pages-check.yml` の `crate` で実際に起きた）ため、ジョブごとに
+        # 同じ条件を明示させる。draft を外した時点で走るよう `ready_for_review` も必須。
+        triggers = workflow_triggers(text)
+        job_ifs = workflow_job_ifs(text)
+        if triggers & {"pull_request", "pull_request_target"}:
+            if "ready_for_review" not in text:
+                errors.append(f"[10] {name}: ready_for_review が無い（draft を外しても走らない）")
+            for job, expr in sorted(job_ifs.items()):
+                if expr is None or "pull_request.draft" not in expr:
+                    errors.append(
+                        f"[10] {name}: ジョブ {job} に draft では走らせない条件が無い"
+                        "（全ジョブに github.event_name != 'pull_request' || "
+                        "!github.event.pull_request.draft を明示すること）"
+                    )
+        # `workflow_run` 経由の起動は、上流の結論が `success` のときだけに限る。
+        # draft で全ジョブが skip された上流の結論は `skipped` になるため、
+        # この条件があれば draft の PR からは連鎖起動しない。
+        if "workflow_run" in triggers:
+            for job, expr in sorted(job_ifs.items()):
+                if expr is None or "workflow_run.conclusion == 'success'" not in expr:
+                    errors.append(
+                        f"[10] {name}: ジョブ {job} が workflow_run の結論 success"
+                        " 以外でも走り得る（draft で全 skip された上流から起動し得る）"
+                    )
         if re.search(r"^\s*(?:runs-on|os):\s*['\"]?macos-13", text, re.MULTILINE):
             errors.append(
                 f"[10] {name}: macos-13 は廃止した（待ち行列が長く、確認以上のコストになる）"

@@ -111,11 +111,23 @@ class ActionsBudgetTests(unittest.TestCase):
             self.assertIn("cancel-in-progress", text, path.name)
 
     def test_draft_guard_is_uniform(self):
-        import re
         for path in sorted((reference.ROOT / ".github/workflows").glob("*.yml")):
             text = reference.read(path)
-            if re.search(r"^  pull_request:", text, re.MULTILINE):
-                self.assertIn("pull_request.draft", text, path.name)
+            if not reference.workflow_triggers(text) & {"pull_request", "pull_request_target"}:
+                continue
+            self.assertIn("ready_for_review", text, path.name)
+            for job, expr in reference.workflow_job_ifs(text).items():
+                self.assertIsNotNone(expr, f"{path.name}: {job}")
+                self.assertIn("pull_request.draft", expr, f"{path.name}: {job}")
+
+    def test_workflow_run_jobs_require_success(self):
+        for path in sorted((reference.ROOT / ".github/workflows").glob("*.yml")):
+            text = reference.read(path)
+            if "workflow_run" not in reference.workflow_triggers(text):
+                continue
+            for job, expr in reference.workflow_job_ifs(text).items():
+                self.assertIsNotNone(expr, f"{path.name}: {job}")
+                self.assertIn("workflow_run.conclusion == 'success'", expr, f"{path.name}: {job}")
 
     def test_no_retired_runner(self):
         for path in sorted((reference.ROOT / ".github/workflows").glob("*.yml")):
@@ -128,6 +140,54 @@ class ActionsBudgetTests(unittest.TestCase):
         self.assertTrue(hook.stat().st_mode & 0o111)
         self.assertTrue((reference.ROOT / "scripts/install-git-hooks.sh").is_file())
         self.assertTrue((reference.ROOT / "scripts/ci-run.sh").is_file())
+
+
+class WorkflowParseTests(unittest.TestCase):
+    """検査 10 のワークフロー走査（ジョブ単位の draft 条件を見る土台）。"""
+
+    SAMPLE = (
+        "name: sample\n"
+        "on:\n"
+        "  push:\n"
+        "    branches: [main]\n"
+        "  pull_request:\n"
+        "    types: [opened, synchronize, reopened, ready_for_review]\n"
+        "jobs:\n"
+        "  guarded:\n"
+        "    if: github.event_name != 'pull_request' || !github.event.pull_request.draft\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: echo hi\n"
+        "        if: always()\n"
+        "  via_needs:\n"
+        "    needs: guarded\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: echo hi\n"
+    )
+
+    def test_triggers_are_read(self):
+        self.assertEqual(reference.workflow_triggers(self.SAMPLE), {"push", "pull_request"})
+
+    def test_shorthand_trigger(self):
+        self.assertEqual(
+            reference.workflow_triggers("on: [push, pull_request]\n"),
+            {"push", "pull_request"},
+        )
+
+    def test_job_ifs_are_read_per_job(self):
+        ifs = reference.workflow_job_ifs(self.SAMPLE)
+        self.assertIn("pull_request.draft", ifs["guarded"])
+        # needs 先の skip 頼みは「条件無し」として検出する（draft で実際に走った形）。
+        self.assertIsNone(ifs["via_needs"])
+
+    def test_step_if_is_not_a_job_if(self):
+        text = (
+            "on:\n  pull_request:\njobs:\n  only_step:\n"
+            "    runs-on: ubuntu-latest\n    steps:\n"
+            "      - run: echo hi\n        if: always()\n"
+        )
+        self.assertIsNone(reference.workflow_job_ifs(text)["only_step"])
 
 
 class SlugTests(unittest.TestCase):
