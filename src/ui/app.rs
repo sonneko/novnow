@@ -3334,6 +3334,7 @@ impl NovnowApp {
                             scale,
                             max_line_chars: self.settings.line_chars(locale == Locale::En),
                             inlay: self.settings.inlay_hints.then_some(locale),
+                            field_state: crate::ui::widgets::FieldState::Normal,
                         },
                     )
                 });
@@ -3766,15 +3767,23 @@ impl NovnowApp {
                 popup(ctx, "mcp-config", colors, style, |ui| {
                     ui.set_width(620.0);
                     ui.label("agents/mcp.json");
-                    if ui
-                        .add(
-                            egui::TextEdit::multiline(input)
-                                .code_editor()
-                                .desired_rows(18)
-                                .desired_width(f32::INFINITY),
-                        )
-                        .changed()
-                    {
+                    let field = ui.add(
+                        egui::TextEdit::multiline(input)
+                            .code_editor()
+                            .desired_rows(18)
+                            .desired_width(f32::INFINITY),
+                    );
+                    // 編集面の左線（§9.2.4 の二段表示）
+                    crate::ui::widgets::paint_field_accent(
+                        ui,
+                        field.rect,
+                        crate::ui::widgets::field_accent(
+                            crate::ui::widgets::FieldState::Normal,
+                            field.has_focus(),
+                            &colors,
+                        ),
+                    );
+                    if field.changed() {
                         *error = validate_mcp_editor(input, locale).err();
                     }
                     if let Some(message) = error {
@@ -4597,11 +4606,21 @@ impl NovnowApp {
                     );
                     ui.add(egui::TextEdit::singleline(comment).desired_width(520.0));
                     ui.label(i18n::text(locale, "agent.new_examples"));
-                    ui.add(
+                    let examples_field = ui.add(
                         egui::TextEdit::multiline(examples)
                             .hint_text(i18n::text(locale, "agent.new_examples_hint"))
                             .desired_rows(2)
                             .desired_width(520.0),
+                    );
+                    // 編集面の左線（§9.2.4 の二段表示）
+                    crate::ui::widgets::paint_field_accent(
+                        ui,
+                        examples_field.rect,
+                        crate::ui::widgets::field_accent(
+                            crate::ui::widgets::FieldState::Normal,
+                            examples_field.has_focus(),
+                            &colors,
+                        ),
                     );
                     ui.add_space(4.0);
                     ui.label(

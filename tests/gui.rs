@@ -291,6 +291,7 @@ fn theme_colors_are_the_spec_tables() {
         ("fg.faint", dark.fg_faint, light.fg_faint),
         ("border", dark.border, light.border),
         ("accent", dark.accent, light.accent),
+        ("accent.faint", dark.accent_faint, light.accent_faint),
         ("state.unsaved", dark.unsaved, light.unsaved),
         ("state.error", dark.error, light.error),
         ("state.warn", dark.warn, light.warn),

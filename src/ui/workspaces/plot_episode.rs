@@ -567,12 +567,17 @@ fn list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) -> Optio
                             bench.project().text(&section.path),
                             section,
                         );
-                        let ratio = crate::core::stage_two::metrics::section(&text).ratio();
-                        ui.add(
-                            egui::ProgressBar::new(ratio as f32)
-                                .desired_width(80.0 * view.scale)
-                                .text(format!("{:.0}%", ratio * 100.0)),
-                        );
+                        // 台詞比率バー（§9.4.2。話プロットでは幅 48px）
+                        let measured = crate::core::stage_two::metrics::section(&text);
+                        if measured.total > 0 {
+                            crate::ui::widgets::ratio_bar(
+                                ui,
+                                measured.ratio(),
+                                48.0 * view.scale,
+                                view.scale,
+                                &crate::ui::theme::palette(view.mode),
+                            );
+                        }
                     }
                 }
                 if is_selected && reveal {

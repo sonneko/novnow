@@ -166,28 +166,34 @@ pub struct Look {
     pub max_line_chars: usize,
     /// インレイヒントを出すなら、その文言の言語（`None` = 出さない。`Alt+H`、§6.6.2）。
     pub inlay: Option<Locale>,
+    /// 左線の状態（§9.2.4。提案モードの警告など、状態表示がある場合に渡す）。
+    pub field_state: crate::ui::widgets::FieldState,
 }
 
 /// 節エディタを描く。
-pub fn show(ui: &mut Ui, bench: &mut Workbench, cache: &mut Cache, look: Look) -> EditorOutput {
-    let ratio = crate::core::stage_two::metrics::section(bench.buffer()).ratio();
-    ui.add(
-        egui::ProgressBar::new(ratio as f32)
-            .show_percentage()
-            .desired_width(ui.available_width())
-            .fill(theme::palette(look.mode).fg_muted),
-    )
-    .on_hover_text(crate::ui::i18n::text(
-        look.inlay.unwrap_or(Locale::Ja),
-        "stage.dialogue_ratio",
-    ));
-    if bench.human_active() {
-        let rect = ui.max_rect();
-        ui.painter().line_segment(
-            [rect.left_top(), rect.left_bottom()],
-            egui::Stroke::new(3.0_f32, theme::palette(look.mode).warn),
-        );
+pub fn show(ui: &mut Ui, bench: &mut Workbench, cache: &mut Cache, mut look: Look) -> EditorOutput {
+    // 台詞比率バー（§9.4.2。幅 64px・高さ 4px・`fg.faint` 単色＋右に 10px の %）。
+    // 分母 0（空の節）では描かない。
+    let measured = crate::core::stage_two::metrics::section(bench.buffer());
+    if measured.total > 0 {
+        crate::ui::widgets::ratio_bar(
+            ui,
+            measured.ratio(),
+            64.0 * look.scale,
+            look.scale,
+            &theme::palette(look.mode),
+        )
+        .on_hover_text(crate::ui::i18n::text(
+            look.inlay.unwrap_or(Locale::Ja),
+            "stage.dialogue_ratio",
+        ));
     }
+    // 左線の状態（§9.2.4）: 提案モード中は状態表示（警告）を優先する
+    look.field_state = if bench.human_active() {
+        crate::ui::widgets::FieldState::Warn
+    } else {
+        crate::ui::widgets::FieldState::Normal
+    };
     let id = editor_id(bench);
     apply_paste(ui, bench, id);
     let mut buffer = std::mem::take(bench.buffer_mut());
@@ -221,6 +227,7 @@ pub(crate) fn area(
         scale,
         inlay,
         max_line_chars,
+        field_state,
     } = look;
     let colors = theme::palette(mode);
     let metrics = Metrics {
@@ -272,13 +279,22 @@ pub(crate) fn area(
                 if output.response.has_focus() {
                     if let Some(range) = &output.cursor_range {
                         let cursor = output.galley.pos_from_cursor(&range.primary);
-                        let center = cursor.center().y + output.galley_pos.y;
+                        // キャレットは行の中心ではなくベースライン・アセント基準で描く
+                        let row = output
+                            .galley
+                            .rows
+                            .iter()
+                            .find(|row| cursor.center().y <= row.rect.max.y)
+                            .or_else(|| output.galley.rows.last());
+                        let (baseline, ascent) = row.map_or((cursor.max.y, metrics.size), |row| {
+                            syntax_text::row_baseline(&output.galley, row)
+                        });
+                        let top = output.galley_pos.y + baseline - ascent;
                         let x = cursor.min.x + output.galley_pos.x;
-                        let half = metrics.size * 0.57;
                         ui.painter()
                             .with_clip_rect(output.response.rect.intersect(ui.clip_rect()))
                             .line_segment(
-                                [Pos2::new(x, center - half), Pos2::new(x, center + half)],
+                                [Pos2::new(x, top), Pos2::new(x, top + metrics.size * 1.14)],
                                 egui::Stroke::new(cursor_stroke.width, cursor_stroke.color),
                             );
                     }
@@ -339,35 +355,65 @@ pub(crate) fn area(
                 let gutter_painter = ui
                     .painter()
                     .with_clip_rect(gutter_rect.intersect(ui.clip_rect()));
+                let number_font = FontId::new(11.0 * scale, FontFamily::Monospace);
+                // 数字のグリフのベースライン（その Galley 内の位置）。本文の行の
+                // ベースラインと一致させて描く（行の中心基準では行間を変えるとずれる）
+                let number_baseline = ui.fonts(|fonts| {
+                    fonts
+                        .layout_no_wrap("0".to_owned(), number_font.clone(), colors.fg_faint)
+                        .rows
+                        .first()
+                        .and_then(|row| row.glyphs.first())
+                        .map_or(11.0 * scale * 0.8, |glyph| glyph.pos.y)
+                });
                 paint_line_numbers(
                     &gutter_painter,
                     gutter_rect.min.x + gutter - 8.0,
                     output.galley_pos,
                     &output.galley,
-                    FontId::new(11.0 * scale, FontFamily::Monospace),
+                    number_font,
+                    number_baseline,
                     colors.fg_faint,
+                );
+                // 編集面の左線（§9.2.4 の二段表示。状態表示があればそちら優先）
+                let line_rect = Rect::from_min_size(
+                    Pos2::new(gutter_rect.min.x, output.response.rect.min.y),
+                    Vec2::new(3.0, output.response.rect.height()),
+                );
+                gutter_painter.rect_filled(
+                    line_rect,
+                    0.0,
+                    crate::ui::widgets::field_accent(
+                        field_state,
+                        output.response.has_focus(),
+                        &colors,
+                    ),
                 );
             });
         });
     result
 }
 
-/// 論理行の 1 行目にだけ番号を振る（右寄せ）。
+/// 論理行の 1 行目にだけ番号を振る（右寄せ）。縦は本文の行のベースラインに
+/// 数字のベースラインを合わせる（`number_baseline` は数字の Galley 内のベースライン）。
+#[allow(clippy::too_many_arguments)]
 fn paint_line_numbers(
     painter: &egui::Painter,
     right: f32,
     origin: Pos2,
     galley: &Galley,
     font: FontId,
+    number_baseline: f32,
     color: egui::Color32,
 ) {
     let mut number = 1;
     let mut starts_line = true;
     for row in &galley.rows {
         if starts_line {
+            let (baseline, _) = syntax_text::row_baseline(galley, row);
             painter.text(
-                Pos2::new(right, origin.y + row.rect.center().y),
-                egui::Align2::RIGHT_CENTER,
+                Pos2::new(right, origin.y + baseline - number_baseline),
+                egui::Align2::RIGHT_TOP,
                 number.to_string(),
                 font.clone(),
                 color,

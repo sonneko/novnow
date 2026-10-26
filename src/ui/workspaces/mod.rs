@@ -96,6 +96,7 @@ impl View {
                 44
             },
             inlay: self.inlay_hints.then_some(self.locale),
+            field_state: crate::ui::widgets::FieldState::Normal,
         }
     }
 }

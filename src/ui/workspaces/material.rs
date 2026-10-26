@@ -762,12 +762,22 @@ fn form(
         view.mode,
         scale,
     );
-    ui.add(
+    let summary_field = ui.add(
         egui::TextEdit::multiline(&mut form.draft.summary)
             .id(Id::new(("material-summary", &id)))
             .font(font.clone())
             .desired_rows(2)
             .desired_width(f32::INFINITY),
+    );
+    // 編集面の左線（§9.2.4 の二段表示）
+    crate::ui::widgets::paint_field_accent(
+        ui,
+        summary_field.rect,
+        crate::ui::widgets::field_accent(
+            crate::ui::widgets::FieldState::Normal,
+            summary_field.has_focus(),
+            &crate::ui::theme::palette(view.mode),
+        ),
     );
     reference_pane::heading(
         ui,
@@ -788,13 +798,23 @@ fn form(
         view.mode,
         scale,
     );
-    ui.add(
+    let conditions_field = ui.add(
         egui::TextEdit::multiline(&mut form.draft.conditions)
             .id(Id::new(("material-conditions", &id)))
             .font(FontId::new(12.0 * scale, FontFamily::Monospace))
             .hint_text(i18n::text(locale, "material.conditions_hint"))
             .desired_rows(3)
             .desired_width(f32::INFINITY),
+    );
+    // 編集面の左線（§9.2.4 の二段表示）
+    crate::ui::widgets::paint_field_accent(
+        ui,
+        conditions_field.rect,
+        crate::ui::widgets::field_accent(
+            crate::ui::widgets::FieldState::Normal,
+            conditions_field.has_focus(),
+            &crate::ui::theme::palette(view.mode),
+        ),
     );
     reference_pane::heading(
         ui,

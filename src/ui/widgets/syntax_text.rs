@@ -232,3 +232,70 @@ fn zigzag(painter: &Painter, from: Pos2, to: Pos2, color: Color32) {
     points.push(Pos2::new(to.x, from.y));
     painter.add(egui::Shape::line(points, Stroke::new(1.0_f32, color)));
 }
+
+/// 行のベースラインと最大フォントのアセント（Galley 相対）。行番号・キャレットの
+/// 縦位置の基準（行矩形の中心だとフォントや行間を変えたときに本文とずれる）。
+/// 空行は、同じ Galley の他の行の「行上端→ベースライン」のオフセットを流用する。
+pub fn row_baseline(galley: &Galley, row: &egui::epaint::text::Row) -> (f32, f32) {
+    fn tallest(row: &egui::epaint::text::Row) -> Option<&egui::epaint::text::Glyph> {
+        row.glyphs
+            .iter()
+            .max_by(|a, b| a.size.y.total_cmp(&b.size.y))
+    }
+    if let Some(glyph) = tallest(row) {
+        return (glyph.pos.y, glyph.ascent);
+    }
+    for other in &galley.rows {
+        if let Some(glyph) = tallest(other) {
+            return (
+                row.rect.min.y + (glyph.pos.y - other.rect.min.y),
+                glyph.ascent,
+            );
+        }
+    }
+    (row.rect.max.y, row.rect.height())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn galley_of(text: &str) -> Arc<Galley> {
+        let ctx = egui::Context::default();
+        ctx.set_fonts(crate::ui::theme::fonts().0);
+        let metrics = Metrics {
+            size: 15.0,
+            line_height: 1.8,
+        };
+        let mut laid = None;
+        let _ = ctx.run(egui::RawInput::default(), |ctx| {
+            laid = Some(ctx.fonts(|fonts| {
+                fonts.layout_job(job(text, &Highlight::default(), Mode::Dark, metrics, 660.0))
+            }));
+        });
+        laid.expect("galley")
+    }
+
+    /// 行番号・キャレットの基準: グリフのある行はグリフのベースラインそのもの、
+    /// 空行は隣の行と同じオフセット（行の中心ではない）。
+    #[test]
+    fn row_baseline_uses_glyph_baselines_even_for_empty_rows() {
+        let galley = galley_of("あ\n\nい");
+        assert_eq!(galley.rows.len(), 3);
+        let (first, ascent) = row_baseline(&galley, &galley.rows[0]);
+        assert_eq!(first, galley.rows[0].glyphs[0].pos.y);
+        assert!(ascent > 0.0);
+        let (empty, _) = row_baseline(&galley, &galley.rows[1]);
+        let (third, _) = row_baseline(&galley, &galley.rows[2]);
+        assert_eq!(third, galley.rows[2].glyphs[0].pos.y);
+        // 空行のベースラインは上下の行のほぼ真ん中（等間隔）にある
+        assert!(first < empty && empty < third, "{first} {empty} {third}");
+        let upper = empty - first;
+        let lower = third - empty;
+        assert!((upper - lower).abs() <= 1.5, "{upper} vs {lower}");
+        // 0 文字だけの Galley でも有限の値を返す
+        let blank = galley_of("");
+        let (base, _) = row_baseline(&blank, &blank.rows[0]);
+        assert!(base.is_finite());
+    }
+}

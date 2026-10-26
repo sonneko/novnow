@@ -24,13 +24,13 @@
 
 ### 9.2 ラベル撤廃規則
 
-状態: 未実装・実装計画済み（REF:src/ui/app.rs, REF:tests/layering.rs, REF:tests/gui.rs, REF:docs/plans.md#issue-29-b2）
+状態: 実装完了（REF:src/ui/app.rs, REF:src/ui/widgets/mod.rs, REF:tests/layering.rs, REF:tests/gui.rs）
 
 - ペイン見出しラベルや装飾枠線を一切置かず、余白とタイポグラフィで構造を表現する。
 - 禁止ラベル文字列（「ファイル」「エディタ」「情報」等）および `Frame::group` が `src/ui/**` に存在しないことを `REF:tests/layering.rs` と `REF:tests/gui.rs`（`no_pane_is_labelled_files_editor_or_information`）で常時検査する。
 
-- **[Issue #29 / B2] 編集面の左線の二段表示（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b2`）**:
-  - 複数行エディタの共通描画に、非フォーカス時は `accent.faint`、フォーカス時は `accent` の幅 3px 縦線を持たせる。対象は節エディタと Slice エディタ群、資料フォームの要約・条件、MCP 設定のコード欄、タスク作成の例欄。提案モードの警告線などの状態表示が同じ左端に来る場合はそちらを優先する。
+- **[Issue #29 / B2] 編集面の左線の二段表示（実装完了: `REF:docs/plans.md#issue-29-b2`）**:
+  - 複数行エディタの共通描画に、非フォーカス時は `accent.faint`、フォーカス時は `accent` の幅 3px 縦線を持たせる。対象は節エディタと Slice エディタ群、資料フォームの要約・条件、MCP 設定のコード欄、タスク作成の例欄。提案モードの警告線などの状態表示が同じ左端に来る場合はそちらを優先する。色の決定は `field_accent`・描画は `paint_field_accent`（`REF:src/ui/widgets/mod.rs`）に共通化し、節エディタと Slice 系は `area`（`REF:src/ui/widgets/section_editor.rs`）が描く（検証: `REF:src/ui/widgets/mod.rs` の `field_accent_follows_the_two_tier_rule`）。
 
 ### 9.3 文脈ビュー（メインカラム上段）
 
@@ -59,9 +59,9 @@
   - ペインのフォーカス表示は左端 3px 縦線、編集中の節は常時 1px 枠線に分離する（F-41 は実装完了。`REF:src/ui/app.rs`, `REF:src/ui/widgets/context_view.rs`, `REF:tests/gui.rs`）。
   - `TextEdit::multiline` に `.lock_focus(true)` を付け、入力欄外の `Tab` 巡回と明瞭なフォーカス表示を実装する（F-37）。
 
-- **[Issue #29 / B2] 台詞比率バーの仕様形への復帰とベースライン整列の幾何テスト（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b2`）**:
-  - 比率バーは仕様 §9.4.2 の形（幅 64px の横棒＋右に 10px の %）へ戻し、全面幅の `ProgressBar` への % 重ね描きをやめる。話プロット側の幅 48px バーも同じ部品を使う。dark/light 両テーマで 0%・50%・100% の見た目を確認する。
-  - 行番号とキャレットは本文グリフのベースライン基準でそろえ（中心基準をやめる）、0 文字行と通常行の双方で描画 Y とベースラインの差が許容範囲内にあることを `Galley` の幾何で検証する単体テストを足す。
+- **[Issue #29 / B2] 台詞比率バーの仕様形への復帰とベースライン整列の幾何テスト（実装完了: `REF:docs/plans.md#issue-29-b2`）**:
+  - 比率バーは仕様 §9.4.2 の形（幅 64px の横棒＋右に 10px の %）へ戻し、全面幅の `ProgressBar` への % 重ね描きをやめた。話プロット側の幅 48px バーも共通部品 `ratio_bar`（`REF:src/ui/widgets/mod.rs`）を使う。分母 0 の節では描かない。
+  - 行番号とキャレットは本文グリフのベースライン基準でそろえた（中心基準をやめた）。`row_baseline`（`REF:src/ui/widgets/syntax_text.rs`）がグリフのある行はそのベースラインを、空行は他の行と同じオフセットを返し、0 文字行と通常行の双方を `Galley` の幾何で検証する単体テスト（`row_baseline_uses_glyph_baselines_even_for_empty_rows`）を足した。
 - **[Issue #29 / B3] `Ctrl+Enter` の分割化（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b3`）**:
   - 節エディタの `Ctrl+Enter` は、カーソルのバイト位置を正規操作 `section.split`（§19.7）へ渡して分割する。節先頭では何もせず、節末尾では従来の `confirm_next` と等価に振る舞う。何も書かれていない節（W012 の定義に一致）では新たな空節を作らない。
 
@@ -276,12 +276,12 @@
 
 ### 11.1 セマンティックカラートークン
 
-状態: 未実装・実装計画済み（REF:src/ui/theme.rs, REF:tests/gui.rs, REF:docs/plans.md#issue-29-b2）
+状態: 実装完了（REF:src/ui/theme.rs, REF:tests/gui.rs）
 
 - `Palette`（`REF:src/ui/theme.rs`）が Dark / Light の全セマンティックカラートークンを保持する。仕様表の 16 進カラーコードとの完全一致は `REF:tests/gui.rs` の `theme_colors_are_the_spec_tables` で検証する。
 
-- **[Issue #29 / B2] `accent.faint` トークンの追加（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b2`）**:
-  - `Palette`（`REF:src/ui/theme.rs`）に編集面の左線（非フォーカス時）用の `accent.faint`（dark `#354A6B` / light `#ADC4EB`）を足す。装飾色であり、本文系トークンのコントラスト基準の対象には含めない。
+- **[Issue #29 / B2] `accent.faint` トークンの追加（実装完了: `REF:docs/plans.md#issue-29-b2`）**:
+  - `Palette`（`REF:src/ui/theme.rs`）に編集面の左線（非フォーカス時）用の `accent.faint`（dark `#354A6B` / light `#ADC4EB`）を足した。装飾色であり、本文系トークンのコントラスト基準の対象には含めない。仕様表との一致は `theme_colors_are_the_spec_tables`（`REF:tests/gui.rs`）で検証する。
 
 ### 11.2 構文ハイライト割当
 

@@ -147,3 +147,77 @@ pub fn link_button(ui: &mut Ui, text: &str, font: FontId, colors: &Palette) -> R
     }
     response
 }
+
+/// 編集面の左線の状態（§9.2.4）。青 = 編集面とフォーカス、橙・緑・灰 = 状態で分け、
+/// 同じ左端で重なる場合は状態表示を優先する。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FieldState {
+    /// 通常（状態線なし）。
+    Normal,
+    /// 警告（提案モード中の節エディタ）。
+    Warn,
+}
+
+/// 編集面の左線の色（§9.2.4 の二段表示）: 普段は `accent.faint`、フォーカス中は
+/// `accent`。状態表示があるときはそちらを優先する。
+pub fn field_accent(state: FieldState, focused: bool, colors: &Palette) -> egui::Color32 {
+    match state {
+        FieldState::Warn => colors.warn,
+        FieldState::Normal if focused => colors.accent,
+        FieldState::Normal => colors.accent_faint,
+    }
+}
+
+/// 編集面の左端へ重ねる 3px の縦線（§9.2.4）。高さは `rect` いっぱい。
+pub fn paint_field_accent(ui: &Ui, rect: Rect, color: egui::Color32) {
+    let line = Rect::from_min_size(rect.min, Vec2::new(3.0, rect.height()));
+    ui.painter().rect_filled(line, 0.0, color);
+}
+
+/// 台詞比率バー（§9.4.2）: 幅 `width`・高さ 4px の横棒（塗りが台詞割合、色は常に
+/// `fg.faint` 単色）＋右に 10px の `%`。比率で色は変えない（段階2の目標は「測って
+/// 見える化して自覚を促す」ことで、達成・未達で鼓舞・𠮟責しない）。分母 0 の節では
+/// 呼び出し側が描かない。節エディタは 64px、話プロットは 48px（いずれも倍率込み）。
+pub fn ratio_bar(ui: &mut Ui, ratio: f64, width: f32, scale: f32, colors: &Palette) -> Response {
+    ui.horizontal(|ui| {
+        let (rect, response) = ui.allocate_exact_size(Vec2::new(width, 4.0), Sense::hover());
+        let painter = ui.painter();
+        painter.rect_filled(rect, 0.0, colors.bg_inset);
+        let filled = Rect::from_min_size(
+            rect.min,
+            Vec2::new(width * ratio.clamp(0.0, 1.0) as f32, 4.0),
+        );
+        painter.rect_filled(filled, 0.0, colors.fg_faint);
+        ui.label(
+            RichText::new(format!("{:.0}%", ratio * 100.0))
+                .font(FontId::new(10.0 * scale, egui::FontFamily::Proportional))
+                .color(colors.fg_faint),
+        );
+        response
+    })
+    .inner
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ui::theme::{palette, Mode};
+
+    /// §9.2.4: 普段は淡色、フォーカス中は accent、状態表示があればそちら優先。
+    #[test]
+    fn field_accent_follows_the_two_tier_rule() {
+        for mode in [Mode::Dark, Mode::Light] {
+            let colors = palette(mode);
+            assert_eq!(
+                field_accent(FieldState::Normal, false, &colors),
+                colors.accent_faint
+            );
+            assert_eq!(
+                field_accent(FieldState::Normal, true, &colors),
+                colors.accent
+            );
+            assert_eq!(field_accent(FieldState::Warn, false, &colors), colors.warn);
+            assert_eq!(field_accent(FieldState::Warn, true, &colors), colors.warn);
+        }
+    }
+}
