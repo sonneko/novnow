@@ -2535,9 +2535,19 @@ fn narrow_status_folds_secondary_details_without_hiding_save_state() {
     let mut harness = Harness::new();
     let full = painted_text(&harness.frame_at(1280.0, Modifiers::NONE));
     assert!(full.contains("枚") && full.contains("字"));
-    let medium = painted_text(&harness.frame_at(620.0, Modifiers::NONE));
-    assert!(medium.contains('…') && !medium.contains("枚"), "{medium}");
-    let narrow = painted_text(&harness.frame_at(380.0, Modifiers::NONE));
+    // 省略は実測幅で決める: 収まる幅では `…` を出さない（ステータスバーの行だけを見る。
+    // 本文にも `…` があるため）
+    let status = |output: &egui::FullOutput| -> String {
+        harness::painted_texts(output)
+            .into_iter()
+            .filter(|(_, rect)| rect.min.y > 770.0)
+            .map(|(text, _)| text)
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+    let medium = status(&harness.frame_at(620.0, Modifiers::NONE));
+    assert!(!medium.contains('…') && medium.contains("枚"), "{medium}");
+    let narrow = status(&harness.frame_at(260.0, Modifiers::NONE));
     assert!(narrow.contains('…') && !narrow.contains("枚"), "{narrow}");
     harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
     harness.frame(vec![Event::Text("追".into())]);
@@ -2806,13 +2816,8 @@ fn tab_inside_editor_stays_in_one_focus_target_and_header_tabs_cycle() {
     assert_eq!(harness.ctx.memory(|memory| memory.focused()), Some(editor));
     harness.frame(vec![key(Key::Tab, Modifiers::NONE)]);
     assert_eq!(harness.ctx.memory(|memory| memory.focused()), Some(editor));
-    let output = harness.frame(Vec::new());
-    let header = harness::painted_texts(&output)
-        .into_iter()
-        .find(|(s, rect)| s == "memory" && rect.min.y < 28.0)
-        .expect("header label")
-        .1;
-    harness.click_at(header.center());
+    // ヘッダの何もないところをクリックする（プロジェクト名は B4 でボタンになった）
+    harness.click_at(egui::pos2(640.0, 14.0));
     harness.frame(vec![key(Key::Tab, Modifiers::NONE)]);
     let after = harness.ctx.memory(|memory| memory.focused());
     assert_ne!(
@@ -3157,4 +3162,110 @@ fn complex_form_drafts_are_restored_but_never_saved_to_the_project() {
     harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
     let output = painted_text(&harness.frame(Vec::new()));
     assert!(output.contains("draft-mcp-text"), "復元される: {output}");
+}
+
+/// B4: キーボード移動だけで選択行が常に見える（候補一覧の追従ス）。
+#[test]
+fn palette_selection_stays_visible_when_moving_with_the_keyboard_only() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text(">".into())]);
+    for _ in 0..60 {
+        harness.frame(vec![key(Key::ArrowDown, Modifiers::NONE)]);
+    }
+    let output = harness.frame(Vec::new());
+    let texts = harness::painted_texts(&output);
+    let last = texts
+        .iter()
+        .find(|(text, _)| text == "パレットを閉じる (Esc)")
+        .map(|(_, rect)| *rect)
+        .expect("last palette row is painted");
+    let footer = texts
+        .iter()
+        .find(|(text, _)| text.contains("外側クリックで閉じる"))
+        .map(|(_, rect)| *rect)
+        .expect("close hint footer");
+    assert!(
+        last.max.y <= footer.min.y + 1.0 && last.min.y > 72.0,
+        "selected row must be scrolled into the viewport: {last:?} footer {footer:?}"
+    );
+}
+
+/// B4: 最近選んだ項目は、入力が空のときだけ先頭に出る（モード別）。
+#[test]
+fn palette_recent_items_come_first_only_on_empty_input() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text(">mcp".into())]);
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    assert_eq!(
+        harness.app.overlay_kind(),
+        Some(novnow::ui::app::OverlayKind::McpConfig)
+    );
+    harness.frame(vec![key(Key::Escape, Modifiers::NONE)]);
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text(">".into())]);
+    let output = harness.frame(Vec::new());
+    let painted = harness::painted_texts(&output);
+    let rows: Vec<&(String, egui::Rect)> = painted
+        .iter()
+        .filter(|(text, rect)| text.starts_with('>') && rect.min.y > 90.0)
+        .collect();
+    let first = rows
+        .iter()
+        .min_by(|a, b| a.1.min.y.total_cmp(&b.1.min.y))
+        .expect("command rows");
+    assert!(
+        first.0.starts_with(">mcp"),
+        "recent command first: {}",
+        first.0
+    );
+}
+
+/// B4: ヘッダのパンくずは `@` パレット、プロジェクト名は開く経路のボタン。
+/// 狭い幅では実測で省略する。
+#[test]
+fn header_crumb_and_project_name_are_buttons_and_fold_by_measured_width() {
+    let mut harness = Harness::new();
+    let output = harness.frame(Vec::new());
+    let texts = harness::painted_texts(&output);
+    let crumb = texts
+        .iter()
+        .find(|(text, rect)| text == "01›04›02›01" && rect.min.y < 28.0)
+        .map(|(_, rect)| *rect)
+        .expect("breadcrumb in header");
+    harness.click_at(crumb.center());
+    assert_eq!(
+        harness.app.overlay_kind(),
+        Some(novnow::ui::app::OverlayKind::Palette),
+        "breadcrumb opens the palette"
+    );
+    let output = harness.frame(Vec::new());
+    assert!(
+        harness::painted_text(&output).contains("@01"),
+        "palette starts in scene mode"
+    );
+    harness.frame(vec![key(Key::Escape, Modifiers::NONE)]);
+    // 狭い幅: プロジェクト名は省略される（実測判定）
+    let narrow = harness.frame_at(340.0, Modifiers::NONE);
+    assert!(
+        !harness::painted_texts(&narrow)
+            .iter()
+            .any(|(text, rect)| text == "memory" && rect.min.y < 28.0),
+        "project name folds away at narrow widths"
+    );
+    // プロジェクト名のクリックは Ctrl+O と同じ経路（一覧へ戻る）
+    let output = harness.frame_at(1280.0, Modifiers::NONE);
+    let name = harness::painted_texts(&output)
+        .into_iter()
+        .find(|(text, rect)| text == "memory" && rect.min.y < 28.0)
+        .map(|(_, rect)| rect)
+        .expect("project name in header");
+    harness.click_at(name.center());
+    harness.frame(Vec::new());
+    harness.idle(2.0);
+    assert!(
+        harness.app.workbench().is_none(),
+        "project name returns to the project list"
+    );
 }

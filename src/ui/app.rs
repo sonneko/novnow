@@ -512,6 +512,10 @@ pub struct Session {
     recent: Vec<(String, crate::core::id::SceneId)>,
     /// 最後に検索した文字列（`F3`）。
     last_find: String,
+    /// パレットで最近選んだ項目（モード別・新しい順・最大 10 件。入力が空のときだけ先頭へ出す）。
+    palette_recent_commands: Vec<String>,
+    /// 同上（`@` 構造モード）。
+    palette_recent_scenes: Vec<String>,
     /// 全体検索の結果（文字列ごとに作り直す）。
     search_cache: Option<(String, u64, Vec<crate::ui::assist::Hit>)>,
     /// `Ctrl+M` の結果（文字列と文書の世代ごとに作り直す）。
@@ -580,6 +584,8 @@ impl Session {
             pending_selection: None,
             recent: Vec::new(),
             last_find: String::new(),
+            palette_recent_commands: Vec::new(),
+            palette_recent_scenes: Vec::new(),
             search_cache: None,
             material_cache: None,
             conflict_texts: std::collections::BTreeMap::new(),
@@ -2761,6 +2767,8 @@ impl NovnowApp {
         let mut switch_to = None;
         let mut open_palette = false;
         let mut open_help = false;
+        let mut open_project = false;
+        let mut open_palette_at_scene = false;
         let crumb = match session.spaces.switcher.current() {
             Workspace::Write => session.bench.breadcrumb(),
             Workspace::PlotEpisode => session.spaces.episode.breadcrumb(&session.bench),
@@ -2793,6 +2801,7 @@ impl NovnowApp {
                 ui.horizontal_centered(|ui| {
                     // ワークスペースインジケータ（§9.2.1。図形だけ、今のものを accent）
                     let current = session.spaces.switcher.current();
+                    let row_start = ui.next_widget_position().x;
                     if let Some(target) = workspaces::indicator(
                         ui,
                         mode,
@@ -2802,32 +2811,83 @@ impl NovnowApp {
                     ) {
                         switch_to = Some(target);
                     }
-                    ui.add_space(8.0);
-                    ui.label(
-                        RichText::new(session.host.name())
-                            .font(FontId::new(11.0 * scale, FontFamily::Proportional))
-                            .color(colors.fg_faint),
-                    );
-                    ui.add_space(8.0);
-                    if let Some(crumb) = crumb {
-                        ui.label(
-                            RichText::new(crumb)
-                                .font(FontId::new(12.0 * scale, FontFamily::Monospace))
-                                .color(colors.fg_muted),
-                        );
-                    }
-                    if session
+                    // ヘッダ左側の省略は各要素の実測幅で決める（省略の順は
+                    // 画面名の一時表示 → プロジェクト名 → パンくず）。
+                    // 右端のボタン群の幅は前フレームの実測を使う
+                    let name = session.host.name();
+                    let name_font = FontId::new(11.0 * scale, FontFamily::Proportional);
+                    let crumb_font = FontId::new(12.0 * scale, FontFamily::Monospace);
+                    let transient = session
                         .workspace_switched_at
                         .is_some_and(|at| now - at < 1.0)
-                    {
-                        ui.label(
-                            RichText::new(i18n::text(
-                                locale,
-                                session.spaces.switcher.current().label_key(),
-                            ))
-                            .color(colors.fg_faint),
-                        );
-                        ctx.request_repaint_after(std::time::Duration::from_secs(1));
+                        .then(|| {
+                            i18n::text(locale, session.spaces.switcher.current().label_key())
+                                .to_owned()
+                        });
+                    let fonts_ctx = ctx.clone();
+                    let measure = |text: &str, font: &FontId| -> f32 {
+                        fonts_ctx.fonts(|fonts| {
+                            fonts
+                                .layout_no_wrap(text.to_owned(), font.clone(), colors.fg_primary)
+                                .rect
+                                .width()
+                        }) + 8.0
+                    };
+                    let right_width = ctx.data(|data| {
+                        data.get_temp::<f32>(Id::new("header-right-width"))
+                            .unwrap_or(190.0 * scale)
+                    });
+                    let room = ui.max_rect().width()
+                        - (ui.next_widget_position().x - row_start)
+                        - right_width;
+                    let (show_crumb, show_name, show_transient) = header_left_visibility(
+                        room,
+                        crumb
+                            .as_deref()
+                            .map_or(0.0, |text| measure(text, &crumb_font)),
+                        measure(&name, &name_font),
+                        transient.as_deref().map_or(0.0, |text| {
+                            measure(text, &FontId::proportional(11.0 * scale))
+                        }),
+                    );
+                    if show_name {
+                        ui.add_space(8.0);
+                        // プロジェクト名はボタン（`Ctrl+O` と同じ経路）
+                        if crate::ui::widgets::clickable_label(
+                            ui,
+                            RichText::new(name)
+                                .font(name_font.clone())
+                                .color(colors.fg_faint),
+                            Id::new("header-project-name"),
+                        )
+                        .clicked()
+                        {
+                            open_project = true;
+                        }
+                    }
+                    if show_crumb {
+                        if let Some(crumb) = &crumb {
+                            ui.add_space(8.0);
+                            // パンくずはボタン（`@` を初期入力とするパレット）
+                            if crate::ui::widgets::clickable_label(
+                                ui,
+                                RichText::new(crumb.clone())
+                                    .font(crumb_font.clone())
+                                    .color(colors.fg_muted),
+                                Id::new("header-breadcrumb"),
+                            )
+                            .clicked()
+                            {
+                                open_palette_at_scene = true;
+                            }
+                        }
+                    }
+                    if show_transient {
+                        if let Some(label) = &transient {
+                            ui.add_space(8.0);
+                            ui.label(RichText::new(label.clone()).color(colors.fg_faint));
+                            ctx.request_repaint_after(std::time::Duration::from_secs(1));
+                        }
                     }
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         let help = ui
@@ -2930,6 +2990,9 @@ impl NovnowApp {
                             };
                             session.settings_dirty = true;
                         }
+                        // 右端のボタン群の実測幅（次のフレームの省略判定に使う）
+                        let right = ui.max_rect().max.x - language.rect.min.x + 8.0;
+                        ctx.data_mut(|data| data.insert_temp(Id::new("header-right-width"), right));
                     });
                 });
             });
@@ -2941,6 +3004,15 @@ impl NovnowApp {
         }
         if open_palette {
             self.run(ctx, Command::Palette, now);
+        }
+        if open_palette_at_scene {
+            self.run(ctx, Command::Palette, now);
+            if let Overlay::Palette { input, .. } = &mut self.overlay {
+                *input = "@".to_owned();
+            }
+        }
+        if open_project {
+            self.run(ctx, Command::Open, now);
         }
         if let Stage::Open(session) = &mut self.stage {
             if std::mem::take(&mut session.open_review) {
@@ -3509,7 +3581,18 @@ impl NovnowApp {
             Overlay::None => {}
             Overlay::Palette { input, selected } => {
                 let (mode_kind, query) = palette::split(input);
-                let items = palette_items(&session.bench, locale, mode_kind, query, input);
+                let items = palette_items(
+                    &session.bench,
+                    locale,
+                    mode_kind,
+                    query,
+                    input,
+                    match mode_kind {
+                        palette::Mode::Command => &session.palette_recent_commands,
+                        palette::Mode::Scene => &session.palette_recent_scenes,
+                        _ => &[],
+                    },
+                );
                 let tab = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Tab));
                 let down = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::ArrowDown));
                 let up = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::ArrowUp));
@@ -3553,27 +3636,22 @@ impl NovnowApp {
                             .color(colors.fg_faint),
                         );
                     }
-                    egui::ScrollArea::vertical()
-                        .max_height(360.0)
-                        .show(ui, |ui| {
-                            for (index, item) in items.iter().enumerate() {
-                                let label = palette_label(ui, &item.label, 510.0);
-                                let text = RichText::new(label).color(if index == *selected {
-                                    colors.accent
-                                } else {
-                                    colors.fg_primary
-                                });
-                                if crate::ui::widgets::selectable_action(
-                                    ui,
-                                    index == *selected,
-                                    text,
-                                )
-                                .clicked()
-                                {
-                                    chosen = Some(index);
-                                }
+                    crate::ui::widgets::candidate_scroll(ui, "palette-list", 360.0, |ui| {
+                        for (index, item) in items.iter().enumerate() {
+                            let label = palette_label(ui, &item.label, 510.0);
+                            let text = RichText::new(label).color(if index == *selected {
+                                colors.accent
+                            } else {
+                                colors.fg_primary
+                            });
+                            let row =
+                                crate::ui::widgets::selectable_action(ui, index == *selected, text);
+                            crate::ui::widgets::follow_selection(&row, index == *selected);
+                            if row.clicked() {
+                                chosen = Some(index);
                             }
-                        });
+                        }
+                    });
                     if input.is_empty() {
                         ui.label(
                             RichText::new(i18n::text(locale, "palette.guide"))
@@ -3586,6 +3664,19 @@ impl NovnowApp {
                 }
                 if let Some(index) = chosen {
                     if let Some(item) = items.get(index) {
+                        // 最近選んだ項目（モード別・最大 10 件。閉じる候補は除く）
+                        if !matches!(item.action, PaletteAction::Close) {
+                            let recent = match mode_kind {
+                                palette::Mode::Command => {
+                                    Some(&mut session.palette_recent_commands)
+                                }
+                                palette::Mode::Scene => Some(&mut session.palette_recent_scenes),
+                                _ => None,
+                            };
+                            if let Some(recent) = recent {
+                                push_recent(recent, &item.key);
+                            }
+                        }
                         match &item.action {
                             PaletteAction::Section(at) => {
                                 session.bench.go_to(*at);
@@ -4328,31 +4419,24 @@ impl NovnowApp {
                         *selected = 0;
                     }
                     ui.add_space(4.0);
-                    egui::ScrollArea::vertical()
-                        .max_height(360.0)
-                        .show(ui, |ui| {
-                            for (index, hit) in hits.iter().enumerate() {
-                                let color = if index == *selected {
-                                    colors.accent
-                                } else {
-                                    colors.fg_primary
-                                };
-                                let text = RichText::new(format!(
-                                    "{}:{}  {}",
-                                    hit.path, hit.line, hit.text
-                                ))
-                                .color(color);
-                                if crate::ui::widgets::selectable_action(
-                                    ui,
-                                    index == *selected,
-                                    text,
-                                )
-                                .clicked()
-                                {
-                                    chosen = Some(index);
-                                }
+                    crate::ui::widgets::candidate_scroll(ui, "search-list", 360.0, |ui| {
+                        for (index, hit) in hits.iter().enumerate() {
+                            let color = if index == *selected {
+                                colors.accent
+                            } else {
+                                colors.fg_primary
+                            };
+                            let text =
+                                RichText::new(format!("{}:{}  {}", hit.path, hit.line, hit.text))
+                                    .color(color);
+                            let row =
+                                crate::ui::widgets::selectable_action(ui, index == *selected, text);
+                            crate::ui::widgets::follow_selection(&row, index == *selected);
+                            if row.clicked() {
+                                chosen = Some(index);
                             }
-                        });
+                        }
+                    });
                 });
                 if let Some(hit) = chosen.and_then(|index| hits.get(index)) {
                     session.last_find = query.clone();
@@ -4415,49 +4499,42 @@ impl NovnowApp {
                                 .color(colors.fg_muted),
                         );
                     }
-                    egui::ScrollArea::vertical()
-                        .max_height(360.0)
-                        .show(ui, |ui| {
-                            for (index, hit) in hits.iter().enumerate() {
-                                let is_selected = index == *selected;
-                                let category = if hit.category.is_empty() {
-                                    String::new()
-                                } else {
-                                    format!("#{}", hit.category)
-                                };
-                                let text = RichText::new(
-                                    format!(
-                                        "{}  {}  {}  {}",
-                                        hit.id, hit.title, category, hit.date
-                                    )
+                    crate::ui::widgets::candidate_scroll(ui, "materials-list", 360.0, |ui| {
+                        for (index, hit) in hits.iter().enumerate() {
+                            let is_selected = index == *selected;
+                            let category = if hit.category.is_empty() {
+                                String::new()
+                            } else {
+                                format!("#{}", hit.category)
+                            };
+                            let text = RichText::new(
+                                format!("{}  {}  {}  {}", hit.id, hit.title, category, hit.date)
                                     .trim_end()
                                     .to_owned(),
-                                )
-                                .color(if is_selected {
-                                    colors.accent
-                                } else {
-                                    colors.fg_primary
-                                });
-                                if crate::ui::widgets::selectable_action(ui, is_selected, text)
-                                    .clicked()
-                                {
-                                    chosen = Some(index);
-                                }
-                                if is_selected {
-                                    // 選んだ行の下に要約と出典（§16.3）
-                                    for (line, color) in [
-                                        (&hit.summary, colors.fg_muted),
-                                        (&hit.source, colors.fg_faint),
-                                    ] {
-                                        if !line.is_empty() {
-                                            ui.label(
-                                                RichText::new(format!("    {line}")).color(color),
-                                            );
-                                        }
+                            )
+                            .color(if is_selected {
+                                colors.accent
+                            } else {
+                                colors.fg_primary
+                            });
+                            let row = crate::ui::widgets::selectable_action(ui, is_selected, text);
+                            crate::ui::widgets::follow_selection(&row, is_selected);
+                            if row.clicked() {
+                                chosen = Some(index);
+                            }
+                            if is_selected {
+                                // 選んだ行の下に要約と出典（§16.3）
+                                for (line, color) in [
+                                    (&hit.summary, colors.fg_muted),
+                                    (&hit.source, colors.fg_faint),
+                                ] {
+                                    if !line.is_empty() {
+                                        ui.label(RichText::new(format!("    {line}")).color(color));
                                     }
                                 }
                             }
-                        });
+                        }
+                    });
                     ui.add_space(4.0);
                     ui.label(
                         RichText::new(i18n::text(locale, "material.search_keys"))
@@ -5261,50 +5338,47 @@ impl NovnowApp {
                     };
                     ui.label(RichText::new(title).color(colors.fg_faint));
                     ui.add_space(4.0);
-                    egui::ScrollArea::vertical()
-                        .max_height(360.0)
-                        .show(ui, |ui| {
-                            for (index, loc) in locations.iter().enumerate() {
-                                let (line_num, snippet) = session
-                                    .bench
-                                    .project()
-                                    .document(&loc.path)
-                                    .map(|doc| {
-                                        let starts = crate::core::features::project::line_starts_of(
-                                            &doc.text,
-                                        );
-                                        let line = crate::core::features::project::line_of(
-                                            &doc.text,
-                                            loc.range.start,
-                                        );
-                                        let start = starts.get(line).copied().unwrap_or(0);
-                                        let end = doc.text[start..]
-                                            .find('\n')
-                                            .map_or(doc.text.len(), |at| start + at);
-                                        let shown: String =
-                                            doc.text[start..end].trim().chars().take(80).collect();
-                                        (line + 1, shown)
-                                    })
-                                    .unwrap_or((1, String::new()));
-                                let color = if index == *selected {
-                                    colors.accent
-                                } else {
-                                    colors.fg_primary
-                                };
-                                let label =
-                                    RichText::new(format!("{}:{line_num}  {snippet}", loc.path))
-                                        .color(color);
-                                if crate::ui::widgets::selectable_action(
-                                    ui,
-                                    index == *selected,
-                                    label,
-                                )
-                                .clicked()
-                                {
-                                    chosen = Some(index);
-                                }
+                    crate::ui::widgets::candidate_scroll(ui, "references-list", 360.0, |ui| {
+                        for (index, loc) in locations.iter().enumerate() {
+                            let (line_num, snippet) = session
+                                .bench
+                                .project()
+                                .document(&loc.path)
+                                .map(|doc| {
+                                    let starts =
+                                        crate::core::features::project::line_starts_of(&doc.text);
+                                    let line = crate::core::features::project::line_of(
+                                        &doc.text,
+                                        loc.range.start,
+                                    );
+                                    let start = starts.get(line).copied().unwrap_or(0);
+                                    let end = doc.text[start..]
+                                        .find('\n')
+                                        .map_or(doc.text.len(), |at| start + at);
+                                    let shown: String =
+                                        doc.text[start..end].trim().chars().take(80).collect();
+                                    (line + 1, shown)
+                                })
+                                .unwrap_or((1, String::new()));
+                            let color = if index == *selected {
+                                colors.accent
+                            } else {
+                                colors.fg_primary
+                            };
+                            let label =
+                                RichText::new(format!("{}:{line_num}  {snippet}", loc.path))
+                                    .color(color);
+                            let row = crate::ui::widgets::selectable_action(
+                                ui,
+                                index == *selected,
+                                label,
+                            );
+                            crate::ui::widgets::follow_selection(&row, index == *selected);
+                            if row.clicked() {
+                                chosen = Some(index);
                             }
-                        });
+                        }
+                    });
                 });
                 if let Some(loc) = chosen.and_then(|index| locations.get(index)).cloned() {
                     jump_target = Some((loc.path, loc.range));
@@ -5517,6 +5591,49 @@ fn flush_settings(session: &mut Session, settings: &mut UiSettings) {
 }
 
 /// ステータスバー（§9.6.1）。保存インジケータが押されたら `true`。
+/// ヘッダ左側（パンくず・プロジェクト名・画面名の一時表示）の省略判定。
+/// 幅は各要素の実測（先行する余白込み）。省略の順は、一時表示 → プロジェクト名 →
+/// パンくず（返す順は、パンくず・プロジェクト名・一時表示の表示可否）。
+fn header_left_visibility(room: f32, crumb: f32, name: f32, transient: f32) -> (bool, bool, bool) {
+    // 上位が収まらない時点でそれより下位は出さない（省略の順を守る）
+    let mut rest = room.max(0.0);
+    let mut take = |width: f32| -> bool {
+        if width <= 0.0 {
+            return false;
+        }
+        if width <= rest {
+            rest -= width;
+            true
+        } else {
+            rest = 0.0;
+            false
+        }
+    };
+    let show_crumb = take(crumb);
+    let show_name = take(name);
+    let show_transient = take(transient);
+    (show_crumb, show_name, show_transient)
+}
+
+/// ステータスバーの省略判定（優先順位の高いものから実測幅で収まるだけ出す）。
+/// 並びは、パンくず・文字数・原稿用紙枚数・セッション情報・通知。
+fn status_visibility(room: f32, widths: &[f32; 5], present: &[bool; 5]) -> [bool; 5] {
+    // 上位が収まらない時点でそれより下位は出さない（畳む順を守る）
+    let mut rest = room.max(0.0);
+    let mut shown = [false; 5];
+    for ((&width, &exists), visible) in widths.iter().zip(present.iter()).zip(shown.iter_mut()) {
+        if !exists {
+            continue;
+        }
+        if width > rest {
+            break;
+        }
+        *visible = true;
+        rest -= width;
+    }
+    shown
+}
+
 #[allow(clippy::too_many_arguments)] // Explicit display settings and the retained session match other UI entry points.
 fn status_bar(
     ui: &mut egui::Ui,
@@ -5548,27 +5665,29 @@ fn status_bar(
             Layout::left_to_right(Align::Center),
             |ui| {
                 ui.set_clip_rect(ui.clip_rect().intersect(ui.max_rect()));
-                let mut hidden = Vec::new();
                 let dot = || {
                     RichText::new("  ·  ")
                         .font(font.clone())
                         .color(colors.fg_faint)
                 };
-                if session.bench.human_active() {
-                    ui.colored_label(colors.warn, i18n::text(locale, "stage.proposal"));
-                }
-                if let Some(crumb) = session.bench.breadcrumb() {
-                    if width >= 320.0 {
-                        ui.label(
-                            RichText::new(crumb.clone())
-                                .font(mono.clone())
-                                .color(colors.fg_muted),
-                        );
-                        ui.label(dot());
-                    } else {
-                        hidden.push(crumb);
-                    }
-                }
+                // 省略はウィンドウ幅の固定しきい値ではなく各要素の実測幅で決める。
+                // 優先順位は、パンくず > 文字数 > 原稿用紙枚数 > セッション情報 > 通知
+                // （畳む順はその逆。保存表示は右端に予約済みで常に残る）
+                let fonts_ctx = ui.ctx().clone();
+                let measure = |text: &str, font: &FontId| -> f32 {
+                    fonts_ctx.fonts(|fonts| {
+                        fonts
+                            .layout_no_wrap(text.to_owned(), font.clone(), colors.fg_primary)
+                            .rect
+                            .width()
+                    })
+                };
+                let dot_width = measure("  ·  ", &font);
+                let proposal = session
+                    .bench
+                    .human_active()
+                    .then(|| i18n::text(locale, "stage.proposal").to_owned());
+                let crumb = session.bench.breadcrumb();
                 let (section, episode, project) = session.bench.counts();
                 let unit = i18n::text(locale, "status.chars_unit");
                 let chars = format!(
@@ -5606,16 +5725,6 @@ fn status_bar(
                 } else {
                     chars
                 };
-                if width >= 410.0 {
-                    ui.label(
-                        RichText::new(&chars)
-                            .font(mono.clone())
-                            .color(colors.fg_muted),
-                    );
-                    ui.label(dot());
-                } else {
-                    hidden.push(chars);
-                }
                 let page = session
                     .bench
                     .project()
@@ -5628,32 +5737,110 @@ fn status_bar(
                     episode as f64 / page,
                     i18n::text(locale, "status.pages_unit")
                 );
-                if width >= 680.0 {
+                let session_text = (!stats_mode).then(|| {
+                    format!(
+                        "{:+}{unit} {}{}",
+                        session.stage_two.session.delta,
+                        session.stage_two.session.minutes(now),
+                        i18n::text(locale, "stage.minutes")
+                    )
+                });
+                let notice = session
+                    .notice
+                    .as_ref()
+                    .filter(|(_, at)| now - at < 4.0)
+                    .map(|(message, _)| message.clone());
+                let count = diagnostic_count(session);
+                let conflict = session.bench.conflicts().next().is_some();
+                let agent_label = crate::ui::agents::status_label(&session.agents, locale);
+                let mut mandatory = proposal.as_deref().map_or(0.0, |text| measure(text, &font));
+                if count > 0 {
+                    mandatory += dot_width + measure(&format!("⚑{count}"), &mono);
+                }
+                if conflict {
+                    mandatory += dot_width + measure("⇄", &mono);
+                }
+                if let Some(label) = &agent_label {
+                    mandatory += dot_width + measure(label, &mono);
+                }
+                let widths = [
+                    crumb
+                        .as_deref()
+                        .map_or(0.0, |text| measure(text, &mono) + dot_width),
+                    measure(&chars, &mono) + dot_width,
+                    measure(&pages, &mono),
+                    session_text
+                        .as_deref()
+                        .map_or(0.0, |text| measure(text, &mono)),
+                    notice
+                        .as_deref()
+                        .map_or(0.0, |text| dot_width + measure(text, &font)),
+                ];
+                let present = [
+                    crumb.is_some(),
+                    true,
+                    true,
+                    session_text.is_some(),
+                    notice.is_some(),
+                ];
+                let room = (width - reserved - mandatory).max(0.0);
+                let mut shown = status_visibility(room, &widths, &present);
+                let any_hidden = present
+                    .iter()
+                    .zip(&shown)
+                    .any(|(exists, visible)| *exists && !visible);
+                if any_hidden {
+                    // `…` 自体の幅を引いてもう一度判定する
+                    shown =
+                        status_visibility((room - measure("…", &font)).max(0.0), &widths, &present);
+                }
+                let mut hidden: Vec<String> = Vec::new();
+                if let Some(text) = &proposal {
+                    ui.colored_label(colors.warn, text.clone());
+                }
+                if let Some(text) = &crumb {
+                    if shown[0] {
+                        ui.label(
+                            RichText::new(text.clone())
+                                .font(mono.clone())
+                                .color(colors.fg_muted),
+                        );
+                        ui.label(dot());
+                    } else {
+                        hidden.push(text.clone());
+                    }
+                }
+                if shown[1] {
+                    ui.label(
+                        RichText::new(&chars)
+                            .font(mono.clone())
+                            .color(colors.fg_muted),
+                    );
+                    ui.label(dot());
+                } else {
+                    hidden.push(chars.clone());
+                }
+                if shown[2] {
                     ui.label(
                         RichText::new(&pages)
                             .font(mono.clone())
                             .color(colors.fg_muted),
                     );
                 } else {
-                    hidden.push(pages);
+                    hidden.push(pages.clone());
                 }
-                if !stats_mode && width >= 680.0 {
-                    ui.label(
-                        RichText::new(format!(
-                            "{:+}{unit} {}{}",
-                            session.stage_two.session.delta,
-                            session.stage_two.session.minutes(now),
-                            i18n::text(locale, "stage.minutes")
-                        ))
-                        .font(mono.clone())
-                        .color(colors.fg_muted),
-                    );
+                if let Some(text) = &session_text {
+                    if shown[3] {
+                        ui.label(
+                            RichText::new(text.clone())
+                                .font(mono.clone())
+                                .color(colors.fg_muted),
+                        );
+                    }
                 }
-                if width < 950.0 {
-                    if let Some((message, at)) = &session.notice {
-                        if now - at < 4.0 {
-                            hidden.push(message.clone());
-                        }
+                if !shown[4] {
+                    if let Some(text) = &notice {
+                        hidden.push(text.clone());
                     }
                 }
                 if !hidden.is_empty() {
@@ -5661,7 +5848,6 @@ fn status_bar(
                         .on_hover_text(hidden.join(" · "));
                 }
                 // 診断件数（E + W、今のファイル。0 件なら出さない）
-                let count = diagnostic_count(session);
                 if count > 0 {
                     ui.label(dot());
                     let flag = crate::ui::widgets::clickable_label(
@@ -5676,13 +5862,13 @@ fn status_bar(
                         session.open_review = true;
                     }
                 }
-                if session.bench.conflicts().next().is_some() {
+                if conflict {
                     ui.label(dot());
                     ui.label(RichText::new("⇄").font(mono.clone()).color(colors.error))
                         .on_hover_text(i18n::text(locale, "status.conflict"));
                 }
                 // 稼働表示（§15.7.4: `⟳ T0042 writer` / `⟳ 3件`、自律なら `(自律)`。クリックで一覧）
-                if let Some(label) = crate::ui::agents::status_label(&session.agents, locale) {
+                if let Some(label) = &agent_label {
                     ui.label(dot());
                     let running = crate::ui::widgets::clickable_label(
                         ui,
@@ -5694,8 +5880,8 @@ fn status_bar(
                         session.open_agent = true;
                     }
                 }
-                if let Some((message, at)) = &session.notice {
-                    if now - at < 4.0 && width >= 950.0 {
+                if shown[4] {
+                    if let Some(message) = &notice {
                         ui.label(dot());
                         ui.label(
                             RichText::new(message)
@@ -5709,10 +5895,11 @@ fn status_bar(
                 let mac = ui.ctx().os() == egui::os::OperatingSystem::Mac;
                 if let Some(key) = modifier_hint_key(mods, mac) {
                     let detail = i18n::text(locale, key);
-                    if ui.available_width() > 230.0 {
+                    let short = palette::ellipsize(detail, 23);
+                    if measure(&short, &font) + dot_width < ui.available_width() {
                         ui.label(dot());
                         ui.label(
-                            RichText::new(palette::ellipsize(detail, 23))
+                            RichText::new(short)
                                 .font(font.clone())
                                 .color(colors.fg_faint),
                         )
@@ -6802,12 +6989,36 @@ fn active_document_and_caret(
 
 use crate::app::commands::{PALETTE_COMMANDS, SHORTCUT_PALETTE_COMMANDS};
 
+/// 最近選んだ項目へ追加する（新しい順・重複なし・最大 10 件）。
+fn push_recent(recent: &mut Vec<String>, key: &str) {
+    recent.retain(|found| found != key);
+    recent.insert(0, key.to_owned());
+    recent.truncate(10);
+}
+
+/// 入力が空のときだけ、最近選んだ項目を先頭へ差し込む（固定スコアの計算には入れない）。
+/// それ以外の項目の相対順序は変えない。
+fn recent_first(mut items: Vec<PaletteItem>, recent: &[String]) -> Vec<PaletteItem> {
+    if recent.is_empty() {
+        return items;
+    }
+    let mut head: Vec<PaletteItem> = Vec::new();
+    for key in recent {
+        if let Some(at) = items.iter().position(|item| &item.key == key) {
+            head.push(items.remove(at));
+        }
+    }
+    head.extend(items);
+    head
+}
+
 fn palette_items(
     bench: &Workbench,
     locale: Locale,
     mode: palette::Mode,
     query: &str,
     input: &str,
+    recent: &[String],
 ) -> Vec<PaletteItem> {
     let mut result: Vec<PaletteItem> = match mode {
         palette::Mode::Command => {
@@ -7093,6 +7304,10 @@ fn palette_items(
         label: i18n::text(locale, "palette.close").into(),
         action: PaletteAction::Close,
     });
+    // 最近履歴は `>` / `@` で入力が空のときだけ（採点には入れない）
+    if query.is_empty() && matches!(mode, palette::Mode::Command | palette::Mode::Scene) {
+        return recent_first(result, recent);
+    }
     result
 }
 

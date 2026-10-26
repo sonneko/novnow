@@ -148,6 +148,30 @@ pub fn link_button(ui: &mut Ui, text: &str, font: FontId, colors: &Palette) -> R
     response
 }
 
+/// 候補一覧のスクロール領域（候補一覧を持つ重ね物で共有する）。
+/// 枠の右端に寄せた細いスクロールバーにし、選択行への追従スは各行が
+/// [`follow_selection`] で行う。
+pub fn candidate_scroll<R>(
+    ui: &mut Ui,
+    id: &str,
+    max_height: f32,
+    add: impl FnOnce(&mut Ui) -> R,
+) -> R {
+    ui.spacing_mut().scroll = egui::style::ScrollStyle::thin();
+    egui::ScrollArea::vertical()
+        .id_source(id)
+        .max_height(max_height)
+        .show(ui, add)
+        .inner
+}
+
+/// 選択行が見えるところまで最小移動で追従する（キーボード移動だけで選択行が常に見える）。
+pub fn follow_selection(response: &Response, selected: bool) {
+    if selected {
+        response.scroll_to_me(None);
+    }
+}
+
 /// 編集面の左線の状態（§9.2.4）。青 = 編集面とフォーカス、橙・緑・灰 = 状態で分け、
 /// 同じ左端で重なる場合は状態表示を優先する。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

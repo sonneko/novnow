@@ -6,7 +6,7 @@
 
 ### 9.1 全体レイアウト
 
-状態: 未実装・実装計画済み（REF:src/ui/app.rs, REF:src/app/settings.rs, REF:tests/gui.rs, REF:docs/plans.md#issue-29-b4）
+状態: 実装完了（REF:src/ui/app.rs, REF:src/app/settings.rs, REF:tests/gui.rs）
 
 - 共通シェル（上端 28px アイコンバー、下端 22px ステータスバー、中央のメインカラム＋参照ペイン 2 カラム分割）は `NovnowApp`（`REF:src/ui/app.rs`）が描画する。
 - メイン/参照の比率（既定 `62 : 38`、`Ctrl+Alt+Shift+←/→`）と文脈/節エディタの比率（既定 `45 : 55`、`Ctrl+Alt+↑/↓`）は `UiSettings`（`REF:src/app/settings.rs`）に保持する。
@@ -19,8 +19,8 @@
   - F-29 は実装完了。`REF:src/ui/app.rs` で `style.interaction.selectable_labels = false` を設定し、押せないラベルのダブルクリック青選択を防ぐ（検証: `REF:tests/gui.rs`）。
   - `REF:src/ui/widgets/mod.rs` に共通クリック部品を設けて全ボタン・クリック対象に薄い下線＋ホバー背景＋ショートカット併記を適用する。
 
-- **[Issue #29 / B4] ヘッダの省略優先順とプロジェクト名・パンくずのボタン化（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b4`）**:
-  - `REF:src/ui/app.rs` のヘッダ描画で各要素の実測幅から省略を決め（画面名の一時表示 → プロジェクト名 → パンくず）、プロジェクト名は既存の `Ctrl+O` の経路へ、パンくずは `@` を初期入力とするパレット起動へ接続する。幅を変えたフレームではみ出しが無いことを `REF:tests/gui.rs` で確かめる行を足す。
+- **[Issue #29 / B4] ヘッダの省略優先順とプロジェクト名・パンくずのボタン化（実装完了: `REF:docs/plans.md#issue-29-b4`）**:
+  - `REF:src/ui/app.rs` のヘッダ描画で各要素の実測幅から省略を決め（画面名の一時表示 → プロジェクト名 → パンくず。`header_left_visibility`。右端のボタン群の幅は前フレームの実測を使う）、プロジェクト名は既存の `Ctrl+O` の経路へ、パンくずは `@` を初期入力とするパレット起動へ接続した。幅を変えたフレームの省略とボタンの動作は `REF:tests/gui.rs` の `header_crumb_and_project_name_are_buttons_and_fold_by_measured_width` で検証する。
 
 ### 9.2 ラベル撤廃規則
 
@@ -85,7 +85,7 @@
 
 ### 9.6 ステータスバー
 
-状態: 未実装・実装計画済み（REF:src/ui/app.rs, REF:tests/gui.rs, REF:docs/plans.md#issue-29-b4）
+状態: 実装完了（REF:src/ui/app.rs, REF:tests/gui.rs）
 
 - 左側（位置 `01›04›02›03`、節/話/全体の空白除外文字数、400 字詰め原稿用紙換算）と右側（エラー・警告・情報件数、エージェント実行状態、保存状態アイコン）は `NovnowApp`（`REF:src/ui/app.rs`）に実装する（検証: `REF:tests/gui.rs` の `counts_are_section_episode_and_project_without_whitespace`）。
 - ※§9.6.2 のセッション統計モードは段階 ②（`REF:docs/plans.md#stage-2`）対象。
@@ -95,8 +95,8 @@
   - 同梱フォント使用通知はステータスバーから外し、起動後数秒間のみ左下に表示するモードレストーストへ移す（F-18）。
   - ステータスバーの幅不足時は「セッション情報 → 原稿用紙枚数 → 文字数」の順に `…` へ畳んでホバー詳細とし、保存状態マークを最高優先で常時表示する（S-14）。
 
-- **[Issue #29 / B4] 省略判定の実測幅化（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b4`）**:
-  - `REF:src/ui/app.rs` のステータスバーの表示/省略を、ウィンドウ幅の固定しきい値から各要素のレイアウト実測幅による判定へ変える。保存インジケータの右端の予約幅は現行の考えを保つ。幅を変えたフレームで「空きがあるのに `…` が出ないこと」と保存表示が画面内に残ることを `REF:tests/gui.rs` で確かめる。
+- **[Issue #29 / B4] 省略判定の実測幅化（実装完了: `REF:docs/plans.md#issue-29-b4`）**:
+  - `REF:src/ui/app.rs` のステータスバーの表示/省略を、ウィンドウ幅の固定しきい値から各要素のレイアウト実測幅による判定（ `status_visibility` ）へ変えた。優先順位は パンくず > 文字数 > 原稿用紙枚数 > セッション情報 > 通知 で、上位が収まらない時点で下位も畳む。保存インジケータの右端の予約幅は現行の考えを保つ。幅を変えたフレームで「空きがあるのに `…` が出ないこと」と保存表示が画面内に残ることは `REF:tests/gui.rs` の `narrow_status_folds_secondary_details_without_hiding_save_state` で検証する。
 
 ### 9.7 ナビゲーション
 
@@ -114,9 +114,9 @@
   - 重ね物の分類は `OverlayKind`（`REF:src/ui/app.rs`）に集約し、`Overlay::kind` の網羅的な `match` で「閉じてよいか（保存失敗と終了ガードだけ不可）・軽い重ね物か・配置（画面中央／パレット系は上部）」を決める。外側クリックは `overlays` が全重ね物共通の受け皿（ `click_shield` ）で一括して受けて背面へ通さず、閉じる判断は 1 か所で行う（確認モーダルではキャンセルと同じ意味）。補完とクイックフィックスは描画箇所で自前の受け皿を持ち、外側クリックでは閉じるだけとする。`Esc` も同じ分類に従う。閉じられるモーダルには `popup()` が共通フッタの閉じる案内（ `modal.close_hint` ）を付け、配置は `PopupStyle` で渡す。
   - 複雑なフォーム（MCP 設定・タスク作成・エクスポート設定・却下／差し戻しコメント・アイデア即時入力）の下書きは `OverlayDrafts` としてセッション内に重ね物ごとに毎フレーム同期して保持し（閉じ方によらず残る）、開くときに復元する。却下／差し戻しコメントは同じ提案・同じ向きのときだけ復元し、確定（保存・作成・書き出し・取り込み）に成功したら下書きを捨てる。ファイルへは書かない。
   - 網羅テストは `REF:tests/gui.rs` の `every_overlay_closes_on_outside_click_and_escape_except_the_locked_two` が `OverlayKind::ALL` の全重ね物を開いて外側クリックと `Esc` を検証し（背面の非操作と本文の不変を含む）、`Overlay::sample` の網羅的な `match` と合わせて、後から増えた重ね物のテスト漏れをコンパイル時に検出する。配置と共通フッタは `modals_are_centered_with_a_close_hint_and_locked_ones_have_none`、下書きは `complex_form_drafts_are_restored_but_never_saved_to_the_project` が検証する。
-- **[Issue #29 / B4] 最近使った項目と候補一覧の追従ス（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b4`）**:
-  - 履歴は GUI セッション状態にモード別（`>` / `@`）で最大 10 件まで持ち、`REF:src/app/palette.rs` の候補生成では入力が空のときだけ先頭へ差し込む（固定スコアの計算には入れない）。
-  - 選択行への最小移動の追従と、枠の右端に寄せた細いスクロールバーは、候補一覧を持つ重ね物で共有する部品として実装する。候補を末尾まで送ったとき選択行の矩形がスクロール領域内にあることを `REF:tests/gui.rs` で検証する。
+- **[Issue #29 / B4] 最近使った項目と候補一覧の追従ス（実装完了: `REF:docs/plans.md#issue-29-b4`）**:
+  - 履歴は GUI セッション状態（ `Session` ）にモード別（`>` / `@`）で最大 10 件まで持ち、候補生成（ `palette_items`、`REF:src/ui/app.rs`）では入力が空のときだけ先頭へ差し込む（固定スコアの計算には入れない）。
+  - 選択行への最小移動の追従と、枠の右端に寄せた細いスクロールバーは、候補一覧を持つ重ね物（パレット・全体検索・資料検索・使用箇所）で共有する部品 `candidate_scroll` / `follow_selection`（`REF:src/ui/widgets/mod.rs`）として実装した。候補を末尾まで送ったとき選択行の矩形がスクロール領域内にあることは `REF:tests/gui.rs` の `palette_selection_stays_visible_when_moving_with_the_keyboard_only`、履歴は `palette_recent_items_come_first_only_on_empty_input` で検証する。
 
 - **[Issue #29 / B6] 検索 2 系統の分担の追認と一致表示（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b6`）**:
   - `Ctrl+Shift+F` の重ね物は本文の文字どおり検索（`REF:src/app/assist.rs`）のままとし、一致範囲に §11.3 の背景塗りを付ける。正規表現検索は `write` の全文検索タブ（`REF:src/core/stage_two/search.rs`）に置き、抜粋は「前文・一致・後文」の構造で返して画面では一致範囲だけを強調して描く（`**…**` を文字列に埋め込む形をやめる）。資料として保存するときだけ §16.3.1 の固定形に組み立てる。
