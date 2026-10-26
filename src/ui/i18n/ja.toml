@@ -314,6 +314,7 @@ retry = "再試行"
 close = "閉じる"
 discard_and_close = "破棄して閉じる"
 cancel = "キャンセル"
+close_hint = "Esc / 外側クリックで閉じる"
 
 [command]
 theme = "テーマを切り替える"

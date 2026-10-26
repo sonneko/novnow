@@ -176,6 +176,306 @@ enum Overlay {
     },
 }
 
+/// 重ね物の種類（§9.7.5）。[`Overlay::kind`] の網羅的な対応付けと [`Overlay::sample`] の
+/// 生成を介すことで、重ね物を増やしたときは分類（閉じ方・配置）の決定と網羅テストの
+/// 対象化がコンパイル時に強制される。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OverlayKind {
+    Palette,
+    Jump,
+    Help,
+    Welcome,
+    Migration,
+    McpConfig,
+    SaveError,
+    CloseGuard,
+    Find,
+    Search,
+    Completion,
+    Info,
+    ConfirmDelete,
+    Message,
+    QuickFix,
+    Diff,
+    Export,
+    LineWidth,
+    Capture,
+    Promote,
+    Materials,
+    ConfirmApprove,
+    NewMaterial,
+    AgentNew,
+    AgentConfirm,
+    AgentComment,
+    AgentFixed,
+    PromptReset,
+    PromptDiff,
+    Rename,
+    References,
+}
+
+impl OverlayKind {
+    /// 全種類（網羅テストの列挙用。`Overlay::kind` の網羅性と合わせて保つ）。
+    pub const ALL: &'static [OverlayKind] = &[
+        OverlayKind::Palette,
+        OverlayKind::Jump,
+        OverlayKind::Help,
+        OverlayKind::Welcome,
+        OverlayKind::Migration,
+        OverlayKind::McpConfig,
+        OverlayKind::SaveError,
+        OverlayKind::CloseGuard,
+        OverlayKind::Find,
+        OverlayKind::Search,
+        OverlayKind::Completion,
+        OverlayKind::Info,
+        OverlayKind::ConfirmDelete,
+        OverlayKind::Message,
+        OverlayKind::QuickFix,
+        OverlayKind::Diff,
+        OverlayKind::Export,
+        OverlayKind::LineWidth,
+        OverlayKind::Capture,
+        OverlayKind::Promote,
+        OverlayKind::Materials,
+        OverlayKind::ConfirmApprove,
+        OverlayKind::NewMaterial,
+        OverlayKind::AgentNew,
+        OverlayKind::AgentConfirm,
+        OverlayKind::AgentComment,
+        OverlayKind::AgentFixed,
+        OverlayKind::PromptReset,
+        OverlayKind::PromptDiff,
+        OverlayKind::Rename,
+        OverlayKind::References,
+    ];
+
+    /// `Esc` と外側クリックで閉じてよいか（§9.7.5。保存失敗と終了ガードだけ閉じない）。
+    pub fn dismissible(self) -> bool {
+        !matches!(self, OverlayKind::SaveError | OverlayKind::CloseGuard)
+    }
+
+    /// 軽い重ね物か（§9.7.5: 検索/置換バー・入力補完・情報ポップアップ・クイックフィックス）。
+    pub fn is_light(self) -> bool {
+        matches!(
+            self,
+            OverlayKind::Find | OverlayKind::Completion | OverlayKind::Info | OverlayKind::QuickFix
+        )
+    }
+}
+
+/// モーダルの配置（§9.7.5: 画面中央と、パレット系の上部の 2 系統）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PopupPlacement {
+    Center,
+    Top,
+}
+
+/// `popup()` への渡し方（配置・閉じられるか・文言の言語）。
+#[derive(Debug, Clone, Copy)]
+struct PopupStyle {
+    placement: PopupPlacement,
+    dismissible: bool,
+    locale: Locale,
+}
+
+impl Overlay {
+    /// 種類（§9.7.5 の分類の入口。網羅的に書くこと: バリアントを増やしたらここで分類する）。
+    fn kind(&self) -> Option<OverlayKind> {
+        Some(match self {
+            Overlay::None => return None,
+            Overlay::Palette { .. } => OverlayKind::Palette,
+            Overlay::Jump { .. } => OverlayKind::Jump,
+            Overlay::Help => OverlayKind::Help,
+            Overlay::Welcome => OverlayKind::Welcome,
+            Overlay::Migration => OverlayKind::Migration,
+            Overlay::McpConfig { .. } => OverlayKind::McpConfig,
+            Overlay::SaveError => OverlayKind::SaveError,
+            Overlay::CloseGuard => OverlayKind::CloseGuard,
+            Overlay::Find { .. } => OverlayKind::Find,
+            Overlay::Search { .. } => OverlayKind::Search,
+            Overlay::Completion { .. } => OverlayKind::Completion,
+            Overlay::Info { .. } => OverlayKind::Info,
+            Overlay::ConfirmDelete => OverlayKind::ConfirmDelete,
+            Overlay::Message(_) => OverlayKind::Message,
+            Overlay::QuickFix { .. } => OverlayKind::QuickFix,
+            Overlay::Diff => OverlayKind::Diff,
+            Overlay::Export { .. } => OverlayKind::Export,
+            Overlay::LineWidth { .. } => OverlayKind::LineWidth,
+            Overlay::Capture { .. } => OverlayKind::Capture,
+            Overlay::Promote { .. } => OverlayKind::Promote,
+            Overlay::Materials { .. } => OverlayKind::Materials,
+            Overlay::ConfirmApprove { .. } => OverlayKind::ConfirmApprove,
+            Overlay::NewMaterial { .. } => OverlayKind::NewMaterial,
+            Overlay::AgentNew { .. } => OverlayKind::AgentNew,
+            Overlay::AgentConfirm { .. } => OverlayKind::AgentConfirm,
+            Overlay::AgentComment { .. } => OverlayKind::AgentComment,
+            Overlay::AgentFixed { .. } => OverlayKind::AgentFixed,
+            Overlay::PromptReset { .. } => OverlayKind::PromptReset,
+            Overlay::PromptDiff { .. } => OverlayKind::PromptDiff,
+            Overlay::Rename { .. } => OverlayKind::Rename,
+            Overlay::References { .. } => OverlayKind::References,
+        })
+    }
+
+    /// 配置（§9.7.5）。打つための重ね物（パレットと同族の検索・選択系）は上部、
+    /// 読む・確認する・書くモーダルは画面中央。
+    fn placement(&self) -> PopupPlacement {
+        match self.kind() {
+            Some(
+                OverlayKind::Palette
+                | OverlayKind::Jump
+                | OverlayKind::Search
+                | OverlayKind::Materials
+                | OverlayKind::References
+                | OverlayKind::Promote,
+            ) => PopupPlacement::Top,
+            _ => PopupPlacement::Center,
+        }
+    }
+
+    /// 網羅テスト用のサンプル値で作る（§9.7.5。網羅的に書くこと）。
+    fn sample(kind: OverlayKind) -> Overlay {
+        match kind {
+            OverlayKind::Palette => Overlay::Palette {
+                input: String::new(),
+                selected: 0,
+            },
+            OverlayKind::Jump => Overlay::Jump {
+                input: String::new(),
+                missed: false,
+            },
+            OverlayKind::Help => Overlay::Help,
+            OverlayKind::Welcome => Overlay::Welcome,
+            OverlayKind::Migration => Overlay::Migration,
+            OverlayKind::McpConfig => Overlay::McpConfig {
+                input: String::new(),
+                error: None,
+            },
+            OverlayKind::SaveError => Overlay::SaveError,
+            OverlayKind::CloseGuard => Overlay::CloseGuard,
+            OverlayKind::Find => Overlay::Find {
+                query: String::new(),
+                replace: None,
+                fresh: false,
+            },
+            OverlayKind::Search => Overlay::Search {
+                query: String::new(),
+                selected: 0,
+            },
+            OverlayKind::Completion => Overlay::Completion { selected: 0 },
+            OverlayKind::Info => Overlay::Info {
+                lines: vec!["sample".to_owned()],
+            },
+            OverlayKind::ConfirmDelete => Overlay::ConfirmDelete,
+            OverlayKind::Message => Overlay::Message("sample".to_owned()),
+            OverlayKind::QuickFix => Overlay::QuickFix {
+                actions: Vec::new(),
+                selected: 0,
+            },
+            OverlayKind::Diff => Overlay::Diff,
+            OverlayKind::Export => Overlay::Export {
+                range: String::new(),
+                state: None,
+                fresh: false,
+                flags: [false; 4],
+            },
+            OverlayKind::LineWidth => Overlay::LineWidth {
+                input: String::new(),
+            },
+            OverlayKind::Capture => Overlay::Capture {
+                input: String::new(),
+            },
+            OverlayKind::Promote => Overlay::Promote {
+                selected: 0,
+                characters: None,
+            },
+            OverlayKind::Materials => Overlay::Materials {
+                query: String::new(),
+                selected: 0,
+                create: false,
+            },
+            OverlayKind::ConfirmApprove => Overlay::ConfirmApprove {
+                id: "M0001".to_owned(),
+            },
+            OverlayKind::NewMaterial => Overlay::NewMaterial {
+                input: String::new(),
+            },
+            OverlayKind::AgentNew => Overlay::AgentNew {
+                role: 0,
+                scope: String::new(),
+                intent: String::new(),
+                comment: String::new(),
+                examples: String::new(),
+                fresh: false,
+            },
+            OverlayKind::AgentConfirm => Overlay::AgentConfirm {
+                ids: Vec::new(),
+                chars: 0,
+                servers: Vec::new(),
+                blocked: Vec::new(),
+            },
+            OverlayKind::AgentComment => Overlay::AgentComment {
+                proposal: "P0001".to_owned(),
+                revert: false,
+                input: String::new(),
+                missing: false,
+            },
+            OverlayKind::AgentFixed => Overlay::AgentFixed {
+                proposal: "P0001".to_owned(),
+                text: None,
+            },
+            OverlayKind::PromptReset => Overlay::PromptReset {
+                name: "sample".to_owned(),
+            },
+            OverlayKind::PromptDiff => Overlay::PromptDiff {
+                name: "sample".to_owned(),
+            },
+            OverlayKind::Rename => Overlay::Rename {
+                document: crate::core::model::document::Document::new("characters.md", ""),
+                pos: 0,
+                input: String::new(),
+                error: None,
+            },
+            OverlayKind::References => Overlay::References {
+                name: "sample".to_owned(),
+                locations: Vec::new(),
+                selected: 0,
+            },
+        }
+    }
+}
+
+/// 複雑なフォームの下書き（§9.7.5）。アプリを閉じるまでのセッション内にだけ持ち、
+/// ファイルへは書かない。短い 1 項目の入力（改名・資料名・行幅・ジャンプ先）は持たない。
+#[derive(Debug, Default)]
+struct OverlayDrafts {
+    mcp_config: Option<String>,
+    agent_new: Option<AgentNewDraft>,
+    export: Option<ExportForm>,
+    /// (提案 ID, 差し戻しか, 入力)。同じ提案・同じ向きで開いた場合だけ復元する。
+    agent_comment: Option<(String, bool, String)>,
+    capture: Option<String>,
+}
+
+/// タスク作成フォームの下書き。
+#[derive(Debug, Clone)]
+struct AgentNewDraft {
+    role: usize,
+    scope: String,
+    intent: String,
+    comment: String,
+    examples: String,
+}
+
+/// エクスポート設定の下書き。
+#[derive(Debug, Clone)]
+struct ExportForm {
+    range: String,
+    state: Option<ExportState>,
+    flags: [bool; 4],
+}
+
 /// `Ctrl+M` で選んだ資料をどうするか（§9.8.3・§16.3、`docs/history.md` B-134）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum MaterialAction {
@@ -473,6 +773,8 @@ pub struct NovnowApp {
     guide: Guide,
     /// この起動のあいだ、もう自動では出さない（閉じた・最後まで進んだ）。
     guide_closed: bool,
+    /// 複雑なフォームの下書き（§9.7.5。ファイルへは書かない）。
+    drafts: OverlayDrafts,
 }
 
 impl NovnowApp {
@@ -505,6 +807,7 @@ impl NovnowApp {
             leaving: false,
             guide: Guide::default(),
             guide_closed: false,
+            drafts: OverlayDrafts::default(),
         }
     }
 
@@ -543,6 +846,16 @@ impl NovnowApp {
     /// 何か重ねて出しているか（パレット・ヘルプ・モーダル）。
     pub fn overlay_open(&self) -> bool {
         self.overlay != Overlay::None
+    }
+
+    /// 今出ている重ね物の種類（テスト用の読み口。§9.7.5）。
+    pub fn overlay_kind(&self) -> Option<OverlayKind> {
+        self.overlay.kind()
+    }
+
+    /// テスト用: 重ね物をサンプル値で開く（§9.7.5 の網羅テストが全種を 1 つずつ開く入口）。
+    pub fn open_overlay_for_test(&mut self, kind: OverlayKind) {
+        self.overlay = Overlay::sample(kind);
     }
 
     /// はじめての手引きの状態（テスト用の読み口。§9.10）。
@@ -836,6 +1149,10 @@ impl NovnowApp {
                 };
             }
             Command::Escape => {
+                // §9.7.5: 保存失敗と終了ガードは `Esc` でも閉じない（閉じると警告の意味が消える）
+                if matches!(self.overlay.kind(), Some(kind) if !kind.dismissible()) {
+                    return;
+                }
                 if self.overlay == Overlay::None && self.guide.active {
                     self.finish_guide();
                 }
@@ -1063,16 +1380,25 @@ impl NovnowApp {
             Command::Export => {
                 // 節エディタの中身も含めて書き出す
                 session.bench.commit();
-                self.overlay = Overlay::Export {
-                    range: String::new(),
-                    state: None,
-                    fresh: true,
-                    flags: [
-                        session.bench.project().settings().export.include_blurb,
-                        false,
-                        false,
-                        false,
-                    ],
+                // §9.7.5: 下書きがあれば復元し、無ければプロジェクト設定から始める
+                self.overlay = match &self.drafts.export {
+                    Some(draft) => Overlay::Export {
+                        range: draft.range.clone(),
+                        state: draft.state,
+                        fresh: true,
+                        flags: draft.flags,
+                    },
+                    None => Overlay::Export {
+                        range: String::new(),
+                        state: None,
+                        fresh: true,
+                        flags: [
+                            session.bench.project().settings().export.include_blurb,
+                            false,
+                            false,
+                            false,
+                        ],
+                    },
                 };
             }
             Command::QuickFix => {
@@ -1279,9 +1605,9 @@ impl NovnowApp {
                 return true;
             }
             Command::Capture => {
-                // §10.4 MUST: どこからでも開き、画面は変えない
+                // §10.4 MUST: どこからでも開き、画面は変えない（§9.7.5: 下書きを復元する）
                 self.overlay = Overlay::Capture {
-                    input: String::new(),
+                    input: self.drafts.capture.clone().unwrap_or_default(),
                 };
                 return true;
             }
@@ -1675,28 +2001,44 @@ impl NovnowApp {
                 }
                 Action::EditMcp => {
                     self.overlay = Overlay::McpConfig {
-                        input: session
-                            .bench
-                            .project()
-                            .text(crate::core::agents::mcp_config::PATH)
-                            .to_owned(),
+                        // §9.7.5: 下書きがあれば復元し、無ければファイルの現在値から始める
+                        input: self.drafts.mcp_config.clone().unwrap_or_else(|| {
+                            session
+                                .bench
+                                .project()
+                                .text(crate::core::agents::mcp_config::PATH)
+                                .to_owned()
+                        }),
                         error: None,
                     };
                 }
                 Action::New => {
-                    let digits = session.bench.project().digits();
-                    let scope = session
-                        .bench
-                        .current_id()
-                        .map(|id| format!("@{}", id.display(digits)))
-                        .unwrap_or_default();
-                    self.overlay = Overlay::AgentNew {
-                        role: 0,
-                        scope,
-                        intent: String::new(),
-                        comment: String::new(),
-                        examples: String::new(),
-                        fresh: true,
+                    // §9.7.5: 下書きがあれば復元し、無ければ今の節を対象に始める
+                    self.overlay = match &self.drafts.agent_new {
+                        Some(draft) => Overlay::AgentNew {
+                            role: draft.role,
+                            scope: draft.scope.clone(),
+                            intent: draft.intent.clone(),
+                            comment: draft.comment.clone(),
+                            examples: draft.examples.clone(),
+                            fresh: true,
+                        },
+                        None => {
+                            let digits = session.bench.project().digits();
+                            let scope = session
+                                .bench
+                                .current_id()
+                                .map(|id| format!("@{}", id.display(digits)))
+                                .unwrap_or_default();
+                            Overlay::AgentNew {
+                                role: 0,
+                                scope,
+                                intent: String::new(),
+                                comment: String::new(),
+                                examples: String::new(),
+                                fresh: true,
+                            }
+                        }
                     };
                 }
                 Action::Run(ids) => {
@@ -1799,10 +2141,19 @@ impl NovnowApp {
                     }
                 }
                 Action::Reject { proposal, revert } => {
+                    // §9.7.5: 同じ提案・同じ向きの下書きだけを復元する
+                    let input = match &self.drafts.agent_comment {
+                        Some((saved, saved_revert, text))
+                            if *saved == proposal && *saved_revert == revert =>
+                        {
+                            text.clone()
+                        }
+                        _ => String::new(),
+                    };
                     self.overlay = Overlay::AgentComment {
                         proposal,
                         revert,
-                        input: String::new(),
+                        input,
                         missing: false,
                     };
                 }
@@ -3142,6 +3493,17 @@ impl NovnowApp {
         let mut confirm_approve = false;
         let mut jump_target = None;
         let workspace = session.spaces.switcher.current();
+        // §9.7.5: 外側クリックはここで一括して受ける（背面へは通さない）。補完と
+        // クイックフィックスは描画箇所（`workbench_frame`）で自前の受け皿を持つ。
+        let style = PopupStyle {
+            placement: self.overlay.placement(),
+            dismissible: self.overlay.kind().is_some_and(|kind| kind.dismissible()),
+            locale,
+        };
+        let outside = match self.overlay.kind() {
+            Some(OverlayKind::Completion | OverlayKind::QuickFix) | None => false,
+            Some(_) => click_shield(ctx, "overlay"),
+        };
         match &mut self.overlay {
             Overlay::None => {}
             Overlay::Palette { input, selected } => {
@@ -3168,7 +3530,7 @@ impl NovnowApp {
                     }
                 }
                 let mut chosen = None;
-                let outside = popup(ctx, "palette", colors, |ui| {
+                popup(ctx, "palette", colors, style, |ui| {
                     ui.set_width(540.0);
                     let edit = ui.add(
                         egui::TextEdit::singleline(input)
@@ -3218,9 +3580,6 @@ impl NovnowApp {
                         );
                     }
                 });
-                if outside {
-                    close = true;
-                }
                 if enter || other {
                     chosen = Some(*selected);
                 }
@@ -3364,7 +3723,10 @@ impl NovnowApp {
                             PaletteAction::McpConfig => {
                                 let path = crate::core::agents::mcp_config::PATH;
                                 self.overlay = Overlay::McpConfig {
-                                    input: session.bench.project().text(path).to_owned(),
+                                    // §9.7.5: 下書きがあれば復元する
+                                    input: self.drafts.mcp_config.clone().unwrap_or_else(|| {
+                                        session.bench.project().text(path).to_owned()
+                                    }),
                                     error: None,
                                 };
                                 return;
@@ -3401,7 +3763,7 @@ impl NovnowApp {
             }
             Overlay::McpConfig { input, error } => {
                 let mut save = false;
-                popup(ctx, "mcp-config", colors, |ui| {
+                popup(ctx, "mcp-config", colors, style, |ui| {
                     ui.set_width(620.0);
                     ui.label("agents/mcp.json");
                     if ui
@@ -3434,6 +3796,8 @@ impl NovnowApp {
                         }
                     });
                 });
+                // §9.7.5: 下書きとして毎フレーム保持する（閉じ方によらず次回に復元できる）
+                self.drafts.mcp_config = Some(input.clone());
                 if save {
                     match validate_mcp_editor(input, locale) {
                         Ok(()) => {
@@ -3442,6 +3806,7 @@ impl NovnowApp {
                                 input.clone(),
                                 now,
                             );
+                            self.drafts.mcp_config = None;
                             close = true;
                         }
                         Err(message) => *error = Some(message),
@@ -3454,6 +3819,7 @@ impl NovnowApp {
                     ctx,
                     if migration { "migration" } else { "welcome" },
                     colors,
+                    style,
                     |ui| {
                         let key = if migration {
                             "help.migration"
@@ -3490,7 +3856,7 @@ impl NovnowApp {
             }
             Overlay::LineWidth { input } => {
                 let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
-                popup(ctx, "line-width", colors, |ui| {
+                popup(ctx, "line-width", colors, style, |ui| {
                     ui.label(i18n::text(locale, "palette.line_width_hint"));
                     ui.add(egui::TextEdit::singleline(input).desired_width(160.0))
                         .request_focus();
@@ -3509,7 +3875,7 @@ impl NovnowApp {
             }
             Overlay::Jump { input, missed } => {
                 let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
-                popup(ctx, "jump", colors, |ui| {
+                popup(ctx, "jump", colors, style, |ui| {
                     let edit = ui.add(
                         egui::TextEdit::singleline(input)
                             .hint_text("@01-04-02-03")
@@ -3572,7 +3938,7 @@ impl NovnowApp {
             }
             Overlay::Capture { input } => {
                 let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
-                popup(ctx, "capture", colors, |ui| {
+                popup(ctx, "capture", colors, style, |ui| {
                     ui.label(
                         RichText::new(i18n::text(locale, "idea.capture_title"))
                             .color(colors.fg_faint),
@@ -3584,6 +3950,8 @@ impl NovnowApp {
                     );
                     edit.request_focus();
                 });
+                // §9.7.5: アイデア即時入力は複雑なフォームとして下書きを保持する
+                self.drafts.capture = Some(input.clone());
                 if enter {
                     if !input.trim().is_empty() {
                         let text = session
@@ -3602,6 +3970,7 @@ impl NovnowApp {
                             now,
                         );
                         session.notice = Some((i18n::format(locale, "idea.captured", &[&id]), now));
+                        self.drafts.capture = None;
                     }
                     close = true;
                 }
@@ -3644,7 +4013,7 @@ impl NovnowApp {
                     *selected = selected.saturating_sub(1);
                 }
                 let mut chosen = enter.then_some(*selected);
-                popup(ctx, "promote", colors, |ui| {
+                popup(ctx, "promote", colors, style, |ui| {
                     ui.label(
                         RichText::new(i18n::text(locale, "idea.promote_title"))
                             .color(colors.fg_faint),
@@ -3718,7 +4087,7 @@ impl NovnowApp {
                 }
             }
             Overlay::Help => {
-                popup(ctx, "help", colors, |ui| {
+                popup(ctx, "help", colors, style, |ui| {
                     ui.label(
                         RichText::new(i18n::text(locale, "help.title")).color(colors.fg_faint),
                     );
@@ -3756,7 +4125,7 @@ impl NovnowApp {
                 let message = session.bench.save.error().unwrap_or_default().to_owned();
                 let quota = message.contains(QUOTA_EXCEEDED);
                 let mut zip = false;
-                popup(ctx, "save-error", colors, |ui| {
+                popup(ctx, "save-error", colors, style, |ui| {
                     ui.label(
                         RichText::new(i18n::text(locale, "status.save_failed")).color(colors.error),
                     );
@@ -3939,7 +4308,7 @@ impl NovnowApp {
                     *selected = selected.saturating_sub(1);
                 }
                 let mut chosen = enter.then_some(*selected);
-                popup(ctx, "search", colors, |ui| {
+                popup(ctx, "search", colors, style, |ui| {
                     let edit = ui.add(
                         egui::TextEdit::singleline(query)
                             .hint_text(i18n::text(locale, "search.placeholder"))
@@ -4020,7 +4389,7 @@ impl NovnowApp {
                 }
                 *selected = (*selected).min(hits.len().saturating_sub(1));
                 let mut chosen = enter.then_some(*selected);
-                popup(ctx, "materials", colors, |ui| {
+                popup(ctx, "materials", colors, style, |ui| {
                     let edit = ui.add(
                         egui::TextEdit::singleline(query)
                             .hint_text(i18n::text(locale, "material.search_hint"))
@@ -4103,7 +4472,7 @@ impl NovnowApp {
             Overlay::ConfirmApprove { id } => {
                 let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
                 let mut approve = enter;
-                popup(ctx, "confirm-approve", colors, |ui| {
+                popup(ctx, "confirm-approve", colors, style, |ui| {
                     ui.label(
                         RichText::new(i18n::format(locale, "diag.W065", &[id.as_str()]))
                             .color(colors.warn),
@@ -4133,7 +4502,7 @@ impl NovnowApp {
             }
             Overlay::NewMaterial { input } => {
                 let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
-                popup(ctx, "new-material", colors, |ui| {
+                popup(ctx, "new-material", colors, style, |ui| {
                     ui.label(
                         RichText::new(i18n::text(locale, "material.new_title"))
                             .color(colors.fg_faint),
@@ -4186,7 +4555,9 @@ impl NovnowApp {
                 if up {
                     *role = role.saturating_sub(1);
                 }
-                popup(ctx, "agent-new", colors, |ui| {
+                // 下書きから復元した役割が現在の役割一覧の範囲外なら丸める
+                *role = (*role).min(roles.len().saturating_sub(1));
+                popup(ctx, "agent-new", colors, style, |ui| {
                     ui.label(
                         RichText::new(i18n::text(locale, "agent.new_title")).color(colors.fg_faint),
                     );
@@ -4236,6 +4607,14 @@ impl NovnowApp {
                     ui.label(
                         RichText::new(i18n::text(locale, "agent.new_hint")).color(colors.fg_faint),
                     );
+                });
+                // §9.7.5: タスク作成は複雑なフォームとして下書きを保持する
+                self.drafts.agent_new = Some(AgentNewDraft {
+                    role: *role,
+                    scope: scope.clone(),
+                    intent: intent.clone(),
+                    comment: comment.clone(),
+                    examples: examples.clone(),
                 });
                 if enter {
                     let stamp = session.host.now();
@@ -4288,6 +4667,7 @@ impl NovnowApp {
                         ));
                     }
                     session.notice = Some((notices.join(" / "), now));
+                    self.drafts.agent_new = None;
                     close = true;
                 }
             }
@@ -4299,7 +4679,7 @@ impl NovnowApp {
             } => {
                 let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
                 let mut run = enter;
-                popup(ctx, "agent-confirm", colors, |ui| {
+                popup(ctx, "agent-confirm", colors, style, |ui| {
                     ui.label(
                         RichText::new(i18n::format(
                             locale,
@@ -4362,7 +4742,7 @@ impl NovnowApp {
                 missing,
             } => {
                 let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
-                popup(ctx, "agent-comment", colors, |ui| {
+                popup(ctx, "agent-comment", colors, style, |ui| {
                     let title = if *revert {
                         i18n::text(locale, "agent.revert_title")
                     } else {
@@ -4378,6 +4758,8 @@ impl NovnowApp {
                         );
                     }
                 });
+                // §9.7.5: コメントの下書きは提案と向きに紐付けて保持する
+                self.drafts.agent_comment = Some((proposal.clone(), *revert, input.clone()));
                 if enter {
                     if input.trim().is_empty() {
                         *missing = true;
@@ -4385,6 +4767,7 @@ impl NovnowApp {
                         let message =
                             reject_proposal(session, proposal, input, *revert, now, locale);
                         session.notice = Some((message, now));
+                        self.drafts.agent_comment = None;
                         close = true;
                     }
                 }
@@ -4392,7 +4775,7 @@ impl NovnowApp {
             Overlay::AgentFixed { proposal, text } => {
                 let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
                 let mut accept = enter;
-                popup(ctx, "agent-fixed", colors, |ui| {
+                popup(ctx, "agent-fixed", colors, style, |ui| {
                     ui.label(
                         RichText::new(i18n::text(locale, "agent.fixed_confirm")).color(colors.warn),
                     );
@@ -4423,7 +4806,7 @@ impl NovnowApp {
                 let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
                 let mut reset = enter;
                 let targets = crate::core::agents::prompts::reset_targets(name);
-                popup(ctx, "prompt-reset", colors, |ui| {
+                popup(ctx, "prompt-reset", colors, style, |ui| {
                     ui.label(
                         RichText::new(i18n::format(locale, "prompt.reset_title", &[name.as_str()]))
                             .color(colors.fg_primary),
@@ -4467,7 +4850,7 @@ impl NovnowApp {
             }
             Overlay::PromptDiff { name } => {
                 let targets = crate::core::agents::prompts::reset_targets(name);
-                popup(ctx, "prompt-diff", colors, |ui| {
+                popup(ctx, "prompt-diff", colors, style, |ui| {
                     ui.label(
                         RichText::new(i18n::format(locale, "prompt.diff_title", &[name.as_str()]))
                             .color(colors.fg_primary),
@@ -4489,7 +4872,7 @@ impl NovnowApp {
                 }
                 let mut keep: Option<String> = None;
                 let mut take: Option<String> = None;
-                popup(ctx, "diff", colors, |ui| {
+                popup(ctx, "diff", colors, style, |ui| {
                     ui.label(
                         RichText::new(i18n::text(locale, "diff.title")).color(colors.fg_faint),
                     );
@@ -4573,7 +4956,7 @@ impl NovnowApp {
             Overlay::ConfirmDelete => {
                 let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
                 let mut confirmed = enter;
-                popup(ctx, "confirm-delete", colors, |ui| {
+                popup(ctx, "confirm-delete", colors, style, |ui| {
                     ui.label(i18n::text(locale, "delete.confirm"));
                     ui.add_space(8.0);
                     ui.horizontal(|ui| {
@@ -4628,7 +5011,7 @@ impl NovnowApp {
                 } else {
                     None
                 };
-                popup(ctx, "export", colors, |ui| {
+                popup(ctx, "export", colors, style, |ui| {
                     ui.label(
                         RichText::new(i18n::text(locale, "export.title")).color(colors.fg_faint),
                     );
@@ -4708,6 +5091,12 @@ impl NovnowApp {
                         }
                     });
                 });
+                // §9.7.5: エクスポート設定は複雑なフォームとして下書きを保持する
+                self.drafts.export = Some(ExportForm {
+                    range: range.clone(),
+                    state: *state,
+                    flags: *flags,
+                });
                 if let Some(kind) = action {
                     session.export_draft(range, *state, *flags);
                     if let Some(result) = export_now(ctx, session, kind, locale, now) {
@@ -4718,6 +5107,7 @@ impl NovnowApp {
                             Ok(message) => {
                                 session.notice = Some((message, now));
                                 session.guide_exported = true;
+                                self.drafts.export = None;
                                 close = true;
                             }
                             Err(message) => self.overlay = Overlay::Message(message),
@@ -4726,7 +5116,7 @@ impl NovnowApp {
                 }
             }
             Overlay::Message(text) => {
-                popup(ctx, "message", colors, |ui| {
+                popup(ctx, "message", colors, style, |ui| {
                     for line in text.lines() {
                         ui.label(RichText::new(line).color(colors.fg_muted));
                     }
@@ -4739,7 +5129,7 @@ impl NovnowApp {
                 });
             }
             Overlay::CloseGuard => {
-                popup(ctx, "close-guard", colors, |ui| {
+                popup(ctx, "close-guard", colors, style, |ui| {
                     ui.label(
                         RichText::new(i18n::text(locale, "status.save_failed")).color(colors.error),
                     );
@@ -4778,7 +5168,7 @@ impl NovnowApp {
             } => {
                 use crate::core::features::rename::RenameError;
                 let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
-                popup(ctx, "rename", colors, |ui| {
+                popup(ctx, "rename", colors, style, |ui| {
                     let edit = ui.add(
                         egui::TextEdit::singleline(input)
                             .hint_text(i18n::text(locale, "rename.placeholder"))
@@ -4840,7 +5230,7 @@ impl NovnowApp {
                     *selected = selected.saturating_sub(1);
                 }
                 let mut chosen = enter.then_some(*selected);
-                popup(ctx, "references", colors, |ui| {
+                popup(ctx, "references", colors, style, |ui| {
                     let title = if locations.is_empty() {
                         i18n::format(locale, "references.none", &[name.as_str()])
                     } else {
@@ -4902,6 +5292,11 @@ impl NovnowApp {
                     close = true;
                 }
             }
+        }
+        // §9.7.5: 外側クリックで閉じる（確認モーダルではキャンセルと同じ意味）。
+        // 保存失敗と終了ガードだけは閉じない（`style.dismissible` が偽）。
+        if outside && style.dismissible {
+            close = true;
         }
         if close {
             self.overlay = Overlay::None;
@@ -5559,6 +5954,8 @@ fn completion(
     let anchor = session.caret.map_or(Pos2::new(120.0, 120.0), |rect| {
         rect.left_bottom() + Vec2::new(0.0, 4.0)
     });
+    // §9.7.5（軽い重ね物）: 外側クリックは閉じるだけで、背面のエディタへ通さない
+    let outside = click_shield(ctx, "completion");
     egui::Area::new(Id::new("completion"))
         .order(egui::Order::Foreground)
         .fixed_pos(anchor)
@@ -5595,6 +5992,9 @@ fn completion(
                     }
                 });
         });
+    if outside {
+        return false;
+    }
     let Some(item) = chosen.and_then(|index| items.get(index)) else {
         return true;
     };
@@ -5659,6 +6059,8 @@ fn quick_fix(
     let anchor = anchor.map_or(Pos2::new(120.0, 120.0), |rect| {
         rect.left_bottom() + Vec2::new(0.0, 4.0)
     });
+    // §9.7.5（軽い重ね物）: 外側クリックは閉じるだけで、背面のエディタへ通さない
+    let outside = click_shield(ctx, "quick-fix");
     egui::Area::new(Id::new("quick-fix"))
         .order(egui::Order::Foreground)
         .fixed_pos(anchor)
@@ -5688,6 +6090,9 @@ fn quick_fix(
                     }
                 });
         });
+    if outside {
+        return false;
+    }
     match chosen.and_then(|index| actions.get(index)) {
         Some(action) => {
             session.bench.apply_edit(&action.edit, now);
@@ -6025,11 +6430,13 @@ fn palette_label(ui: &egui::Ui, text: &str, max_width: f32) -> String {
     format!("{}...", chars[..low].iter().collect::<String>())
 }
 
-fn popup(ctx: &Context, id: &str, colors: theme::Palette, add: impl FnOnce(&mut egui::Ui)) -> bool {
+/// 外側クリックの受け皿（§9.7.5・F-27）: 全画面の前景でクリックを受け、
+/// 背面のエディタやボタンへは絶対に通さない。重ね物本体より**前に**出すこと
+/// （後に出した前景が上に来るため、本体のクリックは本体が受ける）。
+/// 戻り値は「重ね物の外側が押されたか」。
+fn click_shield(ctx: &Context, id: &str) -> bool {
     let screen = ctx.screen_rect();
-    // Catch clicks outside the foreground area; never let a click through to an
-    // editor or destructive control beneath it (F-27).
-    let outside = egui::Area::new(Id::new((id, "shield")))
+    egui::Area::new(Id::new((id, "shield")))
         .order(egui::Order::Foreground)
         .fixed_pos(screen.min)
         .show(ctx, |ui| {
@@ -6037,17 +6444,33 @@ fn popup(ctx: &Context, id: &str, colors: theme::Palette, add: impl FnOnce(&mut 
                 .1
                 .clicked()
         })
-        .inner;
+        .inner
+}
+
+/// モーダルの枠（§9.7.5）。背景を暗くし、配置は画面中央／上部（パレット系）の 2 系統、
+/// 閉じられるモーダルには末尾に閉じる案内の共通フッタを付ける。外側クリックの受け皿と
+/// 「閉じる」判断は呼び出し側（`overlays` の中央処理）が持つ。
+fn popup(
+    ctx: &Context,
+    id: &str,
+    colors: theme::Palette,
+    style: PopupStyle,
+    add: impl FnOnce(&mut egui::Ui),
+) {
+    let screen = ctx.screen_rect();
     ctx.layer_painter(egui::LayerId::new(egui::Order::Middle, Id::new("dim")))
         .rect_filled(screen, 0.0, Color32::from_black_alpha(96));
-    let area = egui::Area::new(Id::new(id)).order(egui::Order::Foreground);
+    let area = egui::Area::new(Id::new(id))
+        .order(egui::Order::Foreground)
+        .constrain_to(screen);
     // Area::anchor uses ctx.available_rect(), which shrinks after the side
-    // panels have been laid out. The command palette must use the *window*
-    // center instead, regardless of the workspace beneath it.
-    let area = if id == "palette" {
-        area.fixed_pos(Pos2::new(screen.center().x - 282.0, screen.top() + 72.0))
-    } else {
-        area.anchor(Align2::CENTER_TOP, Vec2::new(0.0, 72.0))
+    // panels have been laid out. Modals must use the *window* center instead,
+    // regardless of the workspace beneath it.
+    let area = match style.placement {
+        PopupPlacement::Top => area
+            .fixed_pos(Pos2::new(screen.center().x, screen.top() + 72.0))
+            .pivot(Align2::CENTER_TOP),
+        PopupPlacement::Center => area.fixed_pos(screen.center()).pivot(Align2::CENTER_CENTER),
     };
     area.show(ctx, |ui| {
         if id == "palette" {
@@ -6061,9 +6484,16 @@ fn popup(ctx: &Context, id: &str, colors: theme::Palette, add: impl FnOnce(&mut 
             .show(ui, |ui| {
                 ui.set_max_width(560.0);
                 add(ui);
+                if style.dismissible {
+                    ui.add_space(8.0);
+                    ui.label(
+                        RichText::new(i18n::text(style.locale, "modal.close_hint"))
+                            .small()
+                            .color(colors.fg_faint),
+                    );
+                }
             });
     });
-    outside
 }
 
 /// `>export` のモーダルでの操作（§17.2）。

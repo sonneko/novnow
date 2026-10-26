@@ -316,6 +316,7 @@ retry = "Retry"
 close = "Close"
 discard_and_close = "Discard and close"
 cancel = "Cancel"
+close_hint = "Esc / click outside to close"
 
 [command]
 theme = "Switch theme"

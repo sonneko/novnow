@@ -3010,3 +3010,150 @@ fn workspace_action_and_list_row_share_underline_hover_and_minimum_hit_target() 
         );
     }
 }
+
+// ============================================================ 重ね物の共通規則（§9.7.5、Issue #29 / B1）
+
+/// 全重ね物を 1 つずつ開き、外側クリックと `Esc` で「閉じるべきものは閉じ、
+/// 閉じてはいけないもの（保存失敗・終了ガード）は閉じず、背面が操作されず、
+/// 本文が変わらない」ことを検証する。種類の列挙は `OverlayKind::ALL` で、
+/// 重ね物を増やすと `Overlay::kind` / `Overlay::sample` の網羅性でコンパイル時に気づく。
+#[test]
+fn every_overlay_closes_on_outside_click_and_escape_except_the_locked_two() {
+    use novnow::ui::app::OverlayKind;
+    let mut harness = Harness::new();
+    // 補完が候補を持つ状態にする（候補が無いと自ら閉じて検証にならない）
+    harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text("'".into())]);
+    harness.frame(Vec::new());
+    assert!(harness.app.overlay_open(), "補完が出ている");
+    harness.frame(vec![key(Key::Escape, Modifiers::NONE)]);
+    assert!(!harness.app.overlay_open());
+
+    for kind in OverlayKind::ALL {
+        let kind = *kind;
+        // --- 外側クリック ---
+        harness.app.open_overlay_for_test(kind);
+        harness.frame(Vec::new());
+        harness.frame(Vec::new());
+        if harness.app.overlay_open() {
+            let bench = harness.app.workbench().expect("open");
+            let before = (bench.buffer().to_owned(), bench.current_id());
+            let workspace = harness.app.workspace();
+            harness.click_at(Pos2::new(20.0, 155.0));
+            harness.frame(Vec::new());
+            assert_eq!(
+                harness.app.overlay_open(),
+                !kind.dismissible(),
+                "{kind:?}: 外側クリック"
+            );
+            let bench = harness.app.workbench().expect("open");
+            assert_eq!(
+                (bench.buffer().to_owned(), bench.current_id()),
+                before,
+                "{kind:?}: 背面を操作せず本文も変わらない"
+            );
+            assert_eq!(harness.app.workspace(), workspace, "{kind:?}");
+        } else {
+            // 自分から閉じるもの（衝突が無い Diff 等）は閉じられる種類だけである
+            assert!(kind.dismissible(), "{kind:?} は勝手に閉じない");
+        }
+        // --- Esc ---
+        harness.app.open_overlay_for_test(kind);
+        harness.frame(Vec::new());
+        harness.frame(Vec::new());
+        harness.frame(vec![key(Key::Escape, Modifiers::NONE)]);
+        harness.frame(Vec::new());
+        assert_eq!(
+            harness.app.overlay_open(),
+            !kind.dismissible(),
+            "{kind:?}: Esc"
+        );
+    }
+}
+
+#[test]
+fn modals_are_centered_with_a_close_hint_and_locked_ones_have_none() {
+    use novnow::ui::app::OverlayKind;
+    let mut harness = Harness::new();
+    harness
+        .app
+        .open_overlay_for_test(OverlayKind::ConfirmDelete);
+    harness.frame(Vec::new());
+    harness.frame(Vec::new());
+    let output = harness.frame(Vec::new());
+    let confirm = harness::painted_texts(&output)
+        .into_iter()
+        .find(|(text, _)| text.contains("この節を削除しますか"))
+        .expect("delete confirmation")
+        .1;
+    assert!(
+        (confirm.center().x - 640.0).abs() < 220.0,
+        "水平中央: {confirm:?}"
+    );
+    assert!(
+        confirm.center().y > 250.0 && confirm.center().y < 550.0,
+        "垂直中央付近（画面 1280x800 の中央 400）: {confirm:?}"
+    );
+    assert!(
+        painted_text(&output).contains("Esc / 外側クリックで閉じる"),
+        "共通フッタの閉じる案内"
+    );
+    harness.app.open_overlay_for_test(OverlayKind::SaveError);
+    harness.frame(Vec::new());
+    harness.frame(Vec::new());
+    let output = harness.frame(Vec::new());
+    assert!(
+        !painted_text(&output).contains("Esc / 外側クリックで閉じる"),
+        "閉じられないモーダルに案内を出さない"
+    );
+}
+
+#[test]
+fn complex_form_drafts_are_restored_but_never_saved_to_the_project() {
+    let mut harness = Harness::new();
+    // アイデア即時入力: 書いて Esc で閉じ、開き直すと復元される
+    harness.frame(vec![key(Key::I, Modifiers::CTRL | Modifiers::SHIFT)]);
+    harness.frame(vec![Event::Text("下書きのメモ".into())]);
+    harness.frame(vec![key(Key::Escape, Modifiers::NONE)]);
+    assert!(!harness.app.overlay_open());
+    harness.frame(vec![key(Key::I, Modifiers::CTRL | Modifiers::SHIFT)]);
+    let output = painted_text(&harness.frame(Vec::new()));
+    assert!(output.contains("下書きのメモ"), "復元される: {output}");
+    // 確定したら下書きは消える
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(vec![key(Key::I, Modifiers::CTRL | Modifiers::SHIFT)]);
+    let output = painted_text(&harness.frame(Vec::new()));
+    assert!(
+        !output.contains("下書きのメモ"),
+        "確定後は残らない: {output}"
+    );
+    harness.frame(vec![key(Key::Escape, Modifiers::NONE)]);
+
+    // MCP 設定: 書いて外側クリックで閉じてもファイルは変わらず、開き直すと復元される
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text(">mcp".into())]);
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+    harness.frame(Vec::new());
+    let title = harness.rect_of("agents/mcp.json").expect("mcp modal");
+    harness.click_at(Pos2::new(title.min.x + 50.0, title.max.y + 26.0));
+    harness.frame(vec![Event::Text("draft-mcp-text".into())]);
+    harness.frame(Vec::new());
+    harness.click_at(Pos2::new(20.0, 155.0));
+    assert!(!harness.app.overlay_open(), "外側クリックで閉じる");
+    assert_eq!(
+        harness
+            .app
+            .workbench()
+            .unwrap()
+            .project()
+            .text("agents/mcp.json"),
+        "",
+        "下書きはファイルへ書かない"
+    );
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text(">mcp".into())]);
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    let output = painted_text(&harness.frame(Vec::new()));
+    assert!(output.contains("draft-mcp-text"), "復元される: {output}");
+}
