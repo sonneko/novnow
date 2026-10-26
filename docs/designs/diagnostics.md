@@ -6,7 +6,7 @@
 
 ### 7.0 コア・構文・解決・整合の診断
 
-状態: 実装完了（REF:src/core/diagnostics.rs, REF:src/core/features/project.rs, REF:tests/diagnostics_catalog.rs, REF:tests/diagnostics_document.rs）
+状態: 未実装・実装計画済み（REF:src/core/diagnostics.rs, REF:src/core/features/project.rs, REF:tests/diagnostics_catalog.rs, REF:tests/diagnostics_document.rs, REF:docs/plans.md#issue-29-b10）
 
 - コア・構文・解決・整合の 39 コード（`E001`〜`E030`, `W001`〜`W015`, `I001`〜`I002`）は `DiagnosticCode`（`REF:src/core/diagnostics.rs`）に列挙し、`CATALOG` 定数で重大度・グループ・引数個数を管理する。
 - 文書単位およびプロジェクト横断の診断収集は `core::features::diagnostics`（`REF:src/core/features/project.rs`）が担う。
@@ -19,6 +19,10 @@
   - 伏線グラフの `I001`（伏線と回収のペア成立）は伏線側・回収側の双方で参照でき、かつ診断一覧で件数が倍増しないよう、回収側に 1 件のみ出して `related` に伏線側の位置を入れる（`A-22`）。
   - `cli::check` の JSON 出力と text 出力はともに `(path, range.start, code)` の辞書順でソートして決定性を保証し（`B-76`）、`--fix` は安全フラグ付きの `QuickFix` のみを末尾側から自動適用する（`B-86`, `B-102`）。
 
+- **[Issue #29 / B10] 有効性とエラー扱いの上書き（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b10`）**:
+  - 組み込み既定（表の深刻度と既定）は現行定数のままにし、読み込み時に `[features.diagnostics]`（仕様 §4.5.2）の解決結果（コード → グループ → `default`）で上書きした有効な組み立てを診断生成へ渡す。コアは解決済みの値だけを見て生成し、設定ファイルの書式は知らない。
+  - `"error"` の診断は `check` の終了コード 5 の対象に含め、`"off"` の診断は生成しない（件数にも含めない）。
+
 ### 7.1 ストレージ・エージェント系（文書位置を持たない通知）
 
 状態: 実装完了（REF:src/core/diagnostics.rs, REF:src/adapters/storage_fs.rs, REF:src/adapters/storage_idb.rs, REF:tests/diagnostics_catalog.rs）
@@ -29,7 +33,7 @@
 
 ### 7.2 執筆支援系の診断
 
-状態: 実装完了（REF:src/core/diagnostics.rs, REF:src/core/features/project.rs, REF:src/core/features/project.rs, REF:tests/diagnostics_document.rs, REF:docs/plans.md#plan-S-15）
+状態: 未実装・実装計画済み（REF:src/core/diagnostics.rs, REF:src/core/features/project.rs, REF:tests/diagnostics_document.rs, REF:docs/plans.md#plan-S-15, REF:docs/plans.md#issue-29-b7）
 
 - 執筆支援系の 27 コード（`W080`〜`W099`, `E032`〜`E036`, `E064`, `I054`）は `Group::Writing` として `REF:src/core/diagnostics.rs` に定義する。
 - 既定の有効（`TOGGLE_ON`: 11 件）/ 無効（`TOGGLE_OFF`: 7 件）および実行コスト制御テーブル（`COST`: 16 件の `Trigger` × `Scope`）は `REF:src/core/diagnostics.rs` に定数表として持ち、`REF:tests/diagnostics_catalog.rs` で仕様表との完全一致を検証する。
@@ -40,3 +44,8 @@
 
 - **[S-15] 全診断コードの Web サイト解説と CI 網羅検査（実装完了: `REF:website/src/pages/[lang]/diagnostics/[code].astro`, `REF:scripts/diagnostics-site.py`）**:
   - `REF:website/src/data/diagnostics.ts` は仕様表から生成し、`REF:website/src/data/diagnostics-en.json` と `REF:website/src/data/diagnostics-examples.json` に全 76 コードの日英の原因・例・対処法を置く。`REF:website/src/pages/[lang]/diagnostics/[code].astro` でコードごとの解説ページを生成し、`REF:scripts/diagnostics-site.py` の `--check` を CI（`REF:.github/workflows/ci.yml`）で実行して仕様表とのコード集合一致と内容の非空性を検査する。
+
+- **[Issue #29 / B7] トグルの feature 化と W096 の追加（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b7`）**:
+  - 現行のセッション内トグル（`TOGGLE_ON` / `TOGGLE_OFF` 定数）は「組み込み既定」として残し、作者の上書きは `[features.diagnostics]` が持つ（§7.0 の B10 の設計）。UI 側の切替は設定ファイルへ保存する（§10.9.6）。表示フィルタは従来どおり保存しない。
+  - W096 は §7.2.2 の散文定義が正本であり、B7 の実装時に §7.2 の表へ行として取り込み、コード・日英カタログ・Web サイトの解説データ（§7.2.1）・コスト/トグルの定数表を同時に更新して、仕様表と実装の一致（76 件 → 77 件）を一度に成立させる。
+  - 集計は作品全体から取り、編集フローでは編集中の節だけを再走査する。全体集計の再計算は、文体タブを開いたときと節の確定時に限る。文字種による対象判定（日本語主体かどうか）は本文の文字の素性だけで決め、表示言語は使わない。

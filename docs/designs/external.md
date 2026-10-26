@@ -45,7 +45,7 @@
 
 ### 20.4 VSCode 拡張版
 
-状態: 実装完了（REF:src/lsp/mod.rs, REF:vscode/package.json, REF:vscode/src/extension.ts, REF:vscode/src/binary.ts, REF:vscode/src/commands.ts, REF:.github/workflows/vscode.yml）
+状態: 未実装・実装計画済み（REF:src/lsp/mod.rs, REF:vscode/package.json, REF:vscode/src/extension.ts, REF:vscode/src/binary.ts, REF:vscode/src/commands.ts, REF:.github/workflows/vscode.yml, REF:docs/plans.md#issue-29-b9, REF:docs/plans.md#issue-29-b10）
 
 - **置き場所**: `REF:vscode/`。`package.json`（識別子 `sonneko.novnow`、`engines.vscode`、`activationEvents`、`contributes.configuration`、`contributes.commands`）、`src/extension.ts`（接続とコマンド）、`esbuild.mjs`（1 ファイルへ束ねる）。`novnow` の実行ファイルは同梱しない。
 - **依存**: `vscode-languageclient` と `vscode-languageserver-protocol` だけを足す（npm）。esbuild で `dist/extension.js` に束ね、`node_modules` を `.vsix` に入れない。
@@ -57,6 +57,10 @@
 - **失敗時の見え方**: 取得に失敗したら `window.showErrorMessage` に「手動で入れる場所」の URL を添える。同じ版・対象環境では失敗状態を保存し、自動再試行を止め、`novnow.autoDownload` を無効にしたのと同じ状態にする。
 - **テスト**: `@vscode/test-electron` で (1) `executablePath` を与えたときにサーバが起動する、(2) 取得関数が照合値の不一致で例外になる、(3) コマンドが CLI を呼ぶ、の 3 件。CI では `xvfb-run` を使う。
 - **公開**: `vsce package` で `.vsix` を作り、リリースへ添付する。Marketplace公開は遅くとも製品v1到達までに開始する保留事項とし、現在のworkflowには公開ジョブ・入力・PAT依存を置かない。
+
+- **[Issue #29 / B9・B10] 両市場への公開準備と `.cnov` 対応（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b9`）**:
+  - VS Code Marketplace と Open VSX への公開ジョブを、タグ実行でも自動公開にならない形（手動承認付きの `workflow_dispatch`）で用意する。登録と発行者トークンの用意は所有者の手続きであり、ジョブはトークンが無ければ安全に何もしない。初回公開自体はその後に別途行う。
+  - 拡張へ `.cnov` の言語関連付けと最低限の色付け（シジル・コメント・台詞など）を足す（B10 の改名への追随）。
 
 ### 20.5 GitHub Actions 版
 
@@ -74,10 +78,13 @@
 
 ### 20.6 公開・版・廃止
 
-状態: 実装完了（REF:src/main.rs, REF:scripts/release-check.sh, REF:scripts/release-tags.sh, REF:scripts/release-matrix.py, REF:.github/workflows/release.yml）
+状態: 未実装・実装計画済み（REF:src/main.rs, REF:scripts/release-check.sh, REF:scripts/release-tags.sh, REF:scripts/release-matrix.py, REF:.github/workflows/release.yml, REF:docs/plans.md#issue-29-b9）
 
 - **追加の公開物**: `REF:Cargo.toml` のクレートを crates.io に公開し、追跡対象全体（文書を含む）を `git archive` でソースアーカイブ化する。最終照合は `REF:scripts/release-matrix.py` がソースを含めて行う。
 - **公開の順序**: `REF:.github/workflows/release.yml` の `needs` で、デスクトップ・ホイール試験・クレート dry-run → Releases 添付 → TestPyPI → PyPI → VSIX 作成 → 最終照合 → 可動タグの順を制御する。crates.io 公開は Releases 添付後に進め、最終照合の前提にする。タグ実行は環境承認後に全公開を行い、手動実行は選択したレジストリのみ公開する。失敗した公開を成功扱いにしない。
 - **未提供の表示**: `REF:scripts/release-matrix.py --status` はローカル成果物の準備状態を返す。レジストリの公開成功を判定する API ではない。README・手引き・サイトは公開確認後に保守担当者が更新し、未公開の形態は「未提供」を維持する。
 - **取り下げ**: リリースの成果物は削除しない。PyPI は `yank` を使い、`SHA256SUMS` とリリースノートに理由を書く。市場と Actions のタグは戻さず、修正版を出す。
 - **検査**: `REF:scripts/release-check.sh` が (1) 10 + 5 + VSIX + 全ソースの成果物が揃う、(2) `SHA256SUMS` の行数が成果物と一致する、(3) 各形態の版が `Cargo.toml` と一致する、(4) 主要版タグが最新の版を指す、を確かめる。`REF:scripts/verify.sh` には入れない（リリース時だけの検査なので、通常のコミットで走らせない）。
+
+- **[Issue #29 / B9] 市場公開を公開完了の条件から外す（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b9`）**:
+  - 公開チェック（`REF:scripts/release-check.sh`）は 5 形態の成果物と照合値を従来どおり揃えて判定し、市場への公開は条件に含めない。市場側は手動承認のジョブ（§20.4）で後から進める。

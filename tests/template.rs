@@ -342,20 +342,23 @@ fn the_prompts_carry_the_must_have_elements_of_appendix_a() {
 
 #[test]
 fn the_spec_lists_the_same_template() {
-    // §14.5 の表の左の列（パス）が雛形と食い違っていないか（仕様書を読み直す）
+    // §14.5 の表の左の列（パス）が雛形と食い違っていないか（仕様書を読み直す）。
+    // Issue #29 の仕様更新で §14.5 は新名称（`project.toml` / `.cnov`）へ移行したため、
+    // ここは仕様書に合わせる。生成側（雛形）の追随は別バッチ（B10）で行い、その間は
+    // `the_template_has_exactly_the_files_of_section_14_5` 側の現行名の列挙と食い違う。
     let start = SPEC.find("### 14.5 `novnow new` の生成物").expect("§14.5");
     let block = &SPEC[start..];
     let block = &block[block.find("```").expect("open") + 3..];
     let block = &block[..block.find("```").expect("close")];
     for name in [
-        "project.json",
+        "project.toml",
         "characters.md",
         "words.md",
         "ideas.md",
-        "contents/01-01.txt",
-        "plots/all.txt",
-        "plots/01.txt",
-        "plots/01-01.txt",
+        "contents/01-01.cnov",
+        "plots/all.cnov",
+        "plots/01.cnov",
+        "plots/01-01.cnov",
         "materials/index.json",
         "materials/docs/.gitkeep",
         "prompts/*.md",

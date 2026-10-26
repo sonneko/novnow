@@ -9,7 +9,7 @@ source: "docs/specifications/syntax.md"
 
 ### 5.0 共通字句規則
 
-すべての novnow テキスト形式（`contents/*.txt`, `plots/*.txt`, `*.md`）に共通。
+すべての novnow テキスト形式（`contents/*.cnov`, `plots/*.cnov`, `*.md`）に共通。
 
 #### 5.0.1 行指向の原則（MUST）
 
@@ -25,9 +25,9 @@ source: "docs/specifications/syntax.md"
 | `'{ }` | 明示参照 | 区切りが曖昧なときの参照（§6.2.3） | 同上 |
 | `:` | Modifier | `'` トークンの修飾子（モード ID / 資料タイトル） | `'` トークン直後 |
 | `+` | ModeJoin | モードの併用（最大 2、§6.4.4） | モード修飾子内 |
-| `;` | SectionBreak | 節区切り・ブロック終わり（行全体が `;` のときのみ） | A / B / C 形式（`.txt`） |
+| `;` | SectionBreak | 節区切り・ブロック終わり（行全体が `;` のときのみ） | A / B / C 形式（`.cnov`） |
 | `//` | LineComment | 行頭: その行全体がコメント / 行内: 以降行末までコメント（**`://` は除く**） | 全形式 |
-| `# ` | LineComment | **行頭のみ**。その行全体がコメント（§5.0.8） | A / B / C 形式（`.txt` のみ） |
+| `# ` | LineComment | **行頭のみ**。その行全体がコメント（§5.0.8） | A / B / C 形式（`.cnov` のみ） |
 | `/* */` | InlineComment | 行内コメント（**単一行内で閉じること**） | 全形式 |
 | `「」` | Dialogue | 会話。`『』` は入れ子の引用として同様に扱う | C 形式 |
 | `^` | Citation | 行末の資料引用注釈（`^M0137`、§5.2.4） | C 形式 |
@@ -52,7 +52,7 @@ source: "docs/specifications/syntax.md"
 #### 5.0.4 改行・符号化・正規化
 
 - 読み込み: UTF-8。BOM があれば剥がして読み、保存時は付けない（MUST）。改行 LF / CRLF / CR を受理し、内部表現は LF。
-- 保存: `project.json.newline` に従う。既定 LF、BOM なし。
+- 保存: `project.toml` の `newline` に従う。既定 LF、BOM なし。
 - 行末の半角/全角空白は保存時に削除（MUST）。ただし行頭のインデントは保持する。
 - ファイル末尾は必ず改行 1 個で終える（MUST）。
 - Unicode 正規化は行わない（作家の入力を変えないため）。ただし **辞書照合時のみ** NFKC 相当の比較を行う（§6.1.3）。
@@ -182,7 +182,7 @@ summary: 一行目
 hash_comment = ws? , "#" , (" " | "　") , any* , eol ;
 ```
 
-- **`.txt`（A / B / C 形式）でのみ有効**。`.md` ファイル（`characters.md` 等）では `#` は従来どおり見出しであり、コメントにならない（MUST）。
+- **`.cnov`（A / B / C 形式）でのみ有効**。`.md` ファイル（`characters.md` 等）では `#` は従来どおり見出しであり、コメントにならない（MUST）。
 - 行頭のみ。行の途中の `#` はただの文字。
 - 複数行コメントは存在しない（1 行 1 コメント、MUST）。
 - `//` との使い分けは利用者の自由。novnow はどちらも同じ `comment` トークンとして扱い、相互変換もしない。
@@ -193,12 +193,20 @@ hash_comment = ws? , "#" , (" " | "　") , any* , eol ;
 「……付き合ってあげるわよ」@リリア:B
 ```
 
+#### 5.0.9 文書として認識する範囲
+
+novnow が文書として読み、解析し、書き戻すのは、置き場所と拡張子の組が仕様の定義に一致するファイルだけである。
+
+- `contents/<章>-<話>.cnov` は本文（C 形式）、`plots/all.cnov` と `plots/<章>.cnov` はアウトライン（A 形式）、`plots/<章>-<話>.cnov` は話プロット（B 形式）。形式は拡張子単体では決まらず、置き場所とファイル名の形との組で決まる。
+- 名前がこの形に一致しないファイルは文書として認識しない。`contents/` にあっても拡張子が `.cnov` でないファイルや、章・話の番号の形に合わない `.cnov` がそうである。認識しないファイルは解析も書き戻しもせず、§4.3 のとおり未知のファイルとして触れない。
+- `.cnov` は A / B / C の 3 形式で使う novnow 専用の拡張子であり、中身は通常の UTF-8 テキストである。
+
 ### 5.1 SceneId と範囲式
 
 ```ebnf
 scene_id      = num , "-" , num , "-" , num , [ "-" , num ] ;
 partial_id    = num , [ "-" , num , [ "-" , num , [ "-" , num ] ] ] ;
-num           = /\d{1,4}/ ;                   (* 表示は project.json の桁数でゼロ詰め *)
+num           = /\d{1,4}/ ;                   (* 表示は project.toml の桁数でゼロ詰め *)
 range_expr    = range_term , { "," , ws , range_term } ;
 range_term    = ( "@" partial_id , ws? , ".." , ws? , [ "@" partial_id ] )
               | ( ".." , ws? , "@" partial_id )
@@ -215,7 +223,7 @@ range_term    = ( "@" partial_id , ws? , ".." , ws? , [ "@" partial_id ] )
 - カンマ区切りで複数区間の和集合。
 - **境界検査**: 区間の左端 > 右端 のときは **E016**。
 
-表示（`SceneId::display`）: `section == 0` のときは 3 階層表示、それ以外は 4 階層。いずれも `project.json.structure.*_digits` でゼロ詰め。
+表示（`SceneId::display`）: `section == 0` のときは 3 階層表示、それ以外は 4 階層。いずれも `project.toml` の `structure.*_digits` でゼロ詰め。
 
 #### 5.1.1 階層ごとの役割（再掲）
 
@@ -227,8 +235,8 @@ range_term    = ( "@" partial_id , ws? , ".." , ws? , [ "@" partial_id ] )
 
 | 位置 | 意味 | ファイル | 備考 |
 |---|---|---|---|
-| `A = 00` | **未配属ストック章** | `contents/00-01.txt`, `plots/00.txt`, `plots/00-01.txt` | 章番号を決めていない話の仮置き場。UI 表示名は「未分類ストック」。`structure.allow_chapter_zero = false` にすると **E022** で拒否 |
-| `B = 00` | **章あらすじ** | `contents/01-00.txt`, `plots/01.txt` 内の `@01-00` ブロック | 読者向けの短いあらすじ。`blurb:` フィールドを持つ（§5.3.2） |
+| `A = 00` | **未配属ストック章** | `contents/00-01.cnov`, `plots/00.cnov`, `plots/00-01.cnov` | 章番号を決めていない話の仮置き場。UI 表示名は「未分類ストック」。`structure.allow_chapter_zero = false` にすると **E022** で拒否 |
+| `B = 00` | **章あらすじ** | `contents/01-00.cnov`, `plots/01.cnov` 内の `@01-00` ブロック | 読者向けの短いあらすじ。`blurb:` フィールドを持つ（§5.3.2） |
 | `C = 00` | 予約（未使用） | — | v0.1.0 では書いてはならない（**E022**） |
 | `D = 00` | 場面全体 | — | 既存仕様（見出しで `D` を省略した状態） |
 
@@ -241,7 +249,7 @@ range_term    = ( "@" partial_id , ws? , ".." , ws? , [ "@" partial_id ] )
 **ストックから正式な章への移動**（§10.3.3）は、ファイル名のリネームと本文・プロット内の SceneId 一括置換を
 **1 つの操作として原子的に** 行う（途中失敗時は全て巻き戻す、MUST）。
 
-### 5.2 本文形式（C 形式）— `contents/AA-BB.txt`
+### 5.2 本文形式（C 形式）— `contents/AA-BB.cnov`
 
 #### 5.2.1 文法
 
@@ -341,14 +349,14 @@ B 形式の `illustration:` フィールド（§5.4.2）を使う。両者は独
 
 - 会話スパンの閉じ鉤括弧（`」` または `』`）の直後（空白を挟む場合を含む）に `@` を入力したときは、行末話者注釈の入力開始とみなし、登録済みの登場人物名および `@キャラ:モード` の予測補完候補を即座に提示する。
 
-### 5.3 アウトライン形式（A 形式）— `plots/all.txt`, `plots/AA.txt`
+### 5.3 アウトライン形式（A 形式）— `plots/all.cnov`, `plots/AA.cnov`
 
 **全体プロットと章プロットは同一形式**。違いは「見出しが指す階層」だけである。
 
 | ファイル | 見出しの階層 | 記述対象 |
 |---|---|---|
-| `plots/all.txt` | `@A`（章） | 物語全体の構成。章の要約・目的・転換・伏線 |
-| `plots/01.txt` | `@A-B`（話） | 1 章の構成。話の要約・目的・転換・配役モードの推移 |
+| `plots/all.cnov` | `@A`（章） | 物語全体の構成。章の要約・目的・転換・伏線 |
+| `plots/01.cnov` | `@A-B`（話） | 1 章の構成。話の要約・目的・転換・配役モードの推移 |
 
 #### 5.3.1 文法
 
@@ -386,9 +394,9 @@ note_line    = inline+ , eol ;        (* フィールドに当てはまらない
 - `summary` が無いブロックは **E018**。
 - `summary` が 120 字を超えると **W019**（4 段階のコンテキスト削減効果が落ちるため）。
 - ブロックの見出し ID は同一ファイル内で一意（重複は **E008**）。
-- ファイル内の見出し階層は揃っていること（`all.txt` に `@01-04` が現れたら **E020**）。
+- ファイル内の見出し階層は揃っていること（`all.cnov` に `@01-04` が現れたら **E020**）。
 
-#### 5.3.3 例（`plots/all.txt`）
+#### 5.3.3 例（`plots/all.cnov`）
 
 ```
 // 全体プロット: 章を 1 ブロック 1 章で書く。
@@ -413,7 +421,7 @@ state: draft
 ;
 ```
 
-#### 5.3.4 例（`plots/01.txt` — 章プロット）
+#### 5.3.4 例（`plots/01.cnov` — 章プロット）
 
 ```
 @01-04 図書室の密談
@@ -498,9 +506,9 @@ space:
 
 | 書き方 | 用途 |
 |---|---|
-| `plots/01.txt` の `@01-00` ブロックに `blurb:` | 1 章のあらすじ（短い。数行） |
-| `plots/all.txt` の前文に `blurb:` | 作品全体のあらすじ（投稿サイトの紹介文） |
-| `contents/01-00.txt` | あらすじを本文として書く場合（長いとき） |
+| `plots/01.cnov` の `@01-00` ブロックに `blurb:` | 1 章のあらすじ（短い。数行） |
+| `plots/all.cnov` の前文に `blurb:` | 作品全体のあらすじ（投稿サイトの紹介文） |
+| `contents/01-00.cnov` | あらすじを本文として書く場合（長いとき） |
 
 ```
 @01-00 あらすじ
@@ -515,7 +523,7 @@ blurb: 古代錬金術に憑かれた少年アルスは、学院の地下に眠�
 - 診断: 本文が 1 文字以上ある章に `blurb` が無くても警告しない（任意機能、MUST）。
 - 読者モード（§17.3）では、章の表紙ページに `blurb` を表示する。
 
-### 5.4 話プロット形式（B 形式）— `plots/AA-BB.txt`
+### 5.4 話プロット形式（B 形式）— `plots/AA-BB.cnov`
 
 本文（C 形式）と **1:1 で節が対応** する形式。A 形式とは別物。
 
@@ -539,7 +547,7 @@ section_field= field_line ;             (* ";" のあとに書いたものはそ
 | `pov` | 場面 / 節 | `'名前` | 視点 |
 | `material` | 場面 / 節 | `'M0137[:タイトル]` | 参照資料（§6.6） |
 | `check` | 節 | 自由文 | 「この節で絶対に外せないこと」。文体/論理チェックエージェントの判定材料 |
-| `length` | 節 | 整数 | 目標字数（既定 `project.json.writing.section_target_chars`） |
+| `length` | 節 | 整数 | 目標字数（既定 `project.toml` の `writing.section_target_chars`） |
 | `state` | 節 | `draft`\|`review`\|`fixed` | 確定度 |
 | `seed` / `payoff` | 節 | A 形式と同じ | 伏線 |
 | `when` | 場面 / 節 | 作中日時式（§5.3.5） | 作中日時（追加仕様 3） |
@@ -863,7 +871,7 @@ status: inbox            # inbox | keep | promoted | dropped
 created: 2026-10-09T12:04:11+09:00
 tags: 学院長, 動機
 relates: @02, 'アルス
-promoted-to: plots/02.txt#@02-03      # 昇格時のみ
+promoted-to: plots/02.cnov#@02-03      # 昇格時のみ
 本文は自由記述。改行もそのまま保持する。
 ```
 
@@ -1020,7 +1028,7 @@ context: project outline target materials constraints    # 送るブロックを
 |---|---|
 | ロール名 | ファイル名（拡張子なし）。`/^[a-z][a-z0-9-]{0,31}$/`。違反は **E032** |
 | 名前の衝突 | 既定 7 役割と同名は **E033**（上書きは `prompts/<role>.md` 側で行う） |
-| 登録 | `project.json` の `agents.custom_roles` に列挙されたものだけが UI に出る。ファイルがあっても未登録なら **I056** で「登録しますか」と案内 |
+| 登録 | `project.toml` の `agents.custom_roles` に列挙されたものだけが UI に出る。ファイルがあっても未登録なら **I056** で「登録しますか」と案内 |
 | `context:` | §15.4 の 9 ブロックから **部分集合を選ぶ**。省略時は全 9 ブロック。`constraints` と `project` は常に含まれる（外せない、MUST） |
 | 出力 | 既定ロールと同じく **委譲レベルに従う**（§15.1.1、原則 A2）。既定 `propose` では必ず `agents/proposals/` に書く。ユーザーが `apply` / `autonomous` を設定すれば本文へ自動適用される |
 | 上限 | 1 プロジェクトあたり 16 ロール。超過は **E034** |
@@ -1086,7 +1094,7 @@ agents/proposals/P0003.md
 ```md
 # P0003
 kind: section-text       # section-text | plot-field | material | word | character | idea | note
-target: contents/01-04.txt @01-04-02-03
+target: contents/01-04.cnov @01-04-02-03
 origin: T0042
 status: open             # open | accepted | rejected | superseded | applied（適用済み）
 created_at: ...
@@ -1192,7 +1200,7 @@ body:
 フォーマッタは以下だけを行う（それ以外の整形は禁止、MUST）。
 
 1. 行末の空白削除
-2. 改行コードを `project.json.newline` に統一
+2. 改行コードを `project.toml` の `newline` に統一
 3. ファイル末尾に改行 1 個
 4. 3 行以上連続する空行を 2 行に圧縮
 5. `;` 行の前後の空白除去（`  ;  ` → `;`）

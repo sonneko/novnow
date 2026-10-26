@@ -6,7 +6,7 @@
 
 ### 8.1 節単位編集
 
-状態: 実装完了（REF:src/core/features/sections.rs, REF:src/app/workbench.rs, REF:src/ui/widgets/section_editor.rs, REF:tests/sections.rs, REF:tests/gui.rs）
+状態: 未実装・実装計画済み（REF:src/core/features/sections.rs, REF:src/app/workbench.rs, REF:src/ui/widgets/section_editor.rs, REF:tests/sections.rs, REF:tests/gui.rs, REF:docs/plans.md#issue-29-b3）
 
 - 文書内の各節のスライス抽出と単一節の差し替え・分割（`Ctrl+Enter` / `Ctrl+;`）・削除（`Ctrl+Shift+;`）は `core::features::sections`（`REF:src/core/features/sections.rs`）と `Workbench`（`REF:src/app/workbench.rs`）が担う。
 - 節エディタウィジェット（`REF:src/ui/widgets/section_editor.rs`）は選択中の 1 節のテキストのみを `egui::TextEdit::multiline` に渡し、コミット時にファイル全体のテキストを再構成する（検証: `REF:tests/gui.rs`）。
@@ -16,6 +16,10 @@
 
 - **[F-10] 複数行および `;` を含むペースト時の自動節分割（実装完了: `REF:src/core/features/sections.rs`, `REF:src/ui/widgets/section_editor.rs`）**:
   - `REF:src/core/features/sections.rs` に `split_pasted_sections(current: &str, cursor: usize, pasted: &str)` を追加し、`REF:src/ui/widgets/section_editor.rs` / `REF:src/app/workbench.rs` で `egui::Event::Paste` を処理する際、改行を保持するとともに単独 `;` 行や `@A-B-C` 行が含まれていれば自動的に複数節へ分割・一括挿入する。
+
+- **[Issue #29 / B3] 節の分割と削除の意味統一（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b3`）**:
+  - 分割はカーソルのバイト位置をそのまま使い、行境界へのスナップはしない。節先頭では無操作、節の途中では現在節と次節の間へ下側を挿入し、節末尾では従来の次節移動と等価にする。何も書かれていない節（W012 の定義: 内容行なし、または空白行のみ。行コメントは内容）では新たな空節を作らない。GUI の分割は正規操作 `section.split` 経由に寄せる。
+  - 削除は全入口（文脈ビューとプロット一覧のボタン、ショートカット `Ctrl+Shift+;` / `Ctrl+Shift+Delete` / `Ctrl+:`、パレット、ヘッドレス `section.delete`）で「本文の節と対応するプロットブロックを一緒に消す」意味へ統一する。対応ブロックが一意に定まらない場合は何も消さずに知らせる。空でない節の確認の有無は `.novnow/ui.json` の個人設定で切り替える（空の節は常に確認なし）。
 
 ### 8.2 保存ステートマシン
 

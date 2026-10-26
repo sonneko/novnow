@@ -29,7 +29,7 @@ LLM の自律作業を否定するのではなく、**委ねる範囲を人間�
 > integrator 以外の役割は他のタスクを起こせない。エージェント間の **メッセージ** の受け渡しは
 > 同一スレッド内の役割どうしで自由（§15.6）。
 
-設定は `project.json` の `agents.delegation`（全役割の既定。既定値 `"propose"`）と
+設定は `project.toml` の `agents.delegation`（全役割の既定。既定値 `"propose"`）と
 `agents.roles.<role>`（役割ごとの上書き。`"off"` を含む）で行う（§4.5.1）。
 UI からも `agent` ワークスペースの委譲パネル（§15.7.6）で確認・変更でき、
 変更は監査ログ（§5.10.5）に `delegation_changed` として残る（MUST）。
@@ -55,9 +55,10 @@ v0.1.0 では次を MUST とする。
 | A3 | エージェント同士の通信は `agents/threads/` に **可視化** される。`propose` では人間の承認なしに相手に渡らない。`autonomous` では同一スレッド内の受け渡しは自動で行われる（§15.6） |
 | A4 | 送信されるコンテキストは **送信前に全文を人間が見られる**（ドライラン、§15.7.2） |
 | A5 | LLM へのアクセスは **すべて MCP 経由**。novnow 本体にプロバイダ SDK を持たない |
-| A6 | エージェント機能を完全に無効化（`project.json.agents.enabled = false`）しても、他の全機能が無損失で動く |
+| A6 | エージェント機能を完全に無効化（`project.toml` の `agents.enabled = false`）しても、他の全機能が無損失で動く |
 | A7 | 委譲レベル `propose` では、`state: fixed` の節は **提案対象外**（人間が書いた文章を承認なしに書き換える提案を作らない）。`apply` / `autonomous` では書き換えうるが、監査ログに `fixed_overwrite` として記録し、**ステータスバーに 1 行通知する**（MUST） |
 | A8 | 自律レベルの **上限は人間が決める**。1 セッションあたりのタスク数・連鎖ホップ数・入力文字数の上限を `agents.limits` で設定でき（既定あり）、超えたら自動で停止して人間に知らせる（W095、MUST）。上限を外す設定もできるが、その場合も監査ログは残る |
+| A9 | **エージェント機能はこの §15 の範囲で凍結する**。MCP 経由の連携を中心とする現行の枠組みを超える内蔵の知能化を本体へ足さない。広げるときは本体ではなく別ソフトウェアとして作る。凍結は保守の停止を意味せず、不具合の修正と、形式・診断の変更への追随は継続する |
 
 ### 15.2 役割（6 + 統合）
 
@@ -76,7 +77,7 @@ v0.1.0 では次を MUST とする。
 
 #### 15.2.1 カスタムロール
 
-`prompts/custom/<role>.md` として定義し、`project.json` の `agents.custom_roles` に登録する（形式は §5.9.2）。
+`prompts/custom/<role>.md` として定義し、`project.toml` の `agents.custom_roles` に登録する（形式は §5.9.2）。
 
 | 項目 | 規則（MUST） |
 |---|---|
@@ -185,7 +186,7 @@ after: <直後 1 節の本文（あれば）>
 
 - 9 つの見出しは**中身が無くても必ず出す**（外したブロックも見出しだけ残る）。ブロックの中は `ラベル: 値`
   （値が複数行なら `ラベル:` の次の行から）か、`- ` で始まる 1 件。
-- `1 project`: `title`（`project.json` の `title`、空ならプロジェクトの名前）・`genre`（`project.json` に
+- `1 project`: `title`（`project.toml` の `title`、空ならプロジェクトの名前）・`genre`（`project.json` に
   あれば）・`style`（`prompts/_shared/style.md` の H1 と `//` コメントを除いた本文）。
 - `2 outline`: `all`・`chapter`・`goal`（当該話のブロックの `goal`）。
 - `4 target`: `current` → `before <ID>`（遠い節から近い節へ）→ `after <ID>`。前後は §8.1 の節の並び（ファイル名の順
@@ -223,7 +224,7 @@ integrator の列はで足した（統合に要るのはタスクの状態なの
 `max-chars` は役割の**合計**を上書きし、各ブロックの予算は表の比率のまま伸び縮みする。文字数はブロックの本文
 （見出しの行を除き、ラベルと改行を含む）を Unicode のスカラー値で数える。
 
-`project.json.agents.max_chars_per_request`（既定 12,000）を超える場合は、超過分を §15.4.3 の順で削る。
+`project.toml` の `agents.max_chars_per_request`（既定 12,000）を超える場合は、超過分を §15.4.3 の順で削る。
 
 #### 15.4.3 切り詰め順序（決定論・固定）
 
@@ -255,8 +256,8 @@ integrator の列はで足した（統合に要るのはタスクの状態なの
 
 - 本文を書くとき、全体プロットは `summary` 1 行しか入らない。章プロットも 1 行 + `goal`。
 - これにより、長編でも本文 1 節あたりの入力は 8,000 字前後に収まる。
-- 意味論的検索（「この伏線はどこで回収される？」）も、まず `all.txt` の章 `summary` を検索し、
-  一致した章の `NN.txt` を検索し、一致した話の `NN-MM.txt` を検索する **段階的絞り込み** で行う（全文検索しない）。
+- 意味論的検索（「この伏線はどこで回収される？」）も、まず `all.cnov` の章 `summary` を検索し、
+  一致した章の `NN.cnov` を検索し、一致した話の `NN-MM.cnov` を検索する **段階的絞り込み** で行う（全文検索しない）。
   これが指示 11 の「4 段階に分岐させることで LLM のコンテキスト削減と意味論的検索の高速性を担保する」の実装方針である。
 
 #### 15.4.4 参考例（指定した話の本文・プロット）の付与〔状態: 実装完了〕
@@ -298,7 +299,7 @@ integrator の列はで足した（統合に要るのはタスクの状態なの
 | 変数 | 内容 |
 |---|---|
 | `{{scene_id}}` | `01-04-02-03` |
-| `{{project_title}}` / `{{project_style}}` | `project.json.title` / `_shared/style.md` |
+| `{{project_title}}` / `{{project_style}}` | `project.toml` の `title` / `_shared/style.md` |
 | `{{outline_all}}` / `{{outline_chapter}}` | 上位 `summary` |
 | `{{plot_scene}}` / `{{plot_section}}` / `{{check}}` | 当該プロット |
 | `{{text_current}}` / `{{text_before}}` / `{{text_after}}` | 本文 |
@@ -457,7 +458,7 @@ Git を使っているユーザーには二重で邪魔になり、使ってい�
 
 | 項目 | 規則 |
 |---|---|
-| 設定 | `project.json` の `agents.max_parallel`（既定 **2**、範囲 1–8） |
+| 設定 | `project.toml` の `agents.max_parallel`（既定 **2**、範囲 1–8） |
 | 既定が 2 である理由 | 「少し速い」程度に留め、結果を人間が読める速度を超えさせないため。1 では並列の意味が無く、大きすぎるとレビュー待ちの山ができる |
 | キュー | 選択したタスクは FIFO のキューに入り、`max_parallel` 件ずつ走る |
 | サーバ別上限 | 同一 MCP サーバへの同時接続は **最大 2**（MUST）。`max_parallel` がそれより大きくても、サーバごとには 2 を超えない |
@@ -503,7 +504,7 @@ Git を使っているユーザーには二重で邪魔になり、使ってい�
 - 役割ごとの現在の委譲レベルを一覧表示する（`off` / `propose` / `apply` / `autonomous`）。
 - 役割行にフォーカスがあるとき `1` / `2` / `3` / `4` を押すと、その役割のレベルを `off` / `propose` / `apply` / `autonomous` に変更する（MUST。§9.8.4 の衝突確認どおり、修飾キーなしの数字キーは他の割当と衝突しない）。
 - コマンドパレット（`Ctrl+P`）からも `>agent delegation <role> <level>` で変更でき、`>agent stop-all` で総停止できる（MUST）。
-- 変更は `project.json` に保存され、監査ログ（§5.10.5）に `delegation_changed` として残る（MUST）。
+- 変更は `project.toml` に保存され、監査ログ（§5.10.5）に `delegation_changed` として残る（MUST）。
 - README の使い方（「計画の管理だけ AI に任せる」「この役割だけ止める」等）が、このパネルだけで完結する（MUST）。
 - レベル変更は実行中のタスクには影響しない（実行中のタスクはその時点のレベルで最後まで動く）。
   停止したいときは総停止（§15.7.4）を使う。
@@ -582,7 +583,7 @@ LLM プロバイダ固有の SDK や OpenAI 互換クライアントを同梱せ
 
 ##### (2) 設定
 
-`project.json` の `agents.local_llm`:
+`project.toml` の `agents.local_llm`:
 
 ```json
 { "enabled": true, "url": "http://localhost:11434", "model": "qwen2.5:14b" }

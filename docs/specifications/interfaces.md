@@ -175,7 +175,7 @@ with novnow.Session("my-novel") as session:      # open。with 終了で閉じ�
     text = session.section.get(scene)
     session.section.write(scene, "新しい本文\n")
     session.save.now()
-    report = session.diagnostics.run(path="contents/01-01.txt")
+    report = session.diagnostics.run(path="contents/01-01.cnov")
     for d in report["diagnostics"]:
         print(d["code"], d["line"], d["message"])
 
@@ -350,8 +350,8 @@ GUI の全機能を正規操作 ID に対応づけるカタログ。この表が
 | section.get | セクション取得（エディタ表示） | | |
 | section.write | セクション保存（`Ctrl+S`、§9.6 状態機経由） | | M 門番 |
 | section.insert | 節の新設（`Ctrl+;`、§9.4.1） | | M 門番 |
-| section.delete | 節の削除（`>` + `delete-section`、§9.4.2） | | M 門番 |
-| section.confirm_next | 次の未確認節の確認（`Ctrl+Enter`、§12.5） | | M—・C—（状態性） |
+| section.delete | 節の削除（`>` + `delete-section`、§8.1.2。本文と対応するプロットを一緒に削除） | | M 門番 |
+| section.confirm_next | 次の未確認節の確認（節の末尾での `Ctrl+Enter`、§9.4.1） | | M—・C—（状態性） |
 | nav.file | 文書・ファイルの直接指定 | | M—・C—（状態性） |
 | nav.section | セクションへの移動（`Ctrl+G`） | | M—・C—（状態性） |
 | nav.jump | 行への移動（`Ctrl+L`） | | M—・C—（状態性） |
@@ -441,7 +441,7 @@ GUI の全機能を正規操作 ID に対応づけるカタログ。この表が
 | prompt.reset | プロンプトの初期化（`>` + `prompt reset`） | | M—（安全: 人間専用） |
 | mail.send | エージェント間のメール（MCP 既存。未承認メッセージの積載） | | |
 | export.text | テキストのエクスポート（`>export`、§17.2。CLI 既存） | | M 門番（書き込み時。テキストの返却のみは無関門） |
-| reference.pane | 参照ペインの全セクション（§9.5.2 の 1〜9） | | |
+| reference.pane | 参照ペインの全セクション（§9.5.2 の 1〜9）。各行は移動先と動作（§9.5.5）を含む | | |
 | settings.get | 設定の取得（§4.4.1 の各キー） | workspace/didChangeConfiguration（通知） | |
 | settings.set | 設定の変更（テーマ・フォント倍率・言語・行幅・ペイン構成） | | M—（安全: 人間専用） |
 | session.workspace_get | 現在のワークスペース（§11.1 の 4 種） | | M—・C—（状態性） |
@@ -459,6 +459,8 @@ GUI の全機能を正規操作 ID に対応づけるカタログ。この表が
 - `M 門番` の操作は MCP では `role` 引数を受け取り、§19.1.5 の関門を適用する。ほかのインターフェースは関門なし（人間経路）。
 - `M—・C—（状態性）` の操作はセッション状態（開いている文書・位置・ワークスペース）を扱うため、状態を持たない MCP・CLI の 1 実行では提供しない。Rust / Python / LSP はセッションを持つので提供する。
 - 読者モード（§10.7・§17.3）の操作（`reader.*`）、統計ダッシュボード、呼称マトリクス、五感、正規表現検索（§9.7.4）も全機能パリティの対象である。これらの GUI 機能が利用できることと、5 インターフェースからの提供が完了していることを同一視しない。各機能の外部インターフェース提供までに、その操作をこの表へ対応づける（§19.1.2）。
+
+**`section.split`（節の分割）**: 対象の節と分割位置（節のテキスト先頭からのバイト位置）を受け取り、§8.1.1 の規則で節を 2 つに分ける。GUI の `Ctrl+Enter` による分割（§9.4.1）はこの操作を使う。LSP 標準メソッドは無く、MCP では `section.delete` と同じく関門付きとする。
 
 ### 19.8 版・互換性・配布
 

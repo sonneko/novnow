@@ -32,6 +32,8 @@
 - `core` 層は `BTreeMap` / `BTreeSet` と安定したタイブレーク規則（定義順・文字長・バイトオフセット順）を用い、乱数やシステム時刻を一切参照しない（`REF:tests/layering.rs` で強制）。
 - 曖昧検索スコアは `REF:src/app/palette.rs`、辞書最短一致は `REF:src/core/resolve/dictionary.rs`、AI コンテキスト切り詰めは `REF:src/core/aicontext/budget.rs` で決定論的に実装されている。
 
+- **[Issue #29] 固定モデルの扱い（方針の明記）**: 仕様 P4 のとおり、部品は実行時に乱数を必要としないものに限る。将来、小さな学習済みモデル（分かち書きの精度向上など）を足す場合は、全員に同じ学習結果を配布する固定物としてのみ入れ、サイズ・依存搬入（`REF:docs/add-dependencies.md`）・決定論の検証をその都度行う。当面は決定論ルールの逐次追加を基本路線とする。
+
 ### P5. AI に何を任せるかは人間が決め、その範囲で AI は自律に動く
 
 状態: 実装完了（REF:src/core/model/delegation.rs, REF:src/core/agents/runner.rs, REF:src/app/agents.rs）
@@ -138,7 +140,7 @@
 
 ### 3.4 言語機能サービス（LSP 相当機能）
 
-状態: 実装完了（REF:src/core/features/mod.rs, REF:src/ui/app.rs, REF:tests/layering.rs）
+状態: 未実装・実装計画済み（REF:src/core/features/mod.rs, REF:src/ui/app.rs, REF:tests/layering.rs, REF:docs/plans.md#issue-29-b5）
 
 11 個の LSP 相当モジュールはすべて `src/core/features/` に純粋関数として実装され、`src/ui/` から直接呼び出されている（`REF:tests/layering.rs` の `ui_calls_all_eleven_lsp_feature_modules` で強制）。
 
@@ -156,6 +158,9 @@
 | `formatting` | `REF:src/core/features/formatting.rs` | `REF:src/ui/app.rs`（`>format`） |
 | `rename` | `REF:src/core/features/rename.rs` | `REF:src/ui/app.rs`（`F2` / `>rename`） |
 | `folding` | `REF:src/core/features/folding.rs` | `REF:src/ui/workspaces/plot_outline.rs`, `REF:src/ui/app.rs` |
+
+- **[Issue #29 / B5] 参照ペイン行への移動先の付与（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b5`）**:
+  - `REF:src/core/features/reference.rs` の行モデルへ、表示文字列とは別に移動先（文書と位置）または開く対象と動作の種別を持たせる。GUI（§9.5.5）とヘッドレス（`reference.pane`）は同じ値を共有する。
 
 ### 3.5 状態フロー（1 キーストロークの流れ）
 

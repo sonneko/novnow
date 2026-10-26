@@ -156,7 +156,7 @@ export const diagnostics = [
   {
     "code": "E027",
     "severity": "E",
-    "condition": "project.json` の `lexicon.word_classes` の正規表現が不正（§6.5.1）",
+    "condition": "project.toml` の `lexicon.word_classes` の正規表現が不正（§6.5.1）",
     "ja": "語クラス {0}の正規表現が不正です",
     "en": "Invalid regular expression for word class {0}",
     "action": "正規表現を直す / 項目を削除する"

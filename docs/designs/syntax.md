@@ -6,7 +6,7 @@
 
 ### 5.0 共通字句規則
 
-状態: 実装完了（REF:src/core/text/lexer.rs, REF:tests/lexer.rs）
+状態: 未実装・実装計画済み（REF:src/core/text/lexer.rs, REF:tests/lexer.rs, REF:docs/plans.md#issue-29-b10）
 
 - 行頭シジル判定（`SIGIL_TABLE`）・10 種のエスケープ解除・フィールド行の 7 段判定・継続行インデント判定（2 空白以上または先頭タブ 1 文字以上）・BOM/CRLF 正規化は `core::text::lexer`（`REF:src/core/text/lexer.rs`）に実装する。
 - 日本語フィールドキー別名表は `/// i18n: format-vocabulary` を付与した定数配列として保持し、URI スキームとの非交差（`no_field_key_collides_with_a_url_scheme`）と双方向 1:1 対応（`the_alias_table_is_one_to_one_in_both_directions`）を `REF:tests/lexer.rs` で検証する。
@@ -19,6 +19,9 @@
 
 - L-01 の本文記号保護に `\#`・`\!`・`\^` を含め、`# ` コメントは `.txt` 3 形式で有効化する。検証: `REF:tests/migration.rs`, `REF:tests/stage_two_comments.rs`。
 
+- **[Issue #29 / B10] 文書として認識する範囲（§5.0.9）の実装（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b10`）**:
+  - 形式の判定（`REF:src/core/model/document.rs`）を「置き場所と拡張子の組の厳密一致」に揃える。`contents/`・`plots/` の対象形状は `.cnov` のみとし、形が一致しない `.cnov` / `.md` / `.txt` は文書にしない（未知ファイルとして無視する）。字句規則そのものは変更しない。
+
 ### 5.1 SceneId と範囲式
 
 状態: 実装完了（REF:src/core/id.rs, REF:tests/id_range.rs）
@@ -26,9 +29,9 @@
 - `SceneId`・`PartialSceneId`・`RangeTerm`・`RangeExpr` のパース、階層比較、閉区間判定（`contains`）、逆転範囲や予約番号 `00` の検出（`E016` / `E020` / `E022`）は `REF:src/core/id.rs` に実装し、`REF:tests/id_range.rs` で検証する。
 - `IdError` / `RangeError` は `core` に文言を持たせないため `Display` を実装しない純粋な型 enum とし、`REF:src/core/diagnostics.rs` で診断コードへ写像する（`B-17`）。
 
-### 5.2 本文形式（C 形式）— `contents/AA-BB.txt`
+### 5.2 本文形式（C 形式）— `contents/AA-BB.cnov`
 
-状態: 実装完了（REF:src/core/syntax/contents.rs, REF:src/core/features/completion.rs, REF:tests/contents.rs, REF:tests/golden.rs, REF:tests/features_edit.rs）
+状態: 未実装・実装計画済み（REF:src/core/syntax/contents.rs, REF:src/core/features/completion.rs, REF:tests/contents.rs, REF:tests/golden.rs, REF:tests/features_edit.rs, REF:docs/plans.md#issue-29-b10）
 
 - 場面見出し `@A-B-C[-D]`、節区切り `;` による節番号 `D` の自動採番、空節の `W012`、行末話者注釈 `@char[:mode]`、会話スパン `「」` / `『』`、ルビ 2 形式、コメント範囲の解析と無損失 `to_text()` は `core::syntax::contents`（`REF:src/core/syntax/contents.rs`）に実装する（検証: `REF:tests/contents.rs`, `REF:tests/golden.rs`）。
 - **C 形式パーサの境界規則（`REF:docs/history.md` の `B-32`〜`B-35`, `B-40`）**:
@@ -40,19 +43,22 @@
 - **[S-08] 会話閉じ括弧直後の `@` による話者予測補完（実装完了: `REF:src/core/features/completion.rs`, `REF:tests/features_edit.rs`）**:
   - `REF:src/core/features/completion.rs` のトリガー判定に「同一行のカーソル前に `」` または `』` があり、その後に `@`（および入力途中のキャラ名/モード）が続く」ケースを追加し、`characters.md` の登場人物名と `:モードID` を候補として返す。
 
-### 5.3 アウトライン形式（A 形式）— `plots/all.txt`, `plots/AA.txt`
+### 5.3 アウトライン形式（A 形式）— `plots/all.cnov`, `plots/AA.cnov`
 
-状態: 実装完了（REF:src/core/syntax/plot_outline.rs, REF:tests/plot_outline.rs, REF:tests/golden.rs）
+状態: 未実装・実装計画済み（REF:src/core/syntax/plot_outline.rs, REF:tests/plot_outline.rs, REF:tests/golden.rs, REF:docs/plans.md#issue-29-b10）
 
 - 章ブロック `@AA` / 話ブロック `@AA-BB`、フィールド行と継続行（`drop_indent` で先頭タブ 1 文字または空白 2 文字を除去）、未知フィールド温存、無損失往復変換 `Outline::to_text` は `core::syntax::plot_outline`（`REF:src/core/syntax/plot_outline.rs`）に実装する（検証: `REF:tests/plot_outline.rs`, `REF:tests/roundtrip.rs`）。
 - ブロック外（`;` の後から次の見出しの前）の行はどのブロックにも入れず `lines` に保持して `W011` / `W019` のみ検査し、`state` や `length` が不正形式のときは診断を出さず `Field::number()` 等が `None` を返して原文を温存する（`B-38`, `B-39`）。
 
-### 5.4 話プロット形式（B 形式）— `plots/AA-BB.txt`
+### 5.4 話プロット形式（B 形式）— `plots/AA-BB.cnov`
 
-状態: 実装完了（REF:src/core/syntax/plot_episode.rs, REF:tests/plot_episode.rs, REF:tests/golden.rs）
+状態: 未実装・実装計画済み（REF:src/core/syntax/plot_episode.rs, REF:tests/plot_episode.rs, REF:tests/golden.rs, REF:docs/plans.md#issue-29-b10）
 
 - 場面見出し `@A-B-C` と `;` で区切られる節ブロック、場面レベル・節レベルのフィールド（`pov`, `mode`, `state`, `material`, `foreshadow`, `payoff`, `note`）、自由記述行、無損失往復変換 `EpisodePlot::to_text` は `core::syntax::plot_episode`（`REF:src/core/syntax/plot_episode.rs`）に実装する（検証: `REF:tests/plot_episode.rs`, `REF:tests/roundtrip.rs`）。
 - 場面レベルフィールド（`scene_field`）と最初の節（`section`）の境界は「最初の `point_line`（自由記述の要点行）が現れた位置（1 行もなければ最初の `;`）」で切る（コメント行と空行は場面フィールド領域を終わらせない、`B-41`）。
+
+- **[Issue #29 / B10] 拡張子の改名のみ（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b10`）**:
+  - A / B / C 形式の文法は一切変えず、パス判定とファイル名だけを `.txt` から `.cnov` へ変える。ゴールデンの期待値はファイル名の差し替えとしてレビューする。
 
 ### 5.5 `characters.md`
 
