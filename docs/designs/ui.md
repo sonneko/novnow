@@ -121,7 +121,7 @@
 - **[Issue #29 / B6] 検索 2 系統の分担の追認と一致表示（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b6`）**:
   - `Ctrl+Shift+F` の重ね物は本文の文字どおり検索（`REF:src/app/assist.rs`）のままとし、一致範囲に §11.3 の背景塗りを付ける。正規表現検索は `write` の全文検索タブ（`REF:src/core/stage_two/search.rs`）に置き、抜粋は「前文・一致・後文」の構造で返して画面では一致範囲だけを強調して描く（`**…**` を文字列に埋め込む形をやめる）。資料として保存するときだけ §16.3.1 の固定形に組み立てる。
 
-### 9.8 キーボード一覧（v0.1.0 確定版）
+### 9.8 キーボード一覧
 
 状態: 未実装・実装計画済み（REF:src/ui/shell.rs, REF:src/ui/web.rs, REF:tests/gui.rs, REF:tests/gui.rs, REF:docs/plans.md#issue-29-b5）
 

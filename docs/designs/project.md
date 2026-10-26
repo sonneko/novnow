@@ -4,7 +4,7 @@
 
 ## 4. プロジェクト構造
 
-### 4.1 ディレクトリレイアウト（v0.1.0）
+### 4.1 ディレクトリレイアウト
 
 状態: 未実装・実装計画済み（REF:src/core/model/project.rs, REF:src/core/policy/write_policy.rs, REF:src/core/template/mod.rs, REF:docs/plans.md#issue-29-b10）
 
