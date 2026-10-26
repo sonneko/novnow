@@ -28,10 +28,10 @@ pub fn convert(title: &str, source: &str) -> Result<Vec<TemplateFile>, Migration
     let mut files = template::new_project(title);
     for file in &mut files {
         file.text = match file.path {
-            "contents/01-01.txt" => contents.clone(),
-            "plots/all.txt" => "@01\nsummary: \n".to_owned(),
-            "plots/01.txt" => "@01-01\nsummary: \n".to_owned(),
-            "plots/01-01.txt" => "@01-01-01\n".to_owned(),
+            "contents/01-01.cnov" => contents.clone(),
+            "plots/all.cnov" => "@01\nsummary: \n".to_owned(),
+            "plots/01.cnov" => "@01-01\nsummary: \n".to_owned(),
+            "plots/01-01.cnov" => "@01-01-01\n".to_owned(),
             "characters.md" | "words.md" | "ideas.md" => String::new(),
             _ => continue,
         };

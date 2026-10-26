@@ -26,7 +26,7 @@ fn id(chapter: u16, episode: u16, scene: u16, section: u16) -> SceneId {
     }
 }
 
-/// `project.json` の既定（§4.5 の例: `blank-line`・字下げなし・ルビを残す・見出しなし・CRLF）。
+/// `project.toml` の既定（§4.5 の例: `blank-line`・字下げなし・ルビを残す・見出しなし・CRLF）。
 fn defaults() -> Options {
     Options::from_settings(&Default::default())
 }
@@ -204,7 +204,7 @@ fn speakers_references_and_materials_become_plain_text() {
     assert!(text.contains("彼が見せたのは古い写しだった。\n"));
     // 未解決の参照のモード式・資料 ID の形の未解決参照
     let project = novel_with(
-        "contents/02-01.txt",
+        "contents/02-01.cnov",
         "@02-01-01 補習\n'未登録の人:B が来た。'S0042:検索結果 を見た。\n",
     );
     let text = ranged(&project, "@02", &lf());
@@ -218,7 +218,7 @@ fn escapes_are_released() {
     assert!(text.contains("扉の向こうは暗かった。\\ 落書きの「「」が見える。"));
     // `\'` は参照にならず、`'` が残る。§5.0.3 に無い `\x` はそのまま
     let project = novel_with(
-        "contents/02-01.txt",
+        "contents/02-01.cnov",
         "@02-01-01 補習\nIt\\'s \\'アルス のこと。\\x と \\; と \\/\\/ と \\「。\n",
     );
     let text = ranged(&project, "@02", &lf());
@@ -402,7 +402,7 @@ fn the_effective_state_comes_from_the_nearest_plot() {
     assert_eq!(state(2, 1, 1, 1), State::Draft, "どこにも無い");
     // 場面レベルの state（最初の要点より前）も節の既定になる。読めない値は書かれていないのと同じ
     let project = novel_with(
-        "plots/01-01.txt",
+        "plots/01-01.cnov",
         "@01-01-01 放課後\nstate: fixed\n二人が話す。\n;\n資料。\nstate: done\n;\n設計図。\nstate: draft\n",
     );
     let state = |section| effective_state(&project, id(1, 1, 1, section));

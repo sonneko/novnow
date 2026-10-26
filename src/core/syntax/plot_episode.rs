@@ -1,6 +1,6 @@
 //! B 形式（話プロット、§5.4）のパーサ。
 //!
-//! `plots/AA-BB.txt` は本文（C 形式、§5.2）と **1:1 で節が対応する**形式で、A 形式（§5.3）とは
+//! `plots/AA-BB.cnov` は本文（C 形式、§5.2）と **1:1 で節が対応する**形式で、A 形式（§5.3）とは
 //! 別物である（§5.3 指示 11）。違いは 2 つ:
 //!
 //! - 見出しは**場面**（`@A-B-C[-D]`、3〜4 階層）で、C 形式の `scene_header` と同じ形。
@@ -93,7 +93,7 @@ pub use super::contents::Options;
 /// 1 節で 1 キャラが持てるモード数の上限（§6.4.4「1 キャラ 1 節につき**最大 2 モード**」）。
 const MODE_MAX: usize = 2;
 
-/// B 形式 1 ファイル（`plots/AA-BB.txt`）。
+/// B 形式 1 ファイル（`plots/AA-BB.cnov`）。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct EpisodePlot<'a> {
     /// 全行（書かれたまま）。[`EpisodePlot::to_text`] はこれを LF で連結する。

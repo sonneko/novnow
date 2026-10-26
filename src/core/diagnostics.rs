@@ -26,7 +26,7 @@ use crate::core::model::document::{Document, DocumentFormat};
 use crate::core::resolve::dictionary::{self, SourceFile};
 use crate::core::resolve::{context_rules, materials, modes};
 use crate::core::syntax::{
-    characters_md, contents, ideas_md, materials_index, plot_episode, plot_outline, project_json,
+    characters_md, contents, ideas_md, materials_index, plot_episode, plot_outline, project_toml,
     prompt_md, words_md,
 };
 use crate::core::text::lexer::{self, FieldKey, LineKind};
@@ -149,7 +149,7 @@ pub enum DiagnosticCode {
     E022,
     /// `materials` 外を指す `path`（§7）
     E024,
-    /// JSON ファイルがパースできない（§4.3-4）（§7）
+    /// JSON / TOML ファイルがパースできない（§4.3-4）（§7）
     E025,
     /// 修飾子を付けられない参照に修飾子（§6.1.1）（§7）
     E026,
@@ -680,6 +680,10 @@ impl Arg {
 pub struct Diagnostic {
     /// コード。
     pub code: DiagnosticCode,
+    /// `[features.diagnostics]`（§4.5.2）による重大度の上書き。`None` は組み込み既定。
+    /// ゴールデンの JSON 形（生成直後の診断）には含めない。
+    #[serde(skip)]
+    pub severity_override: Option<Severity>,
     /// プレースホルダに埋める値。個数は [`DiagnosticCode::params`] と揃える。
     pub args: Vec<Arg>,
     /// 文書内の byte range（§3.4「core は内部で byte offset」、`docs/history.md` B-1）。
@@ -694,7 +698,12 @@ impl Diagnostic {
     /// 文言を組み立てるのは UI なので、個数がずれると `{1}` が空のまま表示される。
     pub fn new(code: DiagnosticCode, range: Option<Range<usize>>, args: Vec<Arg>) -> Self {
         debug_assert_eq!(args.len(), usize::from(code.params()), "{}", code.as_str());
-        Self { code, args, range }
+        Self {
+            code,
+            severity_override: None,
+            args,
+            range,
+        }
     }
 
     /// 引数を取らない診断を作る。
@@ -702,14 +711,16 @@ impl Diagnostic {
         debug_assert_eq!(code.params(), 0, "{}", code.as_str());
         Self {
             code,
+            severity_override: None,
             args: Vec::new(),
             range,
         }
     }
 
-    /// 重大度。
+    /// 重大度（`[features.diagnostics]` の上書きがあればそれ、 §4.5.2）。
     pub fn severity(&self) -> Severity {
-        self.code.severity()
+        self.severity_override
+            .unwrap_or_else(|| self.code.severity())
     }
 
     /// 文書位置を持つか。
@@ -719,7 +730,7 @@ impl Diagnostic {
 
     /// 波線として表示できる診断か（§7「I=情報（下線なし、レビュー一覧のみ）」）。
     pub fn is_underlined(&self) -> bool {
-        self.code.anchor() == Anchor::Document && self.code.severity() != Severity::Info
+        self.code.anchor() == Anchor::Document && self.severity() != Severity::Info
     }
 }
 
@@ -736,7 +747,7 @@ impl Diagnostic {
 /// | 出す層 | コード | 対象の形式 |
 /// |---|---|---|
 /// | `syntax/*` のパーサ（M2。W065 は M8） | E002 / E005（B 形式の `mode:`） / E008 / E016 / E017 / E018 / E020 / E021 / E022 / E024 / E025 / E031〜E033 / W002 / W011 / W012 / W019 / W065 | 各形式（W065 は `materials/index.json`） |
-/// | [`project_json::parse`]（M5、B-88） | E025 / E027 | `project.json` |
+/// | [`project_toml::parse`]（M5、B-88） | E025 / E027 | `project.toml` |
 /// | [`materials::scan_line`](crate::core::resolve::materials::scan_line)（M3、B-71） | E001 / E002 / E005（1 トークン） / E006 / E007 / E026 / W029 / W031 | 本文部のある全形式（走査範囲は B-77） |
 /// | [`dictionary::speaker_diagnostic`](crate::core::resolve::dictionary::speaker_diagnostic) | E012 | C |
 /// | 辞書の構築（[`Project::dictionary_diagnostics`]） | E028 / W027 | `characters.md` / `words.md` / `materials/index.json` |
@@ -819,14 +830,68 @@ pub fn document(document: &Document, project: &Project) -> Vec<Diagnostic> {
             out.extend(prompt_md::parse_with(text, &options).diagnostics);
         }
         DocumentFormat::ProjectFile => {
-            out.extend(project_json::parse(text).diagnostics);
+            out.extend(project_toml::parse(text).diagnostics);
         }
         _ => {}
     }
     out.extend(crate::core::stage_two::diagnose::document(
         document, project, false,
     ));
+    apply_overrides(&mut out, project);
     finish(out)
+}
+
+/// `[features.diagnostics]`（§4.5.2）の解決結果。設定が無いコードは組み込み既定のまま。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DiagnosticLevel {
+    /// 出さない（件数にも含めない）。
+    Off,
+    /// 警告として出す。
+    Warn,
+    /// エラーとして扱う（`check` の終了コード 5 の対象、§14.2.5）。
+    Error,
+}
+
+/// 診断コードへの `[features.diagnostics]` の適用（§4.5.2: 個別コード → グループ → `default`）。
+/// 値が `"off"` / `"warn"` / `"error"` でないキーは書かれていないものとして次へ進む。
+pub fn level_for(
+    code: DiagnosticCode,
+    overrides: &std::collections::BTreeMap<String, String>,
+) -> Option<DiagnosticLevel> {
+    let group = match code.group() {
+        Group::Core => "structure",
+        Group::Storage => "storage",
+        Group::Writing => "writing",
+    };
+    for key in [code.as_str(), group, "default"] {
+        match overrides.get(key).map(String::as_str) {
+            Some("off") => return Some(DiagnosticLevel::Off),
+            Some("warn") => return Some(DiagnosticLevel::Warn),
+            Some("error") => return Some(DiagnosticLevel::Error),
+            _ => {}
+        }
+    }
+    None
+}
+
+/// 生成済みの診断へ `[features.diagnostics]` を適用する（`"off"` は落とし、重大度を上書きする）。
+fn apply_overrides(out: &mut Vec<Diagnostic>, project: &Project) {
+    let overrides = &project.settings().features.diagnostics;
+    if overrides.is_empty() {
+        return;
+    }
+    out.retain_mut(|found| match level_for(found.code, overrides) {
+        Some(DiagnosticLevel::Off) => false,
+        Some(DiagnosticLevel::Warn) => {
+            found.severity_override = Some(Severity::Warning);
+            true
+        }
+        Some(DiagnosticLevel::Error) => {
+            found.severity_override = Some(Severity::Error);
+            true
+        }
+        None => true,
+    });
 }
 
 /// 重複を落として §9.5.2 の 9 の順に並べる。

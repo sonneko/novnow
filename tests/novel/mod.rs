@@ -136,16 +136,16 @@ pub const EXPECTED: &str =
 /// ファイル（パス・中身）。
 pub fn files() -> Vec<(&'static str, &'static str)> {
     vec![
-        ("project.json", PROJECT_JSON),
+        ("project.toml", PROJECT_JSON),
         ("characters.md", world::CHARACTERS),
         ("words.md", world::WORDS),
         ("materials/index.json", world::INDEX),
-        ("plots/all.txt", ALL),
-        ("plots/01.txt", CHAPTER_01),
-        ("plots/01-01.txt", EPISODE_01_01),
-        ("contents/01-01.txt", CONTENTS_01_01),
-        ("contents/01-02.txt", CONTENTS_01_02),
-        ("contents/02-01.txt", CONTENTS_02_01),
+        ("plots/all.cnov", ALL),
+        ("plots/01.cnov", CHAPTER_01),
+        ("plots/01-01.cnov", EPISODE_01_01),
+        ("contents/01-01.cnov", CONTENTS_01_01),
+        ("contents/01-02.cnov", CONTENTS_01_02),
+        ("contents/02-01.cnov", CONTENTS_02_01),
     ]
 }
 

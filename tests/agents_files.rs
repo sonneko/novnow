@@ -116,7 +116,7 @@ fn a_proposal_round_trips_with_empty_before_and_markdown_after() {
     let proposal = Proposal {
         id: "P0003".to_owned(),
         kind: "section-text".to_owned(),
-        target: "contents/01-04.txt @01-04-02-03".to_owned(),
+        target: "contents/01-04.cnov @01-04-02-03".to_owned(),
         origin: "T0042".to_owned(),
         status: "open".to_owned(),
         created_at: "2026-10-09T12:03:40+09:00".to_owned(),
@@ -130,11 +130,11 @@ fn a_proposal_round_trips_with_empty_before_and_markdown_after() {
     let text = files::write_proposal(&proposal);
     assert_eq!(
         text,
-        "# P0003\nkind: section-text\ntarget: contents/01-04.txt @01-04-02-03\norigin: T0042\nstatus: open\ncreated_at: 2026-10-09T12:03:40+09:00\n\n## before\n\n\n## after\n一行目\n\n## before\n三行目\n"
+        "# P0003\nkind: section-text\ntarget: contents/01-04.cnov @01-04-02-03\norigin: T0042\nstatus: open\ncreated_at: 2026-10-09T12:03:40+09:00\n\n## before\n\n\n## after\n一行目\n\n## before\n三行目\n"
     );
     assert_eq!(files::parse_proposal(&text).unwrap(), proposal);
     let (path, scene) = proposal.target_parts();
-    assert_eq!(path, "contents/01-04.txt");
+    assert_eq!(path, "contents/01-04.cnov");
     assert_eq!(scene.unwrap().section, 3);
     let settled = Proposal {
         status: "rejected".to_owned(),

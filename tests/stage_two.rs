@@ -32,7 +32,7 @@ fn citations_are_suffix_only_variable_width_adjacent_and_utf8_safe() {
 #[test]
 fn annotations_are_shared_by_counts_export_and_metrics() {
     let text = "@01-01-01\n「台詞」 ^M12345 @葵 // note\n! 逆光\n# メモ\n本文。\n";
-    let p = project(&[("contents/01-01.txt", text)]);
+    let p = project(&[("contents/01-01.cnov", text)]);
     let options = export::Options {
         newline: novnow::core::model::Newline::Lf,
         ..Default::default()
@@ -60,12 +60,12 @@ fn annotations_are_shared_by_counts_export_and_metrics() {
 fn stock_and_blurbs_are_not_body_or_default_export() {
     let p = project(&[
         (
-            "plots/01.txt",
+            "plots/01.cnov",
             "@01-00 あらすじ\nblurb: 章の表紙\n;\n@01-01 本編\n",
         ),
-        ("contents/01-01.txt", "@01-01-01\n本編。\n"),
-        ("contents/00-01.txt", "@00-01-01\nストック。\n"),
-        ("contents/01-00.txt", "@01-00-01\n本文ではない。\n"),
+        ("contents/01-01.cnov", "@01-01-01\n本編。\n"),
+        ("contents/00-01.cnov", "@00-01-01\nストック。\n"),
+        ("contents/01-00.cnov", "@01-00-01\n本文ではない。\n"),
     ]);
     assert_eq!(metadata::chapter_blurb(&p, 1), "章の表紙");
     let plain = export::run(&p, None, &Default::default());
@@ -113,7 +113,7 @@ fn asset_paths_reject_escape_urls_absolute_and_icon_outside_assets() {
     ] {
         assert!(metadata::asset_path(path, true).is_none(), "{path}");
     }
-    assert!(metadata::asset_path("plots/map.txt", true).is_none());
+    assert!(metadata::asset_path("plots/map.cnov", true).is_none());
     assert_eq!(
         metadata::asset_path("./assets/icons/a.png", true).as_deref(),
         Some("assets/icons/a.png")
@@ -121,7 +121,7 @@ fn asset_paths_reject_escape_urls_absolute_and_icon_outside_assets() {
 }
 #[test]
 fn search_regex_case_deadline_replacement_and_snapshots() {
-    let p = project(&[("contents/01-01.txt", "@01-01-01\nApple apple\n")]);
+    let p = project(&[("contents/01-01.cnov", "@01-01-01\nApple apple\n")]);
     let q = search::Query {
         text: "apple".into(),
         ..Default::default()
@@ -216,12 +216,12 @@ fn session_deltas_allow_deletion_and_idle_resets_without_counting_idle() {
 #[test]
 fn stock_assignment_updates_references_and_refuses_collisions() {
     let p = project(&[
-        ("contents/00-01.txt", "@00-01-01\n本文\n"),
-        ("plots/00-01.txt", "@00-01-01\nsummary: plot\n"),
+        ("contents/00-01.cnov", "@00-01-01\n本文\n"),
+        ("plots/00-01.cnov", "@00-01-01\nsummary: plot\n"),
         ("ideas.md", "# I0001\nrelates: @00-01-01-01\n"),
     ]);
     let plan = stock::assign(&p, 1, 2).unwrap();
-    assert_eq!(plan.renames[0].1, "contents/02-01.txt");
+    assert_eq!(plan.renames[0].1, "contents/02-01.cnov");
     assert!(plan.edit.changes.iter().any(|f| f.path == "ideas.md"));
     assert!(stock::assign(&p, 1, 0).is_err());
 }
@@ -248,14 +248,14 @@ fn human_proposal_never_mutates_body_and_accepts_through_existing_pipeline() {
         core::agents::{apply, files},
         ui::workbench::Workbench,
     };
-    let p = project(&[("contents/01-01.txt", "@01-01-01\n原文\n")]);
+    let p = project(&[("contents/01-01.cnov", "@01-01-01\n原文\n")]);
     let mut bench = Workbench::new(p, Some("01-01-01-01"), 400);
-    let before = bench.project().text("contents/01-01.txt").to_owned();
+    let before = bench.project().text("contents/01-01.cnov").to_owned();
     bench.toggle_human("2026-10-21T00:00:00Z", 0.0);
     bench.buffer_mut().push_str("提案");
     bench.edited(1.0);
     bench.commit();
-    assert_eq!(bench.project().text("contents/01-01.txt"), before);
+    assert_eq!(bench.project().text("contents/01-01.cnov"), before);
     assert_eq!(bench.counts().0, 2);
     bench.finish_human(2.0);
     let proposal =
@@ -266,7 +266,7 @@ fn human_proposal_never_mutates_body_and_accepts_through_existing_pipeline() {
     assert!(plan
         .writes
         .iter()
-        .any(|f| f.path == "contents/01-01.txt" && f.text.contains("原文提案")));
+        .any(|f| f.path == "contents/01-01.cnov" && f.text.contains("原文提案")));
     bench.toggle_human("stamp", 3.0);
     bench.buffer_mut().push('別');
     bench.finish_human(4.0);
@@ -278,8 +278,8 @@ fn human_proposal_never_mutates_body_and_accepts_through_existing_pipeline() {
 #[test]
 fn registered_custom_role_uses_custom_prompt_and_context_is_mandatory() {
     let p = project(&[(
-        "project.json",
-        r#"{"schema_version":1,"agents":{"custom_roles":["observer"]}}"#,
+        "project.toml",
+        "schema_version = 2\n\n[agents]\ncustom_roles = [\"observer\"]\n",
     )]);
     assert!(novnow::core::agents::roles(&p).contains(&"observer".into()));
     assert_eq!(
@@ -382,10 +382,10 @@ fn daily_stats_accept_published_schema_and_preserve_unknown_keys() {
 fn illustration_list_unifies_plot_and_body_without_counting_memos() {
     let p = project(&[
         (
-            "plots/01-01.txt",
+            "plots/01-01.cnov",
             "@01-01-01 title\nillustration: plot memo\n",
         ),
-        ("contents/01-01.txt", "@01-01-01 title\n文\n! body memo\n"),
+        ("contents/01-01.cnov", "@01-01-01 title\n文\n! body memo\n"),
     ]);
     let items = metadata::illustrations(&p);
     assert_eq!(items.len(), 2);
@@ -400,8 +400,8 @@ fn illustration_list_unifies_plot_and_body_without_counting_memos() {
 #[test]
 fn multi_file_replace_is_one_undo_redo_transaction() {
     let p = project(&[
-        ("contents/01-01.txt", "@01-01-01\n原文\n"),
-        ("contents/01-02.txt", "@01-02-01\n原文\n"),
+        ("contents/01-01.cnov", "@01-01-01\n原文\n"),
+        ("contents/01-02.cnov", "@01-02-01\n原文\n"),
     ]);
     let query = search::Query {
         text: "原文".into(),
@@ -412,24 +412,24 @@ fn multi_file_replace_is_one_undo_redo_transaction() {
     let mut bench = novnow::ui::workbench::Workbench::new(p, None, 1500);
     assert!(bench.apply_edit(&edit, 1.0));
     assert!(bench.undo_workspace(false, 2.0));
-    for path in ["contents/01-01.txt", "contents/01-02.txt"] {
+    for path in ["contents/01-01.cnov", "contents/01-02.cnov"] {
         assert!(bench.project().text(path).contains("原文"));
     }
     assert!(bench.undo_workspace(true, 3.0));
-    for path in ["contents/01-01.txt", "contents/01-02.txt"] {
+    for path in ["contents/01-01.cnov", "contents/01-02.cnov"] {
         assert!(bench.project().text(path).contains("変更"));
     }
 }
 
 #[test]
 fn stale_search_cannot_replace_unrelated_current_text() {
-    let mut p = project(&[("contents/01-01.txt", "@01-01-01\n原文\n")]);
+    let mut p = project(&[("contents/01-01.cnov", "@01-01-01\n原文\n")]);
     let query = search::Query {
         text: "原文".into(),
         ..Default::default()
     };
     let results = search::run(&p, &query, || 0).unwrap();
-    p.insert(Document::new("contents/01-01.txt", "@01-01-01\n別文\n"));
+    p.insert(Document::new("contents/01-01.cnov", "@01-01-01\n別文\n"));
     assert!(search::replacement(&p, &query, "変更", &results).is_err());
 }
 #[test]
@@ -535,7 +535,7 @@ fn reader_brackets_substitute_only_when_the_font_has_the_form() {
 #[test]
 fn search_excerpts_are_structured_and_snapshots_use_the_fixed_form() {
     let p = project(&[(
-        "contents/01-01.txt",
+        "contents/01-01.cnov",
         "@01-01-01\n銀の指輪を外して机に置いた。\n",
     )]);
     let q = search::Query {

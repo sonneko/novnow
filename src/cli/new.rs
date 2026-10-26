@@ -22,7 +22,7 @@ use crate::ports::env::Env;
 use super::open::{describe, report, Problem};
 use super::{Cli, Exit, Paint, Stream, GUI_AVAILABLE};
 
-/// 題が決まらないとき（ルートディレクトリ等）の `project.json` の `title`。
+/// 題が決まらないとき（ルートディレクトリ等）の `project.toml` の `title`。
 const UNTITLED: &str = "untitled";
 
 /// 実行する。

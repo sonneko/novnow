@@ -12,8 +12,8 @@
 //! | 2 | 話プロット（B 形式）の**当該節**のフィールド | `mode:` |
 //! | 3 | 話プロットの**当該場面**（見出し直下）のフィールド | `mode:` |
 //! | 4 | 話プロットの preamble（どの見出しより前）のフィールド | `mode:` |
-//! | 5 | 章プロット（`plots/AA.txt`）の**当該話ブロック** | `cast:` |
-//! | 6 | 全体プロット（`plots/all.txt`）の**当該章ブロック** | `cast:` |
+//! | 5 | 章プロット（`plots/AA.cnov`）の**当該話ブロック** | `cast:` |
+//! | 6 | 全体プロット（`plots/all.cnov`）の**当該章ブロック** | `cast:` |
 //! | 7 | `characters.md` のキャラ直下 | `default-mode:` |
 //! | 8 | どれも無ければ**モード未決定** → **W006** | — |
 //!
@@ -83,9 +83,9 @@ pub enum Step {
     SceneMode,
     /// 4: 話プロットの preamble の `mode:`。
     EpisodePreamble,
-    /// 5: 章プロット（`plots/AA.txt`）の当該話ブロックの `cast:`。
+    /// 5: 章プロット（`plots/AA.cnov`）の当該話ブロックの `cast:`。
     ChapterCast,
-    /// 6: 全体プロット（`plots/all.txt`）の当該章ブロックの `cast:`。
+    /// 6: 全体プロット（`plots/all.cnov`）の当該章ブロックの `cast:`。
     AllCast,
     /// 7: `characters.md` の `default-mode`。
     DefaultMode,
@@ -116,17 +116,17 @@ impl Step {
 
 /// 解決の入力になるファイル（診断をどの文書に載せるか決めるのに使う）。
 ///
-/// パスそのものは持たない（`contents/01-04.txt` 等は §4.2 のレイアウトと
-/// `project.json.structure.id_digits` から呼び出し側が作る。core は I/O をしない、§3.2）。
+/// パスそのものは持たない（`contents/01-04.cnov` 等は §4.2 のレイアウトと
+/// `project.toml.structure.id_digits` から呼び出し側が作る。core は I/O をしない、§3.2）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum File {
     /// 本文（C 形式、§5.2）。
     Contents,
-    /// 話プロット（B 形式、`plots/AA-BB.txt`、§5.4）。
+    /// 話プロット（B 形式、`plots/AA-BB.cnov`、§5.4）。
     Episode,
-    /// 章プロット（A 形式、`plots/AA.txt`、§5.3）。
+    /// 章プロット（A 形式、`plots/AA.cnov`、§5.3）。
     Chapter,
-    /// 全体プロット（A 形式、`plots/all.txt`、§5.3）。
+    /// 全体プロット（A 形式、`plots/all.cnov`、§5.3）。
     All,
     /// `characters.md`（§5.5）。
     Characters,
@@ -149,11 +149,11 @@ pub struct FileDiagnostic {
 pub struct Input<'a> {
     /// `characters.md`（モードの定義元、§6.4.1）。
     pub characters: &'a Characters<'a>,
-    /// `plots/AA-BB.txt`（段 2〜4）。
+    /// `plots/AA-BB.cnov`（段 2〜4）。
     pub episode: Option<&'a EpisodePlot<'a>>,
-    /// `plots/AA.txt`（段 5）。
+    /// `plots/AA.cnov`（段 5）。
     pub chapter: Option<&'a Outline<'a>>,
-    /// `plots/all.txt`（段 6）。
+    /// `plots/all.cnov`（段 6）。
     pub all: Option<&'a Outline<'a>>,
     /// `'名前` を解決する辞書（段 1〜6 で参照の実体を見る）。
     pub dictionary: &'a Dictionary,
@@ -673,7 +673,7 @@ fn scene_index(episode: &EpisodePlot<'_>, scene: &SceneId) -> Option<usize> {
 
 /// A 形式のブロックが対象の節を含むか（ブロック自身の階層までで比べる）。
 ///
-/// `plots/all.txt` は depth 1（章）、`plots/AA.txt` は depth 2（話）が既定（§5.3）。
+/// `plots/all.cnov` は depth 1（章）、`plots/AA.cnov` は depth 2（話）が既定（§5.3）。
 fn covers(block: &SceneId, depth: usize, target: &SceneId) -> bool {
     let left = [block.chapter, block.episode, block.scene, block.section];
     let right = [target.chapter, target.episode, target.scene, target.section];
@@ -861,7 +861,7 @@ fn shift(range: &Range<usize>, by: usize) -> Range<usize> {
 
 /// §6.4.4 の **E004** の引数 `{2}` に書く節 ID（既定の桁数）。
 ///
-/// `project.json.structure.id_digits` が 2 以外なら呼び出し側が
+/// `project.toml.structure.id_digits` が 2 以外なら呼び出し側が
 /// [`SceneId::display`] で作り直す（core は設定を読まない）。
 pub fn scene_text(scene: &SceneId) -> String {
     scene.display(Digits::default())

@@ -35,7 +35,7 @@ pub fn run<E: Env>(cli: &mut Cli<'_, E>, source: &Path, dir: &Path, preview: boo
             cli.headline(Stream::Out, Paint::Success, cli.text("cli.migrate.preview"));
             for file in files {
                 cli.line(Stream::Out, file.path);
-                if file.path == "contents/01-01.txt" {
+                if file.path == "contents/01-01.cnov" {
                     cli.line(Stream::Out, &file.text);
                 }
             }

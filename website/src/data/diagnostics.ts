@@ -140,9 +140,9 @@ export const diagnostics = [
   {
     "code": "E025",
     "severity": "E",
-    "condition": "JSON ファイルがパースできない（§4.3-4）",
-    "ja": "JSON として読み込めません: {0}",
-    "en": "Cannot parse as JSON: {0}",
+    "condition": "JSON / TOML ファイルがパースできない（§4.3-4）",
+    "ja": "読み込めません: {0}",
+    "en": "Cannot parse: {0}",
     "action": "既定値で開く / 手動で修正"
   },
   {

@@ -52,7 +52,7 @@ pub fn run(
     for doc in project.documents().filter(|d| {
         !d.path.starts_with(".novnow/")
             && !d.path.starts_with("exports/")
-            && (d.path.ends_with(".txt") || d.path.ends_with(".md"))
+            && (d.path.ends_with(".cnov") || d.path.ends_with(".md"))
     }) {
         // Match one line at a time: regex uses a linear-time automaton, never unbounded backtracking.
         let mut start = 0;
@@ -190,9 +190,16 @@ pub fn snapshot(
     })
 }
 
+/// 保存上限を超えたときの末尾の注記（§16.3.1 の固定形の一部）。
+/// i18n: format-vocabulary
+const SNAPSHOT_LIMIT_NOTE: &str = "\n（500 件まで保存）\n";
+
+/// ヒット一覧の見出し（§16.3.1 の固定形の一部）。
+/// i18n: format-vocabulary
+const SNAPSHOT_RESULTS_HEADING: &str = "## 結果";
+
 /// 資料として保存する MD の固定形（§16.3.1）。画面の強調とは別に、ここでだけ
 /// 一致を `**…**` で囲み、節 ID 付きの箇条書きにする。保存は先頭 500 件まで。
-/// i18n: format-vocabulary
 fn snapshot_body(
     project: &Project,
     query: &Query,
@@ -239,10 +246,10 @@ fn snapshot_body(
         ));
     }
     if total > SAVED_LIMIT {
-        lines.push_str("\n（500 件まで保存）\n");
+        lines.push_str(SNAPSHOT_LIMIT_NOTE);
     }
     format!(
-        "# {title}\n<!-- novnow:{id} -->\n\nquery: {}\nregex: {}\ncase_sensitive: {}\nsearched_at: {stamp}\nhits: {total}\n\n## 結果\n\n{lines}",
+        "# {title}\n<!-- novnow:{id} -->\n\nquery: {}\nregex: {}\ncase_sensitive: {}\nsearched_at: {stamp}\nhits: {total}\n\n{SNAPSHOT_RESULTS_HEADING}\n\n{lines}",
         query.text, query.regex, query.case_sensitive
     )
 }

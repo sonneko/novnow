@@ -15,7 +15,7 @@ use novnow::core::syntax::contents::Comment;
 use novnow::core::syntax::plot_outline::{self, Block, CharRef, Foreshadow, Line, Options};
 use novnow::core::text::lexer::FieldKey;
 
-/// §5.3.3 の例（`plots/all.txt`）。**仕様のコード例をそのまま**使う（§5.3 完了条件 1）。
+/// §5.3.3 の例（`plots/all.cnov`）。**仕様のコード例をそのまま**使う（§5.3 完了条件 1）。
 const SPEC_ALL: &str = "// 全体プロット: 章を 1 ブロック 1 章で書く。\n\
 title: 星屑の時計\n\
 summary: 古代錬金術を追う少年と幼馴染が、学院の地下遺跡の魔導具を巡って対立と和解を繰り返す。\n\
@@ -37,7 +37,7 @@ payoff: F02 -> @02-05\n\
 state: draft\n\
 ;\n";
 
-/// §5.3.4 の例（`plots/01.txt` — 章プロット）。
+/// §5.3.4 の例（`plots/01.cnov` — 章プロット）。
 const SPEC_CHAPTER: &str = "@01-04 図書室の密談\n\
 summary: 試験前の図書室で'アルス が'リリア に設計図を見せ、放課後の探索を約束させる。\n\
 goal: 読者に探索の動機とリスクを同時に渡す。\n\
@@ -76,7 +76,7 @@ fn strict() -> Options {
     }
 }
 
-/// `plots/all.txt` の設定（見出しは章 = 1 階層、§5.3 の表）。
+/// `plots/all.cnov` の設定（見出しは章 = 1 階層、§5.3 の表）。
 fn chapters() -> Options {
     Options {
         depth: Some(1),

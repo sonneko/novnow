@@ -27,7 +27,7 @@ pub fn validate(session: &mut Session, args: &Args) -> Result<Value> {
         files,
         dirs: std::collections::BTreeSet::new(),
         dirs_implicit: true,
-        project_json: project
+        project_toml: project
             .document(crate::core::model::project::PROJECT_FILE)
             .map(|document| document.text.clone()),
         invalid_utf8: Vec::new(),

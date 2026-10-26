@@ -22,7 +22,7 @@ VSCode 拡張の保存領域と GitHub Actions の実行ファイルキャッシ
 
 | 書き出し | 書き出し先の指定 | 書けるファイル |
 |---|---|---|
-| Zip エクスポート（§13.5。デスクトップ） | 保存ダイアログ | 名前が `.zip` で終わるもの |
+| Zip エクスポート（§13.5。デスクトップ） | 保存ダイアログ | 名前が `.zip` か `.novnow` で終わるもの |
 | テキストエクスポート（§17.2） | デスクトップの「名前を付けて保存」の保存ダイアログ、または `novnow export --out <パス>`（§14.1） | 名前が `.txt` か `.md` で終わるもの |
 
 - 書けるのは、指定された **ファイル 1 個** への **その 1 回の書き込み** だけ。許可はそこで消える
@@ -274,9 +274,9 @@ novnow: このディレクトリは novnow プロジェクトではありませ�
   対象: /home/user/novels/untitled
 
 不足しているもの:
-  - project.json
+  - project.toml
   - characters.md
-  - plots/all.txt
+  - plots/all.cnov
 
 プロジェクト構造: https://sonneko.github.io/novnow/guide/project_structure.html
 このディレクトリに新規作成する場合: novnow new
@@ -289,9 +289,9 @@ novnow: this directory is not a novnow project
   target: /home/user/novels/untitled
 
 Missing items:
-  - project.json
+  - project.toml
   - characters.md
-  - plots/all.txt
+  - plots/all.cnov
 
 Project structure: https://sonneko.github.io/novnow/guide/project_structure.html
 To create a new project here: novnow new

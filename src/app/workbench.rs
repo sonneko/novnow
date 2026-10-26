@@ -75,7 +75,7 @@ pub struct Slice {
     pub path: String,
     /// 受け持つ行（ファイルの行 index）。空なら、その位置に行を入れる。
     pub lines: Range<usize>,
-    /// 開いた側が決める鍵（同じものを開き直さないため。`plot-episode:plots/01-04.txt:01-04-02-03` など）。
+    /// 開いた側が決める鍵（同じものを開き直さないため。`plot-episode:plots/01-04.cnov:01-04-02-03` など）。
     pub tag: String,
 }
 

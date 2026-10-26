@@ -72,7 +72,7 @@ fn first_document() -> &'static str {
             .into_iter()
             .map(|file| file.path.to_owned())
             .find(|path| is_document(&ProjectPath::new(path).expect("path")))
-            .unwrap_or_else(|| "contents/01-01.txt".to_owned())
+            .unwrap_or_else(|| "contents/01-01.cnov".to_owned())
     })
 }
 

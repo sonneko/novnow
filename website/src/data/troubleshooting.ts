@@ -41,8 +41,8 @@ export const troubleshootingData: TroubleshootingItem[] = [
       en: "When attempting to open a directory, the GUI does not launch and prints missing file errors to terminal.",
     },
     cause: {
-      ja: "NovNowの必須ファイル（`project.json`, `characters.md`, `words.md`, `materials/index.json`, `plots/all.txt` など）のいずれかが不足しています。",
-      en: "One or more required project files (e.g., `project.json`, `characters.md`, `words.md`, `materials/index.json`, `plots/all.txt`) are missing.",
+      ja: "NovNowの必須ファイル（`project.toml`, `characters.md`, `words.md`, `materials/index.json`, `plots/all.cnov` など）のいずれかが不足しています。",
+      en: "One or more required project files (e.g., `project.toml`, `characters.md`, `words.md`, `materials/index.json`, `plots/all.cnov`) are missing.",
     },
     solution: {
       ja: "対象フォルダ内で `novnow new .` を実行して必須ファイルを自動生成するか、新規プロジェクト作成メニューからフォルダを開き直してください。",
@@ -50,9 +50,9 @@ export const troubleshootingData: TroubleshootingItem[] = [
     },
     code: `novnow: このディレクトリは novnow プロジェクトではありません
   不足しているもの:
-  - project.json
+  - project.toml
   - characters.md
-  - plots/all.txt`,
+  - plots/all.cnov`,
   },
   {
     id: "legacy-v0-project",

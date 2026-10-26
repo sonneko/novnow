@@ -1,4 +1,4 @@
-//! C 形式（本文 `contents/AA-BB.txt`）のパーサ（`docs/specifications/syntax.md` §5.2）。
+//! C 形式（本文 `contents/AA-BB.cnov`）のパーサ（`docs/specifications/syntax.md` §5.2）。
 //!
 //! 字句器（[`crate::core::text::lexer`]）が**行単位**で決めた種別を、§5.2.1 の文法に
 //! 組み立て直す。判定は行内で完結するので（§5.0.1）[`Line`] は 1 行ずつ差し替えられる
@@ -93,7 +93,7 @@ const KANJI: &[Range<u32>] = &[0x4E00..0xA000, 0x3400..0x4DC0, 0xF900..0xFB00];
 /// 繰返し字（`々` U+3005・`〻` U+303B）。`人々《ひとびと》` のように漢字列に含める。
 const KANJI_MARKS: &[u32] = &[0x3005, 0x303B];
 
-/// C 形式の解析に効く設定（`project.json` の `structure`、§4.5 / §5.1.2）。
+/// C 形式の解析に効く設定（`project.toml` の `structure`、§4.5 / §5.1.2）。
 ///
 /// **core は設定ファイルを読めない**（§3.2）ので、呼び出し側が値を渡す
 /// （[`crate::core::id::Digits`] と同じ扱い）。

@@ -35,7 +35,7 @@ pub const RANGE_OP: &str = "..";
 /// 構造見出し・範囲式のシジル（§5.0.2 の StructureSigil）。
 pub const SIGIL: char = '@';
 
-/// `project.json.structure.*_digits`（§4.5）。
+/// `project.toml.structure.*_digits`（§4.5）。
 ///
 /// **core は設定ファイルを読まない**（§3.2）ので、桁数は呼び出し側が引数で渡す。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -51,7 +51,7 @@ pub struct Digits {
 }
 
 impl Default for Digits {
-    /// §4.5 の `project.json` 既定値（すべて 2 桁）。
+    /// §4.5 の `project.toml` 既定値（すべて 2 桁）。
     fn default() -> Self {
         Self {
             chapter: 2,

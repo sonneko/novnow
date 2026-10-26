@@ -106,7 +106,7 @@ novnow形式は、小説をテキストデータでエクスポートする機�
    - 右側の「参照ペイン」には、現在の節に関わるプロット・登場人物（有効モード・役割語）・用語・資料・診断が自動抽出されて並びます。ペインの表示・左右入替・比率はショートカットで変えられます。
 2. **軽量な専用テキスト記法と無損失保存**
    - 本文（`contents/AA-BB.txt`）、全体・章プロット（`plots/all.txt`, `plots/AA.txt`）、話プロット（`plots/AA-BB.txt`）、登場人物（`characters.md`）、用語（`words.md`）、アイデア（`ideas.md`）、資料（`materials/`）をすべてプレーンテキスト（UTF-8）で管理し、Git でそのまま差分管理できます。
-   - 原文は 1 バイトも捨てません（読み込んだ本文をそのまま書き戻せます）。プロジェクトは `project.json` を中心に自己完結し、`.novnow/` のキャッシュだけが Git の管理外になります。
+   - 原文は 1 バイトも捨てません（読み込んだ本文をそのまま書き戻せます）。プロジェクトは `project.toml` を中心に自己完結し、`.novnow/` のキャッシュだけが Git の管理外になります。
 3. **意味解決エンジンと 76 種のリアルタイム診断**
    - `'名前` による辞書参照（最短一致・NFKC 正規化）、状況別キャラクターモード解決、役割語パターン照合（台詞の口調一致を緑下線で可視化）、初出より前の用語使用検出、文長・連続文末・表記揺れなどの執筆支援診断を提供します。
    - 診断は 76 種すべてに一意のコード（`E001`〜`W0xx`／`I0xx`）があり、`Ctrl+.` のクイックフィックスと `review` ワークスペースの一覧から辿れます。
@@ -178,7 +178,7 @@ novnow structure tree my-novel --json                    # 正規操作も --jso
 エディタおよびnovnow形式の全ての仕様は、明文化されています。
 
 - [`overview.md`](./docs/specifications/overview.md): 設計原則・用語・アーキテクチャ
-- [`project.md`](./docs/specifications/project.md): プロジェクト構造・`project.json`・サンプル構成
+- [`project.md`](./docs/specifications/project.md): プロジェクト構造・`project.toml`・サンプル構成
 - [`syntax.md`](./docs/specifications/syntax.md): 各ファイルの構文仕様
 - [`semantics.md`](./docs/specifications/semantics.md): 辞書・最短一致・モード解決・役割語パターン言語
 - [`diagnostics.md`](./docs/specifications/diagnostics.md): 診断カタログ

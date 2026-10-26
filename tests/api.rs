@@ -412,7 +412,7 @@ fn the_write_time_gate_binds_only_to_the_writing_call() {
     let (mut session, _) = open();
     open_first_section(&mut session);
     session.set_interface(Interface::Mcp);
-    let document = "contents/01-01.txt";
+    let document = "contents/01-01.cnov";
 
     // search.file（§19.7「置換は M 門番」）
     let found = session
@@ -968,7 +968,7 @@ fn the_catalog_is_localized_in_both_languages() {
 fn conflict() -> (Session, String, String) {
     let (mut session, files) = open();
     let scene = open_first_section(&mut session);
-    let path = "contents/01-01.txt";
+    let path = "contents/01-01.cnov";
     // 外部の版は「編集前の文書 + 1 行」（自分の編集を含まない形にする）
     let original = session.aggregate().text(path).to_owned();
     session

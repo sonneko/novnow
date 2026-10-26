@@ -218,7 +218,7 @@ fn a_reader_like_unknown_key_is_not_read_but_kept() {
 #[test]
 fn a_path_outside_materials_reports_e024() {
     for path in [
-        "contents/01-01.txt",
+        "contents/01-01.cnov",
         "../secret.md",
         "/etc/passwd",
         "materials/../x.md",

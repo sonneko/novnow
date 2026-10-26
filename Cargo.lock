@@ -2379,6 +2379,7 @@ dependencies = [
  "tiniestsegmenter",
  "tokio",
  "toml",
+ "toml_edit 0.22.27",
  "unicode-normalization",
  "wasm-bindgen",
  "wasm-bindgen-futures",

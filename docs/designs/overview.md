@@ -41,7 +41,7 @@
 - 委譲レベル `DelegationLevel`（`Off` / `Propose` / `Apply` / `Autonomous`）と役割別設定は `REF:src/core/model/delegation.rs` で定義する。
 - タスク起票・自動連鎖上限・`state: fixed` 保護・監査ログ記録は `REF:src/core/agents/runner.rs` および `REF:src/core/agents/apply.rs` が純粋関数として判定し、`REF:src/app/agents.rs` が非同期実行を制御する（検証: `REF:tests/delegation.rs`）。
 - 委譲モデルの設計不変条件（`REF:docs/history.md` の `B-6`〜`B-13`）:
-  - 粒度は「全体既定＋役割ごと」のみとし、セッション一時上書きやタスク単位上書きは持たず `project.json` に永続化する。
+  - 粒度は「全体既定＋役割ごと」のみとし、セッション一時上書きやタスク単位上書きは持たず `project.toml` に永続化する。
   - 自律連鎖で次タスクを起票できるのは `integrator` のみとし、自動適用の検証ゲートは E 系診断の増加有無で判定する。
   - プロンプトの自動学習・自動書き換えは P5 に反するため実装しない（`REF:docs/history.md` の `F11`）。
 
@@ -95,7 +95,7 @@
 | 許可クレート | 用途 |
 |---|---|
 | `serde` / `serde_json` | 設定・索引・ゴールデンテストのシリアライズ |
-| `toml` | カタログ・設定の解析 |
+| `toml` / `toml_edit` | カタログ・設定の解析と `project.toml` の無損失編集 |
 | `regex` | 役割語マッチャ・字句解析 |
 | `aho-corasick` | 本文中の用語出現検出 |
 | `ropey` | Rope テキストバッファ（`REF:src/core/text/rope.rs`） |
@@ -115,7 +115,7 @@
 - `REF:src/cli/mod.rs`, `REF:src/cli/open.rs`, `REF:src/cli/new.rs`, `REF:src/cli/check.rs`, `REF:src/cli/export.rs`, `REF:src/cli/mcp.rs`: CLI サブコマンド群。
 - `REF:src/core/id.rs`: `SceneId` / `PartialSceneId` / `RangeExpr`。
 - `REF:src/core/text/mod.rs`: `rope.rs`, `position.rs`, `lexer.rs`, `incremental.rs`, `sha256.rs`。
-- `REF:src/core/syntax/mod.rs`: `contents.rs`, `plot_outline.rs`, `plot_episode.rs`, `characters_md.rs`, `words_md.rs`, `ideas_md.rs`, `materials_index.rs`, `prompt_md.rs`, `project_json.rs`。
+- `REF:src/core/syntax/mod.rs`: `contents.rs`, `plot_outline.rs`, `plot_episode.rs`, `characters_md.rs`, `words_md.rs`, `ideas_md.rs`, `materials_index.rs`, `prompt_md.rs`, `project_toml.rs`。
 - `REF:src/core/model/mod.rs`: ドメインモデル型群。
 - `REF:src/core/resolve/mod.rs`: `dictionary.rs`, `modes.rs`, `role_language.rs`, `materials.rs`, `context_rules.rs`。
 - `REF:src/core/diagnostics.rs`: 76 診断コードの定義とメタデータ表。
@@ -127,7 +127,7 @@
 - `REF:src/ui/mod.rs`: `i18n/`, `app.rs`, `web.rs`, `shell.rs`, `theme.rs`, `widgets/`, `workspaces/`（`app` 層の 6 モジュールは再エクスポートで旧パスからも解決する）。
 
 段階 ② の追加仕様を無改修で受け入れるための 10 個の拡張点（縫い代）を維持する:
-1. JSON 設定（`project.json` / `ui.json` / `index.json`）の未知キー温存（`#[serde(flatten)]`）。
+1. 設定ファイル（`project.toml` / `ui.json` / `index.json`）の未知キー温存（`#[serde(flatten)]` と `toml_edit` の無損失編集）。
 2. A/B/MD 形式の未知フィールド行の温存（`FieldKey::Unknown`）。
 3. 診断コード番号の予約領域の保護（`REF:src/core/diagnostics.rs`）。
 4. 行頭シジル判定の配列駆動（`SIGIL_TABLE`、`REF:src/core/text/lexer.rs`）。

@@ -187,7 +187,7 @@ fn scene_arg(args: &Value) -> Result<SceneId, ToolError> {
     Ok(parsed.expand_low())
 }
 
-/// ツールを呼ぶ。`title` は `project.json` の `title` が空のときの題、`now` は RFC 3339 の時刻。
+/// ツールを呼ぶ。`title` は `project.toml` の `title` が空のときの題、`now` は RFC 3339 の時刻。
 pub fn call(project: &Project, name: &str, args: &Value, now: &str, title: &str) -> Outcome {
     match name {
         "novnow.project.info" => ok(info(project, title)),
@@ -379,7 +379,7 @@ fn summary_of(project: &Project, id: SceneId, depth: usize) -> String {
 fn plot_get(project: &Project, scene: SceneId, level: &str) -> Outcome {
     let (path, want) = match level {
         "all" => (
-            "plots/all.txt".to_owned(),
+            "plots/all.cnov".to_owned(),
             SceneId {
                 episode: 0,
                 scene: 0,

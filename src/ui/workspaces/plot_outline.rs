@@ -174,7 +174,7 @@ impl State {
         if !fresh {
             let project = bench.project();
             let all_folds = project
-                .document("plots/all.txt")
+                .document("plots/all.cnov")
                 .map(folding::ranges)
                 .unwrap_or_default();
             let titles = plots::outline_blocks(project, None);
@@ -250,10 +250,10 @@ impl State {
         )
     }
 
-    /// 文書のパス（全体 `plots/all.txt`、章 `plots/AA.txt`）。
+    /// 文書のパス（全体 `plots/all.cnov`、章 `plots/AA.cnov`）。
     fn path(&self, bench: &Workbench) -> Option<String> {
         match self.level? {
-            None => Some("plots/all.txt".to_owned()),
+            None => Some("plots/all.cnov".to_owned()),
             Some(chapter) => Some(bench.project().chapter_plot_path(chapter)),
         }
     }

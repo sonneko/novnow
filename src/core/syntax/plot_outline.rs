@@ -1,6 +1,6 @@
 //! A 形式（アウトライン、§5.3）のパーサ。
 //!
-//! `plots/all.txt`（全体プロット）と `plots/AA.txt`（章プロット）は**同一形式**で、違いは
+//! `plots/all.cnov`（全体プロット）と `plots/AA.cnov`（章プロット）は**同一形式**で、違いは
 //! 見出しが指す階層だけである（§5.3 指示 11）。
 //!
 //! ```ebnf
@@ -93,7 +93,7 @@ const ARROW: &str = "->";
 /// 解析の設定。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Options {
-    /// このファイルの見出しの階層。`plots/all.txt` なら **1**、`plots/AA.txt` なら **2**。
+    /// このファイルの見出しの階層。`plots/all.cnov` なら **1**、`plots/AA.cnov` なら **2**。
     ///
     /// `None` なら**最初のブロックの見出し**から決める（§5.3.2「ファイル内の見出し階層は
     /// 揃っていること」）。どちらの場合も、揃わない見出しは **E020**。
@@ -253,7 +253,7 @@ impl<'a> Line<'a> {
 
 /// 最初のブロック見出しより前の行（§5.3.1 `preamble`）。ファイル全体のメタ。
 ///
-/// §5.3.7 は `plots/all.txt` の前文の `blurb:` を**作品全体のあらすじ**とする。
+/// §5.3.7 は `plots/all.cnov` の前文の `blurb:` を**作品全体のあらすじ**とする。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Preamble {
     /// 行範囲（`Outline::lines` の中）。見出しが無ければ全行。

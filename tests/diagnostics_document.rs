@@ -125,30 +125,30 @@ fn w006_needs_a_speaker_without_any_mode() {
     );
     let mut project = world_with("characters.md", &characters);
     project.insert(novnow::core::model::document::Document::new(
-        "contents/03-01.txt",
+        "contents/03-01.cnov",
         "@03-01-01 x\n「来たわよ」@リリア\n",
     ));
     project.insert(novnow::core::model::document::Document::new(
-        "plots/03-01.txt",
+        "plots/03-01.cnov",
         "@03-01-01 x\nsummary: s\n",
     ));
-    let found = tags(&project, "plots/03-01.txt");
+    let found = tags(&project, "plots/03-01.cnov");
     // 話プロットに節が無い（`;` が無い）ので波線は場面全体。節数の W030 も出る（0 節 / 1 節）
     assert_eq!(
         found,
         "W006@@03-01-01 x\nsummary: s\n / W030@@03-01-01(0,1)"
     );
     // 本文には W006 を載せない（話プロットの節に載る。§6.4.3 の段 8）
-    assert_eq!(tags(&project, "contents/03-01.txt"), "");
+    assert_eq!(tags(&project, "contents/03-01.cnov"), "");
 }
 
 #[test]
 fn a_word_used_before_its_range_is_w022() {
     // §5.6 の例の「星屑の時計」は `range: @01 ..`。0 章（ストック）で使うと先出し
     let text = "@00-01-01 x\n'星屑の時計 の噂。\n";
-    let project = world_with("contents/00-01.txt", text);
+    let project = world_with("contents/00-01.cnov", text);
     assert_eq!(
-        tags(&project, "contents/00-01.txt"),
+        tags(&project, "contents/00-01.cnov"),
         "W022@'星屑の時計(星屑の時計)"
     );
     // 1 章なら範囲内
@@ -219,4 +219,50 @@ fn custom_prompts_check_the_role_name() {
 fn unknown_files_have_no_diagnostics() {
     let project = world_with("exports/out.txt", "'だれか");
     assert_eq!(tags(&project, "exports/out.txt"), "");
+}
+
+#[test]
+fn features_diagnostics_overrides_follow_4_5_2() {
+    use novnow::core::diagnostics::{DiagnosticCode, Severity};
+    use novnow::core::model::document::Document;
+
+    // 1 節目が空 → W012（structure グループ）
+    let prose = "@01-04-01 場面\n;\n本文。\n";
+    let w012 = |project: &Project| {
+        diagnostics::document(&doc(project, CONTENTS_PATH), project)
+            .into_iter()
+            .find(|found| found.code == DiagnosticCode::W012)
+    };
+    let base = world_with(CONTENTS_PATH, prose);
+    let found = w012(&base).expect("既定では出る");
+    assert_eq!(found.severity(), Severity::Warning);
+    assert_eq!(found.severity_override, None);
+
+    let with = |toml: &str| {
+        let mut project = world_with(CONTENTS_PATH, prose);
+        project.insert(Document::new("project.toml", toml.to_owned()));
+        project
+    };
+    // 個別コードの off は件数にも含めない
+    let off = with("[features.diagnostics]\nW012 = \"off\"\n");
+    assert!(w012(&off).is_none());
+    // 個別コードの error は重大度を上げる
+    let error = with("[features.diagnostics]\nW012 = \"error\"\n");
+    assert_eq!(w012(&error).expect("出る").severity(), Severity::Error);
+    // グループ（structure）の off
+    let group = with("[features.diagnostics]\nstructure = \"off\"\n");
+    assert!(w012(&group).is_none());
+    // 関係ないグループ（writing）は効かない
+    let other = with("[features.diagnostics]\nwriting = \"off\"\n");
+    assert!(w012(&other).is_some());
+    // default は最後に効く
+    let default = with("[features.diagnostics]\ndefault = \"error\"\n");
+    assert_eq!(w012(&default).expect("出る").severity(), Severity::Error);
+    // 個別コードがグループより先（§4.5.2 の順）
+    let code_first = with("[features.diagnostics]\nW012 = \"warn\"\nstructure = \"off\"\n");
+    let found = w012(&code_first).expect("個別コードが勝つ");
+    assert_eq!(found.severity(), Severity::Warning);
+    // 値でない文字列は書かれていないものとして次へ進む
+    let invalid = with("[features.diagnostics]\nW012 = \"loud\"\ndefault = \"error\"\n");
+    assert_eq!(w012(&invalid).expect("出る").severity(), Severity::Error);
 }

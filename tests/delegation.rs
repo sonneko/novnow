@@ -309,7 +309,7 @@ fn propose_leaves_a_proposal_for_review_and_logs_the_run_without_bodies() {
     let proposal = board.proposal_of(&task).unwrap();
     assert_eq!(proposal.status, "open");
     assert_eq!(proposal.kind, "section-text");
-    assert_eq!(proposal.target, "contents/01-04.txt @01-04-02-02");
+    assert_eq!(proposal.target, "contents/01-04.cnov @01-04-02-02");
     assert_eq!(proposal.after, "新しい本文。");
     assert!(proposal
         .before
@@ -663,26 +663,38 @@ fn failures_return_the_task_to_ready_and_cancel_marks_it_canceled() {
 }
 
 #[test]
-fn delegation_changes_are_written_to_project_json_and_logged() {
+fn delegation_changes_are_written_to_project_toml_and_logged() {
     let project = project(&[], "human");
     let settings = project.settings().agents.clone();
-    let json_text = "{\n  \"schema_version\": 1,\n  \"title\": \"星屑\"\n}\n";
+    let toml_text = "schema_version = 2\ntitle = \"星屑\"\n";
     let (text, event) =
-        runner::set_level(json_text, &settings, "writer", Delegation::Apply, NOW).unwrap();
-    let value: Value = serde_json::from_str(&text).unwrap();
-    assert_eq!(value["agents"]["roles"]["writer"], "apply");
-    assert_eq!(value["title"], "星屑");
+        runner::set_level(toml_text, &settings, "writer", Delegation::Apply, NOW).unwrap();
+    let found = novnow::core::syntax::project_toml::settings(&text);
+    assert_eq!(
+        found.agents.roles.get("writer").map(String::as_str),
+        Some("apply")
+    );
+    assert_eq!(found.title, "星屑");
+    assert!(
+        text.contains("title = \"星屑\""),
+        "書かなかったキーはそのまま（無損失編集）: {text}"
+    );
     assert_eq!(event.event, "delegation_changed");
     assert_eq!(event.detail.as_deref(), Some("writer: propose -> apply"));
     let (text, _) =
         runner::set_level(&text, &settings, "integrator", Delegation::Autonomous, NOW).unwrap();
-    let value: Value = serde_json::from_str(&text).unwrap();
-    assert_eq!(value["agents"]["integrator"], "agent");
-    assert_eq!(value["agents"]["roles"]["integrator"], "autonomous");
+    let found = novnow::core::syntax::project_toml::settings(&text);
+    assert_eq!(found.agents.integrator, "agent");
+    assert_eq!(
+        found.agents.roles.get("integrator").map(String::as_str),
+        Some("autonomous")
+    );
     let (text, _) =
         runner::set_level(&text, &settings, "integrator", Delegation::Off, NOW).unwrap();
-    let value: Value = serde_json::from_str(&text).unwrap();
-    assert_eq!(value["agents"]["integrator"], "human");
+    let found = novnow::core::syntax::project_toml::settings(&text);
+    assert_eq!(found.agents.integrator, "human");
+    // 壊れた TOML は上書きしない（§4.5）
+    assert!(runner::set_level("title = ", &settings, "writer", Delegation::Apply, NOW).is_none());
 }
 
 #[test]
@@ -697,14 +709,23 @@ fn stop_all_lowers_every_writing_level_to_propose() {
     );
     let mut settings = project.settings().agents.clone();
     settings.delegation = "apply".to_owned();
-    let json_text = "{\"agents\": {\"delegation\": \"apply\", \"integrator\": \"agent\", \"roles\": {\"writer\": \"apply\", \"integrator\": \"autonomous\", \"stylist\": \"off\"}}}";
-    let (text, events) = runner::stop_all(json_text, &settings, NOW).unwrap();
-    let value: Value = serde_json::from_str(&text).unwrap();
-    assert_eq!(value["agents"]["delegation"], "propose");
-    assert_eq!(value["agents"]["roles"]["writer"], "propose");
-    assert_eq!(value["agents"]["roles"]["integrator"], "propose");
-    assert_eq!(value["agents"]["roles"]["stylist"], "off");
-    assert_eq!(value["agents"]["integrator"], "agent");
+    let toml_text = "[agents]\ndelegation = \"apply\"\nintegrator = \"agent\"\n\n[agents.roles]\nwriter = \"apply\"\nintegrator = \"autonomous\"\nstylist = \"off\"\n";
+    let (text, events) = runner::stop_all(toml_text, &settings, NOW).unwrap();
+    let found = novnow::core::syntax::project_toml::settings(&text);
+    assert_eq!(found.agents.delegation, "propose");
+    assert_eq!(
+        found.agents.roles.get("writer").map(String::as_str),
+        Some("propose")
+    );
+    assert_eq!(
+        found.agents.roles.get("integrator").map(String::as_str),
+        Some("propose")
+    );
+    assert_eq!(
+        found.agents.roles.get("stylist").map(String::as_str),
+        Some("off")
+    );
+    assert_eq!(found.agents.integrator, "agent");
     // writer・integrator と、既定（apply）に従っていた役割が propose に下がる
     let roles: Vec<&str> = events
         .iter()

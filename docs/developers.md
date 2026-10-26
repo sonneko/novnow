@@ -118,7 +118,7 @@ novnow/
 ├── examples/
 │   ├── api_catalog.rs         # 正規操作カタログのゴールデン生成（REF:examples/api_catalog.rs）
 │   ├── mcp_tools.rs           # MCP ツール定義のゴールデン生成（REF:examples/mcp_tools.rs）
-│   └── sample-novel/          # 付録 C のサンプルプロジェクト一式（REF:examples/sample-novel/project.json）
+│   └── sample-novel/          # 付録 C のサンプルプロジェクト一式（REF:examples/sample-novel/project.toml）
 ├── scripts/
 │   ├── bootstrap-toolchain.sh # サンドボックス用 Rust ツールチェーン展開（REF:scripts/bootstrap-toolchain.sh）
 │   ├── bootstrap-jpeg.sh      # 同梱 JPEG デコーダの展開

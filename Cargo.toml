@@ -65,6 +65,9 @@ thiserror = "1.0"
 unicode-normalization = "0.1"
 # `ui::i18n` が文言カタログを読む（GUI と CLI の両方。上の [features] の注記）。
 toml = "0.8"
+# `project.toml`（§4.5）の無損失編集（コメント・書式・キー順・未知キーの保持）。
+# `toml` が内包する版を直接依存として明示する（Issue #29 B10）。
+toml_edit = "0.22"
 rfd = { version = "0.14", optional = true }
 web-time = "0.2"
 zip = { version = "2.1", default-features = false, features = ["deflate"] }

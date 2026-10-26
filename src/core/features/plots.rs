@@ -2,12 +2,12 @@
 //!
 //! LSP には対応しない補助（`docs/history.md` B-127）。**文言は持たない**（§12.2）。
 //!
-//! - **話プロットの節リスト**（[`episode_rows`]）: `plots/AA-BB.txt`（B 形式）を、場面見出しの行と
+//! - **話プロットの節リスト**（[`episode_rows`]）: `plots/AA-BB.cnov`（B 形式）を、場面見出しの行と
 //!   節の行の並びにする。各行は「エディタで編集する行の範囲」を持つ。場面の行は見出しから最初の
 //!   節の前まで（場面レベルのフィールド、§5.4.1 `scene_field`）、節の行は節の内容（`;` と末尾の空行を
 //!   含まない）。状態は §17.2 のエクスポートと同じ実効の状態（B-122）。
-//! - **上位のブロック**（[`outline_block`]）: 章プロット（`plots/AA.txt`）の話のブロックや全体プロット
-//!   （`plots/all.txt`）の章のブロックの行（`plot-episode` の上段・`plot-outline` の中央）。
+//! - **上位のブロック**（[`outline_block`]）: 章プロット（`plots/AA.cnov`）の話のブロックや全体プロット
+//!   （`plots/all.cnov`）の章のブロックの行（`plot-episode` の上段・`plot-outline` の中央）。
 //! - **伏線**（[`foreshadows`]）: 全体・章・話プロットの `seed:` / `payoff:` を伏線 ID で突き合わせる
 //!   （§10.3 の伏線タブ。未回収を上に）。
 
@@ -309,7 +309,7 @@ pub fn append_line(text: &str, rows: &[EpisodeRow], id: SceneId, line: &str) -> 
 pub struct OutlineBlock {
     /// ブロックの ID（章なら `episode == 0`）。
     pub id: SceneId,
-    /// 文書のパス（`plots/all.txt` / `plots/01.txt`）。
+    /// 文書のパス（`plots/all.cnov` / `plots/01.cnov`）。
     pub path: String,
     /// 見出しからの行（`;` と末尾の空行を含まない）。エディタで編集する範囲。
     pub lines: Range<usize>,
@@ -331,7 +331,7 @@ pub fn outline_blocks(project: &Project, chapter: Option<u16>) -> Vec<OutlineBlo
             project.chapter_plot_path(number),
             project.chapter_plot(number),
         ),
-        None => ("plots/all.txt".to_owned(), project.all_plot()),
+        None => ("plots/all.cnov".to_owned(), project.all_plot()),
     };
     let Some(outline) = outline else {
         return Vec::new();

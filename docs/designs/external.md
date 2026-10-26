@@ -45,7 +45,7 @@
 
 ### 20.4 VSCode 拡張版
 
-状態: 未実装・実装計画済み（REF:src/lsp/mod.rs, REF:vscode/package.json, REF:vscode/src/extension.ts, REF:vscode/src/binary.ts, REF:vscode/src/commands.ts, REF:.github/workflows/vscode.yml, REF:docs/plans.md#issue-29-b9, REF:docs/plans.md#issue-29-b10）
+状態: 未実装・実装計画済み（REF:src/lsp/mod.rs, REF:vscode/package.json, REF:vscode/src/extension.ts, REF:vscode/src/binary.ts, REF:vscode/src/commands.ts, REF:.github/workflows/vscode.yml, REF:docs/plans.md#issue-29-b9）
 
 - **置き場所**: `REF:vscode/`。`package.json`（識別子 `sonneko.novnow`、`engines.vscode`、`activationEvents`、`contributes.configuration`、`contributes.commands`）、`src/extension.ts`（接続とコマンド）、`esbuild.mjs`（1 ファイルへ束ねる）。`novnow` の実行ファイルは同梱しない。
 - **依存**: `vscode-languageclient` と `vscode-languageserver-protocol` だけを足す（npm）。esbuild で `dist/extension.js` に束ね、`node_modules` を `.vsix` に入れない。
@@ -60,7 +60,7 @@
 
 - **[Issue #29 / B9・B10] 両市場への公開準備と `.cnov` 対応（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b9`）**:
   - VS Code Marketplace と Open VSX への公開ジョブを、タグ実行でも自動公開にならない形（手動承認付きの `workflow_dispatch`）で用意する。登録と発行者トークンの用意は所有者の手続きであり、ジョブはトークンが無ければ安全に何もしない。初回公開自体はその後に別途行う。
-  - 拡張へ `.cnov` の言語関連付けと最低限の色付け（シジル・コメント・台詞など）を足す（B10 の改名への追随）。
+  - 拡張へ `.cnov` の言語関連付け（`extensions: ['.cnov']`、`REF:vscode/package.json`）と最低限の色付け（シジル・コメント・台詞など、`REF:vscode/syntaxes/novnow.tmLanguage.json`）を足した（B10 で実装完了。公開準備は B9）。
 
 ### 20.5 GitHub Actions 版
 

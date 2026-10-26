@@ -984,7 +984,10 @@ fn reader(
     use std::hash::{Hash, Hasher};
     let mut fingerprint = std::collections::hash_map::DefaultHasher::new();
     bench.project().text(path).hash(&mut fingerprint);
-    bench.project().text("plots/all.txt").hash(&mut fingerprint);
+    bench
+        .project()
+        .text("plots/all.cnov")
+        .hash(&mut fingerprint);
     bench
         .project()
         .text(&bench.project().chapter_plot_path(*chapter))
@@ -1239,36 +1242,52 @@ fn local_ui(
             &config,
         ) {
             Ok(mcp) => {
-                if let Ok(mut project) = serde_json::from_str::<serde_json::Value>(
+                // project.toml は無損失編集で書き戻し、壊れた TOML は上書きしない（§4.5）
+                let roles: Vec<String> = state
+                    .custom_roles
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .map(str::to_owned)
+                    .collect();
+                if let Some(edited) = crate::core::syntax::project_toml::edit(
                     bench
                         .project()
                         .text(crate::core::model::project::PROJECT_FILE),
+                    |document| {
+                        use toml_edit::{Item, Table, Value};
+                        let root = document.as_table_mut();
+                        if root.get("agents").is_none() {
+                            root.insert("agents", Item::Table(Table::new()));
+                        }
+                        let Some(agents) = root.get_mut("agents").and_then(Item::as_table_like_mut)
+                        else {
+                            return;
+                        };
+                        let mut array = toml_edit::Array::new();
+                        for role in &roles {
+                            array.push(role.as_str());
+                        }
+                        agents.insert("custom_roles", Item::Value(Value::Array(array)));
+                        if agents.get("local_llm").is_none() {
+                            agents.insert(
+                                "local_llm",
+                                Item::Value(Value::InlineTable(Default::default())),
+                            );
+                        }
+                        let Some(local) = agents
+                            .get_mut("local_llm")
+                            .and_then(Item::as_table_like_mut)
+                        else {
+                            return;
+                        };
+                        local.insert("enabled", toml_edit::value(config.enabled));
+                        local.insert("url", toml_edit::value(config.url.as_str()));
+                        local.insert("model", toml_edit::value(config.model.as_str()));
+                    },
                 ) {
-                    if !project["agents"].is_object() {
-                        project["agents"] = serde_json::json!({});
-                    }
-                    if !project["agents"]["local_llm"].is_object() {
-                        project["agents"]["local_llm"] = serde_json::json!({});
-                    }
-                    for (key, value) in [
-                        ("enabled", serde_json::json!(config.enabled)),
-                        ("url", serde_json::json!(config.url)),
-                        ("model", serde_json::json!(config.model)),
-                    ] {
-                        project["agents"]["local_llm"][key] = value;
-                    }
-                    project["agents"]["custom_roles"] = serde_json::json!(state
-                        .custom_roles
-                        .split(',')
-                        .map(str::trim)
-                        .filter(|s| !s.is_empty())
-                        .collect::<Vec<_>>());
                     bench.replace_document("agents/mcp.json", mcp, now);
-                    bench.replace_document(
-                        crate::core::model::project::PROJECT_FILE,
-                        serde_json::to_string_pretty(&project).unwrap() + "\n",
-                        now,
-                    );
+                    bench.replace_document(crate::core::model::project::PROJECT_FILE, edited, now);
                 }
             }
             Err(e) => state.local_result = e.to_owned(),

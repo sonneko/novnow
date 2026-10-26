@@ -838,7 +838,7 @@ impl WebPicker {
             return;
         };
         input.set_type("file");
-        input.set_accept(".zip,application/zip");
+        input.set_accept(".zip,.novnow,application/zip");
         let _ = input.set_attribute("style", "display:none");
         if let Some(body) = document.body() {
             let _ = body.append_child(&input);
@@ -946,6 +946,8 @@ async fn import_zip(
     let name = file_name
         .strip_suffix(".zip")
         .or_else(|| file_name.strip_suffix(".ZIP"))
+        .or_else(|| file_name.strip_suffix(".novnow"))
+        .or_else(|| file_name.strip_suffix(".NOVNOW"))
         .unwrap_or(&file_name)
         .to_owned();
     let (record, skipped) = match idb.import_zip(&name, &bytes).await {

@@ -79,7 +79,7 @@ fn a_new_section_is_made_after_the_current_one() {
 #[test]
 fn moving_by_scene_file_and_jump() {
     let project = world_with(
-        "contents/01-05.txt",
+        "contents/01-05.cnov",
         "@01-05-01 屋上\n一節目\n;\n二節目\n@01-05-02 帰り道\n三節目\n",
     );
     let list = sections::all(&project);
@@ -112,11 +112,11 @@ fn moving_by_scene_file_and_jump() {
     assert_eq!(sections::jump(&list, "abc"), None);
     // 位置の復元（節が消えたら同じ場面の近い節）
     assert_eq!(
-        sections::position_of(&list, "contents/01-05.txt", id(1, 5, 1, 2)),
+        sections::position_of(&list, "contents/01-05.cnov", id(1, 5, 1, 2)),
         Some(4)
     );
     assert_eq!(
-        sections::position_of(&list, "contents/01-05.txt", id(1, 5, 1, 9)),
+        sections::position_of(&list, "contents/01-05.cnov", id(1, 5, 1, 9)),
         Some(4)
     );
 }

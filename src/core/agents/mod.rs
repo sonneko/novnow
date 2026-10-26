@@ -58,7 +58,7 @@ pub fn is_role(role: &str) -> bool {
 pub enum Kind {
     /// writer: 節の本文（`contents/`）。
     SectionText,
-    /// plotter: 話プロットの節（`plots/AA-BB.txt`）。
+    /// plotter: 話プロットの節（`plots/AA-BB.cnov`）。
     PlotField,
     /// ideator: `ideas.md` への追記（1 行 1 件）。
     Idea,

@@ -1071,7 +1071,7 @@ pub const OPS: &[OpDef] = &[
     opdef!("api.list", NONE, session_ops::api_list),
 ];
 
-/// 構造 ID を書かれたままの形へ（`project.json` の桁数に従う、§5.2）。
+/// 構造 ID を書かれたままの形へ（`project.toml` の桁数に従う、§5.2）。
 pub fn id_text(session: &Session, scene: crate::core::id::SceneId) -> String {
     scene.display(session.aggregate().digits())
 }

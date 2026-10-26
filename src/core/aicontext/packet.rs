@@ -58,7 +58,7 @@ pub struct Inputs<'a> {
     pub delegation: Delegation,
     /// 生成日時（RFC 3339）。
     pub generated_at: &'a str,
-    /// `project.json` の `title` が空のときの題（プロジェクトの名前）。
+    /// `project.toml` の `title` が空のときの題（プロジェクトの名前）。
     pub title: &'a str,
     /// 人間が外したブロック。
     pub excluded: &'a [PacketBlock],
@@ -372,7 +372,7 @@ fn example_text(project: &Project, specs: &[String]) -> String {
                 .filter_map(|doc| {
                     doc.path
                         .strip_prefix("plots/")?
-                        .strip_suffix(".txt")?
+                        .strip_suffix(".cnov")?
                         .parse::<u16>()
                         .ok()
                 })
@@ -406,7 +406,10 @@ fn example_text(project: &Project, specs: &[String]) -> String {
             let episodes: std::collections::BTreeSet<_> = project
                 .documents()
                 .filter_map(|document| {
-                    let stem = document.path.strip_prefix("plots/")?.strip_suffix(".txt")?;
+                    let stem = document
+                        .path
+                        .strip_prefix("plots/")?
+                        .strip_suffix(".cnov")?;
                     let (chapter, episode) = stem.split_once('-')?;
                     Some((chapter.parse::<u16>().ok()?, episode.parse::<u16>().ok()?))
                 })

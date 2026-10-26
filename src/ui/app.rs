@@ -5688,7 +5688,7 @@ fn host_event_text(locale: Locale, event: &HostEvent) -> String {
     }
 }
 
-/// Zip の既定の名前の元（`project.json` の題、無ければプロジェクトの名前）。
+/// Zip の既定の名前の元（`project.toml` の題、無ければプロジェクトの名前）。
 fn zip_name(session: &Session) -> String {
     match session.bench.project().settings().title.trim() {
         "" => session.host.name(),
@@ -8150,7 +8150,7 @@ mod native {
                                     .show(ui, |ui| {
                                         for file in files {
                                             ui.monospace(file.path);
-                                            if file.path == "contents/01-01.txt" {
+                                            if file.path == "contents/01-01.cnov" {
                                                 ui.monospace(file.text);
                                             }
                                         }

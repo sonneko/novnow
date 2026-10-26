@@ -2,7 +2,7 @@
 //!
 //! LSP には対応しない補助（UI の節エディタと文脈ビューのための純粋関数。`docs/history.md` B-112）。
 //!
-//! - **節の並び**: 本文（`contents/AA-BB.txt`）の節を、ファイル名の順 → ファイルの中の順に並べたもの。
+//! - **節の並び**: 本文（`contents/AA-BB.cnov`）の節を、ファイル名の順 → ファイルの中の順に並べたもの。
 //!   場面見出しの ID が壊れた節（E002 / E020）と、最初の場面見出しより前の行は並びに入らない。
 //! - **節の本文**: 節の内容の行（`contents::Section::content`。見出し行と区切り `;` と、末尾の空行を
 //!   含まない）を LF でつないだもの。節エディタはこれだけを編集する（末尾の空行は書き戻しでも残る）。
@@ -25,7 +25,7 @@ use crate::core::text::lexer::{self, LineKind, TextFormat};
 /// 並びの中の節 1 つ。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SectionRef {
-    /// 本文のパス（`contents/01-04.txt`）。
+    /// 本文のパス（`contents/01-04.cnov`）。
     pub path: String,
     /// 節の構造 ID（4 階層）。
     pub id: SceneId,

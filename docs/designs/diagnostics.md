@@ -6,7 +6,7 @@
 
 ### 7.0 コア・構文・解決・整合の診断
 
-状態: 未実装・実装計画済み（REF:src/core/diagnostics.rs, REF:src/core/features/project.rs, REF:tests/diagnostics_catalog.rs, REF:tests/diagnostics_document.rs, REF:docs/plans.md#issue-29-b10）
+状態: 実装完了（REF:src/core/diagnostics.rs, REF:src/core/features/project.rs, REF:tests/diagnostics_catalog.rs, REF:tests/diagnostics_document.rs）
 
 - コア・構文・解決・整合の 39 コード（`E001`〜`E030`, `W001`〜`W015`, `I001`〜`I002`）は `DiagnosticCode`（`REF:src/core/diagnostics.rs`）に列挙し、`CATALOG` 定数で重大度・グループ・引数個数を管理する。
 - 文書単位およびプロジェクト横断の診断収集は `core::features::diagnostics`（`REF:src/core/features/project.rs`）が担う。
@@ -14,14 +14,14 @@
 - **診断生成・整列・横断検査の内部規約（`REF:docs/history.md` の `A-22`, `B-25`〜`B-30`, `B-72`〜`B-77`）**:
   - `core` は診断メッセージ文字列や `Display` を持たず、`DiagnosticCode` と構造化引数 `Vec<String>` のみを返し、日本語メッセージへの整形は `ui::i18n`（`REF:src/ui/i18n/mod.rs`）が担う（`B-29`）。
   - `Diagnostic::range` はファイル先頭からの byte offset の半開区間とし、1 基点の `(line, col)`（`col` は UTF-8 文字数＝`chars().count() + 1`）への変換は `LineIndex::line_col` で行う（`B-28`）。
-  - A 形式（`plots/all.txt` と `plots/AA.txt`）の両方に同じ話ブロック `@AA-BB` がある場合は、より詳細な章別ファイル `plots/AA.txt` を正とし、`E018` / `W002` の related 位置もそちらを指す（`B-72`）。
+  - A 形式（`plots/all.cnov` と `plots/AA.cnov`）の両方に同じ話ブロック `@AA-BB` がある場合は、より詳細な章別ファイル `plots/AA.cnov` を正とし、`E018` / `W002` の related 位置もそちらを指す（`B-72`）。
   - 会話の話者・役割語検査（`W003` / `W004` / `W005`）では、単一引用符 `'…'`（改行を跨がない閉じたペア）を地の文から除外した上で括弧の開閉を走査し、話者が特定された場合は全定義パターンとの不一致で `W004`、話者未指定の場合は `pov`（なければその節の `mode:` に登場するキャラ集合）を候補として `W003` / `W005` を判定する（`B-73`）。
   - 伏線グラフの `I001`（伏線と回収のペア成立）は伏線側・回収側の双方で参照でき、かつ診断一覧で件数が倍増しないよう、回収側に 1 件のみ出して `related` に伏線側の位置を入れる（`A-22`）。
   - `cli::check` の JSON 出力と text 出力はともに `(path, range.start, code)` の辞書順でソートして決定性を保証し（`B-76`）、`--fix` は安全フラグ付きの `QuickFix` のみを末尾側から自動適用する（`B-86`, `B-102`）。
 
-- **[Issue #29 / B10] 有効性とエラー扱いの上書き（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b10`）**:
-  - 組み込み既定（表の深刻度と既定）は現行定数のままにし、読み込み時に `[features.diagnostics]`（仕様 §4.5.2）の解決結果（コード → グループ → `default`）で上書きした有効な組み立てを診断生成へ渡す。コアは解決済みの値だけを見て生成し、設定ファイルの書式は知らない。
-  - `"error"` の診断は `check` の終了コード 5 の対象に含め、`"off"` の診断は生成しない（件数にも含めない）。
+- **[Issue #29 / B10] 有効性とエラー扱いの上書き（実装完了: `REF:docs/plans.md#issue-29-b10`）**:
+  - 組み込み既定（表の深刻度と既定）は現行定数のままにし、`diagnostics::document` の末尾で `[features.diagnostics]`（仕様 §4.5.2）の解決結果を適用する。解決は `level_for`（`REF:src/core/diagnostics.rs`: 個別コード → グループ `structure` / `storage` / `writing` → `default`、値でない文字列は次へ進む）で、`"off"` は落とし、`"warn"` / `"error"` は `Diagnostic.severity_override` に写す（`severity()` が実効重大度を返す）。コアは解決済みの値だけを見て、設定ファイルの書式は知らない。
+  - `"error"` の診断は `check` の終了コード 5 の対象に含まれ（`found.severity()` で数える）、`"off"` の診断は生成しない（件数にも含めない）（検証: `REF:tests/diagnostics_document.rs` の `features_diagnostics_overrides_follow_4_5_2`）。
 
 ### 7.1 ストレージ・エージェント系（文書位置を持たない通知）
 

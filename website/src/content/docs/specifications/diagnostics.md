@@ -32,7 +32,7 @@ severity: `E`=エラー（赤波線） / `W`=警告（黄波線） / `I`=情報�
 | E021 | E | `words.md` に `definition` 無し | `definition（定義）は必須です` | `definition is required` | 空の definition を挿入 |
 | E022 | E | 予約番号の見出し（§5.1.2） | `この番号は予約されています: {0}` | `This number is reserved: {0}` | 番号をずらす |
 | E024 | E | `materials` 外を指す `path` | `資料ファイルは materials/ 配下に置いてください` | `Material files must live under materials/` | 移動して path 修正 |
-| E025 | E | JSON ファイルがパースできない（§4.3-4） | `JSON として読み込めません: {0}` | `Cannot parse as JSON: {0}` | 既定値で開く / 手動で修正 |
+| E025 | E | JSON / TOML ファイルがパースできない（§4.3-4） | `読み込めません: {0}` | `Cannot parse: {0}` | 既定値で開く / 手動で修正 |
 | E026 | E | 修飾子を付けられない参照に修飾子（§6.1.1） | `この参照に修飾子は付けられません` | `Modifiers are not allowed on this reference` | 修飾子を削除 |
 | E027 | E | `project.toml` の `lexicon.word_classes` の正規表現が不正（§6.5.1） | `語クラス {0}の正規表現が不正です` | `Invalid regular expression for word class {0}` | 正規表現を直す / 項目を削除する |
 | E028 | E | 辞書キーが 96 バイト超 | `辞書の項目名が長すぎます` | `Dictionary key is too long` | — |

@@ -181,7 +181,7 @@ after: <直後 1 節の本文（あれば）>
 
 - 9 つの見出しは**中身が無くても必ず出す**（外したブロックも見出しだけ残る）。ブロックの中は `ラベル: 値`
   （値が複数行なら `ラベル:` の次の行から）か、`- ` で始まる 1 件。
-- `1 project`: `title`（`project.toml` の `title`、空ならプロジェクトの名前）・`genre`（`project.json` に
+- `1 project`: `title`（`project.toml` の `title`、空ならプロジェクトの名前）・`genre`（`project.toml` に
   あれば）・`style`（`prompts/_shared/style.md` の H1 と `//` コメントを除いた本文）。
 - `2 outline`: `all`・`chapter`・`goal`（当該話のブロックの `goal`）。
 - `4 target`: `current` → `before <ID>`（遠い節から近い節へ）→ `after <ID>`。前後は §8.1 の節の並び（ファイル名の順

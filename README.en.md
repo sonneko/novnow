@@ -102,7 +102,7 @@ In the future, following continued research and development, we plan to implemen
    - The reference pane on the right automatically extracts and shows the plot, characters (active modes and speech styles), terms, materials, and diagnostics that concern the current section. Its visibility, side, and split ratio are all keyboard-adjustable.
 2. **Lightweight Proprietary Text Syntax and Lossless Saving**
    - Manuscript text (`contents/AA-BB.txt`), overall and chapter plots (`plots/all.txt`, `plots/AA.txt`), episode plots (`plots/AA-BB.txt`), characters (`characters.md`), terms (`words.md`), ideas (`ideas.md`), and materials (`materials/`) are all plain text (UTF-8), so Git diffs them natively.
-   - Not a single byte of the original is discarded: what you read is what is written back. A project is self-contained around `project.json`; only the `.novnow/` cache stays out of version control.
+   - Not a single byte of the original is discarded: what you read is what is written back. A project is self-contained around `project.toml`; only the `.novnow/` cache stays out of version control.
 3. **Semantic Resolution Engine and 76 Types of Real-Time Diagnostics**
    - Provides glossary resolution via `'Name` (shortest match, NFKC normalization), situation-aware character mode resolution, speech-style pattern matching (tone matches are underlined in green), detection of terms used before their first appearance, and authoring diagnostics for sentence length, repeated sentence endings, spelling variance, and more.
    - Every one of the 76 diagnostics has a stable code (`E001`-`W0xx` / `I0xx`), reachable through the `Ctrl+.` quick fix and the `review` workspace.
@@ -175,7 +175,7 @@ novnow structure tree my-novel --json                    # canonical operations 
 All specifications for the editor and the novnow format are fully documented:
 
 - [`overview.md`](./docs/specifications/overview.md): Design principles, terminology, and architecture
-- [`project.md`](./docs/specifications/project.md): Project structure, `project.json`, and sample layouts
+- [`project.md`](./docs/specifications/project.md): Project structure, `project.toml`, and sample layouts
 - [`syntax.md`](./docs/specifications/syntax.md): Syntax specifications for each file
 - [`semantics.md`](./docs/specifications/semantics.md): Dictionaries, shortest-match, mode resolution, and role-language pattern language
 - [`diagnostics.md`](./docs/specifications/diagnostics.md): Diagnostics catalog

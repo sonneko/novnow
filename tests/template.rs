@@ -38,14 +38,14 @@ fn the_template_has_exactly_the_files_of_section_14_5() {
         .map(|file| file.path)
         .collect();
     let mut want = vec![
-        "project.json",
+        "project.toml",
         "characters.md",
         "words.md",
         "ideas.md",
-        "contents/01-01.txt",
-        "plots/all.txt",
-        "plots/01.txt",
-        "plots/01-01.txt",
+        "contents/01-01.cnov",
+        "plots/all.cnov",
+        "plots/01.cnov",
+        "plots/01-01.cnov",
         "materials/index.json",
         "materials/docs/.gitkeep",
     ];
@@ -81,7 +81,7 @@ fn the_template_passes_the_project_validation() {
             dir = parent;
         }
     }
-    listing.project_json = Some(template::project_json("x"));
+    listing.project_toml = Some(template::project_toml("x"));
     assert_eq!(validate(&listing), Ok(()));
 }
 
@@ -110,11 +110,11 @@ fn the_sample_uses_the_dictionary_and_modes() {
     assert_eq!(characters.matches("\n### ").count(), 2, "{characters}");
     assert!(characters.contains("「*だよ」「*かな」"));
     assert_eq!(project.text("words.md").matches("\n# ").count(), 1);
-    assert!(project.text("contents/01-01.txt").contains("@01-01-01"));
+    assert!(project.text("contents/01-01.cnov").contains("@01-01-01"));
     assert!(project
-        .text("plots/01-01.txt")
+        .text("plots/01-01.cnov")
         .contains("mode: '星野ひかり:A"));
-    assert!(project.text("plots/all.txt").contains("summary: "));
+    assert!(project.text("plots/all.cnov").contains("summary: "));
     // ideas.md はコメントだけ（見出しはアイデア 1 件になる。§5.7）
     let ideas = project.text("ideas.md");
     assert!(ideas.lines().all(|line| line.starts_with("//")), "{ideas}");
@@ -122,11 +122,11 @@ fn the_sample_uses_the_dictionary_and_modes() {
 
 #[test]
 fn json_files_and_gitignore_are_as_section_14_5() {
-    let value: serde_json::Value =
-        serde_json::from_str(&template::project_json("星屑の \"時計\"")).expect("json");
-    assert_eq!(value["schema_version"], 1);
-    assert_eq!(value["title"], "星屑の \"時計\"");
-    assert_eq!(value.as_object().expect("object").len(), 2);
+    let value: toml::Value =
+        toml::from_str(&template::project_toml("星屑の \"時計\"")).expect("toml");
+    assert_eq!(value["schema_version"].as_integer(), Some(2));
+    assert_eq!(value["title"].as_str(), Some("星屑の \"時計\""));
+    assert_eq!(value.as_table().expect("table").len(), 2);
     let index: serde_json::Value =
         serde_json::from_str(template::MATERIALS_INDEX).expect("index.json");
     assert_eq!(
@@ -384,9 +384,9 @@ fn sample_project_covers_appendix_c_with_no_diagnostics() {
             dir = parent;
         }
     }
-    listing.project_json = files
+    listing.project_toml = files
         .iter()
-        .find(|file| file.path == "project.json")
+        .find(|file| file.path == "project.toml")
         .map(|file| file.text.clone());
     assert_eq!(validate(&listing), Ok(()));
 
@@ -411,7 +411,7 @@ fn sample_project_covers_appendix_c_with_no_diagnostics() {
 
     // 2. モードの併用（'リリア:B+C）と range 変種（リリアの ### B が 2 回）
     assert!(project
-        .text("plots/01-04.txt")
+        .text("plots/01-04.cnov")
         .contains("mode: 'リリア:B+C"));
     assert_eq!(
         project
@@ -448,7 +448,7 @@ fn sample_project_covers_appendix_c_with_no_diagnostics() {
     // 4. 資料 ID 参照（明示参照）と条件一致による資料候補
     use novnow::core::id::SceneId;
     let all_sections = sections::all(&project);
-    let doc = project.document("contents/01-04.txt").expect("01-04.txt");
+    let doc = project.document("contents/01-04.cnov").expect("01-04.txt");
     let sec2 = all_sections
         .iter()
         .find(|sec| sec.id == SceneId::parse("01-04-02-02").unwrap())

@@ -37,11 +37,11 @@ use serde::{Deserialize, Serialize};
 /// シジルとフィールド行は形式によって受理範囲が違う（例: `;` は C / B 形式のみ）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TextFormat {
-    /// `contents/AA-BB.txt`（C 形式、§5.2）。
+    /// `contents/AA-BB.cnov`（C 形式、§5.2）。
     Contents,
-    /// `plots/all.txt` / `plots/AA.txt`（A 形式、§5.3）。
+    /// `plots/all.cnov` / `plots/AA.cnov`（A 形式、§5.3）。
     PlotOutline,
-    /// `plots/AA-BB.txt`（B 形式、§5.4）。
+    /// `plots/AA-BB.cnov`（B 形式、§5.4）。
     PlotEpisode,
     /// `*.md`（`characters.md` / `words.md` / `ideas.md` / `materials/**` / `prompts/*.md`）。
     Markdown,
@@ -814,7 +814,7 @@ pub fn find_inline_comment(line: &str) -> Option<Range<usize>> {
 /// UTF-8 BOM（§5.0.4「BOM があれば剥がして読み、保存時は付けない」MUST）。
 pub const BOM: &str = "\u{feff}";
 
-/// `project.json.newline`（§4.5）。既定は `lf`。
+/// `project.toml.newline`（§4.5）。既定は `lf`。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Newline {

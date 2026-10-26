@@ -840,7 +840,7 @@ fn external_changes_reload_clean_files_and_conflict_with_dirty_ones() {
 
 #[test]
 fn counts_are_section_episode_and_project_without_whitespace() {
-    let project = world_with("contents/01-05.txt", "@01-05-01 屋上\nあい う\n");
+    let project = world_with("contents/01-05.cnov", "@01-05-01 屋上\nあい う\n");
     let mut bench = Workbench::new(project, None, 400);
     let (section, episode, total) = bench.counts();
     assert!(section > 0 && episode >= section && total > episode);
@@ -1143,8 +1143,8 @@ fn shot_agent_project(project: &mut novnow::core::features::Project) {
         world::ALL.replacen("state: fixed", "state: draft", 1),
     ));
     project.insert(Document::new(
-        "project.json",
-        "{\n  \"schema_version\": 1,\n  \"title\": \"星屑\",\n  \"agents\": { \"roles\": { \"ideator\": \"apply\" } }\n}\n",
+        "project.toml",
+        "schema_version = 2\ntitle = \"星屑\"\n\n[agents.roles]\nideator = \"apply\"\n",
     ));
     project.insert(Document::new(
         "agents/mcp.json",
@@ -1433,12 +1433,12 @@ fn find_steps_through_matches_and_wraps() {
 
 #[test]
 fn project_search_lists_prose_hits_with_line_numbers() {
-    let project = world_with("contents/01-05.txt", "@01-05-01 屋上\n'リリアが笑う。\n");
+    let project = world_with("contents/01-05.cnov", "@01-05-01 屋上\n'リリアが笑う。\n");
     let hits = novnow::ui::assist::search(&project, "リリア");
     assert!(hits.len() >= 3, "{hits:?}");
     assert!(hits.iter().all(|hit| hit.path.starts_with("contents/")));
     let last = hits.last().expect("hit");
-    assert_eq!((last.path.as_str(), last.line), ("contents/01-05.txt", 2));
+    assert_eq!((last.path.as_str(), last.line), ("contents/01-05.cnov", 2));
     assert_eq!(last.text, "'リリアが笑う。");
 }
 
@@ -1680,9 +1680,9 @@ fn the_export_modal_narrows_by_range_and_state() {
     let all = "@01 失われた刻印\nsummary: 導入章。\n;\n";
     let plot = "@01-04-02 図書室の攻防\n咎める。\n;\n明かす。\nstate: fixed\n;\n心変わり。\n";
     let make = || {
-        let mut project = world_with("plots/all.txt", all);
+        let mut project = world_with("plots/all.cnov", all);
         project.insert(novnow::core::model::document::Document::new(
-            "plots/01-04.txt",
+            "plots/01-04.cnov",
             plot,
         ));
         project

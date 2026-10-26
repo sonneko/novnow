@@ -80,11 +80,11 @@ impl Interface {
 /// `Session::create` のオプション（§19.2.1。`novnow new` と同じ構造を作る）。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CreateOptions {
-    /// `project.json` の `title`（空ならディレクトリ名）。
+    /// `project.toml` の `title`（空ならディレクトリ名）。
     pub title: String,
-    /// `project.json` の `author`。
+    /// `project.toml` の `author`。
     pub author: String,
-    /// `project.json` の `language`（既定 `ja`）。
+    /// `project.toml` の `language`（既定 `ja`）。
     pub language: String,
 }
 

@@ -535,7 +535,7 @@ mod viewport_tests {
         }
         let project = Project::with_documents(
             Settings::default(),
-            [Document::new("contents/01-01.txt", prose)],
+            [Document::new("contents/01-01.cnov", prose)],
         );
         let bench = Workbench::new(project, None, 400);
         assert!(bench.sections().len() > 9);
