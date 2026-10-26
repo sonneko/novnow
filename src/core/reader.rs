@@ -21,6 +21,8 @@ impl Default for Options {
 pub struct Metrics {
     pub advance: f32,
     pub line_advance: f32,
+    /// 使用フォントに縦書き字形として収録されているコードポイント。括弧については
+    /// 置換先の互換形（[`VERTICAL_FORMS`] の第 2 要素）、長音・ダッシュについては字そのものを入れる。
     pub vertical_forms: std::collections::BTreeSet<char>,
     pub glyph_advances: std::collections::BTreeMap<char, f32>,
 }
@@ -131,27 +133,33 @@ fn units(text: &str, vertical: bool) -> Vec<Unit> {
     }
     result
 }
-/// Unicode vertical forms are a deterministic fallback when GSUB is unavailable.
+/// 括弧とその縦書き互換形（Unicode の縦書き提示形）。UI は使用フォントに
+/// 互換形が収録されているかを確かめて [`Metrics::vertical_forms`] へ渡す。
+/// i18n: format-vocabulary
+pub const VERTICAL_FORMS: &[(char, char)] = &[
+    ('（', '︵'),
+    ('）', '︶'),
+    ('［', '﹇'),
+    ('］', '﹈'),
+    ('｛', '︷'),
+    ('｝', '︸'),
+    ('「', '﹁'),
+    ('」', '﹂'),
+    ('『', '﹃'),
+    ('』', '﹄'),
+    ('【', '︻'),
+    ('】', '︼'),
+    ('〈', '︿'),
+    ('〉', '﹀'),
+    ('《', '︽'),
+    ('》', '︾'),
+];
+
 fn vertical_char(ch: char) -> char {
-    match ch {
-        '（' => '︵',
-        '）' => '︶',
-        '［' => '﹇',
-        '］' => '﹈',
-        '｛' => '︷',
-        '｝' => '︸',
-        '「' => '﹁',
-        '」' => '﹂',
-        '『' => '﹃',
-        '』' => '﹄',
-        '【' => '︻',
-        '】' => '︼',
-        '〈' => '︿',
-        '〉' => '﹀',
-        '《' => '︽',
-        '》' => '︾',
-        _ => ch,
-    }
+    VERTICAL_FORMS
+        .iter()
+        .find(|(from, _)| *from == ch)
+        .map_or(ch, |(_, to)| *to)
 }
 /// Cell-coordinate convenience wrapper; use `layout` for measured font advances.
 pub fn layout_cells(text: &str, options: Options) -> Vec<Page> {
@@ -233,19 +241,30 @@ pub fn layout(text: &str, options: Options, metrics: &Metrics) -> Vec<Page> {
                 .filter(|n| n.is_finite() && *n > 0.0)
                 .unwrap_or(advance);
             feed += if unit.compact { advance } else { measured };
+            // 括弧の互換形への置換は、使用フォントに互換形が収録されている場合だけ（§17.3.3）。
+            // 収録が無ければ元の括弧を 90° 回転して描く（互換形の豆腐を出さない）。
+            let mut text = unit.text;
+            let mut rotate = unit.rotate
+                && !(metrics.vertical_forms.contains(&unit.ch)
+                    && VERTICAL_ROTATE.contains(unit.ch));
+            if options.vertical && !unit.compact {
+                let form = vertical_char(unit.ch);
+                if form != unit.ch {
+                    if metrics.vertical_forms.contains(&form) {
+                        text = form.to_string();
+                        rotate = false;
+                    } else {
+                        rotate = true;
+                    }
+                }
+            }
             pages.last_mut().unwrap().glyphs.push(Glyph {
                 ch: unit.ch,
-                text: if options.vertical && !unit.compact {
-                    vertical_char(unit.ch).to_string()
-                } else {
-                    unit.text
-                },
+                text,
                 ruby: unit.ruby,
                 row,
                 column,
-                rotate: unit.rotate
-                    && !(metrics.vertical_forms.contains(&unit.ch)
-                        && VERTICAL_ROTATE.contains(unit.ch)),
+                rotate,
                 compact: unit.compact,
                 punctuation,
                 x: x + if punctuation { line_advance * 0.5 } else { 0.0 },

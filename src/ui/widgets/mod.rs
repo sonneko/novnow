@@ -14,7 +14,7 @@ pub mod section_editor;
 pub mod slice_editor;
 pub mod syntax_text;
 
-use egui::{FontId, Rect, Response, RichText, Sense, Stroke, Ui, Vec2};
+use egui::{Color32, FontId, Rect, Response, RichText, Sense, Stroke, Ui, Vec2};
 
 use crate::ui::theme::Palette;
 
@@ -62,6 +62,89 @@ pub fn selectable_action(ui: &mut Ui, selected: bool, text: RichText) -> Respons
         ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
     }
     response
+}
+
+/// [`selectable_action`] の `LayoutJob` 版。検索一致の背景塗り（§11.3）のように
+/// 行の途中で書式が変わる候補行に使う。見た目と当たり判定は `selectable_action` と同じ。
+pub fn selectable_job(ui: &mut Ui, selected: bool, job: egui::text::LayoutJob) -> Response {
+    let background = ui.painter().add(egui::Shape::Noop);
+    let response = ui.add(
+        egui::Button::new(egui::WidgetText::LayoutJob(job))
+            .selected(selected)
+            .frame(false)
+            .min_size(Vec2::splat(MIN_HIT)),
+    );
+    if response.hovered() {
+        ui.painter().set(
+            background,
+            egui::Shape::rect_filled(
+                response.rect,
+                2.0,
+                ui.visuals().selection.bg_fill.gamma_multiply(0.6),
+            ),
+        );
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    response
+}
+
+fn row_format(font: &FontId, color: Color32) -> egui::text::TextFormat {
+    egui::text::TextFormat {
+        font_id: font.clone(),
+        color,
+        underline: Stroke::new(1.0_f32, color),
+        ..Default::default()
+    }
+}
+
+/// 下線つきの素の断片を足す（検索結果行の接頭辞など）。
+pub fn append_text(job: &mut egui::text::LayoutJob, text: &str, font: &FontId, color: Color32) {
+    if !text.is_empty() {
+        job.append(text, 0.0, row_format(font, color));
+    }
+}
+
+/// `text` の中の `query` の一致（文字どおり）へ §11.3 の検索一致の背景塗りを付けた断片列を足す。
+pub fn append_match(
+    job: &mut egui::text::LayoutJob,
+    text: &str,
+    query: &str,
+    font: &FontId,
+    color: Color32,
+    match_bg: Color32,
+) {
+    if query.is_empty() {
+        append_text(job, text, font, color);
+        return;
+    }
+    let mut at = 0;
+    for (start, found) in text.match_indices(query) {
+        append_text(job, &text[at..start], font, color);
+        let mut matched = row_format(font, color);
+        matched.background = match_bg;
+        job.append(found, 0.0, matched);
+        at = start + found.len();
+    }
+    append_text(job, &text[at..], font, color);
+}
+
+/// 構造化された抜粋（前文・一致・後文）を、一致だけ背景塗りにして足す（§9.7.4 の全文検索タブ）。
+pub fn append_excerpt(
+    job: &mut egui::text::LayoutJob,
+    before: &str,
+    matched: &str,
+    after: &str,
+    font: &FontId,
+    color: Color32,
+    match_bg: Color32,
+) {
+    append_text(job, before, font, color);
+    let mut format = row_format(font, color);
+    format.background = match_bg;
+    if !matched.is_empty() {
+        job.append(matched, 0.0, format);
+    }
+    append_text(job, after, font, color);
 }
 
 /// Clickable status label: preserve its painted text size but expand the input
@@ -286,5 +369,47 @@ mod tests {
             assert_eq!(field_accent(FieldState::Warn, false, &colors), colors.warn);
             assert_eq!(field_accent(FieldState::Warn, true, &colors), colors.warn);
         }
+    }
+
+    /// §11.3: 検索一致の範囲だけに背景塗りが付き、行の文字列そのものは変わらない。
+    #[test]
+    fn search_match_paints_only_the_matched_ranges() {
+        let colors = palette(Mode::Dark);
+        let font = FontId::proportional(13.0);
+        let mut job = egui::text::LayoutJob::default();
+        append_text(&mut job, "p:1  ", &font, colors.fg_primary);
+        append_match(
+            &mut job,
+            "銀の指輪と指輪",
+            "指輪",
+            &font,
+            colors.fg_primary,
+            colors.bg_selection,
+        );
+        assert_eq!(job.text, "p:1  銀の指輪と指輪");
+        let painted: Vec<&str> = job
+            .sections
+            .iter()
+            .filter(|section| section.format.background == colors.bg_selection)
+            .map(|section| &job.text[section.byte_range.clone()])
+            .collect();
+        assert_eq!(painted, ["指輪", "指輪"]);
+        let mut excerpt = egui::text::LayoutJob::default();
+        append_excerpt(
+            &mut excerpt,
+            "銀の",
+            "指輪",
+            "を外した",
+            &font,
+            colors.fg_primary,
+            colors.bg_selection,
+        );
+        let painted: Vec<&str> = excerpt
+            .sections
+            .iter()
+            .filter(|section| section.format.background == colors.bg_selection)
+            .map(|section| &excerpt.text[section.byte_range.clone()])
+            .collect();
+        assert_eq!(painted, ["指輪"]);
     }
 }

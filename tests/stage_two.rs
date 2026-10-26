@@ -488,3 +488,89 @@ fn workspace_shortcut_cannot_leak_its_digit_into_new_editor() {
         });
     });
 }
+
+#[test]
+fn reader_brackets_substitute_only_when_the_font_has_the_form() {
+    use novnow::core::reader::{layout, Metrics, Options};
+    let options = Options {
+        rows: 10,
+        columns: 5,
+        vertical: true,
+    };
+    // 互換形の収録が無いフォントでは、元の括弧を 90° 回転して描く（豆腐にしない）。
+    let pages = layout("「あ」", options, &Metrics::default());
+    let glyphs = &pages[0].glyphs;
+    let open = glyphs.iter().find(|g| g.ch == '「').unwrap();
+    assert_eq!(open.text, "「");
+    assert!(open.rotate);
+    let body = glyphs.iter().find(|g| g.ch == 'あ').unwrap();
+    assert!(!body.rotate);
+    // 収録がある字だけ互換形へ置換し、回転しない。
+    let metrics = Metrics {
+        vertical_forms: ['﹁'].into_iter().collect(),
+        ..Metrics::default()
+    };
+    let pages = layout("「あ」", options, &metrics);
+    let glyphs = &pages[0].glyphs;
+    let open = glyphs.iter().find(|g| g.ch == '「').unwrap();
+    assert_eq!(open.text, "﹁");
+    assert!(!open.rotate);
+    let close = glyphs.iter().find(|g| g.ch == '」').unwrap();
+    assert_eq!(close.text, "」");
+    assert!(close.rotate, "収録の無い字は置換しない");
+    // 横書きでは括弧を置換も回転もしない。
+    let pages = layout(
+        "「あ」",
+        Options {
+            vertical: false,
+            ..options
+        },
+        &Metrics::default(),
+    );
+    let open = pages[0].glyphs.iter().find(|g| g.ch == '「').unwrap();
+    assert_eq!(open.text, "「");
+    assert!(!open.rotate);
+}
+
+#[test]
+fn search_excerpts_are_structured_and_snapshots_use_the_fixed_form() {
+    let p = project(&[(
+        "contents/01-01.txt",
+        "@01-01-01\n銀の指輪を外して机に置いた。\n",
+    )]);
+    let q = search::Query {
+        text: "指輪".into(),
+        case_sensitive: true,
+        ..Default::default()
+    };
+    let hits = search::run(&p, &q, || 0).unwrap();
+    assert_eq!(hits.hits.len(), 1);
+    let hit = &hits.hits[0];
+    // 抜粋は前文・一致・後文の構造で、表示用の `**…**` はデータに入らない。
+    assert_eq!(hit.before, "銀の");
+    assert_eq!(hit.matched, "指輪");
+    assert_eq!(hit.after, "を外して机に置いた。");
+    assert!(!format!("{}{}{}", hit.before, hit.matched, hit.after).contains('*'));
+    // 資料として保存するときだけ §16.3.1 の固定形で組み立てる。
+    let snap = search::snapshot(&p, &q, &hits, "2026-10-26T00:00:00+09:00").unwrap();
+    assert!(
+        snap.body.starts_with("# 指輪\n<!-- novnow:S0001 -->\n"),
+        "{}",
+        snap.body
+    );
+    for meta in [
+        "query: 指輪\n",
+        "regex: false\n",
+        "case_sensitive: true\n",
+        "searched_at: 2026-10-26T00:00:00+09:00\n",
+        "hits: 1\n",
+        "\n## 結果\n\n",
+        "- @01-01-01-01 … 銀の**指輪**を外して机に置いた。\n",
+    ] {
+        assert!(
+            snap.body.contains(meta),
+            "{meta:?} missing in {:?}",
+            snap.body
+        );
+    }
+}

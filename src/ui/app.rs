@@ -4531,17 +4531,36 @@ impl NovnowApp {
                     }
                     ui.add_space(4.0);
                     crate::ui::widgets::candidate_scroll(ui, "search-list", 360.0, |ui| {
+                        let font = ui
+                            .style()
+                            .text_styles
+                            .get(&egui::TextStyle::Button)
+                            .cloned()
+                            .unwrap_or_else(|| egui::FontId::proportional(13.0));
                         for (index, hit) in hits.iter().enumerate() {
                             let color = if index == *selected {
                                 colors.accent
                             } else {
                                 colors.fg_primary
                             };
-                            let text =
-                                RichText::new(format!("{}:{}  {}", hit.path, hit.line, hit.text))
-                                    .color(color);
+                            // 一致した範囲は §11.3 の検索一致の背景塗り（`bg.selection`）で示す。
+                            let mut job = egui::text::LayoutJob::default();
+                            crate::ui::widgets::append_text(
+                                &mut job,
+                                &format!("{}:{}  ", hit.path, hit.line),
+                                &font,
+                                color,
+                            );
+                            crate::ui::widgets::append_match(
+                                &mut job,
+                                &hit.text,
+                                query,
+                                &font,
+                                color,
+                                colors.bg_selection,
+                            );
                             let row =
-                                crate::ui::widgets::selectable_action(ui, index == *selected, text);
+                                crate::ui::widgets::selectable_job(ui, index == *selected, job);
                             crate::ui::widgets::follow_selection(&row, index == *selected);
                             if row.clicked() {
                                 chosen = Some(index);

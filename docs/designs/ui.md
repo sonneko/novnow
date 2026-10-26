@@ -100,7 +100,7 @@
 
 ### 9.7 ナビゲーション
 
-状態: 未実装・実装計画済み（REF:src/app/palette.rs, REF:src/app/assist.rs, REF:src/ui/app.rs, REF:tests/gui.rs, REF:docs/plans.md#issue-29-b1, REF:docs/plans.md#issue-29-b4, REF:docs/plans.md#issue-29-b6）
+状態: 実装完了（REF:src/app/palette.rs, REF:src/app/assist.rs, REF:src/ui/app.rs, REF:tests/gui.rs）
 
 - 統一パレット（`Ctrl+P` / `Ctrl+G` / `Ctrl+Shift+P`）の先頭文字によるモード切替（通常 / `@` 構造 / `'` 辞書 / `#` 資料 / `>` コマンド）と決定論的ファジースコアリング（完全一致 +1000、先頭一致 +500、連続一致 +200、頭文字 +100、50 件上限）は `ui::palette`（`REF:src/app/palette.rs`）に実装する。
 - `'名前` パレットでの `Enter`（`core::features::definition::at` による定義ジャンプ）と `Shift+Enter`（`core::features::references::find` による使用箇所一覧）、および入力中補完ポップアップ（`REF:src/app/assist.rs`）は `REF:src/ui/app.rs` で接続されている（検証: `REF:tests/gui.rs`, `REF:tests/workspaces.rs`）。
@@ -118,8 +118,8 @@
   - 履歴は GUI セッション状態（ `Session` ）にモード別（`>` / `@`）で最大 10 件まで持ち、候補生成（ `palette_items`、`REF:src/ui/app.rs`）では入力が空のときだけ先頭へ差し込む（固定スコアの計算には入れない）。
   - 選択行への最小移動の追従と、枠の右端に寄せた細いスクロールバーは、候補一覧を持つ重ね物（パレット・全体検索・資料検索・使用箇所）で共有する部品 `candidate_scroll` / `follow_selection`（`REF:src/ui/widgets/mod.rs`）として実装した。候補を末尾まで送ったとき選択行の矩形がスクロール領域内にあることは `REF:tests/gui.rs` の `palette_selection_stays_visible_when_moving_with_the_keyboard_only`、履歴は `palette_recent_items_come_first_only_on_empty_input` で検証する。
 
-- **[Issue #29 / B6] 検索 2 系統の分担の追認と一致表示（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b6`）**:
-  - `Ctrl+Shift+F` の重ね物は本文の文字どおり検索（`REF:src/app/assist.rs`）のままとし、一致範囲に §11.3 の背景塗りを付ける。正規表現検索は `write` の全文検索タブ（`REF:src/core/stage_two/search.rs`）に置き、抜粋は「前文・一致・後文」の構造で返して画面では一致範囲だけを強調して描く（`**…**` を文字列に埋め込む形をやめる）。資料として保存するときだけ §16.3.1 の固定形に組み立てる。
+- **[Issue #29 / B6] 検索 2 系統の分担の追認と一致表示（実装完了: `REF:docs/plans.md#issue-29-b6`）**:
+  - `Ctrl+Shift+F` の重ね物は本文の文字どおり検索（`REF:src/app/assist.rs`）のままとし、結果行の一致範囲に §11.3 の背景塗り（ `bg.selection` ）を付ける（共通部品 `append_match` / `selectable_job`、`REF:src/ui/widgets/mod.rs`）。正規表現検索は `write` の全文検索タブ（`REF:src/core/stage_two/search.rs`）に置き、抜粋は「前文・一致・後文」の構造で返して画面では一致範囲だけを強調して描く（`**…**` を文字列に埋め込む形を廃止）。資料として保存するときだけ §16.3.1 の固定形に組み立てる。
 
 ### 9.8 キーボード一覧
 

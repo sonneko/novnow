@@ -771,8 +771,34 @@ fn search_ui(
                 ));
             }
             egui::ScrollArea::vertical().show(ui, |ui| {
+                let font = ui
+                    .style()
+                    .text_styles
+                    .get(&egui::TextStyle::Button)
+                    .cloned()
+                    .unwrap_or_else(|| egui::FontId::proportional(13.0));
+                let link = ui.visuals().hyperlink_color;
+                let color = ui.visuals().text_color();
+                let match_bg = ui.visuals().selection.bg_fill;
                 for hit in &results.hits {
-                    if ui.link(format!("{}  {}", hit.path, hit.excerpt)).clicked() {
+                    // 抜粋は前文・一致・後文の構造で受け、画面では一致だけを強調する。
+                    let mut job = egui::text::LayoutJob::default();
+                    crate::ui::widgets::append_text(
+                        &mut job,
+                        &format!("{}  ", hit.path),
+                        &font,
+                        link,
+                    );
+                    crate::ui::widgets::append_excerpt(
+                        &mut job,
+                        &hit.before,
+                        &hit.matched,
+                        &hit.after,
+                        &font,
+                        color,
+                        match_bg,
+                    );
+                    if crate::ui::widgets::selectable_job(ui, false, job).clicked() {
                         *jump = Some((hit.path.clone(), hit.range.start));
                     }
                 }
@@ -979,6 +1005,12 @@ fn reader(
         let text = crate::core::export::fragment(bench.project().text(path), true);
         let mut measured_metrics = metrics.clone();
         ui.fonts(|fonts| {
+            // 括弧の互換形は、使用フォントに収録されている場合だけ組版で使う（§17.3.3）。
+            for &(_, form) in crate::core::reader::VERTICAL_FORMS {
+                if fonts.has_glyph(&font, form) {
+                    measured_metrics.vertical_forms.insert(form);
+                }
+            }
             for ch in text.chars() {
                 measured_metrics
                     .glyph_advances

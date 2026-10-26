@@ -3345,3 +3345,61 @@ fn help_key_items_run_their_command_after_closing_the_help() {
         "the help closes and the palette command runs"
     );
 }
+
+#[test]
+fn bundled_font_bracket_coverage_drives_reader_substitution() {
+    // 同梱フォントに縦書き互換形が収録されているかを確かめ、組版の置換/回転が
+    // その収録有無と一致すること（＝互換形の豆腐を描かないこと）を守る（§17.3.3）。
+    let mut defs = egui::FontDefinitions::default();
+    defs.font_data.insert(
+        "bundled".to_owned(),
+        egui::FontData::from_static(novnow::ui::theme::BUNDLED_FONT),
+    );
+    defs.families
+        .insert(egui::FontFamily::Proportional, vec!["bundled".to_owned()]);
+    let ctx = egui::Context::default();
+    ctx.set_fonts(defs);
+    let _ = ctx.run(egui::RawInput::default(), |_| {});
+    let font = egui::FontId::proportional(14.0);
+    let available: std::collections::BTreeSet<char> = novnow::core::reader::VERTICAL_FORMS
+        .iter()
+        .map(|&(_, form)| form)
+        .filter(|form| ctx.fonts(|fonts| fonts.has_glyph(&font, *form)))
+        .collect();
+    let text: String = novnow::core::reader::VERTICAL_FORMS
+        .iter()
+        .map(|&(from, _)| from)
+        .collect();
+    let metrics = novnow::core::reader::Metrics {
+        vertical_forms: available.clone(),
+        ..Default::default()
+    };
+    let pages = novnow::core::reader::layout(
+        &text,
+        novnow::core::reader::Options {
+            rows: 20,
+            columns: 2,
+            vertical: true,
+        },
+        &metrics,
+    );
+    for glyph in &pages[0].glyphs {
+        let form = novnow::core::reader::VERTICAL_FORMS
+            .iter()
+            .find(|&&(from, _)| from == glyph.ch)
+            .map(|&(_, form)| form)
+            .unwrap_or(glyph.ch);
+        if available.contains(&form) {
+            assert_eq!(glyph.text, form.to_string(), "{} は互換形で描く", glyph.ch);
+            assert!(!glyph.rotate);
+        } else {
+            assert_eq!(
+                glyph.text,
+                glyph.ch.to_string(),
+                "{} は元の字のまま",
+                glyph.ch
+            );
+            assert!(glyph.rotate, "{} は回転して描く", glyph.ch);
+        }
+    }
+}
