@@ -80,7 +80,7 @@ async function launch(profile) {
 /** ダウンロード（GUID → ページが付けた名前と、終わったか）。 */
 const downloads = new Map();
 
-async function page(browser, setup) {
+async function page(browser, setup, language) {
   const tab = await browser.newPage();
   tab.on('console', (message) => {
     if (message.type() === 'error') console.log(`  [console.error] ${message.text().slice(0, 300)}`);
@@ -89,7 +89,7 @@ async function page(browser, setup) {
   // 画面の言語（novnow は navigator.language を見る。ヘッドレスは --lang を無視するので上書きする）
   await tab.evaluateOnNewDocument((language) => {
     Object.defineProperty(navigator, 'language', { get: () => language });
-  }, process.env.UI_LANG || 'ja-JP');
+  }, language || process.env.UI_LANG || 'ja-JP');
   await tab.setCacheEnabled(false);
   await tab.evaluateOnNewDocument(() => {
     for (const name of ['instantiate', 'instantiateStreaming']) {
@@ -218,6 +218,20 @@ async function main() {
     check(first?.projects.length === 1 && first.projects[0].id === 'sample', 'projects は sample の 1 件');
     if (!first) throw new Error('起動しなかった（00-picker.png を見る）');
     check((first?.app ?? []).length === 0, '開く前の app ストアは空');
+    // B8（§13.4.2）: 入口ページの初期言語は本体読み込み前からブラウザのロケールに従う
+    const entry = await tab.evaluate(() => ({
+      lang: document.documentElement.lang,
+      title: document.title,
+      status: document.getElementById('offline-status')?.textContent ?? '',
+    }));
+    const wantJa = (process.env.UI_LANG || 'ja-JP').startsWith('ja');
+    check(entry.lang === (wantJa ? 'ja' : 'en'), `B8: 入口ページの lang がロケールに従う（${entry.lang}）`);
+    check(wantJa ? entry.title.includes('小説') : entry.title.includes('writing IDE'), 'B8: 入口ページの題がロケールに従う');
+    check(wantJa ? /オフライン/.test(entry.status) : /offline/i.test(entry.status), 'B8: オフライン状態表示がロケールに従う');
+    const otherTab = await page(browser, null, wantJa ? 'en-US' : 'ja-JP');
+    const otherEntry = await otherTab.evaluate(() => ({ lang: document.documentElement.lang, title: document.title }));
+    check(otherEntry.lang === (wantJa ? 'en' : 'ja'), `B8: 反対ロケールでも初期表示が切り替わる（${otherEntry.lang}）`);
+    await otherTab.close();
     // Fresh profile + HTTP cache disabled: no online reload before disconnect.
     await tab.waitForFunction(() => document.getElementById('offline-status')?.dataset.ready === 'true', { timeout: 60000 });
     await tab.waitForFunction(() => navigator.serviceWorker.controller !== null);
@@ -315,6 +329,15 @@ async function main() {
       const text = file(await db(tab), 'sample', 'contents/01-04.cnov');
       return text?.includes('変換した。追') ? text : null;
     });
+    // B8（N29-07）: キーボードで節を移っても入力が続く（隠し入力欄の再フォーカスの回帰）
+    await key(tab, 'Alt+ArrowDown');
+    await sleep(300);
+    await tab.keyboard.type('節を移ってから書いた一文。');
+    const moved = await until('節移動後の入力の保存', async () => {
+      const text = file(await db(tab), 'sample', 'contents/01-04.cnov');
+      return text && text.includes('節を移ってから書いた一文。') ? text : null;
+    });
+    check(moved !== null, 'B8: 節移動後も入力が続く');
     // Stage two: reader controls may persist local reading state, never shared prose.
     const shared = (state, id) => state.files.filter((f) => f.project_id === id && !f.path.startsWith('.novnow/'))
       .map((f) => JSON.stringify([f.path, f.text, f.bytes])).sort();

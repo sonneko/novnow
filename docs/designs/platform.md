@@ -32,15 +32,15 @@
 
 ### 13.4 プロジェクト選択モーダル（Web）
 
-状態: 未実装・実装計画済み（REF:src/ui/web.rs, REF:src/adapters/storage_idb.rs, REF:scripts/web-smoke.mjs, REF:tests/gui.rs, REF:docs/plans.md#issue-29-b8）
+状態: 実装完了（REF:src/ui/web.rs, REF:src/adapters/storage_idb.rs, REF:scripts/web-smoke.mjs, REF:tests/gui.rs）
 
 - Web 起動時および `Ctrl+O` 時のプロジェクト選択モーダル（一覧・検索 `/`・新規作成 `Ctrl+N`・Zip 取込 `Ctrl+I`・改名 `F2`・削除 `Delete`・単一タブ利用の注記 `project.pick.single_tab`）は `WebPicker`（`REF:src/ui/web.rs`）に実装する（検証: `REF:scripts/web-smoke.mjs`）。
 
 - **[F-33 / S-02] Web 版の同名プロジェクト作成禁止と初回起動ウェルカム案内（実装完了: `REF:docs/plans.md#plan-F-33`, `REF:docs/plans.md#plan-S-02`）**:
   - `REF:src/ui/web.rs` と `REF:src/adapters/storage_idb.rs` で既存プロジェクトと同一タイトルの作成・改名を拒否する（F-33 は実装完了。`REF:tests/storage_idb.rs` と実ブラウザ `REF:scripts/web-smoke.mjs` で検証済み）。履歴が空の初回起動時に案内を表示し、`>welcome` パレットからウェルカム案内モーダルを再表示する（S-02 は `REF:src/ui/app.rs`, `REF:src/ui/web.rs`, `REF:tests/gui.rs` で確認済み）。
 
-- **[Issue #29 / B8] 入口ページの初期言語（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b8`）**:
-  - `REF:index.html` の言語固定を解き、本体読み込み前の静的な表示もブラウザ（OS）のロケールで出す（`lang` 属性と読み込み中文言の出し分け）。選択画面に言語切替ボタンは置かない現行維持を確認し、`REF:scripts/web-smoke.mjs` で ja/en 両ロケールの初期表示を確かめる。
+- **[Issue #29 / B8] 入口ページの初期言語（実装完了: `REF:docs/plans.md#issue-29-b8`）**:
+  - `REF:index.html` の冒頭のインラインスクリプトが `navigator.language` で `lang` 属性・題・オフライン状態表示の初期文言を出し分け、本体読み込み前の静的な表示もロケールに従う。選択画面に言語切替ボタンは置かない（§13.4.2）。検証は `REF:scripts/web-smoke.mjs` の ja/en 両ロケールの初期表示チェック。あわせて iOS のフォーカスずれ（N29-07）へ、隠し入力欄への再フォーカスを減らす（短い離脱で隠さない）＋フォーカス直後のスクロール位置復元を `sync_text_agent`（`REF:src/ui/web.rs`）に実装し、「節移動後も入力が続くこと」をスモークの回帰にした。症状は `REF:docs/known-issues/ja.md`（KI-002）に載せ、修正版の公開後に外す。
 
 ### 13.5 Zip インポート / エクスポート
 
