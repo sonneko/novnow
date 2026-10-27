@@ -530,6 +530,86 @@ export const diagnostics = [
     "action": "空白を多数派に合わせる"
   },
   {
+    "code": "W097",
+    "severity": "W",
+    "condition": "同じ文末尾で終わる文が 3 文連続（§7.2.3）",
+    "ja": "連続する 3 文の文末尾が同じです",
+    "en": "Three consecutive sentences end the same way",
+    "action": "—"
+  },
+  {
+    "code": "W098",
+    "severity": "W",
+    "condition": "1 場面で同じ語が 5 回以上（§7.2.4）",
+    "ja": "「{0}」はこの場面の中で繰り返されています（{1} 回）",
+    "en": "\\\"{0}\\\" is repeated in this scene ({1} times)",
+    "action": "用語辞書で類語を見る"
+  },
+  {
+    "code": "W099",
+    "severity": "W",
+    "condition": "同じ語が助詞・句読点のみを挟んで 2 回連続（§7.2.5）",
+    "ja": "同じ語が続けて繰り返されています: {0}",
+    "en": "Same word back to back: {0}",
+    "action": "片方を別の表現に"
+  },
+  {
+    "code": "W100",
+    "severity": "W",
+    "condition": "同じ文末助詞で終わる文が 3 文連続（§7.2.6）",
+    "ja": "同じ助詞で終わる文が 3 つ続いています（{0}）",
+    "en": "Three consecutive sentences end with the same particle ({0})",
+    "action": "文末を変える"
+  },
+  {
+    "code": "W101",
+    "severity": "W",
+    "condition": "同じ語で始まる文が 3 文連続（§7.2.7）",
+    "ja": "同じ語で始まる文が 3 つ続いています（{0}）",
+    "en": "Three consecutive sentences start with the same word ({0})",
+    "action": "主語を省く / 語順を変える"
+  },
+  {
+    "code": "W102",
+    "severity": "W",
+    "condition": "1 節で波ダッシュ「……」が 3 回以上（§7.2.8）",
+    "ja": "波ダッシュ「……」が多用されています（{0} 回）",
+    "en": "Many ellipses in this section ({0})",
+    "action": "一部を句点に"
+  },
+  {
+    "code": "W103",
+    "severity": "W",
+    "condition": "1 場面で不確か表現（固定リスト）の同じ語が 3 回以上（§7.2.9）",
+    "ja": "不確かな表現「{0}」が多用されています（{1} 回）",
+    "en": "The hedging word \\\"{0}\\\" is overused ({1} times)",
+    "action": "言い切る / 別の表現に"
+  },
+  {
+    "code": "W104",
+    "severity": "W",
+    "condition": "1 場面で同じ動詞語幹が 5 回以上（§7.2.10）",
+    "ja": "同じ動詞が繰り返されています（語幹「{0}」が {1} 回）",
+    "en": "The same verb is repeated ({1} forms of \\\"{0}\\\")",
+    "action": "別の動詞に / 一部を省略"
+  },
+  {
+    "code": "W105",
+    "severity": "W",
+    "condition": "1 場面で感嘆符が 5 回以上（§7.2.11）",
+    "ja": "感嘆符が多用されています（{0} 回）",
+    "en": "Many exclamation marks in this scene ({0})",
+    "action": "一部を句点に"
+  },
+  {
+    "code": "W106",
+    "severity": "W",
+    "condition": "1 節でダッシュ「——」が 4 回以上（§7.2.12）",
+    "ja": "ダッシュ「——」が多用されています（{0} 回）",
+    "en": "Many dashes in this section ({0})",
+    "action": "一部を句点・読点に"
+  },
+  {
     "code": "E032",
     "severity": "E",
     "condition": "カスタムロール名が不正（§5.9.2）",

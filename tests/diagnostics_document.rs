@@ -388,3 +388,565 @@ fn w096_stays_silent_without_a_clear_majority_or_enablement() {
     let document = doc(&project, CONTENTS_PATH);
     assert!(w096_args(&diagnostics::document(&document, &project)).is_empty());
 }
+
+// ============================================================ 執筆支援 W097–W106（B11 / B12）
+
+const SAMPLE_NOVEL_TEXT: &str = include_str!("../examples/sample-novel/contents/01-04.cnov");
+const MANUAL_CHECK_TEXT: &str = include_str!("../examples/manual-check/contents/01-01.cnov");
+
+const ALL_W097_106: &str = "W097 = \"warn\"\nW098 = \"warn\"\nW099 = \"warn\"\nW100 = \"warn\"\nW101 = \"warn\"\nW102 = \"warn\"\nW103 = \"warn\"\nW104 = \"warn\"\nW105 = \"warn\"\nW106 = \"warn\"\n";
+
+fn found_with(found: &[Diagnostic], code: DiagnosticCode) -> Vec<&Diagnostic> {
+    found.iter().filter(|d| d.code == code).collect()
+}
+
+#[test]
+fn w097_flags_three_consecutive_same_sentence_endings() {
+    // 3 文連続で発火（位置は 3 文目）
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n走った。走った。走った。\n"],
+        Some("W097 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    let w097 = found_with(&found, DiagnosticCode::W097);
+    assert_eq!(w097.len(), 1);
+    assert_eq!(&document.text[w097[0].range.clone().unwrap()], "走った。");
+
+    // 2 連続では発火しない
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n走った。走った。\n"],
+        Some("W097 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    assert!(found_with(
+        &diagnostics::document(&document, &project),
+        DiagnosticCode::W097
+    )
+    .is_empty());
+
+    // 「…」の内側は数えない（台詞だけの文は文末尾を持たず連続を切る）
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n「走った。」\n「走った。」\n「走った。」\n"],
+        Some("W097 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    assert!(found_with(
+        &diagnostics::document(&document, &project),
+        DiagnosticCode::W097
+    )
+    .is_empty());
+
+    // 助詞だけの文は連続を切る
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n走った。は。走った。走った。\n"],
+        Some("W097 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    assert!(found_with(
+        &diagnostics::document(&document, &project),
+        DiagnosticCode::W097
+    )
+    .is_empty());
+
+    // 最後の自立語の細分: 「〜かに」の 2 字一致の偽陽性は出ない
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n静かに。ちかちかに。静かに。\n"],
+        Some("W097 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    assert!(found_with(
+        &diagnostics::document(&document, &project),
+        DiagnosticCode::W097
+    )
+    .is_empty());
+
+    // 組み込み既定は無効（設定なしでは出ない）
+    let project = project_with_dialogue(&["@01-01-01-01\n走った。走った。走った。\n"], None);
+    let document = doc(&project, CONTENTS_PATH);
+    assert!(found_with(
+        &diagnostics::document(&document, &project),
+        DiagnosticCode::W097
+    )
+    .is_empty());
+}
+
+#[test]
+fn w098_flags_five_occurrences_in_one_scene() {
+    // 5 回（節 2 つをまたぐ）→ 最後の出現位置に 1 件
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n電車が見えた。\n電車が来た。\n;\n電車が止まった。\n電車から降りた。\n電車の音がする。\n"],
+        Some("W098 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    let w098 = found_with(&found, DiagnosticCode::W098);
+    assert_eq!(w098.len(), 1);
+    assert_eq!(
+        w098[0].args,
+        vec![Arg::Text("電車".to_string()), Arg::Number(5)]
+    );
+    assert_eq!(&document.text[w098[0].range.clone().unwrap()], "電車");
+
+    // 4 回 → 発火しない
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n電車が見えた。\n電車が来た。\n電車が止まった。\n電車が動いた。\n"],
+        Some("W098 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    assert!(found_with(&found, DiagnosticCode::W098).is_empty());
+
+    // 1 字トークン（「風」）は集計対象外（2 字以上のみ、§9.4.4）
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n風が吹く。\n風が止んだ。\n;\n風が戻った。\n風が強い。\n風が冷たい。\n"],
+        Some("W098 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    assert!(found_with(&found, DiagnosticCode::W098).is_empty());
+
+    // 場面をまたぐ 5 回（3 回＋2 回）→ 集計しない
+    let project = project_with_dialogue(
+        &[
+            "@01-01-01-01\n電車が見えた。\n電車が来た。\n電車が止まった。\n",
+            "@01-01-01-02\n電車から降りた。\n電車の音がする。\n",
+        ],
+        Some("W098 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    assert!(found_with(&found, DiagnosticCode::W098).is_empty());
+}
+#[test]
+fn w099_flags_adjacent_same_word() {
+    // 「きみ、きみ」→ 2 回目の位置に 1 件
+    let project =
+        project_with_dialogue(&["@01-01-01-01\nきみ、きみ。\n"], Some("W099 = \"warn\"\n"));
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    let w099 = found_with(&found, DiagnosticCode::W099);
+    assert_eq!(w099.len(), 1);
+    assert_eq!(w099[0].args, vec![Arg::Text("きみ".to_string())]);
+    assert_eq!(&document.text[w099[0].range.clone().unwrap()], "きみ");
+
+    // 「きみ。きみ。」も発火
+    let project =
+        project_with_dialogue(&["@01-01-01-01\nきみ。きみ。\n"], Some("W099 = \"warn\"\n"));
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    assert_eq!(found_with(&found, DiagnosticCode::W099).len(), 1);
+
+    // 「きみと、そのと」→ 自立語（その）を挟むので発火しない
+    let project = project_with_dialogue(
+        &["@01-01-01-01\nきみと、そのと。\n"],
+        Some("W099 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    assert!(found_with(
+        &diagnostics::document(&document, &project),
+        DiagnosticCode::W099
+    )
+    .is_empty());
+
+    // 「きみと、きみ」→ 間に助詞のみで発火
+    let project = project_with_dialogue(
+        &["@01-01-01-01\nきみと、きみを見た。\n"],
+        Some("W099 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    assert_eq!(found_with(&found, DiagnosticCode::W099).len(), 1);
+
+    // 3 連続でも同じ連続区間に 1 件のみ（2 回目の位置）
+    let project = project_with_dialogue(
+        &["@01-01-01-01\nドン。ドン。ドン。\n"],
+        Some("W099 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    let w099 = found_with(&found, DiagnosticCode::W099);
+    assert_eq!(w099.len(), 1);
+    assert_eq!(w099[0].args, vec![Arg::Text("ドン".to_string())]);
+}
+
+#[test]
+fn w100_flags_three_sentences_ending_with_the_same_particle() {
+    // 「〜よ。」3 連続 → 3 文目に 1 件（助詞 = よ）
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n行くよ。止まれよ。来いよ。\n"],
+        Some("W100 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    let w100 = found_with(&found, DiagnosticCode::W100);
+    assert_eq!(w100.len(), 1);
+    assert_eq!(w100[0].args, vec![Arg::Text("よ".to_string())]);
+    assert_eq!(&document.text[w100[0].range.clone().unwrap()], "来いよ。");
+
+    // 2 連続では発火しない
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n行くよ。止まれよ。\n"],
+        Some("W100 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    assert!(found_with(
+        &diagnostics::document(&document, &project),
+        DiagnosticCode::W100
+    )
+    .is_empty());
+
+    // 2 字助詞「かな」は 1 字の「な」として拾われない
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n来るかな。行くかな。来るかな。\n"],
+        Some("W100 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    let w100 = found_with(&found, DiagnosticCode::W100);
+    assert_eq!(w100.len(), 1);
+    assert_eq!(w100[0].args, vec![Arg::Text("かな".to_string())]);
+}
+
+#[test]
+fn w101_flags_three_sentences_starting_with_the_same_word() {
+    // 3 連続 → 3 文目に 1 件
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n電車が来る。電車が出る。電車が動く。\n"],
+        Some("W101 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    let w101 = found_with(&found, DiagnosticCode::W101);
+    assert_eq!(w101.len(), 1);
+    assert_eq!(w101[0].args, vec![Arg::Text("電車".to_string())]);
+    assert_eq!(
+        &document.text[w101[0].range.clone().unwrap()],
+        "電車が動く。"
+    );
+
+    // 2 連続 → 発火しない
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n電車が来る。電車が出る。\n"],
+        Some("W101 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    assert!(found_with(&found, DiagnosticCode::W101).is_empty());
+
+    // 別の語が挟まると連続を切る
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n電車が来る。街が明ける。電車が来る。\n"],
+        Some("W101 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    assert!(found_with(&found, DiagnosticCode::W101).is_empty());
+
+    // 先頭が 1 字トークン（「風」）→「文頭の語なし」として連続を切る
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n風が吹く。風が止む。風が来る。\n"],
+        Some("W101 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    assert!(found_with(&found, DiagnosticCode::W101).is_empty());
+}
+#[test]
+fn w102_flags_three_ellipses_in_one_section() {
+    // 1 節で 3 回 → 3 回目の位置に 1 件
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n……と、彼は言った。……それで。……結局、分かった。\n"],
+        Some("W102 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    let w102 = found_with(&found, DiagnosticCode::W102);
+    assert_eq!(w102.len(), 1);
+    assert_eq!(w102[0].args, vec![Arg::Number(3)]);
+    assert_eq!(&document.text[w102[0].range.clone().unwrap()], "……");
+
+    // 2 回では発火しない
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n……と、彼は言った。……それで。\n"],
+        Some("W102 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    assert!(found_with(
+        &diagnostics::document(&document, &project),
+        DiagnosticCode::W102
+    )
+    .is_empty());
+
+    // 節をまたぐ 3 回（2 + 1）は集計しない
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n……と、彼は言った。……それで。\n;\n……結局、分かった。\n"],
+        Some("W102 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    assert!(found_with(
+        &diagnostics::document(&document, &project),
+        DiagnosticCode::W102
+    )
+    .is_empty());
+}
+
+#[test]
+fn w103_flags_a_hedging_word_repeated_in_one_scene() {
+    // 「たぶん」が 1 場面で 3 回 → 最後の出現に 1 件（語ごとに）
+    let project = project_with_dialogue(
+        &["@01-01-01-01\nたぶん来るだろう。\n;\nたぶん今日だ。\nたぶん嘘だ。\n"],
+        Some("W103 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    let w103 = found_with(&found, DiagnosticCode::W103);
+    assert_eq!(w103.len(), 1);
+    assert_eq!(
+        w103[0].args,
+        vec![Arg::Text("たぶん".to_string()), Arg::Number(3)]
+    );
+
+    // 2 回では発火しない（別の不確か表現を混ぜても語ごとの集計）
+    let project = project_with_dialogue(
+        &["@01-01-01-01\nたぶん来るだろう。たぶん今日だ。\n;\nたしかにそうだ。たしかに違う。\n"],
+        Some("W103 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    assert!(found_with(
+        &diagnostics::document(&document, &project),
+        DiagnosticCode::W103
+    )
+    .is_empty());
+
+    // 場面をまたぐ 3 回（2 + 1）は集計しない
+    let project = project_with_dialogue(
+        &["@01-01-01-01\nたぶん来るだろう。たぶん今日だ。\n@01-01-02-01\nたぶん嘘だ。\n"],
+        Some("W103 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    assert!(found_with(
+        &diagnostics::document(&document, &project),
+        DiagnosticCode::W103
+    )
+    .is_empty());
+}
+
+#[test]
+fn w104_flags_the_same_verb_stem_repeated_in_one_scene() {
+    // 5 回（活用形をまたぐ）→ 最後の出現位置に 1 件（語幹「考え」）
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n考えた。\n考えて。\n考えながら。\n;\n考えた。\n考えて。\n"],
+        Some("W104 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    let w104 = found_with(&found, DiagnosticCode::W104);
+    assert_eq!(w104.len(), 1);
+    assert_eq!(
+        w104[0].args,
+        vec![Arg::Text("考え".to_string()), Arg::Number(5)]
+    );
+    assert_eq!(&document.text[w104[0].range.clone().unwrap()], "考え");
+
+    // 4 回 → 発火しない
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n考えた。\n考えて。\n考えながら。\n考えた。\n"],
+        Some("W104 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    assert!(found_with(&found, DiagnosticCode::W104).is_empty());
+
+    // 複合活用「考えていた」×5 → 同じ語幹「考え」に集約
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n考えていた。\n考えていた。\n;\n考えていた。\n考えていた。\n考えていた。\n"],
+        Some("W104 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    let w104 = found_with(&found, DiagnosticCode::W104);
+    assert_eq!(w104.len(), 1);
+    assert_eq!(
+        w104[0].args,
+        vec![Arg::Text("考え".to_string()), Arg::Number(5)]
+    );
+
+    // 語幹が 2 字未満（「していた」→「し」、「走った」→「走」）→ 数えない
+    let project = project_with_dialogue(
+        &["@01-01-01-01\nしていた。\n走った。\n;\nしていた。\n走った。\nしていた。\n走った。\n走った。\n"],
+        Some("W104 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    assert!(found_with(&found, DiagnosticCode::W104).is_empty());
+
+    // 辞書形は接尾辞トークンを伴わない → 数えない
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n考える。\n考える。\n;\n考える。\n考える。\n考える。\n"],
+        Some("W104 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    assert!(found_with(&found, DiagnosticCode::W104).is_empty());
+}
+#[test]
+fn w105_flags_five_exclamation_marks_in_one_scene() {
+    // 1 場面で 5 回 → 5 回目に 1 件
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n行くぞ！\n止まれ！\n; 来い！\n逃げろ！\n見ろ！\n"],
+        Some("W105 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    let w105 = found_with(&found, DiagnosticCode::W105);
+    assert_eq!(w105.len(), 1);
+    assert_eq!(w105[0].args, vec![Arg::Number(5)]);
+
+    // 4 回では発火しない
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n行くぞ！\n止まれ！\n; 来い！\n逃げろ！\n"],
+        Some("W105 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    assert!(found_with(
+        &diagnostics::document(&document, &project),
+        DiagnosticCode::W105
+    )
+    .is_empty());
+
+    // 場面をまたぐ 5 回（3 + 2）は集計しない
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n行くぞ！\n止まれ！\n来い！\n@01-01-02-01\n逃げろ！\n見ろ！\n"],
+        Some("W105 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    assert!(found_with(
+        &diagnostics::document(&document, &project),
+        DiagnosticCode::W105
+    )
+    .is_empty());
+}
+
+#[test]
+fn w106_flags_four_dashes_in_one_section() {
+    // 1 節で 4 回 → 4 回目の位置に 1 件
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n——と、彼は言った。——それで。——分かった。——それでこそ。\n"],
+        Some("W106 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    let w106 = found_with(&found, DiagnosticCode::W106);
+    assert_eq!(w106.len(), 1);
+    assert_eq!(w106[0].args, vec![Arg::Number(4)]);
+    assert_eq!(&document.text[w106[0].range.clone().unwrap()], "——");
+
+    // 3 回では発火しない
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n——と、彼は言った。——それで。——分かった。\n"],
+        Some("W106 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    assert!(found_with(
+        &diagnostics::document(&document, &project),
+        DiagnosticCode::W106
+    )
+    .is_empty());
+}
+
+#[test]
+fn b11_b12_do_not_fire_on_the_sample_projects() {
+    // 受け入れ条件: サンプル小説と manual-check は全コード有効化しても発火しない。
+    for (path, text) in [
+        ("examples/sample-novel", SAMPLE_NOVEL_TEXT),
+        ("examples/manual-check", MANUAL_CHECK_TEXT),
+    ] {
+        let mut project = world_with(CONTENTS_PATH, text);
+        project.insert(novnow::core::model::document::Document::new(
+            "project.toml",
+            format!("schema_version = 2\n\n[features.diagnostics]\n{ALL_W097_106}"),
+        ));
+        let document = doc(&project, CONTENTS_PATH);
+        let found = diagnostics::document(&document, &project);
+        let writing: Vec<_> = found
+            .iter()
+            .filter(|d| {
+                matches!(
+                    d.code,
+                    DiagnosticCode::W097
+                        | DiagnosticCode::W098
+                        | DiagnosticCode::W099
+                        | DiagnosticCode::W100
+                        | DiagnosticCode::W101
+                        | DiagnosticCode::W102
+                        | DiagnosticCode::W103
+                        | DiagnosticCode::W104
+                        | DiagnosticCode::W105
+                        | DiagnosticCode::W106
+                )
+            })
+            .collect();
+        assert!(writing.is_empty(), "{path}: {writing:?}");
+    }
+}
+
+#[test]
+fn an_off_w097_via_features_diagnostics_is_not_counted() {
+    // B10 の feature 解決の回帰: `"off"` のコードは件数にも含まれない。
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n走った。走った。走った。\n電車が見えた。電車が来た。電車が止まった。電車が動いた。電車が鳴った。\n"],
+        Some("W097 = \"off\"\nW098 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    assert!(
+        found_with(&found, DiagnosticCode::W097).is_empty(),
+        "off の W097 は出ない（件数にも含まれない）"
+    );
+    assert_eq!(
+        found_with(&found, DiagnosticCode::W098).len(),
+        1,
+        "有効な W098 は出る"
+    );
+}
+
+#[test]
+fn w097_keeps_the_run_across_lines_inside_one_section() {
+    // 仕様 §7.2.3「改行・段落は連続を切らない（同一節の読み順で数える）」
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n走った。\n走った。\n走った。\n"],
+        Some("W097 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    let w097 = found_with(&found, DiagnosticCode::W097);
+    assert_eq!(w097.len(), 1, "改行では連続を切らない");
+    // 節をまたぐと切れる（2 文＋1 文）
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n走った。\n走った。\n;\n走った。\n"],
+        Some("W097 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    assert!(
+        found_with(&found, DiagnosticCode::W097).is_empty(),
+        "節の境界は連続を切る"
+    );
+}
+
+#[test]
+fn writing_lints_tolerate_english_words_in_a_japanese_document() {
+    // 分詞は英語の語もトークンとして返す。位置の復元がずれても落とさない。
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n電車が来る。the train stops. 電車が出る。電車が動く。\n"],
+        Some("W101 = \"warn\"\nW098 = \"warn\"\nW104 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    // 落ちないこと（内容は問わない）と、英語の文が日本語の連続を切ること
+    assert!(
+        found_with(&found, DiagnosticCode::W101).is_empty(),
+        "英語の文が挟まれば連続は切れる"
+    );
+}

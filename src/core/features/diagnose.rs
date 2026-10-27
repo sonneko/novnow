@@ -12,19 +12,46 @@ fn diag(code: C, range: std::ops::Range<usize>, args: Vec<Arg>) -> Diagnostic {
 }
 pub fn document(doc: &Document, project: &Project, explicit: bool) -> Vec<Diagnostic> {
     let mut out = Vec::new();
+    // W097–W106（§7.2.3–§7.2.12）は組み込み既定では無効。`[features.diagnostics]`
+    // で有効化されたとき、または文体の明示操作（explicit）のときだけ出す（W096 と同じ）。
+    let overrides = &project.settings().features.diagnostics;
+    let lint_on = |code: C| {
+        explicit
+            || crate::core::diagnostics::level_for(code, overrides)
+                .is_some_and(|level| level != crate::core::diagnostics::DiagnosticLevel::Off)
+    };
+    let section_active: Vec<C> = [C::W097, C::W099, C::W100, C::W101, C::W102, C::W106]
+        .into_iter()
+        .filter(|code| lint_on(*code))
+        .collect();
+    let scene_active: Vec<C> = [C::W098, C::W103, C::W104, C::W105]
+        .into_iter()
+        .filter(|code| lint_on(*code))
+        .collect();
+    let writing_on = !section_active.is_empty() || !scene_active.is_empty();
     if doc.format == DocumentFormat::Contents
         && (explicit
             || doc.text.contains('^')
             || doc.text.contains('「')
-            || doc.text.contains('『'))
+            || doc.text.contains('『')
+            || writing_on)
     {
         let tree = contents::parse_with(&doc.text, &project.contents_options());
+        // 日本語主体の判定は文書ごとに 1 回だけ（§7.2.2 と同一）。
+        let jp = if writing_on {
+            japanese_dominant(project)
+        } else {
+            true
+        };
         let index = materials_index::parse(project.text("materials/index.json"));
         let addresses = metadata::addresses(project.text("characters.md"));
         let characters = characters_md::parse(project.text("characters.md"));
         let mut previous = String::new();
         let mut run = 0;
         let mut offset = 0;
+        // 節（`;` 区切り）単位の執筆支援（W097 / W099 / W100 / W101 / W102 / W106）。
+        // 改行・段落は連続を切らず、節をまたがない（§7.2.3 ほか）。
+        let mut section: Vec<(String, usize)> = Vec::new();
         for line in &tree.lines {
             let range = offset..offset + line.raw().len();
             match line {
@@ -104,14 +131,44 @@ pub fn document(doc: &Document, project: &Project, explicit: bool) -> Vec<Diagno
                     if explicit {
                         out.extend(style(text.body, offset, project));
                     }
+                    if jp && !section_active.is_empty() {
+                        section.push((text.body.to_string(), offset));
+                    }
                 }
                 contents::Line::Scene(_) | contents::Line::Break(_) => {
                     previous.clear();
                     run = 0;
+                    if !section.is_empty() {
+                        section_lints(&section, &section_active, &mut out);
+                        section.clear();
+                    }
                 }
                 _ => {}
             }
             offset += line.raw().len() + 1;
+        }
+        if !section.is_empty() {
+            section_lints(&section, &section_active, &mut out);
+        }
+        // 場面単位の執筆支援（W098 / W103 / W104 / W105）: 場面内の全節を集計する（§7.2.4 ほか）。
+        if jp && !scene_active.is_empty() {
+            let mut scene: Vec<(String, usize)> = Vec::new();
+            let mut scene_offset = 0usize;
+            for line in &tree.lines {
+                let line_len = line.raw().len() + 1;
+                match line {
+                    contents::Line::Text(text) if annotations::illustration(text.raw).is_none() => {
+                        scene.push((text.body.to_string(), scene_offset));
+                    }
+                    contents::Line::Scene(_) => {
+                        scene_lints(&scene, &scene_active, &mut out);
+                        scene.clear();
+                    }
+                    _ => {}
+                }
+                scene_offset += line_len;
+            }
+            scene_lints(&scene, &scene_active, &mut out);
         }
     }
     if explicit && doc.format == DocumentFormat::Contents {
@@ -642,6 +699,515 @@ fn style(body: &str, offset: usize, project: &Project) -> Vec<Diagnostic> {
 
 /// i18n: format-vocabulary
 const CONJUNCTIONS: &[&str] = &["しかし", "そして", "だから", "だが", "また", "それでも"];
+
+/// 分詞のトークン列と各トークンの `text` 内の byte 位置（§9.4.4）。
+///
+/// `tiniestsegmenter::tokenize` は位置を返さないが、トークンは入力から順番に
+/// 現れるため、カーソルで進みながら位置を復元する。
+///
+/// 見つからないトークンは飛ばす（辞書の変更などで原文に無いトークンが返っても、
+/// 執筆中の本文で落とさない。位置が取れないトークンは数えないだけ）。
+fn token_positions(text: &str) -> Vec<(usize, &str)> {
+    let mut out = Vec::new();
+    let mut cursor = 0usize;
+    for token in tiniestsegmenter::tokenize(text) {
+        let Some(at) = text[cursor..].find(token) else {
+            continue;
+        };
+        let start = cursor + at;
+        out.push((start, token));
+        cursor = start + token.len();
+    }
+    out
+}
+
+/// トークンが語か（文字種の判定。標点・空白のトークンは語にしない、§9.4.4）。
+fn is_word_token(token: &str) -> bool {
+    token.chars().any(|c| {
+        c.is_alphanumeric()
+            || ('\u{3040}'..='\u{30ff}').contains(&c)
+            || ('\u{3400}'..='\u{9fff}').contains(&c)
+            || ('\u{ac00}'..='\u{d7af}').contains(&c)
+    })
+}
+
+/// 文末の固定除外リスト（W097、§9.4.4）: 1 字助詞と 2 字助詞。
+/// i18n: format-vocabulary
+const SENTENCE_END_EXCLUDE_1: &[char] = &[
+    'わ', 'が', 'を', 'に', 'で', 'と', 'え', 'の', 'は', 'や', 'も', 'ね', 'よ', 'か', 'ぜ', 'ぞ',
+    'さ', 'あ',
+];
+/// i18n: format-vocabulary
+const SENTENCE_END_EXCLUDE_2: &[&str] = &["から", "まで"];
+
+/// トークンが助詞か（W099 の「間が助詞のみ」判定。1 字助詞リストと `から` / `まで`）。
+fn is_particle_token(token: &str) -> bool {
+    if SENTENCE_END_EXCLUDE_2.contains(&token) {
+        return true;
+    }
+    let mut chars = token.chars();
+    matches!(
+        (chars.next(), chars.next()),
+        (Some(c), None) if SENTENCE_END_EXCLUDE_1.contains(&c)
+    )
+}
+
+/// 文の末尾から除外リストの助詞を除いた最後の自立語（W097 の文末尾、§9.4.4）。
+fn sentence_end(narrative: &str) -> Option<&str> {
+    for token in tiniestsegmenter::tokenize(narrative).iter().rev() {
+        if !is_word_token(token) || is_particle_token(token) {
+            continue;
+        }
+        return Some(token);
+    }
+    None
+}
+
+/// 文（`body` の `base` 起点）から台詞（`spans`）を除いた地の文部分。
+fn narrative_of(sentence: &str, base: usize, spans: &[std::ops::Range<usize>]) -> String {
+    let mut out = String::with_capacity(sentence.len());
+    for (at, character) in sentence.char_indices() {
+        let pos = base + at;
+        if spans.iter().any(|span| span.contains(&pos)) {
+            continue;
+        }
+        out.push(character);
+    }
+    out
+}
+
+/// W097: 文末尾の反復（§7.2.3）。
+fn sentence_end_repeat(body: &str, offset: usize) -> Vec<Diagnostic> {
+    let spans = crate::core::resolve::role_language::dialogue_spans(body);
+    let mut out = Vec::new();
+    let mut at = 0usize;
+    let mut run: Option<String> = None;
+    let mut count = 0usize;
+    for sentence in body.split_inclusive(['。', '！', '？']) {
+        let sentence_range = at..at + sentence.len();
+        let narrative = narrative_of(sentence, at, &spans);
+        match sentence_end(&narrative) {
+            None => {
+                run = None;
+                count = 0;
+            }
+            Some(word) => {
+                if run.as_deref() == Some(word) {
+                    count += 1;
+                } else {
+                    run = Some(word.to_string());
+                    count = 1;
+                }
+                if count == 3 {
+                    out.push(diag(
+                        C::W097,
+                        offset + sentence_range.start..offset + sentence_range.end,
+                        vec![],
+                    ));
+                }
+            }
+        }
+        at += sentence.len();
+    }
+    out
+}
+
+/// W099: 隣接同語反復（§7.2.5）。
+fn adjacent_word_repeat(body: &str, offset: usize) -> Vec<Diagnostic> {
+    let mut out = Vec::new();
+    let mut last: Option<&str> = None;
+    for (pos, token) in token_positions(body) {
+        if !is_word_token(token) || is_particle_token(token) {
+            continue;
+        }
+        if Some(token) == last {
+            out.push(diag(
+                C::W099,
+                offset + pos..offset + pos + token.len(),
+                vec![Arg::text(token)],
+            ));
+            last = None;
+            continue;
+        }
+        last = Some(token);
+    }
+    out
+}
+
+/// 文末助詞の固定リスト（W100、§9.4.4）。
+/// i18n: format-vocabulary
+const END_PARTICLE_2: &[&str] = &["だぜ", "わけ", "かな"];
+/// i18n: format-vocabulary
+const END_PARTICLE_1: &[char] = &[
+    'よ', 'ね', 'か', 'ぞ', 'だ', 'ざ', 'な', 'わ', 'や', 'さ', 'ぜ',
+];
+
+/// 文の末尾の助詞（2 字リストを先に調べる、`かな` が `な` として拾われないように）。
+fn end_particle(sentence: &str) -> Option<String> {
+    let core = sentence
+        .strip_suffix(&['。', '！', '？'][..])
+        .unwrap_or(sentence);
+    END_PARTICLE_2
+        .iter()
+        .find(|particle| core.ends_with(**particle))
+        .map(|particle| particle.to_string())
+        .or_else(|| {
+            END_PARTICLE_1
+                .iter()
+                .find(|particle| core.ends_with(**particle))
+                .map(|particle| particle.to_string())
+        })
+}
+
+/// W100: 文末助詞の反復（§7.2.6）。
+fn end_particle_repeat(body: &str, offset: usize) -> Vec<Diagnostic> {
+    let mut out = Vec::new();
+    let mut at = 0usize;
+    let mut run: Option<String> = None;
+    let mut count = 0usize;
+    for sentence in body.split_inclusive(['。', '！', '？']) {
+        let sentence_range = at..at + sentence.len();
+        match end_particle(sentence) {
+            None => {
+                run = None;
+                count = 0;
+            }
+            Some(particle) => {
+                if run.as_deref() == Some(particle.as_str()) {
+                    count += 1;
+                } else {
+                    run = Some(particle.clone());
+                    count = 1;
+                }
+                if count == 3 {
+                    out.push(diag(
+                        C::W100,
+                        offset + sentence_range.start..offset + sentence_range.end,
+                        vec![Arg::text(particle)],
+                    ));
+                }
+            }
+        }
+        at += sentence.len();
+    }
+    out
+}
+
+/// W101: 文頭語の反復（§7.2.7）。
+fn start_word_repeat(body: &str, offset: usize) -> Vec<Diagnostic> {
+    let mut out = Vec::new();
+    let mut at = 0usize;
+    let mut run: Option<String> = None;
+    let mut count = 0usize;
+    for sentence in body.split_inclusive(['。', '！', '？']) {
+        let sentence_range = at..at + sentence.len();
+        let word = tiniestsegmenter::tokenize(sentence)
+            .first()
+            .filter(|token| token.chars().count() >= 2)
+            .map(|token| token.to_string());
+        match word {
+            None => {
+                run = None;
+                count = 0;
+            }
+            Some(word) => {
+                if run.as_deref() == Some(word.as_str()) {
+                    count += 1;
+                } else {
+                    run = Some(word.clone());
+                    count = 1;
+                }
+                if count == 3 {
+                    out.push(diag(
+                        C::W101,
+                        offset + sentence_range.start..offset + sentence_range.end,
+                        vec![Arg::text(word)],
+                    ));
+                }
+            }
+        }
+        at += sentence.len();
+    }
+    out
+}
+
+/// W102 / W106: 記号の非重複出現を数えて、閾値回目の位置に 1 件（§7.2.8 / §7.2.12）。
+fn repeated_symbol(
+    code: C,
+    body: &str,
+    offset: usize,
+    symbol: &str,
+    threshold: usize,
+) -> Vec<Diagnostic> {
+    let mut out = Vec::new();
+    let mut count = 0usize;
+    let mut cursor = 0usize;
+    while let Some(at) = body[cursor..].find(symbol) {
+        count += 1;
+        let pos = cursor + at;
+        if count == threshold {
+            out.push(diag(
+                code,
+                offset + pos..offset + pos + symbol.len(),
+                vec![Arg::number(count as i64)],
+            ));
+        }
+        cursor = pos + symbol.len();
+    }
+    out
+}
+
+/// 不確か表現の固定リスト（W103、§9.4.4）。
+/// i18n: format-vocabulary
+const HEDGE_WORDS: &[&str] = &[
+    "だがしかし",
+    "たぶん",
+    "たしかに",
+    "もしかすると",
+    "かまわず",
+    "おそらく",
+    "実は",
+    "かね",
+];
+
+/// 活用接尾辞の固定リスト（W104、§9.4.4）。セグメンタは活用を別のトークンに
+/// 切る（「走った」→ `走っ` + `た`）ため、語（2 字以上の語トークン）の**直後**の
+/// トークンがこれに属するとき、その語を動詞の語幹として数える。
+/// i18n: format-vocabulary
+const VERB_SUFFIX_TOKENS: &[&str] = &[
+    "た",
+    "て",
+    "だ",
+    "ながら",
+    "られる",
+    "させる",
+    "ない",
+    "たず",
+    "ちゃう",
+    "たい",
+    "よう",
+];
+
+/// 節（`;` 区切り）の本文行を 1 本に連結し、連結位置を文書内 byte に戻せるようにする。
+///
+/// 仕様は「改行・段落は連続を切らず、節をまたがない」（§7.2.3 ほか）なので、
+/// 節の中の複数行は改行を挟んで連結してから数える。
+struct SectionText {
+    joined: String,
+    /// (連結内の行頭, 文書内の行頭)
+    starts: Vec<(usize, usize)>,
+}
+
+impl SectionText {
+    fn new(lines: &[(String, usize)]) -> Self {
+        let mut joined = String::new();
+        let mut starts = Vec::new();
+        for (i, (body, doc)) in lines.iter().enumerate() {
+            if i > 0 {
+                joined.push('\n');
+            }
+            starts.push((joined.len(), *doc));
+            joined.push_str(body);
+        }
+        Self { joined, starts }
+    }
+
+    /// 連結位置 → 文書内 byte。
+    fn doc(&self, pos: usize) -> usize {
+        match self.starts.binary_search_by(|(start, _)| start.cmp(&pos)) {
+            Ok(i) => self.starts[i].1,
+            Err(0) => self.starts[0].1,
+            Err(i) => {
+                let (start, doc) = self.starts[i - 1];
+                doc + (pos - start)
+            }
+        }
+    }
+
+    /// 連結位置の範囲 → 文書内の範囲（範囲は行をまたがない）。
+    fn span(&self, range: std::ops::Range<usize>) -> std::ops::Range<usize> {
+        let start = self.doc(range.start);
+        let end = if range.end > range.start {
+            self.doc(range.end - 1) + 1
+        } else {
+            start
+        };
+        start..end
+    }
+}
+
+/// 節単位の執筆支援（§7.2.3 / §7.2.5 / §7.2.6 / §7.2.7 / §7.2.8 / §7.2.12）。
+fn section_lints(section: &[(String, usize)], active: &[C], out: &mut Vec<Diagnostic>) {
+    let map = SectionText::new(section);
+    let body = map.joined.as_str();
+    let mut found: Vec<Diagnostic> = Vec::new();
+    if active.contains(&C::W097) {
+        found.extend(sentence_end_repeat(body, 0));
+    }
+    if active.contains(&C::W099) {
+        found.extend(adjacent_word_repeat(body, 0));
+    }
+    if active.contains(&C::W100) {
+        found.extend(end_particle_repeat(body, 0));
+    }
+    if active.contains(&C::W101) {
+        found.extend(start_word_repeat(body, 0));
+    }
+    if active.contains(&C::W102) {
+        found.extend(repeated_symbol(C::W102, body, 0, "……", 3));
+    }
+    if active.contains(&C::W106) {
+        found.extend(repeated_symbol(C::W106, body, 0, "——", 4));
+    }
+    for mut diagnostic in found {
+        if let Some(range) = diagnostic.range.clone() {
+            diagnostic.range = Some(map.span(range));
+        }
+        out.push(diagnostic);
+    }
+}
+
+/// 場面（その場面内の全節: `(本文, 文書内 byte)`）を受け取って場面単位の 4 診断を出す。
+fn scene_lints(scene: &[(String, usize)], active: &[C], out: &mut Vec<Diagnostic>) {
+    eprintln!(
+        "PROBE scene_lints: scene={:?} active={:?}",
+        scene.iter().map(|(b, o)| (o, b)).collect::<Vec<_>>(),
+        active
+    );
+    if scene.is_empty() {
+        return;
+    }
+    if active.contains(&C::W098) {
+        out.extend(scene_word_repeat(scene));
+    }
+    if active.contains(&C::W103) {
+        out.extend(scene_hedge_overuse(scene));
+    }
+    if active.contains(&C::W104) {
+        out.extend(scene_verb_stem_repeat(scene));
+    }
+    if active.contains(&C::W105) {
+        out.extend(scene_exclamation_overuse(scene));
+    }
+}
+
+/// W098: 場面内の同語反復（§7.2.4）。W087 と同じ語抽出を場面単位に適用する。
+fn scene_word_repeat(scene: &[(String, usize)]) -> Vec<Diagnostic> {
+    let mut out = Vec::new();
+    let mut counts: std::collections::BTreeMap<String, (usize, i64)> =
+        std::collections::BTreeMap::new();
+    for (body, doc_offset) in scene {
+        for (pos, token) in token_positions(body) {
+            if token.chars().count() < 2 {
+                continue;
+            }
+            let entry = counts.entry(token.to_string()).or_insert((0, 0));
+            entry.0 = doc_offset + pos;
+            entry.1 += 1;
+        }
+    }
+    for (body, _) in scene.iter().take(1) {
+        eprintln!(
+            "PROBE tok: {body:?} => {tokens:?}",
+            tokens = token_positions(body)
+        );
+    }
+    eprintln!("PROBE scene_word_repeat counts: {counts:?}");
+    for (word, (last_pos, count)) in counts {
+        if count >= 5 {
+            out.push(diag(
+                C::W098,
+                last_pos..last_pos + word.len(),
+                vec![Arg::text(word), Arg::number(count)],
+            ));
+        }
+    }
+    out
+}
+
+/// W103: やわらか・不確か表現の多用（§7.2.9）。
+fn scene_hedge_overuse(scene: &[(String, usize)]) -> Vec<Diagnostic> {
+    let mut out = Vec::new();
+    for word in HEDGE_WORDS {
+        let mut last: Option<(usize, i64)> = None;
+        for (body, doc_offset) in scene {
+            let mut cursor = 0usize;
+            while let Some(at) = body[cursor..].find(word) {
+                let pos = doc_offset + cursor + at;
+                let entry = last.get_or_insert((pos, 0));
+                entry.0 = pos;
+                entry.1 += 1;
+                cursor += at + word.len();
+            }
+        }
+        if let Some((pos, count)) = last {
+            if count >= 3 {
+                out.push(diag(
+                    C::W103,
+                    pos..pos + word.len(),
+                    vec![Arg::text(*word), Arg::number(count)],
+                ));
+            }
+        }
+    }
+    out
+}
+
+/// W104: 同一動詞語幹の反復（§7.2.10）。
+fn scene_verb_stem_repeat(scene: &[(String, usize)]) -> Vec<Diagnostic> {
+    let mut out = Vec::new();
+    let mut counts: std::collections::BTreeMap<String, (usize, i64)> =
+        std::collections::BTreeMap::new();
+    for (body, doc_offset) in scene {
+        let tokens = token_positions(body);
+        for (i, (pos, token)) in tokens.iter().enumerate() {
+            if !is_word_token(token) || token.chars().count() < 2 {
+                continue;
+            }
+            let Some((_, next)) = tokens[i + 1..].iter().find(|(_, t)| is_word_token(t)) else {
+                continue;
+            };
+            if !VERB_SUFFIX_TOKENS.contains(next) {
+                continue;
+            }
+            let entry = counts.entry(token.to_string()).or_insert((0, 0));
+            entry.0 = doc_offset + pos;
+            entry.1 += 1;
+        }
+    }
+    for (stem, (last_pos, count)) in counts {
+        if count >= 5 {
+            out.push(diag(
+                C::W104,
+                last_pos..last_pos + stem.len(),
+                vec![Arg::text(stem), Arg::number(count)],
+            ));
+        }
+    }
+    out
+}
+
+/// W105: 感嘆符の多用（§7.2.11）。
+fn scene_exclamation_overuse(scene: &[(String, usize)]) -> Vec<Diagnostic> {
+    let mut count = 0i64;
+    let mut last_pos = 0usize;
+    for (body, doc_offset) in scene {
+        for (at, character) in body.char_indices() {
+            if character == '！' || character == '!' {
+                count += 1;
+                last_pos = doc_offset + at;
+            }
+        }
+    }
+    if count < 5 {
+        return Vec::new();
+    }
+    vec![diag(
+        C::W105,
+        last_pos..last_pos + 1,
+        vec![Arg::number(count)],
+    )]
+}
 
 fn sections_count(text: &str) -> usize {
     crate::core::features::sections::count_chars(text)
