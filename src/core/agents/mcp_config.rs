@@ -160,7 +160,7 @@ impl McpConfig {
         self.servers.iter().find(|server| {
             (server.is_stdio()
                 || (server.transport == "http"
-                    && crate::core::stage_two::local_llm::is_loopback(&server.url)))
+                    && crate::core::features::local_llm::is_loopback(&server.url)))
                 && server.serves(role)
         })
     }

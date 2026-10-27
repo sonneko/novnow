@@ -67,6 +67,11 @@ pub trait Dialog {
         async { None }
     }
 
+    /// 移行の入力としてテキストファイルを複数選ぶ（§14.6。デスクトップのみ）。
+    fn pick_texts(&self) -> impl Future<Output = Option<Vec<PickedFile>>> {
+        async { None }
+    }
+
     /// Zip を選ぶ（§13.5 のインポート）。
     fn pick_zip(&self) -> impl Future<Output = Option<PickedFile>>;
 

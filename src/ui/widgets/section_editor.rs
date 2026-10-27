@@ -174,7 +174,7 @@ pub struct Look {
 pub fn show(ui: &mut Ui, bench: &mut Workbench, cache: &mut Cache, mut look: Look) -> EditorOutput {
     // 台詞比率バー（§9.4.2。幅 64px・高さ 4px・`fg.faint` 単色＋右に 10px の %）。
     // 分母 0（空の節）では描かない。
-    let measured = crate::core::stage_two::metrics::section(bench.buffer());
+    let measured = crate::core::features::metrics::section(bench.buffer());
     if measured.total > 0 {
         crate::ui::widgets::ratio_bar(
             ui,
@@ -318,7 +318,7 @@ pub(crate) fn area(
                     d.get_temp::<bool>(Id::new("suggest-comma"))
                         .unwrap_or(false)
                 }) {
-                    for at in crate::core::stage_two::metrics::comma_candidates(buffer, 40) {
+                    for at in crate::core::features::metrics::comma_candidates(buffer, 40) {
                         let cursor = output
                             .galley
                             .from_ccursor(CCursor::new(buffer[..at].chars().count()));

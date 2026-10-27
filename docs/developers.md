@@ -139,7 +139,7 @@ novnow/
 │   │   ├── features/          # LSP 相当の純粋関数とワークスペース補助
 │   │   ├── policy/            # 規則 10・履歴・Zip・外部変更
 │   │   ├── export.rs / reader.rs / migration.rs / annotations.rs
-│   │   └── aicontext/ / agents/ / stage_two/ / template/
+│   │   └── aicontext/ / agents/ / template/
 │   ├── ports/                 # 外部境界 trait（storage, clock, mcp, env, dialog）
 │   ├── adapters/              # 環境別実装（storage_fs, storage_idb, recent_file, zip, project_load,
 │   │                          #   env_system, mcp_stdio, mcp_http, clock_system, dialog_rfd）
@@ -152,10 +152,11 @@ novnow/
 │   ├── lsp/                   # LSP サーバ（framing, convert, methods, commands, server）
 │   └── ui/                    # egui ベース GUI / Web UI（`ui` feature のときだけ）
 │       ├── i18n/              # ja.toml / en.toml（GUI と CLI が共有。常にビルド）
-│       ├── app.rs / shell.rs / theme.rs / web.rs
+│       ├── app.rs / picker.rs / palette_items.rs / status.rs / shell.rs / theme.rs / web.rs
 │       ├── widgets/           # context_view, section_editor, reference_pane, syntax_text, inlay, portrait
 │       └── workspaces/        # 9 ワークスペース（write, plot-episode, plot-outline, idea, material,
-│                              #   cast, reader, agent, review）と stage_two（② の画面）
+│                              #   cast, reader, agent, review）と② のタブ群（tabs, reader, stats,
+│                              #   regex_search, addresses, local_llm, proposals）
 ├── python/
 │   └── novnow-py/             # PyO3 拡張（python/novnow/__init__.pyi は自動生成）REF:python/novnow-py/README.md
 ├── website/                   # Astro の公式サイト（診断・API のページは仕様書から生成）
@@ -317,17 +318,19 @@ CI だけに検査が増えた時点で静かに壊れるため。CI の `docs` 
 ### 4.7 Actions を無駄に使わない（既定は走らせない）
 
 GitHub Actions は**走った分だけ**課金される。このリポジトリは CI の行列が重く
-（Rust の 5 ジョブ＋ wasm ＋ bench、Python ホイールは 4 OS）、文書やコメントだけの変更で
-回すと、ほぼ確実に捨てる実行にお金を払うことになる。そこで**既定は走らせない**。
+（Rust の 5 ジョブ＋ wasm ＋ bench、Python ホイールは 5 構成・デスクトップは 10 構成）、
+文書やコメントだけの変更で回すと、ほぼ確実に捨てる実行にお金を払うことになる。
+そこで**既定は走らせない**、かつ**プラットフォームの行列は必要な分だけ**走らせる。
 
 | 仕組み | 実体 | 効く場面 |
 |---|---|---|
 | コミット既定で `[ci skip]` | `REF:.githooks/commit-msg`（`bash REF:scripts/install-git-hooks.sh` で有効化） | push・PR の全ワークフロー。`[ci run]` と書いたときだけ付かない |
-| 必要なときに 1 回だけ回す | `bash REF:scripts/ci-run.sh [ci\|wheels] [watch]` | `workflow_dispatch`。push し直さずにブランチを指定して回せる |
+| 必要なときに 1 回だけ回す | `bash REF:scripts/ci-run.sh [ci\|wheels] [watch]` | `workflow_dispatch`。push し直さずにブランチを指定して回せる（スコープは常に full） |
 | 変更フィルタ | `REF:.github/workflows/ci.yml` の `docs` ジョブ（`rust_changed`） | 文書だけの変更で Rust 5 ジョブを skip |
 | `paths` / `paths-ignore` | 各ワークフロー | 無関係な変更でワークフロー自体を起動しない |
 | `concurrency` | 全ワークフロー（PR は `cancel-in-progress`） | 同じブランチを続けて push したとき、古い実行を取り消す |
 | draft PR では走らせない | 全ワークフローの `if: github.event_name != 'pull_request' \|\| !github.event.pull_request.draft` | 作業中の push で行列を埋めない（検査 10 が全ワークフローで見る） |
+| ブランチ別の CI スコープ（`CI_SCOPE`） | wheels / desktop-check / pages-check / vscode の 4 ワークフローが PR の対象ブランチ（push は push 先ブランチ）で行列を決める。`REF:scripts/release-matrix.py --scope` | develop 向け PR で全プラットフォームの行列を走らせない（次節） |
 
 **回す・回さないの目安**
 
@@ -354,6 +357,28 @@ GitHub Actions は**走った分だけ**課金される。このリポジトリ�
 重複していた `cargo bench --no-run` と wasm ジョブの `cargo check`（wasm32）を畳んだ
 （wasm32 のコンパイル自体は `trunk build --release` が担う）。
 Desktop の Windows ビルドが全体の最長なので、PR 全体の待ち時間はそちらが決める。
+
+**ブランチ別の CI スコープ（2026-10-27、開発速度を第一に）**: プラットフォームの行列は対象ブランチで切り替える。
+`CI_SCOPE`（4 ワークフローの workflow 先頭で同じ式）は、`main` 向け PR・`main` への push・`workflow_dispatch`
+で `full`、`develop` 向け PR・`develop` への push で `develop` になる。
+
+| 行列 | full（main 向け PR・main push・手動実行） | develop（develop 向け PR・develop push） |
+|---|---|---|
+| Desktop artifacts | 10 構成（5 対象環境 × gui/nogui） | Linux x64 の nogui のみ（1 構成） |
+| wheels ビルド | 5 構成 | Linux x64 のみ（1 構成。Python 試験が導入するホイールと同一） |
+| wheels Python 試験 | 3.9 / 3.11 / 3.13 | 3.9 / 3.13（abi3-py39 の境界 2 版） |
+| Pages ブラウザ試験 | chromium / firefox / webkit | chromium のみ（firefox / webkit は偽陽性が多発するため develop 向け PR では実行しない） |
+| VSCode Electron | ubuntu / macos / windows | ubuntu のみ |
+
+CI コア（文書整合・Rustfmt・Clippy・全テスト・WASM サイズ・ベンチマーク・性能予算・Python API 検査）
+はスコープに関係なく常時実行する。develop 向け PR のプラットフォームの行列ジョブは 21 本（desktop 10・wheel 5・
+Electron 3・ブラウザ 3）から 4 本（desktop 1・wheel 1・Electron 1・ブラウザ 1）になる（Python 試験は 3 版から 2 版）。
+`main` への統合（リリースゲート）では full 行列が走り、macOS / Windows / arm64 のビルドはそこで検証される。
+
+**必須チェック**: `develop` の必須チェックは develop スコープで走る 11 件だけにする（2026-10-27。
+旧来は full 行列を含む 23 件）。`main` は従来どおり3ブラウザ・full 行列を含む 18 件。
+一覧の正本は `REF:docs/distribution.md` §8。ruleset（`protect-develop`・`protect-main`）の適用は所有者が行う。
+`main` 向け PR で firefox / webkit が失敗した場合は内容を確認し、実バグに見えるものは直すか Issue 化する。
 
 **落とし穴**: `[ci skip]` が付いたコミットが PR の頭だと、PR のチェックは**空**になる。
 マージ前に `bash scripts/ci-run.sh ci watch` で 1 回だけ回し、緑を確認してからマージする
@@ -462,7 +487,7 @@ Web サイト側を変更したら `npm ci --prefix website && npm run check:sit
    - セッションに紐づく専用作業ブランチ（`arena/...`）でのみ作業し、別ブランチの作成や切り替えは行わない。
    - **作業の区切りごとにこまめにコミット & プッシュ**する。
    - PR の作成・更新はエージェントが行うが、**PR のマージは必ずユーザー自身が行う**（エージェントが勝手に `gh pr merge` を実行してはならない）。
-   - 作業完了時は PR が Ready for review であること、コンフリクトがないこと、GitHub Actions の全チェックが green であることを確認してから報告する。
+   - 作業完了時は PR が Ready for review であること、コンフリクトがないこと、GitHub Actions の必須チェックが green であることを確認してから報告する（`develop` 向け PR の Firefox / WebKit ブラウザ試験は必須チェックではない。§4.7）。
 3. **自律判断と人間承認の境界**:
    - 仕様書（`docs/specifications/**.md`）および設計書（`docs/designs/**.md`）で既に決まっている事項の実装・テスト・バグ修正は確認を求めず自律的に進める。
    - 仕様書や設計書の内容自体を変更する場合は、単なる記述ミスの修正を除き、人間の承認を得ること。

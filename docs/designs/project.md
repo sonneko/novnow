@@ -54,7 +54,7 @@
 ## 付録 C: `sample` プロジェクト
 
 - **[Issue #29 / B10] `project.toml` への移行と `[features]`（実装完了: `REF:docs/plans.md#issue-29-b10`）**:
-  - 読み取りは `project_toml::parse` の型付き検証、書き戻しは `project_toml::edit` / `set_string`（`REF:src/core/syntax/project_toml.rs`）の無損失編集で、変更したキー以外はコメント・書式・キー順・未知キー（変更した値の行末コメントを含む）を保持する。設定を書き換えるのは委譲レベルの変更（`REF:src/core/agents/runner.rs`）とローカル LLM 設定（`REF:src/ui/workspaces/stage_two.rs`）で、どちらもこの経路を通る。壊れた TOML は E025 を出して既定値で開き、上書きしない（検証: `REF:tests/project_json.rs` の `lossless_edit_keeps_comments_order_and_unknown_keys` と `broken_toml_is_never_overwritten`）。
+  - 読み取りは `project_toml::parse` の型付き検証、書き戻しは `project_toml::edit` / `set_string`（`REF:src/core/syntax/project_toml.rs`）の無損失編集で、変更したキー以外はコメント・書式・キー順・未知キー（変更した値の行末コメントを含む）を保持する。設定を書き換えるのは委譲レベルの変更（`REF:src/core/agents/runner.rs`）とローカル LLM 設定（`REF:src/ui/workspaces/local_llm.rs`）で、どちらもこの経路を通る。壊れた TOML は E025 を出して既定値で開き、上書きしない（検証: `REF:tests/project_json.rs` の `lossless_edit_keeps_comments_order_and_unknown_keys` と `broken_toml_is_never_overwritten`）。
   - `toml_edit` を直接依存として明示し、`toml` とあわせて core の許可クレートへ足した（`REF:Cargo.toml`、`REF:tests/layering.rs`、§3.2）。
   - `schema_version = 2` とし、旧形式の変換は作らない（所有者決定 M-2）。
   - `[features.diagnostics]` は `Settings.features.diagnostics`（`REF:src/core/model/project.rs`）に読み、解決と適用は §7.0（`REF:docs/designs/diagnostics.md`）が担う。操作系 feature は `[features]` 直下に置き、`Features.rest` が温存する。

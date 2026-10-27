@@ -153,7 +153,7 @@ pub fn reload(session: &mut Session, args: &Args) -> Result<Value> {
 pub fn stats(session: &mut Session, args: &Args) -> Result<Value> {
     let _ = args;
     let project = session.aggregate();
-    let metrics = crate::core::stage_two::metrics::project(project);
+    let metrics = crate::core::features::metrics::project(project);
     let list = sections::all(project);
     let settings = project.settings();
     let speakers: Vec<Value> = metrics

@@ -20,7 +20,7 @@
   - `REF:src/ui/widgets/mod.rs` に共通クリック部品を設けて全ボタン・クリック対象に薄い下線＋ホバー背景＋ショートカット併記を適用する。
 
 - **[Issue #29 / B4] ヘッダの省略優先順とプロジェクト名・パンくずのボタン化（実装完了: `REF:docs/plans.md#issue-29-b4`）**:
-  - `REF:src/ui/app.rs` のヘッダ描画で各要素の実測幅から省略を決め（画面名の一時表示 → プロジェクト名 → パンくず。`header_left_visibility`。右端のボタン群の幅は前フレームの実測を使う）、プロジェクト名は既存の `Ctrl+O` の経路へ、パンくずは `@` を初期入力とするパレット起動へ接続した。幅を変えたフレームの省略とボタンの動作は `REF:tests/gui.rs` の `header_crumb_and_project_name_are_buttons_and_fold_by_measured_width` で検証する。
+  - `REF:src/ui/status.rs` のヘッダ描画で各要素の実測幅から省略を決め（画面名の一時表示 → プロジェクト名 → パンくず。`header_left_visibility`。右端のボタン群の幅は前フレームの実測を使う）、プロジェクト名は既存の `Ctrl+O` の経路へ、パンくずは `@` を初期入力とするパレット起動へ接続した。幅を変えたフレームの省略とボタンの動作は `REF:tests/gui.rs` の `header_crumb_and_project_name_are_buttons_and_fold_by_measured_width` で検証する。
 
 ### 9.2 ラベル撤廃規則
 
@@ -91,12 +91,12 @@
 - ※§9.6.2 のセッション統計モードは段階 ②（`REF:docs/plans.md#stage-2`）対象。
 
 - **[F-05 / F-18 / S-14] 修飾キー補完表示・起動通知の左下トースト化・幅に応じた省略優先順（実装完了: `REF:docs/plans.md#plan-F-05`）**:
-  - `REF:src/ui/shell.rs` と `REF:src/ui/app.rs` で、`Cmd`/`Ctrl`/`Alt`/`Shift` 押下中に次に入力可能なショートカット候補をステータスバーに表示する（F-05）。
+  - `REF:src/ui/shell.rs` と `REF:src/ui/status.rs` で、`Cmd`/`Ctrl`/`Alt`/`Shift` 押下中に次に入力可能なショートカット候補をステータスバーに表示する（F-05）。
   - 同梱フォント使用通知はステータスバーから外し、起動後数秒間のみ左下に表示するモードレストーストへ移す（F-18）。
   - ステータスバーの幅不足時は「セッション情報 → 原稿用紙枚数 → 文字数」の順に `…` へ畳んでホバー詳細とし、保存状態マークを最高優先で常時表示する（S-14）。
 
 - **[Issue #29 / B4] 省略判定の実測幅化（実装完了: `REF:docs/plans.md#issue-29-b4`）**:
-  - `REF:src/ui/app.rs` のステータスバーの表示/省略を、ウィンドウ幅の固定しきい値から各要素のレイアウト実測幅による判定（ `status_visibility` ）へ変えた。優先順位は パンくず > 文字数 > 原稿用紙枚数 > セッション情報 > 通知 で、上位が収まらない時点で下位も畳む。保存インジケータの右端の予約幅は現行の考えを保つ。幅を変えたフレームで「空きがあるのに `…` が出ないこと」と保存表示が画面内に残ることは `REF:tests/gui.rs` の `narrow_status_folds_secondary_details_without_hiding_save_state` で検証する。
+  - `REF:src/ui/status.rs` のステータスバー（`status_bar`）の表示/省略を、ウィンドウ幅の固定しきい値から各要素のレイアウト実測幅による判定（ `status_visibility` ）へ変えた。優先順位は パンくず > 文字数 > 原稿用紙枚数 > セッション情報 > 通知 で、上位が収まらない時点で下位も畳む。保存インジケータの右端の予約幅は現行の考えを保つ。幅を変えたフレームで「空きがあるのに `…` が出ないこと」と保存表示が画面内に残ることは `REF:tests/gui.rs` の `narrow_status_folds_secondary_details_without_hiding_save_state` で検証する。
 
 ### 9.7 ナビゲーション
 
@@ -115,11 +115,11 @@
   - 複雑なフォーム（MCP 設定・タスク作成・エクスポート設定・却下／差し戻しコメント・アイデア即時入力）の下書きは `OverlayDrafts` としてセッション内に重ね物ごとに毎フレーム同期して保持し（閉じ方によらず残る）、開くときに復元する。却下／差し戻しコメントは同じ提案・同じ向きのときだけ復元し、確定（保存・作成・書き出し・取り込み）に成功したら下書きを捨てる。ファイルへは書かない。
   - 網羅テストは `REF:tests/gui.rs` の `every_overlay_closes_on_outside_click_and_escape_except_the_locked_two` が `OverlayKind::ALL` の全重ね物を開いて外側クリックと `Esc` を検証し（背面の非操作と本文の不変を含む）、`Overlay::sample` の網羅的な `match` と合わせて、後から増えた重ね物のテスト漏れをコンパイル時に検出する。配置と共通フッタは `modals_are_centered_with_a_close_hint_and_locked_ones_have_none`、下書きは `complex_form_drafts_are_restored_but_never_saved_to_the_project` が検証する。
 - **[Issue #29 / B4] 最近使った項目と候補一覧の追従ス（実装完了: `REF:docs/plans.md#issue-29-b4`）**:
-  - 履歴は GUI セッション状態（ `Session` ）にモード別（`>` / `@`）で最大 10 件まで持ち、候補生成（ `palette_items`、`REF:src/ui/app.rs`）では入力が空のときだけ先頭へ差し込む（固定スコアの計算には入れない）。
+  - 履歴は GUI セッション状態（ `Session` ）にモード別（`>` / `@`）で最大 10 件まで持ち、候補生成（ `palette_items`、`REF:src/ui/palette_items.rs`）では入力が空のときだけ先頭へ差し込む（固定スコアの計算には入れない）。
   - 選択行への最小移動の追従と、枠の右端に寄せた細いスクロールバーは、候補一覧を持つ重ね物（パレット・全体検索・資料検索・使用箇所）で共有する部品 `candidate_scroll` / `follow_selection`（`REF:src/ui/widgets/mod.rs`）として実装した。候補を末尾まで送ったとき選択行の矩形がスクロール領域内にあることは `REF:tests/gui.rs` の `palette_selection_stays_visible_when_moving_with_the_keyboard_only`、履歴は `palette_recent_items_come_first_only_on_empty_input` で検証する。
 
 - **[Issue #29 / B6] 検索 2 系統の分担の追認と一致表示（実装完了: `REF:docs/plans.md#issue-29-b6`）**:
-  - `Ctrl+Shift+F` の重ね物は本文の文字どおり検索（`REF:src/app/assist.rs`）のままとし、結果行の一致範囲に §11.3 の背景塗り（ `bg.selection` ）を付ける（共通部品 `append_match` / `selectable_job`、`REF:src/ui/widgets/mod.rs`）。正規表現検索は `write` の全文検索タブ（`REF:src/core/stage_two/search.rs`）に置き、抜粋は「前文・一致・後文」の構造で返して画面では一致範囲だけを強調して描く（`**…**` を文字列に埋め込む形を廃止）。資料として保存するときだけ §16.3.1 の固定形に組み立てる。
+  - `Ctrl+Shift+F` の重ね物は本文の文字どおり検索（`REF:src/app/assist.rs`）のままとし、結果行の一致範囲に §11.3 の背景塗り（ `bg.selection` ）を付ける（共通部品 `append_match` / `selectable_job`、`REF:src/ui/widgets/mod.rs`）。正規表現検索は `write` の全文検索タブ（`REF:src/core/features/search.rs`）に置き、抜粋は「前文・一致・後文」の構造で返して画面では一致範囲だけを強調して描く（`**…**` を文字列に埋め込む形を廃止）。資料として保存するときだけ §16.3.1 の固定形に組み立てる。
 
 ### 9.8 キーボード一覧
 
@@ -248,7 +248,7 @@
 
 ### 10.7 `reader` — 読者モード（§17.3 に詳細）
 
-状態: 実装完了（REF:src/ui/workspaces/stage_two.rs, REF:src/core/reader.rs, REF:tests/workspaces.rs, REF:tests/stage_two.rs）
+状態: 実装完了（REF:src/ui/workspaces/reader.rs, REF:src/core/reader.rs, REF:tests/workspaces.rs, REF:tests/stage_two.rs）
 
 - `Alt+7` で retained な読者ビューへ切り替える。組版と保存の境界は §17.3 を参照。
 
@@ -272,7 +272,7 @@
 
 - **[Issue #29 / B7] 診断の有効設定の編集と W096 指標（実装完了: `REF:docs/plans.md#issue-29-b7`）**:
   - 診断タブ（`REF:src/ui/workspaces/review.rs`）で選択中の行のコードについて「出さない / 警告 / エラー扱い」を切り替えられ、`Request::SetDiagnosticLevel` を介して `project.toml` の `[features.diagnostics]` へ無損失編集（`project_toml::set_diagnostic_level`、`REF:src/core/syntax/project_toml.rs`: 既存のコードキーを優先して更新し、無ければコードキーを足す）で保存する（§10.9.6）。現在の有効値は §4.5.2 の解決結果で示し、上書きが無い場合は「既定」と出す。表示フィルタ（重大度の絞り込み）は従来どおり保存しない。
-  - W096 を文体タブの指標（`REF:src/ui/workspaces/stage_two.rs` の所見ペインのコード一覧）へ加えた。既定ではチェックを外してあり、診断としての有効化は `[features.diagnostics]` で行う。
+  - W096 を文体タブの指標（`REF:src/ui/workspaces/tabs.rs` の所見ペインのコード一覧）へ加えた。既定ではチェックを外してあり、診断としての有効化は `[features.diagnostics]` で行う。
 
 ### 11.1 セマンティックカラートークン
 

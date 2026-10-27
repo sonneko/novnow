@@ -112,6 +112,80 @@ jobs:
             gh pr comment "$pr" --repo "${GITHUB_REPOSITORY}" --body "$body"
           fi
 
+  encoding-crate:
+    name: encoding_rs .crate to a git blob
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: fetch, store as a blob, comment
+        shell: bash
+        run: |
+          set -euo pipefail
+          # shellcheck source=/dev/null
+          . ./.github/sandbox-tools.env
+          if [ "${ENABLED:-0}" != "1" ] && [ "${ENCODING_RS:-0}" != "1" ] && [ "${GITHUB_EVENT_NAME}" != "workflow_dispatch" ]; then
+            echo "ENABLED=0 / ENCODING_RS=0 のためスキップします。"
+            exit 0
+          fi
+          mkdir -p crates
+          # Issue #29 X1（移行支援の Shift_JIS 読み替え、§14.6）で使うクレート。依存なしの構成で使う。
+          # 版は sparse index から「必須依存が cfg-if だけの 0.8 系で最大の版」を決定的に選ぶ
+          # （新しい 0.8 系は SIMD 用の必須依存が増えており、vendoring の対象を増やさないため）。
+          # 選んだ版は cksum で照合する。
+          curl -fsSL --retry 3 -o encoding_rs.index "https://index.crates.io/en/co/encoding_rs"
+          python3 - <<'PY'
+          import json
+          best = None
+          for line in open("encoding_rs.index"):
+              if not line.strip():
+                  continue
+              row = json.loads(line)
+              if row.get("yanked"):
+                  continue
+              parts = row["vers"].split(".")
+              if not (len(parts) == 3 and parts[0] == "0" and parts[1] == "8" and parts[2].isdigit()):
+                  continue
+              required = {
+                  dep["name"]
+                  for dep in row.get("deps", [])
+                  if not dep.get("optional") and dep.get("kind") != "dev"
+              }
+              if not required.issubset({"cfg-if"}):
+                  continue
+              key = int(parts[2])
+              if best is None or key > best[0]:
+                  best = (key, row["vers"], row.get("cksum", ""), sorted(required))
+          assert best is not None, "no 0.8.x with only cfg-if as a required dependency"
+          open("encoding_rs.version", "w").write(best[1] + " " + best[2] + "\n")
+          print("chosen:", best[1], "required deps:", best[3])
+          PY
+          read -r version cksum < encoding_rs.version || true
+          echo "encoding_rs version=${version}"
+          curl -fsSL --retry 3 -o "crates/encoding_rs-${version}.crate" \
+            "https://static.crates.io/crates/encoding_rs/encoding_rs-${version}.crate"
+          echo "${cksum}  crates/encoding_rs-${version}.crate" | sha256sum -c -
+          tar czf encoding-crate.tar.gz crates
+          sha="$(sha256sum encoding-crate.tar.gz | cut -d' ' -f1)"
+          python3 - <<'PY'
+          import base64, json
+          data = base64.b64encode(open("encoding-crate.tar.gz", "rb").read()).decode()
+          json.dump({"content": data, "encoding": "base64"}, open("blob.json", "w"))
+          PY
+          blob="$(gh api -X POST "repos/${GITHUB_REPOSITORY}/git/blobs" --input blob.json --jq .sha)"
+          pr="$(gh pr list --repo "${GITHUB_REPOSITORY}" --head "${GITHUB_REF_NAME}" --state all --json number --jq '.[0].number')"
+          body="sandbox-tools: encoding-crate=encoding_rs-${version} blob=${blob} sha256=${sha} file=encoding-crate.tar.gz"
+          echo "$body"
+          echo "$body" >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$pr" ]; then
+            gh pr comment "$pr" --repo "${GITHUB_REPOSITORY}" --body "$body"
+          fi
+
   criterion-crates:
     name: criterion .crate files to a git blob
     runs-on: ubuntu-latest

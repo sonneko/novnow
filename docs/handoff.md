@@ -11,7 +11,7 @@
 | 区分 | 状態 | 対象範囲 | 参照 |
 |---|---|---|---|
 | 段階 ①（M0〜M11） | 完了 | コア仕様・全 9 ワークスペース・MCP・CLI・Web 版・ベンチマーク・サンプル一式 | `REF:docs/history.md` |
-| 設計書セクション実装状況 | 実装完了 140 節 / 実装中 0 節 / 未実装・実装計画済み 2 節 / 未実装・未計画 0 節 / 実装待ち 0 節 | 全 12 設計書の `### ` 節（合計 142 節） | `REF:docs/designs/` |
+| 設計書セクション実装状況 | 実装完了 142 節 / 実装中 0 節 / 未実装・実装計画済み 0 節 / 未実装・未計画 0 節 / 実装待ち 0 節 | 全 12 設計書の `### ` 節（合計 142 節） | `REF:docs/designs/` |
 | 仕様変更・修正（F-01〜F-44） | 実装完了（44 件） | UI・エディタ・パレット・辞書・ショートカット・性能等の修正 44 項目 | `REF:docs/plans.md#planned-fixes` |
 | 機能追加（小規模：S-01〜S-18） | 実装完了（18 件） | エージェント例指定・PWA・Zip 導入・形態素波線等の小規模機能追加 18 項目 | `REF:docs/plans.md#planned-small-features` |
 | 機能追加（比較的大規模：L-01） | 実装済み（CLI・デスクトップ） | 既存の本文テキストから `novnow` に移行するための手段の提供 | `REF:docs/plans.md#unplanned-large` |
@@ -24,8 +24,10 @@
 
 ## 2. 現在のブランチ・PR・直近の作業状態
 
-- 作業ブランチは `arena/80e4c6d1-novnow`（`develop` の `921d32f` から分岐）。
-- Issue #29 の実装バッチ（`REF:docs/plans.md#issue-29` §8.5）を進めている。**B1（重ね物の土台）・B2（節エディタ）・B4（パレットとヘッダ）・B5（案内と参照ペイン）・B6（読者と検索）・B3（節の操作）・B10（形式の更新）・B7（診断の追加）・B8（選択画面と Web）・B9（文書・運用）は本ブランチで実装完了**。B1〜B10 の全バッチが揃った。後続は X1〜X5（別 PR 想定。X2 は所有者、X5 はトークン後）。
+- 作業ブランチは `arena/5ad49289-novnow`（PR #38。B1〜B10 の PR #37 は `develop` へマージ済み）。
+- PR #38 では、まず develop 向け PR で Firefox / WebKit のブラウザ試験を必須にしない方針（ruleset は所有者が更新済み）を文書化した。続けて Issue #29 の後続 **X1（移行支援の拡張）と X3（コードの機能単位分割）は実施完了**（同じ PR で X1 → X3 の順（所有者指示、2026-10-27。第 21 回決定と実装プランは `REF:docs/plans.md#issue-29` §8.5）。残る後続は X2（所有者の短編）・X4（文書文体）・X5（両市場の初回公開、トークン後）。
+- 2026-10-27（CI スコープ）: `browsers (webkit)` の偽陽性で Checks が赤くなった件をきっかけに、各プラットフォームのビルドを最小化した（所有者指示: 開発速度を第一に）。`CI_SCOPE` で対象ブランチごとに行列を切り替え、develop 向け PR は 1 プラットフォーム（Linux x64・desktop nogui / wheel / chromium / ubuntu Electron / Python 3.9・3.13）、main 向け PR・main push・手動実行は full 行列のまま。正本は `REF:docs/developers.md` §4.7 と `REF:docs/distribution.md` §8。
+- **未完了（所有者側）**: ruleset `protect-develop` の必須チェックを 11 件へ更新すること（23 件から、Linux x64 以外の 12 のプラットフォーム行列を外す。一覧は `REF:docs/distribution.md` §8）。適用まで develop 向け PR は旧 23 件で判定されるため、スコープ外のチェックが報告されず赤くなる期間がある。`protect-main`（18 件）は変更しない。
 - v0.1.0は公開済み。既存の版タグ・可動v0・配布バイナリは変更しない。Issue #29 の方針は「V1 延期、開発は V0 で継続」である。
 - 既知の問題の原本は `REF:docs/known-issues/ja.md` と `REF:docs/known-issues/en.md`。サイトで直接表示し、修正版公開後に削除する運用は `REF:docs/developers.md` §9に従う。READMEに不具合本文を重複させない。
 - 所有者指示: この作業は `develop` へマージすることを目指し、マージは所有者自身が行う。

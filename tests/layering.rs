@@ -81,6 +81,8 @@ const ALLOWED_ROOTS: &[&str] = &[
     // `project.toml`（§4.5）の型付き読み取りと無損失編集（Issue #29 B10 で許可表へ追加）。
     "toml",
     "toml_edit",
+    // 移行支援（§14.6、Issue #29 X1）の Shift_JIS 読み替え。依存なし構成で使う。
+    "encoding_rs",
 ];
 
 /// core が参照してはならないクレート（§3.2）。

@@ -18,14 +18,20 @@ use crate::ui::i18n::Locale;
 use crate::ui::settings::PaneSide;
 use crate::ui::theme::{self, Mode};
 
+pub mod addresses;
 pub mod agent;
 pub mod cast;
 pub mod idea;
+pub mod local_llm;
 pub mod material;
 pub mod plot_episode;
 pub mod plot_outline;
+pub mod proposals;
+pub mod reader;
+pub mod regex_search;
 pub mod review;
-pub mod stage_two;
+pub mod stats;
+pub mod tabs;
 
 pub use crate::app::workspace::{Switcher, Workspace};
 

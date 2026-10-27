@@ -47,4 +47,4 @@
 
 - **[Issue #29 / B7] トグルの feature 化と W096 の追加（実装完了: `REF:docs/plans.md#issue-29-b7`）**:
   - セッション内トグルだった有効/無効は「組み込み既定」（`TOGGLE_ON` / `TOGGLE_OFF` 定数）として残し、作者の上書きは `[features.diagnostics]`（§7.0、B10）が持つ。点検画面の編集面は §10.9（`REF:docs/designs/ui.md`）。
-  - W096（台詞内の句読点直後の空白、§7.2.2）を追加し、仕様 §7.2 の表・コード・日英カタログ・サイト解説データ・コスト/トグルの定数表を同時に揃えた（77 件）。生成は `stage_two::diagnose::dialogue_spacing`（`REF:src/core/stage_two/diagnose.rs`）で、記号（`。`・`！`・`？`）ごとに作品全体から集計し、合計 5 件以上かつ差 2 件以上のときだけ少数派の箇所へ出す。組み込み既定は無効で、有効化は `[features.diagnostics]`。文体タブの明示操作では未有効化でも計算する。対象判定（日本語主体か）は本文の文字種だけで決める。クイックフィックスは空白を入れる／取る 1 操作（`MatchDialogueSpacing`、`REF:src/core/features/code_action.rs`）。
+  - W096（台詞内の句読点直後の空白、§7.2.2）を追加し、仕様 §7.2 の表・コード・日英カタログ・サイト解説データ・コスト/トグルの定数表を同時に揃えた（77 件）。生成は `features::diagnose::dialogue_spacing`（`REF:src/core/features/diagnose.rs`）で、記号（`。`・`！`・`？`）ごとに作品全体から集計し、合計 5 件以上かつ差 2 件以上のときだけ少数派の箇所へ出す。組み込み既定は無効で、有効化は `[features.diagnostics]`。文体タブの明示操作では未有効化でも計算する。対象判定（日本語主体か）は本文の文字種だけで決める。クイックフィックスは空白を入れる／取る 1 操作（`MatchDialogueSpacing`、`REF:src/core/features/code_action.rs`）。

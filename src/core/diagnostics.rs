@@ -840,7 +840,7 @@ pub fn document(document: &Document, project: &Project) -> Vec<Diagnostic> {
         }
         _ => {}
     }
-    out.extend(crate::core::stage_two::diagnose::document(
+    out.extend(crate::core::features::diagnose::document(
         document, project, false,
     ));
     apply_overrides(&mut out, project);

@@ -190,7 +190,7 @@ pub fn call(server: &McpServer, call: &McpCall, cancel: &AtomicBool) -> Result<M
         .args
         .first()
         .ok_or_else(|| failed("missing MCP URL"))?;
-    if !crate::core::stage_two::local_llm::is_loopback(url) {
+    if !crate::core::features::local_llm::is_loopback(url) {
         return Err(failed("loopback MCP URL required"));
     }
     let rest = url

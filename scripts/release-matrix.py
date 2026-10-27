@@ -62,6 +62,17 @@ TARGETS = (
     },
 )
 TARGET_NAMES = tuple(row["target"] for row in TARGETS)
+
+# The single platform kept for PRs targeting develop.  It is the cheapest to
+# build (native x64, manylinux, no cross-compilation or Rosetta) and it is the
+# wheel the Python test jobs install.  PRs targeting main, pushes to main, and
+# manual dispatch runs use the full matrix.
+DEVELOP_TARGET = "x86_64-unknown-linux-gnu"
+
+# CPython versions of the wheel test matrix (the wheels are abi3-py39).
+PYTHON_VERSIONS = ("3.9", "3.11", "3.13")
+# On develop PRs the minimum and maximum boundaries are enough.
+DEVELOP_PYTHON_VERSIONS = ("3.9", "3.13")
 VERSION_RE = re.compile(
     r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
     r"(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?"
@@ -156,6 +167,24 @@ def wheel_rows(release_version: str) -> list[dict[str, object]]:
         }
         for target in TARGETS
     ]
+
+
+def filter_develop_rows(
+    rows: list[dict[str, object]], nogui_only: bool = False
+) -> list[dict[str, object]]:
+    """Rows kept for PRs targeting develop (see ``DEVELOP_TARGET``)."""
+    kept = [row for row in rows if row["target"] == DEVELOP_TARGET]
+    if nogui_only:
+        kept = [row for row in kept if row["gui"] == "nogui"]
+    return kept
+
+
+def python_versions_for_scope(scope: str) -> list[str]:
+    if scope == "develop":
+        return list(DEVELOP_PYTHON_VERSIONS)
+    if scope == "full":
+        return list(PYTHON_VERSIONS)
+    raise ValueError(f"unsupported scope: {scope}")
 
 
 def matrix(rows: list[dict[str, object]]) -> str:
@@ -622,6 +651,7 @@ def parser() -> argparse.ArgumentParser:
     actions = result.add_mutually_exclusive_group(required=True)
     actions.add_argument("--desktop", action="store_true", help="print the 10-row desktop matrix")
     actions.add_argument("--wheels", action="store_true", help="print the 5-row wheel matrix")
+    actions.add_argument("--pythons", action="store_true", help="print the wheel test Python versions")
     actions.add_argument("--artifact", action="store_true", help="print one desktop artifact name")
     actions.add_argument("--bump", action="store_true", help="propagate Cargo.toml's version (or an optional new version)")
     actions.add_argument("--check", action="store_true", help="check version propagation without writing")
@@ -632,6 +662,12 @@ def parser() -> argparse.ArgumentParser:
     actions.add_argument("--verify-wheel", metavar="PATH", help="verify one wheel's filename and metadata")
     actions.add_argument("--checksums", metavar="DIR", help="write SHA256SUMS for artifacts in DIR")
     actions.add_argument("--verify-release", metavar="DIR", help="verify a complete release directory")
+    result.add_argument(
+        "--scope",
+        choices=("full", "develop"),
+        default="full",
+        help="CI scope: 'develop' keeps the single lightest platform for PRs targeting develop",
+    )
     result.add_argument("new_version", nargs="?", help="optional version used with --bump")
     result.add_argument("--release-version", help="version override (default: root Cargo.toml)")
     result.add_argument("--target", choices=TARGET_NAMES)
@@ -650,9 +686,23 @@ def main(argv: list[str] | None = None) -> int:
     try:
         selected = validate_version(args.release_version or version())
         if args.desktop:
-            print(matrix(desktop_rows(selected)))
+            rows = desktop_rows(selected)
+            if args.scope == "develop":
+                rows = filter_develop_rows(rows, nogui_only=True)
+            print(matrix(rows))
         elif args.wheels:
-            print(matrix(wheel_rows(selected)))
+            rows = wheel_rows(selected)
+            if args.scope == "develop":
+                rows = filter_develop_rows(rows)
+            print(matrix(rows))
+        elif args.pythons:
+            print(
+                json.dumps(
+                    {"python": python_versions_for_scope(args.scope)},
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+            )
         elif args.artifact:
             if not args.target or not args.gui:
                 raise ValueError("--artifact requires --target and --gui")

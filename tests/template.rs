@@ -24,7 +24,7 @@ fn template_project() -> (Vec<Document>, Project) {
     // project_load::load と同じ選び方（`.gitkeep` などは文書にしない）
     let documents: Vec<Document> = template::new_project("untitled")
         .into_iter()
-        .filter(|file| is_document(&ProjectPath::new(file.path).expect("path")))
+        .filter(|file| is_document(&ProjectPath::new(&file.path).expect("path")))
         .map(|file| Document::new(file.path, file.text))
         .collect();
     let project = Project::with_documents(Default::default(), documents.clone());
@@ -33,9 +33,9 @@ fn template_project() -> (Vec<Document>, Project) {
 
 #[test]
 fn the_template_has_exactly_the_files_of_section_14_5() {
-    let paths: Vec<&str> = template::new_project("x")
+    let paths: Vec<String> = template::new_project("x")
         .iter()
-        .map(|file| file.path)
+        .map(|file| file.path.clone())
         .collect();
     let mut want = vec![
         "project.toml",
@@ -65,7 +65,7 @@ fn the_template_has_exactly_the_files_of_section_14_5() {
         .iter()
         .all(|path| !path.starts_with("prompts/custom/") && !path.starts_with("assets/")));
     // 名前の重複が無い
-    let unique: BTreeSet<&str> = paths.iter().copied().collect();
+    let unique: BTreeSet<String> = paths.iter().cloned().collect();
     assert_eq!(unique.len(), paths.len());
 }
 
@@ -75,10 +75,10 @@ fn the_template_passes_the_project_validation() {
     let mut listing = Listing::default();
     for file in &files {
         listing.files.insert(file.path.to_owned());
-        let mut dir = file.path;
+        let mut dir = file.path.clone();
         while let Some((parent, _)) = dir.rsplit_once('/') {
             listing.dirs.insert(parent.to_owned());
-            dir = parent;
+            dir = parent.to_owned();
         }
     }
     listing.project_toml = Some(template::project_toml("x"));
@@ -378,10 +378,10 @@ fn sample_project_covers_appendix_c_with_no_diagnostics() {
     let mut listing = Listing::default();
     for file in &files {
         listing.files.insert(file.path.to_owned());
-        let mut dir = file.path;
+        let mut dir = file.path.clone();
         while let Some((parent, _)) = dir.rsplit_once('/') {
             listing.dirs.insert(parent.to_owned());
-            dir = parent;
+            dir = parent.to_owned();
         }
     }
     listing.project_toml = files
@@ -392,7 +392,7 @@ fn sample_project_covers_appendix_c_with_no_diagnostics() {
 
     let documents: Vec<Document> = files
         .into_iter()
-        .filter(|file| is_document(&ProjectPath::new(file.path).expect("path")))
+        .filter(|file| is_document(&ProjectPath::new(&file.path).expect("path")))
         .map(|file| Document::new(file.path, file.text))
         .collect();
     let project = Project::with_documents(Default::default(), documents.clone());

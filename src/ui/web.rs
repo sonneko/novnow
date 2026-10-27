@@ -497,7 +497,7 @@ impl Host for WebHost {
 fn template_files(title: &str) -> Vec<(ProjectPath, String)> {
     crate::core::template::new_project(title)
         .into_iter()
-        .filter_map(|file| Some((ProjectPath::new(file.path).ok()?, file.text)))
+        .filter_map(|file| Some((ProjectPath::new(&file.path).ok()?, file.text)))
         .collect()
 }
 
@@ -505,7 +505,7 @@ fn template_files(title: &str) -> Vec<(ProjectPath, String)> {
 fn sample_files() -> Vec<(ProjectPath, String)> {
     crate::core::template::sample_project()
         .into_iter()
-        .filter_map(|file| Some((ProjectPath::new(file.path).ok()?, file.text)))
+        .filter_map(|file| Some((ProjectPath::new(&file.path).ok()?, file.text)))
         .collect()
 }
 

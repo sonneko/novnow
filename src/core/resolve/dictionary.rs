@@ -764,7 +764,7 @@ impl Dictionary {
         let mut entries = Vec::new();
         collect_characters(characters, &mut entries);
         let starts = line_starts(&characters.lines);
-        for address in crate::core::stage_two::metadata::addresses(&characters.to_text()) {
+        for address in crate::core::features::metadata::addresses(&characters.to_text()) {
             if address.target == "*" {
                 continue;
             }

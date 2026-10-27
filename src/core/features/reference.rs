@@ -155,11 +155,11 @@ pub fn at(
     let parsed = contents::parse_with(&document.text, &project.contents_options());
     let starts = project::line_starts_of(&document.text);
     let byte_range = byte_range_of(&starts, &document.text, &lines);
-    let rows = crate::core::stage_two::metadata::records(project);
-    let get = |key| crate::core::stage_two::metadata::inherited(&rows, scene, key);
+    let rows = crate::core::features::metadata::records(project);
+    let get = |key| crate::core::features::metadata::inherited(&rows, scene, key);
     let space = get("space")
         .map(|s| {
-            crate::core::stage_two::metadata::asset_path(&s, false)
+            crate::core::features::metadata::asset_path(&s, false)
                 .and_then(|p| project.document(&p))
                 .map_or(s, |d| d.text.clone())
         })
@@ -426,7 +426,7 @@ pub(crate) fn cast_of(
             };
             let mut entry = Cast {
                 icon: first(FieldKey::Icon)
-                    .and_then(|p| crate::core::stage_two::metadata::asset_path(&p, true))
+                    .and_then(|p| crate::core::features::metadata::asset_path(&p, true))
                     .and_then(|p| project.assets.get(&p).cloned()),
                 name,
                 modes: assignment

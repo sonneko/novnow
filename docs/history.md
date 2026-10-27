@@ -2187,3 +2187,30 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - `CONTRIBUTING.md`（当面コード PR は受け付けていないこと、仕様変更は承認制であること）と Issue テンプレート（不具合報告・提案）を用意した。
 - GitHub Actions の所要時間をジョブ別に実測し（CI 約 3.3 分で Benchmarks が最長）、待ち時間短縮のために `bench` ジョブからリリースビルドのフレーム予算テストを `perf` ジョブへ分けて並行化し、重複していたビルド（`cargo bench --no-run`、wasm32 の `cargo check`）を畳んだ。仕様 §18.4 の検証項目は減らしていない。実測値は `docs/developers.md` §4.7。
 - VS Code Marketplace と Open VSX への公開ジョブ（`.github/workflows/vscode-publish.yml`）を用意した。手動実行のみが入口で、承認用の environment を挟み、発行者トークンが無ければ何もしない。初回公開は所有者の登録・トークン用意の後に別途行う。公開完了の判定（`scripts/release-check.sh`）に市場公開を含めないことも確認した。
+
+## 2026-10-27: develop 向け PR で Firefox / WebKit のブラウザ試験を必須から外す
+
+- Pages integration の `browsers` ジョブは Firefox / WebKit で偽陽性が多発するため、所有者が ruleset `protect-develop` の必須チェックから `browsers (firefox)` / `browsers (webkit)` を外した（develop の必須は25件から23件）。`protect-main` では従来どおり3ブラウザすべて必須で、API で再確認した。試験の実行自体は develop 向け PR でも続け、失敗は参考情報として確認する。正本は `docs/distribution.md` §8、運用の注記は `docs/developers.md` §4.7。
+## 2026-10-27: Issue #29 の後続 X1（移行支援の拡張）
+
+- 既存本文テキストからの移行支援（仕様 §14.6）を候補提示型へ拡張した（第 8〜21 回の決定どおり）。所有者への選択肢調査（第 21 回決定、2026-10-27）: Shift_JIS 変換は `encoding_rs` クレートで実装、CLI は生成した候補のとおりに生成（`--preview` を事前確認とする）、序章・終章・プロローグ・エピローグは章・幕間・閑話・番外編は話の境界候補、貼り付けの修復候補は複数行の入力欄すべてを対象、X1 と X3 は同じ PR（#38）で X1 → X3 の順に実施。
+- 文字コード: ファイル取り込み（CLI / デスクトップ）はバイト列から判定し、正しい UTF-8（先頭 BOM を除く）を優先、読めなければ Shift_JIS として変換、変換でも化ける・空白だけ・NUL 含むは拒否。どちらでも読める入力は「曖昧」としてデスクトップのプレビューでファイルごとに切り替えられる。Shift_JIS 以外の符号化は対象外。
+- 分割: 見出し行（「第○章」「第○話」と 7 語の固有名詞見出し。単独の短い行だけ。残りはタイトルへ使い本文に残さない。構造番号は出現順に振り直し）・記号 3 字以上の区切り行・空行 1 つ（節）/2 つ以上（場面）で境界候補を作る。候補は自動では確定せず、デスクトップのプレビューで各候補を他の段または境界なしへ変更でき、確定後にだけ生成する。CLI は候補を編集できず候補どおりに生成する。
+- CLI: `novnow migrate <入力…> <dir> [--preview]`（仕様 §14.1 へ取り込み）。入力はファイル・フォルダの混在で、最後の引数が移行先。フォルダは直下の `.txt` / `.md` だけを自然順（数字列は数値で比較）で読み、サブフォルダは辿らない。ファイルは 1 話、フォルダの先頭ファイルは章の候補。
+- 貼り付け: 貼り付けた文字列が UTF-8 を Shift_JIS で読み違えた文字化けらしい場合（固有の文字や半角カタカナの指紋があり、欠損が候補の半分以上にならない場合）に限り、フレームの先頭で横取りして修復候補を提示する。候補を使う / 元のまま / 貼り付けないで選ばせ、選択した文字列を元の入力欄へ渡す。対象は複数行の入力欄（デスクトップ・Web 双方）。通常の日本語・英語の貼り付けには出ない。
+- 依存: `encoding_rs` 0.8.35 を core の許可クレートとして追加（新しい 0.8 系は SIMD 用の必須依存が増えるため、必須依存が cfg-if だけの版に固定。搬入は `.github/workflows/sandbox-tools.yml` の blob 経由）。
+- 検証: `tests/migration.rs`（読み替え・候補生成・構造確定・描画・修復判定・候補を全て境界なしにすると従来の往復と等価）、`tests/cli.rs`（複数入力・フォルダ入力の自然順・Shift_JIS 読み替え・プレビュー非変更）、`tests/gui.rs`（修復候補の提示と選択、通常の貼り付けに出ないこと）。設計書 §14.1・§14.6 は実装完了。設計書の実測は 142 節すべて実装完了。
+## 2026-10-27: Issue #29 の後続 X3（コードの機能単位分割）
+
+- `stage_two` という寄せ集めの置き場所を解体し、`app.rs` の巨大化を下げた（N29-35 の判断 2 第 (a) 案・第 17 回決定どおり。振る舞いは変えず、レジストリ方式にはしない）。
+- コア: `src/core/stage_two/` の 6 ファイル（diagnose・local_llm・metadata・metrics・search・stock）を `src/core/features/` へ移し、モジュールを無くした。
+- UI: `src/ui/workspaces/stage_two.rs` を画面単位のファイルへ分割した。タブ枠と共有状態（`State`）・ディスパッチは `workspaces/tabs.rs`、読者モードは `workspaces/reader.rs`、統計は `workspaces/stats.rs`、本文の正規表現検索タブは `workspaces/regex_search.rs`、キャストの宛先タブは `workspaces/addresses.rs`、エージェントのローカル LLM 設定は `workspaces/local_llm.rs`、プロットのプロポーザルタブは `workspaces/proposals.rs`。
+- `src/ui/app.rs`（8823 行）から独立した塊を切り出し、`NovnowApp` 本体を残した：起動前の画面（`Picker` trait・`NativePicker`・デスクトップの Host・移行状態）は `src/ui/picker.rs`、パレットの候補生成とコマンド解決は `src/ui/palette_items.rs`、ステータスバーと省略判定とミニヘッダーは `src/ui/status.rs`（6611 行へ）。
+- 受け入れ条件の確認: 全テストは無変更で全て通り（ゴールデン差分ゼロ）、`stage_two` の名前は `src/` から消えた（`tests/stage_two.rs` のファイル名は歴史の記録として残す）。公開 API（§19）の形と利用者から見える振る舞いは不変。
+- 設計書 overview §3.3・`docs/developers.md` §3 のソースツリーと、文書中の `REF:` パス（NativePicker・ステータスバー・palette_items 等）を追随させた。
+## 2026-10-27: ブランチ別の CI スコープ（develop 向け PR は 1 プラットフォームの最小行列）
+
+- `browsers (webkit)` の偽陽性で develop 向け PR の Checks が赤くなった件をきっかけに、各プラットフォームのビルドを最小化する CI 改定を行った（所有者指示 2026-10-27: 保守性を最低限保ちつつ開発速度を上げることを第一に）。
+- 4 ワークフロー（wheels / desktop-check / pages-check / vscode）が workflow 先頭の `CI_SCOPE` で行列を決める。`main` 向け PR・`main` への push・`workflow_dispatch` は full 行列（変更なし）。`develop` 向け PR・`develop` への push は最小スコープで、プラットフォームの行列ジョブは 21 本から 4 本（Python 試験は 3 版から 2 版）になる: Desktop は Linux x64 の nogui のみ（GUI のコンパイル・リンクは ci.yml の clippy / test `--features ui` が担う）、wheel は Linux x64 のみ（Python 試験が導入するホイールと同一）、Python 試験は 3.9 / 3.13 の境界 2 版、ブラウザは chromium のみ（firefox / webkit は偽陽性のため develop 向け PR では実行しない）、Electron は ubuntu のみ。行列の選択は `REF:scripts/release-matrix.py --scope`（develop スコープは 1 行を返す。`--pythons` を追加）と各ワークフローのスコープステップが担う。
+- CI コア（文書整合・Rustfmt・Clippy・全テスト・WASM サイズ・ベンチマーク・性能予算・Python API）はスコープに関係なく常時実行する。macOS / Windows / arm64 のビルドは `main` 向け PR（リリースゲート）の full 行列で検証される。
+- 必須チェックはスコープで走る項目に一致させる。`protect-develop` は 11 件（23 件から、Linux x64 以外の 12 のプラットフォーム行列を外す）へ所有者が更新する。一覧は `REF:docs/distribution.md` §8。`protect-main` は変更しない（18 件）。運用の正本は `REF:docs/developers.md` §4.7。

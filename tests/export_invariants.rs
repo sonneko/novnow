@@ -29,7 +29,7 @@ use novnow::core::template;
 fn sample() -> Project {
     let documents = template::new_project("星屑の時計")
         .into_iter()
-        .filter(|file| is_document(&ProjectPath::new(file.path).expect("path")))
+        .filter(|file| is_document(&ProjectPath::new(&file.path).expect("path")))
         .map(|file| Document::new(file.path, file.text));
     Project::with_documents(Default::default(), documents)
 }

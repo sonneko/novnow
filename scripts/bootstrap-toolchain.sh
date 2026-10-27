@@ -41,7 +41,7 @@ if [ -z "${FORCE:-}" ] && [ -x "$BUILD_DIR/sysroot/bin/rustc" ]; then
     if PATH="$BUILD_DIR/sysroot/bin:$PATH" rustc --version >/dev/null 2>&1; then
         if [ -f "$BUILD_DIR/env.sh" ] && [ -f "$BUILD_DIR/cargo-home/config.toml" ] \
             && [ -d "$BUILD_DIR/vendor-src/criterion" ] && [ -d "$BUILD_DIR/vendor-src/tiniestsegmenter" ] \
-            && [ -d "$BUILD_DIR/vendor-src/pyo3" ]; then
+            && [ -d "$BUILD_DIR/vendor-src/encoding_rs" ] && [ -d "$BUILD_DIR/vendor-src/pyo3" ]; then
             say "すでにある: $BUILD_DIR（$(PATH="$BUILD_DIR/sysroot/bin:$PATH" rustc --version)）"
             echo "    使うときは次を各コマンドの前に置く: . $BUILD_DIR/env.sh"
             exit 0
@@ -183,6 +183,15 @@ if [ ! -d "$BUILD_DIR/vendor-src/tiniestsegmenter" ]; then
         ab68047ca32a40bc5cb4a678b7f6fd62f8711e04 \
         557df849c79f8087211ee5f18c335ca69f6a6a501a2aa088fd209b0947578aaa \
         japanese-crates.tar.gz
+fi
+
+# Issue #29 X1: encoding_rs 0.8.35（移行支援 §14.6 の Shift_JIS 読み替え。本体依存）
+# 必須依存が cfg-if だけの版に固定している（新しい 0.8 系は SIMD 用の必須依存が増える）。
+if [ ! -d "$BUILD_DIR/vendor-src/encoding_rs" ]; then
+    install_crates_blob "encoding_rs vendor（1 クレート）" \
+        2ea85c8c9d5e52be458573fcec71ada86f6b0958 \
+        a84e0da03d5fad250f9520b9c98764162fe889bc940c58ec6fc1cb19209af8f2 \
+        encoding-crate.tar.gz
 fi
 
 # --- pyo3（§19.3 Python API。`python/novnow-py` のビルドに要る）-----------------

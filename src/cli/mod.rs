@@ -166,7 +166,7 @@ pub enum Command {
         lang: Option<String>,
     },
     Migrate {
-        source: PathBuf,
+        inputs: Vec<PathBuf>,
         dir: PathBuf,
         preview: bool,
     },
@@ -386,16 +386,16 @@ fn subcommand(name: &'static str, rest: &[OsString]) -> Launch {
         } else {
             (rest, false)
         };
-        return match rest {
-            [source, dir] if as_option(source).is_none() && as_option(dir).is_none() => {
-                Launch::Command(Command::Migrate {
-                    source: source.into(),
-                    dir: dir.into(),
-                    preview,
-                })
-            }
-            _ => Launch::Error(ArgError::MissingDir("migrate")),
-        };
+        // 最後の引数が移行先、それより前はすべて入力（ファイル・フォルダ混在可、§14.6）。
+        if rest.len() >= 2 && rest.iter().all(|arg| as_option(arg).is_none()) {
+            let (inputs, dir) = rest.split_at(rest.len() - 1);
+            return Launch::Command(Command::Migrate {
+                inputs: inputs.iter().map(|arg| arg.into()).collect(),
+                dir: (&dir[0]).into(),
+                preview,
+            });
+        }
+        return Launch::Error(ArgError::MissingDir("migrate"));
     }
     if name == "import" {
         return match rest {
@@ -557,10 +557,10 @@ pub fn run<E: Env>(args: &[OsString], cli: &mut Cli<'_, E>) -> Outcome {
             ),
             Command::Import { zip, dir } => import::run(cli, zip, dir),
             Command::Migrate {
-                source,
+                inputs,
                 dir,
                 preview,
-            } => migrate::run(cli, source, dir, *preview),
+            } => migrate::run(cli, inputs, dir, *preview),
         }),
         Launch::Error(error) => Outcome::Exit(cli.arg_error(&error)),
     }
@@ -658,7 +658,7 @@ impl<'a, E: Env> Cli<'a, E> {
             ("novnow lsp [<dir>]", "cli.usage.lsp"),
             ("novnow import <zip> <dir>", "cli.usage.import"),
             (
-                "novnow migrate <text> <dir> [--preview]",
+                "novnow migrate <input...> <dir> [--preview]",
                 "cli.usage.migrate",
             ),
             ("novnow --gui", "cli.usage.gui"),

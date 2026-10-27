@@ -277,8 +277,8 @@ impl Session {
             options.title.clone()
         };
         for file in template::new_project(&title) {
-            host.write(file.path, &file.text)
-                .map_err(|message| Error::io(message, Some(file.path)))?;
+            host.write(&file.path, &file.text)
+                .map_err(|message| Error::io(message, Some(file.path.as_str())))?;
         }
         Self::open_with(path, Interface::Rust)
     }

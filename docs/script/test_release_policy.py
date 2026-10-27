@@ -38,6 +38,34 @@ class ReleasePolicy(unittest.TestCase):
             with self.assertRaises(ValueError):
                 matrix.verify_wheel(path, version, target)
 
+    def test_develop_scope_keeps_single_lightest_platform(self):
+        full_wheels = matrix.wheel_rows("0.1.0")
+        develop_wheels = matrix.filter_develop_rows(full_wheels)
+        self.assertEqual([row["target"] for row in full_wheels], list(matrix.TARGET_NAMES))
+        self.assertEqual([row["target"] for row in develop_wheels], [matrix.DEVELOP_TARGET])
+        full_desktop = matrix.desktop_rows("0.1.0")
+        develop_desktop = matrix.filter_develop_rows(full_desktop, nogui_only=True)
+        self.assertEqual(len(full_desktop), 10)
+        self.assertEqual(len(develop_desktop), 1)
+        self.assertEqual(develop_desktop[0]["target"], matrix.DEVELOP_TARGET)
+        self.assertEqual(develop_desktop[0]["gui"], "nogui")
+        self.assertEqual(matrix.python_versions_for_scope("full"), ["3.9", "3.11", "3.13"])
+        self.assertEqual(matrix.python_versions_for_scope("develop"), ["3.9", "3.13"])
+        with self.assertRaises(ValueError):
+            matrix.python_versions_for_scope("release")
+
+    def test_ci_workflows_share_one_scope_expression(self):
+        scope = (
+            "github.event_name == 'workflow_dispatch' && 'full' ||"
+            " (github.event_name == 'pull_request' && (github.base_ref == 'main' && 'full' || 'develop'))"
+            " || (github.ref_name == 'main' && 'full' || 'develop')"
+        )
+        normalized = " ".join(scope.split())
+        for workflow in ("wheels.yml", "desktop-check.yml", "pages-check.yml", "vscode.yml"):
+            text = (ROOT / ".github/workflows" / workflow).read_text()
+            flat = " ".join(text.split())
+            self.assertIn(normalized, flat, f"{workflow} の CI_SCOPE 判定が一致しない")
+
     def test_supplementary_workflow_cannot_publish_to_pypi(self):
         text = (ROOT / ".github/workflows/wheels.yml").read_text()
         self.assertNotIn("publish_pypi", text)
