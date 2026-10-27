@@ -78,15 +78,41 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-1.64.1-ubuntu24.04-${{ matrix.browser }}
-      - name: Install the browser
+      - name: Install Playwright
+        run: npm install --prefix "$RUNNER_TEMP/browser" playwright@1.64.1
+      # システム依存（apt）は毎回入れる。ブラウザ本体はキャッシュがあれば落とさない。
+      # 導入が止まることがあるため上限と再試行を付け、失敗時はログの末尾を注釈へ出す
+      # （この環境からは Actions の生ログが取れないため。vscode.yml の electron と同じ形）
+      - name: Install browser system deps
+        shell: bash
         run: |
-          npm install --prefix "$RUNNER_TEMP/browser" playwright@1.64.1
           playwright_bin="$RUNNER_TEMP/browser/node_modules/.bin/playwright"
-          # システム依存（apt）は毎回入れる。ブラウザ本体はキャッシュがあれば落とさない。
-          # 導入が止まることがあるため、上限を付けて 1 回だけやり直す
-          timeout 600 "$playwright_bin" install-deps ${{ matrix.browser }} || timeout 600 "$playwright_bin" install-deps ${{ matrix.browser }}
-          if [ "${{ steps.pw-cache.outputs.cache-hit }}" != "true" ]; then
-            timeout 420 "$playwright_bin" install ${{ matrix.browser }} || timeout 420 "$playwright_bin" install ${{ matrix.browser }}
+          ok=""
+          for attempt in 1 2 3; do
+            if timeout 420 "$playwright_bin" install-deps ${{ matrix.browser }} > "$RUNNER_TEMP/pw-deps.log" 2>&1; then ok=1; break; fi
+            echo "install-deps attempt $attempt failed"
+            sleep 20
+          done
+          if [ -z "$ok" ]; then
+            node -e 'const fs=require("fs"); const text=fs.readFileSync(process.argv[1],"utf8").slice(-3000); console.log("::error::install-deps log: "+text.replace(/%/g,"%25").replace(/\r/g,"%0D").replace(/\n/g,"%0A"));' "$RUNNER_TEMP/pw-deps.log"
+            cat "$RUNNER_TEMP/pw-deps.log"
+            exit 1
+          fi
+      - name: Download the browser
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          playwright_bin="$RUNNER_TEMP/browser/node_modules/.bin/playwright"
+          ok=""
+          for attempt in 1 2 3; do
+            if timeout 420 "$playwright_bin" install ${{ matrix.browser }} > "$RUNNER_TEMP/pw-install.log" 2>&1; then ok=1; break; fi
+            echo "browser download attempt $attempt failed"
+            sleep 20
+          done
+          if [ -z "$ok" ]; then
+            node -e 'const fs=require("fs"); const text=fs.readFileSync(process.argv[1],"utf8").slice(-3000); console.log("::error::browser download log: "+text.replace(/%/g,"%25").replace(/\r/g,"%0D").replace(/\n/g,"%0A"));' "$RUNNER_TEMP/pw-install.log"
+            cat "$RUNNER_TEMP/pw-install.log"
+            exit 1
           fi
       - name: Install deterministic Firefox software graphics
         if: matrix.browser == 'firefox'
