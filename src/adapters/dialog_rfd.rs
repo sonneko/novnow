@@ -40,6 +40,22 @@ impl Dialog for RfdDialog {
             bytes: picked.read().await,
         })
     }
+    /// 移行の入力（§14.6）: 複数ファイル選択。パスは中身と名前以外どこにも持たない。
+    async fn pick_texts(&self) -> Option<Vec<PickedFile>> {
+        let files = rfd::AsyncFileDialog::new()
+            .add_filter("Text", &["txt", "md"])
+            .pick_files()
+            .await?;
+        let mut picked = Vec::with_capacity(files.len());
+        for file in files {
+            picked.push(PickedFile {
+                name: file.file_name(),
+                bytes: file.read().await,
+            });
+        }
+        Some(picked)
+    }
+
     async fn pick_zip(&self) -> Option<PickedFile> {
         let picked = rfd::AsyncFileDialog::new()
             .add_filter("Zip", &["zip", "novnow"])

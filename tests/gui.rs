@@ -812,6 +812,82 @@ fn a_pasted_crlf_becomes_lf() {
     assert!(!written.contains('\r'), "§5.0.4 MUST: 内部表現は LF");
 }
 
+// ============================================================ 貼り付けの文字化け修復（§14.6.1）
+
+#[test]
+fn paste_repair_offers_and_applies_the_repaired_candidate() {
+    let mut harness = Harness::new();
+    let original =
+        "吾輩は猫である。名前はまだ無い。ここで生れたというだけでも、立派なものだと思う。";
+    let (garbled, _, _) = encoding_rs::SHIFT_JIS.decode(original.as_bytes());
+    let garbled = format!("{garbled}\n");
+    // 貼り付けは横取りされる: 候補の提示、元の文字列は本文に入らない
+    harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Paste(garbled)]);
+    assert!(harness.app.paste_repair_open(), "修復候補を提示する");
+    // 選択するまでは本文に何が書かれない（保存は idle の後。変わらなければ書かない）
+    harness.idle(0.6);
+    if let Some(text) = harness
+        .host
+        .files
+        .borrow()
+        .written
+        .get(CONTENTS_PATH)
+        .cloned()
+    {
+        assert!(!text.contains("吾輩は猫"), "元は貼り付かない");
+    }
+    // 修復した候補を選ぶ: 次のフレームで元の入力欄へ届く
+    let Some(rect) = harness.rect_of("修復した候補を使う") else {
+        panic!("「修復した候補を使う」ボタンが無い");
+    };
+    harness.click_at(rect.center());
+    assert!(!harness.app.paste_repair_open(), "閉じる");
+    harness.idle(0.6);
+    let written = harness
+        .host
+        .files
+        .borrow()
+        .written
+        .get(CONTENTS_PATH)
+        .cloned()
+        .expect("idle の後に本文を書く");
+    // 欠けた部分（置換文字）を挟んで、原文の断片が戻る
+    let chars: Vec<char> = original.chars().collect();
+    assert!(
+        chars
+            .windows(4)
+            .any(|window| written.contains(&window.iter().collect::<String>())),
+        "修復候補から原文の断片が本文に残る: {written}"
+    );
+}
+
+#[test]
+fn paste_repair_leaves_ordinary_multiline_paste_alone() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Paste(
+        "通常の行一。
+通常の行二。
+"
+        .into(),
+    )]);
+    assert!(
+        !harness.app.paste_repair_open(),
+        "日本語の貼り付けには出ない"
+    );
+    harness.idle(0.6);
+    let written = harness
+        .host
+        .files
+        .borrow()
+        .written
+        .get(CONTENTS_PATH)
+        .cloned()
+        .expect("貼り付けを保存する");
+    assert!(written.contains("通常の行一。\n通常の行二。"), "{written}");
+}
+
 #[test]
 fn external_changes_reload_clean_files_and_conflict_with_dirty_ones() {
     let mut bench = Workbench::new(world(), None, 400);

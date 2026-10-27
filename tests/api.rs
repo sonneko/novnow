@@ -29,7 +29,7 @@ fn open() -> (Session, Rc<RefCell<MemoryFiles>>) {
     let files = host.files.clone();
     let documents = template::new_project("星屑の時計")
         .into_iter()
-        .filter(|file| is_document(&ProjectPath::new(file.path).expect("path")))
+        .filter(|file| is_document(&ProjectPath::new(&file.path).expect("path")))
         .map(|file| Document::new(file.path, file.text));
     (
         Session::with_documents(Box::new(host), documents.collect()),

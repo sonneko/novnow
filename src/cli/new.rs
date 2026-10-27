@@ -54,7 +54,7 @@ pub fn run<E: Env>(cli: &mut Cli<'_, E>, dir: &Path) -> Exit {
     let mut created = Vec::new();
     let mut kept = Vec::new();
     for file in template::new_project(&title) {
-        let Ok(path) = ProjectPath::new(file.path) else {
+        let Ok(path) = ProjectPath::new(&file.path) else {
             continue;
         };
         if storage.exists(&path) {

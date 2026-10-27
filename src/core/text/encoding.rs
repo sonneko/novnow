@@ -92,29 +92,19 @@ const MOJIBAKE_MARKERS: &[char] = &[
     '荳',
 ];
 
-/// If `text` looks like UTF-8 that was mis-decoded as Shift_JIS, return the
-/// repaired string (§14.6.1). The candidate must round-trip strictly:
-/// encoding the pasted string back to Shift_JIS must lose nothing, and the
-/// resulting bytes must be valid UTF-8 that reads as Japanese. On top of the
-/// round trip, the original must carry a mojibake fingerprint (a marker
-/// character, or several halfwidth katakana from misread trail bytes) so
-/// that ordinary Japanese text never triggers the repair prompt.
+/// If `text` looks like UTF-8 that was mis-decoded as Shift_JIS, return a
+/// repaired candidate (§14.6.1). The original bytes are rebuilt by encoding
+/// the pasted string back to Shift_JIS; each replacement character stands
+/// for one byte the mis-decoding dropped, so it is rebuilt as a placeholder
+/// byte and surfaces as a replacement character again in the candidate.
+/// The candidate is therefore exact where the mis-decoding was lossless
+/// and has visible holes where it was not — a human confirms it in a
+/// preview before anything is pasted. Two gates keep ordinary text from
+/// ever prompting: the original must carry a mojibake fingerprint (a marker
+/// character, or several halfwidth katakana from misread trail bytes), and
+/// the repaired text must read as Japanese with only few holes.
 pub fn mojibake_repair(text: &str) -> Option<String> {
     if text.len() < 4 || text.is_ascii() {
-        return None;
-    }
-    let (bytes, _, had_errors) = encoding_rs::SHIFT_JIS.encode(text);
-    if had_errors {
-        return None;
-    }
-    let repaired = std::str::from_utf8(&bytes).ok()?;
-    if repaired == text {
-        return None;
-    }
-    let reads_as_japanese = repaired.chars().any(|ch| {
-        ('\u{3041}'..='\u{3096}').contains(&ch) || ('\u{30A1}'..='\u{30FA}').contains(&ch)
-    });
-    if !reads_as_japanese {
         return None;
     }
     let has_marker = text.chars().any(|ch| MOJIBAKE_MARKERS.contains(&ch));
@@ -125,5 +115,48 @@ pub fn mojibake_repair(text: &str) -> Option<String> {
     if !has_marker && halfwidth < 3 {
         return None;
     }
-    Some(repaired.to_owned())
+    let bytes = rebuild_sjis_bytes(text)?;
+    let repaired = String::from_utf8_lossy(&bytes);
+    if repaired == text {
+        return None;
+    }
+    let chars = repaired.chars().count();
+    let holes = repaired.chars().filter(|ch| *ch == '\u{FFFD}').count();
+    // The mis-decoding dropped bytes that the pasted string no longer
+    // carries; they show up as holes. A candidate that is mostly holes
+    // recovers nothing, so do not propose it — a human confirms the
+    // rest in the preview.
+    if holes * 2 > chars {
+        return None;
+    }
+    let reads_as_japanese = repaired.chars().any(|ch| {
+        ('\u{3041}'..='\u{3096}').contains(&ch) || ('\u{30A1}'..='\u{30FA}').contains(&ch)
+    });
+    if !reads_as_japanese {
+        return None;
+    }
+    Some(repaired.into_owned())
+}
+
+/// Encode back to Shift_JIS bytes, keeping every replacement character as
+/// one placeholder byte (0xFF, which UTF-8 lossy decoding turns back into
+/// a replacement character). Returns None when any other character cannot
+/// be encoded to Shift_JIS — such text was not produced by a Shift_JIS
+/// mis-decode.
+fn rebuild_sjis_bytes(text: &str) -> Option<Vec<u8>> {
+    let mut bytes = Vec::with_capacity(text.len());
+    let mut segments = text.split('\u{FFFD}').peekable();
+    while let Some(segment) = segments.next() {
+        if !segment.is_empty() {
+            let (encoded, _, had_errors) = encoding_rs::SHIFT_JIS.encode(segment);
+            if had_errors {
+                return None;
+            }
+            bytes.extend_from_slice(&encoded);
+        }
+        if segments.peek().is_some() {
+            bytes.push(0xFF);
+        }
+    }
+    Some(bytes)
 }

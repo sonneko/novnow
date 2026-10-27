@@ -12,7 +12,7 @@
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TemplateFile {
     /// プロジェクトルートからの相対パス（`/` 区切り。`ProjectPath` にそのまま使える）。
-    pub path: &'static str,
+    pub path: String,
     /// 中身（UTF-8・改行は LF・末尾に改行 1 個）。
     pub text: String,
 }
@@ -151,12 +151,12 @@ const SAMPLE_NOVEL: &[(&str, &str)] = &[
 
 /// §14.5 の生成物一式（表の順）。`title` は `project.toml` の題（`novnow new` はディレクトリ名）。
 pub fn new_project(title: &str) -> Vec<TemplateFile> {
-    let file = |path: &'static str, text: &str| TemplateFile {
-        path,
+    let file = |path: &str, text: &str| TemplateFile {
+        path: path.to_owned(),
         text: text.to_owned(),
     };
     let mut files = vec![TemplateFile {
-        path: "project.toml",
+        path: "project.toml".to_owned(),
         text: project_toml(title),
     }];
     files.extend(SAMPLES.iter().map(|(path, text)| file(path, text)));
@@ -174,8 +174,8 @@ pub fn new_project(title: &str) -> Vec<TemplateFile> {
 
 /// 付録 C の `sample` プロジェクト一式（Web 版の初期投入 §13.3.5 / `examples/sample-novel`）。
 pub fn sample_project() -> Vec<TemplateFile> {
-    let file = |path: &'static str, text: &str| TemplateFile {
-        path,
+    let file = |path: &str, text: &str| TemplateFile {
+        path: path.to_owned(),
         text: text.to_owned(),
     };
     let mut files: Vec<TemplateFile> = SAMPLE_NOVEL

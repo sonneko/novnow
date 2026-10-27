@@ -780,6 +780,21 @@ enum Stage {
 }
 
 /// novnow の GUI。
+/// 文字化けらしき貼り付けの修復候補（§14.6.1）。
+struct PasteRepair {
+    original: String,
+    candidate: String,
+    /// 貼り付け元の入力欄（選択したらフォーカスを戻す）。
+    focus: Option<egui::Id>,
+}
+
+/// 修復候補の選択結果。
+enum PasteRepairChoice {
+    Candidate,
+    Original,
+    Cancel,
+}
+
 pub struct NovnowApp {
     stage: Stage,
     picker: Box<dyn Picker>,
@@ -802,6 +817,10 @@ pub struct NovnowApp {
     guide_closed: bool,
     /// 複雑なフォームの下書き（§9.7.5。ファイルへは書かない）。
     drafts: OverlayDrafts,
+    /// 文字化けらしき貼り付けの修復候補（§14.6.1。フレームの先頭で横取りする）。
+    paste_repair: Option<PasteRepair>,
+    /// 修復候補の選択で次のフレームの頭へ渡す貼り付け（対象のフォーカスも戻る）。
+    pending_paste: Option<(String, Option<egui::Id>)>,
 }
 
 impl NovnowApp {
@@ -835,6 +854,8 @@ impl NovnowApp {
             guide: Guide::default(),
             guide_closed: false,
             drafts: OverlayDrafts::default(),
+            paste_repair: None,
+            pending_paste: None,
         }
     }
 
@@ -921,6 +942,117 @@ impl NovnowApp {
     }
 
     /// 1 フレーム（`eframe::App::update` から呼ぶ）。`system_dark` は OS の配色（分からなければ `None`）。
+    /// 文字化けの修復の候補を出しているか（テスト用の読み口、§14.6.1）。
+    pub fn paste_repair_open(&self) -> bool {
+        self.paste_repair.is_some()
+    }
+
+    /// §14.6.1: 修復候補の選択で待たせた貼り付けを、フォーカス元の入力欄へ渡す。
+    fn deliver_pending_paste(&mut self, ctx: &Context) {
+        if let Some((text, focus)) = self.pending_paste.take() {
+            if let Some(id) = focus {
+                ctx.memory_mut(|memory| memory.request_focus(id));
+            }
+            ctx.input_mut(|input| input.events.push(egui::Event::Paste(text)));
+        }
+    }
+
+    /// §14.6.1: 貼り付けた文字列が文字化けらしいとき、フレームの先頭で横取りして
+    /// 修復候補を提示する。対象は複数行の貼り付け（複数行入力欄へのもの）。
+    /// 候補が作れないなら通常の貼り付けのまま通す。
+    fn intercept_paste_repair(&mut self, ctx: &Context) {
+        if self.paste_repair.is_some() || !matches!(self.overlay, Overlay::None) {
+            return;
+        }
+        let focus = ctx.memory(|memory| memory.focused());
+        let found = ctx.input(|input| {
+            input.events.iter().find_map(|event| match event {
+                egui::Event::Paste(text) if text.contains('\n') || text.contains('\r') => {
+                    crate::core::text::encoding::mojibake_repair(text)
+                        .map(|candidate| (text.clone(), candidate))
+                }
+                _ => None,
+            })
+        });
+        let Some((original, candidate)) = found else {
+            return;
+        };
+        ctx.input_mut(|input| {
+            input
+                .events
+                .retain(|event| !matches!(event, egui::Event::Paste(_)));
+        });
+        self.paste_repair = Some(PasteRepair {
+            original,
+            candidate,
+            focus,
+        });
+    }
+
+    /// §14.6.1: 修復候補の選択（Esc = キャンセル）。プロジェクト選択とオープンの
+    /// 両ステージで出す（重ね物システムはプロジェクトを開いた後のため）。
+    fn paste_repair_frame(&mut self, ctx: &Context, mode: Mode, locale: Locale) {
+        let Some(repair) = self.paste_repair.as_ref() else {
+            return;
+        };
+        let colors = theme::palette(mode);
+        let (original, candidate, focus) = (
+            repair.original.clone(),
+            repair.candidate.clone(),
+            repair.focus,
+        );
+        let mut choice: Option<PasteRepairChoice> = None;
+        egui::Window::new(i18n::text(locale, "paste_repair.title"))
+            .collapsible(false)
+            .resizable(false)
+            .show(ctx, |ui| {
+                ui.set_width(480.0);
+                ui.label(i18n::text(locale, "paste_repair.hint"));
+                ui.label(RichText::new(&candidate).color(colors.ok));
+                ui.separator();
+                ui.label(i18n::text(locale, "paste_repair.original"));
+                let preview: String = original.chars().take(160).collect();
+                ui.label(preview);
+                ui.horizontal(|ui| {
+                    if crate::ui::widgets::action_button(
+                        ui,
+                        i18n::text(locale, "paste_repair.use_candidate"),
+                    )
+                    .clicked()
+                    {
+                        choice = Some(PasteRepairChoice::Candidate);
+                    }
+                    if crate::ui::widgets::action_button(
+                        ui,
+                        i18n::text(locale, "paste_repair.use_original"),
+                    )
+                    .clicked()
+                    {
+                        choice = Some(PasteRepairChoice::Original);
+                    }
+                    if crate::ui::widgets::action_button(
+                        ui,
+                        i18n::text(locale, "paste_repair.cancel"),
+                    )
+                    .clicked()
+                    {
+                        choice = Some(PasteRepairChoice::Cancel);
+                    }
+                });
+            });
+        if ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape)) {
+            choice = Some(PasteRepairChoice::Cancel);
+        }
+        match choice {
+            Some(PasteRepairChoice::Candidate) => self.pending_paste = Some((candidate, focus)),
+            Some(PasteRepairChoice::Original) => self.pending_paste = Some((original, focus)),
+            _ => {}
+        }
+        if choice.is_some() {
+            self.paste_repair = None;
+        }
+    }
+
     pub fn frame(&mut self, ctx: &Context, system_dark: Option<bool>) {
         let mode = self.mode(ctx, system_dark);
         self.apply_style(ctx, mode);
@@ -930,6 +1062,9 @@ impl NovnowApp {
         if let Some(id) = self.refocus.take() {
             ctx.memory_mut(|memory| memory.request_focus(id));
         }
+        // §14.6.1: 文字化けの修復 — 選択した貼り付けを渡し、新しい貼り付けを横取る
+        self.deliver_pending_paste(ctx);
+        self.intercept_paste_repair(ctx);
         // egui は矢印キーで（修飾キーが付いていても）フォーカスを隣のウィジェットへ動かす（フォーカス中の
         // ウィジェットが矢印を取らないとき。フレームの終わりに動く）。novnow は矢印でのフォーカス移動を
         // 使わない（`Alt+↑/↓` などのショートカットと、一覧・タイムラインの選択に使う）ので、矢印が
@@ -1024,6 +1159,7 @@ impl NovnowApp {
                 ctx.memory_mut(|memory| memory.surrender_focus(id));
             }
         }
+        self.paste_repair_frame(ctx, mode, locale);
         match &mut self.stage {
             Stage::Picker => {
                 if let Some((session, settings)) = self.picker.show(ctx, locale, mode) {
@@ -8052,6 +8188,71 @@ mod native {
         )
     }
 
+    /// 移行のプレビューと確定で共通の変換（§14.6: 読み替え→候補生成→確定→描画）。
+    /// 移行（§14.6）の 1 つの入力。
+    struct MigrationInput {
+        name: String,
+        bytes: Vec<u8>,
+        /// プレビューで切り替えた文字コード（`None` = 自動判定: UTF-8 優先）。
+        encoding: Option<crate::core::text::encoding::SourceEncoding>,
+    }
+
+    /// 移行（§14.6）の状態: 選んだ入力と、編集できる分割候補。
+    struct MigrationState {
+        title: String,
+        inputs: Vec<MigrationInput>,
+        draft: crate::core::migration::Draft,
+    }
+
+    impl MigrationState {
+        fn new(inputs: Vec<MigrationInput>) -> Self {
+            let title = inputs
+                .first()
+                .map(|input| {
+                    input
+                        .name
+                        .trim_end_matches(".txt")
+                        .trim_end_matches(".md")
+                        .to_owned()
+                })
+                .filter(|title| !title.is_empty())
+                .unwrap_or_else(|| "untitled".to_owned());
+            Self {
+                draft: Self::draft_of(&inputs),
+                title,
+                inputs,
+            }
+        }
+
+        /// 入力を読み替えて候補を作る（文字コードの切り替えで作成し直す）。
+        fn draft_of(inputs: &[MigrationInput]) -> crate::core::migration::Draft {
+            let mut units = Vec::new();
+            for input in inputs {
+                let decoded = match input.encoding {
+                    Some(encoding) => {
+                        crate::core::text::encoding::decode_as(&input.bytes, encoding)
+                    }
+                    None => crate::core::text::encoding::decode(&input.bytes),
+                };
+                let Ok(decoded) = decoded else {
+                    return crate::core::migration::Draft::default();
+                };
+                units.push(crate::core::migration::SourceUnit {
+                    name: input.name.clone(),
+                    text: decoded.text,
+                    starts_chapter: false,
+                });
+            }
+            crate::core::migration::analyze(&units)
+        }
+
+        /// 候補から構造を確定してプロジェクトのファイルを組む。
+        fn files(&self) -> Result<Vec<crate::core::template::TemplateFile>, String> {
+            let book = crate::core::migration::structure(&self.draft);
+            crate::core::migration::render(&self.title, &book).map_err(|e| format!("{e:?}"))
+        }
+    }
+
     /// §14.4 のプロジェクト選択（デスクトップ）。
     struct NativePicker {
         recent: Vec<(String, bool, String)>,
@@ -8061,7 +8262,7 @@ mod native {
         want_new: bool,
         want_import: bool,
         want_migrate: bool,
-        migration: Option<(String, String)>,
+        migration: Option<MigrationState>,
         locale: Locale,
     }
 
@@ -8131,44 +8332,154 @@ mod native {
             let mut opened = None;
             if self.want_migrate {
                 self.want_migrate = false;
-                if let Some(picked) = block_on(RfdDialog.pick_text()) {
-                    match String::from_utf8(picked.bytes) {
-                        Ok(text) => {
-                            self.migration = Some((
-                                picked
-                                    .name
-                                    .trim_end_matches(".txt")
-                                    .trim_end_matches(".md")
-                                    .to_owned(),
-                                text,
-                            ));
-                        }
-                        Err(error) => {
-                            self.problem = Some((PathBuf::new(), error.to_string(), false))
-                        }
-                    }
+                if let Some(picked) = block_on(RfdDialog.pick_texts()) {
+                    let inputs = picked
+                        .into_iter()
+                        .map(|file| MigrationInput {
+                            name: file.name,
+                            bytes: file.bytes,
+                            encoding: None,
+                        })
+                        .collect();
+                    self.migration = Some(MigrationState::new(inputs));
                 }
             }
             let mut migration_confirm = false;
             let mut migration_cancel = false;
-            if let Some((title, source)) = &mut self.migration {
+            if let Some(state) = &mut self.migration {
                 egui::Window::new(i18n::text(locale, "stage.migrate"))
                     .collapsible(false)
                     .show(ctx, |ui| {
                         ui.label(i18n::text(locale, "stage.migrate_notice"));
-                        ui.text_edit_singleline(title);
-                        match crate::core::migration::convert(title, source) {
-                            Ok(files) => {
-                                egui::ScrollArea::vertical()
-                                    .max_height(300.0)
-                                    .show(ui, |ui| {
-                                        for file in files {
-                                            ui.monospace(file.path);
-                                            if file.path == "contents/01-01.cnov" {
-                                                ui.monospace(file.text);
+                        ui.text_edit_singleline(&mut state.title);
+                        // 入力（曖昧な文字コードはここで切り替えられる）
+                        let mut encoding_change: Option<(
+                            usize,
+                            crate::core::text::encoding::SourceEncoding,
+                        )> = None;
+                        for (index, input) in state.inputs.iter().enumerate() {
+                            let ambiguous = crate::core::text::encoding::decode(&input.bytes)
+                                .is_ok_and(|decoded| decoded.ambiguous);
+                            ui.horizontal(|ui| {
+                                ui.monospace(&input.name);
+                                if ambiguous {
+                                    let current = match input.encoding {
+                                        Some(encoding) => encoding,
+                                        None => crate::core::text::encoding::SourceEncoding::Utf8,
+                                    };
+                                    for (name, encoding) in [
+                                        (
+                                            "UTF-8",
+                                            crate::core::text::encoding::SourceEncoding::Utf8,
+                                        ),
+                                        (
+                                            "Shift_JIS",
+                                            crate::core::text::encoding::SourceEncoding::ShiftJis,
+                                        ),
+                                    ] {
+                                        let active = current == encoding;
+                                        if ui
+                                            .add_enabled(!active, egui::Button::new(name))
+                                            .clicked()
+                                        {
+                                            encoding_change = Some((index, encoding));
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                        if let Some((index, encoding)) = encoding_change {
+                            state.inputs[index].encoding = Some(encoding);
+                            state.draft = MigrationState::draft_of(&state.inputs);
+                        }
+                        let book = crate::core::migration::structure(&state.draft);
+                        let (chapters, episodes, scenes, sections) = book.counts();
+                        let counts = [
+                            chapters.to_string(),
+                            episodes.to_string(),
+                            scenes.to_string(),
+                            sections.to_string(),
+                        ];
+                        let structure = i18n::text(locale, "stage.migrate_structure");
+                        let structure = structure.replace("{0}", &counts[0]);
+                        let structure = structure.replace("{1}", &counts[1]);
+                        let structure = structure.replace("{2}", &counts[2]);
+                        let structure = structure.replace("{3}", &counts[3]);
+                        ui.label(structure);
+                        // 分割候補（各候補を他の段または境界なしへ変更できる）
+                        let mut boundary_change: Option<(
+                            usize,
+                            Option<crate::core::migration::Level>,
+                        )> = None;
+                        egui::ScrollArea::vertical()
+                            .max_height(160.0)
+                            .show(ui, |ui| {
+                                for (at, element) in state.draft.elements.iter().enumerate() {
+                                    let crate::core::migration::Element::Boundary(boundary) =
+                                        element
+                                    else {
+                                        continue;
+                                    };
+                                    let context = if let Some(title) = &boundary.title {
+                                        title.clone()
+                                    } else {
+                                        state
+                                            .draft
+                                            .elements
+                                            .iter()
+                                            .skip(at + 1)
+                                            .find_map(|element| {
+                                                if let crate::core::migration::Element::Line(line) =
+                                                    element
+                                                {
+                                                    (!line.is_empty())
+                                                        .then(|| line.chars().take(24).collect())
+                                                } else {
+                                                    None
+                                                }
+                                            })
+                                            .unwrap_or_default()
+                                    };
+                                    ui.horizontal(|ui| {
+                                        ui.monospace(context);
+                                        for (key, level) in [
+                                            (
+                                                "stage.migrate_chapter",
+                                                Some(crate::core::migration::Level::Chapter),
+                                            ),
+                                            (
+                                                "stage.migrate_episode",
+                                                Some(crate::core::migration::Level::Episode),
+                                            ),
+                                            (
+                                                "stage.migrate_scene",
+                                                Some(crate::core::migration::Level::Scene),
+                                            ),
+                                            (
+                                                "stage.migrate_section",
+                                                Some(crate::core::migration::Level::Section),
+                                            ),
+                                            ("stage.migrate_none", None),
+                                        ] {
+                                            let active = level == Some(boundary.level);
+                                            if ui
+                                                .add_enabled(
+                                                    !active,
+                                                    egui::Button::new(i18n::text(locale, key)),
+                                                )
+                                                .clicked()
+                                            {
+                                                boundary_change = Some((at, level));
                                             }
                                         }
                                     });
+                                }
+                            });
+                        if let Some((at, level)) = boundary_change {
+                            state.draft.set_boundary(at, level);
+                        }
+                        match state.files() {
+                            Ok(_) => {
                                 migration_confirm = crate::ui::widgets::action_button(
                                     ui,
                                     i18n::text(locale, "stage.confirm"),
@@ -8190,23 +8501,22 @@ mod native {
                 self.migration = None;
             }
             if migration_confirm {
-                if let Some((title, source)) = self.migration.take() {
+                if let Some(state) = self.migration.take() {
                     if let Some(parent) = block_on(RfdDialog.pick_folder()) {
-                        let safe = ProjectPath::new(&title)
+                        let safe = ProjectPath::new(&state.title)
                             .ok()
                             .filter(|p| !p.as_str().contains('/'));
                         if let Some(name) = safe {
                             let dir = parent.join(name.as_str());
                             let result = (|| {
-                                let files = crate::core::migration::convert(&title, &source)
-                                    .map_err(|e| format!("{e:?}"))?;
+                                let files = state.files()?;
                                 let storage = FsStorage::create_fresh(
                                     Arc::new(FsGate::new(&SystemEnv)),
                                     &dir,
                                 )
                                 .map_err(|e| format!("{e:?}"))?;
                                 for file in files {
-                                    let path = ProjectPath::new(file.path)
+                                    let path = ProjectPath::new(&file.path)
                                         .map_err(|e| format!("{e:?}"))?;
                                     storage
                                         .write_bytes(&path, file.text.as_bytes())

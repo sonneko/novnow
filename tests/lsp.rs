@@ -36,7 +36,7 @@ fn open() -> Session {
     let host = MemoryHost::default();
     let documents = template::new_project("星屑の時計")
         .into_iter()
-        .filter(|file| is_document(&ProjectPath::new(file.path).expect("path")))
+        .filter(|file| is_document(&ProjectPath::new(&file.path).expect("path")))
         .map(|file| Document::new(file.path, file.text));
     let mut session = Session::with_documents(Box::new(host), documents.collect());
     session.set_interface(Interface::Lsp);

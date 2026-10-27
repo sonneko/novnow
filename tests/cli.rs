@@ -439,7 +439,7 @@ fn check_of_a_fresh_project_has_no_diagnostics() {
     assert_eq!(ran.err, "");
     let documents = template::new_project("novel")
         .iter()
-        .filter(|file| is_document(&ProjectPath::new(file.path).expect("path")))
+        .filter(|file| is_document(&ProjectPath::new(&file.path).expect("path")))
         .count();
     assert_eq!(
         ran.out,
@@ -733,18 +733,18 @@ fn new_never_overwrites_and_lists_what_it_created_and_kept() {
             .map(|line| line["  - ".len()..].to_owned())
             .collect()
     };
-    let template_order: Vec<&str> = template::new_project("novel")
+    let template_order: Vec<String> = template::new_project("novel")
         .iter()
-        .map(|file| file.path)
+        .map(|file| file.path.clone())
         .collect();
     let want_kept: Vec<String> = template_order
         .iter()
-        .filter(|path| kept.contains(path))
+        .filter(|path| kept.contains(&path.as_str()))
         .map(|path| path.to_string())
         .collect();
     let want_created: Vec<String> = template_order
         .iter()
-        .filter(|path| !kept.contains(path))
+        .filter(|path| !kept.contains(&path.as_str()))
         .map(|path| path.to_string())
         .collect();
     assert_eq!(listed(kept_at), want_kept);
@@ -1548,7 +1548,10 @@ fn zip_import_writes_only_safe_new_files_and_preserves_existing_data() {
     let zip = archive::export(
         &template::new_project("小説")
             .into_iter()
-            .map(|item| (ProjectPath::new(item.path).unwrap(), item.text.into_bytes()))
+            .map(|item| {
+                let path = ProjectPath::new(&item.path).unwrap();
+                (path, item.text.into_bytes())
+            })
             .collect::<Vec<_>>(),
     )
     .unwrap();
@@ -1672,6 +1675,78 @@ fn migration_refuses_symlink_destinations_without_touching_them() {
         Exit::Io
     );
     assert!(tree(&dir.join("outside")).is_empty());
+}
+
+#[test]
+fn migration_splits_headings_and_multiple_inputs() {
+    let dir = TempDir::new("migrate-split");
+    let env = env_ja(&dir);
+    dir.write(
+        "part.txt",
+        "第一章 始まり\n本文です。\n\n第二章 続き\n本文ふたたび。\n",
+    );
+    dir.write("extra.txt", "追加の一話。\n");
+    let preview = run(
+        dir.path(),
+        &env,
+        &["migrate", "part.txt", "extra.txt", "book", "--preview"],
+    );
+    assert_eq!(preview.exit(), Exit::Ok, "{preview:?}");
+    assert!(preview.out.contains("2 章"), "{}", preview.out);
+    assert!(!dir.join("book").exists());
+    let imported = run(
+        dir.path(),
+        &env,
+        &["migrate", "part.txt", "extra.txt", "book"],
+    );
+    assert_eq!(imported.exit(), Exit::Ok, "{imported:?}");
+    // CLI は候補どおりに生成する: 見出しで章が分かれ、2 ファイル目は
+    // 最後の章の新しい話になる。
+    let chapter_two = std::fs::read_to_string(dir.join("book/contents/02-01.cnov")).unwrap();
+    assert!(chapter_two.contains("本文ふたたび。"), "{chapter_two}");
+    let episode_two = std::fs::read_to_string(dir.join("book/contents/02-02.cnov")).unwrap();
+    assert!(episode_two.contains("追加の一話。"), "{episode_two}");
+    let all = std::fs::read_to_string(dir.join("book/plots/all.cnov")).unwrap();
+    assert!(all.contains("@01 始まり"), "{all}");
+    assert!(all.contains("@02 続き"), "{all}");
+}
+
+#[test]
+fn migration_folder_input_reads_natural_order_as_one_chapter() {
+    let dir = TempDir::new("migrate-folder");
+    let env = env_ja(&dir);
+    dir.write("ch/2.txt", "二話目。\n");
+    dir.write("ch/10.txt", "十話目。\n");
+    dir.write("ch/1.txt", "一話目。\n");
+    dir.write("ch/notes.bin", "binary\n");
+    dir.write("ch/sub/99.txt", "サブフォルダは読まない。\n");
+    dir.write("first.txt", "最初の章。\n");
+    let imported = run(dir.path(), &env, &["migrate", "first.txt", "ch", "book"]);
+    assert_eq!(imported.exit(), Exit::Ok, "{imported:?}");
+    let read = |rel: &str| std::fs::read_to_string(dir.join(rel)).unwrap();
+    assert!(read("book/contents/01-01.cnov").contains("最初の章。"));
+    assert!(read("book/contents/02-01.cnov").contains("一話目。"));
+    assert!(read("book/contents/02-02.cnov").contains("二話目。"));
+    assert!(read("book/contents/02-03.cnov").contains("十話目。"));
+    assert!(!dir.join("book/contents/02-04.cnov").exists());
+}
+
+#[test]
+fn migration_reads_shift_jis_files() {
+    let dir = TempDir::new("migrate-sjis");
+    let env = env_ja(&dir);
+    // 「本文です。」の Shift_JIS バイト列。
+    std::fs::write(
+        dir.join("sjis.txt"),
+        [
+            0x96, 0x7B, 0x95, 0xB6, 0x82, 0xC5, 0x82, 0xB7, 0x81, 0x42, 0x0A,
+        ],
+    )
+    .unwrap();
+    let imported = run(dir.path(), &env, &["migrate", "sjis.txt", "book"]);
+    assert_eq!(imported.exit(), Exit::Ok, "{imported:?}");
+    let contents = std::fs::read_to_string(dir.join("book/contents/01-01.cnov")).unwrap();
+    assert!(contents.contains("本文です。"), "{contents}");
 }
 
 // ============================================================ MCP のツール表（§19.5.1・段階③ H4）
