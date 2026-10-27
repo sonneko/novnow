@@ -2213,4 +2213,17 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - `browsers (webkit)` の偽陽性で develop 向け PR の Checks が赤くなった件をきっかけに、各プラットフォームのビルドを最小化する CI 改定を行った（所有者指示 2026-10-27: 保守性を最低限保ちつつ開発速度を上げることを第一に）。
 - 4 ワークフロー（wheels / desktop-check / pages-check / vscode）が workflow 先頭の `CI_SCOPE` で行列を決める。`main` 向け PR・`main` への push・`workflow_dispatch` は full 行列（変更なし）。`develop` 向け PR・`develop` への push は最小スコープで、プラットフォームの行列ジョブは 21 本から 4 本（Python 試験は 3 版から 2 版）になる: Desktop は Linux x64 の nogui のみ（GUI のコンパイル・リンクは ci.yml の clippy / test `--features ui` が担う）、wheel は Linux x64 のみ（Python 試験が導入するホイールと同一）、Python 試験は 3.9 / 3.13 の境界 2 版、ブラウザは chromium のみ（firefox / webkit は偽陽性のため develop 向け PR では実行しない）、Electron は ubuntu のみ。行列の選択は `REF:scripts/release-matrix.py --scope`（develop スコープは 1 行を返す。`--pythons` を追加）と各ワークフローのスコープステップが担う。
 - CI コア（文書整合・Rustfmt・Clippy・全テスト・WASM サイズ・ベンチマーク・性能予算・Python API）はスコープに関係なく常時実行する。macOS / Windows / arm64 のビルドは `main` 向け PR（リリースゲート）の full 行列で検証される。
-- 必須チェックはスコープで走る項目に一致させる。`protect-develop` は 11 件（23 件から、Linux x64 以外の 12 のプラットフォーム行列を外す）へ所有者が更新する。一覧は `REF:docs/distribution.md` §8。`protect-main` は変更しない（18 件）。運用の正本は `REF:docs/developers.md` §4.7。
+- 必須チェックはスコープで走る項目に一致させる。`protect-develop` は 11 件（23 件から、Linux x64 以外の 12 のプラットフォーム行列を外す）へ所有者が更新済み（PR #38 のマージ `6b5853b`、2026-10-27）。一覧は `REF:docs/distribution.md` §8。`protect-main` は変更しない（18 件）。運用の正本は `REF:docs/developers.md` §4.7。
+## 2026-10-27: develop への push でも必須の平台 2 行を報告する（CI スコープの不整合修正）
+
+- PR #38 のマージ commit（`6b5853b`）の check 実測で、develop への push は必須 11 件のうち平台 2 行（wheels の Linux x64・desktop の Linux x64 nogui）を報告しないことが分かった（wheels の push トリガーは main のみ、desktop-check は pull_request のみだったため）。strict 必須チェックの ruleset では develop 自身のコミットが永遠に 11 件を満たせなくなる不整合だった。
+- 修正: wheels は `push: branches: [main, develop]`（paths は PR と同一。main のリリースマージは必ず版更新＝Cargo.toml に触れるので full 行列が走る）。desktop-check は `push: branches: [develop]`（PR と同様に paths なし）。pages・CI は元々 develop への push で走るため変更なし。これによりコード PR のマージ後、develop 自身で 11 件が揃って緑になる。
+- 4 ワークフローの手動実行（`workflow_dispatch`）に `scope` 入力（full / develop、既定 full）を追加し、`CI_SCOPE` 式に `inputs.scope` を取り込んだ（4 ワークフローで同一の式を保つ回帰テストあり）。TestPyPI リハーサルは 5 ホイール揃えが必要なため full スコープでないと失敗するよう拒否した。
+- 文書のみ変更の PR は wheels 行列が `paths` で起動しないため、`ci` と `wheels`（scope=develop）の 2 つの dispatch で必須チェックを揃えてからマージする運用を `docs/developers.md` §4.7 の目安表へ明記した。
+## 2026-10-27: Issue #29 の後続 X4（文書の文体見直し）
+
+- 利用者向け文書 10 本（`docs/users/`）と README（日・英）の文体を見直した（N29-32。第 18 回決定: 利用者向け文書と README が対象。仕様書・設計書は用語と意味を変えない範囲の推敲に限り、今回は設計書 1 箇所の stale 状態注記の修正に留めた）。
+- 誇張・不自然な表現を事実のみの文章へ置換した。タイトル「次世代的な世界観管理システム群」→「長編小説の世界を管理するツール群」、「English version is HERE」の表記、メディア将来記述「研究開発の末、実装する予定です」→「拡張点は形式の中に用意されている」（N29-36 決定: メディアの実体対応を入れない・拡張点の明記まで）、「v0→v1 移行機能は提供しない」から開発者向け理由（実装コスト）を削除。
+- README の実装と食い違った事実誤記 3 件を直した: 診断 76 種→77 種（診断コード enum は W096 込みで 77。仕様 overview §2 と一致）、英語版の正規操作 119→120（`api_catalog` と一致）、ファイル拡張 `.txt`→`.cnov`（B10 で変更済み）。
+- `docs/users/errors.md` の `E025` 節を B10 後の実装（JSON / TOML 共通の「読み込めません」）に合わせて書き直し、JSON 特有の直し方（`,` と `"` の数）を削除した。
+- 利用者向け文書の用語・手順・キー・リンク・診断コードの意味は変更していない（`easy-read.py` の規則・`reference.py` の REF とサイト検査・サイト生成物のリンクとアンカー検査で機械確認）。`scripts/docs-site.py` の生成物（guide HTML・website content・nav）を再生成して同 PR に含めた。

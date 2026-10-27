@@ -4,9 +4,9 @@
 # Intel Mac は macos-latest（arm64）から `--target x86_64-apple-darwin` で作る。
 #
 # CI スコープ（`CI_SCOPE`、docs/developers.md §4.7）:
-# - main 向け PR・main への push・workflow_dispatch = 5 構成すべてと Python 3 版。
-# - develop 向け PR・develop への push = Linux x64 のみ（最軽量の 1 構成。
-#   Python 試験は 3.9 / 3.13 の境界 2 版。テストが導入するのは常にこのホイール）。
+# - main 向け PR・main への push・手動実行（scope=full が既定）= 5 構成すべてと Python 3 版。
+# - develop 向け PR・develop への push・手動実行（scope=develop）= Linux x64 のみ
+#   （最軽量の 1 構成。Python 試験は 3.9 / 3.13 の境界 2 版。テストが導入するのは常にこのホイール）。
 #
 # - push / pull_request: ビルドだけ（公開しない）。
 # - workflow_dispatch: 選択したときだけ TestPyPI へリハーサル公開（本番 PyPI は release.yml のみ）。
@@ -18,12 +18,21 @@ name: wheels
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
+    # develop への push（マージコミット）も PR と同じ検査を報告する（必須チェックの
+    # 平台 2 行を develop 自身で満たすため）。paths は PR と同一（main のリリース
+    # マージは必ず版更新＝Cargo.toml に触れるので full 行列が走る）。
+    paths: ["python/**", ".github/workflows/wheels.yml", "src/**", "Cargo.toml"]
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths: ["python/**", ".github/workflows/wheels.yml", "src/**", "Cargo.toml"]
   workflow_dispatch:
     inputs:
+      scope:
+        description: CI scope (full = release rehearsal, develop = single-platform minimal)
+        type: choice
+        options: [full, develop]
+        default: full
       publish_testpypi:
         description: Publish to TestPyPI after all tests pass
         type: boolean
@@ -33,9 +42,9 @@ permissions:
   contents: read
 
 # CI スコープの判定は 4 ワークフロー（wheels / desktop-check / pages-check / vscode）
-# で同一。docs/developers.md §4.7。
+# で同一。docs/developers.md §4.7。手動実行は scope 入力で full / develop を選ぶ。
 env:
-  CI_SCOPE: ${{ github.event_name == 'workflow_dispatch' && 'full' || (github.event_name == 'pull_request' && (github.base_ref == 'main' && 'full' || 'develop')) || (github.ref_name == 'main' && 'full' || 'develop') }}
+  CI_SCOPE: ${{ github.event_name == 'workflow_dispatch' && (inputs.scope || 'full') || (github.event_name == 'pull_request' && (github.base_ref == 'main' && 'full' || 'develop')) || (github.ref_name == 'main' && 'full' || 'develop') }}
 
 # 同じブランチで push し直したら、古い実行は取り消す（macos の行列は待ち時間が長く、
 # 終わった頃には内容が古い、という無駄が出る）。
@@ -63,6 +72,11 @@ jobs:
           set -euo pipefail
           python3 scripts/release-matrix.py --check
           if [ "$PUBLISH_TESTPYPI" = true ]; then
+            # リハーサルは 5 ホイール揃えでなければならない（develop スコープは 1 個しか作らない）
+            if [ "$CI_SCOPE" != full ]; then
+              echo "::error::TestPyPI rehearsal requires the full scope (all five wheels)"
+              exit 1
+            fi
             version="$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["package"]["version"])')"
             if [ "$REF_NAME" != "v$version" ] || [[ "$version" != *-* ]]; then
               echo "::error::TestPyPI rehearsal requires the matching prerelease version tag"
