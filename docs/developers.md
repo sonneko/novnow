@@ -325,7 +325,7 @@ GitHub Actions は**走った分だけ**課金される。このリポジトリ�
 | 仕組み | 実体 | 効く場面 |
 |---|---|---|
 | コミット既定で `[ci skip]` | `REF:.githooks/commit-msg`（`bash REF:scripts/install-git-hooks.sh` で有効化） | push・PR の全ワークフロー。`[ci run]` と書いたときだけ付かない |
-| 必要なときに 1 回だけ回す | `bash REF:scripts/ci-run.sh [ci\|wheels] [watch]` | `workflow_dispatch`。push し直さずにブランチを指定して回せる（スコープは常に full） |
+| 必要なときに 1 回だけ回す | `bash REF:scripts/ci-run.sh [ci\|wheels] [watch]` | `workflow_dispatch`。push し直さずにブランチを指定して回せる。wheels / desktop-check / pages-check / vscode は `scope` 入力で full / develop を選べる（既定 full） |
 | 変更フィルタ | `REF:.github/workflows/ci.yml` の `docs` ジョブ（`rust_changed`） | 文書だけの変更で Rust 5 ジョブを skip |
 | `paths` / `paths-ignore` | 各ワークフロー | 無関係な変更でワークフロー自体を起動しない |
 | `concurrency` | 全ワークフロー（PR は `cancel-in-progress`） | 同じブランチを続けて push したとき、古い実行を取り消す |
@@ -336,7 +336,7 @@ GitHub Actions は**走った分だけ**課金される。このリポジトリ�
 
 | 変更したもの | 回すもの |
 |---|---|
-| 文書（`docs/`）・コードのコメント・整形だけ | 回さない（`scripts/verify.sh` を手元で回す） |
+| 文書（`docs/`）・コードのコメント・整形だけ | 回さない（`scripts/verify.sh` を手元で回す）。PR を作る場合は必須チェックが揃わないので、`bash scripts/ci-run.sh ci watch` と `gh workflow run wheels.yml --ref <ブランチ> -f scope=develop` を各 1 回（desktop・pages・website は PR で自動実行される） |
 | Rust のロジック・テスト・`Cargo.toml` / `Cargo.lock`・`src/ui/**`・`src/wasm*` | `bash scripts/ci-run.sh ci watch` |
 | Web 版の画面・IndexedDB・PWA（`scripts/web-smoke.sh` で手元確認できる） | 手元で `bash scripts/web-smoke.sh`、必要なら `ci` |
 | `python/**`・PyO3 のバージョン | `bash scripts/ci-run.sh wheels`（＋ `ci`） |
@@ -359,8 +359,8 @@ GitHub Actions は**走った分だけ**課金される。このリポジトリ�
 Desktop の Windows ビルドが全体の最長なので、PR 全体の待ち時間はそちらが決める。
 
 **ブランチ別の CI スコープ（2026-10-27、開発速度を第一に）**: プラットフォームの行列は対象ブランチで切り替える。
-`CI_SCOPE`（4 ワークフローの workflow 先頭で同じ式）は、`main` 向け PR・`main` への push・`workflow_dispatch`
-で `full`、`develop` 向け PR・`develop` への push で `develop` になる。
+`CI_SCOPE`（4 ワークフローの workflow 先頭で同じ式）は、`main` 向け PR・`main` への push で `full`、
+`develop` 向け PR・`develop` への push で `develop`。`workflow_dispatch` は `scope` 入力で選ぶ（既定 `full`＝リリースリハーサル）。
 
 | 行列 | full（main 向け PR・main push・手動実行） | develop（develop 向け PR・develop push） |
 |---|---|---|
@@ -375,7 +375,13 @@ CI コア（文書整合・Rustfmt・Clippy・全テスト・WASM サイズ・�
 Electron 3・ブラウザ 3）から 4 本（desktop 1・wheel 1・Electron 1・ブラウザ 1）になる（Python 試験は 3 版から 2 版）。
 `main` への統合（リリースゲート）では full 行列が走り、macOS / Windows / arm64 のビルドはそこで検証される。
 
-**必須チェック**: `develop` の必須チェックは develop スコープで走る 11 件だけにする（2026-10-27。
+**develop への push（マージコミット）でも同じ検査を報告する**: 必須チェックの平台 2 行（wheels の Linux x64・
+desktop の Linux x64 nogui）が develop 自身のコミットでも報告されるよう、wheels と desktop-check は
+`develop` への push トリガーを持つ（wheels は PR と同一の `paths`、desktop-check は PR と同様に無制限。
+pages・CI は元々 develop への push で走る）。コード PR のマージ後、develop 自身で 11 件の必須チェックが
+揃って緑になる（文書のみ PR では Rust 5 ジョブが変更フィルタで skip され既存どおり赤くなる＝次節の落とし穴）。
+
+**必須チェック**: `develop` の必須チェックは develop スコープで走る 11 件（2026-10-27。
 旧来は full 行列を含む 23 件）。`main` は従来どおり3ブラウザ・full 行列を含む 18 件。
 一覧の正本は `REF:docs/distribution.md` §8。ruleset（`protect-develop`・`protect-main`）の適用は所有者が行う。
 `main` 向け PR で firefox / webkit が失敗した場合は内容を確認し、実バグに見えるものは直すか Issue 化する。
@@ -383,6 +389,8 @@ Electron 3・ブラウザ 3）から 4 本（desktop 1・wheel 1・Electron 1・
 **落とし穴**: `[ci skip]` が付いたコミットが PR の頭だと、PR のチェックは**空**になる。
 マージ前に `bash scripts/ci-run.sh ci watch` で 1 回だけ回し、緑を確認してからマージする
 （`gh pr checks` が空なら「回していない」の意味であり、緑ではない）。
+文書のみ変更の PR は wheels 行列（`paths` で起動しない）と、変更フィルタで skip された Rust 5 ジョブが
+揃わないため、`ci` と `wheels`（`scope=develop`）の 2 つの dispatch を回してからマージする（上の目安表）。
 
 検査 10 はこの仕組みの**土台が消えていないか**（`concurrency`・draft の条件・廃止ランナーの不在・
 変更フィルタ・フック・`ci-run.sh`）を見る。仕組みを外すと文書検査が落ちるので、意図的に外すときは

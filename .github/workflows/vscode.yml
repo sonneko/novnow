@@ -8,14 +8,20 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     paths: ["vscode/**", "src/lsp/**", "src/cli/**", "Cargo.toml", "Cargo.lock", ".github/workflows/vscode.yml"]
   workflow_dispatch:
+    inputs:
+      scope:
+        description: CI scope (full = release rehearsal, develop = single-platform minimal)
+        type: choice
+        options: [full, develop]
+        default: full
 
 permissions:
   contents: read
 
 # CI スコープの判定は 4 ワークフロー（wheels / desktop-check / pages-check / vscode）
-# で同一。docs/developers.md §4.7。
+# で同一。docs/developers.md §4.7。手動実行は scope 入力で full / develop を選ぶ。
 env:
-  CI_SCOPE: ${{ github.event_name == 'workflow_dispatch' && 'full' || (github.event_name == 'pull_request' && (github.base_ref == 'main' && 'full' || 'develop')) || (github.ref_name == 'main' && 'full' || 'develop') }}
+  CI_SCOPE: ${{ github.event_name == 'workflow_dispatch' && (inputs.scope || 'full') || (github.event_name == 'pull_request' && (github.base_ref == 'main' && 'full' || 'develop')) || (github.ref_name == 'main' && 'full' || 'develop') }}
 
 concurrency:
   group: vscode-${{ github.workflow }}-${{ github.ref }}

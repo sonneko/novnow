@@ -56,7 +56,7 @@ class ReleasePolicy(unittest.TestCase):
 
     def test_ci_workflows_share_one_scope_expression(self):
         scope = (
-            "github.event_name == 'workflow_dispatch' && 'full' ||"
+            "github.event_name == 'workflow_dispatch' && (inputs.scope || 'full') ||"
             " (github.event_name == 'pull_request' && (github.base_ref == 'main' && 'full' || 'develop'))"
             " || (github.ref_name == 'main' && 'full' || 'develop')"
         )
@@ -65,6 +65,19 @@ class ReleasePolicy(unittest.TestCase):
             text = (ROOT / ".github/workflows" / workflow).read_text()
             flat = " ".join(text.split())
             self.assertIn(normalized, flat, f"{workflow} の CI_SCOPE 判定が一致しない")
+            self.assertIn("type: choice", text, f"{workflow} の手動実行に scope 選択が無い")
+            self.assertIn("options: [full, develop]", text, f"{workflow} の scope 選択が full / develop ではない")
+
+    def test_develop_push_reports_required_platform_rows(self):
+        # 必須チェックの平台 2 行（wheels の Linux x64・desktop の Linux x64 nogui）を
+        # develop 自身の push でも報告するため、push トリガーが必要。
+        wheels = (ROOT / ".github/workflows" / "wheels.yml").read_text()
+        flat = " ".join(wheels.split())
+        self.assertIn("branches: [main, develop]", wheels)
+        self.assertIn("paths: [\"python/**\", \".github/workflows/wheels.yml\", \"src/**\", \"Cargo.toml\"]", flat)
+        self.assertIn("TestPyPI rehearsal requires the full scope", wheels)
+        desktop = (ROOT / ".github/workflows" / "desktop-check.yml").read_text()
+        self.assertIn("branches: [develop]", desktop)
 
     def test_supplementary_workflow_cannot_publish_to_pypi(self):
         text = (ROOT / ".github/workflows/wheels.yml").read_text()

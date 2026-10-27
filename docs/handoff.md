@@ -24,10 +24,9 @@
 
 ## 2. 現在のブランチ・PR・直近の作業状態
 
-- 作業ブランチは `arena/5ad49289-novnow`（PR #38。B1〜B10 の PR #37 は `develop` へマージ済み）。
-- PR #38 では、まず develop 向け PR で Firefox / WebKit のブラウザ試験を必須にしない方針（ruleset は所有者が更新済み）を文書化した。続けて Issue #29 の後続 **X1（移行支援の拡張）と X3（コードの機能単位分割）は実施完了**（同じ PR で X1 → X3 の順（所有者指示、2026-10-27。第 21 回決定と実装プランは `REF:docs/plans.md#issue-29` §8.5）。残る後続は X2（所有者の短編）・X4（文書文体）・X5（両市場の初回公開、トークン後）。
-- 2026-10-27（CI スコープ）: `browsers (webkit)` の偽陽性で Checks が赤くなった件をきっかけに、各プラットフォームのビルドを最小化した（所有者指示: 開発速度を第一に）。`CI_SCOPE` で対象ブランチごとに行列を切り替え、develop 向け PR は 1 プラットフォーム（Linux x64・desktop nogui / wheel / chromium / ubuntu Electron / Python 3.9・3.13）、main 向け PR・main push・手動実行は full 行列のまま。正本は `REF:docs/developers.md` §4.7 と `REF:docs/distribution.md` §8。
-- **未完了（所有者側）**: ruleset `protect-develop` の必須チェックを 11 件へ更新すること（23 件から、Linux x64 以外の 12 のプラットフォーム行列を外す。一覧は `REF:docs/distribution.md` §8）。適用まで develop 向け PR は旧 23 件で判定されるため、スコープ外のチェックが報告されず赤くなる期間がある。`protect-main`（18 件）は変更しない。
+- PR #38（X1・X3・CI スコープ・CI 修正 2 件）は 2026-10-27 に所有者が `develop` へマージ済み（merge commit `6b5853b`。ruleset `protect-develop` の必須チェック 11 件へは所有者が同日更新済み）。
+- 2026-10-27（CI スコープ）: `browsers (webkit)` の偽陽性で Checks が赤くなった件をきっかけに、各プラットフォームのビルドを最小化した（所有者指示: 開発速度を第一に）。`CI_SCOPE` で対象ブランチごとに行列を切り替え、develop 向け PR は 1 プラットフォーム（Linux x64・desktop nogui / wheel / chromium / ubuntu Electron / Python 3.9・3.13）、main 向け PR・main push・手動実行（`scope` 入力、既定 full）は full 行列。正本は `REF:docs/developers.md` §4.7 と `REF:docs/distribution.md` §8。
+- 2026-10-27（CI 不整合の修正）: マージ commit の実測で develop への push が必須 11 件のうち平台 2 行（wheels・desktop の Linux x64）を報告しないことが分かったので、wheels / desktop-check に `develop` への push トリガーを追加（wheels は PR 同一 `paths`）、4 ワークフローの手動実行に `scope` 入力を追加した。Issue #29 の残る後続は X2（所有者の短編）・X4（文書文体）・X5（両市場の初回公開、トークン後）。
 - v0.1.0は公開済み。既存の版タグ・可動v0・配布バイナリは変更しない。Issue #29 の方針は「V1 延期、開発は V0 で継続」である。
 - 既知の問題の原本は `REF:docs/known-issues/ja.md` と `REF:docs/known-issues/en.md`。サイトで直接表示し、修正版公開後に削除する運用は `REF:docs/developers.md` §9に従う。READMEに不具合本文を重複させない。
 - 所有者指示: この作業は `develop` へマージすることを目指し、マージは所有者自身が行う。
