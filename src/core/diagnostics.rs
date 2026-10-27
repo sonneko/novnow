@@ -253,6 +253,26 @@ pub enum DiagnosticCode {
     W095,
     /// 台詞内の句読点直後の空白が作品内多数派と揃っていない（§7.2.2）（§7.2）
     W096,
+    /// 同じ文末尾で終わる文が 3 文連続（§7.2.3）（§7.2）
+    W097,
+    /// 1 場面で同じ語が 5 回以上（§7.2.4）（§7.2）
+    W098,
+    /// 同じ語が助詞・句読点のみを挟んで 2 回連続（§7.2.5）（§7.2）
+    W099,
+    /// 同じ文末助詞で終わる文が 3 文連続（§7.2.6）（§7.2）
+    W100,
+    /// 同じ語で始まる文が 3 文連続（§7.2.7）（§7.2）
+    W101,
+    /// 1 節で波ダッシュ「……」が 3 回以上（§7.2.8）（§7.2）
+    W102,
+    /// 1 場面で不確か表現（固定リスト）の同じ語が 3 回以上（§7.2.9）（§7.2）
+    W103,
+    /// 1 場面で同じ動詞語幹が 5 回以上（§7.2.10）（§7.2）
+    W104,
+    /// 1 場面で感嘆符が 5 回以上（§7.2.11）（§7.2）
+    W105,
+    /// 1 節でダッシュ「——」が 4 回以上（§7.2.12）（§7.2）
+    W106,
     /// 既定プロンプトを生成した（§7）
     I050,
     /// 未保存の変更がある（§7）
@@ -347,6 +367,16 @@ impl DiagnosticCode {
             Self::W094 => "W094",
             Self::W095 => "W095",
             Self::W096 => "W096",
+            Self::W097 => "W097",
+            Self::W098 => "W098",
+            Self::W099 => "W099",
+            Self::W100 => "W100",
+            Self::W101 => "W101",
+            Self::W102 => "W102",
+            Self::W103 => "W103",
+            Self::W104 => "W104",
+            Self::W105 => "W105",
+            Self::W106 => "W106",
             Self::I050 => "I050",
             Self::I051 => "I051",
             Self::I052 => "I052",
@@ -535,6 +565,16 @@ pub const CATALOG: &[CatalogRow] = &[
     (DiagnosticCode::W094, 0),
     (DiagnosticCode::W095, 1),
     (DiagnosticCode::W096, 1),
+    (DiagnosticCode::W097, 0),
+    (DiagnosticCode::W098, 2),
+    (DiagnosticCode::W099, 1),
+    (DiagnosticCode::W100, 1),
+    (DiagnosticCode::W101, 1),
+    (DiagnosticCode::W102, 1),
+    (DiagnosticCode::W103, 2),
+    (DiagnosticCode::W104, 2),
+    (DiagnosticCode::W105, 1),
+    (DiagnosticCode::W106, 1),
     (DiagnosticCode::I050, 0),
     (DiagnosticCode::I051, 0),
     (DiagnosticCode::I052, 1),
@@ -600,6 +640,16 @@ pub const TOGGLE_OFF: &[DiagnosticCode] = &[
     DiagnosticCode::W090,
     DiagnosticCode::W091,
     DiagnosticCode::W096,
+    DiagnosticCode::W097,
+    DiagnosticCode::W098,
+    DiagnosticCode::W099,
+    DiagnosticCode::W100,
+    DiagnosticCode::W101,
+    DiagnosticCode::W102,
+    DiagnosticCode::W103,
+    DiagnosticCode::W104,
+    DiagnosticCode::W105,
+    DiagnosticCode::W106,
 ];
 
 /// 既定で**有効**だがトグルできる診断（§7.2「既定の有効 / 無効」）。
@@ -626,7 +676,7 @@ pub type CostRow = (DiagnosticCode, Trigger, Scope);
 
 /// 実行コストの制御表（§7.2「実行コストの制御（MUST）」）。
 ///
-/// 載っているのは §7.2 の 17 件のみ。それ以外は [`Trigger::Unspecified`] で、
+/// 載っているのは §7.2 の 27 件のみ。それ以外は [`Trigger::Unspecified`] で、
 /// 実行タイミングは M4（診断）で決める。**範囲は MUST** なので、
 /// `Scope::Section` の診断をプロジェクト全体で計算してはいけない。
 pub const COST: &[CostRow] = &[
@@ -635,6 +685,16 @@ pub const COST: &[CostRow] = &[
     (DiagnosticCode::W088, Trigger::Editing, Scope::Section),
     (DiagnosticCode::W089, Trigger::Editing, Scope::Section),
     (DiagnosticCode::W090, Trigger::Editing, Scope::Section),
+    (DiagnosticCode::W097, Trigger::Editing, Scope::Section),
+    (DiagnosticCode::W098, Trigger::Editing, Scope::Scene),
+    (DiagnosticCode::W099, Trigger::Editing, Scope::Section),
+    (DiagnosticCode::W100, Trigger::Editing, Scope::Section),
+    (DiagnosticCode::W101, Trigger::Editing, Scope::Section),
+    (DiagnosticCode::W102, Trigger::Editing, Scope::Section),
+    (DiagnosticCode::W103, Trigger::Editing, Scope::Scene),
+    (DiagnosticCode::W104, Trigger::Editing, Scope::Scene),
+    (DiagnosticCode::W105, Trigger::Editing, Scope::Scene),
+    (DiagnosticCode::W106, Trigger::Editing, Scope::Section),
     (DiagnosticCode::W082, Trigger::Editing, Scope::Scene),
     (DiagnosticCode::W084, Trigger::Editing, Scope::Scene),
     (DiagnosticCode::W085, Trigger::Editing, Scope::Scene),

@@ -21,7 +21,7 @@ pub struct State {
     observation_unmatched: bool,
     pub reader_position: Option<(String, usize)>,
     pub(super) address_cells: std::collections::BTreeMap<(String, String), String>,
-    observation_filters: [bool; 8],
+    observation_filters: [bool; 18],
     observation_loaded: bool,
     pub tabs: [usize; 9],
     pub(super) query: search::Query,
@@ -241,8 +241,10 @@ pub fn show(
             "stage.observations" => {
                 use crate::core::diagnostics::DiagnosticCode as C;
                 if !state.observation_loaded {
-                    state.observation_filters =
-                        [false, false, false, false, false, true, false, false];
+                    state.observation_filters = [
+                        false, false, false, false, false, true, false, false, false, false, false,
+                        false, false, false, false, false, false, false,
+                    ];
                     state.observation_unmatched = true;
                     state.observation_loaded = true;
                 }
@@ -256,6 +258,16 @@ pub fn show(
                     C::W082,
                     C::W083,
                     C::W096,
+                    C::W097,
+                    C::W098,
+                    C::W099,
+                    C::W100,
+                    C::W101,
+                    C::W102,
+                    C::W103,
+                    C::W104,
+                    C::W105,
+                    C::W106,
                 ];
                 ui.horizontal_wrapped(|ui| {
                     for (index, code) in codes.iter().enumerate() {

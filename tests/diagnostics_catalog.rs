@@ -48,7 +48,7 @@ struct Row {
 }
 
 #[test]
-fn the_spec_has_77_codes_in_three_tables() {
+fn the_spec_has_87_codes_in_three_tables() {
     // 第 2.17 版で v0 移行系の 5 件（W040 / E061 / W066 / W067 / I053）を削除した
     let rows = all_rows();
     let core = count_group(&rows, Group::Core);
@@ -56,8 +56,8 @@ fn the_spec_has_77_codes_in_three_tables() {
     let writing = count_group(&rows, Group::Writing);
     assert_eq!(core, 39);
     assert_eq!(storage, 10);
-    assert_eq!(writing, 28);
-    assert_eq!(rows.len(), 77);
+    assert_eq!(writing, 38);
+    assert_eq!(rows.len(), 87);
     assert_eq!(CATALOG.len(), rows.len());
 }
 
@@ -183,7 +183,7 @@ fn the_default_toggles_match_the_spec() {
     let on = codes_on_the_line("v0.1.0 の既定で **有効** なのは");
     let off = codes_on_the_line("は **既定で無効** とし");
     assert_eq!(on.len(), 9);
-    assert_eq!(off.len(), 8);
+    assert_eq!(off.len(), 18);
     for text in &on {
         let code = lookup(text);
         assert_eq!(code.toggle(), Toggle::OnByDefault, "{text}");
@@ -219,7 +219,7 @@ fn the_default_toggles_match_the_spec() {
 fn the_cost_table_matches_the_spec() {
     // §7.2「実行コストの制御（MUST）」。範囲は MUST なので、`Scope::Section` の診断を
     // プロジェクト全体で計算してはいけない
-    assert_eq!(COST.len(), 17);
+    assert_eq!(COST.len(), 27);
     for row in COST {
         let text = row.0.as_str();
         let line = cost_line(text);
