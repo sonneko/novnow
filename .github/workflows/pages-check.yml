@@ -72,12 +72,22 @@ jobs:
         with:
           name: combined-pages
           path: website/dist
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-1.64.1-ubuntu24.04-${{ matrix.browser }}
       - name: Install the browser
         run: |
           npm install --prefix "$RUNNER_TEMP/browser" playwright@1.64.1
           playwright_bin="$RUNNER_TEMP/browser/node_modules/.bin/playwright"
-          # webkit の導入が止まることがあるため、上限を付けて 1 回だけやり直す
-          timeout 600 "$playwright_bin" install --with-deps ${{ matrix.browser }} || timeout 600 "$playwright_bin" install --with-deps ${{ matrix.browser }}
+          # システム依存（apt）は毎回入れる。ブラウザ本体はキャッシュがあれば落とさない。
+          # 導入が止まることがあるため、上限を付けて 1 回だけやり直す
+          timeout 600 "$playwright_bin" install-deps ${{ matrix.browser }} || timeout 600 "$playwright_bin" install-deps ${{ matrix.browser }}
+          if [ "${{ steps.pw-cache.outputs.cache-hit }}" != "true" ]; then
+            timeout 420 "$playwright_bin" install ${{ matrix.browser }} || timeout 420 "$playwright_bin" install ${{ matrix.browser }}
+          fi
       - name: Install deterministic Firefox software graphics
         if: matrix.browser == 'firefox'
         run: |
