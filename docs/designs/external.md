@@ -28,7 +28,7 @@
 - **なぜ軸を置かないか**: 同梱物を外に置く版を作ると、(1) 配布物の置き場所に依存する読み取り経路が増え、(2) 「実行ファイル 1 個で動く」という検証が 2 通りになり、(3) 得られる削減が同梱フォントの約 6 MB だけである。履歴ファイル以外をプロジェクト外に置かない現状では、利用者から見た違いがほぼ無いため、軸そのものを持たない（2026-10-23 の裁定）。
 - **GUI なしのビルド**: `ui` feature を付けない。`--gui` は既存の `Exit::Usage`（`REF:src/cli/mod.rs`）へ流す。`tests/cli.rs` に「引数なし + 非 TTY + GUI なしビルド → 使い方表示・終了コード 2」を足す。
 - **Windows のサブシステム**: GUI 版だけ `#![windows_subsystem = "windows"]` を効かせる。既存の `REF:src/main.rs` の cfg を feature で切り替える（`#[cfg_attr(all(windows, feature = "ui"), windows_subsystem = "windows")]`）。
-- **CI 行列の負荷**: 10 ジョブは 1 つのワークフローにまとめ、タグ公開と `workflow_dispatch` のときだけ走らせる。PR では 2 通り（`ui` あり/なし）だけをビルドして `cargo build` が通ることを見る。
+- **CI 行列の負荷**: desktop 行列（10 ジョブ）は 1 つのワークフロー（`REF:.github/workflows/desktop-check.yml`）にまとめ、PR の対象ブランチのスコープで実行範囲を決める（`docs/developers.md` §4.7）。`main` 向け PR・`workflow_dispatch` は full 行列、`develop` 向け PR は 1 プラットフォームの最小（Linux x64 の nogui のみ）。タグ公開の本流は `release.yml`。
 - **テスト**: `tests/distribution.rs` が (1) 命名の 10 通りと重複の無さ、(2) 同じ版で 5 対象環境 × 2 画面が揃うこと、(3) `ui` の有無で保存形式のテスト（`REF:tests/roundtrip.rs`）と診断のゴールデン（`REF:tests/golden.rs`）が同じ結果になること、を確かめる。同梱物が実行ファイルに含まれることは、GUI なしの成果物に `assets/ipag.ttf` のファイルが入っていないこと（アーカイブの中身）で見る。
 
 ### 20.3 Python ライブラリ版

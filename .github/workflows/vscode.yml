@@ -12,6 +12,11 @@ on:
 permissions:
   contents: read
 
+# CI スコープの判定は 4 ワークフロー（wheels / desktop-check / pages-check / vscode）
+# で同一。docs/developers.md §4.7。
+env:
+  CI_SCOPE: ${{ github.event_name == 'workflow_dispatch' && 'full' || (github.event_name == 'pull_request' && (github.base_ref == 'main' && 'full' || 'develop')) || (github.ref_name == 'main' && 'full' || 'develop') }}
+
 concurrency:
   group: vscode-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -20,10 +25,22 @@ jobs:
   unit:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
+    outputs:
+      electron: ${{ steps.scope.outputs.electron }}
     defaults:
       run:
         working-directory: vscode
     steps:
+      - name: Select the Electron matrix by CI scope
+        id: scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$CI_SCOPE" = develop ]; then
+            echo 'electron={"os":["ubuntu-latest"]}' >> "$GITHUB_OUTPUT"
+          else
+            echo 'electron={"os":["ubuntu-latest","macos-latest","windows-latest"]}' >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -49,10 +66,10 @@ jobs:
           PY
 
   electron:
+    # OS の行列はスコープで決まる（develop 向け PR は ubuntu のみ、docs/developers.md §4.7）。
     strategy:
       fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+      matrix: ${{ fromJSON(needs.unit.outputs.electron) }}
     needs: unit
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ${{ matrix.os }}

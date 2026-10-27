@@ -11,6 +11,11 @@ on:
 permissions:
   contents: read
 
+# CI スコープの判定は 4 ワークフロー（wheels / desktop-check / pages-check / vscode）
+# で同一。docs/developers.md §4.7。
+env:
+  CI_SCOPE: ${{ github.event_name == 'workflow_dispatch' && 'full' || (github.event_name == 'pull_request' && (github.base_ref == 'main' && 'full' || 'develop')) || (github.ref_name == 'main' && 'full' || 'develop') }}
+
 concurrency:
   group: pages-check-${{ github.ref }}
   cancel-in-progress: true
@@ -20,7 +25,19 @@ jobs:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    outputs:
+      browsers: ${{ steps.scope.outputs.browsers }}
     steps:
+      - name: Select the browser matrix by CI scope
+        id: scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$CI_SCOPE" = develop ]; then
+            echo 'browsers={"browser":["chromium"]}' >> "$GITHUB_OUTPUT"
+          else
+            echo 'browsers={"browser":["chromium","firefox","webkit"]}' >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -52,9 +69,10 @@ jobs:
           path: website/dist
           retention-days: 7
 
-  # ブラウザ試験は3種とも毎回実行するが、必須チェックの扱いはブランチで違う:
-  # develop 向け PR では chromium のみ必須（firefox/webkit は偽陽性が多いため参考情報）、
-  # main 向け PR では3種すべて必須。ruleset 側の設定であり、正本は docs/distribution.md §8。
+  # ブラウザ行列は CI スコープで変わる（develop 向け PR は chromium のみ、
+  # main 向け PR・push・手動実行は3種。docs/developers.md §4.7）。
+  # 必須チェックの扱いは同様にブランチで違う: develop では chromium のみ必須、
+  # main では3種すべて必須。ruleset 側の設定であり、正本は docs/distribution.md §8。
   browsers:
     needs: build
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
@@ -64,8 +82,7 @@ jobs:
     timeout-minutes: 30
     strategy:
       fail-fast: false
-      matrix:
-        browser: [chromium, firefox, webkit]
+      matrix: ${{ fromJSON(needs.build.outputs.browsers) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

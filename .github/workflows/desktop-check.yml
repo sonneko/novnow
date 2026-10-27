@@ -1,6 +1,11 @@
 name: Desktop artifacts
 
 # Read-only release rehearsal: build and inspect archives, never publish or sign.
+#
+# CI スコープ（`CI_SCOPE`、docs/developers.md §4.7）:
+# - main 向け PR・workflow_dispatch = 10 構成すべて（5 対象環境 × gui/nogui）。
+# - develop 向け PR = Linux x64 の nogui 1 構成のみ（GUI のコンパイル・リンクは
+#   ci.yml の clippy / test（--features ui）が担うため）。
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -8,6 +13,9 @@ on:
 
 permissions:
   contents: read
+
+env:
+  CI_SCOPE: ${{ github.event_name == 'workflow_dispatch' && 'full' || (github.event_name == 'pull_request' && (github.base_ref == 'main' && 'full' || 'develop')) || (github.ref_name == 'main' && 'full' || 'develop') }}
 
 concurrency:
   group: desktop-check-${{ github.ref }}
@@ -22,7 +30,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - id: matrix
-        run: echo "desktop=$(python3 scripts/release-matrix.py --desktop)" >> "$GITHUB_OUTPUT"
+        run: echo "desktop=$(python3 scripts/release-matrix.py --desktop --scope "$CI_SCOPE")" >> "$GITHUB_OUTPUT"
 
   build:
     needs: prepare

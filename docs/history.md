@@ -2208,3 +2208,9 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - `src/ui/app.rs`（8823 行）から独立した塊を切り出し、`NovnowApp` 本体を残した：起動前の画面（`Picker` trait・`NativePicker`・デスクトップの Host・移行状態）は `src/ui/picker.rs`、パレットの候補生成とコマンド解決は `src/ui/palette_items.rs`、ステータスバーと省略判定とミニヘッダーは `src/ui/status.rs`（6611 行へ）。
 - 受け入れ条件の確認: 全テストは無変更で全て通り（ゴールデン差分ゼロ）、`stage_two` の名前は `src/` から消えた（`tests/stage_two.rs` のファイル名は歴史の記録として残す）。公開 API（§19）の形と利用者から見える振る舞いは不変。
 - 設計書 overview §3.3・`docs/developers.md` §3 のソースツリーと、文書中の `REF:` パス（NativePicker・ステータスバー・palette_items 等）を追随させた。
+## 2026-10-27: ブランチ別の CI スコープ（develop 向け PR は 1 プラットフォームの最小行列）
+
+- `browsers (webkit)` の偽陽性で develop 向け PR の Checks が赤くなった件をきっかけに、各プラットフォームのビルドを最小化する CI 改定を行った（所有者指示 2026-10-27: 保守性を最低限保ちつつ開発速度を上げることを第一に）。
+- 4 ワークフロー（wheels / desktop-check / pages-check / vscode）が workflow 先頭の `CI_SCOPE` で行列を決める。`main` 向け PR・`main` への push・`workflow_dispatch` は full 行列（変更なし）。`develop` 向け PR・`develop` への push は最小スコープで、プラットフォームの行列ジョブは 21 本から 4 本（Python 試験は 3 版から 2 版）になる: Desktop は Linux x64 の nogui のみ（GUI のコンパイル・リンクは ci.yml の clippy / test `--features ui` が担う）、wheel は Linux x64 のみ（Python 試験が導入するホイールと同一）、Python 試験は 3.9 / 3.13 の境界 2 版、ブラウザは chromium のみ（firefox / webkit は偽陽性のため develop 向け PR では実行しない）、Electron は ubuntu のみ。行列の選択は `REF:scripts/release-matrix.py --scope`（develop スコープは 1 行を返す。`--pythons` を追加）と各ワークフローのスコープステップが担う。
+- CI コア（文書整合・Rustfmt・Clippy・全テスト・WASM サイズ・ベンチマーク・性能予算・Python API）はスコープに関係なく常時実行する。macOS / Windows / arm64 のビルドは `main` 向け PR（リリースゲート）の full 行列で検証される。
+- 必須チェックはスコープで走る項目に一致させる。`protect-develop` は 11 件（23 件から、Linux x64 以外の 12 のプラットフォーム行列を外す）へ所有者が更新する。一覧は `REF:docs/distribution.md` §8。`protect-main` は変更しない（18 件）。運用の正本は `REF:docs/developers.md` §4.7。
