@@ -201,7 +201,7 @@ fn every_diagnostic_code_has_a_message_in_both_languages() {
         .cloned()
         .collect();
     assert_eq!(have, want);
-    assert_eq!(want.len(), 76);
+    assert_eq!(want.len(), 77);
     assert!(want.iter().all(|key| en.contains_key(key)));
 }
 
@@ -211,7 +211,7 @@ fn diag_messages_are_copied_verbatim_from_the_spec() {
     let ja = flatten(JA, "ja.toml");
     let en = flatten(EN, "en.toml");
     let rows = spec_rows();
-    assert_eq!(rows.len(), 76);
+    assert_eq!(rows.len(), 77);
     for (code, spec_ja, spec_en) in rows {
         let key = format!("diag.{code}");
         assert_eq!(ja.get(&key), Some(&spec_ja), "ja {key}");
@@ -580,7 +580,7 @@ fn every_api_key_matches_the_canonical_operations() {
     );
 
     let ids = canonical_op_ids();
-    assert_eq!(ids.len(), 119, "§19.7 の行数と合わない: {}", ids.len());
+    assert_eq!(ids.len(), 120, "§19.7 の行数と合わない: {}", ids.len());
     for id in &ids {
         let key = format!("api.op.{id}");
         assert!(ja.contains_key(&key), "ja.toml に {key} が無い");
@@ -602,7 +602,7 @@ fn every_api_key_matches_the_canonical_operations() {
     for locale in [Locale::Ja, Locale::En] {
         let catalog = novnow::app::ops::catalog(locale);
         let operations = catalog["operations"].as_array().expect("operations");
-        assert_eq!(operations.len(), 119);
+        assert_eq!(operations.len(), 120);
         for operation in operations {
             let id = operation["id"].as_str().expect("id");
             let description = operation["description"].as_str().expect("description");

@@ -29,7 +29,7 @@ use novnow::lsp::{commands, convert, framing, server};
 const ROOT: &str = "/tmp/novel";
 
 /// サンプルの本文（`novnow new` が入れる 1 本目）。
-const MANUSCRIPT: &str = "contents/01-01.txt";
+const MANUSCRIPT: &str = "contents/01-01.cnov";
 
 /// メモリ上の仮想プロジェクトを LSP として開く（§19.2.1）。
 fn open() -> Session {
@@ -496,7 +496,7 @@ fn the_standard_methods_answer_from_the_catalog() {
             "{name}: file URI ではない: {location_uri}"
         );
         assert!(
-            location_uri.ends_with(".txt") || location_uri.ends_with(".md"),
+            location_uri.ends_with(".cnov") || location_uri.ends_with(".md"),
             "{name}: 文書ではない場所を指している: {location_uri}"
         );
         check_range(&location["range"], name);
@@ -522,7 +522,7 @@ fn the_standard_methods_answer_from_the_catalog() {
     );
 
     // executeCommand は操作カタログへ届く（§19.4.5）。
-    assert_eq!(result_of(&messages, 15)["count"], json!(119));
+    assert_eq!(result_of(&messages, 15)["count"], json!(120));
 
     // 診断は `didOpen` と `didChange` の後に出る（§19.4.4）。
     let published = notifications(&messages, "textDocument/publishDiagnostics");
@@ -620,7 +620,7 @@ fn execute_command_reaches_the_catalog_and_can_apply_an_edit() {
         notify("exit", Value::Null),
     ];
     let messages = talk(&mut session, &bodies);
-    assert_eq!(result_of(&messages, 2)["count"], json!(119), "§19.7 の全行");
+    assert_eq!(result_of(&messages, 2)["count"], json!(120), "§19.7 の全行");
     assert_eq!(
         result_of(&messages, 3)["command"],
         json!(palette),

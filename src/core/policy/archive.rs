@@ -19,7 +19,7 @@ pub const KEPT_DOTFILES: &[&str] = &[".gitignore", ".gitkeep"];
 pub const MACOS_METADATA_DIR: &str = "__MACOSX";
 
 /// プロジェクトの構成で使うディレクトリ名（§4.1）。Zip の単一ルートがこの名前で、しかも
-/// その下に `project.json` が無ければ「ルートディレクトリ」ではなく中身とみなして剥がさない。
+/// その下に `project.toml` が無ければ「ルートディレクトリ」ではなく中身とみなして剥がさない。
 pub const LAYOUT_DIRS: &[&str] = &[
     "contents",
     "plots",
@@ -166,7 +166,7 @@ pub fn plan_import(entries: &[ArchiveEntry]) -> ImportPlan {
     plan
 }
 
-/// 先頭の `./` を外す（`./contents/01-01.txt` のような書き方の Zip がある）。
+/// 先頭の `./` を外す（`./contents/01-01.cnov` のような書き方の Zip がある）。
 fn trim_current_dir(name: &str) -> &str {
     let mut rest = name;
     while let Some(after) = rest.strip_prefix("./") {
@@ -180,7 +180,7 @@ fn trim_current_dir(name: &str) -> &str {
 ///
 /// 剥がさないのは: エントリが無い・ルート直下にファイルがある・先頭の要素が 2 種類以上・
 /// 先頭の要素が普通の名前でない（`..` 等。剥がして安全にすることはしない）・先頭の要素が
-/// プロジェクトの構成のディレクトリ名（[`LAYOUT_DIRS`]）でその下に `project.json` が無い。
+/// プロジェクトの構成のディレクトリ名（[`LAYOUT_DIRS`]）でその下に `project.toml` が無い。
 fn single_root(names: &[&str]) -> Option<String> {
     let mut root: Option<&str> = None;
     for name in names {
@@ -198,7 +198,7 @@ fn single_root(names: &[&str]) -> Option<String> {
     }
     let has_project_file = names
         .iter()
-        .any(|name| name.strip_prefix(root) == Some("/project.json"));
+        .any(|name| name.strip_prefix(root) == Some("/project.toml"));
     if LAYOUT_DIRS.contains(&root) && !has_project_file {
         return None;
     }

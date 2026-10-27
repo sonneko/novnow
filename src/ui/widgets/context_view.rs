@@ -12,6 +12,7 @@ use egui::{Align, Color32, FontFamily, FontId, Pos2, Rect, Sense, Stroke, Ui, Ve
 
 use crate::core::features::project::line_starts_of;
 use crate::core::features::sections::SectionRef;
+use crate::core::id::SceneId;
 use crate::ui::i18n::{self, Locale};
 use crate::ui::save_machine::Indicator;
 use crate::ui::theme::{self, Mode};
@@ -65,6 +66,15 @@ pub struct Placeholder<'a> {
     pub accessible: &'a str,
 }
 
+/// 文脈ビューでのマウス操作。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Action {
+    /// 節の本文をクリック（その節へ移動）。並びの位置。
+    Go(usize),
+    /// 節の削除ボタン（§8.1.2。本文と対応プロットの一体削除は呼び出し側の単一経路）。
+    Delete(SceneId),
+}
+
 /// 文脈ビューを描く。クリックされた節の並びの位置を返す。
 #[allow(clippy::too_many_arguments)] // UI の描画設定と表示中の節をそれぞれ明示的に渡す
 pub fn show(
@@ -77,7 +87,7 @@ pub fn show(
     max_columns: usize,
     locale: Locale,
     placeholder: &Placeholder<'_>,
-) -> Option<usize> {
+) -> Option<Action> {
     let colors = theme::palette(mode);
     let metrics = Metrics {
         size: 15.0 * scale,
@@ -86,7 +96,7 @@ pub fn show(
     let list = bench.sections();
     let split = bench.split_index();
     let editing = bench.current().cloned();
-    let mut clicked = None;
+    let mut clicked: Option<Action> = None;
     let scroll_key = editing
         .as_ref()
         .map(|section| (section.path.clone(), section.lines.start));
@@ -98,16 +108,19 @@ pub fn show(
             let width = ui.available_width().min(metrics.size * max_columns as f32);
             let (before, after) = neighbours(list, split, editing.as_ref(), count);
             for index in before {
-                if let Some(found) =
-                    draw_section(ui, bench, cache, &list[index], mode, metrics, width)
-                {
-                    if found {
-                        clicked = Some(index);
-                    }
+                match draw_section(ui, bench, cache, &list[index], mode, metrics, width, locale) {
+                    Some(SectionHit::Go) => clicked = Some(Action::Go(index)),
+                    Some(SectionHit::Delete(id)) => clicked = Some(Action::Delete(id)),
+                    None => {}
                 }
             }
             if editing.is_some() {
-                let rect = draw_placeholder(ui, placeholder, mode, width, scale, locale);
+                let (rect, delete) = draw_placeholder(ui, placeholder, mode, width, scale, locale);
+                if delete {
+                    if let Some(section) = &editing {
+                        clicked = Some(Action::Delete(section.id));
+                    }
+                }
                 if need_scroll {
                     // 上から 38% に来るように（中央合わせの基準を 12% 上へずらす）
                     let height = ui.clip_rect().height();
@@ -121,12 +134,10 @@ pub fn show(
                 ui.label(egui::RichText::new("—").color(colors.fg_faint));
             }
             for index in after {
-                if let Some(found) =
-                    draw_section(ui, bench, cache, &list[index], mode, metrics, width)
-                {
-                    if found {
-                        clicked = Some(index);
-                    }
+                match draw_section(ui, bench, cache, &list[index], mode, metrics, width, locale) {
+                    Some(SectionHit::Go) => clicked = Some(Action::Go(index)),
+                    Some(SectionHit::Delete(id)) => clicked = Some(Action::Delete(id)),
+                    None => {}
                 }
             }
         });
@@ -169,7 +180,16 @@ fn neighbours(
     (before, after)
 }
 
-/// 節 1 つ（番号 + 本文）。クリックされたら `Some(true)`。
+/// [`draw_section`] でのクリック。
+enum SectionHit {
+    /// 本文（その節へ移動）。
+    Go,
+    /// 削除ボタン。
+    Delete(SceneId),
+}
+
+/// 節 1 つ（番号 + 本文）。クリックされたら `Some`。
+#[allow(clippy::too_many_arguments)]
 fn draw_section(
     ui: &mut Ui,
     bench: &Workbench,
@@ -178,7 +198,8 @@ fn draw_section(
     mode: Mode,
     metrics: Metrics,
     width: f32,
-) -> Option<bool> {
+    locale: Locale,
+) -> Option<SectionHit> {
     let colors = theme::palette(mode);
     let full = section.id.display(bench.project().digits());
     let levels: Vec<&str> = full.split('-').collect();
@@ -231,7 +252,7 @@ fn draw_section(
         }
     });
     if hidden {
-        return Some(false);
+        return None;
     }
     let document = bench.project().document(&section.path)?;
     let range = {
@@ -273,9 +294,10 @@ fn draw_section(
         Stroke::new(1.0_f32, colors.border),
     );
     ui.add_space(8.0);
-    // 節番号（右寄せ・10px・fg.faint）
+    // 節番号（右寄せ・10px・fg.faint）と削除ボタン（§8.1.2）
     let digits = bench.project().digits();
     let label = format!("@{}", section.id.display(digits));
+    let mut delete = false;
     ui.allocate_ui_with_layout(
         Vec2::new(width, 12.0),
         egui::Layout::right_to_left(Align::Center),
@@ -285,8 +307,21 @@ fn draw_section(
                     .font(FontId::new(10.0, FontFamily::Monospace))
                     .color(colors.fg_faint),
             );
+            // 右から左のレイアウトでは `Label` の割当矩形と描画位置がずれるため、
+            // ボタン系の共通部品で描く（当たり判定と見た目が一致する）
+            let button = crate::ui::widgets::selectable_action(
+                ui,
+                false,
+                egui::RichText::new(i18n::text(locale, "delete.button"))
+                    .font(FontId::new(10.0, FontFamily::Proportional))
+                    .color(colors.fg_faint),
+            );
+            delete = button.clicked();
         },
     );
+    if delete {
+        return Some(SectionHit::Delete(section.id));
+    }
     let job = syntax_text::job(text, &highlight, mode, metrics, width);
     let galley = ui.fonts(|fonts| fonts.layout_job(job));
     cache
@@ -310,7 +345,7 @@ fn draw_section(
         egui::Stroke::new(0.6_f32, colors.border),
     );
     syntax_text::paint_squiggles(&painter, rect.min, &galley, text, &highlight, mode);
-    Some(response.clicked())
+    response.clicked().then_some(SectionHit::Go)
 }
 
 /// プレースホルダ（§9.3.2。高さ 56px・背景 `bg.inset`・左端に 3px の `accent` 縦線）。
@@ -321,7 +356,7 @@ fn draw_placeholder(
     width: f32,
     scale: f32,
     locale: Locale,
-) -> Rect {
+) -> (Rect, bool) {
     let colors = theme::palette(mode);
     ui.add_space(8.0);
     let (rect, response) = ui.allocate_exact_size(Vec2::new(width, 56.0), Sense::hover());
@@ -354,8 +389,8 @@ fn draw_placeholder(
     painter.text(
         Pos2::new(dot_x - 20.0, center_y),
         egui::Align2::RIGHT_CENTER,
-        count,
-        font,
+        count.clone(),
+        font.clone(),
         colors.fg_muted,
     );
     if placeholder.chars == 0 {
@@ -377,7 +412,50 @@ fn draw_placeholder(
         }
         Indicator::Spinner | Indicator::Nothing => {}
     }
-    rect
+    // 編集中の節の削除ボタン（§8.1.2。文字数の左に置く）
+    let delete_font = FontId::new(11.0 * scale, FontFamily::Proportional);
+    let delete_text = i18n::text(locale, "delete.button");
+    let (delete_width, count_width) = ui.fonts(|fonts| {
+        (
+            fonts
+                .layout_no_wrap(delete_text.to_owned(), delete_font.clone(), colors.fg_faint)
+                .size()
+                .x,
+            fonts
+                .layout_no_wrap(count.clone(), font.clone(), colors.fg_muted)
+                .size()
+                .x,
+        )
+    });
+    let button_min = Pos2::new(
+        dot_x - 20.0 - count_width - 14.0 - delete_width,
+        center_y - 12.0,
+    );
+    let button_rect = Rect::from_min_size(button_min, Vec2::new(delete_width.max(24.0), 24.0));
+    let button = ui.interact(
+        button_rect,
+        egui::Id::new("context-delete-current"),
+        Sense::click(),
+    );
+    if button.hovered() {
+        painter.rect_filled(button_rect, 2.0, colors.bg_selection.gamma_multiply(0.6));
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    painter.text(
+        Pos2::new(button_min.x, center_y),
+        egui::Align2::LEFT_CENTER,
+        delete_text,
+        delete_font,
+        colors.fg_faint,
+    );
+    painter.line_segment(
+        [
+            Pos2::new(button_min.x, center_y + 7.0 * scale),
+            Pos2::new(button_min.x + delete_width, center_y + 7.0 * scale),
+        ],
+        Stroke::new(0.6_f32, colors.border),
+    );
+    (rect, button.clicked())
 }
 
 fn pencil(painter: &egui::Painter, at: Pos2, color: Color32) {
@@ -457,7 +535,7 @@ mod viewport_tests {
         }
         let project = Project::with_documents(
             Settings::default(),
-            [Document::new("contents/01-01.txt", prose)],
+            [Document::new("contents/01-01.cnov", prose)],
         );
         let bench = Workbench::new(project, None, 400);
         assert!(bench.sections().len() > 9);

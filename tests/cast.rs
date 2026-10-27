@@ -109,7 +109,7 @@ fn unmatched_dialogue_lists_lines_whose_speaker_patterns_all_fail() {
             section: 1
         }
     );
-    assert_eq!(item.path, "contents/01-01.txt");
-    let text = project.text("contents/01-01.txt");
+    assert_eq!(item.path, "contents/01-01.cnov");
+    let text = project.text("contents/01-01.cnov");
     assert!(text[item.byte..].starts_with("明日も来るの？"));
 }

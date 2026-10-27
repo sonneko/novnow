@@ -128,8 +128,10 @@ pub fn command_of(
         Key::Escape => Command::Escape,
         Key::Enter if ctrl && !alt && !shift => Command::ConfirmNext,
         Key::Semicolon if ctrl && !alt && !shift => Command::NewSection,
-        // `Shift+;` は配列によって `:` として来る
-        Key::Semicolon | Key::Colon if ctrl && !alt && shift => Command::DeleteSection,
+        // `Shift+;` は配列によって `:` として来る。`:` は Shift 無しで出る配列（JIS）もある
+        Key::Semicolon if ctrl && !alt && shift => Command::DeleteSection,
+        Key::Colon if ctrl && !alt => Command::DeleteSection,
+        Key::Delete if ctrl && !alt && shift => Command::DeleteSection,
         Key::F if ctrl && !alt && shift => Command::Search,
         Key::F if ctrl && !alt => Command::Find,
         Key::H if ctrl && !alt && !shift => Command::Replace,

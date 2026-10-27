@@ -118,7 +118,8 @@ novnow/
 ├── examples/
 │   ├── api_catalog.rs         # 正規操作カタログのゴールデン生成（REF:examples/api_catalog.rs）
 │   ├── mcp_tools.rs           # MCP ツール定義のゴールデン生成（REF:examples/mcp_tools.rs）
-│   └── sample-novel/          # 付録 C のサンプルプロジェクト一式（REF:examples/sample-novel/project.json）
+│   ├── sample-novel/          # 付録 C のサンプルプロジェクト一式（REF:examples/sample-novel/project.toml）
+│   └── manual-check/          # GUI の動作確認用プロジェクト
 ├── scripts/
 │   ├── bootstrap-toolchain.sh # サンドボックス用 Rust ツールチェーン展開（REF:scripts/bootstrap-toolchain.sh）
 │   ├── bootstrap-jpeg.sh      # 同梱 JPEG デコーダの展開
@@ -142,7 +143,7 @@ novnow/
 │   ├── ports/                 # 外部境界 trait（storage, clock, mcp, env, dialog）
 │   ├── adapters/              # 環境別実装（storage_fs, storage_idb, recent_file, zip, project_load,
 │   │                          #   env_system, mcp_stdio, mcp_http, clock_system, dialog_rfd）
-│   ├── app/                   # 描画と無縁の状態機械と 119 操作の機能核（REF:docs/specifications/interfaces.md §19）
+│   ├── app/                   # 描画と無縁の状態機械と 120 操作の機能核（REF:docs/specifications/interfaces.md §19）
 │   │   ├── session.rs / driver.rs / workbench.rs / save_machine.rs / settings.rs
 │   │   ├── palette.rs / assist.rs / agents.rs / command.rs / commands.rs
 │   │   ├── host.rs / memory_host.rs / fs_host.rs / event.rs / error.rs / workspace.rs
@@ -158,7 +159,6 @@ novnow/
 ├── python/
 │   └── novnow-py/             # PyO3 拡張（python/novnow/__init__.pyi は自動生成）REF:python/novnow-py/README.md
 ├── website/                   # Astro の公式サイト（診断・API のページは仕様書から生成）
-├── contents/ , project.json/  # GUI の動作確認用のサンプルプロジェクト
 └── tests/                     # 統合テスト・アーキテクチャ境界検査・仕様照合テスト群
 ```
 
@@ -246,7 +246,7 @@ CI_LOG=/tmp/ci.log CI_JOB="Local test run" CI_KIND=test CI_STATUS=success \
 ### 4.6 `python3 docs/script/reference.py`（文書と実装の突き合わせ）
 
 `REF:docs/script/duplicate.py` が見るのは**文書の規約**（構成・重複・`REF:` の実在・見出し一致・`SYNC` の一致）である。
-規約を守っていても「中身が実装とずれている」ことはあり得るので、`REF:docs/script/reference.py` が次の 12 項目を機械検査する。
+規約を守っていても「中身が実装とずれている」ことはあり得るので、`REF:docs/script/reference.py` が次の 13 項目を機械検査する。
 
 | # | 検査 | 何を捕まえるか | 実例（この検査で実際に見つかったもの） |
 |---|---|---|---|
@@ -262,6 +262,7 @@ CI_LOG=/tmp/ci.log CI_JOB="Local test run" CI_KIND=test CI_STATUS=success \
 | 10 | Actions の節約 | `concurrency` の無いワークフロー、draft で走る PR ジョブ、廃止ランナー（`macos-13`）、変更フィルタの消失、`[ci skip]` フックの欠落 | `REF:.github/workflows/wheels.yml` に `concurrency` が無かった（4 OS の行列が二重に走る） |
 | 11 | 公開する手引き | 仕様 §14.2.1 の 3 URL の実体、`docs/users` の参照方向、ガイドモードの段階と手引きの一致 | 生成前の `guide/publish.html` の 404（アプリのヘルプから開けなかった） |
 | 12 | 配布形態 | 仕様 §20 の選択肢の数（1・10・5・1・1）、名前の形、廃止した軸（同時起動の制限・同梱物の外置き）が仕様・設計・手順・利用者向けへ戻る。数を書き写した README・`docs/users/install.md` の値、全ソースを含む最終成果物数、配布設計の廃止済み認証・設定も見る | デスクトップ版を 20 通りと書いたまま残った表（軸を廃止した直後） |
+| 13 | 検証の地図 | §4.6.2 の地図に書いた検査のパス・名前が実在しない（検査一覧そのものの陳腐化） | （陳腐化の予防として追加） |
 
 ```bash
 python3 docs/script/reference.py          # 検査（違反があれば終了コード 1）
@@ -294,6 +295,23 @@ CI だけに検査が増えた時点で静かに壊れるため。CI の `docs` 
 新しい検査を足すときは `REF:docs/script/reference.py` の `CHECKS` に 1 項目追加し、
 `REF:docs/script/test_reference.py` に判定の単体テストを足す（検査器自身の退行を防ぐ）。
 
+#### 4.6.2 検証の地図（領域別）
+
+「何がどの検査で守られているか」の領域別の一覧である。検査のパスと名前はバッククォートで書き、
+実在を検査 13（`check_verification_map`）が確かめる。空白地帯は隠さず書く。
+
+| 領域 | 主な検査 | 空白地帯（機械で見ていない） |
+|---|---|---|
+| `src/core` | `tests/model.rs` / `tests/lexer.rs` / `tests/diagnostics_catalog.rs` / `tests/diagnostics_document.rs` / `tests/golden.rs` / `tests/layering.rs`（層・文字列の AST 検査） | 性能の回帰（ベンチは目安のみ）、網羅的な入力生成 |
+| `src/app` | `tests/api.rs` / `tests/api_fs.rs` / `tests/api_driver.rs` / `tests/api_parity.rs` / `tests/api_coverage.rs` | 同時編集の競合は代表ケース中心 |
+| `src/ui` | `tests/gui.rs` / `tests/workspaces.rs` / `tests/harness/mod.rs` | 実描画の見た目（§4.6.1）、実機の IME とフォーカス（§4.9） |
+| CLI | `tests/cli.rs`（仕様の出力ブロックを `spec_block` で直接照合） | 実端末での対話表示 |
+| LSP | `tests/lsp.rs` | 実エディタでの接続（§4.9） |
+| Python | `scripts/python-check.sh` / `python/novnow-py/tests/test_binding.py` | 実機ホイールの取り込み確認（§4.9） |
+| Web | `scripts/web-smoke.sh` / `scripts/web-smoke.mjs` / `tests/storage_idb.rs` | iOS Safari の実機動作（再現不可、M-6） |
+| 文書 | `docs/script/duplicate.py` / `docs/script/reference.py` / `docs/script/test_reference.py` | 散文の意味のずれ（§4.6.1） |
+| 配布 | `tests/distribution.rs` / `scripts/release-check.sh` / `scripts/release-matrix.py` | 市場公開の実績（発行者トークン待ち）、実機での起動（§4.9） |
+
 ---
 
 ### 4.7 Actions を無駄に使わない（既定は走らせない）
@@ -320,6 +338,22 @@ GitHub Actions は**走った分だけ**課金される。このリポジトリ�
 | Web 版の画面・IndexedDB・PWA（`scripts/web-smoke.sh` で手元確認できる） | 手元で `bash scripts/web-smoke.sh`、必要なら `ci` |
 | `python/**`・PyO3 のバージョン | `bash scripts/ci-run.sh wheels`（＋ `ci`） |
 | ワークフロー自体・リリース前 | `ci` と `wheels` の両方 |
+
+**所要時間の実測（2026-10-26、PR #36 と develop の実行。待ち時間短縮が主目的＝N29-01）**
+
+| ワークフロー | 壁時計 | クリティカルパス |
+|---|---|---|
+| CI | 約 3.3 分 | Benchmarks が約 3.0 分（Test 約 1.8 分より長い）。bench 用とリリース用の 2 系統のコンパイルが直列だった |
+| Desktop artifacts | 約 6.5 分 | Windows の GUI ビルド約 6.4 分（行列内は並行） |
+| wheels | 約 5.5 分 | ホイール試験約 2.9 分（ビルドの後段） |
+| VSCode Extension | 約 4.2 分 | Electron 試験（Windows）約 3.9 分 |
+| Pages integration | 通常約 3.2 分 | たまにブラウザ試験が 13 分級に伸びる（上限 20 分で打ち切る設定あり） |
+
+実測を受けて CI は次を直した（§18.4 の検証項目そのものは減らしていない）:
+`bench` ジョブからリリースビルドのフレーム予算テストを `perf` ジョブへ分けて並行にし、
+重複していた `cargo bench --no-run` と wasm ジョブの `cargo check`（wasm32）を畳んだ
+（wasm32 のコンパイル自体は `trunk build --release` が担う）。
+Desktop の Windows ビルドが全体の最長なので、PR 全体の待ち時間はそちらが決める。
 
 **落とし穴**: `[ci skip]` が付いたコミットが PR の頭だと、PR のチェックは**空**になる。
 マージ前に `bash scripts/ci-run.sh ci watch` で 1 回だけ回し、緑を確認してからマージする
@@ -385,6 +419,31 @@ Web サイト側を変更したら `npm ci --prefix website && npm run check:sit
 `REF:docs/users/start.md` の段階が、公開サイトの「はじめての手引き」とアプリ内のガイドモード
 （`REF:docs/specifications/ui.md` §9.10）の元になる。段階の数・順序・文言を変えるときは 3 か所同時に直す
 （`REF:docs/plans.md#plan-docs-site` の生成と、`REF:docs/plans.md#plan-guide-mode` の段階定義）。
+
+### 4.9 実機チェックリスト（集約先）
+
+自動検証（Linux サンドボックスと CI）では再現できない確認は、ここに集約する。
+実機確認は各作業の完了条件には含めない（所有者決定 M-6）。リリース前にこの表を通し、
+結果は該当する計画・既知の問題へ反映する。配布手順（`REF:scripts/release-check.sh`）の
+判定とは別であり、ここから参照する形に留める。
+
+**対象環境**: Windows / macOS / Linux（デスクトップ）、iOS Safari PWA、Android Chrome を想定する。
+
+| 観点 | 確認すること | 由来 |
+|---|---|---|
+| IME | 変換候補窓の位置、確定だけが本文に入ること、節エディタへキーボードで移った直後に日本語が打てること | B-158 / §9.8.5 |
+| フォーカス | 節移動を繰り返しても表示位置がずれないこと（iOS PWA＋物理キーボード） | N29-07 / KI-002 |
+| フォント | 読者モード縦書きで括弧類が豆腐（欠字）にならないこと、同梱フォントとシステムフォントの差 | N29-03 |
+| キー配列 | JIS 配列で記号キーのショートカット（節削除など）に届くこと、US 配列との差 | N29-05 |
+| ファイルダイアログ | 開く・保存・取り込みのダイアログが OS 標準で出て、キャンセル時に何も起きないこと | §13 |
+| 表示 | 高 DPI・拡大率、ダーク／ライト、狭幅（モバイル幅）での崩れ | §11 |
+| 入力全般 | タッチ操作（タップで開く・選ぶ）、ソフトウェアキーボードの開閉 | §10 |
+| 保存 | 外部でファイルを書き換えたときの競合表示、容量不足時の失敗表示 | §8 |
+| Python | 各 OS のホイールが入って `import novnow` できること | `REF:docs/plans.md` §5.6 |
+| 配布 | 各形態の成果物が実機で起動すること（配布の受け入れの未チェック分） | `REF:docs/plans.md` §7.2 |
+
+確認で問題が見つかったら、公開版の症状は `REF:docs/known-issues/ja.md` へ載せ（§9）、
+仕様・実装の直しは通常の作業として計画へ起こす。
 
 ---
 

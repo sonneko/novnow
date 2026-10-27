@@ -188,13 +188,13 @@ fn a_word_reads_the_fields_of_5_6() {
 fn an_idea_reads_its_number_and_status() {
     let text = "{\"id\":\"I0007\",\"title\":\"学院長の動機\",\"status\":\"inbox\",\
                 \"tags\":[\"学院長\"],\"relates\":\"@02, 'アルス\",\
-                \"promoted-to\":\"plots/02.txt#@02-03\"}";
+                \"promoted-to\":\"plots/02.cnov#@02-03\"}";
     let found: Idea = serde_json::from_str(text).unwrap();
     assert_eq!(found.number(), Some(7));
     assert_eq!(found.status_kind(), Some(IdeaStatus::Inbox));
     assert!(!found.is_hidden());
     // `promoted-to` もハイフンを含むので個別に rename する
-    assert_eq!(found.promoted_to, "plots/02.txt#@02-03");
+    assert_eq!(found.promoted_to, "plots/02.cnov#@02-03");
 }
 
 #[test]
@@ -255,7 +255,7 @@ fn a_material_checks_its_path() {
     for (path, expected) in [
         ("materials/docs/M0001-a.md", true),
         ("materials/inbox/S0042-search.md", true),
-        ("contents/01-01.txt", false),
+        ("contents/01-01.cnov", false),
         ("../secret.md", false),
         ("materials/../secret.md", false),
         ("/etc/passwd", false),
@@ -406,12 +406,12 @@ fn a_task_with_missing_keys_uses_defaults() {
 #[test]
 fn document_formats_follow_the_project_layout() {
     for (path, expected) in [
-        ("contents/01-04.txt", DocumentFormat::Contents),
-        ("contents/00-01.txt", DocumentFormat::Contents),
-        ("plots/all.txt", DocumentFormat::PlotOutline),
-        ("plots/01.txt", DocumentFormat::PlotOutline),
-        ("plots/00.txt", DocumentFormat::PlotOutline),
-        ("plots/01-04.txt", DocumentFormat::PlotEpisode),
+        ("contents/01-04.cnov", DocumentFormat::Contents),
+        ("contents/00-01.cnov", DocumentFormat::Contents),
+        ("plots/all.cnov", DocumentFormat::PlotOutline),
+        ("plots/01.cnov", DocumentFormat::PlotOutline),
+        ("plots/00.cnov", DocumentFormat::PlotOutline),
+        ("plots/01-04.cnov", DocumentFormat::PlotEpisode),
         ("characters.md", DocumentFormat::Characters),
         ("words.md", DocumentFormat::Words),
         ("ideas.md", DocumentFormat::Ideas),
@@ -433,10 +433,18 @@ fn document_formats_follow_the_project_layout() {
         ("agents/threads/TH0007.md", DocumentFormat::Thread),
         ("agents/log/2026-10-09.jsonl", DocumentFormat::AgentLog),
         ("agents/mcp.json", DocumentFormat::McpConfig),
-        ("project.json", DocumentFormat::ProjectFile),
+        ("project.toml", DocumentFormat::ProjectFile),
         (".novnow/ui.json", DocumentFormat::UiState),
         ("exports/out.txt", DocumentFormat::Unknown),
         ("assets/icons/megumi.png", DocumentFormat::Unknown),
+        // §5.0.9 の厳密一致: 旧形式（.txt / project.json）と形の合わない .cnov は文書でない（§4.3-5）
+        ("contents/01-04.txt", DocumentFormat::Unknown),
+        ("plots/all.txt", DocumentFormat::Unknown),
+        ("project.json", DocumentFormat::Unknown),
+        ("contents/draft.cnov", DocumentFormat::Unknown),
+        ("contents/01.cnov", DocumentFormat::Unknown),
+        ("plots/01-04-02.cnov", DocumentFormat::Unknown),
+        ("contents/sub/01-04.cnov", DocumentFormat::Unknown),
     ] {
         assert_eq!(DocumentFormat::of_path(path), expected, "{path}");
     }
@@ -462,17 +470,17 @@ fn a_document_format_knows_its_lexical_format() {
 
 #[test]
 fn a_document_is_built_from_a_path_and_a_text() {
-    let found = Document::new("plots/01-04.txt", "@01-04-01 x\n");
+    let found = Document::new("plots/01-04.cnov", "@01-04-01 x\n");
     assert_eq!(found.format, DocumentFormat::PlotEpisode);
     assert_eq!(found.text, "@01-04-01 x\n");
 }
 
-// ============================================================ project.json（§4.5）
+// ============================================================ project.toml（§4.5）
 
 #[test]
 fn the_defaults_match_the_schema_of_4_5() {
     let found = Project::default();
-    assert_eq!(found.schema_version, 1);
+    assert_eq!(found.schema_version, 2);
     assert_eq!(found.title, "");
     assert_eq!(found.content_encoding, "utf-8");
     assert_eq!(found.newline_value(), Newline::Lf);
@@ -527,11 +535,11 @@ fn the_spec_example_of_4_5_parses_into_the_defaults() {
 fn schema_version_follows_4_3_2() {
     let mut found = Project::default();
     assert_eq!(found.schema_state(), SchemaState::Current);
-    found.schema_version = 2;
-    assert_eq!(found.schema_state(), SchemaState::TooNew { found: 2 });
-    // 省略時は 1 として扱う（§4.3-2、第 2.17 版）
+    found.schema_version = 3;
+    assert_eq!(found.schema_state(), SchemaState::TooNew { found: 3 });
+    // 省略時は現行として扱う（§4.3-2）
     let omitted: Project = serde_json::from_str("{}").unwrap();
-    assert_eq!(omitted.schema_version, 1);
+    assert_eq!(omitted.schema_version, 2);
     assert_eq!(omitted.schema_state(), SchemaState::Current);
 }
 
@@ -600,7 +608,7 @@ fn newline_reads_and_writes_the_two_words() {
     assert_eq!(Newline::default(), Newline::Lf);
 }
 
-/// §4.5 の例（`project.json` スキーマ v1）。**仕様のコード例をそのまま**使う。
+/// §4.5 の例（`project.toml` スキーマ v1）。**仕様のコード例をそのまま**使う。
 const SPEC_PROJECT: &str = r#"{
   "schema_version": 1,
   "title": "星屑の時計",

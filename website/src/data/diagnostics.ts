@@ -140,9 +140,9 @@ export const diagnostics = [
   {
     "code": "E025",
     "severity": "E",
-    "condition": "JSON ファイルがパースできない（§4.3-4）",
-    "ja": "JSON として読み込めません: {0}",
-    "en": "Cannot parse as JSON: {0}",
+    "condition": "JSON / TOML ファイルがパースできない（§4.3-4）",
+    "ja": "読み込めません: {0}",
+    "en": "Cannot parse: {0}",
     "action": "既定値で開く / 手動で修正"
   },
   {
@@ -520,6 +520,14 @@ export const diagnostics = [
     "ja": "自律タスクが上限に達したため停止しました（{0}）",
     "en": "Autonomous tasks stopped at the session limit ({0})",
     "action": "上限を引き上げる / 人間が引き継ぐ"
+  },
+  {
+    "code": "W096",
+    "severity": "W",
+    "condition": "台詞内の句読点直後の空白が作品内多数派と揃っていない（§7.2.2）",
+    "ja": "台詞内の句読点「{0}」の後の書き方が、作品内の大勢と揃っていません",
+    "en": "Spacing after \"{0}\" inside dialogue differs from the majority style in this work",
+    "action": "空白を多数派に合わせる"
   },
   {
     "code": "E032",

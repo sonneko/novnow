@@ -94,14 +94,14 @@ fn records_have_exactly_the_fields_of_the_schema_table() {
     assert_eq!(value["origin"], "sample");
     let file = FileRecord::new(
         "sample",
-        &path("contents/01-04.txt"),
+        &path("contents/01-04.cnov"),
         "本文",
         "2026-10-13T03:04:05.000Z",
     );
     let value = serde_json::to_value(&file).expect("json");
     let keys: Vec<&String> = value.as_object().expect("object").keys().collect();
     assert_eq!(keys, vec!["path", "project_id", "text", "updated_at"]);
-    assert_eq!(file.project_path(), Some(path("contents/01-04.txt")));
+    assert_eq!(file.project_path(), Some(path("contents/01-04.cnov")));
     // 先頭スラッシュ（§13.3.2 で禁止）の手で壊されたレコードは読み飛ばせる
     let broken = FileRecord {
         bytes: None,

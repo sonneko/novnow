@@ -3,7 +3,7 @@
 docs/script/reference.py — ドキュメントとコードの**実物の突き合わせ**を行う検査。
 
 `duplicate.py` は「文書の規約」（構成・重複・`REF:` の実在・見出し一致・`SYNC` の一致）を見る。
-それに対してこのスクリプトは、**規約では守れない「中身のずれ」**を見る。対象は次の 12 個。
+それに対してこのスクリプトは、**規約では守れない「中身のずれ」**を見る。対象は次の 13 個。
 
 1. 廃止済みの文書名（`SPECIFICATIONS.md` / `PLANS.md` / `DEVELOPERS.md`）を
    コード・スクリプト・CI から参照していないこと。
@@ -20,6 +20,8 @@ docs/script/reference.py — ドキュメントとコードの**実物の突き�
     ガイドモードの段階と `docs/users/start.md` の段階が一致するか。
 12. 配布形態（仕様 §20）の選択肢の数が 1・10・5・1・1 で、廃止した軸（同時起動の制限・同梱物の外置き）が
     仕様・設計・手順・利用者向けの文書へ戻っていないか。
+13. 検証の地図（`docs/developers.md` §4.6.2）に書いた検査のパスと名前が**実在するか**
+    （検査一覧そのものの陳腐化を防ぐ）。
 
 使い方:
     python3 docs/script/reference.py           # 検査（違反があれば終了コード 1）
@@ -760,6 +762,62 @@ def check_distribution_forms() -> list[str]:
     return errors
 
 
+MAP_HEADING = "#### 4.6.2 検証の地図（領域別）"
+_NAME_TOKEN = re.compile(r"^[a-z][a-z0-9_]{7,}$")
+
+
+def map_section(text: str) -> str:
+    """`developers.md` の §4.6.2 の本文（次の見出しまで）。見出しが無ければ空文字。"""
+    start = text.find(MAP_HEADING)
+    if start < 0:
+        return ""
+    rest = text[start + len(MAP_HEADING):]
+    end = rest.find("\n##")
+    return rest if end < 0 else rest[:end]
+
+
+def map_tokens(section: str) -> list[str]:
+    """地図の中のバッククォート囲み（検査のパスと名前をこの形で書く約束）。"""
+    return re.findall(r"`([^`\n]+)`", section)
+
+
+def map_name_errors(section: str, names: set[str], root: Path) -> list[str]:
+    """地図のトークンのうち、パスは実在を、検査名は定義の実在を確かめる。"""
+    errors: list[str] = []
+    for token in sorted(set(map_tokens(section))):
+        if token.endswith((".rs", ".py", ".sh", ".mjs", ".yml")):
+            if not (root / token).is_file():
+                errors.append(f"検証の地図のパスが実在しない: {token}")
+        elif _NAME_TOKEN.match(token):
+            if token not in names:
+                errors.append(f"検証の地図の検査名が実在しない: {token}")
+    return errors
+
+
+def defined_names(root: Path) -> set[str]:
+    """テストの `fn` と Python の `def` の名前（地図の検査名の実在判定に使う）。"""
+    names: set[str] = set()
+    for path in (root / "tests").rglob("*.rs"):
+        names.update(
+            re.findall(r"\bfn\s+([a-zA-Z0-9_]+)", path.read_text(encoding="utf-8", errors="ignore"))
+        )
+    for base in ("docs/script", "scripts", "python"):
+        for path in (root / base).rglob("*.py"):
+            names.update(
+                re.findall(r"\bdef\s+([a-zA-Z0-9_]+)", path.read_text(encoding="utf-8", errors="ignore"))
+            )
+    return names
+
+
+def check_verification_map() -> list[str]:
+    """検証の地図（`docs/developers.md` §4.6.2）に書いた検査名が実在すること。"""
+    text = (ROOT / "docs/developers.md").read_text(encoding="utf-8")
+    section = map_section(text)
+    if not section:
+        return ["docs/developers.md に §4.6.2（検証の地図）が無い"]
+    return map_name_errors(section, defined_names(ROOT), ROOT)
+
+
 CHECKS = {
     "1": ("廃止済みの文書名を参照しない", check_retired),
     "2": ("仕様書の節番号が実在する", check_spec_sections),
@@ -773,6 +831,7 @@ CHECKS = {
     "10": ("Actions を無駄に使わない設定が揃っている", check_actions_budget),
     "11": ("公開する手引きが実在し、参照と段階が揃っている", check_published_guide),
     "12": ("配布形態の数と、廃止した軸が戻っていない", check_distribution_forms),
+    "13": ("検証の地図の検査名が実在する", check_verification_map),
 }
 
 
@@ -795,7 +854,7 @@ def main() -> int:
     total = len(CHECKS)
     print(
         f"OK: ドキュメントと実装の突き合わせ {total} 項目（廃止名 / 節番号 / history ID / "
-        f"src ツリー / verify と CI / ルート文書 / 数の主張 / include_str / リンク / Actions の節約 / 手引き / 配布形態）"
+        f"src ツリー / verify と CI / ルート文書 / 数の主張 / include_str / リンク / Actions の節約 / 手引き / 配布形態 / 検証の地図）"
     )
     return 0
 

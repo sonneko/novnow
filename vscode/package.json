@@ -21,7 +21,7 @@
     "Linters"
   ],
   "activationEvents": [
-    "workspaceContains:project.json",
+    "workspaceContains:project.toml",
     "onLanguage:novnow"
   ],
   "main": "./dist/extension.js",
@@ -32,11 +32,10 @@
         "aliases": [
           "novnow"
         ],
-        "filenamePatterns": [
-          "**/contents/**/*.txt",
-          "**/plots/**/*.txt"
-        ],
-        "configuration": "./language-configuration.json"
+        "configuration": "./language-configuration.json",
+        "extensions": [
+          ".cnov"
+        ]
       }
     ],
     "commands": [
@@ -83,7 +82,14 @@
           "description": "Additional arguments passed to novnow before the lsp subcommand."
         }
       }
-    }
+    },
+    "grammars": [
+      {
+        "language": "novnow",
+        "scopeName": "source.novnow",
+        "path": "./syntaxes/novnow.tmLanguage.json"
+      }
+    ]
   },
   "novnow": {
     "artifact": {

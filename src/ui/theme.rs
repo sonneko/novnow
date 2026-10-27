@@ -52,6 +52,8 @@ pub struct Palette {
     pub border: Color32,
     /// `accent` フォーカス・リンク・選択中。
     pub accent: Color32,
+    /// `accent.faint` 編集面左線の淡色（§9.2.4。装飾色でコントラスト比の基準の対象外）。
+    pub accent_faint: Color32,
     /// `state.unsaved` 未保存。
     pub unsaved: Color32,
     /// `state.error` エラー。
@@ -79,6 +81,7 @@ pub const fn palette(mode: Mode) -> Palette {
             fg_faint: hex(0x82878E),
             border: hex(0x2A2E35),
             accent: hex(0x6FA8FF),
+            accent_faint: hex(0x354A6B),
             unsaved: hex(0xE8A33D),
             error: hex(0xE5484D),
             warn: hex(0xD8A200),
@@ -94,6 +97,7 @@ pub const fn palette(mode: Mode) -> Palette {
             fg_faint: hex(0x727479),
             border: hex(0xDEDED9),
             accent: hex(0x1D5FD0),
+            accent_faint: hex(0xADC4EB),
             unsaved: hex(0xB9720A),
             error: hex(0xC62A2F),
             warn: hex(0x8F6B00),

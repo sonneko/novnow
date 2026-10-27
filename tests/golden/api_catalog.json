@@ -1,6 +1,6 @@
 {
-  "catalog_version": "1.0",
-  "count": 119,
+  "catalog_version": "1.1",
+  "count": 120,
   "interfaces": [
     "rust",
     "python",
@@ -455,6 +455,41 @@
       "lsp": null,
       "stateful": true,
       "verb": "confirm_next"
+    },
+    {
+      "arguments": {
+        "order": [
+          "scene",
+          "at",
+          "role"
+        ],
+        "properties": {
+          "at": {
+            "type": "integer"
+          },
+          "role": {
+            "type": "string"
+          },
+          "scene": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "at",
+          "role"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "節の分割",
+      "domain": "section",
+      "exceptions": {},
+      "gate": true,
+      "gate_arg": null,
+      "id": "section.split",
+      "lsp": null,
+      "stateful": false,
+      "verb": "split"
     },
     {
       "arguments": {

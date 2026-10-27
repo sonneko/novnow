@@ -28,11 +28,33 @@ use crate::core::resolve::modes;
 use crate::core::syntax::{contents, plot_outline};
 use crate::core::text::lexer::FieldKey;
 
+/// 行の移動先（§9.5.5）。GUI のダブルクリック／`Enter` と、ヘッドレスの
+/// `reference.pane` の返却値が同じ値を使う（表示文字列とは別に持つ）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Nav {
+    /// 話プロットの当該節（五感・空間・挿絵のフィールドもここへ寄せる）。
+    Plot(SceneId),
+    /// 章プロット／全体プロットの当該ブロック。
+    Outline(SceneId),
+    /// 配役画面の当該キャラ（`characters.md` の順序）。
+    Character(usize),
+    /// 用語の全文表示（`words.md` の順序。定義行へは飛ばない）。
+    Term(usize),
+    /// 資料を開く（明示参照）。
+    OpenMaterial(String),
+    /// 資料候補を話プロットの `material:` へ追加する（条件一致）。
+    AddMaterial(String),
+    /// 今の文書の該当箇所（診断。byte 範囲）。
+    At(Range<usize>),
+}
+
 /// 参照ペインの中身。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Reference {
     /// 1. 今の節のプロット（行ごと、書かれたまま）。
     pub plot: Vec<String>,
+    /// プロット・五感・空間・挿絵の行の移動先（話プロットの当該節）。
+    pub plot_nav: Option<Nav>,
     pub senses: Vec<String>,
     pub space: Vec<String>,
     pub space_ascii: bool,
@@ -71,6 +93,8 @@ pub struct Upper {
     pub id: String,
     /// `summary` の 1 行目。
     pub summary: String,
+    /// 移動先（当該ブロック）。
+    pub nav: Nav,
 }
 
 /// 配役の 1 人。
@@ -89,6 +113,8 @@ pub struct Cast {
     pub role: Option<String>,
     /// 役割語のパターン（鉤括弧を除いて書かれたまま。モード専用 ∪ キャラ共通）。
     pub tone: Vec<String>,
+    /// 移動先（配役画面の当該キャラ）。
+    pub nav: Nav,
 }
 
 /// 用語の 1 つ。
@@ -98,6 +124,8 @@ pub struct WordRef {
     pub term: String,
     /// `definition:` の 1 行目（無ければ空）。
     pub definition: String,
+    /// 移動先（用語の全文表示）。
+    pub nav: Nav,
 }
 
 /// 資料の 1 つ。
@@ -113,6 +141,8 @@ pub struct MaterialRef {
     pub source: String,
     /// 条件一致の候補か（§16.4。明示参照の後に薄い色で並べる。`false` = 明示参照）。
     pub candidate: bool,
+    /// 移動先（明示参照は開く、候補は追加する）。
+    pub nav: Nav,
 }
 
 /// `document`（本文）の節 `scene`（4 階層）の参照ペイン。`lines` は節の行（`sections::SectionRef::lines`）。
@@ -142,6 +172,9 @@ pub fn at(
         }
     }
     Reference {
+        plot_nav: project
+            .episode_plot(scene.chapter, scene.episode)
+            .map(|_| Nav::Plot(scene)),
         senses: get("senses").into_iter().collect(),
         space_ascii: get("space-mode").as_deref() == Some("ascii"),
         space,
@@ -246,6 +279,7 @@ fn upper_plots(project: &Project, scene: SceneId) -> Vec<Upper> {
             out.push(Upper {
                 id: partial(&format!("{}-{}", want.chapter, want.episode), digits),
                 summary,
+                nav: Nav::Outline(want),
             });
         }
     }
@@ -260,6 +294,7 @@ fn upper_plots(project: &Project, scene: SceneId) -> Vec<Upper> {
             out.push(Upper {
                 id: partial(&want.chapter.to_string(), digits),
                 summary,
+                nav: Nav::Outline(want),
             });
         }
     }
@@ -409,6 +444,7 @@ pub(crate) fn cast_of(
                 emotion: None,
                 role: None,
                 tone: Vec::new(),
+                nav: Nav::Character(index),
             };
             for definition in &assignment.definitions {
                 let model = modes::to_model(definition, &characters);
@@ -464,6 +500,7 @@ fn words(document: &Document, lines: &Range<usize>, project: &Project) -> Vec<Wo
         out.push(WordRef {
             term: term.clone(),
             definition,
+            nav: Nav::Term(*index),
         });
     }
     out
@@ -525,6 +562,7 @@ fn materials(
                 .index
                 .as_ref()
                 .and_then(|parsed| parsed.items.iter().find(|item| item.id == id));
+            let candidate = at >= explicit;
             MaterialRef {
                 title: found.map(|item| item.title.clone()).unwrap_or_default(),
                 summary: found
@@ -533,8 +571,13 @@ fn materials(
                 source: found
                     .map(|item| item.source.shown().to_owned())
                     .unwrap_or_default(),
+                nav: if candidate {
+                    Nav::AddMaterial(id.clone())
+                } else {
+                    Nav::OpenMaterial(id.clone())
+                },
                 id,
-                candidate: at >= explicit,
+                candidate,
             }
         })
         .collect()

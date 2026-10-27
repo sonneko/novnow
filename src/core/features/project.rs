@@ -2,7 +2,7 @@
 //!
 //! # `model::Project` との違い
 //!
-//! [`crate::core::model::Project`] は **`project.json` 1 ファイル**（§4.5）の中身。ここの
+//! [`crate::core::model::Project`] は **`project.toml` 1 ファイル**（§4.5）の中身。ここの
 //! [`Project`] は §3.4 の 11 機能と `diagnostics::document` が受け取る**プロジェクト全体**で、
 //! 設定（`model::Project`）・開いている文書（[`Document`]）・構築済みの辞書を持つ。
 //! `model/` に置かないのは、辞書（`resolve`）と構文木（`syntax`）を使うから
@@ -18,9 +18,9 @@
 //!   作り直す。
 //! - **core は I/O をしない**（§3.2）。文書の読み込みと保存は呼び出し側（M5 のストレージ）。
 //!   ここは渡された文書を覚えるだけ。
-//! - **設定は `project.json` の文書から取る**（M5 の設定読み込み、`docs/history.md` B-89）。
-//!   `project.json` を [`Project::insert`] / [`Project::with_documents`] で渡すと
-//!   [`project_json::parse`] の結果で設定を置き換える（JSON として読めなければ既定値、§4.3-4）。
+//! - **設定は `project.toml` の文書から取る**（M5 の設定読み込み、`docs/history.md` B-89）。
+//!   `project.toml` を [`Project::insert`] / [`Project::with_documents`] で渡すと
+//!   [`project_toml::parse`] の結果で設定を置き換える（JSON として読めなければ既定値、§4.3-4）。
 //!   E025 / E027 はその文書の診断（`diagnostics::document`）に出る。
 //!
 //! # 参照の走査（11 機能の共通部品）
@@ -41,13 +41,13 @@ use crate::core::resolve::dictionary::{
     self, Dictionary, EntryId, EntryKind, RefToken, SourceFile, Target,
 };
 use crate::core::syntax::{
-    characters_md, contents, materials_index, plot_episode, plot_outline, project_json, words_md,
+    characters_md, contents, materials_index, plot_episode, plot_outline, project_toml, words_md,
 };
 use crate::core::text::lexer::{self, LineKind, TextFormat};
 use crate::core::text::position::LineTable;
 
-/// `plots/all.txt`（§4.1 の全体プロット）。
-pub const ALL_PLOT_PATH: &str = "plots/all.txt";
+/// `plots/all.cnov`（§4.1 の全体プロット）。
+pub const ALL_PLOT_PATH: &str = "plots/all.cnov";
 
 /// プロジェクトの集約（§3.4）。
 #[derive(Debug)]
@@ -79,7 +79,7 @@ impl Project {
 
     /// 文書をまとめて渡して作る（辞書は最後に 1 回だけ作る）。
     ///
-    /// `documents` に `project.json` があれば、`settings` ではなく**その中身**を設定にする（B-89）。
+    /// `documents` に `project.toml` があれば、`settings` ではなく**その中身**を設定にする（B-89）。
     pub fn with_documents(
         settings: Settings,
         documents: impl IntoIterator<Item = Document>,
@@ -94,7 +94,7 @@ impl Project {
     }
 
     /// 文書を足す／置き換える。辞書の供給元（§6.1.1 の 3 ファイル）なら辞書を作り直す。
-    /// `project.json` なら設定をその中身で置き換える（B-89）。
+    /// `project.toml` なら設定をその中身で置き換える（B-89）。
     pub fn insert(&mut self, document: Document) {
         let rebuild = is_dictionary_source(&document.path);
         self.adopt_settings(&document);
@@ -104,7 +104,7 @@ impl Project {
         }
     }
 
-    /// 文書を外す。辞書の供給元なら辞書を作り直す。`project.json` なら設定を既定値に戻す。
+    /// 文書を外す。辞書の供給元なら辞書を作り直す。`project.toml` なら設定を既定値に戻す。
     pub fn remove(&mut self, path: &str) -> Option<Document> {
         let removed = self.files.remove(path);
         if let Some(document) = &removed {
@@ -118,20 +118,20 @@ impl Project {
         removed
     }
 
-    /// `project.json` の文書なら、その中身を設定にする（読めなければ既定値、§4.3-4）。
+    /// `project.toml` の文書なら、その中身を設定にする（読めなければ既定値、§4.3-4）。
     fn adopt_settings(&mut self, document: &Document) {
         if document.format == DocumentFormat::ProjectFile {
-            self.settings = project_json::settings(&document.text);
+            self.settings = project_toml::settings(&document.text);
         }
     }
 
-    /// 設定（`project.json`）を差し替える。`project.json` の文書を後から `insert` すると、
+    /// 設定（`project.toml`）を差し替える。`project.toml` の文書を後から `insert` すると、
     /// そちらの中身で置き換わる。
     pub fn set_settings(&mut self, settings: Settings) {
         self.settings = settings;
     }
 
-    /// 設定（`project.json`、§4.5）。
+    /// 設定（`project.toml`、§4.5）。
     pub fn settings(&self) -> &Settings {
         &self.settings
     }
@@ -179,20 +179,20 @@ impl Project {
         }
     }
 
-    /// `contents/AA-BB.txt`（§4.1）。
+    /// `contents/AA-BB.cnov`（§4.1）。
     pub fn contents_path(&self, chapter: u16, episode: u16) -> String {
-        format!("contents/{}.txt", self.episode_stem(chapter, episode))
+        format!("contents/{}.cnov", self.episode_stem(chapter, episode))
     }
 
-    /// `plots/AA-BB.txt`（§4.1 の話プロット）。
+    /// `plots/AA-BB.cnov`（§4.1 の話プロット）。
     pub fn episode_plot_path(&self, chapter: u16, episode: u16) -> String {
-        format!("plots/{}.txt", self.episode_stem(chapter, episode))
+        format!("plots/{}.cnov", self.episode_stem(chapter, episode))
     }
 
-    /// `plots/AA.txt`（§4.1 の章プロット）。
+    /// `plots/AA.cnov`（§4.1 の章プロット）。
     pub fn chapter_plot_path(&self, chapter: u16) -> String {
         let digits = self.digits();
-        format!("plots/{}.txt", pad(chapter, digits.chapter))
+        format!("plots/{}.cnov", pad(chapter, digits.chapter))
     }
 
     fn episode_stem(&self, chapter: u16, episode: u16) -> String {
@@ -211,7 +211,7 @@ impl Project {
         }
     }
 
-    /// A 形式のパーサの設定。`plots/all.txt` は 1 階層、`plots/AA.txt` は 2 階層（§5.3.2）。
+    /// A 形式のパーサの設定。`plots/all.cnov` は 1 階層、`plots/AA.cnov` は 2 階層（§5.3.2）。
     pub fn outline_options(&self, path: &str) -> plot_outline::Options {
         let depth = if path == ALL_PLOT_PATH { 1 } else { 2 };
         plot_outline::Options {
@@ -256,7 +256,7 @@ impl Project {
         Some(contents::parse_with(&found.text, &self.contents_options()))
     }
 
-    /// 章プロット（`plots/AA.txt`）の木。文書が無ければ `None`。
+    /// 章プロット（`plots/AA.cnov`）の木。文書が無ければ `None`。
     pub fn chapter_plot(&self, chapter: u16) -> Option<plot_outline::Outline<'_>> {
         let path = self.chapter_plot_path(chapter);
         let found = self.files.get(&path)?;
@@ -266,7 +266,7 @@ impl Project {
         ))
     }
 
-    /// 全体プロット（`plots/all.txt`）の木。文書が無ければ `None`。
+    /// 全体プロット（`plots/all.cnov`）の木。文書が無ければ `None`。
     pub fn all_plot(&self) -> Option<plot_outline::Outline<'_>> {
         let found = self.files.get(ALL_PLOT_PATH)?;
         Some(plot_outline::parse_with(
@@ -663,19 +663,19 @@ pub fn is_dictionary_source(path: &str) -> bool {
     .any(|file| file.path() == path)
 }
 
-/// `contents/01-04.txt` / `plots/01-04.txt` → `(1, 4)`。話のファイルでなければ `None`。
+/// `contents/01-04.cnov` / `plots/01-04.cnov` → `(1, 4)`。話のファイルでなければ `None`。
 pub fn episode_of_path(path: &str) -> Option<(u16, u16)> {
     let stem = path
         .strip_prefix("contents/")
         .or_else(|| path.strip_prefix("plots/"))?
-        .strip_suffix(".txt")?;
+        .strip_suffix(".cnov")?;
     let (chapter, episode) = stem.split_once('-')?;
     Some((number(chapter)?, number(episode)?))
 }
 
-/// `plots/01.txt` → `1`。章プロットでなければ `None`。
+/// `plots/01.cnov` → `1`。章プロットでなければ `None`。
 pub fn chapter_of_path(path: &str) -> Option<u16> {
-    let stem = path.strip_prefix("plots/")?.strip_suffix(".txt")?;
+    let stem = path.strip_prefix("plots/")?.strip_suffix(".cnov")?;
     number(stem)
 }
 

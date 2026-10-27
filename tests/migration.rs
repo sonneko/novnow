@@ -11,7 +11,7 @@ fn migration_has_one_section_and_exports_literals() {
         let files = migration::convert("title", text).unwrap();
         let contents = files
             .iter()
-            .find(|f| f.path == "contents/01-01.txt")
+            .find(|f| f.path == "contents/01-01.cnov")
             .unwrap();
         assert_eq!(
             novnow::core::syntax::contents::parse(&contents.text)
@@ -46,7 +46,7 @@ fn migration_normalizes_bom_crlf_and_rejects_empty_or_nul() {
     assert_eq!(
         files
             .iter()
-            .find(|f| f.path == "contents/01-01.txt")
+            .find(|f| f.path == "contents/01-01.cnov")
             .unwrap()
             .text,
         "@01-01-01\nbody\n"

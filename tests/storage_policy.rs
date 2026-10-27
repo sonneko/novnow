@@ -137,12 +137,12 @@ fn the_policy_allows_only_the_project_and_the_history_file() {
     policy.open(Path::new("/novels/hoshi")).expect("open");
     let check = |target: &str| policy.check(Path::new(target));
     assert_eq!(
-        check("/novels/hoshi/contents/01-01.txt"),
+        check("/novels/hoshi/contents/01-01.cnov"),
         Ok(Allowed::Project)
     );
     assert_eq!(check("/novels/hoshi"), Ok(Allowed::Project));
     assert_eq!(
-        check("/novels/hoshi/./plots/../project.json"),
+        check("/novels/hoshi/./plots/../project.toml"),
         Ok(Allowed::Project)
     );
     assert_eq!(
@@ -200,7 +200,7 @@ fn the_save_dialog_exception_allows_only_a_zip_file_outside() {
     assert_eq!(reason("/home/u/Desktop/novel"), Violation::NotAnExport);
     assert_eq!(reason("/home/u/Desktop/.zip"), Violation::NotAnExport);
     assert_eq!(reason("/home/u/.bashrc"), Violation::NotAnExport);
-    assert_eq!(reason("/novels/hoshi/project.json"), Violation::NotAnExport);
+    assert_eq!(reason("/novels/hoshi/project.toml"), Violation::NotAnExport);
     assert_eq!(reason(history), Violation::NotAnExport);
     assert_eq!(reason("relative/novel.zip"), Violation::Relative);
     assert_eq!(reason("/../novel.zip"), Violation::Escape);
@@ -249,7 +249,9 @@ fn the_exception_for_text_exports_accepts_only_txt_and_md() {
     );
     assert_eq!(reason(history, ExportKind::Text), Violation::NotAnExport);
     assert_eq!(ExportKind::Text.extensions(), &["txt", "md"]);
-    assert_eq!(ExportKind::Zip.extensions(), &["zip"]);
+    assert_eq!(ExportKind::Zip.extensions(), &["zip", "novnow"]);
+    assert!(ExportKind::Zip.accepts(Path::new("/home/u/Desktop/hoshi.novnow")));
+    assert!(ExportKind::Zip.accepts(Path::new("/home/u/Desktop/hoshi.NOVNOW")));
 }
 
 #[test]
@@ -329,7 +331,7 @@ fn project_paths_cannot_name_anything_outside_the_root() {
         assert_eq!(ProjectPath::new(text), Err(error), "{text:?}");
     }
     for good in [
-        "contents/01-01.txt",
+        "contents/01-01.cnov",
         ".novnow/ui.json",
         "exports/星屑の時計.zip",
         "materials/docs/M0001-旧校舎.md",
@@ -353,8 +355,8 @@ fn every_write_path_works_inside_the_project() {
     let storage = &world.storage;
     // 本文・設定・提案・エクスポート（テキスト）
     for (target, text) in [
-        ("contents/01-04.txt", "@01-04-01\n本文\n"),
-        ("project.json", "{\"schema_version\":1}\n"),
+        ("contents/01-04.cnov", "@01-04-01\n本文\n"),
+        ("project.toml", "{\"schema_version\":1}\n"),
         (".novnow/ui.json", "{\"schema_version\":1}\n"),
         ("agents/proposals/H0001.md", "# 提案\n"),
         ("exports/out.txt", "書き出し\n"),
@@ -459,11 +461,11 @@ fn a_closed_project_rejects_every_write() {
     let world = World::new("policy-closed");
     world.gate.close_project();
     let storage = &world.storage;
-    rejected(|| block_on(storage.write(&path("contents/01-01.txt"), "x")));
+    rejected(|| block_on(storage.write(&path("contents/01-01.cnov"), "x")));
     rejected(|| block_on(storage.append(&path("agents/log/a.jsonl"), "x")));
     rejected(|| storage.write_bytes(&path("exports/a.zip"), b"x"));
     assert_eq!(
-        std::fs::read_to_string(world.root.join("contents/01-01.txt")).expect("read"),
+        std::fs::read_to_string(world.root.join("contents/01-01.cnov")).expect("read"),
         "@01-01-01\n「こんにちは」\n"
     );
 }
@@ -474,8 +476,8 @@ fn a_storage_for_a_previous_project_can_no_longer_write() {
     let other = minimal_project(&world.dir, "other");
     let fresh = FsStorage::open(world.gate.clone(), &other).expect("open");
     // 関門は「今開いているプロジェクト」だけを許す（§13.1.1）
-    rejected(|| block_on(world.storage.write(&path("contents/01-01.txt"), "x")));
-    block_on(fresh.write(&path("contents/01-01.txt"), "ok\n")).expect("fresh");
+    rejected(|| block_on(world.storage.write(&path("contents/01-01.cnov"), "x")));
+    block_on(fresh.write(&path("contents/01-01.cnov"), "ok\n")).expect("fresh");
 }
 
 #[test]
@@ -501,8 +503,8 @@ fn the_save_dialog_exception_writes_exactly_the_chosen_zip() {
         .iter()
         .map(|(path, _)| path.as_str())
         .collect();
-    assert!(names.contains(&"project.json"), "{names:?}");
-    assert!(names.contains(&"contents/01-01.txt"), "{names:?}");
+    assert!(names.contains(&"project.toml"), "{names:?}");
+    assert!(names.contains(&"contents/01-01.cnov"), "{names:?}");
     // ダイアログで上書きを確かめた既存の Zip は上書きする（直接・一時ファイルなし）
     std::fs::write(&target, b"old").expect("plant");
     zip::export_to_chosen(&world.storage, zip_choice(target.clone())).expect("overwrite");
@@ -636,8 +638,8 @@ fn zip_import_never_writes_outside_the_new_root() {
         ("../outside/evil.txt", "x"),
         ("/tmp/novnow-evil-abs.txt", "x"),
         ("C:\\evil.txt", "x"),
-        ("project.json", "{\"schema_version\":1}"),
-        ("contents/01-01.txt", "@01-01-01\n"),
+        ("project.toml", "{\"schema_version\":1}"),
+        ("contents/01-01.cnov", "@01-01-01\n"),
     ]);
     let imported = zip::import(&bytes).expect("import");
     let target = world.dir.join("imported");
@@ -647,7 +649,7 @@ fn zip_import_never_writes_outside_the_new_root() {
     assert_eq!(imported.skipped.len(), 3);
     assert_eq!(
         sandbox::files(&target),
-        ["contents/01-01.txt", "project.json"]
+        ["contents/01-01.cnov", "project.toml"]
             .into_iter()
             .map(str::to_owned)
             .collect()
@@ -672,14 +674,15 @@ mod symlinks {
             symlink(&world.outside, world.root.join(dir)).expect("symlink");
         }
         let storage = &world.storage;
-        rejected(|| block_on(storage.write(&path("contents/01-01.txt"), "x")));
-        rejected(|| block_on(storage.write(&path("contents/victim.txt"), "x")));
+        rejected(|| block_on(storage.write(&path("contents/01-01.cnov"), "x")));
+        rejected(|| block_on(storage.write(&path("contents/victim.cnov"), "x")));
         rejected(|| block_on(storage.write(&path(".novnow/ui.json"), "{}")));
         rejected(|| block_on(storage.write(&path("agents/proposals/H0001.md"), "x")));
         rejected(|| block_on(storage.append(&path("agents/log/2026-10-13.jsonl"), "x")));
         rejected(|| block_on(storage.write(&path("exports/out.txt"), "x")));
         rejected(|| storage.write_bytes(&path("exports/a.zip"), b"x"));
         rejected(|| zip::export_project(storage, "novel").map_err(storage_error));
+        // 削除対象は外に実在する victim.txt（リンク越しでも規則 10 が先に拒否する）
         rejected(|| block_on(storage.remove(&path("contents/victim.txt"))));
         world.outside_untouched(&before);
     }
@@ -688,18 +691,18 @@ mod symlinks {
     fn a_symlinked_file_pointing_outside_is_rejected_and_left_alone() {
         let world = World::new("policy-symlink-file");
         let before = tree(&world.outside);
-        std::fs::remove_file(world.root.join("project.json")).expect("rm");
+        std::fs::remove_file(world.root.join("project.toml")).expect("rm");
         symlink(
             world.outside.join("victim.txt"),
-            world.root.join("project.json"),
+            world.root.join("project.toml"),
         )
         .expect("ln");
         let storage = &world.storage;
-        rejected(|| block_on(storage.write(&path("project.json"), "{}")));
-        rejected(|| block_on(storage.append(&path("project.json"), "{}")));
+        rejected(|| block_on(storage.write(&path("project.toml"), "{}")));
+        rejected(|| block_on(storage.append(&path("project.toml"), "{}")));
         world.outside_untouched(&before);
         // 消すのはリンク自身（プロジェクト内のエントリ）なので許され、行き先は残る
-        block_on(storage.remove(&path("project.json"))).expect("remove link");
+        block_on(storage.remove(&path("project.toml"))).expect("remove link");
         assert!(world.outside.join("victim.txt").is_file());
         world.outside_untouched(&before);
     }
@@ -790,11 +793,11 @@ mod symlinks {
         block_on(
             world
                 .storage
-                .write(&path("contents/01-01.txt"), "新しい本文\n"),
+                .write(&path("contents/01-01.cnov"), "新しい本文\n"),
         )
         .expect("write");
         assert_eq!(
-            std::fs::read_to_string(world.root.join("contents/01-01.txt")).expect("read"),
+            std::fs::read_to_string(world.root.join("contents/01-01.cnov")).expect("read"),
             "新しい本文\n"
         );
         world.outside_untouched(&before);
@@ -910,7 +913,7 @@ fn after_a_full_session_the_only_files_outside_the_projects_are_the_history_and_
     // 読み込み → 編集 → 保存 → ログ → 提案 → エクスポート → 削除
     let loaded = block_on(novnow::adapters::project_load::load(&storage)).expect("load");
     assert_eq!(loaded.validation, Ok(()));
-    block_on(storage.write(&path("contents/01-01.txt"), "@01-01-01\n「やあ」\n")).expect("w");
+    block_on(storage.write(&path("contents/01-01.cnov"), "@01-01-01\n「やあ」\n")).expect("w");
     block_on(storage.write(&path(".novnow/ui.json"), "{\"schema_version\":1}\n")).expect("w");
     block_on(storage.append(&path("agents/log/2026-10-13.jsonl"), "{}\n")).expect("a");
     block_on(storage.write(&path("agents/proposals/H0001.md"), "# 提案\n")).expect("w");

@@ -42,7 +42,7 @@ impl Dialog for RfdDialog {
     }
     async fn pick_zip(&self) -> Option<PickedFile> {
         let picked = rfd::AsyncFileDialog::new()
-            .add_filter("Zip", &["zip"])
+            .add_filter("Zip", &["zip", "novnow"])
             .pick_file()
             .await?;
         Some(PickedFile {
@@ -52,7 +52,7 @@ impl Dialog for RfdDialog {
     }
 
     async fn save_zip(&self, suggested: &Path) -> Option<ChosenPath> {
-        save(suggested, ExportKind::Zip, "Zip", &["zip"]).await
+        save(suggested, ExportKind::Zip, "Zip", &["zip", "novnow"]).await
     }
 
     async fn save_text(&self, suggested: &Path) -> Option<ChosenPath> {

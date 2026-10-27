@@ -481,7 +481,7 @@ pub struct Proposal {
     pub id: String,
     /// `section-text` など（[`crate::core::agents::Kind`]）。
     pub kind: String,
-    /// `contents/01-04.txt @01-04-02-03`（パス + 空白 + 節）。
+    /// `contents/01-04.cnov @01-04-02-03`（パス + 空白 + 節）。
     pub target: String,
     /// 元のタスク（MCP のツールから作られたものは `mcp`）。
     pub origin: String,

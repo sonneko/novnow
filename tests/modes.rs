@@ -164,7 +164,7 @@ const EPISODE_Z: &str = "@01-04-02 図書室の攻防\n;\nmode: '恩田恵:Z\n�
 const EPISODE_ZR: &str = "@01-04-02 図書室の攻防\n;\nmode: '恩田恵:Z+R\n本文。\n;\n";
 const EPISODE_TWO: &str = "@01-04-02 攻防\n;\nmode: '二人目:B\n本文。\n;\n";
 
-/// §5.3.4 の例（`plots/01.txt`）の `cast:` を恩田恵に差し替えたもの。
+/// §5.3.4 の例（`plots/01.cnov`）の `cast:` を恩田恵に差し替えたもの。
 const CHAPTER: &str = "@01-04 図書室の密談
 summary: 試験前の図書室で設計図を見せ、放課後の探索を約束させる。
 goal: 読者に探索の動機とリスクを同時に渡す。
@@ -188,7 +188,7 @@ const CHAPTER_TWICE: &str = "@01-04 図書室の密談\nsummary: 試験前の図
 const CHAPTER_THREE: &str =
     "@01-04 図書室の密談\nsummary: 試験前の図書室で設計図を見せる。\ncast: '恩田恵:A+B+C\n;\n";
 
-/// §5.3.3 の例（`plots/all.txt`）の `cast:` を恩田恵に差し替えたもの。
+/// §5.3.3 の例（`plots/all.cnov`）の `cast:` を恩田恵に差し替えたもの。
 const ALL: &str = "// 全体プロット: 章を 1 ブロック 1 章で書く。
 title: 星屑の時計
 summary: 古代錬金術を追う少年と幼馴染が、学院の地下遺跡の魔導具を巡って対立と和解を繰り返す。
@@ -999,7 +999,7 @@ fn patterns_of_reads_every_pattern_on_a_line() {
 
 #[test]
 fn scene_text_uses_the_default_digits() {
-    // §6.4.4 の E004 の引数 `{2}` は既定の桁数（`project.json.structure.id_digits`）
+    // §6.4.4 の E004 の引数 `{2}` は既定の桁数（`project.toml.structure.id_digits`）
     assert_eq!(modes::scene_text(&scene_id("01-04-02-02")), "01-04-02-02");
     assert_eq!(modes::scene_text(&scene_id("1-4-2-0")), "01-04-02");
     assert_eq!(

@@ -103,21 +103,21 @@ fn no_feature_panics_at_any_byte_offset() {
 // ============================================================ 集約と参照の走査
 
 #[test]
-fn paths_follow_the_digits_of_project_json() {
+fn paths_follow_the_digits_of_project_toml() {
     let project = world();
-    assert_eq!(project.contents_path(1, 4), "contents/01-04.txt");
-    assert_eq!(project.episode_plot_path(1, 4), "plots/01-04.txt");
-    assert_eq!(project.chapter_plot_path(3), "plots/03.txt");
+    assert_eq!(project.contents_path(1, 4), "contents/01-04.cnov");
+    assert_eq!(project.episode_plot_path(1, 4), "plots/01-04.cnov");
+    assert_eq!(project.chapter_plot_path(3), "plots/03.cnov");
     let mut settings = Settings::default();
     settings.structure.chapter_digits = 3;
     let wide = Project::new(settings);
-    assert_eq!(wide.contents_path(1, 4), "contents/001-04.txt");
+    assert_eq!(wide.contents_path(1, 4), "contents/001-04.cnov");
     assert_eq!(
-        project::episode_of_path("contents/001-04.txt"),
+        project::episode_of_path("contents/001-04.cnov"),
         Some((1, 4))
     );
-    assert_eq!(project::episode_of_path("plots/all.txt"), None);
-    assert_eq!(project::chapter_of_path("plots/02.txt"), Some(2));
+    assert_eq!(project::episode_of_path("plots/all.cnov"), None);
+    assert_eq!(project::chapter_of_path("plots/02.cnov"), Some(2));
 }
 
 #[test]

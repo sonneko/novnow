@@ -64,6 +64,7 @@
   "W093": ["例: 提案を作った後に元の本文を編集する。", "Example: edit the original prose after a proposal was created."],
   "W094": ["例: 重い正規表現が1秒以内に完了しない。", "Example: an expensive regular expression runs for more than one second."],
   "W095": ["例: 自律タスクが設定した1セッションの上限に達する。", "Example: autonomous tasks reach the configured per-session limit."],
+  "W096": ["例: 台詞の多くは「行くぞ！　待て」と空白を開けるのに、一部だけ「行くぞ！待て」と開けていない。", "Example: most lines put a full-width space after an exclamation mark in dialogue, but a few do not."],
   "E032": ["例: カスタムロール名に使用できない文字を含める。", "Example: a custom role name contains a disallowed character."],
   "E033": ["例: 既定の writer と同じ名前のカスタムロールを作る。", "Example: create a custom role also named writer."],
   "E034": ["例: カスタムロールを17件登録する。", "Example: register 17 custom roles."],

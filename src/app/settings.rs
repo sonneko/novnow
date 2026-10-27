@@ -119,6 +119,8 @@ pub struct UiSettings {
     pub reference_visible: bool,
     pub status_stats_mode: bool,
     pub suggest_comma: bool,
+    /// `confirm_section_delete`（§4.4・§8.1.2。空でない節の削除前に確認するか。既定 `true`）。
+    pub confirm_section_delete: bool,
     /// はじめての手引きを閉じたか（§9.10。`true` なら自動では出さない）。
     pub guide_done: bool,
     pub folded: Vec<String>,
@@ -143,6 +145,7 @@ impl Default for UiSettings {
             reference_visible: true,
             status_stats_mode: false,
             suggest_comma: false,
+            confirm_section_delete: true,
             guide_done: false,
             folded: Vec::new(),
             raw: Map::new(),
@@ -201,6 +204,10 @@ impl UiSettings {
             .get("suggest_comma")
             .and_then(Value::as_bool)
             .unwrap_or(false);
+        out.confirm_section_delete = raw
+            .get("confirm_section_delete")
+            .and_then(Value::as_bool)
+            .unwrap_or(true);
         out.guide_done = raw
             .get("guide_done")
             .and_then(Value::as_bool)
@@ -225,6 +232,10 @@ impl UiSettings {
         raw.insert("schema_version".into(), json!(1));
         raw.insert("status_stats_mode".into(), json!(self.status_stats_mode));
         raw.insert("suggest_comma".into(), json!(self.suggest_comma));
+        raw.insert(
+            "confirm_section_delete".into(),
+            json!(self.confirm_section_delete),
+        );
         raw.insert("guide_done".into(), json!(self.guide_done));
         let mut folded = raw
             .get("folded")

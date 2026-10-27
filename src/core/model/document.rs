@@ -10,11 +10,11 @@ use crate::core::text::lexer::TextFormat;
 /// 文書の形式（§4.2 のファイル一覧）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DocumentFormat {
-    /// `contents/AA-BB.txt`（C 形式、§5.2）。
+    /// `contents/AA-BB.cnov`（C 形式、§5.2）。
     Contents,
-    /// `plots/all.txt` / `plots/AA.txt`（A 形式、§5.3）。
+    /// `plots/all.cnov` / `plots/AA.cnov`（A 形式、§5.3）。
     PlotOutline,
-    /// `plots/AA-BB.txt`（B 形式、§5.4）。
+    /// `plots/AA-BB.cnov`（B 形式、§5.4）。
     PlotEpisode,
     /// `characters.md`（§5.5）。
     Characters,
@@ -44,7 +44,7 @@ pub enum DocumentFormat {
     AgentLog,
     /// `agents/mcp.json`（§5.11）。
     McpConfig,
-    /// `project.json`（§4.5）。
+    /// `project.toml`（§4.5）。
     ProjectFile,
     /// `.novnow/ui.json`（§4.4.1）。
     UiState,
@@ -58,40 +58,36 @@ impl DocumentFormat {
     /// `std::path` は使わない（§3.2 は core での I/O を禁じる。区切りは `/` 固定で読む）。
     pub fn of_path(path: &str) -> Self {
         let trimmed = path.trim_start_matches('/').trim_start_matches("./");
-        let stem = trimmed
-            .rsplit('/')
-            .next()
-            .unwrap_or(trimmed)
-            .trim_end_matches(".md")
-            .trim_end_matches(".txt")
-            .trim_end_matches(".json");
         match trimmed {
-            "project.json" => Self::ProjectFile,
+            "project.toml" => Self::ProjectFile,
             "characters.md" => Self::Characters,
             "words.md" => Self::Words,
             "ideas.md" => Self::Ideas,
             "materials/index.json" => Self::MaterialsIndex,
             "agents/mcp.json" => Self::McpConfig,
             ".novnow/ui.json" => Self::UiState,
-            _ => Self::from_dir(trimmed, stem),
+            _ => Self::from_dir(trimmed),
         }
     }
 
-    /// ディレクトリで決まるもの（§4.2）。
-    fn from_dir(path: &str, stem: &str) -> Self {
+    /// ディレクトリで決まるもの（§4.2）。本文・プロットは §5.0.9 の厳密一致
+    /// （置き場所とファイル名の形と `.cnov` の組）でのみ文書として認識する。
+    /// 形が合わないものは未知のファイルとして触れない（§4.3-5）。
+    fn from_dir(path: &str) -> Self {
         if let Some(rest) = path.strip_prefix("contents/") {
-            return if rest.ends_with(".txt") {
+            // `contents/<章>-<話>.cnov` は本文（C 形式、§5.2）
+            return if numbered_stem(rest) == Some(2) {
                 Self::Contents
             } else {
                 Self::Unknown
             };
         }
         if let Some(rest) = path.strip_prefix("plots/") {
-            // `plots/all.txt` と `plots/AA.txt` は A 形式、`plots/AA-BB.txt` は B 形式（§5.3 指示 11）
-            return if rest.ends_with(".txt") && stem.contains('-') {
-                Self::PlotEpisode
-            } else if rest.ends_with(".txt") {
+            // `plots/all.cnov` と `plots/<章>.cnov` は A 形式、`plots/<章>-<話>.cnov` は B 形式（§5.3・§5.4）
+            return if rest == "all.cnov" || numbered_stem(rest) == Some(1) {
                 Self::PlotOutline
+            } else if numbered_stem(rest) == Some(2) {
+                Self::PlotEpisode
             } else {
                 Self::Unknown
             };
@@ -126,7 +122,7 @@ impl DocumentFormat {
         Self::Unknown
     }
 
-    /// §5.0 の字句形式（`.txt` 3 形式と `*.md`）。JSON やログは `None`。
+    /// §5.0 の字句形式（`.cnov` 3 形式と `*.md`）。JSON やログは `None`。
     pub fn text_format(self) -> Option<TextFormat> {
         match self {
             Self::Contents => Some(TextFormat::Contents),
@@ -156,7 +152,7 @@ impl DocumentFormat {
 /// 開いている文書 1 つ。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Document {
-    /// プロジェクトルートからの相対パス（`contents/01-04.txt`）。
+    /// プロジェクトルートからの相対パス（`contents/01-04.cnov`）。
     pub path: String,
     /// 形式。
     pub format: DocumentFormat,
@@ -175,4 +171,18 @@ impl Document {
             text: text.into(),
         }
     }
+}
+
+/// `.cnov` のファイル名が「数字（`-` 数字）…」の形なら数字の個数を返す（§5.0.9）。
+/// サブディレクトリ・数字以外の文字・空の要素は形に合わない。
+fn numbered_stem(name: &str) -> Option<usize> {
+    let stem = name.strip_suffix(".cnov")?;
+    let mut count = 0;
+    for part in stem.split('-') {
+        if part.is_empty() || !part.bytes().all(|byte| byte.is_ascii_digit()) {
+            return None;
+        }
+        count += 1;
+    }
+    Some(count)
 }

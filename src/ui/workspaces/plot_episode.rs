@@ -409,6 +409,9 @@ pub fn show(
                                 Some(Chosen::OpenMaterial(id)) => {
                                     request = Some(Request::OpenMaterial(id));
                                 }
+                                Some(Chosen::Navigate(nav)) => {
+                                    request = Some(Request::Navigate(nav));
+                                }
                                 Some(Chosen::Register { kind, name }) => {
                                     request = Some(Request::Register { kind, name });
                                 }
@@ -548,18 +551,34 @@ fn list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) -> Optio
                     )
                 } else {
                     let number = format!("{:02}", row.id.section);
-                    list_row(
-                        ui,
-                        view.mode,
-                        view.scale,
-                        Row {
-                            selected: is_selected,
-                            bar: Some(state_color(view.mode, row.state.or(Some(PlotState::Draft)))),
-                            label: &number,
-                            text: &row.summary,
-                            muted: false,
-                        },
-                    )
+                    // 節の行の右端に削除ボタン（§8.1.2。一体削除は App の単一入口）
+                    let mut row_response = None;
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if crate::ui::widgets::action_button(
+                            ui,
+                            i18n::text(view.locale, "delete.button"),
+                        )
+                        .clicked()
+                        {
+                            request = Some(Request::DeleteSection(row.id));
+                        }
+                        row_response = Some(list_row(
+                            ui,
+                            view.mode,
+                            view.scale,
+                            Row {
+                                selected: is_selected,
+                                bar: Some(state_color(
+                                    view.mode,
+                                    row.state.or(Some(PlotState::Draft)),
+                                )),
+                                label: &number,
+                                text: &row.summary,
+                                muted: false,
+                            },
+                        ));
+                    });
+                    row_response.expect("list_row in the same layout")
                 };
                 if !row.is_scene() {
                     if let Some(section) = prose_sections.iter().find(|s| s.id == row.id) {
@@ -567,12 +586,17 @@ fn list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) -> Optio
                             bench.project().text(&section.path),
                             section,
                         );
-                        let ratio = crate::core::stage_two::metrics::section(&text).ratio();
-                        ui.add(
-                            egui::ProgressBar::new(ratio as f32)
-                                .desired_width(80.0 * view.scale)
-                                .text(format!("{:.0}%", ratio * 100.0)),
-                        );
+                        // 台詞比率バー（§9.4.2。話プロットでは幅 48px）
+                        let measured = crate::core::stage_two::metrics::section(&text);
+                        if measured.total > 0 {
+                            crate::ui::widgets::ratio_bar(
+                                ui,
+                                measured.ratio(),
+                                48.0 * view.scale,
+                                view.scale,
+                                &crate::ui::theme::palette(view.mode),
+                            );
+                        }
                     }
                 }
                 if is_selected && reveal {

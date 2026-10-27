@@ -131,8 +131,19 @@ fn write_clipboard(ctx: &Context) {
 /// フォーカスがあるあいだ出しておく（`docs/history.md` B-158）。eframe 0.27 はマウスで入力欄を
 /// クリックしたときだけ出すので、キーボードで節エディタへ移ったとき（`Ctrl+2`・開いた直後など）は
 /// IME が使えず、日本語を打てなかった。入力欄から離れたら隠す（eframe の再フォーカスも止まる）。
+///
+/// iOS Safari は入力欄へのフォーカスのたびに画面をその要素へ寄せるため、節移動の前後で
+/// フォーカスが一瞬切れて再フォーカスが繰り返されると表示位置がずれる（N29-07）。
+/// 対策として、フォーカスは必要なときだけ 1 回行い、短い離脱では隠さない（30 フレーム
+/// 様子を見る）。フォーカスの直後にはスクロール位置を元へ戻す。
 fn sync_text_agent(typing: bool) {
-    let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+    thread_local! {
+        static IDLE_FRAMES: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
+    }
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let Some(document) = window.document() else {
         return;
     };
     let Some(agent) = document
@@ -142,15 +153,26 @@ fn sync_text_agent(typing: bool) {
         return;
     };
     if typing {
+        IDLE_FRAMES.with(|frames| frames.set(0));
         let focused = document
             .active_element()
             .is_some_and(|element| element.id() == "egui_text_agent");
         if agent.hidden() || !focused {
             agent.set_hidden(false);
+            let x = window.scroll_x().unwrap_or(0.0);
+            let y = window.scroll_y().unwrap_or(0.0);
             let _ = agent.focus();
+            let _ = window.scroll_to_with_x_and_y(x, y);
         }
     } else if !agent.hidden() {
-        agent.set_hidden(true);
+        let idle = IDLE_FRAMES.with(|frames| {
+            let next = frames.get().saturating_add(1);
+            frames.set(next);
+            next
+        });
+        if idle > 30 {
+            agent.set_hidden(true);
+        }
     }
 }
 
@@ -838,7 +860,7 @@ impl WebPicker {
             return;
         };
         input.set_type("file");
-        input.set_accept(".zip,application/zip");
+        input.set_accept(".zip,.novnow,application/zip");
         let _ = input.set_attribute("style", "display:none");
         if let Some(body) = document.body() {
             let _ = body.append_child(&input);
@@ -946,6 +968,8 @@ async fn import_zip(
     let name = file_name
         .strip_suffix(".zip")
         .or_else(|| file_name.strip_suffix(".ZIP"))
+        .or_else(|| file_name.strip_suffix(".novnow"))
+        .or_else(|| file_name.strip_suffix(".NOVNOW"))
         .unwrap_or(&file_name)
         .to_owned();
     let (record, skipped) = match idb.import_zip(&name, &bytes).await {
@@ -1307,11 +1331,52 @@ impl WebPicker {
             }
         });
         ui.add_space(8.0);
-        ui.label(
-            RichText::new(i18n::text(locale, "project.pick.keys"))
-                .small()
-                .color(colors.fg_faint),
-        );
+        // キー案内（項目ごとにボタン。実行はキーと同じ経路）
+        let guide = [
+            i18n::text(locale, "project.pick.key_select"),
+            i18n::text(locale, "project.pick.key_open"),
+            i18n::text(locale, "project.pick.key_search"),
+            i18n::text(locale, "project.pick.key_new"),
+            i18n::text(locale, "project.pick.key_import"),
+            i18n::text(locale, "project.pick.key_rename"),
+            i18n::text(locale, "project.pick.key_delete"),
+        ];
+        if !editing && !blocked {
+            match crate::ui::widgets::key_guide(
+                ui,
+                &guide,
+                FontId::new(11.0, FontFamily::Proportional),
+                &colors,
+            ) {
+                Some(0) => {
+                    if self.selected + 1 < rows.len() {
+                        self.selected += 1;
+                    }
+                }
+                Some(1) => {
+                    open = rows.get(self.selected).map(|row| row.record.clone());
+                }
+                Some(2) => self.focus_search = true,
+                Some(3) => {
+                    self.edit = Edit::New(String::new());
+                    self.focus_edit = true;
+                }
+                Some(4) => self.import(locale),
+                Some(5) => {
+                    if let Some(row) = rows.get(self.selected) {
+                        self.edit = Edit::Rename(row.record.id.clone(), row.record.name.clone());
+                        self.focus_edit = true;
+                    }
+                }
+                Some(6) => {
+                    if let Some(row) = rows.get(self.selected) {
+                        self.edit = Edit::Delete(row.record.clone(), String::new());
+                        self.focus_edit = true;
+                    }
+                }
+                _ => {}
+            }
+        }
         ui.add_space(4.0);
         ui.label(
             RichText::new(i18n::text(locale, "project.pick.single_tab"))

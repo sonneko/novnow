@@ -4,7 +4,7 @@
 //!    ② のオプション（`--include-stock` / `--include-blurb` / `--blurb-only` /
 //!    `--keep-illustration-memo`）も知らないオプションになる（`docs/plans.md` §4.2 ）。
 //! 2. `novnow check` と同じく開いて読む（不備 → 3、読めない → 4）。
-//! 3. `core::export`（§17.1）。設定は `project.json` の `export`、形式は `--out` の名前（`.md` なら
+//! 3. `core::export`（§17.1）。設定は `project.toml` の `export`、形式は `--out` の名前（`.md` なら
 //!    Markdown）。当てはまる節が無ければ、何も書かずに標準エラーに知らせて 0。
 //! 4. 書く。
 //!    - `--out -`: 標準出力へ（ほかには何も出さない）。

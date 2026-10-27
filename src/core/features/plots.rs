@@ -2,12 +2,12 @@
 //!
 //! LSP には対応しない補助（`docs/history.md` B-127）。**文言は持たない**（§12.2）。
 //!
-//! - **話プロットの節リスト**（[`episode_rows`]）: `plots/AA-BB.txt`（B 形式）を、場面見出しの行と
+//! - **話プロットの節リスト**（[`episode_rows`]）: `plots/AA-BB.cnov`（B 形式）を、場面見出しの行と
 //!   節の行の並びにする。各行は「エディタで編集する行の範囲」を持つ。場面の行は見出しから最初の
 //!   節の前まで（場面レベルのフィールド、§5.4.1 `scene_field`）、節の行は節の内容（`;` と末尾の空行を
 //!   含まない）。状態は §17.2 のエクスポートと同じ実効の状態（B-122）。
-//! - **上位のブロック**（[`outline_block`]）: 章プロット（`plots/AA.txt`）の話のブロックや全体プロット
-//!   （`plots/all.txt`）の章のブロックの行（`plot-episode` の上段・`plot-outline` の中央）。
+//! - **上位のブロック**（[`outline_block`]）: 章プロット（`plots/AA.cnov`）の話のブロックや全体プロット
+//!   （`plots/all.cnov`）の章のブロックの行（`plot-episode` の上段・`plot-outline` の中央）。
 //! - **伏線**（[`foreshadows`]）: 全体・章・話プロットの `seed:` / `payoff:` を伏線 ID で突き合わせる
 //!   （§10.3 の伏線タブ。未回収を上に）。
 
@@ -140,6 +140,77 @@ pub fn row_near(rows: &[EpisodeRow], id: SceneId) -> Option<usize> {
         .or(if rows.is_empty() { None } else { Some(0) })
 }
 
+/// 節 `id` に対応する話プロットのブロック 1 つ（§8.1.2 の一体削除の対応判定）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SectionBlock {
+    /// ブロックの行（末尾の空行を含む。区切り `;` を含まない）。
+    pub span: Range<usize>,
+    /// 内容の行（末尾の空行を含まない）。
+    pub content: Range<usize>,
+}
+
+/// 節 `id` に対応する話プロットのブロックすべて（場面見出しの ID が壊れた場面は数えない）。
+/// 一体削除（§8.1.2）は、結果が 1 件のときだけ一意とみなす。
+pub fn section_blocks(project: &Project, id: SceneId) -> Vec<SectionBlock> {
+    let Some(plot) = project.episode_plot(id.chapter, id.episode) else {
+        return Vec::new();
+    };
+    let scene_of = SceneId { section: 0, ..id };
+    let mut out = Vec::new();
+    for scene in &plot.scenes {
+        let Some(scene_id) = scene.id else {
+            continue;
+        };
+        let of_scene = SceneId {
+            section: 0,
+            ..scene_id
+        };
+        if of_scene != scene_of {
+            continue;
+        }
+        for section in &scene.sections {
+            if section.number == id.section {
+                out.push(SectionBlock {
+                    span: section.span.clone(),
+                    content: section.content.clone(),
+                });
+            }
+        }
+    }
+    out
+}
+
+/// ブロックを消したファイル全体（ブロックの行と区切り `;` を消す。本文側の
+/// `sections::remove` と同じ規則、§8.1.2）。
+pub fn remove_block(text: &str, block: &SectionBlock) -> String {
+    let mut lines: Vec<&str> = text.split('\n').collect();
+    let end = block.span.end.min(lines.len());
+    let start = block.span.start.min(end);
+    let is_break = |line: Option<&&str>| {
+        line.is_some_and(|line| {
+            matches!(
+                lexer::classify(line, lexer::TextFormat::PlotEpisode),
+                lexer::LineKind::SectionBreak
+            )
+        })
+    };
+    let (from, to) = if is_break(lines.get(end)) {
+        (start, end + 1)
+    } else if start > 0 && is_break(lines.get(start - 1)) {
+        (start - 1, end)
+    } else {
+        (start, end)
+    };
+    // ファイル末尾の改行の後ろの空の「行」は残す
+    let to = if to == lines.len() && text.ends_with('\n') && to > from {
+        to - 1
+    } else {
+        to
+    };
+    lines.drain(from..to.max(from));
+    lines.join("\n")
+}
+
 /// 話プロットに新しい（空の）節を足したファイル全体と、新しい節の位置の行（§10.2 `Ctrl+Shift+N`）。
 ///
 /// 新しい節は**空**で、返す行は新しい節を閉じる `;` の行（エディタはその位置の空範囲を開き、書くと
@@ -238,7 +309,7 @@ pub fn append_line(text: &str, rows: &[EpisodeRow], id: SceneId, line: &str) -> 
 pub struct OutlineBlock {
     /// ブロックの ID（章なら `episode == 0`）。
     pub id: SceneId,
-    /// 文書のパス（`plots/all.txt` / `plots/01.txt`）。
+    /// 文書のパス（`plots/all.cnov` / `plots/01.cnov`）。
     pub path: String,
     /// 見出しからの行（`;` と末尾の空行を含まない）。エディタで編集する範囲。
     pub lines: Range<usize>,
@@ -260,7 +331,7 @@ pub fn outline_blocks(project: &Project, chapter: Option<u16>) -> Vec<OutlineBlo
             project.chapter_plot_path(number),
             project.chapter_plot(number),
         ),
-        None => ("plots/all.txt".to_owned(), project.all_plot()),
+        None => ("plots/all.cnov".to_owned(), project.all_plot()),
     };
     let Some(outline) = outline else {
         return Vec::new();

@@ -359,16 +359,25 @@ pub fn show(
                 .inner_margin(Margin::symmetric(16.0, 8.0)),
         )
         .show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                ui.label(
-                    RichText::new(i18n::text(locale, "idea.keys"))
-                        .font(FontId::new(11.0 * scale, FontFamily::Proportional))
-                        .color(colors.fg_faint),
-                );
-                if super::action_button(ui, i18n::text(locale, "idea.capture_button")).clicked() {
+            // キー案内（項目ごとにボタン。実行はキーと同じ経路）
+            let guide = [
+                i18n::text(locale, "idea.key_promote"),
+                i18n::text(locale, "idea.key_drop"),
+                i18n::text(locale, "idea.capture_button"),
+            ];
+            match crate::ui::widgets::key_guide(
+                ui,
+                &guide,
+                FontId::new(11.0 * scale, FontFamily::Proportional),
+                &colors,
+            ) {
+                Some(0) => request = Some(Request::Down),
+                Some(1) => request = Some(Request::Drop),
+                Some(2) => {
                     request = Some(Request::Shortcut(crate::ui::shell::Command::Capture));
                 }
-            });
+                _ => {}
+            }
             super::separator(ui, view.mode);
             if bench.slice().is_some() {
                 if state.reveal {

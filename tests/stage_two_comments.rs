@@ -54,7 +54,7 @@ fn export_drops_hash_comment_lines_but_not_hash_number_or_inline_hash() {
     let project = Project::with_documents(
         Default::default(),
         [Document::new(
-            "contents/01-01.txt",
+            "contents/01-01.cnov",
             "@01-01-01\n# memo\n#　memo // marker\nbody # inline\n#1\n",
         )],
     );

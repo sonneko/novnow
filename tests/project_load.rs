@@ -30,11 +30,11 @@ fn path(text: &str) -> ProjectPath {
 fn complete() -> Listing {
     Listing {
         files: [
-            "project.json",
+            "project.toml",
             "characters.md",
             "words.md",
             "materials/index.json",
-            "plots/all.txt",
+            "plots/all.cnov",
         ]
         .into_iter()
         .map(str::to_owned)
@@ -43,7 +43,7 @@ fn complete() -> Listing {
             .into_iter()
             .map(str::to_owned)
             .collect(),
-        project_json: Some("{\"schema_version\":1}".to_owned()),
+        project_toml: Some("schema_version = 2\n".to_owned()),
         ..Listing::default()
     }
 }
@@ -60,11 +60,11 @@ fn every_missing_path_is_listed_in_the_order_of_the_table() {
     // §14.2-2「最初の 1 件で止めず、不足を全部集める」
     let found = validate(&Listing::default());
     let want: Vec<PathBuf> = [
-        "project.json",
+        "project.toml",
         "characters.md",
         "words.md",
         "materials/index.json",
-        "plots/all.txt",
+        "plots/all.cnov",
         "contents/",
         "plots/",
     ]
@@ -76,22 +76,22 @@ fn every_missing_path_is_listed_in_the_order_of_the_table() {
 
 #[test]
 fn the_schema_version_is_checked_after_the_paths() {
-    let with = |json: &str| Listing {
-        project_json: Some(json.to_owned()),
+    let with = |toml: &str| Listing {
+        project_toml: Some(toml.to_owned()),
         ..complete()
     };
-    assert_eq!(validate(&with("{}")), Ok(()));
-    assert_eq!(validate(&with("{\"schema_version\":1}")), Ok(()));
+    assert_eq!(validate(&with("")), Ok(()));
+    assert_eq!(validate(&with("schema_version = 2\n")), Ok(()));
     assert_eq!(
-        validate(&with("{\"schema_version\":2}")),
-        Err(ProjectError::TooNew { found: 2 })
+        validate(&with("schema_version = 3\n")),
+        Err(ProjectError::TooNew { found: 3 })
     );
-    // 版が読めないときは飛ばす（E025 を出して既定値で開く、§4.3 第 2.9 版）
-    assert_eq!(validate(&with("{")), Ok(()));
-    assert_eq!(validate(&with("{\"schema_version\":\"1\"}")), Ok(()));
-    assert_eq!(validate(&with("[1]")), Ok(()));
+    // 版が読めないときは飛ばす（E025 を出して既定値で開く、§4.3）
+    assert_eq!(validate(&with("schema_version = ")), Ok(()));
+    assert_eq!(validate(&with("schema_version = \"2\"\n")), Ok(()));
+    assert_eq!(validate(&with("schema_version = [1]\n")), Ok(()));
     // 必須パスの欠落が先
-    let mut missing = with("{\"schema_version\":2}");
+    let mut missing = with("schema_version = 3\n");
     missing.files.remove("words.md");
     assert!(matches!(
         validate(&missing),
@@ -102,32 +102,32 @@ fn the_schema_version_is_checked_after_the_paths() {
 #[test]
 fn schema_of_reads_only_the_version() {
     assert_eq!(
-        schema_of("{\"schema_version\":1}"),
+        schema_of("schema_version = 2\n"),
         Some(SchemaState::Current)
     );
     assert_eq!(
-        schema_of("\u{feff}{\"schema_version\":1}"),
+        schema_of("\u{feff}schema_version = 2\n"),
         Some(SchemaState::Current)
     );
-    assert_eq!(schema_of("{\"title\":\"x\"}"), Some(SchemaState::Current));
+    assert_eq!(schema_of("title = \"x\"\n"), Some(SchemaState::Current));
     assert_eq!(
-        schema_of("{\"schema_version\":5000000000}"),
+        schema_of("schema_version = 5000000000\n"),
         Some(SchemaState::TooNew { found: u32::MAX })
     );
-    assert_eq!(schema_of("{\"schema_version\":-1}"), None);
-    assert_eq!(schema_of("{\"schema_version\":1.5}"), None);
+    assert_eq!(schema_of("schema_version = -1\n"), None);
+    assert_eq!(schema_of("schema_version = 1.5\n"), None);
 }
 
 #[test]
 fn invalid_utf8_is_reported_last() {
     let listing = Listing {
-        invalid_utf8: vec!["contents/01-01.txt".to_owned()],
+        invalid_utf8: vec!["contents/01-01.cnov".to_owned()],
         ..complete()
     };
     assert_eq!(
         validate(&listing),
         Err(ProjectError::Encoding {
-            files: vec![PathBuf::from("contents/01-01.txt")]
+            files: vec![PathBuf::from("contents/01-01.cnov")]
         })
     );
 }
@@ -146,7 +146,7 @@ fn storages_without_directories_skip_the_directory_check() {
 
 /// `tests/world` の仕様書の例をディスクに書く。
 fn world_on_disk(dir: &TempDir) -> PathBuf {
-    dir.write("novel/project.json", "{\"schema_version\":1}\n");
+    dir.write("novel/project.toml", "schema_version = 2\n");
     dir.write("novel/characters.md", world::CHARACTERS);
     dir.write("novel/words.md", world::WORDS);
     dir.write("novel/materials/index.json", world::INDEX);
@@ -211,7 +211,7 @@ fn loading_normalizes_bom_and_line_endings() {
     let dir = TempDir::new("load-crlf");
     let root = world_on_disk(&dir);
     std::fs::write(
-        root.join("plots/01.txt"),
+        root.join("plots/01.cnov"),
         "\u{feff}@01-04\r\nsummary: 出会い\r\n;\r\n",
     )
     .expect("w");
@@ -221,7 +221,7 @@ fn loading_normalizes_bom_and_line_endings() {
     );
     let loaded = block_on(load(&storage)).expect("load");
     assert_eq!(
-        loaded.project.text("plots/01.txt"),
+        loaded.project.text("plots/01.cnov"),
         "@01-04\nsummary: 出会い\n;\n"
     );
 }
@@ -230,7 +230,7 @@ fn loading_normalizes_bom_and_line_endings() {
 fn invalid_utf8_files_are_listed_and_the_rest_still_loads() {
     let dir = TempDir::new("load-utf8");
     let root = world_on_disk(&dir);
-    std::fs::write(root.join("contents/01-05.txt"), [0x40, 0xff, 0xfe]).expect("w");
+    std::fs::write(root.join("contents/01-05.cnov"), [0x40, 0xff, 0xfe]).expect("w");
     let (_, storage) = open(
         &FakeEnv::with_history(&dir.join("state/recent.json")),
         &root,
@@ -239,20 +239,20 @@ fn invalid_utf8_files_are_listed_and_the_rest_still_loads() {
     assert_eq!(
         loaded.validation,
         Err(ProjectError::Encoding {
-            files: vec![PathBuf::from("contents/01-05.txt")]
+            files: vec![PathBuf::from("contents/01-05.cnov")]
         })
     );
     assert!(loaded.project.document(world::CONTENTS_PATH).is_some());
-    assert!(loaded.project.document("contents/01-05.txt").is_none());
+    assert!(loaded.project.document("contents/01-05.cnov").is_none());
 }
 
 #[test]
-fn settings_come_from_project_json_on_disk() {
+fn settings_come_from_project_toml_on_disk() {
     let dir = TempDir::new("load-settings");
     let root = world_on_disk(&dir);
     std::fs::write(
-        root.join("project.json"),
-        "{\"schema_version\":1,\"title\":\"星屑の時計\",\"lexicon\":{\"word_classes\":{\"体言\":\"[\"}}}",
+        root.join("project.toml"),
+        "schema_version = 2\ntitle = \"星屑の時計\"\n\n[lexicon.word_classes]\n\"体言\" = \"[\"\n",
     )
     .expect("w");
     let (_, storage) = open(
@@ -263,8 +263,8 @@ fn settings_come_from_project_json_on_disk() {
     assert_eq!(loaded.project.settings().title, "星屑の時計");
     let document = loaded
         .project
-        .document("project.json")
-        .expect("project.json");
+        .document("project.toml")
+        .expect("project.toml");
     let found = diagnostics::document(document, &loaded.project);
     assert_eq!(found.len(), 1);
     assert_eq!(found[0].code, DiagnosticCode::E027);
@@ -275,7 +275,7 @@ fn an_empty_contents_directory_still_counts() {
     // §4.2「contents/ 必須（空でも可）」— ファイルが無くてもディレクトリがあれば足りる
     let dir = TempDir::new("load-empty-contents");
     let root = sandbox::minimal_project(&dir, "novel");
-    std::fs::remove_file(root.join("contents/01-01.txt")).expect("rm");
+    std::fs::remove_file(root.join("contents/01-01.cnov")).expect("rm");
     let (_, storage) = open(
         &FakeEnv::with_history(&dir.join("state/recent.json")),
         &root,
@@ -283,15 +283,15 @@ fn an_empty_contents_directory_still_counts() {
     let found = block_on(listing(&storage)).expect("listing");
     assert!(found.dirs.contains("contents"));
     assert_eq!(validate(&found), Ok(()));
-    assert!(found.project_json.is_some());
+    assert!(found.project_toml.is_some());
 }
 
 #[test]
 fn which_files_become_documents() {
     for (name, want) in [
-        ("contents/01-01.txt", true),
-        ("plots/all.txt", true),
-        ("project.json", true),
+        ("contents/01-01.cnov", true),
+        ("plots/all.cnov", true),
+        ("project.toml", true),
         ("agents/log/2026-10-13.jsonl", false),
         (".novnow/ui.json", false),
         ("exports/out.txt", false),
@@ -317,14 +317,14 @@ fn entry(name: &str, modified: i64, len: u64) -> FileEntry {
 #[test]
 fn the_snapshot_diff_lists_created_modified_and_removed_files() {
     let before = Snapshot::from_entries([
-        entry("contents/01-01.txt", 1, 10),
-        entry("contents/01-02.txt", 1, 10),
+        entry("contents/01-01.cnov", 1, 10),
+        entry("contents/01-02.cnov", 1, 10),
         entry("words.md", 1, 10),
     ]);
     let now = Snapshot::from_entries([
-        entry("contents/01-01.txt", 2, 10),
+        entry("contents/01-01.cnov", 2, 10),
         entry("words.md", 1, 10),
-        entry("plots/01-01.txt", 1, 5),
+        entry("plots/01-01.cnov", 1, 5),
         entry(".novnow/ui.json", 9, 9),
         entry("exports/out.txt", 9, 9),
     ]);
@@ -336,16 +336,16 @@ fn the_snapshot_diff_lists_created_modified_and_removed_files() {
     assert_eq!(
         found,
         vec![
-            ("contents/01-01.txt".to_owned(), ChangeKind::Modified),
-            ("contents/01-02.txt".to_owned(), ChangeKind::Removed),
-            ("plots/01-01.txt".to_owned(), ChangeKind::Created),
+            ("contents/01-01.cnov".to_owned(), ChangeKind::Modified),
+            ("contents/01-02.cnov".to_owned(), ChangeKind::Removed),
+            ("plots/01-01.cnov".to_owned(), ChangeKind::Created),
         ]
     );
 }
 
 #[test]
 fn what_is_watched() {
-    assert!(is_watched(&path("contents/01-01.txt")));
+    assert!(is_watched(&path("contents/01-01.cnov")));
     assert!(is_watched(&path("materials/index.json")));
     assert!(!is_watched(&path(".novnow/ui.json")));
     assert!(!is_watched(&path("exports/a.zip")));
@@ -354,7 +354,7 @@ fn what_is_watched() {
 
 #[test]
 fn the_reaction_follows_8_5() {
-    let body = path("contents/01-01.txt");
+    let body = path("contents/01-01.cnov");
     let words = path("words.md");
     // 中身が同じ（自分の保存・touch・改行コードだけの違い）は無視
     assert_eq!(
@@ -452,7 +452,7 @@ fn one_poll_reports_changes_once_and_remembers_the_new_state() {
         vec![]
     );
     // 外部で足す・消す → 1 回だけ報告される
-    std::fs::write(root.join("plots/01.txt"), "@01-04\n").expect("w");
+    std::fs::write(root.join("plots/01.cnov"), "@01-04\n").expect("w");
     std::fs::remove_file(root.join("words.md")).expect("rm");
     let changes: Vec<(String, ChangeKind)> = block_on(poll(&storage, &mut snapshot))
         .expect("poll")
@@ -462,12 +462,45 @@ fn one_poll_reports_changes_once_and_remembers_the_new_state() {
     assert_eq!(
         changes,
         vec![
-            ("plots/01.txt".to_owned(), ChangeKind::Created),
+            ("plots/01.cnov".to_owned(), ChangeKind::Created),
             ("words.md".to_owned(), ChangeKind::Removed),
         ]
     );
     assert_eq!(
         block_on(poll(&storage, &mut snapshot)).expect("poll"),
         vec![]
+    );
+}
+
+#[test]
+fn an_old_format_project_is_simply_incomplete() {
+    // §4.3-5: 旧形式（project.json / *.txt）は未知のファイルとして扱い、
+    // 特別検出や自動変換ではなく必須ファイル不足の通常エラーになる（Issue #29 B10）
+    let listing = Listing {
+        files: [
+            "project.json",
+            "characters.md",
+            "words.md",
+            "materials/index.json",
+            "plots/all.txt",
+            "contents/01-01.txt",
+        ]
+        .into_iter()
+        .map(str::to_owned)
+        .collect(),
+        dirs: ["contents", "plots", "materials"]
+            .into_iter()
+            .map(str::to_owned)
+            .collect(),
+        ..Listing::default()
+    };
+    assert_eq!(
+        validate(&listing),
+        Err(ProjectError::Incomplete {
+            missing: vec![
+                PathBuf::from("project.toml"),
+                PathBuf::from("plots/all.cnov")
+            ]
+        })
     );
 }

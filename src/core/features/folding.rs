@@ -1,7 +1,7 @@
 //! 折り畳み範囲（§3.4 `folding::ranges(doc)` → `textDocument/foldingRange`）。
 //!
 //! **v1 の唯一の用途は `plot-outline` の構成ツリーの章 → 話展開**（§3.4 の注記 A-3、§10.3.1）。
-//! なので A 形式（`plots/all.txt` / `plots/AA.txt`）のブロックだけを返す。本文の場面・節の
+//! なので A 形式（`plots/all.cnov` / `plots/AA.cnov`）のブロックだけを返す。本文の場面・節の
 //! 折り畳み（§9.3.3）は**追加仕様 9**（②）で足す（C / B 形式は空）。
 //!
 //! 範囲は byte（`docs/history.md` B-1）。LSP の `FoldingRange` は行で表すので、アダプタが

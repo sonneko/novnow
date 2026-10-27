@@ -26,6 +26,7 @@
 //! | W011 | 近いキーに置換 | `ReplaceKey`（§5.0.6 の表のうちその形式で使えるキー、近い順に 3 件） |
 //! | W012 | 削除 | `RemoveSection`（空の節を閉じた `;` の行を消す） |
 //! | W029 | 明示形 `'{…}` に変更 | `UseExplicitForm` |
+//! | W096 | 空白を多数派に合わせる | `MatchDialogueSpacing`（全角空白を入れる／取る） |
 //!
 //! ファイルをまたぐ移動（E020「対応ファイルへ移動」・E024・W031「プロットへ移動」）、
 //! 設定や UI の操作（E025「既定値で開く」・W022 / E004 の「range 拡張」・E004「変種を追加」・
@@ -90,6 +91,8 @@ pub enum ActionKind {
     RemoveSection,
     /// 明示形 `'{…}` にする（W029）。
     UseExplicitForm,
+    /// 台詞内の句読点の後の空白を多数派に合わせる（W096、§7.2.2）。
+    MatchDialogueSpacing,
 }
 
 /// 修正 1 つ。
@@ -171,6 +174,7 @@ impl Context<'_> {
             DiagnosticCode::W011 => self.replace_key(),
             DiagnosticCode::W012 => vec![self.remove_line()],
             DiagnosticCode::W029 => self.explicit_form().into_iter().collect(),
+            DiagnosticCode::W096 => self.match_dialogue_spacing().into_iter().collect(),
             _ => Vec::new(),
         }
     }
@@ -200,6 +204,20 @@ impl Context<'_> {
                 new_text: text.to_string(),
             }],
         )
+    }
+
+    /// 台詞内の句読点の後の空白を多数派に合わせる（W096）。
+    ///
+    /// 診断範囲は記号（と、あれば続く全角空白）なので、空白があれば取り、
+    /// 無ければ入れる 1 操作で多数派へ寄る。
+    fn match_dialogue_spacing(&self) -> Option<CodeAction> {
+        let text = self.document.text.get(self.span.clone())?;
+        let edit = if let Some(mark) = text.strip_suffix('　') {
+            self.here(self.span.clone(), mark)
+        } else {
+            self.here(self.span.end..self.span.end, "　")
+        };
+        Some(self.action(ActionKind::MatchDialogueSpacing, String::new(), edit, true))
     }
 
     fn text_arg(&self, index: usize) -> String {

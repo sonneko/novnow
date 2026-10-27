@@ -146,6 +146,14 @@ export const operations = [
     "exceptions": "M—・C—（状態性）"
   },
   {
+    "id": "section.split",
+    "domain": "section",
+    "ja": "節の分割",
+    "en": "Split a section",
+    "lsp": "",
+    "exceptions": "M 門番"
+  },
+  {
     "id": "nav.file",
     "domain": "nav",
     "ja": "文書・ファイルの直接指定",

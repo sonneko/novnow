@@ -57,18 +57,18 @@ pub const DEFAULT_PROMPTS: &[(&str, &str)] = &[
     ),
 ];
 
-/// サンプルの原稿と辞書（§14.5 の表の順。`project.json` と JSON は [`new_project`] が作る）。
+/// サンプルの原稿と辞書（§14.5 の表の順。`project.toml` と JSON は [`new_project`] が作る）。
 const SAMPLES: &[(&str, &str)] = &[
     ("characters.md", include_str!("project/characters.md")),
     ("words.md", include_str!("project/words.md")),
     ("ideas.md", include_str!("project/ideas.md")),
     (
-        "contents/01-01.txt",
-        include_str!("project/contents/01-01.txt"),
+        "contents/01-01.cnov",
+        include_str!("project/contents/01-01.cnov"),
     ),
-    ("plots/all.txt", include_str!("project/plots/all.txt")),
-    ("plots/01.txt", include_str!("project/plots/01.txt")),
-    ("plots/01-01.txt", include_str!("project/plots/01-01.txt")),
+    ("plots/all.cnov", include_str!("project/plots/all.cnov")),
+    ("plots/01.cnov", include_str!("project/plots/01.cnov")),
+    ("plots/01-01.cnov", include_str!("project/plots/01-01.cnov")),
 ];
 
 /// `materials/index.json`（§5.8.2 の空の索引）。
@@ -91,12 +91,10 @@ pub const GITKEEPS: &[&str] = &[
     "agents/log/.gitkeep",
 ];
 
-/// `project.json`（§4.5。`schema_version` と `title` だけ。他は既定値＝書かない）。
-pub fn project_json(title: &str) -> String {
-    let value = serde_json::json!({ "schema_version": 1, "title": title });
-    let mut text = serde_json::to_string_pretty(&value).unwrap_or_default();
-    text.push('\n');
-    text
+/// `project.toml`（§4.5。`schema_version` と `title` だけ。他は既定値＝書かない）。
+pub fn project_toml(title: &str) -> String {
+    let escaped = title.replace('\\', "\\\\").replace('"', "\\\"");
+    format!("schema_version = 2\ntitle = \"{escaped}\"\n")
 }
 
 /// 既定プロンプト（パスで引く）。
@@ -110,8 +108,8 @@ pub fn default_prompt(path: &str) -> Option<&'static str> {
 /// 付録 C の `sample` プロジェクト（Web 版の初期投入 / `examples/sample-novel` の v1 版）。
 const SAMPLE_NOVEL: &[(&str, &str)] = &[
     (
-        "project.json",
-        include_str!("../../../examples/sample-novel/project.json"),
+        "project.toml",
+        include_str!("../../../examples/sample-novel/project.toml"),
     ),
     (
         "characters.md",
@@ -126,20 +124,20 @@ const SAMPLE_NOVEL: &[(&str, &str)] = &[
         include_str!("../../../examples/sample-novel/ideas.md"),
     ),
     (
-        "contents/01-04.txt",
-        include_str!("../../../examples/sample-novel/contents/01-04.txt"),
+        "contents/01-04.cnov",
+        include_str!("../../../examples/sample-novel/contents/01-04.cnov"),
     ),
     (
-        "plots/all.txt",
-        include_str!("../../../examples/sample-novel/plots/all.txt"),
+        "plots/all.cnov",
+        include_str!("../../../examples/sample-novel/plots/all.cnov"),
     ),
     (
-        "plots/01.txt",
-        include_str!("../../../examples/sample-novel/plots/01.txt"),
+        "plots/01.cnov",
+        include_str!("../../../examples/sample-novel/plots/01.cnov"),
     ),
     (
-        "plots/01-04.txt",
-        include_str!("../../../examples/sample-novel/plots/01-04.txt"),
+        "plots/01-04.cnov",
+        include_str!("../../../examples/sample-novel/plots/01-04.cnov"),
     ),
     (
         "materials/index.json",
@@ -151,15 +149,15 @@ const SAMPLE_NOVEL: &[(&str, &str)] = &[
     ),
 ];
 
-/// §14.5 の生成物一式（表の順）。`title` は `project.json` の題（`novnow new` はディレクトリ名）。
+/// §14.5 の生成物一式（表の順）。`title` は `project.toml` の題（`novnow new` はディレクトリ名）。
 pub fn new_project(title: &str) -> Vec<TemplateFile> {
     let file = |path: &'static str, text: &str| TemplateFile {
         path,
         text: text.to_owned(),
     };
     let mut files = vec![TemplateFile {
-        path: "project.json",
-        text: project_json(title),
+        path: "project.toml",
+        text: project_toml(title),
     }];
     files.extend(SAMPLES.iter().map(|(path, text)| file(path, text)));
     files.push(file("materials/index.json", MATERIALS_INDEX));

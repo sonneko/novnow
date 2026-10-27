@@ -151,7 +151,9 @@ jobs:
       fail-fast: false
       matrix:
         python: ["3.9", "3.11", "3.13"]
-    runs-on: ubuntu-latest
+    # setup-python の 3.9 は Ubuntu 26.04 向けが無いため、ubuntu-latest の
+    # 26.04 移行に合わせて 24.04 に固定する
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

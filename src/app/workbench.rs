@@ -13,10 +13,22 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Range;
 
 use crate::app::save_machine::SaveMachine;
+use crate::core::features::plots;
 use crate::core::features::sections::{self, SectionRef};
 use crate::core::features::Project;
 use crate::core::id::SceneId;
 use crate::core::model::document::Document;
+
+/// 節の削除（[`Workbench::delete_section_at`]）の結果（§8.1.2）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DeleteOutcome {
+    /// 消した（本文と対応プロット、あるいは片側だけ）。
+    Deleted,
+    /// 対応が一意に定まらず、何も消さなかった。
+    Ambiguous,
+    /// 本文にもプロットにも対象が無い。
+    NotFound,
+}
 
 /// 構造移動（§9.8.2）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -63,7 +75,7 @@ pub struct Slice {
     pub path: String,
     /// 受け持つ行（ファイルの行 index）。空なら、その位置に行を入れる。
     pub lines: Range<usize>,
-    /// 開いた側が決める鍵（同じものを開き直さないため。`plot-episode:plots/01-04.txt:01-04-02-03` など）。
+    /// 開いた側が決める鍵（同じものを開き直さないため。`plot-episode:plots/01-04.cnov:01-04-02-03` など）。
     pub tag: String,
 }
 
@@ -534,8 +546,42 @@ impl Workbench {
         true
     }
 
-    /// 今の節を消して、次の節（無ければ前の節）へ（§9.8.3 `Ctrl+Shift+;`。確認は呼び出し側）。
-    pub fn delete_section(&mut self, now: f64) -> bool {
+    /// 節をカーソルのバイト位置で 2 つに分ける（§8.1.1。正規操作 `section.split` と同じ意味。
+    /// GUI の `Ctrl+Enter` はここを通る）。
+    ///
+    /// `at` は節エディタの中身の中のバイト位置。先頭では何もしない。末尾では
+    /// 「確定して次の節へ」([`Workbench::confirm_next`]) と等価になる。何も書かれていない節
+    /// （[`sections::is_unwritten`]）では新たな空節を作らない（末尾で同じファイルに次節が
+    /// ある場合だけ移動する）。途中で割ったら、下側の新しい節へ移る。
+    pub fn split_section(&mut self, at: usize, now: f64) -> bool {
+        if self.human.is_some() {
+            return false;
+        }
+        let at = at.min(self.buffer.len());
+        if at == 0 || !self.buffer.is_char_boundary(at) {
+            return false;
+        }
+        if sections::is_unwritten(&self.buffer) {
+            if at < self.buffer.len() {
+                return false;
+            }
+            // 空節は作らない。同じファイルの次節がある場合だけ移動する
+            self.commit();
+            let Some(index) = self.current_index() else {
+                return false;
+            };
+            let same_file_next = self
+                .list
+                .get(index + 1)
+                .is_some_and(|next| next.path == self.list[index].path);
+            return same_file_next && self.go(Nav::NextSection);
+        }
+        if at >= self.buffer.len() {
+            return self.confirm_next(now);
+        }
+        let Some((upper, lower)) = sections::split_body(&self.buffer, at) else {
+            return false;
+        };
         self.commit();
         let Some(editing) = self.editing.clone() else {
             return false;
@@ -543,21 +589,139 @@ impl Workbench {
         let Some(document) = self.project.document(&editing.section.path) else {
             return false;
         };
-        let index = self.split_index();
-        let text = sections::remove(&document.text, &editing.section);
-        let path = editing.section.path.clone();
+        let section = editing.section.clone();
+        let text = sections::splice(&document.text, &section, &format!("{upper}\n;\n{lower}"));
+        let path = section.path.clone();
         self.project.insert(Document::new(path.clone(), text));
-        self.unsaved.insert(path);
+        self.unsaved.insert(path.clone());
+        self.rebuild();
+        // 下側は元の次の番号になる（§5.2.2。位置から決まる）
+        let lower_id = SceneId {
+            section: section.id.section + 1,
+            ..section.id
+        };
+        let found = sections::position_of(&self.list, &path, lower_id)
+            .or_else(|| sections::position_of(&self.list, &path, section.id));
+        if let Some(index) = found {
+            self.enter(index);
+        }
+        self.save.edited(now);
+        self.save.request_now();
+        true
+    }
+
+    /// 節 `id` が「空」か（§8.1.2 の確認を省けるか）。本文と対応プロットの両方が
+    /// 何も書かれていない（または存在しない）ときだけ空とする。
+    pub fn delete_is_empty(&self, id: SceneId) -> bool {
+        let contents_empty = if self.current_id() == Some(id) {
+            sections::is_unwritten(&self.buffer)
+        } else {
+            match self.list.iter().find(|item| item.id == id) {
+                Some(section) => self.project.document(&section.path).is_none_or(|document| {
+                    sections::is_unwritten(&sections::text_of(&document.text, section))
+                }),
+                None => true,
+            }
+        };
+        let blocks = plots::section_blocks(&self.project, id);
+        let plot_empty = match blocks.as_slice() {
+            [] => true,
+            [block] => {
+                let path = self.project.episode_plot_path(id.chapter, id.episode);
+                sections::is_unwritten(&sections::text_of_lines(
+                    self.project.text(&path),
+                    &block.content,
+                ))
+            }
+            _ => false,
+        };
+        contents_empty && plot_empty
+    }
+
+    /// 節 `id` を、対応するプロットブロックと一緒に消す（§8.1.2 の単一経路。全入口共通）。
+    ///
+    /// 本文・プロットのどちらかで対象が複数あれば、対応が一意に定まらないとして
+    /// 何も消さず [`DeleteOutcome::Ambiguous`] を返す。片側にしか無い節は、その側だけを消す。
+    pub fn delete_section_at(&mut self, id: SceneId, now: f64) -> DeleteOutcome {
+        self.commit();
+        let contents: Vec<usize> = self
+            .list
+            .iter()
+            .enumerate()
+            .filter(|(_, item)| item.id == id)
+            .map(|(index, _)| index)
+            .collect();
+        let blocks = plots::section_blocks(&self.project, id);
+        if contents.len() > 1 || blocks.len() > 1 {
+            return DeleteOutcome::Ambiguous;
+        }
+        if contents.is_empty() && blocks.is_empty() {
+            return DeleteOutcome::NotFound;
+        }
+        let current = self.current_index();
+        let mut removed_lines = 0isize;
+        let mut removed_path: Option<String> = None;
+        if let Some(&index) = contents.first() {
+            let section = self.list[index].clone();
+            if let Some(document) = self.project.document(&section.path) {
+                let text = sections::remove(&document.text, &section);
+                removed_lines =
+                    document.text.split('\n').count() as isize - text.split('\n').count() as isize;
+                removed_path = Some(section.path.clone());
+                self.project
+                    .insert(Document::new(section.path.clone(), text));
+                self.unsaved.insert(section.path.clone());
+            }
+        }
+        if let Some(block) = blocks.first() {
+            let path = self.project.episode_plot_path(id.chapter, id.episode);
+            let text = plots::remove_block(self.project.text(&path), block);
+            self.project.insert(Document::new(path.clone(), text));
+            self.unsaved.insert(path);
+        }
         self.rebuild();
         if self.list.is_empty() {
             self.editing = None;
             self.buffer.clear();
         } else {
-            self.enter(index.min(self.list.len() - 1));
+            match current {
+                Some(cur) => {
+                    let target = match contents.first() {
+                        Some(&del) if del < cur => cur - 1,
+                        Some(&del) if del == cur => cur.min(self.list.len() - 1),
+                        _ => cur.min(self.list.len() - 1),
+                    };
+                    self.enter(target);
+                }
+                None => {
+                    // まだ文書に無い節を編集中: 同じファイルで行が減ったら位置を寄せる
+                    if let (Some(editing), Some(path)) = (&mut self.editing, &removed_path) {
+                        if editing.section.path == *path && removed_lines != 0 {
+                            let section = &mut editing.section;
+                            let shift =
+                                |line: usize| (line as isize - removed_lines).max(0) as usize;
+                            section.lines = shift(section.lines.start)..shift(section.lines.end);
+                            section.span = shift(section.span.start)..shift(section.span.end);
+                        }
+                    }
+                }
+            }
         }
         self.save.edited(now);
         self.save.request_now();
-        true
+        DeleteOutcome::Deleted
+    }
+
+    /// 今の節を消して、次の節（無ければ前の節）へ（§9.8.3 `Ctrl+Shift+;`。確認は呼び出し側）。
+    pub fn delete_section(&mut self, now: f64) -> bool {
+        let Some(id) = self.current_id() else {
+            return false;
+        };
+        // まだ文書に無い節（末尾の仮想節）でプロットにも無ければ、消すものが無い
+        if self.current_index().is_none() && plots::section_blocks(&self.project, id).is_empty() {
+            return false;
+        }
+        self.delete_section_at(id, now) == DeleteOutcome::Deleted
     }
 
     /// 今のファイルの中身を置き換える（`Ctrl+H` の「すべて置換」）。今の節は同じ ID の節を開き直す。

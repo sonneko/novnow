@@ -235,3 +235,33 @@ class ReleaseDocumentationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class VerificationMapTests(unittest.TestCase):
+    def test_section_is_cut_at_the_next_heading(self):
+        text = "前置き\n" + reference.MAP_HEADING + "\n本文 `tests/x.rs`\n\n### 次\n`対象外`\n"
+        section = reference.map_section(text)
+        self.assertIn("tests/x.rs", section)
+        self.assertNotIn("対象外", section)
+        self.assertEqual(reference.map_section("見出しなし"), "")
+
+    def test_tokens_are_backquoted_spans(self):
+        self.assertEqual(
+            reference.map_tokens("a `tests/x.rs` b `some_check` c"),
+            ["tests/x.rs", "some_check"],
+        )
+
+    def test_missing_path_and_name_are_reported(self):
+        section = "`tests/cli.rs` と `tests/missing.rs` と `real_check_name` と `ghost_check_name`"
+        errors = reference.map_name_errors(section, {"real_check_name"}, reference.ROOT)
+        self.assertEqual(
+            errors,
+            [
+                "検証の地図の検査名が実在しない: ghost_check_name",
+                "検証の地図のパスが実在しない: tests/missing.rs",
+            ],
+        )
+
+    def test_non_name_tokens_are_ignored(self):
+        section = "`src/core` と `novnow check` と `TOGGLE_ON` と `rule-6`"
+        self.assertEqual(reference.map_name_errors(section, set(), reference.ROOT), [])

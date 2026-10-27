@@ -6,7 +6,7 @@
 //! - **§1.5-2（未知フィールド行の温存）**: A / B 形式の未知 `key:` は W011 を出しつつ
 //!   **値を保持**し、書き戻したバイト列は入力と一致する（§5.3 完了条件 2）。② で
 //!   `when:` `senses:` `space:` `blurb:` `illustration:` を足しても ① のファイルは壊れない。
-//! - **§1.5-1（未知キーの温存）**: `project.json` / `materials/index.json` の未知キーを
+//! - **§1.5-1（未知キーの温存）**: `project.toml` / `materials/index.json` の未知キーを
 //!   読み書きで失わない。`materials/index.json` は JSON の再シリアライズがキー順と空白を
 //!   変えてしまうので**原文をそのまま返す**（`core::syntax::materials_index` の doc）。
 //!   `.novnow/ui.json`（§4.4.1）は §3.3 の `core/model` の 10 型に含まれないので M2 の範囲外。
@@ -151,7 +151,7 @@ status: inbox            # inbox | keep | promoted | dropped
 created: 2026-10-09T12:04:11+09:00
 tags: 学院長, 動機
 relates: @02, 'アルス
-promoted-to: plots/02.txt#@02-03      # 昇格時のみ
+promoted-to: plots/02.cnov#@02-03      # 昇格時のみ
 本文は自由記述。改行もそのまま保持する。
 
 # I0008 タイトルだけ
@@ -200,7 +200,7 @@ const MATERIALS_JSON: &str = r#"{
 }
 "#;
 
-/// `project.json`（§4.5）。トップレベルと入れ子に未知キー。
+/// `project.toml`（§4.5）。トップレベルと入れ子に未知キー。
 const PROJECT_JSON: &str = r#"{
   "schema_version": 1,
   "title": "星屑の時計",
@@ -386,7 +386,7 @@ fn materials_index_keeps_unknown_keys_at_every_level() {
 }
 
 #[test]
-fn project_json_keeps_unknown_keys_at_every_level() {
+fn project_toml_keeps_unknown_keys_at_every_level() {
     let project: Project = serde_json::from_str(PROJECT_JSON).unwrap();
     assert_eq!(project.schema_version, 1);
     assert!(project.unknown.contains_key("future_top_key"));

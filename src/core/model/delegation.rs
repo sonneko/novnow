@@ -1,6 +1,6 @@
 //! 委譲レベル（§15.1.1）。
 //!
-//! 役割ごとに「AI の自律度」を 4 段階で表す。設定は `project.json` の `agents.delegation`
+//! 役割ごとに「AI の自律度」を 4 段階で表す。設定は `project.toml` の `agents.delegation`
 //! （全役割の既定）と `agents.roles.<role>`（役割ごとの上書き）で行う（§4.5.1）。
 //!
 //! §15.1.1 の表をそのまま [`Delegation::can_write`] / [`Delegation::can_chain`] にした。
@@ -28,7 +28,7 @@ pub enum Delegation {
 }
 
 impl Delegation {
-    /// §15.1.1 の表の文字列（`project.json` に書く形）。
+    /// §15.1.1 の表の文字列（`project.toml` に書く形）。
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Off => "off",
@@ -59,7 +59,7 @@ impl Delegation {
 
     /// 文字列から引く（§15.1.1 の 4 値）。表に無ければ `None`。
     ///
-    /// `project.json` の値が壊れていても**ファイル全体を道連れにしない**ため、
+    /// `project.toml` の値が壊れていても**ファイル全体を道連れにしない**ため、
     /// [`crate::core::model::project::Agents`] はこの関数で受けて既定値に落とす（§4.3-4）。
     pub fn parse(text: &str) -> Option<Self> {
         match text {

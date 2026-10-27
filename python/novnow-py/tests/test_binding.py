@@ -153,9 +153,9 @@ class ArgumentBinding(unittest.TestCase):
         self.assertEqual(named, last_arguments())
 
     def test_every_operation_binds_its_declared_order(self):
-        """119 操作すべてで「位置引数＝宣言順」を確認する（網羅）。"""
+        """120 操作すべてで「位置引数＝宣言順」を確認する（網羅）。"""
         catalog = load_catalog()["operations"]
-        self.assertEqual(len(catalog), 119, "§19.7 の全行")
+        self.assertEqual(len(catalog), 120, "§19.7 の全行")
         for operation in catalog:
             order = operation["arguments"].get("order") or []
             if not order:

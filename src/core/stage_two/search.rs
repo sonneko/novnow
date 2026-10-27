@@ -7,12 +7,17 @@ pub struct Query {
     pub regex: bool,
     pub case_sensitive: bool,
 }
+/// 検索のヒット。抜粋は「前文・一致・後文」の構造で持ち、表示用の記法
+/// （強調や `**…**`）はデータへ埋め込まない（画面表示と資料保存で組み立てが違うため）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Hit {
     pub path: String,
     pub range: Range<usize>,
-    pub excerpt: String,
+    /// 一致の前の文脈（同じ行の最大 20 字）。
+    pub before: String,
     pub matched: String,
+    /// 一致の後の文脈（同じ行の最大 20 字）。
+    pub after: String,
 }
 #[derive(Debug, Clone, Default)]
 pub struct Results {
@@ -47,7 +52,7 @@ pub fn run(
     for doc in project.documents().filter(|d| {
         !d.path.starts_with(".novnow/")
             && !d.path.starts_with("exports/")
-            && (d.path.ends_with(".txt") || d.path.ends_with(".md"))
+            && (d.path.ends_with(".cnov") || d.path.ends_with(".md"))
     }) {
         // Match one line at a time: regex uses a linear-time automaton, never unbounded backtracking.
         let mut start = 0;
@@ -69,12 +74,17 @@ pub fn run(
                     .into_iter()
                     .rev()
                     .collect();
-                let suffix: String = line[found.end()..].chars().take(20).collect();
+                let suffix: String = line[found.end()..]
+                    .trim_end_matches(['\n', '\r'])
+                    .chars()
+                    .take(20)
+                    .collect();
                 out.hits.push(Hit {
                     path: doc.path.clone(),
                     range: start + found.start()..start + found.end(),
+                    before: prefix,
                     matched: found.as_str().to_owned(),
-                    excerpt: format!("{prefix}**{}**{suffix}", found.as_str()),
+                    after: suffix,
                 });
             }
             start += line.len();
@@ -146,17 +156,7 @@ pub fn snapshot(
     let id = index.issue(PREFIX_SEARCH).to_string();
     let path = format!("materials/docs/{id}.md");
     let title = query.text.chars().take(70).collect::<String>();
-    let body = format!(
-        "# {title}\n\n{}",
-        results
-            .hits
-            .iter()
-            .map(|h| format!(
-                "- {} @{}..{}\n  {}\n",
-                h.path, h.range.start, h.range.end, h.excerpt
-            ))
-            .collect::<String>()
-    );
+    let body = snapshot_body(project, query, results, stamp, &id, &title);
     let mut source = Source {
         kind: "search".to_owned(),
         query: Some(query.text.clone()),
@@ -188,6 +188,70 @@ pub fn snapshot(
         body,
         index,
     })
+}
+
+/// 保存上限を超えたときの末尾の注記（§16.3.1 の固定形の一部）。
+/// i18n: format-vocabulary
+const SNAPSHOT_LIMIT_NOTE: &str = "\n（500 件まで保存）\n";
+
+/// ヒット一覧の見出し（§16.3.1 の固定形の一部）。
+/// i18n: format-vocabulary
+const SNAPSHOT_RESULTS_HEADING: &str = "## 結果";
+
+/// 資料として保存する MD の固定形（§16.3.1）。画面の強調とは別に、ここでだけ
+/// 一致を `**…**` で囲み、節 ID 付きの箇条書きにする。保存は先頭 500 件まで。
+fn snapshot_body(
+    project: &Project,
+    query: &Query,
+    results: &Results,
+    stamp: &str,
+    id: &str,
+    title: &str,
+) -> String {
+    const SAVED_LIMIT: usize = 500;
+    let total = results.hits.len();
+    let digits = project.digits();
+    // パス → （開始行，節 ID 表示）の列。本文以外（プロット・資料）のヒットには節が無く、パスで示す。
+    let mut sections_of: std::collections::HashMap<String, Vec<(usize, String)>> =
+        std::collections::HashMap::new();
+    let mut lines = String::new();
+    for hit in results.hits.iter().take(SAVED_LIMIT) {
+        let at = sections_of.entry(hit.path.clone()).or_insert_with(|| {
+            project
+                .documents()
+                .find(|doc| doc.path == hit.path)
+                .map(|doc| {
+                    crate::core::features::sections::of_document(doc, project)
+                        .iter()
+                        .map(|section| {
+                            (
+                                section.header.unwrap_or(section.lines.start),
+                                section.id.display(digits),
+                            )
+                        })
+                        .collect()
+                })
+                .unwrap_or_default()
+        });
+        let line =
+            crate::core::features::project::line_of(project.text(&hit.path), hit.range.start);
+        let place = at
+            .iter()
+            .rev()
+            .find(|(from, _)| *from <= line)
+            .map_or_else(|| hit.path.clone(), |(_, id)| format!("@{id}"));
+        lines.push_str(&format!(
+            "- {place} … {}**{}**{}\n",
+            hit.before, hit.matched, hit.after
+        ));
+    }
+    if total > SAVED_LIMIT {
+        lines.push_str(SNAPSHOT_LIMIT_NOTE);
+    }
+    format!(
+        "# {title}\n<!-- novnow:{id} -->\n\nquery: {}\nregex: {}\ncase_sensitive: {}\nsearched_at: {stamp}\nhits: {total}\n\n{SNAPSHOT_RESULTS_HEADING}\n\n{lines}",
+        query.text, query.regex, query.case_sensitive
+    )
 }
 
 /// i18n: format-vocabulary

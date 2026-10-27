@@ -29,7 +29,7 @@ const domains = [...new Set(operations.map((operation) => operation.domain))];
       <h1 class="page-title">{japanese ? "API リファレンス" : "API reference"}</h1>
       <p class="page-lead">
         {japanese
-          ? "novnow の機能は 119 の正規操作（canonical operation）に整理されていて、Rust API・Python・LSP・MCP・CLI の 5 つの口から同じ実装を呼び出せます。この表は仕様書 §19.7 の写しで、CI が実装と突き合わせています。"
+          ? "novnow の機能は 120 の正規操作（canonical operation）に整理されていて、Rust API・Python・LSP・MCP・CLI の 5 つの口から同じ実装を呼び出せます。この表は仕様書 §19.7 の写しで、CI が実装と突き合わせています。"
           : "Every novnow feature is a canonical operation. Five interfaces — Rust, Python, LSP, MCP and the CLI — call the same implementation. This table mirrors §19.7 of the specification and CI checks it against the code."}
       </p>
 

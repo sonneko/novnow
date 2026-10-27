@@ -107,8 +107,8 @@ fn bench_reference_pane_rebuild(c: &mut Criterion) {
         section: 1,
     };
     let doc = project
-        .document("contents/01-04.txt")
-        .expect("sample contents/01-04.txt")
+        .document("contents/01-04.cnov")
+        .expect("sample contents/01-04.cnov")
         .clone();
     let ref_pos = doc.text.find("'恵").unwrap_or(0) + 1;
 
@@ -137,7 +137,7 @@ fn bench_export_100k_chars(c: &mut Criterion) {
         body.push_str(paragraph);
         body.push_str(";\n");
     }
-    project.insert(Document::new("contents/01-04.txt", body));
+    project.insert(Document::new("contents/01-04.cnov", body));
     let options = ExportOptions::default();
 
     c.bench_function("export_100k_chars", |b| {

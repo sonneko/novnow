@@ -19,7 +19,7 @@ let starting: Promise<LanguageClient | undefined> | undefined;
 async function projectFolder(): Promise<vscode.WorkspaceFolder | undefined> {
   for (const folder of vscode.workspace.workspaceFolders ?? []) {
     try {
-      if ((await stat(join(folder.uri.fsPath, "project.json"))).isFile()) return folder;
+      if ((await stat(join(folder.uri.fsPath, "project.toml"))).isFile()) return folder;
     } catch {
       // This workspace folder is not a novnow project; do not create anything.
     }

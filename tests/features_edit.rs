@@ -710,3 +710,29 @@ fn closing_japanese_quotes_offer_speaker_and_mode_completion() {
     let (_, items) = items_at(CONTENTS_PATH, text, text.len());
     assert!(labels(&items, CompletionKind::Mode).contains(&"A".to_owned()));
 }
+
+#[test]
+fn w096_quick_fix_matches_the_majority_spacing() {
+    // §7.2.2: 多数派（空白あり）へ寄せる 1 操作
+    let text = "@01-04-02 x\n\
+                「行くぞ！　待て」\n\
+                「止まれ！　聞け」\n\
+                「来い！　早く」\n\
+                「逃げろ！　今だ」\n\
+                「見ろ！　あれを」\n\
+                「進め！続け」\n";
+    let mut project = world_with(CONTENTS_PATH, text);
+    project.insert(Document::new(
+        "project.toml",
+        "schema_version = 2\n\n[features.diagnostics]\nW096 = \"warn\"\n",
+    ));
+    let document = doc(&project, CONTENTS_PATH);
+    let actions: Vec<CodeAction> = code_action::at(&document, 0..document.text.len(), &project)
+        .into_iter()
+        .filter(|action| action.diagnostic == DiagnosticCode::W096)
+        .collect();
+    assert_eq!(actions.len(), 1);
+    assert_eq!(actions[0].kind, ActionKind::MatchDialogueSpacing);
+    let fixed = after(&project, &actions[0].edit, CONTENTS_PATH);
+    assert!(fixed.contains("「進め！　続け」"), "{fixed}");
+}

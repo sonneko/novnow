@@ -291,6 +291,7 @@ fn theme_colors_are_the_spec_tables() {
         ("fg.faint", dark.fg_faint, light.fg_faint),
         ("border", dark.border, light.border),
         ("accent", dark.accent, light.accent),
+        ("accent.faint", dark.accent_faint, light.accent_faint),
         ("state.unsaved", dark.unsaved, light.unsaved),
         ("state.error", dark.error, light.error),
         ("state.warn", dark.warn, light.warn),
@@ -839,7 +840,7 @@ fn external_changes_reload_clean_files_and_conflict_with_dirty_ones() {
 
 #[test]
 fn counts_are_section_episode_and_project_without_whitespace() {
-    let project = world_with("contents/01-05.txt", "@01-05-01 屋上\nあい う\n");
+    let project = world_with("contents/01-05.cnov", "@01-05-01 屋上\nあい う\n");
     let mut bench = Workbench::new(project, None, 400);
     let (section, episode, total) = bench.counts();
     assert!(section > 0 && episode >= section && total > episode);
@@ -1142,8 +1143,8 @@ fn shot_agent_project(project: &mut novnow::core::features::Project) {
         world::ALL.replacen("state: fixed", "state: draft", 1),
     ));
     project.insert(Document::new(
-        "project.json",
-        "{\n  \"schema_version\": 1,\n  \"title\": \"星屑\",\n  \"agents\": { \"roles\": { \"ideator\": \"apply\" } }\n}\n",
+        "project.toml",
+        "schema_version = 2\ntitle = \"星屑\"\n\n[agents.roles]\nideator = \"apply\"\n",
     ));
     project.insert(Document::new(
         "agents/mcp.json",
@@ -1432,12 +1433,12 @@ fn find_steps_through_matches_and_wraps() {
 
 #[test]
 fn project_search_lists_prose_hits_with_line_numbers() {
-    let project = world_with("contents/01-05.txt", "@01-05-01 屋上\n'リリアが笑う。\n");
+    let project = world_with("contents/01-05.cnov", "@01-05-01 屋上\n'リリアが笑う。\n");
     let hits = novnow::ui::assist::search(&project, "リリア");
     assert!(hits.len() >= 3, "{hits:?}");
     assert!(hits.iter().all(|hit| hit.path.starts_with("contents/")));
     let last = hits.last().expect("hit");
-    assert_eq!((last.path.as_str(), last.line), ("contents/01-05.txt", 2));
+    assert_eq!((last.path.as_str(), last.line), ("contents/01-05.cnov", 2));
     assert_eq!(last.text, "'リリアが笑う。");
 }
 
@@ -1489,7 +1490,8 @@ fn the_workbench_reveals_a_byte_and_deletes_or_replaces_sections() {
         .replace("リリア", "リリィ");
     assert!(bench.replace_current_file(replaced, 2.0));
     assert!(!bench.project().text(CONTENTS_PATH).contains("リリア"));
-    assert!(bench.unsaved().count() == 1);
+    // 削除は対応プロットも一緒に消す（§8.1.2）ので、未保存は本文と話プロットの 2 件
+    assert!(bench.unsaved().count() == 2);
 }
 
 #[test]
@@ -1678,9 +1680,9 @@ fn the_export_modal_narrows_by_range_and_state() {
     let all = "@01 失われた刻印\nsummary: 導入章。\n;\n";
     let plot = "@01-04-02 図書室の攻防\n咎める。\n;\n明かす。\nstate: fixed\n;\n心変わり。\n";
     let make = || {
-        let mut project = world_with("plots/all.txt", all);
+        let mut project = world_with("plots/all.cnov", all);
         project.insert(novnow::core::model::document::Document::new(
-            "plots/01-04.txt",
+            "plots/01-04.cnov",
             plot,
         ));
         project
@@ -2027,7 +2029,7 @@ fn context_unsaved_indicator_has_a_ten_pixel_diameter() {
 
 #[test]
 fn reference_sections_have_one_pixel_separator_between_headings() {
-    use novnow::core::features::reference::{Reference, Upper};
+    use novnow::core::features::reference::{Nav, Reference, Upper};
     let ctx = egui::Context::default();
     let colors = novnow::ui::theme::palette(novnow::ui::theme::Mode::Light);
     let reference = Reference {
@@ -2035,6 +2037,12 @@ fn reference_sections_have_one_pixel_separator_between_headings() {
         upper: vec![Upper {
             id: "01".into(),
             summary: "Chapter".into(),
+            nav: Nav::Outline(novnow::core::id::SceneId {
+                chapter: 1,
+                episode: 0,
+                scene: 0,
+                section: 0,
+            }),
         }],
         ..Default::default()
     };
@@ -2280,7 +2288,7 @@ fn four_matching_diagnostics_collapse_but_three_stay_expanded() {
 
 #[test]
 fn truncated_material_summary_has_a_link_to_the_full_material() {
-    use novnow::core::features::reference::{MaterialRef, Reference};
+    use novnow::core::features::reference::{MaterialRef, Nav, Reference};
     use novnow::ui::widgets::reference_pane::{self, Chosen};
     let ctx = egui::Context::default();
     let content = Reference {
@@ -2290,6 +2298,7 @@ fn truncated_material_summary_has_a_link_to_the_full_material() {
             summary: "要".repeat(121),
             source: String::new(),
             candidate: false,
+            nav: Nav::OpenMaterial("M0001".into()),
         }],
         ..Default::default()
     };
@@ -2356,7 +2365,7 @@ fn truncated_material_summary_has_a_link_to_the_full_material() {
 
 #[test]
 fn material_summary_truncated_after_five_lines_shows_continuation() {
-    use novnow::core::features::reference::{MaterialRef, Reference};
+    use novnow::core::features::reference::{MaterialRef, Nav, Reference};
     let content = Reference {
         materials: vec![MaterialRef {
             id: "M0001".into(),
@@ -2367,6 +2376,7 @@ fn material_summary_truncated_after_five_lines_shows_continuation() {
                 .join("\n"),
             source: String::new(),
             candidate: false,
+            nav: Nav::OpenMaterial("M0001".into()),
         }],
         ..Default::default()
     };
@@ -2534,9 +2544,19 @@ fn narrow_status_folds_secondary_details_without_hiding_save_state() {
     let mut harness = Harness::new();
     let full = painted_text(&harness.frame_at(1280.0, Modifiers::NONE));
     assert!(full.contains("枚") && full.contains("字"));
-    let medium = painted_text(&harness.frame_at(620.0, Modifiers::NONE));
-    assert!(medium.contains('…') && !medium.contains("枚"), "{medium}");
-    let narrow = painted_text(&harness.frame_at(380.0, Modifiers::NONE));
+    // 省略は実測幅で決める: 収まる幅では `…` を出さない（ステータスバーの行だけを見る。
+    // 本文にも `…` があるため）
+    let status = |output: &egui::FullOutput| -> String {
+        harness::painted_texts(output)
+            .into_iter()
+            .filter(|(_, rect)| rect.min.y > 770.0)
+            .map(|(text, _)| text)
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+    let medium = status(&harness.frame_at(620.0, Modifiers::NONE));
+    assert!(!medium.contains('…') && medium.contains("枚"), "{medium}");
+    let narrow = status(&harness.frame_at(260.0, Modifiers::NONE));
     assert!(narrow.contains('…') && !narrow.contains("枚"), "{narrow}");
     harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
     harness.frame(vec![Event::Text("追".into())]);
@@ -2805,13 +2825,8 @@ fn tab_inside_editor_stays_in_one_focus_target_and_header_tabs_cycle() {
     assert_eq!(harness.ctx.memory(|memory| memory.focused()), Some(editor));
     harness.frame(vec![key(Key::Tab, Modifiers::NONE)]);
     assert_eq!(harness.ctx.memory(|memory| memory.focused()), Some(editor));
-    let output = harness.frame(Vec::new());
-    let header = harness::painted_texts(&output)
-        .into_iter()
-        .find(|(s, rect)| s == "memory" && rect.min.y < 28.0)
-        .expect("header label")
-        .1;
-    harness.click_at(header.center());
+    // ヘッダの何もないところをクリックする（プロジェクト名は B4 でボタンになった）
+    harness.click_at(egui::pos2(640.0, 14.0));
     harness.frame(vec![key(Key::Tab, Modifiers::NONE)]);
     let after = harness.ctx.memory(|memory| memory.focused());
     assert_ne!(
@@ -3009,4 +3024,561 @@ fn workspace_action_and_list_row_share_underline_hover_and_minimum_hit_target() 
             "hover highlight for {rect:?}"
         );
     }
+}
+
+// ============================================================ 重ね物の共通規則（§9.7.5、Issue #29 / B1）
+
+/// 全重ね物を 1 つずつ開き、外側クリックと `Esc` で「閉じるべきものは閉じ、
+/// 閉じてはいけないもの（保存失敗・終了ガード）は閉じず、背面が操作されず、
+/// 本文が変わらない」ことを検証する。種類の列挙は `OverlayKind::ALL` で、
+/// 重ね物を増やすと `Overlay::kind` / `Overlay::sample` の網羅性でコンパイル時に気づく。
+#[test]
+fn every_overlay_closes_on_outside_click_and_escape_except_the_locked_two() {
+    use novnow::ui::app::OverlayKind;
+    let mut harness = Harness::new();
+    // 補完が候補を持つ状態にする（候補が無いと自ら閉じて検証にならない）
+    harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text("'".into())]);
+    harness.frame(Vec::new());
+    assert!(harness.app.overlay_open(), "補完が出ている");
+    harness.frame(vec![key(Key::Escape, Modifiers::NONE)]);
+    assert!(!harness.app.overlay_open());
+
+    for kind in OverlayKind::ALL {
+        let kind = *kind;
+        // --- 外側クリック ---
+        harness.app.open_overlay_for_test(kind);
+        harness.frame(Vec::new());
+        harness.frame(Vec::new());
+        if harness.app.overlay_open() {
+            let bench = harness.app.workbench().expect("open");
+            let before = (bench.buffer().to_owned(), bench.current_id());
+            let workspace = harness.app.workspace();
+            harness.click_at(Pos2::new(20.0, 155.0));
+            harness.frame(Vec::new());
+            assert_eq!(
+                harness.app.overlay_open(),
+                !kind.dismissible(),
+                "{kind:?}: 外側クリック"
+            );
+            let bench = harness.app.workbench().expect("open");
+            assert_eq!(
+                (bench.buffer().to_owned(), bench.current_id()),
+                before,
+                "{kind:?}: 背面を操作せず本文も変わらない"
+            );
+            assert_eq!(harness.app.workspace(), workspace, "{kind:?}");
+        } else {
+            // 自分から閉じるもの（衝突が無い Diff 等）は閉じられる種類だけである
+            assert!(kind.dismissible(), "{kind:?} は勝手に閉じない");
+        }
+        // --- Esc ---
+        harness.app.open_overlay_for_test(kind);
+        harness.frame(Vec::new());
+        harness.frame(Vec::new());
+        harness.frame(vec![key(Key::Escape, Modifiers::NONE)]);
+        harness.frame(Vec::new());
+        assert_eq!(
+            harness.app.overlay_open(),
+            !kind.dismissible(),
+            "{kind:?}: Esc"
+        );
+    }
+}
+
+#[test]
+fn modals_are_centered_with_a_close_hint_and_locked_ones_have_none() {
+    use novnow::ui::app::OverlayKind;
+    let mut harness = Harness::new();
+    harness
+        .app
+        .open_overlay_for_test(OverlayKind::ConfirmDelete);
+    harness.frame(Vec::new());
+    harness.frame(Vec::new());
+    let output = harness.frame(Vec::new());
+    let confirm = harness::painted_texts(&output)
+        .into_iter()
+        .find(|(text, _)| text.contains("この節を削除しますか"))
+        .expect("delete confirmation")
+        .1;
+    assert!(
+        (confirm.center().x - 640.0).abs() < 220.0,
+        "水平中央: {confirm:?}"
+    );
+    assert!(
+        confirm.center().y > 250.0 && confirm.center().y < 550.0,
+        "垂直中央付近（画面 1280x800 の中央 400）: {confirm:?}"
+    );
+    assert!(
+        painted_text(&output).contains("Esc / 外側クリックで閉じる"),
+        "共通フッタの閉じる案内"
+    );
+    harness.app.open_overlay_for_test(OverlayKind::SaveError);
+    harness.frame(Vec::new());
+    harness.frame(Vec::new());
+    let output = harness.frame(Vec::new());
+    assert!(
+        !painted_text(&output).contains("Esc / 外側クリックで閉じる"),
+        "閉じられないモーダルに案内を出さない"
+    );
+}
+
+#[test]
+fn complex_form_drafts_are_restored_but_never_saved_to_the_project() {
+    let mut harness = Harness::new();
+    // アイデア即時入力: 書いて Esc で閉じ、開き直すと復元される
+    harness.frame(vec![key(Key::I, Modifiers::CTRL | Modifiers::SHIFT)]);
+    harness.frame(vec![Event::Text("下書きのメモ".into())]);
+    harness.frame(vec![key(Key::Escape, Modifiers::NONE)]);
+    assert!(!harness.app.overlay_open());
+    harness.frame(vec![key(Key::I, Modifiers::CTRL | Modifiers::SHIFT)]);
+    let output = painted_text(&harness.frame(Vec::new()));
+    assert!(output.contains("下書きのメモ"), "復元される: {output}");
+    // 確定したら下書きは消える
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(vec![key(Key::I, Modifiers::CTRL | Modifiers::SHIFT)]);
+    let output = painted_text(&harness.frame(Vec::new()));
+    assert!(
+        !output.contains("下書きのメモ"),
+        "確定後は残らない: {output}"
+    );
+    harness.frame(vec![key(Key::Escape, Modifiers::NONE)]);
+
+    // MCP 設定: 書いて外側クリックで閉じてもファイルは変わらず、開き直すと復元される
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text(">mcp".into())]);
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+    harness.frame(Vec::new());
+    let title = harness.rect_of("agents/mcp.json").expect("mcp modal");
+    harness.click_at(Pos2::new(title.min.x + 50.0, title.max.y + 26.0));
+    harness.frame(vec![Event::Text("draft-mcp-text".into())]);
+    harness.frame(Vec::new());
+    harness.click_at(Pos2::new(20.0, 155.0));
+    assert!(!harness.app.overlay_open(), "外側クリックで閉じる");
+    assert_eq!(
+        harness
+            .app
+            .workbench()
+            .unwrap()
+            .project()
+            .text("agents/mcp.json"),
+        "",
+        "下書きはファイルへ書かない"
+    );
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text(">mcp".into())]);
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    let output = painted_text(&harness.frame(Vec::new()));
+    assert!(output.contains("draft-mcp-text"), "復元される: {output}");
+}
+
+/// B4: キーボード移動だけで選択行が常に見える（候補一覧の追従ス）。
+#[test]
+fn palette_selection_stays_visible_when_moving_with_the_keyboard_only() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text(">".into())]);
+    for _ in 0..60 {
+        harness.frame(vec![key(Key::ArrowDown, Modifiers::NONE)]);
+    }
+    let output = harness.frame(Vec::new());
+    let texts = harness::painted_texts(&output);
+    let last = texts
+        .iter()
+        .find(|(text, _)| text == "パレットを閉じる (Esc)")
+        .map(|(_, rect)| *rect)
+        .expect("last palette row is painted");
+    let footer = texts
+        .iter()
+        .find(|(text, _)| text.contains("外側クリックで閉じる"))
+        .map(|(_, rect)| *rect)
+        .expect("close hint footer");
+    assert!(
+        last.max.y <= footer.min.y + 1.0 && last.min.y > 72.0,
+        "selected row must be scrolled into the viewport: {last:?} footer {footer:?}"
+    );
+}
+
+/// B4: 最近選んだ項目は、入力が空のときだけ先頭に出る（モード別）。
+#[test]
+fn palette_recent_items_come_first_only_on_empty_input() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text(">mcp".into())]);
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    assert_eq!(
+        harness.app.overlay_kind(),
+        Some(novnow::ui::app::OverlayKind::McpConfig)
+    );
+    harness.frame(vec![key(Key::Escape, Modifiers::NONE)]);
+    harness.frame(vec![key(Key::P, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text(">".into())]);
+    let output = harness.frame(Vec::new());
+    let painted = harness::painted_texts(&output);
+    let rows: Vec<&(String, egui::Rect)> = painted
+        .iter()
+        .filter(|(text, rect)| text.starts_with('>') && rect.min.y > 90.0)
+        .collect();
+    let first = rows
+        .iter()
+        .min_by(|a, b| a.1.min.y.total_cmp(&b.1.min.y))
+        .expect("command rows");
+    assert!(
+        first.0.starts_with(">mcp"),
+        "recent command first: {}",
+        first.0
+    );
+}
+
+/// B4: ヘッダのパンくずは `@` パレット、プロジェクト名は開く経路のボタン。
+/// 狭い幅では実測で省略する。
+#[test]
+fn header_crumb_and_project_name_are_buttons_and_fold_by_measured_width() {
+    let mut harness = Harness::new();
+    let output = harness.frame(Vec::new());
+    let texts = harness::painted_texts(&output);
+    let crumb = texts
+        .iter()
+        .find(|(text, rect)| text == "01›04›02›01" && rect.min.y < 28.0)
+        .map(|(_, rect)| *rect)
+        .expect("breadcrumb in header");
+    harness.click_at(crumb.center());
+    assert_eq!(
+        harness.app.overlay_kind(),
+        Some(novnow::ui::app::OverlayKind::Palette),
+        "breadcrumb opens the palette"
+    );
+    let output = harness.frame(Vec::new());
+    assert!(
+        harness::painted_text(&output).contains("@01"),
+        "palette starts in scene mode"
+    );
+    harness.frame(vec![key(Key::Escape, Modifiers::NONE)]);
+    // 狭い幅: プロジェクト名は省略される（実測判定）
+    let narrow = harness.frame_at(340.0, Modifiers::NONE);
+    assert!(
+        !harness::painted_texts(&narrow)
+            .iter()
+            .any(|(text, rect)| text == "memory" && rect.min.y < 28.0),
+        "project name folds away at narrow widths"
+    );
+    // プロジェクト名のクリックは Ctrl+O と同じ経路（一覧へ戻る）
+    let output = harness.frame_at(1280.0, Modifiers::NONE);
+    let name = harness::painted_texts(&output)
+        .into_iter()
+        .find(|(text, rect)| text == "memory" && rect.min.y < 28.0)
+        .map(|(_, rect)| rect)
+        .expect("project name in header");
+    harness.click_at(name.center());
+    harness.frame(Vec::new());
+    harness.idle(2.0);
+    assert!(
+        harness.app.workbench().is_none(),
+        "project name returns to the project list"
+    );
+}
+
+/// B5（§9.5.5）: 参照ペインの行はダブルクリックで移動し、シングルクリックでは動かない。
+#[test]
+fn reference_pane_rows_navigate_on_double_click_but_not_on_single_click() {
+    use novnow::ui::workspaces::Workspace;
+    let mut harness = Harness::new();
+    harness.idle(0.3);
+    assert_eq!(harness.app.workspace(), Some(Workspace::Write));
+    let output = harness.frame(Vec::new());
+    // 参照ペイン（右側）の配役の行
+    let row = harness::painted_texts(&output)
+        .into_iter()
+        .filter(|(_, rect)| rect.min.x > 790.0)
+        .find(|(text, _)| text.contains("リリア") && text.contains("呆れ"))
+        .map(|(_, rect)| rect)
+        .expect("cast row in the reference pane");
+    harness.click_at(row.center());
+    harness.frame(Vec::new());
+    assert_eq!(
+        harness.app.workspace(),
+        Some(Workspace::Write),
+        "a single click must not navigate"
+    );
+    harness.click_at(row.center());
+    harness.click_at(row.center());
+    harness.frame(Vec::new());
+    assert_eq!(
+        harness.app.workspace(),
+        Some(Workspace::Cast),
+        "a double click opens the cast workspace"
+    );
+}
+
+/// B5: ヘルプのキー項目はボタンで、押すとヘルプを閉じてから実行される。
+#[test]
+fn help_key_items_run_their_command_after_closing_the_help() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text("?".into())]);
+    harness.frame(Vec::new());
+    if harness.app.overlay_kind() != Some(novnow::ui::app::OverlayKind::Help) {
+        // `?` が本文へ入った場合はヘッダの `?` ボタンから開く
+        let output = harness.frame(Vec::new());
+        let button = harness::painted_texts(&output)
+            .into_iter()
+            .find(|(text, rect)| text == "?" && rect.min.y < 28.0)
+            .map(|(_, rect)| rect)
+            .expect("help button in the header");
+        harness.click_at(button.center());
+    }
+    assert_eq!(
+        harness.app.overlay_kind(),
+        Some(novnow::ui::app::OverlayKind::Help)
+    );
+    let output = harness.frame(Vec::new());
+    let row = harness::painted_texts(&output)
+        .into_iter()
+        .find(|(text, rect)| text == "Ctrl+P" && rect.min.y > 28.0)
+        .map(|(_, rect)| rect)
+        .expect("palette row in the help");
+    harness.click_at(row.center());
+    harness.frame(Vec::new());
+    assert_eq!(
+        harness.app.overlay_kind(),
+        Some(novnow::ui::app::OverlayKind::Palette),
+        "the help closes and the palette command runs"
+    );
+}
+
+#[test]
+fn bundled_font_bracket_coverage_drives_reader_substitution() {
+    // 同梱フォントに縦書き互換形が収録されているかを確かめ、組版の置換/回転が
+    // その収録有無と一致すること（＝互換形の豆腐を描かないこと）を守る（§17.3.3）。
+    let mut defs = egui::FontDefinitions::default();
+    defs.font_data.insert(
+        "bundled".to_owned(),
+        egui::FontData::from_static(novnow::ui::theme::BUNDLED_FONT),
+    );
+    defs.families
+        .insert(egui::FontFamily::Proportional, vec!["bundled".to_owned()]);
+    let ctx = egui::Context::default();
+    ctx.set_fonts(defs);
+    let _ = ctx.run(egui::RawInput::default(), |_| {});
+    let font = egui::FontId::proportional(14.0);
+    let available: std::collections::BTreeSet<char> = novnow::core::reader::VERTICAL_FORMS
+        .iter()
+        .map(|&(_, form)| form)
+        .filter(|form| ctx.fonts(|fonts| fonts.has_glyph(&font, *form)))
+        .collect();
+    let text: String = novnow::core::reader::VERTICAL_FORMS
+        .iter()
+        .map(|&(from, _)| from)
+        .collect();
+    let metrics = novnow::core::reader::Metrics {
+        vertical_forms: available.clone(),
+        ..Default::default()
+    };
+    let pages = novnow::core::reader::layout(
+        &text,
+        novnow::core::reader::Options {
+            rows: 20,
+            columns: 2,
+            vertical: true,
+        },
+        &metrics,
+    );
+    for glyph in &pages[0].glyphs {
+        let form = novnow::core::reader::VERTICAL_FORMS
+            .iter()
+            .find(|&&(from, _)| from == glyph.ch)
+            .map(|&(_, form)| form)
+            .unwrap_or(glyph.ch);
+        if available.contains(&form) {
+            assert_eq!(glyph.text, form.to_string(), "{} は互換形で描く", glyph.ch);
+            assert!(!glyph.rotate);
+        } else {
+            assert_eq!(
+                glyph.text,
+                glyph.ch.to_string(),
+                "{} は元の字のまま",
+                glyph.ch
+            );
+            assert!(glyph.rotate, "{} は回転して描く", glyph.ch);
+        }
+    }
+}
+
+#[test]
+fn split_section_splits_at_the_byte_and_survives_a_reparse() {
+    use novnow::core::features::sections;
+    let mut bench = Workbench::new(world(), Some("01-04-02-01"), 400);
+    let body = bench.buffer().to_owned();
+    let at = body.find("呆れたような").expect("第二段落");
+    assert!(bench.split_section(at, 1.0));
+    // 下側の新しい節へ移り、元の 2 節目は 3 節目になる
+    assert_eq!(bench.current_id(), Some(id(1, 4, 2, 2)));
+    assert!(bench.buffer().starts_with("呆れたような"));
+    assert_eq!(bench.sections().len(), 4);
+    // 保存→再読込の往復: 文書から解析し直しても上・下が保たれる（受け入れ条件）
+    let project = bench.project();
+    let list = sections::all(project);
+    let upper = sections::text_of(project.text(CONTENTS_PATH), &list[0]);
+    let lower = sections::text_of(project.text(CONTENTS_PATH), &list[1]);
+    assert_eq!(upper, "「やっぱり'アルス、ここにいたのね」@リリア:A");
+    assert!(lower.starts_with("呆れたような声"));
+    assert_eq!(format!("{upper}\n\n{lower}"), body);
+}
+
+#[test]
+fn split_section_at_the_edges_and_never_chains_empty_sections() {
+    let mut bench = Workbench::new(world(), Some("01-04-02-03"), 400);
+    // 先頭では何もしない
+    assert!(!bench.split_section(0, 1.0));
+    assert_eq!(bench.sections().len(), 3);
+    // 末尾は従来の「確定して次の節へ」と等価（次が無ければ作って移る）
+    let len = bench.buffer().len();
+    assert!(bench.split_section(len, 1.0));
+    assert_eq!(bench.buffer(), "");
+    // 何も書かれていない節では、新たな空節を作らない（連鎖しない）
+    let before = bench.project().text(CONTENTS_PATH).to_owned();
+    assert!(!bench.split_section(usize::MAX, 2.0));
+    assert_eq!(bench.project().text(CONTENTS_PATH), before);
+    // コメントのみの節は「書かれている」ので末尾で次を作れる（W012 の定義、§8.1.1）
+    let mut bench = Workbench::new(
+        world_with(CONTENTS_PATH, "@01-04-02 題\n// メモだけの節\n"),
+        None,
+        400,
+    );
+    let len = bench.buffer().len();
+    assert!(bench.split_section(len, 1.0));
+    assert_eq!(bench.buffer(), "");
+}
+
+#[test]
+fn ctrl_enter_splits_the_section_at_the_caret() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
+    harness.frame(vec![Event::Text("ZZZ".into())]);
+    assert!(harness
+        .app
+        .workbench()
+        .is_some_and(|bench| bench.buffer().ends_with("ZZZ")));
+    // キャレットを ZZZ の前へ戻して分割する
+    harness.frame(vec![
+        key(Key::ArrowLeft, Modifiers::NONE),
+        key(Key::ArrowLeft, Modifiers::NONE),
+        key(Key::ArrowLeft, Modifiers::NONE),
+    ]);
+    harness.frame(vec![]);
+    harness.frame(vec![key(Key::Enter, Modifiers::CTRL)]);
+    let bench = harness.app.workbench().expect("bench");
+    assert_eq!(bench.sections().len(), 4, "カーソル位置で 2 つに分かれる");
+    assert_eq!(bench.current_id(), Some(id(1, 4, 2, 2)), "下側の節へ移る");
+    assert_eq!(bench.buffer(), "ZZZ");
+    // 先頭（キャレット 0）でもう一度押しても何も起きない
+    harness.frame(vec![key(Key::Enter, Modifiers::CTRL)]);
+    let bench = harness.app.workbench().expect("bench");
+    assert_eq!(bench.sections().len(), 4);
+    assert_eq!(bench.buffer(), "ZZZ");
+}
+
+#[test]
+fn delete_section_at_removes_plot_too_and_refuses_ambiguous_targets() {
+    use novnow::ui::workbench::DeleteOutcome;
+    use world::EPISODE_PATH;
+    let mut bench = Workbench::new(world(), Some("01-04-02-01"), 400);
+    assert!(!bench.delete_is_empty(id(1, 4, 2, 2)));
+    assert_eq!(
+        bench.delete_section_at(id(1, 4, 2, 2), 1.0),
+        DeleteOutcome::Deleted
+    );
+    assert_eq!(bench.sections().len(), 2);
+    assert!(!bench
+        .project()
+        .text(CONTENTS_PATH)
+        .contains("旧校舎の地下遺跡に眠っている"));
+    assert!(!bench
+        .project()
+        .text(EPISODE_PATH)
+        .contains("謎を解こうとしていると明かす"));
+    assert_eq!(bench.current_id(), Some(id(1, 4, 2, 1)), "今の節はそのまま");
+    // プロットにしか無い節（繰り上がり後の 3 番）はプロットだけ消える
+    assert_eq!(
+        bench.delete_section_at(id(1, 4, 2, 3), 2.0),
+        DeleteOutcome::Deleted
+    );
+    assert_eq!(bench.sections().len(), 2, "本文は変わらない");
+    assert!(!bench
+        .project()
+        .text(EPISODE_PATH)
+        .contains("放課後に旧校舎へ向かうことを決める"));
+    assert_eq!(
+        bench.delete_section_at(id(1, 4, 2, 9), 3.0),
+        DeleteOutcome::NotFound
+    );
+    // 対応が一意でない（場面見出しの重複）ときは何も消さない（受け入れ条件）
+    let duplicated = "@01-04-02 題\nプロット一\n;\n@01-04-02 題\nプロット二\n";
+    let mut bench = Workbench::new(
+        world_with(EPISODE_PATH, duplicated),
+        Some("01-04-02-01"),
+        400,
+    );
+    let contents_before = bench.project().text(CONTENTS_PATH).to_owned();
+    assert_eq!(
+        bench.delete_section_at(id(1, 4, 2, 1), 1.0),
+        DeleteOutcome::Ambiguous
+    );
+    assert_eq!(bench.project().text(CONTENTS_PATH), contents_before);
+    assert_eq!(bench.project().text(EPISODE_PATH), duplicated);
+    assert_eq!(bench.unsaved().count(), 0);
+}
+
+#[test]
+fn context_view_delete_buttons_follow_the_confirmation_rules() {
+    use novnow::core::model::document::Document;
+    use novnow::ui::app::OverlayKind;
+    use world::EPISODE_PATH;
+    let delete_buttons = |harness: &mut Harness| -> Vec<egui::Rect> {
+        let output = harness.frame(Vec::new());
+        let mut rects: Vec<egui::Rect> = harness::painted_texts(&output)
+            .into_iter()
+            .filter(|(text, _)| text == "削除")
+            .map(|(_, rect)| rect)
+            .collect();
+        rects.sort_by(|a, b| a.min.y.total_cmp(&b.min.y));
+        rects
+    };
+    // 空の節は確認なしで消える
+    let mut project = world_with(CONTENTS_PATH, "@01-04-02 題\n一節目\n;\n\n;\n三節目\n");
+    project.insert(Document::new(
+        EPISODE_PATH,
+        "@01-04-02 題\nプロット一\n;\n\n;\nプロット三\n",
+    ));
+    let (mut harness, _) = Harness::start_with(project, true);
+    harness.frame(Vec::new());
+    let buttons = delete_buttons(&mut harness);
+    assert!(
+        buttons.len() >= 3,
+        "各節とプレースホルダのボタン: {buttons:?}"
+    );
+    // 上から 2 つ目 = 空の 2 節目
+    harness.click_at(buttons[1].center());
+    assert_eq!(
+        harness.app.overlay_kind(),
+        None,
+        "空の節は確認モーダルを出さない"
+    );
+    assert_eq!(harness.app.workbench().expect("bench").sections().len(), 2);
+    // 空でない節は既定で確認し、確定で本文とプロットが一緒に消える
+    let mut harness = Harness::new();
+    harness.frame(Vec::new());
+    let buttons = delete_buttons(&mut harness);
+    harness.click_at(buttons[0].center());
+    assert_eq!(
+        harness.app.overlay_kind(),
+        Some(OverlayKind::ConfirmDelete),
+        "編集中の節（プレースホルダ）のボタンは確認を出す"
+    );
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    let bench = harness.app.workbench().expect("bench");
+    assert_eq!(bench.sections().len(), 2);
+    assert!(!bench.project().text(EPISODE_PATH).contains("咎める"));
+    assert_eq!(harness.app.overlay_kind(), None);
 }

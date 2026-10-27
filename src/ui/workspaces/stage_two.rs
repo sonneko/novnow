@@ -23,7 +23,7 @@ pub struct State {
     observation_unmatched: bool,
     pub reader_position: Option<(String, usize)>,
     address_cells: std::collections::BTreeMap<(String, String), String>,
-    observation_filters: [bool; 7],
+    observation_filters: [bool; 8],
     observation_loaded: bool,
     pub tabs: [usize; 9],
     query: search::Query,
@@ -241,7 +241,8 @@ pub fn show(
             "stage.observations" => {
                 use crate::core::diagnostics::DiagnosticCode as C;
                 if !state.observation_loaded {
-                    state.observation_filters = [false, false, false, false, false, true, false];
+                    state.observation_filters =
+                        [false, false, false, false, false, true, false, false];
                     state.observation_unmatched = true;
                     state.observation_loaded = true;
                 }
@@ -254,6 +255,7 @@ pub fn show(
                     C::W090,
                     C::W082,
                     C::W083,
+                    C::W096,
                 ];
                 ui.horizontal_wrapped(|ui| {
                     for (index, code) in codes.iter().enumerate() {
@@ -771,8 +773,34 @@ fn search_ui(
                 ));
             }
             egui::ScrollArea::vertical().show(ui, |ui| {
+                let font = ui
+                    .style()
+                    .text_styles
+                    .get(&egui::TextStyle::Button)
+                    .cloned()
+                    .unwrap_or_else(|| egui::FontId::proportional(13.0));
+                let link = ui.visuals().hyperlink_color;
+                let color = ui.visuals().text_color();
+                let match_bg = ui.visuals().selection.bg_fill;
                 for hit in &results.hits {
-                    if ui.link(format!("{}  {}", hit.path, hit.excerpt)).clicked() {
+                    // 抜粋は前文・一致・後文の構造で受け、画面では一致だけを強調する。
+                    let mut job = egui::text::LayoutJob::default();
+                    crate::ui::widgets::append_text(
+                        &mut job,
+                        &format!("{}  ", hit.path),
+                        &font,
+                        link,
+                    );
+                    crate::ui::widgets::append_excerpt(
+                        &mut job,
+                        &hit.before,
+                        &hit.matched,
+                        &hit.after,
+                        &font,
+                        color,
+                        match_bg,
+                    );
+                    if crate::ui::widgets::selectable_job(ui, false, job).clicked() {
                         *jump = Some((hit.path.clone(), hit.range.start));
                     }
                 }
@@ -958,7 +986,10 @@ fn reader(
     use std::hash::{Hash, Hasher};
     let mut fingerprint = std::collections::hash_map::DefaultHasher::new();
     bench.project().text(path).hash(&mut fingerprint);
-    bench.project().text("plots/all.txt").hash(&mut fingerprint);
+    bench
+        .project()
+        .text("plots/all.cnov")
+        .hash(&mut fingerprint);
     bench
         .project()
         .text(&bench.project().chapter_plot_path(*chapter))
@@ -979,6 +1010,12 @@ fn reader(
         let text = crate::core::export::fragment(bench.project().text(path), true);
         let mut measured_metrics = metrics.clone();
         ui.fonts(|fonts| {
+            // 括弧の互換形は、使用フォントに収録されている場合だけ組版で使う（§17.3.3）。
+            for &(_, form) in crate::core::reader::VERTICAL_FORMS {
+                if fonts.has_glyph(&font, form) {
+                    measured_metrics.vertical_forms.insert(form);
+                }
+            }
             for ch in text.chars() {
                 measured_metrics
                     .glyph_advances
@@ -1207,36 +1244,64 @@ fn local_ui(
             &config,
         ) {
             Ok(mcp) => {
-                if let Ok(mut project) = serde_json::from_str::<serde_json::Value>(
+                // project.toml は無損失編集で書き戻し、壊れた TOML は上書きしない（§4.5）
+                let roles: Vec<String> = state
+                    .custom_roles
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .map(str::to_owned)
+                    .collect();
+                if let Some(edited) = crate::core::syntax::project_toml::edit(
                     bench
                         .project()
                         .text(crate::core::model::project::PROJECT_FILE),
+                    |document| {
+                        use toml_edit::{Item, Table, Value};
+                        let root = document.as_table_mut();
+                        if root.get("agents").is_none() {
+                            root.insert("agents", Item::Table(Table::new()));
+                        }
+                        let Some(agents) = root.get_mut("agents").and_then(Item::as_table_like_mut)
+                        else {
+                            return;
+                        };
+                        let mut array = toml_edit::Array::new();
+                        for role in &roles {
+                            array.push(role.as_str());
+                        }
+                        crate::core::syntax::project_toml::set_value(
+                            agents,
+                            "custom_roles",
+                            Value::Array(array),
+                        );
+                        if agents.get("local_llm").is_none() {
+                            agents.insert(
+                                "local_llm",
+                                Item::Value(Value::InlineTable(Default::default())),
+                            );
+                        }
+                        let Some(local) = agents
+                            .get_mut("local_llm")
+                            .and_then(Item::as_table_like_mut)
+                        else {
+                            return;
+                        };
+                        crate::core::syntax::project_toml::set_value(
+                            local,
+                            "enabled",
+                            toml_edit::Value::from(config.enabled),
+                        );
+                        crate::core::syntax::project_toml::set_string(local, "url", &config.url);
+                        crate::core::syntax::project_toml::set_string(
+                            local,
+                            "model",
+                            &config.model,
+                        );
+                    },
                 ) {
-                    if !project["agents"].is_object() {
-                        project["agents"] = serde_json::json!({});
-                    }
-                    if !project["agents"]["local_llm"].is_object() {
-                        project["agents"]["local_llm"] = serde_json::json!({});
-                    }
-                    for (key, value) in [
-                        ("enabled", serde_json::json!(config.enabled)),
-                        ("url", serde_json::json!(config.url)),
-                        ("model", serde_json::json!(config.model)),
-                    ] {
-                        project["agents"]["local_llm"][key] = value;
-                    }
-                    project["agents"]["custom_roles"] = serde_json::json!(state
-                        .custom_roles
-                        .split(',')
-                        .map(str::trim)
-                        .filter(|s| !s.is_empty())
-                        .collect::<Vec<_>>());
                     bench.replace_document("agents/mcp.json", mcp, now);
-                    bench.replace_document(
-                        crate::core::model::project::PROJECT_FILE,
-                        serde_json::to_string_pretty(&project).unwrap() + "\n",
-                        now,
-                    );
+                    bench.replace_document(crate::core::model::project::PROJECT_FILE, edited, now);
                 }
             }
             Err(e) => state.local_result = e.to_owned(),

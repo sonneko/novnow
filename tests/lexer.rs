@@ -16,11 +16,11 @@ use novnow::core::text::lexer::{
     self, FieldKey, Formats, LineKind, Newline, Sigil, Stage, TextFormat, FIELD_KEYS, SIGIL_TABLE,
 };
 
-/// C 形式（`contents/AA-BB.txt`、§5.2）。
+/// C 形式（`contents/AA-BB.cnov`、§5.2）。
 const C: TextFormat = TextFormat::Contents;
-/// A 形式（`plots/all.txt` / `plots/AA.txt`、§5.3）。
+/// A 形式（`plots/all.cnov` / `plots/AA.cnov`、§5.3）。
 const A: TextFormat = TextFormat::PlotOutline;
-/// B 形式（`plots/AA-BB.txt`、§5.4）。
+/// B 形式（`plots/AA-BB.cnov`、§5.4）。
 const B: TextFormat = TextFormat::PlotEpisode;
 /// `*.md`（§5.5–§5.7）。
 const MD: TextFormat = TextFormat::Markdown;
@@ -933,7 +933,7 @@ fn an_empty_document_stays_empty() {
 
 #[test]
 fn the_newline_setting_decides_the_output_form() {
-    // §4.5 の `project.json.newline`
+    // §4.5 の `project.toml.newline`
     let crlf = lexer::normalize_for_save("あ\nい", Newline::Crlf);
     assert_eq!(crlf, "あ\r\nい\r\n");
     let cr = lexer::normalize_for_save("あ\nい", Newline::Cr);
@@ -944,7 +944,7 @@ fn the_newline_setting_decides_the_output_form() {
 }
 
 #[test]
-fn newline_is_serialized_the_way_project_json_writes_it() {
+fn newline_is_serialized_the_way_project_toml_writes_it() {
     assert_eq!(Newline::default(), Newline::Lf);
     let json = serde_json::to_string(&Newline::Crlf).unwrap();
     assert_eq!(json, "\"crlf\"");

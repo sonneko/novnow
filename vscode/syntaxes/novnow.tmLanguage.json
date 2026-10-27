@@ -1,0 +1,39 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "novnow",
+  "scopeName": "source.novnow",
+  "patterns": [
+    {
+      "name": "comment.line.double-slash.novnow",
+      "match": "//.*$"
+    },
+    {
+      "name": "markup.heading.novnow",
+      "match": "^@\\d+(?:-\\d+){0,3}\\b.*$"
+    },
+    {
+      "name": "punctuation.section.novnow",
+      "match": "^;.*$"
+    },
+    {
+      "name": "variable.other.property.novnow",
+      "match": "^[A-Za-z][A-Za-z0-9_-]*(?=:)"
+    },
+    {
+      "name": "string.quoted.other.novnow",
+      "match": "「[^」]*」|『[^』]*』"
+    },
+    {
+      "name": "markup.underline.link.novnow",
+      "match": "'[^'\\s:：]+"
+    },
+    {
+      "name": "constant.numeric.novnow",
+      "match": "\\^[A-Z]\\d+"
+    },
+    {
+      "name": "comment.block.novnow",
+      "match": "^(?:!|#\\s).*$"
+    }
+  ]
+}

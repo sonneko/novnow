@@ -311,14 +311,27 @@ pub fn show(
                 .inner_margin(Margin::symmetric(16.0, 8.0)),
         )
         .show(ctx, |ui| {
-            if tabs(ui, state, view) {
+            let (rerun, guide) = tabs(ui, state, view);
+            if rerun {
                 request = Some(Request::Shortcut(crate::ui::shell::Command::Review));
             }
+            match guide {
+                Some(Guide::Next) => {
+                    state.nav(bench, locale, Nav::NextSection);
+                }
+                Some(Guide::Open) => {
+                    jump = state.target(bench, locale);
+                }
+                None => {}
+            }
             super::separator(ui, view.mode);
-            let clicked = match state.tab {
+            let (clicked, level) = match state.tab {
                 Tab::Diagnostics => diagnostics_tab(ui, state, bench, view),
-                Tab::Progress => progress_tab(ui, state, bench, view),
+                Tab::Progress => (progress_tab(ui, state, bench, view), None),
             };
+            if level.is_some() {
+                request = level;
+            }
             if let Some((index, double)) = clicked {
                 let tab = state.tab_index();
                 state.selected[tab] = index;
@@ -331,9 +344,16 @@ pub fn show(
     (request, jump)
 }
 
-fn tabs(ui: &mut Ui, state: &mut State, view: &View) -> bool {
+/// キー案内のボタンから頼まれたこと（キーと同じ経路で実行する）。
+enum Guide {
+    Next,
+    Open,
+}
+
+fn tabs(ui: &mut Ui, state: &mut State, view: &View) -> (bool, Option<Guide>) {
     let colors = theme::palette(view.mode);
     let mut rerun = false;
+    let mut guide = None;
     ui.horizontal(|ui| {
         for (tab, key) in [
             (Tab::Diagnostics, "review.tab_diagnostics"),
@@ -351,25 +371,41 @@ fn tabs(ui: &mut Ui, state: &mut State, view: &View) -> bool {
                 state.tab = tab;
             }
         }
-        if super::action_button(ui, i18n::text(view.locale, "review.rerun_button")).clicked() {
-            rerun = true;
-        }
-        ui.label(
-            RichText::new(i18n::text(view.locale, "review.keys"))
-                .font(FontId::new(11.0 * view.scale, FontFamily::Proportional))
-                .color(colors.fg_faint),
-        );
     });
-    rerun
+    // キー案内（項目ごとにボタン。実行はキーと同じ経路）
+    let items = [
+        i18n::text(view.locale, "review.key_tab"),
+        i18n::text(view.locale, "review.key_select"),
+        i18n::text(view.locale, "review.key_open"),
+        i18n::text(view.locale, "review.rerun_button"),
+    ];
+    match crate::ui::widgets::key_guide(
+        ui,
+        &items,
+        FontId::new(11.0 * view.scale, FontFamily::Proportional),
+        &colors,
+    ) {
+        Some(0) => {
+            state.tab = match state.tab {
+                Tab::Diagnostics => Tab::Progress,
+                Tab::Progress => Tab::Diagnostics,
+            };
+        }
+        Some(1) => guide = Some(Guide::Next),
+        Some(2) => guide = Some(Guide::Open),
+        Some(3) => rerun = true,
+        _ => {}
+    }
+    (rerun, guide)
 }
 
-/// 診断タブ。クリックされた行（と、ダブルクリックか）を返す。
+/// 診断タブ。クリックされた行（と、ダブルクリックか）と有効設定の要求を返す。
 fn diagnostics_tab(
     ui: &mut Ui,
     state: &mut State,
     bench: &Workbench,
     view: &View,
-) -> Option<(usize, bool)> {
+) -> (Option<(usize, bool)>, Option<Request>) {
     let colors = theme::palette(view.mode);
     let scale = view.scale;
     let locale = view.locale;
@@ -421,6 +457,58 @@ fn diagnostics_tab(
     });
     ui.add_space(4.0);
     let rows = state.visible(bench, locale);
+    // 選択中コードの有効設定（§10.9.6。[features.diagnostics] へ保存する）
+    let mut level_request = None;
+    if let Some(row) = rows.get(state.selected()) {
+        let overrides = &bench.project().settings().features.diagnostics;
+        let current = diagnostics::CATALOG
+            .iter()
+            .find(|(code, _)| code.as_str() == row.code)
+            .and_then(|(code, _)| diagnostics::level_for(*code, overrides));
+        ui.horizontal(|ui| {
+            ui.label(
+                RichText::new(i18n::format(locale, "review.level_for", &[&row.code]))
+                    .font(FontId::new(12.0 * scale, FontFamily::Proportional))
+                    .color(colors.fg_muted),
+            );
+            for (value, key, level) in [
+                ("off", "review.level_off", diagnostics::DiagnosticLevel::Off),
+                (
+                    "warn",
+                    "review.level_warn",
+                    diagnostics::DiagnosticLevel::Warn,
+                ),
+                (
+                    "error",
+                    "review.level_error",
+                    diagnostics::DiagnosticLevel::Error,
+                ),
+            ] {
+                let selected = current == Some(level);
+                let text = RichText::new(i18n::text(locale, key))
+                    .font(FontId::new(12.0 * scale, FontFamily::Proportional))
+                    .color(if selected {
+                        colors.accent
+                    } else {
+                        colors.fg_muted
+                    });
+                if super::selectable_action(ui, selected, text).clicked() {
+                    level_request = Some(Request::SetDiagnosticLevel {
+                        code: row.code.clone(),
+                        level: value.to_owned(),
+                    });
+                }
+            }
+            if current.is_none() {
+                ui.label(
+                    RichText::new(i18n::text(locale, "review.level_default"))
+                        .font(FontId::new(11.0 * scale, FontFamily::Proportional))
+                        .color(colors.fg_muted),
+                );
+            }
+        });
+        ui.add_space(4.0);
+    }
     if rows.is_empty() {
         super::hint(
             ui,
@@ -428,7 +516,7 @@ fn diagnostics_tab(
             scale,
             i18n::text(locale, "review.no_diagnostics"),
         );
-        return None;
+        return (None, level_request);
     }
     let selected = state.selected().min(rows.len() - 1);
     let reveal = state.reveal;
@@ -476,7 +564,7 @@ fn diagnostics_tab(
                 }
             }
         });
-    clicked
+    (clicked, level_request)
 }
 
 /// 進捗タブ。

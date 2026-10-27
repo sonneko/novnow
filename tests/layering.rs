@@ -78,6 +78,9 @@ const ALLOWED_ROOTS: &[&str] = &[
     "unicode_normalization",
     // §6.2.6（S-09 / F-23）の簡易形態素解析。依存ゼロ・純 Rust（モデル同梱）で I/O を持たない。
     "tiniestsegmenter",
+    // `project.toml`（§4.5）の型付き読み取りと無損失編集（Issue #29 B10 で許可表へ追加）。
+    "toml",
+    "toml_edit",
 ];
 
 /// core が参照してはならないクレート（§3.2）。
@@ -92,7 +95,6 @@ const FORBIDDEN_CRATES: &[&str] = &[
     "tokio",
     "fontdb",
     "zip",
-    "toml",
     "directories",
     "web_time",
     "rand",
@@ -587,7 +589,7 @@ const MUST_CATCH_DEPS: &[&str] = &[
     "use tokio::sync::Mutex;",
     "use fontdb::Database;",
     "use zip::ZipWriter;",
-    "use toml::Value;",
+    "use zip::ZipArchive;",
     "use directories::ProjectDirs;",
     "use web_time::Instant;",
     "use rand::rngs::StdRng;",

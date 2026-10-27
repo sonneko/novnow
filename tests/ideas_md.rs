@@ -12,7 +12,7 @@ status: inbox            # inbox | keep | promoted | dropped
 created: 2026-10-09T12:04:11+09:00
 tags: 学院長, 動機
 relates: @02, 'アルス
-promoted-to: plots/02.txt#@02-03      # 昇格時のみ
+promoted-to: plots/02.cnov#@02-03      # 昇格時のみ
 本文は自由記述。改行もそのまま保持する。
 "#;
 
@@ -177,7 +177,7 @@ fn the_spec_example_keeps_the_values_of_the_meta_keys() {
     );
     assert_eq!(
         parsed.promoted_to(0).unwrap().value,
-        "plots/02.txt#@02-03      # 昇格時のみ"
+        "plots/02.cnov#@02-03      # 昇格時のみ"
     );
 }
 

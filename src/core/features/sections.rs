@@ -2,7 +2,7 @@
 //!
 //! LSP には対応しない補助（UI の節エディタと文脈ビューのための純粋関数。`docs/history.md` B-112）。
 //!
-//! - **節の並び**: 本文（`contents/AA-BB.txt`）の節を、ファイル名の順 → ファイルの中の順に並べたもの。
+//! - **節の並び**: 本文（`contents/AA-BB.cnov`）の節を、ファイル名の順 → ファイルの中の順に並べたもの。
 //!   場面見出しの ID が壊れた節（E002 / E020）と、最初の場面見出しより前の行は並びに入らない。
 //! - **節の本文**: 節の内容の行（`contents::Section::content`。見出し行と区切り `;` と、末尾の空行を
 //!   含まない）を LF でつないだもの。節エディタはこれだけを編集する（末尾の空行は書き戻しでも残る）。
@@ -25,7 +25,7 @@ use crate::core::text::lexer::{self, LineKind, TextFormat};
 /// 並びの中の節 1 つ。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SectionRef {
-    /// 本文のパス（`contents/01-04.txt`）。
+    /// 本文のパス（`contents/01-04.cnov`）。
     pub path: String,
     /// 節の構造 ID（4 階層）。
     pub id: SceneId,
@@ -163,6 +163,45 @@ pub fn insert_after(text: &str, section: &SectionRef) -> (String, usize) {
     (lines.join("\n"), at + 1)
 }
 
+/// 何も書かれていない節か（空の節の診断 W012 と同じ定義: 内容行が無い、または空白行だけ。
+/// 行コメントは内容として数える、§8.1.1・§5.2.2）。
+pub fn is_unwritten(body: &str) -> bool {
+    body.lines().all(|line| line.trim().is_empty())
+}
+
+/// 節の本文をバイト位置 `at`（文字境界）で上・下に割る（§8.1.1。安全な位置へは寄せない）。
+///
+/// 先頭（`0`）と末尾（`body.len()` 以上）は割らない（`None`。末尾は呼び出し側が
+/// 「確定して次の節へ」として扱う）。行の途中で割ればその行が上下に分かれ、行境界で
+/// 割れば空行は増えない。
+pub fn split_body(body: &str, at: usize) -> Option<(String, String)> {
+    if at == 0 || at >= body.len() || !body.is_char_boundary(at) {
+        return None;
+    }
+    let lines: Vec<&str> = body.split('\n').collect();
+    let mut offset = 0;
+    for (index, line) in lines.iter().enumerate() {
+        let end = offset + line.len();
+        if at <= end {
+            let col = at - offset;
+            let (upper, lower): (Vec<&str>, Vec<&str>) = if col == 0 {
+                (lines[..index].to_vec(), lines[index..].to_vec())
+            } else if col == line.len() {
+                (lines[..=index].to_vec(), lines[index + 1..].to_vec())
+            } else {
+                let mut upper = lines[..index].to_vec();
+                upper.push(&line[..col]);
+                let mut lower = vec![&line[col..]];
+                lower.extend(&lines[index + 1..]);
+                (upper, lower)
+            };
+            return Some((upper.join("\n"), lower.join("\n")));
+        }
+        offset = end + 1;
+    }
+    None
+}
+
 /// 節を消したファイル全体（§9.8.3 `Ctrl+Shift+;`）。
 ///
 /// 節の行（末尾の空行を含む）と、その後ろの区切り `;` を消す。後ろに `;` が無い（場面の最後の節）
@@ -171,7 +210,15 @@ pub fn remove(text: &str, section: &SectionRef) -> String {
     let mut lines: Vec<&str> = text.split('\n').collect();
     let end = section.span.end.min(lines.len());
     let start = section.span.start.min(end);
-    let is_break = |line: Option<&&str>| line.is_some_and(|line| line.trim() == ";");
+    // 区切りは字句器の分類で判定する（`; // コメント` の形も区切り）
+    let is_break = |line: Option<&&str>| {
+        line.is_some_and(|line| {
+            matches!(
+                lexer::classify(line, TextFormat::Contents),
+                LineKind::SectionBreak
+            )
+        })
+    };
     let (from, to) = if is_break(lines.get(end)) {
         (start, end + 1)
     } else if start > 0 && is_break(lines.get(start - 1)) {

@@ -32,19 +32,19 @@
 
 ### 13.4 プロジェクト選択モーダル（Web）
 
-状態: 未実装・実装計画済み（REF:src/ui/web.rs, REF:src/adapters/storage_idb.rs, REF:scripts/web-smoke.mjs, REF:tests/gui.rs, REF:docs/plans.md#issue-29-b8）
+状態: 実装完了（REF:src/ui/web.rs, REF:src/adapters/storage_idb.rs, REF:scripts/web-smoke.mjs, REF:tests/gui.rs）
 
 - Web 起動時および `Ctrl+O` 時のプロジェクト選択モーダル（一覧・検索 `/`・新規作成 `Ctrl+N`・Zip 取込 `Ctrl+I`・改名 `F2`・削除 `Delete`・単一タブ利用の注記 `project.pick.single_tab`）は `WebPicker`（`REF:src/ui/web.rs`）に実装する（検証: `REF:scripts/web-smoke.mjs`）。
 
 - **[F-33 / S-02] Web 版の同名プロジェクト作成禁止と初回起動ウェルカム案内（実装完了: `REF:docs/plans.md#plan-F-33`, `REF:docs/plans.md#plan-S-02`）**:
   - `REF:src/ui/web.rs` と `REF:src/adapters/storage_idb.rs` で既存プロジェクトと同一タイトルの作成・改名を拒否する（F-33 は実装完了。`REF:tests/storage_idb.rs` と実ブラウザ `REF:scripts/web-smoke.mjs` で検証済み）。履歴が空の初回起動時に案内を表示し、`>welcome` パレットからウェルカム案内モーダルを再表示する（S-02 は `REF:src/ui/app.rs`, `REF:src/ui/web.rs`, `REF:tests/gui.rs` で確認済み）。
 
-- **[Issue #29 / B8] 入口ページの初期言語（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b8`）**:
-  - `REF:index.html` の言語固定を解き、本体読み込み前の静的な表示もブラウザ（OS）のロケールで出す（`lang` 属性と読み込み中文言の出し分け）。選択画面に言語切替ボタンは置かない現行維持を確認し、`REF:scripts/web-smoke.mjs` で ja/en 両ロケールの初期表示を確かめる。
+- **[Issue #29 / B8] 入口ページの初期言語（実装完了: `REF:docs/plans.md#issue-29-b8`）**:
+  - `REF:index.html` の冒頭のインラインスクリプトが `navigator.language` で `lang` 属性・題・オフライン状態表示の初期文言を出し分け、本体読み込み前の静的な表示もロケールに従う。選択画面に言語切替ボタンは置かない（§13.4.2）。検証は `REF:scripts/web-smoke.mjs` の ja/en 両ロケールの初期表示チェック。あわせて iOS のフォーカスずれ（N29-07）へ、隠し入力欄への再フォーカスを減らす（短い離脱で隠さない）＋フォーカス直後のスクロール位置復元を `sync_text_agent`（`REF:src/ui/web.rs`）に実装し、「節移動後も入力が続くこと」をスモークの回帰にした。症状は `REF:docs/known-issues/ja.md`（KI-002）に載せ、修正版の公開後に外す。
 
 ### 13.5 Zip インポート / エクスポート
 
-状態: 未実装・実装計画済み（REF:src/core/policy/archive.rs, REF:src/adapters/zip.rs, REF:src/cli/import.rs, REF:src/ui/app.rs, REF:tests/zip_roundtrip.rs, REF:tests/cli.rs, REF:docs/plans.md#issue-29-b10）
+状態: 実装完了（REF:src/core/policy/archive.rs, REF:src/adapters/zip.rs, REF:src/cli/import.rs, REF:src/ui/app.rs, REF:tests/zip_roundtrip.rs, REF:tests/cli.rs）
 
 - アーカイブ対象の選別（ドット始まりファイルの除外と `.gitignore` / `.gitkeep` の例外許可、パストラバーサル `..` の拒否）は `core::policy::archive`（`REF:src/core/policy/archive.rs`）が担い、Deflate 圧縮・展開は `adapters::zip`（`REF:src/adapters/zip.rs`）が担う（検証: `REF:tests/zip_roundtrip.rs`）。
 
@@ -53,8 +53,8 @@
 
 ## 14. 起動仕様
 
-- **[Issue #29 / B10] `.novnow` パッケージ（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b10`）**:
-  - `.novnow` は実体が通常の Zip で、`.zip` と同じ安全規則（パス検証・未知ファイルの保持・上書き禁止）で扱う。インポート時に novnow が知らないファイルを落とさないことを往復テストへ足す（§4.3 の未知ファイルの扱いと整合させる）。
+- **[Issue #29 / B10] `.novnow` パッケージ（実装完了: `REF:docs/plans.md#issue-29-b10`）**:
+  - `.novnow` は実体が通常の Zip で、`.zip` と同じ安全規則（パス検証・未知ファイルの保持・上書き禁止）で扱う。書き出し側は `ExportKind::Zip` の拡張子（`REF:src/core/policy/write_policy.rs`）とダイアログのフィルタ（`REF:src/adapters/dialog_rfd.rs`, `REF:src/ui/web.rs`）へ `novnow` を足し、インポートは拡張子を問わず同じ計画（`plan_import`）で未知ファイルを落とさない（検証: `REF:tests/storage_policy.rs`, `REF:tests/zip_roundtrip.rs` の `unknown_files_are_kept_on_import`）。
 
 ### 14.1 CLI 文法
 
@@ -70,7 +70,7 @@
 
 ### 14.2 起動時のスキャンとエラー出力
 
-状態: 未実装・実装計画済み（REF:src/cli/open.rs, REF:src/cli/check.rs, REF:src/core/features/place.rs, REF:tests/cli.rs, REF:docs/plans.md#issue-29-b10）
+状態: 実装完了（REF:src/cli/open.rs, REF:src/cli/check.rs, REF:src/core/features/place.rs, REF:tests/cli.rs）
 
 - 起動前スキャン、不足項目一覧の表示、`novnow new` の案内、作家の言葉での診断位置表記 `[本文 @01-04-02-03]`（`REF:src/core/features/place.rs`）、および終了コード `0`〜`5` の制御は `REF:src/cli/open.rs` と `REF:src/cli/check.rs` に実装する。
 - 仕様書 §14.2.2〜§14.2.4 の出力例との一字一句の一致は `REF:tests/cli.rs` で検証する。
@@ -80,8 +80,8 @@
 - 案内文は「何が足りないか」の列挙で終わらせず、次にすること（`novnow new` / フォルダを開く）を
   最後の 1 文に必ず置く（利用者向けガイドと同じ言い回しにする）。
 
-- **[Issue #29 / B10] 出力例の新名称への差し替え（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b10`）**:
-  - 仕様 §14.2.2 / §14.2.3 の出力ブロックは現実装の stderr とバイト単位で照合されるため、B10 で不足一覧の実装（`project.toml` / `plots/all.cnov`）と同時に仕様のブロックも差し替える。それまでは現行のブロックが現実装の正本である。
+- **[Issue #29 / B10] 出力例の新名称への差し替え（実装完了: `REF:docs/plans.md#issue-29-b10`）**:
+  - 仕様 §14.2.2 / §14.2.3 の出力ブロックを不足一覧の実装（`project.toml` / `plots/all.cnov`）と同時に差し替えた。照合は `REF:tests/cli.rs` の `spec_block` が引き続き担う。
 
 ### 14.3 GUI 直接起動の判定
 
@@ -102,12 +102,12 @@
 
 ### 14.5 `novnow new` の生成物
 
-状態: 未実装・実装計画済み（REF:src/core/template/mod.rs, REF:src/cli/new.rs, REF:tests/template.rs, REF:tests/cli.rs, REF:docs/plans.md#issue-29-b10）
+状態: 実装完了（REF:src/core/template/mod.rs, REF:src/cli/new.rs, REF:tests/template.rs, REF:tests/cli.rs）
 
 - 初期ファイル一式の生成と既存ファイル保護（上書きせず `kept` / `created` を表示）、生成直後の `novnow check` 診断 0 件保証は `REF:src/core/template/mod.rs` と `REF:src/cli/new.rs` に実装し、`REF:tests/template.rs` と `REF:tests/cli.rs` で検証する。
 
-- **[Issue #29 / B10] 生成物の改名（未実装・実装計画済み: `REF:docs/plans.md#issue-29-b10`）**:
-  - `novnow new` の生成物は新しい名前（`project.toml` / `.cnov`、`schema_version = 2`）で作る。仕様 §14.5 の一覧と `REF:tests/template.rs` の照合リストは先に新名称へ更新済みであり、B10 で生成側を合わせる。
+- **[Issue #29 / B10] 生成物の改名（実装完了: `REF:docs/plans.md#issue-29-b10`）**:
+  - `novnow new` の生成物を新しい名前（`project.toml` / `.cnov`、`schema_version = 2`）で作るよう生成側（`template::project_toml` とファイル一覧）を合わせた。
 
 ### 14.6 既存本文テキストからの移行支援
 

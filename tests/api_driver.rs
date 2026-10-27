@@ -82,7 +82,7 @@ fn a_driver_creates_a_project_and_runs_operations_on_it() {
     );
     let info = driver.run("project.info", json!({})).expect("project.info");
     assert_eq!(info["title"], json!("星屑の時計"), "{info}");
-    assert!(path.join("project.json").exists(), "project.json が無い");
+    assert!(path.join("project.toml").exists(), "project.toml が無い");
 
     let scene = first_section(&mut driver);
     driver

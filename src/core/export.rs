@@ -72,7 +72,7 @@ pub enum Break {
 }
 
 impl Break {
-    /// `project.json` の値から引く。表に無ければ `None`（呼び出し側は既定値に落とす）。
+    /// `project.toml` の値から引く。表に無ければ `None`（呼び出し側は既定値に落とす）。
     pub fn parse(text: &str) -> Option<Self> {
         match text {
             "blank-line" => Some(Self::BlankLine),
@@ -171,7 +171,7 @@ pub struct Options {
 }
 
 impl Options {
-    /// `project.json` の `export` から作る（`paragraph_break` が表に無い値なら既定の `blank-line`）。
+    /// `project.toml` の `export` から作る（`paragraph_break` が表に無い値なら既定の `blank-line`）。
     /// 形式は `.txt`、状態の絞り込みは無し。
     pub fn from_settings(export: &Export) -> Self {
         Self {
@@ -308,8 +308,8 @@ pub fn select_with(
 /// 節の実効の状態（`docs/history.md` B-122）。
 ///
 /// 近いものから順に見て、最初に書かれていたもの: 話プロット（B 形式）の**節**の `state` →
-/// 同じ場面の場面レベルの `state` → 章プロット（`plots/AA.txt`）の**話**のブロック → 全体プロット
-/// （`plots/all.txt`）の**章**のブロック。どこにも無ければ `draft`。値が `draft` / `review` /
+/// 同じ場面の場面レベルの `state` → 章プロット（`plots/AA.cnov`）の**話**のブロック → 全体プロット
+/// （`plots/all.cnov`）の**章**のブロック。どこにも無ければ `draft`。値が `draft` / `review` /
 /// `fixed` のどれでもなければ書かれていないものとして扱う。
 pub fn effective_state(project: &Project, id: SceneId) -> State {
     States::new(project).of(id)
