@@ -389,6 +389,66 @@ fn w096_stays_silent_without_a_clear_majority_or_enablement() {
     assert!(w096_args(&diagnostics::document(&document, &project)).is_empty());
 }
 
+#[test]
+fn w096_counts_nested_dialogue_and_ignores_narrative() {
+    // 入れ子（`「…『…』…」`）の内側も台詞として数える（§7.2.2）。5 件が空白あり、
+    // 入れ子の 1 件だけが空白なしなので、その 1 件が少数派になる。入れ子を数えて
+    // いなければ空白なしが 0 件になり、診断は出ない。
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n\
+             「行くぞ！　待て」\n\
+             「止まれ！　聞け」\n\
+             「来い！　早く」\n\
+             「逃げろ！　今だ」\n\
+             「見ろ！　あれを」\n\
+             「外は『内側！続け』のまま」\n"],
+        Some("W096 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    assert_eq!(w096_args(&found), vec!["！".to_string()]);
+
+    // 地の文の記号は数えない。地の文に空白なしが 10 件あっても、台詞の多数派
+    // （空白あり 5 件）が変わらないので診断は出ない。
+    let mut lines = String::from("@01-01-01-01\n");
+    for line in [
+        "「行くぞ！　待て」",
+        "「止まれ！　聞け」",
+        "「来い！　早く」",
+        "「逃げろ！　今だ」",
+        "「見ろ！　あれを」",
+    ] {
+        lines.push_str(line);
+        lines.push('\n');
+    }
+    for i in 0..10 {
+        lines.push_str(&format!("地の文で叫ぶ！その{i}\n"));
+    }
+    let project = project_with_dialogue(&[lines.as_str()], Some("W096 = \"warn\"\n"));
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    assert!(w096_args(&found).is_empty());
+}
+
+#[test]
+fn w096_counts_dialogue_that_is_never_closed() {
+    // 閉じ忘れた台詞は行末までを内側とする（書きかけでも数える）。5 件が空白あり、
+    // 閉じ忘れの 1 件だけが空白なしなので、その 1 件が少数派になる。
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n\
+             「行くぞ！　待て」\n\
+             「止まれ！　聞け」\n\
+             「来い！　早く」\n\
+             「逃げろ！　今だ」\n\
+             「見ろ！　あれを」\n\
+             「まだ終わらない！続ける\n"],
+        Some("W096 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    assert_eq!(w096_args(&found), vec!["！".to_string()]);
+}
+
 // ============================================================ 執筆支援 W097–W106（B11 / B12）
 
 const SAMPLE_NOVEL_TEXT: &str = include_str!("../examples/sample-novel/contents/01-04.cnov");

@@ -199,9 +199,10 @@ fn metrics_describe_not_evaluate_and_ignore_zero_population() {
         m.speakers.values().map(|s| s.chars).sum::<usize>()
     );
     let text="長い文章は長い文章が長い文章を長い文章に長い文章で長い文章と長い文章は長い文章が長い文章を";
-    let positions = metrics::comma_candidates(text, 20);
-    assert_eq!(positions, metrics::comma_candidates(text, 20));
-    assert!(metrics::comma_candidates(&format!("「{text}」"), 20).is_empty());
+    let options = metrics::CommaOptions::every(20);
+    let positions = metrics::comma_candidates(text, options);
+    assert_eq!(positions, metrics::comma_candidates(text, options));
+    assert!(metrics::comma_candidates(&format!("「{text}」"), options).is_empty());
 }
 #[test]
 fn session_deltas_allow_deletion_and_idle_resets_without_counting_idle() {

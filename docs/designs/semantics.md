@@ -27,7 +27,7 @@
   - 位置の単位境界（`B-56`）: `scan_line` が返す `RefToken` の範囲は**行内相対 byte range**、診断 `Diagnostic` の範囲は `line_start` を加算した**ファイル単位の byte range** とする。
 
 - **[S-09 / F-23] 未知の `'` 参照の形態素解析境界と自動回復（実装完了: `REF:src/core/resolve/dictionary.rs`, `REF:src/ui/widgets/reference_pane.rs`）**:
-  - `REF:src/core/resolve/dictionary.rs` に文字種遷移（漢字・カタカナ・ひらがな・ASCII 英数字）および日本語助詞テーブルに基づく簡易形態素境界関数 `first_morpheme_end(text: &str) -> usize` を実装し、未解決参照 `E001` のスパン（赤波線範囲）を先頭 1 形態素に限定する。
+  - `REF:src/core/resolve/dictionary.rs` に、日本語助詞テーブルに基づく簡易形態素境界関数 `first_morpheme_end(text: &str) -> usize` を実装し、未解決参照 `E001` のスパン（赤波線範囲）を先頭 1 形態素に限定する。文字種（漢字・カタカナ・ひらがな・ASCII 英数字）の判定は `REF:src/core/text/charclass.rs` の `classify` が持つ。
   - `REF:src/core/features/code_action.rs` と `REF:src/ui/widgets/reference_pane.rs` で、切り出された 1 形態素を `words.md`（用語）または `characters.md`（登場人物）へワンクリック追加するアクションを提供する。
 
 ### 6.3 トークン種別（セマンティックトークン）

@@ -115,7 +115,7 @@
 - `REF:src/main.rs`: エントリポイント（Windows の `AttachConsole` と CLI / Web 起動分岐）。
 - `REF:src/cli/mod.rs`, `REF:src/cli/open.rs`, `REF:src/cli/new.rs`, `REF:src/cli/check.rs`, `REF:src/cli/export.rs`, `REF:src/cli/mcp.rs`: CLI サブコマンド群。
 - `REF:src/core/id.rs`: `SceneId` / `PartialSceneId` / `RangeExpr`。
-- `REF:src/core/text/mod.rs`: `rope.rs`, `position.rs`, `lexer.rs`, `incremental.rs`, `sha256.rs`。
+- `REF:src/core/text/mod.rs`: `rope.rs`, `position.rs`, `lexer.rs`, `incremental.rs`, `sha256.rs`, `charclass.rs`（文字種）, `sentence.rs`（文の区切り）。
 - `REF:src/core/syntax/mod.rs`: `contents.rs`, `plot_outline.rs`, `plot_episode.rs`, `characters_md.rs`, `words_md.rs`, `ideas_md.rs`, `materials_index.rs`, `prompt_md.rs`, `project_toml.rs`。
 - `REF:src/core/model/mod.rs`: ドメインモデル型群。
 - `REF:src/core/resolve/mod.rs`: `dictionary.rs`, `modes.rs`, `role_language.rs`, `materials.rs`, `context_rules.rs`。

@@ -77,6 +77,7 @@ use crate::core::syntax::characters_md::{Characters, Line as MdLine, SectionKey}
 use crate::core::syntax::contents::{self, Speaker};
 use crate::core::syntax::materials_index::Index;
 use crate::core::syntax::words_md::Words;
+use crate::core::text::charclass::{classify, CharClass};
 use crate::core::text::lexer::{self, FieldKey};
 
 /// 辞書キーの長さの上限（§6.2.1「`MAX_KEY_BYTES = 96`（固定）」）。
@@ -257,43 +258,6 @@ pub fn is_delimiter(c: char) -> bool {
 
 // ============================================================ §6.2.6 形態素境界
 
-/// 文字種（§6.2.6「漢字・カタカナ・ひらがな・英数字の文字種境界」）。
-///
-/// ASCII の英数字と全角の英数字は**同じクラス**にする（`Ｍ0137` と `M0137` を別の
-/// 形態素に割らないため）。長音符 `ー`（U+30FC）はカタカナ側に入れる（`コーヒー` を
-/// 1 つの形態素として扱う）。それ以外（記号・約物）は [`CharClass::Other`]。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum CharClass {
-    /// 漢字（`々` `〆` を含む）。
-    Kanji,
-    /// カタカナ（半角カナ・長音符・濁点を含む）。
-    Katakana,
-    /// ひらがな（`ゝ` `ゞ` を含む）。
-    Hiragana,
-    /// 英数字（ASCII と全角）。
-    Alphanumeric,
-    /// それ以外（記号・約物）。
-    Other,
-}
-
-/// [`CharClass`] を返す。
-fn char_class(c: char) -> CharClass {
-    match c {
-        '\u{3041}'..='\u{3096}' | '\u{309D}'..='\u{309F}' => CharClass::Hiragana,
-        '\u{30A1}'..='\u{30FA}' | '\u{30FC}'..='\u{30FE}' | '\u{FF66}'..='\u{FF9F}' => {
-            CharClass::Katakana
-        }
-        '\u{3005}' | '\u{3006}' | '\u{4E00}'..='\u{9FFF}' | '\u{F900}'..='\u{FAFF}' => {
-            CharClass::Kanji
-        }
-        '\u{FF10}'..='\u{FF19}' | '\u{FF21}'..='\u{FF3A}' | '\u{FF41}'..='\u{FF5A}' => {
-            CharClass::Alphanumeric
-        }
-        c if c.is_ascii_alphanumeric() => CharClass::Alphanumeric,
-        _ => CharClass::Other,
-    }
-}
-
 /// §6.2.6 の「助詞切り出し」に使う助詞（**長いものから**照合する）。
 ///
 /// 形態素解析（[`tiniestsegmenter`]）は助詞を独立したトークンに切ることが多いが、
@@ -364,7 +328,7 @@ fn strip_trailing_particle(token: &str) -> Option<usize> {
 fn first_run_end(text: &str) -> usize {
     let mut class = None;
     for (at, c) in text.char_indices() {
-        let found = char_class(c);
+        let found = classify(c);
         match class {
             None => class = Some(found),
             Some(previous) if previous == found => {}
@@ -399,7 +363,7 @@ pub fn first_morpheme_end(text: &str) -> usize {
     let Some(first) = candidate.chars().next() else {
         return 0;
     };
-    if char_class(first) == CharClass::Alphanumeric {
+    if classify(first) == CharClass::Alphanumeric {
         return run;
     }
     let tokens = tiniestsegmenter::tokenize(head);
