@@ -355,6 +355,8 @@ GitHub Actions は**走った分だけ**課金される。このリポジトリ�
 （wasm32 のコンパイル自体は `trunk build --release` が担う）。
 Desktop の Windows ビルドが全体の最長なので、PR 全体の待ち時間はそちらが決める。
 
+**必須チェックの例外（ブラウザ試験）**: Pages integration の `browsers` ジョブは Firefox / WebKit で偽陽性が多発するため、`develop` 向け PR では必須チェックに含めない（ruleset `protect-develop`。正本は `REF:docs/distribution.md` §8）。実行自体は続けるので、失敗したら内容を確認し、実バグに見えるものは直すか Issue 化する。`main` 向け PR では従来どおり3ブラウザすべて必須。
+
 **落とし穴**: `[ci skip]` が付いたコミットが PR の頭だと、PR のチェックは**空**になる。
 マージ前に `bash scripts/ci-run.sh ci watch` で 1 回だけ回し、緑を確認してからマージする
 （`gh pr checks` が空なら「回していない」の意味であり、緑ではない）。
@@ -462,7 +464,7 @@ Web サイト側を変更したら `npm ci --prefix website && npm run check:sit
    - セッションに紐づく専用作業ブランチ（`arena/...`）でのみ作業し、別ブランチの作成や切り替えは行わない。
    - **作業の区切りごとにこまめにコミット & プッシュ**する。
    - PR の作成・更新はエージェントが行うが、**PR のマージは必ずユーザー自身が行う**（エージェントが勝手に `gh pr merge` を実行してはならない）。
-   - 作業完了時は PR が Ready for review であること、コンフリクトがないこと、GitHub Actions の全チェックが green であることを確認してから報告する。
+   - 作業完了時は PR が Ready for review であること、コンフリクトがないこと、GitHub Actions の必須チェックが green であることを確認してから報告する（`develop` 向け PR の Firefox / WebKit ブラウザ試験は必須チェックではない。§4.7）。
 3. **自律判断と人間承認の境界**:
    - 仕様書（`docs/specifications/**.md`）および設計書（`docs/designs/**.md`）で既に決まっている事項の実装・テスト・バグ修正は確認を求めず自律的に進める。
    - 仕様書や設計書の内容自体を変更する場合は、単なる記述ミスの修正を除き、人間の承認を得ること。

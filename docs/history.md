@@ -2187,3 +2187,7 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - `CONTRIBUTING.md`（当面コード PR は受け付けていないこと、仕様変更は承認制であること）と Issue テンプレート（不具合報告・提案）を用意した。
 - GitHub Actions の所要時間をジョブ別に実測し（CI 約 3.3 分で Benchmarks が最長）、待ち時間短縮のために `bench` ジョブからリリースビルドのフレーム予算テストを `perf` ジョブへ分けて並行化し、重複していたビルド（`cargo bench --no-run`、wasm32 の `cargo check`）を畳んだ。仕様 §18.4 の検証項目は減らしていない。実測値は `docs/developers.md` §4.7。
 - VS Code Marketplace と Open VSX への公開ジョブ（`.github/workflows/vscode-publish.yml`）を用意した。手動実行のみが入口で、承認用の environment を挟み、発行者トークンが無ければ何もしない。初回公開は所有者の登録・トークン用意の後に別途行う。公開完了の判定（`scripts/release-check.sh`）に市場公開を含めないことも確認した。
+
+## 2026-10-27: develop 向け PR で Firefox / WebKit のブラウザ試験を必須から外す
+
+- Pages integration の `browsers` ジョブは Firefox / WebKit で偽陽性が多発するため、所有者が ruleset `protect-develop` の必須チェックから `browsers (firefox)` / `browsers (webkit)` を外した（develop の必須は25件から23件）。`protect-main` では従来どおり3ブラウザすべて必須で、API で再確認した。試験の実行自体は develop 向け PR でも続け、失敗は参考情報として確認する。正本は `docs/distribution.md` §8、運用の注記は `docs/developers.md` §4.7。

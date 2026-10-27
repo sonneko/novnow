@@ -52,6 +52,9 @@ jobs:
           path: website/dist
           retention-days: 7
 
+  # ブラウザ試験は3種とも毎回実行するが、必須チェックの扱いはブランチで違う:
+  # develop 向け PR では chromium のみ必須（firefox/webkit は偽陽性が多いため参考情報）、
+  # main 向け PR では3種すべて必須。ruleset 側の設定であり、正本は docs/distribution.md §8。
   browsers:
     needs: build
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft

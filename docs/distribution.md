@@ -213,7 +213,7 @@ novnow-<版>-<対象環境>-<gui|nogui>.<拡張子>
 
 - `crates-io`・`testpypi`・`pypi` は版タグからのみ実行できる deployment policy にし、公開担当者の承認を必須にする。環境名と Trusted Publisher の設定は完全一致が必要。
 - ホイール単独試験の `REF:.github/workflows/wheels.yml` から公開する場合は、その workflow 名で **別の** Trusted Publisher が必要。本番 PyPI の Trusted Publisher は `release.yml` だけに設定する。wheels の公開入力は TestPyPI 専用である。
-- GitFlow の `main` と `develop` は保護する。直接 push・force push・削除を禁止し、PR、必要な CI 成功を要求する。現在の必要承認数は0、通常のmerge commitで統合する。`main` には release / hotfix の版更新 PR だけを承認する。GitHub 標準の保護だけでは「版更新のみ」は判定できないため、レビューで版差分と PR の由来を確認する。
+- GitFlow の `main` と `develop` は保護する。直接 push・force push・削除を禁止し、PR、必要な CI 成功を要求する。ただし Pages integration のブラウザ試験（`browsers` ジョブ）は Firefox / WebKit で偽陽性が多発するため、`develop` の必須チェックには Chromium だけを含め、Firefox / WebKit は必須にしない（実行は続け、結果は参考情報として確認する）。`main` では従来どおり3ブラウザすべてを必須とする。現在の必要承認数は0、通常のmerge commitで統合する。`main` には release / hotfix の版更新 PR だけを承認する。GitHub 標準の保護だけでは「版更新のみ」は判定できないため、レビューで版差分と PR の由来を確認する。
 - CI の `[ci skip]` 既定と必須チェックを併用するとチェック待ちになる。リリース PR は `[ci run]` で CI を起動し、保護が要求するチェックが実際にその SHA で報告されていることを確認する。手動 CI の結果だけで保護を迂回しない。
 - `develop` の作成・既定ブランチの変更・rulesets・環境・秘密情報・公開名の確保は管理者が行う。この作業セッションでは実施しない。
 
@@ -249,7 +249,7 @@ GitHub APIでpublic化、4公開environmentとgithub-pages、developの存在、
 現在の追加確認（所有者の変更後にAPI再確認）:
 
 - main/developともRestrict updatesとlinear history制限は解除済み。PRの許可マージ方法はmergeのみ、必要承認数0。通常のmerge commitを使う。必須CI・force-push/削除禁止は維持されている。リポジトリ全体ではsquash/rebaseも有効だが、この2 rulesetではmergeだけを許可する。
-- mainの必須18件、developの25件は現行チェック名と一致する。版を含む行列名は将来の版更新で変わるため固定名への改善は別途必要。
+- mainの必須18件、developの23件は現行チェック名と一致する（2026-10-27 再確認: 所有者が ruleset `protect-develop` から `browsers (firefox)` / `browsers (webkit)` を必須から外したため develop は25件から23件になった。`protect-main` では3ブラウザとも必須のまま）。版を含む行列名は将来の版更新で変わるため固定名への改善は別途必要。
 - crates.io/PyPI/TestPyPIの設定は所有者が確認済み。こちらからの実公開・OIDC/tokenの実動確認とは区別する。Marketplaceは今回は公開せず、VSIXをReleasesへ添付する。
 - Windows/macOSの配布元署名・macOS公証は行わない。署名用Secretsは不要。未署名の警告と導入方法を手引きで案内する。
 
