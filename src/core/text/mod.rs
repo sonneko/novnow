@@ -1,3 +1,5 @@
+/// Shift_JIS の読み替えと貼り付けの文字化け判定（§14.6、Issue #29 X1）。
+pub mod encoding;
 pub mod incremental;
 pub mod lexer;
 pub mod position;
