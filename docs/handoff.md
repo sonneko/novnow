@@ -11,7 +11,7 @@
 | 区分 | 状態 | 対象範囲 | 参照 |
 |---|---|---|---|
 | 段階 ①（M0〜M11） | 完了 | コア仕様・全 9 ワークスペース・MCP・CLI・Web 版・ベンチマーク・サンプル一式 | `REF:docs/history.md` |
-| 設計書セクション実装状況 | 実装完了 142 節 / 実装中 0 節 / 未実装・実装計画済み 0 節 / 未実装・未計画 0 節 / 実装待ち 0 節 | 全 12 設計書の `### ` 節（合計 142 節） | `REF:docs/designs/` |
+| 設計書セクション実装状況 | 実装完了 141 節 / 実装中 0 節 / 未実装・実装計画済み 1 節 / 未実装・未計画 0 節 / 実装待ち 0 節 | 全 12 設計書の `### ` 節（合計 142 節） | `REF:docs/designs/` |
 | 仕様変更・修正（F-01〜F-44） | 実装完了（44 件） | UI・エディタ・パレット・辞書・ショートカット・性能等の修正 44 項目 | `REF:docs/plans.md#planned-fixes` |
 | 機能追加（小規模：S-01〜S-18） | 実装完了（18 件） | エージェント例指定・PWA・Zip 導入・形態素波線等の小規模機能追加 18 項目 | `REF:docs/plans.md#planned-small-features` |
 | 機能追加（比較的大規模：L-01） | 実装済み（CLI・デスクトップ） | 既存の本文テキストから `novnow` に移行するための手段の提供 | `REF:docs/plans.md#unplanned-large` |
@@ -27,7 +27,8 @@
 - PR #38（X1・X3・CI スコープ・CI 修正 2 件）は 2026-10-27 に所有者が `develop` へマージ済み（merge commit `6b5853b`。ruleset `protect-develop` の必須チェック 11 件へは所有者が同日更新済み）。
 - 2026-10-27（CI スコープ）: `browsers (webkit)` の偽陽性で Checks が赤くなった件をきっかけに、各プラットフォームのビルドを最小化した（所有者指示: 開発速度を第一に）。`CI_SCOPE` で対象ブランチごとに行列を切り替え、develop 向け PR は 1 プラットフォーム（Linux x64・desktop nogui / wheel / chromium / ubuntu Electron / Python 3.9・3.13）、main 向け PR・main push・手動実行（`scope` 入力、既定 full）は full 行列。正本は `REF:docs/developers.md` §4.7 と `REF:docs/distribution.md` §8。
 - 2026-10-27（CI 不整合の修正）: マージ commit の実測で develop への push が必須 11 件のうち平台 2 行（wheels・desktop の Linux x64）を報告しないことが分かったので、wheels / desktop-check に `develop` への push トリガーを追加（wheels は PR 同一 `paths`）、4 ワークフローの手動実行に `scope` 入力を追加した。**PR #39**（develop 向け、`[ci run]` 付き）として提出済み。マージは所有者が行う。マージ後の develop push で発火を確認すること。
-- 2026-10-27（X4 文書の文体見直し）: 利用者向け文書 10 本と README（日・英）の文体を見直し、README の事実誤記 3 件（診断 76→77 種・英語版の正規操作 119→120・拡張 `.txt`→`.cnov`）と `errors.md` の `E025` 節（B10 前の JSON 前提だった）を直し、`REF:docs/designs/platform.md` §14.1 の X1 注記の stale な「未実装・実装計画済み」を「実装完了」へ直した。doc-only のため doc-site 生成物（guide HTML・website content）を同 PR に含める。Issue #29 の残る後続は X2（所有者の短編）・X5（両市場の初回公開、トークン後）。
+- 2026-10-27（X4 文書の文体見直し）: 利用者向け文書 10 本と README（日・英）の文体を見直し、README の事実誤記 3 件（診断 76→77 種・英語版の正規操作 119→120・拡張 `.txt`→`.cnov`）と `errors.md` の `E025` 節（B10 前の JSON 前提だった）を直し、`REF:docs/designs/platform.md` §14.1 の X1 注記の stale な「未実装・実装計画済み」を「実装完了」へ直した。doc-only のため doc-site 生成物（guide HTML・website content）を同 PR に含める。PR #39 に同梱してマージ済み（`cf6385c`）。
+- 2026-10-27（Issue #29 第 2 ラウンド: 棚卸し＋執筆支援の計画）: unchecked item 38 件を全部実装・仕様・コードと突き合わせて棚卸しした（`REF:docs/plans.md` §8.2 G12）。32 件は解決済みでチェックボックスが stale だった（実装済み 29 件・決定で閉じ 3 件）。Issue 本文へのチェックと根拠コメントは所有者の判断で代理編集するはずだったが、エージェントのトークンに Issue 書き込み権限が無い（HTTP 403）ため、チェック済みの本文と各チェックの根拠を PR 本文に添付して所有者が反映する形にした。待っている 5 件: N29-07（実機確認とリリース待ち）・X2（所有者の短編）・X5（トークン後）・N29-38（実機網羅チェックリスト）・執筆支援（→ B11 に計画済み）。執筆支援ラウンド 2 は W097（文末尾の反復）・W098（場面内の同語反復）の 2 件の決定論診断を計画した（新規依存なし・既定無効。仕様 `REF:docs/specifications/diagnostics.md` §7.2.3 / §7.2.4・`REF:docs/specifications/ui.md` §9.4.4・設計書 `REF:docs/designs/diagnostics.md` §7.2（§7.2.3 / §7.2.4 を新設・状態は未実装・実装計画済み）・実装計画 B11）。要らないファイルの最終スキャン（N29-27 残）は不要 0 件で完了。
 - v0.1.0は公開済み。既存の版タグ・可動v0・配布バイナリは変更しない。Issue #29 の方針は「V1 延期、開発は V0 で継続」である。
 - 既知の問題の原本は `REF:docs/known-issues/ja.md` と `REF:docs/known-issues/en.md`。サイトで直接表示し、修正版公開後に削除する運用は `REF:docs/developers.md` §9に従う。READMEに不具合本文を重複させない。
 - 所有者指示: この作業は `develop` へマージすることを目指し、マージは所有者自身が行う。

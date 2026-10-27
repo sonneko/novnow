@@ -33,7 +33,7 @@
 
 ### 7.2 執筆支援系の診断
 
-状態: 実装完了（REF:src/core/diagnostics.rs, REF:src/core/features/project.rs, REF:tests/diagnostics_document.rs）
+状態: 未実装・実装計画済み（REF:docs/plans.md#issue-29-b11）
 
 - 執筆支援系の 28 コード（`W080`〜`W099`, `E032`〜`E036`, `E064`, `I054`）は `Group::Writing` として `REF:src/core/diagnostics.rs` に定義する。
 - 既定の有効（`TOGGLE_ON`: 11 件）/ 無効（`TOGGLE_OFF`: 7 件）および実行コスト制御テーブル（`COST`: 16 件の `Trigger` × `Scope`）は `REF:src/core/diagnostics.rs` に定数表として持ち、`REF:tests/diagnostics_catalog.rs` で仕様表との完全一致を検証する。
@@ -48,3 +48,19 @@
 - **[Issue #29 / B7] トグルの feature 化と W096 の追加（実装完了: `REF:docs/plans.md#issue-29-b7`）**:
   - セッション内トグルだった有効/無効は「組み込み既定」（`TOGGLE_ON` / `TOGGLE_OFF` 定数）として残し、作者の上書きは `[features.diagnostics]`（§7.0、B10）が持つ。点検画面の編集面は §10.9（`REF:docs/designs/ui.md`）。
   - W096（台詞内の句読点直後の空白、§7.2.2）を追加し、仕様 §7.2 の表・コード・日英カタログ・サイト解説データ・コスト/トグルの定数表を同時に揃えた（77 件）。生成は `features::diagnose::dialogue_spacing`（`REF:src/core/features/diagnose.rs`）で、記号（`。`・`！`・`？`）ごとに作品全体から集計し、合計 5 件以上かつ差 2 件以上のときだけ少数派の箇所へ出す。組み込み既定は無効で、有効化は `[features.diagnostics]`。文体タブの明示操作では未有効化でも計算する。対象判定（日本語主体か）は本文の文字種だけで決める。クイックフィックスは空白を入れる／取る 1 操作（`MatchDialogueSpacing`、`REF:src/core/features/code_action.rs`）。
+
+#### 7.2.3 文末尾の反復（W097）
+
+状態: 未実装・実装計画済み（REF:docs/plans.md#issue-29-b11）
+
+- 句点 `。！？` 直前の 2 字を文末尾とし、同一節内で同じ文末尾が 3 文連続（改行・段落は連続を切らない、節をまたがない。`「…」` の内側は数えない）で、3 文目の位置に 1 件（仕様 `REF:docs/specifications/diagnostics.md` §7.2.3・算法 `REF:docs/specifications/ui.md` §9.4.4）。
+- 診断 enum（`REF:src/core/diagnostics.rs`）へ追加（severity W・既定オフ）。§9.4.3 と同一の文区切りで読み順に文末尾キーを収集する。クイックフィックスは連続 3 文を表示（自動置換しない）。日本語主体の判定は §7.2.2（W096）と同一。
+
+#### 7.2.4 場面内の同語反復（W098）
+
+状態: 未実装・実装計画済み（REF:docs/plans.md#issue-29-b11）
+
+- W087 と同じ語の抽出（辞書登録語・漢字 2 字以上連続・カタカナ 3 字以上連続）を集計単位を場面（その場面内の全節）にして適用し、5 回以上で最後の出現位置に 1 件（仕様 `REF:docs/specifications/diagnostics.md` §7.2.4・`REF:docs/specifications/ui.md` §9.4.4）。
+- `REF:src/core/features/diagnose.rs` で W087 の語抽出を流用し場面ごとに集計する。クイックフィックスは用語辞書で類語を見る（W087 同一）。日本語主体の判定は §7.2.2（W096）と同一。
+
+共通: 新規依存のない決定論ルールで、組み込み既定は無効（有効化は `[features.diagnostics]`）。実装と同時に、仕様 §7.2 の表行・ja/en カタログ・サイト解説（§7.2.1）・「77 種」の数値主張（`REF:docs/specifications/overview.md` §2・`REF:README.md`・`REF:README.en.md`・`REF:docs/users/glossary.md`）を 79 種へ。TinySegmenter 級の固定モデルは今回は見送り（WASM の 8MiB 検査と依存搬入のコスト。N29-39 第 16 回決定どおり個別判断に留める）。
