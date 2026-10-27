@@ -1,6 +1,7 @@
-# novnow — Next-Generation World-Building Management Systems
+# novnow — Tools for Managing the World of Your Novel
 
-`novnow` is a suite of tools designed to cultivate and expand your own fictional worlds—whether for full-length novels, light novels, web fiction, visual novels, or scenario scripts.
+`novnow` is a suite of tools for people writing full-length novels, light novels, web fiction, visual novels, and scenario scripts.
+It keeps your work's world (characters, speech styles, terms, plots, and the text itself) as a single folder of files.
 
 The novnow editor, built to manage the novnow format, runs both as a desktop application (Windows / macOS / Linux) and in the browser (WebAssembly + IndexedDB). The layout and the keyboard bindings are the same on both, and the same project opens in either.
 
@@ -8,7 +9,7 @@ The novnow editor, built to manage the novnow format, runs both as a desktop app
 
 See the website for [known issues in published releases](https://sonneko.github.io/novnow/en/known-issues/).
 
-**v0.1.0 is available.** [Try in your browser](https://sonneko.github.io/novnow/app/) · [Download](https://sonneko.github.io/novnow/en/#downloads). Until v1, **novnow project formats have no cross-version compatibility guarantee**; an update may make existing projects unreadable. **No v0-to-v1 migration feature will be provided**, deliberately minimizing implementation cost. Before updating, back up your work as both Zip and plain text, and pin your version where needed. The CLI `migrate` command imports prose text; it does not migrate novnow format versions.
+**v0.1.0 is available.** [Try in your browser](https://sonneko.github.io/novnow/app/) · [Download](https://sonneko.github.io/novnow/en/#downloads). Until v1, **novnow project formats have no cross-version compatibility guarantee**; an update may make existing projects unreadable. **No v0-to-v1 migration feature will be provided.** Before updating, back up your work as both Zip and plain text, and pin your version where needed. The CLI `migrate` command imports prose text; it does not migrate novnow format versions.
 
 Development follows GitFlow. Merges into `main` are reserved for version updates. See `REF:docs/developers.md` and `REF:docs/distribution.md` for development and release procedures.
 
@@ -26,7 +27,7 @@ Development follows GitFlow. Merges into `main` are reserved for version updates
 | GitHub Actions | `uses: sonneko/novnow@v0` | Checking or exporting in CI |
 
 The layout, the keys, and what gets saved are the same in the browser and on the desktop.
-Whichever door you use, you get the same result from one shared implementation.
+Whichever entry point you use, you get the same result: one shared implementation.
 
 Start with the [user guide](./docs/users/README.md), or go straight to [Getting Started](./docs/users/start.md).
 
@@ -38,11 +39,11 @@ Start with the [user guide](./docs/users/README.md), or go straight to [Getting 
 
 The "novnow format" is a file format designed to manage the world-building and story that live inside your mind.
 
-Just as PDF is a format for managing documents, novnow is a format for managing fictional universes. Simply by sending a novnow file, you can communicate your entire world to others.
+Just as PDF is a format for documents, the novnow format is a format for worlds. Send a novnow file and your whole world goes with it.
 
-It is also ideal when multiple creators want to build a single shared world together.
+It also works well when several people build one shared world together.
 
-Furthermore, it supports extensions designed to convey your world directly to AI systems.
+The project can also be read by AI systems through the MCP integration.
 
 ## What does it look like in practice?
 
@@ -54,7 +55,7 @@ Furthermore, it supports extensions designed to convey your world directly to AI
 - Reference materials
 - Character icons
 
-All of the above information can be integrated and managed in one place.
+You manage all of it in one place.
 
 For example, manuscript text is written like this:
 
@@ -91,9 +92,9 @@ Saying so, 'Lilia looked away, the corners of her lips curling upward ever so sl
 
 The "novnow format" is designed to leave no room for ambiguity on the reader's part.
 
-The novnow format includes a feature to export your novel as plain text data. All format-specific symbols can be stripped away with a single click.
+You can export the manuscript as plain text. All format-specific symbols (`@`, `'`, and others) are stripped with a single click.
 
-In the future, following continued research and development, we plan to implement export features for various media beyond novels, such as visual novels and 3D CG animation.
+The format includes extension points for media beyond novels, such as visual novels and animation.
 
 ## Summary of Editor Specifications
 
@@ -101,11 +102,11 @@ In the future, following continued research and development, we plan to implemen
    - The "Section Editor" in the lower pane lets you focus solely on the section you are writing, while the "Context View" above it shows up to 3 preceding and following sections read-only.
    - The reference pane on the right automatically extracts and shows the plot, characters (active modes and speech styles), terms, materials, and diagnostics that concern the current section. Its visibility, side, and split ratio are all keyboard-adjustable.
 2. **Lightweight Proprietary Text Syntax and Lossless Saving**
-   - Manuscript text (`contents/AA-BB.txt`), overall and chapter plots (`plots/all.txt`, `plots/AA.txt`), episode plots (`plots/AA-BB.txt`), characters (`characters.md`), terms (`words.md`), ideas (`ideas.md`), and materials (`materials/`) are all plain text (UTF-8), so Git diffs them natively.
+   - Manuscript text (`contents/AA-BB.cnov`), overall and chapter plots (`plots/all.cnov`, `plots/AA.cnov`), episode plots (`plots/AA-BB.cnov`), characters (`characters.md`), terms (`words.md`), ideas (`ideas.md`), and materials (`materials/`) are all plain text (UTF-8), so Git diffs them natively.
    - Not a single byte of the original is discarded: what you read is what is written back. A project is self-contained around `project.toml`; only the `.novnow/` cache stays out of version control.
-3. **Semantic Resolution Engine and 76 Types of Real-Time Diagnostics**
+3. **Semantic Resolution Engine and 77 Types of Real-Time Diagnostics**
    - Provides glossary resolution via `'Name` (shortest match, NFKC normalization), situation-aware character mode resolution, speech-style pattern matching (tone matches are underlined in green), detection of terms used before their first appearance, and authoring diagnostics for sentence length, repeated sentence endings, spelling variance, and more.
-   - Every one of the 76 diagnostics has a stable code (`E001`-`W0xx` / `I0xx`), reachable through the `Ctrl+.` quick fix and the `review` workspace.
+   - Every one of the 77 diagnostics has a stable code (`E001`-`W0xx` / `I0xx`), reachable through the `Ctrl+.` quick fix and the `review` workspace.
 4. **Keyboard-Driven 9 Workspaces and a Unified Palette**
    - Switch instantly between manuscript (`write`), episode plot (`plot-episode`), outline (`plot-outline`), ideas (`idea`), materials (`material`), cast (`cast`), reader (`reader`), agents (`agent`), and review (`review`) with `Alt+1` through `Alt+9`. The current section is preserved across the switch.
    - The unified palette (`Ctrl+P`) jumps anywhere in the project by prefix (`@` structure, `'` dictionary, `#` materials, `>` commands). `Ctrl+G` jumps by scene number, `F5` reloads, and `?` lists every shortcut.
@@ -121,7 +122,7 @@ In the future, following continued research and development, we plan to implemen
 
 ## Install and Run
 
-The distribution channels are the browser, GitHub Releases, PyPI, VSIX files on GitHub Releases, and GitHub Actions tags. There are 10 desktop builds (with or without a window, across 5 OS/CPU targets) and 5 Python wheels. Version v0.1.0 is available across these distribution channels. See [how to install](./docs/users/install.md) for users and [distribution.md](./docs/distribution.md) for the release procedure and rules.
+The distribution channels are the browser, GitHub Releases, PyPI, the VSIX file on GitHub Releases, and GitHub Actions (the `@v0` tag). There are 10 desktop builds (with or without a window, across 5 OS/CPU targets) and 5 Python wheels. Version v0.1.0 is published for all of these channels. See [how to install](./docs/users/install.md) for users and [distribution.md](./docs/distribution.md) for the release procedure and rules.
 
 You can also build novnow from source. A stable Rust toolchain is required.
 
@@ -161,18 +162,18 @@ Everything the GUI can do is also reachable headlessly (see [`interfaces.md`](./
 | CLI | `novnow new` / `check` / `export` / `import` / `migrate` / `api` / `mcp` / `lsp` | Create, check, export, migrate, and list the API. Uniform `novnow <domain> <verb> <dir>` form |
 | LSP | `novnow lsp <dir>` | Completion, hover, go-to-definition, diagnostics, formatting, and folding for your editor (LSP 3.17) |
 | MCP | `novnow mcp <dir>` | 14 tools for AI clients |
-| Python | `import novnow` | The same 119 canonical operations from Python (PyO3, abi3-py39 wheel) |
+| Python | `import novnow` | The same 120 canonical operations from Python (PyO3, abi3-py39 wheel) |
 | Rust | the `novnow` crate | The `core` and `app` APIs directly |
 
 ```bash
-novnow api list             # list the 119 canonical operations (--json for machines)
+novnow api list             # list the 120 canonical operations (--json for machines)
 novnow check my-novel       # print diagnostics and exit (exit code 5 when there are errors)
 novnow structure tree my-novel --json                    # canonical operations accept --json
 ```
 
 ## About the Specifications
 
-All specifications for the editor and the novnow format are fully documented:
+The editor and the novnow format are specified in the twelve documents below:
 
 - [`overview.md`](./docs/specifications/overview.md): Design principles, terminology, and architecture
 - [`project.md`](./docs/specifications/project.md): Project structure, `project.toml`, and sample layouts
@@ -193,6 +194,6 @@ For bug reports and proposals, see [`CONTRIBUTING.md`](./CONTRIBUTING.md) (code 
 
 ## About the License
 
-novnow is free for anyone to use. It will never become a paid service.
+novnow is free for anyone. It will not become a paid service.
 
 Both the "novnow format" specifications and the "novnow editor" source code are freely available under the `MIT License`.

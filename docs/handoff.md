@@ -26,7 +26,8 @@
 
 - PR #38（X1・X3・CI スコープ・CI 修正 2 件）は 2026-10-27 に所有者が `develop` へマージ済み（merge commit `6b5853b`。ruleset `protect-develop` の必須チェック 11 件へは所有者が同日更新済み）。
 - 2026-10-27（CI スコープ）: `browsers (webkit)` の偽陽性で Checks が赤くなった件をきっかけに、各プラットフォームのビルドを最小化した（所有者指示: 開発速度を第一に）。`CI_SCOPE` で対象ブランチごとに行列を切り替え、develop 向け PR は 1 プラットフォーム（Linux x64・desktop nogui / wheel / chromium / ubuntu Electron / Python 3.9・3.13）、main 向け PR・main push・手動実行（`scope` 入力、既定 full）は full 行列。正本は `REF:docs/developers.md` §4.7 と `REF:docs/distribution.md` §8。
-- 2026-10-27（CI 不整合の修正）: マージ commit の実測で develop への push が必須 11 件のうち平台 2 行（wheels・desktop の Linux x64）を報告しないことが分かったので、wheels / desktop-check に `develop` への push トリガーを追加（wheels は PR 同一 `paths`）、4 ワークフローの手動実行に `scope` 入力を追加した。Issue #29 の残る後続は X2（所有者の短編）・X4（文書文体）・X5（両市場の初回公開、トークン後）。
+- 2026-10-27（CI 不整合の修正）: マージ commit の実測で develop への push が必須 11 件のうち平台 2 行（wheels・desktop の Linux x64）を報告しないことが分かったので、wheels / desktop-check に `develop` への push トリガーを追加（wheels は PR 同一 `paths`）、4 ワークフローの手動実行に `scope` 入力を追加した。**PR #39**（develop 向け、`[ci run]` 付き）として提出済み。マージは所有者が行う。マージ後の develop push で発火を確認すること。
+- 2026-10-27（X4 文書の文体見直し）: 利用者向け文書 10 本と README（日・英）の文体を見直し、README の事実誤記 3 件（診断 76→77 種・英語版の正規操作 119→120・拡張 `.txt`→`.cnov`）と `errors.md` の `E025` 節（B10 前の JSON 前提だった）を直し、`REF:docs/designs/platform.md` §14.1 の X1 注記の stale な「未実装・実装計画済み」を「実装完了」へ直した。doc-only のため doc-site 生成物（guide HTML・website content）を同 PR に含める。Issue #29 の残る後続は X2（所有者の短編）・X5（両市場の初回公開、トークン後）。
 - v0.1.0は公開済み。既存の版タグ・可動v0・配布バイナリは変更しない。Issue #29 の方針は「V1 延期、開発は V0 で継続」である。
 - 既知の問題の原本は `REF:docs/known-issues/ja.md` と `REF:docs/known-issues/en.md`。サイトで直接表示し、修正版公開後に削除する運用は `REF:docs/developers.md` §9に従う。READMEに不具合本文を重複させない。
 - 所有者指示: この作業は `develop` へマージすることを目指し、マージは所有者自身が行う。

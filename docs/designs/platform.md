@@ -65,7 +65,7 @@
 - **[S-10] `novnow import <zip> <dir>` サブコマンド（実装完了: `REF:docs/plans.md#plan-S-10`）**:
   - `REF:src/cli/mod.rs` に `import <zip> <dir>` を追加し、`REF:src/adapters/zip.rs` で展開・検証を行う。
 
-- **[Issue #29 / X1] `migrate` の複数入力（未実装・実装計画済み: `REF:docs/plans.md#issue-29-x1`）**:
+- **[Issue #29 / X1] `migrate` の複数入力（実装完了: `REF:docs/plans.md#issue-29-x1`）**:
   - `migrate` の引数は、末尾の `--preview` を除いた最後の引数を移行先ディレクトリとし、それより前をすべて入力（ファイルとフォルダの混在可）とする。入力が 1 個も無い形式はエラーにする。既存の `migrate <text> <dir>` の並びはそのまま使える。入力の展開・読み替え・候補生成は §14.6。
 
 ### 14.2 起動時のスキャンとエラー出力
