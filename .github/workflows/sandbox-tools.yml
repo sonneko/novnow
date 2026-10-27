@@ -135,7 +135,9 @@ jobs:
           fi
           mkdir -p crates
           # Issue #29 X1（移行支援の Shift_JIS 読み替え、§14.6）で使うクレート。依存なしの構成で使う。
-          # 版は sparse index から 0.8 系の最新（yank されていないもの）を決定的に選び、cksum で照合する。
+          # 版は sparse index から「必須依存が cfg-if だけの 0.8 系で最大の版」を決定的に選ぶ
+          # （新しい 0.8 系は SIMD 用の必須依存が増えており、vendoring の対象を増やさないため）。
+          # 選んだ版は cksum で照合する。
           curl -fsSL --retry 3 -o encoding_rs.index "https://index.crates.io/en/co/encoding_rs"
           python3 - <<'PY'
           import json
@@ -147,12 +149,21 @@ jobs:
               if row.get("yanked"):
                   continue
               parts = row["vers"].split(".")
-              if len(parts) == 3 and parts[0] == "0" and parts[1] == "8" and parts[2].isdigit():
-                  key = int(parts[2])
-                  if best is None or key > best[0]:
-                      best = (key, row["vers"], row.get("cksum", ""))
-          assert best is not None
+              if not (len(parts) == 3 and parts[0] == "0" and parts[1] == "8" and parts[2].isdigit()):
+                  continue
+              required = {
+                  dep["name"]
+                  for dep in row.get("deps", [])
+                  if not dep.get("optional") and dep.get("kind") != "dev"
+              }
+              if not required.issubset({"cfg-if"}):
+                  continue
+              key = int(parts[2])
+              if best is None or key > best[0]:
+                  best = (key, row["vers"], row.get("cksum", ""), sorted(required))
+          assert best is not None, "no 0.8.x with only cfg-if as a required dependency"
           open("encoding_rs.version", "w").write(best[1] + " " + best[2] + "\n")
+          print("chosen:", best[1], "required deps:", best[3])
           PY
           read -r version cksum < encoding_rs.version || true
           echo "encoding_rs version=${version}"
