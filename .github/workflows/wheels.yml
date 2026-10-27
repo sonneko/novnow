@@ -157,7 +157,8 @@ jobs:
           path: python/novnow-py/dist/${{ matrix.artifact }}
 
   test:
-    needs: build
+    # prepare も needs に入れる（pythons の行列出力を読むため。build 経由でも見えない）
+    needs: [build, prepare]
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     # 版の行列はスコープで決まる（develop 向け PR は 3.9 / 3.13 の境界のみ、docs/developers.md §4.7）。
     # setup-python の 3.9 は Ubuntu 26.04 向けが無いため、ubuntu-latest の
