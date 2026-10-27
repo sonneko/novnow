@@ -55,7 +55,9 @@ jobs:
   browsers:
     needs: build
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
-    runs-on: ubuntu-latest
+    # playwright 1.58.2 の --with-deps が入れる apt パッケージは Ubuntu 24.04 前提。
+    # ubuntu-latest が 26.04 へ移行したランナーではブラウザ導入が失敗したため固定する。
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
       fail-fast: false
