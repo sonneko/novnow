@@ -60,7 +60,7 @@ pub fn character(
             .character_fields(index, crate::core::text::lexer::FieldKey::Icon)
             .first()
         {
-            if let Some(path) = crate::core::stage_two::metadata::asset_path(field.value, true) {
+            if let Some(path) = crate::core::features::metadata::asset_path(field.value, true) {
                 if let Some(bytes) = project.assets.get(&path) {
                     show(ui, bytes, size);
                 }

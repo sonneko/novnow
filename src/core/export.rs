@@ -511,7 +511,7 @@ pub fn render(project: &Project, chosen: &[SectionRef], options: &Options) -> St
         if previous.is_none_or(|id| id.chapter != section.id.chapter)
             && (options.include_blurb || options.blurb_only)
         {
-            let blurb = crate::core::stage_two::chapter_blurb(project, section.id.chapter);
+            let blurb = crate::core::features::chapter_blurb(project, section.id.chapter);
             if !blurb.is_empty() {
                 out.push(Out::Text(blurb));
                 out.push(Out::Blank);

@@ -679,7 +679,7 @@ fn block_list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) ->
                 .map_or(0, |r| r.chars)
         })
         .collect();
-    let scores = crate::core::stage_two::metrics::t_scores(&lengths);
+    let scores = crate::core::features::metrics::t_scores(&lengths);
     if blocks.is_empty() {
         let path = state.path(bench).unwrap_or_default();
         super::hint(

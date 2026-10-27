@@ -587,7 +587,7 @@ fn list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) -> Optio
                             section,
                         );
                         // 台詞比率バー（§9.4.2。話プロットでは幅 48px）
-                        let measured = crate::core::stage_two::metrics::section(&text);
+                        let measured = crate::core::features::metrics::section(&text);
                         if measured.total > 0 {
                             crate::ui::widgets::ratio_bar(
                                 ui,

@@ -1,9 +1,9 @@
 use novnow::core::{
     annotations, export,
+    features::{local_llm, metadata, metrics, search, stock},
     features::{sections, Project},
     id::SceneId,
     model::document::Document,
-    stage_two::{local_llm, metadata, metrics, search, stock},
 };
 fn project(files: &[(&str, &str)]) -> Project {
     Project::with_documents(

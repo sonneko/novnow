@@ -139,7 +139,7 @@ novnow/
 │   │   ├── features/          # LSP 相当の純粋関数とワークスペース補助
 │   │   ├── policy/            # 規則 10・履歴・Zip・外部変更
 │   │   ├── export.rs / reader.rs / migration.rs / annotations.rs
-│   │   └── aicontext/ / agents/ / stage_two/ / template/
+│   │   └── aicontext/ / agents/ / template/
 │   ├── ports/                 # 外部境界 trait（storage, clock, mcp, env, dialog）
 │   ├── adapters/              # 環境別実装（storage_fs, storage_idb, recent_file, zip, project_load,
 │   │                          #   env_system, mcp_stdio, mcp_http, clock_system, dialog_rfd）
@@ -152,10 +152,11 @@ novnow/
 │   ├── lsp/                   # LSP サーバ（framing, convert, methods, commands, server）
 │   └── ui/                    # egui ベース GUI / Web UI（`ui` feature のときだけ）
 │       ├── i18n/              # ja.toml / en.toml（GUI と CLI が共有。常にビルド）
-│       ├── app.rs / shell.rs / theme.rs / web.rs
+│       ├── app.rs / picker.rs / palette_items.rs / status.rs / shell.rs / theme.rs / web.rs
 │       ├── widgets/           # context_view, section_editor, reference_pane, syntax_text, inlay, portrait
 │       └── workspaces/        # 9 ワークスペース（write, plot-episode, plot-outline, idea, material,
-│                              #   cast, reader, agent, review）と stage_two（② の画面）
+│                              #   cast, reader, agent, review）と② のタブ群（tabs, reader, stats,
+│                              #   regex_search, addresses, local_llm, proposals）
 ├── python/
 │   └── novnow-py/             # PyO3 拡張（python/novnow/__init__.pyi は自動生成）REF:python/novnow-py/README.md
 ├── website/                   # Astro の公式サイト（診断・API のページは仕様書から生成）

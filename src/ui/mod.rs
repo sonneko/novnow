@@ -17,7 +17,13 @@ pub mod app;
 #[cfg(feature = "ui")]
 pub mod guide;
 #[cfg(feature = "ui")]
+pub mod palette_items;
+#[cfg(feature = "ui")]
+pub mod picker;
+#[cfg(feature = "ui")]
 pub mod shell;
+#[cfg(feature = "ui")]
+pub mod status;
 #[cfg(feature = "ui")]
 pub mod theme;
 /// Web の GUI（§13.3〜§13.5。IndexedDB のプロジェクト選択と、開いたプロジェクトの Host）。

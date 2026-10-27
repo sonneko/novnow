@@ -2200,3 +2200,11 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - 貼り付け: 貼り付けた文字列が UTF-8 を Shift_JIS で読み違えた文字化けらしい場合（固有の文字や半角カタカナの指紋があり、欠損が候補の半分以上にならない場合）に限り、フレームの先頭で横取りして修復候補を提示する。候補を使う / 元のまま / 貼り付けないで選ばせ、選択した文字列を元の入力欄へ渡す。対象は複数行の入力欄（デスクトップ・Web 双方）。通常の日本語・英語の貼り付けには出ない。
 - 依存: `encoding_rs` 0.8.35 を core の許可クレートとして追加（新しい 0.8 系は SIMD 用の必須依存が増えるため、必須依存が cfg-if だけの版に固定。搬入は `.github/workflows/sandbox-tools.yml` の blob 経由）。
 - 検証: `tests/migration.rs`（読み替え・候補生成・構造確定・描画・修復判定・候補を全て境界なしにすると従来の往復と等価）、`tests/cli.rs`（複数入力・フォルダ入力の自然順・Shift_JIS 読み替え・プレビュー非変更）、`tests/gui.rs`（修復候補の提示と選択、通常の貼り付けに出ないこと）。設計書 §14.1・§14.6 は実装完了。設計書の実測は 142 節すべて実装完了。
+## 2026-10-27: Issue #29 の後続 X3（コードの機能単位分割）
+
+- `stage_two` という寄せ集めの置き場所を解体し、`app.rs` の巨大化を下げた（N29-35 の判断 2 第 (a) 案・第 17 回決定どおり。振る舞いは変えず、レジストリ方式にはしない）。
+- コア: `src/core/stage_two/` の 6 ファイル（diagnose・local_llm・metadata・metrics・search・stock）を `src/core/features/` へ移し、モジュールを無くした。
+- UI: `src/ui/workspaces/stage_two.rs` を画面単位のファイルへ分割した。タブ枠と共有状態（`State`）・ディスパッチは `workspaces/tabs.rs`、読者モードは `workspaces/reader.rs`、統計は `workspaces/stats.rs`、本文の正規表現検索タブは `workspaces/regex_search.rs`、キャストの宛先タブは `workspaces/addresses.rs`、エージェントのローカル LLM 設定は `workspaces/local_llm.rs`、プロットのプロポーザルタブは `workspaces/proposals.rs`。
+- `src/ui/app.rs`（8823 行）から独立した塊を切り出し、`NovnowApp` 本体を残した：起動前の画面（`Picker` trait・`NativePicker`・デスクトップの Host・移行状態）は `src/ui/picker.rs`、パレットの候補生成とコマンド解決は `src/ui/palette_items.rs`、ステータスバーと省略判定とミニヘッダーは `src/ui/status.rs`（6611 行へ）。
+- 受け入れ条件の確認: 全テストは無変更で全て通り（ゴールデン差分ゼロ）、`stage_two` の名前は `src/` から消えた（`tests/stage_two.rs` のファイル名は歴史の記録として残す）。公開 API（§19）の形と利用者から見える振る舞いは不変。
+- 設計書 overview §3.3・`docs/developers.md` §3 のソースツリーと、文書中の `REF:` パス（NativePicker・ステータスバー・palette_items 等）を追随させた。

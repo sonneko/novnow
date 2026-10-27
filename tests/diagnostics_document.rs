@@ -371,7 +371,7 @@ fn w096_stays_silent_without_a_clear_majority_or_enablement() {
     let document = doc(&project, CONTENTS_PATH);
     assert!(w096_args(&diagnostics::document(&document, &project)).is_empty());
     // 明示操作（文体タブ）では計算できる
-    let explicit = novnow::core::stage_two::diagnose::document(&document, &project, true);
+    let explicit = novnow::core::features::diagnose::document(&document, &project, true);
     assert_eq!(w096_args(&explicit).len(), 1);
 
     // 日本語主体でない本文では出ない（文字種で決める）
