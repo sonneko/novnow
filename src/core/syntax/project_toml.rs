@@ -145,16 +145,21 @@ pub fn set_diagnostic_level(text: &str, code: &str, level: &str) -> Option<Strin
     done.then_some(edited)
 }
 
-/// テーブルへ文字列のキーを書く。既存の値がある場合は、その前後の装飾
+/// テーブルへ値を書く。既存の値がある場合は、その前後の装飾
 /// （空白と行末コメント）を保ったまま値だけを差し替える（§4.5 の無損失編集）。
-pub fn set_string(table: &mut dyn toml_edit::TableLike, key: &str, value: &str) {
+pub fn set_value(table: &mut dyn toml_edit::TableLike, key: &str, mut value: toml_edit::Value) {
     if let Some(existing) = table.get_mut(key).and_then(|item| item.as_value_mut()) {
         let decor = existing.decor().clone();
-        *existing = toml_edit::Value::from(value);
-        *existing.decor_mut() = decor;
+        *value.decor_mut() = decor;
+        *existing = value;
         return;
     }
-    table.insert(key, toml_edit::value(value));
+    table.insert(key, toml_edit::Item::Value(value));
+}
+
+/// テーブルへ文字列のキーを書く（装飾の保存は [`set_value`]）。
+pub fn set_string(table: &mut dyn toml_edit::TableLike, key: &str, value: &str) {
+    set_value(table, key, toml_edit::Value::from(value));
 }
 
 /// E027（§6.5.1）: 正規表現として不正な語クラスごとに 1 件。

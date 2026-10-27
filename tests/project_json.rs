@@ -261,3 +261,23 @@ fn set_diagnostic_level_writes_the_features_table_losslessly() {
     );
     assert!(project_toml::set_diagnostic_level("title = ", "W096", "off").is_none());
 }
+
+#[test]
+fn set_value_keeps_the_existing_comment_for_any_type() {
+    // 文字列以外（真偽・配列）の差し替えでも行末コメントを落とさない（§4.5）
+    let source = "[agents]\ncustom_roles = [\"a\"] # 役割\n\n[agents.local_llm]\nenabled = false # 自宅のみ\n";
+    let edited = project_toml::edit(source, |document| {
+        let agents = document["agents"].as_table_like_mut().expect("agents");
+        let mut array = toml_edit::Array::new();
+        array.push("b");
+        project_toml::set_value(agents, "custom_roles", toml_edit::Value::Array(array));
+        let local = agents
+            .get_mut("local_llm")
+            .and_then(toml_edit::Item::as_table_like_mut)
+            .expect("local_llm");
+        project_toml::set_value(local, "enabled", toml_edit::Value::from(true));
+    })
+    .expect("編集できる");
+    assert!(edited.contains("custom_roles = [\"b\"] # 役割"), "{edited}");
+    assert!(edited.contains("enabled = true # 自宅のみ"), "{edited}");
+}

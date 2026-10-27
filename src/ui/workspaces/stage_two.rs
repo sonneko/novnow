@@ -1270,7 +1270,11 @@ fn local_ui(
                         for role in &roles {
                             array.push(role.as_str());
                         }
-                        agents.insert("custom_roles", Item::Value(Value::Array(array)));
+                        crate::core::syntax::project_toml::set_value(
+                            agents,
+                            "custom_roles",
+                            Value::Array(array),
+                        );
                         if agents.get("local_llm").is_none() {
                             agents.insert(
                                 "local_llm",
@@ -1283,9 +1287,17 @@ fn local_ui(
                         else {
                             return;
                         };
-                        local.insert("enabled", toml_edit::value(config.enabled));
-                        local.insert("url", toml_edit::value(config.url.as_str()));
-                        local.insert("model", toml_edit::value(config.model.as_str()));
+                        crate::core::syntax::project_toml::set_value(
+                            local,
+                            "enabled",
+                            toml_edit::Value::from(config.enabled),
+                        );
+                        crate::core::syntax::project_toml::set_string(local, "url", &config.url);
+                        crate::core::syntax::project_toml::set_string(
+                            local,
+                            "model",
+                            &config.model,
+                        );
                     },
                 ) {
                     bench.replace_document("agents/mcp.json", mcp, now);
