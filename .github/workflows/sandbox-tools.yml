@@ -152,9 +152,10 @@ jobs:
                   if best is None or key > best[0]:
                       best = (key, row["vers"], row.get("cksum", ""))
           assert best is not None
-          open("encoding_rs.version", "w").write(best[1] + " " + best[2])
+          open("encoding_rs.version", "w").write(best[1] + " " + best[2] + "\n")
           PY
-          read -r version cksum < encoding_rs.version
+          read -r version cksum < encoding_rs.version || true
+          echo "encoding_rs version=${version}"
           curl -fsSL --retry 3 -o "crates/encoding_rs-${version}.crate" \
             "https://static.crates.io/crates/encoding_rs/encoding_rs-${version}.crate"
           echo "${cksum}  crates/encoding_rs-${version}.crate" | sha256sum -c -
