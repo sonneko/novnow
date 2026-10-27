@@ -16,7 +16,7 @@ def project(tmp_path):
 
 def test_create_then_read_the_catalog(project):
     catalog = novnow.operations()
-    assert len(catalog) == 119, "§19.7 の全行"
+    assert len(catalog) == 120, "§19.7 の全行"
     assert {operation["id"] for operation in catalog} >= {"project.info", "section.list"}
 
 
@@ -71,7 +71,7 @@ def test_events_are_python_dicts(project):
     with novnow.Session(project) as session:
         seen = []
         session.on_event(seen.append)
-        session.document.write(path="contents/01-01.txt", text="書き換え\n")
+        session.document.write(path="contents/01-01.cnov", text="書き換え\n")
         events = session.poll_events()
         assert all(isinstance(event, dict) for event in events)
         assert events, "イベントが 1 つも無い"

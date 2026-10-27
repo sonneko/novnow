@@ -85,5 +85,5 @@ else
         "pytest が無いので本物の拡張の検査は飛ばす（pip install pytest）" \
         "。import と操作数だけ確認する"
     ( cd "$PY" && PYTHONPATH=python python3 -c \
-        'import novnow; assert len(novnow.operations()) == 119; print("novnow", novnow.__version__, "119 operations")' )
+        'import novnow; assert len(novnow.operations()) == 120; print("novnow", novnow.__version__, "120 operations")' )
 fi
