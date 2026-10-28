@@ -162,6 +162,7 @@
 
 - **[Issue #29 / B5] 参照ペイン行への移動先の付与（実装完了: `REF:docs/plans.md#issue-29-b5`）**:
   - `REF:src/core/features/reference.rs` の行モデルへ、表示文字列とは別に移動先 `Nav` を持たせた。GUI（§9.5.5）とヘッドレス（`reference.pane`、`REF:src/app/ops/knowledge.rs`）は同じ値を共有する。
+- **位置表現（実装完了: `REF:src/core/text/position.rs`, `REF:tests/position.rs`）**: `Utf8Byte ⇔ CharIndex ⇔ Utf16CodeUnit` の変換は `REF:src/core/text/position.rs` に集約する。行頭 byte offset の表 `LineTable` は LF だけを行区切りにし（空文書で 1 行、末尾 LF の後に空の 1 行）、範囲外はクランプしてパニックしない。
 
 ### 3.5 状態フロー（1 キーストロークの流れ）
 

@@ -204,7 +204,7 @@ fn outline_place(document: &Document, byte: Option<usize>, project: &Project) ->
     }
 }
 
-/// ファイル名（`01-04.txt` / `01.txt`）の構造 ID。
+/// ファイル名（`01-04.cnov` / `01.cnov`）の構造 ID。
 fn file_id(document: &Document) -> Option<PartialSceneId> {
     let name = document.path.rsplit('/').next()?;
     let stem = name.strip_suffix(".cnov")?;

@@ -33,9 +33,9 @@
 //! # フィールドと未知キー
 //!
 //! フィールド行の判定は字句器（§5.0.5）に任せ、A 形式（[`super::plot_outline`]）と同じ
-//! [`Field`] / [`Continuation`] / [`CharRef`] 型を使う（B-40）。§5.0.6 の表に無いキーは
-//! **W011** を出して**値を改変せずに保持する**ので、② のキー（`when` `space` `space-mode`
-//! `senses` `illustration`）はこの経路でそのまま残る。
+//! [`Field`] / [`Continuation`] / [`CharRef`] 型を使う（B-40）。§5.0.6 の表にあるキー
+//! （`when` `space` `space-mode` `senses` `illustration` を含む）はキーとして解し、表に無い
+//! キーは **W011** を出して**値を改変せずに保持する**。
 //!
 //! # 診断（M2 で出すもの）
 //!
@@ -55,13 +55,13 @@
 //! - **E003**（モードが存在しない）・**E004**（モードの有効範囲外）: `characters.md` の辞書が
 //!   要るので M3（§6.4）。§5.4.2 の制約のうち M2 で出せるのは E005 だけ。
 //! - **W030**（プロットと本文の節数の食い違い、§5.4.2）: 2 ファイルを比べるので M4 の検査器。
-//! - **W083**（`senses` の偏り、§5.4.4）: ② のキーが絡むので ② の実装時。
+//! - **W083**（`senses` の偏り、§5.4.4）: プロジェクト全体を集計するので M4 の検査器が出す。
 //! - **W012**（空の節、§5.2.2）: B 形式では空の節が正当（§5.4.5 の例は `;` 直後の節にだけ
 //!   `illustration:` を書く）。§5.4 に対応する記述が無いので出さない。
 //! - `state` / `length` の値が形に合わないとき: §7 に対応コードが無いので診断せず
 //!   [`Field::number`] が `None` を返す（`docs/history.md` B-39）。
 //!
-//! # `.txt` 3 形式の共通部
+//! # `.cnov` 3 形式の共通部
 //!
 //! 見出し行の分解（E002 / E020 / E022 込み）は C 形式の [`contents::parse_scene`] を、行末コメント・
 //! 行頭空白の byte 位置・`mode_id` の形は [`super::contents`] のものをそのまま使う。
@@ -216,7 +216,7 @@ pub enum Line<'a> {
     /// `point_line`（節の内容、§5.4.1）。**話者注釈もルビも読まない**（あれは C 形式の
     /// `text_line` の規則で、プロットの自由文には適用されない）。
     Point(&'a str),
-    /// 行コメント（`//`、§5.0.2）。`# ` は ② なので ① では [`Line::Point`] になる。
+    /// 行コメント（`//` と `# `、§5.0.2・§5.0.8）。
     Comment(contents::CommentLine<'a>),
     /// 空行（空白だけの行を含む。`docs/history.md` B-34）。
     Blank(&'a str),
@@ -338,7 +338,7 @@ fn parse_line<'a>(
         LineKind::Continuation { indent, text } => {
             Line::Continuation(Continuation { raw, indent, text })
         }
-        // 節の内容（§5.4.1 `point_line`）。② の `# ` も ① では自由文のまま
+        // 節の内容（§5.4.1 `point_line`）。`! ` 挿絵メモ（C 形式専用）も自由文のまま
         LineKind::Text(_) | LineKind::IllustrationMemo(_) => Line::Point(raw),
     }
 }

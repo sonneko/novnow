@@ -452,7 +452,7 @@ pub struct Listing {
     pub dirs_implicit: bool,
     /// `project.toml` の中身（読めたとき）。
     pub project_toml: Option<String>,
-    /// UTF-8 として不正な `.md` / `.txt` / `.json`（§4.3-3）。調べていなければ空。
+    /// UTF-8 として不正な `.cnov` / `.md` / `.json` / `.toml`（§4.3-3）。調べていなければ空。
     pub invalid_utf8: Vec<String>,
 }
 

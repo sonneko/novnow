@@ -448,7 +448,7 @@ fn sample_project_covers_appendix_c_with_no_diagnostics() {
     // 4. 資料 ID 参照（明示参照）と条件一致による資料候補
     use novnow::core::id::SceneId;
     let all_sections = sections::all(&project);
-    let doc = project.document("contents/01-04.cnov").expect("01-04.txt");
+    let doc = project.document("contents/01-04.cnov").expect("01-04.cnov");
     let sec2 = all_sections
         .iter()
         .find(|sec| sec.id == SceneId::parse("01-04-02-02").unwrap())

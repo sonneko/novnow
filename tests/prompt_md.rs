@@ -370,8 +370,9 @@ fn a_variable_in_a_line_comment_is_ignored() {
 }
 
 #[test]
-fn a_variable_after_a_stage_two_hash_comment_is_still_read() {
-    // §5.0.8 の `# ` は ② なので ① ではコメントではなく、中身の変数は走る
+fn a_variable_on_a_body_line_is_still_read() {
+    // §5.0.8 の `# ` 行コメントは `.cnov` だけの規則で、`*.md` では `#` は見出し。
+    // 行の中の `#` はただの文字なので、同じ行の変数は走査する（§5.9.1）
     let text = "# writer\n## task\n本文 # {{unknown}}\n";
     let parsed = prompt_md::parse(text);
     assert_eq!(parsed.variables.len(), 1);

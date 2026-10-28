@@ -8,18 +8,18 @@
 //! # 原文を 1 バイトも捨てない
 //!
 //! 各行は `raw`（改行を含まない原文）を持ち、[`Contents::to_text`] は `raw` を LF で連結して
-//! **入力と一致する文字列**を返す（`docs/history.md` の完了条件 2）。① で解析しない構文 —
-//! `^M0137` 引用注釈（§5.2.4）、`! ` 挿絵メモ（§5.2.5）、`# ` コメント（§5.0.8）、
-//! `'` 参照（§5.2.1 `ref`）、行内コメント `/* … */` — は [`TextLine::body`] にそのまま残り、
-//! round-trip で戻る（本書 §1.2 の 10 / 23 / 15）。
+//! **入力と一致する文字列**を返す（`docs/history.md` の完了条件 2）。行としては解析しない構文 —
+//! `^M0137` 引用注釈（§5.2.4）、`! ` 挿絵メモ（§5.2.5）、`'` 参照（§5.2.1 `ref`）、
+//! 行内コメント `/* … */` — は [`TextLine::body`] にそのまま残り、round-trip で戻る
+//! （本書 §1.2 の 10 / 23 / 15）。引用注釈と挿絵メモはエクスポート時に §17.1 の規則で消える。
 //!
-//! # ① で解析する構文（`docs/history.md` の作業項目 1）
+//! # 解析する構文
 //!
 //! | 構文 | 仕様 | 型 |
 //! | --- | --- | --- |
 //! | 場面見出し `@A-B-C[-D] タイトル` | §5.2.1 | [`SceneLine`] |
 //! | 節区切り `;`（行末コメント可） | §5.2.1 | [`BreakLine`] |
-//! | 行コメント `// …` | §5.0.2 | [`CommentLine`] |
+//! | 行コメント `// …` と `# …` | §5.0.2・§5.0.8 | [`CommentLine`] |
 //! | 空行 | §5.2.1 `blank` | [`Line::Blank`] |
 //! | 本文と行末話者注釈 `@名前[:モード]` | §5.2.1 | [`TextLine`]・[`Speaker`] |
 //! | ルビ `｜親字《読み》`・`漢字《読み》` | §5.2.1 | [`Ruby`] |
@@ -179,8 +179,9 @@ impl<'a> Contents<'a> {
 
 /// 1 行（§5.2.1 `line`）。
 ///
-/// ① は `illust_line`（§5.2.5、② の追加仕様 23）と `comment_line` の `# `（§5.0.8、②）を
-/// 作らない。それらは [`Line::Text`] として本文に残る。
+/// `// ` と `# ` のコメント行（§5.0.2・§5.0.8）は [`Line::Comment`] になる。`! ` 挿絵メモ
+/// （§5.2.5）だけは行の種別を増やさず [`Line::Text`] として本文に残し、ハイライトと
+/// エクスポート（§17.1 の 3c）は字句種別 [`LineKind::IllustrationMemo`] を見て行う。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum Line<'a> {
     /// 場面見出し（§5.2.1 `scene_header`）。
@@ -438,7 +439,7 @@ fn parse_line<'a>(
         LineKind::SectionBreak => Line::Break(parse_break(raw)),
         LineKind::Comment { .. } => Line::Comment(parse_comment(raw)),
         // C 形式にフィールド行は無い（§5.0.5 の表、`TextFormat::allows_field`）。継続行も
-        // 一字下げ・段落字下げの本文なので [`Line::Text`]（B-31）。② の `! ` も本文
+        // 一字下げ・段落字下げの本文なので [`Line::Text`]（B-31）。`! ` 挿絵メモも本文
         LineKind::Field(_)
         | LineKind::Continuation { .. }
         | LineKind::IllustrationMemo(_)
@@ -660,11 +661,10 @@ pub(crate) fn is_mode_id(text: &str) -> bool {
         .all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
-/// キャラ名（§5.5 `characters.md` の `# char_name`）。空白を含まないこと。
+/// キャラ名（§5.2.1 の `char_name`）。空白を含まない 1 文字以上。
 ///
-/// `char_name` は仕様書に文字種の定義が無いので「空白を含まない 1 字以上」とした
-/// （`docs/history.md` B-33）。名前の中に `:` があるとモード式と区別できないので、
-/// その行は話者注釈にならない（W002）。
+/// 名前の中に `:` があるとモード式と区別できないので、その行は話者注釈にならない
+/// （W002。[`split_speaker`] が `:` で切ってから `mode_expr` として読むため）。
 pub(crate) fn is_char_name(name: &str) -> bool {
     !name.is_empty() && !name.contains(lexer::is_space)
 }
@@ -814,7 +814,7 @@ fn is_kanji(c: char) -> bool {
 
 /// 行末コメント（§5.0.2）。`://` は URL なのでコメントにしない（字句器と同じ規則）。
 ///
-/// `.txt` 3 形式に共通の形なので A 形式（[`super::plot_outline`]）と B 形式
+/// `.cnov` 3 形式に共通の形なので A 形式（[`super::plot_outline`]）と B 形式
 /// （[`super::plot_episode`]）もこれを使う。[`Comment`] も同じ理由で共用する。
 pub(crate) fn find_comment(raw: &str) -> Option<Comment<'_>> {
     let start = lexer::find_line_comment(raw)?;

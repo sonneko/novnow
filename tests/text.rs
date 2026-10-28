@@ -59,7 +59,7 @@ fn the_body_language_rule_counts_only_the_plain_scripts() {
 #[test]
 fn word_characters_follow_the_unicode_properties() {
     // 文字プロパティで判定するので、範囲で絞る `classify` より広い
-    // `・`（U+30FB）は仮名の範囲（U+3040–U+30FF）に入るので語になる
+    // `・`（U+30FB）は仮名の範囲（U+3041–U+30FF）に入るので語になる
     for c in [
         'あ', 'ア', '漢', '㐀', '﨑', '々', 'ｱ', 'ー', '・', 'A', 'ａ', '１', '①', 'д',
     ] {

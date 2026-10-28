@@ -413,7 +413,7 @@ pub enum Line<'a> {
     Pattern(PatternLine<'a>),
     /// 自由記述。4 種に当てはまらない行すべて（§5.5.1「`note` 相当として保持」）。
     Text(&'a str),
-    /// 行コメント（`//`、§5.0.2）。`# ` は `.txt` 専用のコメント（§5.0.8）なので
+    /// 行コメント（`//`、§5.0.2）。`# ` は `.cnov` 専用のコメント（§5.0.8）なので
     /// MD では見出しになる。
     Comment(contents::CommentLine<'a>),
     /// 空行（空白だけの行を含む。`docs/history.md` B-34）。
@@ -525,7 +525,7 @@ pub(crate) fn parse_line(raw: &str) -> Line<'_> {
     if raw.trim_matches(lexer::is_space).is_empty() {
         return Line::Blank(raw);
     }
-    // `# ` は MD では見出し（§5.0.8 の行コメントは `.txt` だけ。字句器の `Formats::TXT` が担保）
+    // `# ` は MD では見出し（§5.0.8 の行コメントは `.cnov` だけ。字句器の `Formats::CNOV` が担保）
     if let Some(found) = parse_heading(raw) {
         return Line::Heading(found);
     }
@@ -536,7 +536,7 @@ pub(crate) fn parse_line(raw: &str) -> Line<'_> {
             Line::Continuation(Continuation { raw, indent, text })
         }
         LineKind::Comment { .. } => Line::Comment(contents::parse_comment(raw)),
-        // 箇条書きと鉤括弧行は字句表に無い（§5.0.2 は `.txt` のシジルを並べた表）ので
+        // 箇条書きと鉤括弧行は字句表に無い（§5.0.2 は `.cnov` のシジルを並べた表）ので
         // こちらで分類する。どちらも形が合わなければ自由記述のまま
         _ => {
             if let Some(found) = parse_bullet(raw) {
