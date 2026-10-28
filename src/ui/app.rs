@@ -1410,7 +1410,7 @@ impl NovnowApp {
                 {
                     let candidates = crate::core::features::metrics::comma_candidates(
                         bench.buffer(),
-                        comma_options(&bench),
+                        comma_options(bench),
                     );
                     let caret = session.selection.as_ref().map_or(0, |r| r.start);
                     let at = if nav == crate::ui::workbench::Nav::NextScene {
@@ -1469,7 +1469,7 @@ impl NovnowApp {
                 if self.settings.suggest_comma {
                     let candidates = crate::core::features::metrics::comma_candidates(
                         bench.buffer(),
-                        comma_options(&bench),
+                        comma_options(bench),
                     );
                     let caret = session.selection.as_ref().map_or(0, |r| r.start);
                     if let Some(at) = candidates.into_iter().find(|at| *at >= caret) {
@@ -3306,7 +3306,12 @@ impl NovnowApp {
             d.insert_temp(Id::new("suggest-comma"), self.settings.suggest_comma);
             d.insert_temp(
                 Id::new("comma-limit"),
-                bench.project().settings().writing.long_sentence_chars as usize,
+                session
+                    .bench
+                    .project()
+                    .settings()
+                    .writing
+                    .long_sentence_chars as usize,
             );
             d.insert_temp(Id::new("context-folded"), self.settings.folded.clone());
         });

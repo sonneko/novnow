@@ -2292,4 +2292,4 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - **資料引用注釈**（§5.2.4）: ID は 4 桁**以上**（`9999` を超えると桁が増える）。行末から遡って連続するものだけが注釈であること、`\` の奇数個と行内コメントで打ち消されること、直前の空白も注釈の一部であることを仕様に書いた。
 - **誤ったコード**: `icon` / `space` の解決できないパス（絶対パス・`../`）に **E062**（IndexedDB が利用できない）を出していた。参照先が無いものとして **W070** / **W092** を出し、仕様（§5.3.6・§5.5.3）も同じに直した。
 - **発行しないコード**: `W041`・`I051`・`I058` はカタログにあるが、どこからも発行しない（`W041` は読み取り専用の判定が未実装）。§7 と設計書に理由と代替（保存状態アイコン・資料一覧）を書いた。
-- テスト: `REF:tests/stage_two.rs` の句切れ提案を仕様の算法に合わせて書き直し（上位 3 件・短い文と読点のある文は対象外）、`REF:tests/materials_index.rs` を `is_material_prefix` に追随させた。`cargo test --locked --all-targets` は 1253 passed / 0 failed、`python3 docs/script/duplicate.py` は OK。
+- テスト: `REF:tests/stage_two.rs` の句切れ提案を仕様の算法に合わせて書き直し（上位 3 件・短い文と読点のある文は対象外）、`REF:tests/materials_index.rs` を `is_material_prefix` に追随させた。`cargo test --locked --all-targets` は 1253 passed / 0 failed（`--features ui` では 1461 passed）、`bash scripts/verify.sh` は 13 ジョブすべて緑（fmt / clippy / clippy-ui / test / test-nogui / wasm / docs / site-check ほか）、`python3 docs/script/duplicate.py` は OK。

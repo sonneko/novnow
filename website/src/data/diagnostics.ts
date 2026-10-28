@@ -476,7 +476,7 @@ export const diagnostics = [
   {
     "code": "W090",
     "severity": "W",
-    "condition": "1 節の台詞比率が `dialogue_ratio_target` を大きく外れる",
+    "condition": "1 節の台詞比率（§9.4.2 の算出）が `dialogue_ratio_target`（上限目安）を超える（文書全体ではなく節ごとに見る）",
     "ja": "台詞の比率が {0}% です（目安 {1}%）",
     "en": "Dialogue ratio is {0}% (target {1}%)",
     "action": "—"
