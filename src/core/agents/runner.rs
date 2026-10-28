@@ -166,7 +166,7 @@ pub enum Blocker {
     Unknown,
     /// 役割の委譲レベルが `off`。
     Off,
-    /// 既定の役割でない（カスタムロールは ②）。
+    /// 既定の役割でない（カスタムロールは `agents.custom_roles`、§5.9.2）。
     Role,
     /// 対象が 1 節でない（P1）。
     Scope,

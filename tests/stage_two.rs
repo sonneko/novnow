@@ -199,11 +199,27 @@ fn metrics_describe_not_evaluate_and_ignore_zero_population() {
         m.dialogue,
         m.speakers.values().map(|s| s.chars).sum::<usize>()
     );
-    let text="長い文章は長い文章が長い文章を長い文章に長い文章で長い文章と長い文章は長い文章が長い文章を";
-    let options = metrics::CommaOptions::every(20);
+    // §9.4.3: 読点 0 個で `long_sentence_chars` を超える文の、優先度 1 の接続助詞の直後だけ。
+    let text = "長い文章は長い文章が長い文章を長い文章に長い文章で長い文章と長い文章は長い文章が長い文章を";
+    let options = metrics::CommaOptions::long(20);
     let positions = metrics::comma_candidates(text, options);
     assert_eq!(positions, metrics::comma_candidates(text, options));
+    assert_eq!(positions.len(), 3);
+    assert!(positions
+        .iter()
+        .all(|at| text[..*at].ends_with('が') || text[..*at].ends_with('と')));
     assert!(metrics::comma_candidates(&format!("「{text}」"), options).is_empty());
+    // 短い文（閾値以下）は候補を出さない。
+    assert!(
+        metrics::comma_candidates("短いが、そうでもない", metrics::CommaOptions::long(120))
+            .is_empty()
+    );
+    // 既に読点がある文は対象外。
+    assert!(metrics::comma_candidates(
+        "長い文章は長い、文章が長い文章を長い文章に長い文章で長い文章と長い文章は長い文章が",
+        metrics::CommaOptions::long(10)
+    )
+    .is_empty());
 }
 #[test]
 fn session_deltas_allow_deletion_and_idle_resets_without_counting_idle() {

@@ -4,6 +4,7 @@ use crate::core::{
     features::{sections, Project},
     resolve::role_language,
     syntax::contents,
+    text::sentence,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -126,71 +127,183 @@ pub fn histogram(values: &[usize], bin: usize) -> BTreeMap<usize, usize> {
     }
     out
 }
-/// 読点候補を出す間隔と下限（§9.4.3）。
-///
-/// 値は**いまの画面が使っている値**をそのまま移したもの。仕様 §9.4.3 は
-/// 「1 文に読点が 0 個かつ `long_sentence_chars` 超」で発火し、4 つの優先度と
-/// 除外規則で候補を選ぶと定めているが、その算法はまだ実装していない。ここを
-/// 変えるときは仕様の判断（`docs/history.md` の 2026-10-28 の項目）が要る。
+/// 読点提案の閾値（§9.4.3 の `writing.long_sentence_chars`）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CommaOptions {
-    /// この字数に達したあとの助詞の直後を候補にする。
-    pub every: usize,
-    /// `every` の下限。これ未満の間隔では候補を出さない。
-    pub floor: usize,
+    /// この字数を**超える**文（読点 0 個）だけを対象にする。既定 120。
+    pub long_sentence_chars: usize,
 }
 
 impl Default for CommaOptions {
     fn default() -> Self {
         Self {
-            every: 40,
-            floor: 20,
+            long_sentence_chars: 120,
         }
     }
 }
 
 impl CommaOptions {
-    /// 間隔だけを変えた指定（下限は既定のまま）。
-    pub fn every(chars: usize) -> Self {
+    /// 閾値だけを変えた指定。
+    pub fn long(chars: usize) -> Self {
         Self {
-            every: chars,
-            ..Self::default()
+            long_sentence_chars: chars,
         }
     }
 }
 
-/// 候補にする助詞（§9.4.3 の優先度 1 の一部だけ。優先度 2〜4 は未実装）。
+/// 優先度 1: 接続助詞（§9.4.3 の表）。**長いものから**照合する（`けれども` を `けれど` で切らない）。
 /// i18n: format-vocabulary
-const COMMA_PARTICLES: &[char] = &['は', 'が', 'を', 'に', 'で', 'と'];
+const CONNECTIVES: &[&str] = &[
+    "けれども",
+    "けれど",
+    "ので",
+    "のに",
+    "から",
+    "ても",
+    "たら",
+    "なら",
+    "ば",
+    "が",
+    "と",
+    "て",
+];
+
+/// 優先度 2: 読点の直前に来やすい副詞句（§9.4.3 の表）。
+/// i18n: format-vocabulary
+const ADVERBIALS: &[&str] = &["ときに", "ために", "ように", "ながら", "つつ"];
+
+/// 優先度 3: 文頭から [`TOPIC_WINDOW`] 字以内の主題の助詞（§9.4.3 の表）。
+/// i18n: format-vocabulary
+const TOPIC_PARTICLES: &[char] = &['は', 'も'];
+
+/// 優先度 4: 列挙の助詞。[`ENUM_COUNT`] 回以上あるとき、各直後を候補にする（§9.4.3 の表）。
+/// i18n: format-vocabulary
+const ENUM_PARTICLES: &[char] = &['と', 'や'];
+
+/// 表示する候補の数（§9.4.3「上位 3 件だけ」）。
+const COMMA_TOP: usize = 3;
+/// 既に `、` がある位置の前後、この字数以内は候補にしない（§9.4.3 の除外規則）。
+const COMMA_GAP: usize = 6;
+/// 行末からこの字数以内は候補にしない（§9.4.3 の除外規則）。
+const LINE_END_GAP: usize = 4;
+/// 主題の助詞を見る範囲（文頭から何字まで。§9.4.3 の優先度 3）。
+const TOPIC_WINDOW: usize = 10;
+/// 列挙と見なす回数（§9.4.3 の優先度 4「3 回以上」）。
+const ENUM_COUNT: usize = 3;
 
 /// 台詞の外側で、決定論的に「読点を打てそうな場所」を返す（§9.4.3）。文字は挿入しない。
 ///
-/// 返すのは候補位置の byte の列（昇順）。台詞（`「」` `『』`）の内側と、句読点・
-/// 改行の直後は候補にしない。
+/// 対象は**読点を含まず** [`CommaOptions::long_sentence_chars`] を超える文だけ。文の中の
+/// 4 つの優先度の手がかりを集め、優先度の高い順に [`COMMA_TOP`] 件を選ぶ。返すのは候補位置の
+/// byte の列（昇順）。除外規則は §9.4.3 の 4 つ（台詞の中・`、` の前後 [`COMMA_GAP`] 字以内・
+/// 行末から [`LINE_END_GAP`] 字以内・`'参照` と `｜ルビ《…》` の途中）。
 pub fn comma_candidates(text: &str, options: CommaOptions) -> Vec<usize> {
-    let spans = role_language::dialogue_spans(text);
-    let limit = options.every.max(options.floor);
-    let mut count = 0;
-    let mut out = Vec::new();
-    for (at, ch) in text.char_indices() {
-        if spans.iter().any(|r| r.contains(&at)) || matches!(ch, '「' | '」' | '『' | '』') {
-            count = 0;
+    let dialogue = role_language::dialogue_spans(text);
+    let commas: Vec<usize> = text
+        .char_indices()
+        .filter(|(_, ch)| *ch == '、')
+        .map(|(at, _)| text[..at].chars().count())
+        .collect();
+    let mut out: Vec<usize> = Vec::new();
+    for (range, sentence) in sentence::split(text) {
+        let count = sentence.chars().filter(|ch| !ch.is_whitespace()).count();
+        if count <= options.long_sentence_chars || sentence.contains('、') {
             continue;
         }
-        if matches!(ch, '。' | '、' | '！' | '？' | '\n') {
-            count = 0;
-            continue;
+        let base = text[..range.start].chars().count();
+        let to = sentence.chars().filter(|ch| *ch == 'と').count();
+        let ya = sentence.chars().filter(|ch| *ch == 'や').count();
+        let mut scored: Vec<(u8, usize, usize)> = Vec::new();
+        for (index, (at, ch)) in sentence.char_indices().enumerate() {
+            let abs = range.start + at;
+            if dialogue.iter().any(|span| span.contains(&abs))
+                || matches!(ch, '「' | '」' | '『' | '』')
+            {
+                continue;
+            }
+            let rest = &sentence[at..];
+            let mut best: Option<(u8, usize)> = None;
+            for (priority, table) in [(1u8, CONNECTIVES), (2, ADVERBIALS)] {
+                for pattern in table {
+                    if rest.starts_with(pattern) {
+                        let found = (priority, pattern.len());
+                        if best.is_none_or(|(_, len)| found.1 > len) {
+                            best = Some(found);
+                        }
+                    }
+                }
+            }
+            if TOPIC_PARTICLES.contains(&ch) && index < TOPIC_WINDOW {
+                best = best.or(Some((3, ch.len_utf8())));
+            }
+            let enumerated =
+                ENUM_PARTICLES.contains(&ch) && (if ch == 'と' { to } else { ya }) >= ENUM_COUNT;
+            if enumerated {
+                best = best.or(Some((4, ch.len_utf8())));
+            }
+            let Some((priority, len)) = best else {
+                continue;
+            };
+            let after = range.start + at + len;
+            let tail = &text[after.min(text.len())..];
+            let line_end = tail.find('\n').map_or(text.len(), |offset| after + offset);
+            if text[after..line_end].chars().count() <= LINE_END_GAP {
+                continue;
+            }
+            let char_at = base + index + rest[..len].chars().count();
+            if commas
+                .iter()
+                .any(|comma| comma.abs_diff(char_at) <= COMMA_GAP)
+            {
+                continue;
+            }
+            let line_start = text[..after].rfind('\n').map_or(0, |offset| offset + 1);
+            let prefix = &text[line_start..after];
+            if inside_ruby(prefix) || inside_reference(prefix) {
+                continue;
+            }
+            scored.push((priority, after, char_at));
         }
-        if !ch.is_whitespace() {
-            count += 1;
-        }
-        if count >= limit && COMMA_PARTICLES.contains(&ch) {
-            out.push(at + ch.len_utf8());
-            count = 0;
-        }
+        scored.sort_unstable();
+        scored.truncate(COMMA_TOP);
+        out.extend(scored.into_iter().map(|(_, at, _)| at));
     }
+    out.sort_unstable();
+    out.dedup();
     out
 }
+
+/// `prefix` の末尾がルビの読み（`《…》` の内側）か。§9.4.3 の除外規則。
+fn inside_ruby(prefix: &str) -> bool {
+    match (prefix.rfind('《'), prefix.rfind('》')) {
+        (Some(open), Some(close)) => open > close,
+        (Some(_), None) => true,
+        _ => false,
+    }
+}
+
+/// `prefix` の末尾が `'参照`（または `'{…}`）の途中か。§9.4.3 の除外規則。
+fn inside_reference(prefix: &str) -> bool {
+    let Some(at) = prefix.rfind('\'') else {
+        return false;
+    };
+    let escaped = prefix[..at]
+        .chars()
+        .rev()
+        .take_while(|ch| *ch == '\\')
+        .count()
+        % 2
+        == 1;
+    if escaped {
+        return false;
+    }
+    let rest = &prefix[at + 1..];
+    if let Some(form) = rest.strip_prefix('{') {
+        return !form.contains('}');
+    }
+    !rest.is_empty() && rest.chars().all(crate::core::text::charclass::is_word_char)
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Day {

@@ -56,12 +56,13 @@
 //! トークン全体（[`RefToken::range`]）は狭めない。§17.1 のエクスポート（`'` と修飾子を
 //! 消して名前部を残す）と §6.6.3 の資料 ID の形の判定が、元の範囲を前提にしているため。
 //!
-//! # ①（本書の範囲）と ②
+//! # エントリ種別
 //!
-//! - エントリ種別は **4 つ**（`Character` / `Word` / `Material` / `MaterialTitle`）。
-//!   [`EntryKind::Address`] は ② の追加仕様 8（`address:`、§5.5.6）のために**枠だけ**持つ。
-//!   ① の [`Dictionary::from_sources`] は Address を 1 件も作らないので、
-//!   **W084** / **W085** は出ない。
+//! - エントリ種別は **5 つ**（`Character` / `Address` / `Word` / `Material` / `MaterialTitle`）。
+//!   [`EntryKind::Address`] は `address:`（§5.5.6）の呼称で、[`Dictionary::from_sources`] が
+//!   `characters.md` から作る（`* =>` は相手が定まらないので辞書に入れない）。優先順位
+//!   （`Character > Address > Word > Material > MaterialTitle`）は §6.1.1 の固定値で、
+//!   **W084** / **W085** はこの種別を使って M4 の検査器が出す。
 //! - `MaterialTitle` の修飾子は §6.1.1 の表で「不可」だが、§6.2.4 は `Word` / `Address` だけ
 //!   を名指ししている。表の「不可」を優先して **E026** を出す（B-62）。
 
@@ -405,11 +406,11 @@ pub fn first_morpheme_end(text: &str) -> usize {
 pub enum EntryKind {
     /// `characters.md` の H1 と `alias`（§6.1.1）。修飾子はモード ID（`:B` / `:B+D`）。
     Character,
-    /// `characters.md` の `address:` の値（§5.5.6、**② の追加仕様 8**）。
+    /// `characters.md` の `address:` の値（§5.5.6）。
     ///
-    /// ① では 1 件も作らない。枠だけ持っておくのは、優先順位
-    /// （`Character > Address > Word > Material > MaterialTitle`）が §6.1.1 で固定されていて、
-    /// ② を足したときに**既存の解決結果が変わってはいけない**から。
+    /// `address: '葵あおい => あおいちゃん` の呼称 `あおいちゃん` がここに入り、`'あおいちゃん` が
+    /// 辞書で解決できるようになる。`* =>`（既定の呼称）は相手が定まらないので入れない。
+    /// 優先順位（`Character > Address > Word > Material > MaterialTitle`）は §6.1.1 の固定値。
     Address,
     /// `words.md` の H1 と `alias`（§6.1.1）。修飾子は付けられない（**E026**）。
     Word,
@@ -659,7 +660,7 @@ struct Scan {
 /// `'` の後ろで解決される辞書 1 本（§6.1）。
 ///
 /// 構築は [`Dictionary::from_sources`]（3 ファイルから）か [`Dictionary::build`]
-/// （エントリ表を渡す。テストと ② 用）。どちらも [`Built`] を返し、
+/// （エントリ表を渡す。テスト用）。どちらも [`Built`] を返し、
 /// **構築時に出る診断**（E028 / W027）を一緒に返す。
 ///
 /// §6.1.2「いずれかが変化したときのみ再構築する」の判定は**呼び出し側**（M5 の

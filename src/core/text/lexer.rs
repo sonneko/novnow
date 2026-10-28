@@ -113,18 +113,17 @@ impl Formats {
     }
 }
 
-/// 実装段階（`docs/plans.md` §4.2 の ① / ②）。
+/// シジルの有効段階（`docs/plans.md` §4.2 の表駆動の縫い代）。
 ///
-/// ② の機能を ① で**動かさない**ための印。テーブルの行は消さずに残すので、
-/// ② の実装は `Two` を `One` に変えるだけで済む（縫い代 4）。
+/// 表の行を消さずに「まだ動かさない」印を付けるための列で、有効にするときは
+/// [`Stage::Two`] を [`Stage::One`] に変えるだけで済む（縫い代 4）。
 ///
-/// **現在 [`SIGIL_TABLE`] に [`Stage::Two`] の行は無い**（`# ` と `! ` は B10 で ① に
-/// 昇格した）。引数と `stage` 列は表駆動の縫い代として残している。
+/// **現在 [`SIGIL_TABLE`] に [`Stage::Two`] の行は無い**（`# ` と `! ` は B10 で有効化した）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Stage {
-    /// v1 本体（①）で有効。
+    /// 有効。
     One,
-    /// v1 追加仕様（②）で有効になる（**現在この段階の行は無い**）。
+    /// 有効化前（**現在この段階の行は無い**）。
     Two,
 }
 
@@ -137,9 +136,9 @@ pub enum Sigil {
     SectionBreak,
     /// `//` 行コメント（以降行末まで）。
     LineComment,
-    /// `# ` 行コメント（§5.0.8）。B10 で ① に昇格。
+    /// `# ` 行コメント（§5.0.8）。B10 で有効化。
     HashComment,
-    /// `! ` 挿絵メモ（§5.2.5）。B10 で ① に昇格。
+    /// `! ` 挿絵メモ（§5.2.5）。B10 で有効化。
     IllustrationMemo,
 }
 
@@ -268,10 +267,9 @@ pub struct FieldLine<'a> {
 
 /// §5.0.6 のフィールドキー（表の 46 行に対応）。
 ///
-/// ① の 38 件に加えて、② の 8 件（`docs/plans.md` §4.2 の `when`（3）/ `senses`（7）/
-/// `space`・`space-mode`（21）/ `illustration`（23）/ `blurb`（17）/ `address`（8）/
-/// `icon`（24））も含む。表に無いキーだけが [`FieldKey::Unknown`]（W011）になり、
-/// **値を改変せず保持する**（縫い代 1・2）。
+/// 46 件すべてを lexer が解す（`when` / `senses` / `space` / `space-mode` / `illustration` /
+/// `blurb` / `address` / `icon` を含む）。表に無いキーだけが [`FieldKey::Unknown`]（W011）に
+/// なり、**値を改変せず保持する**（縫い代 1・2）。形式ごとに妥当かは M2 のパーサが見る。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 pub enum FieldKey {
     /// `summary`
@@ -396,10 +394,9 @@ pub type KeyRow = (FieldKey, &'static str, &'static str, Formats);
 /// のはメッセージであり、`tests/layering.rs` はこの doc 行を付けた `const` の中だけ
 /// 日本語リテラルを免除する（`docs/history.md` B-19）。
 ///
-/// 内訳は ① の 38 件と ② の 8 件（`docs/plans.md` §4.2）: `when`（3）/ `senses`（7）/
-/// `space`・`space-mode`（21）/ `illustration`（23）/ `blurb`（17）/ `address`（8）/
-/// `icon`（24）。② のキーも §5.0.6 の表に載っているので別名を解し、形式ごとの妥当性は
-/// M2 のパーサが見る。表に無いキーだけが
+/// 全 46 件（`when` / `senses` / `space` / `space-mode` / `illustration` / `blurb` /
+/// `address` / `icon` を含む）。どのキーも §5.0.6 の表に載っているので別名を解し、
+/// 形式ごとの妥当性は M2 のパーサが見る。表に無いキーだけが
 /// [`FieldKey::Unknown`]（W011）になり、値は改変せず保持する。
 /// 保存時に正準形へは**正規化しない**（§5.0.6「作家の表記を保つ」）。
 pub const FIELD_KEYS: &[KeyRow] = &[

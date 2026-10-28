@@ -376,9 +376,9 @@ fn material_ids_read_a_one_char_prefix() {
 }
 
 #[test]
-fn only_m_is_a_stage_one_prefix() {
-    assert!(MaterialId::parse("M0137").unwrap().is_stage_one_prefix());
-    assert!(!MaterialId::parse("S0042").unwrap().is_stage_one_prefix());
+fn only_m_is_the_material_prefix() {
+    assert!(MaterialId::parse("M0137").unwrap().is_material_prefix());
+    assert!(!MaterialId::parse("S0042").unwrap().is_material_prefix());
 }
 
 // ============================================================ 壊れた入力（完了条件 3）

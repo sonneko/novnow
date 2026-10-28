@@ -29,14 +29,14 @@ pub struct Character {
     pub default_mode: Option<String>,
     /// `color:`（§5.5.3 `#RRGGBB`）。
     ///
-    /// §5.0.6 の表に無いキーなので `characters.md` では **W011** になるが、値は保持される
-    /// （`docs/history.md` A-15）。形の検査に対応するコードは §7 に無いので行わない。
+    /// §5.0.6 の表にある（`color` / `色`）ので W011 は出ない。形の検査に対応するコードは
+    /// §7 に無いので行わない。
     pub color: Option<String>,
     /// `tags:`（§5.5.3。カンマ区切り）。
     pub tags: Vec<String>,
-    /// `icon:`（§5.5.3、**② の追加仕様 24**）。
+    /// `icon:`（§5.5.3）。`assets/` 配下の相対パス。
     ///
-    /// ① では値を保持するだけで読み込まない（E062 / W068 / W069 / W070 は ② の実装時）。
+    /// ここでは値を保持するだけ。E062 / W068–W070 はプロジェクト全体を見る M4 の検査器が出す。
     pub icon: Option<String>,
     /// モード（§5.5.4）。同一 `id` が複数入る（`range` が重ならない限り）。
     pub modes: Vec<Mode>,
@@ -44,7 +44,7 @@ pub struct Character {
     pub patterns: Vec<RolePattern>,
     /// `## relations` の行（§5.5.6）。
     pub relations: Vec<Relation>,
-    /// §5.5.3 に無いキー（`address:`（②・追加仕様 8）を含む）。**削除してはならない**（縫い代 1）。
+    /// §5.5.3 に無いキー（`address:`（§5.5.6）を含む）。**削除してはならない**（縫い代 1）。
     #[serde(flatten)]
     pub unknown: BTreeMap<String, Value>,
 }

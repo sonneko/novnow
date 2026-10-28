@@ -48,7 +48,7 @@ pub fn level_of(settings: &Agents, role: &str) -> Delegation {
     settings.delegation_of(role)
 }
 
-/// 既定の役割か（カスタムロールは ②、`docs/plans.md` §4.2 ）。
+/// 既定の役割か（カスタムロールは `agents.custom_roles` と `prompts/custom/`、§5.9.2）。
 pub fn is_role(role: &str) -> bool {
     BUILTIN_ROLES.contains(&role)
 }

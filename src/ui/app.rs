@@ -1410,7 +1410,7 @@ impl NovnowApp {
                 {
                     let candidates = crate::core::features::metrics::comma_candidates(
                         bench.buffer(),
-                        crate::core::features::metrics::CommaOptions::default(),
+                        comma_options(&bench),
                     );
                     let caret = session.selection.as_ref().map_or(0, |r| r.start);
                     let at = if nav == crate::ui::workbench::Nav::NextScene {
@@ -1469,7 +1469,7 @@ impl NovnowApp {
                 if self.settings.suggest_comma {
                     let candidates = crate::core::features::metrics::comma_candidates(
                         bench.buffer(),
-                        crate::core::features::metrics::CommaOptions::default(),
+                        comma_options(&bench),
                     );
                     let caret = session.selection.as_ref().map_or(0, |r| r.start);
                     if let Some(at) = candidates.into_iter().find(|at| *at >= caret) {
@@ -3304,6 +3304,10 @@ impl NovnowApp {
         };
         ctx.data_mut(|d| {
             d.insert_temp(Id::new("suggest-comma"), self.settings.suggest_comma);
+            d.insert_temp(
+                Id::new("comma-limit"),
+                bench.project().settings().writing.long_sentence_chars as usize,
+            );
             d.insert_temp(Id::new("context-folded"), self.settings.folded.clone());
         });
         // ④ ステータスバー（22px）
@@ -6583,6 +6587,13 @@ fn export_now(
             })
         }
     }
+}
+
+/// 読点提案の閾値（§9.4.3、`writing.long_sentence_chars`）。
+fn comma_options(bench: &Workbench) -> crate::core::features::metrics::CommaOptions {
+    crate::core::features::metrics::CommaOptions::long(
+        bench.project().settings().writing.long_sentence_chars as usize,
+    )
 }
 
 /// ヘッダ（ワークスペースの切替）の矩形。ガイドの段階 7〜9 が指す。

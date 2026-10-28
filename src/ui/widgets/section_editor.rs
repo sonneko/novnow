@@ -318,9 +318,13 @@ pub(crate) fn area(
                     d.get_temp::<bool>(Id::new("suggest-comma"))
                         .unwrap_or(false)
                 }) {
+                    let limit = ui
+                        .ctx()
+                        .data(|d| d.get_temp::<usize>(Id::new("comma-limit")))
+                        .unwrap_or(120);
                     for at in crate::core::features::metrics::comma_candidates(
                         buffer,
-                        crate::core::features::metrics::CommaOptions::default(),
+                        crate::core::features::metrics::CommaOptions::long(limit),
                     ) {
                         let cursor = output
                             .galley
@@ -329,9 +333,14 @@ pub(crate) fn area(
                             .galley
                             .pos_from_cursor(&cursor)
                             .translate(output.galley_pos.to_vec2());
+                        // §9.4.3: `fg.faint` の 40%・高さ 10px の縦線。文字は挿入しない。
+                        let center = rect.center();
                         painter.line_segment(
-                            [rect.left_top(), rect.left_bottom()],
-                            egui::Stroke::new(1.0_f32, colors.fg_faint),
+                            [
+                                egui::pos2(rect.left(), center.y - 5.0),
+                                egui::pos2(rect.left(), center.y + 5.0),
+                            ],
+                            egui::Stroke::new(1.0_f32, colors.fg_faint.gamma_multiply(0.4)),
                         );
                     }
                 }

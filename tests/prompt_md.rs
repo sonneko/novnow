@@ -176,7 +176,7 @@ fn the_spec_example_reads_the_meta_fields() {
         .map(|&line| parsed.field(line).unwrap().key_text)
         .collect();
     assert_eq!(keys, vec!["model-hint", "max-chars", "temperature"]);
-    // §5.0.8 の `# ` 行コメントは ② なので、① では値の一部としてそのまま残る（B-36 と同じ）
+    // 行末の `# …` は `*.md` では見出しでもコメントでもないので、値の一部として残る（B-36 と同じ）
     assert!(parsed
         .meta_field("model-hint")
         .unwrap()
@@ -188,6 +188,20 @@ fn the_spec_example_reads_the_meta_fields() {
         .value
         .starts_with("12000"));
     assert_eq!(parsed.meta_field("temperature").unwrap().value, "0.7");
+}
+
+#[test]
+fn meta_fields_of_the_table_are_read_through_their_japanese_aliases() {
+    // §5.0.6 の日本語別名（`モデル指定` など）で書いても同じキーとして読める
+    let text = "# writer\nモデル指定: careful\n最大文字数: 8000\n温度: 0.2\n\n## system\nx\n";
+    let parsed = prompt_md::parse(text);
+    assert_eq!(parsed.meta_field("model-hint").unwrap().value, "careful");
+    assert_eq!(parsed.meta_field("max-chars").unwrap().value, "8000");
+    assert_eq!(parsed.meta_field("temperature").unwrap().value, "0.2");
+    assert_eq!(
+        parsed.meta_field("モデル指定").unwrap().key,
+        FieldKey::ModelHint
+    );
 }
 
 #[test]

@@ -52,7 +52,7 @@
 状態: 実装完了（REF:src/ui/widgets/section_editor.rs, REF:src/ui/widgets/syntax_text.rs, REF:tests/gui.rs）
 
 - 1 行ミニヘッダー（パンくず `01 › 04 › 02 › 03` と有効モードバッジ）および構文ハイライト・インレイヒント・ベースライン基準の下線/波線描画を伴う複数行エディタは `REF:src/ui/widgets/section_editor.rs` と `REF:src/ui/widgets/syntax_text.rs` に実装する。
-- ※§9.4.2 の台詞比率バー、§9.4.3 のゴーストテキスト、§9.4.4 のタイプライタスクロールは段階 ②（`REF:docs/plans.md#stage-2`）対象。
+- ※§9.4.3 のゴーストテキストと §9.4.4 のタイプライタスクロールは未実装（段階 ② の対象。`REF:docs/plans.md#stage-2`）。§9.4.2 の台詞比率バーは B2 で実装済み（下記）。§9.3.3 の折りたたみは `REF:src/ui/app.rs` の `Ctrl+K Ctrl+0` / `Ctrl+K Ctrl+J` と `ui.json.folded` で実装済みだが、LSP の折りたたみ範囲は A 形式だけを返す。
 
 - **[F-02 / F-03 / F-37 / F-41] 節エディタの枠内パディング・カーソル/行番号調整・フォーカス表現分離・`lock_focus(true)`（実装完了: `REF:docs/plans.md#plan-F-02`）**:
   - `REF:src/ui/widgets/section_editor.rs` で枠内パディングとクリップ矩形を整えてテキストのはみ出しを解消し（F-02）、行番号の Y 座標とキャレット高さを `Galley` の行メトリクスに一致させる（F-03）。

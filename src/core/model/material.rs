@@ -16,10 +16,10 @@ pub const MATERIALS_DIR: &str = "materials/";
 /// 通常資料の接頭辞（§5.8.2・追加仕様 11）。
 pub const PREFIX_MATERIAL: char = 'M';
 
-/// 検索結果の保存の接頭辞（§16.3.1、**② の追加仕様 11**）。
+/// 検索結果の保存の接頭辞（§16.3.1）。
 ///
-/// ① は `M` だけを発行するが、**`S` も読める**（`docs/plans.md` §4.4 縫い代 7）。
-/// `M` と `S` は同一の連番空間を共有する（§5.8.2 MUST）。
+/// `M`（通常資料）と `S`（検索結果の保存）は同一の連番空間を共有する（§5.8.2 MUST）。
+/// 接頭辞は 1 文字として読み、`M` 以外も**読める**（`docs/plans.md` §4.4 縫い代 7）。
 pub const PREFIX_SEARCH: char = 'S';
 
 /// ID の最少桁数（§5.8.2「4 桁以上のゼロ詰め連番」）。
@@ -27,8 +27,8 @@ pub const ID_DIGITS: usize = 4;
 
 /// 資料 ID（§5.8.2）。`M0137` / `S0138`。
 ///
-/// **接頭辞は 1 文字として読む**（`docs/plans.md` §4.4 縫い代 7）。① で発行するのは `M` だけだが、
-/// `S`（② の検索結果保存）も同じ連番空間なので拒否してはならない。
+/// **接頭辞は 1 文字として読む**（`docs/plans.md` §4.4 縫い代 7）。`S`（検索結果の保存、§16.3.1）も
+/// `M` と同じ連番空間なので拒否してはならない。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MaterialId {
     /// 接頭辞（`M` / `S`。それ以外も**読む**）。
@@ -55,8 +55,8 @@ impl MaterialId {
         })
     }
 
-    /// ① で発行してよい接頭辞か（§5.8.2・追加仕様 11。`S` は ② の検索結果保存）。
-    pub fn is_stage_one_prefix(self) -> bool {
+    /// 通常資料の接頭辞（`M`）か。検索結果の保存（`S`、§16.3.1）と区別する。
+    pub fn is_material_prefix(self) -> bool {
         self.prefix == PREFIX_MATERIAL
     }
 }
@@ -121,7 +121,7 @@ impl MaterialIndex {
 
     /// 次の ID を発行して `next_id` を進める（§5.8.2「ID 採番」MUST）。
     ///
-    /// `prefix` は ① では [`PREFIX_MATERIAL`] だけを渡す（`S` は ② の検索結果保存、§16.3.1）。
+    /// `prefix` は [`PREFIX_MATERIAL`]（通常資料）か [`PREFIX_SEARCH`]（検索結果の保存、§16.3.1）。
     /// 保存は**同一トランザクション**で行うこと（呼び出し側＝M5 の `adapters`）。
     pub fn issue(&mut self, prefix: char) -> MaterialId {
         let num = self.next_id.max(self.max_number().map_or(0, |max| max + 1));
@@ -256,10 +256,10 @@ pub struct Source {
     /// 参照日時（RFC 3339）。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub accessed_at: Option<String>,
-    /// `kind: search` の検索語（§16.3.1、**②**）。
+    /// `kind: search` の検索語（§16.3.1）。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub query: Option<String>,
-    /// `kind: search` の検索日時（§16.3.1、**②**）。
+    /// `kind: search` の検索日時（§16.3.1）。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub searched_at: Option<String>,
     /// 出典のその他のキー。**削除してはならない**（縫い代 1）。
@@ -276,7 +276,7 @@ pub enum SourceKind {
     /// 人手の自由文。
     #[serde(rename = "custom")]
     Custom,
-    /// プロジェクト内検索の結果（§16.3.1、**②**）。
+    /// プロジェクト内検索の結果（§16.3.1）。
     #[serde(rename = "search")]
     Search,
 }

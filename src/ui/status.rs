@@ -480,7 +480,8 @@ pub(crate) fn modifier_hint_key(mods: Modifiers, mac: bool) -> Option<&'static s
     })
 }
 
-/// 節エディタのミニヘッダー（§9.4.2 の ① の部分: パンくず ＋ 有効モードのバッジ。比率バーは ②）。
+/// 節エディタのミニヘッダー（§9.4.2: パンくず ＋ 有効モードのバッジ。台詞比率バーは
+/// [`crate::ui::widgets::ratio_bar`] を節エディタ側で描く）。
 pub(crate) fn mini_header(ui: &mut egui::Ui, session: &Session, mode: Mode, scale: f32) {
     let colors = theme::palette(mode);
     let mode_color = theme::token_style(
