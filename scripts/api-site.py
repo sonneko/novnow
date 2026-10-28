@@ -17,6 +17,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SPEC = ROOT / "docs/specifications/interfaces.md"
 OUT = ROOT / "website/src/data/api.ts"
+# 引数は §19.8.2 の `api.list`（ゴールデン）から取る。仕様書の表は引数を持たず、
+# `api.list` の `arguments`（JSON Schema + `order`）が正本（§19.8.2）。
+CATALOG = ROOT / "tests/golden/api_catalog.json"
 DICTIONARIES = {
     "ja": ROOT / "src/ui/i18n/ja.toml",
     "en": ROOT / "src/ui/i18n/en.toml",
@@ -84,6 +87,27 @@ def descriptions(language: str) -> dict[str, str]:
     return out
 
 
+def arguments_by_id() -> dict[str, list[dict]]:
+    """`api.list` の引数を、表に出す形（名前・型・必須）に落とす。"""
+    catalog = json.loads(read_text(CATALOG))
+    out: dict[str, list[dict]] = {}
+    for operation in catalog.get("operations", []):
+        schema = operation.get("arguments", {})
+        properties = schema.get("properties", {})
+        required = set(schema.get("required", []))
+        order = schema.get("order") or list(properties)
+        out[operation["id"]] = [
+            dict(
+                name=name,
+                type=properties.get(name, {}).get("type", ""),
+                required=name in required,
+            )
+            for name in order
+            if name in properties
+        ]
+    return out
+
+
 def main() -> int:
     rows = catalog_rows(read_text(SPEC))
     if len(rows) != 121 or len({row["id"] for row in rows}) != len(rows):
@@ -93,6 +117,10 @@ def main() -> int:
         missing = [row["id"] for row in rows if row["id"] not in table]
         if missing:
             raise SystemExit(f"{language}: missing api.op.* for {missing[:5]} ({len(missing)})")
+    args = arguments_by_id()
+    missing = [row["id"] for row in rows if row["id"] not in args]
+    if missing:
+        raise SystemExit(f"{CATALOG} に無い操作がある: {missing[:5]}（{len(missing)}）")
     payload = [
         dict(
             id=row["id"],
@@ -101,6 +129,7 @@ def main() -> int:
             en=words["en"][row["id"]],
             lsp=row["lsp"],
             exceptions=row["exceptions"],
+            args=args[row["id"]],
         )
         for row in rows
     ]

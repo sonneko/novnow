@@ -16,7 +16,7 @@
         "type": "object"
       },
       "command": null,
-      "description": "プロジェクト基本情報ワークスペース見出し",
+      "description": "プロジェクト基本情報（タイトル・作者・言語・版）",
       "domain": "project",
       "exceptions": {},
       "gate": false,

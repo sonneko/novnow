@@ -4,10 +4,11 @@ export const operations = [
   {
     "id": "project.info",
     "domain": "project",
-    "ja": "プロジェクト基本情報ワークスペース見出し",
+    "ja": "プロジェクト基本情報（タイトル・作者・言語・版）",
     "en": "Project information (title, author, encoding, version)",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": []
   },
   {
     "id": "project.new",
@@ -15,7 +16,19 @@ export const operations = [
     "ja": "新規プロジェクト作成",
     "en": "Create a new project",
     "lsp": "",
-    "exceptions": "L—（起動前）M—（要プロジェクト）"
+    "exceptions": "L—（起動前）M—（要プロジェクト）",
+    "args": [
+      {
+        "name": "path",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   {
     "id": "project.validate",
@@ -23,7 +36,8 @@ export const operations = [
     "ja": "構造検証",
     "en": "Validate the project structure",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": []
   },
   {
     "id": "project.reload",
@@ -31,7 +45,8 @@ export const operations = [
     "ja": "再読込",
     "en": "Reload the project from storage",
     "lsp": "",
-    "exceptions": "M—・C—（状態性）"
+    "exceptions": "M—・C—（状態性）",
+    "args": []
   },
   {
     "id": "project.stats",
@@ -39,7 +54,8 @@ export const operations = [
     "ja": "執筆統計",
     "en": "Writing statistics",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": []
   },
   {
     "id": "project.recent_list",
@@ -47,7 +63,8 @@ export const operations = [
     "ja": "最近開いたプロジェクト一覧",
     "en": "Recently opened projects",
     "lsp": "",
-    "exceptions": "M—（状態性）"
+    "exceptions": "M—（状態性）",
+    "args": []
   },
   {
     "id": "project.recent_remove",
@@ -55,7 +72,14 @@ export const operations = [
     "ja": "最近開いた一覧からの削除",
     "en": "Remove an entry from the recently opened list",
     "lsp": "",
-    "exceptions": "M—（状態性）"
+    "exceptions": "M—（状態性）",
+    "args": [
+      {
+        "name": "path",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "project.import_zip",
@@ -63,7 +87,19 @@ export const operations = [
     "ja": "Zip 導入",
     "en": "Import a Zip archive",
     "lsp": "",
-    "exceptions": "M—（バイナリ）"
+    "exceptions": "M—（バイナリ）",
+    "args": [
+      {
+        "name": "path",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "bytes",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   {
     "id": "project.export_zip",
@@ -71,7 +107,14 @@ export const operations = [
     "ja": "Zip 書き出し",
     "en": "Export the project as a Zip archive",
     "lsp": "",
-    "exceptions": "M—（バイナリ）"
+    "exceptions": "M—（バイナリ）",
+    "args": [
+      {
+        "name": "out",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   {
     "id": "structure.tree",
@@ -79,7 +122,19 @@ export const operations = [
     "ja": "構成ツリー",
     "en": "Structure tree",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "level",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "chapter",
+        "type": "integer",
+        "required": false
+      }
+    ]
   },
   {
     "id": "structure.resolve",
@@ -87,7 +142,14 @@ export const operations = [
     "ja": "位置・ID の解決",
     "en": "Resolve a position or structure ID",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "query",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "structure.breadcrumb",
@@ -95,7 +157,8 @@ export const operations = [
     "ja": "パンくず",
     "en": "Breadcrumb of the current position",
     "lsp": "",
-    "exceptions": "M—・C—（状態性）"
+    "exceptions": "M—・C—（状態性）",
+    "args": []
   },
   {
     "id": "section.list",
@@ -103,7 +166,14 @@ export const operations = [
     "ja": "セクション一覧",
     "en": "Sections of a document",
     "lsp": "textDocument/documentSymbol",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "path",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   {
     "id": "section.get",
@@ -111,7 +181,14 @@ export const operations = [
     "ja": "セクション取得",
     "en": "Read a section",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "scene",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "section.write",
@@ -119,7 +196,24 @@ export const operations = [
     "ja": "セクション保存",
     "en": "Write a section",
     "lsp": "",
-    "exceptions": "M 門番"
+    "exceptions": "M 門番",
+    "args": [
+      {
+        "name": "scene",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "text",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "section.insert",
@@ -127,7 +221,24 @@ export const operations = [
     "ja": "節の新設",
     "en": "Insert a new section",
     "lsp": "",
-    "exceptions": "M 門番"
+    "exceptions": "M 門番",
+    "args": [
+      {
+        "name": "after",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "text",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "section.delete",
@@ -135,7 +246,19 @@ export const operations = [
     "ja": "節の削除",
     "en": "Delete a section",
     "lsp": "",
-    "exceptions": "M 門番"
+    "exceptions": "M 門番",
+    "args": [
+      {
+        "name": "scene",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "section.confirm_next",
@@ -143,7 +266,8 @@ export const operations = [
     "ja": "次の未確認節の確認",
     "en": "Confirm the next unconfirmed section",
     "lsp": "",
-    "exceptions": "M—・C—（状態性）"
+    "exceptions": "M—・C—（状態性）",
+    "args": []
   },
   {
     "id": "section.split",
@@ -151,7 +275,24 @@ export const operations = [
     "ja": "節の分割",
     "en": "Split a section",
     "lsp": "",
-    "exceptions": "M 門番"
+    "exceptions": "M 門番",
+    "args": [
+      {
+        "name": "scene",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "at",
+        "type": "integer",
+        "required": true
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "section.propose",
@@ -159,7 +300,24 @@ export const operations = [
     "ja": "節の提案（本文は変えない）",
     "en": "Propose a section change (does not write the text)",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "scene",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "text",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "note",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   {
     "id": "nav.file",
@@ -167,7 +325,19 @@ export const operations = [
     "ja": "文書・ファイルの直接指定",
     "en": "Open a document directly",
     "lsp": "",
-    "exceptions": "M—・C—（状態性）"
+    "exceptions": "M—・C—（状態性）",
+    "args": [
+      {
+        "name": "path",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "scene",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   {
     "id": "nav.section",
@@ -175,7 +345,14 @@ export const operations = [
     "ja": "セクションへの移動",
     "en": "Jump to a structure ID",
     "lsp": "",
-    "exceptions": "M—・C—（状態性）"
+    "exceptions": "M—・C—（状態性）",
+    "args": [
+      {
+        "name": "scene",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "nav.jump",
@@ -183,7 +360,19 @@ export const operations = [
     "ja": "行への移動",
     "en": "Jump to a line or a query",
     "lsp": "",
-    "exceptions": "M—・C—（状態性）"
+    "exceptions": "M—・C—（状態性）",
+    "args": [
+      {
+        "name": "line",
+        "type": "integer",
+        "required": false
+      },
+      {
+        "name": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   {
     "id": "nav.prev",
@@ -191,7 +380,8 @@ export const operations = [
     "ja": "前の位置",
     "en": "Previous position",
     "lsp": "",
-    "exceptions": "M—・C—（状態性）"
+    "exceptions": "M—・C—（状態性）",
+    "args": []
   },
   {
     "id": "nav.next",
@@ -199,7 +389,8 @@ export const operations = [
     "ja": "次の位置",
     "en": "Next position",
     "lsp": "",
-    "exceptions": "M—・C—（状態性）"
+    "exceptions": "M—・C—（状態性）",
+    "args": []
   },
   {
     "id": "nav.back",
@@ -207,7 +398,8 @@ export const operations = [
     "ja": "親ディレクトリへ",
     "en": "Move to the parent level",
     "lsp": "",
-    "exceptions": "M—・C—（状態性）"
+    "exceptions": "M—・C—（状態性）",
+    "args": []
   },
   {
     "id": "nav.forward",
@@ -215,7 +407,8 @@ export const operations = [
     "ja": "子の先頭へ",
     "en": "Move to the first child",
     "lsp": "",
-    "exceptions": "M—・C—（状態性）"
+    "exceptions": "M—・C—（状態性）",
+    "args": []
   },
   {
     "id": "nav.up",
@@ -223,7 +416,8 @@ export const operations = [
     "ja": "1 つ上の階層へ",
     "en": "Move one level up",
     "lsp": "",
-    "exceptions": "M—・C—（状態性。`plot.get` の level 指定で代替）"
+    "exceptions": "M—・C—（状態性。`plot.get` の level 指定で代替）",
+    "args": []
   },
   {
     "id": "nav.switcher",
@@ -231,7 +425,8 @@ export const operations = [
     "ja": "切替パネルの一覧",
     "en": "Workspace switcher list",
     "lsp": "",
-    "exceptions": "M—・C—（状態性）"
+    "exceptions": "M—・C—（状態性）",
+    "args": []
   },
   {
     "id": "document.get",
@@ -239,7 +434,14 @@ export const operations = [
     "ja": "ドキュメント全文の取得",
     "en": "Read a document",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "path",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "document.write",
@@ -247,7 +449,24 @@ export const operations = [
     "ja": "ドキュメント全文の書き込み",
     "en": "Write a document",
     "lsp": "",
-    "exceptions": "M 門番"
+    "exceptions": "M 門番",
+    "args": [
+      {
+        "name": "path",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "text",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "document.rename",
@@ -255,7 +474,24 @@ export const operations = [
     "ja": "文書のリネーム",
     "en": "Rename a document",
     "lsp": "",
-    "exceptions": "M 門番"
+    "exceptions": "M 門番",
+    "args": [
+      {
+        "name": "from",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "to",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "plot.get",
@@ -263,7 +499,24 @@ export const operations = [
     "ja": "全体／章プロットの取得",
     "en": "Read a plot",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "level",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "scene",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "chapter",
+        "type": "integer",
+        "required": false
+      }
+    ]
   },
   {
     "id": "plot.write",
@@ -271,7 +524,34 @@ export const operations = [
     "ja": "全体／章／話プロットの書き込み",
     "en": "Write a plot",
     "lsp": "",
-    "exceptions": "M 門番"
+    "exceptions": "M 門番",
+    "args": [
+      {
+        "name": "level",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "text",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "scene",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "chapter",
+        "type": "integer",
+        "required": false
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "plot.set_state",
@@ -279,7 +559,24 @@ export const operations = [
     "ja": "プロットの確認状態の切替",
     "en": "Set the confirmation state of a plot entry",
     "lsp": "",
-    "exceptions": "M 門番"
+    "exceptions": "M 門番",
+    "args": [
+      {
+        "name": "scene",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "state",
+        "type": "boolean",
+        "required": false
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "plot.insert_section",
@@ -287,7 +584,24 @@ export const operations = [
     "ja": "話プロットへの節挿入",
     "en": "Insert a plot section",
     "lsp": "",
-    "exceptions": "M 門番"
+    "exceptions": "M 門番",
+    "args": [
+      {
+        "name": "scene",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "plot.outline_fold",
@@ -295,7 +609,19 @@ export const operations = [
     "ja": "構成ツリーの章→話の展開・折り畳み",
     "en": "Fold or unfold a chapter of the outline",
     "lsp": "foldingRange（範囲算出）",
-    "exceptions": "折り畳み状態は `.novnow/ui.json` の `folded.outline` に保存し、再起動後に復元する（§4.4.1・§9.3.3）"
+    "exceptions": "折り畳み状態は `.novnow/ui.json` の `folded.outline` に保存し、再起動後に復元する（§4.4.1・§9.3.3）",
+    "args": [
+      {
+        "name": "chapter",
+        "type": "integer",
+        "required": true
+      },
+      {
+        "name": "fold",
+        "type": "boolean",
+        "required": false
+      }
+    ]
   },
   {
     "id": "save.now",
@@ -303,7 +629,8 @@ export const operations = [
     "ja": "保存",
     "en": "Save now",
     "lsp": "",
-    "exceptions": "M—・C—（状態性）"
+    "exceptions": "M—・C—（状態性）",
+    "args": []
   },
   {
     "id": "save.state",
@@ -311,7 +638,8 @@ export const operations = [
     "ja": "保存状態の取得",
     "en": "State of the save machine",
     "lsp": "",
-    "exceptions": "M—・C—（状態性）"
+    "exceptions": "M—・C—（状態性）",
+    "args": []
   },
   {
     "id": "save.keep_mine",
@@ -319,7 +647,14 @@ export const operations = [
     "ja": "衝突時に自分の版を維持",
     "en": "Keep my version on a conflict",
     "lsp": "",
-    "exceptions": "M—・C—（状態性）"
+    "exceptions": "M—・C—（状態性）",
+    "args": [
+      {
+        "name": "path",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   {
     "id": "save.reload_external",
@@ -327,7 +662,14 @@ export const operations = [
     "ja": "外部変更の読み込み",
     "en": "Reload the external version",
     "lsp": "",
-    "exceptions": "M—・C—（状態性）"
+    "exceptions": "M—・C—（状態性）",
+    "args": [
+      {
+        "name": "path",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   {
     "id": "save.diff_external",
@@ -335,7 +677,14 @@ export const operations = [
     "ja": "自分の版と外部変更の差分",
     "en": "Diff against the external version",
     "lsp": "",
-    "exceptions": "M—・C—（状態性）"
+    "exceptions": "M—・C—（状態性）",
+    "args": [
+      {
+        "name": "path",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   {
     "id": "search.file",
@@ -343,7 +692,29 @@ export const operations = [
     "ja": "検索／置換",
     "en": "Search in the open document",
     "lsp": "",
-    "exceptions": "置換は M 門番"
+    "exceptions": "置換は M 門番",
+    "args": [
+      {
+        "name": "query",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "replace",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "regex",
+        "type": "boolean",
+        "required": false
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   {
     "id": "search.replace_file",
@@ -351,7 +722,29 @@ export const operations = [
     "ja": "全置換",
     "en": "Replace in the open document",
     "lsp": "",
-    "exceptions": "M 門番"
+    "exceptions": "M 門番",
+    "args": [
+      {
+        "name": "query",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "replace",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "regex",
+        "type": "boolean",
+        "required": false
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "search.project",
@@ -359,7 +752,19 @@ export const operations = [
     "ja": "全体検索",
     "en": "Search the whole project",
     "lsp": "workspace/symbol",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "query",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "regex",
+        "type": "boolean",
+        "required": false
+      }
+    ]
   },
   {
     "id": "search.find_next",
@@ -367,7 +772,8 @@ export const operations = [
     "ja": "次の候補",
     "en": "Next match",
     "lsp": "",
-    "exceptions": "M—・C—（状態性）"
+    "exceptions": "M—・C—（状態性）",
+    "args": []
   },
   {
     "id": "search.find_prev",
@@ -375,7 +781,8 @@ export const operations = [
     "ja": "前の候補",
     "en": "Previous match",
     "lsp": "",
-    "exceptions": "M—・C—（状態性）"
+    "exceptions": "M—・C—（状態性）",
+    "args": []
   },
   {
     "id": "materials.list",
@@ -383,7 +790,8 @@ export const operations = [
     "ja": "素材インボックス一覧",
     "en": "List materials",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": []
   },
   {
     "id": "materials.get",
@@ -391,7 +799,14 @@ export const operations = [
     "ja": "素材カードの取得",
     "en": "Read one material",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "id",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "materials.approve",
@@ -399,7 +814,19 @@ export const operations = [
     "ja": "素材の採用",
     "en": "Approve a material",
     "lsp": "",
-    "exceptions": "M 門番"
+    "exceptions": "M 門番",
+    "args": [
+      {
+        "name": "id",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "materials.reject",
@@ -407,7 +834,24 @@ export const operations = [
     "ja": "素材の却下",
     "en": "Reject a material",
     "lsp": "",
-    "exceptions": "M 門番"
+    "exceptions": "M 門番",
+    "args": [
+      {
+        "name": "id",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "note",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "materials.update",
@@ -415,7 +859,24 @@ export const operations = [
     "ja": "素材カードの編集",
     "en": "Update the review fields of a material",
     "lsp": "",
-    "exceptions": "M 門番"
+    "exceptions": "M 門番",
+    "args": [
+      {
+        "name": "id",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "review",
+        "type": "object",
+        "required": false
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "materials.attach",
@@ -423,7 +884,29 @@ export const operations = [
     "ja": "素材の添付",
     "en": "Attach a material file",
     "lsp": "",
-    "exceptions": "M 門番"
+    "exceptions": "M 門番",
+    "args": [
+      {
+        "name": "id",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "path",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "text",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "materials.search",
@@ -431,7 +914,24 @@ export const operations = [
     "ja": "素材の検索",
     "en": "Search materials",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "query",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "category",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "scope",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   {
     "id": "materials.propose",
@@ -439,7 +939,29 @@ export const operations = [
     "ja": "素材の提案",
     "en": "Propose a new material",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "title",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "source",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "markdown",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "category",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   {
     "id": "idea.list",
@@ -447,7 +969,8 @@ export const operations = [
     "ja": "着想一覧",
     "en": "List ideas",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": []
   },
   {
     "id": "idea.capture",
@@ -455,7 +978,29 @@ export const operations = [
     "ja": "着想の記録",
     "en": "Capture an idea",
     "lsp": "",
-    "exceptions": "M 門番"
+    "exceptions": "M 門番",
+    "args": [
+      {
+        "name": "title",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "kind",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "keywords",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "idea.promote",
@@ -463,7 +1008,29 @@ export const operations = [
     "ja": "着想の昇格",
     "en": "Promote an idea",
     "lsp": "",
-    "exceptions": "M 門番"
+    "exceptions": "M 門番",
+    "args": [
+      {
+        "name": "id",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "target",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "to",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "idea.drop",
@@ -471,7 +1038,19 @@ export const operations = [
     "ja": "着想の削除",
     "en": "Drop an idea",
     "lsp": "",
-    "exceptions": "M 門番"
+    "exceptions": "M 門番",
+    "args": [
+      {
+        "name": "id",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "idea.write",
@@ -479,7 +1058,24 @@ export const operations = [
     "ja": "着想メモの書き込み",
     "en": "Write the body of an idea",
     "lsp": "",
-    "exceptions": "M 門番"
+    "exceptions": "M 門番",
+    "args": [
+      {
+        "name": "id",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "text",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "cast.get",
@@ -487,7 +1083,14 @@ export const operations = [
     "ja": "キャラクター情報・有効なモード",
     "en": "Cast of a scene",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "scene",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "cast.list",
@@ -495,7 +1098,8 @@ export const operations = [
     "ja": "キャラクター一覧",
     "en": "List characters",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": []
   },
   {
     "id": "cast.timeline",
@@ -503,7 +1107,14 @@ export const operations = [
     "ja": "呼称タイムライン",
     "en": "Mode timeline of a character",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "index",
+        "type": "integer",
+        "required": false
+      }
+    ]
   },
   {
     "id": "cast.scan",
@@ -511,7 +1122,14 @@ export const operations = [
     "ja": "本文スキャンで候補抽出",
     "en": "Scan the manuscript for unmatched dialogue",
     "lsp": "",
-    "exceptions": "M 門番"
+    "exceptions": "M 門番",
+    "args": [
+      {
+        "name": "role",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "dictionary.list",
@@ -519,7 +1137,8 @@ export const operations = [
     "ja": "辞書の一覧",
     "en": "Dictionary entries",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": []
   },
   {
     "id": "dictionary.register_term",
@@ -527,7 +1146,24 @@ export const operations = [
     "ja": "用語の辞書登録",
     "en": "Register a term",
     "lsp": "",
-    "exceptions": "M 門番"
+    "exceptions": "M 門番",
+    "args": [
+      {
+        "name": "term",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "definition",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "dictionary.register_character",
@@ -535,7 +1171,24 @@ export const operations = [
     "ja": "キャラクターの辞書登録",
     "en": "Register a character",
     "lsp": "",
-    "exceptions": "M 門番"
+    "exceptions": "M 門番",
+    "args": [
+      {
+        "name": "name",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "reading",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "dictionary.term_full",
@@ -543,7 +1196,14 @@ export const operations = [
     "ja": "用語の完全情報",
     "en": "Full information of a term",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "query",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "dictionary.modes_list",
@@ -551,7 +1211,8 @@ export const operations = [
     "ja": "全モード一覧",
     "en": "All role-language modes",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": []
   },
   {
     "id": "lang.tokens",
@@ -559,7 +1220,19 @@ export const operations = [
     "ja": "字句解析",
     "en": "Semantic tokens",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "path",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "scene",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   {
     "id": "lang.completion",
@@ -567,7 +1240,19 @@ export const operations = [
     "ja": "補完候補",
     "en": "Completion",
     "lsp": "textDocument/completion",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "path",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "pos",
+        "type": "integer",
+        "required": true
+      }
+    ]
   },
   {
     "id": "lang.hover",
@@ -575,7 +1260,19 @@ export const operations = [
     "ja": "カーソル位置の情報",
     "en": "Hover",
     "lsp": "textDocument/hover",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "path",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "pos",
+        "type": "integer",
+        "required": true
+      }
+    ]
   },
   {
     "id": "lang.hints",
@@ -583,7 +1280,24 @@ export const operations = [
     "ja": "インラインヒント",
     "en": "Inlay hints",
     "lsp": "textDocument/inlayHint",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "path",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "start",
+        "type": "integer",
+        "required": false
+      },
+      {
+        "name": "end",
+        "type": "integer",
+        "required": false
+      }
+    ]
   },
   {
     "id": "lang.code_action",
@@ -591,7 +1305,39 @@ export const operations = [
     "ja": "クイックフィックス候補",
     "en": "Code actions",
     "lsp": "textDocument/codeAction",
-    "exceptions": "適用は M 門番"
+    "exceptions": "適用は M 門番",
+    "args": [
+      {
+        "name": "path",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "start",
+        "type": "integer",
+        "required": true
+      },
+      {
+        "name": "end",
+        "type": "integer",
+        "required": true
+      },
+      {
+        "name": "apply",
+        "type": "boolean",
+        "required": false
+      },
+      {
+        "name": "index",
+        "type": "integer",
+        "required": false
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   {
     "id": "lang.definition",
@@ -599,7 +1345,19 @@ export const operations = [
     "ja": "定義へジャンプ",
     "en": "Go to definition",
     "lsp": "textDocument/definition",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "path",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "pos",
+        "type": "integer",
+        "required": true
+      }
+    ]
   },
   {
     "id": "lang.references",
@@ -607,7 +1365,19 @@ export const operations = [
     "ja": "参照検索",
     "en": "Find references",
     "lsp": "textDocument/references",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "path",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "pos",
+        "type": "integer",
+        "required": true
+      }
+    ]
   },
   {
     "id": "lang.symbols",
@@ -615,7 +1385,14 @@ export const operations = [
     "ja": "シンボル一覧",
     "en": "Document symbols",
     "lsp": "textDocument/documentSymbol",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "path",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "lang.format",
@@ -623,7 +1400,19 @@ export const operations = [
     "ja": "整形",
     "en": "Format a document",
     "lsp": "textDocument/formatting",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "path",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "apply",
+        "type": "boolean",
+        "required": false
+      }
+    ]
   },
   {
     "id": "lang.rename_preview",
@@ -631,7 +1420,24 @@ export const operations = [
     "ja": "リネームの影響範囲",
     "en": "Rename preview",
     "lsp": "textDocument/rename（準備）",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "path",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "pos",
+        "type": "integer",
+        "required": true
+      },
+      {
+        "name": "to",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   {
     "id": "lang.rename_apply",
@@ -639,7 +1445,29 @@ export const operations = [
     "ja": "リネームの実行",
     "en": "Apply a rename",
     "lsp": "textDocument/rename",
-    "exceptions": "M 門番"
+    "exceptions": "M 門番",
+    "args": [
+      {
+        "name": "path",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "pos",
+        "type": "integer",
+        "required": true
+      },
+      {
+        "name": "to",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "lang.folding",
@@ -647,7 +1475,14 @@ export const operations = [
     "ja": "折り畳み範囲",
     "en": "Folding ranges",
     "lsp": "textDocument/foldingRange",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "path",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "diagnostics.run",
@@ -655,7 +1490,24 @@ export const operations = [
     "ja": "診断",
     "en": "Run the checks",
     "lsp": "publishDiagnostics（配信）",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "scope",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "path",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "scene",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   {
     "id": "diagnostics.place",
@@ -663,7 +1515,19 @@ export const operations = [
     "ja": "地名解決",
     "en": "Where the cursor is, in the writer's words",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "path",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "pos",
+        "type": "integer",
+        "required": false
+      }
+    ]
   },
   {
     "id": "review.list",
@@ -671,7 +1535,8 @@ export const operations = [
     "ja": "見直し項目一覧",
     "en": "Review items",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": []
   },
   {
     "id": "review.goto",
@@ -679,7 +1544,14 @@ export const operations = [
     "ja": "見直し項目への移動",
     "en": "Go to a review item",
     "lsp": "",
-    "exceptions": "M—・C—（状態性）"
+    "exceptions": "M—・C—（状態性）",
+    "args": [
+      {
+        "name": "index",
+        "type": "integer",
+        "required": true
+      }
+    ]
   },
   {
     "id": "agent.task_list",
@@ -687,7 +1559,8 @@ export const operations = [
     "ja": "タスク一覧",
     "en": "List agent tasks",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": []
   },
   {
     "id": "agent.task_create",
@@ -695,7 +1568,34 @@ export const operations = [
     "ja": "タスクの起票",
     "en": "Create an agent task",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "role",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "scope",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "intent",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "comment",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "examples",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   {
     "id": "agent.task_get",
@@ -703,7 +1603,14 @@ export const operations = [
     "ja": "タスク 1 件の詳細",
     "en": "Read one agent task",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "id",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "agent.task_run",
@@ -711,7 +1618,19 @@ export const operations = [
     "ja": "タスクの実行",
     "en": "Run an agent task",
     "lsp": "",
-    "exceptions": "M 門番（role 必須・セッション制限適用）"
+    "exceptions": "M 門番（role 必須・セッション制限適用）",
+    "args": [
+      {
+        "name": "id",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "agent.task_dry_run",
@@ -719,7 +1638,14 @@ export const operations = [
     "ja": "ドライラン",
     "en": "Dry run of an agent task",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "id",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "agent.task_stop",
@@ -727,7 +1653,19 @@ export const operations = [
     "ja": "タスクの中止",
     "en": "Stop an agent task",
     "lsp": "",
-    "exceptions": "M 門番"
+    "exceptions": "M 門番",
+    "args": [
+      {
+        "name": "id",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "agent.stop_all",
@@ -735,7 +1673,14 @@ export const operations = [
     "ja": "全実行の中止",
     "en": "Stop all agent tasks",
     "lsp": "",
-    "exceptions": "M 門番"
+    "exceptions": "M 門番",
+    "args": [
+      {
+        "name": "role",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "agent.proposal_list",
@@ -743,7 +1688,8 @@ export const operations = [
     "ja": "提案一覧",
     "en": "List proposals",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": []
   },
   {
     "id": "agent.proposal_get",
@@ -751,7 +1697,14 @@ export const operations = [
     "ja": "提案 1 件の内容",
     "en": "Read one proposal",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "id",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "agent.proposal_apply",
@@ -759,7 +1712,19 @@ export const operations = [
     "ja": "提案の適用",
     "en": "Apply a proposal",
     "lsp": "",
-    "exceptions": "M 門番"
+    "exceptions": "M 門番",
+    "args": [
+      {
+        "name": "id",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "agent.proposal_reject",
@@ -767,7 +1732,24 @@ export const operations = [
     "ja": "提案の却下",
     "en": "Reject a proposal",
     "lsp": "",
-    "exceptions": "M 門番"
+    "exceptions": "M 門番",
+    "args": [
+      {
+        "name": "id",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "comment",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "agent.delegation_get",
@@ -775,7 +1757,8 @@ export const operations = [
     "ja": "委譲レベルの参照",
     "en": "Delegation levels",
     "lsp": "",
-    "exceptions": "M—（安全: 人間専用）"
+    "exceptions": "M—（安全: 人間専用）",
+    "args": []
   },
   {
     "id": "agent.delegation_set",
@@ -783,7 +1766,19 @@ export const operations = [
     "ja": "委譲レベルの変更",
     "en": "Change a delegation level",
     "lsp": "",
-    "exceptions": "M—（安全: 人間専用）"
+    "exceptions": "M—（安全: 人間専用）",
+    "args": [
+      {
+        "name": "role",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "level",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "agent.mcp_config_get",
@@ -791,7 +1786,8 @@ export const operations = [
     "ja": "MCP 接続設定の参照",
     "en": "Read the MCP configuration",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": []
   },
   {
     "id": "agent.mcp_config_validate",
@@ -799,7 +1795,14 @@ export const operations = [
     "ja": "MCP 接続設定の検証",
     "en": "Validate the MCP configuration",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "text",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   {
     "id": "agent.mcp_config_set",
@@ -807,7 +1810,14 @@ export const operations = [
     "ja": "MCP 接続設定の書き込み",
     "en": "Write the MCP configuration",
     "lsp": "",
-    "exceptions": "M—（安全: 人間専用）"
+    "exceptions": "M—（安全: 人間専用）",
+    "args": [
+      {
+        "name": "text",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "agent.thread_list",
@@ -815,7 +1825,8 @@ export const operations = [
     "ja": "メールスレッド一覧",
     "en": "List mail threads",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": []
   },
   {
     "id": "agent.thread_get",
@@ -823,7 +1834,14 @@ export const operations = [
     "ja": "スレッド 1 件の内容",
     "en": "Read one mail thread",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "id",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "agent.audit_list",
@@ -831,7 +1849,8 @@ export const operations = [
     "ja": "監査ログ一覧",
     "en": "Audit log",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": []
   },
   {
     "id": "context.build",
@@ -839,7 +1858,19 @@ export const operations = [
     "ja": "コンテキストパケットの構築",
     "en": "Build a context packet",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "role",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "scene",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "prompt.list",
@@ -847,7 +1878,8 @@ export const operations = [
     "ja": "プロンプトファイル一覧",
     "en": "List prompt files",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": []
   },
   {
     "id": "prompt.get",
@@ -855,7 +1887,14 @@ export const operations = [
     "ja": "プロンプト内容の取得",
     "en": "Read a prompt",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "name",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "prompt.diff",
@@ -863,7 +1902,14 @@ export const operations = [
     "ja": "初期版との差分",
     "en": "Diff a prompt against the built-in version",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "name",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "prompt.reset",
@@ -871,7 +1917,14 @@ export const operations = [
     "ja": "プロンプトの初期化",
     "en": "Reset a prompt to the built-in version",
     "lsp": "",
-    "exceptions": "M—（安全: 人間専用）"
+    "exceptions": "M—（安全: 人間専用）",
+    "args": [
+      {
+        "name": "name",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "mail.send",
@@ -879,7 +1932,29 @@ export const operations = [
     "ja": "エージェント間のメール",
     "en": "Send mail between agents",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "to",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "body",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "kind",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "scope",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   {
     "id": "export.text",
@@ -887,7 +1962,54 @@ export const operations = [
     "ja": "テキストのエクスポート",
     "en": "Export text",
     "lsp": "",
-    "exceptions": "M 門番（書き込み時。テキストの返却のみは無関門）"
+    "exceptions": "M 門番（書き込み時。テキストの返却のみは無関門）",
+    "args": [
+      {
+        "name": "range",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "state",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "format",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "out",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "blurb",
+        "type": "boolean",
+        "required": false
+      },
+      {
+        "name": "blurb_only",
+        "type": "boolean",
+        "required": false
+      },
+      {
+        "name": "keep_illustration_memo",
+        "type": "boolean",
+        "required": false
+      },
+      {
+        "name": "stock",
+        "type": "boolean",
+        "required": false
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   {
     "id": "reference.pane",
@@ -895,7 +2017,14 @@ export const operations = [
     "ja": "参照ペインの全セクション",
     "en": "All sections of the reference pane",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "scene",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   {
     "id": "settings.get",
@@ -903,7 +2032,8 @@ export const operations = [
     "ja": "設定の取得",
     "en": "Read the settings",
     "lsp": "workspace/didChangeConfiguration（通知）",
-    "exceptions": ""
+    "exceptions": "",
+    "args": []
   },
   {
     "id": "settings.set",
@@ -911,7 +2041,19 @@ export const operations = [
     "ja": "設定の変更",
     "en": "Change a setting",
     "lsp": "",
-    "exceptions": "M—（安全: 人間専用）"
+    "exceptions": "M—（安全: 人間専用）",
+    "args": [
+      {
+        "name": "key",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "value",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   {
     "id": "session.workspace_get",
@@ -919,7 +2061,8 @@ export const operations = [
     "ja": "現在のワークスペース",
     "en": "Current workspace",
     "lsp": "",
-    "exceptions": "M—・C—（状態性）"
+    "exceptions": "M—・C—（状態性）",
+    "args": []
   },
   {
     "id": "session.workspace_switch",
@@ -927,7 +2070,14 @@ export const operations = [
     "ja": "ワークスペースの切替",
     "en": "Switch workspace",
     "lsp": "",
-    "exceptions": "M—・C—（状態性）"
+    "exceptions": "M—・C—（状態性）",
+    "args": [
+      {
+        "name": "workspace",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "session.recent_document",
@@ -935,7 +2085,14 @@ export const operations = [
     "ja": "最近開いた文書の循環",
     "en": "Cycle through recently opened documents",
     "lsp": "",
-    "exceptions": "M—・C—（状態性）"
+    "exceptions": "M—・C—（状態性）",
+    "args": [
+      {
+        "name": "back",
+        "type": "boolean",
+        "required": false
+      }
+    ]
   },
   {
     "id": "session.command",
@@ -943,7 +2100,14 @@ export const operations = [
     "ja": "パレットコマンドの実行",
     "en": "Run a palette command",
     "lsp": "",
-    "exceptions": "M—・C—（状態性）"
+    "exceptions": "M—・C—（状態性）",
+    "args": [
+      {
+        "name": "name",
+        "type": "string",
+        "required": true
+      }
+    ]
   },
   {
     "id": "session.poll_events",
@@ -951,7 +2115,8 @@ export const operations = [
     "ja": "イベントキューの取得",
     "en": "Drain the event queue",
     "lsp": "novnow/* 通知（配信）",
-    "exceptions": "M—・C—（状態性）"
+    "exceptions": "M—・C—（状態性）",
+    "args": []
   },
   {
     "id": "help.topic",
@@ -959,7 +2124,14 @@ export const operations = [
     "ja": "ヘルプ本文",
     "en": "Help text",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": [
+      {
+        "name": "topic",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   {
     "id": "api.list",
@@ -967,6 +2139,7 @@ export const operations = [
     "ja": "正規操作カタログの機械可読出力",
     "en": "Machine-readable catalog of the canonical operations",
     "lsp": "",
-    "exceptions": ""
+    "exceptions": "",
+    "args": []
   }
 ] as const;

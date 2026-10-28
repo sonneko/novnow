@@ -1047,7 +1047,7 @@ insert_section = "話プロットへの節挿入"
 outline_fold = "構成ツリーの章→話の展開・折り畳み"
 
 [api.op.project]
-info = "プロジェクト基本情報ワークスペース見出し"
+info = "プロジェクト基本情報（タイトル・作者・言語・版）"
 new = "新規プロジェクト作成"
 validate = "構造検証"
 reload = "再読込"

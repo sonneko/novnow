@@ -358,7 +358,7 @@ class project(Protocol):
     """`session.project` のドメイン（§19.3.2）。"""
 
     def info(self) -> Any:
-        """プロジェクト基本情報ワークスペース見出し（`project.info`）"""
+        """プロジェクト基本情報（タイトル・作者・言語・版）（`project.info`）"""
 
     def new(self, path: str, title: str = ...) -> Any:
         """新規プロジェクト作成（`project.new`）　[L—（startup）; M—（project）]"""
