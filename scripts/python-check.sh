@@ -84,6 +84,6 @@ else
     printf '\033[1;33mskip:\033[0m %s\n' \
         "pytest が無いので本物の拡張の検査は飛ばす（pip install pytest）" \
         "。import と操作数だけ確認する"
-    ( cd "$PY" && PYTHONPATH=python python3 -c \
-        'import novnow; assert len(novnow.operations()) == 120; print("novnow", novnow.__version__, "120 operations")' )
+    ( cd "$PY" && PYTHONPATH=python python3 -B -c \
+        'import json, novnow; want = len(json.load(open("../../tests/golden/api_catalog.json"))["operations"]); got = len(novnow.operations()); assert got == want, (got, want); print("novnow", novnow.__version__, got, "operations")' )
 fi

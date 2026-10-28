@@ -16,7 +16,7 @@ def project(tmp_path):
 
 def test_create_then_read_the_catalog(project):
     catalog = novnow.operations()
-    assert len(catalog) == 120, "§19.7 の全行"
+    assert len(catalog) == 121, "§19.7 の全行"
     assert {operation["id"] for operation in catalog} >= {"project.info", "section.list"}
 
 
