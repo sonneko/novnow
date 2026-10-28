@@ -8,7 +8,7 @@ exclude = ["python/novnow-py"]
 
 [package]
 name = "novnow"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "小説プロジェクト（[title]/ レイアウト）向け執筆 IDE — egui + ropey"
 license = "MIT"

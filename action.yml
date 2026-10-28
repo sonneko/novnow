@@ -47,7 +47,7 @@ runs:
       env:
         INPUT_VERSION: ${{ inputs.version }}
         INPUT_TARGET: ${{ inputs.target }}
-        NOVNOW_ACTION_VERSION: "0.1.0"
+        NOVNOW_ACTION_VERSION: "0.1.1"
       run: bash "${{ github.action_path }}/scripts/action/install.sh" --resolve
 
     - name: Restore the release archive cache

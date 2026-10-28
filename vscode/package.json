@@ -2,7 +2,7 @@
   "name": "novnow",
   "displayName": "novnow",
   "description": "novnow language support through the official LSP server",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "sonneko",
   "license": "MIT",
   "repository": {
@@ -93,11 +93,11 @@
   },
   "novnow": {
     "artifact": {
-      "x86_64-unknown-linux-gnu": "novnow-0.1.0-x86_64-unknown-linux-gnu-nogui.tar.gz",
-      "aarch64-unknown-linux-gnu": "novnow-0.1.0-aarch64-unknown-linux-gnu-nogui.tar.gz",
-      "x86_64-apple-darwin": "novnow-0.1.0-x86_64-apple-darwin-nogui.tar.gz",
-      "aarch64-apple-darwin": "novnow-0.1.0-aarch64-apple-darwin-nogui.tar.gz",
-      "x86_64-pc-windows-msvc": "novnow-0.1.0-x86_64-pc-windows-msvc-nogui.zip"
+      "x86_64-unknown-linux-gnu": "novnow-0.1.1-x86_64-unknown-linux-gnu-nogui.tar.gz",
+      "aarch64-unknown-linux-gnu": "novnow-0.1.1-aarch64-unknown-linux-gnu-nogui.tar.gz",
+      "x86_64-apple-darwin": "novnow-0.1.1-x86_64-apple-darwin-nogui.tar.gz",
+      "aarch64-apple-darwin": "novnow-0.1.1-aarch64-apple-darwin-nogui.tar.gz",
+      "x86_64-pc-windows-msvc": "novnow-0.1.1-x86_64-pc-windows-msvc-nogui.zip"
     }
   },
   "scripts": {
