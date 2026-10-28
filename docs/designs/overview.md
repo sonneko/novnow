@@ -124,7 +124,7 @@
 - `REF:src/core/policy/mod.rs`: `write_policy.rs`, `recent.rs`, `archive.rs`, `external_change.rs`。
 - `REF:src/core/export.rs`, `REF:src/core/template/mod.rs`, `REF:src/core/aicontext/mod.rs`, `REF:src/core/agents/mod.rs`。
 - `REF:src/ports/mod.rs` & `REF:src/adapters/mod.rs`: ポートと各環境アダプタ。
-- `REF:src/app/mod.rs`: 描画と無縁の状態機械（`workbench.rs`, `save_machine.rs`, `settings.rs`, `palette.rs`, `assist.rs`, `agents.rs`, `command.rs`, `commands.rs`, `host.rs`, `workspace.rs`）と外部インターフェースの機能核（§19: `error.rs`, `event.rs`, `session.rs`, `memory_host.rs`, `fs_host.rs`, `driver.rs` と `ops/` の 120 操作）。
+- `REF:src/app/mod.rs`: 描画と無縁の状態機械（`workbench.rs`, `save_machine.rs`, `settings.rs`, `palette.rs`, `assist.rs`, `agents.rs`, `command.rs`, `commands.rs`, `host.rs`, `workspace.rs`）と外部インターフェースの機能核（§19: `error.rs`, `event.rs`, `session.rs`, `memory_host.rs`, `fs_host.rs`, `driver.rs` と `ops/` の 121 操作）。
 - `REF:src/ui/mod.rs`: `i18n/`, `app.rs`, `picker.rs`, `palette_items.rs`, `status.rs`, `web.rs`, `shell.rs`, `theme.rs`, `widgets/`, `workspaces/`（`app` 層の 6 モジュールは再エクスポートで旧パスからも解決する）。
 
 段階 ② の追加仕様を無改修で受け入れるための 10 個の拡張点（縫い代）を維持する:

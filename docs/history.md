@@ -2406,3 +2406,18 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
   false）。`REF:tests/diagnostics_catalog.rs` の件数（87 → 85）と通知の例（I051 → W041）を更新。
   `bash scripts/verify.sh` は **13 ジョブすべて緑**（1471 passed / 70 ターゲット）、サイトは 228 ページ・
   239 HTML。
+
+## 2026-10-28: Python 側の操作数の追随（CI の `wheels` が検出した 120 → 121）
+
+- `[ci run]` 付きのコミットで CI を回したところ、`wheels` の `test (3.9)` / `test (3.13)` だけが落ちた。
+  `REF:python/novnow-py/tests/test_api.py` の `assert len(catalog) == 120` が `section.propose` の追加
+  （121 操作）に追随していなかったのが原因で、実装の誤りではなかった。手元では `pytest` が無いため
+  `scripts/python-check.sh --full` がこの検査を飛ばしており、見落としていた。
+- 件数はゴールデン（`REF:tests/golden/api_catalog.json`）から取るのではなく、テストの期待値として書き直した
+  （120 → 121）。`scripts/python-check.sh` の `pytest` の無い環境向けの fallback は、数を直接書くのをやめて
+  ゴールデンの件数と突き合わせる形にした（数は仕様表 1 か所からゴールデンへ、という既存の流れに寄せる）。
+- 設計書の現在形の記述も追随させた（`REF:docs/designs/overview.md`・`REF:docs/developers.md` の 120 操作 →
+  121 操作）。`REF:docs/designs/interfaces.md` の「120 操作、カタログ版 1.1」は `section.split` を足した
+  時点の記録なので、そのまま残す（`docs/plans.md`・本ファイルも同様に歴史記録）。
+- 手元で `pytest` を用意して `python/novnow-py/tests` を通した（9 passed / 1 skipped）。CI は `a728f30` で
+  `wheels` を含む 6 ワークフローすべて緑。
