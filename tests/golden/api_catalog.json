@@ -23,6 +23,29 @@
       "gate_arg": null,
       "id": "project.info",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "chapters": {
+            "type": "integer"
+          },
+          "chars": {
+            "type": "integer"
+          },
+          "episodes": {
+            "type": "integer"
+          },
+          "scenes": {
+            "type": "integer"
+          },
+          "sections": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "info"
     },
@@ -56,6 +79,20 @@
       "gate_arg": null,
       "id": "project.new",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "files": {
+            "type": "array"
+          },
+          "path": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "new"
     },
@@ -73,6 +110,26 @@
       "gate_arg": null,
       "id": "project.validate",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "diagnostics": {
+            "type": "array"
+          },
+          "errors": {
+            "type": "integer"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "structure": {
+            "type": [
+              "object",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "validate"
     },
@@ -93,6 +150,17 @@
       "gate_arg": null,
       "id": "project.reload",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "files": {
+            "type": "integer"
+          },
+          "reloaded": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
       "stateful": true,
       "verb": "reload"
     },
@@ -110,6 +178,35 @@
       "gate_arg": null,
       "id": "project.stats",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "chapters": {
+            "type": "integer"
+          },
+          "dialogue_chars": {
+            "type": "integer"
+          },
+          "dialogue_ratio": {
+            "type": "number"
+          },
+          "newline": {
+            "type": "string"
+          },
+          "sections": {
+            "type": "integer"
+          },
+          "speakers": {
+            "type": "array"
+          },
+          "title": {
+            "type": "string"
+          },
+          "total_chars": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "stats"
     },
@@ -129,6 +226,14 @@
       "gate_arg": null,
       "id": "project.recent_list",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "projects": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": true,
       "verb": "recent_list"
     },
@@ -157,6 +262,17 @@
       "gate_arg": null,
       "id": "project.recent_remove",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "projects": {
+            "type": "integer"
+          },
+          "removed": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": true,
       "verb": "recent_remove"
     },
@@ -186,6 +302,17 @@
       "gate_arg": null,
       "id": "project.import_zip",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "skipped": {
+            "type": "array"
+          },
+          "written": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "import_zip"
     },
@@ -211,6 +338,23 @@
       "gate_arg": null,
       "id": "project.export_zip",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "bytes": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "out": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "export_zip"
     },
@@ -238,6 +382,17 @@
       "gate_arg": null,
       "id": "structure.tree",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "level": {
+            "type": "string"
+          },
+          "nodes": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "tree"
     },
@@ -264,6 +419,26 @@
       "gate_arg": null,
       "id": "structure.resolve",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "lines": {
+            "type": "array"
+          },
+          "path": {
+            "type": "string"
+          },
+          "resolved": {
+            "type": "boolean"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "resolve"
     },
@@ -284,6 +459,17 @@
       "gate_arg": null,
       "id": "structure.breadcrumb",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "breadcrumb": {
+            "type": "string"
+          },
+          "scene": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": true,
       "verb": "breadcrumb"
     },
@@ -307,6 +493,17 @@
       "gate_arg": null,
       "id": "section.list",
       "lsp": "textDocument/documentSymbol",
+      "returns": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "sections": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "list"
     },
@@ -333,6 +530,26 @@
       "gate_arg": null,
       "id": "section.get",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "after": {
+            "type": "array"
+          },
+          "before": {
+            "type": "array"
+          },
+          "path": {
+            "type": "string"
+          },
+          "scene": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "get"
     },
@@ -369,6 +586,23 @@
       "gate_arg": null,
       "id": "section.write",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "chars": {
+            "type": "integer"
+          },
+          "path": {
+            "type": "string"
+          },
+          "save": {
+            "type": "object"
+          },
+          "scene": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "write"
     },
@@ -403,6 +637,20 @@
       "gate_arg": null,
       "id": "section.insert",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "pending": {
+            "type": "boolean"
+          },
+          "save": {
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "insert"
     },
@@ -433,6 +681,17 @@
       "gate_arg": null,
       "id": "section.delete",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "deleted": {
+            "type": "string"
+          },
+          "save": {
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "delete"
     },
@@ -453,6 +712,17 @@
       "gate_arg": null,
       "id": "section.confirm_next",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "confirmed": {
+            "type": "boolean"
+          },
+          "scene": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": true,
       "verb": "confirm_next"
     },
@@ -488,6 +758,20 @@
       "gate_arg": null,
       "id": "section.split",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "save": {
+            "type": "object"
+          },
+          "scene": {
+            "type": "string"
+          },
+          "split": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "split"
     },
@@ -523,6 +807,17 @@
       "gate_arg": null,
       "id": "section.propose",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "proposal": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "propose"
     },
@@ -556,6 +851,17 @@
       "gate_arg": null,
       "id": "nav.file",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "scene": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": true,
       "verb": "file"
     },
@@ -585,6 +891,17 @@
       "gate_arg": null,
       "id": "nav.section",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "scene": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": true,
       "verb": "section"
     },
@@ -615,6 +932,20 @@
       "gate_arg": null,
       "id": "nav.jump",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "byte": {
+            "type": "integer"
+          },
+          "line": {
+            "type": "integer"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": true,
       "verb": "jump"
     },
@@ -635,6 +966,14 @@
       "gate_arg": null,
       "id": "nav.prev",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "moved": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
       "stateful": true,
       "verb": "prev"
     },
@@ -655,6 +994,14 @@
       "gate_arg": null,
       "id": "nav.next",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "moved": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
       "stateful": true,
       "verb": "next"
     },
@@ -675,6 +1022,17 @@
       "gate_arg": null,
       "id": "nav.back",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "moved": {
+            "type": "boolean"
+          },
+          "scene": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": true,
       "verb": "back"
     },
@@ -695,6 +1053,14 @@
       "gate_arg": null,
       "id": "nav.forward",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "moved": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
       "stateful": true,
       "verb": "forward"
     },
@@ -715,6 +1081,17 @@
       "gate_arg": null,
       "id": "nav.up",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "moved": {
+            "type": "boolean"
+          },
+          "workspace": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": true,
       "verb": "up"
     },
@@ -735,6 +1112,23 @@
       "gate_arg": null,
       "id": "nav.switcher",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "current": {
+            "type": "string"
+          },
+          "previous": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "workspaces": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": true,
       "verb": "switcher"
     },
@@ -761,6 +1155,20 @@
       "gate_arg": null,
       "id": "document.get",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "format": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "get"
     },
@@ -797,6 +1205,20 @@
       "gate_arg": null,
       "id": "document.write",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "chars": {
+            "type": "integer"
+          },
+          "path": {
+            "type": "string"
+          },
+          "save": {
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "write"
     },
@@ -833,6 +1255,20 @@
       "gate_arg": null,
       "id": "document.rename",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "save": {
+            "type": "object"
+          },
+          "to": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "rename"
     },
@@ -867,6 +1303,17 @@
       "gate_arg": null,
       "id": "plot.get",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "blocks": {
+            "type": "array"
+          },
+          "level": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "get"
     },
@@ -911,6 +1358,23 @@
       "gate_arg": null,
       "id": "plot.write",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "chars": {
+            "type": "integer"
+          },
+          "level": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "save": {
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "write"
     },
@@ -946,6 +1410,23 @@
       "gate_arg": null,
       "id": "plot.set_state",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "save": {
+            "type": "object"
+          },
+          "scene": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "set_state"
     },
@@ -980,6 +1461,20 @@
       "gate_arg": null,
       "id": "plot.insert_section",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "save": {
+            "type": "object"
+          },
+          "scene": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "insert_section"
     },
@@ -1010,6 +1505,20 @@
       "gate_arg": null,
       "id": "plot.outline_fold",
       "lsp": "textDocument/foldingRange",
+      "returns": {
+        "properties": {
+          "chapter": {
+            "type": "integer"
+          },
+          "fold": {
+            "type": "boolean"
+          },
+          "folded": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "outline_fold"
     },
@@ -1030,6 +1539,17 @@
       "gate_arg": null,
       "id": "save.now",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "state": {
+            "type": "string"
+          },
+          "written": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": true,
       "verb": "now"
     },
@@ -1050,6 +1570,20 @@
       "gate_arg": null,
       "id": "save.state",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "conflicts": {
+            "type": "array"
+          },
+          "state": {
+            "type": "string"
+          },
+          "unsaved": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": true,
       "verb": "state"
     },
@@ -1076,6 +1610,17 @@
       "gate_arg": null,
       "id": "save.keep_mine",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "kept": {
+            "type": "array"
+          },
+          "save": {
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "stateful": true,
       "verb": "keep_mine"
     },
@@ -1102,6 +1647,14 @@
       "gate_arg": null,
       "id": "save.reload_external",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "reloaded": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": true,
       "verb": "reload_external"
     },
@@ -1128,6 +1681,14 @@
       "gate_arg": null,
       "id": "save.diff_external",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "diffs": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": true,
       "verb": "diff_external"
     },
@@ -1166,6 +1727,23 @@
       "gate_arg": "replace",
       "id": "search.file",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "path": {
+            "type": "string"
+          },
+          "replaced": {
+            "type": "boolean"
+          },
+          "save": {
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "file"
     },
@@ -1206,6 +1784,20 @@
       "gate_arg": null,
       "id": "search.replace_file",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "path": {
+            "type": "string"
+          },
+          "save": {
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "replace_file"
     },
@@ -1236,6 +1828,20 @@
       "gate_arg": null,
       "id": "search.project",
       "lsp": "workspace/symbol",
+      "returns": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "hits": {
+            "type": "array"
+          },
+          "query": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "project"
     },
@@ -1256,6 +1862,23 @@
       "gate_arg": null,
       "id": "search.find_next",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "range": {
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "selected": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
       "stateful": true,
       "verb": "find_next"
     },
@@ -1276,6 +1899,23 @@
       "gate_arg": null,
       "id": "search.find_prev",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "range": {
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "selected": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
       "stateful": true,
       "verb": "find_prev"
     },
@@ -1293,6 +1933,17 @@
       "gate_arg": null,
       "id": "materials.list",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "materials": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "list"
     },
@@ -1319,6 +1970,20 @@
       "gate_arg": null,
       "id": "materials.get",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "material": {
+            "type": "object"
+          },
+          "review": {
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "get"
     },
@@ -1350,6 +2015,29 @@
       "gate_arg": null,
       "id": "materials.approve",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "already": {
+            "type": "boolean"
+          },
+          "approved": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "renamed": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "save": {
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "approve"
     },
@@ -1385,6 +2073,20 @@
       "gate_arg": null,
       "id": "materials.reject",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "note": {
+            "type": "string"
+          },
+          "rejected": {
+            "type": "string"
+          },
+          "save": {
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "reject"
     },
@@ -1420,6 +2122,17 @@
       "gate_arg": null,
       "id": "materials.update",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "save": {
+            "type": "object"
+          },
+          "updated": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "update"
     },
@@ -1459,6 +2172,20 @@
       "gate_arg": null,
       "id": "materials.attach",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "attached": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "save": {
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "attach"
     },
@@ -1493,6 +2220,20 @@
       "gate_arg": null,
       "id": "materials.search",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "hits": {
+            "type": "array"
+          },
+          "query": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "search"
     },
@@ -1531,6 +2272,23 @@
       "gate_arg": null,
       "id": "materials.propose",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "save": {
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "propose"
     },
@@ -1548,6 +2306,17 @@
       "gate_arg": null,
       "id": "idea.list",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "ideas": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "list"
     },
@@ -1587,6 +2356,20 @@
       "gate_arg": null,
       "id": "idea.capture",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "captured": {
+            "type": "string"
+          },
+          "index": {
+            "type": "integer"
+          },
+          "save": {
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "capture"
     },
@@ -1627,6 +2410,23 @@
       "gate_arg": null,
       "id": "idea.promote",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "promoted": {
+            "type": "string"
+          },
+          "save": {
+            "type": "object"
+          },
+          "target": {
+            "type": "string"
+          },
+          "written": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "promote"
     },
@@ -1658,6 +2458,17 @@
       "gate_arg": null,
       "id": "idea.drop",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "dropped": {
+            "type": "string"
+          },
+          "save": {
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "drop"
     },
@@ -1694,6 +2505,20 @@
       "gate_arg": null,
       "id": "idea.write",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "chars": {
+            "type": "integer"
+          },
+          "save": {
+            "type": "object"
+          },
+          "written": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "write"
     },
@@ -1720,6 +2545,14 @@
       "gate_arg": null,
       "id": "cast.get",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "cast": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "get"
     },
@@ -1737,6 +2570,17 @@
       "gate_arg": null,
       "id": "cast.list",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "characters": {
+            "type": "array"
+          },
+          "count": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "list"
     },
@@ -1760,6 +2604,20 @@
       "gate_arg": null,
       "id": "cast.timeline",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "bands": {
+            "type": "array"
+          },
+          "chapters": {
+            "type": "array"
+          },
+          "index": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "timeline"
     },
@@ -1786,6 +2644,17 @@
       "gate_arg": null,
       "id": "cast.scan",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "unmatched": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "scan"
     },
@@ -1803,6 +2672,17 @@
       "gate_arg": null,
       "id": "dictionary.list",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "entries": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "list"
     },
@@ -1838,6 +2718,20 @@
       "gate_arg": null,
       "id": "dictionary.register_term",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "registered": {
+            "type": "string"
+          },
+          "save": {
+            "type": "object"
+          },
+          "written": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "register_term"
     },
@@ -1873,6 +2767,20 @@
       "gate_arg": null,
       "id": "dictionary.register_character",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "registered": {
+            "type": "string"
+          },
+          "save": {
+            "type": "object"
+          },
+          "written": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "register_character"
     },
@@ -1899,6 +2807,14 @@
       "gate_arg": null,
       "id": "dictionary.term_full",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "words": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "term_full"
     },
@@ -1916,6 +2832,17 @@
       "gate_arg": null,
       "id": "dictionary.modes_list",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "modes": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "modes_list"
     },
@@ -1943,6 +2870,20 @@
       "gate_arg": null,
       "id": "lang.tokens",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "path": {
+            "type": "string"
+          },
+          "tokens": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "tokens"
     },
@@ -1974,6 +2915,20 @@
       "gate_arg": null,
       "id": "lang.completion",
       "lsp": "textDocument/completion",
+      "returns": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "items": {
+            "type": "array"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "completion"
     },
@@ -2005,6 +2960,20 @@
       "gate_arg": null,
       "id": "lang.hover",
       "lsp": "textDocument/hover",
+      "returns": {
+        "properties": {
+          "hover": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "hover"
     },
@@ -2039,6 +3008,20 @@
       "gate_arg": null,
       "id": "lang.hints",
       "lsp": "textDocument/inlayHint",
+      "returns": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "hints": {
+            "type": "array"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "hints"
     },
@@ -2087,6 +3070,20 @@
       "gate_arg": "apply",
       "id": "lang.code_action",
       "lsp": "textDocument/codeAction",
+      "returns": {
+        "properties": {
+          "actions": {
+            "type": "array"
+          },
+          "count": {
+            "type": "integer"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "code_action"
     },
@@ -2118,6 +3115,20 @@
       "gate_arg": null,
       "id": "lang.definition",
       "lsp": "textDocument/definition",
+      "returns": {
+        "properties": {
+          "definition": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "definition"
     },
@@ -2149,6 +3160,20 @@
       "gate_arg": null,
       "id": "lang.references",
       "lsp": "textDocument/references",
+      "returns": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "path": {
+            "type": "string"
+          },
+          "references": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "references"
     },
@@ -2175,6 +3200,20 @@
       "gate_arg": null,
       "id": "lang.symbols",
       "lsp": "textDocument/documentSymbol",
+      "returns": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "path": {
+            "type": "string"
+          },
+          "symbols": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "symbols"
     },
@@ -2205,6 +3244,20 @@
       "gate_arg": null,
       "id": "lang.format",
       "lsp": "textDocument/formatting",
+      "returns": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "edits": {
+            "type": "array"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "format"
     },
@@ -2240,6 +3293,29 @@
       "gate_arg": null,
       "id": "lang.rename_preview",
       "lsp": "textDocument/rename",
+      "returns": {
+        "properties": {
+          "changes": {
+            "type": "array"
+          },
+          "edits": {
+            "type": "array"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "path": {
+            "type": "string"
+          },
+          "prepared": {
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "rename_preview"
     },
@@ -2281,6 +3357,20 @@
       "gate_arg": null,
       "id": "lang.rename_apply",
       "lsp": "textDocument/rename",
+      "returns": {
+        "properties": {
+          "renamed": {
+            "type": "array"
+          },
+          "save": {
+            "type": "object"
+          },
+          "written": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "rename_apply"
     },
@@ -2307,6 +3397,20 @@
       "gate_arg": null,
       "id": "lang.folding",
       "lsp": "textDocument/foldingRange",
+      "returns": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "path": {
+            "type": "string"
+          },
+          "ranges": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "folding"
     },
@@ -2338,6 +3442,20 @@
       "gate_arg": null,
       "id": "diagnostics.run",
       "lsp": "textDocument/publishDiagnostics",
+      "returns": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "errors": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "run"
     },
@@ -2365,6 +3483,17 @@
       "gate_arg": null,
       "id": "diagnostics.place",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "place": {
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "place"
     },
@@ -2382,6 +3511,17 @@
       "gate_arg": null,
       "id": "review.list",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "diagnostics": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "list"
     },
@@ -2411,6 +3551,23 @@
       "gate_arg": null,
       "id": "review.goto",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "byte": {
+            "type": "integer"
+          },
+          "code": {
+            "type": "string"
+          },
+          "index": {
+            "type": "integer"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": true,
       "verb": "goto"
     },
@@ -2428,6 +3585,17 @@
       "gate_arg": null,
       "id": "agent.task_list",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "tasks": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "task_list"
     },
@@ -2470,6 +3638,23 @@
       "gate_arg": null,
       "id": "agent.task_create",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "created": {
+            "type": "array"
+          },
+          "role": {
+            "type": "string"
+          },
+          "save": {
+            "type": "object"
+          },
+          "scope": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "task_create"
     },
@@ -2496,6 +3681,26 @@
       "gate_arg": null,
       "id": "agent.task_get",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "proposal": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "result": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "task": {
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "task_get"
     },
@@ -2527,6 +3732,17 @@
       "gate_arg": null,
       "id": "agent.task_run",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "notices": {
+            "type": "array"
+          },
+          "queued": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "task_run"
     },
@@ -2553,6 +3769,23 @@
       "gate_arg": null,
       "id": "agent.task_dry_run",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "chars": {
+            "type": "integer"
+          },
+          "path": {
+            "type": "string"
+          },
+          "save": {
+            "type": "object"
+          },
+          "task": {
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "task_dry_run"
     },
@@ -2584,6 +3817,17 @@
       "gate_arg": null,
       "id": "agent.task_stop",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "save": {
+            "type": "object"
+          },
+          "stopped": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "task_stop"
     },
@@ -2610,6 +3854,17 @@
       "gate_arg": null,
       "id": "agent.stop_all",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "save": {
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "stop_all"
     },
@@ -2627,6 +3882,17 @@
       "gate_arg": null,
       "id": "agent.proposal_list",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "proposals": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "proposal_list"
     },
@@ -2653,6 +3919,56 @@
       "gate_arg": null,
       "id": "agent.proposal_get",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "after": {
+            "type": "string"
+          },
+          "after_chars": {
+            "type": "integer"
+          },
+          "before": {
+            "type": "string"
+          },
+          "before_chars": {
+            "type": "integer"
+          },
+          "comment": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "drifted": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "origin": {
+            "type": "string"
+          },
+          "partial": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "proposal_get"
     },
@@ -2684,6 +4000,17 @@
       "gate_arg": null,
       "id": "agent.proposal_apply",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "applied": {
+            "type": "string"
+          },
+          "save": {
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "proposal_apply"
     },
@@ -2720,6 +4047,20 @@
       "gate_arg": null,
       "id": "agent.proposal_reject",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "comment": {
+            "type": "string"
+          },
+          "rejected": {
+            "type": "string"
+          },
+          "save": {
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "proposal_reject"
     },
@@ -2739,6 +4080,20 @@
       "gate_arg": null,
       "id": "agent.delegation_get",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "levels": {
+            "type": "array"
+          },
+          "max_parallel": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "delegation_get"
     },
@@ -2771,6 +4126,23 @@
       "gate_arg": null,
       "id": "agent.delegation_set",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "level": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "save": {
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "delegation_set"
     },
@@ -2788,6 +4160,20 @@
       "gate_arg": null,
       "id": "agent.mcp_config_get",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "servers": {
+            "type": "array"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "mcp_config_get"
     },
@@ -2811,6 +4197,20 @@
       "gate_arg": null,
       "id": "agent.mcp_config_validate",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "valid": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "mcp_config_validate"
     },
@@ -2839,6 +4239,20 @@
       "gate_arg": null,
       "id": "agent.mcp_config_set",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "chars": {
+            "type": "integer"
+          },
+          "path": {
+            "type": "string"
+          },
+          "save": {
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "mcp_config_set"
     },
@@ -2856,6 +4270,17 @@
       "gate_arg": null,
       "id": "agent.thread_list",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "threads": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "thread_list"
     },
@@ -2882,6 +4307,26 @@
       "gate_arg": null,
       "id": "agent.thread_get",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "messages": {
+            "type": "array"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "thread_get"
     },
@@ -2899,6 +4344,17 @@
       "gate_arg": null,
       "id": "agent.audit_list",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "events": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "audit_list"
     },
@@ -2930,6 +4386,20 @@
       "gate_arg": null,
       "id": "context.build",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "cap": {
+            "type": "integer"
+          },
+          "chars": {
+            "type": "integer"
+          },
+          "packet": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "build"
     },
@@ -2947,6 +4417,17 @@
       "gate_arg": null,
       "id": "prompt.list",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "prompts": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "list"
     },
@@ -2973,6 +4454,29 @@
       "gate_arg": null,
       "id": "prompt.get",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "blockers": {
+            "type": "array"
+          },
+          "edited": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "shared": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "get"
     },
@@ -2999,6 +4503,26 @@
       "gate_arg": null,
       "id": "prompt.diff",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "edited": {
+            "type": "boolean"
+          },
+          "lines": {
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "diff"
     },
@@ -3027,6 +4551,20 @@
       "gate_arg": null,
       "id": "prompt.reset",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "reset": {
+            "type": "integer"
+          },
+          "save": {
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "reset"
     },
@@ -3066,6 +4604,20 @@
       "gate_arg": null,
       "id": "mail.send",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "approved_by": {
+            "type": "string"
+          },
+          "message": {
+            "type": "integer"
+          },
+          "thread": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "send"
     },
@@ -3121,6 +4673,26 @@
       "gate_arg": "out",
       "id": "export.text",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "chars": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "out": {
+            "type": "string"
+          },
+          "range": {
+            "type": "string"
+          },
+          "sections": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "text"
     },
@@ -3144,6 +4716,44 @@
       "gate_arg": null,
       "id": "reference.pane",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "cast": {
+            "type": "array"
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "illustrations": {
+            "type": "array"
+          },
+          "materials": {
+            "type": "array"
+          },
+          "plot": {
+            "type": "array"
+          },
+          "plot_nav": {
+            "type": "object"
+          },
+          "scene": {
+            "type": "string"
+          },
+          "senses": {
+            "type": "array"
+          },
+          "space": {
+            "type": "array"
+          },
+          "upper": {
+            "type": "array"
+          },
+          "words": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "pane"
     },
@@ -3161,6 +4771,20 @@
       "gate_arg": null,
       "id": "settings.get",
       "lsp": "workspace/didChangeConfiguration",
+      "returns": {
+        "properties": {
+          "language": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "settings": {
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "get"
     },
@@ -3193,6 +4817,18 @@
       "gate_arg": null,
       "id": "settings.set",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "value": {}
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "set"
     },
@@ -3213,6 +4849,23 @@
       "gate_arg": null,
       "id": "session.workspace_get",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "current": {
+            "type": "string"
+          },
+          "previous": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "workspaces": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": true,
       "verb": "workspace_get"
     },
@@ -3242,6 +4895,17 @@
       "gate_arg": null,
       "id": "session.workspace_switch",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "current": {
+            "type": "string"
+          },
+          "moved": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
       "stateful": true,
       "verb": "workspace_switch"
     },
@@ -3268,6 +4932,17 @@
       "gate_arg": null,
       "id": "session.recent_document",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "moved": {
+            "type": "boolean"
+          },
+          "recent": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": true,
       "verb": "recent_document"
     },
@@ -3297,6 +4972,37 @@
       "gate_arg": null,
       "id": "session.command",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "data": {},
+          "gui_only": {
+            "type": "boolean"
+          },
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "moved": {
+            "type": "boolean"
+          },
+          "op": {
+            "type": "string"
+          },
+          "scene": {
+            "type": "string"
+          },
+          "value": {},
+          "workspace": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": true,
       "verb": "command"
     },
@@ -3317,6 +5023,17 @@
       "gate_arg": null,
       "id": "session.poll_events",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "events": {
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "stateful": true,
       "verb": "poll_events"
     },
@@ -3340,6 +5057,20 @@
       "gate_arg": null,
       "id": "help.topic",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "topic": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "topic"
     },
@@ -3357,6 +5088,26 @@
       "gate_arg": null,
       "id": "api.list",
       "lsp": null,
+      "returns": {
+        "properties": {
+          "catalog_version": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer"
+          },
+          "interfaces": {
+            "type": "array"
+          },
+          "operations": {
+            "type": "array"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "stateful": false,
       "verb": "list"
     }

@@ -15,6 +15,7 @@ pub mod editing;
 pub mod knowledge;
 pub mod lang;
 pub mod project;
+pub mod returns;
 pub mod session_ops;
 
 use serde_json::{json, Map, Value};
@@ -189,6 +190,25 @@ impl OpDef {
         schema
     }
 
+    /// 戻り値の形（§19.8.2 の `returns`。`REF:src/app/ops/returns.rs`）。
+    ///
+    /// キーは「ありうるキー」の一覧で、`required` は出さない（省略されうるキーがあるため）。
+    /// `any` は型を書かない（どんな値も取りうる）。
+    pub fn returns_schema(&self) -> Value {
+        let mut properties = Map::new();
+        for (key, kind) in returns::returns_of(self.id) {
+            let schema = if *kind == "any" {
+                json!({})
+            } else if let Some((left, right)) = kind.split_once('|') {
+                json!({ "type": [left, right] })
+            } else {
+                json!({ "type": kind })
+            };
+            properties.insert((*key).to_owned(), schema);
+        }
+        json!({ "type": "object", "properties": Value::Object(properties) })
+    }
+
     /// `api.list` の 1 件（§19.8.2）。
     pub fn to_json(&self, locale: Locale) -> Value {
         let mut entry = Map::new();
@@ -214,6 +234,7 @@ impl OpDef {
                 None => Value::Null,
             },
         );
+        entry.insert("returns".to_owned(), self.returns_schema());
         entry.insert("stateful".to_owned(), json!(self.stateful));
         let mut exceptions = Map::new();
         for (column, reason) in self.exceptions {

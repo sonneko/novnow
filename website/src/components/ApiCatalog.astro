@@ -29,7 +29,7 @@ const domains = [...new Set(operations.map((operation) => operation.domain))];
       <h1 class="page-title">{japanese ? "API リファレンス" : "API reference"}</h1>
       <p class="page-lead">
         {japanese
-          ? `novnow の機能は ${operations.length} の正規操作（canonical operation）に整理されていて、Rust API・Python・LSP・MCP・CLI の 5 つの口から同じ実装を呼び出せます。この表は仕様書 §19.7 の写しで、引数は \`api.list\`（§19.8.2）から取り、CI が実装と突き合わせています。`
+          ? `novnow の機能は ${operations.length} の正規操作（canonical operation）に整理されていて、Rust API・Python・LSP・MCP・CLI の 5 つの口から同じ実装を呼び出せます。この表は仕様書 §19.7 の写しで、引数と戻り値のキーは \`api.list\`（§19.8.2）から取り、CI が実装と突き合わせています。`
           : `Every novnow feature is ${operations.length} canonical operations. Five interfaces — Rust, Python, LSP, MCP and the CLI — call the same implementation. This table mirrors §19.7 of the specification; the arguments come from \`api.list\` (§19.8.2) and CI checks both against the code.`}
       </p>
 
@@ -69,6 +69,7 @@ tools/call { "name": "novnow.section.list", "arguments": {} }`}</code></pre>
                   <th>{japanese ? "操作" : "Operation"}</th>
                   <th>{japanese ? "説明" : "Description"}</th>
                   <th>{japanese ? "引数（* は必須）" : "Arguments (* required)"}</th>
+                  <th>{japanese ? "戻り値のキー" : "Result keys"}</th>
                   <th>{japanese ? "LSP 標準メソッド" : "LSP method"}</th>
                   <th>{japanese ? "例外" : "Exceptions"}</th>
                 </tr>
@@ -91,6 +92,15 @@ tools/call { "name": "novnow.section.list", "arguments": {} }`}</code></pre>
                               {arg.name}
                               {arg.required ? "*" : ""}
                             </code>
+                          ))
+                        )}
+                      </td>
+                      <td class="cell-returns">
+                        {operation.returns.length === 0 ? (
+                          <span class="muted-dash">—</span>
+                        ) : (
+                          operation.returns.map((key) => (
+                            <code class="return-chip">{key}</code>
                           ))
                         )}
                       </td>
@@ -270,6 +280,21 @@ tools/call { "name": "novnow.section.list", "arguments": {} }`}</code></pre>
     padding: 0.15rem 0.42rem;
     border-radius: 6px;
     font-size: 0.88em;
+    white-space: nowrap;
+  }
+
+  .cell-returns {
+    max-width: 260px;
+  }
+
+  .return-chip {
+    display: inline-block;
+    margin: 0 0.25rem 0.25rem 0;
+    color: $text-muted;
+    background-color: rgba(153, 161, 179, 0.12);
+    padding: 0.1rem 0.34rem;
+    border-radius: 5px;
+    font-size: 0.78em;
     white-space: nowrap;
   }
 

@@ -79,6 +79,7 @@ fn the_catalog_lists_every_canonical_operation() {
             "verb",
             "description",
             "arguments",
+            "returns",
             "gate",
             "stateful",
             "exceptions",

@@ -108,6 +108,15 @@ def arguments_by_id() -> dict[str, list[dict]]:
     return out
 
 
+def returns_by_id() -> dict[str, list[str]]:
+    """`api.list` の `returns`（戻り値の形）から、表に出すキー名の並びを作る。"""
+    catalog = json.loads(read_text(CATALOG))
+    return {
+        operation["id"]: list(operation.get("returns", {}).get("properties", {}))
+        for operation in catalog.get("operations", [])
+    }
+
+
 def main() -> int:
     rows = catalog_rows(read_text(SPEC))
     if len(rows) != 121 or len({row["id"] for row in rows}) != len(rows):
@@ -118,7 +127,8 @@ def main() -> int:
         if missing:
             raise SystemExit(f"{language}: missing api.op.* for {missing[:5]} ({len(missing)})")
     args = arguments_by_id()
-    missing = [row["id"] for row in rows if row["id"] not in args]
+    returns = returns_by_id()
+    missing = [row["id"] for row in rows if row["id"] not in args or row["id"] not in returns]
     if missing:
         raise SystemExit(f"{CATALOG} に無い操作がある: {missing[:5]}（{len(missing)}）")
     payload = [
@@ -130,6 +140,7 @@ def main() -> int:
             lsp=row["lsp"],
             exceptions=row["exceptions"],
             args=args[row["id"]],
+            returns=returns[row["id"]],
         )
         for row in rows
     ]

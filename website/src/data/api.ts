@@ -8,7 +8,15 @@ export const operations = [
     "en": "Project information (title, author, encoding, version)",
     "lsp": "",
     "exceptions": "",
-    "args": []
+    "args": [],
+    "returns": [
+      "chapters",
+      "chars",
+      "episodes",
+      "scenes",
+      "sections",
+      "title"
+    ]
   },
   {
     "id": "project.new",
@@ -28,6 +36,11 @@ export const operations = [
         "type": "string",
         "required": false
       }
+    ],
+    "returns": [
+      "files",
+      "path",
+      "title"
     ]
   },
   {
@@ -37,7 +50,13 @@ export const operations = [
     "en": "Validate the project structure",
     "lsp": "",
     "exceptions": "",
-    "args": []
+    "args": [],
+    "returns": [
+      "diagnostics",
+      "errors",
+      "ok",
+      "structure"
+    ]
   },
   {
     "id": "project.reload",
@@ -46,7 +65,11 @@ export const operations = [
     "en": "Reload the project from storage",
     "lsp": "",
     "exceptions": "M—・C—（状態性）",
-    "args": []
+    "args": [],
+    "returns": [
+      "files",
+      "reloaded"
+    ]
   },
   {
     "id": "project.stats",
@@ -55,7 +78,17 @@ export const operations = [
     "en": "Writing statistics",
     "lsp": "",
     "exceptions": "",
-    "args": []
+    "args": [],
+    "returns": [
+      "chapters",
+      "dialogue_chars",
+      "dialogue_ratio",
+      "newline",
+      "sections",
+      "speakers",
+      "title",
+      "total_chars"
+    ]
   },
   {
     "id": "project.recent_list",
@@ -64,7 +97,10 @@ export const operations = [
     "en": "Recently opened projects",
     "lsp": "",
     "exceptions": "M—（状態性）",
-    "args": []
+    "args": [],
+    "returns": [
+      "projects"
+    ]
   },
   {
     "id": "project.recent_remove",
@@ -79,6 +115,10 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "projects",
+      "removed"
     ]
   },
   {
@@ -99,6 +139,10 @@ export const operations = [
         "type": "string",
         "required": false
       }
+    ],
+    "returns": [
+      "skipped",
+      "written"
     ]
   },
   {
@@ -114,6 +158,12 @@ export const operations = [
         "type": "string",
         "required": false
       }
+    ],
+    "returns": [
+      "bytes",
+      "name",
+      "out",
+      "size"
     ]
   },
   {
@@ -134,6 +184,10 @@ export const operations = [
         "type": "integer",
         "required": false
       }
+    ],
+    "returns": [
+      "level",
+      "nodes"
     ]
   },
   {
@@ -149,6 +203,13 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "id",
+      "lines",
+      "path",
+      "resolved",
+      "title"
     ]
   },
   {
@@ -158,7 +219,11 @@ export const operations = [
     "en": "Breadcrumb of the current position",
     "lsp": "",
     "exceptions": "M—・C—（状態性）",
-    "args": []
+    "args": [],
+    "returns": [
+      "breadcrumb",
+      "scene"
+    ]
   },
   {
     "id": "section.list",
@@ -173,6 +238,10 @@ export const operations = [
         "type": "string",
         "required": false
       }
+    ],
+    "returns": [
+      "count",
+      "sections"
     ]
   },
   {
@@ -188,6 +257,13 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "after",
+      "before",
+      "path",
+      "scene",
+      "text"
     ]
   },
   {
@@ -213,6 +289,12 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "chars",
+      "path",
+      "save",
+      "scene"
     ]
   },
   {
@@ -238,6 +320,11 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "id",
+      "pending",
+      "save"
     ]
   },
   {
@@ -258,6 +345,10 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "deleted",
+      "save"
     ]
   },
   {
@@ -267,7 +358,11 @@ export const operations = [
     "en": "Confirm the next unconfirmed section",
     "lsp": "",
     "exceptions": "M—・C—（状態性）",
-    "args": []
+    "args": [],
+    "returns": [
+      "confirmed",
+      "scene"
+    ]
   },
   {
     "id": "section.split",
@@ -292,6 +387,11 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "save",
+      "scene",
+      "split"
     ]
   },
   {
@@ -317,6 +417,10 @@ export const operations = [
         "type": "string",
         "required": false
       }
+    ],
+    "returns": [
+      "proposal",
+      "status"
     ]
   },
   {
@@ -337,6 +441,10 @@ export const operations = [
         "type": "string",
         "required": false
       }
+    ],
+    "returns": [
+      "path",
+      "scene"
     ]
   },
   {
@@ -352,6 +460,10 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "path",
+      "scene"
     ]
   },
   {
@@ -372,6 +484,11 @@ export const operations = [
         "type": "string",
         "required": false
       }
+    ],
+    "returns": [
+      "byte",
+      "line",
+      "path"
     ]
   },
   {
@@ -381,7 +498,10 @@ export const operations = [
     "en": "Previous position",
     "lsp": "",
     "exceptions": "M—・C—（状態性）",
-    "args": []
+    "args": [],
+    "returns": [
+      "moved"
+    ]
   },
   {
     "id": "nav.next",
@@ -390,7 +510,10 @@ export const operations = [
     "en": "Next position",
     "lsp": "",
     "exceptions": "M—・C—（状態性）",
-    "args": []
+    "args": [],
+    "returns": [
+      "moved"
+    ]
   },
   {
     "id": "nav.back",
@@ -399,7 +522,11 @@ export const operations = [
     "en": "Move to the parent level",
     "lsp": "",
     "exceptions": "M—・C—（状態性）",
-    "args": []
+    "args": [],
+    "returns": [
+      "moved",
+      "scene"
+    ]
   },
   {
     "id": "nav.forward",
@@ -408,7 +535,10 @@ export const operations = [
     "en": "Move to the first child",
     "lsp": "",
     "exceptions": "M—・C—（状態性）",
-    "args": []
+    "args": [],
+    "returns": [
+      "moved"
+    ]
   },
   {
     "id": "nav.up",
@@ -417,7 +547,11 @@ export const operations = [
     "en": "Move one level up",
     "lsp": "",
     "exceptions": "M—・C—（状態性。`plot.get` の level 指定で代替）",
-    "args": []
+    "args": [],
+    "returns": [
+      "moved",
+      "workspace"
+    ]
   },
   {
     "id": "nav.switcher",
@@ -426,7 +560,12 @@ export const operations = [
     "en": "Workspace switcher list",
     "lsp": "",
     "exceptions": "M—・C—（状態性）",
-    "args": []
+    "args": [],
+    "returns": [
+      "current",
+      "previous",
+      "workspaces"
+    ]
   },
   {
     "id": "document.get",
@@ -441,6 +580,11 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "format",
+      "path",
+      "text"
     ]
   },
   {
@@ -466,6 +610,11 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "chars",
+      "path",
+      "save"
     ]
   },
   {
@@ -491,6 +640,11 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "from",
+      "save",
+      "to"
     ]
   },
   {
@@ -516,6 +670,10 @@ export const operations = [
         "type": "integer",
         "required": false
       }
+    ],
+    "returns": [
+      "blocks",
+      "level"
     ]
   },
   {
@@ -551,6 +709,12 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "chars",
+      "level",
+      "path",
+      "save"
     ]
   },
   {
@@ -576,6 +740,12 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "path",
+      "save",
+      "scene",
+      "state"
     ]
   },
   {
@@ -601,6 +771,11 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "path",
+      "save",
+      "scene"
     ]
   },
   {
@@ -621,6 +796,11 @@ export const operations = [
         "type": "boolean",
         "required": false
       }
+    ],
+    "returns": [
+      "chapter",
+      "fold",
+      "folded"
     ]
   },
   {
@@ -630,7 +810,11 @@ export const operations = [
     "en": "Save now",
     "lsp": "",
     "exceptions": "M—・C—（状態性）",
-    "args": []
+    "args": [],
+    "returns": [
+      "state",
+      "written"
+    ]
   },
   {
     "id": "save.state",
@@ -639,7 +823,12 @@ export const operations = [
     "en": "State of the save machine",
     "lsp": "",
     "exceptions": "M—・C—（状態性）",
-    "args": []
+    "args": [],
+    "returns": [
+      "conflicts",
+      "state",
+      "unsaved"
+    ]
   },
   {
     "id": "save.keep_mine",
@@ -654,6 +843,10 @@ export const operations = [
         "type": "string",
         "required": false
       }
+    ],
+    "returns": [
+      "kept",
+      "save"
     ]
   },
   {
@@ -669,6 +862,9 @@ export const operations = [
         "type": "string",
         "required": false
       }
+    ],
+    "returns": [
+      "reloaded"
     ]
   },
   {
@@ -684,6 +880,9 @@ export const operations = [
         "type": "string",
         "required": false
       }
+    ],
+    "returns": [
+      "diffs"
     ]
   },
   {
@@ -714,6 +913,12 @@ export const operations = [
         "type": "string",
         "required": false
       }
+    ],
+    "returns": [
+      "count",
+      "path",
+      "replaced",
+      "save"
     ]
   },
   {
@@ -744,6 +949,11 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "count",
+      "path",
+      "save"
     ]
   },
   {
@@ -764,6 +974,11 @@ export const operations = [
         "type": "boolean",
         "required": false
       }
+    ],
+    "returns": [
+      "count",
+      "hits",
+      "query"
     ]
   },
   {
@@ -773,7 +988,11 @@ export const operations = [
     "en": "Next match",
     "lsp": "",
     "exceptions": "M—・C—（状態性）",
-    "args": []
+    "args": [],
+    "returns": [
+      "range",
+      "selected"
+    ]
   },
   {
     "id": "search.find_prev",
@@ -782,7 +1001,11 @@ export const operations = [
     "en": "Previous match",
     "lsp": "",
     "exceptions": "M—・C—（状態性）",
-    "args": []
+    "args": [],
+    "returns": [
+      "range",
+      "selected"
+    ]
   },
   {
     "id": "materials.list",
@@ -791,7 +1014,11 @@ export const operations = [
     "en": "List materials",
     "lsp": "",
     "exceptions": "",
-    "args": []
+    "args": [],
+    "returns": [
+      "count",
+      "materials"
+    ]
   },
   {
     "id": "materials.get",
@@ -806,6 +1033,11 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "body",
+      "material",
+      "review"
     ]
   },
   {
@@ -826,6 +1058,13 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "already",
+      "approved",
+      "id",
+      "renamed",
+      "save"
     ]
   },
   {
@@ -851,6 +1090,11 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "note",
+      "rejected",
+      "save"
     ]
   },
   {
@@ -876,6 +1120,10 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "save",
+      "updated"
     ]
   },
   {
@@ -906,6 +1154,11 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "attached",
+      "path",
+      "save"
     ]
   },
   {
@@ -931,6 +1184,11 @@ export const operations = [
         "type": "string",
         "required": false
       }
+    ],
+    "returns": [
+      "count",
+      "hits",
+      "query"
     ]
   },
   {
@@ -961,6 +1219,12 @@ export const operations = [
         "type": "string",
         "required": false
       }
+    ],
+    "returns": [
+      "body",
+      "id",
+      "path",
+      "save"
     ]
   },
   {
@@ -970,7 +1234,11 @@ export const operations = [
     "en": "List ideas",
     "lsp": "",
     "exceptions": "",
-    "args": []
+    "args": [],
+    "returns": [
+      "count",
+      "ideas"
+    ]
   },
   {
     "id": "idea.capture",
@@ -1000,6 +1268,11 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "captured",
+      "index",
+      "save"
     ]
   },
   {
@@ -1030,6 +1303,12 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "promoted",
+      "save",
+      "target",
+      "written"
     ]
   },
   {
@@ -1050,6 +1329,10 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "dropped",
+      "save"
     ]
   },
   {
@@ -1075,6 +1358,11 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "chars",
+      "save",
+      "written"
     ]
   },
   {
@@ -1090,6 +1378,9 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "cast"
     ]
   },
   {
@@ -1099,7 +1390,11 @@ export const operations = [
     "en": "List characters",
     "lsp": "",
     "exceptions": "",
-    "args": []
+    "args": [],
+    "returns": [
+      "characters",
+      "count"
+    ]
   },
   {
     "id": "cast.timeline",
@@ -1114,6 +1409,11 @@ export const operations = [
         "type": "integer",
         "required": false
       }
+    ],
+    "returns": [
+      "bands",
+      "chapters",
+      "index"
     ]
   },
   {
@@ -1129,6 +1429,10 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "count",
+      "unmatched"
     ]
   },
   {
@@ -1138,7 +1442,11 @@ export const operations = [
     "en": "Dictionary entries",
     "lsp": "",
     "exceptions": "",
-    "args": []
+    "args": [],
+    "returns": [
+      "count",
+      "entries"
+    ]
   },
   {
     "id": "dictionary.register_term",
@@ -1163,6 +1471,11 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "registered",
+      "save",
+      "written"
     ]
   },
   {
@@ -1188,6 +1501,11 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "registered",
+      "save",
+      "written"
     ]
   },
   {
@@ -1203,6 +1521,9 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "words"
     ]
   },
   {
@@ -1212,7 +1533,11 @@ export const operations = [
     "en": "All role-language modes",
     "lsp": "",
     "exceptions": "",
-    "args": []
+    "args": [],
+    "returns": [
+      "count",
+      "modes"
+    ]
   },
   {
     "id": "lang.tokens",
@@ -1232,6 +1557,11 @@ export const operations = [
         "type": "string",
         "required": false
       }
+    ],
+    "returns": [
+      "count",
+      "path",
+      "tokens"
     ]
   },
   {
@@ -1252,6 +1582,11 @@ export const operations = [
         "type": "integer",
         "required": true
       }
+    ],
+    "returns": [
+      "count",
+      "items",
+      "path"
     ]
   },
   {
@@ -1272,6 +1607,10 @@ export const operations = [
         "type": "integer",
         "required": true
       }
+    ],
+    "returns": [
+      "hover",
+      "path"
     ]
   },
   {
@@ -1297,6 +1636,11 @@ export const operations = [
         "type": "integer",
         "required": false
       }
+    ],
+    "returns": [
+      "count",
+      "hints",
+      "path"
     ]
   },
   {
@@ -1337,6 +1681,11 @@ export const operations = [
         "type": "string",
         "required": false
       }
+    ],
+    "returns": [
+      "actions",
+      "count",
+      "path"
     ]
   },
   {
@@ -1357,6 +1706,10 @@ export const operations = [
         "type": "integer",
         "required": true
       }
+    ],
+    "returns": [
+      "definition",
+      "path"
     ]
   },
   {
@@ -1377,6 +1730,11 @@ export const operations = [
         "type": "integer",
         "required": true
       }
+    ],
+    "returns": [
+      "count",
+      "path",
+      "references"
     ]
   },
   {
@@ -1392,6 +1750,11 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "count",
+      "path",
+      "symbols"
     ]
   },
   {
@@ -1412,6 +1775,11 @@ export const operations = [
         "type": "boolean",
         "required": false
       }
+    ],
+    "returns": [
+      "count",
+      "edits",
+      "path"
     ]
   },
   {
@@ -1437,6 +1805,13 @@ export const operations = [
         "type": "string",
         "required": false
       }
+    ],
+    "returns": [
+      "changes",
+      "edits",
+      "error",
+      "path",
+      "prepared"
     ]
   },
   {
@@ -1467,6 +1842,11 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "renamed",
+      "save",
+      "written"
     ]
   },
   {
@@ -1482,6 +1862,11 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "count",
+      "path",
+      "ranges"
     ]
   },
   {
@@ -1507,6 +1892,11 @@ export const operations = [
         "type": "string",
         "required": false
       }
+    ],
+    "returns": [
+      "count",
+      "diagnostics",
+      "errors"
     ]
   },
   {
@@ -1527,6 +1917,10 @@ export const operations = [
         "type": "integer",
         "required": false
       }
+    ],
+    "returns": [
+      "path",
+      "place"
     ]
   },
   {
@@ -1536,7 +1930,11 @@ export const operations = [
     "en": "Review items",
     "lsp": "",
     "exceptions": "",
-    "args": []
+    "args": [],
+    "returns": [
+      "count",
+      "diagnostics"
+    ]
   },
   {
     "id": "review.goto",
@@ -1551,6 +1949,12 @@ export const operations = [
         "type": "integer",
         "required": true
       }
+    ],
+    "returns": [
+      "byte",
+      "code",
+      "index",
+      "path"
     ]
   },
   {
@@ -1560,7 +1964,11 @@ export const operations = [
     "en": "List agent tasks",
     "lsp": "",
     "exceptions": "",
-    "args": []
+    "args": [],
+    "returns": [
+      "count",
+      "tasks"
+    ]
   },
   {
     "id": "agent.task_create",
@@ -1595,6 +2003,12 @@ export const operations = [
         "type": "string",
         "required": false
       }
+    ],
+    "returns": [
+      "created",
+      "role",
+      "save",
+      "scope"
     ]
   },
   {
@@ -1610,6 +2024,11 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "proposal",
+      "result",
+      "task"
     ]
   },
   {
@@ -1630,6 +2049,10 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "notices",
+      "queued"
     ]
   },
   {
@@ -1645,6 +2068,12 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "chars",
+      "path",
+      "save",
+      "task"
     ]
   },
   {
@@ -1665,6 +2094,10 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "save",
+      "stopped"
     ]
   },
   {
@@ -1680,6 +2113,10 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "message",
+      "save"
     ]
   },
   {
@@ -1689,7 +2126,11 @@ export const operations = [
     "en": "List proposals",
     "lsp": "",
     "exceptions": "",
-    "args": []
+    "args": [],
+    "returns": [
+      "count",
+      "proposals"
+    ]
   },
   {
     "id": "agent.proposal_get",
@@ -1704,6 +2145,23 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "after",
+      "after_chars",
+      "before",
+      "before_chars",
+      "comment",
+      "created_at",
+      "drifted",
+      "id",
+      "kind",
+      "note",
+      "origin",
+      "partial",
+      "status",
+      "target",
+      "updated_at"
     ]
   },
   {
@@ -1724,6 +2182,10 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "applied",
+      "save"
     ]
   },
   {
@@ -1749,6 +2211,11 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "comment",
+      "rejected",
+      "save"
     ]
   },
   {
@@ -1758,7 +2225,12 @@ export const operations = [
     "en": "Delegation levels",
     "lsp": "",
     "exceptions": "M—（安全: 人間専用）",
-    "args": []
+    "args": [],
+    "returns": [
+      "enabled",
+      "levels",
+      "max_parallel"
+    ]
   },
   {
     "id": "agent.delegation_set",
@@ -1778,6 +2250,12 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "level",
+      "message",
+      "role",
+      "save"
     ]
   },
   {
@@ -1787,7 +2265,12 @@ export const operations = [
     "en": "Read the MCP configuration",
     "lsp": "",
     "exceptions": "",
-    "args": []
+    "args": [],
+    "returns": [
+      "path",
+      "servers",
+      "text"
+    ]
   },
   {
     "id": "agent.mcp_config_validate",
@@ -1802,6 +2285,11 @@ export const operations = [
         "type": "string",
         "required": false
       }
+    ],
+    "returns": [
+      "count",
+      "diagnostics",
+      "valid"
     ]
   },
   {
@@ -1817,6 +2305,11 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "chars",
+      "path",
+      "save"
     ]
   },
   {
@@ -1826,7 +2319,11 @@ export const operations = [
     "en": "List mail threads",
     "lsp": "",
     "exceptions": "",
-    "args": []
+    "args": [],
+    "returns": [
+      "count",
+      "threads"
+    ]
   },
   {
     "id": "agent.thread_get",
@@ -1841,6 +2338,13 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "id",
+      "messages",
+      "scope",
+      "status",
+      "title"
     ]
   },
   {
@@ -1850,7 +2354,11 @@ export const operations = [
     "en": "Audit log",
     "lsp": "",
     "exceptions": "",
-    "args": []
+    "args": [],
+    "returns": [
+      "count",
+      "events"
+    ]
   },
   {
     "id": "context.build",
@@ -1870,6 +2378,11 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "cap",
+      "chars",
+      "packet"
     ]
   },
   {
@@ -1879,7 +2392,11 @@ export const operations = [
     "en": "List prompt files",
     "lsp": "",
     "exceptions": "",
-    "args": []
+    "args": [],
+    "returns": [
+      "count",
+      "prompts"
+    ]
   },
   {
     "id": "prompt.get",
@@ -1894,6 +2411,14 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "blockers",
+      "edited",
+      "name",
+      "path",
+      "shared",
+      "text"
     ]
   },
   {
@@ -1909,6 +2434,13 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "count",
+      "edited",
+      "lines",
+      "name",
+      "path"
     ]
   },
   {
@@ -1924,6 +2456,11 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "name",
+      "reset",
+      "save"
     ]
   },
   {
@@ -1954,6 +2491,11 @@ export const operations = [
         "type": "string",
         "required": false
       }
+    ],
+    "returns": [
+      "approved_by",
+      "message",
+      "thread"
     ]
   },
   {
@@ -2009,6 +2551,13 @@ export const operations = [
         "type": "string",
         "required": false
       }
+    ],
+    "returns": [
+      "chars",
+      "name",
+      "out",
+      "range",
+      "sections"
     ]
   },
   {
@@ -2024,6 +2573,19 @@ export const operations = [
         "type": "string",
         "required": false
       }
+    ],
+    "returns": [
+      "cast",
+      "diagnostics",
+      "illustrations",
+      "materials",
+      "plot",
+      "plot_nav",
+      "scene",
+      "senses",
+      "space",
+      "upper",
+      "words"
     ]
   },
   {
@@ -2033,7 +2595,12 @@ export const operations = [
     "en": "Read the settings",
     "lsp": "workspace/didChangeConfiguration（通知）",
     "exceptions": "",
-    "args": []
+    "args": [],
+    "returns": [
+      "language",
+      "path",
+      "settings"
+    ]
   },
   {
     "id": "settings.set",
@@ -2053,6 +2620,11 @@ export const operations = [
         "type": "string",
         "required": false
       }
+    ],
+    "returns": [
+      "key",
+      "language",
+      "value"
     ]
   },
   {
@@ -2062,7 +2634,12 @@ export const operations = [
     "en": "Current workspace",
     "lsp": "",
     "exceptions": "M—・C—（状態性）",
-    "args": []
+    "args": [],
+    "returns": [
+      "current",
+      "previous",
+      "workspaces"
+    ]
   },
   {
     "id": "session.workspace_switch",
@@ -2077,6 +2654,10 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "current",
+      "moved"
     ]
   },
   {
@@ -2092,6 +2673,10 @@ export const operations = [
         "type": "boolean",
         "required": false
       }
+    ],
+    "returns": [
+      "moved",
+      "recent"
     ]
   },
   {
@@ -2107,6 +2692,18 @@ export const operations = [
         "type": "string",
         "required": true
       }
+    ],
+    "returns": [
+      "command",
+      "data",
+      "gui_only",
+      "key",
+      "label",
+      "moved",
+      "op",
+      "scene",
+      "value",
+      "workspace"
     ]
   },
   {
@@ -2116,7 +2713,11 @@ export const operations = [
     "en": "Drain the event queue",
     "lsp": "novnow/* 通知（配信）",
     "exceptions": "M—・C—（状態性）",
-    "args": []
+    "args": [],
+    "returns": [
+      "count",
+      "events"
+    ]
   },
   {
     "id": "help.topic",
@@ -2131,6 +2732,11 @@ export const operations = [
         "type": "string",
         "required": false
       }
+    ],
+    "returns": [
+      "text",
+      "title",
+      "topic"
     ]
   },
   {
@@ -2140,6 +2746,13 @@ export const operations = [
     "en": "Machine-readable catalog of the canonical operations",
     "lsp": "",
     "exceptions": "",
-    "args": []
+    "args": [],
+    "returns": [
+      "catalog_version",
+      "count",
+      "interfaces",
+      "operations",
+      "version"
+    ]
   }
 ] as const;

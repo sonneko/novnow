@@ -89,4 +89,5 @@
 - 版番号は `VERSION` 定数（`env!("CARGO_PKG_VERSION")`、`REF:src/cli/mod.rs`）を単一の真実とし、`Session::version()`・`novnow.__version__`・LSP の `serverInfo`・MCP のサーバ情報が共有する。
 - 互換性の凍結は回帰テストが守る: 既存 14 ツールは `REF:tests/mcp_stdio.rs`、既存サブコマンドと終了コードは `REF:tests/cli.rs`、カタログ全体は `tests/golden/api_catalog.json`。
 - 配布: ホイールのビルド・公開ジョブを `REF:.github/workflows/` 配下へ追加する。ウェブサイト（Astro、`REF:website/package.json`）には API リファレンスページを H7 で追加し、ゴールデンのカタログを静的 JSON として公開する。ページは `REF:scripts/api-site.py` の生成物（`REF:website/src/data/api.ts`）だけを読み、見出しの操作数も生成物の件数から出す（手書きの数を置かない）。
-- 未実装（v1 では行わない）: `api.list` の `returns`（戻り値のスキーマ）。戻り値の形は各インターフェースの節と実装・ゴールデンで読む。ウェブサイトの操作ごとの例も未掲載（共通の呼び出し例のみ）。仕様書 §19.8.2・§19.8.4 に〔状態: 未実装〕として注記してある。
+- `api.list` の `returns`（戻り値のスキーマ）: 操作ごとの戻り値の形を `REF:src/app/ops/returns.rs` の 1 つの表（操作 ID の昇順）に宣言し、`api.list` の `returns`・ウェブサイトの「戻り値のキー」列へ同じ表から配る。宣言は `REF:tests/api_returns.rs` が**実際に叩いた戻り値**と突き合わせる（宣言に無いキーが出たら不合格、型が違えば不合格）。`null` を取りうる値は型を並べ（`["object", "null"]`）、形が可変の値は型を書かない。
+- 未実装（v1 では行わない）: ウェブサイトの操作ごとの例（共通の呼び出し例のみ。仕様書 §19.8.4 に注記）。MCP の `outputSchema` も出さない（戻り値の形は `api.list` で示す）。

@@ -2334,3 +2334,14 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - **凍結ツール表の件数**（`REF:docs/designs/interfaces.md` §19.5）: 「M—」でない操作は 86 件、うち 13 件は凍結ツールと同名なので新しいツールは 73 件、ツール表は 87 件。設計書が「72 件 = 86 件」と書いていたのを直し、`novnow.lexicon.search` が操作 `dictionary.term_full` の別名であることも書いた（`REF:tests/mcp_frozen.rs` の 35 / 87 と一致）。
 - **ja 辞書の不具合**: `api.op.project.info` が「プロジェクト基本情報ワークスペース見出し」と 2 つの文言が繋がっていた（過去の一括置換の巻き添え）。「プロジェクト基本情報（タイトル・作者・言語・版）」に直した。
 - テスト: `bash scripts/verify.sh` は **13 ジョブすべて緑**（1461 passed / 68 ターゲット）、`cargo test --locked --doc` 2 本緑、`REF:python/novnow-py/tests/test_binding.py` 13 本、`REF:docs/script/reference.py` 13 項目 OK、`REF:docs/script/duplicate.py` OK。
+
+## 2026-10-28: 仕様書を正本とした整合・第八巡（第 8 段。`api.list` の戻り値スキーマを実装）
+
+- 前段で〔状態: 未実装〕と注記した `api.list` の `returns`（戻り値の形）を実装した。§19.8.2 の MUST（ID・説明・引数スキーマ・**戻り値の形**・例外・関門・パレット名）がこれで揃った。
+- **宣言**: `REF:src/app/ops/returns.rs` に「操作 ID → (キー, JSON Schema の型) の並び」の 1 つの表を置いた（121 操作・ID 昇順）。`null` を取りうる値は `object|null` のように型を並べ、呼び出しごとに形が変わる値（`settings.set` の `value`、`session.command` の `data`）は型を書かない（`any`）。
+- **表の作り方**: 手で読むだけでは 121 操作ぶんの戻り値を取り違えるので、雛形プロジェクトで全操作を 1 回ずつ叩いてトップレベルのキーと型を観察する道具（`REF:examples/api_returns.rs`）を足し、その出力（87 操作）と残り 34 操作の実装の読み合わせで表を作った。
+- **出力**: `api.list` の各操作に `returns`（`{"type":"object","properties":{…}}`）が載る。`required` は出さない（省略されうるキーがあるため）。MCP に `outputSchema` は出さない（凍結 14 ツールは §19.8.3 の凍結、新規分は `inputSchema` のみ）ことも仕様に書いた。
+- **挙動との突き合わせ**: `REF:tests/api_returns.rs` を新設し、(1) 全操作に宣言があり余分が無く ID 昇順であること、(2) 実際に叩いて返ったキーが宣言にあること、(3) 型（`|` は「どれか」・`any` は無検査）が合うこと、(4) `api.list` の `returns` が宣言と同じキー数を持つことを検査する。**挙動と宣言がずれたら落ちる**。
+- **ウェブサイト**: `REF:scripts/api-site.py` がゴールデンの `returns` からキー名を取り、`REF:website/src/components/ApiCatalog.astro` に「戻り値のキー」列を足した（`npm run build` と `scripts/website-check.py` は緑、243 HTML）。
+- **仕様**: §19.8.2 のキー表を「実装済み」にし、`returns` の書き方（`properties` は「ありうるキー」・`required` を出さない・`null` は型の並び・可変は型なし・宣言は 1 つの表・挙動との一致をテストで検査）を書いた。`REF:docs/designs/interfaces.md` §19.8 の未実装注記も実装済みへ。§19.8.4 は戻り値のキーも生成物から載せることを追記。
+- テスト: `bash scripts/verify.sh` は **13 ジョブすべて緑**（1464 passed / 70 ターゲット。`tests/api_returns.rs` の 3 本が増えた）、`cargo test --locked --doc` 2 本緑、ゴールデン（`REF:tests/golden/api_catalog.json`）と Python の型スタブを再生成。
