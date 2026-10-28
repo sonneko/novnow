@@ -1,4 +1,4 @@
-//! Regex search tab of the write workspace (design doc `workflows` §16.3).
+//! 執筆画面の「正規表現検索」タブ（§9.7.4・§16.3）。
 use super::tabs::{label, State};
 use crate::core::features::search;
 use crate::ui::{
@@ -41,6 +41,7 @@ pub(super) fn search_ui(
         }
     });
     if state.confirmed {
+        let mut counts: Option<(usize, usize)> = None;
         if let Some(Ok(results)) = &state.results {
             match search::replacement(bench.project(), &state.query, &state.replacement, results) {
                 Ok(edit) => {
@@ -48,18 +49,11 @@ pub(super) fn search_ui(
                         .max_height(220.0)
                         .id_source("replacement-preview")
                         .show(ui, |ui| {
-                            for file in edit.changes {
-                                ui.collapsing(&file.path, |ui| {
-                                    ui.label(label(locale, "stage.before"));
-                                    ui.monospace(bench.project().text(&file.path));
-                                    ui.label(label(locale, "stage.after"));
-                                    ui.monospace(crate::core::features::apply_edits(
-                                        bench.project().text(&file.path),
-                                        &file.edits,
-                                    ));
-                                });
-                            }
+                            preview(ui, locale, bench, &edit.changes);
                         });
+                    let files = edit.changes.len();
+                    let places: usize = edit.changes.iter().map(|file| file.edits.len()).sum();
+                    counts = Some((files, places));
                 }
                 Err(error) => {
                     ui.label(error);
@@ -68,7 +62,18 @@ pub(super) fn search_ui(
             }
         }
         ui.horizontal(|ui| {
-            ui.label(label(locale, "stage.confirm_replace"));
+            match counts {
+                Some((files, places)) => {
+                    ui.label(i18n::format(
+                        locale,
+                        "stage.confirm_replace",
+                        &[&files.to_string(), &places.to_string()],
+                    ));
+                }
+                None => {
+                    ui.label(label(locale, "stage.confirm_replace"));
+                }
+            }
             if ui.button(label(locale, "stage.confirm")).clicked() {
                 if let Some(Ok(results)) = &state.results {
                     if let Ok(edit) = search::replacement(
@@ -121,7 +126,7 @@ pub(super) fn search_ui(
                     .unknown
                     .get("case_sensitive")
                     .and_then(serde_json::Value::as_bool)
-                    .unwrap_or(false),
+                    .unwrap_or(search::Query::default().case_sensitive),
             };
             let clock = web_time::Instant::now();
             if let Ok(results) = search::run(bench.project(), &query, || {
@@ -194,5 +199,25 @@ pub(super) fn search_ui(
             });
         }
         None => {}
+    }
+}
+
+/// 置換のプレビュー（ファイルごとに変更前・変更後）を畳んで出す（§9.7.4）。
+fn preview(
+    ui: &mut Ui,
+    locale: Locale,
+    bench: &Workbench,
+    changes: &[crate::core::features::FileEdit],
+) {
+    for file in changes {
+        ui.collapsing(&file.path, |ui| {
+            ui.label(label(locale, "stage.before"));
+            ui.monospace(bench.project().text(&file.path));
+            ui.label(label(locale, "stage.after"));
+            ui.monospace(crate::core::features::apply_edits(
+                bench.project().text(&file.path),
+                &file.edits,
+            ));
+        });
     }
 }

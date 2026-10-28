@@ -5,9 +5,9 @@
 //! キーは `diag.<コード>`（例 `diag.E004`、§12.3）で、**コード文字列そのものが正準の識別子**。
 //! だから core は文言を持たないが、コードを文字列で返す口（[`DiagnosticCode::as_str`]）は持つ。
 //!
-//! **全件を先に定義する**（`docs/history.md` I5「診断は先に表を実装」）。① が出さないコード
-//! （エージェント系・MCP 系・ローカル LLM 系）も enum に入れてある。後から足すと番号が
-//! 散らかるためで、未使用 variant の警告は I5 が明示的に許容している。
+//! **全件を先に定義する**（`docs/history.md` I5「診断は先に表を実装」）。`I051`（未保存の変更がある）と
+//! `I058`（検索結果を資料化した）は 2026-10-28 に**廃止**した（画面に出ている事実の写しだった。仕様 §7 の
+//! 冒頭）。番号は再利用しないので、enum にも入れない（欠番として飛ばす）。
 //!
 //! 中身は §7 の 3 つの表を写したもので、**仕様書が正本**。`tests/diagnostics_catalog.rs` が
 //! `docs/specifications/diagnostics.md` を `include_str!` で読み直して、件数・コード・重大度・引数の数・
@@ -106,7 +106,7 @@ pub enum Scope {
     Session,
 }
 
-/// 診断コード（§7 / §7.1 / §7.2 の全 77 件）。
+/// 診断コード（§7.0 の 38 件・§7.1 の 9 件・§7.2 の 38 件、全 85 件）。
 ///
 /// **variant 名はコード文字列そのもの**（`E001` → `"E001"`）。i18n のキーは
 /// `diag.` を前に付けた形（`diag.E001`、§12.3「キー命名」）で、core は文言を持たない。
@@ -239,7 +239,7 @@ pub enum DiagnosticCode {
     W088,
     /// 1 文が `long_sentence_chars` の 2 倍を超える（§7.2）
     W089,
-    /// 1 節の台詞比率が `dialogue_ratio_target` を大きく外れる（§7.2）
+    /// 1 節の台詞比率（§9.4.2 の算出）が `dialogue_ratio_target`（上限目安）を超える（文書全体ではなく節ごとに見る）（§7.2）
     W090,
     /// 節の長さが話内平均の T スコア 35 未満 / 65 超（§10.3.4）（§7.2）
     W091,
@@ -275,8 +275,6 @@ pub enum DiagnosticCode {
     W106,
     /// 既定プロンプトを生成した（§7）
     I050,
-    /// 未保存の変更がある（§7）
-    I051,
     /// 外部変更を取り込んだ（§7.1）
     I052,
     /// どの節からも引用されていない採用済み資料（§5.2.4）（§7.2）
@@ -287,8 +285,6 @@ pub enum DiagnosticCode {
     I056,
     /// ローカル LLM の設定を書き込んだ（§15.8.4）（§7.2）
     I057,
-    /// 検索結果を資料化した（§16.3.1）（§7.2）
-    I058,
 }
 
 impl DiagnosticCode {
@@ -378,13 +374,11 @@ impl DiagnosticCode {
             Self::W105 => "W105",
             Self::W106 => "W106",
             Self::I050 => "I050",
-            Self::I051 => "I051",
             Self::I052 => "I052",
             Self::I054 => "I054",
             Self::I055 => "I055",
             Self::I056 => "I056",
             Self::I057 => "I057",
-            Self::I058 => "I058",
         }
     }
 
@@ -576,20 +570,18 @@ pub const CATALOG: &[CatalogRow] = &[
     (DiagnosticCode::W105, 1),
     (DiagnosticCode::W106, 1),
     (DiagnosticCode::I050, 0),
-    (DiagnosticCode::I051, 0),
     (DiagnosticCode::I052, 1),
     (DiagnosticCode::I054, 1),
     (DiagnosticCode::I055, 1),
     (DiagnosticCode::I056, 1),
     (DiagnosticCode::I057, 0),
-    (DiagnosticCode::I058, 1),
 ];
 
 /// 文書位置を持たない診断（[`Anchor::Status`]）。
 ///
 /// 内訳は 3 つ。
 ///
-/// 1. **§7.1 の全 10 件**。表の見出しが「文書位置を持たない通知」で、波線ではなく
+/// 1. **§7.1 の全 9 件**。表の見出しが「文書位置を持たない通知」で、波線ではなく
 ///    ステータスバーの通知とレビュー一覧に出す（仕様書の明記）。
 /// 2. **§7.2 の E032〜E036**。§7.2 の注「エラーだが文書位置を持たないため、
 ///    §7.1 と同じくステータスバー通知として扱う」（仕様書の明記）。
@@ -617,13 +609,11 @@ pub const STATUS_ANCHOR: &[DiagnosticCode] = &[
     DiagnosticCode::W094,
     DiagnosticCode::W095,
     DiagnosticCode::I050,
-    DiagnosticCode::I051,
     DiagnosticCode::I052,
     DiagnosticCode::I054,
     DiagnosticCode::I055,
     DiagnosticCode::I056,
     DiagnosticCode::I057,
-    DiagnosticCode::I058,
 ];
 
 /// 既定で**無効**の診断（§7.2「既定の有効 / 無効」）。

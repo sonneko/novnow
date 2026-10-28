@@ -1,4 +1,5 @@
-//! Shared literal-safe annotation recognition. All ranges are UTF-8 byte offsets.
+//! 注釈の認識を 1 か所に集めたもの。リテラル（エスケープ済みの記号）を壊さない。
+//! 範囲はすべて UTF-8 の byte 位置（§3.4）。
 use crate::core::text::lexer::{self, LineKind, TextFormat};
 use std::ops::Range;
 
@@ -9,7 +10,7 @@ pub fn illustration(line: &str) -> Option<&str> {
     }
 }
 
-/// Recognize a suffix of citations, before any speaker annotation / comment.
+/// 行末の引用注釈の連なりを、話者の注釈やコメントより手前までで見つける（§5.2.4）。
 pub fn citations(body: &str) -> Vec<(Range<usize>, &str)> {
     let mut end = body[..lexer::find_line_comment(body).unwrap_or(body.len())]
         .trim_end()
@@ -37,7 +38,7 @@ pub fn citations(body: &str) -> Vec<(Range<usize>, &str)> {
         if slashes % 2 == 1 {
             break;
         }
-        // A citation inside an inline comment is not an annotation.
+        // 行内コメントの中の `[M0042]` は注釈ではない（§5.2.4）。
         if lexer::find_inline_comment(body).is_some_and(|r| r.contains(&at)) {
             break;
         }
@@ -55,7 +56,7 @@ pub fn without_citations(body: &str) -> &str {
         .map_or(body, |(r, _)| &body[..r.start])
 }
 
-/// Bounded header inspection only; decoding remains an adapter/UI responsibility.
+/// 見るのは画像の先頭のヘッダだけ。復号はアダプタと画面の仕事（§5.5.3）。
 pub fn image_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
     if bytes.starts_with(b"\x89PNG\r\n\x1a\n") && bytes.len() >= 24 {
         return Some((

@@ -104,9 +104,9 @@ The format includes extension points for media beyond novels, such as visual nov
 2. **Lightweight Proprietary Text Syntax and Lossless Saving**
    - Manuscript text (`contents/AA-BB.cnov`), overall and chapter plots (`plots/all.cnov`, `plots/AA.cnov`), episode plots (`plots/AA-BB.cnov`), characters (`characters.md`), terms (`words.md`), ideas (`ideas.md`), and materials (`materials/`) are all plain text (UTF-8), so Git diffs them natively.
    - Not a single byte of the original is discarded: what you read is what is written back. A project is self-contained around `project.toml`; only the `.novnow/` cache stays out of version control.
-3. **Semantic Resolution Engine and 77 Types of Real-Time Diagnostics**
+3. **Semantic Resolution Engine and 85 Types of Real-Time Diagnostics**
    - Provides glossary resolution via `'Name` (shortest match, NFKC normalization), situation-aware character mode resolution, speech-style pattern matching (tone matches are underlined in green), detection of terms used before their first appearance, and authoring diagnostics for sentence length, repeated sentence endings, spelling variance, and more.
-   - Every one of the 87 diagnostics has a stable code (`E001`-`W0xx` / `I0xx`), reachable through the `Ctrl+.` quick fix and the `review` workspace.
+   - Every one of the 85 diagnostics has a stable code (`E001`-`W0xx` / `I0xx`), reachable through the `Ctrl+.` quick fix and the `review` workspace.
 4. **Keyboard-Driven 9 Workspaces and a Unified Palette**
    - Switch instantly between manuscript (`write`), episode plot (`plot-episode`), outline (`plot-outline`), ideas (`idea`), materials (`material`), cast (`cast`), reader (`reader`), agents (`agent`), and review (`review`) with `Alt+1` through `Alt+9`. The current section is preserved across the switch.
    - The unified palette (`Ctrl+P`) jumps anywhere in the project by prefix (`@` structure, `'` dictionary, `#` materials, `>` commands). `Ctrl+G` jumps by scene number, `F5` reloads, and `?` lists every shortcut.

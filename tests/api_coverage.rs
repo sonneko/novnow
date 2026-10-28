@@ -1,4 +1,4 @@
-//! 正規操作カタログ（§19.7 の 120 操作）**全件**を 1 回ずつ叩く網羅テスト。
+//! 正規操作カタログ（§19.7 の 121 操作）**全件**を 1 回ずつ叩く網羅テスト。
 //!
 //! `REF:tests/api.rs` は操作を 1 つずつ手で書くので、カタログへ操作を足しても誰も呼ばない
 //! まま CI が緑になる。ここでは app 層の `OPS` 表（`REF:src/app/ops/mod.rs`）を走査して
@@ -205,7 +205,7 @@ fn render(results: &[(&'static OpDef, &Outcome)]) -> String {
     out
 }
 
-/// 全 120 操作を叩き、表を書いて、合格条件を検査する。
+/// 全 121 操作を叩き、表を書いて、合格条件を検査する。
 #[test]
 fn every_catalog_operation_is_callable_and_classified() {
     let mut results: Vec<(&'static OpDef, Outcome)> = Vec::with_capacity(OPS.len());
@@ -251,7 +251,7 @@ fn every_catalog_operation_is_callable_and_classified() {
     );
 
     // 2. エラーの形: 分類は §19.1.7 の 9 種類のいずれかで（`Class` が 10 種目に増えたら
-    //    仕様書の表も要る）、メッセージは必ずあり（§7.4 の地域化）、`kind` を持つときは
+    //    仕様書の表も要る）、メッセージは必ずあり（§12.3 の地域化）、`kind` を持つときは
     //    §7.1 の診断コード（`E` / `W` / `I` + 3 桁）の形であること。
     assert_eq!(CLASSES.len(), 9, "§19.1.7 のエラー分類は 9 種類");
     let mut malformed: Vec<String> = Vec::new();
@@ -263,7 +263,10 @@ fn every_catalog_operation_is_callable_and_classified() {
             malformed.push(format!("{}: 分類 {class:?} が §19.1.7 に無い", def.id));
         }
         if message.trim().is_empty() {
-            malformed.push(format!("{}: メッセージが空（§7.4 の地域化が無い）", def.id));
+            malformed.push(format!(
+                "{}: メッセージが空（§12.3 の地域化が無い）",
+                def.id
+            ));
         }
         if !kind.is_empty() {
             let shaped = kind.len() == 4
@@ -285,13 +288,13 @@ fn every_catalog_operation_is_callable_and_classified() {
         .iter()
         .filter(|(_, outcome)| matches!(outcome, Outcome::Done))
         .count();
-    assert_eq!(results.len(), 120, "カタログの全操作数");
+    assert_eq!(results.len(), 121, "カタログの全操作数");
     assert!(
         done >= 86,
         "実行できた操作が {done} 件まで減った（期待 86 以上）:\n{table}"
     );
 
-    // 4. カタログ（§19.8.2）と `OPS` 表は同じ 120 件（二重管理が無いことの確認）
+    // 4. カタログ（§19.8.2）と `OPS` 表は同じ 121 件（二重管理が無いことの確認）
     let catalog = ops::catalog(novnow::ui::i18n::Locale::Ja);
     assert_eq!(
         catalog["count"].as_u64(),

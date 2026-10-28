@@ -1,4 +1,4 @@
-//! Stock-proposal tab of the plot outline workspace.
+//! 全体プロット画面の「提案」タブ。ストックの話の提案を扱う（§10.3.3・§8.7）。
 use super::tabs::label;
 use crate::core::model::document::DocumentFormat;
 use crate::ui::{

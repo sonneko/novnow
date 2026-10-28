@@ -66,7 +66,7 @@ pub struct Inputs<'a> {
     pub task: Option<&'a str>,
     /// 人間のコメント（`{{user_comment}}`）。
     pub comment: &'a str,
-    /// Reference examples requested by the task.
+    /// タスクが指定した参考例（§15.4.6）。
     pub examples: &'a [String],
 }
 
@@ -89,7 +89,7 @@ pub struct Packet {
     pub prompt: Rendered,
     /// `prompts/<role>.md` があったか。
     pub prompt_found: bool,
-    /// Selected reference examples, capped separately from the fixed nine blocks.
+    /// 選んだ参考例の本文。固定の 9 ブロックとは別に上限を数える（§15.4.6）。
     pub examples: String,
     /// 当該節が確定済み（`state: fixed`）か。
     pub fixed: bool,
@@ -289,11 +289,11 @@ fn build_with_examples(inputs: &Inputs<'_>, examples: String, retry: bool) -> Pa
         block.fit();
     }
     budget::fit_total(&mut blocks, cap.saturating_sub(examples.chars().count()));
-    // Examples cannot silently push a valid packet past its request limit.
+    // 参考例が、上限に収まっていたパケットを黙って上限の外へ押し出してはならない。
     let remaining = cap.saturating_sub(blocks.iter().map(Block::size).sum());
     if retry && examples.chars().count() > remaining {
-        // Re-render {{examples}} as well as the packet after clipping: the
-        // preview, hash, and actual LLM request must agree byte for byte.
+        // 切り詰めた後は、パケットだけでなく `{{examples}}` も展開し直す。
+        // プレビュー・ハッシュ・実際の LLM への要求が byte 単位で一致しなければならない。
         return build_with_examples(inputs, examples.chars().take(remaining).collect(), false);
     }
     let examples: String = examples.chars().take(remaining).collect();
@@ -315,8 +315,8 @@ fn build_with_examples(inputs: &Inputs<'_>, examples: String, retry: bool) -> Pa
     }
 }
 
-/// Expand a task's selected reference ranges into a bounded, deterministic sample.
-/// Invalid expressions and missing files yield no sample instead of leaking unrelated content.
+/// タスクが選んだ参考の範囲を、上限付きで決定論的な見本の文字列へ広げる（§15.4.6）。
+/// 読めない範囲式や無いファイルは、無関係な中身を漏らさずに「見本なし」とする。
 fn example_text(project: &Project, specs: &[String]) -> String {
     let mut output = String::new();
     let digits = project.digits();
@@ -348,8 +348,8 @@ fn example_text(project: &Project, specs: &[String]) -> String {
             }
         }
         if kind != "contents" && output.chars().count() < 8000 {
-            // A-format outlines are the plot examples for chapter/episode
-            // ranges. Narrower scene/section ranges use B-format below.
+            // 章・話の範囲の参考例は、A 形式の全体・章プロットから取る。
+            // 場面・節まで狭い範囲は、この下で B 形式の話プロットから取る。
             if let Some(outline) = project.all_plot() {
                 for block in &outline.blocks {
                     if let Some(id) = block.id.filter(|id| range.contains(*id)) {

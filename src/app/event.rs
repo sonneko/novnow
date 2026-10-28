@@ -52,7 +52,7 @@ pub enum AppEvent {
         /// 変化（`written` / `external` / `renamed` / `removed`）。
         change: String,
     },
-    /// 書き込みの失敗（§13.3.7 の容量不足など）。
+    /// 書き込みの失敗（§13.3.6 の容量不足など）。
     WriteFailed {
         /// パス。
         path: String,

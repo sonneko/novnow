@@ -122,17 +122,18 @@ fn asset_paths_reject_escape_urls_absolute_and_icon_outside_assets() {
 #[test]
 fn search_regex_case_deadline_replacement_and_snapshots() {
     let p = project(&[("contents/01-01.cnov", "@01-01-01\nApple apple\n")]);
-    let q = search::Query {
+    // 既定は大小文字を区別する（§9.7.4）
+    let sensitive = search::Query {
         text: "apple".into(),
         ..Default::default()
     };
+    assert_eq!(search::run(&p, &sensitive, || 0).unwrap().hits.len(), 1);
+    let q = search::Query {
+        case_sensitive: false,
+        ..sensitive.clone()
+    };
     let hits = search::run(&p, &q, || 0).unwrap();
     assert_eq!(hits.hits.len(), 2);
-    let sensitive = search::Query {
-        case_sensitive: true,
-        ..q.clone()
-    };
-    assert_eq!(search::run(&p, &sensitive, || 0).unwrap().hits.len(), 1);
     let invalid = search::Query {
         text: "(".into(),
         regex: true,
@@ -198,10 +199,27 @@ fn metrics_describe_not_evaluate_and_ignore_zero_population() {
         m.dialogue,
         m.speakers.values().map(|s| s.chars).sum::<usize>()
     );
-    let text="長い文章は長い文章が長い文章を長い文章に長い文章で長い文章と長い文章は長い文章が長い文章を";
-    let positions = metrics::comma_candidates(text, 20);
-    assert_eq!(positions, metrics::comma_candidates(text, 20));
-    assert!(metrics::comma_candidates(&format!("「{text}」"), 20).is_empty());
+    // §9.4.3: 読点 0 個で `long_sentence_chars` を超える文の、優先度 1 の接続助詞の直後だけ。
+    let text = "長い文章は長い文章が長い文章を長い文章に長い文章で長い文章と長い文章は長い文章が長い文章を";
+    let options = metrics::CommaOptions::long(20);
+    let positions = metrics::comma_candidates(text, options);
+    assert_eq!(positions, metrics::comma_candidates(text, options));
+    assert_eq!(positions.len(), 3);
+    assert!(positions
+        .iter()
+        .all(|at| text[..*at].ends_with('が') || text[..*at].ends_with('と')));
+    assert!(metrics::comma_candidates(&format!("「{text}」"), options).is_empty());
+    // 短い文（閾値以下）は候補を出さない。
+    assert!(
+        metrics::comma_candidates("短いが、そうでもない", metrics::CommaOptions::long(120))
+            .is_empty()
+    );
+    // 既に読点がある文は対象外。
+    assert!(metrics::comma_candidates(
+        "長い文章は長い、文章が長い文章を長い文章に長い文章で長い文章と長い文章は長い文章が",
+        metrics::CommaOptions::long(10)
+    )
+    .is_empty());
 }
 #[test]
 fn session_deltas_allow_deletion_and_idle_resets_without_counting_idle() {

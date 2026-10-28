@@ -440,8 +440,8 @@ fn the_spec_example_reads_the_space_memo_as_a_continuation() {
     assert_eq!(line_tag_of(&text, 7), "cont(2)[┌────────┬────┐]");
 }
 
-/// ② のキー（`when` `space` `space-mode` `senses` `illustration`）は W011 になるが、
-/// **値は改変せずに保持する**（§5.0.6、`docs/history.md` の「② の生命線」）。
+/// ② のキー（`when` `space` `space-mode` `senses` `illustration`）も §5.0.6 の表にあり、
+/// キーとして解したうえで**値を改変せずに保持する**。
 #[test]
 fn the_spec_example_reads_stage_two_fields_and_keeps_their_values() {
     let text = spec_episode();

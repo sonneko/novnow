@@ -4,6 +4,10 @@
 
 ## 7. 診断カタログ
 
+- **`W041`（読み取り専用）を実装した**: 読み取り専用の判定は `REF:src/ports/storage.rs` の `Storage::writable()`（既定 `true`）と `REF:src/app/host.rs` の `Host::writable()`（既定 `true`）が持ち、`REF:src/adapters/storage_fs.rs`（と `REF:src/app/fs_host.rs`）が「プロジェクトの中に空の `.novnow/.write-probe` を作って消す」1 回の試し書きで決める（プロセスごとに 1 回だけ。`std::sync::OnceLock`）。結果は `REF:src/app/session.rs` の `Session::read_only()` が覚え、次の 3 か所で W041 になる: `REF:src/cli/check.rs` の 1 行（`<ルート>: W041 文言`）、`REF:src/app/ops/project.rs` の `validate` と `REF:src/app/ops/lang.rs` の `diagnostics_run`（プロジェクト全体のとき、`path` は空・`line` / `column` は 0 の 1 件）、`REF:src/ui/app.rs` の `prepare_agents`（ステータスバーの通知）。読み取り専用のときは既定プロンプトの書き出し（I050）もしない。読み取り専用の判定は `.novnow/` の中だけを触り、失敗しても何も残らない（§13.1）。
+- `I051`（未保存の変更がある）と `I058`（検索結果を資料化した）は**廃止**した。どちらも画面にすでに出ている事実（保存状態のインジケータ、資料一覧の新しい行）の写しで、診断として二重に持つ意味が無かった。`DiagnosticCode` から variant を消し、日英カタログ・サイト解説データからも消した（番号は再利用しない）。
+- 現在、カタログに定義があり実装が発行しないコードは無い。`W022`（用語の `range`）・`W030`（話プロットと本文の節数）は `REF:src/core/diagnostics.rs` の `word_ranges` / `section_counts` が、`W025`・`W064`（資料 MD と索引）は索引の突き合わせが発行する（`REF:tests/diagnostics_document.rs` が W022 / W025 / W030 を、`REF:tests/materials_ops.rs` が W064 を見る）。
+
 ### 7.0 コア・構文・解決・整合の診断
 
 状態: 実装完了（REF:src/core/diagnostics.rs, REF:src/core/features/project.rs, REF:tests/diagnostics_catalog.rs, REF:tests/diagnostics_document.rs）
@@ -35,15 +39,15 @@
 
 状態: 実装完了（REF:src/core/features/diagnose.rs, REF:src/core/diagnostics.rs, REF:tests/diagnostics_document.rs, REF:docs/plans.md#issue-29-b11, REF:docs/plans.md#issue-29-b12）
 
-- 執筆支援系の 38 コード（`W080`〜`W106`, `E032`〜`E036`, `E064`, `I054`）は `Group::Writing` として `REF:src/core/diagnostics.rs` に定義する。
+- 執筆支援系の 37 コード（`W080`〜`W106`, `E032`〜`E036`, `E064`, `I054`。`I058` は廃止）は `Group::Writing` として `REF:src/core/diagnostics.rs` に定義する。
 - 既定の有効（`TOGGLE_ON`: 11 件）/ 無効（`TOGGLE_OFF`: 18 件）および実行コスト制御テーブル（`COST`: 27 件の `Trigger` × `Scope`）は `REF:src/core/diagnostics.rs` に定数表として持ち、`REF:tests/diagnostics_catalog.rs` で仕様表との完全一致を検証する。
-- 段階 ① 対象の執筆支援診断（`W081` 文長、`W082` 連続文末、`W083` 話者不明会話、`W084` 非定義視点、`W085` 助詞連続、`W086` 指示語過多、`W087` 漢字率、`W094` 台詞長、`W098` 表記揺れ、`E032`〜`E036` / `E064` / `I054` エージェント系）は `REF:src/core/features/project.rs` および `REF:src/core/agents/runner.rs` で実装済みであり、段階 ② の構文（`when:` / `senses:` / `space:` 等）に依存するコードは縫い代 3 に従いカタログ定義と設定トグルを保持している（`REF:docs/plans.md#stage-2`）。
+- 執筆支援診断（`W081` 文長、`W082` 連続文末、`W083` 話者不明会話、`W084` 非定義視点、`W085` 助詞連続、`W086` 指示語過多、`W087` 漢字率、`W094` 台詞長、`W098` 表記揺れ、`E032`〜`E036` / `E064` / `I054` エージェント系）は `REF:src/core/features/diagnose.rs` と `REF:src/core/agents/runner.rs` で発行する。`when:` / `senses:` / `space:` などに依存するコード（`W068`〜`W070`, `W084`, `W085`, `W092`）も同じ経路で発行する。
 - 執筆支援診断の算出規約（`REF:docs/history.md` の `B-78`, `B-79`）:
   - `W082`（連続文末）は段落内の文ごとに末尾の句点・感嘆符・閉じ括弧を除いた最後の 2 文字（ひらがな・カタカナの語尾）を比較し 3 文連続一致で警告する。
   - `W085`（助詞連続）は文内の平仮名 1 文字助詞（`の` / `が` / `を` / `に` / `で` / `と` / `は`）の出現間隔と回数を検査し、`W087`（漢字率）は段落単位（50 字以上）の CJK 統合漢字比率が `project.toml` の範囲（既定 20%〜45%）を外れた場合に報告する。
 
 - **[S-15] 全診断コードの Web サイト解説と CI 網羅検査（実装完了: `REF:website/src/pages/[lang]/diagnostics/[code].astro`, `REF:scripts/diagnostics-site.py`）**:
-  - `REF:website/src/data/diagnostics.ts` は仕様表から生成し、`REF:website/src/data/diagnostics-en.json` と `REF:website/src/data/diagnostics-examples.json` に全 87 コードの日英の原因・例・対処法を置く。`REF:website/src/pages/[lang]/diagnostics/[code].astro` でコードごとの解説ページを生成し、`REF:scripts/diagnostics-site.py` の `--check` を CI（`REF:.github/workflows/ci.yml`）で実行して仕様表とのコード集合一致と内容の非空性を検査する。
+  - `REF:website/src/data/diagnostics.ts` は仕様表から生成し、`REF:website/src/data/diagnostics-en.json` と `REF:website/src/data/diagnostics-examples.json` に全 85 コードの日英の原因・例・対処法を置く。`REF:website/src/pages/[lang]/diagnostics/[code].astro` でコードごとの解説ページを生成し、`REF:scripts/diagnostics-site.py` の `--check` を CI（`REF:.github/workflows/ci.yml`）で実行して仕様表とのコード集合一致と内容の非空性を検査する。
 
 - **[Issue #29 / B11・B12] 執筆支援ラウンド 2・3（W097〜W106、実装完了）**:
   - W097（文末尾の反復）・W098（場面内の同語反復）・W099（隣接同語反復）・W100（文末助詞の反復）・W101（文頭語の反復）・W102（波ダッシュの多用）・W103（不確か表現の多用）・W104（同一動詞語幹の反復）・W105（感嘆符の多用）・W106（ダッシュの多用）を `REF:src/core/features/diagnose.rs` に追加した。

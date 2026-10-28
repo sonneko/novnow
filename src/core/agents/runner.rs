@@ -103,7 +103,7 @@ pub struct Draft<'a> {
     pub intent: &'a str,
     /// 人間のコメント。
     pub comment: &'a str,
-    /// Optional reference examples, one per line.
+    /// 参考例（任意）。1 行に 1 件ずつ（§15.4.6）。
     pub examples: &'a str,
     /// 起動者（`human` / `agent`）。
     pub initiator: &'a str,
@@ -166,7 +166,7 @@ pub enum Blocker {
     Unknown,
     /// 役割の委譲レベルが `off`。
     Off,
-    /// 既定の役割でない（カスタムロールは ②）。
+    /// 既定の役割でない（カスタムロールは `agents.custom_roles`、§5.9.2）。
     Role,
     /// 対象が 1 節でない（P1）。
     Scope,

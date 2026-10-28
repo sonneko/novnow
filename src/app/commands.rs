@@ -24,7 +24,7 @@ pub const PALETTE_COMMANDS: &[(&str, &str, Command)] = &[
     ("help", "command.help", Command::Help),
 ];
 
-/// All remaining keyboard commands are also reachable through `>` (F-15).
+/// 残りのキーボード操作も `>`（パレット）から辿れるようにするための一覧（F-15）。
 pub const SHORTCUT_PALETTE_COMMANDS: &[(&str, &str, Command)] = &[
     ("palette", "Ctrl+P", Command::Palette),
     ("open", "Ctrl+O", Command::Open),

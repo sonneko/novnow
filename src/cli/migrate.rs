@@ -1,4 +1,4 @@
-//! Plain-text migration into a fresh project directory (§14.6).
+//! 素のテキストから、新しいプロジェクトのディレクトリへ移行する（§14.6）。
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -75,9 +75,8 @@ pub fn run<E: Env>(cli: &mut Cli<'_, E>, inputs: &[PathBuf], dir: &Path, preview
     }
 }
 
-/// Expand one input argument into decoded units: a file as-is, a folder as
-/// its direct `.txt` / `.md` children in natural order, the first of which
-/// starts a chapter (§14.6). Subfolders are never entered.
+/// 入力の引数 1 つを、復号済みの単位へ広げる。ファイルはそのまま、フォルダは直下の
+/// `.txt` / `.md` を自然順に並べて（先頭が章の始まりになる。§14.6）、下の階層には入らない。
 fn expand_input(path: &Path, units: &mut Vec<SourceUnit>) -> Result<(), String> {
     let metadata = std::fs::metadata(path).map_err(|e| e.to_string())?;
     if metadata.is_file() {

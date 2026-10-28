@@ -1592,7 +1592,7 @@ fn unsafe_checker_catches_unsafe_constructs() {
     }
 }
 
-/// §19.13-2: `core::features` の 11 機能（§3.4 の表）がすべて `ui` から直接呼ばれている。
+/// §19.1.2（全機能パリティ）: `core::features` の 11 機能（§3.4 の表）がすべて `ui` から直接呼ばれている。
 #[test]
 fn ui_calls_all_eleven_lsp_feature_modules() {
     let expected = [

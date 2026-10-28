@@ -72,7 +72,7 @@ pub fn rows(project: &Project) -> Vec<IdeaRow> {
         .collect()
 }
 
-/// 値の最初の語（`inbox            # inbox | keep` の `# ` 行末コメントは ② なので、値に残っている）。
+/// 値の最初の語（`inbox            # inbox | keep` の行末 `# …` は `*.md` ではコメントではないので、値に残っている）。
 fn first_word(value: &str) -> &str {
     value.split_whitespace().next().unwrap_or("")
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate/check the Python type stub from the normative operation catalog.
 
-`python/novnow-py/python/novnow/__init__.pyi` は §19.3.1 の型スタブ。§19.7 の 120 操作と
+`python/novnow-py/python/novnow/__init__.pyi` は §19.3.1 の型スタブ。§19.7 の 121 操作と
 `arguments.order`（位置引数の束縛順）から**生成する**（手書きの複製を置かない＝ §19.5.3 と
 同じ原則）。入力は `tests/golden/api_catalog.json`（`cargo run --locked --example api_catalog`
 の出力。`REF:tests/api_parity.rs` が仕様書の表と突き合わせる）。
@@ -144,6 +144,13 @@ def stub(catalog: dict) -> str:
     out.append("from typing import Any, Callable, Iterator, Protocol")
     out.append("")
     out.append("__version__: str")
+    out.append("")
+    out.append("")
+    out.append("class Record(dict):")
+    out.append('    """JSON と同じ構造の `dict`。キーは属性としても読める（§19.3.2）。"""')
+    out.append("")
+    out.append("    def __getattr__(self, name: str) -> Any: ...")
+    out.append("    def __dir__(self) -> list[str]: ...")
     out.append("")
     out.append("")
     out.append("class NovnowError(Exception):")

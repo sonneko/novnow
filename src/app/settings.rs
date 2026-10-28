@@ -90,7 +90,7 @@ pub enum PaneSide {
     Left,
 }
 
-/// `ui.json` の中身（① で使うキー）。
+/// `ui.json` の中身（アプリが読むキー）。
 #[derive(Debug, Clone, PartialEq)]
 pub struct UiSettings {
     /// `theme`。
@@ -123,7 +123,13 @@ pub struct UiSettings {
     pub confirm_section_delete: bool,
     /// はじめての手引きを閉じたか（§9.10。`true` なら自動では出さない）。
     pub guide_done: bool,
+    /// 文脈ビューで畳んでいる節の鍵（`@AA-BB-CC-DD`。§4.4.1 の `folded.context_view`）。
     pub folded: Vec<String>,
+    /// 構成ツリーで話を展開している章の鍵（`@NN`。§4.4.1 の `folded.outline`）。
+    ///
+    /// 構成ツリーは**既定で畳んだ状態**から始まるので、`folded` の名前どおり「畳んだ単位」を
+    /// 並べるのではなく、開いている章を並べる（§9.3.3 の注記）。
+    pub outline: Vec<String>,
     /// 読んだ JSON（知らないキーを残すため）。
     raw: Map<String, Value>,
 }
@@ -148,6 +154,7 @@ impl Default for UiSettings {
             confirm_section_delete: true,
             guide_done: false,
             folded: Vec::new(),
+            outline: Vec::new(),
             raw: Map::new(),
         }
     }
@@ -212,16 +219,28 @@ impl UiSettings {
             .get("guide_done")
             .and_then(Value::as_bool)
             .unwrap_or(false);
-        out.folded = raw
+        let keys_of = |key: &str| {
+            raw.get("folded")
+                .and_then(|v| v.get(key))
+                .and_then(Value::as_array)
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|v| v.as_str().map(str::to_owned))
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default()
+        };
+        // `context` は第 2.9 版より前の名前（読むときだけ受け付ける。§4.4.1）
+        out.folded = if raw
             .get("folded")
-            .and_then(|v| v.get("context"))
-            .and_then(Value::as_array)
-            .map(|a| {
-                a.iter()
-                    .filter_map(|v| v.as_str().map(str::to_owned))
-                    .collect()
-            })
-            .unwrap_or_default();
+            .and_then(|v| v.get("context_view"))
+            .is_some()
+        {
+            keys_of("context_view")
+        } else {
+            keys_of("context")
+        };
+        out.outline = keys_of("outline");
         out.raw = raw;
         out
     }
@@ -242,7 +261,8 @@ impl UiSettings {
             .and_then(Value::as_object)
             .cloned()
             .unwrap_or_default();
-        folded.insert("context".to_owned(), json!(self.folded));
+        folded.insert("context_view".to_owned(), json!(self.folded));
+        folded.insert("outline".to_owned(), json!(self.outline));
         raw.insert("folded".into(), Value::Object(folded));
         raw.insert("theme".into(), json!(self.theme.key()));
         raw.insert("language".into(), json!(self.language.key()));

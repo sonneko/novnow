@@ -15,6 +15,7 @@ pub mod editing;
 pub mod knowledge;
 pub mod lang;
 pub mod project;
+pub mod returns;
 pub mod session_ops;
 
 use serde_json::{json, Map, Value};
@@ -189,6 +190,25 @@ impl OpDef {
         schema
     }
 
+    /// 戻り値の形（§19.8.2 の `returns`。`REF:src/app/ops/returns.rs`）。
+    ///
+    /// キーは「ありうるキー」の一覧で、`required` は出さない（省略されうるキーがあるため）。
+    /// `any` は型を書かない（どんな値も取りうる）。
+    pub fn returns_schema(&self) -> Value {
+        let mut properties = Map::new();
+        for (key, kind) in returns::returns_of(self.id) {
+            let schema = if *kind == "any" {
+                json!({})
+            } else if let Some((left, right)) = kind.split_once('|') {
+                json!({ "type": [left, right] })
+            } else {
+                json!({ "type": kind })
+            };
+            properties.insert((*key).to_owned(), schema);
+        }
+        json!({ "type": "object", "properties": Value::Object(properties) })
+    }
+
     /// `api.list` の 1 件（§19.8.2）。
     pub fn to_json(&self, locale: Locale) -> Value {
         let mut entry = Map::new();
@@ -214,6 +234,7 @@ impl OpDef {
                 None => Value::Null,
             },
         );
+        entry.insert("returns".to_owned(), self.returns_schema());
         entry.insert("stateful".to_owned(), json!(self.stateful));
         let mut exceptions = Map::new();
         for (column, reason) in self.exceptions {
@@ -400,6 +421,17 @@ pub const OPS: &[OpDef] = &[
         &[ArgDef::opt_string("scene"), ArgDef::integer("at")],
         editing::section_split,
         gate = true
+    ),
+    // 提案は本文を書き換えないので関門を置かない（§19.1.5）。既存の MCP ツール
+    // `novnow.section.propose` と同じ関数を使う（§19.1.1。`via_mcp`）。
+    opdef!(
+        "section.propose",
+        &[
+            ArgDef::string("scene"),
+            ArgDef::string("text"),
+            ArgDef::opt_string("note")
+        ],
+        editing::section_propose
     ),
     // --- nav ---
     opdef!(
@@ -1286,7 +1318,7 @@ pub fn severity_name(severity: crate::core::diagnostics::Severity) -> &'static s
 }
 
 /// 診断を JSON へ（`diagnostics.run`・`lang.*`・LSP の `publishDiagnostics` が共有する形。
-/// メッセージは §7.4 の地域化、行と列は 1 始まり）。
+/// メッセージは §12.3 の地域化、行と列は 1 始まり）。
 pub fn diagnostic_json(
     locale: Locale,
     path: &str,

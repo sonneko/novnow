@@ -37,7 +37,7 @@ pub enum Class {
     NotFound,
     /// 保存状態機の衝突（外部変更・ロック）。
     Conflict,
-    /// LLM 応答・処理の時間切れ（§18.3.1）。
+    /// LLM 応答・処理の時間切れ（§15.8.1 の既定 60s）。
     Timeout,
     /// 利用者が操作を中断した。
     Cancelled,
@@ -113,7 +113,7 @@ pub struct Error {
     pub class: Class,
     /// S / E 番号（無ければ空）。
     pub kind: String,
-    /// 地域化済みのメッセージ（§7.4）。
+    /// 地域化済みのメッセージ（§12.3 のカタログ）。
     pub message: String,
     /// 該当ファイル（プロジェクトルートからの相対パス。あれば）。
     pub path: Option<String>,

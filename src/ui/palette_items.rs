@@ -1,4 +1,4 @@
-//! パレットの候補とコマンドへの解決（§9.7.4）。候補の採点・履歴・モード切替は
+//! パレットの候補とコマンドへの解決（§9.7.1）。候補の採点・履歴・モード切替は
 //! `app::palette`（egui に依存しない層）が担い、ここは画面とのやり取りの形を作る。
 
 use crate::app::workspace::Workspace;
@@ -18,7 +18,7 @@ pub(crate) struct PaletteItem {
 #[derive(Debug, Clone)]
 pub(crate) enum PaletteAction {
     Section(usize),
-    /// Open the next level of the @ chapter → episode → scene → section tree.
+    /// `@` の章 → 話 → 場面 → 節の木で、1 つ下の階層を開く（§9.7.1）。
     SceneDrill(String),
     Command(Command),
     /// `M` / `#` の資料（material ワークスペースで開く）。
@@ -280,7 +280,7 @@ pub(crate) fn palette_items(
                 all.extend(agent_palette_items(locale));
             } else {
                 all.push(PaletteItem {
-                    // The trailing space marks a subcommand boundary for Tab completion.
+                    // 末尾の空白が、Tab 補完での副コマンドの区切りになる（`>agent ` まで入る）。
                     key: "agent ".into(),
                     label: ">agent  Agent settings ›".into(),
                     action: PaletteAction::AgentRoot,
@@ -324,8 +324,8 @@ pub(crate) fn palette_items(
                 .collect()
         }
         palette::Mode::Scene => {
-            // Broadest level first. Choosing a branch appends '-' and narrows the
-            // next frame; a leaf jumps to the section. Typed prefixes still filter.
+            // いちばん広い階層から始める。枝を選ぶと末尾に `-` が付いて次のフレームで
+            // 絞られ、葉を選ぶとその節へ飛ぶ。打ち込んだ前置きでも絞り込める（§9.7.1）。
             let depth = query.split('-').count().saturating_sub(1).min(3);
             let digits = bench.project().digits();
             let mut nodes = std::collections::BTreeMap::<String, PaletteItem>::new();

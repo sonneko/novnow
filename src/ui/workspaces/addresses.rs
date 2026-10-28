@@ -1,4 +1,4 @@
-//! Address (character) tab of the cast workspace.
+//! 配役ワークスペースの「住所」タブ。登場人物ごとの住所を扱う（§10.6・§5.3.6）。
 use super::tabs::{label, State};
 use crate::core::features::metadata;
 use crate::ui::{i18n::Locale, workbench::Workbench};

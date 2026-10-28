@@ -1,9 +1,10 @@
-//! Descriptive observations, never scores or evaluations.
+//! 記述的な観察だけを置く。点数や評価はしない（§9.4.2 の前提）。
 use crate::core::{
     annotations,
     features::{sections, Project},
     resolve::role_language,
     syntax::contents,
+    text::sentence,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -29,7 +30,7 @@ impl Metrics {
         }
     }
 }
-/// Raw prose with comments, reference sigils and annotations removed, using the same export conversion.
+/// コメント・参照の記号・注釈を除いた素の本文。除き方はエクスポートと同じ変換を使う（§9.4.2）。
 pub fn prose(text: &str) -> String {
     crate::core::export::plain(text)
 }
@@ -126,32 +127,183 @@ pub fn histogram(values: &[usize], bin: usize) -> BTreeMap<usize, usize> {
     }
     out
 }
-/// Deterministic advisory positions outside all dialogue spans; never inserts text.
-/// i18n: format-vocabulary
-pub fn comma_candidates(text: &str, threshold: usize) -> Vec<usize> {
-    let spans = role_language::dialogue_spans(text);
-    let mut count = 0;
-    let mut out = Vec::new();
-    for (at, ch) in text.char_indices() {
-        if spans.iter().any(|r| r.contains(&at)) || matches!(ch, '「' | '」' | '『' | '』') {
-            count = 0;
-            continue;
-        }
-        if matches!(ch, '。' | '、' | '！' | '？' | '\n') {
-            count = 0;
-            continue;
-        }
-        if !ch.is_whitespace() {
-            count += 1;
-        }
-        if count >= threshold.max(20) && matches!(ch, 'は' | 'が' | 'を' | 'に' | 'で' | 'と')
-        {
-            out.push(at + ch.len_utf8());
-            count = 0;
+/// 読点提案の閾値（§9.4.3 の `writing.long_sentence_chars`）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CommaOptions {
+    /// この字数を**超える**文（読点 0 個）だけを対象にする。既定 120。
+    pub long_sentence_chars: usize,
+}
+
+impl Default for CommaOptions {
+    fn default() -> Self {
+        Self {
+            long_sentence_chars: 120,
         }
     }
+}
+
+impl CommaOptions {
+    /// 閾値だけを変えた指定。
+    pub fn long(chars: usize) -> Self {
+        Self {
+            long_sentence_chars: chars,
+        }
+    }
+}
+
+/// 優先度 1: 接続助詞（§9.4.3 の表）。**長いものから**照合する（`けれども` を `けれど` で切らない）。
+/// i18n: format-vocabulary
+const CONNECTIVES: &[&str] = &[
+    "けれども",
+    "けれど",
+    "ので",
+    "のに",
+    "から",
+    "ても",
+    "たら",
+    "なら",
+    "ば",
+    "が",
+    "と",
+    "て",
+];
+
+/// 優先度 2: 読点の直前に来やすい副詞句（§9.4.3 の表）。
+/// i18n: format-vocabulary
+const ADVERBIALS: &[&str] = &["ときに", "ために", "ように", "ながら", "つつ"];
+
+/// 優先度 3: 文頭から [`TOPIC_WINDOW`] 字以内の主題の助詞（§9.4.3 の表）。
+/// i18n: format-vocabulary
+const TOPIC_PARTICLES: &[char] = &['は', 'も'];
+
+/// 優先度 4: 列挙の助詞。[`ENUM_COUNT`] 回以上あるとき、各直後を候補にする（§9.4.3 の表）。
+/// i18n: format-vocabulary
+const ENUM_PARTICLES: &[char] = &['と', 'や'];
+
+/// 表示する候補の数（§9.4.3「上位 3 件だけ」）。
+const COMMA_TOP: usize = 3;
+/// 既に `、` がある位置の前後、この字数以内は候補にしない（§9.4.3 の除外規則）。
+const COMMA_GAP: usize = 6;
+/// 行末からこの字数以内は候補にしない（§9.4.3 の除外規則）。
+const LINE_END_GAP: usize = 4;
+/// 主題の助詞を見る範囲（文頭から何字まで。§9.4.3 の優先度 3）。
+const TOPIC_WINDOW: usize = 10;
+/// 列挙と見なす回数（§9.4.3 の優先度 4「3 回以上」）。
+const ENUM_COUNT: usize = 3;
+
+/// 台詞の外側で、決定論的に「読点を打てそうな場所」を返す（§9.4.3）。文字は挿入しない。
+///
+/// 対象は**読点を含まず** [`CommaOptions::long_sentence_chars`] を超える文だけ。文の中の
+/// 4 つの優先度の手がかりを集め、優先度の高い順に [`COMMA_TOP`] 件を選ぶ。返すのは候補位置の
+/// byte の列（昇順）。除外規則は §9.4.3 の 4 つ（台詞の中・`、` の前後 [`COMMA_GAP`] 字以内・
+/// 行末から [`LINE_END_GAP`] 字以内・`'参照` と `｜ルビ《…》` の途中）。
+pub fn comma_candidates(text: &str, options: CommaOptions) -> Vec<usize> {
+    let dialogue = role_language::dialogue_spans(text);
+    let commas: Vec<usize> = text
+        .char_indices()
+        .filter(|(_, ch)| *ch == '、')
+        .map(|(at, _)| text[..at].chars().count())
+        .collect();
+    let mut out: Vec<usize> = Vec::new();
+    for (range, sentence) in sentence::split(text) {
+        let count = sentence.chars().filter(|ch| !ch.is_whitespace()).count();
+        if count <= options.long_sentence_chars || sentence.contains('、') {
+            continue;
+        }
+        let base = text[..range.start].chars().count();
+        let to = sentence.chars().filter(|ch| *ch == 'と').count();
+        let ya = sentence.chars().filter(|ch| *ch == 'や').count();
+        let mut scored: Vec<(u8, usize, usize)> = Vec::new();
+        for (index, (at, ch)) in sentence.char_indices().enumerate() {
+            let abs = range.start + at;
+            if dialogue.iter().any(|span| span.contains(&abs))
+                || matches!(ch, '「' | '」' | '『' | '』')
+            {
+                continue;
+            }
+            let rest = &sentence[at..];
+            let mut best: Option<(u8, usize)> = None;
+            for (priority, table) in [(1u8, CONNECTIVES), (2, ADVERBIALS)] {
+                for pattern in table {
+                    if rest.starts_with(pattern) {
+                        let found = (priority, pattern.len());
+                        if best.is_none_or(|(_, len)| found.1 > len) {
+                            best = Some(found);
+                        }
+                    }
+                }
+            }
+            if TOPIC_PARTICLES.contains(&ch) && index < TOPIC_WINDOW {
+                best = best.or(Some((3, ch.len_utf8())));
+            }
+            let enumerated =
+                ENUM_PARTICLES.contains(&ch) && (if ch == 'と' { to } else { ya }) >= ENUM_COUNT;
+            if enumerated {
+                best = best.or(Some((4, ch.len_utf8())));
+            }
+            let Some((priority, len)) = best else {
+                continue;
+            };
+            let after = range.start + at + len;
+            let tail = &text[after.min(text.len())..];
+            let line_end = tail.find('\n').map_or(text.len(), |offset| after + offset);
+            if text[after..line_end].chars().count() <= LINE_END_GAP {
+                continue;
+            }
+            let char_at = base + index + rest[..len].chars().count();
+            if commas
+                .iter()
+                .any(|comma| comma.abs_diff(char_at) <= COMMA_GAP)
+            {
+                continue;
+            }
+            let line_start = text[..after].rfind('\n').map_or(0, |offset| offset + 1);
+            let prefix = &text[line_start..after];
+            if inside_ruby(prefix) || inside_reference(prefix) {
+                continue;
+            }
+            scored.push((priority, after, char_at));
+        }
+        scored.sort_unstable();
+        scored.truncate(COMMA_TOP);
+        out.extend(scored.into_iter().map(|(_, at, _)| at));
+    }
+    out.sort_unstable();
+    out.dedup();
     out
 }
+
+/// `prefix` の末尾がルビの読み（`《…》` の内側）か。§9.4.3 の除外規則。
+fn inside_ruby(prefix: &str) -> bool {
+    match (prefix.rfind('《'), prefix.rfind('》')) {
+        (Some(open), Some(close)) => open > close,
+        (Some(_), None) => true,
+        _ => false,
+    }
+}
+
+/// `prefix` の末尾が `'参照`（または `'{…}`）の途中か。§9.4.3 の除外規則。
+fn inside_reference(prefix: &str) -> bool {
+    let Some(at) = prefix.rfind('\'') else {
+        return false;
+    };
+    let escaped = prefix[..at]
+        .chars()
+        .rev()
+        .take_while(|ch| *ch == '\\')
+        .count()
+        % 2
+        == 1;
+    if escaped {
+        return false;
+    }
+    let rest = &prefix[at + 1..];
+    if let Some(form) = rest.strip_prefix('{') {
+        return !form.contains('}');
+    }
+    !rest.is_empty() && rest.chars().all(crate::core::text::charclass::is_word_char)
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Day {
@@ -233,7 +385,7 @@ impl Stats {
     }
 }
 
-/// Date arithmetic is supplied by the caller as ordered calendar dates, including empty days.
+/// 日付の計算は呼び出し側から、並べた暦の日付（書かなかった日も含む）として渡す。
 impl Stats {
     pub fn average(&self, dates: &[String]) -> f64 {
         if dates.is_empty() {
@@ -253,7 +405,7 @@ impl Stats {
     }
 }
 
-/// Calendar-only helpers: dates are supplied, never read from a system clock.
+/// 暦だけを扱う補助。日付は渡され、システムの時計からは決して読まない（§3.2）。
 pub fn recent_dates(today: &str, count: usize) -> Vec<String> {
     let mut parts = today.split('-');
     let Some((mut y, mut m, mut d)) = parts

@@ -522,7 +522,7 @@ fn the_standard_methods_answer_from_the_catalog() {
     );
 
     // executeCommand は操作カタログへ届く（§19.4.5）。
-    assert_eq!(result_of(&messages, 15)["count"], json!(120));
+    assert_eq!(result_of(&messages, 15)["count"], json!(121));
 
     // 診断は `didOpen` と `didChange` の後に出る（§19.4.4）。
     let published = notifications(&messages, "textDocument/publishDiagnostics");
@@ -620,7 +620,7 @@ fn execute_command_reaches_the_catalog_and_can_apply_an_edit() {
         notify("exit", Value::Null),
     ];
     let messages = talk(&mut session, &bodies);
-    assert_eq!(result_of(&messages, 2)["count"], json!(120), "§19.7 の全行");
+    assert_eq!(result_of(&messages, 2)["count"], json!(121), "§19.7 の全行");
     assert_eq!(
         result_of(&messages, 3)["command"],
         json!(palette),

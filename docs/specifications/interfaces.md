@@ -69,7 +69,7 @@
 
 #### 19.1.7 エラーモデル
 
-すべてのインターフェースは共通のエラー分類を共有する（MUST）。分類・コード・メッセージは §6.3 のエラーコード表と §7.4 の i18n 規則に従う。
+すべてのインターフェースは共通のエラー分類を共有する（MUST）。分類・コード・メッセージは §6.3 のエラーコード表と §12 の i18n 規則に従う。
 
 | 分類 | 意味 | LSP / MCP / JSON | CLI 終了コード（§14.2.5） |
 |---|---|---|---|
@@ -80,21 +80,21 @@
 | `policy` | 権限・関門の拒否（E036 など） | 結果内 `isError` + `data.code` | 5 |
 | `not_found` | 対象 ID の不存在（セクション・タスクなど） | JSON-RPC `-32001` + `data.code` | 3 |
 | `conflict` | 保存状態機の衝突（外部変更・ロック） | JSON-RPC `-32002` + `data.code` | 4 |
-| `timeout` | LLM 応答・処理の時間切れ（§18.3.1） | JSON-RPC `-32003` | 4 |
+| `timeout` | LLM 応答・処理の時間切れ（§15.8.1 の既定 60s を過ぎた） | JSON-RPC `-32003` | 4 |
 | `cancelled` | 利用者が操作を中断した | JSON-RPC `-32800`（Request cancelled） | 0（能動的キャンセル。部分書き込みを残さない） |
 
-- エラー応答は `code`（分類）・`kind`（S/E 番号）・`message`（§7.4 の言語で地域化）・`path`（該当ファイル、あれば）を含む（MUST）。
+- エラー応答は `code`（分類）・`kind`（S/E 番号）・`message`（§12.3 のカタログの言語で地域化）・`path`（該当ファイル、あれば）を含む（MUST）。
 - MCP のツールはプロトコル従来どおり、内容エラーを `isError: true` のツール結果として返す（JSON-RPC エラーにしない）。§15.8.3 の既存方式を維持する（MUST）。
 
 #### 19.1.8 国際化
 
-- すべてのインターフェースは `--lang`（CLI）・`locale`（LSP 初期化オプション・MCP 引数）・`set_locale`（Rust / Python セッション）でメッセージ言語を切り替える（§7.4 と同じ `ja` / `en`・既定 `ja`）。
-- 診断メッセージ・エラーメッセージ・ヘルプ本文は §7.4 の辞書から供給される（MUST）。データ（ファイル内容・ID・数値）は地域化しない。
+- すべてのインターフェースは `--lang`（CLI）・`locale`（LSP 初期化オプション・MCP 引数）・`set_locale`（Rust / Python セッション）でメッセージ言語を切り替える（§12.4 と同じ決定順のうち明示指定・`ja` / `en`・既定 `ja`）。
+- 診断メッセージ・エラーメッセージ・ヘルプ本文は §12.3 の文言カタログから供給される（MUST）。データ（ファイル内容・ID・数値）は地域化しない。
 
 #### 19.1.9 性能とキャンセル
 
 - 各操作の性能目標は §18 の該当項目に従う（例: 診断の単節解析 100ms 以内・全文 1s 以内）。インターフェースの適合層自体の追加遅延は操作あたり 10ms 以内を目安とする（SHOULD）。
-- 長時間の操作（`agent.task_run`、`materials.approve` の URL 取得など）はキャンセル手段を提供する（MUST）: セッション API では `session.cancel(handle)`、CLI では割り込みシグナル、MCP / LSP ではプロトコルのキャンセル通知（`$/cancelRequest`）。
+- 長時間の操作（`agent.task_run` など、外部の応答を待つもの）はキャンセル手段を提供する（MUST）: セッション API では `session.cancel(handle)`、CLI では割り込みシグナル、MCP / LSP ではプロトコルのキャンセル通知（`$/cancelRequest`）。
 - キャンセルされた操作は部分書き込みを残さない（§19.1.6 の原子性）。
 
 ### 19.2 Rust API
@@ -146,7 +146,7 @@ session.session().command("plot-outline")?;    // session.command（パレット
 
 - セッションは GUI が描画で表示する状態変化（診断の更新、保存状態の変化、エージェントタスクの進捗、素材取得の完了）を**イベントキュー**として提供する（MUST）。利用者は `session.poll_events()` で取り出すか、コールバックを登録する。
 - イベントは同じデータ構造を LSP のカスタム通知（§19.4.4）・Python API のイベントキューと共有する（MUST）。
-- 非同期実行（LLM 呼び出し、素材 URL の取得）はセッション内部のワーカが行い、`poll_events` で進捗と完了を受け取る。ライブラリ利用者にスレッド管理を強制しない（MUST）。
+- 非同期実行（LLM 呼び出し）はセッション内部のワーカが行い、`poll_events` で進捗と完了を受け取る。ライブラリ利用者にスレッド管理を強制しない（MUST）。
 
 #### 19.2.5 スレッド安全とライフサイクル
 
@@ -194,7 +194,7 @@ session = novnow.create("new-novel")              # project.new
 
 #### 19.3.4 GIL と並行性
 
-- ファイル I/O・LLM 呼び出し・URL 取得などブロックする処理の間は GIL を解放する（MUST）。これにより Python 側スレッドが待機中に動く。
+- ファイル I/O・LLM 呼び出しなどブロックする処理の間は GIL を解放する（MUST）。これにより Python 側スレッドが待機中に動く。
 - 1 つの `Session` オブジェクトの操作は直列化する（§19.2.5 と同じ所有規則）。複数スレッドからの同時呼び出しはデータ競合ではなく直列実行として扱う（MUST）。
 
 #### 19.3.5 イベントと長時間操作
@@ -217,24 +217,27 @@ LSP 標準メソッドと novnow の機能の対応は次のとおり（MUST）:
 | LSP メソッド | novnow の機能 |
 |---|---|
 | `initialize` / `initialized` | プロジェクトの検証・読み込み（§14.2 と同じ規則）。`serverInfo` に名称・版 |
-| `textDocument/didOpen` / `didChange` / `didSave` | 本文・プロットの編集中状態（§9.6 の状態機）。変更は単節解析で即時検証 |
-| `textDocument/publishDiagnostics` | §3.4 の診断（E001〜E040）。`code` に E 番号、`source` に `"novnow"`、メッセージは §7.4 の言語 |
-| `textDocument/completion` | 補完候補（§9.7 の `@` `$` `:` `/` `^`）。モード・用語・タグ・素材・操作 ID |
+| `textDocument/didOpen` / `didChange` / `didSave` / `didClose` | 本文・プロットの編集中状態（§9.6 の状態機）。変更は単節解析で即時検証。`didClose` は開いている文書の一覧から外すだけで、保存もしない |
+| `textDocument/publishDiagnostics` | §3.4 の診断（E001〜E040）。`code` に E 番号、`source` に `"novnow"`、メッセージは §12.4 の言語 |
+| `textDocument/completion` | 補完候補（§9.7.3。キャラ・用語・資料・モード・SceneId） |
 | `textDocument/hover` | カーソル位置の注解・モード説明（§9.7.1 のホバー情報） |
-| `textDocument/codeAction` | クイックフィックス（§11.7 の 5 種: E032 候補置換、辞書登録、E004 削除、E037 単位変換、E031 辞書案内） |
+| `textDocument/codeAction` | クイックフィックス（§7 の各コードの「クイックフィックス」列）。**適用後のテキスト編集を返せるものだけ**を返し、ファイルをまたぐ移動や UI 操作（型の追加・新規資料の作成など）は返さない |
 | `textDocument/definition` / `references` | 定義ジャンプ・参照検索（`lang.definition` / `lang.references`） |
 | `textDocument/documentSymbol` | セクション一覧（`section.list`）。プロット文書ではプロット節 |
 | `workspace/symbol` | 全体検索（`search.project`） |
 | `textDocument/formatting` | 整形（`lang.format`。§9.7.3 の規則） |
+| `textDocument/prepareRename` | リネームの対象かの確認（操作 ID のときだけ範囲を返す） |
 | `textDocument/rename` | 操作 ID のリネーム（`lang.rename_apply`。プレビューは `lang.rename_preview` + `workspace/applyEdit`） |
 | `textDocument/foldingRange` | 折り畳み範囲（`lang.folding`、`plot.outline_fold`） |
 | `textDocument/inlayHint` | インレイヒント（`lang.hints`） |
+| `textDocument/semanticTokens/full` | 意味トークン（§3.4 の `semantic_tokens::full`。注解・参照・モード・資料の色分け） |
 | `workspace/executeCommand` | §19.7 のカタログの全操作（`command` = 正規操作 ID、`arguments` = JSON） |
 | `workspace/didChangeConfiguration` | 設定の変更通知（`settings.get` の再読込） |
+| `shutdown` / `exit` / `$/cancelRequest` | 終了要求・終了・実行中の要求の取り消し。`initialize` より前の要求には `ServerNotInitialized`（-32002）を返す |
 
 - 位置は LSP 標準の UTF-16 行・文字で受け渡し、内部のバイト位置と相互変換する（§3.4「位置表現」）。
-- 補完のトリガー文字は `'`（操作 ID）・`@`（キャラクター）・`:`（モード）・`$`（タグ）・`^`（素材）。`$` と `^` は §16.4.2 のとおりエスケープなしで受け付ける。
-- 診断の配信範囲は §9.1.1 と同じ（開いている文書と単節解析の結果）。全体スコープの診断は `workspace/executeCommand`（`diagnostics.run`）で要求できる。
+- 補完のトリガー文字は `'`（操作 ID）・`@`（キャラクター）・`:`（モード）の 3 つ（§9.7.3 と同じ）。`$`（タグ）と `^`（素材）は補完を出さない（`Ctrl+Space` の明示起動でも同じ）。`$` と `^` は §5.0.3 のとおりエスケープなしで受け付ける。
+- 診断の配信範囲は、開いている文書と、打鍵のたびの単節解析の結果（§7.2「実行コストの制御」の範囲）。全体スコープの診断は `workspace/executeCommand`（`diagnostics.run`）で要求できる。
 
 #### 19.4.3 文書同期と保存
 
@@ -261,7 +264,7 @@ LSP 標準メソッドと novnow の機能の対応は次のとおり（MUST）:
 
 #### 19.5.1 既存ツールとの関係
 
-- 既存の 14 ツール（§15.8.2）は名前・引数・動作を**変えない**（MUST）。後方互換の凍結対象とする。
+- 既存の 14 ツール（§15.8.3 の表）は名前・引数・動作を**変えない**（MUST）。後方互換の凍結対象とする。
 - 既存ツールは正規操作 ID の別名としてカタログに載る（例 `novnow.section.write` = 操作 `section.write`）。新しいツールは `novnow.` + 正規操作 ID の名前で追加する（MUST）。
 - ツールの一覧・引数スキーマは `tools/list` で発見でき、`api.list` の出力（§19.8）と一致する（MUST）。
 - 呼び出しごとにプロジェクトを読み直す方式（§15.8「1 呼び出し = 読み直す」）を維持する（MUST）。
@@ -271,13 +274,26 @@ LSP 標準メソッドと novnow の機能の対応は次のとおり（MUST）:
 
 - 新しい書き込み系ツールは §19.1.5 の規則に従う: `role` 引数必須、`apply` / `autonomous` のときだけ書き込み、それ以外は `E036`（`isError: true`）。未実行・未承認項目の作成系（§19.1.5 の 4 つ）は無関門。
 - `plot.write` の `level` は §15.8.3 の「`episode` のみ」の制限を本節が拡張し、`outline` / `chapter` も受け取る（MUST。既存呼び出しの動作は変わらない）。検証は `section.write` と同じ（E006 経路照合・E007・§10 のレベル別規則）。
+  実装の分担: `episode` は凍結 14 ツールの実装（`agent` と同じ直接書き込みの経路。§15.8.3）がそのまま扱い、
+  `outline`（= `all`。`plots/all.cnov`）と `chapter`（`plots/AA.cnov`）は正規操作の実装へ振り分ける。
+  振り分けは MCP の 1 回分の入口（引数の `level` を見る）で行うので、`episode` の出力はバイト不変である（§19.8.3）。
+  書き込む単位は文書全体（章・全体のプロットは節に分かれない）。
+  `chapter` は省略できる（省略時は `scene` の章。GUI で開いている節の章）。凍結した `inputSchema` は
+  呼び出し時点の引数（`role` / `scene` / `level` / `text`）しか宣言しないので、`chapter` は
+  「宣言に無いが受け付ける引数」として送る（スキーマは `additionalProperties` を制限していない）。
+  受け付けない `level` は引数エラー（`Argument("level")`）。
 - エージェント系ツール（`agent.*`）は §15.2 の 13 状態機・§15.6 の 4 原則をそのまま適用する。セッション制限（§15.3）は MCP 呼び出しにも等しく課す（MUST）。
-- 素材系ツール（`materials.*`）の URL 取得は §16.1 のホワイトリスト・1MB 上限・15s タイムアウトに従う（MUST）。
+- 素材系ツール（`materials.*`）はネットワークから本文を取得しない（§16.1.2 を廃止した）。素材の本文は利用者が `materials/inbox/` に置くか、`materials.propose` の `markdown` で渡す。
 - 監査ログ（§15.8.4）はすべての新しい書き込みツールでも記録する（MUST）。
 
 #### 19.5.3 スキーマ
 
 - 各ツールの `inputSchema` は JSON Schema（draft 2020-12）で、§19.7 のカタログの引数と一致する（MUST）。スキーマは `api.list` の出力から生成し、手書きの複製を置かない。
+  引数の型（操作の登録にある引数の型 → `properties` の `type`）・必須（`required`）・関門の `role` の必須化（§19.1.5）まで含めて同じ表から出す。
+- 凍結 14 ツール（§15.8.3）は §19.8.3 の凍結対象なので、スキーマは**追加時点のまま**にする（MUST）。
+  そのため凍結ツールの `inputSchema` には `required` が無く、`neighbors`（`section.get`）以外の引数は
+  すべて `"type": "string"` である。`plot.write` の `level` も `enum` を出さない（受け付ける値は
+  `episode` / `chapter` / `all` / `outline`。§19.5.2）。凍結ツール以外の新規ツールはこの制限を受けない。
 
 ### 19.6 CLI 拡張
 
@@ -305,7 +321,7 @@ novnow new|check|export|import|mcp …     既存サブコマンド（§14.1。�
 
 #### 19.6.2 出力
 
-- 全操作は `--json` で機械可読出力（§19.1.4 の決定論）を返す（MUST）。省略時は人間可読な地域化テキスト（§7.4）。
+- 全操作は `--json` で機械可読出力（§19.1.4 の決定論）を返す（MUST）。省略時は人間可読な地域化テキスト（§12.3）。
 - `--json` の共通形（エンベロープ）は次のとおり（MUST）:
 
 ```json
@@ -336,9 +352,9 @@ GUI の全機能を正規操作 ID に対応づけるカタログ。この表が
 |---|---|---|---|
 | project.info | プロジェクト基本情報（タイトル・作者・言語・版）。ワークスペース見出し | | |
 | project.new | 新規プロジェクト作成（パレット `>` + `new`、CLI 既存） | | L—（起動前）M—（要プロジェクト） |
-| project.validate | 構造検証（CLI `check` 既存。§14.2.4 の一覧） | | |
+| project.validate | 構造検証（CLI `check` 既存。§4.3 の判定） | | |
 | project.reload | 再読込（パレット `>` + `reload`） | | M—・C—（状態性） |
-| project.stats | 執筆統計（統計バッジ、`.novnow/stats.json` の算出） | | |
+| project.stats | 執筆統計（総文字数・台詞比率・話者別の文字数と行数・節数。§19.1.4 の決定論により、壁時計に依存する「本日」「速度」「連続日数」は返さない。それらは画面が `.novnow/stats.json`（§4.4.2）と時計から出す） | | |
 | project.recent_list | 最近開いたプロジェクト一覧（`.novnow/recent.json`） | | M—（状態性） |
 | project.recent_remove | 最近開いた一覧からの削除（`>` + `forget`） | | M—（状態性） |
 | project.import_zip | Zip 導入（§13.5、選択画面・CLI） | | M—（バイナリ） |
@@ -353,6 +369,7 @@ GUI の全機能を正規操作 ID に対応づけるカタログ。この表が
 | section.delete | 節の削除（`>` + `delete-section`、§8.1.2。本文と対応するプロットを一緒に削除） | | M 門番 |
 | section.confirm_next | 次の未確認節の確認（節の末尾での `Ctrl+Enter`、§9.4.1） | | M—・C—（状態性） |
 | section.split | 節の分割（節エディタの `Ctrl+Enter`、§8.1.1・§9.4.1） | | M 門番 |
+| section.propose | 節の提案（本文を書き換えず `agents/proposals/` に置く。§8.7.1。MCP 既存 `novnow.section.propose`）。提案は本文を変えないため関門を置かない（§19.1.5） | | |
 | nav.file | 文書・ファイルの直接指定 | | M—・C—（状態性） |
 | nav.section | セクションへの移動（`Ctrl+G`） | | M—・C—（状態性） |
 | nav.jump | 行への移動（`Ctrl+L`） | | M—・C—（状態性） |
@@ -368,7 +385,7 @@ GUI の全機能を正規操作 ID に対応づけるカタログ。この表が
 | plot.write | 全体／章／話プロットの書き込み（§10.3.2） | | M 門番 |
 | plot.set_state | プロットの確認状態（✓）の切替（§10.3.3） | | M 門番 |
 | plot.insert_section | 話プロットへの節挿入（`Ctrl+Shift+N`、§10.2） | | M 門番 |
-| plot.outline_fold | 構成ツリーの章→話の展開・折り畳み（`Ctrl+Shift+[` `]`） | foldingRange（範囲算出） | 折り畳み状態の永続化は §4.4.1 の `folded` キーの導入とともに提供 |
+| plot.outline_fold | 構成ツリーの章→話の展開・折り畳み（`Ctrl+Shift+[` `]`） | foldingRange（範囲算出） | 折り畳み状態は `.novnow/ui.json` の `folded.outline` に保存し、再起動後に復元する（§4.4.1・§9.3.3） |
 | save.now | 保存（`Ctrl+S`） | | M—・C—（状態性） |
 | save.state | 保存状態の取得（§9.6 の 6 状態） | | M—・C—（状態性） |
 | save.keep_mine | 衝突時に自分の版を維持（§9.6） | | M—・C—（状態性） |
@@ -380,7 +397,7 @@ GUI の全機能を正規操作 ID に対応づけるカタログ。この表が
 | search.find_next / search.find_prev | 次の候補・前の候補（`F3` `Shift+F3`） | | M—・C—（状態性） |
 | materials.list | 素材インボックス一覧（§16.1） | | |
 | materials.get | 素材カードの取得（`Ctrl+M`） | | |
-| materials.approve | 素材の採用（S#### 化、URL 取得） | | M 門番 |
+| materials.approve | 素材の採用（S#### 化、`inbox/` → `docs/` の移動と `approved` 化。ネットワークからは取得しない、§16.1.2） | | M 門番 |
 | materials.reject | 素材の却下（`>` + `reject-material`） | | M 門番 |
 | materials.update | 素材カードの編集（メタデータ） | | M 門番 |
 | materials.attach | 素材の添付（`>` + `attach-material`） | | M 門番 |
@@ -390,7 +407,7 @@ GUI の全機能を正規操作 ID に対応づけるカタログ。この表が
 | idea.capture | 着想の記録（`Ctrl+Shift+I`、種別・キーワード） | | M 門番 |
 | idea.promote | 着想の昇格（`>` + `promote-idea`） | | M 門番 |
 | idea.drop | 着想の削除（`>` + `drop-idea`） | | M 門番 |
-| idea.write | 着想メモの書き込み（§10.4.3） | | M 門番 |
+| idea.write | 着想メモの書き込み（§10.4） | | M 門番 |
 | cast.get | キャラクター情報・有効なモード（MCP 既存） | | |
 | cast.list | キャラクター一覧 | | |
 | cast.timeline | 呼称タイムライン（§9.5.2） | | |
@@ -404,7 +421,7 @@ GUI の全機能を正規操作 ID に対応づけるカタログ。この表が
 | lang.completion | 補完候補（§9.7 の `'` `@` `:` `$` `^`） | textDocument/completion | |
 | lang.hover | カーソル位置の情報（§9.7.1） | textDocument/hover | |
 | lang.hints | インラインヒント（`>` + `toggle-inlay-hints`） | textDocument/inlayHint | |
-| lang.code_action | クイックフィックス候補（§11.7 の 5 種） | textDocument/codeAction | 適用は M 門番 |
+| lang.code_action | クイックフィックス候補（§7 の各コードの「クイックフィックス」列） | textDocument/codeAction | 適用は M 門番 |
 | lang.definition | 定義へジャンプ（`>` + `goto-definition`） | textDocument/definition | |
 | lang.references | 参照検索（`>` + `find-references`） | textDocument/references | |
 | lang.symbols | シンボル一覧（`>` + `show-symbols`） | textDocument/documentSymbol | |
@@ -412,7 +429,7 @@ GUI の全機能を正規操作 ID に対応づけるカタログ。この表が
 | lang.rename_preview | リネームの影響範囲（`>` + `rename-symbol`） | textDocument/rename（準備） | |
 | lang.rename_apply | リネームの実行 | textDocument/rename | M 門番 |
 | lang.folding | 折り畳み範囲（§9.8） | textDocument/foldingRange | |
-| diagnostics.run | 診断（スコープ: single / file / full、§9.1.1） | publishDiagnostics（配信） | |
+| diagnostics.run | 診断（`scope` はパスの接頭辞、`path` は文書 1 つ、`scene` は `@AA-BB-CC-DD`。省略すると全部。§7.2 の範囲で計算） | publishDiagnostics（配信） | |
 | diagnostics.place | 地名解決（`>` + `resolve-place`、§11.3） | | |
 | review.list | 見直し項目一覧（`Ctrl+Shift+R`） | | |
 | review.goto | 見直し項目への移動（`>` + `goto-review`） | | M—・C—（状態性） |
@@ -473,6 +490,24 @@ GUI の全機能を正規操作 ID に対応づけるカタログ。この表が
 #### 19.8.2 発見可能性
 
 - `api.list` は全正規操作を次の情報とともに返す（MUST）: ID・説明（地域化）・引数スキーマ（JSON Schema）・戻り値の形・例外（どのインターフェースが提供しないか）・関門の有無・対応するパレットコマンド名（あれば）。
+
+| `api.list` のキー | 中身 | 状態 |
+|---|---|---|
+| `id` / `domain` / `verb` | 正規操作 ID とその分解（`project.info` → `project` / `info`） | 実装済み |
+| `description` | 地域化した 1 行説明（`api.op.<id>` の辞書） | 実装済み |
+| `arguments` | JSON Schema（`type: object`・`properties`・`required`）＋ `order`（位置引数の束縛順、§19.3.2） | 実装済み |
+| `gate` / `gate_arg` | 関門の有無と、書き込みのときだけ関門が掛かる操作の引き金の引数名（§19.7） | 実装済み |
+| `exceptions` | 提供しないインターフェース（`R` / `P` / `L` / `M` / `C` → 理由） | 実装済み |
+| `stateful` / `lsp` / `command` | セッション状態を扱うか・LSP 標準メソッド・パレットのコマンド名 | 実装済み |
+| `returns` | 戻り値の形（JSON Schema`{"type":"object","properties":{…}}`） | 実装済み |
+
+戻り値の形の書き方（`returns`）:
+
+- `properties` は**その操作が返しうるトップレベルのキー**の一覧である。省略されうるキーがあるので `required` は出さない。
+- 値が `null` になりうるキーは `{"type": ["object", "null"]}` のように型を並べる（`project.validate` の `structure`、`search.find_next` の `range` など）。
+- 呼び出しごとに形が変わる値（`settings.set` の `value`、`session.command` の `data`）は型を書かない（`{}`）。
+- 宣言は操作の登録とは別の 1 つの表（操作 ID の昇順）に置き、**実際に叩いた戻り値と一致することをテストで検査する**（キーの漏れ・型のずれを検出する。§19.1.4）。
+- MCP のツールには `outputSchema` を出さない（凍結 14 ツールは §19.8.3 の凍結、新規分は §19.5.3 の `inputSchema` のみ）。戻り値の形は `api.list` と本節で示す。
 - `--json` の出力、MCP の `inputSchema`、LSP の `executeCommand` 一覧、Python の型スタブはすべて `api.list` と同じ単一のカタログから生成する（MUST）。手書きの複製を置かない（§19.1.4）。
 
 #### 19.8.3 互換性の約束
@@ -486,4 +521,19 @@ GUI の全機能を正規操作 ID に対応づけるカタログ。この表が
 - Rust ライブラリは本体クレートと同じ名前で公開する（MUST）。
 - Python ホイールは §19.3.1 の 5 プラットフォーム構成でパッケージレジストリへ公開する（MUST）。ビルドは公開パイプライン（CI）で行い、版番号は本体と一致させる。
 - LSP / MCP / CLI は本体バイナリに内蔵され、追加の配布物を必要としない（MUST）。
-- ウェブサイト（§13）に API リファレンス（カタログ・引数・例）を掲載する。
+- ウェブサイト（§13）に API リファレンス（カタログ・引数・戻り値・例）を掲載する。カタログ・引数・
+  戻り値のキーは `api.list`（§19.8.2）から生成する（生成器と `--check` は開発手引きを参照）。
+- **操作ごとの例**も同じ生成物から作る。手書きの例文を置かない（MUST。カタログを増減したときに
+  例だけ古くなるのを防ぐ）。例は次の規則で機械的に組み立てる:
+  - 引数は**必須のものだけ**を埋める（最短の呼び出し）。省略可能な引数は、渡さない場合の既定が
+    仕様にあるときだけ注記で補う。
+  - 値は引数名ごとの見本の表から取る（`scene` → `@01-01-01-01`、`query` → 架空の登場人物名、
+    `path` → `contents/01-01.cnov` など）。表に無い引数は型の最小値（`string` → `<name>`、
+    `integer` → `1`、`array` → `[]`）。作品名は `my-novel` に固定する。
+  - 4 つの口（CLI・Rust・Python・MCP）を並べる。CLI は引数を `--名前 値` で渡し、値に空白や
+    記号が入るものは引用符で囲む。引数が無いときは `--json` だけを付ける。Rust は `Session::run`
+    に JSON を渡す形（§19.2）、Python はドメインの属性から動詞を呼ぶ形（§19.3.3）、MCP は
+    `tools/call` の生の要求（§19.5）で書く。
+  - 既存サブコマンドに対応する操作（`project.new`・`project.validate`・`project.import_zip`・
+    `export.text`。§19.6.1 の対応表）は、**既存形**を CLI の例に出す（`novnow new my-novel` など）。
+    正規の `novnow <ドメイン> <動詞>` 形も同じ動作で受け付けるが、利用者の手元にあるのは既存形である。

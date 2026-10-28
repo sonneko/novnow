@@ -15,8 +15,10 @@
 //! `role_language::MatcherSet::underlines`）。「直前の話者注釈の継続」は**同じ節の中だけ**
 //! （`;` を跨がない。B-81）。
 //!
-//! ① で出さない種別: `ref.address`（追加仕様 8）・`citation`（追加仕様 15）・`illustration`
-//! （追加仕様 23）。enum には §6.3 の表どおり全部ある（② で足すときに名前が変わらないように）。
+//! 3 つの周辺種別: `ref.address` は `address:` の呼称（§5.5.6）が辞書で解決できたとき、
+//! `citation` は本文の引用注釈 `^M...`（§5.2.4、[`crate::core::annotations::citations`]）、
+//! `illustration` は C 形式の `! ` 行の全体（§5.2.5、[`crate::core::annotations::illustration`]）。
+//! enum は §6.3 の表どおり。
 
 use std::ops::Range;
 
@@ -43,7 +45,7 @@ pub enum TokenType {
     SceneTitle,
     /// `ref.character`: 解決済みキャラ名。
     RefCharacter,
-    /// `ref.address`: 解決済み呼称（§5.5.6、**② の追加仕様 8**。① では出さない）。
+    /// `ref.address`: 解決済み呼称（§5.5.6）。
     RefAddress,
     /// `ref.word`: 解決済み用語。
     RefWord,
@@ -51,9 +53,9 @@ pub enum TokenType {
     RefMaterial,
     /// `ref.unresolved`: 未解決参照。
     RefUnresolved,
-    /// `citation`: 行末の資料引用注釈 `^M0137`（§5.2.4、**② の追加仕様 15**。① では出さない）。
+    /// `citation`: 行末の資料引用注釈 `^M0137`（§5.2.4）。
     Citation,
-    /// `illustration`: 挿絵メモ行 `! ...`（§5.2.5、**② の追加仕様 23**。① では出さない）。
+    /// `illustration`: 挿絵メモ行 `! ...`（§5.2.5）。
     Illustration,
     /// `modifier.mode`: `:B` `:B+D`。
     ModifierMode,

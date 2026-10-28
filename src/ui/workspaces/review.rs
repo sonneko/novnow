@@ -1,4 +1,5 @@
-//! `review` — 点検（§10.9。v1 ① は**診断と進捗の 2 タブ**。文体・統計・挿絵・資料のタブは ②）。
+//! `review` — 点検（§10.9）。このファイルは**診断と進捗の 2 タブ**を描く。文体・統計・挿絵・
+//! 五感・提案のタブは `tabs.rs` が同じワークスペースに足す。
 //!
 //! - タブは `Ctrl+Shift+→` / `Ctrl+Shift+←`（review の中だけ。B-126）。
 //! - 診断: プロジェクト全体の診断（コード / 重大度 / `パス:行:列` / 作家の言葉での「どこ」/ 文言。
@@ -281,8 +282,8 @@ pub fn show(
 ) -> (Option<Request>, Option<Target>) {
     let colors = theme::palette(view.mode);
     let locale = view.locale;
-    // There is no text editor on this screen; focus on a header button must
-    // not steal bare arrows from the diagnostic/progress list.
+    // この画面にはテキストの入力欄が無い。見出しのボタンにフォーカスがあるときも、
+    // 診断・進み具合の一覧から修飾なしの矢印を奪わない。
     let typing = view.overlay;
     let mut jump = None;
     let mut request = None;

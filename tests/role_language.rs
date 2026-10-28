@@ -557,11 +557,17 @@ fn dialogue_spans_of_plain_text_is_empty() {
 }
 
 #[test]
-fn an_unclosed_quote_runs_to_the_end() {
+fn an_unclosed_quote_runs_to_the_line_end() {
     let text = "「書きかけの台詞";
     assert_eq!(
         slices(text, &role_language::dialogue_spans(text)),
         vec!["書きかけの台詞"]
+    );
+    // 行をまたがない（閉じ忘れの 1 つで以降の行を台詞にしない）
+    let lines = "地の文\n「書きかけ\n地の文\n";
+    assert_eq!(
+        slices(lines, &role_language::dialogue_spans(lines)),
+        vec!["書きかけ"]
     );
     // 種類の違う閉じ括弧は閉じない
     let mixed = "「静粛に！』と続くだよ！";

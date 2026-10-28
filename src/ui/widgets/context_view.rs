@@ -27,8 +27,8 @@ pub const MAX_COLUMNS: f32 = 44.0;
 pub struct Cache {
     generation: u64,
     files: HashMap<String, (Highlight, Vec<usize>)>,
-    // Actual text heights for visible sections; off-screen sections use a cheap
-    // character-count estimate until they first enter the scroll viewport.
+    // 見えている節の実測の高さ。画面の外の節は、初めて可視範囲へ入るまで
+    // 文字数からの安い推定で高さを確保する（§9.3.4、S-12）。
     heights: HashMap<(String, usize, usize, u32, u32, u8), f32>,
     scrolled_to: Option<(String, usize)>,
 }
@@ -276,15 +276,15 @@ fn draw_section(
             .sum();
         lines as f32 * metrics.size * metrics.line_height
     });
-    // Keep an estimated slot in the scroll layout, without shaping or painting
-    // glyphs in sections outside the visible viewport (§9.3.4 / S-12).
+    // スクロールの並びには推定の場所だけを確保し、可視範囲の外の節では
+    // 字形の組み立て（シェーピング）も描画もしない（§9.3.4、S-12）。
     let block_height = 29.0 + text_height.max(metrics.size) + 4.0 * ui.spacing().item_spacing.y;
     let probe = Rect::from_min_size(ui.cursor().min, Vec2::new(width, block_height));
     if !ui.is_rect_visible(probe) {
         ui.allocate_exact_size(Vec2::new(width, block_height), Sense::hover());
         return None;
     }
-    // Extract token/squiggle spans only for sections entering the viewport.
+    // トークンと波線の範囲は、可視範囲へ入る節についてだけ取り出す（§9.3.4）。
     let (file_highlight, _) = cache.file(bench, &section.path);
     let highlight = slice(file_highlight, &range);
     ui.add_space(8.0);

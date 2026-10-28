@@ -83,9 +83,9 @@ pub struct State {
     rows: Option<(u64, Vec<IdeaRow>)>,
     editor: slice_editor::Cache,
     reveal: bool,
-    /// List highlight moved without opening/committing its text slice.
+    /// 一覧の選択だけを動かし、そのアイデアの本文は開かず確定もしない（§10.4）。
     preview: bool,
-    /// Scroll the list once after a keyboard-only selection change.
+    /// キーだけで選択を動かした直後に、一覧を 1 回スクロールして見せる。
     scroll_list: bool,
 }
 
@@ -165,7 +165,7 @@ impl State {
         }
     }
 
-    /// Only move the list highlight; keep the current idea slice uncommitted.
+    /// 一覧の選択だけを動かす。いま開いているアイデアの Slice は確定しない（§10.4）。
     pub fn preview_row(&mut self, bench: &Workbench, forward: bool) -> bool {
         let visible = self.visible(bench);
         let at = self

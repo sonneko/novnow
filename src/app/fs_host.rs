@@ -142,6 +142,10 @@ fn display(path: &Path) -> String {
 }
 
 impl Host for FsHost {
+    fn writable(&self) -> bool {
+        self.storage.writable()
+    }
+
     fn write(&mut self, path: &str, text: &str) -> std::result::Result<(), String> {
         let target = self.path(path).map_err(|error| error.message)?;
         block_on(self.storage.write(&target, text))

@@ -1,4 +1,5 @@
-//! 参照ペイン（§9.5。① の 6 セクション: プロット / 上位プロット / 配役 / 用語 / 資料 / 診断）。
+//! 参照ペイン（§9.5。§9.5.2 の 9 セクションを [`crate::core::resolve::context_rules::PaneSection`]
+//! の順で描く: プロット / 上位プロット / 配役 / 用語 / 五感 / 空間 / 資料 / 挿絵 / 診断）。
 //!
 //! - **`egui::Frame::group`（枠線付きカード）を使わない**（§9.5.1 MUST。`tests/layering.rs` が
 //!   `src/ui/` に 0 件であることを検査する）。区切りは余白（12px）と見出しの字送り。
@@ -27,7 +28,7 @@ pub const DEBOUNCE_SECS: f64 = 0.08;
 pub enum Chosen {
     /// 条件一致の資料候補。その ID を今の節のプロットの `material:` に足す（§16.4）。
     Material(String),
-    /// Open the full source when a summary is truncated.
+    /// 要約が切れているとき、その資料の全文を開く（`Ctrl+Shift+W` 相当、§9.5.5）。
     OpenMaterial(String),
     /// 行からの移動（§9.5.5。コアの行モデルが持つ移動先）。
     Navigate(reference::Nav),

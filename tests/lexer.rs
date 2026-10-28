@@ -340,7 +340,7 @@ fn illustration_memo_is_contents_only() {
 }
 
 #[test]
-fn hash_comment_is_txt_only() {
+fn hash_comment_is_cnov_only() {
     // §5.0.8: `.md` では `#` は見出しなのでコメントにしない
     let got = tag_at("# メモ", MD, Stage::Two);
     assert_eq!(got, "text[# メモ]");
@@ -661,8 +661,8 @@ fn the_table_records_the_formats_of_each_key() {
 }
 
 #[test]
-fn aliases_of_stage_two_keys_are_not_in_the_table() {
-    // ② のキー（`docs/plans.md` §4.2 ）は ① の表に無いので Unknown になる
+fn stage_two_keys_are_in_the_table() {
+    // ② のキー（`docs/plans.md` §4.2 ）も §5.0.6 の表にあるので Unknown にならない
     let stage_two = [
         "when",
         "senses",
@@ -755,8 +755,8 @@ fn the_table_records_the_place_and_shape_of_each_sigil() {
     // §5.0.2 の「出現場所」列
     assert_eq!(sigil_formats(Sigil::Structure), Formats::ALL);
     assert_eq!(sigil_formats(Sigil::LineComment), Formats::ALL);
-    assert_eq!(sigil_formats(Sigil::SectionBreak), Formats::TXT);
-    assert_eq!(sigil_formats(Sigil::HashComment), Formats::TXT);
+    assert_eq!(sigil_formats(Sigil::SectionBreak), Formats::CNOV);
+    assert_eq!(sigil_formats(Sigil::HashComment), Formats::CNOV);
     assert_eq!(sigil_formats(Sigil::IllustrationMemo), Formats::CONTENTS);
 
     // 直後の空白を要求するのは `# ` と `! ` だけ（§5.0.2 MUST）
@@ -775,8 +775,8 @@ fn formats_are_a_bitmask_of_the_four_text_forms() {
     assert!(Formats::ALL.contains(B));
     assert!(Formats::ALL.contains(MD));
     assert!(!Formats::NONE.contains(C));
-    assert!(Formats::TXT.contains(C));
-    assert!(!Formats::TXT.contains(MD));
+    assert!(Formats::CNOV.contains(C));
+    assert!(!Formats::CNOV.contains(MD));
     assert!(Formats::FIELD_FORMATS.contains(MD));
     assert!(!Formats::FIELD_FORMATS.contains(C));
     let union = Formats::CONTENTS.union(Formats::MARKDOWN);
@@ -787,13 +787,13 @@ fn formats_are_a_bitmask_of_the_four_text_forms() {
 
 #[test]
 fn text_format_helpers_agree_with_the_table() {
-    assert!(C.is_txt());
-    assert!(A.is_txt());
-    assert!(B.is_txt());
-    assert!(!MD.is_txt());
+    assert!(C.is_cnov());
+    assert!(A.is_cnov());
+    assert!(B.is_cnov());
+    assert!(!MD.is_cnov());
     assert!(!C.allows_field());
     assert!(A.allows_field());
-    // `;` は `.txt` 3 形式（§5.2.1 / §5.3.1 / §5.4.1。`docs/history.md` A-11）
+    // `;` は `.cnov` 3 形式（§5.2.1 / §5.3.1 / §5.4.1。`docs/history.md` A-11）
     assert!(C.allows_section_break());
     assert!(B.allows_section_break());
     assert!(A.allows_section_break());

@@ -1,4 +1,5 @@
-//! Decode only bounded PNG/JPEG project assets. Never creates network image sources.
+//! プロジェクトの `assets/` にある PNG / JPEG だけを、上限付きで復号して描く（§5.5.3）。
+//! ネットワークからの画像取得は決して行わない。
 use std::hash::{Hash, Hasher};
 pub fn show(ui: &mut egui::Ui, bytes: &[u8], size: f32) {
     if bytes.len() > 256 * 1024 {

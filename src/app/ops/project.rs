@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 
 use crate::app::error::{Class, Error, Result};
 use crate::app::ops::{commit, via_mcp, Args};
-use crate::app::session::{bool_or, str_arg, str_or, usize_opt, Session};
+use crate::app::session::{str_arg, str_or, usize_opt, Session};
 use crate::core::features::sections;
 use crate::ui::i18n::{self, Locale};
 
@@ -13,7 +13,7 @@ pub fn info(session: &mut Session, args: &Args) -> Result<Value> {
     via_mcp(session, "novnow.project.info", args)
 }
 
-/// `project.validate`（§14.2.4 の一覧。`novnow check` と同じ判定）。
+/// `project.validate`（§4.3 の判定。`novnow check` と同じ）。
 pub fn validate(session: &mut Session, args: &Args) -> Result<Value> {
     let _ = args;
     use crate::core::model::project::{validate as check, Listing};
@@ -65,19 +65,14 @@ pub fn validate(session: &mut Session, args: &Args) -> Result<Value> {
             }),
         },
     };
-    let diagnostics: Vec<Value> = session
-        .aggregate()
-        .documents()
-        .flat_map(|document| {
-            let text = document.text.clone();
-            crate::core::diagnostics::document(document, session.aggregate())
-                .into_iter()
-                .map(|found| {
-                    crate::app::ops::diagnostic_json(locale, &document.path, &text, &found)
-                })
-                .collect::<Vec<_>>()
-        })
-        .collect();
+    let mut diagnostics: Vec<Value> = read_only_notice(session, locale).into_iter().collect();
+    diagnostics.extend(session.aggregate().documents().flat_map(|document| {
+        let text = document.text.clone();
+        crate::core::diagnostics::document(document, session.aggregate())
+            .into_iter()
+            .map(|found| crate::app::ops::diagnostic_json(locale, &document.path, &text, &found))
+            .collect::<Vec<_>>()
+    }));
     let errors = diagnostics
         .iter()
         .filter(|found| found["severity"] == json!("error"))
@@ -88,6 +83,18 @@ pub fn validate(session: &mut Session, args: &Args) -> Result<Value> {
         "ok": structure.is_null() && errors == 0,
         "structure": structure,
     }))
+}
+
+/// 読み取り専用のプロジェクトなら W041 の 1 件（§4.1。文書の中の位置を持たないので `path` は空）。
+pub(crate) fn read_only_notice(session: &Session, locale: Locale) -> Option<Value> {
+    if !session.read_only() {
+        return None;
+    }
+    let found = crate::core::diagnostics::Diagnostic::simple(
+        crate::core::diagnostics::DiagnosticCode::W041,
+        None,
+    );
+    Some(crate::app::ops::diagnostic_json(locale, "", "", &found))
 }
 
 /// `project.new`（`novnow new` と同じ構造を作る。§19.7 では L—・M—）。
@@ -384,20 +391,6 @@ pub(crate) mod base64_decode {
         }
         Ok(out)
     }
-}
-
-/// `diagnostics.run` のスコープ（`single` / `file` / `full`。§9.1.1）。
-pub fn scope_of(args: &Args) -> &'static str {
-    match str_or(args, "scope", "full") {
-        "single" => "single",
-        "file" => "file",
-        _ => "full",
-    }
-}
-
-/// `plot.outline_fold` の折り畳み状態（§19.7 の注記: 永続化は `folded` キーの導入とともに）。
-pub fn fold_flag(args: &Args) -> bool {
-    bool_or(args, "fold", true)
 }
 
 /// 章番号（`plot.*` の `chapter` 引数。無ければ今の節の章）。

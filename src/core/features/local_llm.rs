@@ -1,4 +1,5 @@
-//! Managed MCP configuration; no provider SDK and no network requests.
+//! ローカル LLM のための MCP 設定の管理（§15.8.4）。事業者の SDK も使わず、
+//! ここからネットワークへ要求もしない。
 use crate::core::model::project::LocalLlm;
 use serde_json::{json, Value};
 pub fn is_loopback(url: &str) -> bool {

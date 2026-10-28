@@ -48,7 +48,7 @@ pub fn level_of(settings: &Agents, role: &str) -> Delegation {
     settings.delegation_of(role)
 }
 
-/// 既定の役割か（カスタムロールは ②、`docs/plans.md` §4.2 ）。
+/// 既定の役割か（カスタムロールは `agents.custom_roles` と `prompts/custom/`、§5.9.2）。
 pub fn is_role(role: &str) -> bool {
     BUILTIN_ROLES.contains(&role)
 }
@@ -221,7 +221,7 @@ impl Plan {
     }
 }
 
-/// Built-in roles plus explicitly registered, well-formed custom roles, in stable order.
+/// 組み込みのロールに、明示的に登録された妥当なカスタムロールを足した一覧。順は安定（§5.9.2）。
 pub fn roles(project: &crate::core::features::Project) -> Vec<String> {
     let mut roles: Vec<String> = BUILTIN_ROLES.iter().map(|r| r.to_string()).collect();
     for role in project.settings().agents.custom_roles.iter().take(16) {

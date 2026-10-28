@@ -26,7 +26,7 @@
 - `REF:src/app/ops/mod.rs`: ディスパッチ表 `OPS: &[OpDef]`（正規操作 ID・引数スキーマ・ハンドラ・関門の有無・例外・対応パレットコマンド）。`api.list`・MCP の `inputSchema`・CLI ヘルプ・Python スタブの単一の真実となる。
 - ドメインハンドルは `&mut Session` を借りる薄いラッパ（`session.section()` → `SectionOps`）とし、メソッド名は正規操作 ID の動詞と 1:1 対応。多階層ドメインは動詞側へ畳む（§19.1.3）。
 - `session.command` のコマンド表は `REF:src/app/commands.rs` の `PALETTE_COMMANDS` / `SHORTCUT_PALETTE_COMMANDS` を使い、GUI と API が同じ表を共有する（ドリフト排除）。
-- イベントキュー: セッション内 `VecDeque<AppEvent>` と `poll_events()` / `on_event()`。LLM 呼び出し・URL 取得のワーカは `REF:src/app/agents.rs` の既存スレッド + チャネル方式を踏襲し、`cancel(handle)` は同じチャネルで中止フラグを伝える。
+- イベントキュー: セッション内 `VecDeque<AppEvent>` と `poll_events()` / `on_event()`。LLM 呼び出しのワーカは `REF:src/app/agents.rs` の既存スレッド + チャネル方式を踏襲し、`cancel(handle)` は同じチャネルで中止フラグを伝える。
 - 検証: `REF:tests/api.rs`でメモリホストによる全操作・エラー分類・イベント順序をカバーし、基本形に対応する API 呼び出しは `REF:tests/api_fs.rs` とライブラリの doc-test で検証する。
 
 ### 19.3 Python API
@@ -34,8 +34,8 @@
 状態: 実装完了（REF:python/novnow-py/src/lib.rs, REF:python/novnow-py/python/novnow/__init__.py, REF:src/app/driver.rs, REF:tests/api_driver.rs, REF:.github/workflows/wheels.yml）
 
 - `REF:Cargo.toml` は `default-members = ["."]`、`exclude = ["python/novnow-py"]` とする。Python 拡張は独立ワークスペースと `REF:python/novnow-py/Cargo.lock` を持ち、本体の既定ビルドへ巻き込まない。
-- `python/novnow-py/`（新クレート）: pyo3（`abi3-py39` + `extension-module`、cdylib）。`#[pyclass] Session` はワーカーへの汎用呼び出し口を持つ。Python のドメインメソッドは正規操作カタログを使って動的に解決し、操作本体の写しを置かない。データ受け渡しは dict / list / str、Zip 操作は bytes。
-- GIL: ブロック区間（FsGate I/O・LLM・URL 取得）は `Python::allow_threads` で解放する。`REF:src/app/driver.rs` のワーカースレッドが Session を所有し、Python 側の `Mutex<Driver>` が操作を直列化する。ロック取得も GIL を解放した区間で行う（`REF:python/novnow-py/src/lib.rs`）。
+- `python/novnow-py/`（新クレート）: pyo3（`abi3-py39` + `extension-module`、cdylib）。`#[pyclass] Session` はワーカーへの汎用呼び出し口を持つ。Python のドメインメソッドは正規操作カタログを使って動的に解決し、操作本体の写しを置かない。データ受け渡しは dict / list / str、Zip 操作は bytes。結果は `dict` の派生 `Record` に写し、キーを属性としても読めるようにする（§19.3.2 の `info["title"]` と `info.title`）。
+- GIL: ブロック区間（FsGate I/O・LLM）は `Python::allow_threads` で解放する。`REF:src/app/driver.rs` のワーカースレッドが Session を所有し、Python 側の `Mutex<Driver>` が操作を直列化する。ロック取得も GIL を解放した区間で行う（`REF:python/novnow-py/src/lib.rs`）。
 - 型スタブ `REF:python/novnow-py/python/novnow/__init__.pyi` は `REF:scripts/pyi-site.py` がカタログから生成する。`REF:python/novnow-py/python/novnow/py.typed` とともにホイールへ同梱する。
 - ビルド・配布は maturin（pip で導入 — pypi.org はサンドボックスから到達可能）。pyo3-ffi は生成済みバインディングを使うため、extension-module のビルドに Python.h も libpython リンクも要らず、サンドボックスの python3（3.11）で `pyo3-build-config` のインタプリタ検出が足りる。
 - pyo3 系クレートの vendoring 手順は `REF:docs/plans.md#stage-3` の §5.3（`REF:.github/workflows/sandbox-tools.yml` の Git Blob 差分追加）に従う。
@@ -46,7 +46,7 @@
 状態: 実装完了（REF:src/lsp/server.rs, REF:src/lsp/methods.rs, REF:src/cli/lsp.rs, REF:tests/lsp.rs）
 
 - `src/lsp/`（新設、`cli` と同じくネイティブターゲット限定でコンパイル）: `framing.rs`（Content-Length フレーミングの手書き実装 — 追加依存ゼロ、serde_json は既存。stdio ループの構成は `REF:src/adapters/mcp_stdio.rs` を踏襲）、`server.rs`（リクエスト路由）、`methods.rs`（§19.4.2 の標準メソッド対応）、`commands.rs`（`executeCommand` → `OPS` ディスパッチ）、`convert.rs`（UTF-16 ↔ バイト位置、`REF:src/core/text/position.rs` の行表を利用）。
-- 文書同期は Full: 受け取った全文を `REF:src/core/text/incremental.rs` の差分編集器で rope に適用する。単節診断は `REF:src/core/features/sections.rs` のスコープ限定機構を再利用し、`publishDiagnostics` を §7.4 の地域化メッセージで配信する。
+- 文書同期は Full: 受け取った全文を `REF:src/core/text/incremental.rs` の差分編集器で rope に適用する。単節診断は `REF:src/core/features/sections.rs` のスコープ限定機構を再利用し、`publishDiagnostics` を §12.3 の地域化メッセージで配信する。
 - サーバ→クライアントは §19.4.4 の `novnow/*` 通知 4 種と `workspace/applyEdit`（リネーム・提案の適用）。通知ペイロードは §19.2.4 の `AppEvent` と同じシリアライズを共有する。
 - 起動口は `REF:src/cli/mod.rs` の `lsp` サブコマンド（`mcp` と同じ cfg ゲート）。
 - 検証: `REF:tests/lsp.rs`がスクリプト化した JSON-RPC で実 stdio フレーミングを駆動する（`REF:tests/mcp_stdio.rs` と同じ方式）。CJK とサロゲートペアの UTF-16 往復を含む。
@@ -55,11 +55,11 @@
 
 状態: 実装完了（REF:src/core/agents/server.rs, REF:src/cli/mcp.rs, REF:tests/cli.rs）
 
-- `REF:src/core/agents/server.rs` のツール表を 14 件から「凍結 14 件 + §19.7 で「M—」の印が無い操作 72 件（`novnow.` + 操作 ID）= 86 件」へ拡張する。全件ではない: 「M—」の 35 件（状態性・安全性・バイナリ）は載せない。既存 14 件の名前・スキーマ・挙動はバイト単位で凍結（`REF:tests/golden/mcp_tools.json` が定義のゴールデン、`REF:tests/mcp_frozen.rs` が内訳と回帰ガード、`REF:tests/mcp_stdio.rs` がクライアント側の往復）、新規分は app 層の `OPS` 表から生成し `api.list` との二重管理をなくす。
+- `REF:src/core/agents/server.rs` のツール表を 14 件から「凍結 14 件 + §19.7 で「M—」の印が無い操作 86 件（`novnow.` + 操作 ID。うち 13 件は凍結ツールと同じ名前なので新しいツールにはならない）= 87 件」へ拡張する。全件ではない: 「M—」の 35 件（状態性・安全性・バイナリ）は載せない。`novnow.lexicon.search` は操作 `dictionary.term_full` の別名である。既存 14 件の名前・スキーマ・挙動はバイト単位で凍結（`REF:tests/golden/mcp_tools.json` が定義のゴールデン、`REF:tests/mcp_frozen.rs` が内訳と回帰ガード、`REF:tests/mcp_stdio.rs` がクライアント側の往復）、新規分は app 層の `OPS` 表から生成し `api.list` との二重管理をなくす。
 - 呼び出しごとのプロジェクト読み直しは現行 `run()` の方式を維持する。関門付き書き込みは既存の直接書き込み経路（E036 検証・提案のみ記録・§15.8.4 監査ログ）を再利用する。
 - 安全除外の 4 操作はツール表へ登録せず、直接呼び出しには method-not-found と `isError` の二重で拒否する。
-- `plot.write` の `level` 拡張（`outline` / `chapter`）は `REF:src/core/features/plots.rs` のレベル別検証を汎用化する。既存 `episode` 呼び出しの動作は不変。
-- 検証: `REF:tests/mcp_frozen.rs`（凍結 14 件のバイト一致・`inputSchema` の型検査・ツール表の内訳 86 件）と `REF:tests/mcp_stdio.rs`（往復・関門挙動・除外）。
+- `plot.write` の `level` 拡張（`outline` / `chapter`）は、`REF:src/cli/mcp.rs` の `call()` が引数の `level` を見て `episode` 以外を正規操作の実装（`REF:src/app/ops/editing.rs` の `plot_write`）へ回すことで実現する。`episode` は凍結実装（`REF:src/core/agents/server.rs`）のままなので出力はバイト不変。`chapter` は省略時に `chapter_of()` が `scene` の章へ落とす。回帰は `REF:tests/cli.rs` の `mcp_plot_write_takes_outline_and_chapter_levels`（3 階層を 1 回の MCP セッションで書き、監査ログも見る）。
+- 検証: `REF:tests/mcp_frozen.rs`（凍結 14 件のバイト一致・`inputSchema` の型検査・ツール表の内訳 87 件）と `REF:tests/mcp_stdio.rs`（往復・関門挙動・除外）。
 
 ### 19.6 CLI 拡張
 
@@ -88,4 +88,7 @@
 
 - 版番号は `VERSION` 定数（`env!("CARGO_PKG_VERSION")`、`REF:src/cli/mod.rs`）を単一の真実とし、`Session::version()`・`novnow.__version__`・LSP の `serverInfo`・MCP のサーバ情報が共有する。
 - 互換性の凍結は回帰テストが守る: 既存 14 ツールは `REF:tests/mcp_stdio.rs`、既存サブコマンドと終了コードは `REF:tests/cli.rs`、カタログ全体は `tests/golden/api_catalog.json`。
-- 配布: ホイールのビルド・公開ジョブを `REF:.github/workflows/` 配下へ追加する。ウェブサイト（Astro、`REF:website/package.json`）には API リファレンスページを H7 で追加し、ゴールデンのカタログを静的 JSON として公開する。
+- 配布: ホイールのビルド・公開ジョブを `REF:.github/workflows/` 配下へ追加する。ウェブサイト（Astro、`REF:website/package.json`）には API リファレンスページを H7 で追加し、ゴールデンのカタログを静的 JSON として公開する。ページは `REF:scripts/api-site.py` の生成物（`REF:website/src/data/api.ts`）だけを読み、見出しの操作数も生成物の件数から出す（手書きの数を置かない）。
+- `api.list` の `returns`（戻り値のスキーマ）: 操作ごとの戻り値の形を `REF:src/app/ops/returns.rs` の 1 つの表（操作 ID の昇順）に宣言し、`api.list` の `returns`・ウェブサイトの「戻り値のキー」列へ同じ表から配る。宣言は `REF:tests/api_returns.rs` が**実際に叩いた戻り値**と突き合わせる（宣言に無いキーが出たら不合格、型が違えば不合格）。`null` を取りうる値は型を並べ（`["object", "null"]`）、形が可変の値は型を書かない。
+- 操作ごとの例: `REF:scripts/api-site.py` の `examples_for()` が `api.list` の `arguments` から 4 つの口ぶんの最短呼び出しを組み立て、`REF:website/src/data/api.ts` の `examples` に載せる。値は同スクリプトの `SAMPLES`（引数名 → 見本）で決め、表に無い引数は型の最小値に落とす。ページ（`REF:website/src/components/ApiCatalog.astro`）は「例」列の `<details>` に 4 行を出すだけで、例文を手書きしない。
+- MCP の `outputSchema` は出さない（戻り値の形は `api.list` で示す）。

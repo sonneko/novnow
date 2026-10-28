@@ -1,11 +1,16 @@
 use super::{metadata, metrics};
+use crate::core::resolve::role_language;
 use crate::core::{
     annotations,
     diagnostics::{Arg, Diagnostic, DiagnosticCode as C},
     features::Project,
     model::document::{Document, DocumentFormat},
     syntax::{characters_md, contents, materials_index},
-    text::lexer::{self, FieldKey, LineKind, TextFormat},
+    text::{
+        charclass,
+        lexer::{self, FieldKey, LineKind, TextFormat},
+        sentence,
+    },
 };
 fn diag(code: C, range: std::ops::Range<usize>, args: Vec<Arg>) -> Diagnostic {
     Diagnostic::new(code, Some(range), args)
@@ -28,7 +33,15 @@ pub fn document(doc: &Document, project: &Project, explicit: bool) -> Vec<Diagno
         .into_iter()
         .filter(|code| lint_on(*code))
         .collect();
-    let writing_on = !section_active.is_empty() || !scene_active.is_empty();
+    // 文体の観察（W081 / W087 / W088 / W089）は節ではなく行ごとに数える（§7.2 の実行コスト表）。
+    let style_active: Vec<C> = [C::W081, C::W087, C::W088, C::W089]
+        .into_iter()
+        .filter(|code| lint_on(*code))
+        .collect();
+    let writing_on = !section_active.is_empty()
+        || !scene_active.is_empty()
+        || !style_active.is_empty()
+        || lint_on(C::W090);
     if doc.format == DocumentFormat::Contents
         && (explicit
             || doc.text.contains('^')
@@ -70,7 +83,7 @@ pub fn document(doc: &Document, project: &Project, explicit: bool) -> Vec<Diagno
                             ));
                         }
                     }
-                    let spans = crate::core::resolve::role_language::dialogue_spans(text.body);
+                    let spans = role_language::dialogue_spans(text.body);
                     if spans.is_empty() && !text.body.trim().is_empty() {
                         previous.clear();
                         run = 0;
@@ -128,8 +141,8 @@ pub fn document(doc: &Document, project: &Project, explicit: bool) -> Vec<Diagno
                         }
                         previous = name;
                     }
-                    if explicit {
-                        out.extend(style(text.body, offset, project));
+                    if !style_active.is_empty() {
+                        out.extend(style(text.body, offset, project, &style_active));
                     }
                     if jp && !section_active.is_empty() {
                         section.push((text.body.to_string(), offset));
@@ -150,6 +163,45 @@ pub fn document(doc: &Document, project: &Project, explicit: bool) -> Vec<Diagno
         if !section.is_empty() {
             section_lints(&section, &section_active, &mut out);
         }
+        // W090: 台詞比率が上限目安を超えた節（§9.4.2 の算出、§7.2 の実行コスト表で「節のみ」）。
+        if lint_on(C::W090) {
+            let target = project.settings().writing.dialogue_ratio_target;
+            let mut starts = Vec::with_capacity(tree.lines.len());
+            let mut at = 0usize;
+            for line in &tree.lines {
+                starts.push(at);
+                at += line.raw().len() + 1;
+            }
+            for section in &tree.sections {
+                let mut text = String::new();
+                let mut range = None;
+                for index in section.content.clone() {
+                    let Some(line) = tree.lines.get(index) else {
+                        continue;
+                    };
+                    let start = starts.get(index).copied().unwrap_or(0);
+                    range.get_or_insert(start..start + line.raw().len());
+                    if let Some(range) = range.as_mut() {
+                        range.end = start + line.raw().len();
+                    }
+                    if !text.is_empty() {
+                        text.push('\n');
+                    }
+                    text.push_str(line.raw());
+                }
+                let m = metrics::section(&text);
+                if m.total > 0 && m.ratio() > target {
+                    out.push(Diagnostic::new(
+                        C::W090,
+                        range,
+                        vec![
+                            Arg::number((m.ratio() * 100.0) as i64),
+                            Arg::number((target * 100.0) as i64),
+                        ],
+                    ));
+                }
+            }
+        }
         // 場面単位の執筆支援（W098 / W103 / W104 / W105）: 場面内の全節を集計する（§7.2.4 ほか）。
         if jp && !scene_active.is_empty() {
             let mut scene: Vec<(String, usize)> = Vec::new();
@@ -169,19 +221,6 @@ pub fn document(doc: &Document, project: &Project, explicit: bool) -> Vec<Diagno
                 scene_offset += line_len;
             }
             scene_lints(&scene, &scene_active, &mut out);
-        }
-    }
-    if explicit && doc.format == DocumentFormat::Contents {
-        let m = metrics::section(&doc.text);
-        if m.total > 0 && m.ratio() > project.settings().writing.dialogue_ratio_target {
-            out.push(Diagnostic::new(
-                C::W090,
-                None,
-                vec![
-                    Arg::number((m.ratio() * 100.0) as i64),
-                    Arg::number((project.settings().writing.dialogue_ratio_target * 100.0) as i64),
-                ],
-            ));
         }
     }
     if matches!(
@@ -205,18 +244,21 @@ pub fn document(doc: &Document, project: &Project, explicit: bool) -> Vec<Diagno
                         .next()
                         .unwrap_or(field.value)
                         .trim();
+                    // 解決できない値（絶対パス・`../`・`icon` が `assets/` の外）は、
+                    // 「参照先が無い」と同じ扱いにする（W070 / W092。§5.3.6・§5.5.3）。
+                    let missing = if field.key == FieldKey::Icon {
+                        C::W070
+                    } else {
+                        C::W092
+                    };
                     match metadata::asset_path(value, field.key == FieldKey::Icon) {
                         None => out.push(diag(
-                            C::E062,
+                            missing,
                             offset..offset + raw.len(),
                             vec![Arg::text(value)],
                         )),
                         Some(path) if !project.has_file(&path) => out.push(diag(
-                            if field.key == FieldKey::Icon {
-                                C::W070
-                            } else {
-                                C::W092
-                            },
+                            missing,
                             offset..offset + raw.len(),
                             vec![Arg::text(value)],
                         )),
@@ -501,26 +543,14 @@ struct SpacingEvent {
 }
 
 /// 1 つの本文行から台詞内の句読点イベントを拾う（`base` は文書内での行頭 byte）。
+///
+/// 台詞の内側の判定は [`role_language::dialogue_spans`] に任せる（入れ子と閉じ忘れの
+/// 扱いを 1 か所に保つため）。行を渡しているので、閉じ忘れた台詞は行末で切れる。
 fn spacing_events(body: &str, base: usize, out: &mut Vec<SpacingEvent>) {
     let chars: Vec<(usize, char)> = body.char_indices().collect();
-    let mut stack: Vec<char> = Vec::new();
+    let spans = role_language::dialogue_spans(body);
     for (index, (at, character)) in chars.iter().enumerate() {
-        match character {
-            '「' => {
-                stack.push('」');
-                continue;
-            }
-            '『' => {
-                stack.push('』');
-                continue;
-            }
-            _ => {}
-        }
-        if stack.last() == Some(character) {
-            stack.pop();
-            continue;
-        }
-        if stack.is_empty() {
+        if !spans.iter().any(|span| span.contains(at)) {
             continue;
         }
         let Some(mark) = DIALOGUE_MARKS.iter().position(|m| m == character) else {
@@ -588,13 +618,10 @@ fn japanese_dominant(project: &Project) -> bool {
         .filter(|d| d.format == DocumentFormat::Contents)
     {
         for character in document.text.chars() {
-            match character {
-                '\u{3041}'..='\u{3096}'
-                | '\u{30a1}'..='\u{30f6}'
-                | '\u{30fc}'
-                | '\u{4e00}'..='\u{9fff}' => japanese += 1,
-                'a'..='z' | 'A'..='Z' => latin += 1,
-                _ => {}
+            if charclass::is_body_japanese(character) {
+                japanese += 1;
+            } else if charclass::is_body_latin(character) {
+                latin += 1;
             }
         }
     }
@@ -641,28 +668,28 @@ fn dialogue_spacing(doc: &Document, project: &Project) -> Vec<Diagnostic> {
     }
     out
 }
+/// 文体の観察（W081 / W087 / W088 / W089、§9.4.4）。`active` に入っているものだけ出す。
 /// i18n: format-vocabulary
-fn style(body: &str, offset: usize, project: &Project) -> Vec<Diagnostic> {
+fn style(body: &str, offset: usize, project: &Project, active: &[C]) -> Vec<Diagnostic> {
     let mut out = Vec::new();
     let limit = project.settings().writing.long_sentence_chars as usize;
-    let mut at = 0;
     let mut conjunctions = 0;
-    for sentence in body.split_inclusive(['。', '！', '？']) {
+    for (range, sentence) in sentence::split(body) {
         let count = metrics::prose(sentence)
             .chars()
             .filter(|c| !c.is_whitespace())
             .count();
-        if count > limit && !sentence.contains('、') {
+        if active.contains(&C::W081) && count > limit && !sentence.contains('、') {
             out.push(diag(
                 C::W081,
-                offset + at..offset + at + sentence.len(),
+                offset + range.start..offset + range.end,
                 vec![Arg::number(count as i64)],
             ));
         }
-        if count > limit * 2 {
+        if active.contains(&C::W089) && count > limit * 2 {
             out.push(diag(
                 C::W089,
-                offset + at..offset + at + sentence.len(),
+                offset + range.start..offset + range.end,
                 vec![Arg::number(count as i64)],
             ));
         }
@@ -671,14 +698,14 @@ fn style(body: &str, offset: usize, project: &Project) -> Vec<Diagnostic> {
         } else {
             conjunctions = 0;
         }
-        if conjunctions >= 3 {
+        // 3 連続の 3 文目に 1 件だけ（W097 / W100 / W101 と同じ数え方）。
+        if active.contains(&C::W088) && conjunctions == 3 {
             out.push(diag(
                 C::W088,
-                offset + at..offset + at + sentence.len(),
+                offset + range.start..offset + range.end,
                 vec![],
             ));
         }
-        at += sentence.len();
     }
     let words = tiniestsegmenter::tokenize(body);
     let mut counts = std::collections::BTreeMap::new();
@@ -686,7 +713,7 @@ fn style(body: &str, offset: usize, project: &Project) -> Vec<Diagnostic> {
         *counts.entry(*word).or_insert(0) += 1;
     }
     for (word, count) in counts {
-        if count >= 3 {
+        if active.contains(&C::W087) && count >= 3 {
             out.push(diag(
                 C::W087,
                 offset..offset + body.len(),
@@ -697,8 +724,24 @@ fn style(body: &str, offset: usize, project: &Project) -> Vec<Diagnostic> {
     out
 }
 
+/// 文頭の接続詞（W088、§9.4.4 の固定リスト 14 語）。
 /// i18n: format-vocabulary
-const CONJUNCTIONS: &[&str] = &["しかし", "そして", "だから", "だが", "また", "それでも"];
+const CONJUNCTIONS: &[&str] = &[
+    "しかし",
+    "だが",
+    "でも",
+    "そして",
+    "それから",
+    "だから",
+    "つまり",
+    "また",
+    "ところが",
+    "しかも",
+    "けれど",
+    "それでも",
+    "そのため",
+    "なぜなら",
+];
 
 /// 分詞のトークン列と各トークンの `text` 内の byte 位置（§9.4.4）。
 ///
@@ -723,12 +766,7 @@ fn token_positions(text: &str) -> Vec<(usize, &str)> {
 
 /// トークンが語か（文字種の判定。標点・空白のトークンは語にしない、§9.4.4）。
 fn is_word_token(token: &str) -> bool {
-    token.chars().any(|c| {
-        c.is_alphanumeric()
-            || ('\u{3040}'..='\u{30ff}').contains(&c)
-            || ('\u{3400}'..='\u{9fff}').contains(&c)
-            || ('\u{ac00}'..='\u{d7af}').contains(&c)
-    })
+    token.chars().any(charclass::is_word_char)
 }
 
 /// 文末の固定除外リスト（W097、§9.4.4）: 1 字助詞と 2 字助詞。
@@ -778,14 +816,12 @@ fn narrative_of(sentence: &str, base: usize, spans: &[std::ops::Range<usize>]) -
 
 /// W097: 文末尾の反復（§7.2.3）。
 fn sentence_end_repeat(body: &str, offset: usize) -> Vec<Diagnostic> {
-    let spans = crate::core::resolve::role_language::dialogue_spans(body);
+    let spans = role_language::dialogue_spans(body);
     let mut out = Vec::new();
-    let mut at = 0usize;
     let mut run: Option<String> = None;
     let mut count = 0usize;
-    for sentence in body.split_inclusive(['。', '！', '？']) {
-        let sentence_range = at..at + sentence.len();
-        let narrative = narrative_of(sentence, at, &spans);
+    for (sentence_range, sentence) in sentence::split(body) {
+        let narrative = narrative_of(sentence, sentence_range.start, &spans);
         match sentence_end(&narrative) {
             None => {
                 run = None;
@@ -807,7 +843,6 @@ fn sentence_end_repeat(body: &str, offset: usize) -> Vec<Diagnostic> {
                 }
             }
         }
-        at += sentence.len();
     }
     out
 }
@@ -862,11 +897,9 @@ fn end_particle(sentence: &str) -> Option<String> {
 /// W100: 文末助詞の反復（§7.2.6）。
 fn end_particle_repeat(body: &str, offset: usize) -> Vec<Diagnostic> {
     let mut out = Vec::new();
-    let mut at = 0usize;
     let mut run: Option<String> = None;
     let mut count = 0usize;
-    for sentence in body.split_inclusive(['。', '！', '？']) {
-        let sentence_range = at..at + sentence.len();
+    for (sentence_range, sentence) in sentence::split(body) {
         match end_particle(sentence) {
             None => {
                 run = None;
@@ -888,7 +921,6 @@ fn end_particle_repeat(body: &str, offset: usize) -> Vec<Diagnostic> {
                 }
             }
         }
-        at += sentence.len();
     }
     out
 }
@@ -896,11 +928,9 @@ fn end_particle_repeat(body: &str, offset: usize) -> Vec<Diagnostic> {
 /// W101: 文頭語の反復（§7.2.7）。
 fn start_word_repeat(body: &str, offset: usize) -> Vec<Diagnostic> {
     let mut out = Vec::new();
-    let mut at = 0usize;
     let mut run: Option<String> = None;
     let mut count = 0usize;
-    for sentence in body.split_inclusive(['。', '！', '？']) {
-        let sentence_range = at..at + sentence.len();
+    for (sentence_range, sentence) in sentence::split(body) {
         let word = tiniestsegmenter::tokenize(sentence)
             .first()
             .filter(|token| token.chars().count() >= 2)
@@ -926,7 +956,6 @@ fn start_word_repeat(body: &str, offset: usize) -> Vec<Diagnostic> {
                 }
             }
         }
-        at += sentence.len();
     }
     out
 }

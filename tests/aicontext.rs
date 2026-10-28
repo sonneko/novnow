@@ -71,7 +71,7 @@ fn the_packet_has_the_header_and_the_nine_fixed_headings_in_order() {
 
 #[test]
 fn the_writer_sees_the_whole_plot_as_one_summary_line() {
-    // §19.11-4: writer のパケットでは全体プロットが 1 行（当該章の `summary`）に縮む。goal / turn / 伏線などは入らない
+    // §15.4.5: writer のパケットでは全体プロットが 1 行（当該章の `summary`）に縮む。goal / turn / 伏線などは入らない
     let project = project();
     let packet = build(&project, "writer", id(1, 4, 2, 2), &[]);
     let outline = body(&packet, PacketBlock::Outline);

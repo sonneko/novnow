@@ -1,33 +1,32 @@
-//! Plain-text migration (§14.6): candidate-based splitting of decoded
-//! manuscripts into chapters / episodes / scenes / sections, rendered as a
-//! fresh project. Pure functions only — no I/O, no source paths.
+//! 素のテキストからの移行（§14.6）。復号済みの原稿を、候補の提示をもとに
+//! 章・話・場面・節へ分け、新しいプロジェクトの一式として書き出す。
+//! 純粋な関数だけを置く（入出力も、元のパスも持たない）。
 
 use std::cmp::Ordering;
 
 use crate::core::template::{self, TemplateFile};
 use crate::core::text::lexer::{self, Newline};
 
-/// Why a migration cannot produce a project.
+/// 移行でプロジェクトを作れない理由。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MigrationError {
-    /// Nothing with body text remains after splitting (headings and
-    /// separators only).
+    /// 分けた後に本文が 1 行も残らない（見出しと区切りだけだった）。
     Empty,
 }
 
-/// One decoded input file, in argument order.
+/// 復号済みの入力ファイル 1 つ。引数の順に並べる。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceUnit {
-    /// Display name (the file's name). Never written into the project.
+    /// 表示用の名前（ファイル名）。プロジェクトの中へは書かない。
     pub name: String,
-    /// Decoded text, not yet newline-normalized.
+    /// 復号済みの文字列。改行はまだ正規化していない。
     pub text: String,
-    /// True for the first file of a folder input: place a chapter boundary
-    /// candidate before it instead of an episode one.
+    /// フォルダ入力を与えたときの先頭のファイルで `true`。その前には話の境界ではなく
+    /// 章の境界の候補を置く（§14.6.2）。
     pub starts_chapter: bool,
 }
 
-/// Boundary strength. Declaration order makes `max` meaningful.
+/// 境界の強さ。宣言の順に強くなるので `max` が意味を持つ。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Level {
     Section,
@@ -36,37 +35,35 @@ pub enum Level {
     Chapter,
 }
 
-/// A split candidate between two lines.
+/// 2 行のあいだの分割の候補。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Boundary {
     pub level: Level,
-    /// Title taken from a heading line, when the candidate has one.
+    /// 見出しの行から取ったタイトル。見出しでない候補では `None`。
     pub title: Option<String>,
 }
 
-/// One item of the analyzed manuscript.
+/// 解析した原稿の要素 1 つ。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Element {
     /// A body line.
     Line(String),
     /// A split candidate.
     Boundary(Boundary),
-    /// A line consumed by the boundary before it (a heading, a separator,
-    /// or blank lines a boundary used). Restored to a body line when that
-    /// boundary is removed.
+    /// 直前の境界が取り込んだ行（見出し・区切り・境界が使った空行）。その境界を
+    /// 外すと、本文の行へ戻る。
     Hidden(String),
 }
 
-/// The analyzed manuscript: lines plus editable split candidates.
+/// 解析した原稿。本文の行と、書き換えられる分割の候補。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Draft {
     pub elements: Vec<Element>,
 }
 
 impl Draft {
-    /// Change the boundary at element index `at`; `None` removes it and
-    /// restores the lines it consumed to the body. Returns false when the
-    /// element is not a boundary.
+    /// 要素の添字 `at` の境界を変える。`None` を渡すと境界を外し、それが取り込んでいた
+    /// 行を本文へ戻す。`at` が境界でなければ `false` を返す。
     pub fn set_boundary(&mut self, at: usize, level: Option<Level>) -> bool {
         match (self.elements.get(at), level) {
             (Some(Element::Boundary(_)), Some(level)) => {
@@ -92,7 +89,7 @@ impl Draft {
     }
 }
 
-/// The determined structure: numbers are assigned by position at render.
+/// 確定した構造。構造番号は書き出すときに並び順から振る。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Book {
     pub chapters: Vec<Chapter>,
@@ -113,12 +110,12 @@ pub struct Episode {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Scene {
     pub title: Option<String>,
-    /// Each section is its body lines (no leading/trailing blank lines).
+    /// 節は本文の行の並び（先頭と末尾の空行は含まない）。
     pub sections: Vec<Vec<String>>,
 }
 
 impl Book {
-    /// (chapters, episodes, scenes, sections) for previews.
+    /// プレビューに出す（章・話・場面・節）の件数。
     pub fn counts(&self) -> (usize, usize, usize, usize) {
         let mut episodes = 0;
         let mut scenes = 0;
@@ -136,8 +133,8 @@ impl Book {
     }
 }
 
-/// Natural ordering for file names: digit runs compare as numbers
-/// (`2.txt` before `10.txt`). Fullwidth digits count as digits.
+/// ファイル名の自然順。連続する数字は数として比べる（`2.txt` が `10.txt` より前）。
+/// 全角の数字も数字として数える（§14.6.2）。
 pub fn natural_cmp(a: &str, b: &str) -> Ordering {
     fn digit(ch: char) -> Option<u32> {
         match ch {
@@ -191,22 +188,22 @@ pub fn natural_cmp(a: &str, b: &str) -> Ordering {
     }
 }
 
-/// Number prefix that a named heading may carry (番外編その○, §14.6.2).
+/// 名前の付いた見出しに付いてよい番号の前置き（「番外編その○」。§14.6.2）。
 /// i18n: format-vocabulary
 const SIDESTORY_NUMBER_PREFIX: &str = "その";
 
-/// A heading line is a lone, short line: at most this many characters.
+/// 見出しの行は単独の短い行。その上限の文字数（§14.6.2）。
 const HEADING_MAX_CHARS: usize = 40;
 
-/// Symbols that make a separator line (§14.6.2) when a line consists of at
-/// least three of them (spaces ignored). Ellipsis and nakaguro are excluded
-/// so dialogue pauses are never taken for scene breaks.
+/// 区切りの行を作る記号（§14.6.2）。同じ記号が 3 つ以上並んだ行を区切りとする
+/// （空白は数えない）。台詞の間を取る `…` や `・` は、場面の区切りと取り違えないよう
+/// 入れていない。
 const SEPARATOR_CHARS: &[char] = &[
     '＊', '*', '※', '＃', '#', '―', '－', '-', '=', '＝', '◇', '◆', '○', '●', '△', '▲', '□', '■',
     '☆', '★',
 ];
 
-/// Named headings and the level they open (§14.6.2).
+/// 名前の付いた見出しと、それが開く階層（§14.6.2）。
 /// i18n: format-vocabulary
 const NAMED_HEADINGS: &[(&str, Level)] = &[
     ("序章", Level::Chapter),
@@ -218,9 +215,8 @@ const NAMED_HEADINGS: &[(&str, Level)] = &[
     ("番外編", Level::Episode),
 ];
 
-/// Generate split candidates for the whole input (§14.6.2). Candidates are
-/// never applied automatically at this stage: `structure` determines the
-/// result from the (possibly edited) draft.
+/// 入力全体の分割の候補を作る（§14.6.2）。この段階では候補を自動で確定しない。
+/// 確定するのは `structure` で、（書き換えられたかもしれない）下書きから結果を決める。
 pub fn analyze(units: &[SourceUnit]) -> Draft {
     let mut draft = Draft::default();
     for (index, unit) in units.iter().enumerate() {
@@ -242,7 +238,7 @@ pub fn analyze(units: &[SourceUnit]) -> Draft {
 fn analyze_unit(draft: &mut Draft, text: &str) {
     let normalized = lexer::normalize_for_save(text, Newline::Lf);
     let mut lines: Vec<&str> = normalized.split('\n').collect();
-    // split always yields a trailing "" for the final newline.
+    // 末尾の改行のぶん、`split` は最後に空の "" を返す。
     if lines.last() == Some(&"") {
         lines.pop();
     }
@@ -255,9 +251,9 @@ fn analyze_unit(draft: &mut Draft, text: &str) {
                 i += 1;
             }
             let run = i - start;
-            // A blank run becomes a boundary only between body lines: a
-            // text line before it in the stream and any line after it in
-            // this unit (file boundaries carry their own candidate).
+            // 空行の連なりが境界になるのは、本文の行と本文の行のあいだのときだけ。
+            // 手前は本文の行があり、後ろはこの単位の中に行が続くこと（ファイルの
+            // 境目は自前の候補を持つ）。
             let after_text =
                 matches!(draft.elements.last(), Some(Element::Line(text)) if !text.is_empty());
             if after_text && i < lines.len() {
@@ -303,8 +299,8 @@ fn analyze_unit(draft: &mut Draft, text: &str) {
     }
 }
 
-/// The heading shape (§14.6.2) without the "lone line" context: returns the
-/// level and the title taken from the rest of the line.
+/// 見出しの形（§14.6.2）だけを見る。「単独の短い行か」は見ない。階層と、行の残りから
+/// 取ったタイトルを返す。
 fn heading_pattern(line: &str) -> Option<(Level, Option<String>)> {
     let trimmed = line.trim();
     if trimmed.chars().count() > HEADING_MAX_CHARS {
@@ -331,7 +327,7 @@ fn heading_pattern(line: &str) -> Option<(Level, Option<String>)> {
         let Some(mut tail) = body.strip_prefix(word) else {
             continue;
         };
-        // 番外編その○: a numbered side story still names the episode.
+        // 「番外編その○」のように番号が付いても、話の見出しとして扱う。
         if let Some(numbered) = tail.strip_prefix(SIDESTORY_NUMBER_PREFIX) {
             let digits_end = numbered
                 .find(|ch: char| !is_numeral(ch))
@@ -345,11 +341,10 @@ fn heading_pattern(line: &str) -> Option<(Level, Option<String>)> {
     None
 }
 
-/// Validate what follows a heading keyword and take the title from it.
-/// Outer `None` rejects the line as a heading; inner `None` is a heading
-/// without a title. `allow_punct` also accepts 、。 right after the keyword
-/// (safe for 第○章/第○話， which the numeral anchors, but a prose line
-/// starting with 幕間、… must not become a heading).
+/// 見出しの語の後ろを確かめ、そこからタイトルを取る。外側の `None` は「この行は
+/// 見出しではない」、内側の `None` は「タイトルの無い見出し」。`allow_punct` は語の直後の
+/// `、` `。` も許す（数字が前にある「第○章」「第○話」は安全だが、「幕間、…」で始まる
+/// 地の文を見出しにしてはならない）。
 fn title_tail(tail: &str, allow_punct: bool) -> Option<Option<String>> {
     if tail.is_empty() {
         return Some(None);
@@ -393,7 +388,7 @@ fn title_tail(tail: &str, allow_punct: bool) -> Option<Option<String>> {
     }
 }
 
-/// Characters that may sit between a heading keyword and its title.
+/// 見出しの語とタイトルのあいだに置いてよい文字。
 fn is_title_separator(ch: char) -> bool {
     matches!(
         ch,
@@ -448,7 +443,7 @@ fn is_numeral(ch: char) -> bool {
         )
 }
 
-/// A separator line: at least three separator symbols, spaces ignored.
+/// 区切りの行。区切りの記号が 3 つ以上（空白は数えない。§14.6.2）。
 fn is_separator(line: &str) -> bool {
     let mut count = 0usize;
     for ch in line.chars() {
@@ -463,10 +458,9 @@ fn is_separator(line: &str) -> bool {
     count >= 3
 }
 
-/// Determine the structure from a draft. Stacked candidates open nested
-/// units; units that end up without body lines are then pruned, so an
-/// opening 「第一章」+「第一話」 keeps both titles and numbers follow the
-/// order of appearance.
+/// 下書きから構造を決める。重なった候補は入れ子の単位を開く。本文の行を持たない
+/// 単位は最後に刈り取るので、冒頭の「第一章」＋「第一話」はどちらのタイトルも残り、
+/// 構造番号は出現順に振られる（§14.6.2）。
 pub fn structure(draft: &Draft) -> Book {
     fn chapter(title: Option<String>) -> Chapter {
         Chapter {
@@ -529,8 +523,8 @@ pub fn structure(draft: &Draft) -> Book {
     book
 }
 
-/// Drop sections/scenes/episodes/chapters that hold no body lines, and the
-/// blank lines at section edges (interior blank lines stay).
+/// 本文の行を持たない節・場面・話・章を落とし、節の先頭と末尾の空行も落とす
+/// （途中の空行は残す）。
 fn prune(book: &mut Book) {
     for chapter in &mut book.chapters {
         for episode in &mut chapter.episodes {
@@ -557,10 +551,9 @@ fn prune(book: &mut Book) {
     book.chapters.retain(|chapter| !chapter.episodes.is_empty());
 }
 
-/// Render a determined structure as a fresh project's files: the default
-/// template with its sample body/plots replaced by the migrated structure.
-/// Summaries are left empty; dictionary files start empty so no sample
-/// wording leaks in.
+/// 確定した構造を、新しいプロジェクトのファイル一式として書き出す。既定の雛形の
+/// サンプルの本文とプロットを、移行した構造で置き換える。あらすじは空のままにし、
+/// 辞書のファイルも空から始める（サンプルの語句が混ざらないように）。
 pub fn render(title: &str, book: &Book) -> Result<Vec<TemplateFile>, MigrationError> {
     if book.chapters.is_empty() {
         return Err(MigrationError::Empty);
@@ -667,7 +660,7 @@ fn push_title(out: &mut String, title: &Option<String>) {
     }
 }
 
-/// Escape novnow symbols so migrated prose stays literal (§5.0.3).
+/// 移行した本文がそのままの文字で残るよう、novnow の記号をエスケープする（§5.0.3）。
 fn escape_into(out: &mut String, line: &str) {
     for ch in line.chars() {
         if lexer::ESCAPE_TARGETS.contains(&ch) {
@@ -677,8 +670,8 @@ fn escape_into(out: &mut String, line: &str) {
     }
 }
 
-/// Analyze, determine and render in one call with candidates as generated
-/// (the CLI path; the desktop preview edits the draft in between).
+/// 解析・確定・書き出しを 1 回で行う。候補は生成されたとおりに使う（CLI の経路。
+/// デスクトップのプレビューは、この間に下書きを書き換える）。
 pub fn convert(title: &str, units: &[SourceUnit]) -> Result<Vec<TemplateFile>, MigrationError> {
     render(title, &structure(&analyze(units)))
 }

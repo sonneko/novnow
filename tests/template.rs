@@ -60,7 +60,7 @@ fn the_template_has_exactly_the_files_of_section_14_5() {
         ".gitignore",
     ]);
     assert_eq!(paths, want);
-    // §1.2（② の除外）: prompts/custom/ と assets/ は作らない（`docs/history.md` 作業項目 6）
+    // `novnow new` は prompts/custom/ と assets/ を作らない（`docs/history.md` 作業項目 6）
     assert!(paths
         .iter()
         .all(|path| !path.starts_with("prompts/custom/") && !path.starts_with("assets/")));
@@ -448,7 +448,7 @@ fn sample_project_covers_appendix_c_with_no_diagnostics() {
     // 4. 資料 ID 参照（明示参照）と条件一致による資料候補
     use novnow::core::id::SceneId;
     let all_sections = sections::all(&project);
-    let doc = project.document("contents/01-04.cnov").expect("01-04.txt");
+    let doc = project.document("contents/01-04.cnov").expect("01-04.cnov");
     let sec2 = all_sections
         .iter()
         .find(|sec| sec.id == SceneId::parse("01-04-02-02").unwrap())

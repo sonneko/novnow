@@ -1,8 +1,8 @@
 //! `project.toml`（§4.5 スキーマ v2）。
 //!
 //! **未知キーは保存時に温存する**（§4.5 MUST）。`#[serde(flatten)] unknown` が受けるので、
-//! §4.5.1 が「**v1 本体は読まない**。未知キーとして温存する」と明記している `reader` も
-//! ここに入る（② の追加仕様 27）。
+//! 型付きの欄を持たない `[reader]`（§4.5.1・§17.3 の表示の既定）もここに入る。読み手は
+//! `ui::workspaces::reader` で、`.novnow/reader.json` の利用者設定が優先される。
 //!
 //! 既定値は §4.5 の例と §4.5.1 の表の「既定」列をそのまま `Default` にした。
 //! `#[serde(default)]`（コンテナ単位）を付けてあるので、キーが欠けた `project.toml` でも
@@ -452,7 +452,7 @@ pub struct Listing {
     pub dirs_implicit: bool,
     /// `project.toml` の中身（読めたとき）。
     pub project_toml: Option<String>,
-    /// UTF-8 として不正な `.md` / `.txt` / `.json`（§4.3-3）。調べていなければ空。
+    /// UTF-8 として不正な `.cnov` / `.md` / `.json` / `.toml`（§4.3-3）。調べていなければ空。
     pub invalid_utf8: Vec<String>,
 }
 

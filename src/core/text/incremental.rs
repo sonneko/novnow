@@ -33,13 +33,13 @@ pub enum LineTag {
     Structure,
     /// `;` 節区切り。
     SectionBreak,
-    /// 行頭コメント（`//`、② では `# ` も）。
+    /// 行頭コメント（`//` と `# `）。
     Comment,
     /// フィールド行（§5.0.5）。
     Field,
     /// 継続行（2 スペース以上のインデント）。
     Continuation,
-    /// `! ` 挿絵メモ（**②**。[`super::lexer::Stage::One`] では作られない）。
+    /// `! ` 挿絵メモ（§5.2.5）。
     IllustrationMemo,
     /// 通常のテキスト行。
     Text,

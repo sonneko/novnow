@@ -56,12 +56,13 @@
 //! トークン全体（[`RefToken::range`]）は狭めない。§17.1 のエクスポート（`'` と修飾子を
 //! 消して名前部を残す）と §6.6.3 の資料 ID の形の判定が、元の範囲を前提にしているため。
 //!
-//! # ①（本書の範囲）と ②
+//! # エントリ種別
 //!
-//! - エントリ種別は **4 つ**（`Character` / `Word` / `Material` / `MaterialTitle`）。
-//!   [`EntryKind::Address`] は ② の追加仕様 8（`address:`、§5.5.6）のために**枠だけ**持つ。
-//!   ① の [`Dictionary::from_sources`] は Address を 1 件も作らないので、
-//!   **W084** / **W085** は出ない。
+//! - エントリ種別は **5 つ**（`Character` / `Address` / `Word` / `Material` / `MaterialTitle`）。
+//!   [`EntryKind::Address`] は `address:`（§5.5.6）の呼称で、[`Dictionary::from_sources`] が
+//!   `characters.md` から作る（`* =>` は相手が定まらないので辞書に入れない）。優先順位
+//!   （`Character > Address > Word > Material > MaterialTitle`）は §6.1.1 の固定値で、
+//!   **W084** / **W085** はこの種別を使って M4 の検査器が出す。
 //! - `MaterialTitle` の修飾子は §6.1.1 の表で「不可」だが、§6.2.4 は `Word` / `Address` だけ
 //!   を名指ししている。表の「不可」を優先して **E026** を出す（B-62）。
 
@@ -77,6 +78,7 @@ use crate::core::syntax::characters_md::{Characters, Line as MdLine, SectionKey}
 use crate::core::syntax::contents::{self, Speaker};
 use crate::core::syntax::materials_index::Index;
 use crate::core::syntax::words_md::Words;
+use crate::core::text::charclass::{classify, CharClass};
 use crate::core::text::lexer::{self, FieldKey};
 
 /// 辞書キーの長さの上限（§6.2.1「`MAX_KEY_BYTES = 96`（固定）」）。
@@ -257,43 +259,6 @@ pub fn is_delimiter(c: char) -> bool {
 
 // ============================================================ §6.2.6 形態素境界
 
-/// 文字種（§6.2.6「漢字・カタカナ・ひらがな・英数字の文字種境界」）。
-///
-/// ASCII の英数字と全角の英数字は**同じクラス**にする（`Ｍ0137` と `M0137` を別の
-/// 形態素に割らないため）。長音符 `ー`（U+30FC）はカタカナ側に入れる（`コーヒー` を
-/// 1 つの形態素として扱う）。それ以外（記号・約物）は [`CharClass::Other`]。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum CharClass {
-    /// 漢字（`々` `〆` を含む）。
-    Kanji,
-    /// カタカナ（半角カナ・長音符・濁点を含む）。
-    Katakana,
-    /// ひらがな（`ゝ` `ゞ` を含む）。
-    Hiragana,
-    /// 英数字（ASCII と全角）。
-    Alphanumeric,
-    /// それ以外（記号・約物）。
-    Other,
-}
-
-/// [`CharClass`] を返す。
-fn char_class(c: char) -> CharClass {
-    match c {
-        '\u{3041}'..='\u{3096}' | '\u{309D}'..='\u{309F}' => CharClass::Hiragana,
-        '\u{30A1}'..='\u{30FA}' | '\u{30FC}'..='\u{30FE}' | '\u{FF66}'..='\u{FF9F}' => {
-            CharClass::Katakana
-        }
-        '\u{3005}' | '\u{3006}' | '\u{4E00}'..='\u{9FFF}' | '\u{F900}'..='\u{FAFF}' => {
-            CharClass::Kanji
-        }
-        '\u{FF10}'..='\u{FF19}' | '\u{FF21}'..='\u{FF3A}' | '\u{FF41}'..='\u{FF5A}' => {
-            CharClass::Alphanumeric
-        }
-        c if c.is_ascii_alphanumeric() => CharClass::Alphanumeric,
-        _ => CharClass::Other,
-    }
-}
-
 /// §6.2.6 の「助詞切り出し」に使う助詞（**長いものから**照合する）。
 ///
 /// 形態素解析（[`tiniestsegmenter`]）は助詞を独立したトークンに切ることが多いが、
@@ -364,7 +329,7 @@ fn strip_trailing_particle(token: &str) -> Option<usize> {
 fn first_run_end(text: &str) -> usize {
     let mut class = None;
     for (at, c) in text.char_indices() {
-        let found = char_class(c);
+        let found = classify(c);
         match class {
             None => class = Some(found),
             Some(previous) if previous == found => {}
@@ -399,7 +364,7 @@ pub fn first_morpheme_end(text: &str) -> usize {
     let Some(first) = candidate.chars().next() else {
         return 0;
     };
-    if char_class(first) == CharClass::Alphanumeric {
+    if classify(first) == CharClass::Alphanumeric {
         return run;
     }
     let tokens = tiniestsegmenter::tokenize(head);
@@ -441,11 +406,11 @@ pub fn first_morpheme_end(text: &str) -> usize {
 pub enum EntryKind {
     /// `characters.md` の H1 と `alias`（§6.1.1）。修飾子はモード ID（`:B` / `:B+D`）。
     Character,
-    /// `characters.md` の `address:` の値（§5.5.6、**② の追加仕様 8**）。
+    /// `characters.md` の `address:` の値（§5.5.6）。
     ///
-    /// ① では 1 件も作らない。枠だけ持っておくのは、優先順位
-    /// （`Character > Address > Word > Material > MaterialTitle`）が §6.1.1 で固定されていて、
-    /// ② を足したときに**既存の解決結果が変わってはいけない**から。
+    /// `address: '葵あおい => あおいちゃん` の呼称 `あおいちゃん` がここに入り、`'あおいちゃん` が
+    /// 辞書で解決できるようになる。`* =>`（既定の呼称）は相手が定まらないので入れない。
+    /// 優先順位（`Character > Address > Word > Material > MaterialTitle`）は §6.1.1 の固定値。
     Address,
     /// `words.md` の H1 と `alias`（§6.1.1）。修飾子は付けられない（**E026**）。
     Word,
@@ -695,7 +660,7 @@ struct Scan {
 /// `'` の後ろで解決される辞書 1 本（§6.1）。
 ///
 /// 構築は [`Dictionary::from_sources`]（3 ファイルから）か [`Dictionary::build`]
-/// （エントリ表を渡す。テストと ② 用）。どちらも [`Built`] を返し、
+/// （エントリ表を渡す。テスト用）。どちらも [`Built`] を返し、
 /// **構築時に出る診断**（E028 / W027）を一緒に返す。
 ///
 /// §6.1.2「いずれかが変化したときのみ再構築する」の判定は**呼び出し側**（M5 の

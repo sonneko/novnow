@@ -1,12 +1,29 @@
-//! Bounded search engine with an injected elapsed-time function.
+//! 上限付きの検索。経過時間は外から注入する関数で測る（§9.7.4）。
 use crate::core::features::{FileEdit, Project, TextEdit, WorkspaceEdit};
 use std::ops::Range;
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+/// 検索の条件（§9.7.4）。
+///
+/// **大小文字は既定で区別する**（仕様 §9.7.4 の表。`Alt+C` または画面のチェックで
+/// 無視に切り替える）。
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Query {
     pub text: String,
     pub regex: bool,
     pub case_sensitive: bool,
 }
+
+impl Default for Query {
+    fn default() -> Self {
+        Self {
+            text: String::new(),
+            regex: false,
+            case_sensitive: true,
+        }
+    }
+}
+
+/// コンパイル後の正規表現の大きさの上限（§9.7.4「1MB。超えたら構文エラー扱い」）。
+const SIZE_LIMIT: usize = 1024 * 1024;
 /// 検索のヒット。抜粋は「前文・一致・後文」の構造で持ち、表示用の記法
 /// （強調や `**…**`）はデータへ埋め込まない（画面表示と資料保存で組み立てが違うため）。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -40,7 +57,7 @@ pub fn run(
     };
     let re = regex::RegexBuilder::new(&pattern)
         .case_insensitive(!query.case_sensitive)
-        .size_limit(2 * 1024 * 1024)
+        .size_limit(SIZE_LIMIT)
         .build()
         .map_err(|e| {
             e.to_string()
@@ -54,7 +71,8 @@ pub fn run(
             && !d.path.starts_with("exports/")
             && (d.path.ends_with(".cnov") || d.path.ends_with(".md"))
     }) {
-        // Match one line at a time: regex uses a linear-time automaton, never unbounded backtracking.
+        // 1 行ずつ照合する。正規表現は線形時間のオートマトンで動くので、
+        // 際限のない後戻りは起きない（§9.7.4）。
         let mut start = 0;
         for line in doc.text.split_inclusive('\n') {
             if elapsed_ms() >= 1000 {
@@ -105,6 +123,7 @@ pub fn replacement(
     };
     let re = regex::RegexBuilder::new(&pattern)
         .case_insensitive(!query.case_sensitive)
+        .size_limit(SIZE_LIMIT)
         .build()
         .map_err(|e| e.to_string())?;
     let mut changes: Vec<FileEdit> = Vec::new();
@@ -117,9 +136,9 @@ pub fn replacement(
             return Err("stale search".to_owned());
         }
         let new_text = if query.regex {
-            re.replace(old, replacement).into_owned()
+            re.replace(old, &expand_escapes(replacement)).into_owned()
         } else {
-            replacement.to_owned()
+            expand_escapes(replacement)
         };
         if changes.last().is_none_or(|f| f.path != hit.path) {
             changes.push(FileEdit {
@@ -134,7 +153,14 @@ pub fn replacement(
     }
     Ok(WorkspaceEdit { changes })
 }
-/// Freeze a search as a material; no live dependency on the manuscript remains.
+/// 置換の入力に書かれた `\n` を改行にする（§9.7.4「`\n` は改行」）。
+///
+/// 置換の入力欄は 1 行なので、改行は書けず `\n` と打つ決まりになっている。
+fn expand_escapes(replacement: &str) -> String {
+    replacement.replace("\\n", "\n")
+}
+
+/// 検索の結果を資料として凍結する。元の本文への生きた依存は残さない（§16.3.1）。
 /// i18n: format-vocabulary
 pub fn snapshot(
     project: &Project,

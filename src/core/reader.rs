@@ -1,4 +1,4 @@
-//! Pure reader composition with injected font advances and page geometry.
+//! 読者モードの純粋な組版（§17.3.3）。字送りと版面の寸法は呼び出し側が渡す（core はフォントも GUI も知らない）。
 use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(default)]
@@ -16,7 +16,7 @@ impl Default for Options {
         }
     }
 }
-/// Font measurements are supplied by the caller; core never accesses a font or GUI.
+/// フォントの寸法は呼び出し側が渡す。core はフォントにも GUI にも触れない（§3.2）。
 #[derive(Debug, Clone)]
 pub struct Metrics {
     pub advance: f32,
@@ -161,11 +161,11 @@ fn vertical_char(ch: char) -> char {
         .find(|(from, _)| *from == ch)
         .map_or(ch, |(_, to)| *to)
 }
-/// Cell-coordinate convenience wrapper; use `layout` for measured font advances.
+/// 字送りを 1 文字 = 1 マスとして組む簡易版。実際のフォントの字送りで組むときは [`layout`]。
 pub fn layout_cells(text: &str, options: Options) -> Vec<Page> {
     layout(text, options, &Metrics::default())
 }
-/// Font advances and vertical-form availability must be injected by the caller.
+/// 字送りと縦書き字形の有無は呼び出し側が [`Metrics`] で渡す（§17.3.3）。
 pub fn layout(text: &str, options: Options, metrics: &Metrics) -> Vec<Page> {
     let rows = options.rows.clamp(1, 100);
     let columns = options.columns.clamp(1, 100);

@@ -57,6 +57,7 @@
 状態: 実装完了（REF:src/app/workbench.rs, REF:src/ui/widgets/section_editor.rs, REF:tests/gui.rs）
 
 - 節内の編集履歴と節をまたぐ操作履歴は `Workbench`（`REF:src/app/workbench.rs`）および `egui::TextEdit` が保持し、自動保存によって Undo スタックが消去されない設計としている（`B-118`）。
+- 節ごとの履歴の退避・復元は egui の widget 状態（`TextEditState` は Id ごとに `ctx.memory` が持つ）をそのまま使う。`REF:src/ui/widgets/section_editor.rs` の `editor_id()` が「文書のパス・節 ID・**節の開始行**」から Id を作り、`remember()` が最近使った 20 節だけを残して古い節の state を捨てる（`ctx.memory.data.remove::<TextEditState>()`）。開始行を混ぜるのは、節の削除で繰り上がった節に前の節の履歴が付くのを防ぐため。
 
 ### 8.7 提案モード（人間用トラックチェンジ）
 

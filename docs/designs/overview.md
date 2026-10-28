@@ -115,7 +115,7 @@
 - `REF:src/main.rs`: エントリポイント（Windows の `AttachConsole` と CLI / Web 起動分岐）。
 - `REF:src/cli/mod.rs`, `REF:src/cli/open.rs`, `REF:src/cli/new.rs`, `REF:src/cli/check.rs`, `REF:src/cli/export.rs`, `REF:src/cli/mcp.rs`: CLI サブコマンド群。
 - `REF:src/core/id.rs`: `SceneId` / `PartialSceneId` / `RangeExpr`。
-- `REF:src/core/text/mod.rs`: `rope.rs`, `position.rs`, `lexer.rs`, `incremental.rs`, `sha256.rs`。
+- `REF:src/core/text/mod.rs`: `rope.rs`, `position.rs`, `lexer.rs`, `incremental.rs`, `sha256.rs`, `charclass.rs`（文字種）, `sentence.rs`（文の区切り）。
 - `REF:src/core/syntax/mod.rs`: `contents.rs`, `plot_outline.rs`, `plot_episode.rs`, `characters_md.rs`, `words_md.rs`, `ideas_md.rs`, `materials_index.rs`, `prompt_md.rs`, `project_toml.rs`。
 - `REF:src/core/model/mod.rs`: ドメインモデル型群。
 - `REF:src/core/resolve/mod.rs`: `dictionary.rs`, `modes.rs`, `role_language.rs`, `materials.rs`, `context_rules.rs`。
@@ -124,7 +124,7 @@
 - `REF:src/core/policy/mod.rs`: `write_policy.rs`, `recent.rs`, `archive.rs`, `external_change.rs`。
 - `REF:src/core/export.rs`, `REF:src/core/template/mod.rs`, `REF:src/core/aicontext/mod.rs`, `REF:src/core/agents/mod.rs`。
 - `REF:src/ports/mod.rs` & `REF:src/adapters/mod.rs`: ポートと各環境アダプタ。
-- `REF:src/app/mod.rs`: 描画と無縁の状態機械（`workbench.rs`, `save_machine.rs`, `settings.rs`, `palette.rs`, `assist.rs`, `agents.rs`, `command.rs`, `commands.rs`, `host.rs`, `workspace.rs`）と外部インターフェースの機能核（§19: `error.rs`, `event.rs`, `session.rs`, `memory_host.rs`, `fs_host.rs`, `driver.rs` と `ops/` の 120 操作）。
+- `REF:src/app/mod.rs`: 描画と無縁の状態機械（`workbench.rs`, `save_machine.rs`, `settings.rs`, `palette.rs`, `assist.rs`, `agents.rs`, `command.rs`, `commands.rs`, `host.rs`, `workspace.rs`）と外部インターフェースの機能核（§19: `error.rs`, `event.rs`, `session.rs`, `memory_host.rs`, `fs_host.rs`, `driver.rs` と `ops/` の 121 操作）。
 - `REF:src/ui/mod.rs`: `i18n/`, `app.rs`, `picker.rs`, `palette_items.rs`, `status.rs`, `web.rs`, `shell.rs`, `theme.rs`, `widgets/`, `workspaces/`（`app` 層の 6 モジュールは再エクスポートで旧パスからも解決する）。
 
 段階 ② の追加仕様を無改修で受け入れるための 10 個の拡張点（縫い代）を維持する:
@@ -162,6 +162,7 @@
 
 - **[Issue #29 / B5] 参照ペイン行への移動先の付与（実装完了: `REF:docs/plans.md#issue-29-b5`）**:
   - `REF:src/core/features/reference.rs` の行モデルへ、表示文字列とは別に移動先 `Nav` を持たせた。GUI（§9.5.5）とヘッドレス（`reference.pane`、`REF:src/app/ops/knowledge.rs`）は同じ値を共有する。
+- **位置表現（実装完了: `REF:src/core/text/position.rs`, `REF:tests/position.rs`）**: `Utf8Byte ⇔ CharIndex ⇔ Utf16CodeUnit` の変換は `REF:src/core/text/position.rs` に集約する。行頭 byte offset の表 `LineTable` は LF だけを行区切りにし（空文書で 1 行、末尾 LF の後に空の 1 行）、範囲外はクランプしてパニックしない。
 
 ### 3.5 状態フロー（1 キーストロークの流れ）
 

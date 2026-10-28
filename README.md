@@ -107,9 +107,9 @@ AI に作品を読ませる連携（MCP）もあります。
 2. **軽量な専用テキスト記法と無損失保存**
    - 本文（`contents/AA-BB.cnov`）、全体・章プロット（`plots/all.cnov`, `plots/AA.cnov`）、話プロット（`plots/AA-BB.cnov`）、登場人物（`characters.md`）、用語（`words.md`）、アイデア（`ideas.md`）、資料（`materials/`）をすべてプレーンテキスト（UTF-8）で管理し、Git でそのまま差分管理できます。
    - 原文は 1 バイトも捨てません（読み込んだ本文をそのまま書き戻せます）。プロジェクトは `project.toml` を中心に自己完結し、`.novnow/` のキャッシュだけが Git の管理外になります。
-3. **意味解決エンジンと 87 種のリアルタイム診断**
+3. **意味解決エンジンと 85 種のリアルタイム診断**
    - `'名前` による辞書参照（最短一致・NFKC 正規化）、状況別キャラクターモード解決、役割語パターン照合（台詞の口調一致を緑下線で可視化）、初出より前の用語使用検出、文長・連続文末・表記揺れなどの執筆支援診断を提供します。
-   - 診断は 87 種すべてに一意のコード（`E001`〜`W0xx`／`I0xx`）があり、`Ctrl+.` のクイックフィックスと `review` ワークスペースの一覧から辿れます。
+   - 診断は 85 種すべてに一意のコード（`E001`〜`W0xx`／`I0xx`）があり、`Ctrl+.` のクイックフィックスと `review` ワークスペースの一覧から辿れます。
 4. **キーボード完結の 9 ワークスペースと統一パレット**
    - `Alt+1`〜`Alt+9` で本文（`write`）・話プロット（`plot-episode`）・構成（`plot-outline`）・アイデア（`idea`）・資料（`material`）・配役（`cast`）・読者（`reader`）・エージェント（`agent`）・点検（`review`）を即座に切り替えられます。切替時も現在の節は維持されます。
    - `Ctrl+P` の統一パレットから先頭 1 文字（`@` 構造、`'` 辞書、`#` 資料、`>` コマンド）でプロジェクト内のあらゆる要素へジャンプできます。`Ctrl+G` の番号ジャンプ、`F5` の再読込、`?` のショートカット一覧もあります。
@@ -164,11 +164,11 @@ GUI でできることは、すべてヘッドレスからも操作できます�
 | CLI | `novnow new` / `check` / `export` / `import` / `migrate` / `api` / `mcp` / `lsp` | プロジェクト作成・診断・書き出し・移行・API 一覧。`novnow <domain> <verb> <dir>` の統一書式 |
 | LSP | `novnow lsp <dir>` | エディタから補完・ホバー・定義移動・診断・整形・折りたたみ（LSP 3.17） |
 | MCP | `novnow mcp <dir>` | AI クライアント向けの 14 ツール |
-| Python | `import novnow` | 同じ 120 の正規操作を Python から（PyO3・abi3-py39 のホイール） |
+| Python | `import novnow` | 同じ 121 の正規操作を Python から（PyO3・abi3-py39 のホイール） |
 | Rust | `novnow` クレート | `core` / `app` の API を直接利用 |
 
 ```bash
-novnow api list             # 120 の正規操作の一覧（--json で機械可読）
+novnow api list             # 121 の正規操作の一覧（--json で機械可読）
 novnow check my-novel       # 診断を出して終了する（エラーがあれば終了コード 5）
 novnow structure tree my-novel --json                    # 正規操作も --json で機械可読
 ```

@@ -549,7 +549,7 @@ pub struct Session {
     pub(crate) open_agent: bool,
     /// 書き込み中の保存で渡した中身（非同期の保存のあいだも編集できるので、終わったときに比べる。B-156）。
     saving: Option<std::collections::BTreeMap<String, String>>,
-    /// 保存領域が足りないことを知らせた（同じ失敗のあいだは何度も出さない、§13.3.7）。
+    /// 保存領域が足りないことを知らせた（同じ失敗のあいだは何度も出さない、§13.3.6）。
     quota_shown: bool,
     /// ガイドモードの段階 8 の条件（エクスポートが完了した。§9.10）。
     guide_exported: bool,
@@ -632,7 +632,19 @@ impl Session {
 
     /// 開いたときのエージェントの準備（U-7・§15.5.4）: `prompts/` の欠けた既定ファイルを書き出す。
     /// `prompts/` が丸ごと無かったら I050 を知らせる。エージェントが無効なら何もしない。
+    /// 読み取り専用のプロジェクトでは書かずに W041 を知らせる（§4.1）。
     pub fn prepare_agents(&mut self, locale: Locale) {
+        if !self.host.writable() {
+            let notice = i18n::diagnostic(
+                locale,
+                &crate::core::diagnostics::Diagnostic::simple(
+                    crate::core::diagnostics::DiagnosticCode::W041,
+                    None,
+                ),
+            );
+            self.notice = Some((notice, 0.0));
+            return;
+        }
         if let Some(message) =
             crate::ui::agents::write_prompts(&mut self.bench, self.host.as_ref(), 0.0, locale)
         {
@@ -823,7 +835,11 @@ impl NovnowApp {
         let (fonts, fallback) = theme::fonts();
         ctx.set_fonts(fonts);
         let (stage, settings) = match opened {
-            Some((session, settings)) => (Stage::Open(Box::new(session)), settings),
+            Some((mut session, settings)) => {
+                // 構成ツリーの開閉を復元する（`.novnow/ui.json` の `folded.outline`、§4.4.1）
+                session.spaces.outline.restore_expanded(&settings.outline);
+                (Stage::Open(Box::new(session)), settings)
+            }
             None => (Stage::Picker, UiSettings::default()),
         };
         Self {
@@ -1151,7 +1167,8 @@ impl NovnowApp {
         self.paste_repair_frame(ctx, mode, locale);
         match &mut self.stage {
             Stage::Picker => {
-                if let Some((session, settings)) = self.picker.show(ctx, locale, mode) {
+                if let Some((mut session, settings)) = self.picker.show(ctx, locale, mode) {
+                    session.spaces.outline.restore_expanded(&settings.outline);
                     self.settings = settings;
                     self.stage = Stage::Open(Box::new(session));
                     self.overlay = Overlay::None;
@@ -1408,8 +1425,10 @@ impl NovnowApp {
                         crate::ui::workbench::Nav::PrevScene | crate::ui::workbench::Nav::NextScene
                     )
                 {
-                    let candidates =
-                        crate::core::features::metrics::comma_candidates(bench.buffer(), 40);
+                    let candidates = crate::core::features::metrics::comma_candidates(
+                        bench.buffer(),
+                        comma_options(bench),
+                    );
                     let caret = session.selection.as_ref().map_or(0, |r| r.start);
                     let at = if nav == crate::ui::workbench::Nav::NextScene {
                         candidates.into_iter().find(|at| *at > caret)
@@ -1465,8 +1484,10 @@ impl NovnowApp {
             }
             Command::InsertComma => {
                 if self.settings.suggest_comma {
-                    let candidates =
-                        crate::core::features::metrics::comma_candidates(bench.buffer(), 40);
+                    let candidates = crate::core::features::metrics::comma_candidates(
+                        bench.buffer(),
+                        comma_options(bench),
+                    );
                     let caret = session.selection.as_ref().map_or(0, |r| r.start);
                     if let Some(at) = candidates.into_iter().find(|at| *at >= caret) {
                         bench.buffer_mut().insert(at, '、');
@@ -3300,6 +3321,15 @@ impl NovnowApp {
         };
         ctx.data_mut(|d| {
             d.insert_temp(Id::new("suggest-comma"), self.settings.suggest_comma);
+            d.insert_temp(
+                Id::new("comma-limit"),
+                session
+                    .bench
+                    .project()
+                    .settings()
+                    .writing
+                    .long_sentence_chars as usize,
+            );
             d.insert_temp(Id::new("context-folded"), self.settings.folded.clone());
         });
         // ④ ステータスバー（22px）
@@ -3760,6 +3790,12 @@ impl NovnowApp {
             self.settings.folded = folded;
             session.settings_dirty = true;
         }
+        // 構成ツリーの開閉を `folded.outline` へ（`Ctrl+Shift+[` / `]` と見出しのボタン、§10.3.1）
+        let outline = session.spaces.outline.expanded_keys();
+        if outline != self.settings.outline {
+            self.settings.outline = outline;
+            session.settings_dirty = true;
+        }
         if let Some(id) = session.bench.current_id() {
             let current = id.display(session.bench.project().digits());
             let count = self.settings.folded.len();
@@ -3787,7 +3823,7 @@ impl NovnowApp {
         }
         let unsaved = session.saving.is_some() || session.bench.save.state() != State::Clean;
         session.host.unsaved_changed(unsaved);
-        // 保存領域が足りない（§13.3.7）: Zip でエクスポートしてから不要なプロジェクトを消す導線を出す
+        // 保存領域が足りない（§13.3.6）: Zip でエクスポートしてから不要なプロジェクトを消す導線を出す
         let quota = session.bench.save.state() == State::Failed
             && session
                 .bench
@@ -4534,7 +4570,7 @@ impl NovnowApp {
                     );
                     ui.label(i18n::text(locale, "status.dont_close"));
                     if quota {
-                        // §13.3.7: Zip でエクスポートしてから不要なプロジェクトを削除する導線
+                        // §13.3.6: Zip でエクスポートしてから不要なプロジェクトを削除する導線
                         ui.add_space(4.0);
                         ui.label(i18n::text(locale, "status.quota"));
                     }
@@ -5803,7 +5839,7 @@ impl NovnowApp {
 }
 
 /// 保存の時刻なら書く（§8.2）。`ui.json` の変更も一緒に書く。
-/// 保存領域が足りないときの失敗の文言に含まれる語（`StorageError::QuotaExceeded` の `Debug`、§13.3.7）。
+/// 保存領域が足りないときの失敗の文言に含まれる語（`StorageError::QuotaExceeded` の `Debug`、§13.3.6）。
 const QUOTA_EXCEEDED: &str = "QuotaExceeded";
 
 /// Host が後から知らせたことの文言。
@@ -6160,9 +6196,9 @@ fn action_label(locale: Locale, action: &crate::core::features::code_action::Cod
     )
 }
 
-/// The header badge reflects the whole project (not just the current document).
-/// Reuse the previous scan while typing; scanning every file on every keystroke
-/// would violate the editor's latency budget. Recalculate after the save settles.
+/// 見出しのバッジは（編集中の文書だけでなく）プロジェクト全体を映す。
+/// 入力中は前回の走査を使い回す。打鍵のたびに全ファイルを走査すると、エディタの
+/// 応答時間の予算を超えるため。保存が落ち着いてから数え直す（§10.9.7）。
 fn project_problem(session: &mut Session, locale: Locale) -> Option<workspaces::ReviewProblem> {
     use crate::core::diagnostics::Severity;
     let rows = if matches!(session.bench.save.state(), State::Dirty | State::Saving) {
@@ -6192,8 +6228,8 @@ pub(crate) fn diagnostic_count(session: &mut Session) -> usize {
             return *count;
         }
     }
-    // Diagnostics on the whole document are deliberately deferred until save;
-    // the immediate typing path must not reparse a 100k-character file.
+    // 文書全体の診断は意図して保存まで遅らせる。入力の経路で 10 万字のファイルを
+    // 解析し直してはならない（§7.2 の実行コストの制御・§9.4.1）。
     if matches!(session.bench.save.state(), State::Dirty | State::Saving) {
         return 0;
     }
@@ -6387,8 +6423,8 @@ fn prompt_pairs(
         });
 }
 
-/// Validate as the MCP modal is edited, not only on Save. v1 supports only
-/// stdio servers; unsupported transports must never be silently accepted.
+/// MCP の入力欄は、保存のときだけでなく編集中にも検証する。v1 が扱えるのは
+/// stdio のサーバだけであり、未対応の転送方式を黙って受け入れてはならない（§15.7.7）。
 pub(crate) fn validate_mcp_editor(input: &str, locale: Locale) -> Result<(), String> {
     let config = crate::core::agents::mcp_config::parse(input)?;
     if let Some(server) = config.servers.iter().find(|server| {
@@ -6406,8 +6442,8 @@ pub(crate) fn validate_mcp_editor(input: &str, locale: Locale) -> Result<(), Str
     Ok(())
 }
 
-/// Truncate by painted pixels rather than Unicode scalar count: CJK glyphs are
-/// much wider than Latin letters, but neither may resize the fixed palette.
+/// 切る量は Unicode の文字数ではなく、描いた画素数で測る。CJK の字形はラテン文字より
+/// ずっと広いが、どちらも固定幅のパレットを広げてはならない（§9.7.1）。
 fn palette_label(ui: &egui::Ui, text: &str, max_width: f32) -> String {
     let font = egui::TextStyle::Button.resolve(ui.style());
     let width = |value: &str| {
@@ -6469,9 +6505,8 @@ fn popup(
     let area = egui::Area::new(Id::new(id))
         .order(egui::Order::Foreground)
         .constrain_to(screen);
-    // Area::anchor uses ctx.available_rect(), which shrinks after the side
-    // panels have been laid out. Modals must use the *window* center instead,
-    // regardless of the workspace beneath it.
+    // `Area::anchor` は `ctx.available_rect()` を使うが、これは横のペインを並べた後で
+    // 狭くなる。重ね物は、下にどのワークスペースがあっても**ウィンドウ**の中央に置く。
     let area = match style.placement {
         PopupPlacement::Top => area
             .fixed_pos(Pos2::new(screen.center().x, screen.top() + 72.0))
@@ -6579,6 +6614,13 @@ fn export_now(
             })
         }
     }
+}
+
+/// 読点提案の閾値（§9.4.3、`writing.long_sentence_chars`）。
+fn comma_options(bench: &Workbench) -> crate::core::features::metrics::CommaOptions {
+    crate::core::features::metrics::CommaOptions::long(
+        bench.project().settings().writing.long_sentence_chars as usize,
+    )
 }
 
 /// ヘッダ（ワークスペースの切替）の矩形。ガイドの段階 7〜9 が指す。

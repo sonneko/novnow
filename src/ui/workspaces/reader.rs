@@ -1,4 +1,4 @@
-//! Reader mode (vertical preview) workspace UI (design doc `workflows` §17.3).
+//! 読者モード（縦書きのプレビュー）の画面（§10.7・§17.3）。
 use super::tabs::{label, State};
 use crate::core::features::{metadata, sections};
 use crate::ui::{i18n::Locale, workbench::Workbench};
@@ -247,7 +247,7 @@ pub(super) fn reader(
     state.reader_page = state.reader_page.min(pages.len() - 1);
     ui.label(format!("{} / {}", state.reader_page + 1, pages.len()));
     let starts = crate::core::features::project::line_starts_of(bench.project().text(path));
-    // The same prefix layout maps source sections to pages for the TOC and edit return.
+    // 目次と「編集に戻る」のために、同じページ割り付けで節をページへ対応づける（§10.7）。
     let source_sections: Vec<_> = all.iter().filter(|s| s.path == *path).collect();
     ui.collapsing(label(locale, "stage.toc"), |ui| {
         for section in &source_sections {

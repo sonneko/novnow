@@ -7,6 +7,7 @@
 //! - 行番号は**節内のローカル行番号**（1 始まり、§9.4.1）。折り返した行には番号を振らない。
 //! - ソフトラップ有り・横スクロール無し。
 //! - 節ごとに別の `Id` を使うので、undo の履歴は節ごとに残る（§8.6。戻ってくると復元される）。
+//!   履歴を持つのは**最近使った 20 節**まで（`KEPT_SECTIONS`。[`remember`] が古い節の state を捨てる）。
 //! - 貼り付け（`Event::Paste`）は改行をそのまま入れる。単独 `;` 行・場面見出し行（`@A-B-C`）が
 //!   含まれていれば [`apply_paste`] が節に分けて文書へ一括で反映する（§8.1.3）。
 //! - インレイヒント（§6.6.2）は [`crate::ui::widgets::inlay`] が隙間を空けて上から描く（B-137）。
@@ -54,11 +55,62 @@ impl Cache {
 }
 
 /// 節エディタの `TextEdit` の Id（節ごと）。
+///
+/// 節の ID だけでなく**開始行**も混ぜる。節を消すと後続の節番号は繰り上がる（§8.1.2）ので、ID だけを
+/// 鍵にすると「消えた節の履歴」が繰り上がってきた別の節に付いてしまい、取り消しで別の節の本文が
+/// 戻る。開始行が変われば別の Id になり、履歴は引き継がれない（節の中で改行しても開始行は動かない）。
 pub fn editor_id(bench: &Workbench) -> Id {
     match bench.current() {
-        Some(current) => Id::new(("section-editor", current.path.as_str(), current.id)),
+        Some(current) => Id::new((
+            "section-editor",
+            current.path.as_str(),
+            current.id,
+            current.lines.start,
+        )),
         None => Id::new("section-editor-empty"),
     }
+}
+
+/// 履歴を残す節の数（§8.6「直近 20 節分」）。
+const KEPT_SECTIONS: usize = 20;
+
+/// 「最近使った節」の並びを `ctx.memory` へ置くための Id。
+fn recent_key() -> Id {
+    Id::new("section-editor-recent")
+}
+
+/// この節の履歴を使ったと記録し、20 節を超えた古い節の履歴を捨てる（§8.6）。
+///
+/// 履歴の実体は egui の `TextEditState`（widget の Id ごとに `ctx.memory` が持つ undoer）なので、
+/// ここで決めるのは「どの節の履歴を残すか」だけ。捨てた節の Id の state を消すと、その節へ
+/// 戻ってきても履歴は復元されない。
+fn remember(ui: &Ui, id: Id) {
+    remember_id(ui.ctx(), id);
+}
+
+/// [`remember`] の中身（画面の外からも回せるように分けた。テストが 20 節の上限を見る）。
+pub fn remember_id(ctx: &egui::Context, id: Id) {
+    ctx.memory_mut(|memory| {
+        let mut recent: Vec<Id> = memory.data.get_temp(recent_key()).unwrap_or_default();
+        if recent.first() == Some(&id) {
+            return;
+        }
+        recent.retain(|other| *other != id);
+        recent.insert(0, id);
+        while recent.len() > KEPT_SECTIONS {
+            if let Some(evicted) = recent.pop() {
+                memory
+                    .data
+                    .remove::<egui::text_edit::TextEditState>(evicted);
+            }
+        }
+        memory.data.insert_temp(recent_key(), recent);
+    });
+}
+
+/// 履歴を残している節の Id（新しく使った順。テスト用）。
+pub fn recent_sections(ctx: &egui::Context) -> Vec<Id> {
+    ctx.memory(|memory| memory.data.get_temp(recent_key()).unwrap_or_default())
 }
 
 /// 節エディタの 1 フレームの結果。
@@ -222,6 +274,7 @@ pub(crate) fn area(
     highlight: &mut dyn FnMut(&str) -> Highlight,
     look: Look,
 ) -> EditorOutput {
+    remember(ui, id);
     let Look {
         mode,
         scale,
@@ -262,8 +315,8 @@ pub(crate) fn area(
                     }
                     ui.fonts(|fonts| fonts.layout_job(job))
                 };
-                // egui's built-in cursor spans the full 1.8× line-height.
-                // Keep its layout/IME geometry, but paint a font-sized caret.
+                // egui 本来のカーソルは行の高さ（1.8 倍）いっぱいに伸びる。
+                // 配置と IME の位置はそのままに、描くのは文字の大きさのキャレットにする。
                 let cursor_stroke = ui.visuals().text_cursor;
                 ui.visuals_mut().text_cursor.width = 0.0;
                 let output = TextEdit::multiline(buffer)
@@ -310,15 +363,22 @@ pub(crate) fn area(
                         result.caret = Some(caret.translate(output.galley_pos.to_vec2()));
                     }
                 }
-                // Clip decorations to the TextEdit and the scroll viewport,
-                // independently of the gutter and the surrounding editor frame.
+                // 装飾は、行番号の溝やエディタの枠とは別に、TextEdit とスクロールの
+                // 可視範囲へ切り取る。
                 let text_clip = output.response.rect.intersect(ui.clip_rect());
                 let painter = ui.painter().with_clip_rect(text_clip);
                 if ui.ctx().data(|d| {
                     d.get_temp::<bool>(Id::new("suggest-comma"))
                         .unwrap_or(false)
                 }) {
-                    for at in crate::core::features::metrics::comma_candidates(buffer, 40) {
+                    let limit = ui
+                        .ctx()
+                        .data(|d| d.get_temp::<usize>(Id::new("comma-limit")))
+                        .unwrap_or(120);
+                    for at in crate::core::features::metrics::comma_candidates(
+                        buffer,
+                        crate::core::features::metrics::CommaOptions::long(limit),
+                    ) {
                         let cursor = output
                             .galley
                             .from_ccursor(CCursor::new(buffer[..at].chars().count()));
@@ -326,9 +386,14 @@ pub(crate) fn area(
                             .galley
                             .pos_from_cursor(&cursor)
                             .translate(output.galley_pos.to_vec2());
+                        // §9.4.3: `fg.faint` の 40%・高さ 10px の縦線。文字は挿入しない。
+                        let center = rect.center();
                         painter.line_segment(
-                            [rect.left_top(), rect.left_bottom()],
-                            egui::Stroke::new(1.0_f32, colors.fg_faint),
+                            [
+                                egui::pos2(rect.left(), center.y - 5.0),
+                                egui::pos2(rect.left(), center.y + 5.0),
+                            ],
+                            egui::Stroke::new(1.0_f32, colors.fg_faint.gamma_multiply(0.4)),
                         );
                     }
                 }
@@ -424,15 +489,15 @@ fn paint_line_numbers(
     }
 }
 
-/// Only the active section is analyzed synchronously while typing. Other sections
-/// retain their cached rendering until the workbench commits after the debounce.
+/// 入力中に同期的に解析するのは編集中の節だけ。他の節は、デバウンス後にワークベンチが
+/// 確定するまで、キャッシュ済みの描画をそのまま使う（§9.4.1）。
 pub fn highlight_of(bench: &Workbench, text: &str, hints: bool) -> Highlight {
     let Some(current) = bench.current() else {
         return Highlight::default();
     };
-    // A standalone scene with the same structural id provides the resolver with the
-    // correct plot context without rescanning a 100,000-character neighboring section.
-    // Empty preceding sections preserve the section number for mode/range resolution.
+    // 同じ構造 ID を持つ場面だけを渡すことで、隣の 10 万字の節を読み直さずに、
+    // モードと範囲の解決へ正しいプロットの文脈を渡す。
+    // 手前の節が空でも、節番号はモード・範囲の解決のためにそのまま使う。
     let displayed = current.id.display(bench.project().digits());
     let scene = displayed
         .rsplit_once('-')

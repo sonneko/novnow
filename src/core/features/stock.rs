@@ -1,4 +1,4 @@
-//! Explicit stock-episode assignment. Compute all text changes before any I/O.
+//! ストックの話への明示的な配属。入出力より前に、変える本文をすべて計算する（§10.7）。
 use crate::core::{
     features::{FileEdit, Project, TextEdit, WorkspaceEdit},
     id::PartialSceneId,

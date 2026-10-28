@@ -1,4 +1,4 @@
-//! Local LLM settings and probe of the agent workspace.
+//! エージェント画面のローカル LLM の設定と疎通の確認（§15.8.4）。
 use super::tabs::{label, State};
 use crate::ui::{
     i18n::{self, Locale},

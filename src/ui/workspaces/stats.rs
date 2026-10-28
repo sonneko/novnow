@@ -1,4 +1,4 @@
-//! Word-count statistics tab (stats / speakers / histogram share `metrics`).
+//! 字数の統計タブ。執筆統計・話者別・分布図はどれも `metrics` を使う（§10.9.5）。
 use super::tabs::{label, State};
 use crate::core::features::metrics;
 use crate::ui::i18n::{self, Locale};

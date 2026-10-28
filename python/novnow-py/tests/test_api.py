@@ -16,7 +16,7 @@ def project(tmp_path):
 
 def test_create_then_read_the_catalog(project):
     catalog = novnow.operations()
-    assert len(catalog) == 120, "§19.7 の全行"
+    assert len(catalog) == 121, "§19.7 の全行"
     assert {operation["id"] for operation in catalog} >= {"project.info", "section.list"}
 
 
@@ -24,6 +24,8 @@ def test_the_documented_shape_of_section_19_3_2(project):
     with novnow.Session(project) as session:
         info = session.project.info()
         assert info["title"] == "星屑の時計"
+        # §19.3.2「属性アクセスも併用できる」
+        assert info.title == info["title"]
         # `structure.tree` の形は `{level, nodes}`（`REF:tests/delegation.rs` と同じ正本）
         tree = session.structure.tree()
         assert set(tree) == {"level", "nodes"}, sorted(tree)

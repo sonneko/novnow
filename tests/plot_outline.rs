@@ -472,8 +472,8 @@ fn an_unknown_key_is_w011_and_keeps_its_value() {
 }
 
 #[test]
-fn stage_two_keys_survive_as_unknown_fields() {
-    // ② のキーは ① の表に無いので W011 になり、**値はそのまま残る**（作業項目 2「② の生命線」）
+fn stage_two_keys_are_read_as_fields() {
+    // ② のキーも §5.0.6 の表にあるのでキーとして解し、**値をそのまま残す**（§5.0.6）
     let text = "@01 x\nsummary: s\nwhen: 405.0 春分 09:15\nspace-mode: ascii\n\
                space:\n  ┌──┐\n  │書架│\nblurb: あらすじ\n;\n";
     assert_eq!(diags_tag(text), "");
@@ -619,7 +619,7 @@ fn a_summary_over_120_chars_is_w019() {
 
 #[test]
 fn a_heading_of_the_wrong_depth_is_e020() {
-    // §5.3.2「ファイル内の見出し階層は揃っていること（`all.txt` に `@01-04` が現れたら E020）」
+    // §5.3.2「ファイル内の見出し階層は揃っていること（`all.cnov` に `@01-04` が現れたら E020）」
     assert_eq!(
         diags_with("@01 x\nsummary: s\n@01-04 y\nsummary: t\n;\n", &chapters()),
         "E020@17..23(1)"

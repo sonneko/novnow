@@ -12,11 +12,11 @@
 //! └──────────────────────────────┴────────────────────┘
 //! ```
 //!
-//! - 上段は**常に親（章）プロット**（指示 11 をレイアウトで保証する。§19.5・§19.11）。
+//! - 上段は**常に親（章）プロット**（§10.2 の配置。章プロットを見ながら話プロットを書く）。
 //! - 節リストの行は場面見出し（場面レベルのフィールドを編集する）と節（節の内容を編集する）。
 //!   `Alt+↑/↓` で前 / 次の行、`Alt+←/→` で前 / 次の場面、`Ctrl+Alt+←/→` で前 / 次の話。
 //! - 下段は `Workbench` の Slice（B-126）。書き戻しと保存は節エディタと同じ規則（§8.1・§8.2）。
-//! - 右端の台詞比率バーと `when:` の表示は ②（`docs/history.md`）。
+//! - 右端の台詞比率バーは幅 48px（§9.4.2、B2）。`when:`（作中日時）の表示は未実装。
 
 use std::ops::Range;
 
@@ -61,9 +61,9 @@ pub struct State {
     editor: slice_editor::Cache,
     /// 次のフレームで選んだ行までスクロールし、エディタにフォーカスを移す。
     reveal: bool,
-    /// List highlight moved without opening/committing its text slice.
+    /// 一覧の選択だけを動かし、その話プロットの本文は開かず確定もしない（§10.2）。
     preview: bool,
-    /// Scroll the list once after a keyboard-only selection change.
+    /// キーだけで選択を動かした直後に、一覧を 1 回スクロールして見せる。
     scroll_list: bool,
 }
 
@@ -154,7 +154,7 @@ impl State {
         }
     }
 
-    /// Highlight the adjacent plot row without committing/changing the Slice editor.
+    /// エディタを確定も変更もせずに、隣のプロットの行へ選択だけ移す（§10.2）。
     pub fn preview_row(&mut self, bench: &Workbench, forward: bool) -> bool {
         let at = self.selected_index(bench);
         let rows = self.rows(bench);

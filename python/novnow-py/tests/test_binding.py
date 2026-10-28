@@ -153,9 +153,9 @@ class ArgumentBinding(unittest.TestCase):
         self.assertEqual(named, last_arguments())
 
     def test_every_operation_binds_its_declared_order(self):
-        """120 操作すべてで「位置引数＝宣言順」を確認する（網羅）。"""
+        """121 操作すべてで「位置引数＝宣言順」を確認する（網羅）。"""
         catalog = load_catalog()["operations"]
-        self.assertEqual(len(catalog), 120, "§19.7 の全行")
+        self.assertEqual(len(catalog), 121, "§19.7 の全行")
         for operation in catalog:
             order = operation["arguments"].get("order") or []
             if not order:
@@ -188,6 +188,30 @@ class ArgumentBinding(unittest.TestCase):
             [call[0] for call in CORE.created[-1].calls],
             ["structure.tree", "export.text"],
         )
+
+
+class Record(unittest.TestCase):
+    """結果は辞書の派生で、キーは属性としても読める（§19.3.2）。"""
+
+    def test_results_are_dicts_with_attribute_access(self):
+        with new_session() as session:
+            result = session.project.info()
+        self.assertIsInstance(result, dict)
+        self.assertEqual(result["op"], "project.info")
+        self.assertEqual(result.op, "project.info")
+        self.assertEqual(result.arguments, result["arguments"])
+        self.assertIsInstance(result.arguments, dict)
+
+    def test_a_missing_key_raises_attribute_error(self):
+        with new_session() as session:
+            result = session.project.info()
+        with self.assertRaises(AttributeError):
+            _ = result.nope
+
+    def test_lists_of_records_are_converted_too(self):
+        with new_session() as session:
+            events = session.poll_events()
+        self.assertEqual(events, [])
 
 
 class ErrorClassification(unittest.TestCase):

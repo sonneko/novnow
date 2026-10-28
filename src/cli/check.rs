@@ -14,7 +14,7 @@ use std::path::Path;
 
 use crate::adapters::block_on;
 use crate::adapters::project_load;
-use crate::core::diagnostics::{self, Diagnostic, Severity};
+use crate::core::diagnostics::{self, Diagnostic, DiagnosticCode, Severity};
 use crate::core::features::place;
 use crate::core::model::document::Document;
 use crate::core::text::position::LineTable;
@@ -40,9 +40,20 @@ pub fn run<E: Env>(cli: &mut Cli<'_, E>, dir: &Path) -> Exit {
     if let Err(error) = &loaded.validation {
         return report(cli, storage.root(), Problem::Project(error));
     }
+    let mut counts = Counts::default();
+    // 読み取り専用なら W041 を 1 行（§4.1。文書の中の位置を持たないのでルートの行として出す）
+    if !storage.writable() {
+        let found = Diagnostic::simple(DiagnosticCode::W041, None);
+        counts.add(found.severity());
+        let message = i18n::diagnostic(cli.locale(), &found);
+        let code = cli.paint(Stream::Out, Paint::Warning, found.code.as_str());
+        cli.line(
+            Stream::Out,
+            &format!("{}: {code} {message}", storage.root().display()),
+        );
+    }
     let mut documents: Vec<&Document> = loaded.project.documents().collect();
     documents.sort_by(|a, b| a.path.cmp(&b.path));
-    let mut counts = Counts::default();
     for document in &documents {
         for (position, found) in located(document, &loaded.project) {
             counts.add(found.severity());

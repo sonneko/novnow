@@ -6,7 +6,7 @@
 //! 末尾の `binary_*` は実際の実行ファイル（`CARGO_BIN_EXE_novnow`）を、環境変数を空にした子プロセス
 //! として走らせる（終了コードと標準出力・標準エラーの分かれ方を本物で確かめる）。
 //!
-//! §14.2.2 / §14.2.3 / §14.2.4 の出力例は**仕様書を読み直して一字一句**突き合わせる。
+//! §14.2.2 / §14.2.3 の出力例は**仕様書を読み直して一字一句**突き合わせる。
 
 mod novel;
 mod sandbox;
@@ -1917,14 +1917,21 @@ fn mcp_plot_write_takes_outline_and_chapter_levels() {
             "novnow.plot.write",
             json!({"role": "writer", "level": "episode", "scene": "@01-01-01-01", "text": "話を書き換えた\n"}),
         ),
+        // 知らない level は正規操作の引数エラー（§19.5.2）。どのファイルも変わらない
+        tool_call(
+            4,
+            "novnow.plot.write",
+            json!({"role": "writer", "level": "scene", "text": "だめ\n"}),
+        ),
     ]);
     let ran = run_mcp(dir.path(), &env_ja(&dir), "novel", &input);
     assert_eq!(ran.exit(), Exit::Ok, "{}", ran.err);
     let lines = responses(&ran.out);
-    assert_eq!(lines.len(), 3, "{}", ran.out);
-    for line in &lines {
+    assert_eq!(lines.len(), 4, "{}", ran.out);
+    for line in &lines[..3] {
         assert_eq!(line["result"]["isError"], false, "{line}");
     }
+    assert_eq!(lines[3]["result"]["isError"], true, "{}", lines[3]);
     let outline = std::fs::read_to_string(root.join("plots/all.cnov")).expect("read");
     assert!(outline.contains("全体を書き換えた"), "{outline}");
     let chapter = std::fs::read_to_string(root.join("plots/01.cnov")).expect("read");
@@ -2019,8 +2026,8 @@ fn lsp_speaks_framed_jsonrpc_over_stdio() {
             .as_array()
             .expect("commands")
             .len(),
-        122,
-        "操作 120 件 + 特別な 2 つ"
+        123,
+        "操作 121 件 + 特別な 2 つ"
     );
     let api = messages
         .iter()
@@ -2028,7 +2035,7 @@ fn lsp_speaks_framed_jsonrpc_over_stdio() {
         .expect("api.list の応答");
     assert_eq!(
         api["result"]["count"],
-        serde_json::json!(120),
+        serde_json::json!(121),
         "§19.7 の全行"
     );
     let unknown = messages
@@ -2351,4 +2358,29 @@ fn api_reserved_words_can_be_opened_as_explicit_relative_directories() {
             Launch::Open(PathBuf::from(&path))
         );
     }
+}
+
+#[cfg(unix)]
+#[test]
+fn check_reports_w041_on_a_read_only_project_without_writing_anything() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = TempDir::new("cli-check-read-only");
+    let root = minimal_project(&dir, "novel");
+    std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o555)).expect("chmod");
+    let ran = run(dir.path(), &env_ja(&dir), &["check", "novel"]);
+    let left = tree(&root);
+    std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+    assert_eq!(ran.exit(), Exit::Ok, "W041 は警告なので終了コードは 0");
+    let first = ran.out.lines().next().unwrap_or("");
+    assert!(
+        first.ends_with("W041 プロジェクトに書き込めません（読み取り専用）"),
+        "{}",
+        ran.out
+    );
+    assert!(
+        first.starts_with(&format!("{}: ", root.display())),
+        "ルートの行として出す: {first}"
+    );
+    assert!(ran.out.contains("警告 1"), "{}", ran.out);
+    assert!(!left.contains_key(".novnow/.write-probe"), "何も残さない");
 }

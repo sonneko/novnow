@@ -78,8 +78,8 @@ pub(crate) fn status_bar(
     let mut clicked = false;
     ui.horizontal_centered(|ui| {
         let width = ui.available_width();
-        // Reserve the rightmost save state before placing lower-priority labels.
-        // A clipped long notice or diagnostic count must never push it off-screen.
+        // 優先度の低いラベルを置く前に、右端の保存状態の幅を先に確保する。
+        // 長い通知や診断の件数が切れても、保存状態を画面の外へ押し出してはならない（S-14）。
         let reserved = if indicator == Indicator::Failed {
             170.0
         } else if session.bench.save.guards_close() {
@@ -314,7 +314,7 @@ pub(crate) fn status_bar(
                         );
                     }
                 }
-                // F-05: live modifier-prefix completion, without displacing the save indicator.
+                // F-05: 修飾キーを押しているあいだの補完表示。保存インジケータの場所は動かさない。
                 let mods = ui.ctx().input(|input| input.modifiers);
                 let mac = ui.ctx().os() == egui::os::OperatingSystem::Mac;
                 if let Some(key) = modifier_hint_key(mods, mac) {
@@ -465,7 +465,7 @@ pub(crate) fn status_bar(
     clicked
 }
 
-/// The platform's primary modifier is Command on macOS, Control elsewhere.
+/// その環境の主たる修飾キー。macOS は Command、それ以外は Control（§9.8.6）。
 pub(crate) fn modifier_hint_key(mods: Modifiers, mac: bool) -> Option<&'static str> {
     if !mods.command && !(mac && mods.mac_cmd) {
         return None;
@@ -480,7 +480,8 @@ pub(crate) fn modifier_hint_key(mods: Modifiers, mac: bool) -> Option<&'static s
     })
 }
 
-/// 節エディタのミニヘッダー（§9.4.2 の ① の部分: パンくず ＋ 有効モードのバッジ。比率バーは ②）。
+/// 節エディタのミニヘッダー（§9.4.2: パンくず ＋ 有効モードのバッジ。台詞比率バーは
+/// [`crate::ui::widgets::ratio_bar`] を節エディタ側で描く）。
 pub(crate) fn mini_header(ui: &mut egui::Ui, session: &Session, mode: Mode, scale: f32) {
     let colors = theme::palette(mode);
     let mode_color = theme::token_style(

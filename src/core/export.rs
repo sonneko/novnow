@@ -4,7 +4,7 @@
 //! 書くのは呼び出し側（CLI の `novnow export`・GUI の `>export`）で、既定の名前は [`file_name`] が
 //! 作る（日時の文字列は呼び出し側が時計から作って渡す）。
 //!
-//! # 処理順（§17.1 の表。① は 3b / 3c / 5b / 10b を飛ばす、`docs/plans.md` §4.2 ）
+//! # 処理順（§17.1 の表。3b / 3c / 5b / 10b を含む全手順を行う）
 //!
 //! | # | 処理 | ここでの扱い |
 //! |---|---|---|
@@ -794,7 +794,7 @@ fn finish(lines: Vec<Out>, options: &Options) -> String {
     out
 }
 
-/// Annotation-free fragment, shared by all stage-two measurements.
+/// 注釈をすべて取り除いた断片。段階 ② の計測はすべてこれを使う（§17.1）。
 pub fn plain(text: &str) -> String {
     fragment(text, false)
 }

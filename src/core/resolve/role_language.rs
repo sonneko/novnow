@@ -593,7 +593,11 @@ pub fn dialogue_spans(text: &str) -> Vec<Range<usize>> {
         }
     }
     for (_, start) in stack {
-        out.push(start..text.len());
+        // 閉じ忘れは**行末**まで（行をまたいで地の文を台詞にしない）。
+        let end = text[start..]
+            .find('\n')
+            .map_or(text.len(), |offset| start + offset);
+        out.push(start..end);
     }
     // **和集合にはしない**: 入れ子（`「『…』」`）は内側と外側の両方が台詞なので、
     // まとめると内側の位置が失われる（下線の和集合は §6.5.4 なので [`union`] を使う）

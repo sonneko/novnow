@@ -1,4 +1,4 @@
-//! 参照ペインの中身（§9.5.2。① の 6 セクション）を集める。
+//! 参照ペインの中身（§9.5.2 の 9 セクションのうち core が持つもの）を集める。
 //!
 //! LSP には対応しない補助（`docs/history.md` B-113）。**文言は持たない**（見出しの言葉は UI の
 //! `ui/i18n`、§12.2）。表示順と「内容が無ければ省く」は `resolve::context_rules::PaneSection`。
@@ -9,10 +9,14 @@
 //! | 2 上位プロット | 章プロット → 全体プロットの `summary` の 1 行目（計 2 行まで） |
 //! | 3 配役 | この節に出るキャラ（話者注釈・`'` 参照）の、この節で有効なモード（§6.4.6） |
 //! | 4 用語 | この節に出る用語の `term` と `definition` の 1 行目 |
-//! | 7 資料 | 明示参照（節の `'M…` / `'タイトル` と、話プロットの同じ節・場面レベルの `material:`）の後に、条件一致の候補（§16.4、M8）。引用注釈（`^M…`、§5.2.4）は ②（追加仕様 10） |
+//! | 5 五感 | 話プロットを節・場面の順に遡った `senses:`（[`crate::core::features::metadata::inherited`]） |
+//! | 6 空間 | 同じく `space:`。値が既存のファイルを指すならその全文（[`crate::core::features::metadata::asset_path`]）、`space-mode: ascii` を [`Reference::space_ascii`] に持つ |
+//! | 7 資料 | 明示参照（節の `'M…` / `'タイトル` と、話プロットの同じ節・場面レベルの `material:`）の後に、条件一致の候補（§16.4、M8）。引用注釈（`^M…`、§5.2.4）も並べる |
+//! | 8 挿絵 | 同じく `illustration:` と、節の本文の `! ` 行（§5.2.5、[`crate::core::annotations::illustration`]） |
 //! | 9 診断 | この節に掛かるもの。E → W の順（I は出さない） |
 //!
-//! 五感・空間・挿絵（5・6・8）は ②（`docs/history.md` の作業項目 7）。
+//! 5・6・8 は**内容が無ければ見出しごと出さない**（§9.5.2 MUST。判定は
+//! [`crate::core::resolve::context_rules::PaneSection::hides_heading_when_empty`]）。
 
 use std::collections::BTreeSet;
 use std::ops::Range;
