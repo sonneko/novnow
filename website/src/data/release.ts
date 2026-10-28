@@ -1,6 +1,6 @@
 // Published version: intentionally independent of development Cargo.toml.
 // Update only after verifying the corresponding public release and assets.
-export const version = "0.1.0";
+export const version = "0.1.1";
 export const releaseUrl = `https://github.com/sonneko/novnow/releases/tag/v${version}`;
 export const assetUrl = (name: string) => `https://github.com/sonneko/novnow/releases/download/v${version}/${name}`;
 export const binaryTargets = [
