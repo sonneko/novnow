@@ -2507,3 +2507,22 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
   復旧 PR はワークフローに触れるので、これで起動する。`REF:docs/script/test_release_policy.py` に
   両トリガーが `.github/workflows/**` を含むことの検査を足した。
 - `REF:docs/developers.md` §4.7 の落とし穴に、リリース PR は `wheel` 5 行を要求することを追記した。
+
+## 2026-10-28: v0.1.1 の公開（タグの付け直しから公開・サイト更新まで）
+
+- リリース PR #45（`develop` → `main`）をマージし、`main` の `1c90904` に `v0.1.1` を**付け直した**
+  （旧 `v0.1.1` は未公開で、成果物も Releases も 0 件だったため。`f3fe5c0` のタグは削除）。
+- Release は `prepare` から `release-check` まで **28 ジョブすべて成功**。`wheel-test (3.9)` も緑
+  （`ubuntu-24.04` 固定の効果）。Releases に 18 成果物（デスクトップ 10・ホイール 5・VSIX・
+  ソース・`SHA256SUMS`）、PyPI に 5 ホイール、crates.io に 0.1.1 を公開した。
+- **公開後の監査（`workflow_run`）が自動で走り、`meta`・`payloads`・`candidate-action`（3 OS）が全部緑**に
+  なった。旧 one-off 監査が落ちていた 2 点（操作数の手書き・既定ブランチのサンプル作品）が直っていること、
+  複合アクションが macOS・Windows でも動くこと（KI-001 の解消）を、公開済みの成果物で確認できた。
+- `v0` の可動タグが `action-tags` の後で消えていたので、`1c90904` を指すように作り直した
+  （`scripts/release-tags.sh --check` で `v0.1.1` と `v0` の一致を確認）。原因は特定できていない
+  （`release-check --remote` は通っていたので、その直後の削除。タグ向けの ruleset は無い）。
+- サイトと手引きの「公開済みの版」を `0.1.1` にした（`REF:website/src/data/release.ts`・`README{,.en}.md`・
+  `REF:docs/users/install.md` のファイル名・`pip install novnow==0.1.1`）。`REF:scripts/website-check.py` が
+  見出しを `release.ts` と比べるよう直してあるので、この更新で版更新と公開の順序がずれても検査は通る。
+- 既知の問題（`REF:docs/known-issues/{ja,en}.md`）から KI-001・KI-002 を外した。修正版の公開と、
+  3 OS のランナーでの複合アクション実行（KI-001）・実機確認（KI-002）が済んだため。一覧ページは残す。
