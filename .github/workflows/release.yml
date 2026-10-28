@@ -234,7 +234,10 @@ jobs:
       fail-fast: false
       matrix:
         python: ["3.9", "3.11", "3.13"]
-    runs-on: ubuntu-latest
+    # setup-python の 3.9 は Ubuntu 26.04 向けの配布物が無いため、ubuntu-latest が
+    # 26.04 に移ると解決に失敗する（v0.1.1 のリリース実行で 7 秒で失敗した。
+    # wheels.yml の test ジョブと同じ理由で 24.04 に固定する。docs/developers.md §4.7）。
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
