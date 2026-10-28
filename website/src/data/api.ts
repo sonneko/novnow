@@ -16,7 +16,13 @@ export const operations = [
       "scenes",
       "sections",
       "title"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow project info my-novel --json",
+      "rust": "session.run(\"project.info\", json!({}))?",
+      "python": "session.project.info()",
+      "mcp": "tools/call {\"name\": \"novnow.project.info\", \"arguments\": {}}"
+    }
   },
   {
     "id": "project.new",
@@ -41,7 +47,13 @@ export const operations = [
       "files",
       "path",
       "title"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow new my-novel",
+      "rust": "session.run(\"project.new\", json!({\"path\": \"my-novel\"}))?",
+      "python": "session.project.new(path='my-novel')",
+      "mcp": "tools/call {\"name\": \"novnow.project.new\", \"arguments\": {\"path\": \"my-novel\"}}"
+    }
   },
   {
     "id": "project.validate",
@@ -56,7 +68,13 @@ export const operations = [
       "errors",
       "ok",
       "structure"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow check my-novel",
+      "rust": "session.run(\"project.validate\", json!({}))?",
+      "python": "session.project.validate()",
+      "mcp": "tools/call {\"name\": \"novnow.project.validate\", \"arguments\": {}}"
+    }
   },
   {
     "id": "project.reload",
@@ -69,7 +87,13 @@ export const operations = [
     "returns": [
       "files",
       "reloaded"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow project reload my-novel --json",
+      "rust": "session.run(\"project.reload\", json!({}))?",
+      "python": "session.project.reload()",
+      "mcp": "tools/call {\"name\": \"novnow.project.reload\", \"arguments\": {}}"
+    }
   },
   {
     "id": "project.stats",
@@ -88,7 +112,13 @@ export const operations = [
       "speakers",
       "title",
       "total_chars"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow project stats my-novel --json",
+      "rust": "session.run(\"project.stats\", json!({}))?",
+      "python": "session.project.stats()",
+      "mcp": "tools/call {\"name\": \"novnow.project.stats\", \"arguments\": {}}"
+    }
   },
   {
     "id": "project.recent_list",
@@ -100,7 +130,13 @@ export const operations = [
     "args": [],
     "returns": [
       "projects"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow project recent_list my-novel --json",
+      "rust": "session.run(\"project.recent_list\", json!({}))?",
+      "python": "session.project.recent_list()",
+      "mcp": "tools/call {\"name\": \"novnow.project.recent_list\", \"arguments\": {}}"
+    }
   },
   {
     "id": "project.recent_remove",
@@ -119,7 +155,13 @@ export const operations = [
     "returns": [
       "projects",
       "removed"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow project recent_remove my-novel --path my-novel",
+      "rust": "session.run(\"project.recent_remove\", json!({\"path\": \"my-novel\"}))?",
+      "python": "session.project.recent_remove(path='my-novel')",
+      "mcp": "tools/call {\"name\": \"novnow.project.recent_remove\", \"arguments\": {\"path\": \"my-novel\"}}"
+    }
   },
   {
     "id": "project.import_zip",
@@ -143,7 +185,13 @@ export const operations = [
     "returns": [
       "skipped",
       "written"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow import my-novel.zip",
+      "rust": "session.run(\"project.import_zip\", json!({}))?",
+      "python": "session.project.import_zip()",
+      "mcp": "tools/call {\"name\": \"novnow.project.import_zip\", \"arguments\": {}}"
+    }
   },
   {
     "id": "project.export_zip",
@@ -164,7 +212,13 @@ export const operations = [
       "name",
       "out",
       "size"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow project export_zip my-novel --json",
+      "rust": "session.run(\"project.export_zip\", json!({}))?",
+      "python": "session.project.export_zip()",
+      "mcp": "tools/call {\"name\": \"novnow.project.export_zip\", \"arguments\": {}}"
+    }
   },
   {
     "id": "structure.tree",
@@ -188,7 +242,13 @@ export const operations = [
     "returns": [
       "level",
       "nodes"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow structure tree my-novel --json",
+      "rust": "session.run(\"structure.tree\", json!({}))?",
+      "python": "session.structure.tree()",
+      "mcp": "tools/call {\"name\": \"novnow.structure.tree\", \"arguments\": {}}"
+    }
   },
   {
     "id": "structure.resolve",
@@ -210,7 +270,13 @@ export const operations = [
       "path",
       "resolved",
       "title"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow structure resolve my-novel --query リリア",
+      "rust": "session.run(\"structure.resolve\", json!({\"query\": \"リリア\"}))?",
+      "python": "session.structure.resolve(query='リリア')",
+      "mcp": "tools/call {\"name\": \"novnow.structure.resolve\", \"arguments\": {\"query\": \"リリア\"}}"
+    }
   },
   {
     "id": "structure.breadcrumb",
@@ -223,7 +289,13 @@ export const operations = [
     "returns": [
       "breadcrumb",
       "scene"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow structure breadcrumb my-novel --json",
+      "rust": "session.run(\"structure.breadcrumb\", json!({}))?",
+      "python": "session.structure.breadcrumb()",
+      "mcp": "tools/call {\"name\": \"novnow.structure.breadcrumb\", \"arguments\": {}}"
+    }
   },
   {
     "id": "section.list",
@@ -242,7 +314,13 @@ export const operations = [
     "returns": [
       "count",
       "sections"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow section list my-novel --json",
+      "rust": "session.run(\"section.list\", json!({}))?",
+      "python": "session.section.list()",
+      "mcp": "tools/call {\"name\": \"novnow.section.list\", \"arguments\": {}}"
+    }
   },
   {
     "id": "section.get",
@@ -264,7 +342,13 @@ export const operations = [
       "path",
       "scene",
       "text"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow section get my-novel --scene @01-01-01-01",
+      "rust": "session.run(\"section.get\", json!({\"scene\": \"@01-01-01-01\"}))?",
+      "python": "session.section.get(scene='@01-01-01-01')",
+      "mcp": "tools/call {\"name\": \"novnow.section.get\", \"arguments\": {\"scene\": \"@01-01-01-01\"}}"
+    }
   },
   {
     "id": "section.write",
@@ -295,7 +379,13 @@ export const operations = [
       "path",
       "save",
       "scene"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow section write my-novel --scene @01-01-01-01 --text 本文 --role writer",
+      "rust": "session.run(\"section.write\", json!({\"scene\": \"@01-01-01-01\", \"text\": \"本文\", \"role\": \"writer\"}))?",
+      "python": "session.section.write(scene='@01-01-01-01', text='本文', role='writer')",
+      "mcp": "tools/call {\"name\": \"novnow.section.write\", \"arguments\": {\"scene\": \"@01-01-01-01\", \"text\": \"本文\", \"role\": \"writer\"}}"
+    }
   },
   {
     "id": "section.insert",
@@ -325,7 +415,13 @@ export const operations = [
       "id",
       "pending",
       "save"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow section insert my-novel --role writer",
+      "rust": "session.run(\"section.insert\", json!({\"role\": \"writer\"}))?",
+      "python": "session.section.insert(role='writer')",
+      "mcp": "tools/call {\"name\": \"novnow.section.insert\", \"arguments\": {\"role\": \"writer\"}}"
+    }
   },
   {
     "id": "section.delete",
@@ -349,7 +445,13 @@ export const operations = [
     "returns": [
       "deleted",
       "save"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow section delete my-novel --role writer",
+      "rust": "session.run(\"section.delete\", json!({\"role\": \"writer\"}))?",
+      "python": "session.section.delete(role='writer')",
+      "mcp": "tools/call {\"name\": \"novnow.section.delete\", \"arguments\": {\"role\": \"writer\"}}"
+    }
   },
   {
     "id": "section.confirm_next",
@@ -362,7 +464,13 @@ export const operations = [
     "returns": [
       "confirmed",
       "scene"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow section confirm_next my-novel --json",
+      "rust": "session.run(\"section.confirm_next\", json!({}))?",
+      "python": "session.section.confirm_next()",
+      "mcp": "tools/call {\"name\": \"novnow.section.confirm_next\", \"arguments\": {}}"
+    }
   },
   {
     "id": "section.split",
@@ -392,7 +500,13 @@ export const operations = [
       "save",
       "scene",
       "split"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow section split my-novel --at 1 --role writer",
+      "rust": "session.run(\"section.split\", json!({\"at\": 1, \"role\": \"writer\"}))?",
+      "python": "session.section.split(at=1, role='writer')",
+      "mcp": "tools/call {\"name\": \"novnow.section.split\", \"arguments\": {\"at\": 1, \"role\": \"writer\"}}"
+    }
   },
   {
     "id": "section.propose",
@@ -421,7 +535,13 @@ export const operations = [
     "returns": [
       "proposal",
       "status"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow section propose my-novel --scene @01-01-01-01 --text 本文",
+      "rust": "session.run(\"section.propose\", json!({\"scene\": \"@01-01-01-01\", \"text\": \"本文\"}))?",
+      "python": "session.section.propose(scene='@01-01-01-01', text='本文')",
+      "mcp": "tools/call {\"name\": \"novnow.section.propose\", \"arguments\": {\"scene\": \"@01-01-01-01\", \"text\": \"本文\"}}"
+    }
   },
   {
     "id": "nav.file",
@@ -445,7 +565,13 @@ export const operations = [
     "returns": [
       "path",
       "scene"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow nav file my-novel --path contents/01-01.cnov",
+      "rust": "session.run(\"nav.file\", json!({\"path\": \"contents/01-01.cnov\"}))?",
+      "python": "session.nav.file(path='contents/01-01.cnov')",
+      "mcp": "tools/call {\"name\": \"novnow.nav.file\", \"arguments\": {\"path\": \"contents/01-01.cnov\"}}"
+    }
   },
   {
     "id": "nav.section",
@@ -464,7 +590,13 @@ export const operations = [
     "returns": [
       "path",
       "scene"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow nav section my-novel --scene @01-01-01-01",
+      "rust": "session.run(\"nav.section\", json!({\"scene\": \"@01-01-01-01\"}))?",
+      "python": "session.nav.section(scene='@01-01-01-01')",
+      "mcp": "tools/call {\"name\": \"novnow.nav.section\", \"arguments\": {\"scene\": \"@01-01-01-01\"}}"
+    }
   },
   {
     "id": "nav.jump",
@@ -489,7 +621,13 @@ export const operations = [
       "byte",
       "line",
       "path"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow nav jump my-novel --json",
+      "rust": "session.run(\"nav.jump\", json!({}))?",
+      "python": "session.nav.jump()",
+      "mcp": "tools/call {\"name\": \"novnow.nav.jump\", \"arguments\": {}}"
+    }
   },
   {
     "id": "nav.prev",
@@ -501,7 +639,13 @@ export const operations = [
     "args": [],
     "returns": [
       "moved"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow nav prev my-novel --json",
+      "rust": "session.run(\"nav.prev\", json!({}))?",
+      "python": "session.nav.prev()",
+      "mcp": "tools/call {\"name\": \"novnow.nav.prev\", \"arguments\": {}}"
+    }
   },
   {
     "id": "nav.next",
@@ -513,7 +657,13 @@ export const operations = [
     "args": [],
     "returns": [
       "moved"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow nav next my-novel --json",
+      "rust": "session.run(\"nav.next\", json!({}))?",
+      "python": "session.nav.next()",
+      "mcp": "tools/call {\"name\": \"novnow.nav.next\", \"arguments\": {}}"
+    }
   },
   {
     "id": "nav.back",
@@ -526,7 +676,13 @@ export const operations = [
     "returns": [
       "moved",
       "scene"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow nav back my-novel --json",
+      "rust": "session.run(\"nav.back\", json!({}))?",
+      "python": "session.nav.back()",
+      "mcp": "tools/call {\"name\": \"novnow.nav.back\", \"arguments\": {}}"
+    }
   },
   {
     "id": "nav.forward",
@@ -538,7 +694,13 @@ export const operations = [
     "args": [],
     "returns": [
       "moved"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow nav forward my-novel --json",
+      "rust": "session.run(\"nav.forward\", json!({}))?",
+      "python": "session.nav.forward()",
+      "mcp": "tools/call {\"name\": \"novnow.nav.forward\", \"arguments\": {}}"
+    }
   },
   {
     "id": "nav.up",
@@ -551,7 +713,13 @@ export const operations = [
     "returns": [
       "moved",
       "workspace"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow nav up my-novel --json",
+      "rust": "session.run(\"nav.up\", json!({}))?",
+      "python": "session.nav.up()",
+      "mcp": "tools/call {\"name\": \"novnow.nav.up\", \"arguments\": {}}"
+    }
   },
   {
     "id": "nav.switcher",
@@ -565,7 +733,13 @@ export const operations = [
       "current",
       "previous",
       "workspaces"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow nav switcher my-novel --json",
+      "rust": "session.run(\"nav.switcher\", json!({}))?",
+      "python": "session.nav.switcher()",
+      "mcp": "tools/call {\"name\": \"novnow.nav.switcher\", \"arguments\": {}}"
+    }
   },
   {
     "id": "document.get",
@@ -585,7 +759,13 @@ export const operations = [
       "format",
       "path",
       "text"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow document get my-novel --path contents/01-01.cnov",
+      "rust": "session.run(\"document.get\", json!({\"path\": \"contents/01-01.cnov\"}))?",
+      "python": "session.document.get(path='contents/01-01.cnov')",
+      "mcp": "tools/call {\"name\": \"novnow.document.get\", \"arguments\": {\"path\": \"contents/01-01.cnov\"}}"
+    }
   },
   {
     "id": "document.write",
@@ -615,7 +795,13 @@ export const operations = [
       "chars",
       "path",
       "save"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow document write my-novel --path contents/01-01.cnov --text 本文 --role writer",
+      "rust": "session.run(\"document.write\", json!({\"path\": \"contents/01-01.cnov\", \"text\": \"本文\", \"role\": \"writer\"}))?",
+      "python": "session.document.write(path='contents/01-01.cnov', text='本文', role='writer')",
+      "mcp": "tools/call {\"name\": \"novnow.document.write\", \"arguments\": {\"path\": \"contents/01-01.cnov\", \"text\": \"本文\", \"role\": \"writer\"}}"
+    }
   },
   {
     "id": "document.rename",
@@ -645,7 +831,13 @@ export const operations = [
       "from",
       "save",
       "to"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow document rename my-novel --from contents/01-01.cnov --to contents/02-01.cnov --role writer",
+      "rust": "session.run(\"document.rename\", json!({\"from\": \"contents/01-01.cnov\", \"to\": \"contents/02-01.cnov\", \"role\": \"writer\"}))?",
+      "python": "session.document.rename(from='contents/01-01.cnov', to='contents/02-01.cnov', role='writer')",
+      "mcp": "tools/call {\"name\": \"novnow.document.rename\", \"arguments\": {\"from\": \"contents/01-01.cnov\", \"to\": \"contents/02-01.cnov\", \"role\": \"writer\"}}"
+    }
   },
   {
     "id": "plot.get",
@@ -674,7 +866,13 @@ export const operations = [
     "returns": [
       "blocks",
       "level"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow plot get my-novel --level episode",
+      "rust": "session.run(\"plot.get\", json!({\"level\": \"episode\"}))?",
+      "python": "session.plot.get(level='episode')",
+      "mcp": "tools/call {\"name\": \"novnow.plot.get\", \"arguments\": {\"level\": \"episode\"}}"
+    }
   },
   {
     "id": "plot.write",
@@ -715,7 +913,13 @@ export const operations = [
       "level",
       "path",
       "save"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow plot write my-novel --level episode --text 本文 --role writer",
+      "rust": "session.run(\"plot.write\", json!({\"level\": \"episode\", \"text\": \"本文\", \"role\": \"writer\"}))?",
+      "python": "session.plot.write(level='episode', text='本文', role='writer')",
+      "mcp": "tools/call {\"name\": \"novnow.plot.write\", \"arguments\": {\"level\": \"episode\", \"text\": \"本文\", \"role\": \"writer\"}}"
+    }
   },
   {
     "id": "plot.set_state",
@@ -746,7 +950,13 @@ export const operations = [
       "save",
       "scene",
       "state"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow plot set_state my-novel --scene @01-01-01-01 --role writer",
+      "rust": "session.run(\"plot.set_state\", json!({\"scene\": \"@01-01-01-01\", \"role\": \"writer\"}))?",
+      "python": "session.plot.set_state(scene='@01-01-01-01', role='writer')",
+      "mcp": "tools/call {\"name\": \"novnow.plot.set_state\", \"arguments\": {\"scene\": \"@01-01-01-01\", \"role\": \"writer\"}}"
+    }
   },
   {
     "id": "plot.insert_section",
@@ -776,7 +986,13 @@ export const operations = [
       "path",
       "save",
       "scene"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow plot insert_section my-novel --role writer",
+      "rust": "session.run(\"plot.insert_section\", json!({\"role\": \"writer\"}))?",
+      "python": "session.plot.insert_section(role='writer')",
+      "mcp": "tools/call {\"name\": \"novnow.plot.insert_section\", \"arguments\": {\"role\": \"writer\"}}"
+    }
   },
   {
     "id": "plot.outline_fold",
@@ -801,7 +1017,13 @@ export const operations = [
       "chapter",
       "fold",
       "folded"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow plot outline_fold my-novel --chapter 1",
+      "rust": "session.run(\"plot.outline_fold\", json!({\"chapter\": 1}))?",
+      "python": "session.plot.outline_fold(chapter=1)",
+      "mcp": "tools/call {\"name\": \"novnow.plot.outline_fold\", \"arguments\": {\"chapter\": 1}}"
+    }
   },
   {
     "id": "save.now",
@@ -814,7 +1036,13 @@ export const operations = [
     "returns": [
       "state",
       "written"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow save now my-novel --json",
+      "rust": "session.run(\"save.now\", json!({}))?",
+      "python": "session.save.now()",
+      "mcp": "tools/call {\"name\": \"novnow.save.now\", \"arguments\": {}}"
+    }
   },
   {
     "id": "save.state",
@@ -828,7 +1056,13 @@ export const operations = [
       "conflicts",
       "state",
       "unsaved"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow save state my-novel --json",
+      "rust": "session.run(\"save.state\", json!({}))?",
+      "python": "session.save.state()",
+      "mcp": "tools/call {\"name\": \"novnow.save.state\", \"arguments\": {}}"
+    }
   },
   {
     "id": "save.keep_mine",
@@ -847,7 +1081,13 @@ export const operations = [
     "returns": [
       "kept",
       "save"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow save keep_mine my-novel --json",
+      "rust": "session.run(\"save.keep_mine\", json!({}))?",
+      "python": "session.save.keep_mine()",
+      "mcp": "tools/call {\"name\": \"novnow.save.keep_mine\", \"arguments\": {}}"
+    }
   },
   {
     "id": "save.reload_external",
@@ -865,7 +1105,13 @@ export const operations = [
     ],
     "returns": [
       "reloaded"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow save reload_external my-novel --json",
+      "rust": "session.run(\"save.reload_external\", json!({}))?",
+      "python": "session.save.reload_external()",
+      "mcp": "tools/call {\"name\": \"novnow.save.reload_external\", \"arguments\": {}}"
+    }
   },
   {
     "id": "save.diff_external",
@@ -883,7 +1129,13 @@ export const operations = [
     ],
     "returns": [
       "diffs"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow save diff_external my-novel --json",
+      "rust": "session.run(\"save.diff_external\", json!({}))?",
+      "python": "session.save.diff_external()",
+      "mcp": "tools/call {\"name\": \"novnow.save.diff_external\", \"arguments\": {}}"
+    }
   },
   {
     "id": "search.file",
@@ -919,7 +1171,13 @@ export const operations = [
       "path",
       "replaced",
       "save"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow search file my-novel --query リリア",
+      "rust": "session.run(\"search.file\", json!({\"query\": \"リリア\"}))?",
+      "python": "session.search.file(query='リリア')",
+      "mcp": "tools/call {\"name\": \"novnow.search.file\", \"arguments\": {\"query\": \"リリア\"}}"
+    }
   },
   {
     "id": "search.replace_file",
@@ -954,7 +1212,13 @@ export const operations = [
       "count",
       "path",
       "save"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow search replace_file my-novel --query リリア --replace リオ --role writer",
+      "rust": "session.run(\"search.replace_file\", json!({\"query\": \"リリア\", \"replace\": \"リオ\", \"role\": \"writer\"}))?",
+      "python": "session.search.replace_file(query='リリア', replace='リオ', role='writer')",
+      "mcp": "tools/call {\"name\": \"novnow.search.replace_file\", \"arguments\": {\"query\": \"リリア\", \"replace\": \"リオ\", \"role\": \"writer\"}}"
+    }
   },
   {
     "id": "search.project",
@@ -979,7 +1243,13 @@ export const operations = [
       "count",
       "hits",
       "query"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow search project my-novel --query リリア",
+      "rust": "session.run(\"search.project\", json!({\"query\": \"リリア\"}))?",
+      "python": "session.search.project(query='リリア')",
+      "mcp": "tools/call {\"name\": \"novnow.search.project\", \"arguments\": {\"query\": \"リリア\"}}"
+    }
   },
   {
     "id": "search.find_next",
@@ -992,7 +1262,13 @@ export const operations = [
     "returns": [
       "range",
       "selected"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow search find_next my-novel --json",
+      "rust": "session.run(\"search.find_next\", json!({}))?",
+      "python": "session.search.find_next()",
+      "mcp": "tools/call {\"name\": \"novnow.search.find_next\", \"arguments\": {}}"
+    }
   },
   {
     "id": "search.find_prev",
@@ -1005,7 +1281,13 @@ export const operations = [
     "returns": [
       "range",
       "selected"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow search find_prev my-novel --json",
+      "rust": "session.run(\"search.find_prev\", json!({}))?",
+      "python": "session.search.find_prev()",
+      "mcp": "tools/call {\"name\": \"novnow.search.find_prev\", \"arguments\": {}}"
+    }
   },
   {
     "id": "materials.list",
@@ -1018,7 +1300,13 @@ export const operations = [
     "returns": [
       "count",
       "materials"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow materials list my-novel --json",
+      "rust": "session.run(\"materials.list\", json!({}))?",
+      "python": "session.materials.list()",
+      "mcp": "tools/call {\"name\": \"novnow.materials.list\", \"arguments\": {}}"
+    }
   },
   {
     "id": "materials.get",
@@ -1038,7 +1326,13 @@ export const operations = [
       "body",
       "material",
       "review"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow materials get my-novel --id M0001",
+      "rust": "session.run(\"materials.get\", json!({\"id\": \"M0001\"}))?",
+      "python": "session.materials.get(id='M0001')",
+      "mcp": "tools/call {\"name\": \"novnow.materials.get\", \"arguments\": {\"id\": \"M0001\"}}"
+    }
   },
   {
     "id": "materials.approve",
@@ -1065,7 +1359,13 @@ export const operations = [
       "id",
       "renamed",
       "save"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow materials approve my-novel --id M0001 --role writer",
+      "rust": "session.run(\"materials.approve\", json!({\"id\": \"M0001\", \"role\": \"writer\"}))?",
+      "python": "session.materials.approve(id='M0001', role='writer')",
+      "mcp": "tools/call {\"name\": \"novnow.materials.approve\", \"arguments\": {\"id\": \"M0001\", \"role\": \"writer\"}}"
+    }
   },
   {
     "id": "materials.reject",
@@ -1095,7 +1395,13 @@ export const operations = [
       "note",
       "rejected",
       "save"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow materials reject my-novel --id M0001 --role writer",
+      "rust": "session.run(\"materials.reject\", json!({\"id\": \"M0001\", \"role\": \"writer\"}))?",
+      "python": "session.materials.reject(id='M0001', role='writer')",
+      "mcp": "tools/call {\"name\": \"novnow.materials.reject\", \"arguments\": {\"id\": \"M0001\", \"role\": \"writer\"}}"
+    }
   },
   {
     "id": "materials.update",
@@ -1124,7 +1430,13 @@ export const operations = [
     "returns": [
       "save",
       "updated"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow materials update my-novel --id M0001 --role writer",
+      "rust": "session.run(\"materials.update\", json!({\"id\": \"M0001\", \"role\": \"writer\"}))?",
+      "python": "session.materials.update(id='M0001', role='writer')",
+      "mcp": "tools/call {\"name\": \"novnow.materials.update\", \"arguments\": {\"id\": \"M0001\", \"role\": \"writer\"}}"
+    }
   },
   {
     "id": "materials.attach",
@@ -1159,7 +1471,13 @@ export const operations = [
       "attached",
       "path",
       "save"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow materials attach my-novel --id M0001 --role writer",
+      "rust": "session.run(\"materials.attach\", json!({\"id\": \"M0001\", \"role\": \"writer\"}))?",
+      "python": "session.materials.attach(id='M0001', role='writer')",
+      "mcp": "tools/call {\"name\": \"novnow.materials.attach\", \"arguments\": {\"id\": \"M0001\", \"role\": \"writer\"}}"
+    }
   },
   {
     "id": "materials.search",
@@ -1189,7 +1507,13 @@ export const operations = [
       "count",
       "hits",
       "query"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow materials search my-novel --query リリア",
+      "rust": "session.run(\"materials.search\", json!({\"query\": \"リリア\"}))?",
+      "python": "session.materials.search(query='リリア')",
+      "mcp": "tools/call {\"name\": \"novnow.materials.search\", \"arguments\": {\"query\": \"リリア\"}}"
+    }
   },
   {
     "id": "materials.propose",
@@ -1225,7 +1549,13 @@ export const operations = [
       "id",
       "path",
       "save"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow materials propose my-novel --title 星屑の時計",
+      "rust": "session.run(\"materials.propose\", json!({\"title\": \"星屑の時計\"}))?",
+      "python": "session.materials.propose(title='星屑の時計')",
+      "mcp": "tools/call {\"name\": \"novnow.materials.propose\", \"arguments\": {\"title\": \"星屑の時計\"}}"
+    }
   },
   {
     "id": "idea.list",
@@ -1238,7 +1568,13 @@ export const operations = [
     "returns": [
       "count",
       "ideas"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow idea list my-novel --json",
+      "rust": "session.run(\"idea.list\", json!({}))?",
+      "python": "session.idea.list()",
+      "mcp": "tools/call {\"name\": \"novnow.idea.list\", \"arguments\": {}}"
+    }
   },
   {
     "id": "idea.capture",
@@ -1273,7 +1609,13 @@ export const operations = [
       "captured",
       "index",
       "save"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow idea capture my-novel --title 星屑の時計 --role writer",
+      "rust": "session.run(\"idea.capture\", json!({\"title\": \"星屑の時計\", \"role\": \"writer\"}))?",
+      "python": "session.idea.capture(title='星屑の時計', role='writer')",
+      "mcp": "tools/call {\"name\": \"novnow.idea.capture\", \"arguments\": {\"title\": \"星屑の時計\", \"role\": \"writer\"}}"
+    }
   },
   {
     "id": "idea.promote",
@@ -1309,7 +1651,13 @@ export const operations = [
       "save",
       "target",
       "written"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow idea promote my-novel --id I0001 --target materials --role writer",
+      "rust": "session.run(\"idea.promote\", json!({\"id\": \"I0001\", \"target\": \"materials\", \"role\": \"writer\"}))?",
+      "python": "session.idea.promote(id='I0001', target='materials', role='writer')",
+      "mcp": "tools/call {\"name\": \"novnow.idea.promote\", \"arguments\": {\"id\": \"I0001\", \"target\": \"materials\", \"role\": \"writer\"}}"
+    }
   },
   {
     "id": "idea.drop",
@@ -1333,7 +1681,13 @@ export const operations = [
     "returns": [
       "dropped",
       "save"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow idea drop my-novel --id I0001 --role writer",
+      "rust": "session.run(\"idea.drop\", json!({\"id\": \"I0001\", \"role\": \"writer\"}))?",
+      "python": "session.idea.drop(id='I0001', role='writer')",
+      "mcp": "tools/call {\"name\": \"novnow.idea.drop\", \"arguments\": {\"id\": \"I0001\", \"role\": \"writer\"}}"
+    }
   },
   {
     "id": "idea.write",
@@ -1363,7 +1717,13 @@ export const operations = [
       "chars",
       "save",
       "written"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow idea write my-novel --id I0001 --text 本文 --role writer",
+      "rust": "session.run(\"idea.write\", json!({\"id\": \"I0001\", \"text\": \"本文\", \"role\": \"writer\"}))?",
+      "python": "session.idea.write(id='I0001', text='本文', role='writer')",
+      "mcp": "tools/call {\"name\": \"novnow.idea.write\", \"arguments\": {\"id\": \"I0001\", \"text\": \"本文\", \"role\": \"writer\"}}"
+    }
   },
   {
     "id": "cast.get",
@@ -1381,7 +1741,13 @@ export const operations = [
     ],
     "returns": [
       "cast"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow cast get my-novel --scene @01-01-01-01",
+      "rust": "session.run(\"cast.get\", json!({\"scene\": \"@01-01-01-01\"}))?",
+      "python": "session.cast.get(scene='@01-01-01-01')",
+      "mcp": "tools/call {\"name\": \"novnow.cast.get\", \"arguments\": {\"scene\": \"@01-01-01-01\"}}"
+    }
   },
   {
     "id": "cast.list",
@@ -1394,7 +1760,13 @@ export const operations = [
     "returns": [
       "characters",
       "count"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow cast list my-novel --json",
+      "rust": "session.run(\"cast.list\", json!({}))?",
+      "python": "session.cast.list()",
+      "mcp": "tools/call {\"name\": \"novnow.cast.list\", \"arguments\": {}}"
+    }
   },
   {
     "id": "cast.timeline",
@@ -1414,7 +1786,13 @@ export const operations = [
       "bands",
       "chapters",
       "index"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow cast timeline my-novel --json",
+      "rust": "session.run(\"cast.timeline\", json!({}))?",
+      "python": "session.cast.timeline()",
+      "mcp": "tools/call {\"name\": \"novnow.cast.timeline\", \"arguments\": {}}"
+    }
   },
   {
     "id": "cast.scan",
@@ -1433,7 +1811,13 @@ export const operations = [
     "returns": [
       "count",
       "unmatched"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow cast scan my-novel --role writer",
+      "rust": "session.run(\"cast.scan\", json!({\"role\": \"writer\"}))?",
+      "python": "session.cast.scan(role='writer')",
+      "mcp": "tools/call {\"name\": \"novnow.cast.scan\", \"arguments\": {\"role\": \"writer\"}}"
+    }
   },
   {
     "id": "dictionary.list",
@@ -1446,7 +1830,13 @@ export const operations = [
     "returns": [
       "count",
       "entries"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow dictionary list my-novel --json",
+      "rust": "session.run(\"dictionary.list\", json!({}))?",
+      "python": "session.dictionary.list()",
+      "mcp": "tools/call {\"name\": \"novnow.dictionary.list\", \"arguments\": {}}"
+    }
   },
   {
     "id": "dictionary.register_term",
@@ -1476,7 +1866,13 @@ export const operations = [
       "registered",
       "save",
       "written"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow dictionary register_term my-novel --term 魔導 --role writer",
+      "rust": "session.run(\"dictionary.register_term\", json!({\"term\": \"魔導\", \"role\": \"writer\"}))?",
+      "python": "session.dictionary.register_term(term='魔導', role='writer')",
+      "mcp": "tools/call {\"name\": \"novnow.dictionary.register_term\", \"arguments\": {\"term\": \"魔導\", \"role\": \"writer\"}}"
+    }
   },
   {
     "id": "dictionary.register_character",
@@ -1506,7 +1902,13 @@ export const operations = [
       "registered",
       "save",
       "written"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow dictionary register_character my-novel --name リリア --role writer",
+      "rust": "session.run(\"dictionary.register_character\", json!({\"name\": \"リリア\", \"role\": \"writer\"}))?",
+      "python": "session.dictionary.register_character(name='リリア', role='writer')",
+      "mcp": "tools/call {\"name\": \"novnow.dictionary.register_character\", \"arguments\": {\"name\": \"リリア\", \"role\": \"writer\"}}"
+    }
   },
   {
     "id": "dictionary.term_full",
@@ -1524,7 +1926,13 @@ export const operations = [
     ],
     "returns": [
       "words"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow dictionary term_full my-novel --query リリア",
+      "rust": "session.run(\"dictionary.term_full\", json!({\"query\": \"リリア\"}))?",
+      "python": "session.dictionary.term_full(query='リリア')",
+      "mcp": "tools/call {\"name\": \"novnow.dictionary.term_full\", \"arguments\": {\"query\": \"リリア\"}}"
+    }
   },
   {
     "id": "dictionary.modes_list",
@@ -1537,7 +1945,13 @@ export const operations = [
     "returns": [
       "count",
       "modes"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow dictionary modes_list my-novel --json",
+      "rust": "session.run(\"dictionary.modes_list\", json!({}))?",
+      "python": "session.dictionary.modes_list()",
+      "mcp": "tools/call {\"name\": \"novnow.dictionary.modes_list\", \"arguments\": {}}"
+    }
   },
   {
     "id": "lang.tokens",
@@ -1562,7 +1976,13 @@ export const operations = [
       "count",
       "path",
       "tokens"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow lang tokens my-novel --json",
+      "rust": "session.run(\"lang.tokens\", json!({}))?",
+      "python": "session.lang.tokens()",
+      "mcp": "tools/call {\"name\": \"novnow.lang.tokens\", \"arguments\": {}}"
+    }
   },
   {
     "id": "lang.completion",
@@ -1587,7 +2007,13 @@ export const operations = [
       "count",
       "items",
       "path"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow lang completion my-novel --path contents/01-01.cnov --pos 1",
+      "rust": "session.run(\"lang.completion\", json!({\"path\": \"contents/01-01.cnov\", \"pos\": 1}))?",
+      "python": "session.lang.completion(path='contents/01-01.cnov', pos=1)",
+      "mcp": "tools/call {\"name\": \"novnow.lang.completion\", \"arguments\": {\"path\": \"contents/01-01.cnov\", \"pos\": 1}}"
+    }
   },
   {
     "id": "lang.hover",
@@ -1611,7 +2037,13 @@ export const operations = [
     "returns": [
       "hover",
       "path"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow lang hover my-novel --path contents/01-01.cnov --pos 1",
+      "rust": "session.run(\"lang.hover\", json!({\"path\": \"contents/01-01.cnov\", \"pos\": 1}))?",
+      "python": "session.lang.hover(path='contents/01-01.cnov', pos=1)",
+      "mcp": "tools/call {\"name\": \"novnow.lang.hover\", \"arguments\": {\"path\": \"contents/01-01.cnov\", \"pos\": 1}}"
+    }
   },
   {
     "id": "lang.hints",
@@ -1641,7 +2073,13 @@ export const operations = [
       "count",
       "hints",
       "path"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow lang hints my-novel --path contents/01-01.cnov",
+      "rust": "session.run(\"lang.hints\", json!({\"path\": \"contents/01-01.cnov\"}))?",
+      "python": "session.lang.hints(path='contents/01-01.cnov')",
+      "mcp": "tools/call {\"name\": \"novnow.lang.hints\", \"arguments\": {\"path\": \"contents/01-01.cnov\"}}"
+    }
   },
   {
     "id": "lang.code_action",
@@ -1686,7 +2124,13 @@ export const operations = [
       "actions",
       "count",
       "path"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow lang code_action my-novel --path contents/01-01.cnov --start 1 --end 1",
+      "rust": "session.run(\"lang.code_action\", json!({\"path\": \"contents/01-01.cnov\", \"start\": 1, \"end\": 1}))?",
+      "python": "session.lang.code_action(path='contents/01-01.cnov', start=1, end=1)",
+      "mcp": "tools/call {\"name\": \"novnow.lang.code_action\", \"arguments\": {\"path\": \"contents/01-01.cnov\", \"start\": 1, \"end\": 1}}"
+    }
   },
   {
     "id": "lang.definition",
@@ -1710,7 +2154,13 @@ export const operations = [
     "returns": [
       "definition",
       "path"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow lang definition my-novel --path contents/01-01.cnov --pos 1",
+      "rust": "session.run(\"lang.definition\", json!({\"path\": \"contents/01-01.cnov\", \"pos\": 1}))?",
+      "python": "session.lang.definition(path='contents/01-01.cnov', pos=1)",
+      "mcp": "tools/call {\"name\": \"novnow.lang.definition\", \"arguments\": {\"path\": \"contents/01-01.cnov\", \"pos\": 1}}"
+    }
   },
   {
     "id": "lang.references",
@@ -1735,7 +2185,13 @@ export const operations = [
       "count",
       "path",
       "references"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow lang references my-novel --path contents/01-01.cnov --pos 1",
+      "rust": "session.run(\"lang.references\", json!({\"path\": \"contents/01-01.cnov\", \"pos\": 1}))?",
+      "python": "session.lang.references(path='contents/01-01.cnov', pos=1)",
+      "mcp": "tools/call {\"name\": \"novnow.lang.references\", \"arguments\": {\"path\": \"contents/01-01.cnov\", \"pos\": 1}}"
+    }
   },
   {
     "id": "lang.symbols",
@@ -1755,7 +2211,13 @@ export const operations = [
       "count",
       "path",
       "symbols"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow lang symbols my-novel --path contents/01-01.cnov",
+      "rust": "session.run(\"lang.symbols\", json!({\"path\": \"contents/01-01.cnov\"}))?",
+      "python": "session.lang.symbols(path='contents/01-01.cnov')",
+      "mcp": "tools/call {\"name\": \"novnow.lang.symbols\", \"arguments\": {\"path\": \"contents/01-01.cnov\"}}"
+    }
   },
   {
     "id": "lang.format",
@@ -1780,7 +2242,13 @@ export const operations = [
       "count",
       "edits",
       "path"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow lang format my-novel --path contents/01-01.cnov",
+      "rust": "session.run(\"lang.format\", json!({\"path\": \"contents/01-01.cnov\"}))?",
+      "python": "session.lang.format(path='contents/01-01.cnov')",
+      "mcp": "tools/call {\"name\": \"novnow.lang.format\", \"arguments\": {\"path\": \"contents/01-01.cnov\"}}"
+    }
   },
   {
     "id": "lang.rename_preview",
@@ -1812,7 +2280,13 @@ export const operations = [
       "error",
       "path",
       "prepared"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow lang rename_preview my-novel --path contents/01-01.cnov --pos 1",
+      "rust": "session.run(\"lang.rename_preview\", json!({\"path\": \"contents/01-01.cnov\", \"pos\": 1}))?",
+      "python": "session.lang.rename_preview(path='contents/01-01.cnov', pos=1)",
+      "mcp": "tools/call {\"name\": \"novnow.lang.rename_preview\", \"arguments\": {\"path\": \"contents/01-01.cnov\", \"pos\": 1}}"
+    }
   },
   {
     "id": "lang.rename_apply",
@@ -1847,7 +2321,13 @@ export const operations = [
       "renamed",
       "save",
       "written"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow lang rename_apply my-novel --path contents/01-01.cnov --pos 1 --to リオ --role writer",
+      "rust": "session.run(\"lang.rename_apply\", json!({\"path\": \"contents/01-01.cnov\", \"pos\": 1, \"to\": \"リオ\", \"role\": \"writer\"}))?",
+      "python": "session.lang.rename_apply(path='contents/01-01.cnov', pos=1, to='リオ', role='writer')",
+      "mcp": "tools/call {\"name\": \"novnow.lang.rename_apply\", \"arguments\": {\"path\": \"contents/01-01.cnov\", \"pos\": 1, \"to\": \"リオ\", \"role\": \"writer\"}}"
+    }
   },
   {
     "id": "lang.folding",
@@ -1867,7 +2347,13 @@ export const operations = [
       "count",
       "path",
       "ranges"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow lang folding my-novel --path contents/01-01.cnov",
+      "rust": "session.run(\"lang.folding\", json!({\"path\": \"contents/01-01.cnov\"}))?",
+      "python": "session.lang.folding(path='contents/01-01.cnov')",
+      "mcp": "tools/call {\"name\": \"novnow.lang.folding\", \"arguments\": {\"path\": \"contents/01-01.cnov\"}}"
+    }
   },
   {
     "id": "diagnostics.run",
@@ -1897,7 +2383,13 @@ export const operations = [
       "count",
       "diagnostics",
       "errors"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow diagnostics run my-novel --json",
+      "rust": "session.run(\"diagnostics.run\", json!({}))?",
+      "python": "session.diagnostics.run()",
+      "mcp": "tools/call {\"name\": \"novnow.diagnostics.run\", \"arguments\": {}}"
+    }
   },
   {
     "id": "diagnostics.place",
@@ -1921,7 +2413,13 @@ export const operations = [
     "returns": [
       "path",
       "place"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow diagnostics place my-novel --json",
+      "rust": "session.run(\"diagnostics.place\", json!({}))?",
+      "python": "session.diagnostics.place()",
+      "mcp": "tools/call {\"name\": \"novnow.diagnostics.place\", \"arguments\": {}}"
+    }
   },
   {
     "id": "review.list",
@@ -1934,7 +2432,13 @@ export const operations = [
     "returns": [
       "count",
       "diagnostics"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow review list my-novel --json",
+      "rust": "session.run(\"review.list\", json!({}))?",
+      "python": "session.review.list()",
+      "mcp": "tools/call {\"name\": \"novnow.review.list\", \"arguments\": {}}"
+    }
   },
   {
     "id": "review.goto",
@@ -1955,7 +2459,13 @@ export const operations = [
       "code",
       "index",
       "path"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow review goto my-novel --index 1",
+      "rust": "session.run(\"review.goto\", json!({\"index\": 1}))?",
+      "python": "session.review.goto(index=1)",
+      "mcp": "tools/call {\"name\": \"novnow.review.goto\", \"arguments\": {\"index\": 1}}"
+    }
   },
   {
     "id": "agent.task_list",
@@ -1968,7 +2478,13 @@ export const operations = [
     "returns": [
       "count",
       "tasks"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow agent task_list my-novel --json",
+      "rust": "session.run(\"agent.task_list\", json!({}))?",
+      "python": "session.agent.task_list()",
+      "mcp": "tools/call {\"name\": \"novnow.agent.task_list\", \"arguments\": {}}"
+    }
   },
   {
     "id": "agent.task_create",
@@ -2009,7 +2525,13 @@ export const operations = [
       "role",
       "save",
       "scope"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow agent task_create my-novel --role writer",
+      "rust": "session.run(\"agent.task_create\", json!({\"role\": \"writer\"}))?",
+      "python": "session.agent.task_create(role='writer')",
+      "mcp": "tools/call {\"name\": \"novnow.agent.task_create\", \"arguments\": {\"role\": \"writer\"}}"
+    }
   },
   {
     "id": "agent.task_get",
@@ -2029,7 +2551,13 @@ export const operations = [
       "proposal",
       "result",
       "task"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow agent task_get my-novel --id T0001",
+      "rust": "session.run(\"agent.task_get\", json!({\"id\": \"T0001\"}))?",
+      "python": "session.agent.task_get(id='T0001')",
+      "mcp": "tools/call {\"name\": \"novnow.agent.task_get\", \"arguments\": {\"id\": \"T0001\"}}"
+    }
   },
   {
     "id": "agent.task_run",
@@ -2053,7 +2581,13 @@ export const operations = [
     "returns": [
       "notices",
       "queued"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow agent task_run my-novel --id T0001 --role writer",
+      "rust": "session.run(\"agent.task_run\", json!({\"id\": \"T0001\", \"role\": \"writer\"}))?",
+      "python": "session.agent.task_run(id='T0001', role='writer')",
+      "mcp": "tools/call {\"name\": \"novnow.agent.task_run\", \"arguments\": {\"id\": \"T0001\", \"role\": \"writer\"}}"
+    }
   },
   {
     "id": "agent.task_dry_run",
@@ -2074,7 +2608,13 @@ export const operations = [
       "path",
       "save",
       "task"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow agent task_dry_run my-novel --id T0001",
+      "rust": "session.run(\"agent.task_dry_run\", json!({\"id\": \"T0001\"}))?",
+      "python": "session.agent.task_dry_run(id='T0001')",
+      "mcp": "tools/call {\"name\": \"novnow.agent.task_dry_run\", \"arguments\": {\"id\": \"T0001\"}}"
+    }
   },
   {
     "id": "agent.task_stop",
@@ -2098,7 +2638,13 @@ export const operations = [
     "returns": [
       "save",
       "stopped"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow agent task_stop my-novel --id T0001 --role writer",
+      "rust": "session.run(\"agent.task_stop\", json!({\"id\": \"T0001\", \"role\": \"writer\"}))?",
+      "python": "session.agent.task_stop(id='T0001', role='writer')",
+      "mcp": "tools/call {\"name\": \"novnow.agent.task_stop\", \"arguments\": {\"id\": \"T0001\", \"role\": \"writer\"}}"
+    }
   },
   {
     "id": "agent.stop_all",
@@ -2117,7 +2663,13 @@ export const operations = [
     "returns": [
       "message",
       "save"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow agent stop_all my-novel --role writer",
+      "rust": "session.run(\"agent.stop_all\", json!({\"role\": \"writer\"}))?",
+      "python": "session.agent.stop_all(role='writer')",
+      "mcp": "tools/call {\"name\": \"novnow.agent.stop_all\", \"arguments\": {\"role\": \"writer\"}}"
+    }
   },
   {
     "id": "agent.proposal_list",
@@ -2130,7 +2682,13 @@ export const operations = [
     "returns": [
       "count",
       "proposals"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow agent proposal_list my-novel --json",
+      "rust": "session.run(\"agent.proposal_list\", json!({}))?",
+      "python": "session.agent.proposal_list()",
+      "mcp": "tools/call {\"name\": \"novnow.agent.proposal_list\", \"arguments\": {}}"
+    }
   },
   {
     "id": "agent.proposal_get",
@@ -2162,7 +2720,13 @@ export const operations = [
       "status",
       "target",
       "updated_at"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow agent proposal_get my-novel --id P0001",
+      "rust": "session.run(\"agent.proposal_get\", json!({\"id\": \"P0001\"}))?",
+      "python": "session.agent.proposal_get(id='P0001')",
+      "mcp": "tools/call {\"name\": \"novnow.agent.proposal_get\", \"arguments\": {\"id\": \"P0001\"}}"
+    }
   },
   {
     "id": "agent.proposal_apply",
@@ -2186,7 +2750,13 @@ export const operations = [
     "returns": [
       "applied",
       "save"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow agent proposal_apply my-novel --id P0001 --role writer",
+      "rust": "session.run(\"agent.proposal_apply\", json!({\"id\": \"P0001\", \"role\": \"writer\"}))?",
+      "python": "session.agent.proposal_apply(id='P0001', role='writer')",
+      "mcp": "tools/call {\"name\": \"novnow.agent.proposal_apply\", \"arguments\": {\"id\": \"P0001\", \"role\": \"writer\"}}"
+    }
   },
   {
     "id": "agent.proposal_reject",
@@ -2216,7 +2786,13 @@ export const operations = [
       "comment",
       "rejected",
       "save"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow agent proposal_reject my-novel --id P0001 --comment 理由 --role writer",
+      "rust": "session.run(\"agent.proposal_reject\", json!({\"id\": \"P0001\", \"comment\": \"理由\", \"role\": \"writer\"}))?",
+      "python": "session.agent.proposal_reject(id='P0001', comment='理由', role='writer')",
+      "mcp": "tools/call {\"name\": \"novnow.agent.proposal_reject\", \"arguments\": {\"id\": \"P0001\", \"comment\": \"理由\", \"role\": \"writer\"}}"
+    }
   },
   {
     "id": "agent.delegation_get",
@@ -2230,7 +2806,13 @@ export const operations = [
       "enabled",
       "levels",
       "max_parallel"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow agent delegation_get my-novel --json",
+      "rust": "session.run(\"agent.delegation_get\", json!({}))?",
+      "python": "session.agent.delegation_get()",
+      "mcp": "tools/call {\"name\": \"novnow.agent.delegation_get\", \"arguments\": {}}"
+    }
   },
   {
     "id": "agent.delegation_set",
@@ -2256,7 +2838,13 @@ export const operations = [
       "message",
       "role",
       "save"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow agent delegation_set my-novel --level propose",
+      "rust": "session.run(\"agent.delegation_set\", json!({\"level\": \"propose\"}))?",
+      "python": "session.agent.delegation_set(level='propose')",
+      "mcp": "tools/call {\"name\": \"novnow.agent.delegation_set\", \"arguments\": {\"level\": \"propose\"}}"
+    }
   },
   {
     "id": "agent.mcp_config_get",
@@ -2270,7 +2858,13 @@ export const operations = [
       "path",
       "servers",
       "text"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow agent mcp_config_get my-novel --json",
+      "rust": "session.run(\"agent.mcp_config_get\", json!({}))?",
+      "python": "session.agent.mcp_config_get()",
+      "mcp": "tools/call {\"name\": \"novnow.agent.mcp_config_get\", \"arguments\": {}}"
+    }
   },
   {
     "id": "agent.mcp_config_validate",
@@ -2290,7 +2884,13 @@ export const operations = [
       "count",
       "diagnostics",
       "valid"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow agent mcp_config_validate my-novel --json",
+      "rust": "session.run(\"agent.mcp_config_validate\", json!({}))?",
+      "python": "session.agent.mcp_config_validate()",
+      "mcp": "tools/call {\"name\": \"novnow.agent.mcp_config_validate\", \"arguments\": {}}"
+    }
   },
   {
     "id": "agent.mcp_config_set",
@@ -2310,7 +2910,13 @@ export const operations = [
       "chars",
       "path",
       "save"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow agent mcp_config_set my-novel --text '{ \"servers\": {} }'",
+      "rust": "session.run(\"agent.mcp_config_set\", json!({\"text\": \"{ \\\"servers\\\": {} }\"}))?",
+      "python": "session.agent.mcp_config_set(text='{ \"servers\": {} }')",
+      "mcp": "tools/call {\"name\": \"novnow.agent.mcp_config_set\", \"arguments\": {\"text\": \"{ \\\"servers\\\": {} }\"}}"
+    }
   },
   {
     "id": "agent.thread_list",
@@ -2323,7 +2929,13 @@ export const operations = [
     "returns": [
       "count",
       "threads"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow agent thread_list my-novel --json",
+      "rust": "session.run(\"agent.thread_list\", json!({}))?",
+      "python": "session.agent.thread_list()",
+      "mcp": "tools/call {\"name\": \"novnow.agent.thread_list\", \"arguments\": {}}"
+    }
   },
   {
     "id": "agent.thread_get",
@@ -2345,7 +2957,13 @@ export const operations = [
       "scope",
       "status",
       "title"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow agent thread_get my-novel --id T0001",
+      "rust": "session.run(\"agent.thread_get\", json!({\"id\": \"T0001\"}))?",
+      "python": "session.agent.thread_get(id='T0001')",
+      "mcp": "tools/call {\"name\": \"novnow.agent.thread_get\", \"arguments\": {\"id\": \"T0001\"}}"
+    }
   },
   {
     "id": "agent.audit_list",
@@ -2358,7 +2976,13 @@ export const operations = [
     "returns": [
       "count",
       "events"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow agent audit_list my-novel --json",
+      "rust": "session.run(\"agent.audit_list\", json!({}))?",
+      "python": "session.agent.audit_list()",
+      "mcp": "tools/call {\"name\": \"novnow.agent.audit_list\", \"arguments\": {}}"
+    }
   },
   {
     "id": "context.build",
@@ -2383,7 +3007,13 @@ export const operations = [
       "cap",
       "chars",
       "packet"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow context build my-novel --role writer --scene @01-01-01-01",
+      "rust": "session.run(\"context.build\", json!({\"role\": \"writer\", \"scene\": \"@01-01-01-01\"}))?",
+      "python": "session.context.build(role='writer', scene='@01-01-01-01')",
+      "mcp": "tools/call {\"name\": \"novnow.context.build\", \"arguments\": {\"role\": \"writer\", \"scene\": \"@01-01-01-01\"}}"
+    }
   },
   {
     "id": "prompt.list",
@@ -2396,7 +3026,13 @@ export const operations = [
     "returns": [
       "count",
       "prompts"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow prompt list my-novel --json",
+      "rust": "session.run(\"prompt.list\", json!({}))?",
+      "python": "session.prompt.list()",
+      "mcp": "tools/call {\"name\": \"novnow.prompt.list\", \"arguments\": {}}"
+    }
   },
   {
     "id": "prompt.get",
@@ -2419,7 +3055,13 @@ export const operations = [
       "path",
       "shared",
       "text"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow prompt get my-novel --name write",
+      "rust": "session.run(\"prompt.get\", json!({\"name\": \"write\"}))?",
+      "python": "session.prompt.get(name='write')",
+      "mcp": "tools/call {\"name\": \"novnow.prompt.get\", \"arguments\": {\"name\": \"write\"}}"
+    }
   },
   {
     "id": "prompt.diff",
@@ -2441,7 +3083,13 @@ export const operations = [
       "lines",
       "name",
       "path"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow prompt diff my-novel --name write",
+      "rust": "session.run(\"prompt.diff\", json!({\"name\": \"write\"}))?",
+      "python": "session.prompt.diff(name='write')",
+      "mcp": "tools/call {\"name\": \"novnow.prompt.diff\", \"arguments\": {\"name\": \"write\"}}"
+    }
   },
   {
     "id": "prompt.reset",
@@ -2461,7 +3109,13 @@ export const operations = [
       "name",
       "reset",
       "save"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow prompt reset my-novel --name write",
+      "rust": "session.run(\"prompt.reset\", json!({\"name\": \"write\"}))?",
+      "python": "session.prompt.reset(name='write')",
+      "mcp": "tools/call {\"name\": \"novnow.prompt.reset\", \"arguments\": {\"name\": \"write\"}}"
+    }
   },
   {
     "id": "mail.send",
@@ -2496,7 +3150,13 @@ export const operations = [
       "approved_by",
       "message",
       "thread"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow mail send my-novel --to writer --body 本文",
+      "rust": "session.run(\"mail.send\", json!({\"to\": \"writer\", \"body\": \"本文\"}))?",
+      "python": "session.mail.send(to='writer', body='本文')",
+      "mcp": "tools/call {\"name\": \"novnow.mail.send\", \"arguments\": {\"to\": \"writer\", \"body\": \"本文\"}}"
+    }
   },
   {
     "id": "export.text",
@@ -2558,7 +3218,13 @@ export const operations = [
       "out",
       "range",
       "sections"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow export my-novel",
+      "rust": "session.run(\"export.text\", json!({}))?",
+      "python": "session.export.text()",
+      "mcp": "tools/call {\"name\": \"novnow.export.text\", \"arguments\": {}}"
+    }
   },
   {
     "id": "reference.pane",
@@ -2586,7 +3252,13 @@ export const operations = [
       "space",
       "upper",
       "words"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow reference pane my-novel --json",
+      "rust": "session.run(\"reference.pane\", json!({}))?",
+      "python": "session.reference.pane()",
+      "mcp": "tools/call {\"name\": \"novnow.reference.pane\", \"arguments\": {}}"
+    }
   },
   {
     "id": "settings.get",
@@ -2600,7 +3272,13 @@ export const operations = [
       "language",
       "path",
       "settings"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow settings get my-novel --json",
+      "rust": "session.run(\"settings.get\", json!({}))?",
+      "python": "session.settings.get()",
+      "mcp": "tools/call {\"name\": \"novnow.settings.get\", \"arguments\": {}}"
+    }
   },
   {
     "id": "settings.set",
@@ -2625,7 +3303,13 @@ export const operations = [
       "key",
       "language",
       "value"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow settings set my-novel --key theme",
+      "rust": "session.run(\"settings.set\", json!({\"key\": \"theme\"}))?",
+      "python": "session.settings.set(key='theme')",
+      "mcp": "tools/call {\"name\": \"novnow.settings.set\", \"arguments\": {\"key\": \"theme\"}}"
+    }
   },
   {
     "id": "session.workspace_get",
@@ -2639,7 +3323,13 @@ export const operations = [
       "current",
       "previous",
       "workspaces"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow session workspace_get my-novel --json",
+      "rust": "session.run(\"session.workspace_get\", json!({}))?",
+      "python": "session.session.workspace_get()",
+      "mcp": "tools/call {\"name\": \"novnow.session.workspace_get\", \"arguments\": {}}"
+    }
   },
   {
     "id": "session.workspace_switch",
@@ -2658,7 +3348,13 @@ export const operations = [
     "returns": [
       "current",
       "moved"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow session workspace_switch my-novel --workspace write",
+      "rust": "session.run(\"session.workspace_switch\", json!({\"workspace\": \"write\"}))?",
+      "python": "session.session.workspace_switch(workspace='write')",
+      "mcp": "tools/call {\"name\": \"novnow.session.workspace_switch\", \"arguments\": {\"workspace\": \"write\"}}"
+    }
   },
   {
     "id": "session.recent_document",
@@ -2677,7 +3373,13 @@ export const operations = [
     "returns": [
       "moved",
       "recent"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow session recent_document my-novel --json",
+      "rust": "session.run(\"session.recent_document\", json!({}))?",
+      "python": "session.session.recent_document()",
+      "mcp": "tools/call {\"name\": \"novnow.session.recent_document\", \"arguments\": {}}"
+    }
   },
   {
     "id": "session.command",
@@ -2704,7 +3406,13 @@ export const operations = [
       "scene",
       "value",
       "workspace"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow session command my-novel --name view.palette",
+      "rust": "session.run(\"session.command\", json!({\"name\": \"view.palette\"}))?",
+      "python": "session.session.command(name='view.palette')",
+      "mcp": "tools/call {\"name\": \"novnow.session.command\", \"arguments\": {\"name\": \"view.palette\"}}"
+    }
   },
   {
     "id": "session.poll_events",
@@ -2717,7 +3425,13 @@ export const operations = [
     "returns": [
       "count",
       "events"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow session poll_events my-novel --json",
+      "rust": "session.run(\"session.poll_events\", json!({}))?",
+      "python": "session.session.poll_events()",
+      "mcp": "tools/call {\"name\": \"novnow.session.poll_events\", \"arguments\": {}}"
+    }
   },
   {
     "id": "help.topic",
@@ -2737,7 +3451,13 @@ export const operations = [
       "text",
       "title",
       "topic"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow help topic my-novel --json",
+      "rust": "session.run(\"help.topic\", json!({}))?",
+      "python": "session.help.topic()",
+      "mcp": "tools/call {\"name\": \"novnow.help.topic\", \"arguments\": {}}"
+    }
   },
   {
     "id": "api.list",
@@ -2753,6 +3473,12 @@ export const operations = [
       "interfaces",
       "operations",
       "version"
-    ]
+    ],
+    "examples": {
+      "cli": "novnow api list my-novel --json",
+      "rust": "session.run(\"api.list\", json!({}))?",
+      "python": "session.api.list()",
+      "mcp": "tools/call {\"name\": \"novnow.api.list\", \"arguments\": {}}"
+    }
   }
 ] as const;

@@ -1917,14 +1917,21 @@ fn mcp_plot_write_takes_outline_and_chapter_levels() {
             "novnow.plot.write",
             json!({"role": "writer", "level": "episode", "scene": "@01-01-01-01", "text": "話を書き換えた\n"}),
         ),
+        // 知らない level は正規操作の引数エラー（§19.5.2）。どのファイルも変わらない
+        tool_call(
+            4,
+            "novnow.plot.write",
+            json!({"role": "writer", "level": "scene", "text": "だめ\n"}),
+        ),
     ]);
     let ran = run_mcp(dir.path(), &env_ja(&dir), "novel", &input);
     assert_eq!(ran.exit(), Exit::Ok, "{}", ran.err);
     let lines = responses(&ran.out);
-    assert_eq!(lines.len(), 3, "{}", ran.out);
-    for line in &lines {
+    assert_eq!(lines.len(), 4, "{}", ran.out);
+    for line in &lines[..3] {
         assert_eq!(line["result"]["isError"], false, "{line}");
     }
+    assert_eq!(lines[3]["result"]["isError"], true, "{}", lines[3]);
     let outline = std::fs::read_to_string(root.join("plots/all.cnov")).expect("read");
     assert!(outline.contains("全体を書き換えた"), "{outline}");
     let chapter = std::fs::read_to_string(root.join("plots/01.cnov")).expect("read");

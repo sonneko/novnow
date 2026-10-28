@@ -58,7 +58,7 @@
 - `REF:src/core/agents/server.rs` のツール表を 14 件から「凍結 14 件 + §19.7 で「M—」の印が無い操作 86 件（`novnow.` + 操作 ID。うち 13 件は凍結ツールと同じ名前なので新しいツールにはならない）= 87 件」へ拡張する。全件ではない: 「M—」の 35 件（状態性・安全性・バイナリ）は載せない。`novnow.lexicon.search` は操作 `dictionary.term_full` の別名である。既存 14 件の名前・スキーマ・挙動はバイト単位で凍結（`REF:tests/golden/mcp_tools.json` が定義のゴールデン、`REF:tests/mcp_frozen.rs` が内訳と回帰ガード、`REF:tests/mcp_stdio.rs` がクライアント側の往復）、新規分は app 層の `OPS` 表から生成し `api.list` との二重管理をなくす。
 - 呼び出しごとのプロジェクト読み直しは現行 `run()` の方式を維持する。関門付き書き込みは既存の直接書き込み経路（E036 検証・提案のみ記録・§15.8.4 監査ログ）を再利用する。
 - 安全除外の 4 操作はツール表へ登録せず、直接呼び出しには method-not-found と `isError` の二重で拒否する。
-- `plot.write` の `level` 拡張（`outline` / `chapter`）は `REF:src/core/features/plots.rs` のレベル別検証を汎用化する。既存 `episode` 呼び出しの動作は不変。
+- `plot.write` の `level` 拡張（`outline` / `chapter`）は、`REF:src/cli/mcp.rs` の `call()` が引数の `level` を見て `episode` 以外を正規操作の実装（`REF:src/app/ops/editing.rs` の `plot_write`）へ回すことで実現する。`episode` は凍結実装（`REF:src/core/agents/server.rs`）のままなので出力はバイト不変。`chapter` は省略時に `chapter_of()` が `scene` の章へ落とす。回帰は `REF:tests/cli.rs` の `mcp_plot_write_takes_outline_and_chapter_levels`（3 階層を 1 回の MCP セッションで書き、監査ログも見る）。
 - 検証: `REF:tests/mcp_frozen.rs`（凍結 14 件のバイト一致・`inputSchema` の型検査・ツール表の内訳 87 件）と `REF:tests/mcp_stdio.rs`（往復・関門挙動・除外）。
 
 ### 19.6 CLI 拡張
@@ -90,4 +90,5 @@
 - 互換性の凍結は回帰テストが守る: 既存 14 ツールは `REF:tests/mcp_stdio.rs`、既存サブコマンドと終了コードは `REF:tests/cli.rs`、カタログ全体は `tests/golden/api_catalog.json`。
 - 配布: ホイールのビルド・公開ジョブを `REF:.github/workflows/` 配下へ追加する。ウェブサイト（Astro、`REF:website/package.json`）には API リファレンスページを H7 で追加し、ゴールデンのカタログを静的 JSON として公開する。ページは `REF:scripts/api-site.py` の生成物（`REF:website/src/data/api.ts`）だけを読み、見出しの操作数も生成物の件数から出す（手書きの数を置かない）。
 - `api.list` の `returns`（戻り値のスキーマ）: 操作ごとの戻り値の形を `REF:src/app/ops/returns.rs` の 1 つの表（操作 ID の昇順）に宣言し、`api.list` の `returns`・ウェブサイトの「戻り値のキー」列へ同じ表から配る。宣言は `REF:tests/api_returns.rs` が**実際に叩いた戻り値**と突き合わせる（宣言に無いキーが出たら不合格、型が違えば不合格）。`null` を取りうる値は型を並べ（`["object", "null"]`）、形が可変の値は型を書かない。
-- 未実装（v1 では行わない）: ウェブサイトの操作ごとの例（共通の呼び出し例のみ。仕様書 §19.8.4 に注記）。MCP の `outputSchema` も出さない（戻り値の形は `api.list` で示す）。
+- 操作ごとの例: `REF:scripts/api-site.py` の `examples_for()` が `api.list` の `arguments` から 4 つの口ぶんの最短呼び出しを組み立て、`REF:website/src/data/api.ts` の `examples` に載せる。値は同スクリプトの `SAMPLES`（引数名 → 見本）で決め、表に無い引数は型の最小値に落とす。ページ（`REF:website/src/components/ApiCatalog.astro`）は「例」列の `<details>` に 4 行を出すだけで、例文を手書きしない。
+- MCP の `outputSchema` は出さない（戻り値の形は `api.list` で示す）。

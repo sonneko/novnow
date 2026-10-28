@@ -554,8 +554,8 @@ Git を使っているユーザーには二重で邪魔になり、使ってい�
   監査ログに `direct_write` が書かれる（MUST）。
 - サーバモードでも規則 10 は有効（書き込みはプロジェクト内のみ）。委譲レベルに関わらず規則 10 を超える権限は持たない（MUST）。
 - 細部: 呼び出しのたびにプロジェクトを読み直す。結果は JSON のテキスト 1 つ、失敗は `isError: true` と
-  文言（E036 などの診断の文言）。`scene` は 4 階層の構造 ID。`novnow.plot.write` の `level` は `episode`（話プロットの節）
-  だけ。直接書き込みも自動適用と同じ検証を通し、E 系の診断が増えるなら書かずに `open` の提案として残して失敗を返す。
+  文言（E036 などの診断の文言）。`scene` は 4 階層の構造 ID。`novnow.plot.write` の `level` は本節では `episode`（話プロットの節）
+  だけを定める（`chapter` / `outline` / `all` は §19.5.2 が拡張する）。直接書き込みも自動適用と同じ検証を通し、E 系の診断が増えるなら書かずに `open` の提案として残して失敗を返す。
   `novnow.mail.send` の送り手は `mcp`。`novnow.materials.propose` の `added_by` は `agent:<role>`（`role` 引数が無ければ
   `agent:mcp`）。起動時に `prompts/` の欠けた既定ファイルを書き出す（§15.5.4。`novnow check` は書かない）。
 

@@ -2328,6 +2328,9 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 
 - 第八巡の続き。外部インターフェース（§19.5・§19.8）の「仕様が MUST と言っているが見えていないもの」を潰した。
 - **ウェブサイトの API リファレンス**（§19.8.4「カタログ・引数・例」）: 引数が出ていなかったので、`REF:scripts/api-site.py` が `REF:tests/golden/api_catalog.json` の `arguments`（JSON Schema と `order`）を payload に載せ、`REF:website/src/components/ApiCatalog.astro` に「引数（* は必須）」列を足した。見出しの「120 の正規操作」は手書きだったので、生成物の件数（`operations.length`）から出すようにして二度とずれないようにした。`npm run build` と `python3 scripts/website-check.py --dir dist --website-only` は緑（243 HTML）。
+## 2026-10-28: 仕様書を正本とした整合・第八巡（第 7 段。戻り値スキーマの未実装注記・凍結ツールのスキーマ・`plot.write` の `level`）
+
+- 前段の続き。API の説明（引数・戻り値・ツールのスキーマ）のうち、**実装が追いついていないもの**に印を付け、追いついているものは書き下した。
 - **`api.list` の `returns`**（§19.8.2）: 戻り値の形は `api.list` に無く、仕様だけが MUST と言っていた。121 操作ぶんの宣言が要るので**未実装のまま**とし、§19.8.2 に `api.list` のキー表と〔状態: 未実装〕の注記を足した（`REF:docs/designs/interfaces.md` §19.8 にも同じ注記）。操作ごとの「例」も未掲載であることを §19.8.4 に注記した。
 - **凍結ツールの `inputSchema`**（§19.5.3）: 凍結 14 ツールのスキーマには `required` が無く、`neighbors` 以外はすべて `"type": "string"`、`plot.write` の `level` にも `enum` が無い。§19.8.3 の凍結（名前・引数・出力を変えない）と両立させるため、**追加時点のスキーマのまま**にすることを §19.5.3 に書き、新規ツールは `api.list` から生成する（`required` と関門の `role` の必須化まで含む）ことも明記した。
 - **`plot.write` の `level` 拡張**（§19.5.2 が `outline` / `chapter` も受け取ると MUST で書いていた）: 実装は `episode` 以外を引数エラーにしている。適用先を話プロットから上位ファイルへ広げる必要があるので〔状態: 未実装〕とし、何が要るか（`apply::changes` の対象拡張・提案の `target` の単位・E006 の経路照合のやり直し）を書いた。
@@ -2345,3 +2348,12 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - **ウェブサイト**: `REF:scripts/api-site.py` がゴールデンの `returns` からキー名を取り、`REF:website/src/components/ApiCatalog.astro` に「戻り値のキー」列を足した（`npm run build` と `scripts/website-check.py` は緑、243 HTML）。
 - **仕様**: §19.8.2 のキー表を「実装済み」にし、`returns` の書き方（`properties` は「ありうるキー」・`required` を出さない・`null` は型の並び・可変は型なし・宣言は 1 つの表・挙動との一致をテストで検査）を書いた。`REF:docs/designs/interfaces.md` §19.8 の未実装注記も実装済みへ。§19.8.4 は戻り値のキーも生成物から載せることを追記。
 - テスト: `bash scripts/verify.sh` は **13 ジョブすべて緑**（1464 passed / 70 ターゲット。`tests/api_returns.rs` の 3 本が増えた）、`cargo test --locked --doc` 2 本緑、ゴールデン（`REF:tests/golden/api_catalog.json`）と Python の型スタブを再生成。
+
+## 2026-10-28: 仕様書を正本とした整合・第八巡（第 9 段。`plot.write` の `level` の実装を確定し、サイトに操作ごとの例を出す）
+
+- 所有者の指示（2026-10-28「1 から順に」）の 4 項目のうち、**2（`plot.write` の `level` 拡張）**と **4（サイトの操作ごとの例）**を片付けた。1（`api.list` の `returns`）は前段で完了している。
+- **`plot.write` の `level`**（§19.5.2）: 前々段で〔状態: 未実装〕と注記したが、実装を読み直すと**すでに動いていた**。`REF:src/app/ops/editing.rs` の `plot_write` は `episode`（当該節の行の差し替え）・`chapter`（`plots/AA.cnov` の全文置換）・`all` / `outline`（`plots/all.cnov`）を受け、`REF:src/cli/mcp.rs` の `call()` が `level != "episode"` の `novnow.plot.write` だけを凍結から外して正規操作へ回している（`episode` は凍結 14 ツールの実装のままで、出力はバイト不変）。注記を実装の記述に改め、**`chapter` を省いたときは `scene` の章に落ちる**こと（`chapter_of()`）と、**凍結した `inputSchema` は `chapter` を宣言しない**（`additionalProperties` を制限していないので送れる）ことを書いた。`REF:docs/specifications/agent.md` §15.8.3 は「本節では `episode` だけを定める」に、`REF:docs/designs/interfaces.md` §19.5 は実装の在り処（振り分け）に直した。
+- **回帰テスト**: `REF:tests/api.rs` に `plot_write_reaches_every_level_and_refuses_an_unknown_one` を足し、4 つの `level`（`outline` / `all` / `chapter`（`chapter` 省略時は `scene` の章）/ `episode`）の書き込み先と、知らない `level` が引数エラー（`Class::Usage`）になることを固定した。`REF:tests/cli.rs` の `mcp_plot_write_takes_outline_and_chapter_levels` には 4 通話目として `level: "scene"` を足し、MCP でも `isError: true` になることを見るようにした。
+- **サイトの操作ごとの例**（§19.8.4）: `REF:scripts/api-site.py` の `examples_for()` が `api.list` の `arguments`（必須の引数だけ）から 4 つの口（CLI・Rust・Python・MCP）の最短呼び出しを組み立て、`REF:website/src/data/api.ts` の `examples` に載せる。値は引数名ごとの見本（`SAMPLES`）と操作ごとの上書き（`OP_SAMPLES`。`materials.get` の `id` は `M0001`、`agent.*` の `id` は `T0001` / `P0001` など）で決め、表に無い引数は型の最小値に落とす。既存サブコマンドを持つ 4 操作は**既存形**（`novnow new my-novel` など。§19.6.1 の対応表）を出す。`REF:website/src/components/ApiCatalog.astro` には「例」列（`<details>`）を足した。例文は手書きしない（カタログを増減したときに例だけ古くなるのを防ぐ）ので、生成器が「必須の引数が CLI の例に載っているか」を検査し、`--check` で `api.ts` との一致も見る。
+- **仕様**: §19.8.4 の〔状態: 一部未実装〕を外し、例の作り方（必須だけ・見本の表・4 つの口・既存形の優先）を書いた。`REF:docs/designs/interfaces.md` §19.8 も追随。
+- テスト: `bash scripts/verify.sh` は **13 ジョブすべて緑**（1465 passed / 70 ターゲット。`tests/api.rs` の 1 本が増えた）、`cargo test --locked --doc` 2 本緑、`npm run build` は 232 ページ、`REF:scripts/website-check.py` は 243 HTML 緑。

@@ -1102,3 +1102,51 @@ fn section_split_splits_at_a_byte_position_and_delete_takes_the_plot_too() {
         .unwrap();
     assert_eq!(last, before, "分割で増えた分が削除で戻る");
 }
+
+// =========================================================================== プロットの階層（§10.3.2・§19.5.2）
+
+#[test]
+fn plot_write_reaches_every_level_and_refuses_an_unknown_one() {
+    let (mut session, _) = open();
+    // 全体プロット（`outline` と `all` は同じ場所）
+    for level in ["outline", "all"] {
+        let written = session
+            .run(
+                "plot.write",
+                json!({ "level": level, "text": "@01\nsummary: 全体\n;\n" }),
+            )
+            .expect("plot.write outline");
+        assert_eq!(written["path"], json!("plots/all.cnov"), "{level}");
+        assert_eq!(written["level"], json!(level));
+    }
+    // 章プロット（`chapter` を省くと編集中の節の章）
+    let chapter = session
+        .run(
+            "plot.write",
+            json!({ "level": "chapter", "chapter": 1, "text": "@01\nsummary: 章\n;\n" }),
+        )
+        .expect("plot.write chapter");
+    assert_eq!(chapter["path"], json!("plots/01.cnov"));
+    let scene = first_section(&mut session);
+    let fallback = session
+        .run(
+            "plot.write",
+            json!({ "level": "chapter", "text": "@01\nsummary: 章\n;\n" }),
+        )
+        .expect("plot.write chapter without chapter");
+    let expected = format!("plots/{}.cnov", &scene[..2]);
+    assert_eq!(fallback["path"], json!(expected), "{scene}");
+    // 知らない level は引数エラー（本文は変わらない）
+    let error = session
+        .run("plot.write", json!({ "level": "scene", "text": "だめ" }))
+        .expect_err("知らない level");
+    assert_eq!(error.class, Class::Usage, "{error:?}");
+    // 話プロットは scene の節を差し替える
+    let episode = session
+        .run(
+            "plot.write",
+            json!({ "level": "episode", "scene": scene, "text": "@01-01-01-01\n話\n" }),
+        )
+        .expect("plot.write episode");
+    assert_eq!(episode["path"], json!("plots/01-01.cnov"));
+}

@@ -70,6 +70,7 @@ tools/call { "name": "novnow.section.list", "arguments": {} }`}</code></pre>
                   <th>{japanese ? "説明" : "Description"}</th>
                   <th>{japanese ? "引数（* は必須）" : "Arguments (* required)"}</th>
                   <th>{japanese ? "戻り値のキー" : "Result keys"}</th>
+                  <th>{japanese ? "例" : "Example"}</th>
                   <th>{japanese ? "LSP 標準メソッド" : "LSP method"}</th>
                   <th>{japanese ? "例外" : "Exceptions"}</th>
                 </tr>
@@ -104,6 +105,12 @@ tools/call { "name": "novnow.section.list", "arguments": {} }`}</code></pre>
                           ))
                         )}
                       </td>
+                      <td class="cell-example">
+                        <details class="op-example">
+                          <summary>{japanese ? "例" : "Example"}</summary>
+                          <pre><code>{`CLI: ${operation.examples.cli}\nRust: ${operation.examples.rust}\nPython: ${operation.examples.python}\nMCP: ${operation.examples.mcp}`}</code></pre>
+                        </details>
+                      </td>
                       <td class="cell-lsp">
                         {operation.lsp ? <code class="inline-chip">{operation.lsp}</code> : <span class="muted-dash">—</span>}
                       </td>
@@ -115,6 +122,18 @@ tools/call { "name": "novnow.section.list", "arguments": {} }`}</code></pre>
           </div>
         </section>
       ))}
+
+      <div class="legend-callout">
+        {japanese ? (
+          <p>
+            <strong>例列の読み方:</strong> 必須の引数だけを埋めた最短の呼び出しで、生成器が §19.8.2 の引数スキーマから機械的に作る（引数名ごとの見本の値を使う）。実際の値（節 ID・作品名・パス）は自分の作品に置き換える。
+          </p>
+        ) : (
+          <p>
+            <strong>Example column:</strong> the shortest call that fills only the required arguments, generated from the argument schema in §19.8.2 (sample values per argument name). Replace the values with your own project's.
+          </p>
+        )}
+      </div>
 
       <div class="legend-callout">
         {japanese ? (
@@ -281,6 +300,25 @@ tools/call { "name": "novnow.section.list", "arguments": {} }`}</code></pre>
     border-radius: 6px;
     font-size: 0.88em;
     white-space: nowrap;
+  }
+
+  .cell-example {
+    white-space: nowrap;
+
+    summary {
+      color: var(--link);
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    pre {
+      margin: 0.4rem 0 0;
+      max-width: 22rem;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      font-size: 0.75rem;
+      line-height: 1.5;
+    }
   }
 
   .cell-returns {
