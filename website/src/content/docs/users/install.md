@@ -7,7 +7,7 @@ source: "docs/users/install.md"
 
 novnow には 5 つの入り方があります。むずかしい準備が要るのは、デスクトップ版と VSCode 拡張版だけです。
 
-> **いまの状態**: ブラウザ版は今すぐ使えます。ほかの配布形態も v0.1.0 を公開済みです。
+> **いまの状態**: ブラウザ版は今すぐ使えます。ほかの配布形態も v0.1.1 を公開済みです。
 > 下記の取得先と導入手順を利用してください。
 
 ---
@@ -62,11 +62,11 @@ novnow には 5 つの入り方があります。むずかしい準備が要る�
 
 | パソコン | ファイル名の例 |
 |---|---|
-| Windows（ふつうの Windows） | `novnow-0.1.0-x86_64-pc-windows-msvc-gui.zip` |
-| Mac（Apple のチップ） | `novnow-0.1.0-aarch64-apple-darwin-gui.tar.gz` |
-| Mac（Intel のチップ） | `novnow-0.1.0-x86_64-apple-darwin-gui.tar.gz` |
-| Linux（ふつうの PC） | `novnow-0.1.0-x86_64-unknown-linux-gnu-gui.tar.gz` |
-| Linux（ARM の機械） | `novnow-0.1.0-aarch64-unknown-linux-gnu-gui.tar.gz` |
+| Windows（ふつうの Windows） | `novnow-0.1.1-x86_64-pc-windows-msvc-gui.zip` |
+| Mac（Apple のチップ） | `novnow-0.1.1-aarch64-apple-darwin-gui.tar.gz` |
+| Mac（Intel のチップ） | `novnow-0.1.1-x86_64-apple-darwin-gui.tar.gz` |
+| Linux（ふつうの PC） | `novnow-0.1.1-x86_64-unknown-linux-gnu-gui.tar.gz` |
+| Linux（ARM の機械） | `novnow-0.1.1-aarch64-unknown-linux-gnu-gui.tar.gz` |
 
 名前の後ろの `gui` は窓あり、`nogui` は窓なしです。窓なしが要るときは、`gui` を `nogui` に読み替えてください。
 
@@ -105,7 +105,7 @@ novnow には 5 つの入り方があります。むずかしい準備が要る�
 
 ## 4. VSCode 拡張版
 
-1. GitHub Releases から `novnow-<版>.vsix` をダウンロードします（v0.1.0 は公開済みです）。
+1. GitHub Releases から `novnow-<版>.vsix` をダウンロードします（v0.1.1 は公開済みです）。
 2. VSCode の「拡張機能」で「…」→「VSIXからのインストール」を選び、そのファイルを開きます。
 3. novnow の作品フォルダを VSCode で開きます。
 
@@ -133,7 +133,7 @@ python -c "import novnow; print(novnow.__version__)"
 ```
 
 - 対応は Python 3.9 以降です。Windows・Mac・Linux の 5 つの環境に向けて配ります。
-- 版を固定するときは `pip install novnow==0.1.0` のように書きます。
+- 版を固定するときは `pip install novnow==0.1.1` のように書きます。
 - ネットワークに出られない環境では、落としたファイルを直接指定して入れられます。
 
 ---

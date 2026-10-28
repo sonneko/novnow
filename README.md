@@ -11,7 +11,7 @@ novnow形式を管理するためのnovnowエディタは、デスクトップ�
 
 [公開版の既知の問題](https://sonneko.github.io/novnow/ja/known-issues/)はWebサイトで確認できます。
 
-**v0.1.0を公開しました。** [ブラウザで試す](https://sonneko.github.io/novnow/app/) · [ダウンロード](https://sonneko.github.io/novnow/ja/#downloads)。v1 に到達するまでは、novnow 形式のバージョン間互換性を保証しません。更新によって既存プロジェクトを開けなくなる場合があります。**v0 → v1 の移行機能は提供しません。** 更新前に作品を Zip と通常のテキストでバックアップし、必要に応じて利用する版を固定してください。CLI の `migrate` は本文テキストの取り込み用であり、novnow 形式の版間移行ではありません。
+**v0.1.1を公開しました。** [ブラウザで試す](https://sonneko.github.io/novnow/app/) · [ダウンロード](https://sonneko.github.io/novnow/ja/#downloads)。v1 に到達するまでは、novnow 形式のバージョン間互換性を保証しません。更新によって既存プロジェクトを開けなくなる場合があります。**v0 → v1 の移行機能は提供しません。** 更新前に作品を Zip と通常のテキストでバックアップし、必要に応じて利用する版を固定してください。CLI の `migrate` は本文テキストの取り込み用であり、novnow 形式の版間移行ではありません。
 
 開発は GitFlow を採用し、`main` へのマージはバージョン更新時だけに限定します。開発・リリース手順は `REF:docs/developers.md` と `REF:docs/distribution.md` を参照してください。
 
@@ -125,7 +125,7 @@ AI に作品を読ませる連携（MCP）もあります。
 
 ## インストールと起動
 
-配布経路は、ブラウザ・GitHub Releases・PyPI・VSIX（GitHub Releases）・GitHub Actions（`@v0` タグ）です。デスクトップは 10 通り（窓あり / なし × 5 つの OS・CPU）、Python ホイールは 5 通りです。各配布形態の v0.1.0 を公開済みです。利用者向けの手順は [入れ方](./docs/users/install.md)、配布の決まりと手順は [distribution.md](./docs/distribution.md) にあります。
+配布経路は、ブラウザ・GitHub Releases・PyPI・VSIX（GitHub Releases）・GitHub Actions（`@v0` タグ）です。デスクトップは 10 通り（窓あり / なし × 5 つの OS・CPU）、Python ホイールは 5 通りです。各配布形態の v0.1.1 を公開済みです。利用者向けの手順は [入れ方](./docs/users/install.md)、配布の決まりと手順は [distribution.md](./docs/distribution.md) にあります。
 
 ソースからビルドすることもできます。Rust の stable ツールチェーンが必要です。
 
