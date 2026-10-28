@@ -252,7 +252,11 @@ pub fn document(doc: &Document, project: &Project, explicit: bool) -> Vec<Diagno
                         C::W092
                     };
                     match metadata::asset_path(value, field.key == FieldKey::Icon) {
-                        None => out.push(diag(missing, offset..offset + raw.len(), vec![Arg::text(value)])),
+                        None => out.push(diag(
+                            missing,
+                            offset..offset + raw.len(),
+                            vec![Arg::text(value)],
+                        )),
                         Some(path) if !project.has_file(&path) => out.push(diag(
                             missing,
                             offset..offset + raw.len(),
