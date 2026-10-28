@@ -2495,3 +2495,15 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
   「Python 3.9 を使うジョブは 24.04 に固定する」検査を足した（`wheels.yml` の `test` も対象）。
 - `workflow_run` で自動で走る公開後の監査（`REF:.github/workflows/release-audit.yml`）は、Release が
   失敗で終わったため起動していない（`conclusion == 'success'` のときだけ走る設計どおり）。
+
+## 2026-10-28: リリース PR が `wheel (...)` の未報告で止まる（wheels の `paths` にワークフローを含める）
+
+- `develop` → `main` のリリース PR #45 は 24 個のチェックが全部緑でも `BLOCKED` だった。`main` の
+  必須チェックは `wheel (...)` の 5 行を含むのに、`REF:.github/workflows/wheels.yml` の `pull_request`
+  が `paths`（`python/**`・`wheels.yml`・`src/**`・`Cargo.toml`）で絞られており、差分が
+  `release.yml` と文書だけだったため起動しなかった（未報告の必須チェックは永久に満たせない）。
+  `strict_required_status_checks_policy` により base の取り込みもできないので、詰む。
+- **`paths` に `.github/workflows/**` を足した**（`push` と `pull_request` の両方）。版を上げない
+  復旧 PR はワークフローに触れるので、これで起動する。`REF:docs/script/test_release_policy.py` に
+  両トリガーが `.github/workflows/**` を含むことの検査を足した。
+- `REF:docs/developers.md` §4.7 の落とし穴に、リリース PR は `wheel` 5 行を要求することを追記した。

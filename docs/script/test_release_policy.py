@@ -74,7 +74,7 @@ class ReleasePolicy(unittest.TestCase):
         wheels = (ROOT / ".github/workflows" / "wheels.yml").read_text()
         flat = " ".join(wheels.split())
         self.assertIn("branches: [main, develop]", wheels)
-        self.assertIn("paths: [\"python/**\", \".github/workflows/wheels.yml\", \"src/**\", \"Cargo.toml\"]", flat)
+        self.assertIn("paths: [\"python/**\", \".github/workflows/**\", \"src/**\", \"Cargo.toml\"]", flat)
         self.assertIn("TestPyPI rehearsal requires the full scope", wheels)
         desktop = (ROOT / ".github/workflows" / "desktop-check.yml").read_text()
         self.assertIn("branches: [develop]", desktop)
@@ -129,6 +129,21 @@ class ReleasePolicy(unittest.TestCase):
         self.assertIn("matching prerelease version tag", text)
         release = (ROOT / ".github/workflows/release.yml").read_text()
         self.assertLess(release.index("Integrated Release supports stable versions only"), release.index("\n  desktop:\n"))
+
+    def test_wheels_runs_for_workflow_changes(self):
+        """wheels はワークフローの変更でも走る。
+
+        main の必須チェックは `wheel (...)` 5 行を含むので、wheels が起動しない PR は
+        マージできない。版を上げないリリース PR（CI の修正だけを main へ戻す場合）は
+        `Cargo.toml` に触れないため、`paths` に `.github/workflows/**` が要る
+        （v0.1.1 の復旧 PR #45 がこれで `BLOCKED` になった）。
+        """
+        text = (ROOT / ".github/workflows/wheels.yml").read_text()
+        triggers = text.split("\njobs:", 1)[0]
+        for trigger in ("push", "pull_request"):
+            block = re.search(rf"^  {trigger}:\n((?:    .*\n)+)", triggers, re.MULTILINE)
+            self.assertIsNotNone(block, trigger)
+            self.assertIn('".github/workflows/**"', block[1], trigger)
 
     def test_python_39_jobs_pin_ubuntu_2404(self):
         """Python 3.9 を使うジョブは ubuntu-24.04 に固定する。
