@@ -130,6 +130,23 @@ class ReleasePolicy(unittest.TestCase):
         release = (ROOT / ".github/workflows/release.yml").read_text()
         self.assertLess(release.index("Integrated Release supports stable versions only"), release.index("\n  desktop:\n"))
 
+    def test_python_39_jobs_pin_ubuntu_2404(self):
+        """Python 3.9 を使うジョブは ubuntu-24.04 に固定する。
+
+        `setup-python` の 3.9 は Ubuntu 26.04 向けの配布物が無い。`ubuntu-latest` が
+        26.04 に移ると 3.9 の解決だけが数秒で失敗する（v0.1.1 の Release がこれで止まり、
+        成果物を 1 つも公開できなかった）。
+        """
+        jobs = {
+            "release.yml": ("  wheel-test:\n", "\n  crate-check:"),
+            "wheels.yml": ("\n  test:\n", "\n  publish-testpypi:"),
+        }
+        for workflow, (start, end) in jobs.items():
+            text = (ROOT / ".github/workflows" / workflow).read_text()
+            self.assertIn(start, text, workflow)
+            job = text.split(start, 1)[1].split(end, 1)[0]
+            self.assertIn("runs-on: ubuntu-24.04", job, f"{workflow}: 3.9 のジョブは 24.04 に固定する")
+
     def test_font_license_is_embedded_and_archived(self):
         license_path = ROOT / "licenses/IPA_Font_License_Agreement_v1.0.txt"
         text = license_path.read_text(encoding="utf-8-sig")
