@@ -2421,3 +2421,23 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
   時点の記録なので、そのまま残す（`docs/plans.md`・本ファイルも同様に歴史記録）。
 - 手元で `pytest` を用意して `python/novnow-py/tests` を通した（9 passed / 1 skipped）。CI は `a728f30` で
   `wheels` を含む 6 ワークフローすべて緑。
+
+## 2026-10-28: v0.1.1 のリリース準備（版更新・サイトの版表示の検査・必須チェック名）
+
+- 所有者の指示: `develop` → `main` の PR #42（v0.1.1）を緑にしたうえで、タグを打ってマージコミットを
+  作り、リリースする。版は `v0.1.1`。
+- **PR #42 には版更新が入っていなかった**（`Cargo.toml` は 0.1.0 のまま）。`main` へ入れられるのは
+  版更新を伴う release / hotfix PR だけであり（`REF:docs/developers.md` の GitFlow）、タグ名が
+  `Cargo.toml` の版と一致しないと `REF:.github/workflows/release.yml` の `prepare` が公開を拒否する。
+  そこで `python3 scripts/release-matrix.py --bump 0.1.1` の出力（5 形態の版）と、`api.list` の
+  `version` を持つ `REF:tests/golden/api_catalog.json` の再生成だけを積む PR #43 を `develop` 向けに作った。
+- **`REF:scripts/website-check.py` の版表示の検査を直した**。見出しの版を `Cargo.toml` と比べていたが、
+  サイトが見出し・告知に出すのは**公開済みの版**（`REF:website/src/data/release.ts`）である
+  （`REF:docs/developers.md` §9 の規則）。版更新 PR から公開までの間は 2 つが意図的に食い違うため、
+  この検査は版更新のたびに `website` と Pages の `build` を赤くしていた（v0.1.0 では両者が同じ値で、
+  経路が踏まれていなかった）。比較先を `release.ts` に変え、`release.ts` の版が `Cargo.toml` より
+  新しいときだけ誤りとした。`REF:docs/script/test_website.py` に 2 本（版更新の途中で合格すること・
+  サイトが開発版より先の版を名乗らないこと）を足した。
+- **版を上げると必須チェック名が変わる**（`build (…, 0.1.0, novnow-0.1.0-…)`）。ruleset は版を含む
+  行列名をそのまま持つので、`--bump` の後は release PR が「報告待ち」で止まる。差し替えは管理者の
+  作業であることを `REF:docs/distribution.md` §6 に書き足した（この作業セッションでは ruleset を変更しない）。

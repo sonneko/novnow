@@ -635,5 +635,5 @@ GUI の見た目（パレット位置、下線・波線の座標、枠線やバ�
 - 利用者向けの現行一覧は `REF:docs/known-issues/ja.md` と `REF:docs/known-issues/en.md` を原本とする。`REF:website/src/components/KnownIssues.astro` がMarkdownを直接表示する。Web側に本文を転記しない。
 - 発見時に識別子・対象の公開版・環境・症状・回避策・対応状況を両言語で記録する。READMEには不具合本文を重複掲載しない。
 - コード修正、develop/mainへのマージだけでは一覧から削除しない。修正版の公開と修正確認が完了してから、当該項目を両言語の現行一覧から削除する。公開済みの履歴はリリースノートと `REF:docs/history.md` に残す。項目がなくなった場合も一覧ページは維持する。
-- ダウンロード先と公開版の表示は `REF:website/src/data/release.ts` で管理する。開発版のCargo.tomlから自動推測せず、公開済みの版・成果物を確認したときだけ更新する。
+- ダウンロード先と公開版の表示は `REF:website/src/data/release.ts` で管理する。開発版のCargo.tomlから自動推測せず、公開済みの版・成果物を確認したときだけ更新する。サイトの見出しと告知もこの値だけを使うので、`REF:scripts/website-check.py` は見出しの版を `release.ts` と突き合わせる（`Cargo.toml` とは比べない。版更新 PR から公開までの間は意図的に食い違う）。`release.ts` の版が `Cargo.toml` より新しいときだけ誤りとする。
 - 今回のv0.1.0公開告知に限り、所有者承認により版更新なしでサイト・文書とActions修正をmainへ統合する。順序は作業ブランチ→develop→mainとし、両マージは所有者が行う。タグ変更・追加リリースは行わない。通常のGitFlow規則を一般的に緩和するものではない。
