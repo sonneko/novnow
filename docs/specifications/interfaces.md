@@ -217,23 +217,26 @@ LSP 標準メソッドと novnow の機能の対応は次のとおり（MUST）:
 | LSP メソッド | novnow の機能 |
 |---|---|
 | `initialize` / `initialized` | プロジェクトの検証・読み込み（§14.2 と同じ規則）。`serverInfo` に名称・版 |
-| `textDocument/didOpen` / `didChange` / `didSave` | 本文・プロットの編集中状態（§9.6 の状態機）。変更は単節解析で即時検証 |
+| `textDocument/didOpen` / `didChange` / `didSave` / `didClose` | 本文・プロットの編集中状態（§9.6 の状態機）。変更は単節解析で即時検証。`didClose` は開いている文書の一覧から外すだけで、保存もしない |
 | `textDocument/publishDiagnostics` | §3.4 の診断（E001〜E040）。`code` に E 番号、`source` に `"novnow"`、メッセージは §12.4 の言語 |
-| `textDocument/completion` | 補完候補（§9.7 の `@` `$` `:` `/` `^`）。モード・用語・タグ・素材・操作 ID |
+| `textDocument/completion` | 補完候補（§9.7.3。キャラ・用語・資料・モード・SceneId） |
 | `textDocument/hover` | カーソル位置の注解・モード説明（§9.7.1 のホバー情報） |
 | `textDocument/codeAction` | クイックフィックス（§7 の各コードの「クイックフィックス」列）。**適用後のテキスト編集を返せるものだけ**を返し、ファイルをまたぐ移動や UI 操作（型の追加・新規資料の作成など）は返さない |
 | `textDocument/definition` / `references` | 定義ジャンプ・参照検索（`lang.definition` / `lang.references`） |
 | `textDocument/documentSymbol` | セクション一覧（`section.list`）。プロット文書ではプロット節 |
 | `workspace/symbol` | 全体検索（`search.project`） |
 | `textDocument/formatting` | 整形（`lang.format`。§9.7.3 の規則） |
+| `textDocument/prepareRename` | リネームの対象かの確認（操作 ID のときだけ範囲を返す） |
 | `textDocument/rename` | 操作 ID のリネーム（`lang.rename_apply`。プレビューは `lang.rename_preview` + `workspace/applyEdit`） |
 | `textDocument/foldingRange` | 折り畳み範囲（`lang.folding`、`plot.outline_fold`） |
 | `textDocument/inlayHint` | インレイヒント（`lang.hints`） |
+| `textDocument/semanticTokens/full` | 意味トークン（§3.4 の `semantic_tokens::full`。注解・参照・モード・資料の色分け） |
 | `workspace/executeCommand` | §19.7 のカタログの全操作（`command` = 正規操作 ID、`arguments` = JSON） |
 | `workspace/didChangeConfiguration` | 設定の変更通知（`settings.get` の再読込） |
+| `shutdown` / `exit` / `$/cancelRequest` | 終了要求・終了・実行中の要求の取り消し。`initialize` より前の要求には `ServerNotInitialized`（-32002）を返す |
 
 - 位置は LSP 標準の UTF-16 行・文字で受け渡し、内部のバイト位置と相互変換する（§3.4「位置表現」）。
-- 補完のトリガー文字は `'`（操作 ID）・`@`（キャラクター）・`:`（モード）・`$`（タグ）・`^`（素材）。`$` と `^` は §5.0.3 のとおりエスケープなしで受け付ける。
+- 補完のトリガー文字は `'`（操作 ID）・`@`（キャラクター）・`:`（モード）の 3 つ（§9.7.3 と同じ）。`$`（タグ）と `^`（素材）は補完を出さない（`Ctrl+Space` の明示起動でも同じ）。`$` と `^` は §5.0.3 のとおりエスケープなしで受け付ける。
 - 診断の配信範囲は、開いている文書と、打鍵のたびの単節解析の結果（§7.2「実行コストの制御」の範囲）。全体スコープの診断は `workspace/executeCommand`（`diagnostics.run`）で要求できる。
 
 #### 19.4.3 文書同期と保存
@@ -261,7 +264,7 @@ LSP 標準メソッドと novnow の機能の対応は次のとおり（MUST）:
 
 #### 19.5.1 既存ツールとの関係
 
-- 既存の 14 ツール（§15.8.2）は名前・引数・動作を**変えない**（MUST）。後方互換の凍結対象とする。
+- 既存の 14 ツール（§15.8.3 の表）は名前・引数・動作を**変えない**（MUST）。後方互換の凍結対象とする。
 - 既存ツールは正規操作 ID の別名としてカタログに載る（例 `novnow.section.write` = 操作 `section.write`）。新しいツールは `novnow.` + 正規操作 ID の名前で追加する（MUST）。
 - ツールの一覧・引数スキーマは `tools/list` で発見でき、`api.list` の出力（§19.8）と一致する（MUST）。
 - 呼び出しごとにプロジェクトを読み直す方式（§15.8「1 呼び出し = 読み直す」）を維持する（MUST）。

@@ -273,7 +273,7 @@ pub fn initialize(session: &Session) -> Value {
             "codeActionProvider": { "codeActionKinds": ["quickfix.novnow"], "resolveProvider": false },
             "completionProvider": {
                 "resolveProvider": false,
-                "triggerCharacters": ["'", "@", ";", ":"],
+                "triggerCharacters": ["'", "@", ":"],
             },
             "definitionProvider": true,
             "documentFormattingProvider": true,

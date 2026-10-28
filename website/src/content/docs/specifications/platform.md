@@ -109,12 +109,13 @@ DB 名 `novnow` / バージョン `1`。
 | ストア | keyPath | インデックス | 値 |
 |---|---|---|---|
 | `projects` | `id`（文字列 UUIDv4 または `sample`） | `by_updated`（`updated_at`） | `{ id, name, created_at, updated_at, schema_version, origin }` |
-| `files` | `[project_id, path]` | `by_project`（`project_id`） | `{ project_id, path, text, updated_at }` |
+| `files` | `[project_id, path]` | `by_project`（`project_id`） | `{ project_id, path, text, bytes?, updated_at }` |
 | `app` | `key` | — | `{ key, value }`。**許可キーは `recent_projects` のみ**（§13.3.4） |
 
 - `origin`: `"sample" | "new" | "import"`。
 - `path` はプロジェクトルートからの相対パス（`contents/01-04.cnov`）。先頭スラッシュ禁止。
-- 1 ファイル = 1 レコード。バイナリ資料は v0.1.0 では非対応（テキストのみ）。
+- 1 ファイル = 1 レコード。`text` は常に持ち、`bytes` は Zip の取り込みで入ったバイナリ資料（`assets/` の画像など）だけが持つ（省略可）。
+- Web では**バイナリを書かない**（`Storage::read_binary` はあるが、書き込みはテキストだけ。§3.1 の `Unsupported`）。取り込んだバイナリは読み取り専用である。
 
 #### 13.3.3 操作のトランザクション境界
 

@@ -67,7 +67,8 @@ pub trait Storage {
     /// テキストを読む（UTF-8 として読めなければ [`StorageError::Encoding`]）。
     fn read(&self, path: &ProjectPath) -> impl Future<Output = Result<String, StorageError>>;
 
-    /// Read project-relative asset bytes; unsupported implementations can return Unsupported.
+    /// プロジェクト内の資産のバイト列を読む（`assets/` の画像など）。実装できない場合は
+    /// [`StorageError::Unsupported`] を返す（Web は取り込んだバイナリだけを読める）。
     fn read_binary(
         &self,
         _path: &ProjectPath,
