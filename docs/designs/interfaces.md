@@ -55,11 +55,11 @@
 
 状態: 実装完了（REF:src/core/agents/server.rs, REF:src/cli/mcp.rs, REF:tests/cli.rs）
 
-- `REF:src/core/agents/server.rs` のツール表を 14 件から「凍結 14 件 + §19.7 で「M—」の印が無い操作 72 件（`novnow.` + 操作 ID）= 86 件」へ拡張する。全件ではない: 「M—」の 35 件（状態性・安全性・バイナリ）は載せない。既存 14 件の名前・スキーマ・挙動はバイト単位で凍結（`REF:tests/golden/mcp_tools.json` が定義のゴールデン、`REF:tests/mcp_frozen.rs` が内訳と回帰ガード、`REF:tests/mcp_stdio.rs` がクライアント側の往復）、新規分は app 層の `OPS` 表から生成し `api.list` との二重管理をなくす。
+- `REF:src/core/agents/server.rs` のツール表を 14 件から「凍結 14 件 + §19.7 で「M—」の印が無い操作 86 件（`novnow.` + 操作 ID。うち 13 件は凍結ツールと同じ名前なので新しいツールにはならない）= 87 件」へ拡張する。全件ではない: 「M—」の 35 件（状態性・安全性・バイナリ）は載せない。`novnow.lexicon.search` は操作 `dictionary.term_full` の別名である。既存 14 件の名前・スキーマ・挙動はバイト単位で凍結（`REF:tests/golden/mcp_tools.json` が定義のゴールデン、`REF:tests/mcp_frozen.rs` が内訳と回帰ガード、`REF:tests/mcp_stdio.rs` がクライアント側の往復）、新規分は app 層の `OPS` 表から生成し `api.list` との二重管理をなくす。
 - 呼び出しごとのプロジェクト読み直しは現行 `run()` の方式を維持する。関門付き書き込みは既存の直接書き込み経路（E036 検証・提案のみ記録・§15.8.4 監査ログ）を再利用する。
 - 安全除外の 4 操作はツール表へ登録せず、直接呼び出しには method-not-found と `isError` の二重で拒否する。
 - `plot.write` の `level` 拡張（`outline` / `chapter`）は `REF:src/core/features/plots.rs` のレベル別検証を汎用化する。既存 `episode` 呼び出しの動作は不変。
-- 検証: `REF:tests/mcp_frozen.rs`（凍結 14 件のバイト一致・`inputSchema` の型検査・ツール表の内訳 86 件）と `REF:tests/mcp_stdio.rs`（往復・関門挙動・除外）。
+- 検証: `REF:tests/mcp_frozen.rs`（凍結 14 件のバイト一致・`inputSchema` の型検査・ツール表の内訳 87 件）と `REF:tests/mcp_stdio.rs`（往復・関門挙動・除外）。
 
 ### 19.6 CLI 拡張
 
