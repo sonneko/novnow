@@ -22,10 +22,14 @@ on:
     # develop への push（マージコミット）も PR と同じ検査を報告する（必須チェックの
     # 平台 2 行を develop 自身で満たすため）。paths は PR と同一（main のリリース
     # マージは必ず版更新＝Cargo.toml に触れるので full 行列が走る）。
-    paths: ["python/**", ".github/workflows/wheels.yml", "src/**", "Cargo.toml"]
+    paths: ["python/**", ".github/workflows/**", "src/**", "Cargo.toml"]
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    paths: ["python/**", ".github/workflows/wheels.yml", "src/**", "Cargo.toml"]
+    # `.github/workflows/**` を含める理由: main の必須チェックは wheel 5 行を含むので、
+    # wheels が起動しない PR はマージできない。版を上げないリリース PR（CI の修正だけを
+    # main へ戻す場合）は Cargo.toml に触れないため、ワークフロー自体の変更で起動させる
+    # （v0.1.1 の復旧 PR #45 がこれで止まった。docs/developers.md §4.7）。
+    paths: ["python/**", ".github/workflows/**", "src/**", "Cargo.toml"]
   workflow_dispatch:
     inputs:
       scope:

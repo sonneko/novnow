@@ -394,6 +394,11 @@ pages・CI は元々 develop への push で走る）。コード PR のマー�
 （`gh pr checks` が空なら「回していない」の意味であり、緑ではない）。
 文書のみ変更の PR は wheels 行列（`paths` で起動しない）と、変更フィルタで skip された Rust 5 ジョブが
 揃わないため、`ci` と `wheels`（`scope=develop`）の 2 つの dispatch を回してからマージする（上の目安表）。
+**リリース PR（`develop` → `main`）は必ず `wheel (...)` 5 行を要求する**ので、wheels が起動しない差分
+（版を上げずに CI の修正だけを戻す場合など）は `BLOCKED` になる。wheels の `paths` に
+`.github/workflows/**` を含めてあるため、ワークフローを触る復旧 PR は自動で起動する。それでも
+起動しない差分（文書のみ）を `main` へ戻す必要が出たら、`bash scripts/ci-run.sh wheels` で
+`scope=full` の dispatch を 1 回回してからマージする（2026-10-28 追記）。
 
 検査 10 はこの仕組みの**土台が消えていないか**（`concurrency`・draft の条件・廃止ランナーの不在・
 変更フィルタ・フック・`ci-run.sh`）を見る。仕組みを外すと文書検査が落ちるので、意図的に外すときは
