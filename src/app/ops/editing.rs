@@ -42,6 +42,15 @@ pub fn section_get(session: &mut Session, args: &Args) -> Result<Value> {
     via_mcp(session, "novnow.section.get", args)
 }
 
+/// `section.propose`（本文を書き換えず `agents/proposals/` に置く。§8.7.1・§19.7）。
+///
+/// 既存の MCP ツール `novnow.section.propose` と同じ関数（`via_mcp`）を使う。提案は本文を
+/// 変えないので関門を置かない（§19.1.5）。作られる提案の `origin` は、GUI の提案モード
+/// （`human`）と区別するためツール核の印 `mcp` のままである（§8.7.2）。
+pub fn section_propose(session: &mut Session, args: &Args) -> Result<Value> {
+    via_mcp(session, "novnow.section.propose", args)
+}
+
 /// `section.write`（§9.6 の状態機経由。MCP では関門付き）。
 pub fn section_write(session: &mut Session, args: &Args) -> Result<Value> {
     let locale = session.locale;

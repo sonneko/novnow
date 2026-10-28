@@ -62,7 +62,7 @@ fn open_first_section(session: &mut Session) -> String {
 fn the_catalog_lists_every_canonical_operation() {
     let (mut session, _) = open();
     let catalog = session.run("api.list", json!({})).expect("api.list");
-    assert_eq!(catalog["count"], json!(120), "§19.7 の行数と合わない");
+    assert_eq!(catalog["count"], json!(121), "§19.7 の行数と合わない");
     assert_eq!(catalog["catalog_version"], json!(CATALOG_VERSION));
     assert_eq!(
         catalog["interfaces"],
@@ -71,7 +71,7 @@ fn the_catalog_lists_every_canonical_operation() {
     );
     assert_eq!(catalog["version"], json!(Session::version()));
     let operations = catalog["operations"].as_array().expect("operations");
-    assert_eq!(operations.len(), 120);
+    assert_eq!(operations.len(), 121);
     for operation in operations {
         for key in [
             "id",

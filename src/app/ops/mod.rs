@@ -401,6 +401,17 @@ pub const OPS: &[OpDef] = &[
         editing::section_split,
         gate = true
     ),
+    // 提案は本文を書き換えないので関門を置かない（§19.1.5）。既存の MCP ツール
+    // `novnow.section.propose` と同じ関数を使う（§19.1.1。`via_mcp`）。
+    opdef!(
+        "section.propose",
+        &[
+            ArgDef::string("scene"),
+            ArgDef::string("text"),
+            ArgDef::opt_string("note")
+        ],
+        editing::section_propose
+    ),
     // --- nav ---
     opdef!(
         "nav.file",

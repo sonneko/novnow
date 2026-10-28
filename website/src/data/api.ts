@@ -154,6 +154,14 @@ export const operations = [
     "exceptions": "M 門番"
   },
   {
+    "id": "section.propose",
+    "domain": "section",
+    "ja": "節の提案（本文は変えない）",
+    "en": "Propose a section change (does not write the text)",
+    "lsp": "",
+    "exceptions": ""
+  },
+  {
     "id": "nav.file",
     "domain": "nav",
     "ja": "文書・ファイルの直接指定",

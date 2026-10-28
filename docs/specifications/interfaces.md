@@ -94,7 +94,7 @@
 #### 19.1.9 性能とキャンセル
 
 - 各操作の性能目標は §18 の該当項目に従う（例: 診断の単節解析 100ms 以内・全文 1s 以内）。インターフェースの適合層自体の追加遅延は操作あたり 10ms 以内を目安とする（SHOULD）。
-- 長時間の操作（`agent.task_run`、`materials.approve` の URL 取得など）はキャンセル手段を提供する（MUST）: セッション API では `session.cancel(handle)`、CLI では割り込みシグナル、MCP / LSP ではプロトコルのキャンセル通知（`$/cancelRequest`）。
+- 長時間の操作（`agent.task_run` など、外部の応答を待つもの）はキャンセル手段を提供する（MUST）: セッション API では `session.cancel(handle)`、CLI では割り込みシグナル、MCP / LSP ではプロトコルのキャンセル通知（`$/cancelRequest`）。
 - キャンセルされた操作は部分書き込みを残さない（§19.1.6 の原子性）。
 
 ### 19.2 Rust API
@@ -275,7 +275,7 @@ LSP 標準メソッドと novnow の機能の対応は次のとおり（MUST）:
 - 新しい書き込み系ツールは §19.1.5 の規則に従う: `role` 引数必須、`apply` / `autonomous` のときだけ書き込み、それ以外は `E036`（`isError: true`）。未実行・未承認項目の作成系（§19.1.5 の 4 つ）は無関門。
 - `plot.write` の `level` は §15.8.3 の「`episode` のみ」の制限を本節が拡張し、`outline` / `chapter` も受け取る（MUST。既存呼び出しの動作は変わらない）。検証は `section.write` と同じ（E006 経路照合・E007・§10 のレベル別規則）。
 - エージェント系ツール（`agent.*`）は §15.2 の 13 状態機・§15.6 の 4 原則をそのまま適用する。セッション制限（§15.3）は MCP 呼び出しにも等しく課す（MUST）。
-- 素材系ツール（`materials.*`）の URL 取得は §16.1 のホワイトリスト・1MB 上限・15s タイムアウトに従う（MUST）。
+- 素材系ツール（`materials.*`）の URL 取得は v1 では行わない（§16.1.2 の注記）。実装する版では、§16.1.2 の 1MB 上限・15 秒のタイムアウトに従う（MUST）。
 - 監査ログ（§15.8.4）はすべての新しい書き込みツールでも記録する（MUST）。
 
 #### 19.5.3 スキーマ
@@ -341,7 +341,7 @@ GUI の全機能を正規操作 ID に対応づけるカタログ。この表が
 | project.new | 新規プロジェクト作成（パレット `>` + `new`、CLI 既存） | | L—（起動前）M—（要プロジェクト） |
 | project.validate | 構造検証（CLI `check` 既存。§4.3 の判定） | | |
 | project.reload | 再読込（パレット `>` + `reload`） | | M—・C—（状態性） |
-| project.stats | 執筆統計（統計バッジ、`.novnow/stats.json` の算出） | | |
+| project.stats | 執筆統計（総文字数・台詞比率・話者別の文字数と行数・節数。§19.1.4 の決定論により、壁時計に依存する「本日」「速度」「連続日数」は返さない。それらは画面が `.novnow/stats.json`（§4.4.2）と時計から出す） | | |
 | project.recent_list | 最近開いたプロジェクト一覧（`.novnow/recent.json`） | | M—（状態性） |
 | project.recent_remove | 最近開いた一覧からの削除（`>` + `forget`） | | M—（状態性） |
 | project.import_zip | Zip 導入（§13.5、選択画面・CLI） | | M—（バイナリ） |
@@ -356,6 +356,7 @@ GUI の全機能を正規操作 ID に対応づけるカタログ。この表が
 | section.delete | 節の削除（`>` + `delete-section`、§8.1.2。本文と対応するプロットを一緒に削除） | | M 門番 |
 | section.confirm_next | 次の未確認節の確認（節の末尾での `Ctrl+Enter`、§9.4.1） | | M—・C—（状態性） |
 | section.split | 節の分割（節エディタの `Ctrl+Enter`、§8.1.1・§9.4.1） | | M 門番 |
+| section.propose | 節の提案（本文を書き換えず `agents/proposals/` に置く。§8.7.1。MCP 既存 `novnow.section.propose`）。提案は本文を変えないため関門を置かない（§19.1.5） | | |
 | nav.file | 文書・ファイルの直接指定 | | M—・C—（状態性） |
 | nav.section | セクションへの移動（`Ctrl+G`） | | M—・C—（状態性） |
 | nav.jump | 行への移動（`Ctrl+L`） | | M—・C—（状態性） |
@@ -383,7 +384,7 @@ GUI の全機能を正規操作 ID に対応づけるカタログ。この表が
 | search.find_next / search.find_prev | 次の候補・前の候補（`F3` `Shift+F3`） | | M—・C—（状態性） |
 | materials.list | 素材インボックス一覧（§16.1） | | |
 | materials.get | 素材カードの取得（`Ctrl+M`） | | |
-| materials.approve | 素材の採用（S#### 化、URL 取得） | | M 門番 |
+| materials.approve | 素材の採用（S#### 化、`inbox/` → `docs/` の移動と `approved` 化。URL からの取得は §16.1.2 のとおり未実装） | | M 門番 |
 | materials.reject | 素材の却下（`>` + `reject-material`） | | M 門番 |
 | materials.update | 素材カードの編集（メタデータ） | | M 門番 |
 | materials.attach | 素材の添付（`>` + `attach-material`） | | M 門番 |

@@ -1,7 +1,7 @@
 """novnow の型スタブ（§19.3.1。`py.typed` と一緒に wheel へ同梱する）。
 
 **生成物**: `python3 scripts/pyi-site.py` が `tests/golden/api_catalog.json`
-（§19.7 の 120 操作・25 ドメイン）から作る。手で編集しないこと。
+（§19.7 の 121 操作・25 ドメイン）から作る。手で編集しないこと。
 位置引数の型と並びは `arguments.order`（宣言順）どおり。
 """
 
@@ -479,6 +479,9 @@ class section(Protocol):
 
     def split(self, scene: str = ..., *, at: int, role: str) -> Any:
         """節の分割（`section.split`）　[MCP からは `role` が必要]"""
+
+    def propose(self, scene: str, text: str, note: str = ...) -> Any:
+        """節の提案（本文は変えない）（`section.propose`）"""
 
 
 class session(Protocol):

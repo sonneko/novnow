@@ -1067,6 +1067,7 @@ insert = "Insert a new section"
 delete = "Delete a section"
 confirm_next = "Confirm the next unconfirmed section"
 split = "Split a section"
+propose = "Propose a section change (does not write the text)"
 
 [api.op.session]
 workspace_get = "Current workspace"

@@ -2019,8 +2019,8 @@ fn lsp_speaks_framed_jsonrpc_over_stdio() {
             .as_array()
             .expect("commands")
             .len(),
-        122,
-        "操作 120 件 + 特別な 2 つ"
+        123,
+        "操作 121 件 + 特別な 2 つ"
     );
     let api = messages
         .iter()
@@ -2028,7 +2028,7 @@ fn lsp_speaks_framed_jsonrpc_over_stdio() {
         .expect("api.list の応答");
     assert_eq!(
         api["result"]["count"],
-        serde_json::json!(120),
+        serde_json::json!(121),
         "§19.7 の全行"
     );
     let unknown = messages

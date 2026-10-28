@@ -1,6 +1,6 @@
 {
   "catalog_version": "1.1",
-  "count": 120,
+  "count": 121,
   "interfaces": [
     "rust",
     "python",
@@ -490,6 +490,41 @@
       "lsp": null,
       "stateful": false,
       "verb": "split"
+    },
+    {
+      "arguments": {
+        "order": [
+          "scene",
+          "text",
+          "note"
+        ],
+        "properties": {
+          "note": {
+            "type": "string"
+          },
+          "scene": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "scene",
+          "text"
+        ],
+        "type": "object"
+      },
+      "command": null,
+      "description": "節の提案（本文は変えない）",
+      "domain": "section",
+      "exceptions": {},
+      "gate": false,
+      "gate_arg": null,
+      "id": "section.propose",
+      "lsp": null,
+      "stateful": false,
+      "verb": "propose"
     },
     {
       "arguments": {
