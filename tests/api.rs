@@ -29,7 +29,7 @@ fn open() -> (Session, Rc<RefCell<MemoryFiles>>) {
     let files = host.files.clone();
     let documents = template::new_project("星屑の時計")
         .into_iter()
-        .filter(|file| is_document(&ProjectPath::new(file.path).expect("path")))
+        .filter(|file| is_document(&ProjectPath::new(&file.path).expect("path")))
         .map(|file| Document::new(file.path, file.text));
     (
         Session::with_documents(Box::new(host), documents.collect()),
@@ -62,7 +62,7 @@ fn open_first_section(session: &mut Session) -> String {
 fn the_catalog_lists_every_canonical_operation() {
     let (mut session, _) = open();
     let catalog = session.run("api.list", json!({})).expect("api.list");
-    assert_eq!(catalog["count"], json!(119), "§19.7 の行数と合わない");
+    assert_eq!(catalog["count"], json!(121), "§19.7 の行数と合わない");
     assert_eq!(catalog["catalog_version"], json!(CATALOG_VERSION));
     assert_eq!(
         catalog["interfaces"],
@@ -71,7 +71,7 @@ fn the_catalog_lists_every_canonical_operation() {
     );
     assert_eq!(catalog["version"], json!(Session::version()));
     let operations = catalog["operations"].as_array().expect("operations");
-    assert_eq!(operations.len(), 119);
+    assert_eq!(operations.len(), 121);
     for operation in operations {
         for key in [
             "id",
@@ -79,6 +79,7 @@ fn the_catalog_lists_every_canonical_operation() {
             "verb",
             "description",
             "arguments",
+            "returns",
             "gate",
             "stateful",
             "exceptions",
@@ -412,7 +413,7 @@ fn the_write_time_gate_binds_only_to_the_writing_call() {
     let (mut session, _) = open();
     open_first_section(&mut session);
     session.set_interface(Interface::Mcp);
-    let document = "contents/01-01.txt";
+    let document = "contents/01-01.cnov";
 
     // search.file（§19.7「置換は M 門番」）
     let found = session
@@ -968,7 +969,7 @@ fn the_catalog_is_localized_in_both_languages() {
 fn conflict() -> (Session, String, String) {
     let (mut session, files) = open();
     let scene = open_first_section(&mut session);
-    let path = "contents/01-01.txt";
+    let path = "contents/01-01.cnov";
     // 外部の版は「編集前の文書 + 1 行」（自分の編集を含まない形にする）
     let original = session.aggregate().text(path).to_owned();
     session
@@ -1056,4 +1057,140 @@ fn resolving_a_conflict_twice_is_a_conflict_error() {
         .run("save.keep_mine", json!({}))
         .expect_err("衝突が無いのに解決できた");
     assert_eq!(error.class, Class::Conflict, "{error:?}");
+}
+
+#[test]
+fn section_split_splits_at_a_byte_position_and_delete_takes_the_plot_too() {
+    let (mut session, _) = open();
+    let scene = first_section(&mut session);
+    let text = session.section().get(&scene).expect("section.get");
+    assert!(!text.is_empty());
+    let before = session
+        .run("section.list", json!({}))
+        .expect("section.list")["count"]
+        .as_u64()
+        .unwrap();
+    // 先頭では割らない（Ok で split=false）
+    let refused = session
+        .run("section.split", json!({ "scene": scene, "at": 0 }))
+        .expect("section.split at 0");
+    assert_eq!(refused["split"], json!(false));
+    // 途中の文字境界で割る（§8.1.1）
+    let at = text.char_indices().nth(3).map(|(at, _)| at).unwrap_or(1);
+    let done = session
+        .section()
+        .split(Some(&scene), at)
+        .expect("section.split");
+    assert_eq!(done["split"], json!(true));
+    let after = session
+        .run("section.list", json!({}))
+        .expect("section.list")["count"]
+        .as_u64()
+        .unwrap();
+    assert_eq!(after, before + 1, "節が 1 つ増える");
+    let upper = session.section().get(&scene).expect("upper");
+    assert_eq!(upper, text[..at].trim_end_matches('\n'));
+    // section.delete は本文と対応プロットを一緒に消す（§8.1.2）: 消した節の本文は戻らない
+    let deleted = session
+        .run("section.delete", json!({ "scene": scene }))
+        .expect("section.delete");
+    assert_eq!(deleted["deleted"], json!(scene));
+    let last = session
+        .run("section.list", json!({}))
+        .expect("section.list")["count"]
+        .as_u64()
+        .unwrap();
+    assert_eq!(last, before, "分割で増えた分が削除で戻る");
+}
+
+// =========================================================================== プロットの階層（§10.3.2・§19.5.2）
+
+#[test]
+fn plot_write_reaches_every_level_and_refuses_an_unknown_one() {
+    let (mut session, _) = open();
+    // 全体プロット（`outline` と `all` は同じ場所）
+    for level in ["outline", "all"] {
+        let written = session
+            .run(
+                "plot.write",
+                json!({ "level": level, "text": "@01\nsummary: 全体\n;\n" }),
+            )
+            .expect("plot.write outline");
+        assert_eq!(written["path"], json!("plots/all.cnov"), "{level}");
+        assert_eq!(written["level"], json!(level));
+    }
+    // 章プロット（`chapter` を省くと編集中の節の章）
+    let chapter = session
+        .run(
+            "plot.write",
+            json!({ "level": "chapter", "chapter": 1, "text": "@01\nsummary: 章\n;\n" }),
+        )
+        .expect("plot.write chapter");
+    assert_eq!(chapter["path"], json!("plots/01.cnov"));
+    let scene = first_section(&mut session);
+    let fallback = session
+        .run(
+            "plot.write",
+            json!({ "level": "chapter", "text": "@01\nsummary: 章\n;\n" }),
+        )
+        .expect("plot.write chapter without chapter");
+    let expected = format!("plots/{}.cnov", &scene[..2]);
+    assert_eq!(fallback["path"], json!(expected), "{scene}");
+    // 知らない level は引数エラー（本文は変わらない）
+    let error = session
+        .run("plot.write", json!({ "level": "scene", "text": "だめ" }))
+        .expect_err("知らない level");
+    assert_eq!(error.class, Class::Usage, "{error:?}");
+    // 話プロットは scene の節を差し替える
+    let episode = session
+        .run(
+            "plot.write",
+            json!({ "level": "episode", "scene": scene, "text": "@01-01-01-01\n話\n" }),
+        )
+        .expect("plot.write episode");
+    assert_eq!(episode["path"], json!("plots/01-01.cnov"));
+}
+
+// =========================================================================== 読み取り専用（§4.1）
+
+#[test]
+fn a_read_only_project_reports_w041_and_keeps_working_for_reads() {
+    let host = MemoryHost::default();
+    let files = host.files.clone();
+    // 開く前から書けないプロジェクト（読み取り専用メディア）
+    files.borrow_mut().fail = true;
+    let documents = template::new_project("星屑の時計")
+        .into_iter()
+        .filter(|file| is_document(&ProjectPath::new(&file.path).expect("path")))
+        .map(|file| Document::new(file.path, file.text));
+    let mut session = Session::with_documents(Box::new(host), documents.collect());
+    assert!(session.read_only(), "書けないプロジェクト");
+    let validated = session
+        .run("project.validate", json!({}))
+        .expect("project.validate");
+    let codes: Vec<&str> = validated["diagnostics"]
+        .as_array()
+        .expect("diagnostics")
+        .iter()
+        .filter_map(|found| found["code"].as_str())
+        .collect();
+    assert!(codes.contains(&"W041"), "{codes:?}");
+    let counted = session
+        .run("diagnostics.run", json!({}))
+        .expect("diagnostics.run");
+    let first = &counted["diagnostics"][0];
+    assert_eq!(first["code"], json!("W041"));
+    assert_eq!(first["path"], json!(""));
+    assert_eq!(first["line"], json!(0));
+    // 既定プロンプトは書かずに W041 を知らせる（§15.5.4）
+    let notice = session.prepare_agents().expect("通知");
+    assert!(notice.contains("読み取り専用"), "{notice}");
+    assert_eq!(files.borrow().writes, 0, "読み取り専用では書かない");
+    // 読み取りは普通にできる
+    let scene = first_section(&mut session);
+    assert!(!session
+        .section()
+        .get(&scene)
+        .expect("section.get")
+        .is_empty());
 }

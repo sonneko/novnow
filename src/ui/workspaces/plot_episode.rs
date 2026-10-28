@@ -12,11 +12,11 @@
 //! └──────────────────────────────┴────────────────────┘
 //! ```
 //!
-//! - 上段は**常に親（章）プロット**（指示 11 をレイアウトで保証する。§19.5・§19.11）。
+//! - 上段は**常に親（章）プロット**（§10.2 の配置。章プロットを見ながら話プロットを書く）。
 //! - 節リストの行は場面見出し（場面レベルのフィールドを編集する）と節（節の内容を編集する）。
 //!   `Alt+↑/↓` で前 / 次の行、`Alt+←/→` で前 / 次の場面、`Ctrl+Alt+←/→` で前 / 次の話。
 //! - 下段は `Workbench` の Slice（B-126）。書き戻しと保存は節エディタと同じ規則（§8.1・§8.2）。
-//! - 右端の台詞比率バーと `when:` の表示は ②（`docs/history.md`）。
+//! - 右端の台詞比率バーは幅 48px（§9.4.2、B2）。`when:`（作中日時）の表示は未実装。
 
 use std::ops::Range;
 
@@ -61,9 +61,9 @@ pub struct State {
     editor: slice_editor::Cache,
     /// 次のフレームで選んだ行までスクロールし、エディタにフォーカスを移す。
     reveal: bool,
-    /// List highlight moved without opening/committing its text slice.
+    /// 一覧の選択だけを動かし、その話プロットの本文は開かず確定もしない（§10.2）。
     preview: bool,
-    /// Scroll the list once after a keyboard-only selection change.
+    /// キーだけで選択を動かした直後に、一覧を 1 回スクロールして見せる。
     scroll_list: bool,
 }
 
@@ -154,7 +154,7 @@ impl State {
         }
     }
 
-    /// Highlight the adjacent plot row without committing/changing the Slice editor.
+    /// エディタを確定も変更もせずに、隣のプロットの行へ選択だけ移す（§10.2）。
     pub fn preview_row(&mut self, bench: &Workbench, forward: bool) -> bool {
         let at = self.selected_index(bench);
         let rows = self.rows(bench);
@@ -409,6 +409,9 @@ pub fn show(
                                 Some(Chosen::OpenMaterial(id)) => {
                                     request = Some(Request::OpenMaterial(id));
                                 }
+                                Some(Chosen::Navigate(nav)) => {
+                                    request = Some(Request::Navigate(nav));
+                                }
                                 Some(Chosen::Register { kind, name }) => {
                                     request = Some(Request::Register { kind, name });
                                 }
@@ -548,18 +551,34 @@ fn list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) -> Optio
                     )
                 } else {
                     let number = format!("{:02}", row.id.section);
-                    list_row(
-                        ui,
-                        view.mode,
-                        view.scale,
-                        Row {
-                            selected: is_selected,
-                            bar: Some(state_color(view.mode, row.state.or(Some(PlotState::Draft)))),
-                            label: &number,
-                            text: &row.summary,
-                            muted: false,
-                        },
-                    )
+                    // 節の行の右端に削除ボタン（§8.1.2。一体削除は App の単一入口）
+                    let mut row_response = None;
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if crate::ui::widgets::action_button(
+                            ui,
+                            i18n::text(view.locale, "delete.button"),
+                        )
+                        .clicked()
+                        {
+                            request = Some(Request::DeleteSection(row.id));
+                        }
+                        row_response = Some(list_row(
+                            ui,
+                            view.mode,
+                            view.scale,
+                            Row {
+                                selected: is_selected,
+                                bar: Some(state_color(
+                                    view.mode,
+                                    row.state.or(Some(PlotState::Draft)),
+                                )),
+                                label: &number,
+                                text: &row.summary,
+                                muted: false,
+                            },
+                        ));
+                    });
+                    row_response.expect("list_row in the same layout")
                 };
                 if !row.is_scene() {
                     if let Some(section) = prose_sections.iter().find(|s| s.id == row.id) {
@@ -567,12 +586,17 @@ fn list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) -> Optio
                             bench.project().text(&section.path),
                             section,
                         );
-                        let ratio = crate::core::stage_two::metrics::section(&text).ratio();
-                        ui.add(
-                            egui::ProgressBar::new(ratio as f32)
-                                .desired_width(80.0 * view.scale)
-                                .text(format!("{:.0}%", ratio * 100.0)),
-                        );
+                        // 台詞比率バー（§9.4.2。話プロットでは幅 48px）
+                        let measured = crate::core::features::metrics::section(&text);
+                        if measured.total > 0 {
+                            crate::ui::widgets::ratio_bar(
+                                ui,
+                                measured.ratio(),
+                                48.0 * view.scale,
+                                view.scale,
+                                &crate::ui::theme::palette(view.mode),
+                            );
+                        }
                     }
                 }
                 if is_selected && reveal {

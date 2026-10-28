@@ -9,7 +9,7 @@
 //! |---|---|---|---|
 //! | `*` / `〜` | 0 文字以上の任意文字列（改行を含まない） | `[^\n]*?`（**非貪欲**） | **引かない** |
 //! | `…` / `...` / `‥` | 間（1 個以上の省略記号・句点の連続） | `[…‥.。]{1,6}` | 引く |
-//! | `(体言)` 等 | 語クラス（`project.json.lexicon.word_classes`） | 定義された正規表現 | 引く |
+//! | `(体言)` 等 | 語クラス（`project.toml.lexicon.word_classes`） | 定義された正規表現 | 引く |
 //! | `?` | 任意の 1 文字 | `[^\n]` | 引く |
 //! | それ以外 | リテラル（メタ文字はエスケープ） | `regex::escape` 相当 | 引く |
 //!
@@ -103,14 +103,14 @@ pub const QUOTES: &[(char, char)] = &[('「', '」'), ('『', '』')];
 /// （§6.5.2 が挙げるのはこの 6 字だけ）。
 pub const SENTENCE_ENDS: &[char] = &['。', '！', '？', '!', '?', '…'];
 
-/// §6.5.1 の**既定の語クラス**（`project.json.lexicon.word_classes` 未指定時）。
+/// §6.5.1 の**既定の語クラス**（`project.toml.lexicon.word_classes` 未指定時）。
 ///
 /// i18n: format-vocabulary
 ///
 /// キーは §4.5 の例（`"lexicon": { "word_classes": { "体言": "…" } }`）どおり**括弧を除いた**形。
 /// 中身は日本語の文字種を含むが、これはユーザー向け文言ではなく**ファイル形式の語彙**なので
 /// §12.2 の免除（`i18n: format-vocabulary` の doc 行、`docs/history.md` B-19）で core が持つ。
-/// `project.json` に定義があれば**そちらが優先する**（§6.5.1「`project.json` で定義」）。
+/// `project.toml` に定義があれば**そちらが優先する**（§6.5.1「`project.toml` で定義」）。
 pub const DEFAULT_WORD_CLASSES: &[(&str, &str)] = &[
     (
         "体言",
@@ -144,7 +144,7 @@ impl Atom {
 
 /// パターン本体（`=` 前置を除いた部分）をアトムに割る（§6.5.1）。
 ///
-/// 未知の語クラス（`(ほげ)` のように `project.json` にも既定にも無いもの）は
+/// 未知の語クラス（`(ほげ)` のように `project.toml` にも既定にも無いもの）は
 /// **括弧ごとリテラル**にする（§7 に対応する診断コードが無いので、勝手に無視もしない）。
 pub fn atoms(body: &str, lexicon: &Lexicon) -> Vec<Atom> {
     let mut out = Vec::new();
@@ -186,7 +186,7 @@ fn class_name(rest: &str) -> Option<(&str, &str)> {
     Some((name, &rest[close + CLASS_CLOSE.len_utf8()..]))
 }
 
-/// 語クラスの正規表現（`project.json.lexicon.word_classes` が優先、無ければ §6.5.1 の既定）。
+/// 語クラスの正規表現（`project.toml.lexicon.word_classes` が優先、無ければ §6.5.1 の既定）。
 pub fn class_regex<'a>(name: &str, lexicon: &'a Lexicon) -> Option<&'a str> {
     if let Some(found) = lexicon.word_classes.get(name) {
         return Some(found.as_str());
@@ -295,9 +295,9 @@ impl Matcher {
     /// パターンをコンパイルする。
     ///
     /// **`None` になるのは語クラスの正規表現が壊れているときだけ**
-    /// （`project.json.lexicon.word_classes` に不正な値を書いた場合）。そのパターンだけを捨てる
-    /// （§6.5.1 第 2.9 版。他のパターンは生かす）。報告は `project.json` 側の **E027**
-    /// （`syntax::project_json`、`docs/history.md` A-24）。§6.5.4「一致しない場合は何もしない」と
+    /// （`project.toml.lexicon.word_classes` に不正な値を書いた場合）。そのパターンだけを捨てる
+    /// （§6.5.1 第 2.9 版。他のパターンは生かす）。報告は `project.toml` 側の **E027**
+    /// （`syntax::project_toml`、`docs/history.md` A-24）。§6.5.4「一致しない場合は何もしない」と
     /// 同じく、役割語の色が消えるだけで執筆は止まらない（§4.3-4）。
     pub fn new(pattern: &RolePattern, lexicon: &Lexicon) -> Option<Self> {
         let list = atoms(pattern.body(), lexicon);
@@ -518,7 +518,7 @@ pub struct Cache {
 }
 
 impl Cache {
-    /// `project.json` の `lexicon`（§4.5）で空のキャッシュを作る。
+    /// `project.toml` の `lexicon`（§4.5）で空のキャッシュを作る。
     pub fn new(lexicon: Lexicon) -> Self {
         Self {
             lexicon,
@@ -526,7 +526,7 @@ impl Cache {
         }
     }
 
-    /// 語クラスの定義（`project.json` の値と既定の両方を見るのは [`class_regex`]）。
+    /// 語クラスの定義（`project.toml` の値と既定の両方を見るのは [`class_regex`]）。
     pub fn lexicon(&self) -> &Lexicon {
         &self.lexicon
     }
@@ -549,7 +549,7 @@ impl Cache {
         self.sets.remove(key).is_some()
     }
 
-    /// 全部捨てる（`project.json` の `lexicon` を書き換えたあと）。
+    /// 全部捨てる（`project.toml` の `lexicon` を書き換えたあと）。
     pub fn clear(&mut self) {
         self.sets.clear();
     }
@@ -593,7 +593,11 @@ pub fn dialogue_spans(text: &str) -> Vec<Range<usize>> {
         }
     }
     for (_, start) in stack {
-        out.push(start..text.len());
+        // 閉じ忘れは**行末**まで（行をまたいで地の文を台詞にしない）。
+        let end = text[start..]
+            .find('\n')
+            .map_or(text.len(), |offset| start + offset);
+        out.push(start..end);
     }
     // **和集合にはしない**: 入れ子（`「『…』」`）は内側と外側の両方が台詞なので、
     // まとめると内側の位置が失われる（下線の和集合は §6.5.4 なので [`union`] を使う）

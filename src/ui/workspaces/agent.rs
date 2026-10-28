@@ -64,9 +64,9 @@ impl Column {
 pub enum Action {
     /// `N`: 新しいタスク（重ね物）。
     New,
-    /// MCP configuration editor.
+    /// `agents/mcp.json` の編集モーダルを開く（§15.7.7）。
     EditMcp,
-    /// Stop every active agent task (same as Ctrl+Shift+X).
+    /// 実行中のエージェントの仕事をすべて止める（`Ctrl+Shift+X` と同じ、§10.8）。
     StopAll,
     /// `R`: 実行。
     Run(Vec<String>),
@@ -327,9 +327,8 @@ fn keys(
     proposal: Option<&Proposal>,
     actions: &mut Vec<Action>,
 ) {
-    // The agent workspace has no in-place text editor. A focused header
-    // button must not suppress list navigation; editing happens in an overlay
-    // and the caller does not invoke `keys` while that overlay is open.
+    // エージェントの画面にはその場で打つ入力欄が無い。見出しのボタンにフォーカスがあっても
+    // 一覧の移動を止めない。入力は重ね物の中で行い、その間は呼び出し側が `keys` を呼ばない。
     let pressed =
         |key: Key, modifiers: Modifiers| ctx.input_mut(|input| input.consume_key(modifiers, key));
     let ctrl = if ctx.os() == egui::os::OperatingSystem::Mac {

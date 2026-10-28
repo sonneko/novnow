@@ -6,7 +6,7 @@
 //! 末尾の `binary_*` は実際の実行ファイル（`CARGO_BIN_EXE_novnow`）を、環境変数を空にした子プロセス
 //! として走らせる（終了コードと標準出力・標準エラーの分かれ方を本物で確かめる）。
 //!
-//! §14.2.2 / §14.2.3 / §14.2.4 の出力例は**仕様書を読み直して一字一句**突き合わせる。
+//! §14.2.2 / §14.2.3 の出力例は**仕様書を読み直して一字一句**突き合わせる。
 
 mod novel;
 mod sandbox;
@@ -95,7 +95,7 @@ fn spec_block(heading: &str) -> String {
     rest[open..close].to_owned()
 }
 
-/// §14.2.2 の例と同じ不足（project.json / characters.md / plots/all.txt）を持つディレクトリ。
+/// §14.2.2 の例と同じ不足（project.toml / characters.md / plots/all.cnov）を持つディレクトリ。
 fn spec_like_incomplete(dir: &TempDir, name: &str) -> PathBuf {
     dir.write(
         &format!("{name}/words.md"),
@@ -271,7 +271,7 @@ fn an_empty_directory_prints_every_missing_item_and_exits_3_without_writing() {
     assert_eq!(
         ran.err,
         format!(
-            "novnow: このディレクトリは novnow プロジェクトではありません\n  対象: {}\n\n不足しているもの:\n  - project.json\n  - characters.md\n  - words.md\n  - materials/index.json\n  - plots/all.txt\n  - contents/\n  - plots/\n\nプロジェクト構造: {PROJECT_STRUCTURE_DOC_URL}\nこのディレクトリに新規作成する場合: novnow new\n",
+            "novnow: このディレクトリは novnow プロジェクトではありません\n  対象: {}\n\n不足しているもの:\n  - project.toml\n  - characters.md\n  - words.md\n  - materials/index.json\n  - plots/all.cnov\n  - contents/\n  - plots/\n\nプロジェクト構造: {PROJECT_STRUCTURE_DOC_URL}\nこのディレクトリに新規作成する場合: novnow new\n",
             root.display()
         )
     );
@@ -355,13 +355,13 @@ fn a_file_is_not_a_project() {
 fn a_newer_schema_is_exit_3() {
     let dir = TempDir::new("cli-schema");
     let root = minimal_project(&dir, "new");
-    std::fs::write(root.join("project.json"), "{\"schema_version\":2}\n").expect("write");
+    std::fs::write(root.join("project.toml"), "schema_version = 3\n").expect("write");
     let ran = run(dir.path(), &env_en(&dir), &["new/"]);
     assert_eq!(ran.exit(), Exit::Project);
     assert_eq!(
         ran.err,
         format!(
-            "novnow: this project was made by a newer version of novnow (schema_version 2)\n  target: {}\n\nUpdate novnow to a newer version\n",
+            "novnow: this project was made by a newer version of novnow (schema_version 3)\n  target: {}\n\nUpdate novnow to a newer version\n",
             root.display()
         )
     );
@@ -439,7 +439,7 @@ fn check_of_a_fresh_project_has_no_diagnostics() {
     assert_eq!(ran.err, "");
     let documents = template::new_project("novel")
         .iter()
-        .filter(|file| is_document(&ProjectPath::new(file.path).expect("path")))
+        .filter(|file| is_document(&ProjectPath::new(&file.path).expect("path")))
         .count();
     assert_eq!(
         ran.out,
@@ -455,7 +455,7 @@ fn check_prints_one_line_per_diagnostic_and_exits_5_on_errors() {
     let dir = TempDir::new("cli-check-errors");
     let root = minimal_project(&dir, "novel");
     std::fs::write(
-        root.join("contents/01-01.txt"),
+        root.join("contents/01-01.cnov"),
         "@01-01-01 屋根裏\n「なに」@謎の人\n'未登録の語が出る。\n;\n;\n",
     )
     .expect("write");
@@ -465,16 +465,16 @@ fn check_prints_one_line_per_diagnostic_and_exits_5_on_errors() {
     assert_eq!(ran.err, "");
     assert_eq!(
         ran.out,
-        "contents/01-01.txt:2:5: [本文 @01-01-01-01] E012 登場人物 謎の人は characters.md にいません\n\
-         contents/01-01.txt:3:1: [本文 @01-01-01-01] E001 辞書にない参照です: 未登録\n\
-         contents/01-01.txt:5:1: [本文 @01-01-01-02] W012 空の節です\n\
+        "contents/01-01.cnov:2:5: [本文 @01-01-01-01] E012 登場人物 謎の人は characters.md にいません\n\
+         contents/01-01.cnov:3:1: [本文 @01-01-01-01] E001 辞書にない参照です: 未登録\n\
+         contents/01-01.cnov:5:1: [本文 @01-01-01-02] W012 空の節です\n\
          \n\
          6 個の文書を検査しました（エラー 2・警告 1・情報 0）\n"
     );
     let ran = run(dir.path(), &env_en(&dir), &["check", "novel"]);
     assert_eq!(ran.exit(), Exit::Diagnostics);
     assert!(ran.out.starts_with(
-        "contents/01-01.txt:2:5: [prose @01-01-01-01] E012 Character 謎の人 is not defined\n"
+        "contents/01-01.cnov:2:5: [prose @01-01-01-01] E012 Character 謎の人 is not defined\n"
     ));
     assert!(ran
         .out
@@ -486,7 +486,7 @@ fn check_with_only_warnings_exits_0() {
     let dir = TempDir::new("cli-check-warnings");
     let root = minimal_project(&dir, "novel");
     std::fs::write(
-        root.join("contents/01-01.txt"),
+        root.join("contents/01-01.cnov"),
         "@01-01-01\n「こんにちは」\n;\n;\n",
     )
     .expect("write");
@@ -494,7 +494,7 @@ fn check_with_only_warnings_exits_0() {
     assert_eq!(ran.exit(), Exit::Ok);
     assert!(
         ran.out
-            .contains("contents/01-01.txt:4:1: [本文 @01-01-01-02] W012 空の節です\n"),
+            .contains("contents/01-01.cnov:4:1: [本文 @01-01-01-02] W012 空の節です\n"),
         "{}",
         ran.out
     );
@@ -510,14 +510,14 @@ fn check_shows_diagnostics_without_a_position_with_the_path_only() {
     let dir = TempDir::new("cli-check-json");
     let root = minimal_project(&dir, "novel");
     std::fs::write(
-        root.join("project.json"),
-        "{\"schema_version\": 1, \"lexicon\": {\"word_classes\": {\"a\": \"[\"}}}\n",
+        root.join("project.toml"),
+        "schema_version = 2\n\n[lexicon.word_classes]\n\"a\" = \"[\"\n",
     )
     .expect("write");
     let ran = run(dir.path(), &env_ja(&dir), &["check", "novel"]);
     assert_eq!(ran.exit(), Exit::Diagnostics);
     assert!(
-        ran.out.starts_with("project.json:1:"),
+        ran.out.starts_with("project.toml:4:7:"),
         "位置のある E027: {}",
         ran.out
     );
@@ -537,7 +537,7 @@ fn check_names_the_place_in_the_writers_terms() {
     )
     .expect("write");
     std::fs::write(
-        root.join("plots/01-01.txt"),
+        root.join("plots/01-01.cnov"),
         "@01-01-01 屋根裏\n'未登録の語を探す\n;\n",
     )
     .expect("write");
@@ -551,7 +551,7 @@ fn check_names_the_place_in_the_writers_terms() {
     );
     assert!(
         ran.out
-            .contains("plots/01-01.txt:2:1: [話プロット @01-01-01-01] E001 "),
+            .contains("plots/01-01.cnov:2:1: [話プロット @01-01-01-01] E001 "),
         "{}",
         ran.out
     );
@@ -584,14 +584,14 @@ fn check_of_a_broken_project_uses_the_startup_messages() {
 fn check_lists_files_that_are_not_utf8_and_exits_4() {
     let dir = TempDir::new("cli-check-utf8");
     let root = minimal_project(&dir, "novel");
-    std::fs::write(root.join("contents/01-02.txt"), [0x82, 0xa0, b'\n']).expect("write");
+    std::fs::write(root.join("contents/01-02.cnov"), [0x82, 0xa0, b'\n']).expect("write");
     let ran = run(dir.path(), &env_ja(&dir), &["check", "novel"]);
     assert_eq!(ran.exit(), Exit::Io);
     assert_eq!(Exit::Io.code(), 4);
     assert_eq!(
         ran.err,
         format!(
-            "novnow: UTF-8 として読めないファイルがあります\n  対象: {}\n\nUTF-8 として読めないファイル:\n  - contents/01-02.txt\n",
+            "novnow: UTF-8 として読めないファイルがあります\n  対象: {}\n\nUTF-8 として読めないファイル:\n  - contents/01-02.cnov\n",
             root.display()
         )
     );
@@ -601,7 +601,7 @@ fn check_lists_files_that_are_not_utf8_and_exits_4() {
 fn colors_are_used_only_on_a_terminal_without_no_color() {
     let dir = TempDir::new("cli-color");
     let root = minimal_project(&dir, "novel");
-    std::fs::write(root.join("contents/01-01.txt"), "@01-01-01\n'未登録\n").expect("write");
+    std::fs::write(root.join("contents/01-01.cnov"), "@01-01-01\n'未登録\n").expect("write");
     let tty = Terminal {
         stdin: true,
         stdout: true,
@@ -660,9 +660,11 @@ fn new_creates_the_whole_template_in_an_empty_directory() {
         .map(|file| (file.path.to_owned(), file.text.into_bytes()))
         .collect();
     assert_eq!(files, want);
-    let project: serde_json::Value =
-        serde_json::from_slice(&files["project.json"]).expect("project.json");
-    assert_eq!(project["title"], "星屑の時計");
+    let project = novnow::core::syntax::project_toml::settings(
+        std::str::from_utf8(&files["project.toml"]).expect("utf-8"),
+    );
+    assert_eq!(project.title, "星屑の時計");
+    assert_eq!(project.schema_version, 2);
     // 原子的保存の一時ファイルも履歴も残らない
     assert!(!dir.join("state").exists());
 }
@@ -673,17 +675,17 @@ fn new_creates_a_missing_directory_and_names_it_in_the_hint() {
     let ran = run(dir.path(), &env_ja(&dir), &["new", "novels/hoshi"]);
     assert_eq!(ran.exit(), Exit::Ok);
     let root = dir.join("novels/hoshi");
-    assert!(root.join("project.json").is_file());
+    assert!(root.join("project.toml").is_file());
     let next = if novnow::cli::GUI_AVAILABLE {
         format!("\n開く: novnow {}\n", root.display())
     } else {
         format!("\n検査する: novnow check {}\n", root.display())
     };
     assert!(ran.out.ends_with(&next), "{}", ran.out);
-    let project: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(root.join("project.json")).expect("read"))
-            .expect("json");
-    assert_eq!(project["title"], "hoshi");
+    let project = novnow::core::syntax::project_toml::settings(
+        &std::fs::read_to_string(root.join("project.toml")).expect("read"),
+    );
+    assert_eq!(project.title, "hoshi");
     // そのまま check を通る
     assert_eq!(
         run(dir.path(), &env_ja(&dir), &["check", "novels/hoshi"]).exit(),
@@ -704,11 +706,11 @@ fn new_never_overwrites_and_lists_what_it_created_and_kept() {
         assert_eq!(after.get(path), Some(bytes), "{path} が変わった");
     }
     let kept = [
-        "project.json",
+        "project.toml",
         "characters.md",
         "words.md",
-        "contents/01-01.txt",
-        "plots/all.txt",
+        "contents/01-01.cnov",
+        "plots/all.cnov",
         "materials/index.json",
     ];
     let lines: Vec<&str> = ran.out.lines().collect();
@@ -731,18 +733,18 @@ fn new_never_overwrites_and_lists_what_it_created_and_kept() {
             .map(|line| line["  - ".len()..].to_owned())
             .collect()
     };
-    let template_order: Vec<&str> = template::new_project("novel")
+    let template_order: Vec<String> = template::new_project("novel")
         .iter()
-        .map(|file| file.path)
+        .map(|file| file.path.clone())
         .collect();
     let want_kept: Vec<String> = template_order
         .iter()
-        .filter(|path| kept.contains(path))
+        .filter(|path| kept.contains(&path.as_str()))
         .map(|path| path.to_string())
         .collect();
     let want_created: Vec<String> = template_order
         .iter()
-        .filter(|path| !kept.contains(path))
+        .filter(|path| !kept.contains(&path.as_str()))
         .map(|path| path.to_string())
         .collect();
     assert_eq!(listed(kept_at), want_kept);
@@ -766,7 +768,7 @@ fn new_on_a_complete_project_creates_nothing() {
     assert!(!ran.out.contains("Created files:"));
     assert!(ran
         .out
-        .contains("Kept files (not overwritten):\n  - project.json\n"));
+        .contains("Kept files (not overwritten):\n  - project.toml\n"));
     assert_eq!(tree(&root), before);
 }
 
@@ -774,7 +776,7 @@ fn new_on_a_complete_project_creates_nothing() {
 fn new_refuses_a_newer_project_without_writing() {
     let dir = TempDir::new("cli-new-too-new");
     let root = minimal_project(&dir, "newer");
-    std::fs::write(root.join("project.json"), "{\"schema_version\":3}\n").expect("write");
+    std::fs::write(root.join("project.toml"), "schema_version = 3\n").expect("write");
     let before = tree(dir.path());
     let ran = run(dir.path(), &env_ja(&dir), &["new", "newer"]);
     assert_eq!(ran.exit(), Exit::Project);
@@ -1130,7 +1132,7 @@ fn mcp_serves_the_tools_over_json_lines_and_writes_only_inside_the_project() {
     // 比較相手は `REF:tests/golden/mcp_tools.json`（実装そのものと比べると退行を検出できない。
     // 内訳の機械検査は `REF:tests/mcp_frozen.rs`）
     let tools = lines[1]["result"]["tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 86, "ツール表の全件数（凍結 14 + 正規操作 72）");
+    assert_eq!(tools.len(), 87, "ツール表の全件数（凍結 14 + 正規操作 73）");
     let golden: Value = serde_json::from_str(include_str!("golden/mcp_tools.json")).unwrap();
     for (found, frozen) in tools.iter().zip(golden.as_array().unwrap()) {
         assert_eq!(
@@ -1160,7 +1162,7 @@ fn mcp_serves_the_tools_over_json_lines_and_writes_only_inside_the_project() {
     );
     // 本文は変わらない
     assert_eq!(
-        std::fs::read_to_string(root.join("contents/01-01.txt")).unwrap(),
+        std::fs::read_to_string(root.join("contents/01-01.cnov")).unwrap(),
         "@01-01-01\n「こんにちは」\n"
     );
     assert_eq!(lines[5]["error"]["code"], -32601);
@@ -1216,8 +1218,8 @@ fn mcp_direct_writes_follow_the_role_level_and_leave_the_audit_trail() {
     let dir = TempDir::new("cli-mcp-write");
     let root = minimal_project(&dir, "novel");
     dir.write(
-        "novel/project.json",
-        "{\n  \"schema_version\": 1,\n  \"title\": \"星屑の時計\",\n  \"agents\": { \"roles\": { \"writer\": \"apply\" } }\n}\n",
+        "novel/project.toml",
+        "schema_version = 2\ntitle = \"星屑の時計\"\n\n[agents.roles]\nwriter = \"apply\"\n",
     );
     let input = mcp_lines(&[
         json!({"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "novnow.section.write", "arguments": {"role": "writer", "scene": "@01-01-01-01", "text": "「さようなら」"}}}),
@@ -1231,7 +1233,7 @@ fn mcp_direct_writes_follow_the_role_level_and_leave_the_audit_trail() {
         .collect();
     assert_eq!(lines[0]["result"]["isError"], false, "{}", ran.out);
     assert_eq!(
-        std::fs::read_to_string(root.join("contents/01-01.txt")).unwrap(),
+        std::fs::read_to_string(root.join("contents/01-01.cnov")).unwrap(),
         "@01-01-01\n「さようなら」\n"
     );
     let proposal = std::fs::read_to_string(root.join("agents/proposals/P0001.md")).unwrap();
@@ -1522,7 +1524,7 @@ fn binary_help_version_and_check_errors() {
     let output = binary(&dir, dir.path(), &["--frobnicate"]);
     assert_eq!(output.status.code(), Some(2));
     let root = minimal_project(&dir, "novel");
-    std::fs::write(root.join("contents/01-01.txt"), "@01-01-01\n'未登録\n").expect("write");
+    std::fs::write(root.join("contents/01-01.cnov"), "@01-01-01\n'未登録\n").expect("write");
     let output = binary(&dir, dir.path(), &["check", "novel"]);
     assert_eq!(output.status.code(), Some(5));
     // 言語の上書きが無ければ OS のロケール（LANG=C → en）
@@ -1546,7 +1548,10 @@ fn zip_import_writes_only_safe_new_files_and_preserves_existing_data() {
     let zip = archive::export(
         &template::new_project("小説")
             .into_iter()
-            .map(|item| (ProjectPath::new(item.path).unwrap(), item.text.into_bytes()))
+            .map(|item| {
+                let path = ProjectPath::new(&item.path).unwrap();
+                (path, item.text.into_bytes())
+            })
             .collect::<Vec<_>>(),
     )
     .unwrap();
@@ -1554,7 +1559,7 @@ fn zip_import_writes_only_safe_new_files_and_preserves_existing_data() {
     let env = env_ja(&dir);
     let first = run(dir.path(), &env, &["import", "novel.zip", "book"]);
     assert_eq!(first.exit(), Exit::Ok, "{}", first.err);
-    assert!(dir.join("book/project.json").exists());
+    assert!(dir.join("book/project.toml").exists());
     dir.write("book/words.md", "# 自分の用語\n");
     let second = run(dir.path(), &env, &["import", "novel.zip", "book"]);
     assert_eq!(second.exit(), Exit::Ok, "{}", second.err);
@@ -1603,7 +1608,7 @@ fn migration_preview_is_read_only_and_import_refuses_existing_targets() {
     );
     assert_eq!(preview.exit(), Exit::Ok, "{preview:?}");
     assert!(!dir.join("book").exists());
-    assert!(preview.out.contains("contents/01-01.txt"));
+    assert!(preview.out.contains("contents/01-01.cnov"));
     let imported = run(dir.path(), &env, &["migrate", "source.txt", "book"]);
     assert_eq!(imported.exit(), Exit::Ok, "{imported:?}");
     let before = tree(&dir.join("book"));
@@ -1670,6 +1675,78 @@ fn migration_refuses_symlink_destinations_without_touching_them() {
         Exit::Io
     );
     assert!(tree(&dir.join("outside")).is_empty());
+}
+
+#[test]
+fn migration_splits_headings_and_multiple_inputs() {
+    let dir = TempDir::new("migrate-split");
+    let env = env_ja(&dir);
+    dir.write(
+        "part.txt",
+        "第一章 始まり\n本文です。\n\n第二章 続き\n本文ふたたび。\n",
+    );
+    dir.write("extra.txt", "追加の一話。\n");
+    let preview = run(
+        dir.path(),
+        &env,
+        &["migrate", "part.txt", "extra.txt", "book", "--preview"],
+    );
+    assert_eq!(preview.exit(), Exit::Ok, "{preview:?}");
+    assert!(preview.out.contains("2 章"), "{}", preview.out);
+    assert!(!dir.join("book").exists());
+    let imported = run(
+        dir.path(),
+        &env,
+        &["migrate", "part.txt", "extra.txt", "book"],
+    );
+    assert_eq!(imported.exit(), Exit::Ok, "{imported:?}");
+    // CLI は候補どおりに生成する: 見出しで章が分かれ、2 ファイル目は
+    // 最後の章の新しい話になる。
+    let chapter_two = std::fs::read_to_string(dir.join("book/contents/02-01.cnov")).unwrap();
+    assert!(chapter_two.contains("本文ふたたび。"), "{chapter_two}");
+    let episode_two = std::fs::read_to_string(dir.join("book/contents/02-02.cnov")).unwrap();
+    assert!(episode_two.contains("追加の一話。"), "{episode_two}");
+    let all = std::fs::read_to_string(dir.join("book/plots/all.cnov")).unwrap();
+    assert!(all.contains("@01 始まり"), "{all}");
+    assert!(all.contains("@02 続き"), "{all}");
+}
+
+#[test]
+fn migration_folder_input_reads_natural_order_as_one_chapter() {
+    let dir = TempDir::new("migrate-folder");
+    let env = env_ja(&dir);
+    dir.write("ch/2.txt", "二話目。\n");
+    dir.write("ch/10.txt", "十話目。\n");
+    dir.write("ch/1.txt", "一話目。\n");
+    dir.write("ch/notes.bin", "binary\n");
+    dir.write("ch/sub/99.txt", "サブフォルダは読まない。\n");
+    dir.write("first.txt", "最初の章。\n");
+    let imported = run(dir.path(), &env, &["migrate", "first.txt", "ch", "book"]);
+    assert_eq!(imported.exit(), Exit::Ok, "{imported:?}");
+    let read = |rel: &str| std::fs::read_to_string(dir.join(rel)).unwrap();
+    assert!(read("book/contents/01-01.cnov").contains("最初の章。"));
+    assert!(read("book/contents/02-01.cnov").contains("一話目。"));
+    assert!(read("book/contents/02-02.cnov").contains("二話目。"));
+    assert!(read("book/contents/02-03.cnov").contains("十話目。"));
+    assert!(!dir.join("book/contents/02-04.cnov").exists());
+}
+
+#[test]
+fn migration_reads_shift_jis_files() {
+    let dir = TempDir::new("migrate-sjis");
+    let env = env_ja(&dir);
+    // 「本文です。」の Shift_JIS バイト列。
+    std::fs::write(
+        dir.join("sjis.txt"),
+        [
+            0x96, 0x7B, 0x95, 0xB6, 0x82, 0xC5, 0x82, 0xB7, 0x81, 0x42, 0x0A,
+        ],
+    )
+    .unwrap();
+    let imported = run(dir.path(), &env, &["migrate", "sjis.txt", "book"]);
+    assert_eq!(imported.exit(), Exit::Ok, "{imported:?}");
+    let contents = std::fs::read_to_string(dir.join("book/contents/01-01.cnov")).unwrap();
+    assert!(contents.contains("本文です。"), "{contents}");
 }
 
 // ============================================================ MCP のツール表（§19.5.1・段階③ H4）
@@ -1775,7 +1852,7 @@ fn mcp_lists_the_whole_catalog_and_refuses_the_human_only_operations() {
 fn mcp_write_tools_check_the_role_and_write_nothing() {
     let dir = TempDir::new("cli-mcp-gate");
     let root = minimal_project(&dir, "novel");
-    let before = std::fs::read_to_string(root.join("contents/01-01.txt")).expect("read");
+    let before = std::fs::read_to_string(root.join("contents/01-01.cnov")).expect("read");
     let input = mcp_lines(&[
         // role が無い（§19.1.5「省略時は E036」）
         tool_call(
@@ -1805,7 +1882,7 @@ fn mcp_write_tools_check_the_role_and_write_nothing() {
         );
     }
     assert_eq!(
-        std::fs::read_to_string(root.join("contents/01-01.txt")).expect("read"),
+        std::fs::read_to_string(root.join("contents/01-01.cnov")).expect("read"),
         before,
         "関門を通らないのに書き込んだ"
     );
@@ -1818,11 +1895,11 @@ fn mcp_plot_write_takes_outline_and_chapter_levels() {
     let root = minimal_project(&dir, "novel");
     // writer の委譲を apply に（§15.7.6。`agents.roles` の上書き）
     dir.write(
-        "novel/project.json",
-        "{\n  \"schema_version\": 1,\n  \"title\": \"星屑の時計\",\n  \"agents\": { \"roles\": { \"writer\": \"apply\" } }\n}\n",
+        "novel/project.toml",
+        "schema_version = 2\ntitle = \"星屑の時計\"\n\n[agents.roles]\nwriter = \"apply\"\n",
     );
-    dir.write("novel/plots/01.txt", "@01\nsummary: 章のプロット\n;\n");
-    dir.write("novel/plots/01-01.txt", "@01-01-01\n話のプロット\n");
+    dir.write("novel/plots/01.cnov", "@01\nsummary: 章のプロット\n;\n");
+    dir.write("novel/plots/01-01.cnov", "@01-01-01\n話のプロット\n");
     let input = mcp_lines(&[
         tool_call(
             1,
@@ -1840,19 +1917,26 @@ fn mcp_plot_write_takes_outline_and_chapter_levels() {
             "novnow.plot.write",
             json!({"role": "writer", "level": "episode", "scene": "@01-01-01-01", "text": "話を書き換えた\n"}),
         ),
+        // 知らない level は正規操作の引数エラー（§19.5.2）。どのファイルも変わらない
+        tool_call(
+            4,
+            "novnow.plot.write",
+            json!({"role": "writer", "level": "scene", "text": "だめ\n"}),
+        ),
     ]);
     let ran = run_mcp(dir.path(), &env_ja(&dir), "novel", &input);
     assert_eq!(ran.exit(), Exit::Ok, "{}", ran.err);
     let lines = responses(&ran.out);
-    assert_eq!(lines.len(), 3, "{}", ran.out);
-    for line in &lines {
+    assert_eq!(lines.len(), 4, "{}", ran.out);
+    for line in &lines[..3] {
         assert_eq!(line["result"]["isError"], false, "{line}");
     }
-    let outline = std::fs::read_to_string(root.join("plots/all.txt")).expect("read");
+    assert_eq!(lines[3]["result"]["isError"], true, "{}", lines[3]);
+    let outline = std::fs::read_to_string(root.join("plots/all.cnov")).expect("read");
     assert!(outline.contains("全体を書き換えた"), "{outline}");
-    let chapter = std::fs::read_to_string(root.join("plots/01.txt")).expect("read");
+    let chapter = std::fs::read_to_string(root.join("plots/01.cnov")).expect("read");
     assert!(chapter.contains("章を書き換えた"), "{chapter}");
-    let episode = std::fs::read_to_string(root.join("plots/01-01.txt")).expect("read");
+    let episode = std::fs::read_to_string(root.join("plots/01-01.cnov")).expect("read");
     assert!(episode.contains("話を書き換えた"), "{episode}");
     // 直接書き込みは監査ログに残る（§15.8.4）
     let logged = tree(&root.join("agents"))
@@ -1942,8 +2026,8 @@ fn lsp_speaks_framed_jsonrpc_over_stdio() {
             .as_array()
             .expect("commands")
             .len(),
-        121,
-        "操作 119 件 + 特別な 2 つ"
+        123,
+        "操作 121 件 + 特別な 2 つ"
     );
     let api = messages
         .iter()
@@ -1951,7 +2035,7 @@ fn lsp_speaks_framed_jsonrpc_over_stdio() {
         .expect("api.list の応答");
     assert_eq!(
         api["result"]["count"],
-        serde_json::json!(119),
+        serde_json::json!(121),
         "§19.7 の全行"
     );
     let unknown = messages
@@ -2120,7 +2204,7 @@ fn the_json_envelope_carries_the_error_model() {
             "novel",
             "--json",
             "--path",
-            "contents/01-01.txt",
+            "contents/01-01.cnov",
             "--text",
             "書き換え",
         ],
@@ -2128,12 +2212,12 @@ fn the_json_envelope_carries_the_error_model() {
     assert_eq!(ran.exit(), Exit::Ok, "{} {}", ran.out, ran.err);
     assert_eq!(
         envelope(&ran.out)["data"]["save"]["written"],
-        serde_json::json!(["contents/01-01.txt"]),
+        serde_json::json!(["contents/01-01.cnov"]),
         "{}",
         ran.out
     );
     assert_eq!(
-        std::fs::read_to_string(dir.join("novel/contents/01-01.txt")).expect("本文"),
+        std::fs::read_to_string(dir.join("novel/contents/01-01.cnov")).expect("本文"),
         "書き換え",
         "書いていない"
     );
@@ -2274,4 +2358,29 @@ fn api_reserved_words_can_be_opened_as_explicit_relative_directories() {
             Launch::Open(PathBuf::from(&path))
         );
     }
+}
+
+#[cfg(unix)]
+#[test]
+fn check_reports_w041_on_a_read_only_project_without_writing_anything() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = TempDir::new("cli-check-read-only");
+    let root = minimal_project(&dir, "novel");
+    std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o555)).expect("chmod");
+    let ran = run(dir.path(), &env_ja(&dir), &["check", "novel"]);
+    let left = tree(&root);
+    std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+    assert_eq!(ran.exit(), Exit::Ok, "W041 は警告なので終了コードは 0");
+    let first = ran.out.lines().next().unwrap_or("");
+    assert!(
+        first.ends_with("W041 プロジェクトに書き込めません（読み取り専用）"),
+        "{}",
+        ran.out
+    );
+    assert!(
+        first.starts_with(&format!("{}: ", root.display())),
+        "ルートの行として出す: {first}"
+    );
+    assert!(ran.out.contains("警告 1"), "{}", ran.out);
+    assert!(!left.contains_key(".novnow/.write-probe"), "何も残さない");
 }

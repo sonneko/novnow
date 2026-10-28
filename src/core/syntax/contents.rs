@@ -1,4 +1,4 @@
-//! C 形式（本文 `contents/AA-BB.txt`）のパーサ（`docs/specifications/syntax.md` §5.2）。
+//! C 形式（本文 `contents/AA-BB.cnov`）のパーサ（`docs/specifications/syntax.md` §5.2）。
 //!
 //! 字句器（[`crate::core::text::lexer`]）が**行単位**で決めた種別を、§5.2.1 の文法に
 //! 組み立て直す。判定は行内で完結するので（§5.0.1）[`Line`] は 1 行ずつ差し替えられる
@@ -8,18 +8,18 @@
 //! # 原文を 1 バイトも捨てない
 //!
 //! 各行は `raw`（改行を含まない原文）を持ち、[`Contents::to_text`] は `raw` を LF で連結して
-//! **入力と一致する文字列**を返す（`docs/history.md` の完了条件 2）。① で解析しない構文 —
-//! `^M0137` 引用注釈（§5.2.4）、`! ` 挿絵メモ（§5.2.5）、`# ` コメント（§5.0.8）、
-//! `'` 参照（§5.2.1 `ref`）、行内コメント `/* … */` — は [`TextLine::body`] にそのまま残り、
-//! round-trip で戻る（本書 §1.2 の 10 / 23 / 15）。
+//! **入力と一致する文字列**を返す（`docs/history.md` の完了条件 2）。行としては解析しない構文 —
+//! `^M0137` 引用注釈（§5.2.4）、`! ` 挿絵メモ（§5.2.5）、`'` 参照（§5.2.1 `ref`）、
+//! 行内コメント `/* … */` — は [`TextLine::body`] にそのまま残り、round-trip で戻る
+//! 引用注釈と挿絵メモはエクスポート時に §17.1 の規則で消える。
 //!
-//! # ① で解析する構文（`docs/history.md` の作業項目 1）
+//! # 解析する構文
 //!
 //! | 構文 | 仕様 | 型 |
 //! | --- | --- | --- |
 //! | 場面見出し `@A-B-C[-D] タイトル` | §5.2.1 | [`SceneLine`] |
 //! | 節区切り `;`（行末コメント可） | §5.2.1 | [`BreakLine`] |
-//! | 行コメント `// …` | §5.0.2 | [`CommentLine`] |
+//! | 行コメント `// …` と `# …` | §5.0.2・§5.0.8 | [`CommentLine`] |
 //! | 空行 | §5.2.1 `blank` | [`Line::Blank`] |
 //! | 本文と行末話者注釈 `@名前[:モード]` | §5.2.1 | [`TextLine`]・[`Speaker`] |
 //! | ルビ `｜親字《読み》`・`漢字《読み》` | §5.2.1 | [`Ruby`] |
@@ -51,6 +51,7 @@ use serde::Serialize;
 
 use crate::core::diagnostics::{Arg, Diagnostic, DiagnosticCode};
 use crate::core::id::{self, PartialSceneId, SceneId};
+use crate::core::text::charclass;
 use crate::core::text::lexer::{self, LineKind, TextFormat};
 
 /// §5.0.2 の行コメントのシジル（`lexer::SIGIL_TABLE` の `Sigil::LineComment` と同じ）。
@@ -84,16 +85,7 @@ const RUBY_CLOSE: char = '》';
 /// ルビの明示形 `｜base《reading》` の区切り。**半角 `|` ではない**（§5.2.1）。
 const RUBY_BAR: char = '｜';
 
-/// 漢字の code point 範囲（**上端は含まない**）。ルビの親文字になれる文字、§5.2.1 `kanji_run`。
-///
-/// CJK 統合漢字 U+4E00–U+9FFF・拡張 A U+3400–U+4DBF・互換漢字 U+F900–U+FAFF。
-/// `kanji_run` は仕様書に定義が無いのでここで決めた（`docs/history.md` B-33）。
-const KANJI: &[Range<u32>] = &[0x4E00..0xA000, 0x3400..0x4DC0, 0xF900..0xFB00];
-
-/// 繰返し字（`々` U+3005・`〻` U+303B）。`人々《ひとびと》` のように漢字列に含める。
-const KANJI_MARKS: &[u32] = &[0x3005, 0x303B];
-
-/// C 形式の解析に効く設定（`project.json` の `structure`、§4.5 / §5.1.2）。
+/// C 形式の解析に効く設定（`project.toml` の `structure`、§4.5 / §5.1.2）。
 ///
 /// **core は設定ファイルを読めない**（§3.2）ので、呼び出し側が値を渡す
 /// （[`crate::core::id::Digits`] と同じ扱い）。
@@ -163,7 +155,7 @@ impl<'a> Contents<'a> {
     /// 原文を復元する（`lines` の `raw` を LF で連結）。
     ///
     /// [`parse`] に渡した文字列と**一致する**（`docs/history.md` の完了条件 2）。末尾改行の有無、
-    /// 空白だけの行、① が解析しない構文もすべて戻る。
+    /// 空白だけの行、パーサが解釈しない行もすべて戻る。
     pub fn to_text(&self) -> String {
         let mut out = String::new();
         for (index, line) in self.lines.iter().enumerate() {
@@ -187,8 +179,9 @@ impl<'a> Contents<'a> {
 
 /// 1 行（§5.2.1 `line`）。
 ///
-/// ① は `illust_line`（§5.2.5、② の追加仕様 23）と `comment_line` の `# `（§5.0.8、②）を
-/// 作らない。それらは [`Line::Text`] として本文に残る。
+/// `// ` と `# ` のコメント行（§5.0.2・§5.0.8）は [`Line::Comment`] になる。`! ` 挿絵メモ
+/// （§5.2.5）だけは行の種別を増やさず [`Line::Text`] として本文に残し、ハイライトと
+/// エクスポート（§17.1 の 3c）は字句種別 [`LineKind::IllustrationMemo`] を見て行う。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum Line<'a> {
     /// 場面見出し（§5.2.1 `scene_header`）。
@@ -446,7 +439,7 @@ fn parse_line<'a>(
         LineKind::SectionBreak => Line::Break(parse_break(raw)),
         LineKind::Comment { .. } => Line::Comment(parse_comment(raw)),
         // C 形式にフィールド行は無い（§5.0.5 の表、`TextFormat::allows_field`）。継続行も
-        // 一字下げ・段落字下げの本文なので [`Line::Text`]（B-31）。② の `! ` も本文
+        // 一字下げ・段落字下げの本文なので [`Line::Text`]（B-31）。`! ` 挿絵メモも本文
         LineKind::Field(_)
         | LineKind::Continuation { .. }
         | LineKind::IllustrationMemo(_)
@@ -562,7 +555,7 @@ pub(crate) fn parse_break<'a>(raw: &'a str) -> BreakLine<'a> {
 }
 
 pub(crate) fn parse_comment<'a>(raw: &'a str) -> CommentLine<'a> {
-    // Hash comments occupy the entire line, even when their text contains `//`.
+    // `#` の行コメントは行の全体を占める。その中に `//` があっても同じ（§5.0.8）。
     let comment = if raw.trim_start().starts_with('#') {
         whole_line_comment(raw)
     } else {
@@ -668,11 +661,10 @@ pub(crate) fn is_mode_id(text: &str) -> bool {
         .all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
-/// キャラ名（§5.5 `characters.md` の `# char_name`）。空白を含まないこと。
+/// キャラ名（§5.2.1 の `char_name`）。空白を含まない 1 文字以上。
 ///
-/// `char_name` は仕様書に文字種の定義が無いので「空白を含まない 1 字以上」とした
-/// （`docs/history.md` B-33）。名前の中に `:` があるとモード式と区別できないので、
-/// その行は話者注釈にならない（W002）。
+/// 名前の中に `:` があるとモード式と区別できないので、その行は話者注釈にならない
+/// （W002。[`split_speaker`] が `:` で切ってから `mode_expr` として読むため）。
 pub(crate) fn is_char_name(name: &str) -> bool {
     !name.is_empty() && !name.contains(lexer::is_space)
 }
@@ -728,7 +720,7 @@ fn escaped_positions(text: &str) -> Vec<usize> {
 /// `《` を左から見て、閉じ `》` があり読みが空でなければルビ。親文字が取れなければ
 /// （`｜` が無い・`《` の直前が漢字でない）ルビではなく本文のまま。`》` が行内に無ければ
 /// それ以降を見ない（§5.0.1「1 行は常に単独で字句解析できる」）。
-/// Ruby spans in a fragment, without interpreting structure or line sigils.
+/// 断片の中のルビ。構造も行頭の記号も解釈しない（§5.2.1）。
 pub fn rubies_of(text: &str) -> Vec<Ruby<'_>> {
     find_rubies(text, &escaped_positions(text))
 }
@@ -814,18 +806,15 @@ fn kanji_base(text: &str, open: usize) -> Option<Base<'_>> {
     })
 }
 
-/// 漢字（ルビの親文字になれる文字、§5.2.1 `kanji_run`）。定義は [`KANJI`] の doc を参照。
+/// 漢字（ルビの親文字になれる文字、§5.2.1 `kanji_run`）。範囲は
+/// [`crate::core::text::charclass::is_ruby_base_kanji`] を参照。
 fn is_kanji(c: char) -> bool {
-    let code = u32::from(c);
-    if KANJI_MARKS.contains(&code) {
-        return true;
-    }
-    KANJI.iter().any(|range| range.contains(&code))
+    charclass::is_kanji_mark(c) || charclass::is_ruby_base_kanji(c)
 }
 
 /// 行末コメント（§5.0.2）。`://` は URL なのでコメントにしない（字句器と同じ規則）。
 ///
-/// `.txt` 3 形式に共通の形なので A 形式（[`super::plot_outline`]）と B 形式
+/// `.cnov` 3 形式に共通の形なので A 形式（[`super::plot_outline`]）と B 形式
 /// （[`super::plot_episode`]）もこれを使う。[`Comment`] も同じ理由で共用する。
 pub(crate) fn find_comment(raw: &str) -> Option<Comment<'_>> {
     let start = lexer::find_line_comment(raw)?;

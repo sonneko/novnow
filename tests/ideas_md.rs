@@ -12,7 +12,7 @@ status: inbox            # inbox | keep | promoted | dropped
 created: 2026-10-09T12:04:11+09:00
 tags: 学院長, 動機
 relates: @02, 'アルス
-promoted-to: plots/02.txt#@02-03      # 昇格時のみ
+promoted-to: plots/02.cnov#@02-03      # 昇格時のみ
 本文は自由記述。改行もそのまま保持する。
 "#;
 
@@ -139,8 +139,7 @@ fn the_spec_example_reads_the_keys_of_the_table() {
 
 #[test]
 fn keys_outside_the_table_still_warn_and_keep_their_values() {
-    // §5.0.6 の表に無いキーは W011 ＋ 値を改変せず保持（縫い代 2）。② のキー（`flurb`）も
-    // ① では未知のまま（`docs/plans.md` §4.2）
+    // §5.0.6 の表に無いキーは W011 ＋ 値を改変せず保持（縫い代 2）
     let text = "# I0001 下書き\nstatus: inbox\nflurb: 一行紹介\nfoo: bar\n";
     assert_eq!(
         diags_tag(text),
@@ -153,6 +152,18 @@ fn keys_outside_the_table_still_warn_and_keep_their_values() {
 }
 
 #[test]
+fn the_meta_keys_are_read_through_their_japanese_aliases() {
+    // §5.0.6 の日本語別名は正準形と同じキー（`状況` = `status`、`昇格先` = `promoted-to`）
+    let text = "# I0001 下書き\n状況: keep\n昇格先: plots/02.cnov#@02-03\n";
+    assert_eq!(diags_tag(text), "");
+    let parsed = ideas_md::parse(text);
+    assert_eq!(parsed.status(0).unwrap().key, FieldKey::Status);
+    assert_eq!(parsed.status(0).unwrap().value, "keep");
+    assert_eq!(parsed.promoted_to(0).unwrap().key, FieldKey::PromotedTo);
+    assert_eq!(parsed.promoted_to(0).unwrap().value, "plots/02.cnov#@02-03");
+}
+
+#[test]
 fn the_spec_example_reads_the_meta_keys_from_the_table() {
     // §5.7 が定義する `status` `created` `relates` `promoted-to` は §5.0.6 の表に**正式追加**
     // された（第 2.6 版。`docs/history.md` A-15 の裁定＝すべて正式追加）ので W011 は出ない
@@ -162,7 +173,7 @@ fn the_spec_example_reads_the_meta_keys_from_the_table() {
 #[test]
 fn the_spec_example_keeps_the_values_of_the_meta_keys() {
     let parsed = ideas_md::parse(SPEC_EXAMPLE);
-    // §5.0.8 の `# ` 行コメントは ② なので、① では値の一部としてそのまま残る（B-36 と同じ）
+    // 行末の `# …` は `*.md` では見出しでもコメントでもないので、値の一部として残る（B-36 と同じ）
     assert_eq!(
         parsed.status(0).unwrap().value,
         "inbox            # inbox | keep | promoted | dropped"
@@ -177,7 +188,7 @@ fn the_spec_example_keeps_the_values_of_the_meta_keys() {
     );
     assert_eq!(
         parsed.promoted_to(0).unwrap().value,
-        "plots/02.txt#@02-03      # 昇格時のみ"
+        "plots/02.cnov#@02-03      # 昇格時のみ"
     );
 }
 

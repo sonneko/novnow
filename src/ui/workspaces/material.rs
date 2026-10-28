@@ -129,9 +129,9 @@ pub struct State {
     editor: slice_editor::Cache,
     form: Option<Form>,
     reveal: bool,
-    /// List highlight moved without opening/committing its text slice.
+    /// 一覧の選択だけを動かし、その資料の本文は開かず確定もしない（§10.5）。
     preview: bool,
-    /// Scroll the list once after a keyboard-only selection change.
+    /// キーだけで選択を動かした直後に、一覧を 1 回スクロールして見せる。
     scroll_list: bool,
 }
 
@@ -239,7 +239,7 @@ impl State {
         }
     }
 
-    /// Only move the list highlight; keep the current MD slice and unsaved buffer open.
+    /// 一覧の選択だけを動かす。いま開いている MD の Slice と未保存の入力はそのまま残す（§10.5）。
     pub fn preview_row(&mut self, bench: &Workbench, forward: bool) -> bool {
         let selected = self.selected.clone();
         let entries = self.entries(bench);
@@ -490,21 +490,38 @@ pub fn show(
                 .inner_margin(Margin::symmetric(16.0, 8.0)),
         )
         .show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                if super::action_button(ui, i18n::text(locale, "material.new_button")).clicked() {
+            // キー案内（項目ごとにボタン。実行はキーと同じ経路）
+            let guide = [
+                i18n::text(locale, "material.key_approve"),
+                i18n::text(locale, "material.key_reject"),
+                i18n::text(locale, "material.new_button"),
+                i18n::text(locale, "material.key_search"),
+                i18n::text(locale, "material.key_form"),
+            ];
+            match crate::ui::widgets::key_guide(
+                ui,
+                &guide,
+                FontId::new(11.0 * scale, FontFamily::Proportional),
+                &colors,
+            ) {
+                Some(0) => request = Some(Request::Down),
+                Some(1) => request = Some(Request::Drop),
+                Some(2) => {
                     request = Some(Request::Shortcut(crate::ui::shell::Command::InsertSection));
                 }
-                // Do not let the long keyboard guide expand the central panel
-                // and steal the width reserved for the material review form.
-                ui.add(
-                    egui::Label::new(
-                        RichText::new(i18n::text(locale, "material.keys"))
-                            .font(FontId::new(11.0 * scale, FontFamily::Proportional))
-                            .color(colors.fg_faint),
-                    )
-                    .truncate(true),
-                );
-            });
+                Some(3) => {
+                    request = Some(Request::Shortcut(crate::ui::shell::Command::MaterialSearch));
+                }
+                Some(4) => {
+                    // 審査フォームの最初の欄へ（`Tab` と同じ移動）
+                    if let Some(id) = state.current(bench).and_then(|entry| entry.id.clone()) {
+                        ui.ctx().memory_mut(|memory| {
+                            memory.request_focus(Id::new(("material-title", &id)));
+                        });
+                    }
+                }
+                _ => {}
+            }
             super::separator(ui, view.mode);
             match bench.slice().map(|slice| slice.path.clone()) {
                 Some(path) => {
@@ -762,12 +779,22 @@ fn form(
         view.mode,
         scale,
     );
-    ui.add(
+    let summary_field = ui.add(
         egui::TextEdit::multiline(&mut form.draft.summary)
             .id(Id::new(("material-summary", &id)))
             .font(font.clone())
             .desired_rows(2)
             .desired_width(f32::INFINITY),
+    );
+    // 編集面の左線（§9.2.4 の二段表示）
+    crate::ui::widgets::paint_field_accent(
+        ui,
+        summary_field.rect,
+        crate::ui::widgets::field_accent(
+            crate::ui::widgets::FieldState::Normal,
+            summary_field.has_focus(),
+            &crate::ui::theme::palette(view.mode),
+        ),
     );
     reference_pane::heading(
         ui,
@@ -788,13 +815,23 @@ fn form(
         view.mode,
         scale,
     );
-    ui.add(
+    let conditions_field = ui.add(
         egui::TextEdit::multiline(&mut form.draft.conditions)
             .id(Id::new(("material-conditions", &id)))
             .font(FontId::new(12.0 * scale, FontFamily::Monospace))
             .hint_text(i18n::text(locale, "material.conditions_hint"))
             .desired_rows(3)
             .desired_width(f32::INFINITY),
+    );
+    // 編集面の左線（§9.2.4 の二段表示）
+    crate::ui::widgets::paint_field_accent(
+        ui,
+        conditions_field.rect,
+        crate::ui::widgets::field_accent(
+            crate::ui::widgets::FieldState::Normal,
+            conditions_field.has_focus(),
+            &crate::ui::theme::palette(view.mode),
+        ),
     );
     reference_pane::heading(
         ui,
@@ -809,7 +846,7 @@ fn form(
             .hint_text(i18n::text(locale, "material.source_hint"))
             .desired_width(f32::INFINITY),
     );
-    // Open only explicit web URLs. The source field itself remains editable.
+    // 開くのは明示的な Web の URL だけ。出典の欄そのものは入力できるまま（§10.5.1）。
     let source = form.draft.source.trim();
     if source.starts_with("https://") || source.starts_with("http://") {
         crate::ui::widgets::external_link(ui, &format!("↗ {source}"), source, &colors);

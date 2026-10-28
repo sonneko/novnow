@@ -34,7 +34,7 @@
 use std::fs::{self, OpenOptions};
 use std::io::{self, Write};
 use std::path::{Component, Path, PathBuf};
-use std::sync::{Arc, PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{Arc, OnceLock, PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::time::UNIX_EPOCH;
 
 use crate::core::policy::write_policy::normalize;
@@ -474,23 +474,33 @@ fn io_error(path: &Path, error: &io::Error) -> StorageError {
 pub struct FsStorage {
     root: PathBuf,
     gate: Arc<FsGate>,
+    /// 書き込みできるかの判定（§4.1 の W041）。試し書きは 1 回だけ（`OnceLock`）。
+    writable: OnceLock<bool>,
 }
 
 impl FsStorage {
     /// 既存のディレクトリを開く（関門の許可をこのルートに切り替える）。
     pub fn open(gate: Arc<FsGate>, root: &Path) -> Result<Self, StorageError> {
         let root = gate.open_project(root)?;
-        Ok(Self { root, gate })
+        Ok(Self {
+            root,
+            gate,
+            writable: OnceLock::new(),
+        })
     }
 
     /// 新しいルート（無ければ作る）を開く（Zip の取り込み先・`novnow new`）。
     pub fn create(gate: Arc<FsGate>, root: &Path) -> Result<Self, StorageError> {
         let root = gate.create_project(root)?;
-        Ok(Self { root, gate })
+        Ok(Self {
+            root,
+            gate,
+            writable: OnceLock::new(),
+        })
     }
 
-    /// Reserve a new root exclusively. Never merge into an existing directory.
-    /// The parent must already exist; a failed write may leave a partial project.
+    /// 新しいルートを排他的に確保する。既にあるディレクトリへは決して相乗りしない。
+    /// 親は既に在ること。書き込みに失敗すると中途半端なプロジェクトが残りうる。
     pub fn create_fresh(gate: Arc<FsGate>, root: &Path) -> Result<Self, StorageError> {
         let parent = root
             .parent()
@@ -521,6 +531,27 @@ impl FsStorage {
     /// ルート（解決済みの絶対パス）。
     pub fn root(&self) -> &Path {
         &self.root
+    }
+
+    /// プロジェクトに書き込めるか（§4.1 の W041）。**プロジェクトの中へ 1 回だけ試し書き**をして決める。
+    ///
+    /// `.novnow/.write-probe` を書いてすぐ消す。読み取り専用でマウントされた媒体・書き込みを拒否する
+    /// サンドボックス・容量の尽きた領域は、モードビットを見るだけでは分からないので実際に書いてみる。
+    /// 書けなかったときは何も残らない（`.novnow/` も作れていない）。書けたときに残るのは空の
+    /// `.novnow/` だけで、これは実行時にどのみち作るディレクトリ（§4.4）。結果は 1 回だけ決めて覚える。
+    pub fn writable(&self) -> bool {
+        *self.writable.get_or_init(|| {
+            let dir = self.root.join(".novnow");
+            let probe = dir.join(".write-probe");
+            if self.gate.create_dir_all(&dir).is_err() {
+                return false;
+            }
+            if self.gate.write_atomic(&probe, b"").is_err() {
+                return false;
+            }
+            let _ = self.gate.remove_file(&probe);
+            true
+        })
     }
 
     /// 関門。
@@ -558,8 +589,8 @@ impl FsStorage {
         fs::read(&absolute).map_err(|error| self.map_read_error(path, &error))
     }
 
-    /// Save a structural move as one recoverable batch. All original bytes are captured
-    /// before mutation; any write/remove failure restores the entire batch through FsGate.
+    /// 構造の移動を 1 つの復旧可能な束として保存する。変える前の全 byte を控え、
+    /// 書き込み・削除のどれかが失敗したら `FsGate` 経由で束ごと元に戻す。
     pub fn write_batch(
         &self,
         writes: &[(ProjectPath, String)],
@@ -685,6 +716,9 @@ impl FsStorage {
 }
 
 impl Storage for FsStorage {
+    async fn writable(&self) -> Result<bool, StorageError> {
+        Ok(FsStorage::writable(self))
+    }
     async fn read_binary(&self, path: &ProjectPath) -> Result<Vec<u8>, StorageError> {
         self.read_bytes(path)
     }

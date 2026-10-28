@@ -38,6 +38,87 @@ class ReleasePolicy(unittest.TestCase):
             with self.assertRaises(ValueError):
                 matrix.verify_wheel(path, version, target)
 
+    def test_develop_scope_keeps_single_lightest_platform(self):
+        full_wheels = matrix.wheel_rows("0.1.0")
+        develop_wheels = matrix.filter_develop_rows(full_wheels)
+        self.assertEqual([row["target"] for row in full_wheels], list(matrix.TARGET_NAMES))
+        self.assertEqual([row["target"] for row in develop_wheels], [matrix.DEVELOP_TARGET])
+        full_desktop = matrix.desktop_rows("0.1.0")
+        develop_desktop = matrix.filter_develop_rows(full_desktop, nogui_only=True)
+        self.assertEqual(len(full_desktop), 10)
+        self.assertEqual(len(develop_desktop), 1)
+        self.assertEqual(develop_desktop[0]["target"], matrix.DEVELOP_TARGET)
+        self.assertEqual(develop_desktop[0]["gui"], "nogui")
+        self.assertEqual(matrix.python_versions_for_scope("full"), ["3.9", "3.11", "3.13"])
+        self.assertEqual(matrix.python_versions_for_scope("develop"), ["3.9", "3.13"])
+        with self.assertRaises(ValueError):
+            matrix.python_versions_for_scope("release")
+
+    def test_ci_workflows_share_one_scope_expression(self):
+        scope = (
+            "github.event_name == 'workflow_dispatch' && (inputs.scope || 'full') ||"
+            " (github.event_name == 'pull_request' && (github.base_ref == 'main' && 'full' || 'develop'))"
+            " || (github.ref_name == 'main' && 'full' || 'develop')"
+        )
+        normalized = " ".join(scope.split())
+        for workflow in ("wheels.yml", "desktop-check.yml", "pages-check.yml", "vscode.yml"):
+            text = (ROOT / ".github/workflows" / workflow).read_text()
+            flat = " ".join(text.split())
+            self.assertIn(normalized, flat, f"{workflow} の CI_SCOPE 判定が一致しない")
+            self.assertIn("type: choice", text, f"{workflow} の手動実行に scope 選択が無い")
+            self.assertIn("options: [full, develop]", text, f"{workflow} の scope 選択が full / develop ではない")
+
+    def test_develop_push_reports_required_platform_rows(self):
+        # 必須チェックの平台 2 行（wheels の Linux x64・desktop の Linux x64 nogui）を
+        # develop 自身の push でも報告するため、push トリガーが必要。
+        wheels = (ROOT / ".github/workflows" / "wheels.yml").read_text()
+        flat = " ".join(wheels.split())
+        self.assertIn("branches: [main, develop]", wheels)
+        self.assertIn("paths: [\"python/**\", \".github/workflows/wheels.yml\", \"src/**\", \"Cargo.toml\"]", flat)
+        self.assertIn("TestPyPI rehearsal requires the full scope", wheels)
+        desktop = (ROOT / ".github/workflows" / "desktop-check.yml").read_text()
+        self.assertIn("branches: [develop]", desktop)
+
+    def test_release_audit_takes_the_version_as_input(self):
+        """公開後の監査に版・操作数を書かない（リリースのたびに直す作業を作らない）。
+
+        v0.1.0 の監査は版を 3 か所に直書きし、操作数 119 を手で持ち、push トリガーで
+        版更新のたびに走って落ちていた。監査は Release の成功終了から起動し、
+        材料（版・タグ・操作数）はすべて実行時に取る。
+        """
+        text = (ROOT / ".github/workflows/release-audit.yml").read_text()
+        self.assertIn("workflow_run:", text)
+        self.assertIn("workflows: [Release]", text)
+        self.assertIn("workflow_dispatch:", text)
+        self.assertIn("INPUT_VERSION", text)
+        self.assertNotIn("push:", text.split("\njobs:", 1)[0], "監査を push で起動しない")
+        self.assertNotIn("VERSION: '0.", text)
+        self.assertNotIn("/pypi/novnow/0.", text)
+        self.assertIsNone(re.search(r"operations\(\)\) == \d", text), "操作数を手書きしない")
+        self.assertIn('tests/golden/api_catalog.json', text)
+        self.assertIn('git checkout --detach "$TAG"', text)
+
+    def test_required_check_names_do_not_embed_the_version(self):
+        """必須チェック名に版・成果物名を入れない（ruleset を版更新のたびに書き換えない）。
+
+        GitHub の必須チェックは名前の完全一致なので、行列の既定名（`build (…, 0.1.0, novnow-0.1.0-…)`）
+        を要求すると版を上げた瞬間に「報告待ち」で PR が止まる（v0.1.1 で実際に止まった）。
+        版と成果物名の一致は `release-matrix.py --check` と release の prepare が検査する。
+        """
+        expected = {
+            "wheels.yml": "name: wheel (${{ matrix.target }})",
+            "desktop-check.yml": "name: desktop (${{ matrix.target }}, ${{ matrix.gui }})",
+        }
+        for workflow, name in expected.items():
+            text = (ROOT / ".github/workflows" / workflow).read_text()
+            self.assertIn(name, text, f"{workflow} の build ジョブ名が安定名ではない")
+            job = text.split("\n  build:\n", 1)[1].split("\n    steps:", 1)[0]
+            names = [line.strip() for line in job.splitlines() if line.strip().startswith("name:")]
+            self.assertEqual(names, [name], f"{workflow} の build ジョブ名に版が混ざっている")
+        for workflow in ("wheels.yml", "desktop-check.yml"):
+            text = (ROOT / ".github/workflows" / workflow).read_text()
+            self.assertNotIn("name: build (${{", text)
+
     def test_supplementary_workflow_cannot_publish_to_pypi(self):
         text = (ROOT / ".github/workflows/wheels.yml").read_text()
         self.assertNotIn("publish_pypi", text)

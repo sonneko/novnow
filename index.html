@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#1a1a1a">
-    <meta name="novnow-version" content="0.1.0">
+    <meta name="novnow-version" content="0.1.1">
     <link data-trunk rel="copy-file" href="sw.js">
     <link data-trunk rel="copy-dir" href="licenses">
     <link data-trunk rel="copy-file" href="manifest.webmanifest">
@@ -40,7 +40,16 @@
     </style>
 </head>
 <body>
-    <div id="offline-status" role="status" aria-live="polite" style="position:fixed;bottom:0;right:0;z-index:10;font:12px sans-serif;color:#ccc;background:#1a1a1a;padding:2px 6px">Preparing offline / オフライン準備中</div>
+    <div id="offline-status" role="status" aria-live="polite" style="position:fixed;bottom:0;right:0;z-index:10;font:12px sans-serif;color:#ccc;background:#1a1a1a;padding:2px 6px">オフライン準備中</div>
+    <script>
+      // 入口ページの初期言語（§13.4.2）: 本体が読み込まれる前からブラウザのロケールで出す
+      (function () {
+        var ja = (navigator.language || '').toLowerCase().indexOf('ja') === 0;
+        document.documentElement.lang = ja ? 'ja' : 'en';
+        document.title = ja ? 'novnow — 小説プロジェクト向け執筆 IDE' : 'novnow — a writing IDE for novel projects';
+        if (!ja) document.getElementById('offline-status').textContent = 'Preparing offline';
+      })();
+    </script>
     <canvas id="the_canvas_id"></canvas>
     <script>
       if ('serviceWorker' in navigator) {
@@ -68,7 +77,7 @@
           }
         });
       } else {
-        document.getElementById('offline-status').textContent = 'Offline setup unavailable / オフライン非対応';
+        document.getElementById('offline-status').textContent = navigator.language.startsWith('ja') ? 'オフライン非対応' : 'Offline setup unavailable';
       }
     </script>
 </body>

@@ -31,9 +31,9 @@ fn create_writes_a_project_that_open_reads_back() {
         .run("project.info", json!({}))
         .expect("project.info");
     assert_eq!(info["title"], json!("星屑の時計"), "{info}");
-    assert!(path.join("project.json").exists(), "project.json が無い");
+    assert!(path.join("project.toml").exists(), "project.toml が無い");
     assert!(
-        path.join("contents/01-01.txt").exists(),
+        path.join("contents/01-01.cnov").exists(),
         "ひな形の本文が無い"
     );
     drop(session);
@@ -47,25 +47,25 @@ fn create_writes_a_project_that_open_reads_back() {
     session
         .run("nav.section", json!({ "scene": scene.clone() }))
         .expect("nav.section");
-    let before = std::fs::read_to_string(path.join("contents/01-01.txt")).expect("read");
+    let before = std::fs::read_to_string(path.join("contents/01-01.cnov")).expect("read");
     session
         .run(
             "section.write",
             json!({ "scene": scene.clone(), "text": "ディスクへ書く本文\n" }),
         )
         .expect("section.write");
-    let during = std::fs::read_to_string(path.join("contents/01-01.txt")).expect("read");
+    let during = std::fs::read_to_string(path.join("contents/01-01.cnov")).expect("read");
     assert_eq!(before, during, "save.now の前に書いている（§19.1.6）");
     let saved = session.run("save.now", json!({})).expect("save.now");
     assert_eq!(saved["state"], json!("clean"), "{saved}");
-    let after = std::fs::read_to_string(path.join("contents/01-01.txt")).expect("read");
+    let after = std::fs::read_to_string(path.join("contents/01-01.cnov")).expect("read");
     assert!(
         after.contains("ディスクへ書く本文"),
         "書いた本文がファイルに無い: {after}"
     );
 }
 
-/// プロジェクトの無いディレクトリは `project` 分類で断る（§14.2.4・§19.1.7）。
+/// プロジェクトの無いディレクトリは `project` 分類で断る（§4.3・§19.1.7）。
 #[test]
 fn opening_a_directory_without_a_project_is_a_project_error() {
     let dir = TempDir::new("api-open-empty");
@@ -117,7 +117,7 @@ fn open_with_declares_the_interface() {
             json!({ "scene": scene, "text": "その場で書き出す本文\n" }),
         )
         .expect("section.write");
-    let text = std::fs::read_to_string(path.join("contents/01-01.txt")).expect("read");
+    let text = std::fs::read_to_string(path.join("contents/01-01.cnov")).expect("read");
     assert!(
         text.contains("その場で書き出す本文"),
         "CLI の 1 実行で書き出されていない: {text}"

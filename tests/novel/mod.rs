@@ -25,18 +25,7 @@ use novnow::core::features::Project;
 use novnow::core::model::document::Document;
 use novnow::core::model::project::Project as Settings;
 
-pub const PROJECT_JSON: &str = r#"{
-  "schema_version": 1,
-  "title": "星屑の時計",
-  "export": {
-    "paragraph_break": "blank-line",
-    "indent_first_line": false,
-    "keep_ruby": true,
-    "insert_headings": false,
-    "newline": "crlf"
-  }
-}
-"#;
+pub const PROJECT_TOML: &str = "schema_version = 2\ntitle = \"星屑の時計\"\n\n[export]\nparagraph_break = \"blank-line\"\nindent_first_line = false\nkeep_ruby = true\ninsert_headings = false\nnewline = \"crlf\"\n";
 
 pub const ALL: &str = "// 全体プロット
 title: 星屑の時計
@@ -136,16 +125,16 @@ pub const EXPECTED: &str =
 /// ファイル（パス・中身）。
 pub fn files() -> Vec<(&'static str, &'static str)> {
     vec![
-        ("project.json", PROJECT_JSON),
+        ("project.toml", PROJECT_TOML),
         ("characters.md", world::CHARACTERS),
         ("words.md", world::WORDS),
         ("materials/index.json", world::INDEX),
-        ("plots/all.txt", ALL),
-        ("plots/01.txt", CHAPTER_01),
-        ("plots/01-01.txt", EPISODE_01_01),
-        ("contents/01-01.txt", CONTENTS_01_01),
-        ("contents/01-02.txt", CONTENTS_01_02),
-        ("contents/02-01.txt", CONTENTS_02_01),
+        ("plots/all.cnov", ALL),
+        ("plots/01.cnov", CHAPTER_01),
+        ("plots/01-01.cnov", EPISODE_01_01),
+        ("contents/01-01.cnov", CONTENTS_01_01),
+        ("contents/01-02.cnov", CONTENTS_01_02),
+        ("contents/02-01.cnov", CONTENTS_02_01),
     ]
 }
 

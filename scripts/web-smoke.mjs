@@ -80,7 +80,7 @@ async function launch(profile) {
 /** ダウンロード（GUID → ページが付けた名前と、終わったか）。 */
 const downloads = new Map();
 
-async function page(browser, setup) {
+async function page(browser, setup, language) {
   const tab = await browser.newPage();
   tab.on('console', (message) => {
     if (message.type() === 'error') console.log(`  [console.error] ${message.text().slice(0, 300)}`);
@@ -89,7 +89,7 @@ async function page(browser, setup) {
   // 画面の言語（novnow は navigator.language を見る。ヘッドレスは --lang を無視するので上書きする）
   await tab.evaluateOnNewDocument((language) => {
     Object.defineProperty(navigator, 'language', { get: () => language });
-  }, process.env.UI_LANG || 'ja-JP');
+  }, language || process.env.UI_LANG || 'ja-JP');
   await tab.setCacheEnabled(false);
   await tab.evaluateOnNewDocument(() => {
     for (const name of ['instantiate', 'instantiateStreaming']) {
@@ -218,6 +218,20 @@ async function main() {
     check(first?.projects.length === 1 && first.projects[0].id === 'sample', 'projects は sample の 1 件');
     if (!first) throw new Error('起動しなかった（00-picker.png を見る）');
     check((first?.app ?? []).length === 0, '開く前の app ストアは空');
+    // B8（§13.4.2）: 入口ページの初期言語は本体読み込み前からブラウザのロケールに従う
+    const entry = await tab.evaluate(() => ({
+      lang: document.documentElement.lang,
+      title: document.title,
+      status: document.getElementById('offline-status')?.textContent ?? '',
+    }));
+    const wantJa = (process.env.UI_LANG || 'ja-JP').startsWith('ja');
+    check(entry.lang === (wantJa ? 'ja' : 'en'), `B8: 入口ページの lang がロケールに従う（${entry.lang}）`);
+    check(wantJa ? entry.title.includes('小説') : entry.title.includes('writing IDE'), 'B8: 入口ページの題がロケールに従う');
+    check(wantJa ? /オフライン/.test(entry.status) : /offline/i.test(entry.status), 'B8: オフライン状態表示がロケールに従う');
+    const otherTab = await page(browser, null, wantJa ? 'en-US' : 'ja-JP');
+    const otherEntry = await otherTab.evaluate(() => ({ lang: document.documentElement.lang, title: document.title }));
+    check(otherEntry.lang === (wantJa ? 'en' : 'ja'), `B8: 反対ロケールでも初期表示が切り替わる（${otherEntry.lang}）`);
+    await otherTab.close();
     // Fresh profile + HTTP cache disabled: no online reload before disconnect.
     await tab.waitForFunction(() => document.getElementById('offline-status')?.dataset.ready === 'true', { timeout: 60000 });
     await tab.waitForFunction(() => navigator.serviceWorker.controller !== null);
@@ -257,8 +271,8 @@ async function main() {
     const opened = await db(tab);
     check(opened.app.length === 1 && opened.app[0].key === 'recent_projects', 'app ストアのキーは recent_projects だけ（§13.3.4）');
     check(opened.app[0]?.value?.items?.[0]?.id === 'sample', '履歴の先頭が sample');
-    const before = file(opened, 'sample', 'contents/01-04.txt');
-    check(before !== null, 'sample の本文 contents/01-04.txt がある');
+    const before = file(opened, 'sample', 'contents/01-04.cnov');
+    check(before !== null, 'sample の本文 contents/01-04.cnov がある');
     // F-01: photograph the glyph-free dark crescent and return to the
     // original system preference before checking the remaining workflows.
     await key(tab, 'Control+Alt+t');
@@ -288,7 +302,7 @@ async function main() {
     await key(tab, 'Enter');
     await tab.keyboard.type('Web で書き足した一文。');
     const saved = await until('打った本文の保存', async () => {
-      const text = file(await db(tab), 'sample', 'contents/01-04.txt');
+      const text = file(await db(tab), 'sample', 'contents/01-04.cnov');
       return text && text.includes('Web で書き足した一文。') ? text : null;
     });
     check(saved !== null, '打った本文が IndexedDB に保存された（§8.3）');
@@ -299,7 +313,7 @@ async function main() {
     await shot(tab, '02a-composing');
     await ime.send('Input.insertText', { text: '変換した。' });
     const composed = await until('IME で確定した字の保存', async () => {
-      const text = file(await db(tab), 'sample', 'contents/01-04.txt');
+      const text = file(await db(tab), 'sample', 'contents/01-04.cnov');
       return text && text.includes('一文。変換した。') ? text : null;
     });
     check(composed !== null && !composed.includes('へんかん'), 'IME の確定だけが本文に入った（変換中の字は入らない、§9.8.5）');
@@ -312,9 +326,18 @@ async function main() {
     await tab.screenshot({ path: path.join(OUT, '02c-narrow-unsaved.png') });
     await tab.setViewport({ width: 1280, height: 800 });
     await until('狭幅で打った字の保存', async () => {
-      const text = file(await db(tab), 'sample', 'contents/01-04.txt');
+      const text = file(await db(tab), 'sample', 'contents/01-04.cnov');
       return text?.includes('変換した。追') ? text : null;
     });
+    // B8（N29-07）: キーボードで節を移っても入力が続く（隠し入力欄の再フォーカスの回帰）
+    await key(tab, 'Alt+ArrowDown');
+    await sleep(300);
+    await tab.keyboard.type('節を移ってから書いた一文。');
+    const moved = await until('節移動後の入力の保存', async () => {
+      const text = file(await db(tab), 'sample', 'contents/01-04.cnov');
+      return text && text.includes('節を移ってから書いた一文。') ? text : null;
+    });
+    check(moved !== null, 'B8: 節移動後も入力が続く');
     // Stage two: reader controls may persist local reading state, never shared prose.
     const shared = (state, id) => state.files.filter((f) => f.project_id === id && !f.path.startsWith('.novnow/'))
       .map((f) => JSON.stringify([f.path, f.text, f.bytes])).sort();
@@ -412,7 +435,7 @@ async function main() {
     await sleep(2000);
     await shot(tab, '05-created');
     const createdState = await db(tab);
-    check(file(createdState, created?.id, 'project.json')?.includes('星屑の時計'), 'project.json の題が名前');
+    check(file(createdState, created?.id, 'project.toml')?.includes('星屑の時計'), 'project.toml の題が名前');
 
     // Binary assets use the same project-scoped IDB records and survive Zip round trips.
     const iconBytes = Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aB1sAAAAASUVORK5CYII=', 'base64'));
@@ -482,7 +505,7 @@ async function main() {
     });
     check(imported !== null, 'Zip を新しいプロジェクトとして取り込んだ（§13.5）');
     const importedState = await db(tab);
-    check(file(importedState, imported?.id, 'project.json')?.includes('星屑の時計'), '取り込んだ中身');
+    check(file(importedState, imported?.id, 'project.toml')?.includes('星屑の時計'), '取り込んだ中身');
     const importedIcon = importedState.files.find((entry) => entry.project_id === imported?.id && entry.path === 'assets/portrait.png');
     check(importedIcon && JSON.stringify(importedIcon.bytes) === JSON.stringify(iconBytes),
       '段階②: バイナリ画像が IndexedDB → Zip → IndexedDB でバイト単位に一致する');

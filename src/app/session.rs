@@ -6,7 +6,7 @@
 //! 同じ状態機械を表示するだけなので、同じ入力に同じ結果が返る（§19.1.1）。
 //!
 //! ```no_run
-//! use novnow::app::Session;
+//! use novnow::app::session::Session;
 //!
 //! # fn main() -> novnow::app::error::Result<()> {
 //! let mut session = Session::open("my-novel")?;
@@ -80,11 +80,11 @@ impl Interface {
 /// `Session::create` のオプション（§19.2.1。`novnow new` と同じ構造を作る）。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CreateOptions {
-    /// `project.json` の `title`（空ならディレクトリ名）。
+    /// `project.toml` の `title`（空ならディレクトリ名）。
     pub title: String,
-    /// `project.json` の `author`。
+    /// `project.toml` の `author`。
     pub author: String,
-    /// `project.json` の `language`（既定 `ja`）。
+    /// `project.toml` の `language`（既定 `ja`）。
     pub language: String,
 }
 
@@ -172,6 +172,8 @@ pub struct Session {
     pub(crate) saving: Option<BTreeMap<String, String>>,
     pub(crate) trace: Vec<Trace>,
     pub(crate) root: Option<std::path::PathBuf>,
+    /// プロジェクトが読み取り専用か（§4.1 の W041。開いたときの試し書きで決まる）。
+    pub(crate) read_only: bool,
 }
 
 impl Session {
@@ -187,6 +189,8 @@ impl Session {
 
     /// 読み込んだプロジェクトとホストから作る（GUI の `Session::new` と同じ手順）。
     pub fn from_project(host: Box<dyn Host>, project: Project, settings: &UiSettings) -> Self {
+        // 書き込みの可否は開いたときに 1 回だけ決める（§4.1 の W041。試し書きは実装が 1 回に抑える）
+        let read_only = !host.writable();
         let bench = Workbench::new(
             project,
             settings.last_scene.as_deref(),
@@ -213,6 +217,7 @@ impl Session {
             saving: None,
             trace: Vec::new(),
             root: None,
+            read_only,
         }
     }
 
@@ -277,8 +282,8 @@ impl Session {
             options.title.clone()
         };
         for file in template::new_project(&title) {
-            host.write(file.path, &file.text)
-                .map_err(|message| Error::io(message, Some(file.path)))?;
+            host.write(&file.path, &file.text)
+                .map_err(|message| Error::io(message, Some(file.path.as_str())))?;
         }
         Self::open_with(path, Interface::Rust)
     }
@@ -541,8 +546,25 @@ impl Session {
         self.root.as_deref()
     }
 
-    /// `agents/` の準備（欠けた既定プロンプトを書く。§15.5.4）。
+    /// プロジェクトが読み取り専用か（§4.1 の W041。開いたときの試し書きで決まる）。
+    ///
+    /// `true` のとき、自動作成・既定プロンプトの書き出しをせず、`project.validate` /
+    /// `diagnostics.run` は W041 を 1 件返す。編集・保存は止めない（保存は試して失敗を `SaveFailed` にする）。
+    pub fn read_only(&self) -> bool {
+        self.read_only
+    }
+
+    /// `agents/` の準備（欠けた既定プロンプトを書く。§15.5.4）。読み取り専用なら何も書かず W041 を返す。
     pub fn prepare_agents(&mut self) -> Option<String> {
+        if self.read_only {
+            return Some(i18n::diagnostic(
+                self.locale,
+                &crate::core::diagnostics::Diagnostic::simple(
+                    crate::core::diagnostics::DiagnosticCode::W041,
+                    None,
+                ),
+            ));
+        }
         agents::write_prompts(&mut self.bench, self.host.as_ref(), self.clock, self.locale)
     }
 
@@ -635,7 +657,7 @@ pub fn save_state_name(state: State) -> &'static str {
     }
 }
 
-/// §14.2.4 のプロジェクト不備を `Error` へ写像する（§19.1.7 の `project` / `io`）。
+/// §4.3 のプロジェクト不備を `Error` へ写像する（§19.1.7 の `project` / `io`）。
 #[cfg(not(target_arch = "wasm32"))]
 fn project_error(locale: Locale, error: &crate::core::model::project::ProjectError) -> Error {
     use crate::core::model::project::ProjectError;
@@ -1030,6 +1052,11 @@ impl<'s> SectionOps<'s> {
         // 節の削除（`section.delete`）。
         pub fn delete(scene: &str) -> "section.delete"
     );
+    /// 節の分割（`section.split`）。`at` は節のテキスト先頭からのバイト位置（§8.1.1）。
+    pub fn split(&mut self, scene: Option<&str>, at: usize) -> Result<Value> {
+        self.0
+            .run("section.split", json!({ "scene": scene, "at": at }))
+    }
     op!(
         // 次の未確認節の確認（`section.confirm_next`）。
         pub fn confirm_next() -> "section.confirm_next"

@@ -1,4 +1,4 @@
-//! 参照ペインの中身（§9.5.2。① の 6 セクション）を集める。
+//! 参照ペインの中身（§9.5.2 の 9 セクションのうち core が持つもの）を集める。
 //!
 //! LSP には対応しない補助（`docs/history.md` B-113）。**文言は持たない**（見出しの言葉は UI の
 //! `ui/i18n`、§12.2）。表示順と「内容が無ければ省く」は `resolve::context_rules::PaneSection`。
@@ -9,10 +9,14 @@
 //! | 2 上位プロット | 章プロット → 全体プロットの `summary` の 1 行目（計 2 行まで） |
 //! | 3 配役 | この節に出るキャラ（話者注釈・`'` 参照）の、この節で有効なモード（§6.4.6） |
 //! | 4 用語 | この節に出る用語の `term` と `definition` の 1 行目 |
-//! | 7 資料 | 明示参照（節の `'M…` / `'タイトル` と、話プロットの同じ節・場面レベルの `material:`）の後に、条件一致の候補（§16.4、M8）。引用注釈（`^M…`、§5.2.4）は ②（追加仕様 10） |
+//! | 5 五感 | 話プロットを節・場面の順に遡った `senses:`（[`crate::core::features::metadata::inherited`]） |
+//! | 6 空間 | 同じく `space:`。値が既存のファイルを指すならその全文（[`crate::core::features::metadata::asset_path`]）、`space-mode: ascii` を [`Reference::space_ascii`] に持つ |
+//! | 7 資料 | 明示参照（節の `'M…` / `'タイトル` と、話プロットの同じ節・場面レベルの `material:`）の後に、条件一致の候補（§16.4、M8）。引用注釈（`^M…`、§5.2.4）も並べる |
+//! | 8 挿絵 | 同じく `illustration:` と、節の本文の `! ` 行（§5.2.5、[`crate::core::annotations::illustration`]） |
 //! | 9 診断 | この節に掛かるもの。E → W の順（I は出さない） |
 //!
-//! 五感・空間・挿絵（5・6・8）は ②（`docs/history.md` の作業項目 7）。
+//! 5・6・8 は**内容が無ければ見出しごと出さない**（§9.5.2 MUST。判定は
+//! [`crate::core::resolve::context_rules::PaneSection::hides_heading_when_empty`]）。
 
 use std::collections::BTreeSet;
 use std::ops::Range;
@@ -28,11 +32,33 @@ use crate::core::resolve::modes;
 use crate::core::syntax::{contents, plot_outline};
 use crate::core::text::lexer::FieldKey;
 
+/// 行の移動先（§9.5.5）。GUI のダブルクリック／`Enter` と、ヘッドレスの
+/// `reference.pane` の返却値が同じ値を使う（表示文字列とは別に持つ）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Nav {
+    /// 話プロットの当該節（五感・空間・挿絵のフィールドもここへ寄せる）。
+    Plot(SceneId),
+    /// 章プロット／全体プロットの当該ブロック。
+    Outline(SceneId),
+    /// 配役画面の当該キャラ（`characters.md` の順序）。
+    Character(usize),
+    /// 用語の全文表示（`words.md` の順序。定義行へは飛ばない）。
+    Term(usize),
+    /// 資料を開く（明示参照）。
+    OpenMaterial(String),
+    /// 資料候補を話プロットの `material:` へ追加する（条件一致）。
+    AddMaterial(String),
+    /// 今の文書の該当箇所（診断。byte 範囲）。
+    At(Range<usize>),
+}
+
 /// 参照ペインの中身。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Reference {
     /// 1. 今の節のプロット（行ごと、書かれたまま）。
     pub plot: Vec<String>,
+    /// プロット・五感・空間・挿絵の行の移動先（話プロットの当該節）。
+    pub plot_nav: Option<Nav>,
     pub senses: Vec<String>,
     pub space: Vec<String>,
     pub space_ascii: bool,
@@ -71,6 +97,8 @@ pub struct Upper {
     pub id: String,
     /// `summary` の 1 行目。
     pub summary: String,
+    /// 移動先（当該ブロック）。
+    pub nav: Nav,
 }
 
 /// 配役の 1 人。
@@ -89,6 +117,8 @@ pub struct Cast {
     pub role: Option<String>,
     /// 役割語のパターン（鉤括弧を除いて書かれたまま。モード専用 ∪ キャラ共通）。
     pub tone: Vec<String>,
+    /// 移動先（配役画面の当該キャラ）。
+    pub nav: Nav,
 }
 
 /// 用語の 1 つ。
@@ -98,6 +128,8 @@ pub struct WordRef {
     pub term: String,
     /// `definition:` の 1 行目（無ければ空）。
     pub definition: String,
+    /// 移動先（用語の全文表示）。
+    pub nav: Nav,
 }
 
 /// 資料の 1 つ。
@@ -113,6 +145,8 @@ pub struct MaterialRef {
     pub source: String,
     /// 条件一致の候補か（§16.4。明示参照の後に薄い色で並べる。`false` = 明示参照）。
     pub candidate: bool,
+    /// 移動先（明示参照は開く、候補は追加する）。
+    pub nav: Nav,
 }
 
 /// `document`（本文）の節 `scene`（4 階層）の参照ペイン。`lines` は節の行（`sections::SectionRef::lines`）。
@@ -125,11 +159,11 @@ pub fn at(
     let parsed = contents::parse_with(&document.text, &project.contents_options());
     let starts = project::line_starts_of(&document.text);
     let byte_range = byte_range_of(&starts, &document.text, &lines);
-    let rows = crate::core::stage_two::metadata::records(project);
-    let get = |key| crate::core::stage_two::metadata::inherited(&rows, scene, key);
+    let rows = crate::core::features::metadata::records(project);
+    let get = |key| crate::core::features::metadata::inherited(&rows, scene, key);
     let space = get("space")
         .map(|s| {
-            crate::core::stage_two::metadata::asset_path(&s, false)
+            crate::core::features::metadata::asset_path(&s, false)
                 .and_then(|p| project.document(&p))
                 .map_or(s, |d| d.text.clone())
         })
@@ -142,6 +176,9 @@ pub fn at(
         }
     }
     Reference {
+        plot_nav: project
+            .episode_plot(scene.chapter, scene.episode)
+            .map(|_| Nav::Plot(scene)),
         senses: get("senses").into_iter().collect(),
         space_ascii: get("space-mode").as_deref() == Some("ascii"),
         space,
@@ -246,6 +283,7 @@ fn upper_plots(project: &Project, scene: SceneId) -> Vec<Upper> {
             out.push(Upper {
                 id: partial(&format!("{}-{}", want.chapter, want.episode), digits),
                 summary,
+                nav: Nav::Outline(want),
             });
         }
     }
@@ -260,6 +298,7 @@ fn upper_plots(project: &Project, scene: SceneId) -> Vec<Upper> {
             out.push(Upper {
                 id: partial(&want.chapter.to_string(), digits),
                 summary,
+                nav: Nav::Outline(want),
             });
         }
     }
@@ -391,7 +430,7 @@ pub(crate) fn cast_of(
             };
             let mut entry = Cast {
                 icon: first(FieldKey::Icon)
-                    .and_then(|p| crate::core::stage_two::metadata::asset_path(&p, true))
+                    .and_then(|p| crate::core::features::metadata::asset_path(&p, true))
                     .and_then(|p| project.assets.get(&p).cloned()),
                 name,
                 modes: assignment
@@ -409,6 +448,7 @@ pub(crate) fn cast_of(
                 emotion: None,
                 role: None,
                 tone: Vec::new(),
+                nav: Nav::Character(index),
             };
             for definition in &assignment.definitions {
                 let model = modes::to_model(definition, &characters);
@@ -464,6 +504,7 @@ fn words(document: &Document, lines: &Range<usize>, project: &Project) -> Vec<Wo
         out.push(WordRef {
             term: term.clone(),
             definition,
+            nav: Nav::Term(*index),
         });
     }
     out
@@ -525,6 +566,7 @@ fn materials(
                 .index
                 .as_ref()
                 .and_then(|parsed| parsed.items.iter().find(|item| item.id == id));
+            let candidate = at >= explicit;
             MaterialRef {
                 title: found.map(|item| item.title.clone()).unwrap_or_default(),
                 summary: found
@@ -533,8 +575,13 @@ fn materials(
                 source: found
                     .map(|item| item.source.shown().to_owned())
                     .unwrap_or_default(),
+                nav: if candidate {
+                    Nav::AddMaterial(id.clone())
+                } else {
+                    Nav::OpenMaterial(id.clone())
+                },
                 id,
-                candidate: at >= explicit,
+                candidate,
             }
         })
         .collect()

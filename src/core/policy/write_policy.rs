@@ -82,7 +82,7 @@ pub enum Violation {
 /// （`.zip` を装って原稿や設定ファイルを潰させないため）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ExportKind {
-    /// Zip（§13.5）。`.zip` だけ。
+    /// Zip（§13.5）。`.zip` と、プロジェクト全体のパッケージを表す `.novnow`（実体は通常の Zip）。
     Zip,
     /// アノテーションを除いたテキスト（§17.2）。`.txt` と `.md` だけ。
     Text,
@@ -92,7 +92,7 @@ impl ExportKind {
     /// 書ける拡張子（小文字。比べるときは大文字小文字を問わない）。
     pub fn extensions(self) -> &'static [&'static str] {
         match self {
-            Self::Zip => &["zip"],
+            Self::Zip => &["zip", "novnow"],
             Self::Text => &["txt", "md"],
         }
     }

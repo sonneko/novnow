@@ -21,7 +21,7 @@ use novnow::core::text::lexer::FieldKey;
 
 // ============================================================ フィクスチャ
 
-/// §5.4.3 の例（`plots/01-04.txt`）。**仕様のコード例をそのまま**使う（完了条件 1）。
+/// §5.4.3 の例（`plots/01-04.cnov`）。**仕様のコード例をそのまま**使う（完了条件 1）。
 ///
 /// `space:` の継続行は**字下げが値の一部**なので、行を並べて連結する
 /// （`"…\n\` の折り返しは次の行の先頭空白を落としてしまう）。
@@ -440,8 +440,8 @@ fn the_spec_example_reads_the_space_memo_as_a_continuation() {
     assert_eq!(line_tag_of(&text, 7), "cont(2)[┌────────┬────┐]");
 }
 
-/// ② のキー（`when` `space` `space-mode` `senses` `illustration`）は W011 になるが、
-/// **値は改変せずに保持する**（§5.0.6、`docs/history.md` の「② の生命線」）。
+/// ② のキー（`when` `space` `space-mode` `senses` `illustration`）も §5.0.6 の表にあり、
+/// キーとして解したうえで**値を改変せずに保持する**。
 #[test]
 fn the_spec_example_reads_stage_two_fields_and_keeps_their_values() {
     let text = spec_episode();

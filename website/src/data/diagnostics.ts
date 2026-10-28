@@ -140,9 +140,9 @@ export const diagnostics = [
   {
     "code": "E025",
     "severity": "E",
-    "condition": "JSON ファイルがパースできない（§4.3-4）",
-    "ja": "JSON として読み込めません: {0}",
-    "en": "Cannot parse as JSON: {0}",
+    "condition": "JSON / TOML ファイルがパースできない（§4.3-4）",
+    "ja": "読み込めません: {0}",
+    "en": "Cannot parse: {0}",
     "action": "既定値で開く / 手動で修正"
   },
   {
@@ -156,7 +156,7 @@ export const diagnostics = [
   {
     "code": "E027",
     "severity": "E",
-    "condition": "project.json` の `lexicon.word_classes` の正規表現が不正（§6.5.1）",
+    "condition": "project.toml` の `lexicon.word_classes` の正規表現が不正（§6.5.1）",
     "ja": "語クラス {0}の正規表現が不正です",
     "en": "Invalid regular expression for word class {0}",
     "action": "正規表現を直す / 項目を削除する"
@@ -304,14 +304,6 @@ export const diagnostics = [
     "ja": "prompts/ に既定プロンプトを作成しました",
     "en": "Created default prompts in prompts/",
     "action": "開く"
-  },
-  {
-    "code": "I051",
-    "severity": "I",
-    "condition": "未保存の変更がある",
-    "ja": "未保存の変更があります",
-    "en": "Unsaved changes",
-    "action": "今すぐ保存"
   },
   {
     "code": "E060",
@@ -476,7 +468,7 @@ export const diagnostics = [
   {
     "code": "W090",
     "severity": "W",
-    "condition": "1 節の台詞比率が `dialogue_ratio_target` を大きく外れる",
+    "condition": "1 節の台詞比率（§9.4.2 の算出）が `dialogue_ratio_target`（上限目安）を超える（文書全体ではなく節ごとに見る）",
     "ja": "台詞の比率が {0}% です（目安 {1}%）",
     "en": "Dialogue ratio is {0}% (target {1}%)",
     "action": "—"
@@ -520,6 +512,94 @@ export const diagnostics = [
     "ja": "自律タスクが上限に達したため停止しました（{0}）",
     "en": "Autonomous tasks stopped at the session limit ({0})",
     "action": "上限を引き上げる / 人間が引き継ぐ"
+  },
+  {
+    "code": "W096",
+    "severity": "W",
+    "condition": "台詞内の句読点直後の空白が作品内多数派と揃っていない（§7.2.2）",
+    "ja": "台詞内の句読点「{0}」の後の書き方が、作品内の大勢と揃っていません",
+    "en": "Spacing after \"{0}\" inside dialogue differs from the majority style in this work",
+    "action": "空白を多数派に合わせる"
+  },
+  {
+    "code": "W097",
+    "severity": "W",
+    "condition": "同じ文末尾で終わる文が 3 文連続（§7.2.3）",
+    "ja": "連続する 3 文の文末尾が同じです",
+    "en": "Three consecutive sentences end the same way",
+    "action": "—"
+  },
+  {
+    "code": "W098",
+    "severity": "W",
+    "condition": "1 場面で同じ語が 5 回以上（§7.2.4）",
+    "ja": "「{0}」はこの場面の中で繰り返されています（{1} 回）",
+    "en": "\\\"{0}\\\" is repeated in this scene ({1} times)",
+    "action": "用語辞書で類語を見る"
+  },
+  {
+    "code": "W099",
+    "severity": "W",
+    "condition": "同じ語が助詞・句読点のみを挟んで 2 回連続（§7.2.5）",
+    "ja": "同じ語が続けて繰り返されています: {0}",
+    "en": "Same word back to back: {0}",
+    "action": "片方を別の表現に"
+  },
+  {
+    "code": "W100",
+    "severity": "W",
+    "condition": "同じ文末助詞で終わる文が 3 文連続（§7.2.6）",
+    "ja": "同じ助詞で終わる文が 3 つ続いています（{0}）",
+    "en": "Three consecutive sentences end with the same particle ({0})",
+    "action": "文末を変える"
+  },
+  {
+    "code": "W101",
+    "severity": "W",
+    "condition": "同じ語で始まる文が 3 文連続（§7.2.7）",
+    "ja": "同じ語で始まる文が 3 つ続いています（{0}）",
+    "en": "Three consecutive sentences start with the same word ({0})",
+    "action": "主語を省く / 語順を変える"
+  },
+  {
+    "code": "W102",
+    "severity": "W",
+    "condition": "1 節で波ダッシュ「……」が 3 回以上（§7.2.8）",
+    "ja": "波ダッシュ「……」が多用されています（{0} 回）",
+    "en": "Many ellipses in this section ({0})",
+    "action": "一部を句点に"
+  },
+  {
+    "code": "W103",
+    "severity": "W",
+    "condition": "1 場面で不確か表現（固定リスト）の同じ語が 3 回以上（§7.2.9）",
+    "ja": "不確かな表現「{0}」が多用されています（{1} 回）",
+    "en": "The hedging word \\\"{0}\\\" is overused ({1} times)",
+    "action": "言い切る / 別の表現に"
+  },
+  {
+    "code": "W104",
+    "severity": "W",
+    "condition": "1 場面で同じ動詞語幹が 5 回以上（§7.2.10）",
+    "ja": "同じ動詞が繰り返されています（語幹「{0}」が {1} 回）",
+    "en": "The same verb is repeated ({1} forms of \\\"{0}\\\")",
+    "action": "別の動詞に / 一部を省略"
+  },
+  {
+    "code": "W105",
+    "severity": "W",
+    "condition": "1 場面で感嘆符が 5 回以上（§7.2.11）",
+    "ja": "感嘆符が多用されています（{0} 回）",
+    "en": "Many exclamation marks in this scene ({0})",
+    "action": "一部を句点に"
+  },
+  {
+    "code": "W106",
+    "severity": "W",
+    "condition": "1 節でダッシュ「——」が 4 回以上（§7.2.12）",
+    "ja": "ダッシュ「——」が多用されています（{0} 回）",
+    "en": "Many dashes in this section ({0})",
+    "action": "一部を句点・読点に"
   },
   {
     "code": "E032",
@@ -599,14 +679,6 @@ export const diagnostics = [
     "condition": "ローカル LLM の設定を書き込んだ（§15.8.4）",
     "ja": "agents/mcp.json にローカル LLM を登録しました",
     "en": "Registered the local LLM in agents/mcp.json",
-    "action": "開く"
-  },
-  {
-    "code": "I058",
-    "severity": "I",
-    "condition": "検索結果を資料化した（§16.3.1）",
-    "ja": "検索結果を {0}として保存しました",
-    "en": "Saved the search result as {0}",
     "action": "開く"
   }
 ] as const;

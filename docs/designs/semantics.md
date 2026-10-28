@@ -27,8 +27,9 @@
   - 位置の単位境界（`B-56`）: `scan_line` が返す `RefToken` の範囲は**行内相対 byte range**、診断 `Diagnostic` の範囲は `line_start` を加算した**ファイル単位の byte range** とする。
 
 - **[S-09 / F-23] 未知の `'` 参照の形態素解析境界と自動回復（実装完了: `REF:src/core/resolve/dictionary.rs`, `REF:src/ui/widgets/reference_pane.rs`）**:
-  - `REF:src/core/resolve/dictionary.rs` に文字種遷移（漢字・カタカナ・ひらがな・ASCII 英数字）および日本語助詞テーブルに基づく簡易形態素境界関数 `first_morpheme_end(text: &str) -> usize` を実装し、未解決参照 `E001` のスパン（赤波線範囲）を先頭 1 形態素に限定する。
+  - `REF:src/core/resolve/dictionary.rs` に、日本語助詞テーブルに基づく簡易形態素境界関数 `first_morpheme_end(text: &str) -> usize` を実装し、未解決参照 `E001` のスパン（赤波線範囲）を先頭 1 形態素に限定する。文字種（漢字・カタカナ・ひらがな・ASCII 英数字）の判定は `REF:src/core/text/charclass.rs` の `classify` が持つ。
   - `REF:src/core/features/code_action.rs` と `REF:src/ui/widgets/reference_pane.rs` で、切り出された 1 形態素を `words.md`（用語）または `characters.md`（登場人物）へワンクリック追加するアクションを提供する。
+- **文字種の範囲（実装完了: `REF:src/core/text/charclass.rs`, `REF:tests/text.rs`）**: 日本語かどうかの範囲は仕様 §6.2.6 の「文字種の範囲（全機能で共通の固定値）」の表が定める。実装は `REF:src/core/text/charclass.rs` の 8 述語（`classify` / `is_ruby_base_kanji` / `is_kanji_mark` / `is_body_japanese` / `is_body_latin` / `is_word_char` / `is_kana` / `is_halfwidth_katakana`）が唯一の置き場で、用途ごとに範囲が違うのは仕様どおり（拡張 A を形態素境界では記号にし、ルビの親文字では漢字に数える等）。範囲を変えるときは仕様の表を先に直す。
 
 ### 6.3 トークン種別（セマンティックトークン）
 
@@ -57,7 +58,7 @@
 - **役割語照合の内部規約（`REF:docs/history.md` の `A-21`, `A-23`, `B-68`〜`B-70`, `B-74`）**:
   - `^` / `$` の境界は発話を `。！？!?…` の連続の直後で区切った「文」（先頭の文末記号の連続は次の文に含め、前後空白は除く `role_language::sentences`）の先頭・末尾とし、`=` 前置パターンのみ発話全体とする（`A-23`, `B-74`）。
   - 緑下線から除外するのはワイルドカード `*` / `〜`（`[^\n]*?`）が消費した範囲のみとし、語クラス `(体言)` や `…`、`?` は下線範囲に含める（`A-21`, `B-68`）。
-  - 未定義の語クラス名 `(未知)` はリテラル文字列として扱い（`B-69`）、正規表現が不正な語クラス定義は `project_json` が `E027` を報告した上でマッチャから除外する（`A-24`）。
+  - 未定義の語クラス名 `(未知)` はリテラル文字列として扱い（`B-69`）、正規表現が不正な語クラス定義は `project_toml` が `E027` を報告した上でマッチャから除外する（`A-24`）。
 
 ### 6.6 資料 ID の解決とインレイヒント
 
@@ -71,7 +72,7 @@
 状態: 実装完了（REF:src/core/text/incremental.rs, REF:src/ui/widgets/section_editor.rs, REF:tests/editor_performance.rs）
 
 - ファイル全体の行種別キャッシュ `LineIndex` と 1 行編集時の再解析 `relex_line` / `relex_text` は `core::text::incremental`（`REF:src/core/text/incremental.rs`）に実装する。
-- 構造見出し `@` または節区切り `;` に関わる変更のみ `Renumber::From(line)` を返し、10 万行規模でも O(1) で 1 行再字句解析を完了する（検証: `REF:tests/incremental.rs`、ベンチマーク: `REF:benches/core.rs` の `single_line_relex`）。
+- 構造見出し `@` または節区切り `;` に関わる変更のみ `Renumber::From(line)` を返し、10 万行規模でも O(1) で 1 行再字句解析を完了する（検証: `REF:tests/incremental.rs`、ベンチマーク: `REF:benches/core.rs` の `single_line_relex`）。行数が変わる編集は `replace_lines` が種別に関係なく `Renumber::From(at)` を返し、`at` が行数を超えるときは末尾追加として扱う。
 
 - **[F-43] 打鍵時の編集中節のみの同期解析と他節デバウンス（実装完了: `REF:src/ui/widgets/section_editor.rs`, `REF:tests/editor_performance.rs`）**:
   - `REF:src/app/workbench.rs` と `REF:src/core/features/project.rs` で、打鍵フレーム内では編集中の 1 節スライスのみを対象にトークン化・ローカル診断・インレイヒント計算を行い、ファイル内他節の再構築とプロジェクト横断診断は 300ms デバウンス後に実行する。

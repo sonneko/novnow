@@ -10,7 +10,6 @@ pub mod model;
 pub mod policy;
 pub mod reader;
 pub mod resolve;
-pub mod stage_two;
 pub mod syntax;
 pub mod template;
 pub mod text;

@@ -42,7 +42,7 @@ fn episode_rows_are_scene_headers_and_sections_with_their_effective_state() {
             id(1, 1, 2, 1),
         ]
     );
-    let path = "plots/01-01.txt";
+    let path = "plots/01-01.cnov";
     assert!(rows[0].is_scene());
     assert_eq!(rows[0].summary, "放課後");
     assert_eq!(text_of(&project, path, &rows[0]), "@01-01-01 放課後");
@@ -90,7 +90,7 @@ fn a_missing_episode_plot_has_no_rows_and_the_nearest_row_falls_back() {
 
 /// 挿入した後の話プロットを読み直した行。
 fn rows_after(text: &str) -> (novnow::core::features::Project, Vec<EpisodeRow>) {
-    let project = novel::novel_with("plots/01-01.txt", text);
+    let project = novel::novel_with("plots/01-01.cnov", text);
     let rows = plots::episode_rows(&project, 1, 1);
     (project, rows)
 }
@@ -99,7 +99,7 @@ fn rows_after(text: &str) -> (novnow::core::features::Project, Vec<EpisodeRow>) 
 fn inserting_after_a_closed_section_adds_one_break_and_an_empty_section() {
     let project = novel::novel();
     let rows = plots::episode_rows(&project, 1, 1);
-    let text = project.text("plots/01-01.txt");
+    let text = project.text("plots/01-01.cnov");
     let (updated, at) = plots::insert_section(text, &rows, Some(1), id(1, 1, 1, 0), digits());
     let (_, after) = rows_after(&updated);
     let ids: Vec<SceneId> = after.iter().map(|row| row.id).collect();
@@ -122,7 +122,7 @@ fn inserting_after_a_closed_section_adds_one_break_and_an_empty_section() {
 fn inserting_after_the_last_unclosed_section_closes_it_first() {
     let project = novel::novel();
     let rows = plots::episode_rows(&project, 1, 1);
-    let text = project.text("plots/01-01.txt");
+    let text = project.text("plots/01-01.cnov");
     // `@01-01-02` の節 1 は `;` で閉じられていない（ファイルの最後）
     let (updated, at) = plots::insert_section(text, &rows, Some(5), id(1, 1, 2, 0), digits());
     let (_, after) = rows_after(&updated);
@@ -138,7 +138,7 @@ fn inserting_after_the_last_unclosed_section_closes_it_first() {
 fn inserting_at_a_scene_row_puts_an_empty_first_section_before_the_old_first() {
     let project = novel::novel();
     let rows = plots::episode_rows(&project, 1, 1);
-    let text = project.text("plots/01-01.txt");
+    let text = project.text("plots/01-01.cnov");
     let (updated, at) = plots::insert_section(text, &rows, Some(4), id(1, 1, 2, 0), digits());
     let (_, after) = rows_after(&updated);
     assert_eq!(after.len(), rows.len() + 1);
@@ -154,14 +154,14 @@ fn inserting_into_a_missing_episode_plot_writes_a_scene_header() {
     assert_eq!(text, "@01-02-03\n");
     assert_eq!(at, 1);
     // 見出しだけの場面には、見出しの直後に空の節の行がある（書き始める位置）
-    let project = novel::novel_with("plots/01-02.txt", &text);
+    let project = novel::novel_with("plots/01-02.cnov", &text);
     let rows = plots::episode_rows(&project, 1, 2);
     assert_eq!(rows.len(), 2);
     assert_eq!(rows[1].id, id(1, 2, 3, 1));
     assert_eq!(rows[1].lines, 1..1);
     let written = sections::splice_lines(&text, &(at..at), "最初の節");
     assert_eq!(written, "@01-02-03\n最初の節\n");
-    let project = novel::novel_with("plots/01-02.txt", &written);
+    let project = novel::novel_with("plots/01-02.cnov", &written);
     let rows = plots::episode_rows(&project, 1, 2);
     assert_eq!(rows.len(), 2);
     assert_eq!(rows[1].id, id(1, 2, 3, 1));
@@ -182,10 +182,10 @@ fn outline_blocks_list_chapters_and_episodes_with_their_summary_and_state() {
     assert_eq!(all[0].summary, "'アルス が地下遺跡に惹かれる導入章。");
     assert_eq!(all[0].state, Some(State::Review));
     assert_eq!(all[1].state, None);
-    assert_eq!(all[0].path, "plots/all.txt");
+    assert_eq!(all[0].path, "plots/all.cnov");
     // 見出しから（`;` と末尾の空行を含まない）
     assert_eq!(
-        sections::text_of_lines(project.text("plots/all.txt"), &all[0].lines),
+        sections::text_of_lines(project.text("plots/all.cnov"), &all[0].lines),
         "@01 失われた刻印\nsummary: 'アルス が地下遺跡に惹かれる導入章。\nstate: review"
     );
     let chapter = plots::outline_blocks(&project, Some(1));
@@ -212,12 +212,12 @@ fn chapters_and_episodes_come_from_plots_and_prose_files() {
 #[test]
 fn foreshadows_pair_seeds_and_payoffs_and_list_the_open_ones_first() {
     let project = novel::novel_with(
-        "plots/01.txt",
+        "plots/01.cnov",
         "@01-01 図書室の密談\nseed: F01 古い写し -> @02-01\nseed: F02 設計図の欠け\n;\n\n@01-02 旧校舎へ\npayoff: F03\n;\n",
     );
     let mut project = project;
     project.insert(novnow::core::model::document::Document::new(
-        "plots/02-01.txt",
+        "plots/02-01.cnov",
         "@02-01-01 補習\npayoff: F01\n補習で写しの意味に気づく。\n;\n",
     ));
     let found = plots::foreshadows(&project);
@@ -229,7 +229,7 @@ fn foreshadows_pair_seeds_and_payoffs_and_list_the_open_ones_first() {
     let f01 = &found[1];
     assert!(!f01.open());
     assert_eq!(f01.seeds[0].target, "@02-01");
-    assert_eq!(f01.payoffs[0].path, "plots/02-01.txt");
+    assert_eq!(f01.payoffs[0].path, "plots/02-01.cnov");
     assert_eq!(f01.payoffs[0].block, Some(id(2, 1, 1, 0)));
     assert!(found[2].seeds.is_empty(), "設置の無い回収");
 }
@@ -252,12 +252,12 @@ fn inserting_a_block_uses_the_next_number_and_closes_it() {
     assert_eq!(plots::next_block_id(&chapter, Some(1)), id(1, 3, 0, 0));
     assert_eq!(plots::next_block_id(&[], Some(4)), id(4, 1, 0, 0));
     // 選んだブロックの後ろ（`;` の次）に、空行を挟んで入れる
-    let text = project.text("plots/all.txt");
+    let text = project.text("plots/all.cnov");
     let (updated, at) = plots::insert_block(text, &all, Some(0), id(3, 0, 0, 0), digits());
     let lines: Vec<&str> = updated.split('\n').collect();
     assert_eq!(lines[at], "@03");
     assert_eq!(lines[at + 1], ";");
-    let project = novel::novel_with("plots/all.txt", &updated);
+    let project = novel::novel_with("plots/all.cnov", &updated);
     let ids: Vec<SceneId> = plots::outline_blocks(&project, None)
         .iter()
         .map(|block| block.id)
@@ -280,7 +280,7 @@ fn inserting_a_block_uses_the_next_number_and_closes_it() {
 #[test]
 fn the_progress_tree_sums_chars_and_targets_and_takes_the_slowest_state() {
     let project = novel::novel_with(
-        "plots/01-01.txt",
+        "plots/01-01.cnov",
         "@01-01-01 放課後\n二人が図書室で話す。\nlength: 100\nstate: fixed\n;\n'アルス が資料を見せる。\nlength: 50\n;\n'リリア が設計図を覗き込む。\nstate: draft\n;\n計画だけの節。\n\n@01-01-02 帰り道\n二人で帰る。\n",
     );
     let rows = plots::progress(&project);

@@ -4,7 +4,7 @@
 //! 書くのは呼び出し側（CLI の `novnow export`・GUI の `>export`）で、既定の名前は [`file_name`] が
 //! 作る（日時の文字列は呼び出し側が時計から作って渡す）。
 //!
-//! # 処理順（§17.1 の表。① は 3b / 3c / 5b / 10b を飛ばす、`docs/plans.md` §4.2 ）
+//! # 処理順（§17.1 の表。3b / 3c / 5b / 10b を含む全手順を行う）
 //!
 //! | # | 処理 | ここでの扱い |
 //! |---|---|---|
@@ -72,7 +72,7 @@ pub enum Break {
 }
 
 impl Break {
-    /// `project.json` の値から引く。表に無ければ `None`（呼び出し側は既定値に落とす）。
+    /// `project.toml` の値から引く。表に無ければ `None`（呼び出し側は既定値に落とす）。
     pub fn parse(text: &str) -> Option<Self> {
         match text {
             "blank-line" => Some(Self::BlankLine),
@@ -171,7 +171,7 @@ pub struct Options {
 }
 
 impl Options {
-    /// `project.json` の `export` から作る（`paragraph_break` が表に無い値なら既定の `blank-line`）。
+    /// `project.toml` の `export` から作る（`paragraph_break` が表に無い値なら既定の `blank-line`）。
     /// 形式は `.txt`、状態の絞り込みは無し。
     pub fn from_settings(export: &Export) -> Self {
         Self {
@@ -308,8 +308,8 @@ pub fn select_with(
 /// 節の実効の状態（`docs/history.md` B-122）。
 ///
 /// 近いものから順に見て、最初に書かれていたもの: 話プロット（B 形式）の**節**の `state` →
-/// 同じ場面の場面レベルの `state` → 章プロット（`plots/AA.txt`）の**話**のブロック → 全体プロット
-/// （`plots/all.txt`）の**章**のブロック。どこにも無ければ `draft`。値が `draft` / `review` /
+/// 同じ場面の場面レベルの `state` → 章プロット（`plots/AA.cnov`）の**話**のブロック → 全体プロット
+/// （`plots/all.cnov`）の**章**のブロック。どこにも無ければ `draft`。値が `draft` / `review` /
 /// `fixed` のどれでもなければ書かれていないものとして扱う。
 pub fn effective_state(project: &Project, id: SceneId) -> State {
     States::new(project).of(id)
@@ -511,7 +511,7 @@ pub fn render(project: &Project, chosen: &[SectionRef], options: &Options) -> St
         if previous.is_none_or(|id| id.chapter != section.id.chapter)
             && (options.include_blurb || options.blurb_only)
         {
-            let blurb = crate::core::stage_two::chapter_blurb(project, section.id.chapter);
+            let blurb = crate::core::features::chapter_blurb(project, section.id.chapter);
             if !blurb.is_empty() {
                 out.push(Out::Text(blurb));
                 out.push(Out::Blank);
@@ -794,7 +794,7 @@ fn finish(lines: Vec<Out>, options: &Options) -> String {
     out
 }
 
-/// Annotation-free fragment, shared by all stage-two measurements.
+/// 注釈をすべて取り除いた断片。段階 ② の計測はすべてこれを使う（§17.1）。
 pub fn plain(text: &str) -> String {
     fragment(text, false)
 }

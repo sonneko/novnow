@@ -1,6 +1,6 @@
 [package]
 name = "novnow-py"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 rust-version = "1.82"
 description = "novnow の Python API（§19.3）。Rust と同じ機能核をインプロセスで呼ぶ。"

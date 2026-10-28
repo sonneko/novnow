@@ -32,6 +32,8 @@
 - `core` 層は `BTreeMap` / `BTreeSet` と安定したタイブレーク規則（定義順・文字長・バイトオフセット順）を用い、乱数やシステム時刻を一切参照しない（`REF:tests/layering.rs` で強制）。
 - 曖昧検索スコアは `REF:src/app/palette.rs`、辞書最短一致は `REF:src/core/resolve/dictionary.rs`、AI コンテキスト切り詰めは `REF:src/core/aicontext/budget.rs` で決定論的に実装されている。
 
+- **[Issue #29] 固定モデルの扱い（方針の明記）**: 仕様 P4 のとおり、部品は実行時に乱数を必要としないものに限る。将来、小さな学習済みモデル（分かち書きの精度向上など）を足す場合は、全員に同じ学習結果を配布する固定物としてのみ入れ、サイズ・依存搬入（`REF:docs/add-dependencies.md`）・決定論の検証をその都度行う。当面は決定論ルールの逐次追加を基本路線とする。
+
 ### P5. AI に何を任せるかは人間が決め、その範囲で AI は自律に動く
 
 状態: 実装完了（REF:src/core/model/delegation.rs, REF:src/core/agents/runner.rs, REF:src/app/agents.rs）
@@ -39,7 +41,7 @@
 - 委譲レベル `DelegationLevel`（`Off` / `Propose` / `Apply` / `Autonomous`）と役割別設定は `REF:src/core/model/delegation.rs` で定義する。
 - タスク起票・自動連鎖上限・`state: fixed` 保護・監査ログ記録は `REF:src/core/agents/runner.rs` および `REF:src/core/agents/apply.rs` が純粋関数として判定し、`REF:src/app/agents.rs` が非同期実行を制御する（検証: `REF:tests/delegation.rs`）。
 - 委譲モデルの設計不変条件（`REF:docs/history.md` の `B-6`〜`B-13`）:
-  - 粒度は「全体既定＋役割ごと」のみとし、セッション一時上書きやタスク単位上書きは持たず `project.json` に永続化する。
+  - 粒度は「全体既定＋役割ごと」のみとし、セッション一時上書きやタスク単位上書きは持たず `project.toml` に永続化する。
   - 自律連鎖で次タスクを起票できるのは `integrator` のみとし、自動適用の検証ゲートは E 系診断の増加有無で判定する。
   - プロンプトの自動学習・自動書き換えは P5 に反するため実装しない（`REF:docs/history.md` の `F11`）。
 
@@ -93,13 +95,14 @@
 | 許可クレート | 用途 |
 |---|---|
 | `serde` / `serde_json` | 設定・索引・ゴールデンテストのシリアライズ |
-| `toml` | カタログ・設定の解析 |
+| `toml` / `toml_edit` | カタログ・設定の解析と `project.toml` の無損失編集 |
 | `regex` | 役割語マッチャ・字句解析 |
 | `aho-corasick` | 本文中の用語出現検出 |
 | `ropey` | Rope テキストバッファ（`REF:src/core/text/rope.rs`） |
 | `anyhow` / `thiserror` | エラー型定義 |
 | `unicode-normalization` | NFKC 正規化照合（`REF:src/core/resolve/dictionary.rs`） |
 | `tiniestsegmenter` | 未知の `'` 参照の形態素境界（`REF:src/core/resolve/dictionary.rs`、§6.2.6 / S-09） |
+| `encoding_rs` | Shift_JIS の読み替え（`REF:src/core/text/encoding.rs`、§14.6 / Issue #29 X1。用いるのは依存なしの構成） |
 
 `[dev-dependencies]` には AST 検査用の `syn`（`REF:tests/layering.rs`）とベンチマーク用の `criterion`（`REF:benches/core.rs`）のみを許可する。`core/` 内での `#[cfg(...)]` 条件コンパイルおよび `unsafe` は全面禁止とし、`REF:tests/layering.rs` で常時検査する。
 
@@ -112,8 +115,8 @@
 - `REF:src/main.rs`: エントリポイント（Windows の `AttachConsole` と CLI / Web 起動分岐）。
 - `REF:src/cli/mod.rs`, `REF:src/cli/open.rs`, `REF:src/cli/new.rs`, `REF:src/cli/check.rs`, `REF:src/cli/export.rs`, `REF:src/cli/mcp.rs`: CLI サブコマンド群。
 - `REF:src/core/id.rs`: `SceneId` / `PartialSceneId` / `RangeExpr`。
-- `REF:src/core/text/mod.rs`: `rope.rs`, `position.rs`, `lexer.rs`, `incremental.rs`, `sha256.rs`。
-- `REF:src/core/syntax/mod.rs`: `contents.rs`, `plot_outline.rs`, `plot_episode.rs`, `characters_md.rs`, `words_md.rs`, `ideas_md.rs`, `materials_index.rs`, `prompt_md.rs`, `project_json.rs`。
+- `REF:src/core/text/mod.rs`: `rope.rs`, `position.rs`, `lexer.rs`, `incremental.rs`, `sha256.rs`, `charclass.rs`（文字種）, `sentence.rs`（文の区切り）。
+- `REF:src/core/syntax/mod.rs`: `contents.rs`, `plot_outline.rs`, `plot_episode.rs`, `characters_md.rs`, `words_md.rs`, `ideas_md.rs`, `materials_index.rs`, `prompt_md.rs`, `project_toml.rs`。
 - `REF:src/core/model/mod.rs`: ドメインモデル型群。
 - `REF:src/core/resolve/mod.rs`: `dictionary.rs`, `modes.rs`, `role_language.rs`, `materials.rs`, `context_rules.rs`。
 - `REF:src/core/diagnostics.rs`: 76 診断コードの定義とメタデータ表。
@@ -121,11 +124,11 @@
 - `REF:src/core/policy/mod.rs`: `write_policy.rs`, `recent.rs`, `archive.rs`, `external_change.rs`。
 - `REF:src/core/export.rs`, `REF:src/core/template/mod.rs`, `REF:src/core/aicontext/mod.rs`, `REF:src/core/agents/mod.rs`。
 - `REF:src/ports/mod.rs` & `REF:src/adapters/mod.rs`: ポートと各環境アダプタ。
-- `REF:src/app/mod.rs`: 描画と無縁の状態機械（`workbench.rs`, `save_machine.rs`, `settings.rs`, `palette.rs`, `assist.rs`, `agents.rs`, `command.rs`, `commands.rs`, `host.rs`, `workspace.rs`）と外部インターフェースの機能核（§19: `error.rs`, `event.rs`, `session.rs`, `memory_host.rs`, `fs_host.rs`, `driver.rs` と `ops/` の 119 操作）。
-- `REF:src/ui/mod.rs`: `i18n/`, `app.rs`, `web.rs`, `shell.rs`, `theme.rs`, `widgets/`, `workspaces/`（`app` 層の 6 モジュールは再エクスポートで旧パスからも解決する）。
+- `REF:src/app/mod.rs`: 描画と無縁の状態機械（`workbench.rs`, `save_machine.rs`, `settings.rs`, `palette.rs`, `assist.rs`, `agents.rs`, `command.rs`, `commands.rs`, `host.rs`, `workspace.rs`）と外部インターフェースの機能核（§19: `error.rs`, `event.rs`, `session.rs`, `memory_host.rs`, `fs_host.rs`, `driver.rs` と `ops/` の 121 操作）。
+- `REF:src/ui/mod.rs`: `i18n/`, `app.rs`, `picker.rs`, `palette_items.rs`, `status.rs`, `web.rs`, `shell.rs`, `theme.rs`, `widgets/`, `workspaces/`（`app` 層の 6 モジュールは再エクスポートで旧パスからも解決する）。
 
 段階 ② の追加仕様を無改修で受け入れるための 10 個の拡張点（縫い代）を維持する:
-1. JSON 設定（`project.json` / `ui.json` / `index.json`）の未知キー温存（`#[serde(flatten)]`）。
+1. 設定ファイル（`project.toml` / `ui.json` / `index.json`）の未知キー温存（`#[serde(flatten)]` と `toml_edit` の無損失編集）。
 2. A/B/MD 形式の未知フィールド行の温存（`FieldKey::Unknown`）。
 3. 診断コード番号の予約領域の保護（`REF:src/core/diagnostics.rs`）。
 4. 行頭シジル判定の配列駆動（`SIGIL_TABLE`、`REF:src/core/text/lexer.rs`）。
@@ -156,6 +159,10 @@
 | `formatting` | `REF:src/core/features/formatting.rs` | `REF:src/ui/app.rs`（`>format`） |
 | `rename` | `REF:src/core/features/rename.rs` | `REF:src/ui/app.rs`（`F2` / `>rename`） |
 | `folding` | `REF:src/core/features/folding.rs` | `REF:src/ui/workspaces/plot_outline.rs`, `REF:src/ui/app.rs` |
+
+- **[Issue #29 / B5] 参照ペイン行への移動先の付与（実装完了: `REF:docs/plans.md#issue-29-b5`）**:
+  - `REF:src/core/features/reference.rs` の行モデルへ、表示文字列とは別に移動先 `Nav` を持たせた。GUI（§9.5.5）とヘッドレス（`reference.pane`、`REF:src/app/ops/knowledge.rs`）は同じ値を共有する。
+- **位置表現（実装完了: `REF:src/core/text/position.rs`, `REF:tests/position.rs`）**: `Utf8Byte ⇔ CharIndex ⇔ Utf16CodeUnit` の変換は `REF:src/core/text/position.rs` に集約する。行頭 byte offset の表 `LineTable` は LF だけを行区切りにし（空文書で 1 行、末尾 LF の後に空の 1 行）、範囲外はクランプしてパニックしない。
 
 ### 3.5 状態フロー（1 キーストロークの流れ）
 

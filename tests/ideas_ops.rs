@@ -88,7 +88,7 @@ fn promotion_targets_append_to_plots_words_and_characters() {
         section: 0,
     };
     // 閉じていない最後の節の後ろ: 閉じてから足す
-    let text = project.text("plots/01-01.txt");
+    let text = project.text("plots/01-01.cnov");
     let (updated, id) =
         ideas::append_plot_section(text, scene, &["時計塔の鐘".to_owned()], digits, &project);
     assert!(

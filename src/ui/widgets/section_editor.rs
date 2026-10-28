@@ -7,6 +7,7 @@
 //! - 行番号は**節内のローカル行番号**（1 始まり、§9.4.1）。折り返した行には番号を振らない。
 //! - ソフトラップ有り・横スクロール無し。
 //! - 節ごとに別の `Id` を使うので、undo の履歴は節ごとに残る（§8.6。戻ってくると復元される）。
+//!   履歴を持つのは**最近使った 20 節**まで（`KEPT_SECTIONS`。[`remember`] が古い節の state を捨てる）。
 //! - 貼り付け（`Event::Paste`）は改行をそのまま入れる。単独 `;` 行・場面見出し行（`@A-B-C`）が
 //!   含まれていれば [`apply_paste`] が節に分けて文書へ一括で反映する（§8.1.3）。
 //! - インレイヒント（§6.6.2）は [`crate::ui::widgets::inlay`] が隙間を空けて上から描く（B-137）。
@@ -54,11 +55,62 @@ impl Cache {
 }
 
 /// 節エディタの `TextEdit` の Id（節ごと）。
+///
+/// 節の ID だけでなく**開始行**も混ぜる。節を消すと後続の節番号は繰り上がる（§8.1.2）ので、ID だけを
+/// 鍵にすると「消えた節の履歴」が繰り上がってきた別の節に付いてしまい、取り消しで別の節の本文が
+/// 戻る。開始行が変われば別の Id になり、履歴は引き継がれない（節の中で改行しても開始行は動かない）。
 pub fn editor_id(bench: &Workbench) -> Id {
     match bench.current() {
-        Some(current) => Id::new(("section-editor", current.path.as_str(), current.id)),
+        Some(current) => Id::new((
+            "section-editor",
+            current.path.as_str(),
+            current.id,
+            current.lines.start,
+        )),
         None => Id::new("section-editor-empty"),
     }
+}
+
+/// 履歴を残す節の数（§8.6「直近 20 節分」）。
+const KEPT_SECTIONS: usize = 20;
+
+/// 「最近使った節」の並びを `ctx.memory` へ置くための Id。
+fn recent_key() -> Id {
+    Id::new("section-editor-recent")
+}
+
+/// この節の履歴を使ったと記録し、20 節を超えた古い節の履歴を捨てる（§8.6）。
+///
+/// 履歴の実体は egui の `TextEditState`（widget の Id ごとに `ctx.memory` が持つ undoer）なので、
+/// ここで決めるのは「どの節の履歴を残すか」だけ。捨てた節の Id の state を消すと、その節へ
+/// 戻ってきても履歴は復元されない。
+fn remember(ui: &Ui, id: Id) {
+    remember_id(ui.ctx(), id);
+}
+
+/// [`remember`] の中身（画面の外からも回せるように分けた。テストが 20 節の上限を見る）。
+pub fn remember_id(ctx: &egui::Context, id: Id) {
+    ctx.memory_mut(|memory| {
+        let mut recent: Vec<Id> = memory.data.get_temp(recent_key()).unwrap_or_default();
+        if recent.first() == Some(&id) {
+            return;
+        }
+        recent.retain(|other| *other != id);
+        recent.insert(0, id);
+        while recent.len() > KEPT_SECTIONS {
+            if let Some(evicted) = recent.pop() {
+                memory
+                    .data
+                    .remove::<egui::text_edit::TextEditState>(evicted);
+            }
+        }
+        memory.data.insert_temp(recent_key(), recent);
+    });
+}
+
+/// 履歴を残している節の Id（新しく使った順。テスト用）。
+pub fn recent_sections(ctx: &egui::Context) -> Vec<Id> {
+    ctx.memory(|memory| memory.data.get_temp(recent_key()).unwrap_or_default())
 }
 
 /// 節エディタの 1 フレームの結果。
@@ -166,28 +218,34 @@ pub struct Look {
     pub max_line_chars: usize,
     /// インレイヒントを出すなら、その文言の言語（`None` = 出さない。`Alt+H`、§6.6.2）。
     pub inlay: Option<Locale>,
+    /// 左線の状態（§9.2.4。提案モードの警告など、状態表示がある場合に渡す）。
+    pub field_state: crate::ui::widgets::FieldState,
 }
 
 /// 節エディタを描く。
-pub fn show(ui: &mut Ui, bench: &mut Workbench, cache: &mut Cache, look: Look) -> EditorOutput {
-    let ratio = crate::core::stage_two::metrics::section(bench.buffer()).ratio();
-    ui.add(
-        egui::ProgressBar::new(ratio as f32)
-            .show_percentage()
-            .desired_width(ui.available_width())
-            .fill(theme::palette(look.mode).fg_muted),
-    )
-    .on_hover_text(crate::ui::i18n::text(
-        look.inlay.unwrap_or(Locale::Ja),
-        "stage.dialogue_ratio",
-    ));
-    if bench.human_active() {
-        let rect = ui.max_rect();
-        ui.painter().line_segment(
-            [rect.left_top(), rect.left_bottom()],
-            egui::Stroke::new(3.0_f32, theme::palette(look.mode).warn),
-        );
+pub fn show(ui: &mut Ui, bench: &mut Workbench, cache: &mut Cache, mut look: Look) -> EditorOutput {
+    // 台詞比率バー（§9.4.2。幅 64px・高さ 4px・`fg.faint` 単色＋右に 10px の %）。
+    // 分母 0（空の節）では描かない。
+    let measured = crate::core::features::metrics::section(bench.buffer());
+    if measured.total > 0 {
+        crate::ui::widgets::ratio_bar(
+            ui,
+            measured.ratio(),
+            64.0 * look.scale,
+            look.scale,
+            &theme::palette(look.mode),
+        )
+        .on_hover_text(crate::ui::i18n::text(
+            look.inlay.unwrap_or(Locale::Ja),
+            "stage.dialogue_ratio",
+        ));
     }
+    // 左線の状態（§9.2.4）: 提案モード中は状態表示（警告）を優先する
+    look.field_state = if bench.human_active() {
+        crate::ui::widgets::FieldState::Warn
+    } else {
+        crate::ui::widgets::FieldState::Normal
+    };
     let id = editor_id(bench);
     apply_paste(ui, bench, id);
     let mut buffer = std::mem::take(bench.buffer_mut());
@@ -216,11 +274,13 @@ pub(crate) fn area(
     highlight: &mut dyn FnMut(&str) -> Highlight,
     look: Look,
 ) -> EditorOutput {
+    remember(ui, id);
     let Look {
         mode,
         scale,
         inlay,
         max_line_chars,
+        field_state,
     } = look;
     let colors = theme::palette(mode);
     let metrics = Metrics {
@@ -255,8 +315,8 @@ pub(crate) fn area(
                     }
                     ui.fonts(|fonts| fonts.layout_job(job))
                 };
-                // egui's built-in cursor spans the full 1.8× line-height.
-                // Keep its layout/IME geometry, but paint a font-sized caret.
+                // egui 本来のカーソルは行の高さ（1.8 倍）いっぱいに伸びる。
+                // 配置と IME の位置はそのままに、描くのは文字の大きさのキャレットにする。
                 let cursor_stroke = ui.visuals().text_cursor;
                 ui.visuals_mut().text_cursor.width = 0.0;
                 let output = TextEdit::multiline(buffer)
@@ -272,13 +332,22 @@ pub(crate) fn area(
                 if output.response.has_focus() {
                     if let Some(range) = &output.cursor_range {
                         let cursor = output.galley.pos_from_cursor(&range.primary);
-                        let center = cursor.center().y + output.galley_pos.y;
+                        // キャレットは行の中心ではなくベースライン・アセント基準で描く
+                        let row = output
+                            .galley
+                            .rows
+                            .iter()
+                            .find(|row| cursor.center().y <= row.rect.max.y)
+                            .or_else(|| output.galley.rows.last());
+                        let (baseline, ascent) = row.map_or((cursor.max.y, metrics.size), |row| {
+                            syntax_text::row_baseline(&output.galley, row)
+                        });
+                        let top = output.galley_pos.y + baseline - ascent;
                         let x = cursor.min.x + output.galley_pos.x;
-                        let half = metrics.size * 0.57;
                         ui.painter()
                             .with_clip_rect(output.response.rect.intersect(ui.clip_rect()))
                             .line_segment(
-                                [Pos2::new(x, center - half), Pos2::new(x, center + half)],
+                                [Pos2::new(x, top), Pos2::new(x, top + metrics.size * 1.14)],
                                 egui::Stroke::new(cursor_stroke.width, cursor_stroke.color),
                             );
                     }
@@ -294,15 +363,22 @@ pub(crate) fn area(
                         result.caret = Some(caret.translate(output.galley_pos.to_vec2()));
                     }
                 }
-                // Clip decorations to the TextEdit and the scroll viewport,
-                // independently of the gutter and the surrounding editor frame.
+                // 装飾は、行番号の溝やエディタの枠とは別に、TextEdit とスクロールの
+                // 可視範囲へ切り取る。
                 let text_clip = output.response.rect.intersect(ui.clip_rect());
                 let painter = ui.painter().with_clip_rect(text_clip);
                 if ui.ctx().data(|d| {
                     d.get_temp::<bool>(Id::new("suggest-comma"))
                         .unwrap_or(false)
                 }) {
-                    for at in crate::core::stage_two::metrics::comma_candidates(buffer, 40) {
+                    let limit = ui
+                        .ctx()
+                        .data(|d| d.get_temp::<usize>(Id::new("comma-limit")))
+                        .unwrap_or(120);
+                    for at in crate::core::features::metrics::comma_candidates(
+                        buffer,
+                        crate::core::features::metrics::CommaOptions::long(limit),
+                    ) {
                         let cursor = output
                             .galley
                             .from_ccursor(CCursor::new(buffer[..at].chars().count()));
@@ -310,9 +386,14 @@ pub(crate) fn area(
                             .galley
                             .pos_from_cursor(&cursor)
                             .translate(output.galley_pos.to_vec2());
+                        // §9.4.3: `fg.faint` の 40%・高さ 10px の縦線。文字は挿入しない。
+                        let center = rect.center();
                         painter.line_segment(
-                            [rect.left_top(), rect.left_bottom()],
-                            egui::Stroke::new(1.0_f32, colors.fg_faint),
+                            [
+                                egui::pos2(rect.left(), center.y - 5.0),
+                                egui::pos2(rect.left(), center.y + 5.0),
+                            ],
+                            egui::Stroke::new(1.0_f32, colors.fg_faint.gamma_multiply(0.4)),
                         );
                     }
                 }
@@ -339,35 +420,65 @@ pub(crate) fn area(
                 let gutter_painter = ui
                     .painter()
                     .with_clip_rect(gutter_rect.intersect(ui.clip_rect()));
+                let number_font = FontId::new(11.0 * scale, FontFamily::Monospace);
+                // 数字のグリフのベースライン（その Galley 内の位置）。本文の行の
+                // ベースラインと一致させて描く（行の中心基準では行間を変えるとずれる）
+                let number_baseline = ui.fonts(|fonts| {
+                    fonts
+                        .layout_no_wrap("0".to_owned(), number_font.clone(), colors.fg_faint)
+                        .rows
+                        .first()
+                        .and_then(|row| row.glyphs.first())
+                        .map_or(11.0 * scale * 0.8, |glyph| glyph.pos.y)
+                });
                 paint_line_numbers(
                     &gutter_painter,
                     gutter_rect.min.x + gutter - 8.0,
                     output.galley_pos,
                     &output.galley,
-                    FontId::new(11.0 * scale, FontFamily::Monospace),
+                    number_font,
+                    number_baseline,
                     colors.fg_faint,
+                );
+                // 編集面の左線（§9.2.4 の二段表示。状態表示があればそちら優先）
+                let line_rect = Rect::from_min_size(
+                    Pos2::new(gutter_rect.min.x, output.response.rect.min.y),
+                    Vec2::new(3.0, output.response.rect.height()),
+                );
+                gutter_painter.rect_filled(
+                    line_rect,
+                    0.0,
+                    crate::ui::widgets::field_accent(
+                        field_state,
+                        output.response.has_focus(),
+                        &colors,
+                    ),
                 );
             });
         });
     result
 }
 
-/// 論理行の 1 行目にだけ番号を振る（右寄せ）。
+/// 論理行の 1 行目にだけ番号を振る（右寄せ）。縦は本文の行のベースラインに
+/// 数字のベースラインを合わせる（`number_baseline` は数字の Galley 内のベースライン）。
+#[allow(clippy::too_many_arguments)]
 fn paint_line_numbers(
     painter: &egui::Painter,
     right: f32,
     origin: Pos2,
     galley: &Galley,
     font: FontId,
+    number_baseline: f32,
     color: egui::Color32,
 ) {
     let mut number = 1;
     let mut starts_line = true;
     for row in &galley.rows {
         if starts_line {
+            let (baseline, _) = syntax_text::row_baseline(galley, row);
             painter.text(
-                Pos2::new(right, origin.y + row.rect.center().y),
-                egui::Align2::RIGHT_CENTER,
+                Pos2::new(right, origin.y + baseline - number_baseline),
+                egui::Align2::RIGHT_TOP,
                 number.to_string(),
                 font.clone(),
                 color,
@@ -378,15 +489,15 @@ fn paint_line_numbers(
     }
 }
 
-/// Only the active section is analyzed synchronously while typing. Other sections
-/// retain their cached rendering until the workbench commits after the debounce.
+/// 入力中に同期的に解析するのは編集中の節だけ。他の節は、デバウンス後にワークベンチが
+/// 確定するまで、キャッシュ済みの描画をそのまま使う（§9.4.1）。
 pub fn highlight_of(bench: &Workbench, text: &str, hints: bool) -> Highlight {
     let Some(current) = bench.current() else {
         return Highlight::default();
     };
-    // A standalone scene with the same structural id provides the resolver with the
-    // correct plot context without rescanning a 100,000-character neighboring section.
-    // Empty preceding sections preserve the section number for mode/range resolution.
+    // 同じ構造 ID を持つ場面だけを渡すことで、隣の 10 万字の節を読み直さずに、
+    // モードと範囲の解決へ正しいプロットの文脈を渡す。
+    // 手前の節が空でも、節番号はモード・範囲の解決のためにそのまま使う。
     let displayed = current.id.display(bench.project().digits());
     let scene = displayed
         .rsplit_once('-')

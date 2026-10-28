@@ -281,7 +281,7 @@ pub fn changes(
 fn errors(found: Vec<Diagnostic>) -> Vec<Diagnostic> {
     found
         .into_iter()
-        .filter(|diagnostic| diagnostic.code.severity() == Severity::Error)
+        .filter(|diagnostic| diagnostic.severity() == Severity::Error)
         .collect()
 }
 

@@ -511,7 +511,7 @@ fn e006_offers_the_three_fixes_of_6_6_3() {
 
 #[test]
 fn e006_offers_all_three_fixes_when_another_material_has_the_written_title() {
-    // §6.6.3 のクイックフィックス 3（同名タイトルを持つ別 ID へ貼り替える）まで並ぶ（§19.9）
+    // §6.6.3 のクイックフィックス 3（同名タイトルを持つ別 ID へ貼り替える）まで並ぶ（§7 の E006 の行）
     let index = INDEX.replacen(
         "  \"next_id\": 138,\n  \"items\": [\n",
         "  \"next_id\": 142,\n  \"items\": [\n    { \"id\": \"M0141\", \"title\": \"科学の甲子園 地方大会の運営\", \"path\": \"materials/docs/M0141.md\", \"source\": { \"kind\": \"custom\", \"text\": \"取材\" }, \"category\": \"取材\", \"conditions\": [], \"saved_at\": \"2026-10-03T10:00:00+09:00\", \"tags\": [], \"status\": \"approved\", \"added_by\": \"human\" },\n",
@@ -709,4 +709,30 @@ fn closing_japanese_quotes_offer_speaker_and_mode_completion() {
     let text = "@01-04-02 x\n「行くぞ」@アルス:";
     let (_, items) = items_at(CONTENTS_PATH, text, text.len());
     assert!(labels(&items, CompletionKind::Mode).contains(&"A".to_owned()));
+}
+
+#[test]
+fn w096_quick_fix_matches_the_majority_spacing() {
+    // §7.2.2: 多数派（空白あり）へ寄せる 1 操作
+    let text = "@01-04-02 x\n\
+                「行くぞ！　待て」\n\
+                「止まれ！　聞け」\n\
+                「来い！　早く」\n\
+                「逃げろ！　今だ」\n\
+                「見ろ！　あれを」\n\
+                「進め！続け」\n";
+    let mut project = world_with(CONTENTS_PATH, text);
+    project.insert(Document::new(
+        "project.toml",
+        "schema_version = 2\n\n[features.diagnostics]\nW096 = \"warn\"\n",
+    ));
+    let document = doc(&project, CONTENTS_PATH);
+    let actions: Vec<CodeAction> = code_action::at(&document, 0..document.text.len(), &project)
+        .into_iter()
+        .filter(|action| action.diagnostic == DiagnosticCode::W096)
+        .collect();
+    assert_eq!(actions.len(), 1);
+    assert_eq!(actions[0].kind, ActionKind::MatchDialogueSpacing);
+    let fixed = after(&project, &actions[0].edit, CONTENTS_PATH);
+    assert!(fixed.contains("「進め！　続け」"), "{fixed}");
 }

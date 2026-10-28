@@ -11,6 +11,8 @@
 - 4 段階の委譲レベル（`off`, `propose`, `apply`, `autonomous`）と安全装置 A1〜A8（自動適用前の E 系診断検証ゲート、直前スナップショット `P####.diff` 保存、`state: fixed` 書き換え拒否と通知、連鎖上限・文字数上限・総停止）は `REF:src/core/model/delegation.rs`, `REF:src/core/agents/apply.rs`, `REF:src/core/agents/runner.rs` に実装する（検証: `REF:tests/delegation.rs`）。
 - 自動適用ゲート（`apply::validate`）は対象ファイルを仮想的に書き換えた上で E 系診断件数が適用前より増加しないことを必須条件とし、1 件でも増加する場合は自動適用を拒否して `awaiting_review`（`E035`）へフォールバックさせる（`B-10`, `B-91`）。
 
+- **[Issue #29] エージェント機能の凍結（方針の明記）**: 仕様 §15.1 の A9 のとおり、エージェント機能は現行の §15 の範囲で凍結する。以後の作業は不具合修正と形式・診断変更への追随に限る。
+
 ### 15.2 役割（6 + 統合）
 
 状態: 実装完了（REF:src/core/syntax/prompt_md.rs, REF:src/core/agents/runner.rs, REF:tests/agents_files.rs）

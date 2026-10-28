@@ -52,6 +52,8 @@ pub struct Palette {
     pub border: Color32,
     /// `accent` フォーカス・リンク・選択中。
     pub accent: Color32,
+    /// `accent.faint` 編集面左線の淡色（§9.2.4。装飾色でコントラスト比の基準の対象外）。
+    pub accent_faint: Color32,
     /// `state.unsaved` 未保存。
     pub unsaved: Color32,
     /// `state.error` エラー。
@@ -79,6 +81,7 @@ pub const fn palette(mode: Mode) -> Palette {
             fg_faint: hex(0x82878E),
             border: hex(0x2A2E35),
             accent: hex(0x6FA8FF),
+            accent_faint: hex(0x354A6B),
             unsaved: hex(0xE8A33D),
             error: hex(0xE5484D),
             warn: hex(0xD8A200),
@@ -94,6 +97,7 @@ pub const fn palette(mode: Mode) -> Palette {
             fg_faint: hex(0x727479),
             border: hex(0xDEDED9),
             accent: hex(0x1D5FD0),
+            accent_faint: hex(0xADC4EB),
             unsaved: hex(0xB9720A),
             error: hex(0xC62A2F),
             warn: hex(0x8F6B00),
@@ -309,7 +313,7 @@ pub fn paint_theme_icon(
     match choice {
         ThemeChoice::System => {
             painter.circle_stroke(center, 7.0, Stroke::new(1.5_f32, ink));
-            // Left half-disc, curved with a cubic Bézier instead of a font glyph.
+            // 左半分の円盤。フォントの字形ではなく 3 次ベジェで描く（§11.4.1）。
             let mut points = curve([
                 point(0.0, -6.0),
                 point(-8.0, -6.0),
@@ -320,8 +324,8 @@ pub fn paint_theme_icon(
             painter.add(egui::Shape::convex_polygon(points, ink, Stroke::NONE));
         }
         ThemeChoice::Dark => {
-            // A filled crescent made from two cubic Bézier arcs. In particular,
-            // this does not paint a background-colored circle over adjacent UI.
+            // 3 次ベジェ 2 本で作る、塗りつぶした三日月。隣の表示の上に背景色の円を
+            // 重ねて抜く、という描き方はしない（§11.4.1）。
             let mut points = curve([
                 point(3.0, -7.0),
                 point(-9.0, -9.0),

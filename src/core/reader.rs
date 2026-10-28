@@ -1,4 +1,4 @@
-//! Pure reader composition with injected font advances and page geometry.
+//! 読者モードの純粋な組版（§17.3.3）。字送りと版面の寸法は呼び出し側が渡す（core はフォントも GUI も知らない）。
 use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(default)]
@@ -16,11 +16,13 @@ impl Default for Options {
         }
     }
 }
-/// Font measurements are supplied by the caller; core never accesses a font or GUI.
+/// フォントの寸法は呼び出し側が渡す。core はフォントにも GUI にも触れない（§3.2）。
 #[derive(Debug, Clone)]
 pub struct Metrics {
     pub advance: f32,
     pub line_advance: f32,
+    /// 使用フォントに縦書き字形として収録されているコードポイント。括弧については
+    /// 置換先の互換形（[`VERTICAL_FORMS`] の第 2 要素）、長音・ダッシュについては字そのものを入れる。
     pub vertical_forms: std::collections::BTreeSet<char>,
     pub glyph_advances: std::collections::BTreeMap<char, f32>,
 }
@@ -131,33 +133,39 @@ fn units(text: &str, vertical: bool) -> Vec<Unit> {
     }
     result
 }
-/// Unicode vertical forms are a deterministic fallback when GSUB is unavailable.
+/// 括弧とその縦書き互換形（Unicode の縦書き提示形）。UI は使用フォントに
+/// 互換形が収録されているかを確かめて [`Metrics::vertical_forms`] へ渡す。
+/// i18n: format-vocabulary
+pub const VERTICAL_FORMS: &[(char, char)] = &[
+    ('（', '︵'),
+    ('）', '︶'),
+    ('［', '﹇'),
+    ('］', '﹈'),
+    ('｛', '︷'),
+    ('｝', '︸'),
+    ('「', '﹁'),
+    ('」', '﹂'),
+    ('『', '﹃'),
+    ('』', '﹄'),
+    ('【', '︻'),
+    ('】', '︼'),
+    ('〈', '︿'),
+    ('〉', '﹀'),
+    ('《', '︽'),
+    ('》', '︾'),
+];
+
 fn vertical_char(ch: char) -> char {
-    match ch {
-        '（' => '︵',
-        '）' => '︶',
-        '［' => '﹇',
-        '］' => '﹈',
-        '｛' => '︷',
-        '｝' => '︸',
-        '「' => '﹁',
-        '」' => '﹂',
-        '『' => '﹃',
-        '』' => '﹄',
-        '【' => '︻',
-        '】' => '︼',
-        '〈' => '︿',
-        '〉' => '﹀',
-        '《' => '︽',
-        '》' => '︾',
-        _ => ch,
-    }
+    VERTICAL_FORMS
+        .iter()
+        .find(|(from, _)| *from == ch)
+        .map_or(ch, |(_, to)| *to)
 }
-/// Cell-coordinate convenience wrapper; use `layout` for measured font advances.
+/// 字送りを 1 文字 = 1 マスとして組む簡易版。実際のフォントの字送りで組むときは [`layout`]。
 pub fn layout_cells(text: &str, options: Options) -> Vec<Page> {
     layout(text, options, &Metrics::default())
 }
-/// Font advances and vertical-form availability must be injected by the caller.
+/// 字送りと縦書き字形の有無は呼び出し側が [`Metrics`] で渡す（§17.3.3）。
 pub fn layout(text: &str, options: Options, metrics: &Metrics) -> Vec<Page> {
     let rows = options.rows.clamp(1, 100);
     let columns = options.columns.clamp(1, 100);
@@ -233,19 +241,30 @@ pub fn layout(text: &str, options: Options, metrics: &Metrics) -> Vec<Page> {
                 .filter(|n| n.is_finite() && *n > 0.0)
                 .unwrap_or(advance);
             feed += if unit.compact { advance } else { measured };
+            // 括弧の互換形への置換は、使用フォントに互換形が収録されている場合だけ（§17.3.3）。
+            // 収録が無ければ元の括弧を 90° 回転して描く（互換形の豆腐を出さない）。
+            let mut text = unit.text;
+            let mut rotate = unit.rotate
+                && !(metrics.vertical_forms.contains(&unit.ch)
+                    && VERTICAL_ROTATE.contains(unit.ch));
+            if options.vertical && !unit.compact {
+                let form = vertical_char(unit.ch);
+                if form != unit.ch {
+                    if metrics.vertical_forms.contains(&form) {
+                        text = form.to_string();
+                        rotate = false;
+                    } else {
+                        rotate = true;
+                    }
+                }
+            }
             pages.last_mut().unwrap().glyphs.push(Glyph {
                 ch: unit.ch,
-                text: if options.vertical && !unit.compact {
-                    vertical_char(unit.ch).to_string()
-                } else {
-                    unit.text
-                },
+                text,
                 ruby: unit.ruby,
                 row,
                 column,
-                rotate: unit.rotate
-                    && !(metrics.vertical_forms.contains(&unit.ch)
-                        && VERTICAL_ROTATE.contains(unit.ch)),
+                rotate,
                 compact: unit.compact,
                 punctuation,
                 x: x + if punctuation { line_advance * 0.5 } else { 0.0 },

@@ -556,9 +556,8 @@ fn known_markdown_keys_are_read_without_a_warning() {
 }
 
 #[test]
-fn unknown_keys_warn_and_keep_their_values() {
-    // `address:` は ②（追加仕様 8）、`icon:` は ②（追加仕様 24）。
-    // `docs/history.md` 作業項目 3「実装しないが未知フィールドとして保持されること」
+fn stage_two_keys_keep_their_values() {
+    // `address:`（§5.5.6）と `icon:`（§5.5.3）は §5.0.6 の表にあるので W011 は出ない
     let text = "# 恵\naddress: '葵あおい => あおいちゃん\nicon: assets/icons/megumi.png\n";
     assert_eq!(diags_tag(text), "");
     let parsed = characters_md::parse(text);

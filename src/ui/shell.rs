@@ -128,8 +128,10 @@ pub fn command_of(
         Key::Escape => Command::Escape,
         Key::Enter if ctrl && !alt && !shift => Command::ConfirmNext,
         Key::Semicolon if ctrl && !alt && !shift => Command::NewSection,
-        // `Shift+;` は配列によって `:` として来る
-        Key::Semicolon | Key::Colon if ctrl && !alt && shift => Command::DeleteSection,
+        // `Shift+;` は配列によって `:` として来る。`:` は Shift 無しで出る配列（JIS）もある
+        Key::Semicolon if ctrl && !alt && shift => Command::DeleteSection,
+        Key::Colon if ctrl && !alt => Command::DeleteSection,
+        Key::Delete if ctrl && !alt && shift => Command::DeleteSection,
         Key::F if ctrl && !alt && shift => Command::Search,
         Key::F if ctrl && !alt => Command::Find,
         Key::H if ctrl && !alt && !shift => Command::Replace,
@@ -274,9 +276,9 @@ pub fn take_commands_in(
             None => true,
         }
     });
-    // eframe can deliver a printable Text event alongside Alt+digit when no text
-    // agent was focused (notably Reader -> an editable workspace). Consume the
-    // associated character too, without dropping unrelated typing or IME commits.
+    // テキストの入力欄にフォーカスが無いとき（とくに読者モードから編集できる画面へ
+    // 移った直後）、eframe は Alt+数字と一緒に印字可能な Text イベントも届けることが
+    // ある。その文字も飲み込み、無関係な入力や IME の確定は落とさない。
     input.events.retain(|event|!matches!(event,Event::Text(text)if shortcut_text.iter().any(|key|text.eq_ignore_ascii_case(key))));
     // `?` は Text イベントとして来ることもある（キー配列による）
     if !text_focused && !out.contains(&Command::Help) {

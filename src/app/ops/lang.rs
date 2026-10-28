@@ -286,6 +286,12 @@ pub fn diagnostics_run(session: &mut Session, args: &Args) -> Result<Value> {
     documents.sort_by(|a, b| a.path.cmp(&b.path));
     let mut items = Vec::new();
     let mut errors = 0;
+    // 読み取り専用のプロジェクトでは W041 を 1 件先頭に置く（§4.1。プロジェクト全体を見るときだけ）
+    if path.is_none() && partial.is_none() && scope.is_empty() {
+        if let Some(notice) = crate::app::ops::project::read_only_notice(session, locale) {
+            items.push(notice);
+        }
+    }
     for document in documents {
         if let Some(wanted) = path.as_deref() {
             if document.path != wanted {

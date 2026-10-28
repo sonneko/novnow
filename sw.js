@@ -1,6 +1,6 @@
 /* The post_build hook seals every app asset into this worker. Installation
    succeeds only after the complete first-load offline application is cached. */
-const CACHE = 'novnow-offline-0.1.0';
+const CACHE = 'novnow-offline-0.1.1';
 const BUILD = 'unsealed';
 const PRECACHE = null;
 const CURRENT = `${CACHE}-${BUILD}`;

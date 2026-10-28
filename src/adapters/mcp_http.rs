@@ -1,4 +1,5 @@
-//! Bounded loopback HTTP MCP transport. This speaks JSON-RPC MCP, never a provider API.
+//! 上限付きの、ループバック（localhost）向け HTTP の MCP 転送（§15.8.1）。
+//! 話すのは JSON-RPC の MCP だけで、LLM 事業者の API へは決して話さない。
 use crate::{
     core::agents::{cap_output, runner},
     ports::mcp::{McpCall, McpError, McpReply, McpServer},
@@ -152,7 +153,7 @@ impl Link<'_> {
             .ok_or_else(|| failed("missing MCP result"))
     }
 }
-/// Bounded incremental chunk decoder. `None` means more bytes are needed.
+/// 上限付きの分割読み（chunked）デコーダ。`None` は「まだ byte が足りない」の意。
 fn decode_chunks(body: &[u8]) -> Result<Option<Vec<u8>>, McpError> {
     let mut at = 0;
     let mut output = Vec::new();
@@ -190,7 +191,7 @@ pub fn call(server: &McpServer, call: &McpCall, cancel: &AtomicBool) -> Result<M
         .args
         .first()
         .ok_or_else(|| failed("missing MCP URL"))?;
-    if !crate::core::stage_two::local_llm::is_loopback(url) {
+    if !crate::core::features::local_llm::is_loopback(url) {
         return Err(failed("loopback MCP URL required"));
     }
     let rest = url

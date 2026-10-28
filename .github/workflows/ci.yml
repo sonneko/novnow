@@ -14,9 +14,10 @@ name: CI
 # 2. `fmt` (Rustfmt)
 # 3. `clippy` (Clippy: GUI あり + GUI なし)
 # 4. `test` (Test: GUI あり全ターゲット + GUI なし CLI)
-# 5. `wasm` (WASM Build Check: wasm32 check + trunk build --release & 8MiB サイズ検査 + windows check)
+# 5. `wasm` (WASM Build Check: trunk build --release & 8MiB サイズ検査 + windows check)
 # 6. `bench` (Benchmarks: criterion ベンチマーク §18.1)
-# 7. `python` (Python API: §19.3。型スタブの生成検査・構文・位置引数の束縛。Rust のビルド不要)
+# 7. `perf` (Performance budgets: リリースビルドでの打鍵・移動のフレーム予算 §18.1。bench と並行に走る)
+# 8. `python` (Python API: §19.3。型スタブの生成検査・構文・位置引数の束縛。Rust のビルド不要)
 
 on:
   push:
@@ -327,17 +328,14 @@ jobs:
           curl -fsSL --retry 3 https://github.com/trunk-rs/trunk/releases/download/v0.21.14/trunk-x86_64-unknown-linux-gnu.tar.gz \
             | tar xzf - -C "$HOME/.cargo/bin"
           trunk --version
-      - name: trunk build --release & cargo check (wasm32 / windows)
+      - name: trunk build --release & cargo check (windows)
         id: cargo
         shell: bash
         run: |
           set -o pipefail
           status=0
-          echo "::group::cargo check --target wasm32-unknown-unknown（生ログ）"
-          cargo check --locked --target wasm32-unknown-unknown --features ui 2>&1 | tee /tmp/ci.log || status=$?
-          echo "::endgroup::"
           echo "::group::trunk build --release & wasm サイズ検査（§18.1 / §18.4）"
-          trunk build --release 2>&1 | tee -a /tmp/ci.log || status=$?
+          trunk build --release 2>&1 | tee /tmp/ci.log || status=$?
           if [ "$status" = 0 ]; then
             wasm_file="$(ls dist/*_bg.wasm 2>/dev/null | head -1)"
             if [ -z "$wasm_file" ]; then
@@ -401,19 +399,9 @@ jobs:
         run: |
           set -o pipefail
           status=0
-          echo "::group::cargo bench --no-run（生ログ）"
-          cargo bench --locked --no-run 2>&1 | tee /tmp/ci.log || status=$?
+          echo "::group::cargo bench --bench core -- --quick（生ログ）"
+          cargo bench --locked --bench core -- --quick 2>&1 | tee /tmp/ci.log || status=$?
           echo "::endgroup::"
-          if [ "$status" = 0 ]; then
-            echo "::group::cargo bench --bench core -- --quick（生ログ）"
-            cargo bench --locked --bench core -- --quick 2>&1 | tee -a /tmp/ci.log || status=$?
-            echo "::endgroup::"
-          fi
-          if [ "$status" = 0 ]; then
-            echo "::group::typing and 1,000-idea navigation frame budgets (release, §18.1)"
-            cargo test --locked --release --test editor_performance --features ui -- --nocapture 2>&1 | tee -a /tmp/ci.log || status=$?
-            echo "::endgroup::"
-          fi
           exit $status
       - name: Report to the run summary
         if: always() && steps.cargo.outcome != 'skipped'
@@ -422,6 +410,44 @@ jobs:
           CI_LOG: /tmp/ci.log
           CI_JOB: Benchmarks
           CI_KIND: wasm
+          CI_STATUS: ${{ steps.cargo.outcome }}
+        run: python3 .github/report.py /tmp/body.md || echo "::warning::レポートの生成に失敗しました（合否には影響しません）"
+      - name: Comment on the PR
+        if: failure() && github.event_name == 'pull_request'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr comment "${{ github.event.pull_request.number }}" --body-file /tmp/body.md
+
+  perf:
+    name: Performance budgets
+    needs: docs
+    if: needs.docs.outputs.rust_changed == 'true' && (github.event_name != 'pull_request' || !github.event.pull_request.draft)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+      - name: typing and 1,000-idea navigation frame budgets (release, §18.1)
+        id: cargo
+        shell: bash
+        run: |
+          set -o pipefail
+          status=0
+          cargo test --locked --release --test editor_performance --features ui -- --nocapture 2>&1 | tee /tmp/ci.log || status=$?
+          exit $status
+      - name: Report to the run summary
+        if: always() && steps.cargo.outcome != 'skipped'
+        shell: bash
+        env:
+          CI_LOG: /tmp/ci.log
+          CI_JOB: Performance budgets
+          CI_KIND: test
           CI_STATUS: ${{ steps.cargo.outcome }}
         run: python3 .github/report.py /tmp/body.md || echo "::warning::レポートの生成に失敗しました（合否には影響しません）"
       - name: Comment on the PR

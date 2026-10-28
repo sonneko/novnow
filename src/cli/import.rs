@@ -1,5 +1,5 @@
-//! `novnow import <zip> <dir>` — never overwrite existing project files.
-//! Archive names are vetted by the common archive policy; writes go through FsStorage.
+//! `novnow import <zip> <dir>`。既にあるプロジェクトのファイルは決して上書きしない。
+//! アーカイブ内の名前は共通のアーカイブ規則で検査し、書き込みは `FsStorage` を通す（§13.5）。
 use std::path::Path;
 use std::sync::Arc;
 

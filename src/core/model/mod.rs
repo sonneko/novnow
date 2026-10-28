@@ -7,10 +7,10 @@
 //! # serde（`docs/history.md` B-30）
 //!
 //! - `Serialize` + `Deserialize` の**両方**を付ける（§3.2 は serde / serde_json を許可済み）。
-//!   `materials/index.json`（§5.8.2）・`project.json`（§4.5）・`.novnow/ui.json`（§4.4.1）は
+//!   `materials/index.json`（§5.8.2）・`project.toml`（§4.5）・`.novnow/ui.json`（§4.4.1）は
 //!   JSON そのものがストレージ形式なので `Deserialize` が要り、ゴールデンテストの
 //!   `.expected.json` 比較に `Serialize` が要る。
-//! - **未知キー温存**（本書 §1.5-2 MUST）は `#[serde(flatten)] unknown: BTreeMap<String, Value>`。
+//! - **未知キー温存**（§4.5 MUST）は `#[serde(flatten)] unknown: BTreeMap<String, Value>`。
 //!   `deny_unknown_fields` は**使わない**。
 //! - `rename_all` は構造体に付けない（フィールド名は仕様書のキー名にそのまま合わせる）。
 //!   ハイフンを含むキー（`default-mode` / `context-hash` / `human-comment` / `promoted-to`）だけ

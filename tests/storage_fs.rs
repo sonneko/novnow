@@ -31,7 +31,7 @@ fn setup(label: &str) -> (TempDir, FsStorage) {
 #[test]
 fn an_atomic_write_replaces_the_file_and_leaves_no_temporary_file() {
     let (_dir, storage) = setup("fs-atomic");
-    let target = path("contents/01-01.txt");
+    let target = path("contents/01-01.cnov");
     let stamp = block_on(storage.write(&target, "@01-01-01\n新しい本文\n")).expect("write");
     assert_eq!(
         block_on(storage.read(&target)).expect("read"),
@@ -44,7 +44,7 @@ fn an_atomic_write_replaces_the_file_and_leaves_no_temporary_file() {
         .flatten()
         .map(|entry| entry.file_name().to_string_lossy().into_owned())
         .collect();
-    assert_eq!(names, vec!["01-01.txt"], "一時ファイルが残った");
+    assert_eq!(names, vec!["01-01.cnov"], "一時ファイルが残った");
 }
 
 #[test]
@@ -86,7 +86,7 @@ fn append_adds_to_the_end_and_creates_the_file() {
 #[test]
 fn remove_reports_missing_files() {
     let (_dir, storage) = setup("fs-remove");
-    let target = path("contents/01-01.txt");
+    let target = path("contents/01-01.cnov");
     block_on(storage.remove(&target)).expect("remove");
     assert_eq!(
         block_on(storage.remove(&target)),
@@ -133,10 +133,10 @@ fn the_listing_skips_git_and_temporary_files_and_reports_directories() {
         vec![
             ".novnow/ui.json",
             "characters.md",
-            "contents/01-01.txt",
+            "contents/01-01.cnov",
             "materials/index.json",
-            "plots/all.txt",
-            "project.json",
+            "plots/all.cnov",
+            "project.toml",
             "words.md",
         ]
     );
@@ -226,15 +226,15 @@ fn block_on_waits_for_a_pending_future() {
 #[test]
 fn structural_batch_rolls_back_already_written_files_on_mid_batch_failure() {
     let (_dir, storage) = setup("fs-batch-rollback");
-    let original = path("contents/01-01.txt");
+    let original = path("contents/01-01.cnov");
     storage
         .write_bytes(&original, b"original bytes\r\n")
         .unwrap();
-    let bad = path("contents/bad.txt");
+    let bad = path("contents/bad.cnov");
     std::fs::create_dir(
         storage
             .root()
-            .join(format!("contents/.bad.txt{TMP_SUFFIX}")),
+            .join(format!("contents/.bad.cnov{TMP_SUFFIX}")),
     )
     .unwrap();
     assert!(storage
@@ -255,8 +255,8 @@ fn structural_batch_rolls_back_already_written_files_on_mid_batch_failure() {
 #[test]
 fn structural_batch_commits_writes_before_removing_old_paths() {
     let (_dir, storage) = setup("fs-batch-success");
-    let old = path("contents/00-01.txt");
-    let new = path("contents/01-02.txt");
+    let old = path("contents/00-01.cnov");
+    let new = path("contents/01-02.cnov");
     storage.write_bytes(&old, b"stock").unwrap();
     let stamps = storage
         .write_batch(
@@ -267,4 +267,29 @@ fn structural_batch_commits_writes_before_removing_old_paths() {
     assert_eq!(stamps.len(), 1);
     assert_eq!(storage.read_bytes(&new).unwrap(), b"assigned");
     assert!(!storage.absolute(&old).exists());
+}
+
+#[test]
+fn a_writable_project_says_so_without_leaving_a_probe_behind() {
+    let (_dir, storage) = setup("fs-writable");
+    assert!(storage.writable(), "書けるプロジェクト");
+    assert!(
+        !storage.root().join(".novnow/.write-probe").exists(),
+        "試し書きは残さない"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn a_read_only_directory_is_detected_by_the_probe_write() {
+    use std::os::unix::fs::PermissionsExt;
+    let (dir, storage) = setup("fs-read-only");
+    let root = storage.root().to_path_buf();
+    // ルートを書き込み禁止にする（読み取り専用メディアの代わり）
+    std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o555)).expect("chmod");
+    let writable = storage.writable();
+    std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+    let _ = dir;
+    assert!(!writable, "書けないディレクトリは読み取り専用");
+    assert!(!root.join(".novnow/.write-probe").exists(), "何も残らない");
 }

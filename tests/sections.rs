@@ -8,7 +8,7 @@ use novnow::core::features::{reference, sections};
 use novnow::core::id::SceneId;
 use novnow::core::model::document::Document;
 
-use world::{world, world_with, CONTENTS_PATH};
+use world::{world, world_with, CONTENTS_PATH, EPISODE_PATH};
 
 fn id(chapter: u16, episode: u16, scene: u16, section: u16) -> SceneId {
     SceneId {
@@ -79,7 +79,7 @@ fn a_new_section_is_made_after_the_current_one() {
 #[test]
 fn moving_by_scene_file_and_jump() {
     let project = world_with(
-        "contents/01-05.txt",
+        "contents/01-05.cnov",
         "@01-05-01 屋上\n一節目\n;\n二節目\n@01-05-02 帰り道\n三節目\n",
     );
     let list = sections::all(&project);
@@ -112,11 +112,11 @@ fn moving_by_scene_file_and_jump() {
     assert_eq!(sections::jump(&list, "abc"), None);
     // 位置の復元（節が消えたら同じ場面の近い節）
     assert_eq!(
-        sections::position_of(&list, "contents/01-05.txt", id(1, 5, 1, 2)),
+        sections::position_of(&list, "contents/01-05.cnov", id(1, 5, 1, 2)),
         Some(4)
     );
     assert_eq!(
-        sections::position_of(&list, "contents/01-05.txt", id(1, 5, 1, 9)),
+        sections::position_of(&list, "contents/01-05.cnov", id(1, 5, 1, 9)),
         Some(4)
     );
 }
@@ -310,4 +310,101 @@ fn pasting_in_the_middle_leaves_the_rest_in_the_last_section() {
         sections::split_pasted_sections(current, "前半".len(), ";\n新しい節。"),
         Some(vec!["前半".to_owned(), "新しい節。後半".to_owned()])
     );
+}
+
+#[test]
+fn reference_rows_carry_their_navigation_targets() {
+    use novnow::core::features::reference::Nav;
+    let project = world();
+    let document: Document = project.document(CONTENTS_PATH).cloned().expect("doc");
+    let list = sections::all(&project);
+    let second = reference::at(&document, list[1].lines.clone(), list[1].id, &project);
+    // プロット（と五感・空間・挿絵）は話プロットの当該節
+    assert_eq!(second.plot_nav, Some(Nav::Plot(list[1].id)));
+    // 上位プロットは全体プロットの @01 ブロック
+    assert!(matches!(second.upper[0].nav, Nav::Outline(id) if id.chapter == 1 && id.episode == 0));
+    // 配役はキャラの順序
+    assert!(second
+        .cast
+        .iter()
+        .all(|cast| matches!(cast.nav, Nav::Character(_))));
+    // 用語は全文表示、資料は明示参照＝開く・候補＝追加
+    assert!(second
+        .words
+        .iter()
+        .all(|word| matches!(word.nav, Nav::Term(_))));
+    for material in &second.materials {
+        if material.candidate {
+            assert_eq!(material.nav, Nav::AddMaterial(material.id.clone()));
+        } else {
+            assert_eq!(material.nav, Nav::OpenMaterial(material.id.clone()));
+        }
+    }
+}
+
+#[test]
+fn split_body_splits_at_the_byte_without_snapping() {
+    // 行の途中でもそのまま割る（§8.1.1。注釈・参照の途中でも安全な位置へ寄せない）
+    assert_eq!(
+        sections::split_body("abcdef", 3),
+        Some(("abc".to_owned(), "def".to_owned()))
+    );
+    // 行境界で割っても空行は増えない
+    assert_eq!(
+        sections::split_body("ab\ncd", 3),
+        Some(("ab".to_owned(), "cd".to_owned()))
+    );
+    assert_eq!(
+        sections::split_body("ab\ncd", 2),
+        Some(("ab".to_owned(), "cd".to_owned()))
+    );
+    // 話者注釈の途中
+    let body = "台詞」@リリア";
+    let at = body.find('@').unwrap();
+    assert_eq!(
+        sections::split_body(body, at),
+        Some(("台詞」".to_owned(), "@リリア".to_owned()))
+    );
+    // 先頭・末尾・文字境界でない位置では割らない
+    assert_eq!(sections::split_body("abc", 0), None);
+    assert_eq!(sections::split_body("abc", 3), None);
+    assert_eq!(sections::split_body("あい", 1), None);
+    assert_eq!(sections::split_body("", 0), None);
+}
+
+#[test]
+fn unwritten_uses_the_w012_definition() {
+    assert!(sections::is_unwritten(""));
+    assert!(sections::is_unwritten("  \n\n "));
+    // 行コメントは内容として数える（§8.1.1）
+    assert!(!sections::is_unwritten("// メモ"));
+    assert!(!sections::is_unwritten("本文"));
+}
+
+#[test]
+fn plot_blocks_are_found_by_id_and_removed_with_their_separator() {
+    use novnow::core::features::plots;
+    let project = world();
+    let blocks = plots::section_blocks(&project, id(1, 4, 2, 2));
+    assert_eq!(blocks.len(), 1);
+    let text = plots::remove_block(project.text(EPISODE_PATH), &blocks[0]);
+    assert!(!text.contains("謎を解こうとしていると明かす"), "{text}");
+    assert!(text.contains("幼馴染の'リリア"));
+    assert!(text.contains("放課後に旧校舎へ向かうことを決める"));
+    // 消した後は番号が繰り上がる（位置から決まる、§5.2.2）
+    let moved = world_with(EPISODE_PATH, &text);
+    let rows = plots::episode_rows(&moved, 1, 4);
+    let second = rows
+        .iter()
+        .find(|row| row.id == id(1, 4, 2, 2))
+        .expect("元の 3 番目が 2 番になる");
+    assert!(second.summary.contains("呆れつつも") || second.summary.contains("mode"));
+    // 同じ場面見出しが重複すると対応は一意でない
+    let duplicated = world_with(
+        EPISODE_PATH,
+        "@01-04-02 題\nプロット一\n;\n@01-04-02 題\nプロット二\n",
+    );
+    assert_eq!(plots::section_blocks(&duplicated, id(1, 4, 2, 1)).len(), 2);
+    // 話プロットが無ければ対応ブロックは無い
+    assert!(plots::section_blocks(&project, id(9, 9, 9, 9)).is_empty());
 }

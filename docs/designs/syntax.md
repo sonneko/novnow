@@ -17,7 +17,10 @@
   - フィールド値の後ろに書かれた `//` は無損失往復変換を保つため値の一部として保持し、数値等として解釈する層が行末コメントを除去する（`A-14`, `B-36`）。
   - 空文書は保存時に改行 1 個を追加せず 0 バイトのまま保持する（`B-22`）。
 
-- L-01 の本文記号保護に `\#`・`\!`・`\^` を含め、`# ` コメントは `.txt` 3 形式で有効化する。検証: `REF:tests/migration.rs`, `REF:tests/stage_two_comments.rs`。
+- L-01 の本文記号保護に `\#`・`\!`・`\^` を含め、`# ` コメントは `.cnov` 3 形式で有効化する。検証: `REF:tests/migration.rs`, `REF:tests/stage_two_comments.rs`。
+
+- **[Issue #29 / B10] 文書として認識する範囲（§5.0.9）の実装（実装完了: `REF:docs/plans.md#issue-29-b10`）**:
+  - 形式の判定（`DocumentFormat::of_path`、`REF:src/core/model/document.rs`）を「置き場所と拡張子の組の厳密一致」に揃えた。`contents/<章>-<話>.cnov` のみ本文、`plots/all.cnov` と `plots/<章>.cnov` は A 形式、`plots/<章>-<話>.cnov` は B 形式とし、形が一致しない `.cnov` / `.md` / `.txt` は文書にしない（未知ファイルとして触れない）。字句規則そのものは変更していない（検証: `REF:tests/model.rs` の形式表）。
 
 ### 5.1 SceneId と範囲式
 
@@ -26,7 +29,7 @@
 - `SceneId`・`PartialSceneId`・`RangeTerm`・`RangeExpr` のパース、階層比較、閉区間判定（`contains`）、逆転範囲や予約番号 `00` の検出（`E016` / `E020` / `E022`）は `REF:src/core/id.rs` に実装し、`REF:tests/id_range.rs` で検証する。
 - `IdError` / `RangeError` は `core` に文言を持たせないため `Display` を実装しない純粋な型 enum とし、`REF:src/core/diagnostics.rs` で診断コードへ写像する（`B-17`）。
 
-### 5.2 本文形式（C 形式）— `contents/AA-BB.txt`
+### 5.2 本文形式（C 形式）— `contents/AA-BB.cnov`
 
 状態: 実装完了（REF:src/core/syntax/contents.rs, REF:src/core/features/completion.rs, REF:tests/contents.rs, REF:tests/golden.rs, REF:tests/features_edit.rs）
 
@@ -35,24 +38,27 @@
   - 最初の場面見出しより前の行はどの節にも属させず `Contents::lines` にのみ保持して無損失往復を保つ（`B-32`）。
   - ルビの親文字 `kanji_run` は CJK 統合漢字・拡張 A・互換漢字および反復記号 `々`（U+3005）・`〻`（U+303B）とし、話者注釈の `char_name` は空白と `:` を含まない 1 文字以上とする（`B-33`）。
   - 空の節（`W012`）の診断スパンはクイックフィックスで削除できるよう「節を閉じた `;` 行または次の見出し行」を指し、ファイル末尾の `;` の後ろに本文がない場合は空節を作らない（`B-35`）。
-  - `.txt` 3 形式の見出し・コメント・区切り行の共通ヘルパは `REF:src/core/syntax/contents.rs` から `pub(crate)` で共有する（`B-40`）。
+  - `.cnov` 3 形式の見出し・コメント・区切り行の共通ヘルパは `REF:src/core/syntax/contents.rs` から `pub(crate)` で共有する（`B-40`）。
 
 - **[S-08] 会話閉じ括弧直後の `@` による話者予測補完（実装完了: `REF:src/core/features/completion.rs`, `REF:tests/features_edit.rs`）**:
   - `REF:src/core/features/completion.rs` のトリガー判定に「同一行のカーソル前に `」` または `』` があり、その後に `@`（および入力途中のキャラ名/モード）が続く」ケースを追加し、`characters.md` の登場人物名と `:モードID` を候補として返す。
 
-### 5.3 アウトライン形式（A 形式）— `plots/all.txt`, `plots/AA.txt`
+### 5.3 アウトライン形式（A 形式）— `plots/all.cnov`, `plots/AA.cnov`
 
 状態: 実装完了（REF:src/core/syntax/plot_outline.rs, REF:tests/plot_outline.rs, REF:tests/golden.rs）
 
 - 章ブロック `@AA` / 話ブロック `@AA-BB`、フィールド行と継続行（`drop_indent` で先頭タブ 1 文字または空白 2 文字を除去）、未知フィールド温存、無損失往復変換 `Outline::to_text` は `core::syntax::plot_outline`（`REF:src/core/syntax/plot_outline.rs`）に実装する（検証: `REF:tests/plot_outline.rs`, `REF:tests/roundtrip.rs`）。
 - ブロック外（`;` の後から次の見出しの前）の行はどのブロックにも入れず `lines` に保持して `W011` / `W019` のみ検査し、`state` や `length` が不正形式のときは診断を出さず `Field::number()` 等が `None` を返して原文を温存する（`B-38`, `B-39`）。
 
-### 5.4 話プロット形式（B 形式）— `plots/AA-BB.txt`
+### 5.4 話プロット形式（B 形式）— `plots/AA-BB.cnov`
 
 状態: 実装完了（REF:src/core/syntax/plot_episode.rs, REF:tests/plot_episode.rs, REF:tests/golden.rs）
 
 - 場面見出し `@A-B-C` と `;` で区切られる節ブロック、場面レベル・節レベルのフィールド（`pov`, `mode`, `state`, `material`, `foreshadow`, `payoff`, `note`）、自由記述行、無損失往復変換 `EpisodePlot::to_text` は `core::syntax::plot_episode`（`REF:src/core/syntax/plot_episode.rs`）に実装する（検証: `REF:tests/plot_episode.rs`, `REF:tests/roundtrip.rs`）。
 - 場面レベルフィールド（`scene_field`）と最初の節（`section`）の境界は「最初の `point_line`（自由記述の要点行）が現れた位置（1 行もなければ最初の `;`）」で切る（コメント行と空行は場面フィールド領域を終わらせない、`B-41`）。
+
+- **[Issue #29 / B10] 拡張子の改名のみ（実装完了: `REF:docs/plans.md#issue-29-b10`）**:
+  - A / B / C 形式の文法は一切変えず、パス判定とファイル名だけを `.txt` から `.cnov` へ変えた。
 
 ### 5.5 `characters.md`
 

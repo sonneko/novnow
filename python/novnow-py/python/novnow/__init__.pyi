@@ -1,13 +1,20 @@
 """novnow の型スタブ（§19.3.1。`py.typed` と一緒に wheel へ同梱する）。
 
 **生成物**: `python3 scripts/pyi-site.py` が `tests/golden/api_catalog.json`
-（§19.7 の 119 操作・25 ドメイン）から作る。手で編集しないこと。
+（§19.7 の 121 操作・25 ドメイン）から作る。手で編集しないこと。
 位置引数の型と並びは `arguments.order`（宣言順）どおり。
 """
 
 from typing import Any, Callable, Iterator, Protocol
 
 __version__: str
+
+
+class Record(dict):
+    """JSON と同じ構造の `dict`。キーは属性としても読める（§19.3.2）。"""
+
+    def __getattr__(self, name: str) -> Any: ...
+    def __dir__(self) -> list[str]: ...
 
 
 class NovnowError(Exception):
@@ -351,7 +358,7 @@ class project(Protocol):
     """`session.project` のドメイン（§19.3.2）。"""
 
     def info(self) -> Any:
-        """プロジェクト基本情報ワークスペース見出し（`project.info`）"""
+        """プロジェクト基本情報（タイトル・作者・言語・版）（`project.info`）"""
 
     def new(self, path: str, title: str = ...) -> Any:
         """新規プロジェクト作成（`project.new`）　[L—（startup）; M—（project）]"""
@@ -469,6 +476,12 @@ class section(Protocol):
 
     def confirm_next(self) -> Any:
         """次の未確認節の確認（`section.confirm_next`）　[C—（stateful）; M—（stateful）]"""
+
+    def split(self, scene: str = ..., *, at: int, role: str) -> Any:
+        """節の分割（`section.split`）　[MCP からは `role` が必要]"""
+
+    def propose(self, scene: str, text: str, note: str = ...) -> Any:
+        """節の提案（本文は変えない）（`section.propose`）"""
 
 
 class session(Protocol):

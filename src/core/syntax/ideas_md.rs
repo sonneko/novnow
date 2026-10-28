@@ -6,7 +6,7 @@
 //! created: 2026-10-09T12:04:11+09:00
 //! tags: 学院長, 動機
 //! relates: @02, 'アルス
-//! promoted-to: plots/02.txt#@02-03      # 昇格時のみ
+//! promoted-to: plots/02.cnov#@02-03      # 昇格時のみ
 //! 本文は自由記述。改行もそのまま保持する。
 //! ```
 //!
@@ -31,13 +31,14 @@
 //!
 //! 並びは**行順の W011** のあとに**アイデア順の E008**。
 //!
-//! # ① で読まないもの
+//! # パーサがやらないこと
 //!
 //! - `status: dropped` を既定で隠すのは UI（§10.4）の仕事。パーサは値を
 //!   [`Ideas::status`] で返すだけにする。
-//! - 「昇格」操作（`promoted-to` の書き戻し、§10.4）は M8。
-//! - `# inbox | keep | promoted | dropped` のような**行末の `# ` コメントは ②**（§5.0.8）なので、
-//!   ① では値の一部としてそのまま保持される（B 形式の B-36 と同じ扱い）。
+//! - 「昇格」操作（`promoted-to` の書き戻し、§10.4）は UI とアプリ層。
+//! - `status: inbox            # inbox | keep` のような**行末の `# …`** は、`*.md` では
+//!   見出しでもコメントでもない（行の途中なので散文の一部）。値の一部としてそのまま保持する
+//!   （§5.0.8 の `# ` 行コメントは `.cnov` の行頭だけ）。
 
 use std::ops::Range;
 
@@ -139,21 +140,24 @@ impl<'a> Ideas<'a> {
 
     /// `index` 番目のアイデアの `status`（§5.7 `inbox | keep | promoted | dropped`）。
     ///
-    /// `status` は §5.0.6 の表に無いキーなので **W011** が出るが、値はそのまま読める
-    /// （`docs/history.md` A-15）。② の `# ` 行コメントが付いていれば値に含まれる（§5.0.8）。
+    /// `status` も `状況`（§5.0.6 の日本語別名）も同じキーなので、どちらで書かれていても読める。
+    /// 行末に `# …` と書かれていれば、それは値の一部として残る（`*.md` に `# ` 行コメントは無い。
+    /// §5.0.8）。
     pub fn status(&self, index: usize) -> Option<&Field<'a>> {
-        self.unknown_field(index, "status")
+        self.idea_fields(index, FieldKey::Status).first().copied()
     }
 
     /// `index` 番目のアイデアの `promoted-to`（§5.7「昇格時のみ」）。
     pub fn promoted_to(&self, index: usize) -> Option<&Field<'a>> {
-        self.unknown_field(index, "promoted-to")
+        self.idea_fields(index, FieldKey::PromotedTo)
+            .first()
+            .copied()
     }
 
-    /// 表に無いキー（[`FieldKey::Unknown`]）を**書かれたままのキー**で引く。
+    /// キーを**書かれたままの文字列**で引く（[`FieldKey::Unknown`] のキーと、日本語別名で
+    /// 書かれた行の両方に使える）。
     ///
-    /// `status` `created` `relates` `promoted-to` のように §5.0.6 の表に無いキーも値を
-    /// 改変せずに保持する（縫い代 2）ので、読む手段が要る。
+    /// §5.0.6 の表に無いキーも値を改変せずに保持する（縫い代 2）ので、読む手段が要る。
     pub fn unknown_field(&self, index: usize, key_text: &str) -> Option<&Field<'a>> {
         let found = self.ideas.get(index)?;
         characters_md::unknown_field(&self.lines, &found.fields, key_text)

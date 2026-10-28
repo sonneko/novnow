@@ -1,11 +1,11 @@
 //! プロジェクトの読み込み（§4.3・§14.2、`docs/history.md` B-94）。どのストレージでも同じ手順。
 //!
 //! 1. 一覧を取る（`Storage::list` / `Storage::dirs`）。
-//! 2. `.md` / `.txt` / `.json` を読み、UTF-8 として不正なものを集める（§4.3-3）。
+//! 2. 文書として認識するファイル（§5.0.9）を読み、UTF-8 として不正なものを集める（§4.3-3）。
 //! 3. `core::model::project::validate` で判定する（v0 の目印 → 必須パス → `schema_version` →
 //!    文字コード）。判定は core、材料集めはここ（core は I/O を持たない、§3.2）。
 //! 4. 読めた文書を §5.0.4 の読み込み時の正規化（BOM・改行）にかけて `features::Project` に渡す。
-//!    設定は `project.json` の文書から集約が自分で読む（B-89）。
+//!    設定は `project.toml` の文書から集約が自分で読む（B-89）。
 //!
 //! 判定に失敗しても文書は読んで返す（起動を止めるかどうかは呼び出し側が決める。§14.2 の CLI は
 //! 止め、§13.5 の Zip の取り込みは「不備のまま取り込む / 取り消す」を選ばせる）。
@@ -34,13 +34,16 @@ pub struct Loaded {
     pub project: Project,
 }
 
-/// 文字コードを調べるファイルか（§4.3-3「すべての `.md` / `.txt` / `.json`」）。
+/// 文字コードを調べるファイルか（§4.3-3「文書として認識するすべてのファイル（§5.0.9）」）。
 ///
 /// `.novnow/`（ローカル状態。壊れていても既定値で動く、§4.4）・`exports/`（出力）・
-/// ドットで始まる名前は対象外。
+/// ドットで始まる名前は対象外。旧形式の `.txt` は未知のファイルとして対象にしない（§4.3-5）。
 pub fn is_checked_text(path: &ProjectPath) -> bool {
     let name = path.file_name();
-    let text = name.ends_with(".md") || name.ends_with(".txt") || name.ends_with(".json");
+    let text = name.ends_with(".md")
+        || name.ends_with(".cnov")
+        || name.ends_with(".json")
+        || name.ends_with(".toml");
     text && !path.is_local_state() && !path.is_under("exports") && !path.is_hidden()
 }
 
@@ -62,7 +65,7 @@ pub async fn listing<S: Storage>(storage: &S) -> Result<Listing, StorageError> {
     fill_dirs(storage, &mut listing).await?;
     if listing.files.contains(PROJECT_FILE) {
         let path = project_file();
-        listing.project_json = storage.read(&path).await.ok();
+        listing.project_toml = storage.read(&path).await.ok();
     }
     Ok(listing)
 }
@@ -101,7 +104,7 @@ pub async fn load<S: Storage>(storage: &S) -> Result<Loaded, StorageError> {
             Err(error) => return Err(error),
         };
         if entry.path.as_str() == PROJECT_FILE {
-            listing.project_json = Some(text.clone());
+            listing.project_toml = Some(text.clone());
         }
         if is_document(&entry.path) {
             let normalized = lexer::normalize_on_load(&text).into_owned();
@@ -158,5 +161,5 @@ async fn fill_dirs<S: Storage>(storage: &S, listing: &mut Listing) -> Result<(),
 }
 
 fn project_file() -> ProjectPath {
-    ProjectPath::new(PROJECT_FILE).expect("project.json is a valid relative path")
+    ProjectPath::new(PROJECT_FILE).expect("project.toml is a valid relative path")
 }

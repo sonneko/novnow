@@ -180,6 +180,11 @@ novnow-<版>-<対象環境>-<gui|nogui>.<拡張子>
 | 5 | Actions の `v<版>` と `v0` を公開する | 利用者へ「未提供」と表示する |
 | 6 | README・サイト・手引きに実際の取得先を載せ、未公開の形態は「未提供」と記す | 文書だけが古い状態になる。次の版までに直す |
 
+- **版を上げても必須チェックの名前は変わらない**: ruleset の `required_status_checks` は
+  `wheel (x86_64-unknown-linux-gnu)`・`desktop (x86_64-unknown-linux-gnu, nogui)` のような
+  版を含まない名前を使う（§8。2026-10-28 改定。以前は行列の既定名が版を含み、`--bump` のたびに
+  ruleset を差し替える必要があった）。8 つの名前は初回に一度だけ設定すれば、以後の版更新で
+  触る必要は無い。差し替え・設定は管理者が行う。
 - 版ごとの成果物は削除しない。重大な不具合は新しい版で直す（仕様 §20.6.3）。
 - 公開を止めるときは、同じ版の 5 形態をまとめて「未提供」に戻す。形態ごとに残さない。
 
@@ -213,7 +218,11 @@ novnow-<版>-<対象環境>-<gui|nogui>.<拡張子>
 
 - `crates-io`・`testpypi`・`pypi` は版タグからのみ実行できる deployment policy にし、公開担当者の承認を必須にする。環境名と Trusted Publisher の設定は完全一致が必要。
 - ホイール単独試験の `REF:.github/workflows/wheels.yml` から公開する場合は、その workflow 名で **別の** Trusted Publisher が必要。本番 PyPI の Trusted Publisher は `release.yml` だけに設定する。wheels の公開入力は TestPyPI 専用である。
-- GitFlow の `main` と `develop` は保護する。直接 push・force push・削除を禁止し、PR、必要な CI 成功を要求する。現在の必要承認数は0、通常のmerge commitで統合する。`main` には release / hotfix の版更新 PR だけを承認する。GitHub 標準の保護だけでは「版更新のみ」は判定できないため、レビューで版差分と PR の由来を確認する。
+- GitFlow の `main` と `develop` は保護する。直接 push・force push・削除を禁止し、PR、必要な CI 成功を要求する。CI 行列はスコープで切り替える（`docs/developers.md` §4.7）。`main` 向け PR・`main` への push・手動実行は full 行列（desktop 10・wheel 5・ブラウザ3種・Electron 3 OS・Python 3 版）。`develop` 向け PR・`develop` への push は 1 プラットフォームの最小スコープ（Linux x64: desktop nogui＋wheel。ブラウザは Chromium のみ。Electron は ubuntu のみ。Python 試験は 3.9 / 3.13）。必須チェックはスコープで走る項目に一致させる: `develop` は 11 件（2026-10-27 改定。旧来は full 行列を含む 23 件）、`main` は従来どおり3ブラウザ・full 行列を含む 18 件。Firefox / WebKit は偽陽性が多発するため、develop 向け PR では実行せず、`main` 向け PR では必須のまま残す。現在の必要承認数は0、通常のmerge commitで統合する。`main` には release / hotfix の版更新 PR だけを承認する。GitHub 標準の保護だけでは「版更新のみ」は判定できないため、レビューで版差分と PR の由来を確認する。
+  - `develop` の必須チェック 11 件（ruleset `protect-develop`）: `Docs & Change Filter` / `Rustfmt` / `Clippy` / `Test` / `WASM Build Check` / `Python API` / `Benchmarks` / `build`（Pages integration の結合ツリー）/ `browsers (chromium)` / `wheel (x86_64-unknown-linux-gnu)`（wheels の Linux x64 行列）/ `desktop (x86_64-unknown-linux-gnu, nogui)`（desktop-check の Linux x64 nogui 行列）。
+  - `main` の必須チェックのうち行列の 7 件（ruleset `protect-main`）: `wheel (x86_64-unknown-linux-gnu)` / `wheel (aarch64-unknown-linux-gnu)` / `wheel (x86_64-apple-darwin)` / `wheel (aarch64-apple-darwin)` / `wheel (x86_64-pc-windows-msvc)` / `desktop (x86_64-apple-darwin, gui)` / `desktop (aarch64-apple-darwin, gui)`。
+  - **行列ジョブのチェック名は版と成果物名を含めない**（2026-10-28 改定）。`wheels.yml` と `desktop-check.yml` の `build` ジョブは `name:` で安定名を付け、行列の既定名（`build (…, <版>, novnow-<版>-…whl)`）を使わない。既定名は版を上げた瞬間に変わり、必須チェックが「報告待ち」のままになって release PR が止まる（v0.1.1 で実際に止まった。GitHub は 100 文字で切り詰めるため、既定名は末尾の成果物名まで読めない）。版と成果物名の一致は `REF:scripts/release-matrix.py --check` と release の `prepare` が検査し、`REF:docs/script/test_release_policy.py` がジョブ名に版が混ざっていないことを検査する。
+  - 平台の 2 行は develop への push でも報告される（wheels の push トリガーは develop かつ PR 同一 `paths`、desktop-check の push トリガーは develop・無制限。2026-10-27 追加）。したがってコード PR のマージ後、develop 自身のコミットでも 11 件が揃う。文書のみ変更のマージでは Rust 5 ジョブが ci.yml の変更フィルタで skip され既存どおり赤くなる（`docs/developers.md` §4.7 の落とし穴）。
 - CI の `[ci skip]` 既定と必須チェックを併用するとチェック待ちになる。リリース PR は `[ci run]` で CI を起動し、保護が要求するチェックが実際にその SHA で報告されていることを確認する。手動 CI の結果だけで保護を迂回しない。
 - `develop` の作成・既定ブランチの変更・rulesets・環境・秘密情報・公開名の確保は管理者が行う。この作業セッションでは実施しない。
 
@@ -225,7 +234,21 @@ novnow-<版>-<対象環境>-<gui|nogui>.<拡張子>
 4. Release は版一致・main の祖先であることを確認し、デスクトップ 10・wheel 5 とクレート dry-run を検証する。Releases 添付後、crates.io・TestPyPI → PyPI の環境承認を進める。承認待ちは失敗ではない。
 5. 最後に VSIX と `novnow-<版>-source.tar.gz`（ドキュメントを含む追跡対象全体）を添付し、17 成果物の `SHA256SUMS` を検証して可動タグを更新する。GitHub 自動生成の Source code (zip/tar.gz) も利用できるが、照合対象は明示添付したソースアーカイブ。PyPI の sdist は作らない。
 6. Pages は main 更新でサイトとアプリを一括配置する。Release と別ワークフローなので、両方の成功を確認してから公開完了とする。自動公開が skip された場合は main 上で Deploy を手動起動する。
-7. 全公開先とインストール・照合を実測してから、README・サイト・手引きの「未提供」を解除する。今回のv0.1.0公開告知は所有者承認の例外として、版更新なしでdevelopからmainへ統合し、追加リリースしない。通常のmainへの統合は版更新PRに限定する。公開前に利用可能と書き換えない。リリースノートにはその場で実際の状態を記載できる。
+7. 全公開先とインストール・照合を実測してから、README・サイト・手引きの「未提供」を解除する。この実測は `REF:.github/workflows/release-audit.yml` が自動で行う（次項）。今回のv0.1.0公開告知は所有者承認の例外として、版更新なしでdevelopからmainへ統合し、追加リリースしない。通常のmainへの統合は版更新PRに限定する。公開前に利用可能と書き換えない。リリースノートにはその場で実際の状態を記載できる。
+8. **公開後の監査は版を引数に取るので、リリースごとの書き換えは要らない**。`REF:.github/workflows/release-audit.yml`
+   は Release ワークフローが成功で終わると自動で走り（`workflow_run`）、監査する版はそのタグから取る。手で走らせる
+   ときは `version` を渡す（空なら最新の公開 release）。監査するのは**タグの木**（公開済みの版の `scripts/` と
+   `examples/sample-novel`）で、次を確かめる: release の 17 成果物と `SHA256SUMS`、`git archive` と同梱の
+   ソースアーカイブの一致、タグと可動タグ `v0` のコミット、PyPI・TestPyPI の 5 ホイールの照合値、公開済み
+   CLI・Python パッケージ・crates.io のクレートの起動と `novnow check`（操作数はその版の
+   `tests/golden/api_catalog.json` から取る）、複合アクション（いまのリポジトリの `scripts/action/`）と
+   公開済み成果物の組み合わせ、配備済みサイトと WASM。**版・成果物名・操作数・タグの SHA をワークフローへ
+   書かない**（書くと次の版で赤くなり、そのたびに直す作業が増える。v0.1.0 のときは操作数の手書き 119 と
+   既定ブランチのサンプル作品で実際に落ちた）。
+   公開の承認（`crates-io`・`testpypi`・`pypi`）が長引くと Release の実行は終わらないので、その間は監査も
+   走らない。承認を待たずに確かめたいときは `workflow_dispatch` で版を指定して 1 回回す。
+   `workflow_run` で自動起動するには、この監査ワークフローが**既定ブランチ（`main`）に存在している**
+   必要がある（GitHub の仕様）。`main` に入る前の版では手動実行だけが効く。
 
 **障害時**: 各レジストリの同一版は上書きできない。既存の Release に添付がある状態で、新しい workflow run を開始すると意図的に停止する。失敗したジョブのみを同じ run で再実行し、成功済み公開ジョブを含む「全ジョブ再実行」は避ける。公開自体は成功して応答だけ失敗した場合や、成果物を変更する必要がある場合は、管理者が公開状態を確認し、原則新しいパッチ版で復旧する。タグや公開済み成果物を削除・差し替えしない。
 
@@ -249,7 +272,8 @@ GitHub APIでpublic化、4公開environmentとgithub-pages、developの存在、
 現在の追加確認（所有者の変更後にAPI再確認）:
 
 - main/developともRestrict updatesとlinear history制限は解除済み。PRの許可マージ方法はmergeのみ、必要承認数0。通常のmerge commitを使う。必須CI・force-push/削除禁止は維持されている。リポジトリ全体ではsquash/rebaseも有効だが、この2 rulesetではmergeだけを許可する。
-- mainの必須18件、developの25件は現行チェック名と一致する。版を含む行列名は将来の版更新で変わるため固定名への改善は別途必要。
+- mainの必須18件、developの23件は現行チェック名と一致する（2026-10-27 再確認: 所有者が ruleset `protect-develop` から `browsers (firefox)` / `browsers (webkit)` を必須から外したため develop は25件から23件になった。`protect-main` では3ブラウザとも必須のまま）。版を含む行列名は将来の版更新で変わるため固定名への改善は別途必要。
+- 2026-10-27（CI スコープ、§8 参照）: develop 向け PR は 1 プラットフォームの最小スコープになり、所有者が `protect-develop` の必須チェックを 11 件（Linux x64 以外の 12 のプラットフォーム行列を外した 23 件から）へ更新済み（PR #38 のマージ `6b5853b` での機能的確認済み）。`protect-main` は変更しない（18 件）。同日、必須の平台 2 行を develop 自身の push でも報告するため wheels / desktop-check に `develop` への push トリガーを追加し、4 ワークフローの手動実行に `scope` 入力（full / develop、既定 full）を足した。
 - crates.io/PyPI/TestPyPIの設定は所有者が確認済み。こちらからの実公開・OIDC/tokenの実動確認とは区別する。Marketplaceは今回は公開せず、VSIXをReleasesへ添付する。
 - Windows/macOSの配布元署名・macOS公証は行わない。署名用Secretsは不要。未署名の警告と導入方法を手引きで案内する。
 

@@ -6,7 +6,7 @@
 
 ### 9.1 全体レイアウト
 
-状態: 実装完了（REF:src/ui/app.rs, REF:src/app/settings.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-16）
+状態: 実装完了（REF:src/ui/app.rs, REF:src/app/settings.rs, REF:tests/gui.rs）
 
 - 共通シェル（上端 28px アイコンバー、下端 22px ステータスバー、中央のメインカラム＋参照ペイン 2 カラム分割）は `NovnowApp`（`REF:src/ui/app.rs`）が描画する。
 - メイン/参照の比率（既定 `62 : 38`、`Ctrl+Alt+Shift+←/→`）と文脈/節エディタの比率（既定 `45 : 55`、`Ctrl+Alt+↑/↓`）は `UiSettings`（`REF:src/app/settings.rs`）に保持する。
@@ -19,43 +19,57 @@
   - F-29 は実装完了。`REF:src/ui/app.rs` で `style.interaction.selectable_labels = false` を設定し、押せないラベルのダブルクリック青選択を防ぐ（検証: `REF:tests/gui.rs`）。
   - `REF:src/ui/widgets/mod.rs` に共通クリック部品を設けて全ボタン・クリック対象に薄い下線＋ホバー背景＋ショートカット併記を適用する。
 
+- **[Issue #29 / B4] ヘッダの省略優先順とプロジェクト名・パンくずのボタン化（実装完了: `REF:docs/plans.md#issue-29-b4`）**:
+  - `REF:src/ui/status.rs` のヘッダ描画で各要素の実測幅から省略を決め（画面名の一時表示 → プロジェクト名 → パンくず。`header_left_visibility`。右端のボタン群の幅は前フレームの実測を使う）、プロジェクト名は既存の `Ctrl+O` の経路へ、パンくずは `@` を初期入力とするパレット起動へ接続した。幅を変えたフレームの省略とボタンの動作は `REF:tests/gui.rs` の `header_crumb_and_project_name_are_buttons_and_fold_by_measured_width` で検証する。
+
 ### 9.2 ラベル撤廃規則
 
-状態: 実装完了（REF:src/ui/app.rs, REF:tests/layering.rs, REF:tests/gui.rs）
+状態: 実装完了（REF:src/ui/app.rs, REF:src/ui/widgets/mod.rs, REF:tests/layering.rs, REF:tests/gui.rs）
 
 - ペイン見出しラベルや装飾枠線を一切置かず、余白とタイポグラフィで構造を表現する。
 - 禁止ラベル文字列（「ファイル」「エディタ」「情報」等）および `Frame::group` が `src/ui/**` に存在しないことを `REF:tests/layering.rs` と `REF:tests/gui.rs`（`no_pane_is_labelled_files_editor_or_information`）で常時検査する。
+
+- **[Issue #29 / B2] 編集面の左線の二段表示（実装完了: `REF:docs/plans.md#issue-29-b2`）**:
+  - 複数行エディタの共通描画に、非フォーカス時は `accent.faint`、フォーカス時は `accent` の幅 3px 縦線を持たせる。対象は節エディタと Slice エディタ群、資料フォームの要約・条件、MCP 設定のコード欄、タスク作成の例欄。提案モードの警告線などの状態表示が同じ左端に来る場合はそちらを優先する。色の決定は `field_accent`・描画は `paint_field_accent`（`REF:src/ui/widgets/mod.rs`）に共通化し、節エディタと Slice 系は `area`（`REF:src/ui/widgets/section_editor.rs`）が描く（検証: `REF:src/ui/widgets/mod.rs` の `field_accent_follows_the_two_tier_rule`）。
 
 ### 9.3 文脈ビュー（メインカラム上段）
 
 状態: 実装完了（REF:src/ui/widgets/context_view.rs, REF:tests/gui.rs）
 
 - 前後最大 3 節の読み取り専用表示と、編集中の節の位置に本文を重複描画せず 1 行プレースホルダ `─── @01-04-02-03 ───` のみを置く処理は `ui::widgets::context_view`（`REF:src/ui/widgets/context_view.rs`）に実装する（検証: `REF:tests/gui.rs` の `the_context_view_never_paints_the_section_being_edited`）。
-- ※§9.3.3 の折りたたみ UI は段階 ②（追加仕様 9、`REF:docs/plans.md#stage-2`）対象。
+- ※§9.3.3 の折りたたみは、各階層の見出しボタン（`▾`/`▸`）と `Ctrl+K Ctrl+0` / `Ctrl+K Ctrl+J`、`ui.json` の `folded` への保存まで実装済み（`REF:src/ui/widgets/context_view.rs`, `REF:src/ui/app.rs`）。`Ctrl+Shift+[` / `Ctrl+Shift+]` の段階的な折りたたみと、畳んだ単位の 1 行要約（文字数・節数）、検索ヒットによる自動展開は未実装（`REF:docs/specifications/ui.md` §9.3.3 の注記）。
 
 - **[F-21 / F-22 / F-39 / F-41 / S-04 / S-12] 文脈ビューの視認性・ガイド・可視範囲レイアウト改善（実装完了: `REF:docs/plans.md#plan-F-21`）**:
   - `REF:src/ui/widgets/context_view.rs` で各節境界に `border` 色の横線を描画し（F-21）、節見出しを章省略なしの `@AA-BB-CC-DD`（`A-B-C-D`）に統一する（F-22）。両項目とも `REF:tests/gui.rs` で検証済み。
   - 編集中プレースホルダ行の左端に 3px の `accent` 縦線を描画して節エディタと対にし（F-41）、未保存ドットを直径 10px で描く（F-39、`REF:src/ui/widgets/context_view.rs`・`REF:tests/gui.rs` で検証済み）。
   - 本文が 0 文字のときは `fg.faint` で 3 行ガイド（`Alt+数字=画面 / Alt+矢印=節移動 / Ctrl+P=一覧`）を描画する（S-04 は `REF:tests/gui.rs` で検証済み）。スクロール可視範囲内の節のみ `Galley` レイアウトを行う（S-12）。`REF:src/ui/widgets/context_view.rs` ではビューポート外を文字数からの高さ推定で確保し、可視節の実測高さを世代・幅・フォントサイズごとにキャッシュする（検証: `REF:src/ui/widgets/context_view.rs` の `viewport_tests`）。
 
+- **[Issue #29 / B3] 文脈ビューの節削除ボタン（実装完了: `REF:docs/plans.md#issue-29-b3`）**:
+  - `REF:src/ui/widgets/context_view.rs` の各節の番号の横と編集中プレースホルダの行に削除ボタンを置き、`Action::Delete(SceneId)` として返す。実行は `NovnowApp::request_delete`（`REF:src/ui/app.rs`）から節操作の単一経路（`REF:docs/designs/editing.md` §8.1）へ寄せる。右から左のレイアウトでは `Label` の割当矩形と描画位置がずれるため、ボタンは共通部品 `selectable_action` で描く（検証: `REF:tests/gui.rs` の `context_view_delete_buttons_follow_the_confirmation_rules`）。
+
 ### 9.4 節エディタ（メインカラム下段）
 
 状態: 実装完了（REF:src/ui/widgets/section_editor.rs, REF:src/ui/widgets/syntax_text.rs, REF:tests/gui.rs）
 
 - 1 行ミニヘッダー（パンくず `01 › 04 › 02 › 03` と有効モードバッジ）および構文ハイライト・インレイヒント・ベースライン基準の下線/波線描画を伴う複数行エディタは `REF:src/ui/widgets/section_editor.rs` と `REF:src/ui/widgets/syntax_text.rs` に実装する。
-- ※§9.4.2 の台詞比率バー、§9.4.3 のゴーストテキスト、§9.4.4 のタイプライタスクロールは段階 ②（`REF:docs/plans.md#stage-2`）対象。
+- ※§9.4.3 の句切れ提案は仕様の算法（`writing.long_sentence_chars`・4 つの優先度・上位 3 件）で実装済み（`REF:src/core/features/metrics.rs` の `comma_candidates`）。§9.4.2 の台詞比率バーは B2 で実装済み（下記）。§9.4.4 の W 系の算法は `REF:src/core/features/diagnose.rs` に実装済み。
 
 - **[F-02 / F-03 / F-37 / F-41] 節エディタの枠内パディング・カーソル/行番号調整・フォーカス表現分離・`lock_focus(true)`（実装完了: `REF:docs/plans.md#plan-F-02`）**:
   - `REF:src/ui/widgets/section_editor.rs` で枠内パディングとクリップ矩形を整えてテキストのはみ出しを解消し（F-02）、行番号の Y 座標とキャレット高さを `Galley` の行メトリクスに一致させる（F-03）。
   - ペインのフォーカス表示は左端 3px 縦線、編集中の節は常時 1px 枠線に分離する（F-41 は実装完了。`REF:src/ui/app.rs`, `REF:src/ui/widgets/context_view.rs`, `REF:tests/gui.rs`）。
   - `TextEdit::multiline` に `.lock_focus(true)` を付け、入力欄外の `Tab` 巡回と明瞭なフォーカス表示を実装する（F-37）。
 
+- **[Issue #29 / B2] 台詞比率バーの仕様形への復帰とベースライン整列の幾何テスト（実装完了: `REF:docs/plans.md#issue-29-b2`）**:
+  - 比率バーは仕様 §9.4.2 の形（幅 64px の横棒＋右に 10px の %）へ戻し、全面幅の `ProgressBar` への % 重ね描きをやめた。話プロット側の幅 48px バーも共通部品 `ratio_bar`（`REF:src/ui/widgets/mod.rs`）を使う。分母 0 の節では描かない。
+  - 行番号とキャレットは本文グリフのベースライン基準でそろえた（中心基準をやめた）。`row_baseline`（`REF:src/ui/widgets/syntax_text.rs`）がグリフのある行はそのベースラインを、空行は他の行と同じオフセットを返し、0 文字行と通常行の双方を `Galley` の幾何で検証する単体テスト（`row_baseline_uses_glyph_baselines_even_for_empty_rows`）を足した。
+- **[Issue #29 / B3] `Ctrl+Enter` の分割化（実装完了: `REF:docs/plans.md#issue-29-b3`）**:
+  - 節エディタの `Ctrl+Enter`（`Command::ConfirmNext`）は、直前フレームの選択範囲の開始バイトを `Workbench::split_section`（正規操作 `section.split` と同じ経路）へ渡して分割する。節先頭では何もせず、節末尾では従来の `confirm_next` と等価に振る舞う。何も書かれていない節（W012 の定義に一致）では新たな空節を作らない。エディタ以外にフォーカスがあるときは末尾として扱う（検証: `REF:tests/gui.rs` の `ctrl_enter_splits_the_section_at_the_caret`）。
+
 ### 9.5 参照ペイン
 
 状態: 実装完了（REF:src/core/features/reference.rs, REF:src/ui/widgets/reference_pane.rs, REF:tests/context_rules.rs, REF:tests/gui.rs）
 
-- 段階 ① の 6 セクション（プロット・上位プロット・配役・用語・資料・診断）のデータ組み立ては `core::features::reference::build`（`REF:src/core/features/reference.rs`）が `Vec<Section>` として返し（縫い代 6）、`REF:src/ui/widgets/reference_pane.rs` が枠線なしで描画する（80ms デバウンス）。
-- ※五感・空間・挿絵の 3 セクションは段階 ②（`REF:docs/plans.md#stage-2`）対象。
+- §9.5.2 の 9 セクション（プロット・上位プロット・配役・用語・五感・空間・資料・挿絵・診断）のデータ組み立ては `core::features::reference::at`（`REF:src/core/features/reference.rs`）が `Reference` として返し、`REF:src/ui/widgets/reference_pane.rs` が `PaneSection` の順に枠線なしで描画する（80ms デバウンス）。五感・空間・挿絵の 3 つは内容が無ければ見出しごと出さない（§9.5.2 の MUST。`PaneSection::hides_heading_when_empty`）。
 
 - **[F-04 / F-28 / F-34] 参照ペインのアコーディオン・境界線・「続き...」表示（実装完了: `REF:src/ui/widgets/reference_pane.rs`, `REF:tests/gui.rs`）**:
   - `REF:src/ui/widgets/reference_pane.rs` で同一診断コードが 4 件以上のときは 1 行アコーディオンに集約する（F-04、開閉と非集約は `REF:tests/gui.rs` で検証済み）。
@@ -64,17 +78,24 @@
 - **[F-23] 参照ペインの診断からの自動回復（実装完了: `REF:src/ui/widgets/reference_pane.rs`, `REF:src/ui/app.rs`）**:
   - 未解決参照診断には、形態素解析で区切った 1 形態素を `words.md` / `characters.md` へ登録するボタンを配置する。
 
+- **[Issue #29 / B5] 参照ペインの行からの移動（実装完了: `REF:docs/plans.md#issue-29-b5`）**:
+  - `core::features::reference` の各行に、表示文字列と並べて移動先 `Nav`（話プロット／上位プロット／配役／用語の全文／資料を開く・追加／文書内の位置）を持たせた。`REF:src/ui/widgets/reference_pane.rs` はダブルクリックと `Ctrl+3` フォーカス後の `↑`/`↓`・`Enter` でその移動を実行し、シングルクリックでは動かさない。実行は `NovnowApp::navigate_pane`（`REF:src/ui/app.rs`）。矢印でのフォーカス移動はアプリ側の打ち消し（refocus）の対象外にする。
+  - 明示参照の資料は「開く」（下線なし）、条件一致の候補は従来どおり「追加」（下線＋薄色）であり、見た目で見分けられる。用語の行は定義行へ飛ばず全文表示（`Ctrl+Shift+W` 相当）を開く。ヘッドレス `reference.pane` は各行に `nav`、診断に `byte`/`path` を足して返す（検証: `REF:tests/sections.rs` の `reference_rows_carry_their_navigation_targets`、`REF:tests/gui.rs` の `reference_pane_rows_navigate_on_double_click_but_not_on_single_click`、`REF:tests/workspaces.rs` の候補の `Enter` テスト）。
+
 ### 9.6 ステータスバー
 
 状態: 実装完了（REF:src/ui/app.rs, REF:tests/gui.rs）
 
 - 左側（位置 `01›04›02›03`、節/話/全体の空白除外文字数、400 字詰め原稿用紙換算）と右側（エラー・警告・情報件数、エージェント実行状態、保存状態アイコン）は `NovnowApp`（`REF:src/ui/app.rs`）に実装する（検証: `REF:tests/gui.rs` の `counts_are_section_episode_and_project_without_whitespace`）。
-- ※§9.6.2 のセッション統計モードは段階 ②（`REF:docs/plans.md#stage-2`）対象。
+- ※§9.6.2 のセッション統計モードは `Ctrl+Alt+S` と `ui.json` の `status_stats_mode` で実装済み（`REF:src/ui/status.rs`, `REF:src/app/settings.rs`）。
 
 - **[F-05 / F-18 / S-14] 修飾キー補完表示・起動通知の左下トースト化・幅に応じた省略優先順（実装完了: `REF:docs/plans.md#plan-F-05`）**:
-  - `REF:src/ui/shell.rs` と `REF:src/ui/app.rs` で、`Cmd`/`Ctrl`/`Alt`/`Shift` 押下中に次に入力可能なショートカット候補をステータスバーに表示する（F-05）。
+  - `REF:src/ui/shell.rs` と `REF:src/ui/status.rs` で、`Cmd`/`Ctrl`/`Alt`/`Shift` 押下中に次に入力可能なショートカット候補をステータスバーに表示する（F-05）。
   - 同梱フォント使用通知はステータスバーから外し、起動後数秒間のみ左下に表示するモードレストーストへ移す（F-18）。
   - ステータスバーの幅不足時は「セッション情報 → 原稿用紙枚数 → 文字数」の順に `…` へ畳んでホバー詳細とし、保存状態マークを最高優先で常時表示する（S-14）。
+
+- **[Issue #29 / B4] 省略判定の実測幅化（実装完了: `REF:docs/plans.md#issue-29-b4`）**:
+  - `REF:src/ui/status.rs` のステータスバー（`status_bar`）の表示/省略を、ウィンドウ幅の固定しきい値から各要素のレイアウト実測幅による判定（ `status_visibility` ）へ変えた。優先順位は パンくず > 文字数 > 原稿用紙枚数 > セッション情報 > 通知 で、上位が収まらない時点で下位も畳む。保存インジケータの右端の予約幅は現行の考えを保つ。幅を変えたフレームで「空きがあるのに `…` が出ないこと」と保存表示が画面内に残ることは `REF:tests/gui.rs` の `narrow_status_folds_secondary_details_without_hiding_save_state` で検証する。
 
 ### 9.7 ナビゲーション
 
@@ -88,9 +109,20 @@
   - パレット幅を固定して長文候補を `...` で省略し（F-12）、候補に「パレットを閉じる」を追加し（F-07）、未入力時の下部ガイド（F-13）と 0 件時の「ない」表示（F-14）を追加する。
   - `>` でエージェント系を `>agent ` 階層にまとめ（F-09）、全ショートカット操作を `>` から実行可能にし（F-15）、`?` をショートカット選択実行モードにし（F-25）、`@` を広さ優先の階層ドリルダウン（`@01-* 章タイトル` → `@01-01-* 話タイトル` → …）に変更し（F-26）、`Tab` によるトークン単位補完（S-13）を実装する。
 
-### 9.8 キーボード一覧（v0.1.0 確定版）
+- **[Issue #29 / B1] 重ね物の共通規則（実装完了: `REF:docs/plans.md#issue-29-b1`）**:
+  - 重ね物の分類は `OverlayKind`（`REF:src/ui/app.rs`）に集約し、`Overlay::kind` の網羅的な `match` で「閉じてよいか（保存失敗と終了ガードだけ不可）・軽い重ね物か・配置（画面中央／パレット系は上部）」を決める。外側クリックは `overlays` が全重ね物共通の受け皿（ `click_shield` ）で一括して受けて背面へ通さず、閉じる判断は 1 か所で行う（確認モーダルではキャンセルと同じ意味）。補完とクイックフィックスは描画箇所で自前の受け皿を持ち、外側クリックでは閉じるだけとする。`Esc` も同じ分類に従う。閉じられるモーダルには `popup()` が共通フッタの閉じる案内（ `modal.close_hint` ）を付け、配置は `PopupStyle` で渡す。
+  - 複雑なフォーム（MCP 設定・タスク作成・エクスポート設定・却下／差し戻しコメント・アイデア即時入力）の下書きは `OverlayDrafts` としてセッション内に重ね物ごとに毎フレーム同期して保持し（閉じ方によらず残る）、開くときに復元する。却下／差し戻しコメントは同じ提案・同じ向きのときだけ復元し、確定（保存・作成・書き出し・取り込み）に成功したら下書きを捨てる。ファイルへは書かない。
+  - 網羅テストは `REF:tests/gui.rs` の `every_overlay_closes_on_outside_click_and_escape_except_the_locked_two` が `OverlayKind::ALL` の全重ね物を開いて外側クリックと `Esc` を検証し（背面の非操作と本文の不変を含む）、`Overlay::sample` の網羅的な `match` と合わせて、後から増えた重ね物のテスト漏れをコンパイル時に検出する。配置と共通フッタは `modals_are_centered_with_a_close_hint_and_locked_ones_have_none`、下書きは `complex_form_drafts_are_restored_but_never_saved_to_the_project` が検証する。
+- **[Issue #29 / B4] 最近使った項目と候補一覧の追従ス（実装完了: `REF:docs/plans.md#issue-29-b4`）**:
+  - 履歴は GUI セッション状態（ `Session` ）にモード別（`>` / `@`）で最大 10 件まで持ち、候補生成（ `palette_items`、`REF:src/ui/palette_items.rs`）では入力が空のときだけ先頭へ差し込む（固定スコアの計算には入れない）。
+  - 選択行への最小移動の追従と、枠の右端に寄せた細いスクロールバーは、候補一覧を持つ重ね物（パレット・全体検索・資料検索・使用箇所）で共有する部品 `candidate_scroll` / `follow_selection`（`REF:src/ui/widgets/mod.rs`）として実装した。候補を末尾まで送ったとき選択行の矩形がスクロール領域内にあることは `REF:tests/gui.rs` の `palette_selection_stays_visible_when_moving_with_the_keyboard_only`、履歴は `palette_recent_items_come_first_only_on_empty_input` で検証する。
 
-状態: 実装完了（REF:src/ui/shell.rs, REF:src/ui/web.rs, REF:tests/gui.rs, REF:tests/gui.rs, REF:docs/plans.md#plan-F-17）
+- **[Issue #29 / B6] 検索 2 系統の分担の追認と一致表示（実装完了: `REF:docs/plans.md#issue-29-b6`）**:
+  - `Ctrl+Shift+F` の重ね物は本文の文字どおり検索（`REF:src/app/assist.rs`）のままとし、結果行の一致範囲に §11.3 の背景塗り（ `bg.selection` ）を付ける（共通部品 `append_match` / `selectable_job`、`REF:src/ui/widgets/mod.rs`）。正規表現検索は `write` の全文検索タブ（`REF:src/core/features/search.rs`）に置き、抜粋は「前文・一致・後文」の構造で返して画面では一致範囲だけを強調して描く（`**…**` を文字列に埋め込む形を廃止）。資料として保存するときだけ §16.3.1 の固定形に組み立てる。
+
+### 9.8 キーボード一覧
+
+状態: 実装完了（REF:src/ui/shell.rs, REF:src/ui/web.rs, REF:tests/gui.rs）
 
 - 全ショートカットの解釈と macOS での `Alt` → `Ctrl+Alt` 読み替えは `ui::shell`（`REF:src/ui/shell.rs`）に実装する。
 - **egui 0.27.2 における IME 実装規約（6 原則、`B-132`, `B-152`）**:
@@ -106,6 +138,10 @@
   - `REF:src/ui/shell.rs` は Web の予約キーに `Ctrl+Alt+Shift+I/N/T/W` を代替割当にし、ブラウザの開発者ツール等を妨げない。`REF:src/ui/web.rs` の key guard と `REF:tests/gui.rs` で確認する。
   - `REF:src/ui/shell.rs` と各ワークスペースで「一覧選択は素の `↑`/`↓`、確定して節移動は `Alt+↑`/`Alt+↓`」に統一し（F-35）。`REF:src/ui/workspaces/mod.rs` の `browse_keys` は入力欄・重ね物がないときだけ一覧移動し、`REF:tests/workspaces.rs` で編集中 Slice の非コミットを確かめる。
   - `Ctrl+3` を全画面で「参照ペインへフォーカス」に統一して資料内の移動は `Tab` に移し（F-36）、デスクトップの `Ctrl+O` を「保存して一覧へ戻る」に統一する（F-40）。
+
+- **[Issue #29 / B5] キー案内の項目化とクリック実行（実装完了: `REF:docs/plans.md#issue-29-b5`）**:
+  - `*.keys` の 1 本の文字列を項目単位の文言キーへ分け（`REF:src/ui/i18n/ja.toml`・`REF:src/ui/i18n/en.toml`）、各画面の案内を共通部品 `key_guide`（`REF:src/ui/widgets/mod.rs`）で項目ボタンの列として描く。実行はキーと同じ経路（ `Request::Down` / `Drop` / `Shortcut` 、資料検索の確定経路、選択画面の内部操作）へつなぐ。ヘルプのキー一覧は `HELP_KEYS` にコマンド名を持ち、コマンド表（`REF:src/app/commands.rs`）を経由してヘルプを閉じてから実行する（対応が単一コマンドでない項目はラベルのまま）。陳腐化した案内文言（資料画面の「Ctrl+3 審査フォーム」）は現行の割当（ `Tab` ）へ直した。ヘルプ本文は画面より長いのでスクロールさせる。
+  - 案内の項目とコマンド表の対応は `REF:src/ui/app.rs` の `every_help_item_name_resolves_in_the_command_tables` で、実際のボタン実行は `REF:tests/gui.rs` の `help_key_items_run_their_command_after_closing_the_help` と `REF:tests/workspaces.rs` の案内ボタンのテストで検証する。
 
 ### 9.9 アクセシビリティ
 
@@ -173,12 +209,15 @@
 
 - 場面・節のカード一覧と本文冒頭 1 行プレビュー・文字数集計・状態バッジは `core::features::plots`（`REF:src/core/features/plots.rs`）が計算し、`REF:src/ui/workspaces/plot_episode.rs` が描画・編集（`Enter` で `write` へ移動、`Space` で `state` 巡回、`M` でモード選択）を担う。
 
+- **[Issue #29 / B3] 節リストの削除ボタン（実装完了: `REF:docs/plans.md#issue-29-b3`）**:
+  - `REF:src/ui/workspaces/plot_episode.rs` の節リストの各行（場面見出しの行を除く）の右端に削除ボタンを置き、`Request::DeleteSection` として返す。削除の意味（本文と対応プロットの一体削除）と確認は §8.1.2 の単一経路に従う（検証: `REF:tests/workspaces.rs` の `plot_list_delete_button_uses_the_unified_delete`）。
+
 ### 10.3 `plot-outline` — 全体 / 章プロット
 
 状態: 実装完了（REF:src/core/features/plots.rs, REF:src/core/features/folding.rs, REF:src/ui/workspaces/plot_outline.rs, REF:tests/workspaces.rs）
 
 - 左ペインの構成ツリー（章→話展開に `core::features::folding::ranges` を使用）と中央ペインのブロックエディタ・進捗バーは `REF:src/ui/workspaces/plot_outline.rs` に実装する。
-- ※タイムライン・伏線マトリクス・章話番号リナンバは段階 ②（`REF:docs/plans.md#stage-2`）対象。
+- ※右パネルの伏線（`seed:` / `payoff:`）は基本タブのときだけ出し、他のタブは中央に全幅で出す（`REF:src/ui/workspaces/tabs.rs`）。タイムライン（`when:` が 1 件も無ければタブを出さない）・俯瞰表・挿絵メモ・五感・空間・章のあらすじ・字数分布・ストックは `stage.*` タブとして実装済み（`REF:src/ui/workspaces/tabs.rs`）。章話番号の振り直しはストックタブの `stock::assign`（`REF:src/core/features/stock.rs`）。
 
 ### 10.4 `idea` — アイデア
 
@@ -208,7 +247,7 @@
 
 ### 10.7 `reader` — 読者モード（§17.3 に詳細）
 
-状態: 実装完了（REF:src/ui/workspaces/stage_two.rs, REF:src/core/reader.rs, REF:tests/workspaces.rs, REF:tests/stage_two.rs）
+状態: 実装完了（REF:src/ui/workspaces/reader.rs, REF:src/core/reader.rs, REF:tests/workspaces.rs, REF:tests/stage_two.rs）
 
 - `Alt+7` で retained な読者ビューへ切り替える。組版と保存の境界は §17.3 を参照。
 
@@ -223,18 +262,25 @@
 状態: 実装完了（REF:src/core/features/project.rs, REF:src/ui/workspaces/review.rs, REF:src/ui/workspaces/mod.rs, REF:tests/workspaces.rs, REF:tests/gui.rs）
 
 - 診断一覧タブ（重大度・コード・位置・クイックフィックス適用）と進捗ツリータブ（章・話・節ごとの `state` と文字数集計）は `REF:src/core/features/project.rs` と `REF:src/ui/workspaces/review.rs` に実装する。
-- ※伏線一覧・文体・統計の 3 タブは段階 ②（`REF:docs/plans.md#stage-2`）対象。
+- ※タブは 9 個（基本・時系列・話者別・字数分布・文体観察・執筆統計・五感・挿絵メモ・提案）で、`REF:src/ui/workspaces/tabs.rs` が描く。1 の「基本」だけは `REF:src/ui/workspaces/review.rs` の 2 タブ（診断・進捗）を使う。
 
 - **[F-20] エラー・警告発生時の `review` アイコン変化（実装完了: `REF:docs/plans.md#plan-F-20`）**:
   - `REF:src/ui/app.rs` のヘッダアイコン描画でエラー/警告件数に応じたバッジ・色変化を表示する。
 
 ## 11. テーマ・配色・タイポグラフィ
 
+- **[Issue #29 / B7] 診断の有効設定の編集と W096 指標（実装完了: `REF:docs/plans.md#issue-29-b7`）**:
+  - 診断タブ（`REF:src/ui/workspaces/review.rs`）で選択中の行のコードについて「出さない / 警告 / エラー扱い」を切り替えられ、`Request::SetDiagnosticLevel` を介して `project.toml` の `[features.diagnostics]` へ無損失編集（`project_toml::set_diagnostic_level`、`REF:src/core/syntax/project_toml.rs`: 既存のコードキーを優先して更新し、無ければコードキーを足す）で保存する（§10.9.6）。現在の有効値は §4.5.2 の解決結果で示し、上書きが無い場合は「既定」と出す。表示フィルタ（重大度の絞り込み）は従来どおり保存しない。
+  - W096 を文体タブの指標（`REF:src/ui/workspaces/tabs.rs` の所見ペインのコード一覧）へ加えた。既定ではチェックを外してあり、診断としての有効化は `[features.diagnostics]` で行う。
+
 ### 11.1 セマンティックカラートークン
 
 状態: 実装完了（REF:src/ui/theme.rs, REF:tests/gui.rs）
 
 - `Palette`（`REF:src/ui/theme.rs`）が Dark / Light の全セマンティックカラートークンを保持する。仕様表の 16 進カラーコードとの完全一致は `REF:tests/gui.rs` の `theme_colors_are_the_spec_tables` で検証する。
+
+- **[Issue #29 / B2] `accent.faint` トークンの追加（実装完了: `REF:docs/plans.md#issue-29-b2`）**:
+  - `Palette`（`REF:src/ui/theme.rs`）に編集面の左線（非フォーカス時）用の `accent.faint`（dark `#354A6B` / light `#ADC4EB`）を足した。装飾色であり、本文系トークンのコントラスト基準の対象には含めない。仕様表との一致は `theme_colors_are_the_spec_tables`（`REF:tests/gui.rs`）で検証する。
 
 ### 11.2 構文ハイライト割当
 

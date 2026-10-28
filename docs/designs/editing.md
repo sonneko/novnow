@@ -17,6 +17,10 @@
 - **[F-10] 複数行および `;` を含むペースト時の自動節分割（実装完了: `REF:src/core/features/sections.rs`, `REF:src/ui/widgets/section_editor.rs`）**:
   - `REF:src/core/features/sections.rs` に `split_pasted_sections(current: &str, cursor: usize, pasted: &str)` を追加し、`REF:src/ui/widgets/section_editor.rs` / `REF:src/app/workbench.rs` で `egui::Event::Paste` を処理する際、改行を保持するとともに単独 `;` 行や `@A-B-C` 行が含まれていれば自動的に複数節へ分割・一括挿入する。
 
+- **[Issue #29 / B3] 節の分割と削除の意味統一（実装完了: `REF:docs/plans.md#issue-29-b3`）**:
+  - 分割は `sections::split_body`（`REF:src/core/features/sections.rs`）でカーソルのバイト位置をそのまま使い、行境界へのスナップはしない。`Workbench::split_section`（`REF:src/app/workbench.rs`）が、節先頭では無操作、節の途中では現在節と次節の間へ下側を挿入して下側へ移り、節末尾では従来の次節移動（`confirm_next`）と等価に振る舞う。何も書かれていない節（`sections::is_unwritten`、W012 の定義）では新たな空節を作らない。GUI の `Ctrl+Enter` と正規操作 `section.split` はこの同じ経路を通る。
+  - 削除は全入口（文脈ビューとプロット一覧のボタン、ショートカット `Ctrl+Shift+;` / `Ctrl+Shift+Delete` / `Ctrl+:`、パレット、ヘッドレス `section.delete`）が `Workbench::delete_section_at` の単一経路を通り、本文の節と対応するプロットブロック（`plots::section_blocks`、`REF:src/core/features/plots.rs`）を一緒に消す。対応が複数あって一意に定まらない場合は何も消さずに知らせる（ `DeleteOutcome::Ambiguous` ）。片側にしか無い節はその側だけを消す。空でない節の確認の有無は `.novnow/ui.json` の `confirm_section_delete`（§4.4）で切り替え、本文とプロットの両方が空の節は常に確認なし。検証: `REF:tests/sections.rs` の `split_body_splits_at_the_byte_without_snapping`、`REF:tests/gui.rs` の分割と削除のテスト群。
+
 ### 8.2 保存ステートマシン
 
 状態: 実装完了（REF:src/app/save_machine.rs, REF:src/ui/app.rs, REF:tests/gui.rs）
@@ -39,7 +43,7 @@
 - ステータスバー右端の保存状態インジケータ（`Clean` 無表示 / `Dirty` 琥珀色 `●` / `Saving` 点滅 `●` / `Failed` 赤 `✕` + 通知）は `NovnowApp`（`REF:src/ui/app.rs`）が `SaveMachine::state()` を参照して描画する。
 
 - **[F-39] 未保存ドット（オレンジ点）のサイズ拡大（実装完了: `REF:src/ui/widgets/context_view.rs`, `REF:tests/gui.rs`）**:
-  - `REF:src/ui/widgets/context_view.rs` の編集中プレースホルダの未保存ドットは半径 5px（直径 10px）。ステータスバーの保存インジケータは半径 4px（直径 8px、`REF:src/ui/app.rs`）。`REF:tests/gui.rs` で描画形状を確認する。
+  - `REF:src/ui/widgets/context_view.rs` の編集中プレースホルダの未保存ドットは半径 5px（直径 10px）。ステータスバーの保存インジケータは半径 4px（直径 8px、`REF:src/ui/status.rs`）。`REF:tests/gui.rs` で描画形状を確認する。
 
 ### 8.5 外部変更との競合
 
@@ -53,6 +57,7 @@
 状態: 実装完了（REF:src/app/workbench.rs, REF:src/ui/widgets/section_editor.rs, REF:tests/gui.rs）
 
 - 節内の編集履歴と節をまたぐ操作履歴は `Workbench`（`REF:src/app/workbench.rs`）および `egui::TextEdit` が保持し、自動保存によって Undo スタックが消去されない設計としている（`B-118`）。
+- 節ごとの履歴の退避・復元は egui の widget 状態（`TextEditState` は Id ごとに `ctx.memory` が持つ）をそのまま使う。`REF:src/ui/widgets/section_editor.rs` の `editor_id()` が「文書のパス・節 ID・**節の開始行**」から Id を作り、`remember()` が最近使った 20 節だけを残して古い節の state を捨てる（`ctx.memory.data.remove::<TextEditState>()`）。開始行を混ぜるのは、節の削除で繰り上がった節に前の節の履歴が付くのを防ぐため。
 
 ### 8.7 提案モード（人間用トラックチェンジ）
 

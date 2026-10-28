@@ -15,7 +15,7 @@ use novnow::core::syntax::contents::Comment;
 use novnow::core::syntax::plot_outline::{self, Block, CharRef, Foreshadow, Line, Options};
 use novnow::core::text::lexer::FieldKey;
 
-/// §5.3.3 の例（`plots/all.txt`）。**仕様のコード例をそのまま**使う（§5.3 完了条件 1）。
+/// §5.3.3 の例（`plots/all.cnov`）。**仕様のコード例をそのまま**使う（§5.3 完了条件 1）。
 const SPEC_ALL: &str = "// 全体プロット: 章を 1 ブロック 1 章で書く。\n\
 title: 星屑の時計\n\
 summary: 古代錬金術を追う少年と幼馴染が、学院の地下遺跡の魔導具を巡って対立と和解を繰り返す。\n\
@@ -37,7 +37,7 @@ payoff: F02 -> @02-05\n\
 state: draft\n\
 ;\n";
 
-/// §5.3.4 の例（`plots/01.txt` — 章プロット）。
+/// §5.3.4 の例（`plots/01.cnov` — 章プロット）。
 const SPEC_CHAPTER: &str = "@01-04 図書室の密談\n\
 summary: 試験前の図書室で'アルス が'リリア に設計図を見せ、放課後の探索を約束させる。\n\
 goal: 読者に探索の動機とリスクを同時に渡す。\n\
@@ -76,7 +76,7 @@ fn strict() -> Options {
     }
 }
 
-/// `plots/all.txt` の設定（見出しは章 = 1 階層、§5.3 の表）。
+/// `plots/all.cnov` の設定（見出しは章 = 1 階層、§5.3 の表）。
 fn chapters() -> Options {
     Options {
         depth: Some(1),
@@ -472,8 +472,8 @@ fn an_unknown_key_is_w011_and_keeps_its_value() {
 }
 
 #[test]
-fn stage_two_keys_survive_as_unknown_fields() {
-    // ② のキーは ① の表に無いので W011 になり、**値はそのまま残る**（作業項目 2「② の生命線」）
+fn stage_two_keys_are_read_as_fields() {
+    // ② のキーも §5.0.6 の表にあるのでキーとして解し、**値をそのまま残す**（§5.0.6）
     let text = "@01 x\nsummary: s\nwhen: 405.0 春分 09:15\nspace-mode: ascii\n\
                space:\n  ┌──┐\n  │書架│\nblurb: あらすじ\n;\n";
     assert_eq!(diags_tag(text), "");
@@ -619,7 +619,7 @@ fn a_summary_over_120_chars_is_w019() {
 
 #[test]
 fn a_heading_of_the_wrong_depth_is_e020() {
-    // §5.3.2「ファイル内の見出し階層は揃っていること（`all.txt` に `@01-04` が現れたら E020）」
+    // §5.3.2「ファイル内の見出し階層は揃っていること（`all.cnov` に `@01-04` が現れたら E020）」
     assert_eq!(
         diags_with("@01 x\nsummary: s\n@01-04 y\nsummary: t\n;\n", &chapters()),
         "E020@17..23(1)"

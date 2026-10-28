@@ -1,14 +1,14 @@
 //! §5.0 の共通字句規則。
 //!
-//! すべての novnow テキスト形式（`contents/*.txt` / `plots/*.txt` / `*.md`）に共通の字句を、
+//! すべての novnow テキスト形式（`contents/*.cnov` / `plots/*.cnov` / `*.md`）に共通の字句を、
 //! **行単位**で扱う（§5.0.1「複数行にまたがるトークンは存在しない。1 行は常に単独で字句解析
 //! できる」）。これはインクリメンタル再解析（[`super::incremental`]）と LSP 化の前提。
 //!
 //! このファイルが担うのは次の 4 つ:
 //!
 //! 1. **行頭シジルの判定**（§5.0.2）。優先順位は [`SIGIL_TABLE`] の**配列順**で固定する
-//!    （`docs/plans.md` §4.4 の縫い代 4「表駆動」）。② のシジル（`# ` / `! `）は行を消すのではなく
-//!    [`Stage::Two`] として残すので、② の実装はフラグを切り替えるだけでよい。
+//!    （`docs/plans.md` §4.4 の縫い代 4「表駆動」）。`# `（§5.0.8）と `! `（§5.2.5）は
+//!    実装済みで、表の `stage` はすべて [`Stage::One`]。
 //! 2. **エスケープ**（§5.0.3）。有効文字は [`ESCAPE_TARGETS`] で管理し、他は 2 文字のまま
 //!    扱い**診断を出さない**。
 //! 3. **フィールド行**（§5.0.5 の 7 段の手順）。全角 `：` は直後の空白を問わず受理し、
@@ -21,7 +21,7 @@
 //! §5.0.2 の表のうち**行内に現れるシジル**（`'` 参照・`'{ }`・`:` 修飾子・`+` 併用・`「」` 会話・
 //! `^` 引用注釈・`..` 範囲演算子）は、このファイルでは**行の種別を変えない**。
 //! `'` と `「」` のトークン分割は M2（`core/syntax/*`）・M3（`core/resolve/*`）、
-//! `..` は [`crate::core::id`]（M1 で実装済み）、`^` は ②（`docs/plans.md` §4.2 の 10）。
+//! `..` は [`crate::core::id`]（M1 で実装済み）、`^` は §5.2.4 の引用注釈として M2 が扱う。
 //! 行頭の判定だけこのファイルで行い、行内の意味は各形式のパーサに委ねる。
 //!
 //! §12.2 により core はユーザー向け文言を持たない。ここにある日本語は**字句データ**
@@ -37,23 +37,23 @@ use serde::{Deserialize, Serialize};
 /// シジルとフィールド行は形式によって受理範囲が違う（例: `;` は C / B 形式のみ）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TextFormat {
-    /// `contents/AA-BB.txt`（C 形式、§5.2）。
+    /// `contents/AA-BB.cnov`（C 形式、§5.2）。
     Contents,
-    /// `plots/all.txt` / `plots/AA.txt`（A 形式、§5.3）。
+    /// `plots/all.cnov` / `plots/AA.cnov`（A 形式、§5.3）。
     PlotOutline,
-    /// `plots/AA-BB.txt`（B 形式、§5.4）。
+    /// `plots/AA-BB.cnov`（B 形式、§5.4）。
     PlotEpisode,
     /// `*.md`（`characters.md` / `words.md` / `ideas.md` / `materials/**` / `prompts/*.md`）。
     Markdown,
 }
 
 impl TextFormat {
-    /// `.txt`（A / B / C 形式）か。§5.0.8 の `# ` コメントは `.txt` のみで有効。
+    /// `.cnov`（A / B / C 形式）か。§5.0.8 の `# ` コメントは `.cnov` のみで有効。
     ///
     /// §5.0.2 の「出現場所」は [`Formats`] の定数に 1 箇所だけ書き、ここからは引くだけにする
     /// （同じ仕様を 2 箇所に書くと片方だけ変わる）。
-    pub fn is_txt(self) -> bool {
-        Formats::TXT.contains(self)
+    pub fn is_cnov(self) -> bool {
+        Formats::CNOV.contains(self)
     }
 
     /// フィールド行（§5.0.5）を書ける形式か。C 形式（本文）にはフィールド行が無い。
@@ -61,12 +61,12 @@ impl TextFormat {
         Formats::FIELD_FORMATS.contains(self)
     }
 
-    /// 節区切り `;`（§5.0.2）を書ける形式か。**`.txt` 3 形式**。
+    /// 節区切り `;`（§5.0.2）を書ける形式か。**`.cnov` 3 形式**。
     ///
     /// A 形式は §5.3.1 `block_end = ws? , ";" , eol`、B 形式は §5.4.1、C 形式は §5.2.1。
     /// `docs/history.md` A-11（§5.0.2 の表は「C / B」だけだった）。
     pub fn allows_section_break(self) -> bool {
-        Formats::TXT.contains(self)
+        Formats::CNOV.contains(self)
     }
 }
 
@@ -89,8 +89,8 @@ impl Formats {
     pub const MARKDOWN: Self = Self(0b1000);
     /// A / B（§5.0.6 の「使用形式」列で最も多い組み合わせ）。
     pub const AB: Self = Self(0b0110);
-    /// `.txt` 3 形式（§5.0.8 の `# ` は `.md` では見出しなので含まない）。
-    pub const TXT: Self = Self(0b0111);
+    /// `.cnov` 3 形式（§5.0.8 の `# ` は `.md` では見出しなので含まない）。
+    pub const CNOV: Self = Self(0b0111);
     /// フィールド行を書ける形式（§5.0.2 の `key:` の出現場所「A/B 形式, `*.md`」）。
     pub const FIELD_FORMATS: Self = Self(0b1110);
     /// すべての形式。
@@ -113,15 +113,17 @@ impl Formats {
     }
 }
 
-/// 実装段階（`docs/plans.md` §4.2 の ① / ②）。
+/// シジルの有効段階（`docs/plans.md` §4.2 の表駆動の縫い代）。
 ///
-/// ② の機能を ① で**動かさない**ための印。テーブルの行は消さずに残すので、
-/// ② の実装は `Two` を `One` に変えるだけで済む（縫い代 4）。
+/// 表の行を消さずに「まだ動かさない」印を付けるための列で、有効にするときは
+/// [`Stage::Two`] を [`Stage::One`] に変えるだけで済む（縫い代 4）。
+///
+/// **現在 [`SIGIL_TABLE`] に [`Stage::Two`] の行は無い**（`# ` と `! ` は B10 で有効化した）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Stage {
-    /// v1 本体（①）で有効。
+    /// 有効。
     One,
-    /// v1 追加仕様（②）で有効になる。**① では通常テキストとして扱う**。
+    /// 有効化前（**現在この段階の行は無い**）。
     Two,
 }
 
@@ -134,9 +136,9 @@ pub enum Sigil {
     SectionBreak,
     /// `//` 行コメント（以降行末まで）。
     LineComment,
-    /// `# ` 行コメント（§5.0.8）。**②**。
+    /// `# ` 行コメント（§5.0.8）。B10 で有効化。
     HashComment,
-    /// `! ` 挿絵メモ（§5.2.5）。**②**。
+    /// `! ` 挿絵メモ（§5.2.5）。B10 で有効化。
     IllustrationMemo,
 }
 
@@ -162,7 +164,7 @@ pub struct SigilSpec {
 ///
 /// `docs/plans.md` §4.4 の縫い代 4「行頭シジルの表駆動: `const SIGIL_TABLE` に
 /// `(prefix, kind, requires_space)` を並べ、lexer はこれを走査する」の実体。
-/// ② で `# ` / `! ` を有効化するときも、字句器を書き直さずに `stage` を変えるだけにする。
+/// `# ` / `! ` の有効化は `stage` を `One` に変えるだけで済んだ（B10）。
 pub const SIGIL_TABLE: &[SigilSpec] = &[
     SigilSpec {
         prefix: "@",
@@ -177,7 +179,7 @@ pub const SIGIL_TABLE: &[SigilSpec] = &[
         sigil: Sigil::SectionBreak,
         requires_space: false,
         whole_line: true,
-        formats: Formats::TXT,
+        formats: Formats::CNOV,
         stage: Stage::One,
     },
     SigilSpec {
@@ -185,7 +187,7 @@ pub const SIGIL_TABLE: &[SigilSpec] = &[
         sigil: Sigil::HashComment,
         requires_space: true,
         whole_line: false,
-        formats: Formats::TXT,
+        formats: Formats::CNOV,
         stage: Stage::One,
     },
     SigilSpec {
@@ -240,7 +242,7 @@ pub enum LineKind<'a> {
         /// インデントを除いた残り。
         text: &'a str,
     },
-    /// `! ` 挿絵メモ（§5.2.5）。**②** なので [`Stage::One`] では作られない。
+    /// `! ` 挿絵メモ（§5.2.5）。
     IllustrationMemo(&'a str),
     /// 通常のテキスト行（本文）。
     Text(&'a str),
@@ -263,11 +265,11 @@ pub struct FieldLine<'a> {
     pub value_at: usize,
 }
 
-/// §5.0.6 のフィールドキー（① の範囲）。
+/// §5.0.6 のフィールドキー（表の 46 行に対応）。
 ///
-/// **② のキーは含めない**（`docs/plans.md` §4.2 ）: `when`（3）/ `senses`（7）/ `space`・
-/// `space-mode`（21）/ `illustration`（23）/ `blurb`（17）/ `address`（8）/ `icon`（24）。
-/// ① ではそれらは [`FieldKey::Unknown`] として**値を改変せず保持する**（縫い代 1・2）。
+/// 46 件すべてを lexer が解す（`when` / `senses` / `space` / `space-mode` / `illustration` /
+/// `blurb` / `address` / `icon` を含む）。表に無いキーだけが [`FieldKey::Unknown`]（W011）に
+/// なり、**値を改変せず保持する**（縫い代 1・2）。形式ごとに妥当かは M2 のパーサが見る。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 pub enum FieldKey {
     /// `summary`
@@ -383,7 +385,7 @@ impl FieldKey {
 /// [`FIELD_KEYS`] の 1 行 = `(キー, 正準形の ascii_key, 日本語別名, 使用形式)`。
 pub type KeyRow = (FieldKey, &'static str, &'static str, Formats);
 
-/// §5.0.6 のフィールドキー別名表（固定・双方向 1:1）。① の 38 件。
+/// §5.0.6 のフィールドキー別名表（固定・双方向 1:1）。全 46 件。
 ///
 /// i18n: format-vocabulary
 ///
@@ -392,9 +394,10 @@ pub type KeyRow = (FieldKey, &'static str, &'static str, Formats);
 /// のはメッセージであり、`tests/layering.rs` はこの doc 行を付けた `const` の中だけ
 /// 日本語リテラルを免除する（`docs/history.md` B-19）。
 ///
-/// **② のキーは含めない**（`docs/plans.md` §4.2 ）: `when`（3）/ `senses`（7）/ `space`・
-/// `space-mode`（21）/ `illustration`（23）/ `blurb`（17）/ `address`（8）/ `icon`（24）。
-/// ① では表に無いので [`FieldKey::Unknown`]（W011）になり、値は改変せず保持する。
+/// 全 46 件（`when` / `senses` / `space` / `space-mode` / `illustration` / `blurb` /
+/// `address` / `icon` を含む）。どのキーも §5.0.6 の表に載っているので別名を解し、
+/// 形式ごとの妥当性は M2 のパーサが見る。表に無いキーだけが
+/// [`FieldKey::Unknown`]（W011）になり、値は改変せず保持する。
 /// 保存時に正準形へは**正規化しない**（§5.0.6「作家の表記を保つ」）。
 pub const FIELD_KEYS: &[KeyRow] = &[
     (FieldKey::Summary, "summary", "要約", Formats::AB),
@@ -440,7 +443,7 @@ pub const FIELD_KEYS: &[KeyRow] = &[
     (FieldKey::Source, "source", "出典", Formats::MARKDOWN),
     (FieldKey::Condition, "condition", "条件", Formats::MARKDOWN),
     (FieldKey::Context, "context", "文脈", Formats::MARKDOWN), // §5.0.6: prompts/*.md
-    (FieldKey::Title, "title", "題", Formats::PLOT_OUTLINE),   // §5.0.6: 00_plot/00_outline.txt
+    (FieldKey::Title, "title", "題", Formats::PLOT_OUTLINE),   // §5.0.6: A 形式（§5.3.3 の前文）
     (FieldKey::Color, "color", "色", Formats::MARKDOWN),       // §5.0.6: characters.md
     (FieldKey::Status, "status", "状況", Formats::MARKDOWN),   // §5.0.6: ideas.md
     (FieldKey::Created, "created", "作成日時", Formats::MARKDOWN), // §5.0.6: ideas.md
@@ -487,7 +490,7 @@ pub const FIELD_KEYS: &[KeyRow] = &[
 
 /// 1 行を字句解析する（§5.0.1「1 行は常に単独で字句解析できる」）。
 ///
-/// ① の範囲（[`Stage::One`]）。② のシジル（`# ` / `! `）は通常テキストとして扱う。
+/// すべてのシジル（`# ` / `! ` を含む）を判定する（[`Stage::One`]）。
 pub fn classify(line: &str, format: TextFormat) -> LineKind<'_> {
     classify_at_stage(line, format, Stage::One)
 }
@@ -498,8 +501,8 @@ pub fn classify(line: &str, format: TextFormat) -> LineKind<'_> {
 /// 通常テキスト。順そのものは [`SIGIL_TABLE`] の配列順で、字句器には書いていない
 /// （`docs/plans.md` §4.4 の縫い代 4）。
 ///
-/// [`Stage::Two`] を渡すと ② の行（`docs/plans.md` §4.2 の 15・23）も有効になる。v1 本体は
-/// [`Stage::One`] だけを呼び、② の実装は呼び出し側のフラグを切り替えるだけで済む。
+/// 表に [`Stage::Two`] の行が残っている間は、[`Stage::Two`] を渡すとそれらも有効になる
+/// （**現在は該当する行が無いので [`Stage::One`] と同じ結果**）。
 pub fn classify_at_stage(line: &str, format: TextFormat, stage: Stage) -> LineKind<'_> {
     for spec in SIGIL_TABLE {
         if stage == Stage::One && spec.stage == Stage::Two {
@@ -814,7 +817,7 @@ pub fn find_inline_comment(line: &str) -> Option<Range<usize>> {
 /// UTF-8 BOM（§5.0.4「BOM があれば剥がして読み、保存時は付けない」MUST）。
 pub const BOM: &str = "\u{feff}";
 
-/// `project.json.newline`（§4.5）。既定は `lf`。
+/// `project.toml.newline`（§4.5）。既定は `lf`。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Newline {

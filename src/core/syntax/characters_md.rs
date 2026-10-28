@@ -5,7 +5,7 @@
 //! character     = "# " , char_name , eol , { field_line | section } ;
 //! section       = "## " , section_key , eol , section_body ;
 //! section_key   = "modes" | "attributes" | "tone" | "relations" | "notes"
-//!               | "性格" ... (§5.0.6 の別名表に準拠) ;
+//!               | 「モード」|「口調」|「関係」|「メモ」;   (* §5.0.6 の別名のうち 4 語 *)
 //! section_body  = { field_line | bullet | pattern_line | free_line | blank | comment_line } ;
 //! mode_def      = "### " , mode_id , [ ws , mode_label ] , eol , { field_line | pattern_line | free_line } ;
 //! mode_id       = /[A-Za-z][A-Za-z0-9_]{0,15}/ ;
@@ -68,11 +68,10 @@
 //!   辞書が要るので M3（§6.4）。M2 は `'参照` と `mode_id` の**形だけ**を読む。
 //! - **W084**（台詞内の呼称が `address:` に反する、§5.5.6）: 本文と配役を突き合わせる
 //!   §7.2 の検査なので M4 以降。
-//! - `address:`（②・追加仕様 8）と `icon:`（②・追加仕様 24）: §5.0.6 の ① の表に無いので
-//!   **W011 ＋ 値を改変せずに保持**（`docs/history.md` の作業項目 3「実装しないが未知フィールド
-//!   として保持されること」）。`icon` の **E062** / **W068** / **W069** / **W070** は ② の実装時。
-//! - `color:` は §5.5.3 が任意フィールドとして定義しているのに §5.0.6 の表に無い
-//!   （`docs/history.md` A-15）。表を正本として **W011** を出す。
+//! - `address:`（§5.5.6）・`icon:`（§5.5.3）・`color:`（§5.5.3）は §5.0.6 の表にあるので
+//!   キーとして解し、**W011 は出さない**。値はそのまま保持する。`icon` の **E062** /
+//!   **W068**–**W070**（§5.5.3）と **W084** / **W085**（§5.5.6）はプロジェクト全体を見る
+//!   M4 の検査器（`core::features::diagnose`）が出す。
 //! - `### <mode_id>` が `mode_id` の形に合わないとき: §7 に対応コードが無いので診断せず、
 //!   [`ModeDef::valid_id`] が `false` になるだけ（A 形式の B-39 と同じ流儀）。
 
@@ -413,7 +412,7 @@ pub enum Line<'a> {
     Pattern(PatternLine<'a>),
     /// 自由記述。4 種に当てはまらない行すべて（§5.5.1「`note` 相当として保持」）。
     Text(&'a str),
-    /// 行コメント（`//`、§5.0.2）。`# ` は `.txt` 専用のコメント（§5.0.8）なので
+    /// 行コメント（`//`、§5.0.2）。`# ` は `.cnov` 専用のコメント（§5.0.8）なので
     /// MD では見出しになる。
     Comment(contents::CommentLine<'a>),
     /// 空行（空白だけの行を含む。`docs/history.md` B-34）。
@@ -525,18 +524,18 @@ pub(crate) fn parse_line(raw: &str) -> Line<'_> {
     if raw.trim_matches(lexer::is_space).is_empty() {
         return Line::Blank(raw);
     }
-    // `# ` は MD では見出し（§5.0.8 の行コメントは `.txt` だけ。字句器の `Formats::TXT` が担保）
+    // `# ` は MD では見出し（§5.0.8 の行コメントは `.cnov` だけ。字句器の `Formats::CNOV` が担保）
     if let Some(found) = parse_heading(raw) {
         return Line::Heading(found);
     }
-    // ①（[`lexer::Stage::One`]）で MD の行を読む
+    // 有効なシジル（[`lexer::Stage::One`]）で MD の行を読む
     match lexer::classify_at_stage(raw, TextFormat::Markdown, lexer::Stage::One) {
         LineKind::Field(found) => Line::Field(plot_outline::parse_field(raw, found)),
         LineKind::Continuation { indent, text } => {
             Line::Continuation(Continuation { raw, indent, text })
         }
         LineKind::Comment { .. } => Line::Comment(contents::parse_comment(raw)),
-        // 箇条書きと鉤括弧行は字句表に無い（§5.0.2 は `.txt` のシジルを並べた表）ので
+        // 箇条書きと鉤括弧行は字句表に無い（§5.0.2 は `.cnov` のシジルを並べた表）ので
         // こちらで分類する。どちらも形が合わなければ自由記述のまま
         _ => {
             if let Some(found) = parse_bullet(raw) {
@@ -1037,8 +1036,8 @@ pub(crate) fn section_key_of(text: &str) -> SectionKey {
         SECTION_TONE => SectionKey::Tone,
         SECTION_RELATIONS => SectionKey::Relations,
         SECTION_NOTES => SectionKey::Notes,
-        // §5.5.2「`性格` ... (§5.0.6 の別名表に準拠)」。セクションとして意味が対応する
-        // 4 種だけを引き当て、それ以外（`## 性格` 等）は `Other` として保持する
+        // §5.5.2「セクションとして意味が対応する 4 語だけを受ける」。それ以外
+        // （`## 性格` 等）は `Other` として保持し、中の行は自由記述として残す
         _ => match lexer::lookup_key(text) {
             FieldKey::Tone => SectionKey::Tone,
             FieldKey::Relation => SectionKey::Relations,

@@ -2,7 +2,7 @@
   "name": "novnow",
   "displayName": "novnow",
   "description": "novnow language support through the official LSP server",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "sonneko",
   "license": "MIT",
   "repository": {
@@ -21,7 +21,7 @@
     "Linters"
   ],
   "activationEvents": [
-    "workspaceContains:project.json",
+    "workspaceContains:project.toml",
     "onLanguage:novnow"
   ],
   "main": "./dist/extension.js",
@@ -32,11 +32,10 @@
         "aliases": [
           "novnow"
         ],
-        "filenamePatterns": [
-          "**/contents/**/*.txt",
-          "**/plots/**/*.txt"
-        ],
-        "configuration": "./language-configuration.json"
+        "configuration": "./language-configuration.json",
+        "extensions": [
+          ".cnov"
+        ]
       }
     ],
     "commands": [
@@ -83,15 +82,22 @@
           "description": "Additional arguments passed to novnow before the lsp subcommand."
         }
       }
-    }
+    },
+    "grammars": [
+      {
+        "language": "novnow",
+        "scopeName": "source.novnow",
+        "path": "./syntaxes/novnow.tmLanguage.json"
+      }
+    ]
   },
   "novnow": {
     "artifact": {
-      "x86_64-unknown-linux-gnu": "novnow-0.1.0-x86_64-unknown-linux-gnu-nogui.tar.gz",
-      "aarch64-unknown-linux-gnu": "novnow-0.1.0-aarch64-unknown-linux-gnu-nogui.tar.gz",
-      "x86_64-apple-darwin": "novnow-0.1.0-x86_64-apple-darwin-nogui.tar.gz",
-      "aarch64-apple-darwin": "novnow-0.1.0-aarch64-apple-darwin-nogui.tar.gz",
-      "x86_64-pc-windows-msvc": "novnow-0.1.0-x86_64-pc-windows-msvc-nogui.zip"
+      "x86_64-unknown-linux-gnu": "novnow-0.1.1-x86_64-unknown-linux-gnu-nogui.tar.gz",
+      "aarch64-unknown-linux-gnu": "novnow-0.1.1-aarch64-unknown-linux-gnu-nogui.tar.gz",
+      "x86_64-apple-darwin": "novnow-0.1.1-x86_64-apple-darwin-nogui.tar.gz",
+      "aarch64-apple-darwin": "novnow-0.1.1-aarch64-apple-darwin-nogui.tar.gz",
+      "x86_64-pc-windows-msvc": "novnow-0.1.1-x86_64-pc-windows-msvc-nogui.zip"
     }
   },
   "scripts": {

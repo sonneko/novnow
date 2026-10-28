@@ -1,4 +1,4 @@
-//! エクスポートの不変条件（§17.1「不変条件（MUST）」、§19.12 の 1 項目め、M9）。
+//! エクスポートの不変条件（§17.1「不変条件（MUST）」、M9）。
 //!
 //! 「サンプルと実プロジェクトで検証する」: 雛形（`novnow new` が作るサンプル、§14.5）・仕様書の例
 //! （`tests/world`）・実プロジェクト（`tests/novel`）の 3 つを、§4.5 の `export` の全組み合わせ
@@ -29,7 +29,7 @@ use novnow::core::template;
 fn sample() -> Project {
     let documents = template::new_project("星屑の時計")
         .into_iter()
-        .filter(|file| is_document(&ProjectPath::new(file.path).expect("path")))
+        .filter(|file| is_document(&ProjectPath::new(&file.path).expect("path")))
         .map(|file| Document::new(file.path, file.text));
     Project::with_documents(Default::default(), documents)
 }

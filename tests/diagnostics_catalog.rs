@@ -48,16 +48,17 @@ struct Row {
 }
 
 #[test]
-fn the_spec_has_76_codes_in_three_tables() {
-    // 第 2.17 版で v0 移行系の 5 件（W040 / E061 / W066 / W067 / I053）を削除した
+fn the_spec_has_85_codes_in_three_tables() {
+    // 第 2.17 版で v0 移行系の 5 件（W040 / E061 / W066 / W067 / I053）を削除した。
+    // 2026-10-28 に I051（未保存の変更）と I058（検索結果を資料化した）を廃止した（87 → 85）
     let rows = all_rows();
     let core = count_group(&rows, Group::Core);
     let storage = count_group(&rows, Group::Storage);
     let writing = count_group(&rows, Group::Writing);
-    assert_eq!(core, 39);
+    assert_eq!(core, 38);
     assert_eq!(storage, 10);
-    assert_eq!(writing, 27);
-    assert_eq!(rows.len(), 76);
+    assert_eq!(writing, 37);
+    assert_eq!(rows.len(), 85);
     assert_eq!(CATALOG.len(), rows.len());
 }
 
@@ -183,7 +184,7 @@ fn the_default_toggles_match_the_spec() {
     let on = codes_on_the_line("v0.1.0 の既定で **有効** なのは");
     let off = codes_on_the_line("は **既定で無効** とし");
     assert_eq!(on.len(), 9);
-    assert_eq!(off.len(), 7);
+    assert_eq!(off.len(), 18);
     for text in &on {
         let code = lookup(text);
         assert_eq!(code.toggle(), Toggle::OnByDefault, "{text}");
@@ -219,7 +220,7 @@ fn the_default_toggles_match_the_spec() {
 fn the_cost_table_matches_the_spec() {
     // §7.2「実行コストの制御（MUST）」。範囲は MUST なので、`Scope::Section` の診断を
     // プロジェクト全体で計算してはいけない
-    assert_eq!(COST.len(), 16);
+    assert_eq!(COST.len(), 27);
     for row in COST {
         let text = row.0.as_str();
         let line = cost_line(text);
@@ -254,8 +255,8 @@ fn a_diagnostic_carries_only_the_code_and_the_arguments() {
 
 #[test]
 fn a_notice_has_no_range_and_no_underline() {
-    // I051（未保存の変更）は §7 の表に載っているが文書位置を持たない通知
-    let notice = Diagnostic::simple(DiagnosticCode::I051, None);
+    // W041（読み取り専用）は §7.0 の表に載っているが文書位置を持たない通知
+    let notice = Diagnostic::simple(DiagnosticCode::W041, None);
     assert!(notice.args.is_empty());
     assert_eq!(notice.range, None);
     assert_eq!(notice.anchor(), Anchor::Status);

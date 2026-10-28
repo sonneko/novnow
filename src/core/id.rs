@@ -7,8 +7,9 @@
 //! 比較できるように付ける。
 //!
 //! **予約番号 `00` はパースを拒否しない（§5.1.2 の MUST）**。`A = 00`（未配属ストック章）と
-//! `B = 00`（章あらすじ）の**機能**は追加仕様 22 / 17 で ② だが、番号としての正当性は ① でも
-//! 保たれていなければならない（拒否すると ② で既存データを救えない）。
+//! `B = 00`（章あらすじ）は番号として正当で、機能（ストック章・あらすじ）も実装済みである。
+//! 番号の正当性をここで保つので、拒否するのは `structure.allow_chapter_zero = false` の
+//! プロジェクトだけになる。
 //! したがってこのファイルは `00` に意味を与えない。`structure.allow_chapter_zero` の検査と
 //! E022（予約番号、第 2.8 版で E020 から分離）は**形式ごとのパーサ**の仕事で、C 形式では `core::syntax::contents` が設定を
 //! `Options` として受け取って出す（§5.1.2）。
@@ -35,7 +36,7 @@ pub const RANGE_OP: &str = "..";
 /// 構造見出し・範囲式のシジル（§5.0.2 の StructureSigil）。
 pub const SIGIL: char = '@';
 
-/// `project.json.structure.*_digits`（§4.5）。
+/// `project.toml.structure.*_digits`（§4.5）。
 ///
 /// **core は設定ファイルを読まない**（§3.2）ので、桁数は呼び出し側が引数で渡す。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -51,7 +52,7 @@ pub struct Digits {
 }
 
 impl Default for Digits {
-    /// §4.5 の `project.json` 既定値（すべて 2 桁）。
+    /// §4.5 の `project.toml` 既定値（すべて 2 桁）。
     fn default() -> Self {
         Self {
             chapter: 2,

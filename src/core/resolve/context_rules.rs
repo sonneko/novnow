@@ -427,7 +427,7 @@ impl PacketBlock {
 /// 重大度（[`Severity`]）→ 文書内の位置 の順。同じ位置ならコード順（決定的にするため）。
 pub fn diagnostic_rank(diagnostic: &Diagnostic) -> (u8, usize, &'static str) {
     (
-        severity_rank(diagnostic.code.severity()),
+        severity_rank(diagnostic.severity()),
         diagnostic.range.clone().map_or(0, |found| found.start),
         diagnostic.code.as_str(),
     )

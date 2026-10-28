@@ -241,7 +241,7 @@ fn removing_a_history_row_keeps_the_project_directory_untouched() {
     let dir = TempDir::new("recent-delete-keeps-project");
     let project = dir.join("novel");
     std::fs::create_dir_all(&project).expect("project dir");
-    let manuscript = project.join("project.json");
+    let manuscript = project.join("project.toml");
     std::fs::write(&manuscript, "original manuscript").expect("project data");
     let history = dir.join("state/novnow/recent.json");
     let gate = Arc::new(FsGate::new(&FakeEnv::with_history(&history)));

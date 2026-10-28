@@ -6,16 +6,16 @@
 //!
 //! | 文書 | 返すもの |
 //! |---|---|
-//! | 本文 `contents/AA-BB.txt` | その節の構造 ID（`01-04-02-03`）。区切り `;` の行はそれが閉じる節、場面見出しの行は場面（`01-04-02`）。最初の場面見出しより前は話（`01-04`） |
-//! | 話プロット `plots/AA-BB.txt` | 同上（見出し直下の場面のフィールドは場面） |
-//! | 章プロット `plots/AA.txt` | ブロックの ID（`01-04`）。最初のブロックより前は章（`01`） |
-//! | 全体プロット `plots/all.txt` | ブロックの ID（`01`）。最初のブロックより前は ID なし |
+//! | 本文 `contents/AA-BB.cnov` | その節の構造 ID（`01-04-02-03`）。区切り `;` の行はそれが閉じる節、場面見出しの行は場面（`01-04-02`）。最初の場面見出しより前は話（`01-04`） |
+//! | 話プロット `plots/AA-BB.cnov` | 同上（見出し直下の場面のフィールドは場面） |
+//! | 章プロット `plots/AA.cnov` | ブロックの ID（`01-04`）。最初のブロックより前は章（`01`） |
+//! | 全体プロット `plots/all.cnov` | ブロックの ID（`01`）。最初のブロックより前は ID なし |
 //! | `characters.md` | 人物名（モードの中ならモード） |
 //! | `words.md` | 用語 |
 //! | `ideas.md` | アイデアの ID とタイトル |
 //! | `materials/index.json`・`materials/docs/*.md` | 資料の ID とタイトル |
 //! | `prompts/**/*.md` | 役割（セクションの中ならセクション） |
-//! | `project.json` | 作品の設定 |
+//! | `project.toml` | 作品の設定 |
 //!
 //! **文言は持たない**（§12.2）。「本文」「登場人物」などの言葉は `ui/i18n` の `place.*` が付ける。
 //! 名前と ID はファイルに書かれたままの文字列。
@@ -34,9 +34,9 @@ pub enum Place {
     Contents(String),
     /// 話プロット（B 形式）の構造 ID。
     EpisodePlot(String),
-    /// 章プロット（`plots/AA.txt`）のブロックの ID（`01-04`）、または章（`01`）。
+    /// 章プロット（`plots/AA.cnov`）のブロックの ID（`01-04`）、または章（`01`）。
     ChapterPlot(String),
-    /// 全体プロット（`plots/all.txt`）のブロックの ID（`01`）。ブロックの外なら `None`。
+    /// 全体プロット（`plots/all.cnov`）のブロックの ID（`01`）。ブロックの外なら `None`。
     WholePlot(Option<String>),
     /// 登場人物。`mode` はモードの見出しのまま（`A 日常`）。
     Character {
@@ -68,7 +68,7 @@ pub enum Place {
         /// セクション（`## ` の中のとき）。
         section: Option<String>,
     },
-    /// 作品の設定（`project.json`）。
+    /// 作品の設定（`project.toml`）。
     Settings,
 }
 
@@ -190,7 +190,7 @@ fn episode_line(document: &Document, line: usize, project: &Project) -> Option<S
 
 /// A 形式: 位置を含むブロックの ID。ブロックの外は、章プロットならファイル名の章、全体プロットなら `None`。
 fn outline_place(document: &Document, byte: Option<usize>, project: &Project) -> Place {
-    let whole = document.path.trim_start_matches("./") == "plots/all.txt";
+    let whole = document.path.trim_start_matches("./") == "plots/all.cnov";
     let symbols = document_symbol::all(document);
     let block = byte.and_then(|at| enclosing(&symbols, at));
     match (whole, block) {
@@ -204,10 +204,10 @@ fn outline_place(document: &Document, byte: Option<usize>, project: &Project) ->
     }
 }
 
-/// ファイル名（`01-04.txt` / `01.txt`）の構造 ID。
+/// ファイル名（`01-04.cnov` / `01.cnov`）の構造 ID。
 fn file_id(document: &Document) -> Option<PartialSceneId> {
     let name = document.path.rsplit('/').next()?;
-    let stem = name.strip_suffix(".txt")?;
+    let stem = name.strip_suffix(".cnov")?;
     PartialSceneId::parse(stem).ok()
 }
 

@@ -7,9 +7,20 @@ on:
   push:
     branches: [main, develop]
   workflow_dispatch:
+    inputs:
+      scope:
+        description: CI scope (full = release rehearsal, develop = single-platform minimal)
+        type: choice
+        options: [full, develop]
+        default: full
 
 permissions:
   contents: read
+
+# CI スコープの判定は 4 ワークフロー（wheels / desktop-check / pages-check / vscode）
+# で同一。docs/developers.md §4.7。手動実行は scope 入力で full / develop を選ぶ。
+env:
+  CI_SCOPE: ${{ github.event_name == 'workflow_dispatch' && (inputs.scope || 'full') || (github.event_name == 'pull_request' && (github.base_ref == 'main' && 'full' || 'develop')) || (github.ref_name == 'main' && 'full' || 'develop') }}
 
 concurrency:
   group: pages-check-${{ github.ref }}
@@ -20,7 +31,19 @@ jobs:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    outputs:
+      browsers: ${{ steps.scope.outputs.browsers }}
     steps:
+      - name: Select the browser matrix by CI scope
+        id: scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$CI_SCOPE" = develop ]; then
+            echo 'browsers={"browser":["chromium"]}' >> "$GITHUB_OUTPUT"
+          else
+            echo 'browsers={"browser":["chromium","firefox","webkit"]}' >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -52,14 +75,20 @@ jobs:
           path: website/dist
           retention-days: 7
 
+  # ブラウザ行列は CI スコープで変わる（develop 向け PR は chromium のみ、
+  # main 向け PR・push・手動実行は3種。docs/developers.md §4.7）。
+  # 必須チェックの扱いは同様にブランチで違う: develop では chromium のみ必須、
+  # main では3種すべて必須。ruleset 側の設定であり、正本は docs/distribution.md §8。
   browsers:
     needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    # playwright の --with-deps が入れる apt パッケージは Ubuntu 24.04 前提で確かめた構成。
+    # ubuntu-latest が 26.04 へ移行したランナーではブラウザ導入が失敗したため固定する。
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     strategy:
       fail-fast: false
-      matrix:
-        browser: [chromium, firefox, webkit]
+      matrix: ${{ fromJSON(needs.build.outputs.browsers) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -69,10 +98,48 @@ jobs:
         with:
           name: combined-pages
           path: website/dist
-      - name: Install the browser
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-1.64.1-ubuntu24.04-${{ matrix.browser }}
+      - name: Install Playwright
+        run: npm install --prefix "$RUNNER_TEMP/browser" playwright@1.64.1
+      # システム依存（apt）は毎回入れる。ブラウザ本体はキャッシュがあれば落とさない。
+      # 導入が止まることがあるため上限と再試行を付け、失敗時はログの末尾を注釈へ出す
+      # （この環境からは Actions の生ログが取れないため。vscode.yml の electron と同じ形）
+      - name: Install browser system deps
+        shell: bash
         run: |
-          npm install --prefix "$RUNNER_TEMP/browser" playwright@1.58.2
-          "$RUNNER_TEMP/browser/node_modules/.bin/playwright" install --with-deps ${{ matrix.browser }}
+          playwright_bin="$RUNNER_TEMP/browser/node_modules/.bin/playwright"
+          ok=""
+          for attempt in 1 2 3; do
+            if timeout 420 "$playwright_bin" install-deps ${{ matrix.browser }} > "$RUNNER_TEMP/pw-deps.log" 2>&1; then ok=1; break; fi
+            echo "install-deps attempt $attempt failed"
+            sleep 20
+          done
+          if [ -z "$ok" ]; then
+            node -e 'const fs=require("fs"); const text=fs.readFileSync(process.argv[1],"utf8").slice(-3000); console.log("::error::install-deps log: "+text.replace(/%/g,"%25").replace(/\r/g,"%0D").replace(/\n/g,"%0A"));' "$RUNNER_TEMP/pw-deps.log"
+            cat "$RUNNER_TEMP/pw-deps.log"
+            exit 1
+          fi
+      - name: Download the browser
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          playwright_bin="$RUNNER_TEMP/browser/node_modules/.bin/playwright"
+          ok=""
+          for attempt in 1 2 3; do
+            if timeout 420 "$playwright_bin" install ${{ matrix.browser }} > "$RUNNER_TEMP/pw-install.log" 2>&1; then ok=1; break; fi
+            echo "browser download attempt $attempt failed"
+            sleep 20
+          done
+          if [ -z "$ok" ]; then
+            node -e 'const fs=require("fs"); const text=fs.readFileSync(process.argv[1],"utf8").slice(-3000); console.log("::error::browser download log: "+text.replace(/%/g,"%25").replace(/\r/g,"%0D").replace(/\n/g,"%0A"));' "$RUNNER_TEMP/pw-install.log"
+            cat "$RUNNER_TEMP/pw-install.log"
+            exit 1
+          fi
       - name: Install deterministic Firefox software graphics
         if: matrix.browser == 'firefox'
         run: |
@@ -100,6 +167,7 @@ jobs:
           exit "$status"
 
   crate:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:

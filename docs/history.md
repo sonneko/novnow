@@ -1218,7 +1218,7 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 ### [HIST:DECISION:B-156] 2026-10-14 非同期の保存（Web の IndexedDB。B-118 で残した「書き込みの結果を後のフレームで受け取る口」）
 [HIST-TAG: category=DECISION id=B-156 topics=B-156,diagnostics,export,storage_policy,web,ui]
 - **選択肢・論点**: `Host::write` を Web だけ書いたことにする ／ **保存 1 回分を Host に渡し、結果を後で受け取る**
-- **決定と理由**: `Host::save(writes, removals) -> Option<SaveOutcome>`（既定はその場で書いて返す＝デスクトップとテストは今までどおり）と `Host::save_finished()` を足した。Web は `None` を返し、終わったら結果を返す。保存の状態は書き終わるまで `Saving`（§8.3「トランザクション成功 = 保存成功」）。**書いているあいだに文書に入った打鍵**（節を移ったなど）は、渡した中身と今の中身が違えば未保存のまま残して次の保存で書く（比べないと消える。`tests/gui.rs` の `an_asynchronous_save_keeps_what_was_committed_while_it_was_writing`）。保存の外の書き込み（`ui.json`・監査ログ・`exports/`）は列に積んで `Ok` を返し、失敗は `Host::take_events` で後から知らせる。Web の書き込みは **1 本の列で順に**行う（監査ログの追記が重ならない・保存の後に頼んだ Zip が保存後の中身を読む）。`Ctrl+O`（Web は選択画面へ戻る）・Zip のエクスポートは、書き終わってから。容量不足（`QuotaExceededError`）は `SaveFailed` として赤い印と、Zip でエクスポートしてから不要なプロジェクトを消す導線のモーダル（§13.3.7）。W062 は保存の前に `navigator.storage.estimate()`（1 分に 1 回まで）
+- **決定と理由**: `Host::save(writes, removals) -> Option<SaveOutcome>`（既定はその場で書いて返す＝デスクトップとテストは今までどおり）と `Host::save_finished()` を足した。Web は `None` を返し、終わったら結果を返す。保存の状態は書き終わるまで `Saving`（§8.3「トランザクション成功 = 保存成功」）。**書いているあいだに文書に入った打鍵**（節を移ったなど）は、渡した中身と今の中身が違えば未保存のまま残して次の保存で書く（比べないと消える。`tests/gui.rs` の `an_asynchronous_save_keeps_what_was_committed_while_it_was_writing`）。保存の外の書き込み（`ui.json`・監査ログ・`exports/`）は列に積んで `Ok` を返し、失敗は `Host::take_events` で後から知らせる。Web の書き込みは **1 本の列で順に**行う（監査ログの追記が重ならない・保存の後に頼んだ Zip が保存後の中身を読む）。`Ctrl+O`（Web は選択画面へ戻る）・Zip のエクスポートは、書き終わってから。容量不足（`QuotaExceededError`）は `SaveFailed` として赤い印と、Zip でエクスポートしてから不要なプロジェクトを消す導線のモーダル（§13.3.6）。W062 は保存の前に `navigator.storage.estimate()`（1 分に 1 回まで）
 
 ### [HIST:DECISION:B-157] 2026-10-14 Web のプロジェクト選択（§13.4）の細部
 [HIST-TAG: category=DECISION id=B-157 topics=B-157,web,ui]
@@ -2136,3 +2136,348 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 
 - 所有者は公開バイナリへの直接ダウンロード導線と、文書原本をそのままサイトで表示する既知の問題一覧を承認した。不具合本文はREADMEには掲載せず、修正版が公開・確認された時点で現行一覧から削除する。
 - Actions修正PR #32は所有者がdevelopへmerge済み。現在の作業ブランチで告知整備を行い、develop→mainの順で所有者が統合する。今回に限り版更新なしでサイト・文書と修正をmainへ含めるが、タグ変更や追加リリースは行わない。
+
+## 2026-10-26: Issue #29 実装バッチ B1（重ね物の土台）
+
+- 仕様 §9.7.5 の共通規則を実装した。重ね物の分類を `OverlayKind` に集約し（`Overlay::kind` の網羅的な `match`）、外側クリックは `overlays` の共通受け皿で一括処理して背面へ通さない。保存失敗と終了ガードだけは外側クリックでも `Esc` でも閉じない。配置は画面中央とパレット系（上部）の 2 系統とし、閉じられるモーダルには共通フッタ「Esc / 外側クリックで閉じる」を付けた。軽い重ね物（検索バー・情報は中央処理、補完・クイックフィックスは自前の受け皿）も外側クリックでは閉じるだけにした。
+- 複雑なフォーム 5 種（MCP 設定・タスク作成・エクスポート設定・却下／差し戻しコメント・アイデア即時入力）の下書きをセッション内に毎フレーム同期して保持し、次に開いたとき復元するようにした（ファイルへは書かない。確定に成功したら捨てる）。網羅テストは `OverlayKind::ALL` と `Overlay::sample` の網羅性で将来の追加漏れをコンパイル時に検出する形にした。
+
+## 2026-10-26: Issue #29 実装バッチ B2（節エディタ）
+
+- 台詞比率バーを仕様 §9.4.2 の形（幅 64px・高さ 4px・`fg.faint` 単色＋右に 10px の %、分母 0 では表示しない）へ戻し、話プロット（幅 48px）と部品 `ratio_bar` を共有するようにした。編集面の左線（§9.2.4）は `accent.faint`（dark `#354A6B` / light `#ADC4EB`）を `Palette` に足し、節エディタ・Slice 系・資料フォームの要約／条件・MCP コード欄・タスク例欄へ二段表示（通常は淡色、フォーカス時は `accent`、提案モードの警告が優先）を入れた。
+- 行番号とキャレットの縦位置を、行矩形の中心基準から本文グリフのベースライン・アセント基準へ変えた（`row_baseline`）。空行は同じ `Galley` の他の行のオフセットを流用する。空行と通常行の双方の幾何を単体テストで検証した。
+
+## 2026-10-26: Issue #29 実装バッチ B5（案内と参照ペイン）
+
+- 参照ペインの行モデルに移動先 `Nav` を持たせ（§9.5.5）、全セクションの行をダブルクリック／`Ctrl+3`+`↑`/`↓`+`Enter` で移動できるようにした（シングルクリックでは動かない。明示参照は「開く」、候補は「追加」で下線の有無で区別）。ヘッドレス `reference.pane` の返却値にも `nav` と診断の位置を足した。矢印での行移動がアプリ側のフォーカス打ち消し（refocus）と競合しないよう、ペインが処理した矢印は打ち消しの対象外にした。
+- キー案内を項目単位の文言キーへ分け、全画面の案内とヘルプのキー一覧を項目ボタンにした。実行はキーと同じ経路で、ヘルプはコマンド表を経由する（対応の契約テスト付き）。資料画面の「Ctrl+3 審査フォーム」は現行の `Tab` へ直し、ヘルプ本文が画面からはみ出さないようスクロールを付けた。
+
+## 2026-10-26: Issue #29 実装バッチ B6（読者と検索）
+
+- 読者モードの縦書き括弧が豆腐になる問題を直した原因は、同梱の IPA ゴシックに縦書き互換形（`︵`・`﹁` など）が 1 字も収録されていないのに、組版が無条件に互換形へ置換していたことだった。使用フォントの収録を egui の `has_glyph` で確かめて組版へ渡す実配線にし、収録の無い字は元の括弧を 90° 回転して描く（§17.3.3）。同梱フォント使用時は常に回転描画になる。
+- 検索の抜粋を「前文・一致・後文」の構造へ変え、データへ表示用記法（`**…**`）を埋め込む形をやめた。画面（全文検索タブと全体検索 `Ctrl+Shift+F`）は一致範囲だけを §11.3 の背景塗りで強調し、資料として保存するときだけ §16.3.1 の固定形（メタ行、節 ID 付き箇条書き、500 件上限の註記）で組み立てる。
+
+## 2026-10-26: Issue #29 実装バッチ B3（節の操作）
+
+- 節の分割を新設した。`Ctrl+Enter` はカーソルのバイト位置（文字境界）で節を 2 つに分け（安全な位置へ寄せない）、節先頭では何もせず、節末尾では従来の「確定して次の節へ」と等価になる。何も書かれていない節（W012 の定義）では新たな空節を作らない。正規操作 `section.split` を仕様 §19.7 の表へ取り込み（120 操作・カタログ版 1.1）、GUI と同じ経路（`Workbench::split_section`）にした。
+- 節の削除を全入口で「本文の節と対応するプロットブロックの一体削除」へ統一した。文脈ビュー（編集中プレースホルダを含む）とプロット一覧に削除ボタンを置き、ショートカットに `Ctrl+Shift+Delete` と `Ctrl+:` を足した。対応が一意に定まらない場合は何も消さず知らせる。確認は個人設定 `confirm_section_delete` に従い、本文とプロットの両方が空の節は常に確認なし。あわせて、コメント付きの区切り行（`; // …`）を削除が区切りと認識せず空節が残る既存の不整合を、字句器の分類で判定するよう直した。
+
+## 2026-10-26: Issue #29 実装バッチ B10（形式の更新）
+
+- プロジェクト設定を `project.json` から `project.toml`（schema_version 2）へ移行した。読み取りは TOML の値から型付き検証し、書き戻しは `toml_edit` による無損失編集（変更したキー以外はコメント・書式・キー順・未知キーを保持する）とした。壊れた TOML は E025 を出して既定値で開き、決して上書きしない。`toml` と `toml_edit` を core の許可クレートへ追加した（層検査の許可リスト更新を含む）。
+- `[features.diagnostics]` を実装した。診断コードごとに「個別コード → グループ（structure / storage / writing）→ default → 組み込み既定」の順で `off` / `warn` / `error` を解決し、診断生成の単一経路で適用する（`off` は件数にも含めず、`error` は `novnow check` の終了コード 5 の対象）。あわせて E025 の文言を JSON / TOML 共通の「読み込めません」へ改めた。
+- 本文・プロットの拡張子を `.txt` から `.cnov` へ改名し（文法は不変）、文書判定を「置き場所と拡張子の組の厳密一致」（§5.0.9）に揃えた。旧形式のファイルは未知のファイルとして触れず、旧形式プロジェクトは必須ファイル不足の通常エラーになる（自動変換はしない）。サンプル・テンプレート・ゴールデン・起動時出力例（§14.2.2 / §14.2.3）・利用者向け文書を追随させた。
+- Zip パッケージの拡張子 `.novnow` に対応し（書き出しの許可拡張子とダイアログ／Web の受け入れ）、VS Code 拡張へ `.cnov` の言語関連付けと最低限の色付けを足した。
+
+## 2026-10-26: Issue #29 実装バッチ B7（診断の追加）
+
+- 新しい診断 W096（台詞内の句読点直後の空白、仕様 §7.2.2）を追加した。台詞の中で `。`・`！`・`？` の後に全角空白を開ける書き方と開けない書き方が混在するとき、記号ごとに作品全体で集計し、合計 5 件以上かつ多数派が 2 件以上多い場合にだけ少数派の箇所を指摘する。組み込み既定は無効で、`[features.diagnostics]` で有効化する。本文が日本語主体かどうかは表示言語ではなく文字種で決める。クイックフィックスは空白を多数派に合わせて入れる／取る 1 操作。仕様 §7.2 の表・コード・日英カタログ・サイトの解説データを同時に揃え、診断は全 77 コードになった。
+- 点検ワークスペースに診断の有効設定の編集面（仕様 §10.9.6）を実装した。選択中の行のコードについて「出さない / 警告 / エラー扱い」を切り替えると、`project.toml` の `[features.diagnostics]` へ無損失編集で保存される（既存のコードキーを優先して更新する）。表示フィルタは従来どおり保存しない。W096 は文体タブの指標にも加えた（既定では出さない）。
+
+## 2026-10-26: Issue #29 実装バッチ B8（選択画面と Web）
+
+- Web 版の入口ページ（`index.html`）の初期表示が、本体が読み込まれる前からブラウザのロケールに従うようになった（`lang` 属性・題・オフライン状態表示）。`lang="ja"` 固定と二言語ベタ書きをやめ、Web スモークで日英両ロケールの初期表示を確かめる。プロジェクト選択画面に言語切替ボタンは置かない（所有者決定どおり）。
+- iOS Safari の PWA で物理キーボードを使うと、節移動のたびに表示位置がずれる問題（隠し入力欄への再フォーカスが原因）への対策を入れた。入力欄の短い離脱では隠さず再フォーカス自体を無くし、フォーカスの直後にスクロール位置を復元する。Chromium の Web スモークに「節移動後も入力が続くこと」の回帰を足した。症状は既知の問題 KI-002 として掲載し（実機での解消確認は分離）、修正版の公開後に外す。
+
+## 2026-10-26: Issue #29 実装バッチ B9（文書・運用）
+
+- 静的検証の地図を作った。`docs/developers.md` §4.6.2 に領域別（core / app / ui / CLI / LSP / Python / Web / 文書 / 配布）の「何がどの検査で守られているか」と空白地帯を明示し、`docs/script/reference.py` に検査 13（地図に書いた検査のパスと名前の実在確認）を追加して、地図自体の陳腐化を防ぐ。
+- リポジトリ直下の動作確認用プロジェクト 2 件（`project.json/` と `contents/01-01-01-01.txt/`、同一内容）を、参照が無いことを確かめたうえで現行形式（`project.toml` / `.cnov`）へ直し、`examples/manual-check/` の 1 件に統合した。直下に置いてよいものの基準は `docs/developers.md` §3 の一文どおり。
+- 実機チェックリストを `docs/developers.md` §4.9 に集約した（対象環境と、IME・フォント・ファイルダイアログ・キー配列などの観点。iOS フォーカスの確認項目を含む）。
+- `CONTRIBUTING.md`（当面コード PR は受け付けていないこと、仕様変更は承認制であること）と Issue テンプレート（不具合報告・提案）を用意した。
+- GitHub Actions の所要時間をジョブ別に実測し（CI 約 3.3 分で Benchmarks が最長）、待ち時間短縮のために `bench` ジョブからリリースビルドのフレーム予算テストを `perf` ジョブへ分けて並行化し、重複していたビルド（`cargo bench --no-run`、wasm32 の `cargo check`）を畳んだ。仕様 §18.4 の検証項目は減らしていない。実測値は `docs/developers.md` §4.7。
+- VS Code Marketplace と Open VSX への公開ジョブ（`.github/workflows/vscode-publish.yml`）を用意した。手動実行のみが入口で、承認用の environment を挟み、発行者トークンが無ければ何もしない。初回公開は所有者の登録・トークン用意の後に別途行う。公開完了の判定（`scripts/release-check.sh`）に市場公開を含めないことも確認した。
+
+## 2026-10-27: develop 向け PR で Firefox / WebKit のブラウザ試験を必須から外す
+
+- Pages integration の `browsers` ジョブは Firefox / WebKit で偽陽性が多発するため、所有者が ruleset `protect-develop` の必須チェックから `browsers (firefox)` / `browsers (webkit)` を外した（develop の必須は25件から23件）。`protect-main` では従来どおり3ブラウザすべて必須で、API で再確認した。試験の実行自体は develop 向け PR でも続け、失敗は参考情報として確認する。正本は `docs/distribution.md` §8、運用の注記は `docs/developers.md` §4.7。
+## 2026-10-27: Issue #29 の後続 X1（移行支援の拡張）
+
+- 既存本文テキストからの移行支援（仕様 §14.6）を候補提示型へ拡張した（第 8〜21 回の決定どおり）。所有者への選択肢調査（第 21 回決定、2026-10-27）: Shift_JIS 変換は `encoding_rs` クレートで実装、CLI は生成した候補のとおりに生成（`--preview` を事前確認とする）、序章・終章・プロローグ・エピローグは章・幕間・閑話・番外編は話の境界候補、貼り付けの修復候補は複数行の入力欄すべてを対象、X1 と X3 は同じ PR（#38）で X1 → X3 の順に実施。
+- 文字コード: ファイル取り込み（CLI / デスクトップ）はバイト列から判定し、正しい UTF-8（先頭 BOM を除く）を優先、読めなければ Shift_JIS として変換、変換でも化ける・空白だけ・NUL 含むは拒否。どちらでも読める入力は「曖昧」としてデスクトップのプレビューでファイルごとに切り替えられる。Shift_JIS 以外の符号化は対象外。
+- 分割: 見出し行（「第○章」「第○話」と 7 語の固有名詞見出し。単独の短い行だけ。残りはタイトルへ使い本文に残さない。構造番号は出現順に振り直し）・記号 3 字以上の区切り行・空行 1 つ（節）/2 つ以上（場面）で境界候補を作る。候補は自動では確定せず、デスクトップのプレビューで各候補を他の段または境界なしへ変更でき、確定後にだけ生成する。CLI は候補を編集できず候補どおりに生成する。
+- CLI: `novnow migrate <入力…> <dir> [--preview]`（仕様 §14.1 へ取り込み）。入力はファイル・フォルダの混在で、最後の引数が移行先。フォルダは直下の `.txt` / `.md` だけを自然順（数字列は数値で比較）で読み、サブフォルダは辿らない。ファイルは 1 話、フォルダの先頭ファイルは章の候補。
+- 貼り付け: 貼り付けた文字列が UTF-8 を Shift_JIS で読み違えた文字化けらしい場合（固有の文字や半角カタカナの指紋があり、欠損が候補の半分以上にならない場合）に限り、フレームの先頭で横取りして修復候補を提示する。候補を使う / 元のまま / 貼り付けないで選ばせ、選択した文字列を元の入力欄へ渡す。対象は複数行の入力欄（デスクトップ・Web 双方）。通常の日本語・英語の貼り付けには出ない。
+- 依存: `encoding_rs` 0.8.35 を core の許可クレートとして追加（新しい 0.8 系は SIMD 用の必須依存が増えるため、必須依存が cfg-if だけの版に固定。搬入は `.github/workflows/sandbox-tools.yml` の blob 経由）。
+- 検証: `tests/migration.rs`（読み替え・候補生成・構造確定・描画・修復判定・候補を全て境界なしにすると従来の往復と等価）、`tests/cli.rs`（複数入力・フォルダ入力の自然順・Shift_JIS 読み替え・プレビュー非変更）、`tests/gui.rs`（修復候補の提示と選択、通常の貼り付けに出ないこと）。設計書 §14.1・§14.6 は実装完了。設計書の実測は 142 節すべて実装完了。
+## 2026-10-27: Issue #29 の後続 X3（コードの機能単位分割）
+
+- `stage_two` という寄せ集めの置き場所を解体し、`app.rs` の巨大化を下げた（N29-35 の判断 2 第 (a) 案・第 17 回決定どおり。振る舞いは変えず、レジストリ方式にはしない）。
+- コア: `src/core/stage_two/` の 6 ファイル（diagnose・local_llm・metadata・metrics・search・stock）を `src/core/features/` へ移し、モジュールを無くした。
+- UI: `src/ui/workspaces/stage_two.rs` を画面単位のファイルへ分割した。タブ枠と共有状態（`State`）・ディスパッチは `workspaces/tabs.rs`、読者モードは `workspaces/reader.rs`、統計は `workspaces/stats.rs`、本文の正規表現検索タブは `workspaces/regex_search.rs`、キャストの宛先タブは `workspaces/addresses.rs`、エージェントのローカル LLM 設定は `workspaces/local_llm.rs`、プロットのプロポーザルタブは `workspaces/proposals.rs`。
+- `src/ui/app.rs`（8823 行）から独立した塊を切り出し、`NovnowApp` 本体を残した：起動前の画面（`Picker` trait・`NativePicker`・デスクトップの Host・移行状態）は `src/ui/picker.rs`、パレットの候補生成とコマンド解決は `src/ui/palette_items.rs`、ステータスバーと省略判定とミニヘッダーは `src/ui/status.rs`（6611 行へ）。
+- 受け入れ条件の確認: 全テストは無変更で全て通り（ゴールデン差分ゼロ）、`stage_two` の名前は `src/` から消えた（`tests/stage_two.rs` のファイル名は歴史の記録として残す）。公開 API（§19）の形と利用者から見える振る舞いは不変。
+- 設計書 overview §3.3・`docs/developers.md` §3 のソースツリーと、文書中の `REF:` パス（NativePicker・ステータスバー・palette_items 等）を追随させた。
+## 2026-10-27: ブランチ別の CI スコープ（develop 向け PR は 1 プラットフォームの最小行列）
+
+- `browsers (webkit)` の偽陽性で develop 向け PR の Checks が赤くなった件をきっかけに、各プラットフォームのビルドを最小化する CI 改定を行った（所有者指示 2026-10-27: 保守性を最低限保ちつつ開発速度を上げることを第一に）。
+- 4 ワークフロー（wheels / desktop-check / pages-check / vscode）が workflow 先頭の `CI_SCOPE` で行列を決める。`main` 向け PR・`main` への push・`workflow_dispatch` は full 行列（変更なし）。`develop` 向け PR・`develop` への push は最小スコープで、プラットフォームの行列ジョブは 21 本から 4 本（Python 試験は 3 版から 2 版）になる: Desktop は Linux x64 の nogui のみ（GUI のコンパイル・リンクは ci.yml の clippy / test `--features ui` が担う）、wheel は Linux x64 のみ（Python 試験が導入するホイールと同一）、Python 試験は 3.9 / 3.13 の境界 2 版、ブラウザは chromium のみ（firefox / webkit は偽陽性のため develop 向け PR では実行しない）、Electron は ubuntu のみ。行列の選択は `REF:scripts/release-matrix.py --scope`（develop スコープは 1 行を返す。`--pythons` を追加）と各ワークフローのスコープステップが担う。
+- CI コア（文書整合・Rustfmt・Clippy・全テスト・WASM サイズ・ベンチマーク・性能予算・Python API）はスコープに関係なく常時実行する。macOS / Windows / arm64 のビルドは `main` 向け PR（リリースゲート）の full 行列で検証される。
+- 必須チェックはスコープで走る項目に一致させる。`protect-develop` は 11 件（23 件から、Linux x64 以外の 12 のプラットフォーム行列を外す）へ所有者が更新済み（PR #38 のマージ `6b5853b`、2026-10-27）。一覧は `REF:docs/distribution.md` §8。`protect-main` は変更しない（18 件）。運用の正本は `REF:docs/developers.md` §4.7。
+## 2026-10-27: develop への push でも必須の平台 2 行を報告する（CI スコープの不整合修正）
+
+- PR #38 のマージ commit（`6b5853b`）の check 実測で、develop への push は必須 11 件のうち平台 2 行（wheels の Linux x64・desktop の Linux x64 nogui）を報告しないことが分かった（wheels の push トリガーは main のみ、desktop-check は pull_request のみだったため）。strict 必須チェックの ruleset では develop 自身のコミットが永遠に 11 件を満たせなくなる不整合だった。
+- 修正: wheels は `push: branches: [main, develop]`（paths は PR と同一。main のリリースマージは必ず版更新＝Cargo.toml に触れるので full 行列が走る）。desktop-check は `push: branches: [develop]`（PR と同様に paths なし）。pages・CI は元々 develop への push で走るため変更なし。これによりコード PR のマージ後、develop 自身で 11 件が揃って緑になる。
+- 4 ワークフローの手動実行（`workflow_dispatch`）に `scope` 入力（full / develop、既定 full）を追加し、`CI_SCOPE` 式に `inputs.scope` を取り込んだ（4 ワークフローで同一の式を保つ回帰テストあり）。TestPyPI リハーサルは 5 ホイール揃えが必要なため full スコープでないと失敗するよう拒否した。
+- 文書のみ変更の PR は wheels 行列が `paths` で起動しないため、`ci` と `wheels`（scope=develop）の 2 つの dispatch で必須チェックを揃えてからマージする運用を `docs/developers.md` §4.7 の目安表へ明記した。
+## 2026-10-27: Issue #29 の後続 X4（文書の文体見直し）
+
+- 利用者向け文書 10 本（`docs/users/`）と README（日・英）の文体を見直した（N29-32。第 18 回決定: 利用者向け文書と README が対象。仕様書・設計書は用語と意味を変えない範囲の推敲に限り、今回は設計書 1 箇所の stale 状態注記の修正に留めた）。
+- 誇張・不自然な表現を事実のみの文章へ置換した。タイトル「次世代的な世界観管理システム群」→「長編小説の世界を管理するツール群」、「English version is HERE」の表記、メディア将来記述「研究開発の末、実装する予定です」→「拡張点は形式の中に用意されている」（N29-36 決定: メディアの実体対応を入れない・拡張点の明記まで）、「v0→v1 移行機能は提供しない」から開発者向け理由（実装コスト）を削除。
+- README の実装と食い違った事実誤記 3 件を直した: 診断 76 種→77 種（診断コード enum は W096 込みで 77。仕様 overview §2 と一致）、英語版の正規操作 119→120（`api_catalog` と一致）、ファイル拡張 `.txt`→`.cnov`（B10 で変更済み）。
+- `docs/users/errors.md` の `E025` 節を B10 後の実装（JSON / TOML 共通の「読み込めません」）に合わせて書き直し、JSON 特有の直し方（`,` と `"` の数）を削除した。
+- 利用者向け文書の用語・手順・キー・リンク・診断コードの意味は変更していない（`easy-read.py` の規則・`reference.py` の REF とサイト検査・サイト生成物のリンクとアンカー検査で機械確認）。`scripts/docs-site.py` の生成物（guide HTML・website content・nav）を再生成して同 PR に含めた。
+## 2026-10-27: Issue #29 第 2 ラウンド — unchecked item の棚卸しと執筆支援ラウンド 2（W097 / W098）の計画
+
+- Issue #29 の unchecked item 38 件（うち空 1 件）を、`docs/plans.md` §8.5 の実施記録・仕様書・コード（api_catalog・i18n・web.rs 等）と 1 件ずつ突き合わせて棚卸した（`docs/plans.md` §8.2 G12・N29-44）。結論: 32 件は解決済みでチェックボックスが stale（実装済み 29 件＝節削除・節分割（B3）、モーダル外クリックと網羅テスト・ヘルプモーダル（B1）、パンくず→`@` パレット・プロジェクト選択に戻る動線・パレット履歴と追従・ステータスバー実測省略（B4）、参照ペインから飛べる・ショートカット案内のクリック実行（B5）、読者モードの豆腐・検索一致の強調（B6）、`。` 後の空白 W096（B7）、project.toml・`.cnov`・feature オンオフ（B10）、静的検証マップ・Contributor 案内（B9）、Word 移行支援（X1）、文書文体（X4）ほか。決定で閉じ 3 件＝メディアの実体対応（N29-36）、hub の git ラッパ（N29-40）、WASM 経由の TS バインディング（N29-43））。所有者の判断（2026-10-27 セッション）で、Issue 本文の解決済み 32 件にチェックを付けることになったが、エージェントのトークンに Issue への書き込み権限が無い（HTTP 403、workflow dispatch と同権限圏）ため、チェック済みの本文と各チェックの根拠（バッチ・仕様節・コード）を PR 本文に添付し、反映は所有者が行うことになった。置き去りの 5 件: N29-07（iOS PWA。コード修正は `src/ui/web.rs` に反映済みで実機確認とリリース待ち＝KI-002 運用）、X2（所有者の短編）、X5（両市場初回公開、Azure DevOps 登録とトークン待ち）、N29-38（実機網羅、`docs/developers.md` §4.9 のチェックリスト運用）、執筆支援の拡充（N29-39。次の段落で B11 に計画）。
+- 執筆支援ラウンド 2（N29-45。N29-39 の路線＝決定論ルールの逐次追加どおり）: 新規診断 2 件を計画した。**W097 文末尾の反復**（句点 `。！？` 直前の 2 字を文末尾とし、同一節内で 3 文連続で発火。地の文のみで `「…」` の内側は数えない、改行・段落は連続を切らない）と **W098 場面内の同語反復**（W087 と同じ語抽出を集計単位を場面にして適用し、5 回以上で最後の出現位置へ）。両方とも新規依存なし・決定論・組み込み既定無効（`[features.diagnostics]` で有効化）・日本語主体判定は W096 と同一。（計画文書の「固定モデルは見送り」の記述は誤りで、`tiniestsegmenter` は §6.2.6 とともに導入済みの依存であり（W087 の実装が使用中）、見送りの対象ではなかった。）規範テキストは `docs/specifications/diagnostics.md` §7.2.3 / §7.2.4（新設）と `docs/specifications/ui.md` §9.4.4（算法表に 2 行追加）、設計メモは `docs/designs/diagnostics.md` §7.2 へ §7.2.3 / §7.2.4 の小節として追加し、同節の状態を未実装・実装計画済みへ（計 142 節のまま 1 節が未実装に）とし、実装は B11（§8.5）。後追い（§7.2 の表行・カタログ・サイト解説・「77 種」数値主張の 79 種化）は B11 で同時に取り込む（§8.6）。
+- 要らないファイルの最終スキャン（N29-27 の残、所有者の判断どおり本ラウンドで実施）: リポジトリ全体（ルート・scripts・examples・docs・licenses・assets・ワークフロー。生成物 `guide/` と `website/public/guide/` は生成規則を持つため除外）を参照検索でスキャンし、未追跡ファイルも確認した。不要ファイル 0 件（B9 でルート直下の動作確認用プロジェクト 2 件を `examples/manual-check/` へ統合済み）。本項目は完了。
+## 2026-10-27: Issue #29 第 3 ラウンド — 執筆支援 W099–W106 の計画と W087 / W097 の規範整理
+
+- 所有者が TinySegmenter（`tiniestsegmenter`）は既に導入済みだと指摘した。事実だった（`Cargo.toml`・§6.2.6 の導入注記・`src/core/features/diagnose.rs` の W087 と `src/core/resolve/dictionary.rs` で使用中）。前ラウンドの「TinySegmenter 級の固定モデルは見送り（WASM の 8MiB 検査と依存搬入のコスト）」は前提違いだったため、`docs/plans.md`（G12 N29-45 現状と決定行）・`docs/designs/diagnostics.md`（共通段落）・本エントリ群を含む 4 箇所を訂正注記付きで直した。
+- 副発見: W087 の仕様と実装が食い違っていた（仕様 `docs/specifications/ui.md` §9.4.4 は「形態素解析を使わない範囲で決定論に」とし抽出を辞書登録語＋漢字 2 字以上／カタカナ 3 字以上の連続と規定、実装は `tiniestsegmenter::tokenize` の 2 字以上トークン。動作テストも無い）。所有者が**実装（セグメンタ）を規範**に決定した（第 16 回決定が決定論の TinySegmenter 級モデルを許容し、§6.2.6 が既に同じエンジンを規範化しているため）。`ui.md` §9.4.4 のタイトル・冒頭・W087 の行を直した（「`から` / `まで` などの 2 字助詞もトークンとして数えられる」を明記）。
+- W097 の細分（所有者決定・同セッション）: 文末尾を「句点 `。！？` 直前の 2 字」から「導入済みの `tiniestsegmenter` の最後の自立語（末尾の助詞を固定の除外リスト＝1 字助詞 16 字＋`から` / `まで` で除く）」へ変更した。「静かに。ちかちかに。」のような「〜かに」の偽陽性が消える。`docs/specifications/diagnostics.md` §7.2.3 と `ui.md` §9.4.4 を直した（W097 は未実装のため変更コストは低い）。
+- 新規診断 W099–W106 の 8 件を計画し、所有者が**全 8 件採用**を決定した（N29-46）: **W099 隣接同語反復**（同じ語が助詞・句読点のみを挟んで 2 回連続。1 字語は 1 字助詞リストに無いもののみ）・**W100 文末助詞の反復**（固定リストの同じ助詞で 3 文連続）・**W101 文頭語の反復**（同じ先頭語で 3 文連続）・**W102 波ダッシュ多用**（1 節で `……` 3 回以上）・**W103 やわらか・不確か表現の多用**（固定 8 語: だがしかし・たぶん・たしかに・もしかすると・かまわず・おそらく・実は・かね。1 場面で 3 回以上）・**W104 同一動詞語幹の反復**（固定の活用接尾辞 15 種を最長一致で除去。1 場面で 5 回以上）・**W105 感嘆符の多用**（1 場面で 5 回以上）・**W106 ダッシュの多用**（1 節で `——` 4 回以上）。全て決定論・新規依存なし（語抽出は導入済みの `tiniestsegmenter`）・組み込み既定無効・日本語主体判定は §7.2.2 と同一。
+- 規範テキスト: `docs/specifications/diagnostics.md` §7.2.5–§7.2.12（新設）、`docs/specifications/ui.md` §9.4.4（タイトルと冒頭を書き換え・W087 / W097 の行を改訂・8 行追加）、`docs/designs/diagnostics.md` §7.2.5–§7.2.12（新設。§7.2 の状態行の REF は B11 / B12 の両方）。計画: `docs/plans.md` の G12 N29-46（決定）・§8.4 行・§8.5 B12（新設・アンカー `issue-29-b12`）・B11 の受け入れ条件と状態行の扱いの更新（§7.2 は B12 まで未完なので B11 は状態を戻さない）・§8.6 の第 3 ラウンド後追い。後追い（§7.2 の表行 8 件・ja/en カタログ・サイト解説・トリガー表・「79 種→87 種」）は B12 で同時に取り込む。
+
+## 2026-10-28: 執筆支援ラウンド 2・3（W097–W106）の実装 — 診断 87 種
+
+- B11（W097 文末尾の反復・W098 場面内の同語反復）と B12（W099 隣接同語反復・W100 文末助詞の反復・W101 文頭語の反復・W102 波ダッシュの多用・W103 不確か表現の多用・W104 同一動詞語幹の反復・W105 感嘆符の多用・W106 ダッシュの多用）を実装した。診断コードは 77 種から 87 種になり、`REF:docs/designs/diagnostics.md` の全 142 節が実装完了になった。
+- 語の抽出は導入済みの `tiniestsegmenter`（§6.2.6）と固定の語彙リストで行う。文末の自立語は「分詞の最後のトークンから助詞（固定の除外リスト）と標点を除いたもの」、W097 の文区切りは `。！？`（`split_inclusive`）で、台詞（`「…」`）は文ごとに取り除く。
+- 節単位の診断（W097 / W099 / W100 / W101 / W102 / W106）は節（`;` 区切り）の中の複数行を改行で連結して数える。仕様の「改行・段落は連続を切らず、節をまたがない」を満たすため、連結位置を本文の byte 位置へ戻す `SectionText` を置いた。場面単位（W098 / W103 / W104 / W105）は場面の全節を集計する。
+- 実装中に分かった前提違いを 2 件、仕様側も直した。(1) セグメンタは活用を別トークンに切る（「考えた」→ `考え` + `た`、「考えて」→ `考え` + `て`）ため、W104 の「語幹の末尾から接尾辞を最長一致で除去」は成立しない。語の直後のトークンが固定の接尾辞リスト（`た` `て` `だ` `ながら` `られる` `させる` `ない` `たず` `ちゃう` `たい` `よう`）に属するとき、その語を語幹として数える形にした（§7.2.10 と `REF:docs/specifications/ui.md` §9.4.4）。「走る」の `走っ`（促音便）と `走り` のように語幹の表記が割れる形は別の語として数える（取りこぼしを選ぶ）。(2) セグメンタは標点もトークンとして返し、「たしかに」を `たしか` + `に` に割る。W103 は分詞ではなく固定 8 語の部分文字列一致で数える（§7.2.9 の「表記の完全一致」のままで成立）。W099 の「助詞・句読点のみを挟む」は、助詞リストと標点（文字種）を飛ばして比較する形で実装した。
+- `REF:tests/layering.rs` の §12.2 検査（core に日本語リテラルを置かない）に合わせ、語彙リスト（文末除外・文末助詞・不確か表現・活用接尾辞）は `/// i18n: format-vocabulary` を付けた `const` に閉じた。
+- 同時に更新したもの: 仕様 §7.2 のカタログ表 10 行と実行コスト表、「既定で無効」の一覧（18 件）、日英カタログ（`REF:src/ui/i18n/ja.toml`・`en.toml`）、サイトデータ（`diagnostics.ts` 生成・`diagnostics-en.json`・`diagnostics-examples.json`）、文体観察タブのコード一覧（`REF:src/ui/workspaces/tabs.rs`）、数の主張（77 種 → 87 種: `REF:docs/specifications/overview.md` §2・`REF:README.md`・`REF:README.en.md`・`REF:docs/users/glossary.md`）、設計書 §7.2（状態・コード数 38・トグル 11/18・コスト 27・サイト 87 コード）、計画の B11 / B12 の実施記録、`REF:scripts/diagnostics-site.py` の期待値。
+- テスト: `REF:tests/diagnostics_document.rs` に W097–W106 の 10 本（閾値の境界・集計単位・台詞の除外・1 字トークンの除外・語幹 2 字未満・辞書形・サンプル 2 件で発火しないこと・`"off"` のコードが出ないこと）を追加した。`REF:tests/diagnostics_catalog.rs`（87 行・コスト 27 行・無効 18 件）と `REF:tests/i18n_catalog.rs`（87 コード）の期待値も更新した。
+
+## 2026-10-28: 自然言語処理の重複整理（文字種・文の区切り・台詞の内側・読点候補の引数）
+
+- 日本語処理の調査で、同じ判定が複数のファイルに写されていることが分かった。所有者の判断（2026-10-28）で、**新しい仕様の判断は見送り**、いまの仕様の範囲でリファクタリングを先に行う。挙動は変えていない。
+- `REF:src/core/text/charclass.rs` を新設し、5 か所に散っていた文字種の判定を集めた。**範囲は動かしていない**（半角カナ・拡張 A・互換漢字を日本語に数えるかは場所ごとに違い、揃えるには仕様の判断が要るため）。述語ごとに「どの場面の判定か」と現在の範囲を doc に書いた: `classify`（§6.2.6 の形態素境界。`REF:src/core/resolve/dictionary.rs` から移設）、`is_ruby_base_kanji` / `is_kanji_mark`（§5.2.1 の `kanji_run`。`REF:src/core/syntax/contents.rs` の `KANJI` / `KANJI_MARKS` を置換）、`is_body_japanese` / `is_body_latin`（§7.2.2 の日本語主体判定。`REF:src/core/features/diagnose.rs`）、`is_word_char`（§9.4.4 の語の判定。同）、`is_kana` / `is_halfwidth_katakana`（§14.6.1 の文字化けの入口と出口。`REF:src/core/text/encoding.rs`）。
+- `REF:src/core/text/sentence.rs` を新設し、W 系（§9.4.4）の文の区切りを 1 か所にした。`STOPS`（`。！？`）と、`(本文中の byte 範囲, 文)` を返す `split` を置き、`REF:src/core/features/diagnose.rs` の 4 箇所（W081 / W089 / W088 の `style`、W097、W100、W101）が持っていた `split_inclusive` と `at += sentence.len()` の位置計算を置き換えた。役割語（§6.5.2）の文は `…` `!` `?` も文末にし、頭の文末記号の連続を次の文に含める点が違うので、`REF:src/core/resolve/role_language.rs` の `sentences` はそのまま残し、両者の違いを `sentence.rs` の doc に書いた。
+- W096 の `spacing_events` が持っていた括弧スタックをやめ、`REF:src/core/resolve/role_language.rs` の `dialogue_spans` に任せた。呼び出しは行ごとなので、閉じ忘れた台詞は従来どおり行末で切れる（入れ子 `「…『…』…」` の内側も台詞として数える点も同じ）。台詞の内側の判定が 1 実装になった。
+- `REF:src/core/features/metrics.rs` の `comma_candidates` の引数を `CommaOptions { every, floor }` にした。画面 3 箇所（`REF:src/ui/app.rs` の 2 箇所と `REF:src/ui/widgets/section_editor.rs`）が直書きしていた 40 と、関数の中に隠れていた下限 20 を 1 つの型にまとめた。**値は従来のまま**（`CommaOptions::default()` が `every: 40` / `floor: 20`）。
+- 変えていないもの（いずれも仕様の判断が要るので、次のラウンド以降に回す）: 句切れ提案の 4 優先度と除外規則（§9.4.3）、W088 の接続詞リスト（実装 6 語・仕様 14 語）、`～`（U+FF5E）の長音統一（§6.1.3）、検索の大小文字の既定（§9.7.4）、正規表現のサイズ上限（1MB と 2MB）、閉じ括弧の無い台詞を `text.len()` までとする扱い（E002 は行末までと書いている）。
+- テスト: `REF:tests/text.rs` を新設し 9 本（各述語の境界・半角カナと拡張 A と互換漢字が述語ごとに違うこと・`…` で切らないこと・改行で切らないこと・空文字）。`REF:tests/diagnostics_document.rs` に W096 の 2 本（入れ子の内側を数えること・地の文を数えないこと・閉じ忘れを数えること）。`REF:tests/stage_two.rs` の `comma_candidates` の呼び出しを `CommaOptions::every(20)` に追随させた。既存テストは無変更で通り、`bash scripts/verify.sh` は 1456 passed / 68 ターゲット・全ジョブ緑（fmt / clippy / clippy-ui / test / test-nogui / wasm / docs）。
+- 文書: `REF:docs/designs/overview.md` §3.3 の `core/text` のモジュール列と、`REF:docs/designs/semantics.md` §6.2（S-09）の文字種の置き場所を追随させた。
+
+## 2026-10-28: 仕様書を正本とした整合（検索の既定・W088・W090・文体の有効化・未閉じの台詞）
+
+- 所有者の指示（2026-10-28）で、以後は **仕様書を正本** として仕様書＝設計書＝実装＝挙動を揃える。新しい仕様の判断が要るものは実装を変えず、判断待ちとして記録する。最初に、調査で見つかっていた乖離のうち「仕様書に答えがある」ものを直した。
+- **検索の大小文字の既定**（§9.7.4「既定で区別する」）: `REF:src/core/features/search.rs` の `Query` の既定を `case_sensitive: true` にした（それまでは「無視」が既定で、仕様と逆）。`Alt+C` と画面のチェックで無視に切り替える点は変わらない。素材から再検索するときの既定も同じ値に揃えた。
+- **正規表現のサイズ上限**（§9.7.4「1MB」）: 2MB だった上限を 1MB（`SIZE_LIMIT`）にし、検索と置換の両方で同じ値を使うようにした（置換側は上限を見ていなかった）。
+- **置換の `\n`**（§9.7.4「`\n` は改行」）: 置換の入力欄は 1 行なので `\n` と打つ決まりだが、実装はそのまま 2 文字を入れていた。`search::replacement` で改行に直す。
+- **置換の確認文言**（§9.7.4「{n} ファイル {m} 箇所を確認してから実行」）: 文言に件数が無かった。`stage.confirm_replace` を `{0} ファイル {1} 箇所を置換します。よろしいですか？` / `Replace {1} matches in {0} files?` にし、プレビューで数えた値を渡す。プレビュー本体は `REF:src/ui/workspaces/regex_search.rs` の `preview` に切り出した。
+- **W088 の接続詞リスト**（§9.4.4 の 14 語）: 実装は 6 語だった。仕様の 14 語に合わせ、発火は **3 文目に 1 件だけ**（W097 / W100 / W101 と同じ数え方）にした。それまでは 3 文目以降の各文で出ていた（仕様に件数の記述が無かったため）。仕様の表にも「3 文目の位置に 1 件だけ」と追記した。
+- **文体の観察の有効化**（§7.2「設定で `warn` / `error` に変えたものは、実行コスト区分の範囲で常時出す」）: W081 / W087 / W088 / W089 と W090 は、文体タブの明示操作（`explicit`）でしか計算していなかった。`[features.diagnostics]` で有効化したときも計算するようにし、`style()` は有効なコードだけを出す形（`active` を渡す）にした。
+- **W090 の単位**（§7.2 の表「1 節」／§9.4.2 の算出）: 文書全体の台詞比率を見ていた。節ごとに `metrics::section` を回し、`dialogue_ratio_target`（上限目安、`REF:docs/specifications/project.md` の表）を超えた節に、その節の範囲で出すようにした。仕様の条件列と `DiagnosticCode::W090` の doc も「節ごと」「上限目安」に揃えた。
+- **閉じ忘れた台詞の範囲**（§6.5.3）: `dialogue_spans` の doc は「行末まで」と書いていたが、実装はテキスト末尾まで返していた（読点候補はバッファ全体を渡すため、`「` の閉じ忘れ 1 つで以降の全行が台詞扱いになっていた）。行末で切るようにし、仕様 §6.5.3 に入れ子と閉じ忘れの規則を追記した（台詞の字数・W096・読点候補の除外も同じ規則）。
+- テスト: `REF:tests/stage_two.rs` の検索の既定に追随、`REF:tests/role_language.rs` に「行をまたがない」1 件、`REF:tests/diagnostics_document.rs` に W088（14 語・1 件だけ）・設定での W081・W090 の節単位の 3 本を追加。`cargo test --locked --all-targets` は 1253 passed（同日の後続の修正を含む最終値。この時点の実測は 1251）。
+
+## 2026-10-28: 仕様書を正本とした整合・第 2 巡（呼称・行頭 `#`・文字種の範囲・資料・画面のタブ・句切れ提案）
+
+- 第 1 巡に続き、仕様書に書かれた規則と実装を 1 対 1 で突き合わせた。仕様に答えがあり、判断が要らないものは実装を直し、実装にしかない詳細は仕様へ書き下した。判断が要るもの・大きすぎるものは仕様と設計に注記した。
+- **`.txt` の呼称**: `.novnow` の文書は `contents/*.cnov` / `plots/*.cnov` で、`.txt` はエクスポートの出力だけ（§17.2）。字句の形式ビットは `Formats::TXT` → `Formats::CNOV`（値は不変）、`is_txt` → `is_cnov`、`hash_comment_is_txt_only` → `hash_comment_is_cnov_only` に改名し、`.txt` を A/B/C 形式のつもりで書いていたコメントを直した。
+- **空の文書**（§5.0.4）: 実装は空文字列をそのまま返す（`
+` にしない）。仕様に例外として書き下した。
+- **位置表現**（§3.4）: UTF-8 byte / char / UTF-16 の変換、LF のみを区切りとすること、範囲外は端へ丸めること、行末位置の扱いを仕様に書いた。
+- **文字種の範囲**（§6.2.6）: 仕様に範囲の記述が無く、実装にしか無かった `classify` などの範囲を表にして書き下した（拡張 A をルビの親文字にだけ含める、`is_body_japanese` は半角カナと `々` を含めない、など）。
+- **`char_name`**（§5.2.1・§5.5.6）: 空白と `:` を含まない 1 文字以上であることを仕様に書いた。
+- **`*.md` の `#`**（§5.0.8）: `# ` 行コメントは `.cnov` だけなので、`prompts/*.md` と `ideas.md` では `#` 行も行末の `# …` も値の一部。`Prompt::meta_field` は §5.0.6 の表のキーを先に引き、日本語別名（`状況` / `昇格先`）も正準形と同じキーとして読むことを仕様に書いた。
+- **資料**（§5.8.2・§16.3.1）: 検索結果の保存（`S` 接頭辞・`SourceKind::Search`）は実装済みなので、`MaterialId::is_stage_one_prefix` を `is_material_prefix` に直し、`M` と `S` が同じ連番空間であることを仕様どおりに扱った。`address:` から作る `EntryKind::Address` も実装済み（§5.5.6）。
+- **参照ペイン**（§9.5.2）: 五感・空間・挿絵を含む 9 セクションが実装済みだったので、`core::features::reference` と `ui::widgets::reference_pane` の「6 セクション」を訂正し、仕様の表に 5・6・8 の集め方（`metadata::inherited` / `asset_path` / `! ` 行）を書いた。
+- **画面のタブ**（§10.3・§10.9）: 実装は `plot-outline` が 9 タブ（基本・時系列・俯瞰表・挿絵メモ・五感・空間・章のあらすじ・字数分布・ストック）＋基本タブの右に伏線、`review` が 9 タブ（基本・時系列・話者別・字数分布・文体観察・執筆統計・五感・挿絵メモ・提案）。仕様の 4 タブ / 6 タブの表を実装の構成に揃え、`review` の「資料」タブは `material` の「引用元から本文へ」に移した。
+- **折りたたみ**（§9.3.3）: 見出しボタン・`Ctrl+K Ctrl+0` / `Ctrl+K Ctrl+J`・`ui.json` の `folded` は実装済み。`Ctrl+Shift+[` / `]` の段階的な折りたたみ、畳んだ単位の 1 行要約、検索ヒットによる自動展開は未実装なので仕様に注記した（設計書にあった「ゴーストテキスト」「タイプライタスクロール」は仕様に存在しないため記述を消した）。
+- **句切れ提案**（§9.4.3）: 実装は「40 字ごとの助詞」という近似だった。仕様の算法（`writing.long_sentence_chars` を超える読点 0 個の文だけ・4 つの優先度・上位 3 件・除外規則 4 つ）に置き換え、`CommaOptions` を `long_sentence_chars` に変えた。画面は `ui.json` ではなく `project.toml` の値を使う。
+- **資料引用注釈**（§5.2.4）: ID は 4 桁**以上**（`9999` を超えると桁が増える）。行末から遡って連続するものだけが注釈であること、`\` の奇数個と行内コメントで打ち消されること、直前の空白も注釈の一部であることを仕様に書いた。
+- **誤ったコード**: `icon` / `space` の解決できないパス（絶対パス・`../`）に **E062**（IndexedDB が利用できない）を出していた。参照先が無いものとして **W070** / **W092** を出し、仕様（§5.3.6・§5.5.3）も同じに直した。
+- **発行しないコード**: `W041`・`I051`・`I058` はカタログにあるが、どこからも発行しない（`W041` は読み取り専用の判定が未実装）。§7 と設計書に理由と代替（保存状態アイコン・資料一覧）を書いた。
+- テスト: `REF:tests/stage_two.rs` の句切れ提案を仕様の算法に合わせて書き直し（上位 3 件・短い文と読点のある文は対象外）、`REF:tests/materials_index.rs` を `is_material_prefix` に追随させた。`cargo test --locked --all-targets` は 1253 passed / 0 failed（`--features ui` では 1461 passed）、`bash scripts/verify.sh` は 13 ジョブすべて緑（fmt / clippy / clippy-ui / test / test-nogui / wasm / docs / site-check ほか）、`python3 docs/script/duplicate.py` は OK。
+
+## 2026-10-28: 仕様書を正本とした整合・第八巡（Web のストレージ・API の網羅照合・Python の属性アクセス・英語コメントの解消）
+
+- 第七巡に続き、仕様書・設計書・実装・挙動を 1 対 1 で突き合わせた。今回は Web のストレージ（§13.3・§13.5）、正規操作カタログ（§19.7）の網羅照合、Python API（§19.3）、画面の寸法（§9.1・§9.3）、`ui.json`（§4.4.1）、`assets/`（§4.1・§5.5.3）、そして実装に残っていた英語のコメントを対象にした。
+- **正規操作カタログの網羅照合**: §19.7 の表から正規操作 ID と例外列を機械的に抜き、`REF:src/app/ops/*.rs` の `opdef!` の `id` と `exceptions` と突き合わせた。**120 操作・例外列（R—/P—/L—/M—/C—）とも完全一致**（差分 0）。関門の有無（`section.write` など 7 操作が `gate = true`、`materials.propose`・`section.propose`・`agent.task_create`・`mail.send` は関門なし）も §19.1.5 と一致した。
+- **LSP の標準メソッド**: `REF:src/lsp/server.rs` のルーティングを §19.4.2 の表と突き合わせ、19 メソッド + `initialize` / `shutdown` / `exit` / `$/cancelRequest` が一致することを確認した（差分なし）。
+- **Python の属性アクセス**（§19.3.2「専用オブジェクトの属性アクセスも併用できる（例 `info["title"]` と `info.title` の両方）」）: 実装は素の `dict` を返しており、属性では読めなかった。`REF:python/novnow-py/python/novnow/__init__.py` に `dict` の派生 `Record`（`__getattr__` / `__dir__`）と再帰変換 `_records` を足し、`Session.run` / `command` / `poll_events` / `cancel` の結果をすべて `Record` に写すようにした。`__all__` と `REF:python/novnow-py/python/novnow/__init__.pyi`（`REF:scripts/pyi-site.py` の生成物）にも `Record` を載せ、`REF:python/novnow-py/tests/test_binding.py` に 3 本（属性で読める・無いキーは `AttributeError`・一覧も変換される）、`REF:python/novnow-py/tests/test_api.py` に 1 行を足した。
+- **Web のストレージ**（§13.3.2）: `bytes` を持つのは `assets/` 配下の取り込みだけであること、`assets/` 以外で UTF-8 として読めないエントリは取り込まずに一覧へ出すこと、一覧に出す大きさの数え方（`bytes` があればその長さ、無ければ `text` の byte 数）を仕様に書き下した。実装の `REF:src/adapters/storage_idb.rs` の `project_size` は `text` の長さしか数えておらず、バイナリ資料を持つプロジェクトの大きさが実際より小さく出ていたので `stamp().len`（`bytes` 優先）に直した。
+- **Web のプロジェクト選択**（§13.4）: 並び（最後に開いた時刻と `updated_at` の新しい方の降順）、行の 3 欄（名前・日付 `YYYY-MM-DD`・大きさ `N KB` / `N.N MB`）、検索が名前の部分一致で大小文字を区別しないこと、単クリックは選択・ダブルクリックは開くこと、空の名前では確定できないこと、削除の確認が名前の入力一致を要求すること、処理中の文言と無効化を仕様に書き下した。
+- **容量とエラー**（§13.3.6）: `persist()` は DB を開いた直後に待たずに投げること（返らないブラウザでも読み込みを止めない）、`estimate()` の確認は 1 分に 1 回までで、W062 は通知として出し診断の件数には加えないことを書き下した。
+- **Zip の取り込み**（§13.5）: Web の新しいプロジェクト名はファイル名から拡張子（`.zip` / `.novnow`、大文字も同じ）を除いたものであること、同名があれば取り込まずに理由を通知すること、取り込まなかったエントリは先頭 5 件と残りの件数（`+N`）で示すことを書き下した。
+- **`assets/`**（§4.1・§5.5.3）: 起動時に読むのは `assets/` 配下で、1 ファイル 256KB を超えるものは中身を保持しないこと、アイコンの W068 は拡張子で判定し W069 は「0 byte・256KB 超で未保持・ヘッダの長辺 256px 超」のいずれかであること、表示は 256×256 に縮小し画素数の積が 16,000,000 を超える画像は描かないことを書き下した。`REF:docs/specifications/project.md` の「キャラアイコン。デスクトップ版のみ」は誤り（Web は IndexedDB の `bytes` から読めて、`assets/` は Zip に入る）なので削除した。`REF:docs/specifications/syntax.md` §5.5.3 の「Zip 入出力（§13.4）」は §13.5 の誤りなので直した。
+- **`ui.json`**（§4.4.1）: 例に `"workspace": "write"` があったが、実装はこのキーを読まないし書かない（ワークスペースの記憶は無い）ので消した。代わりに実装が書く `guide_done` を例と説明に足し、`pane_ratio.main`（0.3–0.85）・`pane_ratio.context_view`（0.2–0.8）・`font_scale`（0.8–1.6・0.1 刻み）・`context_sections`（1–9）の範囲表を足した。範囲外の読み方（丸める／読み捨てる）と、知らないキーを読んだまま書き戻すことも書いた。
+- **画面の寸法**（§9.1）: メインカラムの最小 480px は、参照ペインを 320〜560px に収めることと 900px 未満での折り畳みから自動的に満たされる（明示の clamp は無い）ことを書き下した。ヘッダ 28px・ステータスバー 22px・本文 15px/1.9・台詞比率バー 64px（話プロットは 48px）・節の境界の 1px と 8px 余白・節番号 10px は実装と一致した。
+- **壊れていた doc の例**: `REF:src/app/session.rs` のモジュール doc の例が `use novnow::app::Session;`（再輸出が無い）でコンパイルできなかった。`novnow::app::session::Session` に直した（`cargo test --doc` が緑。`--all-targets` では doc テストが走らないため見落とされていた）。
+- **英語のコメントの解消**: 実装に残っていた英語のコメント・doc（`REF:src/core/migration.rs` の 33 箇所、`REF:src/core/text/encoding.rs` の 20 箇所、`REF:src/ui/**` の 60 箇所、`REF:src/adapters/**`・`REF:src/core/**` の残り）を日本語にした。**意味は変えていない**（訳しただけ）。併せて、`REF:src/ui/workspaces/mod.rs` で `ReviewProblem` の doc の直前に `indicator` の説明が紛れ込んでいた（doc が誤った項目に付いていた）のを分け、`REF:src/ui/workspaces/{cast,idea,material,plot_episode,plot_outline,agent,reader}.rs` の節番号を §10.2〜§10.8 の実際の番号に直した（§10.11・§10.12 は存在しない番号だった）。
+- テスト: `REF:python/novnow-py/tests/test_binding.py` 13 本（+3）、`cargo test --locked --all-targets --features ui` は **1461 passed / 0 failed**、`cargo test --locked --doc` は 2 本緑、`bash scripts/verify.sh` は **13 ジョブすべて緑**（fmt / clippy / clippy-ui / test / test-nogui / wasm / docs / docs-sync / site-check / python ほか）。
+
+## 2026-10-28: 仕様書を正本とした整合・第八巡（第 5 段。`section.propose` の追加・Undo/Redo と提案ファイル形式の書き下し）
+
+- 第八巡の続き。今度は「カタログに載っていないのに凍結 MCP ツールには在る操作」と、「仕様の方が実装より曖昧なまま残っていた運用規則」を対象にした。
+- **`section.propose` を正規操作にした**（§19.7）: 凍結 14 ツールの `novnow.section.propose` は §19.1.5 が「関門なしで使える提案系のツール」として名指ししているのに、§19.7 のカタログに行が無かった。行が無い＝他の 4 インターフェースからは提案を作れない（`agent.proposal_*` は一覧・採用・却下だけで作成が無い）という**パリティの穴**だったので、仕様に合わせて操作を足した。実装は `REF:src/app/ops/editing.rs` の `section_propose` が既存の MCP 実装へそのまま委譲する（`via_mcp`。§19.1.1「写しを置かない」）。関門は置かない（本文を書き換えないため）。カタログは **120 → 121 操作**になり、`api.list`・MCP の `tools/list`・LSP の `executeCommand` 一覧・Python の型スタブ・ウェブサイトの API リファレンスは同じ表から生成される所以で同時に増えた（凍結ツールと同じ名前なので MCP のツール表の件数 87 は変わらない）。`[api.op.section] propose` を ja / en の辞書に足した。
+- **Undo / Redo**（§8.6）: 仕様が「節エディタの編集が単位」「節ごとに履歴を保持（直近 20 節）」とだけ書いていたが、実装には**もう 1 系統**（複数ファイルにまたがる操作の取り消し）がある。`REF:src/app/workbench.rs` の `apply_edit` がファイルごとの変更前・変更後を 1 組で積み、深さ 100・新しい操作でやり直し側を捨てる・積んだときの状態と一致するときだけ効く（外部変更や未確定の入力を上書きしない）・提案モード中は効かない、という規則を仕様に書き下した。逆に「節ごとの履歴」は**実装していない**（入力欄の履歴は 1 つの入力欄に付き、節を移ると失われる）ので〔状態: 未実装〕と注記した。`REF:docs/specifications/ui.md` §9.8.1 の `Ctrl+Z` の行も、2 系統と `Ctrl+Y` を書いた。
+- **提案ファイルの形式**（§8.7.2）: 例が `state: open` になっていたが、実装が書くのも読み手が読むのも `status` である（`REF:src/core/agents/files.rs` の `write_proposal` / `parse_proposal`）。例を直し、`origin` / `updated_at` / `comment` / `partial` を足し、欄の意味表（ID の接頭辞 `H`＝GUI の提案モード・`P`＝ツール核、`kind` の 6 値、`status` の 5 値、`origin` の 3 形態）を書いた。`status:` の無いファイルは `open` として扱わない（バッジ・採用・却下の対象にならない）ことも明記した。
+- **`.novnow/reader.json`**（§4.4.3）: 「読書位置・文字サイズ・列数・しおり」としか書いていなかったが、実装は 8 キーを読み書きし、範囲を丸め、既定値を `project.toml` の `[reader]` から取る。キー・型・既定・範囲の表を足した（`columns` 18 で 5–40、`font_size` 20.0 で 12–36、`vertical` / `ruby` は既定 true、`dark` は false、`bookmarks` は `[[パス, ページ], …]`）。**1 段の字数は `reader.json` に持たず** `[reader] chars_per_column`（既定 42、10–80）だけを見ることも書いた。
+- **Web の `bytes` の中身**（§13.3.2）: `.novnow/stats.json` と `.novnow/reader.json` は「検査しないテキスト」だが文書として読み込む（統計タブと読者モードが読む）ことを、`REF:src/adapters/project_load.rs` の読み込み順に合わせて確かめた（仕様側の追記は不要だった）。
+- **`project.stats` の説明**（§19.7）: 返すのは壁時計に依存しない値だけ（総文字数・台詞比率・話者別・節数）で、「本日」「速度」「連続日数」は §19.1.4 の決定論に反するため画面が `.novnow/stats.json` から出す、と書き分けた。
+- **§16.1.2 素材 URL の取得**: 仕様（§16.1・§19.1.9・§19.7 の `materials.approve` 行）にだけ「素材 URL を取得する（ホワイトリスト・1MB・15 秒）」が在り、実装（`REF:src/app/ops/knowledge.rs` の `materials_approve`）は `inbox/` → `docs/` の移動と索引更新だけで、取得口も `REF:src/ports/` に無いことを確認した。仕様側を「v1 では行わない」に改め、§16.1.2 を〔状態: 未実装〕として新設（実装するときの条件＝`http` / `https` の明示 URL のみ・1MB 上限・15 秒）。
+- **派生ファイルの追随**: `REF:scripts/api-site.py` の操作数の固定（120 → 121）、`REF:scripts/pyi-site.py` の説明、`REF:tests/golden/api_catalog.json` の再生成、`REF:python/novnow-py/python/novnow/__init__.pyi` の再生成（121 operations）、`REF:README.md` の「120 の正規操作」2 箇所、`REF:tests/{api,api_coverage,cli,i18n_catalog,lsp,mcp_frozen}.rs` と `REF:python/novnow-py/tests/test_binding.py` の件数。LSP の `executeCommand` 一覧は 121 + 特別な 2 つで **123**。
+- テスト: `bash scripts/verify.sh` は **13 ジョブすべて緑**（1461 passed / 68 ターゲット、test-nogui も緑）、`cargo test --locked --doc` は 2 本緑、`REF:python/novnow-py/tests/test_binding.py` 13 本、`REF:docs/script/reference.py` 13 項目 OK、`REF:docs/script/duplicate.py` OK（12 specifications / 12 designs / 142 completed）。
+
+## 2026-10-28: 仕様書を正本とした整合・第八巡（第 6 段。API リファレンスの引数・戻り値スキーマの未実装注記・凍結ツールのスキーマ）
+
+- 第八巡の続き。外部インターフェース（§19.5・§19.8）の「仕様が MUST と言っているが見えていないもの」を潰した。
+- **ウェブサイトの API リファレンス**（§19.8.4「カタログ・引数・例」）: 引数が出ていなかったので、`REF:scripts/api-site.py` が `REF:tests/golden/api_catalog.json` の `arguments`（JSON Schema と `order`）を payload に載せ、`REF:website/src/components/ApiCatalog.astro` に「引数（* は必須）」列を足した。見出しの「120 の正規操作」は手書きだったので、生成物の件数（`operations.length`）から出すようにして二度とずれないようにした。`npm run build` と `python3 scripts/website-check.py --dir dist --website-only` は緑（243 HTML）。
+## 2026-10-28: 仕様書を正本とした整合・第八巡（第 7 段。戻り値スキーマの未実装注記・凍結ツールのスキーマ・`plot.write` の `level`）
+
+- 前段の続き。API の説明（引数・戻り値・ツールのスキーマ）のうち、**実装が追いついていないもの**に印を付け、追いついているものは書き下した。
+- **`api.list` の `returns`**（§19.8.2）: 戻り値の形は `api.list` に無く、仕様だけが MUST と言っていた。121 操作ぶんの宣言が要るので**未実装のまま**とし、§19.8.2 に `api.list` のキー表と〔状態: 未実装〕の注記を足した（`REF:docs/designs/interfaces.md` §19.8 にも同じ注記）。操作ごとの「例」も未掲載であることを §19.8.4 に注記した。
+- **凍結ツールの `inputSchema`**（§19.5.3）: 凍結 14 ツールのスキーマには `required` が無く、`neighbors` 以外はすべて `"type": "string"`、`plot.write` の `level` にも `enum` が無い。§19.8.3 の凍結（名前・引数・出力を変えない）と両立させるため、**追加時点のスキーマのまま**にすることを §19.5.3 に書き、新規ツールは `api.list` から生成する（`required` と関門の `role` の必須化まで含む）ことも明記した。
+- **`plot.write` の `level` 拡張**（§19.5.2 が `outline` / `chapter` も受け取ると MUST で書いていた）: 実装は `episode` 以外を引数エラーにしている。適用先を話プロットから上位ファイルへ広げる必要があるので〔状態: 未実装〕とし、何が要るか（`apply::changes` の対象拡張・提案の `target` の単位・E006 の経路照合のやり直し）を書いた。
+- **凍結ツール表の件数**（`REF:docs/designs/interfaces.md` §19.5）: 「M—」でない操作は 86 件、うち 13 件は凍結ツールと同名なので新しいツールは 73 件、ツール表は 87 件。設計書が「72 件 = 86 件」と書いていたのを直し、`novnow.lexicon.search` が操作 `dictionary.term_full` の別名であることも書いた（`REF:tests/mcp_frozen.rs` の 35 / 87 と一致）。
+- **ja 辞書の不具合**: `api.op.project.info` が「プロジェクト基本情報ワークスペース見出し」と 2 つの文言が繋がっていた（過去の一括置換の巻き添え）。「プロジェクト基本情報（タイトル・作者・言語・版）」に直した。
+- テスト: `bash scripts/verify.sh` は **13 ジョブすべて緑**（1461 passed / 68 ターゲット）、`cargo test --locked --doc` 2 本緑、`REF:python/novnow-py/tests/test_binding.py` 13 本、`REF:docs/script/reference.py` 13 項目 OK、`REF:docs/script/duplicate.py` OK。
+
+## 2026-10-28: 仕様書を正本とした整合・第八巡（第 8 段。`api.list` の戻り値スキーマを実装）
+
+- 前段で〔状態: 未実装〕と注記した `api.list` の `returns`（戻り値の形）を実装した。§19.8.2 の MUST（ID・説明・引数スキーマ・**戻り値の形**・例外・関門・パレット名）がこれで揃った。
+- **宣言**: `REF:src/app/ops/returns.rs` に「操作 ID → (キー, JSON Schema の型) の並び」の 1 つの表を置いた（121 操作・ID 昇順）。`null` を取りうる値は `object|null` のように型を並べ、呼び出しごとに形が変わる値（`settings.set` の `value`、`session.command` の `data`）は型を書かない（`any`）。
+- **表の作り方**: 手で読むだけでは 121 操作ぶんの戻り値を取り違えるので、雛形プロジェクトで全操作を 1 回ずつ叩いてトップレベルのキーと型を観察する道具（`REF:examples/api_returns.rs`）を足し、その出力（87 操作）と残り 34 操作の実装の読み合わせで表を作った。
+- **出力**: `api.list` の各操作に `returns`（`{"type":"object","properties":{…}}`）が載る。`required` は出さない（省略されうるキーがあるため）。MCP に `outputSchema` は出さない（凍結 14 ツールは §19.8.3 の凍結、新規分は `inputSchema` のみ）ことも仕様に書いた。
+- **挙動との突き合わせ**: `REF:tests/api_returns.rs` を新設し、(1) 全操作に宣言があり余分が無く ID 昇順であること、(2) 実際に叩いて返ったキーが宣言にあること、(3) 型（`|` は「どれか」・`any` は無検査）が合うこと、(4) `api.list` の `returns` が宣言と同じキー数を持つことを検査する。**挙動と宣言がずれたら落ちる**。
+- **ウェブサイト**: `REF:scripts/api-site.py` がゴールデンの `returns` からキー名を取り、`REF:website/src/components/ApiCatalog.astro` に「戻り値のキー」列を足した（`npm run build` と `scripts/website-check.py` は緑、243 HTML）。
+- **仕様**: §19.8.2 のキー表を「実装済み」にし、`returns` の書き方（`properties` は「ありうるキー」・`required` を出さない・`null` は型の並び・可変は型なし・宣言は 1 つの表・挙動との一致をテストで検査）を書いた。`REF:docs/designs/interfaces.md` §19.8 の未実装注記も実装済みへ。§19.8.4 は戻り値のキーも生成物から載せることを追記。
+- テスト: `bash scripts/verify.sh` は **13 ジョブすべて緑**（1464 passed / 70 ターゲット。`tests/api_returns.rs` の 3 本が増えた）、`cargo test --locked --doc` 2 本緑、ゴールデン（`REF:tests/golden/api_catalog.json`）と Python の型スタブを再生成。
+
+## 2026-10-28: 仕様書を正本とした整合・第八巡（第 9 段。`plot.write` の `level` の実装を確定し、サイトに操作ごとの例を出す）
+
+- 所有者の指示（2026-10-28「1 から順に」）の 4 項目のうち、**2（`plot.write` の `level` 拡張）**と **4（サイトの操作ごとの例）**を片付けた。1（`api.list` の `returns`）は前段で完了している。
+- **`plot.write` の `level`**（§19.5.2）: 前々段で〔状態: 未実装〕と注記したが、実装を読み直すと**すでに動いていた**。`REF:src/app/ops/editing.rs` の `plot_write` は `episode`（当該節の行の差し替え）・`chapter`（`plots/AA.cnov` の全文置換）・`all` / `outline`（`plots/all.cnov`）を受け、`REF:src/cli/mcp.rs` の `call()` が `level != "episode"` の `novnow.plot.write` だけを凍結から外して正規操作へ回している（`episode` は凍結 14 ツールの実装のままで、出力はバイト不変）。注記を実装の記述に改め、**`chapter` を省いたときは `scene` の章に落ちる**こと（`chapter_of()`）と、**凍結した `inputSchema` は `chapter` を宣言しない**（`additionalProperties` を制限していないので送れる）ことを書いた。`REF:docs/specifications/agent.md` §15.8.3 は「本節では `episode` だけを定める」に、`REF:docs/designs/interfaces.md` §19.5 は実装の在り処（振り分け）に直した。
+- **回帰テスト**: `REF:tests/api.rs` に `plot_write_reaches_every_level_and_refuses_an_unknown_one` を足し、4 つの `level`（`outline` / `all` / `chapter`（`chapter` 省略時は `scene` の章）/ `episode`）の書き込み先と、知らない `level` が引数エラー（`Class::Usage`）になることを固定した。`REF:tests/cli.rs` の `mcp_plot_write_takes_outline_and_chapter_levels` には 4 通話目として `level: "scene"` を足し、MCP でも `isError: true` になることを見るようにした。
+- **サイトの操作ごとの例**（§19.8.4）: `REF:scripts/api-site.py` の `examples_for()` が `api.list` の `arguments`（必須の引数だけ）から 4 つの口（CLI・Rust・Python・MCP）の最短呼び出しを組み立て、`REF:website/src/data/api.ts` の `examples` に載せる。値は引数名ごとの見本（`SAMPLES`）と操作ごとの上書き（`OP_SAMPLES`。`materials.get` の `id` は `M0001`、`agent.*` の `id` は `T0001` / `P0001` など）で決め、表に無い引数は型の最小値に落とす。既存サブコマンドを持つ 4 操作は**既存形**（`novnow new my-novel` など。§19.6.1 の対応表）を出す。`REF:website/src/components/ApiCatalog.astro` には「例」列（`<details>`）を足した。例文は手書きしない（カタログを増減したときに例だけ古くなるのを防ぐ）ので、生成器が「必須の引数が CLI の例に載っているか」を検査し、`--check` で `api.ts` との一致も見る。
+- **仕様**: §19.8.4 の〔状態: 一部未実装〕を外し、例の作り方（必須だけ・見本の表・4 つの口・既存形の優先）を書いた。`REF:docs/designs/interfaces.md` §19.8 も追随。
+- テスト: `bash scripts/verify.sh` は **13 ジョブすべて緑**（1465 passed / 70 ターゲット。`tests/api.rs` の 1 本が増えた）、`cargo test --locked --doc` 2 本緑、`npm run build` は 232 ページ、`REF:scripts/website-check.py` は 243 HTML 緑。
+
+## 2026-10-28: 仕様書を正本とした整合・第八巡（第 10 段。節ごとの undo 履歴を実装）
+
+- 所有者の指示の 4 項目のうち **3（節ごとの undo 履歴）**を片付けた。前段までの注記は「入力欄の履歴は 1 つの入力欄に付くので節を移ると失われる」だったが、実装を読み直すと**半分はすでに動いていた**: `REF:src/ui/widgets/section_editor.rs` の `editor_id()` が節ごとに別の `egui::Id` を作り、egui は入力欄の状態（undoer を含む）を Id ごとに `ctx.memory` に持つので、節を移って戻ると履歴も戻る。
+- **足りなかったもの**: ①保持する節数の上限が無く、触った節の数だけメモリに残る（仕様は「直近 20 節分」）、②`Ctrl+Z` の実機の修飾キーは `ctrl` と `command` の両方が立ち、テストで `Modifiers::CTRL` だけを送ると egui が取り消しと見なさない、③**節を消すと後続の節番号が繰り上がる**（§8.1.2）ため、Id を「節 ID」だけにすると消えた節の履歴が繰り上がってきた別の節に付き、取り消しで別の節の本文が戻りうる。
+- **実装**: `remember()` を足し、最近使った節の Id を新しい順に覚えて 20 節を超えたら古い節の `TextEditState` を `ctx.memory.data.remove` で捨てる（足りない分の state は描画のときに作られる）。`editor_id()` は「文書のパス・節 ID・**節の開始行**」から Id を作る。節の中で改行しても開始行は動かないので、書き足している節の履歴は消えず、節の増減で位置が変わった節は履歴を引き継がない。テスト用に `remember_id()` / `recent_sections()` を公開した。
+- **テスト**: `REF:tests/gui.rs` に 2 本。`the_undo_history_belongs_to_the_section_you_come_back_to`（節 A で打鍵 → 自動保存 → 節 B へ移って打鍵 → 節 A へ戻って `Ctrl+Z` で A の打鍵だけが消える）、`the_editor_keeps_the_history_of_the_twenty_most_recent_sections`（25 節ぶん記録して、残るのが直近 20 節・21 節前の state が捨てられること）。
+- **仕様**: §8.6 (a) の〔状態: 未実装〕を外し、節ごとの保持・直近 20 節・履歴の深さ（入力欄の既定 100 段）・「文書・節 ID・開始行」に紐づける理由を書いた。`REF:docs/designs/editing.md` §8.6 に実装の在り処（`editor_id` / `remember` / `TextEditState`）を追記し、`REF:docs/specifications/ui.md` §9.8.1 の `Ctrl+Z` の行にも「節ごとに直近 20 節」を足した。
+- テスト: `bash scripts/verify.sh` は **13 ジョブすべて緑**（1467 passed / 70 ターゲット。`tests/gui.rs` の 2 本が増えた）。
+
+## 2026-10-28: 仕様書を正本とした整合・第八巡（第 11 段。診断の「発行しない」表の取り違えを直す）
+
+- 4 項目を片付けたあと、第八巡の 1:1 突き合わせを続けた。`REF:docs/specifications/diagnostics.md` §7 冒頭の「**現時点で発行しないコード**」の表が **7 件**になっていたが、実際に発行していないのは `W041` / `I051` / `I058` の **3 件**だけだった。`W022` / `W025` / `W030` / `W064` は発行している（`REF:src/core/diagnostics.rs` の `word_ranges` / `section_counts` と、資料の索引の突き合わせ。`REF:tests/diagnostics_document.rs` が W022 / W025 / W030 を、`REF:tests/materials_ops.rs` が W064 を見ている）。
+- 直したもの: 仕様 §7 冒頭の表（7 → 3 件）と「これら N 件」の数、`REF:src/core/diagnostics.rs` のモジュール doc、`REF:docs/designs/diagnostics.md` §7 の同じ記述。あわせて、`W022` / `W025` / `W030` / `W064` がどこで発行されるかを仕様と設計の両方に書いた（番号だけの表に戻らないように）。
+- `I058`（検索結果を資料化した通知）は仕様 §16.3.1 と `REF:docs/designs/workflows.md` の表にあるが、実装は資料を保存するだけで通知を出さない。**大規模ではないが UI の通知の口を作る必要がある**ので、§16.3.1 の表に〔状態: I058 は未実装〕を足した（§7 冒頭の表と二重に記録）。
+- あわせて、`src/`・`tests/` の `§` 参照を仕様書の節番号と機械的に突き合わせた（裸の `§N.M.K` まで含めて）。**存在しない節を指す参照は 0 件**、`docs/` 側も 0 件（`docs/history.md` と `docs/plans.md` は歴史記録なので対象外）。
+- テスト: `bash scripts/verify.sh` は **13 ジョブすべて緑**（1467 passed / 70 ターゲット）、`REF:docs/script/duplicate.py` と `REF:docs/script/reference.py` も緑。
+
+## 2026-10-28: I051・I058 の廃止、W041（読み取り専用）の実装、§16.1.2（素材 URL 取得）の廃止
+
+- 所有者の指示（2026-10-28）: `I051`・`I058` は廃止する。`W041` は今実装する。§16.1.2 は廃止する。
+- **`I051`（未保存の変更がある）を廃止**した。ステータスバーの保存状態インジケータ（§9.6）が同じことを常に
+  見せており、診断として二重に持つ意味が無かった（波線を引く文書位置も無い）。`DiagnosticCode` から variant を
+  消し、`CATALOG` / `STATUS_ANCHOR` / `ja.toml` / `en.toml` / サイトの解説データ（`diagnostics.ts`・
+  `diagnostics-en.json`・`diagnostics-examples.json`）から落とした。**番号は再利用しない**（欠番）。
+- **`I058`（検索結果を資料化した）を廃止**した。資料一覧に新しい行が現れること自体が通知で、トーストを
+  重ねる必要が無かった。§16.3.1 の表の「通知」欄を「なし」にした。診断は **87 → 85 種**（§7.0 は 39 → 38、
+  §7.2 は 38 → 37）。数の主張（README / README.en / §2 / glossary / `src/core/diagnostics.rs` の doc /
+  `scripts/diagnostics-site.py` の期待値 / `tests/{diagnostics_catalog,i18n_catalog}.rs`）を 85 に揃えた。
+- **`W041`（書き込み不可のプロジェクト）を実装**した。判定は**試し書き**で行う: `Storage::writable()` /
+  `Host::writable()`（既定 `true`）を足し、`FsStorage` が `.novnow/.write-probe` を書いてすぐ消す
+  （結果は `OnceLock` で 1 回だけ。失敗したら何も残らない）。モードビットではなく実際に書けるかを見るのは、
+  読み取り専用でマウントされた媒体・書き込みを拒否するサンドボックス・容量の尽きた領域を同じ扱いにするため。
+  `Session::read_only()` が開いたときの結果を覚え、次の 3 か所で W041 になる: (1) `novnow check` の
+  1 行（`<ルート>: W041 文言`。`check` の方針「何も書かない」の唯一の例外で、書けなければ何も書かない）、
+  (2) `project.validate` / `diagnostics.run`（プロジェクト全体のとき）の 1 件（`path` は空・`line`/`column` は 0）、
+  (3) GUI を開いたときのステータスバーの通知（`prepare_agents`。読み取り専用なら既定プロンプトを書かない）。
+  編集・保存は止めない（保存を試して失敗したら `SaveFailed`、§8.2）。仕様は §4.1 に判定方法と 3 つの出し方を
+  書き、§7.0 の W041 の行と設計書 §7 を追随させた。
+- **§16.1.2（URL からの本文取得）を廃止**した。novnow はネットワークから素材を取得しない（素材本文は
+  `materials/inbox/` に置くか `materials.propose` の `markdown` で渡す。`source:` は出所の記録だけ）。
+  §16.1.2 は〔廃止〕の節として理由を残し、§19.1.9・§19.2.4・§19.3.4・§19.5.2・§19.7 の `materials.approve`
+  行・§13.8（`external.md`）・設計書 §16.1.2 から取得の記述を外した。
+- テスト: `REF:tests/api.rs`（読み取り専用のセッションで W041 が 2 つの操作に出る・書かない・読み取りは普通に
+  できる）、`REF:tests/cli.rs`（`novnow check` がルートの 1 行として W041 を出し、終了コード 0 で、何も残さない）、
+  `REF:tests/storage_fs.rs`（`writable()` が書けるディレクトリで true・試し書きを残さない・0o555 のディレクトリで
+  false）。`REF:tests/diagnostics_catalog.rs` の件数（87 → 85）と通知の例（I051 → W041）を更新。
+  `bash scripts/verify.sh` は **13 ジョブすべて緑**（1471 passed / 70 ターゲット）、サイトは 228 ページ・
+  239 HTML。
+
+## 2026-10-28: Python 側の操作数の追随（CI の `wheels` が検出した 120 → 121）
+
+- `[ci run]` 付きのコミットで CI を回したところ、`wheels` の `test (3.9)` / `test (3.13)` だけが落ちた。
+  `REF:python/novnow-py/tests/test_api.py` の `assert len(catalog) == 120` が `section.propose` の追加
+  （121 操作）に追随していなかったのが原因で、実装の誤りではなかった。手元では `pytest` が無いため
+  `scripts/python-check.sh --full` がこの検査を飛ばしており、見落としていた。
+- 件数はゴールデン（`REF:tests/golden/api_catalog.json`）から取るのではなく、テストの期待値として書き直した
+  （120 → 121）。`scripts/python-check.sh` の `pytest` の無い環境向けの fallback は、数を直接書くのをやめて
+  ゴールデンの件数と突き合わせる形にした（数は仕様表 1 か所からゴールデンへ、という既存の流れに寄せる）。
+- 設計書の現在形の記述も追随させた（`REF:docs/designs/overview.md`・`REF:docs/developers.md` の 120 操作 →
+  121 操作）。`REF:docs/designs/interfaces.md` の「120 操作、カタログ版 1.1」は `section.split` を足した
+  時点の記録なので、そのまま残す（`docs/plans.md`・本ファイルも同様に歴史記録）。
+- 手元で `pytest` を用意して `python/novnow-py/tests` を通した（9 passed / 1 skipped）。CI は `a728f30` で
+  `wheels` を含む 6 ワークフローすべて緑。
+
+## 2026-10-28: v0.1.1 のリリース準備（版更新・サイトの版表示の検査・必須チェック名）
+
+- 所有者の指示: `develop` → `main` の PR #42（v0.1.1）を緑にしたうえで、タグを打ってマージコミットを
+  作り、リリースする。版は `v0.1.1`。
+- **PR #42 には版更新が入っていなかった**（`Cargo.toml` は 0.1.0 のまま）。`main` へ入れられるのは
+  版更新を伴う release / hotfix PR だけであり（`REF:docs/developers.md` の GitFlow）、タグ名が
+  `Cargo.toml` の版と一致しないと `REF:.github/workflows/release.yml` の `prepare` が公開を拒否する。
+  そこで `python3 scripts/release-matrix.py --bump 0.1.1` の出力（5 形態の版）と、`api.list` の
+  `version` を持つ `REF:tests/golden/api_catalog.json` の再生成だけを積む PR #43 を `develop` 向けに作った。
+- **`REF:scripts/website-check.py` の版表示の検査を直した**。見出しの版を `Cargo.toml` と比べていたが、
+  サイトが見出し・告知に出すのは**公開済みの版**（`REF:website/src/data/release.ts`）である
+  （`REF:docs/developers.md` §9 の規則）。版更新 PR から公開までの間は 2 つが意図的に食い違うため、
+  この検査は版更新のたびに `website` と Pages の `build` を赤くしていた（v0.1.0 では両者が同じ値で、
+  経路が踏まれていなかった）。比較先を `release.ts` に変え、`release.ts` の版が `Cargo.toml` より
+  新しいときだけ誤りとした。`REF:docs/script/test_website.py` に 2 本（版更新の途中で合格すること・
+  サイトが開発版より先の版を名乗らないこと）を足した。
+- **版を上げると必須チェック名が変わる**（`build (…, 0.1.0, novnow-0.1.0-…)`）。ruleset は版を含む
+  行列名をそのまま持つので、`--bump` の後は release PR が「報告待ち」で止まる。この原因と、
+  行列表の既定名が GitHub の 100 文字切り詰めで末尾（成果物名）まで読めないことも記録した。
+  恒久策は次の節（ジョブ名から版を外す）で行った。
+
+## 2026-10-28: 必須チェック名から版を外す（v0.1.1 のリリースを止めていた原因の恒久策）
+
+- 版更新（`--bump 0.1.1`）で `protect-develop` / `protect-main` の必須チェックが「報告待ち」になり、
+  PR #43 は全ジョブ緑（20 pass / 1 skip）でも `BLOCKED` になった。原因は行列ジョブの**既定の
+  チェック名**に版と成果物名が入っていること（`build (…, 0.1.0, novnow-0.1.0-…whl)`）。
+  GitHub は必須チェックを名前の完全一致で照合するので、版を上げると永久に一致しない。
+- **ジョブ名を安定名にした**: `REF:.github/workflows/wheels.yml` の `build` は
+  `wheel (${{ matrix.target }})`、`REF:.github/workflows/desktop-check.yml` の `build` は
+  `desktop (${{ matrix.target }}, ${{ matrix.gui }})`。以後の版更新で ruleset を触る必要は無い。
+  代わりに版と成果物名の一致は `REF:scripts/release-matrix.py --check`（5 形態）と release の
+  `prepare`（タグ＝`Cargo.toml` の版）が担保する。
+- 新しい必須チェック（所有者が ruleset を設定）: `develop` は `wheel (x86_64-unknown-linux-gnu)` と
+  `desktop (x86_64-unknown-linux-gnu, nogui)` の 2 件、`main` は 5 つの `wheel (<対象環境>)` と
+  `desktop (x86_64-apple-darwin, gui)`・`desktop (aarch64-apple-darwin, gui)` の 7 件。
+- `REF:docs/script/test_release_policy.py` に、ジョブ名が安定名であり版を含まないことを検査する
+  テストを足した（`docs/developers.md` §4.7・`REF:docs/distribution.md` §6・§8 も追随）。
+
+## 2026-10-28: 公開後の監査（release-audit.yml）を版を引数に取る形へ（リリース時の作業をゼロに）
+
+- 所有者の指示: v0.1.1 の前に、リリース時の作業が最小になるよう `REF:.github/workflows/release-audit.yml` を直す。
+- 旧版は **v0.1.0 専用の one-off** だった: 版 `0.1.0` を 3 か所に直書き、タグの SHA を固定し、操作数を
+  `119` と手書きし、配備済みサイトを前提にしていた。さらに `push: branches: ['arena/**']` と
+  `paths: [action.yml, …]` を持つため、`--bump` で `action.yml` が変わると自動で走って赤くなった
+  （v0.1.1 の版更新 `aed68b6` で実際に `payloads` と `candidate-action` が落ちた）。
+- **版を引数に取る監査に作り直した**。起動は (1) Release ワークフローの成功終了（`workflow_run`。監査対象は
+  そのタグ）と (2) 手動（`workflow_dispatch` の `version`。空なら最新の公開 release）の 2 つだけにし、
+  `push` トリガーは外した。版・タグ・成果物名・操作数・タグの SHA はすべて実行時に取る。操作数は
+  その版の `tests/golden/api_catalog.json` から読む（手書きの `119` をやめた）。
+- **監査はタグの木で行う**。公開済みの版は動かないので、その版の `scripts/` と `examples/sample-novel` を
+  使う。既定ブランチの `examples/sample-novel` を古い版の CLI に読ませていたのが、v0.1.0 の監査が
+  落ちていた原因だった（`payloads` の "Run the downloaded Linux CLI…" の段）。複合アクションの監査だけは
+  「いまの `scripts/action/` × 公開済み成果物」を見るので、既定ブランチの木にタグの `examples/` だけを重ねる。
+- 監査の内容は旧版を維持し、判定の材料だけを版から取る形にした: release の 17 成果物と `SHA256SUMS`、
+  `git archive` と同梱ソースの一致、タグと可動タグ `v0`、PyPI・TestPyPI の 5 ホイールの照合値、公開済み
+  CLI・Python パッケージ・crates.io クレートの起動と `novnow check`、複合アクション、配備済みサイトと WASM。
+- `REF:docs/distribution.md` §9 に手順 8 として書き足した（承認が長引けば Release が終わらず監査も走らない、
+  そのときは `version` を指定して手動で 1 回、も含む）。`REF:docs/script/test_release_policy.py` に
+  版・操作数の直書きが戻らないことと、起動条件（`workflow_run`）を検査するテストを足した。

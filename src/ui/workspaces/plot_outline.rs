@@ -1,4 +1,5 @@
-//! `plot-outline` — 全体 / 章プロット（§10.3。v1 ① は単一ビュー: タブ・折りたたみは ②）。
+//! `plot-outline` — 全体 / 章プロット（§10.3）。タイムラインなどのタブは `tabs.rs`、章 → 話の
+//! 折りたたみは [`crate::core::features::folding`] が担う。
 //!
 //! ```text
 //! ┌────────┬──────────────────────────────┬────────────────┐
@@ -12,7 +13,7 @@
 //!
 //! - 左のレベル切替（全体 / 各章）。`Ctrl+B`（`Ctrl+Shift+B`）で上位へ、`Ctrl+Enter` で下位へ
 //!   （章のブロック → その章、話のブロック → `plot-episode`）。`Ctrl+Alt+←/→` で前 / 次のレベル。
-//! - 下位へ降りても**親が常に見える**（章のときは全体プロットの章のブロックを上段に出す。§19.11）。
+//! - 下位へ降りても**親が常に見える**（章のときは全体プロットの章のブロックを上段に出す。§10.3.1）。
 //! - 右は伏線（§10.3 の既定のタブ）。`seed` / `payoff` を伏線 ID で突き合わせ、未回収を上に並べる。
 
 use std::collections::BTreeSet;
@@ -65,9 +66,9 @@ pub struct State {
     expanded: BTreeSet<u16>,
     editor: slice_editor::Cache,
     reveal: bool,
-    /// List highlight moved without opening/committing its text slice.
+    /// 一覧の選択だけを動かし、そのブロックの本文は開かず確定もしない（§10.3）。
     preview: bool,
-    /// Scroll the list once after a keyboard-only selection change.
+    /// キーだけで選択を動かした直後に、一覧を 1 回スクロールして見せる。
     scroll_list: bool,
 }
 
@@ -151,6 +152,32 @@ impl State {
         self.expanded.contains(&chapter)
     }
 
+    /// 話を展開している章の鍵（`@NN`。`.novnow/ui.json` の `folded.outline`、§4.4.1）。
+    pub fn expanded_keys(&self) -> Vec<String> {
+        self.expanded
+            .iter()
+            .map(|chapter| format!("@{chapter:02}"))
+            .collect()
+    }
+
+    /// `.novnow/ui.json` の `folded.outline` から展開状態を復元する（§4.4.1・§10.3.1）。
+    /// 読めない鍵は無視する（壊れていても既定値で動く、§4.4）。
+    pub fn restore_expanded(&mut self, keys: &[String]) {
+        self.expanded = keys
+            .iter()
+            .filter_map(|key| key.trim_start_matches('@').parse().ok())
+            .collect();
+    }
+
+    /// 1 つの章だけを畳む（`fold == true`）/ 展開する（`plot.outline_fold`、§10.3.1）。
+    pub fn set_chapter_folded(&mut self, chapter: u16, fold: bool) {
+        if fold {
+            self.expanded.remove(&chapter);
+        } else {
+            self.expanded.insert(chapter);
+        }
+    }
+
     /// 今の章（全体なら選んでいる章）の話一覧を畳む（`fold == true`）/ 展開する（`false`、§10.3.1）。
     pub fn set_folded(&mut self, bench: &Workbench, fold: bool) -> bool {
         let target = self
@@ -161,11 +188,8 @@ impl State {
         let Some(chapter) = target else {
             return false;
         };
-        if fold {
-            self.expanded.remove(&chapter)
-        } else {
-            self.expanded.insert(chapter)
-        }
+        self.set_chapter_folded(chapter, fold);
+        true
     }
 
     fn chapters(&mut self, bench: &Workbench) -> &[ChapterNode] {
@@ -174,7 +198,7 @@ impl State {
         if !fresh {
             let project = bench.project();
             let all_folds = project
-                .document("plots/all.txt")
+                .document("plots/all.cnov")
                 .map(folding::ranges)
                 .unwrap_or_default();
             let titles = plots::outline_blocks(project, None);
@@ -250,10 +274,10 @@ impl State {
         )
     }
 
-    /// 文書のパス（全体 `plots/all.txt`、章 `plots/AA.txt`）。
+    /// 文書のパス（全体 `plots/all.cnov`、章 `plots/AA.cnov`）。
     fn path(&self, bench: &Workbench) -> Option<String> {
         match self.level? {
-            None => Some("plots/all.txt".to_owned()),
+            None => Some("plots/all.cnov".to_owned()),
             Some(chapter) => Some(bench.project().chapter_plot_path(chapter)),
         }
     }
@@ -280,7 +304,7 @@ impl State {
         }
     }
 
-    /// Highlight the adjacent block without committing/changing the Slice editor.
+    /// エディタを確定も変更もせずに、隣のブロックへ選択だけ移す（§10.3）。
     pub fn preview_row(&mut self, bench: &Workbench, forward: bool) -> bool {
         let at = self.selected_index(bench);
         let blocks = self.blocks(bench);
@@ -523,11 +547,8 @@ pub fn show(
             .clicked()
             {
                 if current == Some(chapter) && !node.episodes.is_empty() {
-                    if expanded {
-                        state.expanded.remove(&chapter);
-                    } else {
-                        state.expanded.insert(chapter);
-                    }
+                    // 見出しの `▾` / `▸` を押したら開閉を反転する（§10.3.1）
+                    state.set_chapter_folded(chapter, expanded);
                 }
                 chosen = Some(Some(chapter));
             }
@@ -679,7 +700,7 @@ fn block_list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) ->
                 .map_or(0, |r| r.chars)
         })
         .collect();
-    let scores = crate::core::stage_two::metrics::t_scores(&lengths);
+    let scores = crate::core::features::metrics::t_scores(&lengths);
     if blocks.is_empty() {
         let path = state.path(bench).unwrap_or_default();
         super::hint(

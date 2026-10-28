@@ -137,11 +137,11 @@ pub const NOW: FixedClock = FixedClock {
     offset: 0,
 };
 
-/// 最小の v1 プロジェクト（§4.2 の必須パス）を `root` に作る。
+/// 最小のプロジェクト（§4.2 の必須パス）を `root` に作る。
 pub fn minimal_project(dir: &TempDir, root: &str) -> PathBuf {
     dir.write(
-        &format!("{root}/project.json"),
-        "{\n  \"schema_version\": 1,\n  \"title\": \"星屑の時計\"\n}\n",
+        &format!("{root}/project.toml"),
+        "schema_version = 2\ntitle = \"星屑の時計\"\n",
     );
     dir.write(
         &format!("{root}/characters.md"),
@@ -156,11 +156,11 @@ pub fn minimal_project(dir: &TempDir, root: &str) -> PathBuf {
         "{\"schema_version\":1,\"next_id\":1,\"items\":[]}\n",
     );
     dir.write(
-        &format!("{root}/plots/all.txt"),
+        &format!("{root}/plots/all.cnov"),
         "@01\nsummary: 出会い\n;\n",
     );
     dir.write(
-        &format!("{root}/contents/01-01.txt"),
+        &format!("{root}/contents/01-01.cnov"),
         "@01-01-01\n「こんにちは」\n",
     );
     dir.join(root)

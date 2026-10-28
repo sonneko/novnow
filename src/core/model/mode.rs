@@ -42,7 +42,7 @@ pub struct Mode {
     /// 和集合と定める。上書きではない）。和を作るのは M3 の
     /// [`applicable_patterns`](crate::core::resolve::modes::applicable_patterns)。
     pub patterns: Vec<RolePattern>,
-    /// §5.5.4 に無いキー（② の追加仕様を含む）。**削除してはならない**（縫い代 1）。
+    /// §5.5.4 に無いキー（`address:` などもここに入る）。**削除してはならない**（縫い代 1）。
     #[serde(flatten)]
     pub unknown: BTreeMap<String, Value>,
 }

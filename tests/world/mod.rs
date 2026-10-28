@@ -56,9 +56,9 @@ pub const CONTENTS: &str = include_str!("../golden/contents/spec_5_2_3.txt");
 pub const EPISODE: &str = include_str!("../golden/plot_episode/spec_5_4_3.txt");
 pub const ALL: &str = include_str!("../golden/plot_outline/spec_5_3_3.txt");
 
-pub const CONTENTS_PATH: &str = "contents/01-04.txt";
-pub const EPISODE_PATH: &str = "plots/01-04.txt";
-pub const ALL_PATH: &str = "plots/all.txt";
+pub const CONTENTS_PATH: &str = "contents/01-04.cnov";
+pub const EPISODE_PATH: &str = "plots/01-04.cnov";
+pub const ALL_PATH: &str = "plots/all.cnov";
 
 /// 仕様書の例でできたプロジェクト。
 pub fn world() -> Project {

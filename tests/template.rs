@@ -24,7 +24,7 @@ fn template_project() -> (Vec<Document>, Project) {
     // project_load::load と同じ選び方（`.gitkeep` などは文書にしない）
     let documents: Vec<Document> = template::new_project("untitled")
         .into_iter()
-        .filter(|file| is_document(&ProjectPath::new(file.path).expect("path")))
+        .filter(|file| is_document(&ProjectPath::new(&file.path).expect("path")))
         .map(|file| Document::new(file.path, file.text))
         .collect();
     let project = Project::with_documents(Default::default(), documents.clone());
@@ -33,19 +33,19 @@ fn template_project() -> (Vec<Document>, Project) {
 
 #[test]
 fn the_template_has_exactly_the_files_of_section_14_5() {
-    let paths: Vec<&str> = template::new_project("x")
+    let paths: Vec<String> = template::new_project("x")
         .iter()
-        .map(|file| file.path)
+        .map(|file| file.path.clone())
         .collect();
     let mut want = vec![
-        "project.json",
+        "project.toml",
         "characters.md",
         "words.md",
         "ideas.md",
-        "contents/01-01.txt",
-        "plots/all.txt",
-        "plots/01.txt",
-        "plots/01-01.txt",
+        "contents/01-01.cnov",
+        "plots/all.cnov",
+        "plots/01.cnov",
+        "plots/01-01.cnov",
         "materials/index.json",
         "materials/docs/.gitkeep",
     ];
@@ -60,12 +60,12 @@ fn the_template_has_exactly_the_files_of_section_14_5() {
         ".gitignore",
     ]);
     assert_eq!(paths, want);
-    // §1.2（② の除外）: prompts/custom/ と assets/ は作らない（`docs/history.md` 作業項目 6）
+    // `novnow new` は prompts/custom/ と assets/ を作らない（`docs/history.md` 作業項目 6）
     assert!(paths
         .iter()
         .all(|path| !path.starts_with("prompts/custom/") && !path.starts_with("assets/")));
     // 名前の重複が無い
-    let unique: BTreeSet<&str> = paths.iter().copied().collect();
+    let unique: BTreeSet<String> = paths.iter().cloned().collect();
     assert_eq!(unique.len(), paths.len());
 }
 
@@ -75,13 +75,13 @@ fn the_template_passes_the_project_validation() {
     let mut listing = Listing::default();
     for file in &files {
         listing.files.insert(file.path.to_owned());
-        let mut dir = file.path;
+        let mut dir = file.path.clone();
         while let Some((parent, _)) = dir.rsplit_once('/') {
             listing.dirs.insert(parent.to_owned());
-            dir = parent;
+            dir = parent.to_owned();
         }
     }
-    listing.project_json = Some(template::project_json("x"));
+    listing.project_toml = Some(template::project_toml("x"));
     assert_eq!(validate(&listing), Ok(()));
 }
 
@@ -110,11 +110,11 @@ fn the_sample_uses_the_dictionary_and_modes() {
     assert_eq!(characters.matches("\n### ").count(), 2, "{characters}");
     assert!(characters.contains("「*だよ」「*かな」"));
     assert_eq!(project.text("words.md").matches("\n# ").count(), 1);
-    assert!(project.text("contents/01-01.txt").contains("@01-01-01"));
+    assert!(project.text("contents/01-01.cnov").contains("@01-01-01"));
     assert!(project
-        .text("plots/01-01.txt")
+        .text("plots/01-01.cnov")
         .contains("mode: '星野ひかり:A"));
-    assert!(project.text("plots/all.txt").contains("summary: "));
+    assert!(project.text("plots/all.cnov").contains("summary: "));
     // ideas.md はコメントだけ（見出しはアイデア 1 件になる。§5.7）
     let ideas = project.text("ideas.md");
     assert!(ideas.lines().all(|line| line.starts_with("//")), "{ideas}");
@@ -122,11 +122,11 @@ fn the_sample_uses_the_dictionary_and_modes() {
 
 #[test]
 fn json_files_and_gitignore_are_as_section_14_5() {
-    let value: serde_json::Value =
-        serde_json::from_str(&template::project_json("星屑の \"時計\"")).expect("json");
-    assert_eq!(value["schema_version"], 1);
-    assert_eq!(value["title"], "星屑の \"時計\"");
-    assert_eq!(value.as_object().expect("object").len(), 2);
+    let value: toml::Value =
+        toml::from_str(&template::project_toml("星屑の \"時計\"")).expect("toml");
+    assert_eq!(value["schema_version"].as_integer(), Some(2));
+    assert_eq!(value["title"].as_str(), Some("星屑の \"時計\""));
+    assert_eq!(value.as_table().expect("table").len(), 2);
     let index: serde_json::Value =
         serde_json::from_str(template::MATERIALS_INDEX).expect("index.json");
     assert_eq!(
@@ -342,20 +342,23 @@ fn the_prompts_carry_the_must_have_elements_of_appendix_a() {
 
 #[test]
 fn the_spec_lists_the_same_template() {
-    // §14.5 の表の左の列（パス）が雛形と食い違っていないか（仕様書を読み直す）
+    // §14.5 の表の左の列（パス）が雛形と食い違っていないか（仕様書を読み直す）。
+    // Issue #29 の仕様更新で §14.5 は新名称（`project.toml` / `.cnov`）へ移行したため、
+    // ここは仕様書に合わせる。生成側（雛形）の追随は別バッチ（B10）で行い、その間は
+    // `the_template_has_exactly_the_files_of_section_14_5` 側の現行名の列挙と食い違う。
     let start = SPEC.find("### 14.5 `novnow new` の生成物").expect("§14.5");
     let block = &SPEC[start..];
     let block = &block[block.find("```").expect("open") + 3..];
     let block = &block[..block.find("```").expect("close")];
     for name in [
-        "project.json",
+        "project.toml",
         "characters.md",
         "words.md",
         "ideas.md",
-        "contents/01-01.txt",
-        "plots/all.txt",
-        "plots/01.txt",
-        "plots/01-01.txt",
+        "contents/01-01.cnov",
+        "plots/all.cnov",
+        "plots/01.cnov",
+        "plots/01-01.cnov",
         "materials/index.json",
         "materials/docs/.gitkeep",
         "prompts/*.md",
@@ -375,21 +378,21 @@ fn sample_project_covers_appendix_c_with_no_diagnostics() {
     let mut listing = Listing::default();
     for file in &files {
         listing.files.insert(file.path.to_owned());
-        let mut dir = file.path;
+        let mut dir = file.path.clone();
         while let Some((parent, _)) = dir.rsplit_once('/') {
             listing.dirs.insert(parent.to_owned());
-            dir = parent;
+            dir = parent.to_owned();
         }
     }
-    listing.project_json = files
+    listing.project_toml = files
         .iter()
-        .find(|file| file.path == "project.json")
+        .find(|file| file.path == "project.toml")
         .map(|file| file.text.clone());
     assert_eq!(validate(&listing), Ok(()));
 
     let documents: Vec<Document> = files
         .into_iter()
-        .filter(|file| is_document(&ProjectPath::new(file.path).expect("path")))
+        .filter(|file| is_document(&ProjectPath::new(&file.path).expect("path")))
         .map(|file| Document::new(file.path, file.text))
         .collect();
     let project = Project::with_documents(Default::default(), documents.clone());
@@ -408,7 +411,7 @@ fn sample_project_covers_appendix_c_with_no_diagnostics() {
 
     // 2. モードの併用（'リリア:B+C）と range 変種（リリアの ### B が 2 回）
     assert!(project
-        .text("plots/01-04.txt")
+        .text("plots/01-04.cnov")
         .contains("mode: 'リリア:B+C"));
     assert_eq!(
         project
@@ -445,7 +448,7 @@ fn sample_project_covers_appendix_c_with_no_diagnostics() {
     // 4. 資料 ID 参照（明示参照）と条件一致による資料候補
     use novnow::core::id::SceneId;
     let all_sections = sections::all(&project);
-    let doc = project.document("contents/01-04.txt").expect("01-04.txt");
+    let doc = project.document("contents/01-04.cnov").expect("01-04.cnov");
     let sec2 = all_sections
         .iter()
         .find(|sec| sec.id == SceneId::parse("01-04-02-02").unwrap())

@@ -5,7 +5,7 @@
 //! - [`finish`] / [`fail`] / [`cancel`] — 実行の後に書くもの（[`Plan`]）。自動適用（§15.1.1）と
 //!   自律の連鎖（integrator が `autonomous` のときだけ、上限つき）もここで決める。
 //! - [`pick`] — 次に走らせるタスク（U-8: `max_parallel`・サーバごとに最大 2・同じ節は直列）。
-//! - [`set_level`] / [`stop_all`] — 委譲レベルの変更（`project.json` の書き換えと `delegation_changed`）。
+//! - [`set_level`] / [`stop_all`] — 委譲レベルの変更（`project.toml` の書き換えと `delegation_changed`）。
 //!
 //! MCP の呼び出しそのもの（プロセス・スレッド・タイムアウト）は adapters が持つ。ここは要求の JSON を
 //! 作り、応答の JSON を読むだけ。
@@ -103,7 +103,7 @@ pub struct Draft<'a> {
     pub intent: &'a str,
     /// 人間のコメント。
     pub comment: &'a str,
-    /// Optional reference examples, one per line.
+    /// 参考例（任意）。1 行に 1 件ずつ（§15.4.6）。
     pub examples: &'a str,
     /// 起動者（`human` / `agent`）。
     pub initiator: &'a str,
@@ -166,7 +166,7 @@ pub enum Blocker {
     Unknown,
     /// 役割の委譲レベルが `off`。
     Off,
-    /// 既定の役割でない（カスタムロールは ②）。
+    /// 既定の役割でない（カスタムロールは `agents.custom_roles`、§5.9.2）。
     Role,
     /// 対象が 1 節でない（P1）。
     Scope,
@@ -374,7 +374,7 @@ pub enum Limit {
 }
 
 impl Limit {
-    /// `project.json` のキー（W095 の `{0}`）。
+    /// `project.toml` のキー（W095 の `{0}`）。
     pub fn key(self) -> &'static str {
         match self {
             Self::Tasks => "max_tasks_per_session",
@@ -820,87 +820,92 @@ pub fn started(start: &Start) -> Plan {
 
 // ============================================================ 委譲レベル（§15.7.6）
 
-/// 役割のレベルを変えた `project.json`（`serde_json::Value` で書き換える）と、`delegation_changed`。
+/// `[agents]` テーブル（無ければ作る）。テーブルでない値が書かれていれば `None`。
+fn agents_table(document: &mut toml_edit::DocumentMut) -> Option<&mut dyn toml_edit::TableLike> {
+    let root = document.as_table_mut();
+    if root.get("agents").is_none() {
+        root.insert("agents", toml_edit::Item::Table(toml_edit::Table::new()));
+    }
+    root.get_mut("agents")?.as_table_like_mut()
+}
+
+/// テーブルの中のテーブル（無ければインラインで作る）。
+fn child_table<'a>(
+    table: &'a mut dyn toml_edit::TableLike,
+    key: &str,
+) -> Option<&'a mut dyn toml_edit::TableLike> {
+    if table.get(key).is_none() {
+        table.insert(
+            key,
+            toml_edit::Item::Value(toml_edit::Value::InlineTable(Default::default())),
+        );
+    }
+    table.get_mut(key)?.as_table_like_mut()
+}
+
+/// テーブルへ文字列のキーを書く（既存の装飾は保つ、§4.5）。
+fn set_str(table: &mut dyn toml_edit::TableLike, key: &str, value: &str) {
+    crate::core::syntax::project_toml::set_string(table, key, value);
+}
+
+/// 役割のレベルを変えた `project.toml`（無損失編集、§4.5）と、`delegation_changed`。
 /// integrator の `off` は `agents.integrator = "human"`、それ以外のレベルは `"agent"` + `roles.integrator`。
+/// TOML として読めないファイルは書き換えず `None`（§4.5 の MUST）。
 pub fn set_level(
-    project_json: &str,
+    project_toml: &str,
     settings: &Agents,
     role: &str,
     level: Delegation,
     now: &str,
 ) -> Option<(String, LogEvent)> {
-    let mut root: Value = serde_json::from_str(project_json).ok()?;
-    let object = root.as_object_mut()?;
-    let agents = object
-        .entry("agents")
-        .or_insert_with(|| json!({}))
-        .as_object_mut()?;
+    let mut document: toml_edit::DocumentMut = project_toml.parse().ok()?;
     let from = level_of(settings, role);
-    if role == "integrator" {
-        if level == Delegation::Off {
-            agents.insert("integrator".to_owned(), json!("human"));
-        } else {
-            agents.insert("integrator".to_owned(), json!("agent"));
-            let roles = agents
-                .entry("roles")
-                .or_insert_with(|| json!({}))
-                .as_object_mut()?;
-            roles.insert(role.to_owned(), json!(level.as_str()));
-        }
+    let agents = agents_table(&mut document)?;
+    if role == "integrator" && level == Delegation::Off {
+        set_str(agents, "integrator", "human");
     } else {
-        let roles = agents
-            .entry("roles")
-            .or_insert_with(|| json!({}))
-            .as_object_mut()?;
-        roles.insert(role.to_owned(), json!(level.as_str()));
+        if role == "integrator" {
+            set_str(agents, "integrator", "agent");
+        }
+        let roles = child_table(agents, "roles")?;
+        set_str(roles, role, level.as_str());
     }
-    let mut text = serde_json::to_string_pretty(&root).ok()?;
-    text.push('\n');
     let mut event = LogEvent::new(now, "delegation_changed");
     event.role = Some(role.to_owned());
     event.detail = Some(format!("{role}: {} -> {}", from.as_str(), level.as_str()));
-    Some((text, event))
+    Some((document.to_string(), event))
 }
 
 /// 総停止（§15.7.4 `Ctrl+Shift+X`）: `apply` / `autonomous` の役割（既定のレベルを含む）を `propose`
-/// に下げた `project.json` と、変えた役割ごとの `delegation_changed`。
+/// に下げた `project.toml` と、変えた役割ごとの `delegation_changed`。
 pub fn stop_all(
-    project_json: &str,
+    project_toml: &str,
     settings: &Agents,
     now: &str,
 ) -> Option<(String, Vec<LogEvent>)> {
-    let mut root: Value = serde_json::from_str(project_json).ok()?;
-    let object = root.as_object_mut()?;
-    let agents = object
-        .entry("agents")
-        .or_insert_with(|| json!({}))
-        .as_object_mut()?;
+    let mut document: toml_edit::DocumentMut = project_toml.parse().ok()?;
     let mut events = Vec::new();
     let before: Vec<(&str, Delegation)> = crate::core::agents::BUILTIN_ROLES
         .iter()
         .map(|role| (*role, level_of(settings, role)))
         .collect();
+    let agents = agents_table(&mut document)?;
     if settings.delegation_level().can_write() {
-        agents.insert("delegation".to_owned(), json!(Delegation::Propose.as_str()));
+        set_str(agents, "delegation", Delegation::Propose.as_str());
     }
-    let roles = agents
-        .entry("roles")
-        .or_insert_with(|| json!({}))
-        .as_object_mut()?;
+    let roles = child_table(agents, "roles")?;
     for (role, level) in &before {
         if !level.can_write() {
             continue;
         }
-        roles.insert((*role).to_owned(), json!(Delegation::Propose.as_str()));
+        set_str(roles, role, Delegation::Propose.as_str());
         let mut event = LogEvent::new(now, "delegation_changed");
         event.role = Some((*role).to_owned());
         event.detail = Some(format!("{role}: {} -> propose", level.as_str()));
         events.push(event);
     }
     // 明示の値が無く既定に従っていた役割で、既定を下げたことで変わるものはもう events に入っている
-    let mut text = serde_json::to_string_pretty(&root).ok()?;
-    text.push('\n');
-    Some((text, events))
+    Some((document.to_string(), events))
 }
 
 /// 次に走らせるタスク（U-8）。`queue` と `running` は `(タスク, サーバ, 節)`。

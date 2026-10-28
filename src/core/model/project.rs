@@ -1,11 +1,11 @@
-//! `project.json`（§4.5 スキーマ v1）。
+//! `project.toml`（§4.5 スキーマ v2）。
 //!
 //! **未知キーは保存時に温存する**（§4.5 MUST）。`#[serde(flatten)] unknown` が受けるので、
-//! §4.5.1 が「**v1 本体は読まない**。未知キーとして温存する」と明記している `reader` も
-//! ここに入る（② の追加仕様 27）。
+//! 型付きの欄を持たない `[reader]`（§4.5.1・§17.3 の表示の既定）もここに入る。読み手は
+//! `ui::workspaces::reader` で、`.novnow/reader.json` の利用者設定が優先される。
 //!
 //! 既定値は §4.5 の例と §4.5.1 の表の「既定」列をそのまま `Default` にした。
-//! `#[serde(default)]`（コンテナ単位）を付けてあるので、キーが欠けた `project.json` でも
+//! `#[serde(default)]`（コンテナ単位）を付けてあるので、キーが欠けた `project.toml` でも
 //! 既定値で読み込める（§4.3-4「パース失敗を起動失敗にしない」）。
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -47,7 +47,7 @@ impl Newline {
         }
     }
 
-    /// `project.json` に書く文字列。
+    /// `project.toml` に書く文字列。
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Lf => "lf",
@@ -76,11 +76,11 @@ pub enum SchemaState {
     },
 }
 
-/// `project.json`（§4.5）。
+/// `project.toml`（§4.5）。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Project {
-    /// スキーマの版（§4.3-2、既定 `1`）。
+    /// スキーマの版（§4.3-2、既定 `2`）。
     pub schema_version: u32,
     /// 作品名（§4.5「空文字のときは表示上のタイトルにディレクトリ名を使う」）。
     pub title: String,
@@ -100,6 +100,8 @@ pub struct Project {
     pub export: Export,
     /// AI（§4.5 `agents`、§15）。
     pub agents: Agents,
+    /// feature 単位の設定（§4.5.2 `[features]`）。
+    pub features: Features,
     /// §4.5 に無いキー（`reader` を含む）。**削除してはならない**（縫い代 1）。
     #[serde(flatten)]
     pub unknown: BTreeMap<String, Value>,
@@ -108,7 +110,7 @@ pub struct Project {
 impl Default for Project {
     fn default() -> Self {
         Self {
-            schema_version: 1,
+            schema_version: 2,
             title: String::new(),
             author: String::new(),
             content_encoding: "utf-8".to_owned(),
@@ -118,6 +120,7 @@ impl Default for Project {
             lexicon: Lexicon::default(),
             export: Export::default(),
             agents: Agents::default(),
+            features: Features::default(),
             unknown: BTreeMap::new(),
         }
     }
@@ -127,7 +130,7 @@ impl Project {
     /// §4.3-2 の `schema_version` 検査。
     pub fn schema_state(&self) -> SchemaState {
         match self.schema_version {
-            0 | 1 => SchemaState::Current,
+            0..=2 => SchemaState::Current,
             found => SchemaState::TooNew { found },
         }
     }
@@ -232,7 +235,7 @@ impl Lexicon {
     /// 正規表現として**不正な**語クラスの名前（キーの昇順）。
     ///
     /// §6.5.1（第 2.9 版）: 不正かどうかは値を**単独で**コンパイルできるかで決める。
-    /// 報告は `project.json` 側の **E027**（`syntax::project_json`、`docs/history.md` A-24）で、
+    /// 報告は `project.toml` 側の **E027**（`syntax::project_toml`、`docs/history.md` A-24）で、
     /// マッチャ（`resolve::role_language::Matcher::new`）はそのクラスを使うパターンだけを捨てる。
     pub fn invalid_word_classes(&self) -> Vec<&str> {
         self.word_classes
@@ -399,15 +402,28 @@ impl Default for LocalLlm {
     }
 }
 
+/// `[features]`（§4.5.2）: 作品として揃える意味・検証のオン・オフ。
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Features {
+    /// `[features.diagnostics]`: キーは診断コード（`W083`）・グループ
+    /// （`structure` / `storage` / `writing`）・`default`、値は `"off"` / `"warn"` / `"error"`。
+    /// 解決規則は §4.5.2（個別コード → グループ → `default` → 組み込み既定）。
+    pub diagnostics: BTreeMap<String, String>,
+    /// 操作系 feature（`[features]` 直下の真偽値）など、表に無いキー。**削除してはならない**。
+    #[serde(flatten)]
+    pub rest: BTreeMap<String, Value>,
+}
+
 // ============================================================ §4.3 プロジェクト妥当性の判定
 
 /// §4.2 の必須ファイル（表の順）。
 pub const REQUIRED_FILES: &[&str] = &[
-    "project.json",
+    "project.toml",
     "characters.md",
     "words.md",
     "materials/index.json",
-    "plots/all.txt",
+    "plots/all.cnov",
 ];
 
 /// §4.2 の必須ディレクトリ（表の順）。
@@ -421,8 +437,8 @@ pub const PROJECT_STRUCTURE_DOC_URL: &str =
 pub const GIT_GUIDE_DOC_URL: &str = "https://sonneko.github.io/novnow/guide/git.html";
 pub const CICD_GUIDE_DOC_URL: &str = "https://sonneko.github.io/novnow/guide/publish.html";
 
-/// `project.json`（§4.1）。
-pub const PROJECT_FILE: &str = "project.json";
+/// `project.toml`（§4.1）。
+pub const PROJECT_FILE: &str = "project.toml";
 
 /// §4.3 の判定に要るもの。**集めるのはストレージ層**（adapters。core は I/O を持たない、§3.2）。
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -434,9 +450,9 @@ pub struct Listing {
     /// ディレクトリを持たないストレージか（Web の IndexedDB、§13.3）。`true` なら必須ディレクトリは
     /// 常にあるものとして扱う（§4.3 第 2.9 版）。
     pub dirs_implicit: bool,
-    /// `project.json` の中身（読めたとき）。
-    pub project_json: Option<String>,
-    /// UTF-8 として不正な `.md` / `.txt` / `.json`（§4.3-3）。調べていなければ空。
+    /// `project.toml` の中身（読めたとき）。
+    pub project_toml: Option<String>,
+    /// UTF-8 として不正な `.cnov` / `.md` / `.json` / `.toml`（§4.3-3）。調べていなければ空。
     pub invalid_utf8: Vec<String>,
 }
 
@@ -463,7 +479,7 @@ pub enum ProjectError {
 /// §4.3 のプロジェクト妥当性の判定（`core::model::project::validate`）。
 ///
 /// 順は §4.3 のとおり: (1) 必須パス → (2) `schema_version` → (3) 文字コード。
-/// 最初に失敗した段の理由を返す。(2) は `project.json` が JSON として読めない・`schema_version` が
+/// 最初に失敗した段の理由を返す。(2) は `project.toml` が TOML として読めない・`schema_version` が
 /// 数でないときは飛ばす（版が読めないことは起動失敗にしない。E025 を出して既定値で開く、§4.3-4）。
 pub fn validate(listing: &Listing) -> Result<(), ProjectError> {
     let mut missing: Vec<PathBuf> = REQUIRED_FILES
@@ -482,7 +498,7 @@ pub fn validate(listing: &Listing) -> Result<(), ProjectError> {
     if !missing.is_empty() {
         return Err(ProjectError::Incomplete { missing });
     }
-    if let Some(SchemaState::TooNew { found }) = listing.project_json.as_deref().and_then(schema_of)
+    if let Some(SchemaState::TooNew { found }) = listing.project_toml.as_deref().and_then(schema_of)
     {
         return Err(ProjectError::TooNew { found });
     }
@@ -494,23 +510,26 @@ pub fn validate(listing: &Listing) -> Result<(), ProjectError> {
     Ok(())
 }
 
-/// `project.json` の `schema_version` だけを読む（§4.3-2）。
+/// `project.toml` の `schema_version` だけを読む（§4.3-2）。
 ///
 /// `schema_version` が省略されているときは [`SchemaState::Current`]。
-/// JSON として読めない・オブジェクトでない・`schema_version` が 0 以上の整数でないときは `None`
-/// （§4.3 第 2.9 版: 2. を飛ばす）。設定全体の読み込み（型の合わない値で E025）とは別に、
-/// 版の数だけを見る。
+/// TOML として読めない・`schema_version` が整数でないときは `None`（§4.3: 2. を飛ばす）。
+/// 設定全体の読み込み（型の合わない値で E025）とは別に、版の数だけを見る。
 pub fn schema_of(text: &str) -> Option<SchemaState> {
     let body = text.strip_prefix('\u{feff}').unwrap_or(text);
-    let value: Value = serde_json::from_str(body).ok()?;
-    let object = value.as_object()?;
-    let Some(found) = object.get("schema_version") else {
+    let value: toml::Value = toml::from_str(body).ok()?;
+    let Some(found) = value.get("schema_version") else {
         return Some(SchemaState::Current);
     };
-    Some(match found.as_u64()? {
-        0 | 1 => SchemaState::Current,
-        other => SchemaState::TooNew {
-            found: u32::try_from(other).unwrap_or(u32::MAX),
-        },
+    let found = found.as_integer()?;
+    if found < 0 {
+        return None;
+    }
+    Some(if (0..=2).contains(&found) {
+        SchemaState::Current
+    } else {
+        SchemaState::TooNew {
+            found: u32::try_from(found).unwrap_or(u32::MAX),
+        }
     })
 }

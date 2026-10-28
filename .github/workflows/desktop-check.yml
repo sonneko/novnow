@@ -1,13 +1,31 @@
 name: Desktop artifacts
 
 # Read-only release rehearsal: build and inspect archives, never publish or sign.
+#
+# CI スコープ（`CI_SCOPE`、docs/developers.md §4.7）:
+# - main 向け PR・手動実行（scope=full が既定）= 10 構成すべて（5 対象環境 × gui/nogui）。
+# - develop 向け PR・develop への push・手動実行（scope=develop）= Linux x64 の nogui 1 構成のみ
+#   （GUI のコンパイル・リンクは ci.yml の clippy / test（--features ui）が担うため）。
+# develop への push で報告するのは、必須チェックの平台行（desktop nogui）を
+# develop 自身のコミットで満たすため（paths は PR と同じく付けない）。
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [develop]
   workflow_dispatch:
+    inputs:
+      scope:
+        description: CI scope (full = release rehearsal, develop = single-platform minimal)
+        type: choice
+        options: [full, develop]
+        default: full
 
 permissions:
   contents: read
+
+env:
+  CI_SCOPE: ${{ github.event_name == 'workflow_dispatch' && (inputs.scope || 'full') || (github.event_name == 'pull_request' && (github.base_ref == 'main' && 'full' || 'develop')) || (github.ref_name == 'main' && 'full' || 'develop') }}
 
 concurrency:
   group: desktop-check-${{ github.ref }}
@@ -22,10 +40,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - id: matrix
-        run: echo "desktop=$(python3 scripts/release-matrix.py --desktop)" >> "$GITHUB_OUTPUT"
+        run: echo "desktop=$(python3 scripts/release-matrix.py --desktop --scope "$CI_SCOPE")" >> "$GITHUB_OUTPUT"
 
   build:
+    # チェック名に版・成果物名を入れない（wheels.yml の build と同じ理由。必須チェックが
+    # 版更新のたびに変わると ruleset の差し替え漏れでリリースが止まる）。
+    name: desktop (${{ matrix.target }}, ${{ matrix.gui }})
     needs: prepare
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     strategy:

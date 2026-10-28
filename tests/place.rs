@@ -63,13 +63,13 @@ fn prose_positions_are_section_ids() {
 
 #[test]
 fn prose_before_the_first_heading_is_the_episode() {
-    let project = world_with("contents/01-05.txt", "// メモ\n@01-05-01\n本文\n");
+    let project = world_with("contents/01-05.cnov", "// メモ\n@01-05-01\n本文\n");
     assert_eq!(
-        at(&project, "contents/01-05.txt", "メモ"),
+        at(&project, "contents/01-05.cnov", "メモ"),
         contents("01-05")
     );
     assert_eq!(
-        at(&project, "contents/01-05.txt", "本文"),
+        at(&project, "contents/01-05.cnov", "本文"),
         contents("01-05-01-01")
     );
 }
@@ -109,15 +109,15 @@ fn outline_positions_are_block_ids() {
     );
     // 章プロット: ブロックの ID、ブロックより前はファイル名の章
     let chapter = world_with(
-        "plots/01.txt",
+        "plots/01.cnov",
         "// 第 1 章\n@01-04 図書室の密談\nsummary: 約束\n;\n",
     );
     assert_eq!(
-        at(&chapter, "plots/01.txt", "約束"),
+        at(&chapter, "plots/01.cnov", "約束"),
         Some(Place::ChapterPlot("01-04".to_owned()))
     );
     assert_eq!(
-        at(&chapter, "plots/01.txt", "第 1 章"),
+        at(&chapter, "plots/01.cnov", "第 1 章"),
         Some(Place::ChapterPlot("01".to_owned()))
     );
 }
@@ -199,8 +199,8 @@ fn prompts_settings_and_the_rest() {
             section: Some("output".to_owned()),
         })
     );
-    let settings = world_with("project.json", "{\"schema_version\": 1}\n");
-    assert_eq!(whole(&settings, "project.json"), Some(Place::Settings));
+    let settings = world_with("project.toml", "schema_version = 2\n");
+    assert_eq!(whole(&settings, "project.toml"), Some(Place::Settings));
     let mcp = world_with(
         "agents/mcp.json",
         "{\"schema_version\": 1, \"servers\": {}}\n",

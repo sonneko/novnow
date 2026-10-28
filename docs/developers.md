@@ -118,7 +118,8 @@ novnow/
 ├── examples/
 │   ├── api_catalog.rs         # 正規操作カタログのゴールデン生成（REF:examples/api_catalog.rs）
 │   ├── mcp_tools.rs           # MCP ツール定義のゴールデン生成（REF:examples/mcp_tools.rs）
-│   └── sample-novel/          # 付録 C のサンプルプロジェクト一式（REF:examples/sample-novel/project.json）
+│   ├── sample-novel/          # 付録 C のサンプルプロジェクト一式（REF:examples/sample-novel/project.toml）
+│   └── manual-check/          # GUI の動作確認用プロジェクト
 ├── scripts/
 │   ├── bootstrap-toolchain.sh # サンドボックス用 Rust ツールチェーン展開（REF:scripts/bootstrap-toolchain.sh）
 │   ├── bootstrap-jpeg.sh      # 同梱 JPEG デコーダの展開
@@ -138,11 +139,11 @@ novnow/
 │   │   ├── features/          # LSP 相当の純粋関数とワークスペース補助
 │   │   ├── policy/            # 規則 10・履歴・Zip・外部変更
 │   │   ├── export.rs / reader.rs / migration.rs / annotations.rs
-│   │   └── aicontext/ / agents/ / stage_two/ / template/
+│   │   └── aicontext/ / agents/ / template/
 │   ├── ports/                 # 外部境界 trait（storage, clock, mcp, env, dialog）
 │   ├── adapters/              # 環境別実装（storage_fs, storage_idb, recent_file, zip, project_load,
 │   │                          #   env_system, mcp_stdio, mcp_http, clock_system, dialog_rfd）
-│   ├── app/                   # 描画と無縁の状態機械と 119 操作の機能核（REF:docs/specifications/interfaces.md §19）
+│   ├── app/                   # 描画と無縁の状態機械と 121 操作の機能核（REF:docs/specifications/interfaces.md §19）
 │   │   ├── session.rs / driver.rs / workbench.rs / save_machine.rs / settings.rs
 │   │   ├── palette.rs / assist.rs / agents.rs / command.rs / commands.rs
 │   │   ├── host.rs / memory_host.rs / fs_host.rs / event.rs / error.rs / workspace.rs
@@ -151,16 +152,18 @@ novnow/
 │   ├── lsp/                   # LSP サーバ（framing, convert, methods, commands, server）
 │   └── ui/                    # egui ベース GUI / Web UI（`ui` feature のときだけ）
 │       ├── i18n/              # ja.toml / en.toml（GUI と CLI が共有。常にビルド）
-│       ├── app.rs / shell.rs / theme.rs / web.rs
+│       ├── app.rs / picker.rs / palette_items.rs / status.rs / shell.rs / theme.rs / web.rs
 │       ├── widgets/           # context_view, section_editor, reference_pane, syntax_text, inlay, portrait
 │       └── workspaces/        # 9 ワークスペース（write, plot-episode, plot-outline, idea, material,
-│                              #   cast, reader, agent, review）と stage_two（② の画面）
+│                              #   cast, reader, agent, review）と② のタブ群（tabs, reader, stats,
+│                              #   regex_search, addresses, local_llm, proposals）
 ├── python/
 │   └── novnow-py/             # PyO3 拡張（python/novnow/__init__.pyi は自動生成）REF:python/novnow-py/README.md
 ├── website/                   # Astro の公式サイト（診断・API のページは仕様書から生成）
-├── contents/ , project.json/  # GUI の動作確認用のサンプルプロジェクト
 └── tests/                     # 統合テスト・アーキテクチャ境界検査・仕様照合テスト群
 ```
+
+リポジトリ直下に置いてよいのは、ビルド・配布・文書・サイトに直接必要なファイルとディレクトリだけとし、動作確認用のプロジェクトは `examples/` 配下に置く。
 
 ---
 
@@ -244,7 +247,7 @@ CI_LOG=/tmp/ci.log CI_JOB="Local test run" CI_KIND=test CI_STATUS=success \
 ### 4.6 `python3 docs/script/reference.py`（文書と実装の突き合わせ）
 
 `REF:docs/script/duplicate.py` が見るのは**文書の規約**（構成・重複・`REF:` の実在・見出し一致・`SYNC` の一致）である。
-規約を守っていても「中身が実装とずれている」ことはあり得るので、`REF:docs/script/reference.py` が次の 12 項目を機械検査する。
+規約を守っていても「中身が実装とずれている」ことはあり得るので、`REF:docs/script/reference.py` が次の 13 項目を機械検査する。
 
 | # | 検査 | 何を捕まえるか | 実例（この検査で実際に見つかったもの） |
 |---|---|---|---|
@@ -260,6 +263,7 @@ CI_LOG=/tmp/ci.log CI_JOB="Local test run" CI_KIND=test CI_STATUS=success \
 | 10 | Actions の節約 | `concurrency` の無いワークフロー、draft で走る PR ジョブ、廃止ランナー（`macos-13`）、変更フィルタの消失、`[ci skip]` フックの欠落 | `REF:.github/workflows/wheels.yml` に `concurrency` が無かった（4 OS の行列が二重に走る） |
 | 11 | 公開する手引き | 仕様 §14.2.1 の 3 URL の実体、`docs/users` の参照方向、ガイドモードの段階と手引きの一致 | 生成前の `guide/publish.html` の 404（アプリのヘルプから開けなかった） |
 | 12 | 配布形態 | 仕様 §20 の選択肢の数（1・10・5・1・1）、名前の形、廃止した軸（同時起動の制限・同梱物の外置き）が仕様・設計・手順・利用者向けへ戻る。数を書き写した README・`docs/users/install.md` の値、全ソースを含む最終成果物数、配布設計の廃止済み認証・設定も見る | デスクトップ版を 20 通りと書いたまま残った表（軸を廃止した直後） |
+| 13 | 検証の地図 | §4.6.2 の地図に書いた検査のパス・名前が実在しない（検査一覧そのものの陳腐化） | （陳腐化の予防として追加） |
 
 ```bash
 python3 docs/script/reference.py          # 検査（違反があれば終了コード 1）
@@ -292,36 +296,104 @@ CI だけに検査が増えた時点で静かに壊れるため。CI の `docs` 
 新しい検査を足すときは `REF:docs/script/reference.py` の `CHECKS` に 1 項目追加し、
 `REF:docs/script/test_reference.py` に判定の単体テストを足す（検査器自身の退行を防ぐ）。
 
+#### 4.6.2 検証の地図（領域別）
+
+「何がどの検査で守られているか」の領域別の一覧である。検査のパスと名前はバッククォートで書き、
+実在を検査 13（`check_verification_map`）が確かめる。空白地帯は隠さず書く。
+
+| 領域 | 主な検査 | 空白地帯（機械で見ていない） |
+|---|---|---|
+| `src/core` | `tests/model.rs` / `tests/lexer.rs` / `tests/diagnostics_catalog.rs` / `tests/diagnostics_document.rs` / `tests/golden.rs` / `tests/layering.rs`（層・文字列の AST 検査） | 性能の回帰（ベンチは目安のみ）、網羅的な入力生成 |
+| `src/app` | `tests/api.rs` / `tests/api_fs.rs` / `tests/api_driver.rs` / `tests/api_parity.rs` / `tests/api_coverage.rs` | 同時編集の競合は代表ケース中心 |
+| `src/ui` | `tests/gui.rs` / `tests/workspaces.rs` / `tests/harness/mod.rs` | 実描画の見た目（§4.6.1）、実機の IME とフォーカス（§4.9） |
+| CLI | `tests/cli.rs`（仕様の出力ブロックを `spec_block` で直接照合） | 実端末での対話表示 |
+| LSP | `tests/lsp.rs` | 実エディタでの接続（§4.9） |
+| Python | `scripts/python-check.sh` / `python/novnow-py/tests/test_binding.py` | 実機ホイールの取り込み確認（§4.9） |
+| Web | `scripts/web-smoke.sh` / `scripts/web-smoke.mjs` / `tests/storage_idb.rs` | iOS Safari の実機動作（再現不可、M-6） |
+| 文書 | `docs/script/duplicate.py` / `docs/script/reference.py` / `docs/script/test_reference.py` | 散文の意味のずれ（§4.6.1） |
+| 配布 | `tests/distribution.rs` / `scripts/release-check.sh` / `scripts/release-matrix.py` | 市場公開の実績（発行者トークン待ち）、実機での起動（§4.9） |
+
 ---
 
 ### 4.7 Actions を無駄に使わない（既定は走らせない）
 
 GitHub Actions は**走った分だけ**課金される。このリポジトリは CI の行列が重く
-（Rust の 5 ジョブ＋ wasm ＋ bench、Python ホイールは 4 OS）、文書やコメントだけの変更で
-回すと、ほぼ確実に捨てる実行にお金を払うことになる。そこで**既定は走らせない**。
+（Rust の 5 ジョブ＋ wasm ＋ bench、Python ホイールは 5 構成・デスクトップは 10 構成）、
+文書やコメントだけの変更で回すと、ほぼ確実に捨てる実行にお金を払うことになる。
+そこで**既定は走らせない**、かつ**プラットフォームの行列は必要な分だけ**走らせる。
 
 | 仕組み | 実体 | 効く場面 |
 |---|---|---|
 | コミット既定で `[ci skip]` | `REF:.githooks/commit-msg`（`bash REF:scripts/install-git-hooks.sh` で有効化） | push・PR の全ワークフロー。`[ci run]` と書いたときだけ付かない |
-| 必要なときに 1 回だけ回す | `bash REF:scripts/ci-run.sh [ci\|wheels] [watch]` | `workflow_dispatch`。push し直さずにブランチを指定して回せる |
+| 必要なときに 1 回だけ回す | `bash REF:scripts/ci-run.sh [ci\|wheels] [watch]` | `workflow_dispatch`。push し直さずにブランチを指定して回せる。wheels / desktop-check / pages-check / vscode は `scope` 入力で full / develop を選べる（既定 full） |
 | 変更フィルタ | `REF:.github/workflows/ci.yml` の `docs` ジョブ（`rust_changed`） | 文書だけの変更で Rust 5 ジョブを skip |
 | `paths` / `paths-ignore` | 各ワークフロー | 無関係な変更でワークフロー自体を起動しない |
 | `concurrency` | 全ワークフロー（PR は `cancel-in-progress`） | 同じブランチを続けて push したとき、古い実行を取り消す |
 | draft PR では走らせない | 全ワークフローの `if: github.event_name != 'pull_request' \|\| !github.event.pull_request.draft` | 作業中の push で行列を埋めない（検査 10 が全ワークフローで見る） |
+| ブランチ別の CI スコープ（`CI_SCOPE`） | wheels / desktop-check / pages-check / vscode の 4 ワークフローが PR の対象ブランチ（push は push 先ブランチ）で行列を決める。`REF:scripts/release-matrix.py --scope` | develop 向け PR で全プラットフォームの行列を走らせない（次節） |
 
 **回す・回さないの目安**
 
 | 変更したもの | 回すもの |
 |---|---|
-| 文書（`docs/`）・コードのコメント・整形だけ | 回さない（`scripts/verify.sh` を手元で回す） |
+| 文書（`docs/`）・コードのコメント・整形だけ | 回さない（`scripts/verify.sh` を手元で回す）。PR を作る場合は必須チェックが揃わないので、`bash scripts/ci-run.sh ci watch` と `gh workflow run wheels.yml --ref <ブランチ> -f scope=develop` を各 1 回（desktop・pages・website は PR で自動実行される） |
 | Rust のロジック・テスト・`Cargo.toml` / `Cargo.lock`・`src/ui/**`・`src/wasm*` | `bash scripts/ci-run.sh ci watch` |
 | Web 版の画面・IndexedDB・PWA（`scripts/web-smoke.sh` で手元確認できる） | 手元で `bash scripts/web-smoke.sh`、必要なら `ci` |
 | `python/**`・PyO3 のバージョン | `bash scripts/ci-run.sh wheels`（＋ `ci`） |
 | ワークフロー自体・リリース前 | `ci` と `wheels` の両方 |
 
+**所要時間の実測（2026-10-26、PR #36 と develop の実行。待ち時間短縮が主目的＝N29-01）**
+
+| ワークフロー | 壁時計 | クリティカルパス |
+|---|---|---|
+| CI | 約 3.3 分 | Benchmarks が約 3.0 分（Test 約 1.8 分より長い）。bench 用とリリース用の 2 系統のコンパイルが直列だった |
+| Desktop artifacts | 約 6.5 分 | Windows の GUI ビルド約 6.4 分（行列内は並行） |
+| wheels | 約 5.5 分 | ホイール試験約 2.9 分（ビルドの後段） |
+| VSCode Extension | 約 4.2 分 | Electron 試験（Windows）約 3.9 分 |
+| Pages integration | 通常約 3.2 分 | たまにブラウザ試験が 13 分級に伸びる（上限 20 分で打ち切る設定あり） |
+
+実測を受けて CI は次を直した（§18.4 の検証項目そのものは減らしていない）:
+`bench` ジョブからリリースビルドのフレーム予算テストを `perf` ジョブへ分けて並行にし、
+重複していた `cargo bench --no-run` と wasm ジョブの `cargo check`（wasm32）を畳んだ
+（wasm32 のコンパイル自体は `trunk build --release` が担う）。
+Desktop の Windows ビルドが全体の最長なので、PR 全体の待ち時間はそちらが決める。
+
+**ブランチ別の CI スコープ（2026-10-27、開発速度を第一に）**: プラットフォームの行列は対象ブランチで切り替える。
+`CI_SCOPE`（4 ワークフローの workflow 先頭で同じ式）は、`main` 向け PR・`main` への push で `full`、
+`develop` 向け PR・`develop` への push で `develop`。`workflow_dispatch` は `scope` 入力で選ぶ（既定 `full`＝リリースリハーサル）。
+
+| 行列 | full（main 向け PR・main push・手動実行） | develop（develop 向け PR・develop push） |
+|---|---|---|
+| Desktop artifacts | 10 構成（5 対象環境 × gui/nogui） | Linux x64 の nogui のみ（1 構成） |
+| wheels ビルド | 5 構成 | Linux x64 のみ（1 構成。Python 試験が導入するホイールと同一） |
+| wheels Python 試験 | 3.9 / 3.11 / 3.13 | 3.9 / 3.13（abi3-py39 の境界 2 版） |
+| Pages ブラウザ試験 | chromium / firefox / webkit | chromium のみ（firefox / webkit は偽陽性が多発するため develop 向け PR では実行しない） |
+| VSCode Electron | ubuntu / macos / windows | ubuntu のみ |
+
+CI コア（文書整合・Rustfmt・Clippy・全テスト・WASM サイズ・ベンチマーク・性能予算・Python API 検査）
+はスコープに関係なく常時実行する。develop 向け PR のプラットフォームの行列ジョブは 21 本（desktop 10・wheel 5・
+Electron 3・ブラウザ 3）から 4 本（desktop 1・wheel 1・Electron 1・ブラウザ 1）になる（Python 試験は 3 版から 2 版）。
+`main` への統合（リリースゲート）では full 行列が走り、macOS / Windows / arm64 のビルドはそこで検証される。
+
+**develop への push（マージコミット）でも同じ検査を報告する**: 必須チェックの平台 2 行（wheels の Linux x64・
+desktop の Linux x64 nogui）が develop 自身のコミットでも報告されるよう、wheels と desktop-check は
+`develop` への push トリガーを持つ（wheels は PR と同一の `paths`、desktop-check は PR と同様に無制限。
+pages・CI は元々 develop への push で走る）。コード PR のマージ後、develop 自身で 11 件の必須チェックが
+揃って緑になる（文書のみ PR では Rust 5 ジョブが変更フィルタで skip され既存どおり赤くなる＝次節の落とし穴）。
+
+**必須チェック**: `develop` の必須チェックは develop スコープで走る 11 件（2026-10-27。
+旧来は full 行列を含む 23 件）。`main` は従来どおり3ブラウザ・full 行列を含む 18 件。
+行列ジョブのチェック名は版を含めない（`wheel (<対象環境>)`・`desktop (<対象環境>, <gui|nogui>)`。
+2026-10-28 改定）。行列の既定名は版と成果物名を含み、版更新のたびに名前が変わるため、
+必須チェックに使うと release PR が「報告待ち」で止まる。版の一致はリリース手順が検査する。
+一覧の正本は `REF:docs/distribution.md` §8。ruleset（`protect-develop`・`protect-main`）の適用は所有者が行う。
+`main` 向け PR で firefox / webkit が失敗した場合は内容を確認し、実バグに見えるものは直すか Issue 化する。
+
 **落とし穴**: `[ci skip]` が付いたコミットが PR の頭だと、PR のチェックは**空**になる。
 マージ前に `bash scripts/ci-run.sh ci watch` で 1 回だけ回し、緑を確認してからマージする
 （`gh pr checks` が空なら「回していない」の意味であり、緑ではない）。
+文書のみ変更の PR は wheels 行列（`paths` で起動しない）と、変更フィルタで skip された Rust 5 ジョブが
+揃わないため、`ci` と `wheels`（`scope=develop`）の 2 つの dispatch を回してからマージする（上の目安表）。
 
 検査 10 はこの仕組みの**土台が消えていないか**（`concurrency`・draft の条件・廃止ランナーの不在・
 変更フィルタ・フック・`ci-run.sh`）を見る。仕組みを外すと文書検査が落ちるので、意図的に外すときは
@@ -384,6 +456,31 @@ Web サイト側を変更したら `npm ci --prefix website && npm run check:sit
 （`REF:docs/specifications/ui.md` §9.10）の元になる。段階の数・順序・文言を変えるときは 3 か所同時に直す
 （`REF:docs/plans.md#plan-docs-site` の生成と、`REF:docs/plans.md#plan-guide-mode` の段階定義）。
 
+### 4.9 実機チェックリスト（集約先）
+
+自動検証（Linux サンドボックスと CI）では再現できない確認は、ここに集約する。
+実機確認は各作業の完了条件には含めない（所有者決定 M-6）。リリース前にこの表を通し、
+結果は該当する計画・既知の問題へ反映する。配布手順（`REF:scripts/release-check.sh`）の
+判定とは別であり、ここから参照する形に留める。
+
+**対象環境**: Windows / macOS / Linux（デスクトップ）、iOS Safari PWA、Android Chrome を想定する。
+
+| 観点 | 確認すること | 由来 |
+|---|---|---|
+| IME | 変換候補窓の位置、確定だけが本文に入ること、節エディタへキーボードで移った直後に日本語が打てること | B-158 / §9.8.5 |
+| フォーカス | 節移動を繰り返しても表示位置がずれないこと（iOS PWA＋物理キーボード） | N29-07 / KI-002 |
+| フォント | 読者モード縦書きで括弧類が豆腐（欠字）にならないこと、同梱フォントとシステムフォントの差 | N29-03 |
+| キー配列 | JIS 配列で記号キーのショートカット（節削除など）に届くこと、US 配列との差 | N29-05 |
+| ファイルダイアログ | 開く・保存・取り込みのダイアログが OS 標準で出て、キャンセル時に何も起きないこと | §13 |
+| 表示 | 高 DPI・拡大率、ダーク／ライト、狭幅（モバイル幅）での崩れ | §11 |
+| 入力全般 | タッチ操作（タップで開く・選ぶ）、ソフトウェアキーボードの開閉 | §10 |
+| 保存 | 外部でファイルを書き換えたときの競合表示、容量不足時の失敗表示 | §8 |
+| Python | 各 OS のホイールが入って `import novnow` できること | `REF:docs/plans.md` §5.6 |
+| 配布 | 各形態の成果物が実機で起動すること（配布の受け入れの未チェック分） | `REF:docs/plans.md` §7.2 |
+
+確認で問題が見つかったら、公開版の症状は `REF:docs/known-issues/ja.md` へ載せ（§9）、
+仕様・実装の直しは通常の作業として計画へ起こす。
+
 ---
 
 ## 5. ユーザーの開発の進め方（作業の作法）
@@ -401,7 +498,7 @@ Web サイト側を変更したら `npm ci --prefix website && npm run check:sit
    - セッションに紐づく専用作業ブランチ（`arena/...`）でのみ作業し、別ブランチの作成や切り替えは行わない。
    - **作業の区切りごとにこまめにコミット & プッシュ**する。
    - PR の作成・更新はエージェントが行うが、**PR のマージは必ずユーザー自身が行う**（エージェントが勝手に `gh pr merge` を実行してはならない）。
-   - 作業完了時は PR が Ready for review であること、コンフリクトがないこと、GitHub Actions の全チェックが green であることを確認してから報告する。
+   - 作業完了時は PR が Ready for review であること、コンフリクトがないこと、GitHub Actions の必須チェックが green であることを確認してから報告する（`develop` 向け PR の Firefox / WebKit ブラウザ試験は必須チェックではない。§4.7）。
 3. **自律判断と人間承認の境界**:
    - 仕様書（`docs/specifications/**.md`）および設計書（`docs/designs/**.md`）で既に決まっている事項の実装・テスト・バグ修正は確認を求めず自律的に進める。
    - 仕様書や設計書の内容自体を変更する場合は、単なる記述ミスの修正を除き、人間の承認を得ること。
@@ -541,5 +638,5 @@ GUI の見た目（パレット位置、下線・波線の座標、枠線やバ�
 - 利用者向けの現行一覧は `REF:docs/known-issues/ja.md` と `REF:docs/known-issues/en.md` を原本とする。`REF:website/src/components/KnownIssues.astro` がMarkdownを直接表示する。Web側に本文を転記しない。
 - 発見時に識別子・対象の公開版・環境・症状・回避策・対応状況を両言語で記録する。READMEには不具合本文を重複掲載しない。
 - コード修正、develop/mainへのマージだけでは一覧から削除しない。修正版の公開と修正確認が完了してから、当該項目を両言語の現行一覧から削除する。公開済みの履歴はリリースノートと `REF:docs/history.md` に残す。項目がなくなった場合も一覧ページは維持する。
-- ダウンロード先と公開版の表示は `REF:website/src/data/release.ts` で管理する。開発版のCargo.tomlから自動推測せず、公開済みの版・成果物を確認したときだけ更新する。
+- ダウンロード先と公開版の表示は `REF:website/src/data/release.ts` で管理する。開発版のCargo.tomlから自動推測せず、公開済みの版・成果物を確認したときだけ更新する。サイトの見出しと告知もこの値だけを使うので、`REF:scripts/website-check.py` は見出しの版を `release.ts` と突き合わせる（`Cargo.toml` とは比べない。版更新 PR から公開までの間は意図的に食い違う）。`release.ts` の版が `Cargo.toml` より新しいときだけ誤りとする。
 - 今回のv0.1.0公開告知に限り、所有者承認により版更新なしでサイト・文書とActions修正をmainへ統合する。順序は作業ブランチ→develop→mainとし、両マージは所有者が行う。タグ変更・追加リリースは行わない。通常のGitFlow規則を一般的に緩和するものではない。

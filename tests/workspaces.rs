@@ -180,7 +180,7 @@ fn workspace_keys_follow_the_v1_table() {
 #[test]
 fn a_slice_edits_part_of_another_document_and_is_written_with_the_rest() {
     let mut bench = Workbench::new(novel::novel(), None, 400);
-    let path = "plots/01-01.txt";
+    let path = "plots/01-01.cnov";
     bench.open_slice(path, 1..3, "test:1");
     assert_eq!(bench.slice_buffer(), "二人が図書室で話す。\nstate: fixed");
     bench.slice_buffer_mut().push_str("\nmode: 'アルス:A");
@@ -205,7 +205,7 @@ fn a_slice_edits_part_of_another_document_and_is_written_with_the_rest() {
 #[test]
 fn edits_made_while_writing_keep_the_slice_unsaved() {
     let mut bench = Workbench::new(novel::novel(), None, 400);
-    let path = "plots/01-01.txt";
+    let path = "plots/01-01.cnov";
     bench.open_slice(path, 4..5, "test:2");
     bench.slice_buffer_mut().push('！');
     bench.slice_edited(1.0);
@@ -221,7 +221,7 @@ fn edits_made_while_writing_keep_the_slice_unsaved() {
 #[test]
 fn an_external_change_to_a_clean_slice_closes_it_and_a_dirty_one_conflicts() {
     let mut bench = Workbench::new(novel::novel(), None, 400);
-    let path = "plots/01-01.txt";
+    let path = "plots/01-01.cnov";
     bench.open_slice(path, 4..5, "test:3");
     let reaction = bench.external_change(path, Some("@01-01-01 放課後\n書き換えた\n".into()));
     assert_eq!(reaction, Reaction::Reloaded);
@@ -237,14 +237,14 @@ fn an_external_change_to_a_clean_slice_closes_it_and_a_dirty_one_conflicts() {
 #[test]
 fn closing_or_switching_slices_commits_and_a_new_file_is_created_only_when_written() {
     let mut bench = Workbench::new(novel::novel(), None, 400);
-    let path = "plots/01-02.txt";
+    let path = "plots/01-02.cnov";
     bench.open_slice(path, 0..0, "test:new");
     bench.close_slice();
     assert!(bench.project().document(path).is_none(), "空なら作らない");
     bench.open_slice(path, 0..0, "test:new");
     bench.slice_buffer_mut().push_str("@01-02-01 旧校舎");
     bench.slice_edited(1.0);
-    bench.open_slice("plots/01-01.txt", 0..1, "test:other");
+    bench.open_slice("plots/01-01.cnov", 0..1, "test:other");
     assert_eq!(bench.project().text(path), "@01-02-01 旧校舎\n");
 }
 
@@ -271,7 +271,7 @@ fn applying_an_edit_to_another_file_keeps_unsaved_typing_in_the_section() {
 #[test]
 fn a_missing_prose_file_opens_as_a_new_section_and_is_written_with_its_header() {
     let mut bench = Workbench::new(novel::novel(), None, 400);
-    let path = "contents/03-01.txt";
+    let path = "contents/03-01.cnov";
     assert!(bench.start_file(path, id(3, 1, 1, 0), "@03-01-01 新章"));
     assert_eq!(bench.current_id(), Some(id(3, 1, 1, 1)));
     bench.commit();
@@ -317,7 +317,7 @@ fn alt_2_opens_the_episode_plot_at_the_same_scene_id_with_its_parent_visible() {
     assert_eq!(harness.app.workspace(), Some(Workspace::PlotEpisode));
     assert_eq!(selected(&harness), Some(id(1, 1, 1, 1)), "SceneId を維持");
     let text = painted_text(&output);
-    // 上段: 章プロットの該当話ブロック（親が常に見える、§19.5・§19.11）
+    // 上段: 章プロットの該当話ブロック（親が常に見える、§10.2）
     assert!(text.contains("@01-01 図書室の密談"), "{text}");
     assert!(
         text.contains("summary: 二人が図書室で出会い直す。"),
@@ -350,7 +350,7 @@ fn typing_in_the_episode_editor_is_saved_and_alt_arrows_move_between_rows() {
         .files
         .borrow()
         .written
-        .get("plots/01-01.txt")
+        .get("plots/01-01.cnov")
         .cloned()
         .unwrap_or_default();
     assert!(
@@ -453,11 +453,11 @@ fn switching_workspaces_saves_without_asking() {
 #[test]
 fn ctrl_shift_n_creates_the_missing_episode_plot_with_a_scene_header() {
     let mut harness = novel_harness();
-    // contents/01-02.txt（話プロットが無い話）へ
+    // contents/01-02.cnov（話プロットが無い話）へ
     harness.frame(vec![key(Key::ArrowRight, CTRL_ALT)]);
     harness.frame(vec![key(Key::Num2, ALT)]);
     let output = harness.frame(Vec::new());
-    assert!(painted_text(&output).contains("話プロット plots/01-02.txtはまだありません"));
+    assert!(painted_text(&output).contains("話プロット plots/01-02.cnovはまだありません"));
     harness.frame(vec![key(Key::N, CTRL_SHIFT)]);
     harness.frame(Vec::new());
     harness.frame(vec![Event::Text("扉を開ける".into())]);
@@ -467,7 +467,7 @@ fn ctrl_shift_n_creates_the_missing_episode_plot_with_a_scene_header() {
         .files
         .borrow()
         .written
-        .get("plots/01-02.txt")
+        .get("plots/01-02.cnov")
         .cloned()
         .unwrap_or_default();
     assert_eq!(written, "@01-02-01\n扉を開ける\n");
@@ -478,7 +478,7 @@ fn ctrl_shift_n_creates_the_missing_episode_plot_with_a_scene_header() {
 fn going_down_to_a_missing_prose_file_does_not_create_it_until_typing() {
     let mut project = novel::novel();
     project.insert(Document::new(
-        "plots/03-01.txt",
+        "plots/03-01.cnov",
         "@03-01-01 新章\n始まり。\n;\n",
     ));
     let mut harness = Harness::start_with(project, true).0;
@@ -501,7 +501,7 @@ fn going_down_to_a_missing_prose_file_does_not_create_it_until_typing() {
         .files
         .borrow()
         .written
-        .contains_key("contents/03-01.txt"));
+        .contains_key("contents/03-01.cnov"));
     harness.frame(vec![Event::Text("新しい章。".into())]);
     harness.idle(0.6);
     let written = harness
@@ -509,7 +509,7 @@ fn going_down_to_a_missing_prose_file_does_not_create_it_until_typing() {
         .files
         .borrow()
         .written
-        .get("contents/03-01.txt")
+        .get("contents/03-01.cnov")
         .cloned()
         .unwrap_or_default();
     assert_eq!(written, "@03-01-01 新章\n新しい章。\n");
@@ -544,7 +544,7 @@ fn alt_3_opens_the_chapter_plot_with_the_parent_block_and_foreshadows() {
         "write の話"
     );
     let text = painted_text(&output);
-    // 親（全体プロットの章のブロック）が常に見える（§19.11）
+    // 親（全体プロットの章のブロック）が常に見える（§10.3.1）
     assert!(text.contains("@01 失われた刻印"), "{text}");
     assert!(text.contains("図書室の密談"), "{text}");
     assert!(text.contains("旧校舎へ"), "{text}");
@@ -627,7 +627,7 @@ fn editing_a_block_in_the_outline_is_saved_to_the_chapter_plot() {
         .files
         .borrow()
         .written
-        .get("plots/01.txt")
+        .get("plots/01.cnov")
         .cloned()
         .unwrap_or_default();
     assert!(
@@ -649,7 +649,7 @@ fn ctrl_shift_n_in_the_outline_adds_a_block_and_ctrl_alt_arrows_change_the_level
         Some(Some(2))
     );
     let output = harness.frame(Vec::new());
-    assert!(painted_text(&output).contains("plots/02.txtにブロックはまだありません"));
+    assert!(painted_text(&output).contains("plots/02.cnovにブロックはまだありません"));
     harness.frame(vec![key(Key::N, CTRL_SHIFT)]);
     harness.frame(Vec::new());
     assert_eq!(outline_selected(&harness), Some(id(2, 1, 0, 0)));
@@ -661,7 +661,7 @@ fn ctrl_shift_n_in_the_outline_adds_a_block_and_ctrl_alt_arrows_change_the_level
         .files
         .borrow()
         .written
-        .get("plots/02.txt")
+        .get("plots/02.cnov")
         .cloned()
         .unwrap_or_default();
     assert_eq!(written, "@02-01 補習\n;\n");
@@ -798,9 +798,9 @@ fn ctrl_shift_e_opens_the_project_diagnostics_and_enter_jumps_to_the_section() {
     let mut project = novel::novel();
     // 本文 @01-02-01-03 に辞書に無い参照（E001）
     let text = project
-        .text("contents/01-02.txt")
+        .text("contents/01-02.cnov")
         .replace("扉の向こうは暗かった。", "扉の向こうは'未登録の闇 だった。");
-    project.insert(Document::new("contents/01-02.txt", text));
+    project.insert(Document::new("contents/01-02.cnov", text));
     let mut harness = Harness::start_with(project, true).0;
     harness.frame(vec![key(Key::E, CTRL_SHIFT)]);
     let output = harness.frame(Vec::new());
@@ -808,7 +808,7 @@ fn ctrl_shift_e_opens_the_project_diagnostics_and_enter_jumps_to_the_section() {
     let text = painted_text(&output);
     assert!(text.contains("診断"), "{text}");
     assert!(text.contains("進捗"), "{text}");
-    assert!(text.contains("contents/01-02.txt:"), "{text}");
+    assert!(text.contains("contents/01-02.cnov:"), "{text}");
     assert!(
         text.contains("[本文 @01-02-01-03]"),
         "作家の言葉での「どこ」: {text}"
@@ -820,7 +820,7 @@ fn ctrl_shift_e_opens_the_project_diagnostics_and_enter_jumps_to_the_section() {
         .and_then(|spaces| spaces.review.cached())
         .and_then(|rows| {
             rows.iter()
-                .position(|row| row.code == "E001" && row.path == "contents/01-02.txt")
+                .position(|row| row.code == "E001" && row.path == "contents/01-02.cnov")
         })
         .expect("E001 の行");
     for _ in 0..index {
@@ -832,6 +832,42 @@ fn ctrl_shift_e_opens_the_project_diagnostics_and_enter_jumps_to_the_section() {
     assert_eq!(
         harness.app.workbench().and_then(Workbench::current_id),
         Some(id(1, 2, 1, 3))
+    );
+}
+
+#[test]
+fn the_review_screen_saves_a_diagnostic_level_to_project_toml() {
+    // §10.9.6: 点検画面の「出さない」が [features.diagnostics] へ保存され、
+    // そのコードは診断から消える（表示フィルタではなく有効性そのもの）
+    let mut project = novel::novel();
+    let text = project
+        .text("contents/01-02.cnov")
+        .replace("扉の向こうは暗かった。", "扉の向こうは'未登録の闇 だった。");
+    project.insert(Document::new("contents/01-02.cnov", text));
+    let mut harness = Harness::start_with(project, true).0;
+    harness.frame(vec![key(Key::E, CTRL_SHIFT)]);
+    harness.frame(Vec::new());
+    let index = harness
+        .app
+        .spaces()
+        .and_then(|spaces| spaces.review.cached())
+        .and_then(|rows| rows.iter().position(|row| row.code == "E001"))
+        .expect("E001 の行");
+    for _ in 0..index {
+        harness.frame(vec![key(Key::ArrowDown, Modifiers::NONE)]);
+    }
+    let rect = harness.rect_of("出さない").expect("有効設定の選択肢");
+    harness.click_at(rect.center());
+    harness.frame(Vec::new());
+    harness.frame(Vec::new());
+    let rows = harness
+        .app
+        .spaces()
+        .and_then(|spaces| spaces.review.cached())
+        .expect("数え直した診断");
+    assert!(
+        rows.iter().all(|row| row.code != "E001"),
+        "E001 = off が効いている: {rows:?}"
     );
 }
 
@@ -1171,7 +1207,7 @@ fn ctrl_m_searches_materials_and_inserts_a_reference_at_the_caret_in_write() {
     harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
     harness.idle(0.6);
     assert!(!harness.app.overlay_open());
-    let prose = written(&harness, "contents/01-01.txt");
+    let prose = written(&harness, "contents/01-01.cnov");
     assert!(prose.contains("'M0137"), "{prose}");
     // Ctrl+Enter: 検索語から新しい資料（提案）を作って挿入する
     harness.frame(vec![key(Key::M, CTRL)]);
@@ -1186,7 +1222,7 @@ fn ctrl_m_searches_materials_and_inserts_a_reference_at_the_caret_in_write() {
         written(&harness, "materials/inbox/M0140.md").starts_with("# 時計塔の構造\n"),
         "提案の MD"
     );
-    let prose = written(&harness, "contents/01-01.txt");
+    let prose = written(&harness, "contents/01-01.cnov");
     assert!(prose.contains("'M0140"), "{prose}");
 }
 
@@ -1199,7 +1235,7 @@ fn ctrl_m_in_the_episode_plot_appends_a_material_line_to_the_section() {
     harness.frame(vec![Event::Text("M0137".into())]);
     harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
     harness.idle(0.6);
-    let plot = written(&harness, "plots/01-01.txt");
+    let plot = written(&harness, "plots/01-01.cnov");
     assert!(
         plot.starts_with(
             "@01-01-01 放課後\n二人が図書室で話す。\nstate: fixed\nmaterial: 'M0137\n;\n"
@@ -1218,9 +1254,22 @@ fn a_condition_match_in_the_reference_pane_is_added_to_the_plot_with_enter() {
     assert!(text.contains("図書室の書架"), "条件一致の候補: {text}");
     harness.frame(vec![key(Key::Num3, CTRL)]);
     harness.frame(Vec::new());
+    // Ctrl+3 では最初の行にフォーカスするので、候補の行まで ↓ で移る（§9.5.5）
+    let candidate = novnow::ui::widgets::reference_pane::candidate_id("M0139");
+    for _ in 0..30 {
+        if harness.ctx.memory(|memory| memory.focused()) == Some(candidate) {
+            break;
+        }
+        harness.frame(vec![key(Key::ArrowDown, Modifiers::NONE)]);
+    }
+    assert_eq!(
+        harness.ctx.memory(|memory| memory.focused()),
+        Some(candidate),
+        "the candidate row must be reachable with ArrowDown"
+    );
     harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
     harness.idle(0.6);
-    let plot = written(&harness, "plots/01-01.txt");
+    let plot = written(&harness, "plots/01-01.cnov");
     assert!(
         plot.starts_with(
             "@01-01-01 放課後\n二人が図書室で話す。\nstate: fixed\nmaterial: 'M0139\n;\n"
@@ -1233,7 +1282,7 @@ fn a_condition_match_in_the_reference_pane_is_added_to_the_plot_with_enter() {
 fn unresolved_harness() -> Harness {
     let mut project = novel::novel();
     project.insert(Document::new(
-        "contents/01-01.txt",
+        "contents/01-01.cnov",
         "@01-01-01 放課後\n'未登録の紋様 が描かれていた。\n",
     ));
     Harness::start_with(project, true).0
@@ -1383,7 +1432,7 @@ fn a_material_id_in_the_episode_plot_shows_its_title_as_an_inlay_hint_and_the_fi
         "提案中の資料には添える: {text}"
     );
     harness.idle(0.6);
-    let plot = written(&harness, "plots/01-01.txt");
+    let plot = written(&harness, "plots/01-01.cnov");
     assert!(
         plot.contains("state: fixed\nmaterial: 'M0137\nmaterial: 'M0138\n;\n"),
         "{plot}"
@@ -1451,7 +1500,7 @@ fn ctrl_period_in_the_episode_plot_offers_the_e006_fixes_and_enter_applies_the_f
     harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
     harness.frame(Vec::new());
     harness.idle(0.6);
-    let plot = written(&harness, "plots/01-01.txt");
+    let plot = written(&harness, "plots/01-01.cnov");
     assert!(
         plot.contains("state: fixed\nmaterial: 'M0137:科学の甲子園 本戦の運営と実技課題\n;\n"),
         "{plot}"
@@ -1487,7 +1536,7 @@ const AGENT_MCP: &str = r#"{
 /// 監査ログ（`MemoryHost::now` の日）。
 const AGENT_LOG: &str = "agents/log/2026-10-13.jsonl";
 
-/// 仕様書の例 + `project.json`（`agents` の中身を渡す）+ サーバ 1 つ + 先に作ったタスク。
+/// 仕様書の例 + `project.toml`（`agents` の中身を渡す）+ サーバ 1 つ + 先に作ったタスク。
 /// プロンプトは開くときに書かれる（`Session::prepare_agents`）。
 fn agent_project(agents: &str, tasks: &[&str]) -> novnow::core::features::Project {
     let mut project = world::world();
@@ -1497,10 +1546,8 @@ fn agent_project(agents: &str, tasks: &[&str]) -> novnow::core::features::Projec
         world::ALL.replacen("state: fixed", "state: draft", 1),
     ));
     project.insert(Document::new(
-        "project.json",
-        format!(
-            "{{\n  \"schema_version\": 1,\n  \"title\": \"星屑\",\n  \"agents\": {agents}\n}}\n"
-        ),
+        "project.toml",
+        format!("schema_version = 2\ntitle = \"星屑\"\n\n[agents]\n{agents}\n"),
     ));
     project.insert(Document::new("agents/mcp.json", AGENT_MCP));
     for scope in tasks {
@@ -1592,7 +1639,7 @@ fn settle(harness: &mut Harness) -> String {
 
 #[test]
 fn alt_8_opens_the_agent_workspace_and_n_creates_a_task_for_the_current_section() {
-    let (mut harness, opened) = agent_harness(agent_project("{}", &[]), |_| {});
+    let (mut harness, opened) = agent_harness(agent_project("", &[]), |_| {});
     assert!(
         opened.contains("prompts/ に既定プロンプトを作成しました"),
         "I050（U-7）: {opened}"
@@ -1658,7 +1705,7 @@ fn alt_8_opens_the_agent_workspace_and_n_creates_a_task_for_the_current_section(
 #[test]
 fn a_prompt_path_taken_on_disk_is_not_written_and_its_role_cannot_run() {
     // 外を指すシンボリックリンクの代わり（B-155）: 書かず、その役割は E029 で走らない
-    let (mut harness, opened) = agent_harness(agent_project("{}", &["@01-04-02-02"]), |files| {
+    let (mut harness, opened) = agent_harness(agent_project("", &["@01-04-02-02"]), |files| {
         files.occupied.push("prompts/writer.md".to_owned());
     });
     assert!(
@@ -1678,7 +1725,7 @@ fn a_prompt_path_taken_on_disk_is_not_written_and_its_role_cannot_run() {
 
 #[test]
 fn r_runs_the_task_through_mcp_and_a_accepts_the_proposal_with_an_audit_log() {
-    let (mut harness, _) = agent_harness(agent_project("{}", &["@01-04-02-02"]), |files| {
+    let (mut harness, _) = agent_harness(agent_project("", &["@01-04-02-02"]), |files| {
         files.replies.push_back(reply("書き直した本文。"));
     });
     harness.frame(vec![key(Key::R, Modifiers::NONE)]);
@@ -1729,7 +1776,7 @@ fn r_runs_the_task_through_mcp_and_a_accepts_the_proposal_with_an_audit_log() {
 #[test]
 fn p_accepts_only_the_chosen_lines_of_a_proposal() {
     let after = "「旧校舎の地下遺跡に眠っているっていう'『星屑の時計』の設計図だ」@アルス\n\n書き足した一行。";
-    let (mut harness, _) = agent_harness(agent_project("{}", &["@01-04-02-02"]), |files| {
+    let (mut harness, _) = agent_harness(agent_project("", &["@01-04-02-02"]), |files| {
         files.replies.push_back(reply(after));
     });
     harness.frame(vec![key(Key::R, Modifiers::NONE)]);
@@ -1756,7 +1803,7 @@ fn p_accepts_only_the_chosen_lines_of_a_proposal() {
 
 #[test]
 fn x_rejects_a_proposal_only_with_a_comment_for_the_next_history() {
-    let (mut harness, _) = agent_harness(agent_project("{}", &["@01-04-02-02"]), |files| {
+    let (mut harness, _) = agent_harness(agent_project("", &["@01-04-02-02"]), |files| {
         files.replies.push_back(reply("案。"));
     });
     harness.frame(vec![key(Key::R, Modifiers::NONE)]);
@@ -1785,7 +1832,7 @@ fn x_rejects_a_proposal_only_with_a_comment_for_the_next_history() {
 
 #[test]
 fn space_in_the_context_column_excludes_a_block_but_never_project_or_constraints() {
-    let (mut harness, _) = agent_harness(agent_project("{}", &["@01-04-02-02"]), |_| {});
+    let (mut harness, _) = agent_harness(agent_project("", &["@01-04-02-02"]), |_| {});
     let text = press(&mut harness, Key::ArrowRight, Modifiers::NONE);
     assert!(
         text.contains("1 project") && text.contains("必須"),
@@ -1810,7 +1857,7 @@ fn space_in_the_context_column_excludes_a_block_but_never_project_or_constraints
 
 #[test]
 fn one_to_four_set_the_delegation_level_and_ctrl_shift_x_stops_all() {
-    let (mut harness, _) = agent_harness(agent_project("{}", &[]), |_| {});
+    let (mut harness, _) = agent_harness(agent_project("", &[]), |_| {});
     for _ in 0..3 {
         press(&mut harness, Key::ArrowRight, Modifiers::NONE);
     }
@@ -1832,9 +1879,14 @@ fn one_to_four_set_the_delegation_level_and_ctrl_shift_x_stops_all() {
             .cloned()
     };
     assert_eq!(level(&harness, "writer").as_deref(), Some("apply"));
-    assert!(
-        project_text(&harness, "project.json").contains("\"writer\": \"apply\""),
-        "project.json に書く"
+    assert_eq!(
+        novnow::core::syntax::project_toml::settings(&project_text(&harness, "project.toml"))
+            .agents
+            .roles
+            .get("writer")
+            .map(String::as_str),
+        Some("apply"),
+        "project.toml に書く"
     );
     press(&mut harness, Key::ArrowDown, Modifiers::NONE);
     press(&mut harness, Key::Num4, Modifiers::NONE);
@@ -1856,7 +1908,7 @@ fn one_to_four_set_the_delegation_level_and_ctrl_shift_x_stops_all() {
 #[test]
 fn shift_r_confirms_runs_two_at_a_time_and_the_status_bar_shows_them() {
     let (mut harness, _) = agent_harness(
-        agent_project("{}", &["@01-04-02-01", "@01-04-02-02", "@01-04-02-03"]),
+        agent_project("", &["@01-04-02-01", "@01-04-02-02", "@01-04-02-03"]),
         |files| files.hold = true,
     );
     // 新しい順に T0003 / T0002 / T0001。全部に印を付けて Shift+R
@@ -1910,7 +1962,7 @@ fn shift_r_confirms_runs_two_at_a_time_and_the_status_bar_shows_them() {
 
 #[test]
 fn the_status_bar_label_names_a_single_running_task_and_x_cancels_it() {
-    let (mut harness, _) = agent_harness(agent_project("{}", &["@01-04-02-02"]), |files| {
+    let (mut harness, _) = agent_harness(agent_project("", &["@01-04-02-02"]), |files| {
         files.hold = true;
     });
     harness.frame(vec![key(Key::R, Modifiers::NONE)]);
@@ -1933,10 +1985,7 @@ fn the_status_bar_label_names_a_single_running_task_and_x_cancels_it() {
 #[test]
 fn autonomous_levels_show_in_the_status_bar() {
     let (mut harness, _) = agent_harness(
-        agent_project(
-            r#"{ "roles": { "writer": "autonomous" } }"#,
-            &["@01-04-02-02"],
-        ),
+        agent_project("roles = { writer = \"autonomous\" }", &["@01-04-02-02"]),
         |files| files.hold = true,
     );
     harness.frame(vec![key(Key::R, Modifiers::NONE)]);
@@ -1946,8 +1995,7 @@ fn autonomous_levels_show_in_the_status_bar() {
 
 #[test]
 fn with_agents_disabled_nothing_is_written_and_the_other_workspaces_still_work() {
-    let (mut harness, opened) =
-        agent_harness(agent_project(r#"{ "enabled": false }"#, &[]), |_| {});
+    let (mut harness, opened) = agent_harness(agent_project("enabled = false", &[]), |_| {});
     assert!(!opened.contains("prompts/"), "{opened}");
     assert!(
         harness
@@ -1984,7 +2032,7 @@ fn with_agents_disabled_nothing_is_written_and_the_other_workspaces_still_work()
 
 #[test]
 fn without_an_llm_r_explains_why_and_d_still_saves_a_dry_run() {
-    let (mut harness, _) = agent_harness(agent_project("{}", &["@01-04-02-02"]), |files| {
+    let (mut harness, _) = agent_harness(agent_project("", &["@01-04-02-02"]), |files| {
         files.mcp = false;
     });
     let text = painted_text(&harness.frame(Vec::new()));
@@ -2011,7 +2059,7 @@ fn without_an_llm_r_explains_why_and_d_still_saves_a_dry_run() {
 
 #[test]
 fn a_missing_key_blocks_the_run_with_e030() {
-    let (mut harness, _) = agent_harness(agent_project("{}", &["@01-04-02-02"]), |files| {
+    let (mut harness, _) = agent_harness(agent_project("", &["@01-04-02-02"]), |files| {
         files.env.clear();
     });
     let text = painted_text(&harness.frame(Vec::new()));
@@ -2030,7 +2078,7 @@ fn a_missing_key_blocks_the_run_with_e030() {
 
 #[test]
 fn a_failed_call_returns_the_task_to_ready_without_retrying() {
-    let (mut harness, _) = agent_harness(agent_project("{}", &["@01-04-02-02"]), |files| {
+    let (mut harness, _) = agent_harness(agent_project("", &["@01-04-02-02"]), |files| {
         files.replies.push_back(Err(McpError::Timeout));
     });
     harness.frame(vec![key(Key::R, Modifiers::NONE)]);
@@ -2051,7 +2099,7 @@ fn a_failed_call_returns_the_task_to_ready_without_retrying() {
 #[test]
 fn apply_auto_applies_and_x_reverts_with_a_comment() {
     let (mut harness, _) = agent_harness(
-        agent_project(r#"{ "roles": { "writer": "apply" } }"#, &["@01-04-02-02"]),
+        agent_project("roles = { writer = \"apply\" }", &["@01-04-02-02"]),
         |files| files.replies.push_back(reply("書き換えた本文。")),
     );
     harness.frame(vec![key(Key::R, Modifiers::NONE)]);
@@ -2084,7 +2132,7 @@ fn apply_auto_applies_and_x_reverts_with_a_comment() {
 fn auto_applying_a_fixed_section_says_so_in_the_status_bar() {
     // A7（§19.8）: 確定済みの節を自動で書き換えたらステータスバーに 1 行出し、監査ログに fixed_overwrite
     let (mut harness, _) = agent_harness(
-        agent_project(r#"{ "roles": { "writer": "apply" } }"#, &["@01-04-02-04"]),
+        agent_project("roles = { writer = \"apply\" }", &["@01-04-02-04"]),
         |files| files.replies.push_back(reply("確定済みを書き換えた。")),
     );
     harness.frame(vec![key(Key::R, Modifiers::NONE)]);
@@ -2099,7 +2147,7 @@ fn auto_applying_a_fixed_section_says_so_in_the_status_bar() {
 
 #[test]
 fn the_palette_sets_levels_and_resets_or_compares_prompts() {
-    let mut project = agent_project("{}", &[]);
+    let mut project = agent_project("", &[]);
     project.insert(Document::new("prompts/writer.md", "# writer\n\n## system\n書き換えた。\n\n## task\n節 {{scene_id}} の本文を書いてください。\n"));
     let (mut harness, _) = agent_harness(project, |_| {});
     assert!(
@@ -2127,7 +2175,14 @@ fn the_palette_sets_levels_and_resets_or_compares_prompts() {
     );
     let (_, text) = palette(&mut harness, ">agent stop-all");
     assert!(text.contains("総停止しました"), "{text}");
-    assert!(project_text(&harness, "project.json").contains("\"writer\": \"propose\""));
+    assert_eq!(
+        novnow::core::syntax::project_toml::settings(&project_text(&harness, "project.toml"))
+            .agents
+            .roles
+            .get("writer")
+            .map(String::as_str),
+        Some("propose")
+    );
     // diff は並べるだけ
     let (listed, text) = palette(&mut harness, ">prompt diff writer");
     assert!(listed.contains(">prompt diff writer"), "{listed}");
@@ -2178,7 +2233,7 @@ fn palette_format_and_dictionary_references_and_rename_and_outline_folding_work_
         text.contains("「リリア」の使用箇所"),
         "references overlay: {text}"
     );
-    assert!(text.contains("plots/01-01.txt"), "references list: {text}");
+    assert!(text.contains("plots/01-01.cnov"), "references list: {text}");
     harness.frame(vec![key(Key::Escape, Modifiers::NONE)]);
     harness.frame(Vec::new());
 
@@ -2193,7 +2248,7 @@ fn palette_format_and_dictionary_references_and_rename_and_outline_folding_work_
     harness.frame(Vec::new());
     let text = painted_text(&harness.frame(Vec::new()));
     assert!(
-        text.contains("contents/01-01.txtを正規化しました"),
+        text.contains("contents/01-01.cnovを正規化しました"),
         "format notice: {text}"
     );
 
@@ -2218,8 +2273,8 @@ fn palette_format_and_dictionary_references_and_rename_and_outline_folding_work_
         "characters.md updated"
     );
     assert!(
-        project_text(&harness, "contents/01-01.txt").contains("'{アルス太郎}"),
-        "contents/01-01.txt references updated"
+        project_text(&harness, "contents/01-01.cnov").contains("'{アルス太郎}"),
+        "contents/01-01.cnov references updated"
     );
 
     // 4. `plot-outline`（Alt+3）で `Ctrl+Shift+]` / `Ctrl+Shift+[` による章→話の展開・折り畳み（`folding::ranges`）
@@ -2385,7 +2440,7 @@ fn empty_episode_plot_can_be_created_with_the_visible_button() {
     harness.frame(vec![Event::Text("扉を開ける".into())]);
     harness.idle(0.6);
     assert_eq!(
-        written(&harness, "plots/01-02.txt"),
+        written(&harness, "plots/01-02.cnov"),
         "@01-02-01\n扉を開ける\n"
     );
 }
@@ -2399,6 +2454,9 @@ fn review_and_cast_shortcut_buttons_execute_their_actions() {
         harness.app.spaces().unwrap().review.tab,
         novnow::ui::workspaces::review::Tab::Progress
     );
+    // キー案内は折り返しレイアウトなので、安定したフレームで位置を取る
+    harness.frame(Vec::new());
+    harness.frame(Vec::new());
     let rect = harness
         .rect_of("Ctrl+Shift+E 数え直す")
         .expect("review rerun button");
@@ -2431,13 +2489,13 @@ fn empty_chapter_plot_can_be_created_with_the_visible_button() {
     harness.frame(Vec::new());
     assert_eq!(outline_selected(&harness), Some(id(2, 1, 0, 0)));
     harness.idle(0.6);
-    assert_eq!(written(&harness, "plots/02.txt"), "@02-01\n;\n");
+    assert_eq!(written(&harness, "plots/02.cnov"), "@02-01\n;\n");
 }
 
 #[test]
 fn agent_stop_all_button_downgrades_delegation() {
     let (mut harness, _) = agent_harness(
-        agent_project(r#"{"enabled":true,"roles":{"writer":"apply"}}"#, &[]),
+        agent_project("enabled = true\nroles = { writer = \"apply\" }", &[]),
         |_| {},
     );
     let rect = harness
@@ -2500,7 +2558,7 @@ fn focused_cast_timeline_arrows_do_not_change_the_character_list_selection() {
 
 #[test]
 fn agent_task_examples_entered_in_the_modal_reach_the_dry_run_packet() {
-    let (mut harness, _) = agent_harness(agent_project("{}", &[]), |_| {});
+    let (mut harness, _) = agent_harness(agent_project("", &[]), |_| {});
     press(&mut harness, Key::N, Modifiers::NONE);
     let rect = harness
         .rect_of("@01-02 both")
@@ -2518,7 +2576,7 @@ fn agent_task_examples_entered_in_the_modal_reach_the_dry_run_packet() {
 
 #[test]
 fn agent_delegation_level_buttons_apply_to_the_selected_role() {
-    let (mut harness, _) = agent_harness(agent_project("{}", &[]), |_| {});
+    let (mut harness, _) = agent_harness(agent_project("", &[]), |_| {});
     let rect = harness
         .rect_of("3 apply")
         .expect("visible delegation button");
@@ -2540,7 +2598,7 @@ fn agent_delegation_level_buttons_apply_to_the_selected_role() {
 
 #[test]
 fn agent_dry_run_button_generates_the_selected_task_packet() {
-    let (mut harness, _) = agent_harness(agent_project("{}", &["@01-04-02-01"]), |_| {});
+    let (mut harness, _) = agent_harness(agent_project("", &["@01-04-02-01"]), |_| {});
     let rect = harness.rect_of("D ドライラン").expect("dry run button");
     harness.click_at(rect.center());
     assert!(
@@ -2637,10 +2695,8 @@ fn review_and_agent_bare_arrows_work_with_a_focused_header_button() {
         "review selection must move with header focus"
     );
 
-    let (mut agent, _) = agent_harness(
-        agent_project("{}", &["@01-04-02-01", "@01-04-02-02"]),
-        |_| {},
-    );
+    let (mut agent, _) =
+        agent_harness(agent_project("", &["@01-04-02-01", "@01-04-02-02"]), |_| {});
     let header = agent.rect_of("あ").expect("language button");
     agent.click_at(header.center());
     agent.frame(vec![key(Key::Tab, Modifiers::NONE)]);
@@ -2658,6 +2714,9 @@ fn review_and_agent_bare_arrows_work_with_a_focused_header_button() {
 fn idea_capture_guide_is_a_clickable_shortcut_button() {
     let mut harness = novel_harness();
     harness.frame(vec![key(Key::Num4, ALT)]);
+    // キー案内は折り返しレイアウトなので、安定したフレームで位置を取る
+    harness.frame(Vec::new());
+    harness.frame(Vec::new());
     let button = harness
         .rect_of("Ctrl+Shift+I 即時入力")
         .expect("visible capture button");
@@ -2700,4 +2759,40 @@ fn cast_timeline_hover_covers_a_full_minimum_height_row() {
     assert!(hovered.shapes.iter().any(|item| matches!(&item.shape,
         egui::Shape::Rect(shape) if shape.fill == fill && shape.rect.height() >= 24.0 && shape.rect.contains(label.center())
     )), "timeline hover must cover a 24px band");
+}
+
+#[test]
+fn plot_list_delete_button_uses_the_unified_delete() {
+    let mut harness = novel_harness();
+    let before = harness
+        .app
+        .workbench()
+        .map(|bench| bench.sections().len())
+        .unwrap();
+    harness.frame(vec![key(Key::Num2, ALT)]);
+    harness.frame(Vec::new());
+    assert_eq!(harness.app.workspace(), Some(Workspace::PlotEpisode));
+    let output = harness.frame(Vec::new());
+    // 節リストの各行の右端に削除ボタンがある（§8.1.2）
+    let mut buttons: Vec<egui::Rect> = harness::painted_texts(&output)
+        .into_iter()
+        .filter(|(text, _)| text == "削除")
+        .map(|(_, rect)| rect)
+        .collect();
+    assert!(!buttons.is_empty(), "プロット一覧の削除ボタン");
+    buttons.sort_by(|a, b| a.min.y.total_cmp(&b.min.y));
+    harness.click_at(buttons[0].center());
+    // 空でない節は既定で確認する（文脈ビューと同じ入口）
+    assert_eq!(
+        harness.app.overlay_kind(),
+        Some(novnow::ui::app::OverlayKind::ConfirmDelete)
+    );
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    let bench = harness.app.workbench().expect("bench");
+    assert_eq!(
+        bench.sections().len(),
+        before - 1,
+        "本文の節も一緒に消える（§8.1.2）"
+    );
+    assert_eq!(harness.app.overlay_kind(), None);
 }

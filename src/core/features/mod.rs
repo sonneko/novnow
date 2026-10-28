@@ -13,6 +13,8 @@ pub mod cast;
 pub mod code_action;
 pub mod completion;
 pub mod definition;
+/// LSP に対応しない補助（診断ドキュメントの追加判定。§7.2.2 等）。
+pub mod diagnose;
 pub mod document_symbol;
 pub mod folding;
 pub mod formatting;
@@ -20,8 +22,14 @@ pub mod hover;
 /// LSP に対応しない補助（アイデアの一覧・即時入力・昇格の転記。§10.4、`docs/history.md` B-130）。
 pub mod ideas;
 pub mod inlay_hint;
+/// LSP に対応しない補助（ローカル LLM の接続先判定と設定。§15.7）。
+pub mod local_llm;
 /// LSP に対応しない補助（資料の提案・採用・却下と索引の更新。§16、`docs/history.md` B-131）。
 pub mod materials_ops;
+/// LSP に対応しない補助（章あらすじ・継承・アドレスなどプロットのメタデータ。§10.2 等）。
+pub mod metadata;
+/// LSP に対応しない補助（字数などの指標。§10.9 等）。
+pub mod metrics;
 /// LSP に対応しない補助（診断の「どこ」を作家の言葉で。§14.2.5・§10.9.2、第 2.11 版）。
 pub mod place;
 /// LSP に対応しない補助（プロットのワークスペースの行の並び・伏線。§10.2・§10.3、`docs/history.md` B-127）。
@@ -31,10 +39,15 @@ pub mod project;
 pub mod reference;
 pub mod references;
 pub mod rename;
+/// LSP に対応しない補助（本文の正規表現検索。§16.3）。
+pub mod search;
 /// LSP に対応しない補助（節単位の編集と節の並び。§8.1・§9.3・§9.8.2、`docs/history.md` B-112）。
 pub mod sections;
 pub mod semantic_tokens;
+/// LSP に対応しない補助（既定のストック文章の割り当て。§10.4）。
+pub mod stock;
 
+pub use self::metadata::{chapter_blurb, inherited, records};
 pub use self::project::Project;
 
 use std::ops::Range;

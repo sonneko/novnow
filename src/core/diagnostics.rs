@@ -5,9 +5,9 @@
 //! キーは `diag.<コード>`（例 `diag.E004`、§12.3）で、**コード文字列そのものが正準の識別子**。
 //! だから core は文言を持たないが、コードを文字列で返す口（[`DiagnosticCode::as_str`]）は持つ。
 //!
-//! **全件を先に定義する**（`docs/history.md` I5「診断は先に表を実装」）。① が出さないコード
-//! （エージェント系・MCP 系・ローカル LLM 系）も enum に入れてある。後から足すと番号が
-//! 散らかるためで、未使用 variant の警告は I5 が明示的に許容している。
+//! **全件を先に定義する**（`docs/history.md` I5「診断は先に表を実装」）。`I051`（未保存の変更がある）と
+//! `I058`（検索結果を資料化した）は 2026-10-28 に**廃止**した（画面に出ている事実の写しだった。仕様 §7 の
+//! 冒頭）。番号は再利用しないので、enum にも入れない（欠番として飛ばす）。
 //!
 //! 中身は §7 の 3 つの表を写したもので、**仕様書が正本**。`tests/diagnostics_catalog.rs` が
 //! `docs/specifications/diagnostics.md` を `include_str!` で読み直して、件数・コード・重大度・引数の数・
@@ -26,7 +26,7 @@ use crate::core::model::document::{Document, DocumentFormat};
 use crate::core::resolve::dictionary::{self, SourceFile};
 use crate::core::resolve::{context_rules, materials, modes};
 use crate::core::syntax::{
-    characters_md, contents, ideas_md, materials_index, plot_episode, plot_outline, project_json,
+    characters_md, contents, ideas_md, materials_index, plot_episode, plot_outline, project_toml,
     prompt_md, words_md,
 };
 use crate::core::text::lexer::{self, FieldKey, LineKind};
@@ -106,7 +106,7 @@ pub enum Scope {
     Session,
 }
 
-/// 診断コード（§7 / §7.1 / §7.2 の全 76 件）。
+/// 診断コード（§7.0 の 38 件・§7.1 の 9 件・§7.2 の 38 件、全 85 件）。
 ///
 /// **variant 名はコード文字列そのもの**（`E001` → `"E001"`）。i18n のキーは
 /// `diag.` を前に付けた形（`diag.E001`、§12.3「キー命名」）で、core は文言を持たない。
@@ -149,11 +149,11 @@ pub enum DiagnosticCode {
     E022,
     /// `materials` 外を指す `path`（§7）
     E024,
-    /// JSON ファイルがパースできない（§4.3-4）（§7）
+    /// JSON / TOML ファイルがパースできない（§4.3-4）（§7）
     E025,
     /// 修飾子を付けられない参照に修飾子（§6.1.1）（§7）
     E026,
-    /// `project.json` の `lexicon.word_classes` の正規表現が不正（§6.5.1）（§7）
+    /// `project.toml` の `lexicon.word_classes` の正規表現が不正（§6.5.1）（§7）
     E027,
     /// 辞書キーが 96 バイト超（§7）
     E028,
@@ -239,7 +239,7 @@ pub enum DiagnosticCode {
     W088,
     /// 1 文が `long_sentence_chars` の 2 倍を超える（§7.2）
     W089,
-    /// 1 節の台詞比率が `dialogue_ratio_target` を大きく外れる（§7.2）
+    /// 1 節の台詞比率（§9.4.2 の算出）が `dialogue_ratio_target`（上限目安）を超える（文書全体ではなく節ごとに見る）（§7.2）
     W090,
     /// 節の長さが話内平均の T スコア 35 未満 / 65 超（§10.3.4）（§7.2）
     W091,
@@ -251,10 +251,30 @@ pub enum DiagnosticCode {
     W094,
     /// 自律タスクがセッション上限（`agents.limits`）に達して停止した（§15.1.1 A8）（§7.2）
     W095,
+    /// 台詞内の句読点直後の空白が作品内多数派と揃っていない（§7.2.2）（§7.2）
+    W096,
+    /// 同じ文末尾で終わる文が 3 文連続（§7.2.3）（§7.2）
+    W097,
+    /// 1 場面で同じ語が 5 回以上（§7.2.4）（§7.2）
+    W098,
+    /// 同じ語が助詞・句読点のみを挟んで 2 回連続（§7.2.5）（§7.2）
+    W099,
+    /// 同じ文末助詞で終わる文が 3 文連続（§7.2.6）（§7.2）
+    W100,
+    /// 同じ語で始まる文が 3 文連続（§7.2.7）（§7.2）
+    W101,
+    /// 1 節で波ダッシュ「……」が 3 回以上（§7.2.8）（§7.2）
+    W102,
+    /// 1 場面で不確か表現（固定リスト）の同じ語が 3 回以上（§7.2.9）（§7.2）
+    W103,
+    /// 1 場面で同じ動詞語幹が 5 回以上（§7.2.10）（§7.2）
+    W104,
+    /// 1 場面で感嘆符が 5 回以上（§7.2.11）（§7.2）
+    W105,
+    /// 1 節でダッシュ「——」が 4 回以上（§7.2.12）（§7.2）
+    W106,
     /// 既定プロンプトを生成した（§7）
     I050,
-    /// 未保存の変更がある（§7）
-    I051,
     /// 外部変更を取り込んだ（§7.1）
     I052,
     /// どの節からも引用されていない採用済み資料（§5.2.4）（§7.2）
@@ -265,8 +285,6 @@ pub enum DiagnosticCode {
     I056,
     /// ローカル LLM の設定を書き込んだ（§15.8.4）（§7.2）
     I057,
-    /// 検索結果を資料化した（§16.3.1）（§7.2）
-    I058,
 }
 
 impl DiagnosticCode {
@@ -344,14 +362,23 @@ impl DiagnosticCode {
             Self::W093 => "W093",
             Self::W094 => "W094",
             Self::W095 => "W095",
+            Self::W096 => "W096",
+            Self::W097 => "W097",
+            Self::W098 => "W098",
+            Self::W099 => "W099",
+            Self::W100 => "W100",
+            Self::W101 => "W101",
+            Self::W102 => "W102",
+            Self::W103 => "W103",
+            Self::W104 => "W104",
+            Self::W105 => "W105",
+            Self::W106 => "W106",
             Self::I050 => "I050",
-            Self::I051 => "I051",
             Self::I052 => "I052",
             Self::I054 => "I054",
             Self::I055 => "I055",
             Self::I056 => "I056",
             Self::I057 => "I057",
-            Self::I058 => "I058",
         }
     }
 
@@ -531,21 +558,30 @@ pub const CATALOG: &[CatalogRow] = &[
     (DiagnosticCode::W093, 1),
     (DiagnosticCode::W094, 0),
     (DiagnosticCode::W095, 1),
+    (DiagnosticCode::W096, 1),
+    (DiagnosticCode::W097, 0),
+    (DiagnosticCode::W098, 2),
+    (DiagnosticCode::W099, 1),
+    (DiagnosticCode::W100, 1),
+    (DiagnosticCode::W101, 1),
+    (DiagnosticCode::W102, 1),
+    (DiagnosticCode::W103, 2),
+    (DiagnosticCode::W104, 2),
+    (DiagnosticCode::W105, 1),
+    (DiagnosticCode::W106, 1),
     (DiagnosticCode::I050, 0),
-    (DiagnosticCode::I051, 0),
     (DiagnosticCode::I052, 1),
     (DiagnosticCode::I054, 1),
     (DiagnosticCode::I055, 1),
     (DiagnosticCode::I056, 1),
     (DiagnosticCode::I057, 0),
-    (DiagnosticCode::I058, 1),
 ];
 
 /// 文書位置を持たない診断（[`Anchor::Status`]）。
 ///
 /// 内訳は 3 つ。
 ///
-/// 1. **§7.1 の全 10 件**。表の見出しが「文書位置を持たない通知」で、波線ではなく
+/// 1. **§7.1 の全 9 件**。表の見出しが「文書位置を持たない通知」で、波線ではなく
 ///    ステータスバーの通知とレビュー一覧に出す（仕様書の明記）。
 /// 2. **§7.2 の E032〜E036**。§7.2 の注「エラーだが文書位置を持たないため、
 ///    §7.1 と同じくステータスバー通知として扱う」（仕様書の明記）。
@@ -573,20 +609,18 @@ pub const STATUS_ANCHOR: &[DiagnosticCode] = &[
     DiagnosticCode::W094,
     DiagnosticCode::W095,
     DiagnosticCode::I050,
-    DiagnosticCode::I051,
     DiagnosticCode::I052,
     DiagnosticCode::I054,
     DiagnosticCode::I055,
     DiagnosticCode::I056,
     DiagnosticCode::I057,
-    DiagnosticCode::I058,
 ];
 
 /// 既定で**無効**の診断（§7.2「既定の有効 / 無効」）。
 ///
 /// 文体ワークスペース（§10.9）を開いたときだけ計算・表示する。理由は仕様書どおり
 /// 「書いている最中に言われたくない種類の指摘」で、P3（ノイズを増やさない）に抵触するため。
-/// 有効 / 無効は設定ファイルに書かず **UI のトグルのみ**（セッション内の一時設定）。
+/// 有効 / 無効の上書きは `project.toml` の `[features.diagnostics]`（§4.5.2）が持つ（§7.0）。
 pub const TOGGLE_OFF: &[DiagnosticCode] = &[
     DiagnosticCode::W081,
     DiagnosticCode::W083,
@@ -595,6 +629,17 @@ pub const TOGGLE_OFF: &[DiagnosticCode] = &[
     DiagnosticCode::W089,
     DiagnosticCode::W090,
     DiagnosticCode::W091,
+    DiagnosticCode::W096,
+    DiagnosticCode::W097,
+    DiagnosticCode::W098,
+    DiagnosticCode::W099,
+    DiagnosticCode::W100,
+    DiagnosticCode::W101,
+    DiagnosticCode::W102,
+    DiagnosticCode::W103,
+    DiagnosticCode::W104,
+    DiagnosticCode::W105,
+    DiagnosticCode::W106,
 ];
 
 /// 既定で**有効**だがトグルできる診断（§7.2「既定の有効 / 無効」）。
@@ -621,7 +666,7 @@ pub type CostRow = (DiagnosticCode, Trigger, Scope);
 
 /// 実行コストの制御表（§7.2「実行コストの制御（MUST）」）。
 ///
-/// 載っているのは §7.2 の 16 件のみ。それ以外は [`Trigger::Unspecified`] で、
+/// 載っているのは §7.2 の 27 件のみ。それ以外は [`Trigger::Unspecified`] で、
 /// 実行タイミングは M4（診断）で決める。**範囲は MUST** なので、
 /// `Scope::Section` の診断をプロジェクト全体で計算してはいけない。
 pub const COST: &[CostRow] = &[
@@ -630,12 +675,23 @@ pub const COST: &[CostRow] = &[
     (DiagnosticCode::W088, Trigger::Editing, Scope::Section),
     (DiagnosticCode::W089, Trigger::Editing, Scope::Section),
     (DiagnosticCode::W090, Trigger::Editing, Scope::Section),
+    (DiagnosticCode::W097, Trigger::Editing, Scope::Section),
+    (DiagnosticCode::W098, Trigger::Editing, Scope::Scene),
+    (DiagnosticCode::W099, Trigger::Editing, Scope::Section),
+    (DiagnosticCode::W100, Trigger::Editing, Scope::Section),
+    (DiagnosticCode::W101, Trigger::Editing, Scope::Section),
+    (DiagnosticCode::W102, Trigger::Editing, Scope::Section),
+    (DiagnosticCode::W103, Trigger::Editing, Scope::Scene),
+    (DiagnosticCode::W104, Trigger::Editing, Scope::Scene),
+    (DiagnosticCode::W105, Trigger::Editing, Scope::Scene),
+    (DiagnosticCode::W106, Trigger::Editing, Scope::Section),
     (DiagnosticCode::W082, Trigger::Editing, Scope::Scene),
     (DiagnosticCode::W084, Trigger::Editing, Scope::Scene),
     (DiagnosticCode::W085, Trigger::Editing, Scope::Scene),
     (DiagnosticCode::W080, Trigger::Idle, Scope::Project),
     (DiagnosticCode::W083, Trigger::Idle, Scope::Project),
     (DiagnosticCode::W091, Trigger::Idle, Scope::Project),
+    (DiagnosticCode::W096, Trigger::Idle, Scope::Project),
     (DiagnosticCode::I054, Trigger::Startup, Scope::Project),
     (DiagnosticCode::I055, Trigger::Startup, Scope::Project),
     (DiagnosticCode::I056, Trigger::Startup, Scope::Project),
@@ -680,6 +736,10 @@ impl Arg {
 pub struct Diagnostic {
     /// コード。
     pub code: DiagnosticCode,
+    /// `[features.diagnostics]`（§4.5.2）による重大度の上書き。`None` は組み込み既定。
+    /// ゴールデンの JSON 形（生成直後の診断）には含めない。
+    #[serde(skip)]
+    pub severity_override: Option<Severity>,
     /// プレースホルダに埋める値。個数は [`DiagnosticCode::params`] と揃える。
     pub args: Vec<Arg>,
     /// 文書内の byte range（§3.4「core は内部で byte offset」、`docs/history.md` B-1）。
@@ -694,7 +754,12 @@ impl Diagnostic {
     /// 文言を組み立てるのは UI なので、個数がずれると `{1}` が空のまま表示される。
     pub fn new(code: DiagnosticCode, range: Option<Range<usize>>, args: Vec<Arg>) -> Self {
         debug_assert_eq!(args.len(), usize::from(code.params()), "{}", code.as_str());
-        Self { code, args, range }
+        Self {
+            code,
+            severity_override: None,
+            args,
+            range,
+        }
     }
 
     /// 引数を取らない診断を作る。
@@ -702,14 +767,16 @@ impl Diagnostic {
         debug_assert_eq!(code.params(), 0, "{}", code.as_str());
         Self {
             code,
+            severity_override: None,
             args: Vec::new(),
             range,
         }
     }
 
-    /// 重大度。
+    /// 重大度（`[features.diagnostics]` の上書きがあればそれ、 §4.5.2）。
     pub fn severity(&self) -> Severity {
-        self.code.severity()
+        self.severity_override
+            .unwrap_or_else(|| self.code.severity())
     }
 
     /// 文書位置を持つか。
@@ -719,7 +786,7 @@ impl Diagnostic {
 
     /// 波線として表示できる診断か（§7「I=情報（下線なし、レビュー一覧のみ）」）。
     pub fn is_underlined(&self) -> bool {
-        self.code.anchor() == Anchor::Document && self.code.severity() != Severity::Info
+        self.code.anchor() == Anchor::Document && self.severity() != Severity::Info
     }
 }
 
@@ -736,7 +803,7 @@ impl Diagnostic {
 /// | 出す層 | コード | 対象の形式 |
 /// |---|---|---|
 /// | `syntax/*` のパーサ（M2。W065 は M8） | E002 / E005（B 形式の `mode:`） / E008 / E016 / E017 / E018 / E020 / E021 / E022 / E024 / E025 / E031〜E033 / W002 / W011 / W012 / W019 / W065 | 各形式（W065 は `materials/index.json`） |
-/// | [`project_json::parse`]（M5、B-88） | E025 / E027 | `project.json` |
+/// | [`project_toml::parse`]（M5、B-88） | E025 / E027 | `project.toml` |
 /// | [`materials::scan_line`](crate::core::resolve::materials::scan_line)（M3、B-71） | E001 / E002 / E005（1 トークン） / E006 / E007 / E026 / W029 / W031 | 本文部のある全形式（走査範囲は B-77） |
 /// | [`dictionary::speaker_diagnostic`](crate::core::resolve::dictionary::speaker_diagnostic) | E012 | C |
 /// | 辞書の構築（[`Project::dictionary_diagnostics`]） | E028 / W027 | `characters.md` / `words.md` / `materials/index.json` |
@@ -819,14 +886,68 @@ pub fn document(document: &Document, project: &Project) -> Vec<Diagnostic> {
             out.extend(prompt_md::parse_with(text, &options).diagnostics);
         }
         DocumentFormat::ProjectFile => {
-            out.extend(project_json::parse(text).diagnostics);
+            out.extend(project_toml::parse(text).diagnostics);
         }
         _ => {}
     }
-    out.extend(crate::core::stage_two::diagnose::document(
+    out.extend(crate::core::features::diagnose::document(
         document, project, false,
     ));
+    apply_overrides(&mut out, project);
     finish(out)
+}
+
+/// `[features.diagnostics]`（§4.5.2）の解決結果。設定が無いコードは組み込み既定のまま。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DiagnosticLevel {
+    /// 出さない（件数にも含めない）。
+    Off,
+    /// 警告として出す。
+    Warn,
+    /// エラーとして扱う（`check` の終了コード 5 の対象、§14.2.5）。
+    Error,
+}
+
+/// 診断コードへの `[features.diagnostics]` の適用（§4.5.2: 個別コード → グループ → `default`）。
+/// 値が `"off"` / `"warn"` / `"error"` でないキーは書かれていないものとして次へ進む。
+pub fn level_for(
+    code: DiagnosticCode,
+    overrides: &std::collections::BTreeMap<String, String>,
+) -> Option<DiagnosticLevel> {
+    let group = match code.group() {
+        Group::Core => "structure",
+        Group::Storage => "storage",
+        Group::Writing => "writing",
+    };
+    for key in [code.as_str(), group, "default"] {
+        match overrides.get(key).map(String::as_str) {
+            Some("off") => return Some(DiagnosticLevel::Off),
+            Some("warn") => return Some(DiagnosticLevel::Warn),
+            Some("error") => return Some(DiagnosticLevel::Error),
+            _ => {}
+        }
+    }
+    None
+}
+
+/// 生成済みの診断へ `[features.diagnostics]` を適用する（`"off"` は落とし、重大度を上書きする）。
+fn apply_overrides(out: &mut Vec<Diagnostic>, project: &Project) {
+    let overrides = &project.settings().features.diagnostics;
+    if overrides.is_empty() {
+        return;
+    }
+    out.retain_mut(|found| match level_for(found.code, overrides) {
+        Some(DiagnosticLevel::Off) => false,
+        Some(DiagnosticLevel::Warn) => {
+            found.severity_override = Some(Severity::Warning);
+            true
+        }
+        Some(DiagnosticLevel::Error) => {
+            found.severity_override = Some(Severity::Error);
+            true
+        }
+        None => true,
+    });
 }
 
 /// 重複を落として §9.5.2 の 9 の順に並べる。

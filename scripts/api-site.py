@@ -17,6 +17,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SPEC = ROOT / "docs/specifications/interfaces.md"
 OUT = ROOT / "website/src/data/api.ts"
+# 引数は §19.8.2 の `api.list`（ゴールデン）から取る。仕様書の表は引数を持たず、
+# `api.list` の `arguments`（JSON Schema + `order`）が正本（§19.8.2）。
+CATALOG = ROOT / "tests/golden/api_catalog.json"
 DICTIONARIES = {
     "ja": ROOT / "src/ui/i18n/ja.toml",
     "en": ROOT / "src/ui/i18n/en.toml",
@@ -84,15 +87,195 @@ def descriptions(language: str) -> dict[str, str]:
     return out
 
 
+def arguments_by_id() -> dict[str, list[dict]]:
+    """`api.list` の引数を、表に出す形（名前・型・必須）に落とす。"""
+    catalog = json.loads(read_text(CATALOG))
+    out: dict[str, list[dict]] = {}
+    for operation in catalog.get("operations", []):
+        schema = operation.get("arguments", {})
+        properties = schema.get("properties", {})
+        required = set(schema.get("required", []))
+        order = schema.get("order") or list(properties)
+        out[operation["id"]] = [
+            dict(
+                name=name,
+                type=properties.get(name, {}).get("type", ""),
+                required=name in required,
+            )
+            for name in order
+            if name in properties
+        ]
+    return out
+
+
+# 例に使う見本の値（引数名 → 値）。名前で意味が決まるものだけ具体的にし、残りは型の既定に落とす。
+SAMPLES = {
+    "scene": "@01-01-01-01",
+    "after": "@01-01-01-01",
+    "before": "@01-01-01-01",
+    "path": "contents/01-01.cnov",
+    "text": "本文",
+    "query": "リリア",
+    "role": "writer",
+    "name": "writer",
+    "id": "@01-01-01-01",
+    "title": "星屑の時計",
+    "summary": "要約",
+    "key": "theme",
+    "value": "dark",
+    "workspace": "write",
+    "topic": "writing",
+    "format": "text",
+    "out": "out.txt",
+    "to": "writer",
+    "from": "writer",
+    "body": "本文",
+    "level": "episode",
+    "chapter": 1,
+}
+
+
+# 操作ごとの上書き（引数名だけでは決まらないもの。ID の接頭辞や、同じ名前でも意味が違うもの）
+OP_SAMPLES = {
+    "project.new": {"path": "my-novel"},
+    "project.recent_remove": {"path": "my-novel"},
+    "materials.get": {"id": "M0001"},
+    "materials.approve": {"id": "M0001"},
+    "materials.reject": {"id": "M0001"},
+    "materials.update": {"id": "M0001"},
+    "materials.attach": {"id": "M0001"},
+    "idea.promote": {"id": "I0001", "target": "materials"},
+    "idea.drop": {"id": "I0001"},
+    "idea.write": {"id": "I0001"},
+    "agent.task_get": {"id": "T0001"},
+    "agent.task_run": {"id": "T0001"},
+    "agent.task_dry_run": {"id": "T0001"},
+    "agent.task_stop": {"id": "T0001"},
+    "agent.thread_get": {"id": "T0001"},
+    "agent.proposal_get": {"id": "P0001"},
+    "agent.proposal_apply": {"id": "P0001"},
+    "agent.proposal_reject": {"id": "P0001", "comment": "理由"},
+    "agent.delegation_set": {"level": "propose"},
+    "document.rename": {"from": "contents/01-01.cnov", "to": "contents/02-01.cnov"},
+    "search.replace_file": {"replace": "リオ"},
+    "dictionary.register_term": {"term": "魔導"},
+    "dictionary.register_character": {"name": "リリア"},
+    "session.command": {"name": "view.palette"},
+    "lang.rename_apply": {"to": "リオ"},
+    "agent.mcp_config_set": {"text": '{ "servers": {} }'},
+    "prompt.get": {"name": "write"},
+    "prompt.diff": {"name": "write"},
+    "prompt.reset": {"name": "write"},
+}
+
+
+# 既存サブコマンドを持つ操作は、その形を例に出す（§19.6.1 の対応表。両方の形を受け付けるが、
+# 利用者の手元にあるのは既存形なので、そちらを見せる）
+CLI_OVERRIDES = {
+    "project.new": "novnow new my-novel",
+    "project.validate": "novnow check my-novel",
+    "project.import_zip": "novnow import my-novel.zip",
+    "export.text": "novnow export my-novel",
+}
+
+
+def sample_value(name: str, kind: str) -> object:
+    """引数 1 つの見本の値（例の生成用。決定的）。"""
+    if name in SAMPLES:
+        found = SAMPLES[name]
+        if (kind == "integer" and isinstance(found, int)) or kind == "string":
+            return found
+    if kind == "integer":
+        return 1
+    if kind == "number":
+        return 1.0
+    if kind == "boolean":
+        return True
+    if kind == "array":
+        return []
+    if kind == "object":
+        return {}
+    return f"<{name}>"
+
+
+def quote(value: object) -> str:
+    """CLI の例に置く値（空白を含むものは引用する）。"""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, (list, dict)):
+        return "'" + json.dumps(value, ensure_ascii=False) + "'"
+    text = str(value)
+    return f"'{text}'" if any(ch in text for ch in " <>[]{}&'") else text
+
+
+def examples_for(row, schema: dict) -> dict:
+    """1 操作ぶんの例（CLI・Rust・Python・MCP）。引数は必須のものだけを載せる。"""
+    properties = schema.get("properties", {})
+    required = list(schema.get("required", []))
+    overrides = OP_SAMPLES.get(row["id"], {})
+    values = {
+        name: overrides.get(name, sample_value(name, properties.get(name, {}).get("type", "string")))
+        for name in required
+    }
+    op = row["id"]
+    domain, verb = op.split(".", 1)
+    rendered = json.dumps(values, ensure_ascii=False)
+    cli = f"novnow {domain} {verb} my-novel"
+    for name, value in values.items():
+        cli += f" --{name} {quote(value)}"
+    if not values:
+        cli += " --json"
+    if op not in CLI_OVERRIDES:
+        for name in values:
+            if f"--{name} " not in cli:
+                raise SystemExit(f"例に必須の引数が無い: {op} / {name}")
+    rust_args = ", ".join(
+        f'"{name}": {json.dumps(value, ensure_ascii=False)}' for name, value in values.items()
+    )
+    python_args = ", ".join(f"{name}={value!r}" for name, value in values.items())
+    return {
+        "cli": CLI_OVERRIDES.get(op, cli),
+        "rust": f'session.run("{op}", json!({{{rust_args}}}))?',
+        "python": f"session.{domain}.{verb}({python_args})",
+        "mcp": f'tools/call {{"name": "novnow.{op}", "arguments": {rendered}}}',
+    }
+
+
+def schema_by_id() -> dict[str, dict]:
+    """`api.list` の `arguments`（JSON Schema）を操作 ID で引けるようにする。"""
+    catalog = json.loads(read_text(CATALOG))
+    return {
+        operation["id"]: operation.get("arguments", {})
+        for operation in catalog.get("operations", [])
+    }
+
+
+def returns_by_id() -> dict[str, list[str]]:
+    """`api.list` の `returns`（戻り値の形）から、表に出すキー名の並びを作る。"""
+    catalog = json.loads(read_text(CATALOG))
+    return {
+        operation["id"]: list(operation.get("returns", {}).get("properties", {}))
+        for operation in catalog.get("operations", [])
+    }
+
+
 def main() -> int:
     rows = catalog_rows(read_text(SPEC))
-    if len(rows) != 119 or len({row["id"] for row in rows}) != len(rows):
-        raise SystemExit(f"expected 119 unique operations, found {len(rows)}")
+    if len(rows) != 121 or len({row["id"] for row in rows}) != len(rows):
+        raise SystemExit(f"expected 121 unique operations, found {len(rows)}")
     words = {language: descriptions(language) for language in DICTIONARIES}
     for language, table in words.items():
         missing = [row["id"] for row in rows if row["id"] not in table]
         if missing:
             raise SystemExit(f"{language}: missing api.op.* for {missing[:5]} ({len(missing)})")
+    args = arguments_by_id()
+    returns = returns_by_id()
+    schemas = schema_by_id()
+    missing = [row["id"] for row in rows if row["id"] not in args or row["id"] not in returns]
+    if missing:
+        raise SystemExit(f"{CATALOG} に無い操作がある: {missing[:5]}（{len(missing)}）")
     payload = [
         dict(
             id=row["id"],
@@ -101,6 +284,9 @@ def main() -> int:
             en=words["en"][row["id"]],
             lsp=row["lsp"],
             exceptions=row["exceptions"],
+            args=args[row["id"]],
+            returns=returns[row["id"]],
+            examples=examples_for(row, schemas[row["id"]]),
         )
         for row in rows
     ]

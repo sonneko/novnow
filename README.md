@@ -1,9 +1,9 @@
-# novnow — 次世代的な世界観管理システム群
+# novnow — 長編小説の世界を管理するツール群
 
-（**[English version is HERE](./README.en.md)**）
+（[英語版](./README.en.md)）
 
-
-`novnow` は、長編小説・ライトノベル・Web小説・ノベルゲーム・シナリオなど、あなた自身の世界を育み、広めるためのツール群です。
+`novnow` は、長編小説・ライトノベル・Web小説・ノベルゲーム・シナリオなどを書く人のためのツール群です。
+作品の世界（人物・口調・用語・プロット・本文）を、ひとつのフォルダとして管理します。
 
 novnow形式を管理するためのnovnowエディタは、デスクトップアプリ（Windows / macOS / Linux）とブラウザの両方で動きます。画面もキーボード操作も共通で、同じプロジェクトをそのまま開けます。
 
@@ -11,7 +11,7 @@ novnow形式を管理するためのnovnowエディタは、デスクトップ�
 
 [公開版の既知の問題](https://sonneko.github.io/novnow/ja/known-issues/)はWebサイトで確認できます。
 
-**v0.1.0を公開しました。** [ブラウザで試す](https://sonneko.github.io/novnow/app/) · [ダウンロード](https://sonneko.github.io/novnow/ja/#downloads)。v1 に到達するまでは、novnow 形式のバージョン間互換性を保証しません。更新によって既存プロジェクトを開けなくなる場合があります。**v0 → v1 の移行機能は、実装コストを最小化するため提供しません。** 更新前に作品を Zip と通常のテキストでバックアップし、必要に応じて利用する版を固定してください。CLI の `migrate` は本文テキストの取り込み用であり、novnow 形式の版間移行ではありません。
+**v0.1.0を公開しました。** [ブラウザで試す](https://sonneko.github.io/novnow/app/) · [ダウンロード](https://sonneko.github.io/novnow/ja/#downloads)。v1 に到達するまでは、novnow 形式のバージョン間互換性を保証しません。更新によって既存プロジェクトを開けなくなる場合があります。**v0 → v1 の移行機能は提供しません。** 更新前に作品を Zip と通常のテキストでバックアップし、必要に応じて利用する版を固定してください。CLI の `migrate` は本文テキストの取り込み用であり、novnow 形式の版間移行ではありません。
 
 開発は GitFlow を採用し、`main` へのマージはバージョン更新時だけに限定します。開発・リリース手順は `REF:docs/developers.md` と `REF:docs/distribution.md` を参照してください。
 
@@ -39,13 +39,13 @@ novnow形式を管理するためのnovnowエディタは、デスクトップ�
 
 ## novnow形式とは？
 
-「novnow形式」は、あなたの頭の中にある世界観や物語自体を管理するための形式です。
+「novnow形式」は、あなたの頭の中にある世界観や物語を管理するための形式です。
 
-PDFが文書を管理するファイル形式であるのと全く同じように、novnow形式は世界観を管理するファイル形式です。novnowファイルを送信するだけであなたの世界観を他人に伝えることができます。
+PDF が文書の形式であるように、novnow形式は世界観の形式です。novnowファイルを送るだけで、世界観を他人に伝えることができます。
 
-複数人で一つの世界観を育みたいときにも最適です。
+複数人で一つの世界観を育てるときにも向いています。
 
-また、拡張機能としてAIに伝えるための機能もサポートしています。
+AI に作品を読ませる連携（MCP）もあります。
 
 ## 具体的にどんなもの？
 
@@ -57,7 +57,7 @@ PDFが文書を管理するファイル形式であるのと全く同じよう�
 - 資料
 - キャラアイコン
 
-以上の情報を統合して管理できます。
+これらをまとめて管理できます。
 
 例えば、本文なら以下のように書きます。
 
@@ -95,9 +95,9 @@ PDFが文書を管理するファイル形式であるのと全く同じよう�
 
 読み手にとっての解釈の余地がないように「novnow形式」は設計されています。
 
-novnow形式は、小説をテキストデータでエクスポートする機能を備えています。novnow形式特有の記号はボタン一つで全て取り除かれます。
+本文はプレーンテキストとして書き出せます。novnow形式特有の記号（`@`・`'` ほか）は、ボタン一つで全て取り除かれます。
 
-将来的に、小説以外のさまざまな媒体（ノベルゲーム、3DCGアニメーションなど）へとエクスポートする機能を研究開発の末、実装する予定です。
+ノベルゲームやアニメーションなど、小説以外の媒体へ向けた拡張点は、形式の中に用意されています。
 
 ## エディタの仕様の要約
 
@@ -105,11 +105,11 @@ novnow形式は、小説をテキストデータでエクスポートする機�
    - 画面下段の「節エディタ」では現在執筆中の 1 節だけに集中でき、上段の「文脈ビュー」に前後最大 3 節が読み取り専用で表示されます。
    - 右側の「参照ペイン」には、現在の節に関わるプロット・登場人物（有効モード・役割語）・用語・資料・診断が自動抽出されて並びます。ペインの表示・左右入替・比率はショートカットで変えられます。
 2. **軽量な専用テキスト記法と無損失保存**
-   - 本文（`contents/AA-BB.txt`）、全体・章プロット（`plots/all.txt`, `plots/AA.txt`）、話プロット（`plots/AA-BB.txt`）、登場人物（`characters.md`）、用語（`words.md`）、アイデア（`ideas.md`）、資料（`materials/`）をすべてプレーンテキスト（UTF-8）で管理し、Git でそのまま差分管理できます。
-   - 原文は 1 バイトも捨てません（読み込んだ本文をそのまま書き戻せます）。プロジェクトは `project.json` を中心に自己完結し、`.novnow/` のキャッシュだけが Git の管理外になります。
-3. **意味解決エンジンと 76 種のリアルタイム診断**
+   - 本文（`contents/AA-BB.cnov`）、全体・章プロット（`plots/all.cnov`, `plots/AA.cnov`）、話プロット（`plots/AA-BB.cnov`）、登場人物（`characters.md`）、用語（`words.md`）、アイデア（`ideas.md`）、資料（`materials/`）をすべてプレーンテキスト（UTF-8）で管理し、Git でそのまま差分管理できます。
+   - 原文は 1 バイトも捨てません（読み込んだ本文をそのまま書き戻せます）。プロジェクトは `project.toml` を中心に自己完結し、`.novnow/` のキャッシュだけが Git の管理外になります。
+3. **意味解決エンジンと 85 種のリアルタイム診断**
    - `'名前` による辞書参照（最短一致・NFKC 正規化）、状況別キャラクターモード解決、役割語パターン照合（台詞の口調一致を緑下線で可視化）、初出より前の用語使用検出、文長・連続文末・表記揺れなどの執筆支援診断を提供します。
-   - 診断は 76 種すべてに一意のコード（`E001`〜`W0xx`／`I0xx`）があり、`Ctrl+.` のクイックフィックスと `review` ワークスペースの一覧から辿れます。
+   - 診断は 85 種すべてに一意のコード（`E001`〜`W0xx`／`I0xx`）があり、`Ctrl+.` のクイックフィックスと `review` ワークスペースの一覧から辿れます。
 4. **キーボード完結の 9 ワークスペースと統一パレット**
    - `Alt+1`〜`Alt+9` で本文（`write`）・話プロット（`plot-episode`）・構成（`plot-outline`）・アイデア（`idea`）・資料（`material`）・配役（`cast`）・読者（`reader`）・エージェント（`agent`）・点検（`review`）を即座に切り替えられます。切替時も現在の節は維持されます。
    - `Ctrl+P` の統一パレットから先頭 1 文字（`@` 構造、`'` 辞書、`#` 資料、`>` コマンド）でプロジェクト内のあらゆる要素へジャンプできます。`Ctrl+G` の番号ジャンプ、`F5` の再読込、`?` のショートカット一覧もあります。
@@ -125,7 +125,7 @@ novnow形式は、小説をテキストデータでエクスポートする機�
 
 ## インストールと起動
 
-配布経路は、ブラウザ・GitHub Releases・PyPI・VSIX（GitHub Releases）・GitHub Actions のタグです。デスクトップは 10 通り（窓あり / なし × 5 つの OS・CPU）、Python ホイールは 5 通りです。各配布形態のv0.1.0を公開済みです。利用者向けの手順は [入れ方](./docs/users/install.md)、配布の決まりと手順は [distribution.md](./docs/distribution.md) にあります。
+配布経路は、ブラウザ・GitHub Releases・PyPI・VSIX（GitHub Releases）・GitHub Actions（`@v0` タグ）です。デスクトップは 10 通り（窓あり / なし × 5 つの OS・CPU）、Python ホイールは 5 通りです。各配布形態の v0.1.0 を公開済みです。利用者向けの手順は [入れ方](./docs/users/install.md)、配布の決まりと手順は [distribution.md](./docs/distribution.md) にあります。
 
 ソースからビルドすることもできます。Rust の stable ツールチェーンが必要です。
 
@@ -164,21 +164,21 @@ GUI でできることは、すべてヘッドレスからも操作できます�
 | CLI | `novnow new` / `check` / `export` / `import` / `migrate` / `api` / `mcp` / `lsp` | プロジェクト作成・診断・書き出し・移行・API 一覧。`novnow <domain> <verb> <dir>` の統一書式 |
 | LSP | `novnow lsp <dir>` | エディタから補完・ホバー・定義移動・診断・整形・折りたたみ（LSP 3.17） |
 | MCP | `novnow mcp <dir>` | AI クライアント向けの 14 ツール |
-| Python | `import novnow` | 同じ 119 の正規操作を Python から（PyO3・abi3-py39 のホイール） |
+| Python | `import novnow` | 同じ 121 の正規操作を Python から（PyO3・abi3-py39 のホイール） |
 | Rust | `novnow` クレート | `core` / `app` の API を直接利用 |
 
 ```bash
-novnow api list             # 119 の正規操作の一覧（--json で機械可読）
+novnow api list             # 121 の正規操作の一覧（--json で機械可読）
 novnow check my-novel       # 診断を出して終了する（エラーがあれば終了コード 5）
 novnow structure tree my-novel --json                    # 正規操作も --json で機械可読
 ```
 
 ## 仕様について
 
-エディタおよびnovnow形式の全ての仕様は、明文化されています。
+エディタと novnow形式の仕様は、次の 12 冊の仕様書に書いてあります。
 
 - [`overview.md`](./docs/specifications/overview.md): 設計原則・用語・アーキテクチャ
-- [`project.md`](./docs/specifications/project.md): プロジェクト構造・`project.json`・サンプル構成
+- [`project.md`](./docs/specifications/project.md): プロジェクト構造・`project.toml`・サンプル構成
 - [`syntax.md`](./docs/specifications/syntax.md): 各ファイルの構文仕様
 - [`semantics.md`](./docs/specifications/semantics.md): 辞書・最短一致・モード解決・役割語パターン言語
 - [`diagnostics.md`](./docs/specifications/diagnostics.md): 診断カタログ
@@ -192,11 +192,11 @@ novnow structure tree my-novel --json                    # 正規操作も --jso
 
 公式サイト（[https://sonneko.github.io/novnow/](https://sonneko.github.io/novnow/)）では、機能ガイド・診断コードの一覧・API リファレンスを読めます。仕様書はすべてこのリポジトリの [`docs/specifications/`](./docs/specifications/) にあり、実装と同じコミットで管理されています。
 
-開発に参加する場合は [`GUIDE.md`](./GUIDE.md)（ビルドと執筆の手順）と [`docs/developers.md`](./docs/developers.md)（開発環境・文書規則・検証手順）から始めてください。
+不具合の報告と提案の出し方は [`CONTRIBUTING.md`](./CONTRIBUTING.md) にあります（コードのプルリクエストは当面受け付けていません）。開発環境については [`GUIDE.md`](./GUIDE.md)（ビルドと執筆の手順）と [`docs/developers.md`](./docs/developers.md)（開発環境・文書規則・検証手順）から始めてください。
 
 
 ## ライセンスについて
 
-novnowはどなたでも無料で利用可能です。有料になることは決してありません。
+novnow は誰でも無料で使えます。有料にはなりません。
 
-「novnow形式」の仕様および「novnowエディタ」のソースコードは、両方とも`MIT License`で自由に利用できます。
+「novnow形式」の仕様と「novnowエディタ」のソースコードは、どちらも `MIT License` で自由に利用できます。

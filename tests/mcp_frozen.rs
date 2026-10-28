@@ -243,9 +243,9 @@ fn the_tool_table_is_the_frozen_fourteen_plus_every_operation_mcp_offers() {
         "ツール表が「凍結 14 + MCP が提供する操作」と一致しない"
     );
     // 内訳も固定する（`docs/history.md` のの H4 と設計書 §19.5 の記述の正本）
-    assert_eq!(offered + refused, 119, "カタログの全操作数");
+    assert_eq!(offered + refused, 121, "カタログの全操作数");
     assert_eq!(refused, 35, "「M—」で MCP が提供しない操作数");
-    assert_eq!(names.len(), 86, "ツール表の全件数（凍結 14 + 正規操作 72）");
+    assert_eq!(names.len(), 87, "ツール表の全件数（凍結 14 + 正規操作 73）");
     assert!(
         refused > 0 && offered > 0,
         "内訳が壊れている: offered={offered} refused={refused}"

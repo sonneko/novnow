@@ -1,6 +1,6 @@
 //! A 形式（アウトライン、§5.3）のパーサ。
 //!
-//! `plots/all.txt`（全体プロット）と `plots/AA.txt`（章プロット）は**同一形式**で、違いは
+//! `plots/all.cnov`（全体プロット）と `plots/AA.cnov`（章プロット）は**同一形式**で、違いは
 //! 見出しが指す階層だけである（§5.3 指示 11）。
 //!
 //! ```ebnf
@@ -22,10 +22,9 @@
 //! # フィールドと未知キー
 //!
 //! 行がフィールド行かどうかの判定は字句器（§5.0.5 の 7 段の手順）に任せ、このパーサは
-//! キーの表引き結果と値を木に載せる。§5.0.6 の表に無いキーは **W011** を出して**値を改変せずに
-//! 保持する**（`docs/history.md` の作業項目 2「これが ② の生命線」）。② のキー（`when` `space`
-//! `space-mode` `blurb` `senses` `illustration`）は ① の表に無いので、この経路でそのまま残る
-//! （`tests/lexer.rs` の `aliases_of_stage_two_keys_are_not_in_the_table` が固定している）。
+//! キーの表引き結果と値を木に載せる。§5.0.6 の表にあるキー（`when` `space` `space-mode`
+//! `blurb` `senses` `illustration` を含む 46 件）は [`crate::core::text::lexer::FieldKey`] として
+//! 解し、表に無いキーは **W011** を出して**値を改変せずに保持する**（縫い代 1・2）。
 //!
 //! 値が 2 行以上にわたる場合は継続行（§5.0.5）を使い、[`Field::extra`] に入る。
 //! [`Field::full_value`] は 1 行目と継続行を LF で連結した値を返す。継続行のインデントは
@@ -49,14 +48,16 @@
 //!
 //! # M2 で出さない診断
 //!
-//! - **W030**（プロットと本文の節数不一致、§5.4.2）: 2 ファイルを比べるので M4 の検査器。
+//! - **W030**（プロットと本文の節数不一致、§5.4.2）: 2 ファイルを比べる検査で、実装はまだ
+//!   発行しない（§7 の冒頭）。
 //! - **W080**（`when` の時系列矛盾、§5.3.5）・**E062**（`space` の外部パス、§5.3.6）・
-//!   **W083**（`senses` の偏り、§5.4.4）: いずれも ② のキーが絡むので ② の実装時。
+//!   **W083**（`senses` の偏り、§5.4.4）: プロジェクト全体を集計するので M4 の検査器
+//!   （`core::features::diagnose`）が出す。
 //! - `state` / `length` の値が形に合わないとき: §7 に対応コードが無いので診断せず、
 //!   [`Field::number`] が `None` を返す（`docs/history.md` B-39）。
 //! - 参照（`'名前`）の実体が無い・モードが無い: 辞書が要るので M3（§6.2・§6.4）。
 //!
-//! # `.txt` 3 形式の共通部
+//! # `.cnov` 3 形式の共通部
 //!
 //! 行末コメント（§5.0.2）・行頭空白の byte 位置・`mode_id` / `char_name` の形（§5.5）は
 //! A / B / C 形式で同じ規則なので、C 形式の [`super::contents`] のものをそのまま使う
@@ -93,7 +94,7 @@ const ARROW: &str = "->";
 /// 解析の設定。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Options {
-    /// このファイルの見出しの階層。`plots/all.txt` なら **1**、`plots/AA.txt` なら **2**。
+    /// このファイルの見出しの階層。`plots/all.cnov` なら **1**、`plots/AA.cnov` なら **2**。
     ///
     /// `None` なら**最初のブロックの見出し**から決める（§5.3.2「ファイル内の見出し階層は
     /// 揃っていること」）。どちらの場合も、揃わない見出しは **E020**。
@@ -223,7 +224,7 @@ pub enum Line<'a> {
     Continuation(Continuation<'a>),
     /// 自由記述（§5.3.1 `note_line`）。フィールドに当てはまらない行。
     Note(&'a str),
-    /// 行コメント（`//`、§5.0.2）。`# ` は ② なので ① では [`Line::Note`] になる。
+    /// 行コメント（`//` と `# `、§5.0.2・§5.0.8）。
     Comment(contents::CommentLine<'a>),
     /// 空行（空白だけの行を含む。`docs/history.md` B-34）。
     Blank(&'a str),
@@ -253,7 +254,7 @@ impl<'a> Line<'a> {
 
 /// 最初のブロック見出しより前の行（§5.3.1 `preamble`）。ファイル全体のメタ。
 ///
-/// §5.3.7 は `plots/all.txt` の前文の `blurb:` を**作品全体のあらすじ**とする。
+/// §5.3.7 は `plots/all.cnov` の前文の `blurb:` を**作品全体のあらすじ**とする。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Preamble {
     /// 行範囲（`Outline::lines` の中）。見出しが無ければ全行。
@@ -262,7 +263,7 @@ pub struct Preamble {
     pub fields: Vec<usize>,
 }
 
-/// 1 ブロック（§5.3.1 `block`）。章（`all.txt`）または話（`AA.txt`）。
+/// 1 ブロック（§5.3.1 `block`）。章（`all.cnov`）または話（`AA.cnov`）。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Block {
     /// 見出し行の index（`Outline::lines` の中）。
@@ -425,7 +426,7 @@ fn parse_line(raw: &str) -> Line<'_> {
     if raw.trim_matches(lexer::is_space).is_empty() {
         return Line::Blank(raw);
     }
-    // ①（[`Stage::One`]）で A 形式の行を読む。`! ` は C 形式専用（§5.2.5）なので現れない
+    // A 形式の行を読む。`! ` は C 形式専用（§5.2.5）なので現れない
     match lexer::classify_at_stage(raw, TextFormat::PlotOutline, lexer::Stage::One) {
         LineKind::Structure(_) => Line::Header(parse_header(raw)),
         LineKind::SectionBreak => Line::Break(contents::parse_break(raw)),

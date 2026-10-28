@@ -283,7 +283,7 @@ fn literals_are_escaped() {
 
 #[test]
 fn an_unknown_word_class_stays_a_literal() {
-    // `project.json` にも既定にも無いクラス名は括弧ごとリテラル（勝手に無視しない）
+    // `project.toml` にも既定にも無いクラス名は括弧ごとリテラル（勝手に無視しない）
     assert_eq!(
         role_language::to_regex(&pattern("(ほげ)"), &lexicon()),
         "\\(ほげ\\)$"
@@ -297,7 +297,7 @@ fn an_unknown_word_class_stays_a_literal() {
 
 #[test]
 fn a_word_class_from_the_project_wins_over_the_default() {
-    // §6.5.1「`project.json.lexicon.word_classes` で定義」
+    // §6.5.1「`project.toml.lexicon.word_classes` で定義」
     let defined = lexicon_with("体言", "[0-9]{1,3}");
     assert_eq!(
         role_language::to_regex(&pattern("(体言)！"), &defined),
@@ -314,8 +314,8 @@ fn a_word_class_from_the_project_wins_over_the_default() {
 
 #[test]
 fn a_broken_word_class_regex_is_dropped_without_stopping_the_others() {
-    // §6.5.1（第 2.9 版）: そのクラスを使うパターンだけを捨てる。報告は project.json 側の
-    // E027（A-24、tests/project_json.rs）。§4.3-4「起動失敗にしない」
+    // §6.5.1（第 2.9 版）: そのクラスを使うパターンだけを捨てる。報告は project.toml 側の
+    // E027（A-24、tests/project_toml.rs）。§4.3-4「起動失敗にしない」
     let broken = lexicon_with("体言", "[");
     assert_eq!(broken.invalid_word_classes(), vec!["体言"]);
     assert!(Matcher::new(&pattern("(体言)！"), &broken).is_none());
@@ -557,11 +557,17 @@ fn dialogue_spans_of_plain_text_is_empty() {
 }
 
 #[test]
-fn an_unclosed_quote_runs_to_the_end() {
+fn an_unclosed_quote_runs_to_the_line_end() {
     let text = "「書きかけの台詞";
     assert_eq!(
         slices(text, &role_language::dialogue_spans(text)),
         vec!["書きかけの台詞"]
+    );
+    // 行をまたがない（閉じ忘れの 1 つで以降の行を台詞にしない）
+    let lines = "地の文\n「書きかけ\n地の文\n";
+    assert_eq!(
+        slices(lines, &role_language::dialogue_spans(lines)),
+        vec!["書きかけ"]
     );
     // 種類の違う閉じ括弧は閉じない
     let mixed = "「静粛に！』と続くだよ！";

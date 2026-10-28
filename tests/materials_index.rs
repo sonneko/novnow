@@ -218,7 +218,7 @@ fn a_reader_like_unknown_key_is_not_read_but_kept() {
 #[test]
 fn a_path_outside_materials_reports_e024() {
     for path in [
-        "contents/01-01.txt",
+        "contents/01-01.cnov",
         "../secret.md",
         "/etc/passwd",
         "materials/../x.md",
@@ -376,9 +376,9 @@ fn material_ids_read_a_one_char_prefix() {
 }
 
 #[test]
-fn only_m_is_a_stage_one_prefix() {
-    assert!(MaterialId::parse("M0137").unwrap().is_stage_one_prefix());
-    assert!(!MaterialId::parse("S0042").unwrap().is_stage_one_prefix());
+fn only_m_is_the_material_prefix() {
+    assert!(MaterialId::parse("M0137").unwrap().is_material_prefix());
+    assert!(!MaterialId::parse("S0042").unwrap().is_material_prefix());
 }
 
 // ============================================================ 壊れた入力（完了条件 3）

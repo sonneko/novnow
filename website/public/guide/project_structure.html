@@ -56,7 +56,7 @@ footer { max-width: 46rem; margin: 3rem auto 0; padding-top: 1rem; border-top: 1
 <p>デスクトップ版ならフォルダをそのままコピーして引っ越せますし、Git で履歴も残せます。 ブラウザ版では、同じ構成をブラウザの中（IndexedDB）に持ちます。</p>
 <h2 id="全体">全体</h2>
 <pre><code>わたしの作品/
-├── project.json      作品の設定（題名・言語など）
+├── project.toml      作品の設定（題名・言語など）
 ├── characters.md     人物・モード・役割語
 ├── words.md          用語の辞書
 ├── ideas.md          アイデアのメモ
@@ -74,27 +74,27 @@ footer { max-width: 46rem; margin: 3rem auto 0; padding-top: 1rem; border-top: 1
 <th>何が入るか</th>
 </tr></thead><tbody>
 <tr>
-<td><code>contents/01-04.txt</code></td>
+<td><code>contents/01-04.cnov</code></td>
 <td>1 章 4 話の本文</td>
 </tr>
 <tr>
-<td><code>contents/00-01.txt</code></td>
+<td><code>contents/00-01.cnov</code></td>
 <td>章に入れていない話（置き場）</td>
 </tr>
 <tr>
-<td><code>contents/01-00.txt</code></td>
+<td><code>contents/01-00.cnov</code></td>
 <td>1 章のあらすじ</td>
 </tr>
 <tr>
-<td><code>plots/all.txt</code></td>
+<td><code>plots/all.cnov</code></td>
 <td>作品全体の流れ</td>
 </tr>
 <tr>
-<td><code>plots/01.txt</code></td>
+<td><code>plots/01.cnov</code></td>
 <td>1 章の流れ</td>
 </tr>
 <tr>
-<td><code>plots/01-04.txt</code></td>
+<td><code>plots/01-04.cnov</code></td>
 <td>1 章 4 話のプロット</td>
 </tr>
 </tbody></table>
@@ -104,7 +104,7 @@ footer { max-width: 46rem; margin: 3rem auto 0; padding-top: 1rem; border-top: 1
 <p>Git には入れません（<code>novnow new</code> が最初から除外しています）。</p>
 <h2 id="触るときの注意">触るときの注意</h2>
 <ul>
-<li><code>project.json</code> は書き換えても構いませんが、形を崩すと開けなくなります。</li>
+<li><code>project.toml</code> は書き換えても構いませんが、形を崩すと開けなくなります。</li>
 </ul>
 <p>手で直すときは、元の形をコピーして残しておいてください。</p>
 <ul>

@@ -16,7 +16,29 @@ from urllib.parse import unquote, urljoin, urlsplit
 
 ORIGIN = "https://sonneko.github.io"
 BASE = "/novnow/"
-VERSION = tomllib.loads((Path(__file__).resolve().parents[1] / "Cargo.toml").read_text())["package"]["version"]
+ROOT = Path(__file__).resolve().parents[1]
+# 開発版の版（`Cargo.toml`）と、サイトが名乗る版（公開済みの版）は別物である。
+# `docs/developers.md` の規則どおり `REF:website/src/data/release.ts` は公開物を確認してから
+# 上げるので、版更新 PR から公開までの間は 2 つが食い違う。見出しは公開済みの版を出すのが
+# 正しいので（未公開の版を「公開済み」として案内しない）、検査もそちらと比べる。
+DEV_VERSION = tomllib.loads((ROOT / "Cargo.toml").read_text())["package"]["version"]
+RELEASE_DATA = ROOT / "website/src/data/release.ts"
+
+
+def published_version() -> str:
+    """Return the version the site announces (the published release, from release.ts)."""
+    found = re.search(r'export const version = "([^"]+)"', RELEASE_DATA.read_text(encoding="utf-8"))
+    if not found:
+        raise SystemExit(f"{RELEASE_DATA.name} に公開済みの版（export const version）が無い")
+    return found.group(1)
+
+
+def version_key(version: str) -> tuple[int, ...]:
+    """Numeric key, so 'the site is ahead of the development version' is detectable."""
+    return tuple(int(part) for part in re.split(r"[.+-]", version) if part.isdigit())
+
+
+VERSION = published_version()
 
 
 class Page(HTMLParser):
@@ -90,9 +112,14 @@ def resolve(root: Path, page_url: str, reference: str, website_only: bool):
     return target, unquote(url.fragment), None
 
 
-def audit(root: Path, website_only: bool = False) -> tuple[int, list[str]]:
+def audit(root: Path, website_only: bool = False, version: str | None = None) -> tuple[int, list[str]]:
     pages = {p: Page(p.read_text(encoding="utf-8")) for p in root.rglob("*.html")}
     errors = []
+    version = version or VERSION
+    if version_key(version) > version_key(DEV_VERSION):
+        errors.append(
+            f"{RELEASE_DATA.name}: 公開済みの版 {version} が開発版 Cargo.toml {DEV_VERSION} より新しい"
+        )
     if not pages:
         return 0, [f"no HTML pages in {root}"]
     for path, page in pages.items():
@@ -111,8 +138,8 @@ def audit(root: Path, website_only: bool = False) -> tuple[int, list[str]]:
         # A language switch must preserve the current article, not silently go
         # back to the catalog. Excludes the separately generated app guide.
         if relative.startswith(("ja/", "en/")):
-            if f"v{VERSION}" not in "".join(page.header_text):
-                errors.append(f"{relative}: header version differs from Cargo.toml")
+            if f"v{version}" not in "".join(page.header_text):
+                errors.append(f"{relative}: header version differs from {RELEASE_DATA.name}")
             if not page.has_notice:
                 errors.append(f"{relative}: compatibility notice missing")
             suffix = relative[3:].removesuffix("index.html").rstrip("/")

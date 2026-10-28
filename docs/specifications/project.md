@@ -2,24 +2,24 @@
 
 ## 4. プロジェクト構造
 
-### 4.1 ディレクトリレイアウト（v0.1.0）
+### 4.1 ディレクトリレイアウト
 
 ```
 [title]/
-├── project.json              必須。機械可読のプロジェクト設定（§4.5）
+├── project.toml              必須。機械可読のプロジェクト設定（§4.5）
 ├── characters.md             必須。キャラ・モード・役割語（§5.5）
 ├── words.md                  必須。用語辞書（§5.6）
 ├── ideas.md                  任意（無ければ自動生成）。アイデア（§5.7）
 ├── contents/                 必須（空でも可）。本文 = C 形式
-│   ├── 00-01.txt             「00 章」= 未配属ストック（§5.1.2）
-│   ├── 01-00.txt             「00 話」= 章あらすじの本文（§5.1.2）
-│   ├── 01-01.txt
-│   └── 01-04.txt
+│   ├── 00-01.cnov            「00 章」= 未配属ストック（§5.1.2）
+│   ├── 01-00.cnov            「00 話」= 章あらすじの本文（§5.1.2）
+│   ├── 01-01.cnov
+│   └── 01-04.cnov
 ├── plots/                    必須
-│   ├── all.txt               必須。全体プロット = A 形式（章を記述）
-│   ├── 00.txt                ストック用プロット = A 形式（任意）
-│   ├── 01.txt                章プロット = A 形式（話を記述。先頭に @01-00 あらすじブロック）
-│   └── 01-04.txt             話プロット = B 形式（場面・節を記述）
+│   ├── all.cnov              必須。全体プロット = A 形式（章を記述）
+│   ├── 00.cnov               ストック用プロット = A 形式（任意）
+│   ├── 01.cnov               章プロット = A 形式（話を記述。先頭に @01-00 あらすじブロック）
+│   └── 01-04.cnov            話プロット = B 形式（場面・節を記述）
 ├── materials/                必須
 │   ├── index.json            必須。資料インデックス（§5.8）
 │   ├── docs/
@@ -27,7 +27,7 @@
 │   │   └── S0042-search.md   検索結果の保存（§16.3.1）
 │   └── inbox/                提案中の資料
 ├── assets/                   任意。プロジェクト内の小さな付随ファイル
-│   └── icons/megumi.png      キャラアイコン（§5.5.3）。デスクトップ版のみ
+│   └── icons/megumi.png      キャラアイコン（§5.5.3）
 ├── prompts/                  任意（無ければ既定を自動生成）。AI プロンプト（§5.9）
 │   ├── writer.md  plotter.md  ideator.md
 │   ├── researcher.md  stylist.md  logician.md  integrator.md
@@ -50,17 +50,21 @@
     └── cache/
 ```
 
+拡張点: `assets/` は novnow の文書形式の外にある付随ファイルの置き場所であり、画像などの将来の拡張はここを土台にする。資料の出典種別（§5.8）などの拡張余地は各節が明示する。プロジェクト内の未知ファイルを壊さない規則（§4.3、§13.5）が、こうした拡張をあとから入れるための前提である。外部のソフトウェア（連携ツールなど）が読む安定面は、このファイル形式と §19 の API である。本体はバージョン管理そのものは実装せず、プロジェクトを通常のフォルダとして扱う素朴さを守る。
+
+**`assets/` の中身の扱い**: 起動時に `assets/` 配下のファイルを読み込み、アイコンの表示（§5.5.3）に使う（`space:` の外部ファイルは `assets/` も含むテキストとして読む。§5.3.6）。1 ファイル **256KB** を超えるものは中身を保持しない（アイコンなら W069。§5.5.3）。デスクトップ版はファイルをそのまま読み、Web 版は IndexedDB の `bytes`（Zip の取り込みで入ったもの）から読む（§13.3.2）。したがってどちらの版でもアイコンは表示できる。
+
 ### 4.2 必須 / 任意の判定表
 
 起動時スキャン（§14）での扱い。
 
 | パス | 種別 | 欠けている場合 |
 |---|---|---|
-| `project.json` | 必須ファイル | **E 起動失敗** |
+| `project.toml` | 必須ファイル | **E 起動失敗** |
 | `characters.md` | 必須ファイル | **E 起動失敗** |
 | `words.md` | 必須ファイル | **E 起動失敗** |
 | `materials/index.json` | 必須ファイル | **E 起動失敗** |
-| `plots/all.txt` | 必須ファイル | **E 起動失敗** |
+| `plots/all.cnov` | 必須ファイル | **E 起動失敗** |
 | `contents/` | 必須ディレクトリ | **E 起動失敗** |
 | `plots/` | 必須ディレクトリ | **E 起動失敗** |
 | `materials/docs/` | 任意ディレクトリ | 無言で作成 |
@@ -71,23 +75,43 @@
 
 「無言で作成」も **書き込みはプロジェクトルート配下に限る**（§13.1）。読み取り専用メディア上では作成を省略し、W041 を出して続行する。
 
+**読み取り専用の判定（W041）**: 開いたときに **プロジェクトの中へ 1 回だけ試し書き**をして決める
+（`.novnow/` の下に空の `.write-probe` を作り、すぐ消す。作った `.novnow/` が元から無ければ一緒に消す）。
+モードビット（`-w`）ではなく実際に書けるかを見るのは、読み取り専用でマウントされた媒体・
+書き込みを拒否するサンドボックス・容量の尽きた領域を同じ扱いにするためである。パスはプロジェクトの
+中だけ（§13.1）で、失敗しても何も残らない。判定はプロセス（`Session`）ごとに 1 回で、毎回は試さない。
+書き込みを試す判定なので、**`novnow check` も 1 回だけ書く**（`check` の方針「何も書かない」の例外。
+書けなければ何も書かない）。読み取り専用のときの挙動:
+
+- 自動作成（`ideas.md` / `materials/docs/` / `agents/` / `exports/` / `.novnow/`）と、既定プロンプトの
+  書き出し（§15.5.4 の I050）を**しない**（作成を省略して続行する）。
+- **W041** を出す。出す場所は、`novnow check` の 1 行（`<ルート>: W041 文言`）、`project.validate` と
+  `diagnostics.run`（`scope` を指定しないプロジェクト全体のとき）の `diagnostics` の 1 件（`path` は空、
+  `line` / `column` は 0）、GUI を開いたときのステータスバーの通知の 3 つ。波線は出さない
+  （文書の中の位置を持たない、§7.1 と同じ扱い）。
+- 編集・保存は**試すだけ**（保存を試みて失敗したら `SaveFailed`。§8.2）。W041 を理由に編集を止めない。
+
+**実装状況の注記**: いま自動作成を行うのは `novnow new`（テンプレート一式）と、`prompts/` の欠けた既定プロンプト（開いたときと `novnow mcp` の起動時。§15.5.4。I050 を通知）だけである。既存プロジェクトを開いたときの `ideas.md` / `materials/docs/` / `agents/` の「無言で作成」は**未実装**。無い任意のパスは「無い」まま動く（`ideas.md` が無ければ着想は空、`materials/docs/` が無ければ資料ファイルを置く場所が無いだけ）。
+
 ### 4.3 プロジェクト妥当性の判定
 
 1. 必須パスの存在確認（上表）。欠落が 1 件でもあれば `ProjectError::Incomplete { missing: Vec<PathBuf> }`。
-2. `project.json` の `schema_version` 検査。
-   - `1`（または省略）→ OK
-   - `>1` → `ProjectError::TooNew { found }`（novnow 本体の更新が必要）
-3. 文字コード検査: すべての `.md` / `.txt` / `.json` が UTF-8 として妥当。不正バイトがあれば該当ファイルを列挙して `ProjectError::Encoding`。
-4. 以降のパース失敗（構文エラー）は **起動失敗にしない**。診断として表示し（**JSON がパースできないときは E025**、§7）、該当ファイルは「部分的に壊れた文書」として開く（P4: 作家の原稿を人質に取らない）。**原文は書き換えない**（MUST）。
+2. `project.toml` の `schema_version` 検査。
+   - `2`（または省略）→ OK
+   - `>2` → `ProjectError::TooNew { found }`（novnow 本体の更新が必要）
+3. 文字コード検査: 文書として認識するすべてのファイル（§5.0.9）が UTF-8 として妥当。不正バイトがあれば該当ファイルを列挙して `ProjectError::Encoding`。
+4. 以降のパース失敗（構文エラー）は **起動失敗にしない**。診断として表示し（**JSON / TOML がパースできないときは E025**、§7）、該当ファイルは「部分的に壊れた文書」として開く（P4: 作家の原稿を人質に取らない）。**原文は書き換えない**（MUST）。
+5. 仕様が定義しないファイル・ディレクトリ（§5.0.9 が文書として認識しないものを含む）は妥当性判定の対象にしない。novnow が書くのは仕様が定義するパスだけで、未知のものを削除・改名・上書きしない（MUST）。旧形式のファイル（`project.json`、`contents/*.txt`、`plots/*.txt`）も未知のファイルとして扱うため、旧形式のプロジェクトを開くと必須ファイルの不足として通常のエラーになる。旧形式の特別検出や自動変換は行わない。
 
 補足:
 
-- `project.json` が JSON として読めない（または `schema_version` が数でない）ときは 2. を飛ばす。版が読めないことは起動失敗にせず、4. のとおり E025 を出して既定値で開く。
-- core は I/O を持たない（§3.2）。存在するパスの一覧・`project.json` の中身・UTF-8 として不正なファイルの一覧はストレージ層（adapters）が集めて渡し、`validate` は判定だけを行う。Web（IndexedDB、§13.3）にはディレクトリが無いので、必須ディレクトリは常に存在するものとして扱う。
+- `project.toml` が TOML として読めない（または `schema_version` が数でない）ときは 2. を飛ばす。版が読めないことは起動失敗にせず、4. のとおり E025 を出して既定値で開く。壊れた `project.toml` は上書きしない（§4.5）。
+- core は I/O を持たない（§3.2）。存在するパスの一覧・`project.toml` の中身・UTF-8 として不正なファイルの一覧はストレージ層（adapters）が集めて渡し、`validate` は判定だけを行う。Web（IndexedDB、§13.3）にはディレクトリが無いので、必須ディレクトリは常に存在するものとして扱う。
 
 ### 4.4 `.novnow/`（ローカル状態）
 
 プロジェクト内に置くが、VCS へのコミットは推奨しない（`novnow new` が生成する `.gitignore` に `.novnow/` と `exports/` を含める）。
+`.novnow/` に置くのは、揃える必要のない個人の表示・操作の好みと、全 feature に共通する粗い表示設定に限る。診断の有効性やエラー扱いなどの feature 単位の設定は、作品として揃える設定として `project.toml` の `[features]`（§4.5.2）に置き、ここには置かない。
 
 #### 4.4.1 `.novnow/ui.json`
 
@@ -97,13 +121,14 @@
   "theme": "system",
   "language": "system",
   "reference_pane_side": "right",
-  "workspace": "write",
   "last_scene": "01-04-02-03",
   "pane_ratio": { "main": 0.62, "context_view": 0.55 },
   "font_scale": 1.0,
   "inlay_hints": true,
   "suggest_comma": false,
   "status_stats_mode": false,
+  "confirm_section_delete": true,
+  "guide_done": false,
   "context_sections": 3,
   "autosave_ms": 400,
   "folded": { "outline": ["@02", "@03"], "context_view": [] }
@@ -113,7 +138,29 @@
 `autosave_ms`: 自動保存までの打鍵の間隔（§8.2、200–2000、既定 400。範囲外は丸める）。
 `suggest_comma`: 自動句切れ提案（§9.4.3、既定 `false`）。
 `status_stats_mode`: ステータスバーの統計モード（§9.6.3、既定 `false`）。
-`folded`: 折りたたみ状態（§9.3.3）。
+`confirm_section_delete`: 空でない節の削除前に確認するか（§8.1.2、既定 `true`）。
+`guide_done`: はじめての手引きを閉じたか（§9.10、既定 `false`）。`true` なら自動では出さない。
+知らないキーは**読んだまま書き戻す**（将来のキーを、古い版が消してしまわないため）。
+範囲を持つキーは、範囲外の値を読んだときに読み捨てるか範囲へ丸める（`pane_ratio`・`font_scale`・`autosave_ms`・`max_line_chars` は丸め、`context_sections` は範囲外なら既定 `3` のまま）。型の違う値は読み捨てる。
+
+| キー | 既定 | 範囲 |
+|---|---|---|
+| `pane_ratio.main` | `0.62` | `0.3`–`0.85` |
+| `pane_ratio.context_view` | `0.55` | `0.2`–`0.8` |
+| `font_scale` | `1.0` | `0.8`–`1.6`（`Ctrl+Plus` / `Ctrl+Minus` は 0.1 刻み） |
+| `context_sections` | `3` | `1`–`9` |
+| `autosave_ms` | `400` | `200`–`2000` |
+| `max_line_chars` | 表示言語ごと（§4.4.5） | `20`–`120` |
+
+`folded`: 折りたたみ状態（§9.3.3）。2 つの配列を持つ。
+
+| キー | 内容 |
+|---|---|
+| `outline` | 構成ツリー（§10.3.1）で**話を展開している章**の鍵（`@NN`）。構成ツリーは既定で畳んだ状態から始まるので、開いている章を並べる（§9.3.3 の注記） |
+| `context_view` | 文脈ビュー（§9.3）で**畳んでいる節**の鍵（`@AA-BB-CC-DD`）。現在の節を含む単位（鍵が現在の節 ID の接頭辞）は保存しない（§9.3.3「現在の節を含む単位は畳めない」） |
+
+- 既に無い章・節の鍵は、描画で参照されないだけなので害は無い（起動時に消しには行かない。ファイルを書き換えない、§4.5）。
+- 旧名 `folded.context` は**読むときだけ**受け付ける（書き出しは常に `context_view`）。
 **このファイルが存在しない／壊れている場合は既定値で起動し、エラーを出さない**（MUST）。
 
 #### 4.4.2 `.novnow/stats.json`（執筆統計の最小メタデータ）
@@ -140,75 +187,104 @@
 
 #### 4.4.3 `.novnow/reader.json`
 
-読者モードの読書位置・文字サイズ・列数・しおりを保持する。原稿・共有設定とは独立したローカル状態であり、削除しても読書位置が初期化されるだけである。未知のキーは保持する。
+読者モードの読書位置・文字サイズ・列数・しおりを保持する。原稿・共有設定とは独立したローカル状態であり、
+削除しても読書位置が初期化されるだけである。未知のキーは保持する（読み書きのたびに温存し、既知のキーだけ上書きする）。
+
+| キー | 型 | 既定 | 範囲（外は丸める） | 意味 |
+|---|---|---|---|---|
+| `episode` | 整数 | `0` | 話数に収める | 開いている話（章・話の昇順に並べた索引。パス順ではない） |
+| `page` | 整数 | `0` | — | 話の中のページ |
+| `font_size` | 実数 | `20.0` | `12.0`〜`36.0` | 本文の文字サイズ（`.novnow/ui.json` の `font_scale` とは独立、§17.3） |
+| `columns` | 整数 | `18` | `5`〜`40` | 縦書きの列数（横書きでは 1 行の字数の目安） |
+| `vertical` | 真偽 | `true` | — | 縦書き（`false` で横書き） |
+| `ruby` | 真偽 | `true` | — | ルビを表示する |
+| `dark` | 真偽 | `false` | — | 読者モードだけ暗色にする |
+| `bookmarks` | 配列 | 空 | — | しおり。`[[文書パス, ページ], …]` の配列で、`b` を押すと今の位置を付け外しする（同じ組があれば外す）。§17.3.4 |
+
+- 既定値の出どころは `project.toml` の `[reader]`（§4.5）が先で、`reader.json` にキーが無いときだけ使う。
+  ただし `columns` は `reader.json` → `[reader] columns` → `18`、`ruby` は `reader.json` → `[reader] ruby` → `true` の順。
+  **1 段の字数（行数）は `reader.json` には持たず**、`[reader] chars_per_column`（既定 42、`10`〜`80`）だけを見る。
+- 壊れた JSON（オブジェクトでない・読めない）は空の設定として扱い、既定で開く（診断は出さない。§4.4 冒頭）。
+- 保存は整形した JSON（2 字下げ）＋ 末尾の改行。値が変わったときだけ書く。
 
 #### 4.4.4 `.novnow/cache/`
 
 解析キャッシュ（再生成可能。削除しても動作に影響してはならない）。
 
-#### 4.4.4 本文の 1 行最大文字幅（`max_line_chars`）〔状態: 実装完了〕
+#### 4.4.5 本文の 1 行最大文字幅（`max_line_chars`）〔状態: 実装完了〕
 
 - `.novnow/ui.json` に任意キー `max_line_chars`（整数、有効範囲 `20..=120`、範囲外はクランプ）を追加する。
 - 未指定時の既定値は、日本語表示（`ja`）では全角 **44 字**相当、英語表示（`en`）では半角 **70 字**前後相当とし、言語ごとの字面幅に応じて右側に不自然な余白が残らないようにする。コマンドパレットからも変更できる。
 
-### 4.5 `project.json` スキーマ（v0.1.0）
+### 4.5 `project.toml` スキーマ（schema_version 2）
 
-```json
-{
-  "schema_version": 1,
-  "title": "星屑の時計",
-  "author": "",
-  "content_encoding": "utf-8",
-  "newline": "lf",
-  "structure": {
-    "scene_id_format": "A-B-C-D",
-    "chapter_digits": 2,
-    "episode_digits": 2,
-    "scene_digits": 2,
-    "section_digits": 2,
-    "allow_chapter_zero": true
-  },
-  "writing": {
-    "section_target_chars": 400,
-    "section_warn_chars": 1200,
-    "episode_target_chars": 6000,
-    "manuscript_page_chars": 400,
-    "max_consecutive_speeches": 3,
-    "dialogue_ratio_target": 0.3,
-    "long_sentence_chars": 120,
-    "particle_run_threshold": 4
-  },
-  "lexicon": {
-    "word_classes": {
-      "体言": "[\\p{Han}\\p{Katakana}\\p{Hiragana}A-Za-z0-9ー]{1,24}"
-    }
-  },
-  "export": {
-    "paragraph_break": "blank-line",
-    "indent_first_line": false,
-    "keep_ruby": true,
-    "insert_headings": false,
-    "include_blurb": false,
-    "newline": "crlf"
-  },
-  "reader": { "columns": 18, "chars_per_column": 42, "ruby": true },
-  "agents": {
-    "enabled": true,
-    "delegation": "propose",
-    "roles": {},
-    "limits": { "max_tasks_per_session": 100, "max_chain_hops": 10, "max_input_chars_per_session": 2000000 },
-    "max_chars_per_request": 12000,
-    "integrator": "human",
-    "max_parallel": 2,
-    "custom_roles": [],
-    "local_llm": { "enabled": false, "url": "http://localhost:11434", "model": "" }
-  }
-}
+```toml
+schema_version = 2
+title = "星屑の時計"
+author = ""
+content_encoding = "utf-8"
+newline = "lf"
+
+[structure]
+scene_id_format = "A-B-C-D"
+chapter_digits = 2
+episode_digits = 2
+scene_digits = 2
+section_digits = 2
+allow_chapter_zero = true
+
+[writing]
+section_target_chars = 400
+section_warn_chars = 1200
+episode_target_chars = 6000
+manuscript_page_chars = 400
+max_consecutive_speeches = 3
+dialogue_ratio_target = 0.3
+long_sentence_chars = 120
+particle_run_threshold = 4
+
+[lexicon.word_classes]
+"体言" = '[\p{Han}\p{Katakana}\p{Hiragana}A-Za-z0-9ー]{1,24}'
+
+[export]
+paragraph_break = "blank-line"
+indent_first_line = false
+keep_ruby = true
+insert_headings = false
+include_blurb = false
+newline = "crlf"
+
+[reader]
+columns = 18
+chars_per_column = 42
+ruby = true
+
+[agents]
+enabled = true
+delegation = "propose"
+max_chars_per_request = 12000
+integrator = "human"
+max_parallel = 2
+custom_roles = []
+
+[agents.roles]
+
+[agents.limits]
+max_tasks_per_session = 100
+max_chain_hops = 10
+max_input_chars_per_session = 2000000
+
+[agents.local_llm]
+enabled = false
+url = "http://localhost:11434"
+model = ""
 ```
 
-- 未知キーは **保存時に温存**（MUST）。novnow は未知キーを削除してはならない。
+- 形式は TOML とし、スキーマの版は `schema_version = 2`（整数）。コメント（`#`）を書いてよい。
+- 書き戻しは **無損失編集**とする。アプリが変更したキー以外は、コメント・書式・キー順・未知キーとその値をそのまま保持する（MUST）。未知キーは保存時に温存し、novnow は未知キーを削除してはならない（MUST）。
+- TOML として読めない場合は E025 を出して既定値で開き、そのファイルは **上書きしない**（MUST、§4.3）。
 - `title` が空文字のときは、表示上のタイトルにディレクトリ名を使う。
-- `newline` は保存時の改行コード。`"lf" | "crlf"`。既定 `lf`。
+- `newline` は保存時の改行コード。`"lf" | "crlf"`。既定 `crlf`（上の例のとおり。`[export]` を書かないプロジェクトは `crlf` になる）。
 
 #### 4.5.1 追加キーの意味
 
@@ -238,6 +314,20 @@
 | `max_chain_hops` | `10` | エージェント間連鎖のホップ数上限（§15.6）。人間が起こしたタスクから数え、自動で起こすたびに 1 |
 | `max_input_chars_per_session` | `2,000,000` | 1 セッションの入力文字数上限（コストの暴走止め） |
 
+#### 4.5.2 `[features]`（feature 単位の設定）
+
+作品として揃えるべき意味・検証のオン・オフは、すべて `project.toml` の `[features]` に置く。個人の表示設定（§4.4）には置かない。
+
+**診断（`[features.diagnostics]`）**: 値は `"off"`（出さない）/ `"warn"`（警告として出す）/ `"error"`（エラーとして扱う）の 3 値。診断コードごとに、次の順で最初に見つかった値を適用する。
+
+1. 個別の診断コード（例: `W083 = "off"`）
+2. グループ: `structure`（§7）/ `storage`（§7.1）/ `writing`（§7.2）
+3. `default`
+
+どれも無ければ、各コードの組み込み既定（§7〜§7.2 の各表の深刻度と既定）に従う。`"off"` の診断は件数にも含めない。この設定が変えるのは診断の有効性とエラー扱いだけであり、文法・名前解決・保存の規則は変えない。
+
+**操作系 feature**: `[features]` の直下に真偽値で置く。個々のキー名と既定値は、それぞれの機能を定義する節が定める。書かないキーは組み込み既定である。
+
 ---
 
 
@@ -247,14 +337,14 @@
 
 ```
 sample/
-  project.json
+  project.toml
   characters.md          アルス（モード A/B）、リリア（モード A/B/C）、学院長（モード A）
   words.md               星屑の時計 / 魔法学院 / 旧校舎
   ideas.md               I0001 学院長の動機（inbox）
-  contents/01-04.txt     既存の本文（`'『…』` は `『'…』` に直した v0.1.0 版）
-  plots/all.txt          @01, @02 の 2 ブロック（summary 必須）
-  plots/01.txt           @01-04 を含む話ブロック
-  plots/01-04.txt        @01-04-01, @01-04-02（mode: と check: と material: の実例つき）
+  contents/01-04.cnov    既存の本文（`'『…』` は `『'…』` に直した v0.1.0 版）
+  plots/all.cnov         @01, @02 の 2 ブロック（summary 必須）
+  plots/01.cnov          @01-04 を含む話ブロック
+  plots/01-04.cnov       @01-04-01, @01-04-02（mode: と check: と material: の実例つき）
   materials/index.json   M0001 を 1 件（source.kind = custom）
   materials/docs/M0001-kyukousha.md
   prompts/               既定 7 本

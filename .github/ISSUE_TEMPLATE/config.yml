@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 貢献案内（報告・提案の出し方）
+    url: https://github.com/sonneko/novnow/blob/develop/CONTRIBUTING.md
+    about: コードの PR は当面受け付けていません。Issue の出し方はこちら。
+  - name: 既知の問題
+    url: https://github.com/sonneko/novnow/blob/develop/docs/known-issues/ja.md
+    about: 公開済みの版で確認されている未解消の問題の一覧。

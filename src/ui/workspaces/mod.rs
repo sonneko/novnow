@@ -4,7 +4,7 @@
 //!   追加仕様 #27、`agent`（`Alt+8`）は M10 で有効にした（`docs/history.md` B-126）。
 //! - 切替で **SceneId は変わらない**（MUST）。各ワークスペースは自分の状態（選んでいる行・開いている
 //!   文書）を `Session` の中に持ち続け、切替で破棄・再構築しない（§10.0「事前計算」）。初めて開く
-//!   ワークスペースだけ、今の節の対応物に着地する（`Ctrl+Shift+1..9` の強制持ち越しは ②）。
+//!   ワークスペースだけ、今の節の対応物に着地する。`Ctrl+Shift+1..9`（強制持ち越し）は未実装。
 //! - 切替は保存のきっかけ（§8.2「ワークスペース切替」）。確認ダイアログは出さない。
 //!
 //! 状態の規則（どれが選べるか・直前はどれか）は egui に依存しない [`Switcher`] に置き、描画は
@@ -18,14 +18,20 @@ use crate::ui::i18n::Locale;
 use crate::ui::settings::PaneSide;
 use crate::ui::theme::{self, Mode};
 
+pub mod addresses;
 pub mod agent;
 pub mod cast;
 pub mod idea;
+pub mod local_llm;
 pub mod material;
 pub mod plot_episode;
 pub mod plot_outline;
+pub mod proposals;
+pub mod reader;
+pub mod regex_search;
 pub mod review;
-pub mod stage_two;
+pub mod stats;
+pub mod tabs;
 
 pub use crate::app::workspace::{Switcher, Workspace};
 
@@ -65,12 +71,12 @@ pub struct View {
     pub reference: Option<(PaneSide, f32)>,
     /// インレイヒントを出すか（`ui.json.inlay_hints`、`Alt+H`。§6.6.2）。
     pub inlay_hints: bool,
-    /// A modal/command palette is receiving arrows instead of the list.
+    /// 重ね物やコマンドパレットが矢印を受け取っていて、一覧には渡らない状態。
     pub overlay: bool,
 }
 
-/// Unmodified arrows browse list rows only when no text editor or overlay owns the keys.
-/// Structural Alt+arrows still commit and open the destination.
+/// 修飾なしの矢印で一覧の行を辿れるのは、テキストの入力欄も重ね物もキーを持っていないときだけ。
+/// 構造を動かす `Alt+矢印` は、これまでどおり確定して移動先を開く（§9.8.2）。
 pub(super) fn browse_keys(ctx: &egui::Context, view: &View) -> Option<bool> {
     if view.overlay || ctx.wants_keyboard_input() {
         return None;
@@ -96,6 +102,7 @@ impl View {
                 44
             },
             inlay: self.inlay_hints.then_some(self.locale),
+            field_state: crate::ui::widgets::FieldState::Normal,
         }
     }
 }
@@ -103,7 +110,7 @@ impl View {
 /// ワークスペースの描画から `NovnowApp` に頼むこと（マウスでの操作。キーは `Command` で来る）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Request {
-    /// Expose a keyboard-only action as a visible button.
+    /// キーボードだけで届く操作を、押せるボタンとしても見せる（F-32）。
     Shortcut(crate::ui::shell::Command),
     /// `Ctrl+Enter` と同じ（下の段へ降りる・昇格・採用など）。
     Down,
@@ -113,8 +120,19 @@ pub enum Request {
     Notice(String),
     /// 参照ペインの資料の候補を、今の節のプロットの `material:` に足す（§10.2・§16.4、B-136）。
     AppendMaterial(String),
-    /// Open the full source material instead of modifying a plot.
+    /// プロットを書き換えるのではなく、資料の全文を開く（§9.5.5・`Ctrl+Shift+W` 相当）。
     OpenMaterial(String),
+    /// 参照ペインの行からの移動（§9.5.5）。
+    Navigate(crate::core::features::reference::Nav),
+    /// 節の削除ボタン（プロット一覧。§8.1.2 の一体削除は `NovnowApp` の単一入口）。
+    DeleteSection(crate::core::id::SceneId),
+    /// 診断の有効設定（§10.9.6）: `[features.diagnostics]` のコードキーを保存する。
+    SetDiagnosticLevel {
+        /// 診断コード（`W096` など）。
+        code: String,
+        /// `off` / `warn` / `error`（§4.5.2）。
+        level: String,
+    },
     /// 参照ペインの診断からの自動回復（§6.2.6 / §9.5.4、F-23）: 1 形態素を登録する。
     Register {
         /// 登録先（`words.md` / `characters.md`）。
@@ -255,12 +273,12 @@ pub fn list_row(ui: &mut Ui, mode: Mode, scale: f32, row: Row<'_>) -> egui::Resp
     response
 }
 
-/// Uniform visible action button used by the workspace panels.
+/// ワークスペースの各画面が使う、共通の文字ボタン（下線つきの当たり判定。F-32）。
 pub fn action_button(ui: &mut Ui, text: impl Into<String>) -> egui::Response {
     crate::ui::widgets::action_button(ui, text)
 }
 
-/// Uniform filter/tab/choice affordance used by workspace panels.
+/// ワークスペースの各画面が使う、共通の絞り込み・タブ・選択肢の見た目（F-32）。
 pub fn selectable_action(ui: &mut Ui, selected: bool, text: egui::RichText) -> egui::Response {
     crate::ui::widgets::selectable_action(ui, selected, text)
 }
@@ -294,16 +312,19 @@ pub fn hint(ui: &mut Ui, mode: Mode, scale: f32, text: &str) {
     );
 }
 
-/// ヘッダのワークスペースインジケータ（§9.2.1「ワークスペース名はアイコン」）。開けるワークスペースの
-/// 図形を並べ、今のものを `accent`、他を `fg.faint` で描く。ラベルは置かず、ツールチップと
-/// アクセシブル名（カタログの `header.workspace.<id>`）だけ。クリックされたものを返す。
-/// Highest outstanding diagnostic severity for the review header badge.
+/// `review` の見出しアイコンに付けるバッジの強さ（未解決の診断のうち最も重いもの。§10.9.7）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ReviewProblem {
+    /// エラーが 1 件以上ある。
     Error,
+    /// エラーは無く、警告が 1 件以上ある。
     Warning,
 }
 
+/// ヘッダのワークスペースインジケータ（§9.2.1「ワークスペース名はアイコン」）。開けるワークスペースの
+/// 図形を並べ、今のものを `accent`、他を `fg.faint` で描く。ラベルは置かず、ツールチップと
+/// アクセシブル名（カタログの `header.workspace.<id>`）だけ。クリックされたものを返す。
+/// `review` だけは `problem` に応じてエラー色・警告色にする（§10.9.7）。
 pub fn indicator(
     ui: &mut Ui,
     mode: Mode,

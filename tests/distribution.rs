@@ -312,7 +312,7 @@ fn composite_action_preserves_check_and_export_results() {
     assert!(values.contains("findings="));
 
     std::fs::write(
-        project.join("contents/01-01.txt"),
+        project.join("contents/01-01.cnov"),
         "@01-01-01\n'action_unknown_term\n",
     )
     .expect("write E diagnostic fixture");
