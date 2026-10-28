@@ -1150,3 +1150,47 @@ fn plot_write_reaches_every_level_and_refuses_an_unknown_one() {
         .expect("plot.write episode");
     assert_eq!(episode["path"], json!("plots/01-01.cnov"));
 }
+
+// =========================================================================== 読み取り専用（§4.1）
+
+#[test]
+fn a_read_only_project_reports_w041_and_keeps_working_for_reads() {
+    let host = MemoryHost::default();
+    let files = host.files.clone();
+    // 開く前から書けないプロジェクト（読み取り専用メディア）
+    files.borrow_mut().fail = true;
+    let documents = template::new_project("星屑の時計")
+        .into_iter()
+        .filter(|file| is_document(&ProjectPath::new(&file.path).expect("path")))
+        .map(|file| Document::new(file.path, file.text));
+    let mut session = Session::with_documents(Box::new(host), documents.collect());
+    assert!(session.read_only(), "書けないプロジェクト");
+    let validated = session
+        .run("project.validate", json!({}))
+        .expect("project.validate");
+    let codes: Vec<&str> = validated["diagnostics"]
+        .as_array()
+        .expect("diagnostics")
+        .iter()
+        .filter_map(|found| found["code"].as_str())
+        .collect();
+    assert!(codes.contains(&"W041"), "{codes:?}");
+    let counted = session
+        .run("diagnostics.run", json!({}))
+        .expect("diagnostics.run");
+    let first = &counted["diagnostics"][0];
+    assert_eq!(first["code"], json!("W041"));
+    assert_eq!(first["path"], json!(""));
+    assert_eq!(first["line"], json!(0));
+    // 既定プロンプトは書かずに W041 を知らせる（§15.5.4）
+    let notice = session.prepare_agents().expect("通知");
+    assert!(notice.contains("読み取り専用"), "{notice}");
+    assert_eq!(files.borrow().writes, 0, "読み取り専用では書かない");
+    // 読み取りは普通にできる
+    let scene = first_section(&mut session);
+    assert!(!session
+        .section()
+        .get(&scene)
+        .expect("section.get")
+        .is_empty());
+}

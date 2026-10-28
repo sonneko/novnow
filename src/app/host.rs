@@ -11,6 +11,13 @@ use crate::ports::dialog::ChosenPath;
 pub trait Host {
     /// ファイルを書く（プロジェクトの中）。失敗は表示用の文言。
     fn write(&mut self, path: &str, text: &str) -> Result<(), String>;
+    /// プロジェクトに書き込めるか（§4.1 の W041。読み取り専用メディアでは `false`）。
+    ///
+    /// 実装は**プロジェクトの中へ 1 回だけ試し書き**をして決める（[`crate::ports::storage::Storage::writable`]
+    /// と同じ規則）。結果は実装が覚えてよい。既定は `true`（メモリ上の仮想プロジェクト・Web）。
+    fn writable(&self) -> bool {
+        true
+    }
     /// 外部変更の監視 1 回分（§8.5）: 変わったファイルと中身（消えたら `None`）。
     fn poll(&mut self) -> Vec<(String, Option<String>)>;
     /// プロジェクトの名前（ヘッダ・ウィンドウ題名）。

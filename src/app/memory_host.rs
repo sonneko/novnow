@@ -98,6 +98,11 @@ impl MemoryFiles {
 }
 
 impl Host for MemoryHost {
+    /// テスト用: `fail` を立てると読み取り専用のプロジェクトとして振る舞う（§4.1 の W041）。
+    fn writable(&self) -> bool {
+        !self.files.borrow().fail
+    }
+
     fn write(&mut self, path: &str, text: &str) -> Result<(), String> {
         let mut files = self.files.borrow_mut();
         if files.fail {

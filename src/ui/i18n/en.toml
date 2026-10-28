@@ -90,13 +90,11 @@ W104 = "The same verb is repeated ({1} forms of \\\"{0}\\\")"
 W105 = "Many exclamation marks in this scene ({0})"
 W106 = "Many dashes in this section ({0})"
 I050 = "Created default prompts in prompts/"
-I051 = "Unsaved changes"
 I052 = "Reloaded external changes: {0}"
 I054 = "{0} materials are never cited"
 I055 = "{0} items remain in the stock chapter"
 I056 = "Unregistered custom role: {0}"
 I057 = "Registered the local LLM in agents/mcp.json"
-I058 = "Saved the search result as {0}"
 
 # ============================================================ CLI (§14, M6)
 #

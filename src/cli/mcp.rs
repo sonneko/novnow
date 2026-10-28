@@ -60,6 +60,17 @@ pub fn run<E: Env>(cli: &mut Cli<'_, E>, dir: &Path) -> Exit {
 
 /// 欠けた既定のプロンプトを書く（§15.5.4。あるファイルには触れない）。
 fn write_prompts<E: Env>(cli: &mut Cli<'_, E>, storage: &FsStorage) {
+    // 読み取り専用なら書かない（§4.1 の W041。知らせは stderr に 1 行）
+    if !storage.writable() {
+        cli.line(
+            Stream::Err,
+            &i18n::diagnostic(
+                cli.locale(),
+                &Diagnostic::simple(DiagnosticCode::W041, None),
+            ),
+        );
+        return;
+    }
     let Ok(loaded) = block_on(project_load::load(storage)) else {
         return;
     };

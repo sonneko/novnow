@@ -2374,3 +2374,35 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - `I058`（検索結果を資料化した通知）は仕様 §16.3.1 と `REF:docs/designs/workflows.md` の表にあるが、実装は資料を保存するだけで通知を出さない。**大規模ではないが UI の通知の口を作る必要がある**ので、§16.3.1 の表に〔状態: I058 は未実装〕を足した（§7 冒頭の表と二重に記録）。
 - あわせて、`src/`・`tests/` の `§` 参照を仕様書の節番号と機械的に突き合わせた（裸の `§N.M.K` まで含めて）。**存在しない節を指す参照は 0 件**、`docs/` 側も 0 件（`docs/history.md` と `docs/plans.md` は歴史記録なので対象外）。
 - テスト: `bash scripts/verify.sh` は **13 ジョブすべて緑**（1467 passed / 70 ターゲット）、`REF:docs/script/duplicate.py` と `REF:docs/script/reference.py` も緑。
+
+## 2026-10-28: I051・I058 の廃止、W041（読み取り専用）の実装、§16.1.2（素材 URL 取得）の廃止
+
+- 所有者の指示（2026-10-28）: `I051`・`I058` は廃止する。`W041` は今実装する。§16.1.2 は廃止する。
+- **`I051`（未保存の変更がある）を廃止**した。ステータスバーの保存状態インジケータ（§9.6）が同じことを常に
+  見せており、診断として二重に持つ意味が無かった（波線を引く文書位置も無い）。`DiagnosticCode` から variant を
+  消し、`CATALOG` / `STATUS_ANCHOR` / `ja.toml` / `en.toml` / サイトの解説データ（`diagnostics.ts`・
+  `diagnostics-en.json`・`diagnostics-examples.json`）から落とした。**番号は再利用しない**（欠番）。
+- **`I058`（検索結果を資料化した）を廃止**した。資料一覧に新しい行が現れること自体が通知で、トーストを
+  重ねる必要が無かった。§16.3.1 の表の「通知」欄を「なし」にした。診断は **87 → 85 種**（§7.0 は 39 → 38、
+  §7.2 は 38 → 37）。数の主張（README / README.en / §2 / glossary / `src/core/diagnostics.rs` の doc /
+  `scripts/diagnostics-site.py` の期待値 / `tests/{diagnostics_catalog,i18n_catalog}.rs`）を 85 に揃えた。
+- **`W041`（書き込み不可のプロジェクト）を実装**した。判定は**試し書き**で行う: `Storage::writable()` /
+  `Host::writable()`（既定 `true`）を足し、`FsStorage` が `.novnow/.write-probe` を書いてすぐ消す
+  （結果は `OnceLock` で 1 回だけ。失敗したら何も残らない）。モードビットではなく実際に書けるかを見るのは、
+  読み取り専用でマウントされた媒体・書き込みを拒否するサンドボックス・容量の尽きた領域を同じ扱いにするため。
+  `Session::read_only()` が開いたときの結果を覚え、次の 3 か所で W041 になる: (1) `novnow check` の
+  1 行（`<ルート>: W041 文言`。`check` の方針「何も書かない」の唯一の例外で、書けなければ何も書かない）、
+  (2) `project.validate` / `diagnostics.run`（プロジェクト全体のとき）の 1 件（`path` は空・`line`/`column` は 0）、
+  (3) GUI を開いたときのステータスバーの通知（`prepare_agents`。読み取り専用なら既定プロンプトを書かない）。
+  編集・保存は止めない（保存を試して失敗したら `SaveFailed`、§8.2）。仕様は §4.1 に判定方法と 3 つの出し方を
+  書き、§7.0 の W041 の行と設計書 §7 を追随させた。
+- **§16.1.2（URL からの本文取得）を廃止**した。novnow はネットワークから素材を取得しない（素材本文は
+  `materials/inbox/` に置くか `materials.propose` の `markdown` で渡す。`source:` は出所の記録だけ）。
+  §16.1.2 は〔廃止〕の節として理由を残し、§19.1.9・§19.2.4・§19.3.4・§19.5.2・§19.7 の `materials.approve`
+  行・§13.8（`external.md`）・設計書 §16.1.2 から取得の記述を外した。
+- テスト: `REF:tests/api.rs`（読み取り専用のセッションで W041 が 2 つの操作に出る・書かない・読み取りは普通に
+  できる）、`REF:tests/cli.rs`（`novnow check` がルートの 1 行として W041 を出し、終了コード 0 で、何も残さない）、
+  `REF:tests/storage_fs.rs`（`writable()` が書けるディレクトリで true・試し書きを残さない・0o555 のディレクトリで
+  false）。`REF:tests/diagnostics_catalog.rs` の件数（87 → 85）と通知の例（I051 → W041）を更新。
+  `bash scripts/verify.sh` は **13 ジョブすべて緑**（1471 passed / 70 ターゲット）、サイトは 228 ページ・
+  239 HTML。

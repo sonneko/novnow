@@ -13,7 +13,7 @@
 - **[F-31] 新規資料作成の全域有効化とボタン設置（実装完了: `REF:docs/plans.md#plan-F-31`）**:
   - `REF:src/ui/workspaces/material.rs` でペインフォーカスにかかわらず `Ctrl+Shift+N` と画面上のボタンで新規資料を作成可能にする。
 
-- **§16.1.2 URL からの本文取得（未実装）**: 採用 `materials.approve` は `REF:src/app/ops/knowledge.rs` で `inbox/` から `docs/` への移動と索引の更新だけを行う。`source:` の URL から本文を取りに行く処理は無く、ネットワークの取得口（`REF:src/ports/` に該当なし）も持たない。素材系の URL 取得を実装するときは、§16.1.2 の 1MB 上限・15 秒のタイムアウトを課し、`REF:src/adapters/` に取得の実装を足す。
+- **§16.1.2 URL からの本文取得（廃止）**: ネットワークから素材本文を取りに行く機能は仕様から外した。`REF:src/app/ops/knowledge.rs` の `materials_approve` は `inbox/` から `docs/` への移動と索引の更新だけを行い、`REF:src/ports/` に取得の口を持たない（この状態が仕様どおり）。`source:` は出所の記録としてだけ読む。
 
 ### 16.2 インデックス（§5.8.2 の運用規則）
 

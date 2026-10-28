@@ -632,7 +632,19 @@ impl Session {
 
     /// 開いたときのエージェントの準備（U-7・§15.5.4）: `prompts/` の欠けた既定ファイルを書き出す。
     /// `prompts/` が丸ごと無かったら I050 を知らせる。エージェントが無効なら何もしない。
+    /// 読み取り専用のプロジェクトでは書かずに W041 を知らせる（§4.1）。
     pub fn prepare_agents(&mut self, locale: Locale) {
+        if !self.host.writable() {
+            let notice = i18n::diagnostic(
+                locale,
+                &crate::core::diagnostics::Diagnostic::simple(
+                    crate::core::diagnostics::DiagnosticCode::W041,
+                    None,
+                ),
+            );
+            self.notice = Some((notice, 0.0));
+            return;
+        }
         if let Some(message) =
             crate::ui::agents::write_prompts(&mut self.bench, self.host.as_ref(), 0.0, locale)
         {

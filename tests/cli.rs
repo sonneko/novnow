@@ -2359,3 +2359,28 @@ fn api_reserved_words_can_be_opened_as_explicit_relative_directories() {
         );
     }
 }
+
+#[cfg(unix)]
+#[test]
+fn check_reports_w041_on_a_read_only_project_without_writing_anything() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = TempDir::new("cli-check-read-only");
+    let root = minimal_project(&dir, "novel");
+    std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o555)).expect("chmod");
+    let ran = run(dir.path(), &env_ja(&dir), &["check", "novel"]);
+    let left = tree(&root);
+    std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+    assert_eq!(ran.exit(), Exit::Ok, "W041 は警告なので終了コードは 0");
+    let first = ran.out.lines().next().unwrap_or("");
+    assert!(
+        first.ends_with("W041 プロジェクトに書き込めません（読み取り専用）"),
+        "{}",
+        ran.out
+    );
+    assert!(
+        first.starts_with(&format!("{}: ", root.display())),
+        "ルートの行として出す: {first}"
+    );
+    assert!(ran.out.contains("警告 1"), "{}", ran.out);
+    assert!(!left.contains_key(".novnow/.write-probe"), "何も残さない");
+}

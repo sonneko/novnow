@@ -268,3 +268,28 @@ fn structural_batch_commits_writes_before_removing_old_paths() {
     assert_eq!(storage.read_bytes(&new).unwrap(), b"assigned");
     assert!(!storage.absolute(&old).exists());
 }
+
+#[test]
+fn a_writable_project_says_so_without_leaving_a_probe_behind() {
+    let (_dir, storage) = setup("fs-writable");
+    assert!(storage.writable(), "書けるプロジェクト");
+    assert!(
+        !storage.root().join(".novnow/.write-probe").exists(),
+        "試し書きは残さない"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn a_read_only_directory_is_detected_by_the_probe_write() {
+    use std::os::unix::fs::PermissionsExt;
+    let (dir, storage) = setup("fs-read-only");
+    let root = storage.root().to_path_buf();
+    // ルートを書き込み禁止にする（読み取り専用メディアの代わり）
+    std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o555)).expect("chmod");
+    let writable = storage.writable();
+    std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+    let _ = dir;
+    assert!(!writable, "書けないディレクトリは読み取り専用");
+    assert!(!root.join(".novnow/.write-probe").exists(), "何も残らない");
+}

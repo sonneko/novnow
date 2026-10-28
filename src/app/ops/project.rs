@@ -65,19 +65,14 @@ pub fn validate(session: &mut Session, args: &Args) -> Result<Value> {
             }),
         },
     };
-    let diagnostics: Vec<Value> = session
-        .aggregate()
-        .documents()
-        .flat_map(|document| {
-            let text = document.text.clone();
-            crate::core::diagnostics::document(document, session.aggregate())
-                .into_iter()
-                .map(|found| {
-                    crate::app::ops::diagnostic_json(locale, &document.path, &text, &found)
-                })
-                .collect::<Vec<_>>()
-        })
-        .collect();
+    let mut diagnostics: Vec<Value> = read_only_notice(session, locale).into_iter().collect();
+    diagnostics.extend(session.aggregate().documents().flat_map(|document| {
+        let text = document.text.clone();
+        crate::core::diagnostics::document(document, session.aggregate())
+            .into_iter()
+            .map(|found| crate::app::ops::diagnostic_json(locale, &document.path, &text, &found))
+            .collect::<Vec<_>>()
+    }));
     let errors = diagnostics
         .iter()
         .filter(|found| found["severity"] == json!("error"))
@@ -88,6 +83,18 @@ pub fn validate(session: &mut Session, args: &Args) -> Result<Value> {
         "ok": structure.is_null() && errors == 0,
         "structure": structure,
     }))
+}
+
+/// 読み取り専用のプロジェクトなら W041 の 1 件（§4.1。文書の中の位置を持たないので `path` は空）。
+pub(crate) fn read_only_notice(session: &Session, locale: Locale) -> Option<Value> {
+    if !session.read_only() {
+        return None;
+    }
+    let found = crate::core::diagnostics::Diagnostic::simple(
+        crate::core::diagnostics::DiagnosticCode::W041,
+        None,
+    );
+    Some(crate::app::ops::diagnostic_json(locale, "", "", &found))
 }
 
 /// `project.new`（`novnow new` と同じ構造を作る。§19.7 では L—・M—）。

@@ -146,7 +146,7 @@ session.session().command("plot-outline")?;    // session.command（パレット
 
 - セッションは GUI が描画で表示する状態変化（診断の更新、保存状態の変化、エージェントタスクの進捗、素材取得の完了）を**イベントキュー**として提供する（MUST）。利用者は `session.poll_events()` で取り出すか、コールバックを登録する。
 - イベントは同じデータ構造を LSP のカスタム通知（§19.4.4）・Python API のイベントキューと共有する（MUST）。
-- 非同期実行（LLM 呼び出し、素材 URL の取得）はセッション内部のワーカが行い、`poll_events` で進捗と完了を受け取る。ライブラリ利用者にスレッド管理を強制しない（MUST）。
+- 非同期実行（LLM 呼び出し）はセッション内部のワーカが行い、`poll_events` で進捗と完了を受け取る。ライブラリ利用者にスレッド管理を強制しない（MUST）。
 
 #### 19.2.5 スレッド安全とライフサイクル
 
@@ -194,7 +194,7 @@ session = novnow.create("new-novel")              # project.new
 
 #### 19.3.4 GIL と並行性
 
-- ファイル I/O・LLM 呼び出し・URL 取得などブロックする処理の間は GIL を解放する（MUST）。これにより Python 側スレッドが待機中に動く。
+- ファイル I/O・LLM 呼び出しなどブロックする処理の間は GIL を解放する（MUST）。これにより Python 側スレッドが待機中に動く。
 - 1 つの `Session` オブジェクトの操作は直列化する（§19.2.5 と同じ所有規則）。複数スレッドからの同時呼び出しはデータ競合ではなく直列実行として扱う（MUST）。
 
 #### 19.3.5 イベントと長時間操作
@@ -283,7 +283,7 @@ LSP 標準メソッドと novnow の機能の対応は次のとおり（MUST）:
   「宣言に無いが受け付ける引数」として送る（スキーマは `additionalProperties` を制限していない）。
   受け付けない `level` は引数エラー（`Argument("level")`）。
 - エージェント系ツール（`agent.*`）は §15.2 の 13 状態機・§15.6 の 4 原則をそのまま適用する。セッション制限（§15.3）は MCP 呼び出しにも等しく課す（MUST）。
-- 素材系ツール（`materials.*`）の URL 取得は v1 では行わない（§16.1.2 の注記）。実装する版では、§16.1.2 の 1MB 上限・15 秒のタイムアウトに従う（MUST）。
+- 素材系ツール（`materials.*`）はネットワークから本文を取得しない（§16.1.2 を廃止した）。素材の本文は利用者が `materials/inbox/` に置くか、`materials.propose` の `markdown` で渡す。
 - 監査ログ（§15.8.4）はすべての新しい書き込みツールでも記録する（MUST）。
 
 #### 19.5.3 スキーマ
@@ -397,7 +397,7 @@ GUI の全機能を正規操作 ID に対応づけるカタログ。この表が
 | search.find_next / search.find_prev | 次の候補・前の候補（`F3` `Shift+F3`） | | M—・C—（状態性） |
 | materials.list | 素材インボックス一覧（§16.1） | | |
 | materials.get | 素材カードの取得（`Ctrl+M`） | | |
-| materials.approve | 素材の採用（S#### 化、`inbox/` → `docs/` の移動と `approved` 化。URL からの取得は §16.1.2 のとおり未実装） | | M 門番 |
+| materials.approve | 素材の採用（S#### 化、`inbox/` → `docs/` の移動と `approved` 化。ネットワークからは取得しない、§16.1.2） | | M 門番 |
 | materials.reject | 素材の却下（`>` + `reject-material`） | | M 門番 |
 | materials.update | 素材カードの編集（メタデータ） | | M 門番 |
 | materials.attach | 素材の添付（`>` + `attach-material`） | | M 門番 |

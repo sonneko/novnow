@@ -56,6 +56,16 @@ pub enum StorageError {
 
 /// プロジェクト 1 つ分のストレージ（§3.1 の `Storage`）。
 pub trait Storage {
+    /// プロジェクトに書き込めるか（§4.1 の W041。読み取り専用メディアでは `false`）。
+    ///
+    /// 実装は**プロジェクトの中へ試し書きを 1 回**して決める（モードビットだけでは、読み取り専用で
+    /// マウントされた媒体・書き込みを拒否するサンドボックス・容量の尽きた領域が分からない）。
+    /// 書けなくても何も残さない。結果は実装が覚えてよい（毎回書かない）。既定は `true`
+    /// （ディレクトリを持たない IndexedDB・メモリ上の仮想プロジェクトは常に書ける）。
+    fn writable(&self) -> impl Future<Output = Result<bool, StorageError>> {
+        async { Ok(true) }
+    }
+
     /// 全ファイルの一覧（パスの昇順）。`.novnow/` も含む（使い道に応じて呼び出し側が選ぶ）。
     /// `.git/` の中は見ない（§14.2.1「`.git/` を読まない」）。原子的保存の一時ファイルも含めない。
     fn list(&self) -> impl Future<Output = Result<Vec<FileEntry>, StorageError>>;

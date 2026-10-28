@@ -306,14 +306,6 @@ export const diagnostics = [
     "action": "開く"
   },
   {
-    "code": "I051",
-    "severity": "I",
-    "condition": "未保存の変更がある",
-    "ja": "未保存の変更があります",
-    "en": "Unsaved changes",
-    "action": "今すぐ保存"
-  },
-  {
     "code": "E060",
     "severity": "E",
     "condition": "プロジェクト外への書き込みを拒否した（§13.1.2）",
@@ -687,14 +679,6 @@ export const diagnostics = [
     "condition": "ローカル LLM の設定を書き込んだ（§15.8.4）",
     "ja": "agents/mcp.json にローカル LLM を登録しました",
     "en": "Registered the local LLM in agents/mcp.json",
-    "action": "開く"
-  },
-  {
-    "code": "I058",
-    "severity": "I",
-    "condition": "検索結果を資料化した（§16.3.1）",
-    "ja": "検索結果を {0}として保存しました",
-    "en": "Saved the search result as {0}",
     "action": "開く"
   }
 ] as const;
