@@ -7,6 +7,7 @@
 //! - 行番号は**節内のローカル行番号**（1 始まり、§9.4.1）。折り返した行には番号を振らない。
 //! - ソフトラップ有り・横スクロール無し。
 //! - 節ごとに別の `Id` を使うので、undo の履歴は節ごとに残る（§8.6。戻ってくると復元される）。
+//!   履歴を持つのは**最近使った 20 節**まで（`KEPT_SECTIONS`。[`remember`] が古い節の state を捨てる）。
 //! - 貼り付け（`Event::Paste`）は改行をそのまま入れる。単独 `;` 行・場面見出し行（`@A-B-C`）が
 //!   含まれていれば [`apply_paste`] が節に分けて文書へ一括で反映する（§8.1.3）。
 //! - インレイヒント（§6.6.2）は [`crate::ui::widgets::inlay`] が隙間を空けて上から描く（B-137）。
@@ -54,11 +55,62 @@ impl Cache {
 }
 
 /// 節エディタの `TextEdit` の Id（節ごと）。
+///
+/// 節の ID だけでなく**開始行**も混ぜる。節を消すと後続の節番号は繰り上がる（§8.1.2）ので、ID だけを
+/// 鍵にすると「消えた節の履歴」が繰り上がってきた別の節に付いてしまい、取り消しで別の節の本文が
+/// 戻る。開始行が変われば別の Id になり、履歴は引き継がれない（節の中で改行しても開始行は動かない）。
 pub fn editor_id(bench: &Workbench) -> Id {
     match bench.current() {
-        Some(current) => Id::new(("section-editor", current.path.as_str(), current.id)),
+        Some(current) => Id::new((
+            "section-editor",
+            current.path.as_str(),
+            current.id,
+            current.lines.start,
+        )),
         None => Id::new("section-editor-empty"),
     }
+}
+
+/// 履歴を残す節の数（§8.6「直近 20 節分」）。
+const KEPT_SECTIONS: usize = 20;
+
+/// 「最近使った節」の並びを `ctx.memory` へ置くための Id。
+fn recent_key() -> Id {
+    Id::new("section-editor-recent")
+}
+
+/// この節の履歴を使ったと記録し、20 節を超えた古い節の履歴を捨てる（§8.6）。
+///
+/// 履歴の実体は egui の `TextEditState`（widget の Id ごとに `ctx.memory` が持つ undoer）なので、
+/// ここで決めるのは「どの節の履歴を残すか」だけ。捨てた節の Id の state を消すと、その節へ
+/// 戻ってきても履歴は復元されない。
+fn remember(ui: &Ui, id: Id) {
+    remember_id(ui.ctx(), id);
+}
+
+/// [`remember`] の中身（画面の外からも回せるように分けた。テストが 20 節の上限を見る）。
+pub fn remember_id(ctx: &egui::Context, id: Id) {
+    ctx.memory_mut(|memory| {
+        let mut recent: Vec<Id> = memory.data.get_temp(recent_key()).unwrap_or_default();
+        if recent.first() == Some(&id) {
+            return;
+        }
+        recent.retain(|other| *other != id);
+        recent.insert(0, id);
+        while recent.len() > KEPT_SECTIONS {
+            if let Some(evicted) = recent.pop() {
+                memory
+                    .data
+                    .remove::<egui::text_edit::TextEditState>(evicted);
+            }
+        }
+        memory.data.insert_temp(recent_key(), recent);
+    });
+}
+
+/// 履歴を残している節の Id（新しく使った順。テスト用）。
+pub fn recent_sections(ctx: &egui::Context) -> Vec<Id> {
+    ctx.memory(|memory| memory.data.get_temp(recent_key()).unwrap_or_default())
 }
 
 /// 節エディタの 1 フレームの結果。
@@ -222,6 +274,7 @@ pub(crate) fn area(
     highlight: &mut dyn FnMut(&str) -> Highlight,
     look: Look,
 ) -> EditorOutput {
+    remember(ui, id);
     let Look {
         mode,
         scale,

@@ -2357,3 +2357,12 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - **サイトの操作ごとの例**（§19.8.4）: `REF:scripts/api-site.py` の `examples_for()` が `api.list` の `arguments`（必須の引数だけ）から 4 つの口（CLI・Rust・Python・MCP）の最短呼び出しを組み立て、`REF:website/src/data/api.ts` の `examples` に載せる。値は引数名ごとの見本（`SAMPLES`）と操作ごとの上書き（`OP_SAMPLES`。`materials.get` の `id` は `M0001`、`agent.*` の `id` は `T0001` / `P0001` など）で決め、表に無い引数は型の最小値に落とす。既存サブコマンドを持つ 4 操作は**既存形**（`novnow new my-novel` など。§19.6.1 の対応表）を出す。`REF:website/src/components/ApiCatalog.astro` には「例」列（`<details>`）を足した。例文は手書きしない（カタログを増減したときに例だけ古くなるのを防ぐ）ので、生成器が「必須の引数が CLI の例に載っているか」を検査し、`--check` で `api.ts` との一致も見る。
 - **仕様**: §19.8.4 の〔状態: 一部未実装〕を外し、例の作り方（必須だけ・見本の表・4 つの口・既存形の優先）を書いた。`REF:docs/designs/interfaces.md` §19.8 も追随。
 - テスト: `bash scripts/verify.sh` は **13 ジョブすべて緑**（1465 passed / 70 ターゲット。`tests/api.rs` の 1 本が増えた）、`cargo test --locked --doc` 2 本緑、`npm run build` は 232 ページ、`REF:scripts/website-check.py` は 243 HTML 緑。
+
+## 2026-10-28: 仕様書を正本とした整合・第八巡（第 10 段。節ごとの undo 履歴を実装）
+
+- 所有者の指示の 4 項目のうち **3（節ごとの undo 履歴）**を片付けた。前段までの注記は「入力欄の履歴は 1 つの入力欄に付くので節を移ると失われる」だったが、実装を読み直すと**半分はすでに動いていた**: `REF:src/ui/widgets/section_editor.rs` の `editor_id()` が節ごとに別の `egui::Id` を作り、egui は入力欄の状態（undoer を含む）を Id ごとに `ctx.memory` に持つので、節を移って戻ると履歴も戻る。
+- **足りなかったもの**: ①保持する節数の上限が無く、触った節の数だけメモリに残る（仕様は「直近 20 節分」）、②`Ctrl+Z` の実機の修飾キーは `ctrl` と `command` の両方が立ち、テストで `Modifiers::CTRL` だけを送ると egui が取り消しと見なさない、③**節を消すと後続の節番号が繰り上がる**（§8.1.2）ため、Id を「節 ID」だけにすると消えた節の履歴が繰り上がってきた別の節に付き、取り消しで別の節の本文が戻りうる。
+- **実装**: `remember()` を足し、最近使った節の Id を新しい順に覚えて 20 節を超えたら古い節の `TextEditState` を `ctx.memory.data.remove` で捨てる（足りない分の state は描画のときに作られる）。`editor_id()` は「文書のパス・節 ID・**節の開始行**」から Id を作る。節の中で改行しても開始行は動かないので、書き足している節の履歴は消えず、節の増減で位置が変わった節は履歴を引き継がない。テスト用に `remember_id()` / `recent_sections()` を公開した。
+- **テスト**: `REF:tests/gui.rs` に 2 本。`the_undo_history_belongs_to_the_section_you_come_back_to`（節 A で打鍵 → 自動保存 → 節 B へ移って打鍵 → 節 A へ戻って `Ctrl+Z` で A の打鍵だけが消える）、`the_editor_keeps_the_history_of_the_twenty_most_recent_sections`（25 節ぶん記録して、残るのが直近 20 節・21 節前の state が捨てられること）。
+- **仕様**: §8.6 (a) の〔状態: 未実装〕を外し、節ごとの保持・直近 20 節・履歴の深さ（入力欄の既定 100 段）・「文書・節 ID・開始行」に紐づける理由を書いた。`REF:docs/designs/editing.md` §8.6 に実装の在り処（`editor_id` / `remember` / `TextEditState`）を追記し、`REF:docs/specifications/ui.md` §9.8.1 の `Ctrl+Z` の行にも「節ごとに直近 20 節」を足した。
+- テスト: `bash scripts/verify.sh` は **13 ジョブすべて緑**（1467 passed / 70 ターゲット。`tests/gui.rs` の 2 本が増えた）。

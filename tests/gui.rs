@@ -3658,3 +3658,76 @@ fn context_view_delete_buttons_follow_the_confirmation_rules() {
     assert!(!bench.project().text(EPISODE_PATH).contains("咎める"));
     assert_eq!(harness.app.overlay_kind(), None);
 }
+
+// ============================================================ 節ごとの undo（§8.6）
+
+#[test]
+fn the_undo_history_belongs_to_the_section_you_come_back_to() {
+    let mut harness = Harness::new();
+    harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
+    let first = harness
+        .app
+        .workbench()
+        .expect("open")
+        .current()
+        .expect("current")
+        .id;
+    harness.frame(vec![Event::Text("ZZZ".into())]);
+    // 自動保存を挟んでも履歴は消えない（§8.6）
+    harness.idle(0.6);
+    // 次の節へ移って書き、戻る
+    harness.frame(vec![key(Key::ArrowDown, Modifiers::ALT)]);
+    let second = harness
+        .app
+        .workbench()
+        .expect("open")
+        .current()
+        .expect("current")
+        .id;
+    assert_ne!(first, second, "節が変わる");
+    harness.frame(vec![Event::Text("WWW".into())]);
+    harness.frame(vec![key(Key::ArrowUp, Modifiers::ALT)]);
+    assert_eq!(
+        harness
+            .app
+            .workbench()
+            .expect("open")
+            .current()
+            .expect("current")
+            .id,
+        first
+    );
+    // 戻ってきた節で取り消すと、この節の打鍵だけが消える
+    harness.frame(vec![key(Key::Num2, Modifiers::CTRL)]);
+    // 実際のキーボードは Ctrl で `command` も立つ（egui-winit）。CTRL だけでは egui が取り消しと見なさない
+    harness.frame(vec![key(Key::Z, Modifiers::CTRL | Modifiers::COMMAND)]);
+    let buffer = harness.app.workbench().expect("open").buffer().to_owned();
+    assert!(
+        !buffer.contains("ZZZ"),
+        "戻ってきた節で取り消すと、その節の打鍵だけが消える: {buffer}"
+    );
+}
+
+#[test]
+fn the_editor_keeps_the_history_of_the_twenty_most_recent_sections() {
+    let ctx = egui::Context::default();
+    let ids: Vec<egui::Id> = (0..25).map(egui::Id::new).collect();
+    for id in &ids {
+        egui::text_edit::TextEditState::default().store(&ctx, *id);
+        novnow::ui::widgets::section_editor::remember_id(&ctx, *id);
+    }
+    let kept = novnow::ui::widgets::section_editor::recent_sections(&ctx);
+    assert_eq!(
+        kept,
+        ids[5..].iter().rev().copied().collect::<Vec<_>>(),
+        "直近 20 節だけを新しい順に残す"
+    );
+    assert!(
+        egui::text_edit::TextEditState::load(&ctx, ids[0]).is_none(),
+        "21 節前の履歴は捨てる"
+    );
+    assert!(
+        egui::text_edit::TextEditState::load(&ctx, ids[24]).is_some(),
+        "直近の節の履歴は残る"
+    );
+}
