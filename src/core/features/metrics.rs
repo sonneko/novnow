@@ -126,10 +126,50 @@ pub fn histogram(values: &[usize], bin: usize) -> BTreeMap<usize, usize> {
     }
     out
 }
-/// Deterministic advisory positions outside all dialogue spans; never inserts text.
+/// 読点候補を出す間隔と下限（§9.4.3）。
+///
+/// 値は**いまの画面が使っている値**をそのまま移したもの。仕様 §9.4.3 は
+/// 「1 文に読点が 0 個かつ `long_sentence_chars` 超」で発火し、4 つの優先度と
+/// 除外規則で候補を選ぶと定めているが、その算法はまだ実装していない。ここを
+/// 変えるときは仕様の判断（`docs/history.md` の 2026-10-28 の項目）が要る。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CommaOptions {
+    /// この字数に達したあとの助詞の直後を候補にする。
+    pub every: usize,
+    /// `every` の下限。これ未満の間隔では候補を出さない。
+    pub floor: usize,
+}
+
+impl Default for CommaOptions {
+    fn default() -> Self {
+        Self {
+            every: 40,
+            floor: 20,
+        }
+    }
+}
+
+impl CommaOptions {
+    /// 間隔だけを変えた指定（下限は既定のまま）。
+    pub fn every(chars: usize) -> Self {
+        Self {
+            every: chars,
+            ..Self::default()
+        }
+    }
+}
+
+/// 候補にする助詞（§9.4.3 の優先度 1 の一部だけ。優先度 2〜4 は未実装）。
 /// i18n: format-vocabulary
-pub fn comma_candidates(text: &str, threshold: usize) -> Vec<usize> {
+const COMMA_PARTICLES: &[char] = &['は', 'が', 'を', 'に', 'で', 'と'];
+
+/// 台詞の外側で、決定論的に「読点を打てそうな場所」を返す（§9.4.3）。文字は挿入しない。
+///
+/// 返すのは候補位置の byte の列（昇順）。台詞（`「」` `『』`）の内側と、句読点・
+/// 改行の直後は候補にしない。
+pub fn comma_candidates(text: &str, options: CommaOptions) -> Vec<usize> {
     let spans = role_language::dialogue_spans(text);
+    let limit = options.every.max(options.floor);
     let mut count = 0;
     let mut out = Vec::new();
     for (at, ch) in text.char_indices() {
@@ -144,8 +184,7 @@ pub fn comma_candidates(text: &str, threshold: usize) -> Vec<usize> {
         if !ch.is_whitespace() {
             count += 1;
         }
-        if count >= threshold.max(20) && matches!(ch, 'は' | 'が' | 'を' | 'に' | 'で' | 'と')
-        {
+        if count >= limit && COMMA_PARTICLES.contains(&ch) {
             out.push(at + ch.len_utf8());
             count = 0;
         }

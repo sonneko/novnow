@@ -51,6 +51,7 @@ use serde::Serialize;
 
 use crate::core::diagnostics::{Arg, Diagnostic, DiagnosticCode};
 use crate::core::id::{self, PartialSceneId, SceneId};
+use crate::core::text::charclass;
 use crate::core::text::lexer::{self, LineKind, TextFormat};
 
 /// §5.0.2 の行コメントのシジル（`lexer::SIGIL_TABLE` の `Sigil::LineComment` と同じ）。
@@ -83,15 +84,6 @@ const RUBY_CLOSE: char = '》';
 
 /// ルビの明示形 `｜base《reading》` の区切り。**半角 `|` ではない**（§5.2.1）。
 const RUBY_BAR: char = '｜';
-
-/// 漢字の code point 範囲（**上端は含まない**）。ルビの親文字になれる文字、§5.2.1 `kanji_run`。
-///
-/// CJK 統合漢字 U+4E00–U+9FFF・拡張 A U+3400–U+4DBF・互換漢字 U+F900–U+FAFF。
-/// `kanji_run` は仕様書に定義が無いのでここで決めた（`docs/history.md` B-33）。
-const KANJI: &[Range<u32>] = &[0x4E00..0xA000, 0x3400..0x4DC0, 0xF900..0xFB00];
-
-/// 繰返し字（`々` U+3005・`〻` U+303B）。`人々《ひとびと》` のように漢字列に含める。
-const KANJI_MARKS: &[u32] = &[0x3005, 0x303B];
 
 /// C 形式の解析に効く設定（`project.toml` の `structure`、§4.5 / §5.1.2）。
 ///
@@ -814,13 +806,10 @@ fn kanji_base(text: &str, open: usize) -> Option<Base<'_>> {
     })
 }
 
-/// 漢字（ルビの親文字になれる文字、§5.2.1 `kanji_run`）。定義は [`KANJI`] の doc を参照。
+/// 漢字（ルビの親文字になれる文字、§5.2.1 `kanji_run`）。範囲は
+/// [`crate::core::text::charclass::is_ruby_base_kanji`] を参照。
 fn is_kanji(c: char) -> bool {
-    let code = u32::from(c);
-    if KANJI_MARKS.contains(&code) {
-        return true;
-    }
-    KANJI.iter().any(|range| range.contains(&code))
+    charclass::is_kanji_mark(c) || charclass::is_ruby_base_kanji(c)
 }
 
 /// 行末コメント（§5.0.2）。`://` は URL なのでコメントにしない（字句器と同じ規則）。

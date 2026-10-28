@@ -318,7 +318,10 @@ pub(crate) fn area(
                     d.get_temp::<bool>(Id::new("suggest-comma"))
                         .unwrap_or(false)
                 }) {
-                    for at in crate::core::features::metrics::comma_candidates(buffer, 40) {
+                    for at in crate::core::features::metrics::comma_candidates(
+                        buffer,
+                        crate::core::features::metrics::CommaOptions::default(),
+                    ) {
                         let cursor = output
                             .galley
                             .from_ccursor(CCursor::new(buffer[..at].chars().count()));

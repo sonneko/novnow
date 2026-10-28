@@ -1408,8 +1408,10 @@ impl NovnowApp {
                         crate::ui::workbench::Nav::PrevScene | crate::ui::workbench::Nav::NextScene
                     )
                 {
-                    let candidates =
-                        crate::core::features::metrics::comma_candidates(bench.buffer(), 40);
+                    let candidates = crate::core::features::metrics::comma_candidates(
+                        bench.buffer(),
+                        crate::core::features::metrics::CommaOptions::default(),
+                    );
                     let caret = session.selection.as_ref().map_or(0, |r| r.start);
                     let at = if nav == crate::ui::workbench::Nav::NextScene {
                         candidates.into_iter().find(|at| *at > caret)
@@ -1465,8 +1467,10 @@ impl NovnowApp {
             }
             Command::InsertComma => {
                 if self.settings.suggest_comma {
-                    let candidates =
-                        crate::core::features::metrics::comma_candidates(bench.buffer(), 40);
+                    let candidates = crate::core::features::metrics::comma_candidates(
+                        bench.buffer(),
+                        crate::core::features::metrics::CommaOptions::default(),
+                    );
                     let caret = session.selection.as_ref().map_or(0, |r| r.start);
                     if let Some(at) = candidates.into_iter().find(|at| *at >= caret) {
                         bench.buffer_mut().insert(at, '、');

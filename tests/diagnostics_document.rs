@@ -389,6 +389,132 @@ fn w096_stays_silent_without_a_clear_majority_or_enablement() {
     assert!(w096_args(&diagnostics::document(&document, &project)).is_empty());
 }
 
+#[test]
+fn w096_counts_nested_dialogue_and_ignores_narrative() {
+    // 入れ子（`「…『…』…」`）の内側も台詞として数える（§7.2.2）。5 件が空白あり、
+    // 入れ子の 1 件だけが空白なしなので、その 1 件が少数派になる。入れ子を数えて
+    // いなければ空白なしが 0 件になり、診断は出ない。
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n\
+             「行くぞ！　待て」\n\
+             「止まれ！　聞け」\n\
+             「来い！　早く」\n\
+             「逃げろ！　今だ」\n\
+             「見ろ！　あれを」\n\
+             「外は『内側！続け』のまま」\n"],
+        Some("W096 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    assert_eq!(w096_args(&found), vec!["！".to_string()]);
+
+    // 地の文の記号は数えない。地の文に空白なしが 10 件あっても、台詞の多数派
+    // （空白あり 5 件）が変わらないので診断は出ない。
+    let mut lines = String::from("@01-01-01-01\n");
+    for line in [
+        "「行くぞ！　待て」",
+        "「止まれ！　聞け」",
+        "「来い！　早く」",
+        "「逃げろ！　今だ」",
+        "「見ろ！　あれを」",
+    ] {
+        lines.push_str(line);
+        lines.push('\n');
+    }
+    for i in 0..10 {
+        lines.push_str(&format!("地の文で叫ぶ！その{i}\n"));
+    }
+    let project = project_with_dialogue(&[lines.as_str()], Some("W096 = \"warn\"\n"));
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    assert!(w096_args(&found).is_empty());
+}
+
+#[test]
+fn w096_counts_dialogue_that_is_never_closed() {
+    // 閉じ忘れた台詞は行末までを内側とする（書きかけでも数える）。5 件が空白あり、
+    // 閉じ忘れの 1 件だけが空白なしなので、その 1 件が少数派になる。
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n\
+             「行くぞ！　待て」\n\
+             「止まれ！　聞け」\n\
+             「来い！　早く」\n\
+             「逃げろ！　今だ」\n\
+             「見ろ！　あれを」\n\
+             「まだ終わらない！続ける\n"],
+        Some("W096 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    assert_eq!(w096_args(&found), vec!["！".to_string()]);
+}
+
+// ============================================================ 文体の観察（W081 / W087–W090）
+
+#[test]
+fn w088_uses_the_fourteen_word_list_and_fires_once_per_run() {
+    // §9.4.4 の固定リスト 14 語のうち、実装が持っていなかった 8 語を 3 文続ける
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n\
+             でも、そうは思わない。それから、別の道もある。つまり、まだ終わらない。\n"],
+        Some("W088 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    assert_eq!(found_with(&found, DiagnosticCode::W088).len(), 1);
+
+    // 5 文続いても 3 文目に 1 件だけ（W097 / W100 / W101 と同じ数え方）
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n\
+             しかし、雨だ。しかし、風だ。しかし、雷だ。しかし、嵐だ。しかし、夜だ。\n"],
+        Some("W088 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    assert_eq!(found_with(&found, DiagnosticCode::W088).len(), 1);
+}
+
+#[test]
+fn style_checks_run_when_enabled_in_the_project_settings() {
+    // §7.2「設定で warn/error に変えたものは、実行コスト区分の範囲で常時出す」。
+    // 明示操作（文体タブ）でなくても、設定で有効にすれば出る。
+    let long = "あ".repeat(130);
+    let text = format!("@01-01-01-01\n{long}。\n");
+    let project = project_with_dialogue(&[text.as_str()], Some("W081 = \"warn\"\n"));
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    assert_eq!(found_with(&found, DiagnosticCode::W081).len(), 1);
+
+    // 同じ本文でも、設定が無ければ出ない（組み込み既定は無効）
+    let project = project_with_dialogue(&[text.as_str()], None);
+    let document = doc(&project, CONTENTS_PATH);
+    assert!(found_with(
+        &diagnostics::document(&document, &project),
+        DiagnosticCode::W081
+    )
+    .is_empty());
+}
+
+#[test]
+fn w090_compares_each_section_not_the_whole_document() {
+    // 節 1 は地の文だけ、節 2 は台詞だけ。文書全体では 50% 近くになるが、
+    // 節ごとに見れば節 2 だけが上限目安（0.3）を超える（§9.4.2 の算出）。
+    let project = project_with_dialogue(
+        &["@01-01-01-01\n\
+             静かな部屋に雨の音だけが響いていた。\n\
+             ;\n\
+             「行くぞ」「止まれ」「来い」「逃げろ」「見ろ」「進め」「待て」「走れ」\n"],
+        Some("W090 = \"warn\"\n"),
+    );
+    let document = doc(&project, CONTENTS_PATH);
+    let found = diagnostics::document(&document, &project);
+    let w090 = found_with(&found, DiagnosticCode::W090);
+    assert_eq!(w090.len(), 1);
+    let range = w090[0].range.clone().unwrap();
+    assert!(document.text[range].contains("逃げろ"));
+    assert!(!document.text[w090[0].range.clone().unwrap()].contains("雨の音"));
+}
+
 // ============================================================ 執筆支援 W097–W106（B11 / B12）
 
 const SAMPLE_NOVEL_TEXT: &str = include_str!("../examples/sample-novel/contents/01-04.cnov");

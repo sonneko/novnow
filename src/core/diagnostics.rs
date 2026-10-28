@@ -239,7 +239,7 @@ pub enum DiagnosticCode {
     W088,
     /// 1 文が `long_sentence_chars` の 2 倍を超える（§7.2）
     W089,
-    /// 1 節の台詞比率が `dialogue_ratio_target` を大きく外れる（§7.2）
+    /// 1 節の台詞比率（§9.4.2 の算出）が `dialogue_ratio_target`（上限目安）を超える（文書全体ではなく節ごとに見る）（§7.2）
     W090,
     /// 節の長さが話内平均の T スコア 35 未満 / 65 超（§10.3.4）（§7.2）
     W091,

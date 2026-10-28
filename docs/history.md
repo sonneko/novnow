@@ -2249,3 +2249,27 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - `REF:tests/layering.rs` の §12.2 検査（core に日本語リテラルを置かない）に合わせ、語彙リスト（文末除外・文末助詞・不確か表現・活用接尾辞）は `/// i18n: format-vocabulary` を付けた `const` に閉じた。
 - 同時に更新したもの: 仕様 §7.2 のカタログ表 10 行と実行コスト表、「既定で無効」の一覧（18 件）、日英カタログ（`REF:src/ui/i18n/ja.toml`・`en.toml`）、サイトデータ（`diagnostics.ts` 生成・`diagnostics-en.json`・`diagnostics-examples.json`）、文体観察タブのコード一覧（`REF:src/ui/workspaces/tabs.rs`）、数の主張（77 種 → 87 種: `REF:docs/specifications/overview.md` §2・`REF:README.md`・`REF:README.en.md`・`REF:docs/users/glossary.md`）、設計書 §7.2（状態・コード数 38・トグル 11/18・コスト 27・サイト 87 コード）、計画の B11 / B12 の実施記録、`REF:scripts/diagnostics-site.py` の期待値。
 - テスト: `REF:tests/diagnostics_document.rs` に W097–W106 の 10 本（閾値の境界・集計単位・台詞の除外・1 字トークンの除外・語幹 2 字未満・辞書形・サンプル 2 件で発火しないこと・`"off"` のコードが出ないこと）を追加した。`REF:tests/diagnostics_catalog.rs`（87 行・コスト 27 行・無効 18 件）と `REF:tests/i18n_catalog.rs`（87 コード）の期待値も更新した。
+
+## 2026-10-28: 自然言語処理の重複整理（文字種・文の区切り・台詞の内側・読点候補の引数）
+
+- 日本語処理の調査で、同じ判定が複数のファイルに写されていることが分かった。所有者の判断（2026-10-28）で、**新しい仕様の判断は見送り**、いまの仕様の範囲でリファクタリングを先に行う。挙動は変えていない。
+- `REF:src/core/text/charclass.rs` を新設し、5 か所に散っていた文字種の判定を集めた。**範囲は動かしていない**（半角カナ・拡張 A・互換漢字を日本語に数えるかは場所ごとに違い、揃えるには仕様の判断が要るため）。述語ごとに「どの場面の判定か」と現在の範囲を doc に書いた: `classify`（§6.2.6 の形態素境界。`REF:src/core/resolve/dictionary.rs` から移設）、`is_ruby_base_kanji` / `is_kanji_mark`（§5.2.1 の `kanji_run`。`REF:src/core/syntax/contents.rs` の `KANJI` / `KANJI_MARKS` を置換）、`is_body_japanese` / `is_body_latin`（§7.2.2 の日本語主体判定。`REF:src/core/features/diagnose.rs`）、`is_word_char`（§9.4.4 の語の判定。同）、`is_kana` / `is_halfwidth_katakana`（§14.6.1 の文字化けの入口と出口。`REF:src/core/text/encoding.rs`）。
+- `REF:src/core/text/sentence.rs` を新設し、W 系（§9.4.4）の文の区切りを 1 か所にした。`STOPS`（`。！？`）と、`(本文中の byte 範囲, 文)` を返す `split` を置き、`REF:src/core/features/diagnose.rs` の 4 箇所（W081 / W089 / W088 の `style`、W097、W100、W101）が持っていた `split_inclusive` と `at += sentence.len()` の位置計算を置き換えた。役割語（§6.5.2）の文は `…` `!` `?` も文末にし、頭の文末記号の連続を次の文に含める点が違うので、`REF:src/core/resolve/role_language.rs` の `sentences` はそのまま残し、両者の違いを `sentence.rs` の doc に書いた。
+- W096 の `spacing_events` が持っていた括弧スタックをやめ、`REF:src/core/resolve/role_language.rs` の `dialogue_spans` に任せた。呼び出しは行ごとなので、閉じ忘れた台詞は従来どおり行末で切れる（入れ子 `「…『…』…」` の内側も台詞として数える点も同じ）。台詞の内側の判定が 1 実装になった。
+- `REF:src/core/features/metrics.rs` の `comma_candidates` の引数を `CommaOptions { every, floor }` にした。画面 3 箇所（`REF:src/ui/app.rs` の 2 箇所と `REF:src/ui/widgets/section_editor.rs`）が直書きしていた 40 と、関数の中に隠れていた下限 20 を 1 つの型にまとめた。**値は従来のまま**（`CommaOptions::default()` が `every: 40` / `floor: 20`）。
+- 変えていないもの（いずれも仕様の判断が要るので、次のラウンド以降に回す）: 句切れ提案の 4 優先度と除外規則（§9.4.3）、W088 の接続詞リスト（実装 6 語・仕様 14 語）、`～`（U+FF5E）の長音統一（§6.1.3）、検索の大小文字の既定（§9.7.4）、正規表現のサイズ上限（1MB と 2MB）、閉じ括弧の無い台詞を `text.len()` までとする扱い（E002 は行末までと書いている）。
+- テスト: `REF:tests/text.rs` を新設し 9 本（各述語の境界・半角カナと拡張 A と互換漢字が述語ごとに違うこと・`…` で切らないこと・改行で切らないこと・空文字）。`REF:tests/diagnostics_document.rs` に W096 の 2 本（入れ子の内側を数えること・地の文を数えないこと・閉じ忘れを数えること）。`REF:tests/stage_two.rs` の `comma_candidates` の呼び出しを `CommaOptions::every(20)` に追随させた。既存テストは無変更で通り、`bash scripts/verify.sh` は 1456 passed / 68 ターゲット・全ジョブ緑（fmt / clippy / clippy-ui / test / test-nogui / wasm / docs）。
+- 文書: `REF:docs/designs/overview.md` §3.3 の `core/text` のモジュール列と、`REF:docs/designs/semantics.md` §6.2（S-09）の文字種の置き場所を追随させた。
+
+## 2026-10-28: 仕様書を正本とした整合（検索の既定・W088・W090・文体の有効化・未閉じの台詞）
+
+- 所有者の指示（2026-10-28）で、以後は **仕様書を正本** として仕様書＝設計書＝実装＝挙動を揃える。新しい仕様の判断が要るものは実装を変えず、判断待ちとして記録する。最初に、調査で見つかっていた乖離のうち「仕様書に答えがある」ものを直した。
+- **検索の大小文字の既定**（§9.7.4「既定で区別する」）: `REF:src/core/features/search.rs` の `Query` の既定を `case_sensitive: true` にした（それまでは「無視」が既定で、仕様と逆）。`Alt+C` と画面のチェックで無視に切り替える点は変わらない。素材から再検索するときの既定も同じ値に揃えた。
+- **正規表現のサイズ上限**（§9.7.4「1MB」）: 2MB だった上限を 1MB（`SIZE_LIMIT`）にし、検索と置換の両方で同じ値を使うようにした（置換側は上限を見ていなかった）。
+- **置換の `\n`**（§9.7.4「`\n` は改行」）: 置換の入力欄は 1 行なので `\n` と打つ決まりだが、実装はそのまま 2 文字を入れていた。`search::replacement` で改行に直す。
+- **置換の確認文言**（§9.7.4「{n} ファイル {m} 箇所を確認してから実行」）: 文言に件数が無かった。`stage.confirm_replace` を `{0} ファイル {1} 箇所を置換します。よろしいですか？` / `Replace {1} matches in {0} files?` にし、プレビューで数えた値を渡す。プレビュー本体は `REF:src/ui/workspaces/regex_search.rs` の `preview` に切り出した。
+- **W088 の接続詞リスト**（§9.4.4 の 14 語）: 実装は 6 語だった。仕様の 14 語に合わせ、発火は **3 文目に 1 件だけ**（W097 / W100 / W101 と同じ数え方）にした。それまでは 3 文目以降の各文で出ていた（仕様に件数の記述が無かったため）。仕様の表にも「3 文目の位置に 1 件だけ」と追記した。
+- **文体の観察の有効化**（§7.2「設定で `warn` / `error` に変えたものは、実行コスト区分の範囲で常時出す」）: W081 / W087 / W088 / W089 と W090 は、文体タブの明示操作（`explicit`）でしか計算していなかった。`[features.diagnostics]` で有効化したときも計算するようにし、`style()` は有効なコードだけを出す形（`active` を渡す）にした。
+- **W090 の単位**（§7.2 の表「1 節」／§9.4.2 の算出）: 文書全体の台詞比率を見ていた。節ごとに `metrics::section` を回し、`dialogue_ratio_target`（上限目安、`REF:docs/specifications/project.md` の表）を超えた節に、その節の範囲で出すようにした。仕様の条件列と `DiagnosticCode::W090` の doc も「節ごと」「上限目安」に揃えた。
+- **閉じ忘れた台詞の範囲**（§6.5.3）: `dialogue_spans` の doc は「行末まで」と書いていたが、実装はテキスト末尾まで返していた（読点候補はバッファ全体を渡すため、`「` の閉じ忘れ 1 つで以降の全行が台詞扱いになっていた）。行末で切るようにし、仕様 §6.5.3 に入れ子と閉じ忘れの規則を追記した（台詞の字数・W096・読点候補の除外も同じ規則）。
+- テスト: `REF:tests/stage_two.rs` の検索の既定に追随、`REF:tests/role_language.rs` に「行をまたがない」1 件、`REF:tests/diagnostics_document.rs` に W088（14 語・1 件だけ）・設定での W081・W090 の節単位の 3 本を追加。`cargo test --locked --all-targets` は 1460 passed。

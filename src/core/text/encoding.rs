@@ -5,6 +5,8 @@
 //! Encodings other than UTF-8 / Shift_JIS are out of scope. Newline
 //! normalization stays with the caller (`lexer::normalize_for_save`).
 
+use crate::core::text::charclass;
+
 /// The encoding a byte sequence was (or should be) read as.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SourceEncoding {
@@ -110,7 +112,7 @@ pub fn mojibake_repair(text: &str) -> Option<String> {
     let has_marker = text.chars().any(|ch| MOJIBAKE_MARKERS.contains(&ch));
     let halfwidth = text
         .chars()
-        .filter(|ch| ('\u{FF66}'..='\u{FF9D}').contains(ch))
+        .filter(|ch| charclass::is_halfwidth_katakana(*ch))
         .count();
     if !has_marker && halfwidth < 3 {
         return None;
@@ -129,9 +131,7 @@ pub fn mojibake_repair(text: &str) -> Option<String> {
     if holes * 2 > chars {
         return None;
     }
-    let reads_as_japanese = repaired.chars().any(|ch| {
-        ('\u{3041}'..='\u{3096}').contains(&ch) || ('\u{30A1}'..='\u{30FA}').contains(&ch)
-    });
+    let reads_as_japanese = repaired.chars().any(charclass::is_kana);
     if !reads_as_japanese {
         return None;
     }
