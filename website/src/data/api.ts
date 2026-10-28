@@ -287,7 +287,7 @@ export const operations = [
     "ja": "構成ツリーの章→話の展開・折り畳み",
     "en": "Fold or unfold a chapter of the outline",
     "lsp": "foldingRange（範囲算出）",
-    "exceptions": "折り畳み状態の永続化は §4.4.1 の `folded` キーの導入とともに提供"
+    "exceptions": "折り畳み状態は `.novnow/ui.json` の `folded.outline` に保存し、再起動後に復元する（§4.4.1・§9.3.3）"
   },
   {
     "id": "save.now",

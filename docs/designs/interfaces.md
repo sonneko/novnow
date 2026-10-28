@@ -46,7 +46,7 @@
 状態: 実装完了（REF:src/lsp/server.rs, REF:src/lsp/methods.rs, REF:src/cli/lsp.rs, REF:tests/lsp.rs）
 
 - `src/lsp/`（新設、`cli` と同じくネイティブターゲット限定でコンパイル）: `framing.rs`（Content-Length フレーミングの手書き実装 — 追加依存ゼロ、serde_json は既存。stdio ループの構成は `REF:src/adapters/mcp_stdio.rs` を踏襲）、`server.rs`（リクエスト路由）、`methods.rs`（§19.4.2 の標準メソッド対応）、`commands.rs`（`executeCommand` → `OPS` ディスパッチ）、`convert.rs`（UTF-16 ↔ バイト位置、`REF:src/core/text/position.rs` の行表を利用）。
-- 文書同期は Full: 受け取った全文を `REF:src/core/text/incremental.rs` の差分編集器で rope に適用する。単節診断は `REF:src/core/features/sections.rs` のスコープ限定機構を再利用し、`publishDiagnostics` を §7.4 の地域化メッセージで配信する。
+- 文書同期は Full: 受け取った全文を `REF:src/core/text/incremental.rs` の差分編集器で rope に適用する。単節診断は `REF:src/core/features/sections.rs` のスコープ限定機構を再利用し、`publishDiagnostics` を §12.3 の地域化メッセージで配信する。
 - サーバ→クライアントは §19.4.4 の `novnow/*` 通知 4 種と `workspace/applyEdit`（リネーム・提案の適用）。通知ペイロードは §19.2.4 の `AppEvent` と同じシリアライズを共有する。
 - 起動口は `REF:src/cli/mod.rs` の `lsp` サブコマンド（`mcp` と同じ cfg ゲート）。
 - 検証: `REF:tests/lsp.rs`がスクリプト化した JSON-RPC で実 stdio フレーミングを駆動する（`REF:tests/mcp_stdio.rs` と同じ方式）。CJK とサロゲートペアの UTF-16 往復を含む。

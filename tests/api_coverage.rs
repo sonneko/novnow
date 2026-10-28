@@ -251,7 +251,7 @@ fn every_catalog_operation_is_callable_and_classified() {
     );
 
     // 2. エラーの形: 分類は §19.1.7 の 9 種類のいずれかで（`Class` が 10 種目に増えたら
-    //    仕様書の表も要る）、メッセージは必ずあり（§7.4 の地域化）、`kind` を持つときは
+    //    仕様書の表も要る）、メッセージは必ずあり（§12.3 の地域化）、`kind` を持つときは
     //    §7.1 の診断コード（`E` / `W` / `I` + 3 桁）の形であること。
     assert_eq!(CLASSES.len(), 9, "§19.1.7 のエラー分類は 9 種類");
     let mut malformed: Vec<String> = Vec::new();
@@ -263,7 +263,10 @@ fn every_catalog_operation_is_callable_and_classified() {
             malformed.push(format!("{}: 分類 {class:?} が §19.1.7 に無い", def.id));
         }
         if message.trim().is_empty() {
-            malformed.push(format!("{}: メッセージが空（§7.4 の地域化が無い）", def.id));
+            malformed.push(format!(
+                "{}: メッセージが空（§12.3 の地域化が無い）",
+                def.id
+            ));
         }
         if !kind.is_empty() {
             let shaped = kind.len() == 4

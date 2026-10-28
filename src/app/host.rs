@@ -168,7 +168,7 @@ pub enum HostEvent {
     ZipExported(String),
     /// Zip を書き出せなかった。
     ZipFailed(String),
-    /// 保存領域の空きが少ない（W062、§13.3.7）。
+    /// 保存領域の空きが少ない（W062、§13.3.6）。
     LowSpace,
 }
 

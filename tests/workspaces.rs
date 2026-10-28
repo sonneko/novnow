@@ -317,7 +317,7 @@ fn alt_2_opens_the_episode_plot_at_the_same_scene_id_with_its_parent_visible() {
     assert_eq!(harness.app.workspace(), Some(Workspace::PlotEpisode));
     assert_eq!(selected(&harness), Some(id(1, 1, 1, 1)), "SceneId を維持");
     let text = painted_text(&output);
-    // 上段: 章プロットの該当話ブロック（親が常に見える、§19.5・§19.11）
+    // 上段: 章プロットの該当話ブロック（親が常に見える、§10.2）
     assert!(text.contains("@01-01 図書室の密談"), "{text}");
     assert!(
         text.contains("summary: 二人が図書室で出会い直す。"),
@@ -544,7 +544,7 @@ fn alt_3_opens_the_chapter_plot_with_the_parent_block_and_foreshadows() {
         "write の話"
     );
     let text = painted_text(&output);
-    // 親（全体プロットの章のブロック）が常に見える（§19.11）
+    // 親（全体プロットの章のブロック）が常に見える（§10.3.1）
     assert!(text.contains("@01 失われた刻印"), "{text}");
     assert!(text.contains("図書室の密談"), "{text}");
     assert!(text.contains("旧校舎へ"), "{text}");

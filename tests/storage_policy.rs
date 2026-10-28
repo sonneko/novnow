@@ -892,11 +892,11 @@ fn prompts_are_read_only_from_the_project() {
     assert!(prompts::blockers(&project, "writer").is_empty());
 }
 
-// ============================================================ 規則 10 の総合（§19.10 の機械化）
+// ============================================================ 規則 10 の総合（§13.1.1 の機械化）
 
 #[test]
 fn after_a_full_session_the_only_files_outside_the_projects_are_the_history_and_the_chosen_zip() {
-    // §19.10「実機で一通り操作した後、プロジェクト外に作られたファイルが履歴 1 個と、保存ダイアログで
+    // §13.1.1「実機で一通り操作した後、プロジェクト外に作られたファイルが履歴 1 個と、保存ダイアログで
     // 指定した Zip だけ」（第 2.10 版）をストレージ層でなぞる（手動の手順は docs/verify-rule10.md）。
     // HOME を砂場に向けた Linux として、履歴は §13.2.1 の既定の場所（~/.local/state/novnow/recent.json）
     // に書かせる。
@@ -941,7 +941,7 @@ fn after_a_full_session_the_only_files_outside_the_projects_are_the_history_and_
             "home/Desktop/hoshi.zip"
         ]
     );
-    // 履歴の中身は path と opened_at だけ（§19.10）
+    // 履歴の中身は path と opened_at だけ（§13.2.2）
     let text = std::fs::read_to_string(home.join(".local/state/novnow/recent.json")).expect("read");
     let value: serde_json::Value = serde_json::from_str(&text).expect("json");
     let keys: Vec<&String> = value.as_object().expect("object").keys().collect();

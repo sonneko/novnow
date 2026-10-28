@@ -1286,7 +1286,7 @@ pub fn severity_name(severity: crate::core::diagnostics::Severity) -> &'static s
 }
 
 /// 診断を JSON へ（`diagnostics.run`・`lang.*`・LSP の `publishDiagnostics` が共有する形。
-/// メッセージは §7.4 の地域化、行と列は 1 始まり）。
+/// メッセージは §12.3 の地域化、行と列は 1 始まり）。
 pub fn diagnostic_json(
     locale: Locale,
     path: &str,

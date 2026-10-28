@@ -74,7 +74,7 @@ source: "docs/specifications/interfaces.md"
 
 #### 19.1.7 エラーモデル
 
-すべてのインターフェースは共通のエラー分類を共有する（MUST）。分類・コード・メッセージは §6.3 のエラーコード表と §7.4 の i18n 規則に従う。
+すべてのインターフェースは共通のエラー分類を共有する（MUST）。分類・コード・メッセージは §6.3 のエラーコード表と §12 の i18n 規則に従う。
 
 | 分類 | 意味 | LSP / MCP / JSON | CLI 終了コード（§14.2.5） |
 |---|---|---|---|
@@ -85,16 +85,16 @@ source: "docs/specifications/interfaces.md"
 | `policy` | 権限・関門の拒否（E036 など） | 結果内 `isError` + `data.code` | 5 |
 | `not_found` | 対象 ID の不存在（セクション・タスクなど） | JSON-RPC `-32001` + `data.code` | 3 |
 | `conflict` | 保存状態機の衝突（外部変更・ロック） | JSON-RPC `-32002` + `data.code` | 4 |
-| `timeout` | LLM 応答・処理の時間切れ（§18.3.1） | JSON-RPC `-32003` | 4 |
+| `timeout` | LLM 応答・処理の時間切れ（§15.8.1 の既定 60s を過ぎた） | JSON-RPC `-32003` | 4 |
 | `cancelled` | 利用者が操作を中断した | JSON-RPC `-32800`（Request cancelled） | 0（能動的キャンセル。部分書き込みを残さない） |
 
-- エラー応答は `code`（分類）・`kind`（S/E 番号）・`message`（§7.4 の言語で地域化）・`path`（該当ファイル、あれば）を含む（MUST）。
+- エラー応答は `code`（分類）・`kind`（S/E 番号）・`message`（§12.3 のカタログの言語で地域化）・`path`（該当ファイル、あれば）を含む（MUST）。
 - MCP のツールはプロトコル従来どおり、内容エラーを `isError: true` のツール結果として返す（JSON-RPC エラーにしない）。§15.8.3 の既存方式を維持する（MUST）。
 
 #### 19.1.8 国際化
 
-- すべてのインターフェースは `--lang`（CLI）・`locale`（LSP 初期化オプション・MCP 引数）・`set_locale`（Rust / Python セッション）でメッセージ言語を切り替える（§7.4 と同じ `ja` / `en`・既定 `ja`）。
-- 診断メッセージ・エラーメッセージ・ヘルプ本文は §7.4 の辞書から供給される（MUST）。データ（ファイル内容・ID・数値）は地域化しない。
+- すべてのインターフェースは `--lang`（CLI）・`locale`（LSP 初期化オプション・MCP 引数）・`set_locale`（Rust / Python セッション）でメッセージ言語を切り替える（§12.4 と同じ決定順のうち明示指定・`ja` / `en`・既定 `ja`）。
+- 診断メッセージ・エラーメッセージ・ヘルプ本文は §12.3 の文言カタログから供給される（MUST）。データ（ファイル内容・ID・数値）は地域化しない。
 
 #### 19.1.9 性能とキャンセル
 
@@ -223,10 +223,10 @@ LSP 標準メソッドと novnow の機能の対応は次のとおり（MUST）:
 |---|---|
 | `initialize` / `initialized` | プロジェクトの検証・読み込み（§14.2 と同じ規則）。`serverInfo` に名称・版 |
 | `textDocument/didOpen` / `didChange` / `didSave` | 本文・プロットの編集中状態（§9.6 の状態機）。変更は単節解析で即時検証 |
-| `textDocument/publishDiagnostics` | §3.4 の診断（E001〜E040）。`code` に E 番号、`source` に `"novnow"`、メッセージは §7.4 の言語 |
+| `textDocument/publishDiagnostics` | §3.4 の診断（E001〜E040）。`code` に E 番号、`source` に `"novnow"`、メッセージは §12.4 の言語 |
 | `textDocument/completion` | 補完候補（§9.7 の `@` `$` `:` `/` `^`）。モード・用語・タグ・素材・操作 ID |
 | `textDocument/hover` | カーソル位置の注解・モード説明（§9.7.1 のホバー情報） |
-| `textDocument/codeAction` | クイックフィックス（§11.7 の 5 種: E032 候補置換、辞書登録、E004 削除、E037 単位変換、E031 辞書案内） |
+| `textDocument/codeAction` | クイックフィックス（§7 の各コードの「クイックフィックス」列）。**適用後のテキスト編集を返せるものだけ**を返し、ファイルをまたぐ移動や UI 操作（型の追加・新規資料の作成など）は返さない |
 | `textDocument/definition` / `references` | 定義ジャンプ・参照検索（`lang.definition` / `lang.references`） |
 | `textDocument/documentSymbol` | セクション一覧（`section.list`）。プロット文書ではプロット節 |
 | `workspace/symbol` | 全体検索（`search.project`） |
@@ -238,8 +238,8 @@ LSP 標準メソッドと novnow の機能の対応は次のとおり（MUST）:
 | `workspace/didChangeConfiguration` | 設定の変更通知（`settings.get` の再読込） |
 
 - 位置は LSP 標準の UTF-16 行・文字で受け渡し、内部のバイト位置と相互変換する（§3.4「位置表現」）。
-- 補完のトリガー文字は `'`（操作 ID）・`@`（キャラクター）・`:`（モード）・`$`（タグ）・`^`（素材）。`$` と `^` は §16.4.2 のとおりエスケープなしで受け付ける。
-- 診断の配信範囲は §9.1.1 と同じ（開いている文書と単節解析の結果）。全体スコープの診断は `workspace/executeCommand`（`diagnostics.run`）で要求できる。
+- 補完のトリガー文字は `'`（操作 ID）・`@`（キャラクター）・`:`（モード）・`$`（タグ）・`^`（素材）。`$` と `^` は §5.0.3 のとおりエスケープなしで受け付ける。
+- 診断の配信範囲は、開いている文書と、打鍵のたびの単節解析の結果（§7.2「実行コストの制御」の範囲）。全体スコープの診断は `workspace/executeCommand`（`diagnostics.run`）で要求できる。
 
 #### 19.4.3 文書同期と保存
 
@@ -310,7 +310,7 @@ novnow new|check|export|import|mcp …     既存サブコマンド（§14.1。�
 
 #### 19.6.2 出力
 
-- 全操作は `--json` で機械可読出力（§19.1.4 の決定論）を返す（MUST）。省略時は人間可読な地域化テキスト（§7.4）。
+- 全操作は `--json` で機械可読出力（§19.1.4 の決定論）を返す（MUST）。省略時は人間可読な地域化テキスト（§12.3）。
 - `--json` の共通形（エンベロープ）は次のとおり（MUST）:
 
 ```json
@@ -341,7 +341,7 @@ GUI の全機能を正規操作 ID に対応づけるカタログ。この表が
 |---|---|---|---|
 | project.info | プロジェクト基本情報（タイトル・作者・言語・版）。ワークスペース見出し | | |
 | project.new | 新規プロジェクト作成（パレット `>` + `new`、CLI 既存） | | L—（起動前）M—（要プロジェクト） |
-| project.validate | 構造検証（CLI `check` 既存。§14.2.4 の一覧） | | |
+| project.validate | 構造検証（CLI `check` 既存。§4.3 の判定） | | |
 | project.reload | 再読込（パレット `>` + `reload`） | | M—・C—（状態性） |
 | project.stats | 執筆統計（統計バッジ、`.novnow/stats.json` の算出） | | |
 | project.recent_list | 最近開いたプロジェクト一覧（`.novnow/recent.json`） | | M—（状態性） |
@@ -373,7 +373,7 @@ GUI の全機能を正規操作 ID に対応づけるカタログ。この表が
 | plot.write | 全体／章／話プロットの書き込み（§10.3.2） | | M 門番 |
 | plot.set_state | プロットの確認状態（✓）の切替（§10.3.3） | | M 門番 |
 | plot.insert_section | 話プロットへの節挿入（`Ctrl+Shift+N`、§10.2） | | M 門番 |
-| plot.outline_fold | 構成ツリーの章→話の展開・折り畳み（`Ctrl+Shift+[` `]`） | foldingRange（範囲算出） | 折り畳み状態の永続化は §4.4.1 の `folded` キーの導入とともに提供 |
+| plot.outline_fold | 構成ツリーの章→話の展開・折り畳み（`Ctrl+Shift+[` `]`） | foldingRange（範囲算出） | 折り畳み状態は `.novnow/ui.json` の `folded.outline` に保存し、再起動後に復元する（§4.4.1・§9.3.3） |
 | save.now | 保存（`Ctrl+S`） | | M—・C—（状態性） |
 | save.state | 保存状態の取得（§9.6 の 6 状態） | | M—・C—（状態性） |
 | save.keep_mine | 衝突時に自分の版を維持（§9.6） | | M—・C—（状態性） |
@@ -395,7 +395,7 @@ GUI の全機能を正規操作 ID に対応づけるカタログ。この表が
 | idea.capture | 着想の記録（`Ctrl+Shift+I`、種別・キーワード） | | M 門番 |
 | idea.promote | 着想の昇格（`>` + `promote-idea`） | | M 門番 |
 | idea.drop | 着想の削除（`>` + `drop-idea`） | | M 門番 |
-| idea.write | 着想メモの書き込み（§10.4.3） | | M 門番 |
+| idea.write | 着想メモの書き込み（§10.4） | | M 門番 |
 | cast.get | キャラクター情報・有効なモード（MCP 既存） | | |
 | cast.list | キャラクター一覧 | | |
 | cast.timeline | 呼称タイムライン（§9.5.2） | | |
@@ -409,7 +409,7 @@ GUI の全機能を正規操作 ID に対応づけるカタログ。この表が
 | lang.completion | 補完候補（§9.7 の `'` `@` `:` `$` `^`） | textDocument/completion | |
 | lang.hover | カーソル位置の情報（§9.7.1） | textDocument/hover | |
 | lang.hints | インラインヒント（`>` + `toggle-inlay-hints`） | textDocument/inlayHint | |
-| lang.code_action | クイックフィックス候補（§11.7 の 5 種） | textDocument/codeAction | 適用は M 門番 |
+| lang.code_action | クイックフィックス候補（§7 の各コードの「クイックフィックス」列） | textDocument/codeAction | 適用は M 門番 |
 | lang.definition | 定義へジャンプ（`>` + `goto-definition`） | textDocument/definition | |
 | lang.references | 参照検索（`>` + `find-references`） | textDocument/references | |
 | lang.symbols | シンボル一覧（`>` + `show-symbols`） | textDocument/documentSymbol | |
@@ -417,7 +417,7 @@ GUI の全機能を正規操作 ID に対応づけるカタログ。この表が
 | lang.rename_preview | リネームの影響範囲（`>` + `rename-symbol`） | textDocument/rename（準備） | |
 | lang.rename_apply | リネームの実行 | textDocument/rename | M 門番 |
 | lang.folding | 折り畳み範囲（§9.8） | textDocument/foldingRange | |
-| diagnostics.run | 診断（スコープ: single / file / full、§9.1.1） | publishDiagnostics（配信） | |
+| diagnostics.run | 診断（`scope` はパスの接頭辞、`path` は文書 1 つ、`scene` は `@AA-BB-CC-DD`。省略すると全部。§7.2 の範囲で計算） | publishDiagnostics（配信） | |
 | diagnostics.place | 地名解決（`>` + `resolve-place`、§11.3） | | |
 | review.list | 見直し項目一覧（`Ctrl+Shift+R`） | | |
 | review.goto | 見直し項目への移動（`>` + `goto-review`） | | M—・C—（状態性） |

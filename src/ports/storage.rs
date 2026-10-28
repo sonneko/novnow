@@ -46,9 +46,9 @@ pub enum StorageError {
         /// OS / ブラウザのメッセージ（ログ用。ユーザー向けの文言ではない）。
         message: String,
     },
-    /// 保存領域の上限（Web の `QuotaExceededError`、§13.3.7。`SaveFailed` として扱う）。
+    /// 保存領域の上限（Web の `QuotaExceededError`、§13.3.6。`SaveFailed` として扱う）。
     QuotaExceeded,
-    /// ストレージが使えない（IndexedDB が無い等。**E062**、§13.3.7）。
+    /// ストレージが使えない（IndexedDB が無い等。**E062**、§13.3.6）。
     Unavailable(String),
     /// この実装ではできない操作（Web でバイナリを書く等）。
     Unsupported,

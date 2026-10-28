@@ -65,7 +65,7 @@ fn create_writes_a_project_that_open_reads_back() {
     );
 }
 
-/// プロジェクトの無いディレクトリは `project` 分類で断る（§14.2.4・§19.1.7）。
+/// プロジェクトの無いディレクトリは `project` 分類で断る（§4.3・§19.1.7）。
 #[test]
 fn opening_a_directory_without_a_project_is_a_project_error() {
     let dir = TempDir::new("api-open-empty");

@@ -4,7 +4,7 @@
 
 ## 7. 診断カタログ
 
-- `W041` / `I051` / `I058` は `DiagnosticCode` に定義があるが、`REF:src/` のどこからも発行しない（`REF:tests/diagnostics_catalog.rs` はカタログ表との一致だけを検査する）。`W041` の読み取り専用判定は未実装で、書き込みの拒否は `E060`（`REF:src/core/policy/write_policy.rs`）として出る。`I051` はステータスバーの保存状態アイコン（`REF:src/ui/status.rs`）、`I058` は資料一覧への反映（`REF:src/core/features/search.rs` の `snapshot`）が代替する。
+- `W022` / `W025` / `W030` / `W064` / `W041` / `I051` / `I058` は `DiagnosticCode` に定義があるが、`REF:src/` のどこからも発行しない（`REF:tests/diagnostics_catalog.rs` はカタログ表との一致だけを検査する）。7 件の理由は `REF:docs/specifications/diagnostics.md` §7 冒頭の表。`W022` は用語の `range`、`W025` / `W064` は資料 MD と index、`W030` は話プロットと本文の節数を突き合わせる検査が未実装である。`W041` の読み取り専用判定は未実装で、書き込みの拒否は `E060`（`REF:src/core/policy/write_policy.rs`）として出る。`I051` はステータスバーの保存状態アイコン（`REF:src/ui/status.rs`）、`I058` は資料一覧への反映（`REF:src/core/features/search.rs` の `snapshot`）が代替する。
 
 ### 7.0 コア・構文・解決・整合の診断
 

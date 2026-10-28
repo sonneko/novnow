@@ -511,7 +511,7 @@ fn e006_offers_the_three_fixes_of_6_6_3() {
 
 #[test]
 fn e006_offers_all_three_fixes_when_another_material_has_the_written_title() {
-    // §6.6.3 のクイックフィックス 3（同名タイトルを持つ別 ID へ貼り替える）まで並ぶ（§19.9）
+    // §6.6.3 のクイックフィックス 3（同名タイトルを持つ別 ID へ貼り替える）まで並ぶ（§7 の E006 の行）
     let index = INDEX.replacen(
         "  \"next_id\": 138,\n  \"items\": [\n",
         "  \"next_id\": 142,\n  \"items\": [\n    { \"id\": \"M0141\", \"title\": \"科学の甲子園 地方大会の運営\", \"path\": \"materials/docs/M0141.md\", \"source\": { \"kind\": \"custom\", \"text\": \"取材\" }, \"category\": \"取材\", \"conditions\": [], \"saved_at\": \"2026-10-03T10:00:00+09:00\", \"tags\": [], \"status\": \"approved\", \"added_by\": \"human\" },\n",

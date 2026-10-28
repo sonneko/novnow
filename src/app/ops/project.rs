@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 
 use crate::app::error::{Class, Error, Result};
 use crate::app::ops::{commit, via_mcp, Args};
-use crate::app::session::{bool_or, str_arg, str_or, usize_opt, Session};
+use crate::app::session::{str_arg, str_or, usize_opt, Session};
 use crate::core::features::sections;
 use crate::ui::i18n::{self, Locale};
 
@@ -13,7 +13,7 @@ pub fn info(session: &mut Session, args: &Args) -> Result<Value> {
     via_mcp(session, "novnow.project.info", args)
 }
 
-/// `project.validate`（§14.2.4 の一覧。`novnow check` と同じ判定）。
+/// `project.validate`（§4.3 の判定。`novnow check` と同じ）。
 pub fn validate(session: &mut Session, args: &Args) -> Result<Value> {
     let _ = args;
     use crate::core::model::project::{validate as check, Listing};
@@ -384,20 +384,6 @@ pub(crate) mod base64_decode {
         }
         Ok(out)
     }
-}
-
-/// `diagnostics.run` のスコープ（`single` / `file` / `full`。§9.1.1）。
-pub fn scope_of(args: &Args) -> &'static str {
-    match str_or(args, "scope", "full") {
-        "single" => "single",
-        "file" => "file",
-        _ => "full",
-    }
-}
-
-/// `plot.outline_fold` の折り畳み状態（§19.7 の注記: 永続化は `folded` キーの導入とともに）。
-pub fn fold_flag(args: &Args) -> bool {
-    bool_or(args, "fold", true)
 }
 
 /// 章番号（`plot.*` の `chapter` 引数。無ければ今の節の章）。

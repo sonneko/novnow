@@ -295,7 +295,7 @@ fn indented_prose_is_body_text_not_a_continuation() {
 
 #[test]
 fn unknown_syntax_stays_in_the_body() {
-    // ① で解析しない構文は本文のまま（`docs/history.md` の作業項目 1・本書 §1.2 の 10/23/15）
+    // 行として解析しない構文は本文のまま（`docs/history.md` の作業項目 1・§5.2.1・§5.2.4・§5.2.5）
     assert_eq!(
         line_tag_of("世界樹の樹皮は、剥がすと七日で再生するという。^M0137"),
         "text[世界樹の樹皮は、剥がすと七日で再生するという。^M0137]"

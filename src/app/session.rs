@@ -635,7 +635,7 @@ pub fn save_state_name(state: State) -> &'static str {
     }
 }
 
-/// §14.2.4 のプロジェクト不備を `Error` へ写像する（§19.1.7 の `project` / `io`）。
+/// §4.3 のプロジェクト不備を `Error` へ写像する（§19.1.7 の `project` / `io`）。
 #[cfg(not(target_arch = "wasm32"))]
 fn project_error(locale: Locale, error: &crate::core::model::project::ProjectError) -> Error {
     use crate::core::model::project::ProjectError;

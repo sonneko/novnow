@@ -2,7 +2,7 @@
 //!
 //! - **プロジェクト選択モーダル**（§13.4）: IndexedDB（`adapters::storage_idb`）のプロジェクトの一覧・
 //!   検索・新規作成・Zip の取り込み・名前の変更・削除。初回は `sample` を 1 つだけ作り、自動では
-//!   開かない（§13.3.5）。IndexedDB が使えなければ全画面で E062 を出して止まる（§13.3.7）。
+//!   開かない（§13.3.5）。IndexedDB が使えなければ全画面で E062 を出して止まる（§13.3.6）。
 //! - **開いたプロジェクトの [`Host`]**（[`WebHost`]）: 書き込みは 1 本の列で順に IndexedDB へ送る
 //!   （非同期）。保存の結果は後のフレームで [`Host::save_finished`] が返す。監査ログの追記が
 //!   重ならず、保存の後に頼んだ Zip のエクスポートが保存の後の中身を読む。
@@ -254,7 +254,7 @@ struct Queue {
     saved: Option<SaveOutcome>,
     /// 後から知らせること（[`Host::take_events`]）。
     events: Vec<HostEvent>,
-    /// 最後に空き容量を確かめた時刻（ミリ秒。§13.3.7 の W062 は 1 分に 1 回まで）。
+    /// 最後に空き容量を確かめた時刻（ミリ秒。§13.3.6 の W062 は 1 分に 1 回まで）。
     estimated_at: i64,
 }
 
@@ -393,7 +393,7 @@ async fn save(
     }
 }
 
-/// 保存の前に空き容量を確かめる（§13.3.7: 残り 10MB 未満なら W062。1 分に 1 回まで）。
+/// 保存の前に空き容量を確かめる（§13.3.6: 残り 10MB 未満なら W062。1 分に 1 回まで）。
 async fn low_space(queue: &Rc<RefCell<Queue>>) {
     let now = SystemClock.now_millis();
     if now - queue.borrow().estimated_at < 60_000 {
@@ -591,7 +591,7 @@ enum Phase {
     Starting,
     /// 一覧を出せる。
     Ready,
-    /// IndexedDB が使えない（E062。LocalStorage へはフォールバックしない、§13.3.7）。
+    /// IndexedDB が使えない（E062。LocalStorage へはフォールバックしない、§13.3.6）。
     Unavailable,
 }
 
@@ -1102,7 +1102,7 @@ impl Picker for WebPicker {
                             );
                         }
                         Phase::Unavailable => {
-                            // §13.3.7: 起動を中止し、状況と回避策を全画面で示す
+                            // §13.3.6: 起動を中止し、状況と回避策を全画面で示す
                             let e062 = storage_idb::unavailable_notice();
                             ui.label(
                                 RichText::new(i18n::diagnostic(locale, &e062)).color(colors.error),

@@ -174,7 +174,7 @@ impl AppRecord {
 
 // ============================================================ 判定・採番
 
-/// 残りが 10MB 未満か（§13.3.7、W062）。
+/// 残りが 10MB 未満か（§13.3.6、W062）。
 pub fn is_low_space(quota: f64, usage: f64) -> bool {
     quota - usage < LOW_SPACE_BYTES
 }
@@ -259,7 +259,7 @@ mod web {
         }
     }
 
-    /// JS の例外を [`StorageError`] にする（`QuotaExceededError` は保存失敗、§13.3.7）。
+    /// JS の例外を [`StorageError`] にする（`QuotaExceededError` は保存失敗、§13.3.6）。
     fn js_error(value: JsValue) -> StorageError {
         match value.dyn_ref::<DomException>() {
             Some(exception) if exception.name() == "QuotaExceededError" => {
@@ -429,7 +429,7 @@ mod web {
 
     impl Idb {
         /// DB `novnow` v1 を開く（無ければストア 3 つと索引 2 つを作る）。使えなければ
-        /// [`StorageError::Unavailable`]（**E062**。LocalStorage へはフォールバックしない、§13.3.7）。
+        /// [`StorageError::Unavailable`]（**E062**。LocalStorage へはフォールバックしない、§13.3.6）。
         pub async fn open() -> Result<Self, StorageError> {
             let window = web_sys::window().ok_or_else(|| unavailable("no window"))?;
             let factory = window
@@ -948,7 +948,7 @@ mod web {
 
     // ---------------------------------------------------------------- navigator.storage・ダウンロード
 
-    /// `navigator.storage.persist()` を要求する（拒否されても続行、§13.3.7）。
+    /// `navigator.storage.persist()` を要求する（拒否されても続行、§13.3.6）。
     pub async fn request_persist() {
         let Some(window) = web_sys::window() else {
             return;
@@ -959,7 +959,7 @@ mod web {
     }
 
     /// `navigator.storage.estimate()` の `(quota, usage)`（byte）。分からなければ `None`。
-    /// 保存前に [`super::is_low_space`] で W062 を判定する（§13.3.7）。
+    /// 保存前に [`super::is_low_space`] で W062 を判定する（§13.3.6）。
     pub async fn estimate() -> Option<(f64, f64)> {
         let window = web_sys::window()?;
         let promise = window.navigator().storage().estimate().ok()?;

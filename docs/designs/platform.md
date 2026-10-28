@@ -73,7 +73,7 @@
 状態: 実装完了（REF:src/cli/open.rs, REF:src/cli/check.rs, REF:src/core/features/place.rs, REF:tests/cli.rs）
 
 - 起動前スキャン、不足項目一覧の表示、`novnow new` の案内、作家の言葉での診断位置表記 `[本文 @01-04-02-03]`（`REF:src/core/features/place.rs`）、および終了コード `0`〜`5` の制御は `REF:src/cli/open.rs` と `REF:src/cli/check.rs` に実装する。
-- 仕様書 §14.2.2〜§14.2.4 の出力例との一字一句の一致は `REF:tests/cli.rs` で検証する。
+- 仕様書 §14.2.2・§14.2.3 の出力例との一字一句の一致は `REF:tests/cli.rs` で検証する。
 - §14.2.1 の 3 つの URL は `REF:src/core/model/project.rs` の定数だけが持ち、`REF:src/cli/mod.rs`・
   `REF:src/cli/open.rs`・`REF:src/ui/app.rs` は定数を参照する（直書きしない）。3 URL の公開物の実在は
   `REF:docs/script/reference.py` の検査 11 が照合する（対応するページは `guide/` 配下に生成する）。

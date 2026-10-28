@@ -549,7 +549,7 @@ pub struct Session {
     pub(crate) open_agent: bool,
     /// 書き込み中の保存で渡した中身（非同期の保存のあいだも編集できるので、終わったときに比べる。B-156）。
     saving: Option<std::collections::BTreeMap<String, String>>,
-    /// 保存領域が足りないことを知らせた（同じ失敗のあいだは何度も出さない、§13.3.7）。
+    /// 保存領域が足りないことを知らせた（同じ失敗のあいだは何度も出さない、§13.3.6）。
     quota_shown: bool,
     /// ガイドモードの段階 8 の条件（エクスポートが完了した。§9.10）。
     guide_exported: bool,
@@ -823,7 +823,11 @@ impl NovnowApp {
         let (fonts, fallback) = theme::fonts();
         ctx.set_fonts(fonts);
         let (stage, settings) = match opened {
-            Some((session, settings)) => (Stage::Open(Box::new(session)), settings),
+            Some((mut session, settings)) => {
+                // 構成ツリーの開閉を復元する（`.novnow/ui.json` の `folded.outline`、§4.4.1）
+                session.spaces.outline.restore_expanded(&settings.outline);
+                (Stage::Open(Box::new(session)), settings)
+            }
             None => (Stage::Picker, UiSettings::default()),
         };
         Self {
@@ -1151,7 +1155,8 @@ impl NovnowApp {
         self.paste_repair_frame(ctx, mode, locale);
         match &mut self.stage {
             Stage::Picker => {
-                if let Some((session, settings)) = self.picker.show(ctx, locale, mode) {
+                if let Some((mut session, settings)) = self.picker.show(ctx, locale, mode) {
+                    session.spaces.outline.restore_expanded(&settings.outline);
                     self.settings = settings;
                     self.stage = Stage::Open(Box::new(session));
                     self.overlay = Overlay::None;
@@ -3773,6 +3778,12 @@ impl NovnowApp {
             self.settings.folded = folded;
             session.settings_dirty = true;
         }
+        // 構成ツリーの開閉を `folded.outline` へ（`Ctrl+Shift+[` / `]` と見出しのボタン、§10.3.1）
+        let outline = session.spaces.outline.expanded_keys();
+        if outline != self.settings.outline {
+            self.settings.outline = outline;
+            session.settings_dirty = true;
+        }
         if let Some(id) = session.bench.current_id() {
             let current = id.display(session.bench.project().digits());
             let count = self.settings.folded.len();
@@ -3800,7 +3811,7 @@ impl NovnowApp {
         }
         let unsaved = session.saving.is_some() || session.bench.save.state() != State::Clean;
         session.host.unsaved_changed(unsaved);
-        // 保存領域が足りない（§13.3.7）: Zip でエクスポートしてから不要なプロジェクトを消す導線を出す
+        // 保存領域が足りない（§13.3.6）: Zip でエクスポートしてから不要なプロジェクトを消す導線を出す
         let quota = session.bench.save.state() == State::Failed
             && session
                 .bench
@@ -4547,7 +4558,7 @@ impl NovnowApp {
                     );
                     ui.label(i18n::text(locale, "status.dont_close"));
                     if quota {
-                        // §13.3.7: Zip でエクスポートしてから不要なプロジェクトを削除する導線
+                        // §13.3.6: Zip でエクスポートしてから不要なプロジェクトを削除する導線
                         ui.add_space(4.0);
                         ui.label(i18n::text(locale, "status.quota"));
                     }
@@ -5816,7 +5827,7 @@ impl NovnowApp {
 }
 
 /// 保存の時刻なら書く（§8.2）。`ui.json` の変更も一緒に書く。
-/// 保存領域が足りないときの失敗の文言に含まれる語（`StorageError::QuotaExceeded` の `Debug`、§13.3.7）。
+/// 保存領域が足りないときの失敗の文言に含まれる語（`StorageError::QuotaExceeded` の `Debug`、§13.3.6）。
 const QUOTA_EXCEEDED: &str = "QuotaExceeded";
 
 /// Host が後から知らせたことの文言。

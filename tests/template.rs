@@ -60,7 +60,7 @@ fn the_template_has_exactly_the_files_of_section_14_5() {
         ".gitignore",
     ]);
     assert_eq!(paths, want);
-    // §1.2（② の除外）: prompts/custom/ と assets/ は作らない（`docs/history.md` 作業項目 6）
+    // `novnow new` は prompts/custom/ と assets/ を作らない（`docs/history.md` 作業項目 6）
     assert!(paths
         .iter()
         .all(|path| !path.starts_with("prompts/custom/") && !path.starts_with("assets/")));
