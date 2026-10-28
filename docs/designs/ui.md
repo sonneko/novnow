@@ -37,7 +37,7 @@
 状態: 実装完了（REF:src/ui/widgets/context_view.rs, REF:tests/gui.rs）
 
 - 前後最大 3 節の読み取り専用表示と、編集中の節の位置に本文を重複描画せず 1 行プレースホルダ `─── @01-04-02-03 ───` のみを置く処理は `ui::widgets::context_view`（`REF:src/ui/widgets/context_view.rs`）に実装する（検証: `REF:tests/gui.rs` の `the_context_view_never_paints_the_section_being_edited`）。
-- ※§9.3.3 の折りたたみ UI は段階 ②（追加仕様 9、`REF:docs/plans.md#stage-2`）対象。
+- ※§9.3.3 の折りたたみは、各階層の見出しボタン（`▾`/`▸`）と `Ctrl+K Ctrl+0` / `Ctrl+K Ctrl+J`、`ui.json` の `folded` への保存まで実装済み（`REF:src/ui/widgets/context_view.rs`, `REF:src/ui/app.rs`）。`Ctrl+Shift+[` / `Ctrl+Shift+]` の段階的な折りたたみと、畳んだ単位の 1 行要約（文字数・節数）、検索ヒットによる自動展開は未実装（`REF:docs/specifications/ui.md` §9.3.3 の注記）。
 
 - **[F-21 / F-22 / F-39 / F-41 / S-04 / S-12] 文脈ビューの視認性・ガイド・可視範囲レイアウト改善（実装完了: `REF:docs/plans.md#plan-F-21`）**:
   - `REF:src/ui/widgets/context_view.rs` で各節境界に `border` 色の横線を描画し（F-21）、節見出しを章省略なしの `@AA-BB-CC-DD`（`A-B-C-D`）に統一する（F-22）。両項目とも `REF:tests/gui.rs` で検証済み。
@@ -52,7 +52,7 @@
 状態: 実装完了（REF:src/ui/widgets/section_editor.rs, REF:src/ui/widgets/syntax_text.rs, REF:tests/gui.rs）
 
 - 1 行ミニヘッダー（パンくず `01 › 04 › 02 › 03` と有効モードバッジ）および構文ハイライト・インレイヒント・ベースライン基準の下線/波線描画を伴う複数行エディタは `REF:src/ui/widgets/section_editor.rs` と `REF:src/ui/widgets/syntax_text.rs` に実装する。
-- ※§9.4.3 のゴーストテキストと §9.4.4 のタイプライタスクロールは未実装（段階 ② の対象。`REF:docs/plans.md#stage-2`）。§9.4.2 の台詞比率バーは B2 で実装済み（下記）。§9.3.3 の折りたたみは `REF:src/ui/app.rs` の `Ctrl+K Ctrl+0` / `Ctrl+K Ctrl+J` と `ui.json.folded` で実装済みだが、LSP の折りたたみ範囲は A 形式だけを返す。
+- ※§9.4.3 の句切れ提案は仕様の算法（`writing.long_sentence_chars`・4 つの優先度・上位 3 件）で実装済み（`REF:src/core/features/metrics.rs` の `comma_candidates`）。§9.4.2 の台詞比率バーは B2 で実装済み（下記）。§9.4.4 の W 系の算法は `REF:src/core/features/diagnose.rs` に実装済み。
 
 - **[F-02 / F-03 / F-37 / F-41] 節エディタの枠内パディング・カーソル/行番号調整・フォーカス表現分離・`lock_focus(true)`（実装完了: `REF:docs/plans.md#plan-F-02`）**:
   - `REF:src/ui/widgets/section_editor.rs` で枠内パディングとクリップ矩形を整えてテキストのはみ出しを解消し（F-02）、行番号の Y 座標とキャレット高さを `Galley` の行メトリクスに一致させる（F-03）。
@@ -69,8 +69,7 @@
 
 状態: 実装完了（REF:src/core/features/reference.rs, REF:src/ui/widgets/reference_pane.rs, REF:tests/context_rules.rs, REF:tests/gui.rs）
 
-- 段階 ① の 6 セクション（プロット・上位プロット・配役・用語・資料・診断）のデータ組み立ては `core::features::reference::build`（`REF:src/core/features/reference.rs`）が `Vec<Section>` として返し（縫い代 6）、`REF:src/ui/widgets/reference_pane.rs` が枠線なしで描画する（80ms デバウンス）。
-- ※五感・空間・挿絵の 3 セクションは段階 ②（`REF:docs/plans.md#stage-2`）対象。
+- §9.5.2 の 9 セクション（プロット・上位プロット・配役・用語・五感・空間・資料・挿絵・診断）のデータ組み立ては `core::features::reference::at`（`REF:src/core/features/reference.rs`）が `Reference` として返し、`REF:src/ui/widgets/reference_pane.rs` が `PaneSection` の順に枠線なしで描画する（80ms デバウンス）。五感・空間・挿絵の 3 つは内容が無ければ見出しごと出さない（§9.5.2 の MUST。`PaneSection::hides_heading_when_empty`）。
 
 - **[F-04 / F-28 / F-34] 参照ペインのアコーディオン・境界線・「続き...」表示（実装完了: `REF:src/ui/widgets/reference_pane.rs`, `REF:tests/gui.rs`）**:
   - `REF:src/ui/widgets/reference_pane.rs` で同一診断コードが 4 件以上のときは 1 行アコーディオンに集約する（F-04、開閉と非集約は `REF:tests/gui.rs` で検証済み）。
@@ -88,7 +87,7 @@
 状態: 実装完了（REF:src/ui/app.rs, REF:tests/gui.rs）
 
 - 左側（位置 `01›04›02›03`、節/話/全体の空白除外文字数、400 字詰め原稿用紙換算）と右側（エラー・警告・情報件数、エージェント実行状態、保存状態アイコン）は `NovnowApp`（`REF:src/ui/app.rs`）に実装する（検証: `REF:tests/gui.rs` の `counts_are_section_episode_and_project_without_whitespace`）。
-- ※§9.6.2 のセッション統計モードは段階 ②（`REF:docs/plans.md#stage-2`）対象。
+- ※§9.6.2 のセッション統計モードは `Ctrl+Alt+S` と `ui.json` の `status_stats_mode` で実装済み（`REF:src/ui/status.rs`, `REF:src/app/settings.rs`）。
 
 - **[F-05 / F-18 / S-14] 修飾キー補完表示・起動通知の左下トースト化・幅に応じた省略優先順（実装完了: `REF:docs/plans.md#plan-F-05`）**:
   - `REF:src/ui/shell.rs` と `REF:src/ui/status.rs` で、`Cmd`/`Ctrl`/`Alt`/`Shift` 押下中に次に入力可能なショートカット候補をステータスバーに表示する（F-05）。
@@ -218,7 +217,7 @@
 状態: 実装完了（REF:src/core/features/plots.rs, REF:src/core/features/folding.rs, REF:src/ui/workspaces/plot_outline.rs, REF:tests/workspaces.rs）
 
 - 左ペインの構成ツリー（章→話展開に `core::features::folding::ranges` を使用）と中央ペインのブロックエディタ・進捗バーは `REF:src/ui/workspaces/plot_outline.rs` に実装する。
-- ※タイムライン・伏線マトリクス・章話番号リナンバは段階 ②（`REF:docs/plans.md#stage-2`）対象。
+- ※右パネルの伏線（`seed:` / `payoff:`）は基本タブのときだけ出し、他のタブは中央に全幅で出す（`REF:src/ui/workspaces/tabs.rs`）。タイムライン（`when:` が 1 件も無ければタブを出さない）・俯瞰表・挿絵メモ・五感・空間・章のあらすじ・字数分布・ストックは `stage.*` タブとして実装済み（`REF:src/ui/workspaces/tabs.rs`）。章話番号の振り直しはストックタブの `stock::assign`（`REF:src/core/features/stock.rs`）。
 
 ### 10.4 `idea` — アイデア
 
@@ -263,7 +262,7 @@
 状態: 実装完了（REF:src/core/features/project.rs, REF:src/ui/workspaces/review.rs, REF:src/ui/workspaces/mod.rs, REF:tests/workspaces.rs, REF:tests/gui.rs）
 
 - 診断一覧タブ（重大度・コード・位置・クイックフィックス適用）と進捗ツリータブ（章・話・節ごとの `state` と文字数集計）は `REF:src/core/features/project.rs` と `REF:src/ui/workspaces/review.rs` に実装する。
-- ※伏線一覧・文体・統計の 3 タブは段階 ②（`REF:docs/plans.md#stage-2`）対象。
+- ※タブは 9 個（基本・時系列・話者別・字数分布・文体観察・執筆統計・五感・挿絵メモ・提案）で、`REF:src/ui/workspaces/tabs.rs` が描く。1 の「基本」だけは `REF:src/ui/workspaces/review.rs` の 2 タブ（診断・進捗）を使う。
 
 - **[F-20] エラー・警告発生時の `review` アイコン変化（実装完了: `REF:docs/plans.md#plan-F-20`）**:
   - `REF:src/ui/app.rs` のヘッダアイコン描画でエラー/警告件数に応じたバッジ・色変化を表示する。

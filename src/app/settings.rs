@@ -90,7 +90,7 @@ pub enum PaneSide {
     Left,
 }
 
-/// `ui.json` の中身（① で使うキー）。
+/// `ui.json` の中身（アプリが読むキー）。
 #[derive(Debug, Clone, PartialEq)]
 pub struct UiSettings {
     /// `theme`。

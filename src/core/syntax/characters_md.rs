@@ -528,7 +528,7 @@ pub(crate) fn parse_line(raw: &str) -> Line<'_> {
     if let Some(found) = parse_heading(raw) {
         return Line::Heading(found);
     }
-    // ①（[`lexer::Stage::One`]）で MD の行を読む
+    // 有効なシジル（[`lexer::Stage::One`]）で MD の行を読む
     match lexer::classify_at_stage(raw, TextFormat::Markdown, lexer::Stage::One) {
         LineKind::Field(found) => Line::Field(plot_outline::parse_field(raw, found)),
         LineKind::Continuation { indent, text } => {

@@ -320,7 +320,7 @@ fn parse_line<'a>(
     if raw.trim_matches(lexer::is_space).is_empty() {
         return Line::Blank(raw);
     }
-    // ①（[`Stage::One`]）で B 形式の行を読む。`! ` は C 形式専用（§5.2.5）なので現れない
+    // 有効なシジル（[`Stage::One`]）で B 形式の行を読む。`! ` は C 形式専用（§5.2.5）なので現れない
     match lexer::classify_at_stage(raw, TextFormat::PlotEpisode, lexer::Stage::One) {
         LineKind::Structure(_) => {
             // 見出しの分解と E002 / E020 / E022 は C 形式と完全に同じ（§5.4.1 `scene_header`）

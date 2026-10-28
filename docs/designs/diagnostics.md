@@ -4,6 +4,8 @@
 
 ## 7. 診断カタログ
 
+- `W041` / `I051` / `I058` は `DiagnosticCode` に定義があるが、`REF:src/` のどこからも発行しない（`REF:tests/diagnostics_catalog.rs` はカタログ表との一致だけを検査する）。`W041` の読み取り専用判定は未実装で、書き込みの拒否は `E060`（`REF:src/core/policy/write_policy.rs`）として出る。`I051` はステータスバーの保存状態アイコン（`REF:src/ui/status.rs`）、`I058` は資料一覧への反映（`REF:src/core/features/search.rs` の `snapshot`）が代替する。
+
 ### 7.0 コア・構文・解決・整合の診断
 
 状態: 実装完了（REF:src/core/diagnostics.rs, REF:src/core/features/project.rs, REF:tests/diagnostics_catalog.rs, REF:tests/diagnostics_document.rs）
@@ -37,7 +39,7 @@
 
 - 執筆支援系の 38 コード（`W080`〜`W106`, `E032`〜`E036`, `E064`, `I054`）は `Group::Writing` として `REF:src/core/diagnostics.rs` に定義する。
 - 既定の有効（`TOGGLE_ON`: 11 件）/ 無効（`TOGGLE_OFF`: 18 件）および実行コスト制御テーブル（`COST`: 27 件の `Trigger` × `Scope`）は `REF:src/core/diagnostics.rs` に定数表として持ち、`REF:tests/diagnostics_catalog.rs` で仕様表との完全一致を検証する。
-- 段階 ① 対象の執筆支援診断（`W081` 文長、`W082` 連続文末、`W083` 話者不明会話、`W084` 非定義視点、`W085` 助詞連続、`W086` 指示語過多、`W087` 漢字率、`W094` 台詞長、`W098` 表記揺れ、`E032`〜`E036` / `E064` / `I054` エージェント系）は `REF:src/core/features/project.rs` および `REF:src/core/agents/runner.rs` で実装済みであり、段階 ② の構文（`when:` / `senses:` / `space:` 等）に依存するコードは縫い代 3 に従いカタログ定義と設定トグルを保持している（`REF:docs/plans.md#stage-2`）。
+- 執筆支援診断（`W081` 文長、`W082` 連続文末、`W083` 話者不明会話、`W084` 非定義視点、`W085` 助詞連続、`W086` 指示語過多、`W087` 漢字率、`W094` 台詞長、`W098` 表記揺れ、`E032`〜`E036` / `E064` / `I054` エージェント系）は `REF:src/core/features/diagnose.rs` と `REF:src/core/agents/runner.rs` で発行する。`when:` / `senses:` / `space:` などに依存するコード（`W068`〜`W070`, `W084`, `W085`, `W092`）も同じ経路で発行する。
 - 執筆支援診断の算出規約（`REF:docs/history.md` の `B-78`, `B-79`）:
   - `W082`（連続文末）は段落内の文ごとに末尾の句点・感嘆符・閉じ括弧を除いた最後の 2 文字（ひらがな・カタカナの語尾）を比較し 3 文連続一致で警告する。
   - `W085`（助詞連続）は文内の平仮名 1 文字助詞（`の` / `が` / `を` / `に` / `で` / `と` / `は`）の出現間隔と回数を検査し、`W087`（漢字率）は段落単位（50 字以上）の CJK 統合漢字比率が `project.toml` の範囲（既定 20%〜45%）を外れた場合に報告する。

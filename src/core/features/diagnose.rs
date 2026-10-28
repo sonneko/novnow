@@ -244,18 +244,17 @@ pub fn document(doc: &Document, project: &Project, explicit: bool) -> Vec<Diagno
                         .next()
                         .unwrap_or(field.value)
                         .trim();
+                    // 解決できない値（絶対パス・`../`・`icon` が `assets/` の外）は、
+                    // 「参照先が無い」と同じ扱いにする（W070 / W092。§5.3.6・§5.5.3）。
+                    let missing = if field.key == FieldKey::Icon {
+                        C::W070
+                    } else {
+                        C::W092
+                    };
                     match metadata::asset_path(value, field.key == FieldKey::Icon) {
-                        None => out.push(diag(
-                            C::E062,
-                            offset..offset + raw.len(),
-                            vec![Arg::text(value)],
-                        )),
+                        None => out.push(diag(missing, offset..offset + raw.len(), vec![Arg::text(value)])),
                         Some(path) if !project.has_file(&path) => out.push(diag(
-                            if field.key == FieldKey::Icon {
-                                C::W070
-                            } else {
-                                C::W092
-                            },
+                            missing,
                             offset..offset + raw.len(),
                             vec![Arg::text(value)],
                         )),

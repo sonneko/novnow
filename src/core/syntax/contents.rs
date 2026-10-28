@@ -155,7 +155,7 @@ impl<'a> Contents<'a> {
     /// 原文を復元する（`lines` の `raw` を LF で連結）。
     ///
     /// [`parse`] に渡した文字列と**一致する**（`docs/history.md` の完了条件 2）。末尾改行の有無、
-    /// 空白だけの行、① が解析しない構文もすべて戻る。
+    /// 空白だけの行、パーサが解釈しない行もすべて戻る。
     pub fn to_text(&self) -> String {
         let mut out = String::new();
         for (index, line) in self.lines.iter().enumerate() {
