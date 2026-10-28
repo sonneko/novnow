@@ -1,29 +1,92 @@
-name: Published v0.1.0 audit
+name: Published release audit
 
-# Read-only consumption of the immutable, already published release.
+# 公開済みの版を、利用者と同じ経路で読み取り専用に監査する。
+#
+# 版を引数に取るので、リリースのたびにファイルを書き換える必要は無い。
+#   - Release ワークフローが成功で終わると自動で走る（`workflow_run`。監査対象はそのタグ）
+#   - 手で走らせるときは `version` を渡す。空なら最新の公開 release を使う
+#   - 版・成果物名・操作数・タグのコミットはすべて**タグの中身**から取る（手書きの数を置かない）
+#
+# 監査は「タグの木」で行う。公開済みの版は動かないので、その版の `scripts/` と
+# `examples/sample-novel` を使う。既定ブランチの木で古い版の CLI を走らせると、
+# 後から変わったサンプル作品のせいで監査が落ちる（v0.1.0 の監査がこれで落ちていた）。
 on:
-  push:
-    branches: ['arena/**']
-    paths: ['.github/workflows/release-audit.yml', 'scripts/action/**', 'scripts/verify.sh', 'action.yml']
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
   workflow_dispatch:
+    inputs:
+      version:
+        description: 監査する公開済みの版（例 0.1.1。空なら最新の release）
+        type: string
+        default: ""
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-audit-${{ github.ref }}
-  cancel-in-progress: true
+  group: release-audit-${{ github.event.workflow_run.head_branch || inputs.version || 'latest' }}
+  cancel-in-progress: false
 
 env:
-  VERSION: '0.1.0'
   PYTHONUTF8: '1'
 
 jobs:
-  payloads:
+  meta:
+    # Release が失敗・中止で終わったときは監査しない（公開物が揃っていない）。
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+      tag: ${{ steps.resolve.outputs.tag }}
+    steps:
+      - id: resolve
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          INPUT_VERSION: ${{ inputs.version }}
+          EVENT_REF: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          set -euo pipefail
+          version="${INPUT_VERSION:-}"
+          if [ -z "$version" ] && [ -n "${EVENT_REF:-}" ]; then
+            # tag push で起動した Release なら head_branch はタグ名（v0.1.1）。
+            version="$EVENT_REF"
+          fi
+          if [ -z "$version" ]; then
+            version="$(gh release list --limit 1 --json tagName --jq '.[0].tagName')"
+          fi
+          version="${version#v}"
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::not a version: $version"; exit 1
+          fi
+          # 公開済みの release でなければ監査する対象が無い（タグだけの版を誤って監査しない）。
+          assets="$(gh release view "v$version" --json assets --jq '.assets | length')"
+          if ! printf '%s' "$assets" | grep -Eq '^[1-9][0-9]*$'; then
+            echo "::error::release v$version has no published assets"; exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          echo "auditing v$version ($assets assets)"
+
+  payloads:
+    needs: meta
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      VERSION: ${{ needs.meta.outputs.version }}
+      TAG: ${{ needs.meta.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
+      - name: Check out the published tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --depth=1 origin tag "$TAG"
+          git checkout --detach "$TAG"
+          test "$(git rev-parse HEAD)" = "$(git rev-parse "$TAG^{commit}")"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -33,24 +96,35 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/published"
-          gh release download "v$VERSION" --dir "$RUNNER_TEMP/published"
+          gh release download "$TAG" --dir "$RUNNER_TEMP/published"
+          python3 scripts/release-matrix.py --check
           python3 scripts/release-matrix.py --verify-release "$RUNNER_TEMP/published" --release-version "$VERSION"
           (cd "$RUNNER_TEMP/published" && sha256sum -c SHA256SUMS)
-          git fetch --depth=1 origin tag "v$VERSION"
-          test "$(git rev-parse "v$VERSION^{commit}")" = 25725ba6c01c9b8294c83ccfc3c58093004a4eaa
-          test "$(gh api repos/sonneko/novnow/commits/v0 --jq .sha)" = 25725ba6c01c9b8294c83ccfc3c58093004a4eaa
-          git archive --format=tar --prefix="novnow-$VERSION/" "v$VERSION" > "$RUNNER_TEMP/expected-source.tar"
+      - name: Compare the tag, the moving tag and the source archive
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          sha="$(git rev-parse HEAD)"
+          test "$(git rev-parse "$TAG^{commit}")" = "$sha"
+          if [[ "$VERSION" != *-* ]]; then
+            # 通常版の可動タグ（v0）は、公開済みの版と同じコミットを指す。
+            test "$(gh api "repos/$GITHUB_REPOSITORY/commits/v0" --jq .sha)" = "$sha"
+          fi
+          git archive --format=tar --prefix="novnow-$VERSION/" "$TAG" > "$RUNNER_TEMP/expected-source.tar"
           gzip -dc "$RUNNER_TEMP/published/novnow-$VERSION-source.tar.gz" > "$RUNNER_TEMP/published-source.tar"
           cmp "$RUNNER_TEMP/expected-source.tar" "$RUNNER_TEMP/published-source.tar"
       - name: Compare both Python registries against the downloaded manifest
         run: |
           python3 - <<'PY'
           import json, os, pathlib, urllib.request
+          version = os.environ['VERSION']
           root = pathlib.Path(os.environ['RUNNER_TEMP'], 'published')
           rows = dict(line.split('  ', 1)[::-1] for line in (root / 'SHA256SUMS').read_text().splitlines() if line and not line.startswith('#'))
           expected = {name: digest for name, digest in rows.items() if name.endswith('.whl')}
           for host in ['pypi.org', 'test.pypi.org']:
-              with urllib.request.urlopen(f'https://{host}/pypi/novnow/0.1.0/json', timeout=60) as response:
+              with urllib.request.urlopen(f'https://{host}/pypi/novnow/{version}/json', timeout=60) as response:
                   data = json.load(response)
               actual = {entry['filename']: entry['digests']['sha256'] for entry in data['urls']}
               assert actual == expected, (host, actual, expected)
@@ -58,18 +132,33 @@ jobs:
               print(f'{host}: five published wheels match the downloaded release')
           PY
       - name: Run the downloaded Linux CLI and install from both Python registries
+        shell: bash
         run: |
           set -euo pipefail
+          # サンプル作品はタグのものを渡す（古い版の CLI に新しいサンプルを読ませない）。
           mkdir -p "$RUNNER_TEMP/published-cli"
           tar -xzf "$RUNNER_TEMP/published/novnow-$VERSION-x86_64-unknown-linux-gnu-nogui.tar.gz" -C "$RUNNER_TEMP/published-cli" novnow
           test "$("$RUNNER_TEMP/published-cli/novnow" --version)" = "novnow $VERSION"
           "$RUNNER_TEMP/published-cli/novnow" check examples/sample-novel
+          # 操作数は仕様表ではなく、その版のゴールデン（api.list の出力）から取る。
+          expected=""
+          if [ -f tests/golden/api_catalog.json ]; then
+            expected="$(python3 -c 'import json; print(len(json.load(open("tests/golden/api_catalog.json"))["operations"]))')"
+          fi
           for index in https://pypi.org/simple https://test.pypi.org/simple; do
             python -m pip install --no-cache-dir --force-reinstall --no-deps --index-url "$index" "novnow==$VERSION"
-            python -c 'import novnow; assert novnow.__version__ == "0.1.0"; assert len(novnow.operations()) == 119; print(novnow.__file__, novnow.__version__)'
+            python - "$expected" <<'PY'
+          import sys, novnow
+          expected = sys.argv[1]
+          assert novnow.__version__ == __import__('os').environ['VERSION'], novnow.__version__
+          if expected:
+              assert len(novnow.operations()) == int(expected), (len(novnow.operations()), expected)
+          print(novnow.__file__, novnow.__version__, len(novnow.operations()), 'operations')
+          PY
           done
       - uses: dtolnay/rust-toolchain@stable
-      - name: Install and run the public crates.io crate
+      - name: Install and run the published crates.io crate
+        shell: bash
         run: |
           set -euo pipefail
           cargo install novnow --version "$VERSION" --locked --root "$RUNNER_TEMP/crates-install"
@@ -93,6 +182,8 @@ jobs:
           PY
 
   candidate-action:
+    needs: meta
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:
@@ -100,6 +191,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
+      # 監査するのは「いまのリポジトリのアクション」と「公開済みの成果物」の組み合わせ。
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
@@ -114,19 +206,24 @@ jobs:
             python -c 'import os,pathlib; text=pathlib.Path(os.environ["RUNNER_TEMP"],"action-shell-tests.log").read_text(errors="replace")[-2800:]; print("::error::"+text.replace("%","%25").replace("\r","%0D").replace("\n","%0A"))'
           fi
           exit "$status"
-      - name: Run the candidate action against immutable v0.1.0 assets with diagnostics
+      - name: Run the candidate action against the published assets with diagnostics
         shell: bash
         env:
-          NOVNOW_ACTION_VERSION: '0.1.0'
+          NOVNOW_ACTION_VERSION: ${{ needs.meta.outputs.version }}
+          TAG: ${{ needs.meta.outputs.tag }}
         run: |
           set -o pipefail
           status=0
           (
             set -e
+            # サンプル作品は監査する版のものを使う（既定ブランチの木を古い版に読ませない）。
+            git fetch --depth=1 origin tag "$TAG"
+            git checkout "$TAG" -- examples
             export GITHUB_OUTPUT="$RUNNER_TEMP/released-action-outputs"
             bash scripts/action/install.sh --resolve
             export NOVNOW_VERSION="$(sed -n 's/^version=//p' "$GITHUB_OUTPUT")"
             export NOVNOW_TARGET="$(sed -n 's/^target=//p' "$GITHUB_OUTPUT")"
+            test "$NOVNOW_VERSION" = "$NOVNOW_ACTION_VERSION"
             bash scripts/action/install.sh --install
             export NOVNOW_BINARY="$(sed -n 's/^binary=//p' "$GITHUB_OUTPUT")"
             export INPUT_PATH=examples/sample-novel INPUT_COMMAND=check

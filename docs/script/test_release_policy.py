@@ -79,6 +79,25 @@ class ReleasePolicy(unittest.TestCase):
         desktop = (ROOT / ".github/workflows" / "desktop-check.yml").read_text()
         self.assertIn("branches: [develop]", desktop)
 
+    def test_release_audit_takes_the_version_as_input(self):
+        """公開後の監査に版・操作数を書かない（リリースのたびに直す作業を作らない）。
+
+        v0.1.0 の監査は版を 3 か所に直書きし、操作数 119 を手で持ち、push トリガーで
+        版更新のたびに走って落ちていた。監査は Release の成功終了から起動し、
+        材料（版・タグ・操作数）はすべて実行時に取る。
+        """
+        text = (ROOT / ".github/workflows/release-audit.yml").read_text()
+        self.assertIn("workflow_run:", text)
+        self.assertIn("workflows: [Release]", text)
+        self.assertIn("workflow_dispatch:", text)
+        self.assertIn("INPUT_VERSION", text)
+        self.assertNotIn("push:", text.split("\njobs:", 1)[0], "監査を push で起動しない")
+        self.assertNotIn("VERSION: '0.", text)
+        self.assertNotIn("/pypi/novnow/0.", text)
+        self.assertIsNone(re.search(r"operations\(\)\) == \d", text), "操作数を手書きしない")
+        self.assertIn('tests/golden/api_catalog.json', text)
+        self.assertIn('git checkout --detach "$TAG"', text)
+
     def test_required_check_names_do_not_embed_the_version(self):
         """必須チェック名に版・成果物名を入れない（ruleset を版更新のたびに書き換えない）。
 
