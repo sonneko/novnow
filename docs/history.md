@@ -2366,3 +2366,11 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
 - **テスト**: `REF:tests/gui.rs` に 2 本。`the_undo_history_belongs_to_the_section_you_come_back_to`（節 A で打鍵 → 自動保存 → 節 B へ移って打鍵 → 節 A へ戻って `Ctrl+Z` で A の打鍵だけが消える）、`the_editor_keeps_the_history_of_the_twenty_most_recent_sections`（25 節ぶん記録して、残るのが直近 20 節・21 節前の state が捨てられること）。
 - **仕様**: §8.6 (a) の〔状態: 未実装〕を外し、節ごとの保持・直近 20 節・履歴の深さ（入力欄の既定 100 段）・「文書・節 ID・開始行」に紐づける理由を書いた。`REF:docs/designs/editing.md` §8.6 に実装の在り処（`editor_id` / `remember` / `TextEditState`）を追記し、`REF:docs/specifications/ui.md` §9.8.1 の `Ctrl+Z` の行にも「節ごとに直近 20 節」を足した。
 - テスト: `bash scripts/verify.sh` は **13 ジョブすべて緑**（1467 passed / 70 ターゲット。`tests/gui.rs` の 2 本が増えた）。
+
+## 2026-10-28: 仕様書を正本とした整合・第八巡（第 11 段。診断の「発行しない」表の取り違えを直す）
+
+- 4 項目を片付けたあと、第八巡の 1:1 突き合わせを続けた。`REF:docs/specifications/diagnostics.md` §7 冒頭の「**現時点で発行しないコード**」の表が **7 件**になっていたが、実際に発行していないのは `W041` / `I051` / `I058` の **3 件**だけだった。`W022` / `W025` / `W030` / `W064` は発行している（`REF:src/core/diagnostics.rs` の `word_ranges` / `section_counts` と、資料の索引の突き合わせ。`REF:tests/diagnostics_document.rs` が W022 / W025 / W030 を、`REF:tests/materials_ops.rs` が W064 を見ている）。
+- 直したもの: 仕様 §7 冒頭の表（7 → 3 件）と「これら N 件」の数、`REF:src/core/diagnostics.rs` のモジュール doc、`REF:docs/designs/diagnostics.md` §7 の同じ記述。あわせて、`W022` / `W025` / `W030` / `W064` がどこで発行されるかを仕様と設計の両方に書いた（番号だけの表に戻らないように）。
+- `I058`（検索結果を資料化した通知）は仕様 §16.3.1 と `REF:docs/designs/workflows.md` の表にあるが、実装は資料を保存するだけで通知を出さない。**大規模ではないが UI の通知の口を作る必要がある**ので、§16.3.1 の表に〔状態: I058 は未実装〕を足した（§7 冒頭の表と二重に記録）。
+- あわせて、`src/`・`tests/` の `§` 参照を仕様書の節番号と機械的に突き合わせた（裸の `§N.M.K` まで含めて）。**存在しない節を指す参照は 0 件**、`docs/` 側も 0 件（`docs/history.md` と `docs/plans.md` は歴史記録なので対象外）。
+- テスト: `bash scripts/verify.sh` は **13 ジョブすべて緑**（1467 passed / 70 ターゲット）、`REF:docs/script/duplicate.py` と `REF:docs/script/reference.py` も緑。

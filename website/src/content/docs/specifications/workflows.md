@@ -79,6 +79,9 @@ source: "docs/specifications/workflows.md"
 | index | `materials/index.json` に 1 件追記。`category: "検索結果"`、`status: "approved"`、`added_by: "human"` |
 | 通知 | I058 |
 
+〔状態: I058 は未実装〕保存したあとの通知は、いまは資料一覧への反映（新しい行が現れること）だけで、
+`I058` の診断・トーストは出さない（§7 冒頭の表）。
+
 **生成される MD の形（固定）**
 
 ```md
