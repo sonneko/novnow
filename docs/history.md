@@ -2439,5 +2439,23 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
   新しいときだけ誤りとした。`REF:docs/script/test_website.py` に 2 本（版更新の途中で合格すること・
   サイトが開発版より先の版を名乗らないこと）を足した。
 - **版を上げると必須チェック名が変わる**（`build (…, 0.1.0, novnow-0.1.0-…)`）。ruleset は版を含む
-  行列名をそのまま持つので、`--bump` の後は release PR が「報告待ち」で止まる。差し替えは管理者の
-  作業であることを `REF:docs/distribution.md` §6 に書き足した（この作業セッションでは ruleset を変更しない）。
+  行列名をそのまま持つので、`--bump` の後は release PR が「報告待ち」で止まる。この原因と、
+  行列表の既定名が GitHub の 100 文字切り詰めで末尾（成果物名）まで読めないことも記録した。
+  恒久策は次の節（ジョブ名から版を外す）で行った。
+
+## 2026-10-28: 必須チェック名から版を外す（v0.1.1 のリリースを止めていた原因の恒久策）
+
+- 版更新（`--bump 0.1.1`）で `protect-develop` / `protect-main` の必須チェックが「報告待ち」になり、
+  PR #43 は全ジョブ緑（20 pass / 1 skip）でも `BLOCKED` になった。原因は行列ジョブの**既定の
+  チェック名**に版と成果物名が入っていること（`build (…, 0.1.0, novnow-0.1.0-…whl)`）。
+  GitHub は必須チェックを名前の完全一致で照合するので、版を上げると永久に一致しない。
+- **ジョブ名を安定名にした**: `REF:.github/workflows/wheels.yml` の `build` は
+  `wheel (${{ matrix.target }})`、`REF:.github/workflows/desktop-check.yml` の `build` は
+  `desktop (${{ matrix.target }}, ${{ matrix.gui }})`。以後の版更新で ruleset を触る必要は無い。
+  代わりに版と成果物名の一致は `REF:scripts/release-matrix.py --check`（5 形態）と release の
+  `prepare`（タグ＝`Cargo.toml` の版）が担保する。
+- 新しい必須チェック（所有者が ruleset を設定）: `develop` は `wheel (x86_64-unknown-linux-gnu)` と
+  `desktop (x86_64-unknown-linux-gnu, nogui)` の 2 件、`main` は 5 つの `wheel (<対象環境>)` と
+  `desktop (x86_64-apple-darwin, gui)`・`desktop (aarch64-apple-darwin, gui)` の 7 件。
+- `REF:docs/script/test_release_policy.py` に、ジョブ名が安定名であり版を含まないことを検査する
+  テストを足した（`docs/developers.md` §4.7・`REF:docs/distribution.md` §6・§8 も追随）。

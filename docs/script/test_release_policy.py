@@ -79,6 +79,27 @@ class ReleasePolicy(unittest.TestCase):
         desktop = (ROOT / ".github/workflows" / "desktop-check.yml").read_text()
         self.assertIn("branches: [develop]", desktop)
 
+    def test_required_check_names_do_not_embed_the_version(self):
+        """必須チェック名に版・成果物名を入れない（ruleset を版更新のたびに書き換えない）。
+
+        GitHub の必須チェックは名前の完全一致なので、行列の既定名（`build (…, 0.1.0, novnow-0.1.0-…)`）
+        を要求すると版を上げた瞬間に「報告待ち」で PR が止まる（v0.1.1 で実際に止まった）。
+        版と成果物名の一致は `release-matrix.py --check` と release の prepare が検査する。
+        """
+        expected = {
+            "wheels.yml": "name: wheel (${{ matrix.target }})",
+            "desktop-check.yml": "name: desktop (${{ matrix.target }}, ${{ matrix.gui }})",
+        }
+        for workflow, name in expected.items():
+            text = (ROOT / ".github/workflows" / workflow).read_text()
+            self.assertIn(name, text, f"{workflow} の build ジョブ名が安定名ではない")
+            job = text.split("\n  build:\n", 1)[1].split("\n    steps:", 1)[0]
+            names = [line.strip() for line in job.splitlines() if line.strip().startswith("name:")]
+            self.assertEqual(names, [name], f"{workflow} の build ジョブ名に版が混ざっている")
+        for workflow in ("wheels.yml", "desktop-check.yml"):
+            text = (ROOT / ".github/workflows" / workflow).read_text()
+            self.assertNotIn("name: build (${{", text)
+
     def test_supplementary_workflow_cannot_publish_to_pypi(self):
         text = (ROOT / ".github/workflows/wheels.yml").read_text()
         self.assertNotIn("publish_pypi", text)

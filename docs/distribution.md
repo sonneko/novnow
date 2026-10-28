@@ -180,11 +180,11 @@ novnow-<版>-<対象環境>-<gui|nogui>.<拡張子>
 | 5 | Actions の `v<版>` と `v0` を公開する | 利用者へ「未提供」と表示する |
 | 6 | README・サイト・手引きに実際の取得先を載せ、未公開の形態は「未提供」と記す | 文書だけが古い状態になる。次の版までに直す |
 
-- **版を上げると必須チェックの名前も変わる**: ruleset の `required_status_checks` は
-  `build (… 0.1.0, novnow-0.1.0-…)` のように**版を含む行列名**をそのまま持つ。`--bump` で版を
-  上げた直後は、必須チェックが「報告待ち」のままになって release PR をマージできない。版更新 PR を
-  作る前に、`protect-develop` と `protect-main` の必須チェックを、その PR の Checks 一覧に出ている
-  新しい名前（`0.1.1` を含む 4 件）へ差し替える。差し替えは管理者が行う（§8）。
+- **版を上げても必須チェックの名前は変わらない**: ruleset の `required_status_checks` は
+  `wheel (x86_64-unknown-linux-gnu)`・`desktop (x86_64-unknown-linux-gnu, nogui)` のような
+  版を含まない名前を使う（§8。2026-10-28 改定。以前は行列の既定名が版を含み、`--bump` のたびに
+  ruleset を差し替える必要があった）。8 つの名前は初回に一度だけ設定すれば、以後の版更新で
+  触る必要は無い。差し替え・設定は管理者が行う。
 - 版ごとの成果物は削除しない。重大な不具合は新しい版で直す（仕様 §20.6.3）。
 - 公開を止めるときは、同じ版の 5 形態をまとめて「未提供」に戻す。形態ごとに残さない。
 
@@ -219,7 +219,9 @@ novnow-<版>-<対象環境>-<gui|nogui>.<拡張子>
 - `crates-io`・`testpypi`・`pypi` は版タグからのみ実行できる deployment policy にし、公開担当者の承認を必須にする。環境名と Trusted Publisher の設定は完全一致が必要。
 - ホイール単独試験の `REF:.github/workflows/wheels.yml` から公開する場合は、その workflow 名で **別の** Trusted Publisher が必要。本番 PyPI の Trusted Publisher は `release.yml` だけに設定する。wheels の公開入力は TestPyPI 専用である。
 - GitFlow の `main` と `develop` は保護する。直接 push・force push・削除を禁止し、PR、必要な CI 成功を要求する。CI 行列はスコープで切り替える（`docs/developers.md` §4.7）。`main` 向け PR・`main` への push・手動実行は full 行列（desktop 10・wheel 5・ブラウザ3種・Electron 3 OS・Python 3 版）。`develop` 向け PR・`develop` への push は 1 プラットフォームの最小スコープ（Linux x64: desktop nogui＋wheel。ブラウザは Chromium のみ。Electron は ubuntu のみ。Python 試験は 3.9 / 3.13）。必須チェックはスコープで走る項目に一致させる: `develop` は 11 件（2026-10-27 改定。旧来は full 行列を含む 23 件）、`main` は従来どおり3ブラウザ・full 行列を含む 18 件。Firefox / WebKit は偽陽性が多発するため、develop 向け PR では実行せず、`main` 向け PR では必須のまま残す。現在の必要承認数は0、通常のmerge commitで統合する。`main` には release / hotfix の版更新 PR だけを承認する。GitHub 標準の保護だけでは「版更新のみ」は判定できないため、レビューで版差分と PR の由来を確認する。
-  - `develop` の必須チェック 11 件（ruleset `protect-develop`）: `Docs & Change Filter` / `Rustfmt` / `Clippy` / `Test` / `WASM Build Check` / `Python API` / `Benchmarks` / `build`（Pages integration の結合ツリー）/ `browsers (chromium)` / Linux x64 の wheel 行列（`build (x86_64-unknown-linux-gnu, ubuntu-latest, …, novnow-<版>-cp39-abi3-manylinux_2_28_x86_64.whl…)` の 1 件）/ Linux x64 の desktop 行列（`build (x86_64-unknown-linux-gnu, ubuntu-latest, …, nogui, novnow-<版>-x86_64-unknown-linux-gnu-nogui.tar.gz…)` の 1 件）。版を含む行列名は版更新で変わるため、追加・更新時はその時点の PR の Checks 一覧から同名を選ぶこと。
+  - `develop` の必須チェック 11 件（ruleset `protect-develop`）: `Docs & Change Filter` / `Rustfmt` / `Clippy` / `Test` / `WASM Build Check` / `Python API` / `Benchmarks` / `build`（Pages integration の結合ツリー）/ `browsers (chromium)` / `wheel (x86_64-unknown-linux-gnu)`（wheels の Linux x64 行列）/ `desktop (x86_64-unknown-linux-gnu, nogui)`（desktop-check の Linux x64 nogui 行列）。
+  - `main` の必須チェックのうち行列の 7 件（ruleset `protect-main`）: `wheel (x86_64-unknown-linux-gnu)` / `wheel (aarch64-unknown-linux-gnu)` / `wheel (x86_64-apple-darwin)` / `wheel (aarch64-apple-darwin)` / `wheel (x86_64-pc-windows-msvc)` / `desktop (x86_64-apple-darwin, gui)` / `desktop (aarch64-apple-darwin, gui)`。
+  - **行列ジョブのチェック名は版と成果物名を含めない**（2026-10-28 改定）。`wheels.yml` と `desktop-check.yml` の `build` ジョブは `name:` で安定名を付け、行列の既定名（`build (…, <版>, novnow-<版>-…whl)`）を使わない。既定名は版を上げた瞬間に変わり、必須チェックが「報告待ち」のままになって release PR が止まる（v0.1.1 で実際に止まった。GitHub は 100 文字で切り詰めるため、既定名は末尾の成果物名まで読めない）。版と成果物名の一致は `REF:scripts/release-matrix.py --check` と release の `prepare` が検査し、`REF:docs/script/test_release_policy.py` がジョブ名に版が混ざっていないことを検査する。
   - 平台の 2 行は develop への push でも報告される（wheels の push トリガーは develop かつ PR 同一 `paths`、desktop-check の push トリガーは develop・無制限。2026-10-27 追加）。したがってコード PR のマージ後、develop 自身のコミットでも 11 件が揃う。文書のみ変更のマージでは Rust 5 ジョブが ci.yml の変更フィルタで skip され既存どおり赤くなる（`docs/developers.md` §4.7 の落とし穴）。
 - CI の `[ci skip]` 既定と必須チェックを併用するとチェック待ちになる。リリース PR は `[ci run]` で CI を起動し、保護が要求するチェックが実際にその SHA で報告されていることを確認する。手動 CI の結果だけで保護を迂回しない。
 - `develop` の作成・既定ブランチの変更・rulesets・環境・秘密情報・公開名の確保は管理者が行う。この作業セッションでは実施しない。

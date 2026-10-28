@@ -383,6 +383,9 @@ pages・CI は元々 develop への push で走る）。コード PR のマー�
 
 **必須チェック**: `develop` の必須チェックは develop スコープで走る 11 件（2026-10-27。
 旧来は full 行列を含む 23 件）。`main` は従来どおり3ブラウザ・full 行列を含む 18 件。
+行列ジョブのチェック名は版を含めない（`wheel (<対象環境>)`・`desktop (<対象環境>, <gui|nogui>)`。
+2026-10-28 改定）。行列の既定名は版と成果物名を含み、版更新のたびに名前が変わるため、
+必須チェックに使うと release PR が「報告待ち」で止まる。版の一致はリリース手順が検査する。
 一覧の正本は `REF:docs/distribution.md` §8。ruleset（`protect-develop`・`protect-main`）の適用は所有者が行う。
 `main` 向け PR で firefox / webkit が失敗した場合は内容を確認し、実バグに見えるものは直すか Issue 化する。
 

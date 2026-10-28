@@ -87,6 +87,10 @@ jobs:
           echo "pythons=$(python3 scripts/release-matrix.py --pythons --scope "$CI_SCOPE")" >> "$GITHUB_OUTPUT"
 
   build:
+    # チェック名に版・成果物名を入れない（必須チェックが版更新のたびに変わるのを避ける。
+    # 版と成果物名は 5 形態で一致することを `scripts/release-matrix.py --check` と release の
+    # prepare が検査する。docs/distribution.md §8）。
+    name: wheel (${{ matrix.target }})
     needs: prepare
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     strategy:
