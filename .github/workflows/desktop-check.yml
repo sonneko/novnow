@@ -43,6 +43,9 @@ jobs:
         run: echo "desktop=$(python3 scripts/release-matrix.py --desktop --scope "$CI_SCOPE")" >> "$GITHUB_OUTPUT"
 
   build:
+    # チェック名に版・成果物名を入れない（wheels.yml の build と同じ理由。必須チェックが
+    # 版更新のたびに変わると ruleset の差し替え漏れでリリースが止まる）。
+    name: desktop (${{ matrix.target }}, ${{ matrix.gui }})
     needs: prepare
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ${{ matrix.os }}

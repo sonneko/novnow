@@ -42,6 +42,38 @@ class WebsiteTests(unittest.TestCase):
             self.assertIsNotNone(website.resolve(root, url, "/ja/", False)[2])
             self.assertEqual(website.resolve(root, url, "https://example.com/x", False), (None, "", None))
 
+    def test_header_must_show_the_published_version(self):
+        """版更新 PR の途中（Cargo.toml だけ 0.1.1 / 公開は 0.1.0）でも合格する。
+
+        見出しは「公開済みの版」を出す（`website/src/data/release.ts`。未公開の版を公開済みとして
+        案内しない）。検査は `Cargo.toml` ではなくそちらと比べる。
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for language in ("ja", "en"):
+                folder = root / language / "manual" / "start"
+                folder.mkdir(parents=True)
+                (folder / "index.html").write_text(
+                    '<header>novnow v0.1.0</header>'
+                    '<aside class="release-notice">notice</aside>'
+                    f'<div aria-label="Language"><a href="/novnow/ja/manual/start/">JA</a>'
+                    f'<a href="/novnow/en/manual/start/">EN</a></div>'
+                )
+            self.assertTrue(website.published_version().startswith("0."))
+            self.assertGreaterEqual(website.version_key(website.DEV_VERSION),
+                                    website.version_key(website.published_version()))
+            errors = website.audit(root, version="0.1.0")[1]
+            self.assertFalse([e for e in errors if "header version" in e], errors)
+            errors = website.audit(root, version="0.1.1")[1]
+            self.assertEqual(sum("header version" in e for e in errors), 2, errors)
+
+    def test_site_may_not_claim_a_version_ahead_of_development(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "index.html").write_text("<p>ok</p>")
+            errors = website.audit(root, version="99.0.0")[1]
+            self.assertTrue(any("より新しい" in e for e in errors), errors)
+
     def test_language_switch_must_keep_article(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

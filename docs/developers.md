@@ -383,6 +383,9 @@ pages・CI は元々 develop への push で走る）。コード PR のマー�
 
 **必須チェック**: `develop` の必須チェックは develop スコープで走る 11 件（2026-10-27。
 旧来は full 行列を含む 23 件）。`main` は従来どおり3ブラウザ・full 行列を含む 18 件。
+行列ジョブのチェック名は版を含めない（`wheel (<対象環境>)`・`desktop (<対象環境>, <gui|nogui>)`。
+2026-10-28 改定）。行列の既定名は版と成果物名を含み、版更新のたびに名前が変わるため、
+必須チェックに使うと release PR が「報告待ち」で止まる。版の一致はリリース手順が検査する。
 一覧の正本は `REF:docs/distribution.md` §8。ruleset（`protect-develop`・`protect-main`）の適用は所有者が行う。
 `main` 向け PR で firefox / webkit が失敗した場合は内容を確認し、実バグに見えるものは直すか Issue 化する。
 
@@ -635,5 +638,5 @@ GUI の見た目（パレット位置、下線・波線の座標、枠線やバ�
 - 利用者向けの現行一覧は `REF:docs/known-issues/ja.md` と `REF:docs/known-issues/en.md` を原本とする。`REF:website/src/components/KnownIssues.astro` がMarkdownを直接表示する。Web側に本文を転記しない。
 - 発見時に識別子・対象の公開版・環境・症状・回避策・対応状況を両言語で記録する。READMEには不具合本文を重複掲載しない。
 - コード修正、develop/mainへのマージだけでは一覧から削除しない。修正版の公開と修正確認が完了してから、当該項目を両言語の現行一覧から削除する。公開済みの履歴はリリースノートと `REF:docs/history.md` に残す。項目がなくなった場合も一覧ページは維持する。
-- ダウンロード先と公開版の表示は `REF:website/src/data/release.ts` で管理する。開発版のCargo.tomlから自動推測せず、公開済みの版・成果物を確認したときだけ更新する。
+- ダウンロード先と公開版の表示は `REF:website/src/data/release.ts` で管理する。開発版のCargo.tomlから自動推測せず、公開済みの版・成果物を確認したときだけ更新する。サイトの見出しと告知もこの値だけを使うので、`REF:scripts/website-check.py` は見出しの版を `release.ts` と突き合わせる（`Cargo.toml` とは比べない。版更新 PR から公開までの間は意図的に食い違う）。`release.ts` の版が `Cargo.toml` より新しいときだけ誤りとする。
 - 今回のv0.1.0公開告知に限り、所有者承認により版更新なしでサイト・文書とActions修正をmainへ統合する。順序は作業ブランチ→develop→mainとし、両マージは所有者が行う。タグ変更・追加リリースは行わない。通常のGitFlow規則を一般的に緩和するものではない。

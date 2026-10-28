@@ -2421,3 +2421,63 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
   時点の記録なので、そのまま残す（`docs/plans.md`・本ファイルも同様に歴史記録）。
 - 手元で `pytest` を用意して `python/novnow-py/tests` を通した（9 passed / 1 skipped）。CI は `a728f30` で
   `wheels` を含む 6 ワークフローすべて緑。
+
+## 2026-10-28: v0.1.1 のリリース準備（版更新・サイトの版表示の検査・必須チェック名）
+
+- 所有者の指示: `develop` → `main` の PR #42（v0.1.1）を緑にしたうえで、タグを打ってマージコミットを
+  作り、リリースする。版は `v0.1.1`。
+- **PR #42 には版更新が入っていなかった**（`Cargo.toml` は 0.1.0 のまま）。`main` へ入れられるのは
+  版更新を伴う release / hotfix PR だけであり（`REF:docs/developers.md` の GitFlow）、タグ名が
+  `Cargo.toml` の版と一致しないと `REF:.github/workflows/release.yml` の `prepare` が公開を拒否する。
+  そこで `python3 scripts/release-matrix.py --bump 0.1.1` の出力（5 形態の版）と、`api.list` の
+  `version` を持つ `REF:tests/golden/api_catalog.json` の再生成だけを積む PR #43 を `develop` 向けに作った。
+- **`REF:scripts/website-check.py` の版表示の検査を直した**。見出しの版を `Cargo.toml` と比べていたが、
+  サイトが見出し・告知に出すのは**公開済みの版**（`REF:website/src/data/release.ts`）である
+  （`REF:docs/developers.md` §9 の規則）。版更新 PR から公開までの間は 2 つが意図的に食い違うため、
+  この検査は版更新のたびに `website` と Pages の `build` を赤くしていた（v0.1.0 では両者が同じ値で、
+  経路が踏まれていなかった）。比較先を `release.ts` に変え、`release.ts` の版が `Cargo.toml` より
+  新しいときだけ誤りとした。`REF:docs/script/test_website.py` に 2 本（版更新の途中で合格すること・
+  サイトが開発版より先の版を名乗らないこと）を足した。
+- **版を上げると必須チェック名が変わる**（`build (…, 0.1.0, novnow-0.1.0-…)`）。ruleset は版を含む
+  行列名をそのまま持つので、`--bump` の後は release PR が「報告待ち」で止まる。この原因と、
+  行列表の既定名が GitHub の 100 文字切り詰めで末尾（成果物名）まで読めないことも記録した。
+  恒久策は次の節（ジョブ名から版を外す）で行った。
+
+## 2026-10-28: 必須チェック名から版を外す（v0.1.1 のリリースを止めていた原因の恒久策）
+
+- 版更新（`--bump 0.1.1`）で `protect-develop` / `protect-main` の必須チェックが「報告待ち」になり、
+  PR #43 は全ジョブ緑（20 pass / 1 skip）でも `BLOCKED` になった。原因は行列ジョブの**既定の
+  チェック名**に版と成果物名が入っていること（`build (…, 0.1.0, novnow-0.1.0-…whl)`）。
+  GitHub は必須チェックを名前の完全一致で照合するので、版を上げると永久に一致しない。
+- **ジョブ名を安定名にした**: `REF:.github/workflows/wheels.yml` の `build` は
+  `wheel (${{ matrix.target }})`、`REF:.github/workflows/desktop-check.yml` の `build` は
+  `desktop (${{ matrix.target }}, ${{ matrix.gui }})`。以後の版更新で ruleset を触る必要は無い。
+  代わりに版と成果物名の一致は `REF:scripts/release-matrix.py --check`（5 形態）と release の
+  `prepare`（タグ＝`Cargo.toml` の版）が担保する。
+- 新しい必須チェック（所有者が ruleset を設定）: `develop` は `wheel (x86_64-unknown-linux-gnu)` と
+  `desktop (x86_64-unknown-linux-gnu, nogui)` の 2 件、`main` は 5 つの `wheel (<対象環境>)` と
+  `desktop (x86_64-apple-darwin, gui)`・`desktop (aarch64-apple-darwin, gui)` の 7 件。
+- `REF:docs/script/test_release_policy.py` に、ジョブ名が安定名であり版を含まないことを検査する
+  テストを足した（`docs/developers.md` §4.7・`REF:docs/distribution.md` §6・§8 も追随）。
+
+## 2026-10-28: 公開後の監査（release-audit.yml）を版を引数に取る形へ（リリース時の作業をゼロに）
+
+- 所有者の指示: v0.1.1 の前に、リリース時の作業が最小になるよう `REF:.github/workflows/release-audit.yml` を直す。
+- 旧版は **v0.1.0 専用の one-off** だった: 版 `0.1.0` を 3 か所に直書き、タグの SHA を固定し、操作数を
+  `119` と手書きし、配備済みサイトを前提にしていた。さらに `push: branches: ['arena/**']` と
+  `paths: [action.yml, …]` を持つため、`--bump` で `action.yml` が変わると自動で走って赤くなった
+  （v0.1.1 の版更新 `aed68b6` で実際に `payloads` と `candidate-action` が落ちた）。
+- **版を引数に取る監査に作り直した**。起動は (1) Release ワークフローの成功終了（`workflow_run`。監査対象は
+  そのタグ）と (2) 手動（`workflow_dispatch` の `version`。空なら最新の公開 release）の 2 つだけにし、
+  `push` トリガーは外した。版・タグ・成果物名・操作数・タグの SHA はすべて実行時に取る。操作数は
+  その版の `tests/golden/api_catalog.json` から読む（手書きの `119` をやめた）。
+- **監査はタグの木で行う**。公開済みの版は動かないので、その版の `scripts/` と `examples/sample-novel` を
+  使う。既定ブランチの `examples/sample-novel` を古い版の CLI に読ませていたのが、v0.1.0 の監査が
+  落ちていた原因だった（`payloads` の "Run the downloaded Linux CLI…" の段）。複合アクションの監査だけは
+  「いまの `scripts/action/` × 公開済み成果物」を見るので、既定ブランチの木にタグの `examples/` だけを重ねる。
+- 監査の内容は旧版を維持し、判定の材料だけを版から取る形にした: release の 17 成果物と `SHA256SUMS`、
+  `git archive` と同梱ソースの一致、タグと可動タグ `v0`、PyPI・TestPyPI の 5 ホイールの照合値、公開済み
+  CLI・Python パッケージ・crates.io クレートの起動と `novnow check`、複合アクション、配備済みサイトと WASM。
+- `REF:docs/distribution.md` §9 に手順 8 として書き足した（承認が長引けば Release が終わらず監査も走らない、
+  そのときは `version` を指定して手動で 1 回、も含む）。`REF:docs/script/test_release_policy.py` に
+  版・操作数の直書きが戻らないことと、起動条件（`workflow_run`）を検査するテストを足した。
