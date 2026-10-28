@@ -66,9 +66,9 @@ pub struct State {
     expanded: BTreeSet<u16>,
     editor: slice_editor::Cache,
     reveal: bool,
-    /// List highlight moved without opening/committing its text slice.
+    /// 一覧の選択だけを動かし、そのブロックの本文は開かず確定もしない（§10.3）。
     preview: bool,
-    /// Scroll the list once after a keyboard-only selection change.
+    /// キーだけで選択を動かした直後に、一覧を 1 回スクロールして見せる。
     scroll_list: bool,
 }
 
@@ -304,7 +304,7 @@ impl State {
         }
     }
 
-    /// Highlight the adjacent block without committing/changing the Slice editor.
+    /// エディタを確定も変更もせずに、隣のブロックへ選択だけ移す（§10.3）。
     pub fn preview_row(&mut self, bench: &Workbench, forward: bool) -> bool {
         let at = self.selected_index(bench);
         let blocks = self.blocks(bench);

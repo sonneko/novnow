@@ -282,8 +282,8 @@ pub fn show(
 ) -> (Option<Request>, Option<Target>) {
     let colors = theme::palette(view.mode);
     let locale = view.locale;
-    // There is no text editor on this screen; focus on a header button must
-    // not steal bare arrows from the diagnostic/progress list.
+    // この画面にはテキストの入力欄が無い。見出しのボタンにフォーカスがあるときも、
+    // 診断・進み具合の一覧から修飾なしの矢印を奪わない。
     let typing = view.overlay;
     let mut jump = None;
     let mut request = None;

@@ -10,6 +10,13 @@ from typing import Any, Callable, Iterator, Protocol
 __version__: str
 
 
+class Record(dict):
+    """JSON と同じ構造の `dict`。キーは属性としても読める（§19.3.2）。"""
+
+    def __getattr__(self, name: str) -> Any: ...
+    def __dir__(self) -> list[str]: ...
+
+
 class NovnowError(Exception):
     """すべての novnow エラーの親（§19.3.3）。"""
 

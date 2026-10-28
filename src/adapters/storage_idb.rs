@@ -89,7 +89,8 @@ pub struct ProjectRecord {
     pub origin: String,
 }
 
-/// New and renamed Web projects cannot share a visible name with another project.
+/// 新規作成・改名した Web のプロジェクトが、他のプロジェクトと同じ表示名を持てないこと（§13.4.1）。
+/// 前後の空白を落として比べ、空の名前は常に不可（`except_id` は改名の自分自身）。
 pub fn name_available(records: &[ProjectRecord], name: &str, except_id: Option<&str>) -> bool {
     let wanted = name.trim();
     !wanted.is_empty()
@@ -308,8 +309,8 @@ mod web {
         result.map_err(js_error)
     }
 
-    /// Queue dependent writes inside the request event, while the transaction
-    /// is active. Awaiting a WASM future before queuing them can auto-commit it.
+    /// 読み取りに依存する書き込みを、トランザクションが生きている要求のイベントの中で積む。
+    /// 積む前に WASM の future を待つと、トランザクションが自動で確定してしまう。
     async fn mutate_after_read<F>(
         transaction: &IdbTransaction,
         request: &IdbRequest,
@@ -514,8 +515,8 @@ mod web {
             let request = projects.get_all().map_err(js_error)?;
             let record = record.clone();
             let records = records.to_vec();
-            // Keep the uniqueness check and all inserts in one write transaction,
-            // but enqueue writes synchronously in its read-success event.
+            // 同名の検査と挿入を 1 つの書き込みトランザクションに収める。
+            // 読み取り成功のイベントの中で同期的に書く（待つとトランザクションが確定してしまう）。
             mutate_after_read(&transaction, &request, move |value| {
                 let existing: Vec<ProjectRecord> = from_js(&value)?;
                 if !name_available(&existing, &record.name, None) {
@@ -545,14 +546,15 @@ mod web {
             Ok(record)
         }
 
-        /// プロジェクトの大きさ（全ファイルの中身の byte 数の和。選択モーダルの一覧、§13.4）。
+        /// プロジェクトの大きさ（各レコードの `bytes` があればその長さ、無ければ `text` の
+        /// byte 数の和。選択モーダルの一覧、§13.3.2・§13.4）。
         pub async fn project_size(&self, project_id: &str) -> Result<usize, StorageError> {
             Ok(self
                 .storage(project_id)
                 .records()
                 .await?
                 .iter()
-                .map(|record| record.text.len())
+                .map(|record| record.stamp().len as usize)
                 .sum())
         }
 
@@ -810,7 +812,7 @@ mod web {
             from_js(&found).map(Some)
         }
 
-        /// All structural writes/deletions share one IndexedDB transaction.
+        /// 構造を変える書き込みと削除は 1 つの IndexedDB トランザクションにまとめる（§8.3）。
         pub async fn write_batch(
             &self,
             writes: &[(ProjectPath, String)],

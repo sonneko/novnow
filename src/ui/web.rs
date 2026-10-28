@@ -701,8 +701,8 @@ impl WebPicker {
                     return;
                 }
             };
-            // Permission UI may remain pending indefinitely (notably Firefox).
-            // Persistence is best-effort, so it must not block loading projects.
+            // 許可の確認はいつまでも返らないことがある（Firefox など）。
+            // 永続化は努力目標なので、プロジェクトの読み込みを止めてはならない。
             spawn_local(storage_idb::request_persist());
             let first_visit = idb
                 .recent()

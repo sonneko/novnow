@@ -6184,9 +6184,9 @@ fn action_label(locale: Locale, action: &crate::core::features::code_action::Cod
     )
 }
 
-/// The header badge reflects the whole project (not just the current document).
-/// Reuse the previous scan while typing; scanning every file on every keystroke
-/// would violate the editor's latency budget. Recalculate after the save settles.
+/// 見出しのバッジは（編集中の文書だけでなく）プロジェクト全体を映す。
+/// 入力中は前回の走査を使い回す。打鍵のたびに全ファイルを走査すると、エディタの
+/// 応答時間の予算を超えるため。保存が落ち着いてから数え直す（§10.9.7）。
 fn project_problem(session: &mut Session, locale: Locale) -> Option<workspaces::ReviewProblem> {
     use crate::core::diagnostics::Severity;
     let rows = if matches!(session.bench.save.state(), State::Dirty | State::Saving) {
@@ -6216,8 +6216,8 @@ pub(crate) fn diagnostic_count(session: &mut Session) -> usize {
             return *count;
         }
     }
-    // Diagnostics on the whole document are deliberately deferred until save;
-    // the immediate typing path must not reparse a 100k-character file.
+    // 文書全体の診断は意図して保存まで遅らせる。入力の経路で 10 万字のファイルを
+    // 解析し直してはならない（§7.2 の実行コストの制御・§9.4.1）。
     if matches!(session.bench.save.state(), State::Dirty | State::Saving) {
         return 0;
     }
@@ -6411,8 +6411,8 @@ fn prompt_pairs(
         });
 }
 
-/// Validate as the MCP modal is edited, not only on Save. v1 supports only
-/// stdio servers; unsupported transports must never be silently accepted.
+/// MCP の入力欄は、保存のときだけでなく編集中にも検証する。v1 が扱えるのは
+/// stdio のサーバだけであり、未対応の転送方式を黙って受け入れてはならない（§15.7.7）。
 pub(crate) fn validate_mcp_editor(input: &str, locale: Locale) -> Result<(), String> {
     let config = crate::core::agents::mcp_config::parse(input)?;
     if let Some(server) = config.servers.iter().find(|server| {
@@ -6430,8 +6430,8 @@ pub(crate) fn validate_mcp_editor(input: &str, locale: Locale) -> Result<(), Str
     Ok(())
 }
 
-/// Truncate by painted pixels rather than Unicode scalar count: CJK glyphs are
-/// much wider than Latin letters, but neither may resize the fixed palette.
+/// 切る量は Unicode の文字数ではなく、描いた画素数で測る。CJK の字形はラテン文字より
+/// ずっと広いが、どちらも固定幅のパレットを広げてはならない（§9.7.1）。
 fn palette_label(ui: &egui::Ui, text: &str, max_width: f32) -> String {
     let font = egui::TextStyle::Button.resolve(ui.style());
     let width = |value: &str| {
@@ -6493,9 +6493,8 @@ fn popup(
     let area = egui::Area::new(Id::new(id))
         .order(egui::Order::Foreground)
         .constrain_to(screen);
-    // Area::anchor uses ctx.available_rect(), which shrinks after the side
-    // panels have been laid out. Modals must use the *window* center instead,
-    // regardless of the workspace beneath it.
+    // `Area::anchor` は `ctx.available_rect()` を使うが、これは横のペインを並べた後で
+    // 狭くなる。重ね物は、下にどのワークスペースがあっても**ウィンドウ**の中央に置く。
     let area = match style.placement {
         PopupPlacement::Top => area
             .fixed_pos(Pos2::new(screen.center().x, screen.top() + 72.0))

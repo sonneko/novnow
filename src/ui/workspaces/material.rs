@@ -129,9 +129,9 @@ pub struct State {
     editor: slice_editor::Cache,
     form: Option<Form>,
     reveal: bool,
-    /// List highlight moved without opening/committing its text slice.
+    /// 一覧の選択だけを動かし、その資料の本文は開かず確定もしない（§10.5）。
     preview: bool,
-    /// Scroll the list once after a keyboard-only selection change.
+    /// キーだけで選択を動かした直後に、一覧を 1 回スクロールして見せる。
     scroll_list: bool,
 }
 
@@ -239,7 +239,7 @@ impl State {
         }
     }
 
-    /// Only move the list highlight; keep the current MD slice and unsaved buffer open.
+    /// 一覧の選択だけを動かす。いま開いている MD の Slice と未保存の入力はそのまま残す（§10.5）。
     pub fn preview_row(&mut self, bench: &Workbench, forward: bool) -> bool {
         let selected = self.selected.clone();
         let entries = self.entries(bench);
@@ -846,7 +846,7 @@ fn form(
             .hint_text(i18n::text(locale, "material.source_hint"))
             .desired_width(f32::INFINITY),
     );
-    // Open only explicit web URLs. The source field itself remains editable.
+    // 開くのは明示的な Web の URL だけ。出典の欄そのものは入力できるまま（§10.5.1）。
     let source = form.draft.source.trim();
     if source.starts_with("https://") || source.starts_with("http://") {
         crate::ui::widgets::external_link(ui, &format!("↗ {source}"), source, &colors);

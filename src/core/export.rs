@@ -794,7 +794,7 @@ fn finish(lines: Vec<Out>, options: &Options) -> String {
     out
 }
 
-/// Annotation-free fragment, shared by all stage-two measurements.
+/// 注釈をすべて取り除いた断片。段階 ② の計測はすべてこれを使う（§17.1）。
 pub fn plain(text: &str) -> String {
     fragment(text, false)
 }

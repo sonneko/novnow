@@ -21,7 +21,7 @@ use crate::ui::theme::Palette;
 /// 押せる要素の当たり判定の下限（§9.9、F-32。「24×24px 以上」）。
 pub const MIN_HIT: f32 = 24.0;
 
-/// Keep the painted size unchanged while expanding the input target to at least 24×24.
+/// 描く大きさは変えずに、入力の当たり判定だけを 24×24 以上へ広げる（§9.9、F-32）。
 pub fn hit_rect(rect: Rect) -> Rect {
     rect.expand2(Vec2::new(
         (MIN_HIT - rect.width()).max(0.0) * 0.5,
@@ -29,8 +29,8 @@ pub fn hit_rect(rect: Rect) -> Rect {
     ))
 }
 
-/// Standard textual action. Keep the keyboard-visible label, underline the
-/// click target, and use the same minimum hit area and pointer on every screen.
+/// 標準の文字ボタン。キーボードで見えるラベルはそのままに、押せる範囲へ下線を引き、
+/// どの画面でも同じ最小の当たり判定とポインタを使う（F-32）。
 pub fn action_button(ui: &mut Ui, text: impl Into<String>) -> Response {
     let response = ui.add(
         egui::Button::new(RichText::new(text.into()).underline()).min_size(Vec2::splat(MIN_HIT)),
@@ -41,7 +41,7 @@ pub fn action_button(ui: &mut Ui, text: impl Into<String>) -> Response {
     response
 }
 
-/// Clickable filter/tab/choice with the same underlined affordance as actions.
+/// 押せる絞り込み・タブ・選択肢。操作ボタンと同じ下線の見た目にする（F-32）。
 pub fn selectable_action(ui: &mut Ui, selected: bool, text: RichText) -> Response {
     let background = ui.painter().add(egui::Shape::Noop);
     let response = ui.add(
@@ -147,8 +147,8 @@ pub fn append_excerpt(
     append_text(job, after, font, color);
 }
 
-/// Clickable status label: preserve its painted text size but expand the input
-/// area around it (unlike `Label::sense`, which uses the glyph bounds only).
+/// 押せる状態表示のラベル。描く文字の大きさはそのままに、入力の範囲だけを広げる
+/// （`Label::sense` が字形の範囲だけを使うのとは違う）。
 pub fn clickable_label(ui: &mut Ui, text: RichText, id: egui::Id) -> Response {
     let background = ui.painter().add(egui::Shape::Noop);
     let painted = ui.label(text.underline());
@@ -167,8 +167,8 @@ pub fn clickable_label(ui: &mut Ui, text: RichText, id: egui::Id) -> Response {
     response
 }
 
-/// A wrapped external URL with an explicit click target. Only callers with an
-/// approved http(s) URL should invoke this; ordinary prose remains static.
+/// 折り返して描く外部 URL。押せる範囲を明示的に持つ。http(s) の URL を出してよいと
+/// 分かっている呼び出し側だけが使い、ふつうの本文は静的なままにする（§10.5.1）。
 pub fn external_link(ui: &mut Ui, label: &str, url: &str, colors: &Palette) -> Response {
     use egui::text::{LayoutJob, TextFormat};
     let format = |color| TextFormat {

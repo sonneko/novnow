@@ -1,6 +1,6 @@
-//! Stage-two workspace tabs: the shared State, the tab bar and dispatch.
-//! Screen-specific UI lives in the sibling modules
-//! (`reader` / `stats` / `regex_search` / `addresses` / `local_llm` / `proposals`).
+//! 段階 ② のワークスペースのタブ。共有の `State`、タブの並び、振り分けを置く。
+//! 画面ごとの中身は隣のモジュールにある
+//! （`reader` / `stats` / `regex_search` / `addresses` / `local_llm` / `proposals`）。
 use super::Workspace;
 use crate::{
     core::{

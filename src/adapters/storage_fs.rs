@@ -489,8 +489,8 @@ impl FsStorage {
         Ok(Self { root, gate })
     }
 
-    /// Reserve a new root exclusively. Never merge into an existing directory.
-    /// The parent must already exist; a failed write may leave a partial project.
+    /// 新しいルートを排他的に確保する。既にあるディレクトリへは決して相乗りしない。
+    /// 親は既に在ること。書き込みに失敗すると中途半端なプロジェクトが残りうる。
     pub fn create_fresh(gate: Arc<FsGate>, root: &Path) -> Result<Self, StorageError> {
         let parent = root
             .parent()
@@ -558,8 +558,8 @@ impl FsStorage {
         fs::read(&absolute).map_err(|error| self.map_read_error(path, &error))
     }
 
-    /// Save a structural move as one recoverable batch. All original bytes are captured
-    /// before mutation; any write/remove failure restores the entire batch through FsGate.
+    /// 構造の移動を 1 つの復旧可能な束として保存する。変える前の全 byte を控え、
+    /// 書き込み・削除のどれかが失敗したら `FsGate` 経由で束ごと元に戻す。
     pub fn write_batch(
         &self,
         writes: &[(ProjectPath, String)],

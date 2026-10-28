@@ -493,7 +493,7 @@ pub(crate) mod native {
         }
     }
 
-    /// A path's last-opened date belongs to the visible picker row (§14.4).
+    /// パスの「最後に開いた日」は、見えている選択行のもの（§14.4）。
     fn recent_caption(path: &str, exists: bool, opened_at: &str, locale: Locale) -> String {
         if !exists {
             return format!("{}    {path}", i18n::text(locale, "project.pick.missing"));
@@ -924,7 +924,7 @@ pub(crate) mod native {
                 }
             }
             let mut create_at: Option<PathBuf> = None;
-            // Delete removes only the history entry, never the project's files.
+            // `Delete` が消すのは履歴の 1 行だけで、プロジェクトのファイルは消さない（§13.4）。
             let mut remove_history: Option<String> = delete
                 .then(|| self.recent.get(self.selected).map(|row| row.0.clone()))
                 .flatten();

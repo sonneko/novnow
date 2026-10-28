@@ -22,6 +22,7 @@ from . import _core
 
 __version__ = _core.__version__
 __all__ = [
+    "Record",
     "NovnowError",
     "UsageError",
     "ProjectError",
@@ -38,6 +39,32 @@ __all__ = [
     "operations",
     "__version__",
 ]
+
+
+class Record(dict):
+    """JSON と同じ構造の `dict`。キーは属性としても読める（§19.3.2）。
+
+    `info["title"]` と `info.title` のどちらでも同じ値を指す。中身は `dict`・`list`・
+    `str`・`int`・`bool`・`None` だけなので、JSON としてそのまま扱える。
+    """
+
+    def __getattr__(self, name: str) -> Any:
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name) from None
+
+    def __dir__(self) -> list[str]:
+        return sorted(set(super().__dir__()) | {key for key in self if isinstance(key, str)})
+
+
+def _records(value: Any) -> Any:
+    """結果を `Record`（辞書の派生）と list に写す。§19.3.2 の属性アクセスのため。"""
+    if isinstance(value, dict):
+        return Record({key: _records(item) for key, item in value.items()})
+    if isinstance(value, list):
+        return [_records(item) for item in value]
+    return value
 
 
 class NovnowError(_core.NovnowError):
@@ -161,27 +188,27 @@ class Session:
         for index, value in enumerate(args):
             arguments[names[index]] = value
         try:
-            return self._session.run(op, arguments)
+            return _records(self._session.run(op, arguments))
         except _core.NovnowError as error:
             raise _retype(error) from None
 
     def command(self, name: str) -> Any:
         """パレットのコマンドを実行する（§19.2.3）。"""
         try:
-            return self._session.command(name)
+            return _records(self._session.command(name))
         except _core.NovnowError as error:
             raise _retype(error) from None
 
     # -- イベントと中断（§19.3.5） ---------------------------------------
     def poll_events(self) -> list[dict[str, Any]]:
-        return list(self._session.poll_events())
+        return _records(list(self._session.poll_events()))
 
     def on_event(self, callback: Callable[[dict[str, Any]], None]) -> None:
         self._session.on_event(callback)
 
     def cancel(self, handle: str) -> Any:
         try:
-            return self._session.cancel(handle)
+            return _records(self._session.cancel(handle))
         except _core.NovnowError as error:
             raise _retype(error) from None
 

@@ -841,7 +841,7 @@ impl Workbench {
         true
     }
 
-    /// A multi-file replacement is a single undo unit. Later edits never get overwritten.
+    /// 複数ファイルの置換は、取り消しの 1 単位として扱う。後からした編集を上書きしない。
     pub fn workspace_undo_ready(&self, redo: bool) -> bool {
         if self.human_active() {
             return false;

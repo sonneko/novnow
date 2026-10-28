@@ -262,8 +262,8 @@ pub(crate) fn area(
                     }
                     ui.fonts(|fonts| fonts.layout_job(job))
                 };
-                // egui's built-in cursor spans the full 1.8× line-height.
-                // Keep its layout/IME geometry, but paint a font-sized caret.
+                // egui 本来のカーソルは行の高さ（1.8 倍）いっぱいに伸びる。
+                // 配置と IME の位置はそのままに、描くのは文字の大きさのキャレットにする。
                 let cursor_stroke = ui.visuals().text_cursor;
                 ui.visuals_mut().text_cursor.width = 0.0;
                 let output = TextEdit::multiline(buffer)
@@ -310,8 +310,8 @@ pub(crate) fn area(
                         result.caret = Some(caret.translate(output.galley_pos.to_vec2()));
                     }
                 }
-                // Clip decorations to the TextEdit and the scroll viewport,
-                // independently of the gutter and the surrounding editor frame.
+                // 装飾は、行番号の溝やエディタの枠とは別に、TextEdit とスクロールの
+                // 可視範囲へ切り取る。
                 let text_clip = output.response.rect.intersect(ui.clip_rect());
                 let painter = ui.painter().with_clip_rect(text_clip);
                 if ui.ctx().data(|d| {
@@ -436,15 +436,15 @@ fn paint_line_numbers(
     }
 }
 
-/// Only the active section is analyzed synchronously while typing. Other sections
-/// retain their cached rendering until the workbench commits after the debounce.
+/// 入力中に同期的に解析するのは編集中の節だけ。他の節は、デバウンス後にワークベンチが
+/// 確定するまで、キャッシュ済みの描画をそのまま使う（§9.4.1）。
 pub fn highlight_of(bench: &Workbench, text: &str, hints: bool) -> Highlight {
     let Some(current) = bench.current() else {
         return Highlight::default();
     };
-    // A standalone scene with the same structural id provides the resolver with the
-    // correct plot context without rescanning a 100,000-character neighboring section.
-    // Empty preceding sections preserve the section number for mode/range resolution.
+    // 同じ構造 ID を持つ場面だけを渡すことで、隣の 10 万字の節を読み直さずに、
+    // モードと範囲の解決へ正しいプロットの文脈を渡す。
+    // 手前の節が空でも、節番号はモード・範囲の解決のためにそのまま使う。
     let displayed = current.id.display(bench.project().digits());
     let scene = displayed
         .rsplit_once('-')

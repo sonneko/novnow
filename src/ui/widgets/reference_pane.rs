@@ -28,7 +28,7 @@ pub const DEBOUNCE_SECS: f64 = 0.08;
 pub enum Chosen {
     /// 条件一致の資料候補。その ID を今の節のプロットの `material:` に足す（§16.4）。
     Material(String),
-    /// Open the full source when a summary is truncated.
+    /// 要約が切れているとき、その資料の全文を開く（`Ctrl+Shift+W` 相当、§9.5.5）。
     OpenMaterial(String),
     /// 行からの移動（§9.5.5。コアの行モデルが持つ移動先）。
     Navigate(reference::Nav),

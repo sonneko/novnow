@@ -190,6 +190,30 @@ class ArgumentBinding(unittest.TestCase):
         )
 
 
+class Record(unittest.TestCase):
+    """結果は辞書の派生で、キーは属性としても読める（§19.3.2）。"""
+
+    def test_results_are_dicts_with_attribute_access(self):
+        with new_session() as session:
+            result = session.project.info()
+        self.assertIsInstance(result, dict)
+        self.assertEqual(result["op"], "project.info")
+        self.assertEqual(result.op, "project.info")
+        self.assertEqual(result.arguments, result["arguments"])
+        self.assertIsInstance(result.arguments, dict)
+
+    def test_a_missing_key_raises_attribute_error(self):
+        with new_session() as session:
+            result = session.project.info()
+        with self.assertRaises(AttributeError):
+            _ = result.nope
+
+    def test_lists_of_records_are_converted_too(self):
+        with new_session() as session:
+            events = session.poll_events()
+        self.assertEqual(events, [])
+
+
 class ErrorClassification(unittest.TestCase):
     """§19.3.3 の 9 例外へ写る。"""
 

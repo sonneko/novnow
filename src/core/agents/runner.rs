@@ -103,7 +103,7 @@ pub struct Draft<'a> {
     pub intent: &'a str,
     /// 人間のコメント。
     pub comment: &'a str,
-    /// Optional reference examples, one per line.
+    /// 参考例（任意）。1 行に 1 件ずつ（§15.4.6）。
     pub examples: &'a str,
     /// 起動者（`human` / `agent`）。
     pub initiator: &'a str,

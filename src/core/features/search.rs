@@ -1,4 +1,4 @@
-//! Bounded search engine with an injected elapsed-time function.
+//! 上限付きの検索。経過時間は外から注入する関数で測る（§9.7.4）。
 use crate::core::features::{FileEdit, Project, TextEdit, WorkspaceEdit};
 use std::ops::Range;
 /// 検索の条件（§9.7.4）。
@@ -71,7 +71,8 @@ pub fn run(
             && !d.path.starts_with("exports/")
             && (d.path.ends_with(".cnov") || d.path.ends_with(".md"))
     }) {
-        // Match one line at a time: regex uses a linear-time automaton, never unbounded backtracking.
+        // 1 行ずつ照合する。正規表現は線形時間のオートマトンで動くので、
+        // 際限のない後戻りは起きない（§9.7.4）。
         let mut start = 0;
         for line in doc.text.split_inclusive('\n') {
             if elapsed_ms() >= 1000 {
@@ -159,7 +160,7 @@ fn expand_escapes(replacement: &str) -> String {
     replacement.replace("\\n", "\n")
 }
 
-/// Freeze a search as a material; no live dependency on the manuscript remains.
+/// 検索の結果を資料として凍結する。元の本文への生きた依存は残さない（§16.3.1）。
 /// i18n: format-vocabulary
 pub fn snapshot(
     project: &Project,

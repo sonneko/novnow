@@ -1,4 +1,4 @@
-//! Regex search tab of the write workspace (design doc `workflows` §16.3).
+//! 執筆画面の「正規表現検索」タブ（§9.7.4・§16.3）。
 use super::tabs::{label, State};
 use crate::core::features::search;
 use crate::ui::{

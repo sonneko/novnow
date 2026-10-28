@@ -1,4 +1,4 @@
-//! Descriptive observations, never scores or evaluations.
+//! 記述的な観察だけを置く。点数や評価はしない（§9.4.2 の前提）。
 use crate::core::{
     annotations,
     features::{sections, Project},
@@ -30,7 +30,7 @@ impl Metrics {
         }
     }
 }
-/// Raw prose with comments, reference sigils and annotations removed, using the same export conversion.
+/// コメント・参照の記号・注釈を除いた素の本文。除き方はエクスポートと同じ変換を使う（§9.4.2）。
 pub fn prose(text: &str) -> String {
     crate::core::export::plain(text)
 }
@@ -385,7 +385,7 @@ impl Stats {
     }
 }
 
-/// Date arithmetic is supplied by the caller as ordered calendar dates, including empty days.
+/// 日付の計算は呼び出し側から、並べた暦の日付（書かなかった日も含む）として渡す。
 impl Stats {
     pub fn average(&self, dates: &[String]) -> f64 {
         if dates.is_empty() {
@@ -405,7 +405,7 @@ impl Stats {
     }
 }
 
-/// Calendar-only helpers: dates are supplied, never read from a system clock.
+/// 暦だけを扱う補助。日付は渡され、システムの時計からは決して読まない（§3.2）。
 pub fn recent_dates(today: &str, count: usize) -> Vec<String> {
     let mut parts = today.split('-');
     let Some((mut y, mut m, mut d)) = parts

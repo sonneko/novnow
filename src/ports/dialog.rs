@@ -62,7 +62,7 @@ pub trait Dialog {
     /// フォルダを選ぶ（§14.4「フォルダを開く」・Zip の取り込み先）。
     fn pick_folder(&self) -> impl Future<Output = Option<PathBuf>>;
 
-    /// Explicitly pick a manuscript text file; never save its source path.
+    /// 原稿のテキストファイルを明示的に選ぶ。選んだ元のパスは決して保存しない（§14.6）。
     fn pick_text(&self) -> impl Future<Output = Option<PickedFile>> {
         async { None }
     }

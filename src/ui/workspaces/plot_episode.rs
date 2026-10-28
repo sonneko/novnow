@@ -61,9 +61,9 @@ pub struct State {
     editor: slice_editor::Cache,
     /// 次のフレームで選んだ行までスクロールし、エディタにフォーカスを移す。
     reveal: bool,
-    /// List highlight moved without opening/committing its text slice.
+    /// 一覧の選択だけを動かし、その話プロットの本文は開かず確定もしない（§10.2）。
     preview: bool,
-    /// Scroll the list once after a keyboard-only selection change.
+    /// キーだけで選択を動かした直後に、一覧を 1 回スクロールして見せる。
     scroll_list: bool,
 }
 
@@ -154,7 +154,7 @@ impl State {
         }
     }
 
-    /// Highlight the adjacent plot row without committing/changing the Slice editor.
+    /// エディタを確定も変更もせずに、隣のプロットの行へ選択だけ移す（§10.2）。
     pub fn preview_row(&mut self, bench: &Workbench, forward: bool) -> bool {
         let at = self.selected_index(bench);
         let rows = self.rows(bench);

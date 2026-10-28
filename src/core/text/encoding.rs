@@ -1,41 +1,41 @@
-//! Byte-to-text decoding for migration (§14.6) and paste mojibake repair.
+//! 移行の取り込み（§14.6）と貼り付けの文字化け修復のための、byte 列から文字列への復号。
 //!
-//! Decision order is fixed (Issue #29 X1): strict UTF-8 first (a leading BOM
-//! is dropped), otherwise Shift_JIS via `encoding_rs`, otherwise reject.
-//! Encodings other than UTF-8 / Shift_JIS are out of scope. Newline
-//! normalization stays with the caller (`lexer::normalize_for_save`).
+//! 判定の順は固定である（Issue #29 X1）。まず厳密な UTF-8（先頭の BOM は落とす）、
+//! 読めなければ `encoding_rs` で Shift_JIS、どちらでもなければ拒否する。
+//! UTF-8 と Shift_JIS 以外の符号化（EUC-JP など）は対象にしない。改行の正規化は
+//! 呼び出し側（`lexer::normalize_for_save`）の仕事である。
 
 use crate::core::text::charclass;
 
-/// The encoding a byte sequence was (or should be) read as.
+/// byte 列を（またはこれから）どの符号化として読むか。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SourceEncoding {
     Utf8,
     ShiftJis,
 }
 
-/// A successfully decoded input.
+/// 復号に成功した入力。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DecodedText {
     pub text: String,
     pub encoding: SourceEncoding,
-    /// True when the bytes read cleanly as both UTF-8 and Shift_JIS but give
-    /// different text, so a human may want to switch in a preview.
+    /// UTF-8 としても Shift_JIS としても正しく読めるが、結果の文字列が違うとき `true`。
+    /// プレビューで人が文字コードを切り替えられるようにするための印（§14.6.1）。
     pub ambiguous: bool,
 }
 
-/// Why an input cannot become document text.
+/// 入力を本文の文字列にできない理由。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DecodeError {
-    /// Nothing but whitespace (or nothing at all).
+    /// 空白だけ（または何も無い）。
     Empty,
-    /// Contains NUL; never plain text.
+    /// NUL を含む。素のテキストではありえない。
     Nul,
-    /// Neither strict UTF-8 nor error-free Shift_JIS.
+    /// 厳密な UTF-8 でも、誤りの無い Shift_JIS でもない。
     Undecodable,
 }
 
-/// Decode with the §14.6.1 precedence: strict UTF-8, then Shift_JIS.
+/// §14.6.1 の順で復号する。厳密な UTF-8、次に Shift_JIS。
 pub fn decode(bytes: &[u8]) -> Result<DecodedText, DecodeError> {
     match decode_as(bytes, SourceEncoding::Utf8) {
         Ok(decoded) => Ok(decoded),
@@ -44,8 +44,8 @@ pub fn decode(bytes: &[u8]) -> Result<DecodedText, DecodeError> {
     }
 }
 
-/// Decode as one fixed encoding (preview switching). Rejections are the
-/// same as [`decode`]: NUL bytes and whitespace-only results never pass.
+/// 指定した 1 つの符号化で復号する（プレビューでの切り替え用）。拒否の条件は
+/// [`decode`] と同じで、NUL を含む入力と空白だけの結果は通さない。
 pub fn decode_as(bytes: &[u8], encoding: SourceEncoding) -> Result<DecodedText, DecodeError> {
     if bytes.contains(&0) {
         return Err(DecodeError::Nul);
@@ -75,8 +75,8 @@ pub fn decode_as(bytes: &[u8], encoding: SourceEncoding) -> Result<DecodedText, 
     })
 }
 
-/// Strict Shift_JIS decode: any replacement character produced by the
-/// decoder means the bytes were not readable as Shift_JIS.
+/// 厳密な Shift_JIS の復号。置換文字が 1 つでも出たら、その byte 列は
+/// Shift_JIS として読めなかったものとして扱う。
 fn decode_sjis(bytes: &[u8]) -> Option<String> {
     let (text, _, had_errors) = encoding_rs::SHIFT_JIS.decode(bytes);
     if had_errors {
@@ -86,25 +86,22 @@ fn decode_sjis(bytes: &[u8]) -> Option<String> {
     }
 }
 
-/// Characters that UTF-8-as-Shift_JIS mojibake produces constantly but
-/// ordinary Japanese prose practically never uses. Derived empirically by
-/// mis-decoding the bundled sample novel and the user guide (Issue #29 X1).
+/// UTF-8 を Shift_JIS と読み違えた文字化けで頻出し、ふつうの日本語の文章では
+/// まず使わない文字（§14.6.1 の 17 字）。同梱のサンプル小説と手引きを実際に
+/// 読み違えて、経験的に選んだ（Issue #29 X1）。
 const MOJIBAKE_MARKERS: &[char] = &[
     '縺', '繧', '繝', '縲', '吶', '峨', '譖', '翫', '菴', '薙', '譁', '帙', '隱', '溘', '榊', '蜷',
     '荳',
 ];
 
-/// If `text` looks like UTF-8 that was mis-decoded as Shift_JIS, return a
-/// repaired candidate (§14.6.1). The original bytes are rebuilt by encoding
-/// the pasted string back to Shift_JIS; each replacement character stands
-/// for one byte the mis-decoding dropped, so it is rebuilt as a placeholder
-/// byte and surfaces as a replacement character again in the candidate.
-/// The candidate is therefore exact where the mis-decoding was lossless
-/// and has visible holes where it was not — a human confirms it in a
-/// preview before anything is pasted. Two gates keep ordinary text from
-/// ever prompting: the original must carry a mojibake fingerprint (a marker
-/// character, or several halfwidth katakana from misread trail bytes), and
-/// the repaired text must read as Japanese with only few holes.
+/// `text` が「UTF-8 を Shift_JIS と読み違えた」文字化けに見えるとき、直した候補を返す
+/// （§14.6.1）。元の byte 列は、貼り付けられた文字列を Shift_JIS へ符号化し直して組み立てる。
+/// 置換文字 1 つは、読み違えで落ちた byte 1 つ分なので、代わりの 1 byte として組み直し、
+/// 候補の中ではまた置換文字として現れる。したがって候補は、読み違えが情報を失っていない
+/// ところでは正確で、失ったところは目に見える穴になる。貼り付ける前に人がプレビューで
+/// 確かめる。ふつうの文章で候補を出さないための門は 2 つある。元の文字列が文字化けの指紋
+/// （印の文字、または読み違えた後ろ側の byte 由来の半角カナが複数）を持つこと、そして
+/// 直した結果がかなを含み、穴が少ないことである。
 pub fn mojibake_repair(text: &str) -> Option<String> {
     if text.len() < 4 || text.is_ascii() {
         return None;
@@ -124,10 +121,9 @@ pub fn mojibake_repair(text: &str) -> Option<String> {
     }
     let chars = repaired.chars().count();
     let holes = repaired.chars().filter(|ch| *ch == '\u{FFFD}').count();
-    // The mis-decoding dropped bytes that the pasted string no longer
-    // carries; they show up as holes. A candidate that is mostly holes
-    // recovers nothing, so do not propose it — a human confirms the
-    // rest in the preview.
+    // 読み違えで落ちた byte は、貼り付けられた文字列にはもう無いので穴として現れる。
+    // 穴が大半を占める候補は何も取り戻せていないので出さない。残りは人がプレビューで
+    // 確かめる（§14.6.1「全体の文字数の半分以下」）。
     if holes * 2 > chars {
         return None;
     }
@@ -138,11 +134,10 @@ pub fn mojibake_repair(text: &str) -> Option<String> {
     Some(repaired.into_owned())
 }
 
-/// Encode back to Shift_JIS bytes, keeping every replacement character as
-/// one placeholder byte (0xFF, which UTF-8 lossy decoding turns back into
-/// a replacement character). Returns None when any other character cannot
-/// be encoded to Shift_JIS — such text was not produced by a Shift_JIS
-/// mis-decode.
+/// Shift_JIS の byte 列へ符号化し直す。置換文字は代わりの 1 byte（`0xFF`。UTF-8 の
+/// 損失ありの復号で置換文字に戻る）として残す。ほかの文字が 1 つでも Shift_JIS へ
+/// 符号化できなければ `None` を返す。そのような文字列は Shift_JIS の読み違いでは
+/// 作れないからである。
 fn rebuild_sjis_bytes(text: &str) -> Option<Vec<u8>> {
     let mut bytes = Vec::with_capacity(text.len());
     let mut segments = text.split('\u{FFFD}').peekable();

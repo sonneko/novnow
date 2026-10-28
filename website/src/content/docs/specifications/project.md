@@ -32,7 +32,7 @@ source: "docs/specifications/project.md"
 │   │   └── S0042-search.md   検索結果の保存（§16.3.1）
 │   └── inbox/                提案中の資料
 ├── assets/                   任意。プロジェクト内の小さな付随ファイル
-│   └── icons/megumi.png      キャラアイコン（§5.5.3）。デスクトップ版のみ
+│   └── icons/megumi.png      キャラアイコン（§5.5.3）
 ├── prompts/                  任意（無ければ既定を自動生成）。AI プロンプト（§5.9）
 │   ├── writer.md  plotter.md  ideator.md
 │   ├── researcher.md  stylist.md  logician.md  integrator.md
@@ -56,6 +56,8 @@ source: "docs/specifications/project.md"
 ```
 
 拡張点: `assets/` は novnow の文書形式の外にある付随ファイルの置き場所であり、画像などの将来の拡張はここを土台にする。資料の出典種別（§5.8）などの拡張余地は各節が明示する。プロジェクト内の未知ファイルを壊さない規則（§4.3、§13.5）が、こうした拡張をあとから入れるための前提である。外部のソフトウェア（連携ツールなど）が読む安定面は、このファイル形式と §19 の API である。本体はバージョン管理そのものは実装せず、プロジェクトを通常のフォルダとして扱う素朴さを守る。
+
+**`assets/` の中身の扱い**: 起動時に `assets/` 配下のファイルを読み込み、アイコンの表示（§5.5.3）に使う（`space:` の外部ファイルは `assets/` も含むテキストとして読む。§5.3.6）。1 ファイル **256KB** を超えるものは中身を保持しない（アイコンなら W069。§5.5.3）。デスクトップ版はファイルをそのまま読み、Web 版は IndexedDB の `bytes`（Zip の取り込みで入ったもの）から読む（§13.3.2）。したがってどちらの版でもアイコンは表示できる。
 
 ### 4.2 必須 / 任意の判定表
 
@@ -108,7 +110,6 @@ source: "docs/specifications/project.md"
   "theme": "system",
   "language": "system",
   "reference_pane_side": "right",
-  "workspace": "write",
   "last_scene": "01-04-02-03",
   "pane_ratio": { "main": 0.62, "context_view": 0.55 },
   "font_scale": 1.0,
@@ -116,6 +117,7 @@ source: "docs/specifications/project.md"
   "suggest_comma": false,
   "status_stats_mode": false,
   "confirm_section_delete": true,
+  "guide_done": false,
   "context_sections": 3,
   "autosave_ms": 400,
   "folded": { "outline": ["@02", "@03"], "context_view": [] }
@@ -126,6 +128,19 @@ source: "docs/specifications/project.md"
 `suggest_comma`: 自動句切れ提案（§9.4.3、既定 `false`）。
 `status_stats_mode`: ステータスバーの統計モード（§9.6.3、既定 `false`）。
 `confirm_section_delete`: 空でない節の削除前に確認するか（§8.1.2、既定 `true`）。
+`guide_done`: はじめての手引きを閉じたか（§9.10、既定 `false`）。`true` なら自動では出さない。
+知らないキーは**読んだまま書き戻す**（将来のキーを、古い版が消してしまわないため）。
+範囲を持つキーは、範囲外の値を読んだときに読み捨てるか範囲へ丸める（`pane_ratio`・`font_scale`・`autosave_ms`・`max_line_chars` は丸め、`context_sections` は範囲外なら既定 `3` のまま）。型の違う値は読み捨てる。
+
+| キー | 既定 | 範囲 |
+|---|---|---|
+| `pane_ratio.main` | `0.62` | `0.3`–`0.85` |
+| `pane_ratio.context_view` | `0.55` | `0.2`–`0.8` |
+| `font_scale` | `1.0` | `0.8`–`1.6`（`Ctrl+Plus` / `Ctrl+Minus` は 0.1 刻み） |
+| `context_sections` | `3` | `1`–`9` |
+| `autosave_ms` | `400` | `200`–`2000` |
+| `max_line_chars` | 表示言語ごと（§4.4.5） | `20`–`120` |
+
 `folded`: 折りたたみ状態（§9.3.3）。2 つの配列を持つ。
 
 | キー | 内容 |

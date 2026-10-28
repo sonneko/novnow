@@ -6,7 +6,7 @@
 //! 同じ状態機械を表示するだけなので、同じ入力に同じ結果が返る（§19.1.1）。
 //!
 //! ```no_run
-//! use novnow::app::Session;
+//! use novnow::app::session::Session;
 //!
 //! # fn main() -> novnow::app::error::Result<()> {
 //! let mut session = Session::open("my-novel")?;

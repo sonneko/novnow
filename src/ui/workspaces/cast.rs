@@ -65,9 +65,9 @@ pub struct State {
     unmatched_selected: usize,
     editor: slice_editor::Cache,
     reveal: bool,
-    /// Browse the cast list without replacing the open editor Slice.
+    /// 開いているエディタの Slice を差し替えずに、配役の一覧だけを辿る（§10.6）。
     preview: bool,
-    /// Scroll the list once after a keyboard-only selection change.
+    /// キーだけで選択を動かした直後に、一覧を 1 回スクロールして見せる。
     scroll_list: bool,
     /// ドラッグ中の帯と、ずらした量（px）。
     drag: Option<(usize, f32)>,
@@ -140,7 +140,7 @@ impl State {
         }
     }
 
-    /// Browse the adjacent character without committing the editor.
+    /// エディタを確定せずに、隣の登場人物の行へ選択だけ移す（§10.6）。
     pub fn preview_row(&mut self, bench: &Workbench, forward: bool) -> bool {
         let selected = self.selected;
         let rows = self.rows(bench);
@@ -277,7 +277,7 @@ pub fn show(
     let scale = view.scale;
     let locale = view.locale;
     state.sync(bench);
-    // The right-hand timeline owns unmodified arrows while focused.
+    // 右側の年表がフォーカスを持っているあいだは、修飾なしの矢印は年表のもの（§10.6）。
     let timeline_focus = state.tab == Tab::Modes
         && (state.focus_tab
             || ctx.memory(|memory| memory.has_focus(egui::Id::new("cast-timeline"))));

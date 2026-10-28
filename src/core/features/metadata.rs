@@ -261,7 +261,7 @@ pub fn addresses(text: &str) -> Vec<Address> {
     }
     out
 }
-/// Return only safe, project-relative references. No content interpretation.
+/// 安全なプロジェクト内の相対パスだけを返す。中身の解釈はしない（§5.3.6・§5.5.3）。
 pub fn asset_path(value: &str, icon: bool) -> Option<String> {
     let value = value.strip_prefix("./").unwrap_or(value);
     let path = crate::core::policy::ProjectPath::new(value).ok()?;
@@ -274,7 +274,7 @@ pub fn asset_path(value: &str, icon: bool) -> Option<String> {
 /// i18n: format-vocabulary
 const FLASHBACK: &[&str] = &["回想", "過去", "flashback"];
 
-/// Replace one address field (or insert a base-mode field) without touching other fields.
+/// 住所の欄を 1 つだけ差し替える（基底モードの欄が無ければ挿入する）。他の欄には触れない。
 pub fn set_address(text: &str, speaker: &str, target: &str, names: &str) -> Option<String> {
     if names.contains(['\n', '\r']) {
         return None;

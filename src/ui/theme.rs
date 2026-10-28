@@ -313,7 +313,7 @@ pub fn paint_theme_icon(
     match choice {
         ThemeChoice::System => {
             painter.circle_stroke(center, 7.0, Stroke::new(1.5_f32, ink));
-            // Left half-disc, curved with a cubic Bézier instead of a font glyph.
+            // 左半分の円盤。フォントの字形ではなく 3 次ベジェで描く（§11.4.1）。
             let mut points = curve([
                 point(0.0, -6.0),
                 point(-8.0, -6.0),
@@ -324,8 +324,8 @@ pub fn paint_theme_icon(
             painter.add(egui::Shape::convex_polygon(points, ink, Stroke::NONE));
         }
         ThemeChoice::Dark => {
-            // A filled crescent made from two cubic Bézier arcs. In particular,
-            // this does not paint a background-colored circle over adjacent UI.
+            // 3 次ベジェ 2 本で作る、塗りつぶした三日月。隣の表示の上に背景色の円を
+            // 重ねて抜く、という描き方はしない（§11.4.1）。
             let mut points = curve([
                 point(3.0, -7.0),
                 point(-9.0, -9.0),
