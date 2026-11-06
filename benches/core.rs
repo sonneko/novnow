@@ -246,7 +246,6 @@ fn bench_diagnostics_dedup_1000(c: &mut Criterion) {
         .find(|doc| doc.path.starts_with("contents/"))
         .map(|doc| doc.path.clone())
         .unwrap_or_default();
-    project.documents().count();
     let mut docs: Vec<Document> = project.documents().cloned().collect();
     docs.retain(|doc| doc.path != path);
     docs.push(Document::new(path.clone(), text));
