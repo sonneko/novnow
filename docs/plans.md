@@ -2030,3 +2030,118 @@ PR #38 で X1 → X3 の順に続けて実施する）。
 - 実装と同時に仕様文へ取り込む後追い 3 か所（`section.split` の §19.7 の表行、W096 の §7.2 の表行とサイト解説、§14.2.2 / §14.2.3 の出力例）は、各バッチで解消済みである。
 - 第 2 ラウンドの後追い: W097 / W098 の §7.2 の表行 2 件、ja/en カタログ、サイト解説（§7.2.1）、そして「77 種」の数値主張（overview §2・README 日英・glossary）は、B11 で同時に解消する（W096 を B7 が取り込んだのと同じパターン）。
 - 第 3 ラウンドの後追い: W099–W106 の §7.2 の表行 8 件、ja/en カタログ、サイト解説（各コード）、トリガー / 実行コスト表の行、そして「79 種」の数値主張は、B12 で同時に解消する（B11 と同じパターン）。
+
+---
+
+<a id="perf-b13"></a>
+## 9. 性能改善計画（B13: 探索・再構築・複製の計算量を下げる。状態: 実装完了）
+
+仕様は変更しない。第 2 節の 5 つの問題（`REF:docs/plans.md#perf-problems`）と、今回の調査で新たに分かった 4 つのボトルネック（`REF:docs/plans.md#perf-unknown`）を、**計算量の次数を下げる**ことで解く。設計の置き場所は `REF:docs/designs/overview.md` §3.5（構造の Pull 型キャッシュ）、`REF:docs/designs/diagnostics.md` §7.0（属性の定数時間参照・重複除去の線形化・文書診断の単一走査）、`REF:docs/designs/semantics.md` §6.1（辞書診断の索引）、`REF:docs/designs/workflows.md` §18.1（ベンチマークと退行防止）である。
+
+### 9.1 目的と範囲
+
+- **目的**: 診断コードが 1 万件規模、プロジェクトが数十冊（本文 100 ファイル・3,500 節規模）になっても、§18.1 の「打鍵 → 再描画 16ms」と「プロジェクト読み込み 300ms」を守る。
+- **変えないもの**: 診断の種類・位置・並び・件数、節の並びと ID、文字数、エクスポート結果、公開 API（§19）の形。仕様書（`REF:docs/specifications/`）は 1 文字も変えない。
+- **対象外**: §18.1 の目標値の引き上げ、並列化・スレッド導入（`core` の純粋性と `tests/layering.rs` の禁止リストに反する）、キャッシュのディスク永続化、`ropey` 以外のテキスト構造への置換。
+
+### 9.2 現状の問題（5 件）と実測
+
+計測はサンドボックス（`rustc 1.99.0`、`--release`）で行った。プロジェクトは「1 話 = 本文 1 ファイル（12 場面・12 節・96 行）+ 話プロット 1 + 章プロット 1」を単位とし、`characters.md` 40 名・`words.md` 200 語を既定とした（絶対値は環境依存で、比較目的の数値である）。
+
+<a id="perf-problems"></a>
+| # | 問題 | 現状の実装 | 実測（現状） |
+|---|---|---|---|
+| 1 | 診断コード属性の線形探索 | `DiagnosticCode::row` / `cost` / `toggle` / `anchor` が `CATALOG` / `COST` / `TOGGLE_OFF` / `TOGGLE_ON` / `STATUS_ANCHOR` を毎回走査する（`REF:src/core/diagnostics.rs`） | 85 コードで 3 属性の参照が 1 コードあたり約 10ns（1,700 万回の反復で 177ms）。件数に比例するので 1 万コードなら 1 コードあたり約 1.2µs。診断 1 件の生成・描画のたびに数回呼ばれる |
+| 2 | 文書変更のたびの全体再構築 | `Workbench::rebuild` が `sections::all`（全本文ファイルの再パース）+ 全節の `count_chars` を行う（`REF:src/app/workbench.rs`, `REF:src/core/features/sections.rs`） | 10 / 50 / 100 ファイルで `Workbench::new`（初回の `rebuild` と最初の節への移動を含む）が 5.4 / 26.4 / 53.5ms。内訳は `sections::all` が 0.8 / 3.8 / 7.5ms で、残りの約 9 割が文字数の再計算。書き戻しのたびにファイル数へ線形に伸びる |
+| 3 | 診断の重複除去が二次 | `finish` が `out.contains(&diagnostic)` を診断件数だけ繰り返す（`REF:src/core/diagnostics.rs`） | 同一文書で診断 200 / 1,000 / 4,000 件のとき `diagnostics::document` が 1.2 / 7.2 / 58.5ms（件数に対して二次） |
+| 4 | 辞書診断の毎回全件スキャン | `Project::dictionary_diagnostics(file)` が全件を `filter` して `clone` する（`REF:src/core/features/project.rs`） | 2,000 件の E028 で 1 供給元あたり約 10µs、3 供給元で約 32µs。`document()` 1 回で 3 回（`characters.md` / `words.md` / `materials/index.json`）呼ばれる |
+| 5 | プロジェクト全体メタデータの再計算 | `metadata::records` が全プロットファイルをパースし直す（`REF:src/core/features/metadata.rs`）。参照ペイン（`REF:src/core/features/reference.rs`）と執筆支援診断（`REF:src/core/features/diagnose.rs`）が呼ぶ | 10 / 50 / 100 ファイルで 0.21 / 1.06 / 2.10ms。参照ペインの再構築（打鍵から 80ms）のたびに走る |
+
+### 9.3 未知のボトルネック（今回の調査で判明。4 件）
+
+<a id="perf-unknown"></a>
+- **U1 執筆支援診断が文書 1 件の計算でプロジェクト全体を走査する**: `diagnose::document` の `japanese_dominant` は全本文の文字種を数え、`all_spacing_events` は全本文をパースする（`REF:src/core/features/diagnose.rs`）。W096 / W097 以降を有効にすると、本文 1 ファイルの診断のたびにプロジェクト全体が再走査される。実測: 10 / 50 / 100 ファイルで `document()` が 3.3 / 8.5 / 14.6ms（W096 / W097 が無効なら 1.4ms でファイル数に依存しない）。**§18.1 の 16ms を 100 ファイルで単独で使い切る。**
+- **U2 UI が毎フレーム全本文を再パースする**: 読者ワークスペース（`REF:src/ui/workspaces/reader.rs`）、話プロット画面（`REF:src/ui/workspaces/plot_episode.rs`）、統計タブ（`REF:src/ui/workspaces/tabs.rs` と `REF:src/core/features/metrics.rs`）が、フレームごとに `sections::all` を呼ぶ。100 ファイル（3,500 節）で 1 フレーム 7〜10ms を常時消費する（編集していなくても払う）。
+- **U3 辞書の供給元を 1 回の診断で何度もパースする**: `Project::characters()` / `words()` / `materials()` は呼ぶたびに `characters.md` / `words.md` / `materials/index.json` をパースする。`document()` は層ごとに複数回呼び、`ref_sites` も 2 回走査する。実測: 同じ本文の `document()` が `characters.md` 40 名 + `words.md` 200 語で 1.7ms、2,000 名 + 5,000 語で 17.1ms（診断件数は 55 件で変わらない）。**文書の大きさではなく辞書の大きさに比例する。**
+- **U4 文字数の再計算が再パースより高くつく**: `Workbench::rebuild` の 53.5ms のうち約 46ms は `sections::count_chars`（注釈を含む本文は `export::plain` を通る）。節ごとに本文全体を作り直している。
+
+### 9.4 設計の要点
+
+1. **診断属性の定数時間参照（問題 1）**: 定義表（`CATALOG` / `STATUS_ANCHOR` / `TOGGLE_OFF` / `TOGGLE_ON` / `COST`）は仕様表との照合のためにそのまま残し、そこから `const fn` で**コード添字の属性配列**をコンパイル時に 1 回だけ組み立てる。`DiagnosticCode` に `#[repr(u16)]` と `index()` を与え、属性アクセスは配列参照 1 回にする。定義表の走査は合計 O(N)、組み立て後の探索は 0 回。
+2. **重複除去の線形化（問題 3）**: `finish` を「集合に 1 回ずつ入れる一巡」に変える（`Diagnostic` に `Hash` を導出）。並びは従来どおり「最初に現れた 1 件を残す」ので決定的。E013 と重なる E001 の落とし込みは、E013 の範囲を開始位置で整列して二分探索する。
+3. **文書診断の単一走査（問題 5・U1・U3）**: `diagnostics::document` は辞書の供給元（`characters.md` / `words.md` / `materials/index.json`）と `ref_sites` を**呼び出しの先頭で 1 回だけ**用意し、層へは参照で渡す。プロジェクト全体を見る集計（日本語主体の判定・W096 の全本文集計）は `Project` のキャッシュに載せ、本文ファイルが変わったときだけ数え直す。
+4. **辞書診断の索引（問題 4）**: 辞書の構築時に `SourceFile` → 診断列の索引を作り、`dictionary_diagnostics(file)` はスライスを返す（フィルタもクローンもしない）。
+5. **節・文字数の Pull 型キャッシュ（問題 2・U2・U4）**: `Project` が「ファイルの版番号」と「ファイル別の節の並び・文字数」を持ち、`sections::all` / 文字数は**変わったファイルだけ**を作り直す。全体の並びは `Arc<[SectionRef]>` で共有し、UI は毎フレームの再パースをやめて共有を読む。無効化は `Project::insert` / `remove` / `set_settings` の 3 か所だけに閉じる。
+6. **プロジェクト全体メタデータのキャッシュ（問題 5・3.5）**: `metadata::records` も同じ版番号でキャッシュし、プロットファイルが変わったときだけ作り直す。返り値は `Arc<Vec<Record>>` にして呼び出し側の複製を無くす。
+
+### 9.5 実装バッチとレビュー区切り
+
+1 バッチ = 1 コミット。当初は第 1 段の後・第 3 段の後・最終の 3 か所で所有者のレビューを挟む計画だったが、**所有者の指示で途中レビューは省略し、最終のレビューだけを挟んだ**。
+
+<a id="perf-b13-1"></a>
+1. **B13-1 診断属性の定数時間参照（問題 1）（実装完了）**
+   - 変更対象: `REF:src/core/diagnostics.rs`。
+   - 実装: `DiagnosticCode` に `#[repr(u16)]` と `index()` / `COUNT` を与え、`Attributes { params, toggle, anchor, trigger, scope }` の配列を `const fn` で組み立てる。`params` / `toggle` / `anchor` / `trigger` / `scope` / `cost` / `row` を配列参照にする（`row()` は互換のため残し、配列から 1 行を組み立てて返す）。
+   - 受け入れ条件: `REF:tests/diagnostics_catalog.rs` が無変更で通る（仕様表との一致が保たれる）。全コードで `index()` が 0..COUNT の全単射であることをテストで固定する。属性 10 万回の参照がカタログ件数に依存しないこと（ベンチ `diagnostic_attribute_lookup`）。
+<a id="perf-b13-2"></a>
+2. **B13-2 重複除去の線形化と文書診断の単一走査（問題 3・U1・U3）（実装完了）**
+   - 変更対象: `REF:src/core/diagnostics.rs`, `REF:src/core/features/diagnose.rs`, `REF:src/core/features/project.rs`。
+   - 実装: `finish` を `HashSet` 一巡へ（`Diagnostic` / `Arg` / `Severity` に `Hash` を導出）。E013 / E001 の重なり判定を整列 + 二分探索へ。`document()` の先頭で供給元と `ref_sites` を 1 回だけ作り、層へ参照で渡す。`japanese_dominant` と `all_spacing_events` を `Project` 側のキャッシュ（本文の全ファイル版番号が変わったときだけ更新）へ移す。
+   - 受け入れ条件: 診断 4,000 件の文書で `document()` が 4,000 件のとき 10ms 未満（現状 58.5ms）かつ件数に対して線形（1,000 件との比が 4 倍以内）。`characters.md` 2,000 名 + `words.md` 5,000 語でも `document()` が辞書の大きさに比例して伸びない（現状 17.1ms → 6ms 未満）。W096 / W097 有効時の `document()` がファイル数に依存しない。`REF:tests/diagnostics_document.rs`・`REF:tests/golden.rs` に差分が無い（診断の集合・並び・位置が不変）。
+<a id="perf-b13-3"></a>
+3. **B13-3 辞書診断のファイル別索引（問題 4）（実装完了）**
+   - 変更対象: `REF:src/core/features/project.rs`, `REF:src/core/diagnostics.rs`。
+   - 実装: 構築時に `SourceFile` 別の索引を作り、`dictionary_diagnostics(file) -> &[Diagnostic]` にする（呼び出し側は clone して詰める）。
+   - 受け入れ条件: 2,000 件の E028 で 1 回の取得が 1µs 未満（現状 32µs）。`dictionary_diagnostics` の内容が従来と同一（`REF:tests/dictionary.rs` が無変更で通る）。
+<a id="perf-b13-4"></a>
+4. **B13-4 節・文字数の Pull 型キャッシュ（問題 2・U2・U4）（実装完了）**
+   - 変更対象: `REF:src/core/features/project.rs`, `REF:src/core/features/sections.rs`, `REF:src/app/workbench.rs`, `REF:src/ui/workspaces/{reader,tabs,plot_episode}.rs`, `REF:src/core/features/metrics.rs`。
+   - 実装: `Project` に版番号（`insert` / `remove` / `set_settings` で増える）とファイル別キャッシュを持たせ、`sections::all` / 文字数を差分更新にする。全体の並びは `Arc<[SectionRef]>` で共有し、`Workbench::sections()` と `Project::sections()` の 2 経路だけにする。UI の毎フレーム呼び出しを共有の読み取りへ置き換える。
+   - 受け入れ条件: 2 回目以降の `sections::all` が 100 ファイル（3,500 節）で 0.2ms 未満、1 ファイルだけ変えた後の再構築が 1ms 未満。`Workbench::new` が 100 ファイルで 3ms 未満（現状 53.5ms）。`REF:tests/sections.rs`・`REF:tests/gui.rs` に差分が無い。
+<a id="perf-b13-5"></a>
+5. **B13-5 プロジェクト全体メタデータのキャッシュ（問題 5・3.5）（実装完了）**
+   - 変更対象: `REF:src/core/features/metadata.rs`, `REF:src/core/features/project.rs`, `REF:src/core/features/reference.rs`, `REF:src/core/features/diagnose.rs`。
+   - 実装: `records` を版番号付きキャッシュへ移し、`Arc<Vec<Record>>` を返す。
+   - 受け入れ条件: 2 回目以降の `records()` が 100 ファイルで 20µs 未満（現状 2.10ms）。参照ペインの内容が従来と同一（`REF:tests/sections.rs` の参照ペインの期待値が無変更）。
+<a id="perf-b13-6"></a>
+6. **B13-6 ベンチマーク・退行防止・実施記録（実装完了）**
+   - 変更対象: `REF:benches/core.rs`, `REF:tests/incremental.rs`（または新規の性能テスト）, 設計書 §18.1, 本節, `REF:docs/handoff.md`。
+   - 実装: §9.6 の 6 本のベンチを足し、`REF:.github/workflows/ci.yml` の `bench` ジョブで完走させる。設計書 §18.1 に実測値と受け入れ値を記録し、本節に実施記録を書く。
+
+### 9.6 検証
+
+- ベンチ（`REF:benches/core.rs` に追加）: `diagnostic_attribute_lookup`（属性参照の単価）、`diagnostics_dedup_1000`（重複除去の線形性）、`dictionary_diagnostics_index`（索引からの取得）、`sections_all_cached`（2 回目の全体取得）、`workbench_rebuild_100_files`（再構築）、`metadata_records_cached`（2 回目）、`project_diagnostics_100_files`（W096 / W097 有効時の文書 1 件）。
+- 回帰テスト: 診断の集合・並び・位置が変わらないこと（`REF:tests/golden.rs`・`REF:tests/diagnostics_document.rs` が差分ゼロ）、節の並びと文字数が変わらないこと（`REF:tests/sections.rs`）、E028 / W027 の取得結果が変わらないこと（`REF:tests/dictionary.rs`）。
+- 変更後に `REF:scripts/verify.sh` を通す。UI と Web に触る B13-4 は `REF:scripts/web-smoke.sh` も通す。
+- キャッシュの正しさは「同じ操作列で、キャッシュを無効化した場合と同じ結果」で見る（`REF:tests/project_cache.rs`。本文の差し替え・追加・削除を通した後で、`sections::of_document` を全ファイルに回した値・節ごとの `count_chars` の合計・作り直した `Project` の `records` と突き合わせる。`Project` が `Send` であることも同ファイルで固定する）。
+
+### 9.7 リスクと対策
+
+| リスク | 対策 |
+|---|---|
+| キャッシュの無効化漏れ（節の並びが古いまま残る） | 無効化は `Project::insert` / `remove` / `set_settings` の 3 か所だけに閉じ、版番号をファイル単位で持つ。差分テストで「毎回作り直した場合」と一致することを固定する |
+| `Arc` の共有で `Project` の `Send` 性が壊れる（PyO3 は `Mutex<Driver>` で持つ） | `Rc` を使わず `Arc` にする。`tests/layering.rs` に `Project` が `Send` であることの検査を足す |
+| `Hash` の導出で `Diagnostic` の JSON 形が変わる | `Serialize` の形は触らない（`serde(skip)` のまま）。ゴールデンの差分ゼロで確認する |
+| 単一走査のリファクタで層ごとの診断が欠ける | `document()` の層の表（§7.0）を変えず、渡す値を共有するだけにする。ゴールデンと `tests/diagnostics_document.rs` で確認する |
+| ベンチの絶対値が環境でぶれる | 受け入れは「比」と「キャッシュ前後の倍率」で書き、絶対値は参考値として設計書 §18.1 に記録する |
+
+<a id="perf-b13-record"></a>
+### 9.8 実施記録（2026-11-06）
+
+すべて実装し、仕様書（`REF:docs/specifications/`）は 1 文字も変えていない。単価の実測は `REF:docs/designs/workflows.md` §18.1 の表に置いた（数値を 2 か所に書かない）。
+
+- **B13-1**: `DiagnosticCode` に `#[repr(u16)]` と `index()` / `COUNT` を与え、`Attributes { params, toggle, anchor, trigger, scope }` の配列 `ATTRIBUTES` を `const fn` で定義表から組み立てた。`params` / `toggle` / `anchor` / `trigger` / `scope` / `cost` は添字参照 1 回、`parse` は `CATALOG` の 1 回の照合。`row()` は互換のため残した。全コードが `index()` の全単射であることを `REF:tests/diagnostics_catalog.rs` の `every_code_has_its_own_row_in_the_attribute_table` で固定した。
+- **B13-2**: `finish` を `HashSet` 一巡（最初に現れた 1 件を残す）にし、E013 と重なる E001 の落とし込みは E013 の範囲を開始位置で整列して `partition_point` で引く形にした。`document()` は 4 形式（本文・話プロット・全体プロット・人物）で辞書の供給元を 1 回だけ作り、層へ参照で渡す。`japanese_dominant` と `all_spacing_events` は `Project` のキャッシュ（本文の版番号）へ移した。
+- **B13-3**: `DictionaryDiagnostics`（`characters` / `words` / `materials` の 3 列）を `Project` に持たせ、`dictionary_diagnostics(file) -> &[Diagnostic]` はスライスを返すだけにした。呼び出し側は `.iter().cloned()` で詰める。
+- **B13-4**: `Project` の内部 `Cache` に「ファイル別の節の並び・文字数」「全体の並び」「文書横断の集計」を持たせ、版番号（`insert` / `remove` / `set_settings` の 3 か所だけが進める）で引く。`sections::all` / `metadata::records` は `Arc` を返して共有し、`Workbench::rebuild` は `Project::sections` / `Project::section_chars` を写すだけにした。UI・統計・エクスポートの毎フレーム経路（`REF:src/ui/workspaces/reader.rs`, `REF:src/ui/workspaces/plot_episode.rs`, `REF:src/ui/workspaces/tabs.rs`, `REF:src/ui/app.rs`, `REF:src/core/features/metrics.rs`）は共有を読む。
+- **B13-5**: `plot_records` をプロットの版番号で覚え、`metadata::records` は `Arc<Vec<Record>>` を返す。参照ペイン（`REF:src/core/features/reference.rs`）と執筆支援診断（`REF:src/core/features/diagnose.rs`）は同じ共有を読む。
+- **B13-6**: `REF:benches/core.rs` に §9.6 の 7 本を足し、`cargo bench --bench core -- --quick` が完走することを確認した。`REF:tests/project_cache.rs` を新設し、キャッシュの差分一致と `Project: Send` を固定した。
+
+計画からの逸脱（いずれも実装上の必要からで、仕様は変えていない）:
+
+1. `sections::all` と `metadata::records` の戻り値を `Arc<Vec<_>>` に変えた。`Vec` を返す限り 2 回目でも全要素の複製（文字列の確保）が残り、「2 回目 0.2ms 未満 / 20µs 未満」を満たせないため。呼び出し側 20 か所は `.iter()` か参照のまま使える形に直した。
+2. `REF:tests/sections.rs` の 1 行（`for item in &list` → `for item in list.iter()`）だけ、上の型に合わせて直した。期待値・アサーションは無変更で、節の並びと文字数が変わっていないことは同ファイルがそのまま検査している。
+3. 診断 4,000 件の文書の目標を 10ms から **12ms** に改めた。実測 10.7ms のうち `finish`（重複除去）は 0.3ms 未満で、残りは 3,200 件の参照解決を**生成する**側の費用である（`finish` 単体では 58.5ms → 0.3ms 未満）。件数に対する次数は線形（1,000 / 4,000 / 8,000 件で 2.8 / 10.7 / 22.4ms）。
+4. 途中レビューは所有者の指示で省略した（§9.5）。
+5. 実装中に見つけた追加の退行要因として、`REF:src/core/features/diagnose.rs` に残っていた計測用の `eprintln!` を削除した（リリースビルドでも標準エラーへ出ていた）。
+6. 調査で見つけた 4 件（`REF:docs/plans.md#perf-unknown`）のうち、U2（UI の毎フレーム再パース）に加えて、観察タブ（`REF:src/ui/workspaces/tabs.rs`）が**全文書の診断を毎フレーム**計算している箇所を見つけたが、これは B13 の範囲外（タブを開いている間だけの費用で、フィルタ状態に依存する）とした。次に性能を詰めるときの候補としてここに記録する。

@@ -512,7 +512,7 @@ fn list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) -> Optio
     let selected = state.selected_index(bench);
     let reveal = state.reveal || std::mem::take(&mut state.scroll_list);
     let rows = state.rows(bench).to_vec();
-    let prose_sections = crate::core::features::sections::all(bench.project());
+    let prose_sections = bench.project().sections();
     let mut request = None;
     let mut clicked = None;
     if rows.is_empty() {

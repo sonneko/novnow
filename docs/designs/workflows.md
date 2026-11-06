@@ -96,6 +96,30 @@
 - **[F-38 / F-43 / S-12] 10 万字打鍵 16ms 以内・アイデア 1,000 件 60fps・文脈ビュー可視範囲レイアウト（実装完了: `REF:docs/plans.md#plan-F-43`）**:
   - 打鍵時の編集中節限定解析（F-43）、一覧の `show_rows` 仮想スクロール（F-38）、文脈ビューのビューポートカリング（S-12）を実装し、`REF:tests/editor_performance.rs`（release で画面全体の打鍵 16ms とアイデア 1,000 件の一覧移動 16ms を確認）、`REF:tests/incremental.rs` と `REF:benches/core.rs` で計測・検証する。
 
+- **[B13] 探索・再構築・複製の計算量の退行防止（実装完了: `REF:benches/core.rs`, `REF:docs/plans.md#perf-b13-6`, `REF:docs/plans.md#perf-b13`）**:
+  - 本文ファイル数・辞書の大きさ・診断件数に対する伸びを、`REF:benches/core.rs` の次のベンチで常時測る（CI の `bench` ジョブが `--quick` で完走することも検査する）。
+    - `diagnostic_attribute_lookup`: 属性 1 回の参照（コード数に依存しないこと）
+    - `diagnostics_dedup_1000`: 診断 1,000 件の重複除去（件数に線形であること）
+    - `dictionary_diagnostics_index`: ファイル別索引からの取得
+    - `sections_all_cached`: 2 回目の節の並びの取得（キャッシュ命中）
+    - `workbench_rebuild_100_files`: 100 ファイルの書き戻し後の再構築
+    - `metadata_records_cached`: 2 回目のプロジェクト全体メタデータの取得
+    - `project_diagnostics_100_files`: W096 / W097 有効時の本文 1 ファイルの診断
+  - 実測値は環境依存なので、**受け入れは倍率と次数**で書く。目標は §18.1 の「打鍵 → 再描画 16ms」と「プロジェクト読み込み 300ms」を 100 ファイル・3,500 節で満たすこと。
+  - 単価の目標と実測（サンドボックス、`--release`、100 ファイル・2,300 節の合成プロジェクト。括弧内は B13 前）:
+
+| ベンチ | 目標 | 実測 |
+|---|---|---|
+| `diagnostic_attribute_lookup` | 属性 1 回 5ns 未満 | 全 85 コードで 93ns（1 コードあたり 1.1ns。以前は 1 コードあたり 10ns） |
+| `diagnostics_dedup_1000` | 件数に線形 | 診断 1,000 件の文書で 2.8ms。4,000 件で 10.7ms、8,000 件で 22.4ms（倍率どおり） |
+| `dictionary_diagnostics_index` | 2,000 件の取得が 1µs 未満 | 157ps（以前は 1 回 32µs） |
+| `sections_all_cached` | 2 回目が 0.2ms 未満 | 15.7ns（以前は 2 回目も 5.2ms） |
+| `workbench_rebuild_100_files` | 再構築 3ms 未満 | 14.1µs（以前は 100 ファイルで 53.5ms） |
+| `metadata_records_cached` | 2 回目が 20µs 未満 | 15.6ns（以前は 2 回目も 3.2ms） |
+| `project_diagnostics_100_files` | ファイル数に依存しない | 1.3ms（以前は 100 ファイルで 14.6ms） |
+
+  - 上記のほか、`characters.md` 2,000 名 + `words.md` 5,000 語の辞書でも本文 1 ファイルの診断が 2.1ms（以前は 17.1ms）、診断 4,000 件の文書の診断が 10.7ms（`finish` の重複除去は 0.3ms 未満。以前は `finish` だけで 58.5ms）。
+
 ### 18.2 メモリ
 
 状態: 実装完了（REF:src/core/text/rope.rs, REF:src/core/text/incremental.rs）
