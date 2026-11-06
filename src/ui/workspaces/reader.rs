@@ -1,6 +1,6 @@
 //! 読者モード（縦書きのプレビュー）の画面（§10.7・§17.3）。
 use super::tabs::{label, State};
-use crate::core::features::{metadata, sections};
+use crate::core::features::metadata;
 use crate::ui::{i18n::Locale, workbench::Workbench};
 use egui::Ui;
 
@@ -74,7 +74,7 @@ pub(super) fn reader(
         .unwrap_or_default();
         state.reader_loaded = true;
     }
-    let all = sections::all(bench.project());
+    let all = bench.project().sections();
     let mut episodes = std::collections::BTreeMap::new();
     for section in all.iter().filter(|s| s.id.chapter > 0 && s.id.episode > 0) {
         episodes

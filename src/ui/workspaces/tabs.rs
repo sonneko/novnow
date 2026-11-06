@@ -4,7 +4,7 @@
 use super::Workspace;
 use crate::{
     core::{
-        features::{metadata, metrics, search, sections},
+        features::{metadata, metrics, search},
         model::document::DocumentFormat,
     },
     ui::{
@@ -213,9 +213,12 @@ pub fn show(
                     ui.label(format!("{bin}–{} {}", bin + 99, "▮".repeat(n.min(100))));
                 }
                 let scores = metrics::t_scores(&m.lengths);
-                let items: Vec<_> = sections::all(bench.project())
-                    .into_iter()
+                let items: Vec<_> = bench
+                    .project()
+                    .sections()
+                    .iter()
                     .filter(|s| s.id.chapter > 0 && s.id.episode > 0)
+                    .cloned()
                     .collect();
                 for ((item, n), score) in items.iter().zip(m.lengths).zip(scores) {
                     let score = score.map_or_else(|| "—".to_owned(), |n| format!("{n:.1}"));
@@ -352,7 +355,7 @@ pub fn show(
                                 ui.label(field);
                             }
                             ui.end_row();
-                            for row in rows {
+                            for row in rows.iter() {
                                 if ui.link(row.id.display(bench.project().digits())).clicked() {
                                     jump = Some((row.path.clone(), row.range.start));
                                 }
@@ -414,7 +417,7 @@ pub fn show(
                             }
                         }
                     } else {
-                        for row in rows {
+                        for row in rows.iter() {
                             let field = match key {
                                 "stage.senses" => "senses",
                                 "stage.space" => "space",
