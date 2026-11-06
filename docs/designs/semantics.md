@@ -15,6 +15,11 @@
 - **[F-24] 登場人物の透過的な辞書統合と重複抑止（実装完了: `REF:src/core/resolve/dictionary.rs`, `REF:src/app/palette.rs`）**:
   - `REF:src/core/resolve/dictionary.rs` で `characters.md` の見出し名と `alias:` を無条件に統合辞書へ登録し（`words.md` ファイル自体は書き換えない）、`words.md` に同名の見出しが存在する場合は `Character` 定義へマージして `REF:src/core/features/reference.rs` や `REF:src/app/palette.rs` に重複エントリが出ないようにする。
 
+- **[B13] 構築時に作る辞書診断のファイル別索引（実装完了: `REF:src/core/features/project.rs`, `REF:src/core/diagnostics.rs`, `REF:tests/dictionary.rs`, `REF:docs/plans.md#perf-b13-3`）**:
+  - `Dictionary` の構築（`REF:src/core/resolve/dictionary.rs`）が返す E028 / W027 は、`Project`（`REF:src/core/features/project.rs`）が **`SourceFile` ごとの列**として保持する。取得（`dictionary_diagnostics(file)`）は全件の `filter` と `clone` をやめ、索引のスライスを返す。呼び出し側（`REF:src/core/diagnostics.rs`）は必要な分だけ `clone` して詰める。
+  - 索引は構築時に 1 回だけ作り、辞書の再構築（供給元の 3 ファイルのいずれかが変わったとき、§6.1.2）で作り直す。診断の内容・順序は従来と同一（検証: `REF:tests/dictionary.rs`）。
+  - **受け入れ**: 2,000 件の E028 で 1 回の取得が 1µs 未満（実測 157ps。以前は 32µs）。索引は `Project` の `DictionaryDiagnostics`（`characters` / `words` / `materials` の 3 列）として持ち、辞書の再構築のたびに作り直す。
+
 ### 6.2 `'` の最短一致
 
 状態: 実装完了（REF:src/core/resolve/dictionary.rs, REF:src/ui/widgets/reference_pane.rs, REF:src/ui/app.rs, REF:tests/dictionary.rs, REF:tests/workspaces.rs）

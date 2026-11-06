@@ -77,8 +77,12 @@ pub fn section(text: &str) -> Metrics {
     metrics
 }
 pub fn project(project: &Project) -> Metrics {
+    project_with(project, &project.sections())
+}
+/// 節の並びを受け取る版。[`Project::sections`] の共有（`Arc`）をそのまま渡せる（B13-4）。
+pub fn project_with(project: &Project, items: &[super::sections::SectionRef]) -> Metrics {
     let mut metrics = Metrics::default();
-    for item in sections::all(project)
+    for item in items
         .iter()
         .filter(|s| s.id.episode != 0 && s.id.chapter != 0)
     {

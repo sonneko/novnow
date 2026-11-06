@@ -286,9 +286,10 @@ pub fn select(
 ) -> Vec<SectionRef> {
     let mut states = States::new(project);
     sections::all(project)
-        .into_iter()
+        .iter()
         .filter(|section| range.is_none_or(|range| range.contains(section.id)))
         .filter(|section| state.is_none_or(|least| states.of(section.id) >= least))
+        .cloned()
         .collect()
 }
 

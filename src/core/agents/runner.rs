@@ -63,7 +63,7 @@ pub fn expand_scope(project: &Project, scope: &str) -> Vec<SceneId> {
     }
     let (low, high) = (partial.expand_low(), partial.expand_high());
     let mut out: Vec<SceneId> = sections::all(project)
-        .into_iter()
+        .iter()
         .map(|found| found.id)
         .filter(|id| low <= *id && *id <= high)
         .collect();
