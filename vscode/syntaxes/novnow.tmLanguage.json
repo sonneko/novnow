@@ -24,8 +24,8 @@
       "match": "「[^」]*」|『[^』]*』"
     },
     {
-      "name": "markup.underline.link.novnow",
-      "match": "'[^'\\s:：]+"
+      "name": "keyword.operator.novnow",
+      "match": "'\\{?"
     },
     {
       "name": "constant.numeric.novnow",

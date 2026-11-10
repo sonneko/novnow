@@ -24,6 +24,8 @@
 
 ## 2. 現在のブランチ・PR・直近の作業状態
 
+- 2026-11-10（VSCode Semantic Token 修正）: `REF:vscode/package.json` に novnow 限定の有効化と全トークンのテーマスコープを追加。`REF:src/lsp/methods.rs` は同一行の差分を前トークンの開始位置基準へ修正し、LSP の種別名のドットをハイフンへ変換（VSCode の修飾子区切りとの衝突回避、コア API は不変）。`REF:vscode/syntaxes/novnow.tmLanguage.json` は辞書依存の参照終端を推測せずシジルのみをフォールバック着色する。回帰は `REF:tests/lsp.rs`・`REF:vscode/test/highlighting.test.cjs`・`REF:vscode/src/test/suite/extension.test.ts`。検証: `REF:scripts/verify.sh` 全項目成功（Rust 1,472 passed）、拡張 check・単体 8 件・Electron テストの型検査成功。Electron 実行は VSCode 取得先が通信許可対象外のため未実施。
+
 - PR #38（X1・X3・CI スコープ・CI 修正 2 件）は 2026-10-27 に所有者が `develop` へマージ済み（merge commit `6b5853b`。ruleset `protect-develop` の必須チェック 11 件へは所有者が同日更新済み）。
 - 2026-10-27（CI スコープ）: `browsers (webkit)` の偽陽性で Checks が赤くなった件をきっかけに、各プラットフォームのビルドを最小化した（所有者指示: 開発速度を第一に）。`CI_SCOPE` で対象ブランチごとに行列を切り替え、develop 向け PR は 1 プラットフォーム（Linux x64・desktop nogui / wheel / chromium / ubuntu Electron / Python 3.9・3.13）、main 向け PR・main push・手動実行（`scope` 入力、既定 full）は full 行列。正本は `REF:docs/developers.md` §4.7 と `REF:docs/distribution.md` §8。
 - 2026-10-27（CI 不整合の修正）: マージ commit の実測で develop への push が必須 11 件のうち平台 2 行（wheels・desktop の Linux x64）を報告しないことが分かったので、wheels / desktop-check に `develop` への push トリガーを追加（wheels は PR 同一 `paths`）、4 ワークフローの手動実行に `scope` 入力を追加した。**PR #39**（develop 向け、`[ci run]` 付き）として提出済み。マージは所有者が行う。マージ後の develop push で発火を確認すること。
