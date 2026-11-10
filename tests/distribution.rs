@@ -469,9 +469,9 @@ fn release_gates_and_cached_action_binaries_stay_safe() {
     assert!(release.contains("git archive --format=tar"));
     assert!(release.contains("release/*-source.tar.gz"));
     let pages = include_str!("../.github/workflows/deploy.yml");
-    assert!(pages.contains("--public-url \"/novnow/app/\""));
+
     assert!(pages.contains("cp -a dist website/dist/app"));
-    assert!(pages.contains("path: ./website/dist"));
+    assert!(pages.contains("./.github/workflows/channel-publish.yml"));
 
     let action = include_str!("../scripts/action/install.sh");
     let manifest_refresh = action.find("rm -f \"$sums\"").expect("refresh checksums");

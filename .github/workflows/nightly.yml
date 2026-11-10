@@ -1,0 +1,134 @@
+name: Nightly
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths: ['.github/workflows/nightly.yml', '.github/workflows/channel-publish.yml', 'scripts/*channel*', 'scripts/channel-pages.py', 'sw.js']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: nightly-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  build:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            vscode/package-lock.json
+            website/package-lock.json
+      - name: Verify sources and build Linux nogui
+        run: |
+          set -euo pipefail
+          python3 docs/script/duplicate.py
+          python3 -B -m unittest discover -s docs/script -p 'test_*.py'
+          cargo fmt --all -- --check
+          cargo test --locked --all-targets
+          cargo build --release --locked
+          target/release/novnow --version
+          mkdir -p payload/release
+          archive=$(python3 scripts/release-matrix.py --artifact --target x86_64-unknown-linux-gnu --gui nogui)
+          python3 scripts/release-matrix.py --package --target x86_64-unknown-linux-gnu --gui nogui \
+            --binary target/release/novnow --output "payload/release/$archive"
+          mv "payload/release/$archive" payload/release/novnow-nightly-linux-x86_64-nogui.tar.gz
+      - name: Build and test VSIX against this LSP
+        env:
+          NOVNOW_TEST_EXECUTABLE: ${{ github.workspace }}/target/release/novnow
+        run: |
+          set -euo pipefail
+          npm ci --prefix vscode
+          npm run check --prefix vscode
+          npm run test:unit --prefix vscode
+          xvfb-run -a npm run test:electron --prefix vscode
+          npm run package --prefix vscode
+          cp vscode/*.vsix payload/release/novnow-nightly.vsix
+      - name: Install Trunk
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 https://github.com/trunk-rs/trunk/releases/download/v0.21.14/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xz -C "$HOME/.cargo/bin"
+      - name: Build relocatable browser app and test site
+        run: |
+          set -euo pipefail
+          bash scripts/build-channel-browser.sh
+          tar -czf payload/release/novnow-nightly-browser.tar.gz -C dist .
+          npm ci --prefix website
+          npm run build --prefix website
+          cp -a dist website/dist/app
+          cp -a dist website/dist/nightly-app
+          python3 scripts/website-check.py
+      - name: Test browser startup, offline use and channel isolation
+        env:
+          NODE_DIR: ${{ runner.temp }}/browser
+          BROWSER: chromium
+        run: |
+          set -euo pipefail
+          npm install --prefix "$NODE_DIR" playwright@1.56.1
+          "$NODE_DIR/node_modules/.bin/playwright" install --with-deps chromium
+          node scripts/pages-e2e.mjs
+      - name: Build official bootstrap only when gh-pages does not exist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --heads origin gh-pages; then exit 0; else status=$?; fi
+          if [ "$status" != 2 ]; then exit "$status"; fi
+          git fetch origin main
+          mkdir -p "$RUNNER_TEMP/stable-source"
+          git archive FETCH_HEAD | tar -x -C "$RUNNER_TEMP/stable-source"
+          # Deployment-only worker fix: no develop application/site source is mixed in.
+          cp sw.js "$RUNNER_TEMP/stable-source/sw.js"
+          pipeline="$PWD"
+          (cd "$RUNNER_TEMP/stable-source"
+            export CARGO_TARGET_DIR="$pipeline/target"
+            npm ci --prefix website
+            npm run build --prefix website
+            bash "$pipeline/scripts/build-channel-browser.sh"
+            cp -a dist website/dist/app
+          )
+          cp -a "$RUNNER_TEMP/stable-source/website/dist" payload/bootstrap
+          # A fixed unstable entry point is the only addition to the old official site.
+          python3 scripts/channel-link.py payload/bootstrap
+      - name: Record source and checksums
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          root = Path('payload/release')
+          manifest = {'channel': 'nightly', 'sha': os.environ['GITHUB_SHA'], 'run': os.environ['GITHUB_RUN_ID'], 'created_at': datetime.now(timezone.utc).isoformat()}
+          (root / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+          (root / 'SHA256SUMS').write_text(''.join(f'{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}\n' for p in sorted(root.iterdir()) if p.name != 'SHA256SUMS'))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nightly-payload
+          path: payload
+          if-no-files-found: error
+          retention-days: 7
+  publish:
+    if: github.ref == 'refs/heads/develop' && github.event_name != 'pull_request' && !github.event.pull_request.draft
+    needs: build
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/channel-publish.yml
+    with:
+      channel: nightly
+      artifact: nightly-payload
+      sha: ${{ github.sha }}

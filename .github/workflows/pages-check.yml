@@ -65,8 +65,9 @@ jobs:
           python3 scripts/docs-site.py --check
           npm ci --prefix website
           npm run check:site --prefix website
-          "$RUNNER_TEMP/trunk/trunk" build --release --public-url /novnow/app/
+          PATH="$RUNNER_TEMP/trunk:$PATH" bash scripts/build-channel-browser.sh
           cp -a dist website/dist/app
+          cp -a dist website/dist/nightly-app
           python3 scripts/website-check.py
           ! grep -q 'const PRECACHE = null' website/dist/app/sw.js
       - uses: actions/upload-artifact@v4
