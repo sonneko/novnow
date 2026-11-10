@@ -24,6 +24,8 @@
 
 ## 2. 現在のブランチ・PR・直近の作業状態
 
+- 2026-11-10（Windows LSP URI 修正）: `REF:src/lsp/methods.rs` でネイティブパスの区切り・ドライブ文字・verbatim prefix と file URI の表記差を正規化。`REF:tests/lsp.rs` に Windows の本文取得・トークン生成と UNC 往復・ルート境界の回帰を追加。`REF:.github/workflows/vscode.yml` は develop 向けでも Windows Electron を実行する。
+
 - 2026-11-10（PR #51 マージ前検証）: 最新 develop を取り込み、CI を起動。Electron 回帰のサンプル参照先を実在する本文へ修正（`REF:vscode/src/test/suite/extension.test.ts`）。手動 dispatch は権限不足のため、PR 更新による起動を使用。
 
 - 2026-11-10（VSCode Semantic Token 修正）: `REF:vscode/package.json` に novnow 限定の有効化と全トークンのテーマスコープを追加。`REF:src/lsp/methods.rs` は同一行の差分を前トークンの開始位置基準へ修正し、LSP の種別名のドットをハイフンへ変換（VSCode の修飾子区切りとの衝突回避、コア API は不変）。`REF:vscode/syntaxes/novnow.tmLanguage.json` は辞書依存の参照終端を推測せずシジルのみをフォールバック着色する。回帰は `REF:tests/lsp.rs`・`REF:vscode/test/highlighting.test.cjs`・`REF:vscode/src/test/suite/extension.test.ts`。検証: `REF:scripts/verify.sh` 全項目成功（Rust 1,472 passed）、拡張 check・単体 8 件・Electron テストの型検査成功。Electron 実行は VSCode 取得先が通信許可対象外のため未実施。
