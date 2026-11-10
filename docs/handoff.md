@@ -24,6 +24,8 @@
 
 ## 2. 現在のブランチ・PR・直近の作業状態
 
+- 2026-11-10（my-novels 用 nightly 更新スクリプト）: コピーして単独実行できる `REF:scripts/update-novnow-nightly.py` と手順 `REF:scripts/update-novnow-nightly.md` を追加。Linux x64 の VSIX・nogui を asset ID 指定で取得し、照合・導入後に current を切り替える。利用側の設定ファイルは上書きしない。オフライン回帰 `REF:docs/script/test_nightly_update.py` 7 件成功。my-novels 自体への配置・VS Code への実導入は行っていない。
+
 - PR #38（X1・X3・CI スコープ・CI 修正 2 件）は 2026-10-27 に所有者が `develop` へマージ済み（merge commit `6b5853b`。ruleset `protect-develop` の必須チェック 11 件へは所有者が同日更新済み）。
 - 2026-10-27（CI スコープ）: `browsers (webkit)` の偽陽性で Checks が赤くなった件をきっかけに、各プラットフォームのビルドを最小化した（所有者指示: 開発速度を第一に）。`CI_SCOPE` で対象ブランチごとに行列を切り替え、develop 向け PR は 1 プラットフォーム（Linux x64・desktop nogui / wheel / chromium / ubuntu Electron / Python 3.9・3.13）、main 向け PR・main push・手動実行（`scope` 入力、既定 full）は full 行列。正本は `REF:docs/developers.md` §4.7 と `REF:docs/distribution.md` §8。
 - 2026-10-27（CI 不整合の修正）: マージ commit の実測で develop への push が必須 11 件のうち平台 2 行（wheels・desktop の Linux x64）を報告しないことが分かったので、wheels / desktop-check に `develop` への push トリガーを追加（wheels は PR 同一 `paths`）、4 ワークフローの手動実行に `scope` 入力を追加した。**PR #39**（develop 向け、`[ci run]` 付き）として提出済み。マージは所有者が行う。マージ後の develop push で発火を確認すること。
