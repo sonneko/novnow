@@ -15,10 +15,9 @@
 
 use std::ops::Range;
 
-use crate::core::features::project::episode_of_path;
 use crate::core::features::Project;
 use crate::core::id::{PartialSceneId, SceneId};
-use crate::core::model::document::{Document, DocumentFormat};
+use crate::core::model::document::Document;
 use crate::core::syntax::contents;
 use crate::core::text::lexer::{self, LineKind, TextFormat};
 
@@ -54,15 +53,11 @@ impl SectionRef {
 }
 
 /// プロジェクトの全節（ファイル名の順 → ファイルの中の順）。
-pub fn all(project: &Project) -> Vec<SectionRef> {
-    let mut out = Vec::new();
-    for document in project.documents() {
-        if document.format == DocumentFormat::Contents && episode_of_path(&document.path).is_some()
-        {
-            out.extend(of_document(document, project));
-        }
-    }
-    out
+///
+/// 中身は [`Project::sections`] のキャッシュ（B13-4）。**変わったファイルだけ**を作り直し、
+/// 呼び出し側には共有したまま返す（`Arc` の複製だけ。毎フレーム呼んでもよい）。
+pub fn all(project: &Project) -> std::sync::Arc<Vec<SectionRef>> {
+    project.sections()
 }
 
 /// 1 つの本文ファイルの節（ファイルの中の順）。

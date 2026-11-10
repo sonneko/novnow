@@ -19,7 +19,7 @@
 use serde::Serialize;
 use std::ops::Range;
 
-use crate::core::features::project;
+use crate::core::features::project::{self, RefSite};
 use crate::core::features::Project;
 use crate::core::id::SceneId;
 use crate::core::model::document::{Document, DocumentFormat};
@@ -113,6 +113,10 @@ pub enum Scope {
 ///
 /// 並びは重大度（E → W → I）、その中で番号順。§7.2 の表は W が先に来るが、
 /// enum はコードで引ける順に揃えた（`Ord` もこの順になる）。
+///
+/// `#[repr(u16)]` は [`DiagnosticCode::index`]（宣言順の 0 起点の添字）を
+/// コンパイル時に確定させるため。属性の参照はこの添字で配列を引く（[`ATTRIBUTES`]）。
+#[repr(u16)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub enum DiagnosticCode {
     /// `'` の後が辞書に一致しない（§7）
@@ -287,7 +291,89 @@ pub enum DiagnosticCode {
     I057,
 }
 
+/// 1 コード分の属性（コンパイル時に確定する）。
+///
+/// 定義表（[`CATALOG`] / [`STATUS_ANCHOR`] / [`TOGGLE_OFF`] / [`TOGGLE_ON`] / [`COST`]）は
+/// 仕様表との照合（`tests/diagnostics_catalog.rs`）のためにそのまま残し、ここには
+/// **コードの添字で直接引ける形**（[`ATTRIBUTES`]）を持つ。診断 1 件ごとに何度も引く値なので、
+/// 定義表の線形探索をここで断つ（`REF:docs/plans.md#perf-b13-1`）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Attributes {
+    /// 文言のプレースホルダの数（`{0}` の最大添字 + 1）。
+    pub params: u8,
+    /// 既定の有効 / 無効。
+    pub toggle: Toggle,
+    /// 文書位置を持つか。
+    pub anchor: Anchor,
+    /// 実行タイミング。
+    pub trigger: Trigger,
+    /// 計算の範囲。
+    pub scope: Scope,
+}
+
+impl Attributes {
+    /// どの定義表にも載っていないコードの既定値（§7.2 の指定が無いもの）。
+    const DEFAULT: Self = Self {
+        params: 0,
+        toggle: Toggle::Always,
+        anchor: Anchor::Document,
+        trigger: Trigger::Unspecified,
+        scope: Scope::Unspecified,
+    };
+}
+
+/// [`ATTRIBUTES`] を定義表から組み立てる。各表を 1 回ずつ走査するだけ（合計 O(N)）。
+const fn build_attributes() -> [Attributes; DiagnosticCode::COUNT] {
+    let mut table = [Attributes::DEFAULT; DiagnosticCode::COUNT];
+    let mut at = 0;
+    while at < CATALOG.len() {
+        let (code, params) = CATALOG[at];
+        table[code as usize].params = params;
+        at += 1;
+    }
+    let mut at = 0;
+    while at < STATUS_ANCHOR.len() {
+        table[STATUS_ANCHOR[at] as usize].anchor = Anchor::Status;
+        at += 1;
+    }
+    let mut at = 0;
+    while at < TOGGLE_OFF.len() {
+        table[TOGGLE_OFF[at] as usize].toggle = Toggle::OffByDefault;
+        at += 1;
+    }
+    let mut at = 0;
+    while at < TOGGLE_ON.len() {
+        table[TOGGLE_ON[at] as usize].toggle = Toggle::OnByDefault;
+        at += 1;
+    }
+    let mut at = 0;
+    while at < COST.len() {
+        let (code, trigger, scope) = COST[at];
+        table[code as usize].trigger = trigger;
+        table[code as usize].scope = scope;
+        at += 1;
+    }
+    table
+}
+
+/// コードの添字（[`DiagnosticCode::index`]）で引く属性表。**コンパイル時に確定する**。
+pub const ATTRIBUTES: [Attributes; DiagnosticCode::COUNT] = build_attributes();
+
 impl DiagnosticCode {
+    /// コードの数（[`CATALOG`] の行数と同じ。全コードが 1 行ずつ載ることを
+    /// `tests/diagnostics_catalog.rs` が固定する）。
+    pub const COUNT: usize = CATALOG.len();
+
+    /// 属性表の添字（宣言順の 0 起点）。`#[repr(u16)]` なので実行時の計算は無い。
+    pub const fn index(self) -> usize {
+        self as usize
+    }
+
+    /// 属性（[`ATTRIBUTES`] の 1 行）。
+    pub fn attributes(self) -> &'static Attributes {
+        &ATTRIBUTES[self.index()]
+    }
+
     /// コード文字列（`"E001"`）。
     ///
     /// §12.3 の i18n キーはこれに `diag.` を前に付ける。**これが正準の識別子**で、
@@ -437,40 +523,31 @@ impl DiagnosticCode {
 
     /// 文言のプレースホルダの数（`{0}` の最大添字 + 1）。
     pub fn params(self) -> u8 {
-        self.row().map_or(0, |row| row.1)
+        self.attributes().params
     }
 
     /// 文書位置を持つか。
     pub fn anchor(self) -> Anchor {
-        if STATUS_ANCHOR.contains(&self) {
-            Anchor::Status
-        } else {
-            Anchor::Document
-        }
+        self.attributes().anchor
     }
 
     /// 既定の有効 / 無効。
     pub fn toggle(self) -> Toggle {
-        if TOGGLE_OFF.contains(&self) {
-            Toggle::OffByDefault
-        } else if TOGGLE_ON.contains(&self) {
-            Toggle::OnByDefault
-        } else {
-            Toggle::Always
-        }
+        self.attributes().toggle
     }
 
     /// 実行タイミング（[`COST`] に無ければ [`Trigger::Unspecified`]）。
     pub fn trigger(self) -> Trigger {
-        self.cost().map_or(Trigger::Unspecified, |row| row.1)
+        self.attributes().trigger
     }
 
     /// 計算の範囲（[`COST`] に無ければ [`Scope::Unspecified`]）。
     pub fn scope(self) -> Scope {
-        self.cost().map_or(Scope::Unspecified, |row| row.2)
+        self.attributes().scope
     }
 
-    /// [`COST`] の行。
+    /// [`COST`] の行（定義表そのものを返す。属性だけ見るなら [`DiagnosticCode::trigger`] /
+    /// [`DiagnosticCode::scope`] を使う。こちらは定義表の走査なので、診断 1 件ごとには呼ばない）。
     pub fn cost(self) -> Option<&'static CostRow> {
         COST.iter().find(|row| row.0 == self)
     }
@@ -702,7 +779,7 @@ pub const COST: &[CostRow] = &[
 /// 文言のプレースホルダ（`{0}` 等）に埋める値。
 ///
 /// 表示用の文字列化は `ui/i18n/*` が行う（§12.2）。core は**値の意味だけ**を渡す。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 pub enum Arg {
     /// 名前・ID・パス・範囲など、そのまま挿入する文字列。
     Text(String),
@@ -732,7 +809,7 @@ impl Arg {
 /// `code` はユニットバリアントなので §7.2 のコード文字列そのもの、`range` は
 /// `Option<Range<usize>>`（無いときは `null`）、`args` は `Arg` の newtype バリアント。
 /// **文言は入れない**（§12.2: 表示用の文字列化は `ui/i18n/*` が行う）。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 pub struct Diagnostic {
     /// コード。
     pub code: DiagnosticCode,
@@ -813,63 +890,155 @@ impl Diagnostic {
 ///
 /// モードの検査は「**その文書に書かれた割り当て**」だけをその文書に載せる（B-79）。
 /// 本文を開いて話プロットの `mode:` の E003 が出ることはない（話プロットを開けば出る）。
+/// 1 回の文書診断で共有する辞書の供給元（B13-2）。
+///
+/// `document()` は層ごとに `characters.md` / `materials/index.json` を読み直していた。
+/// ここで 1 回だけパースし、層へは参照で渡す。
+struct DictionarySources<'a> {
+    /// `characters.md` の木。
+    characters: characters_md::Characters<'a>,
+    /// `materials/index.json` の木。
+    index: materials_index::Index<'a>,
+}
+
 pub fn document(document: &Document, project: &Project) -> Vec<Diagnostic> {
     let mut out = Vec::new();
     let text = document.text.as_str();
+    // 辞書の供給元（`characters.md` / `materials/index.json`）は**この呼び出しで 1 回だけ**作り、
+    // 層と執筆支援診断で共有する（B13-2）。層ごとに読み直すと、費用が文書の大きさではなく
+    // 辞書の大きさに比例して伸びる（`REF:docs/plans.md#perf-b13-2`）。
+    let dictionary = matches!(
+        document.format,
+        DocumentFormat::Contents
+            | DocumentFormat::PlotEpisode
+            | DocumentFormat::PlotOutline
+            | DocumentFormat::Characters
+    )
+    .then(|| DictionarySources {
+        characters: project.characters(),
+        index: project.materials(),
+    });
     match document.format {
         DocumentFormat::Contents => {
             let parsed = contents::parse_with(text, &project.contents_options());
             out.extend(parsed.diagnostics.iter().cloned());
-            reference_diagnostics(document, project, true, &mut out);
-            contents_speakers(document, project, &parsed, &mut out);
-            let scenes = project::contents_scenes(&parsed);
-            ref_modes(document, project, &scenes, &mut out);
-            word_ranges(document, project, &scenes, &mut out);
+            if let Some(sources) = dictionary.as_ref() {
+                let words = project.words();
+                let sites = project.ref_sites(document);
+                reference_diagnostics(document, project, true, &sources.index, &mut out);
+                let scenes = project::contents_scenes(&parsed);
+                contents_speakers(
+                    document,
+                    project,
+                    &parsed,
+                    &sources.characters,
+                    &scenes,
+                    &mut out,
+                );
+                ref_modes(
+                    document,
+                    project,
+                    &sources.characters,
+                    &sites,
+                    &scenes,
+                    &mut out,
+                );
+                word_ranges(document, project, &words, &sites, &scenes, &mut out);
+            }
         }
         DocumentFormat::PlotEpisode => {
             let parsed = plot_episode::parse_with(text, &project.contents_options());
             out.extend(parsed.diagnostics.iter().cloned());
-            reference_diagnostics(document, project, false, &mut out);
-            episode_modes(document, project, &parsed, &mut out);
-            section_counts(document, project, &parsed, &mut out);
-            let scenes = project::episode_scenes(&parsed);
-            ref_modes(document, project, &scenes, &mut out);
-            word_ranges(document, project, &scenes, &mut out);
+            if let Some(sources) = dictionary.as_ref() {
+                let words = project.words();
+                let sites = project.ref_sites(document);
+                reference_diagnostics(document, project, false, &sources.index, &mut out);
+                episode_modes(document, project, &sources.characters, &parsed, &mut out);
+                section_counts(document, project, &parsed, &mut out);
+                let scenes = project::episode_scenes(&parsed);
+                ref_modes(
+                    document,
+                    project,
+                    &sources.characters,
+                    &sites,
+                    &scenes,
+                    &mut out,
+                );
+                word_ranges(document, project, &words, &sites, &scenes, &mut out);
+            }
         }
         DocumentFormat::PlotOutline => {
             let options = project.outline_options(&document.path);
             let parsed = plot_outline::parse_with(text, &options);
             out.extend(parsed.diagnostics.iter().cloned());
-            reference_diagnostics(document, project, false, &mut out);
-            outline_modes(document, project, &parsed, &mut out);
-            ref_modes(document, project, &[], &mut out);
+            if let Some(sources) = dictionary.as_ref() {
+                let sites = project.ref_sites(document);
+                reference_diagnostics(document, project, false, &sources.index, &mut out);
+                outline_modes(document, project, &sources.characters, &parsed, &mut out);
+                ref_modes(
+                    document,
+                    project,
+                    &sources.characters,
+                    &sites,
+                    &[],
+                    &mut out,
+                );
+            }
         }
         DocumentFormat::Characters => {
             let parsed = characters_md::parse(text);
             out.extend(parsed.diagnostics.iter().cloned());
-            out.extend(project.dictionary_diagnostics(SourceFile::Characters));
+            out.extend(
+                project
+                    .dictionary_diagnostics(SourceFile::Characters)
+                    .iter()
+                    .cloned(),
+            );
             let relations = dictionary::relation_diagnostics(&parsed, project.dictionary());
             out.extend(relations.into_iter().map(|found| found.diagnostic));
-            reference_diagnostics(document, project, false, &mut out);
-            ref_modes(document, project, &[], &mut out);
-            default_modes(project, &parsed, &mut out);
+            if let Some(sources) = dictionary.as_ref() {
+                let sites = project.ref_sites(document);
+                reference_diagnostics(document, project, false, &sources.index, &mut out);
+                ref_modes(
+                    document,
+                    project,
+                    &sources.characters,
+                    &sites,
+                    &[],
+                    &mut out,
+                );
+                default_modes(project, &sources.characters, &mut out);
+            }
         }
         DocumentFormat::Words => {
             out.extend(words_md::parse(text).diagnostics);
-            out.extend(project.dictionary_diagnostics(SourceFile::Words));
-            reference_diagnostics(document, project, false, &mut out);
+            out.extend(
+                project
+                    .dictionary_diagnostics(SourceFile::Words)
+                    .iter()
+                    .cloned(),
+            );
+            let index = project.materials();
+            reference_diagnostics(document, project, false, &index, &mut out);
         }
         DocumentFormat::Ideas => {
             out.extend(ideas_md::parse(text).diagnostics);
-            reference_diagnostics(document, project, false, &mut out);
+            let index = project.materials();
+            reference_diagnostics(document, project, false, &index, &mut out);
         }
         DocumentFormat::MaterialsIndex => {
             out.extend(materials_index::parse(text).diagnostics);
-            out.extend(project.dictionary_diagnostics(SourceFile::MaterialsIndex));
+            out.extend(
+                project
+                    .dictionary_diagnostics(SourceFile::MaterialsIndex)
+                    .iter()
+                    .cloned(),
+            );
         }
         DocumentFormat::MaterialDoc => {
-            material_heading(document, project, &mut out);
-            reference_diagnostics(document, project, false, &mut out);
+            let index = project.materials();
+            material_heading(document, &index, &mut out);
+            reference_diagnostics(document, project, false, &index, &mut out);
         }
         DocumentFormat::Prompt => {
             out.extend(prompt_md::parse(text).diagnostics);
@@ -890,8 +1059,15 @@ pub fn document(document: &Document, project: &Project) -> Vec<Diagnostic> {
         }
         _ => {}
     }
-    out.extend(crate::core::features::diagnose::document(
-        document, project, false,
+    // 執筆支援診断（§7.2）とプロジェクト系の通知（I054〜I056 など）は形式を問わず走る。
+    // 辞書の供給元は、上の層と同じものを渡す（B13-2）。
+    out.extend(crate::core::features::diagnose::document_with(
+        document,
+        project,
+        false,
+        dictionary
+            .as_ref()
+            .map(|sources| (&sources.characters, &sources.index)),
     ));
     apply_overrides(&mut out, project);
     finish(out)
@@ -951,27 +1127,41 @@ fn apply_overrides(out: &mut Vec<Diagnostic>, project: &Project) {
 }
 
 /// 重複を落として §9.5.2 の 9 の順に並べる。
+///
+/// 重複は集合へ 1 回ずつ入れて落とす（B13-2。件数の二乗にしない）。**最初に現れた 1 件を残す**
+/// ので、並びは「重複を落としてから並べ替える」従来と同じ結果になる。
 fn finish(found: Vec<Diagnostic>) -> Vec<Diagnostic> {
+    let mut seen: std::collections::HashSet<Diagnostic> =
+        std::collections::HashSet::with_capacity(found.len());
     let mut out: Vec<Diagnostic> = Vec::with_capacity(found.len());
     for diagnostic in found {
-        if !out.contains(&diagnostic) {
+        if seen.insert(diagnostic.clone()) {
             out.push(diagnostic);
         }
     }
-    // E013（relations の参照不能）と同じ場所の E001 は重ねない（同じ名前の同じ不在を 2 回言う）
-    let relations: Vec<Range<usize>> = out
+    // E013（relations の参照不能）と同じ場所の E001 は重ねない（同じ名前の同じ不在を 2 回言う）。
+    // 範囲を開始位置で整列し、開始位置ごとの最大終端を持てば 1 件あたり対数時間で判定できる。
+    let mut relations: Vec<Range<usize>> = out
         .iter()
         .filter(|found| found.code == DiagnosticCode::E013)
         .filter_map(|found| found.range.clone())
         .collect();
-    out.retain(|found| {
-        found.code != DiagnosticCode::E001
-            || !found.range.as_ref().is_some_and(|range| {
-                relations
-                    .iter()
-                    .any(|other| range.start < other.end && other.start < range.end)
-            })
-    });
+    if !relations.is_empty() {
+        relations.sort_by_key(|range| range.start);
+        let mut reach: Vec<usize> = Vec::with_capacity(relations.len());
+        let mut farthest = 0usize;
+        for relation in &relations {
+            farthest = farthest.max(relation.end);
+            reach.push(farthest);
+        }
+        out.retain(|found| {
+            found.code != DiagnosticCode::E001
+                || !found.range.as_ref().is_some_and(|range| {
+                    let upto = relations.partition_point(|other| other.start < range.end);
+                    upto > 0 && reach[upto - 1] > range.start
+                })
+        });
+    }
     context_rules::sort_diagnostics(&mut out);
     out
 }
@@ -981,19 +1171,19 @@ fn reference_diagnostics(
     document: &Document,
     project: &Project,
     in_body: bool,
+    index: &materials_index::Index<'_>,
     out: &mut Vec<Diagnostic>,
 ) {
     let Some(format) = document.format.text_format() else {
         return;
     };
-    let index = project.materials();
     for line in project::lines_of(&document.text) {
         let keep = project::scan_ranges(line.text, format);
         if keep.is_empty() {
             continue;
         }
         let masked = project::mask(line.text, &keep);
-        let scan = materials::scan_line(&masked, line.start, project.dictionary(), &index, in_body);
+        let scan = materials::scan_line(&masked, line.start, project.dictionary(), index, in_body);
         out.extend(scan.diagnostics);
     }
 }
@@ -1003,11 +1193,11 @@ fn contents_speakers(
     document: &Document,
     project: &Project,
     parsed: &contents::Contents<'_>,
+    characters: &characters_md::Characters<'_>,
+    scenes: &[Option<SceneId>],
     out: &mut Vec<Diagnostic>,
 ) {
-    let characters = project.characters();
     let starts = project::line_starts_of(&document.text);
-    let scenes = project::contents_scenes(parsed);
     for (index, line) in parsed.lines.iter().enumerate() {
         let contents::Line::Text(text) = line else {
             continue;
@@ -1030,7 +1220,7 @@ fn contents_speakers(
             continue;
         };
         let input = modes::Input {
-            characters: &characters,
+            characters,
             episode: None,
             chapter: None,
             all: None,
@@ -1056,10 +1246,10 @@ fn contents_speakers(
 fn episode_modes(
     document: &Document,
     project: &Project,
+    characters: &characters_md::Characters<'_>,
     parsed: &plot_episode::EpisodePlot<'_>,
     out: &mut Vec<Diagnostic>,
 ) {
-    let characters = project.characters();
     let episode = project::episode_of_path(&document.path);
     let chapter_plot = episode.and_then(|(chapter, _)| project.chapter_plot(chapter));
     let all_plot = project.all_plot();
@@ -1114,13 +1304,13 @@ fn episode_modes(
                 .scenes
                 .iter()
                 .any(|scene| scene.id.is_some_and(|id| same_scene(&id, &at)));
-            if planned && !modes::definitions(&characters, character).is_empty() {
+            if planned && !modes::definitions(characters, character).is_empty() {
                 push(at, character, true);
             }
         }
     }
     let input = modes::Input {
-        characters: &characters,
+        characters,
         episode: Some(parsed),
         chapter: chapter_plot.as_ref(),
         all: all_plot.as_ref(),
@@ -1149,22 +1339,23 @@ fn episode_modes(
 fn ref_modes(
     document: &Document,
     project: &Project,
+    characters: &characters_md::Characters<'_>,
+    sites: &[RefSite],
     scenes: &[Option<SceneId>],
     out: &mut Vec<Diagnostic>,
 ) {
     let Some(format) = document.format.text_format() else {
         return;
     };
-    let characters = project.characters();
     let input = modes::Input {
-        characters: &characters,
+        characters,
         episode: None,
         chapter: None,
         all: None,
         dictionary: project.dictionary(),
     };
     let lines: Vec<&str> = document.text.split('\n').collect();
-    for site in project.ref_sites(document) {
+    for site in sites {
         let Some(ids) = site.token.modifier.as_ref().and_then(|found| found.modes()) else {
             continue;
         };
@@ -1203,10 +1394,10 @@ fn ref_modes(
 fn outline_modes(
     document: &Document,
     project: &Project,
+    characters: &characters_md::Characters<'_>,
     parsed: &plot_outline::Outline<'_>,
     out: &mut Vec<Diagnostic>,
 ) {
-    let characters = project.characters();
     let is_all = document.path == project::ALL_PLOT_PATH;
     let file = if is_all {
         modes::File::All
@@ -1214,7 +1405,7 @@ fn outline_modes(
         modes::File::Chapter
     };
     let input = modes::Input {
-        characters: &characters,
+        characters,
         episode: None,
         chapter: (!is_all).then_some(parsed),
         all: is_all.then_some(parsed),
@@ -1321,11 +1512,12 @@ fn section_counts(
 fn word_ranges(
     document: &Document,
     project: &Project,
+    words: &words_md::Words<'_>,
+    sites: &[RefSite],
     scenes: &[Option<SceneId>],
     out: &mut Vec<Diagnostic>,
 ) {
-    let words = project.words();
-    for site in project.ref_sites(document) {
+    for site in sites {
         let Some(entry) = site.entry().and_then(|id| project.dictionary().entry(id)) else {
             continue;
         };
@@ -1358,8 +1550,11 @@ fn word_ranges(
 ///
 /// どの資料のファイルかは `index.json` の `path` で引く。比較は §6.1.3 の正規化
 /// （[`materials::same_title`](crate::core::resolve::materials::same_title)）。
-fn material_heading(document: &Document, project: &Project, out: &mut Vec<Diagnostic>) {
-    let index = project.materials();
+fn material_heading(
+    document: &Document,
+    index: &materials_index::Index<'_>,
+    out: &mut Vec<Diagnostic>,
+) {
     // 索引が読めない（E025）ときは、登録されているかどうかも分からないので何も言わない
     let Some(parsed) = index.index.as_ref() else {
         return;

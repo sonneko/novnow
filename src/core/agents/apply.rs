@@ -342,8 +342,9 @@ pub fn accept(project: &Project, id: &str, text: Option<&str>, now: &str) -> Res
         let current = scene
             .and_then(|id| {
                 crate::core::features::sections::all(project)
-                    .into_iter()
+                    .iter()
                     .find(|s| s.id == id && s.path == path)
+                    .cloned()
             })
             .map(|s| crate::core::features::sections::text_of(project.text(&path), &s));
         if current.as_deref() != Some(proposal.before.as_str()) {

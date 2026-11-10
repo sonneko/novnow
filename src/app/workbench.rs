@@ -11,6 +11,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Range;
+use std::sync::Arc;
 
 use crate::app::save_machine::SaveMachine;
 use crate::core::features::plots;
@@ -88,7 +89,7 @@ pub struct Workbench {
     workspace_redo: Vec<WorkspaceTransaction>,
     human: Option<(SectionRef, String, String, String)>,
     project: Project,
-    list: Vec<SectionRef>,
+    list: Arc<Vec<SectionRef>>,
     editing: Option<Editing>,
     buffer: String,
     /// 保存ステートマシン（§8.2）。
@@ -115,7 +116,7 @@ impl Workbench {
             workspace_redo: Vec::new(),
             human: None,
             project,
-            list: Vec::new(),
+            list: Arc::new(Vec::new()),
             editing: None,
             buffer: String::new(),
             save: SaveMachine::new(autosave_ms),
@@ -151,7 +152,7 @@ impl Workbench {
 
     /// 全節の並び（最後に書き戻した時点の）。
     pub fn sections(&self) -> &[SectionRef] {
-        &self.list
+        self.list.as_slice()
     }
 
     /// 編集中の節。
@@ -1350,19 +1351,14 @@ impl Workbench {
         self.editing = Some(Editing { section });
     }
 
-    fn rebuild(&mut self) {
-        self.list = sections::all(&self.project);
-        self.counts.clear();
-        for item in &self.list {
-            if item.id.chapter == 0 || item.id.episode == 0 {
-                continue;
-            }
-            let Some(document) = self.project.document(&item.path) else {
-                continue;
-            };
-            *self.counts.entry(item.path.clone()).or_default() +=
-                sections::count_chars(&sections::text_of(&document.text, item));
-        }
+    /// 節の並びと文字数を取り直す（`Project` のキャッシュ経由。B13-4）。
+    ///
+    /// 呼ぶのは、`Project` の中身が外から変わったとき（読み込み・保存の後）。編集の
+    /// 書き戻しは各所が呼んでいる。1 回あたりの費用は、変わったファイルの数にだけ比例する。
+    pub fn rebuild(&mut self) {
+        // 節の並びと文字数は `Project` のキャッシュ（B13-4）。変わったファイルだけを作り直す。
+        self.list = self.project.sections();
+        self.counts = self.project.section_chars();
         self.generation += 1;
     }
 

@@ -171,3 +171,11 @@
 - 打鍵時は `LineIndex::relex_line`（`REF:src/core/text/incremental.rs`）が編集行のみを再字句解析し、構造見出し `@` または節区切り `;` に変化があった場合のみ `Renumber::From(line)` を返す。
 - `Workbench::edited`（`REF:src/app/workbench.rs`）が `SaveMachine`（`REF:src/app/save_machine.rs`）を `Dirty` に遷移させ、参照ペインキャッシュ（`REF:src/ui/widgets/reference_pane.rs`）は 80ms デバウンス後に再構築する。
 - 1 行再字句解析と参照ペイン再構築の性能は `REF:benches/core.rs` で計測する。
+
+- **[B13] 節の並び・文字数・文書横断の集計の Pull 型キャッシュ（実装完了: `REF:src/core/features/project.rs`, `REF:src/core/features/sections.rs`, `REF:src/app/workbench.rs`, `REF:docs/plans.md#perf-b13-4`）**:
+  - **持つ場所**: キャッシュは `Project`（`REF:src/core/features/project.rs`）が持つ。`&Project` を受ける既存の関数シグネチャは変えず、内部の `RefCell` に置く（`core` の `#[cfg]` と `unsafe` の禁止、および `tests/layering.rs` の依存許可リストの範囲内。`Arc` は辞書が既に使っている `std::sync` の範囲）。
+  - **単位はファイル**: `Project::insert` / `Project::remove` / `Project::set_settings` の 3 か所だけがファイルの版番号を進める。節の並び（`sections::of_document`）と文字数（`sections::count_chars`）はパスと版番号の組で覚え、**版番号が変わったファイルだけ**を作り直す。全体の並びは `Arc<Vec<SectionRef>>` として構造の版番号で 1 つだけ持ち、参照カウントの複製で共有する（`Project::sections`）。これで計算量は「全ファイル数」から「変更のあったファイル数」になる。
+  - **無効化の閉路**: 版番号を進める経路を上記 3 か所に限定し、`Document` を直接書き換える経路を作らない（`Project::document` は `&Document` を返す）。`set_settings` は `structure.allow_chapter_zero`（パーサの設定）と `structure.*_digits`（ID の表示）に効くので、全文書のキャッシュを捨てる。
+  - **UI の責務**: 毎フレーム描く側（`REF:src/ui/workspaces/reader.rs`, `REF:src/ui/workspaces/plot_episode.rs`, `REF:src/ui/workspaces/tabs.rs`, `REF:src/core/features/metrics.rs`）は `Workbench::sections()` か `Project::sections()` の共有を読む。フレームの中で `sections::all` を呼ばない（呼ぶのは書き戻し・読み込みなど状態が変わったときだけ）。
+  - **文字数**: `Workbench::rebuild` は `sections::count_chars` を節ごとに呼ばず、`Project::section_chars` のファイル単位の文字数（版番号付き）を写す。編集中の節だけは従来どおりバッファから数える（§9.6.1 の「編集中は未確定」を保つ）。
+  - **受け入れ**: 2 回目以降の全体取得が 100 ファイル（3,500 節）で 0.2ms 未満、1 ファイルを変えた後の再構築が 1ms 未満（`REF:docs/plans.md#perf-b13-4`）。

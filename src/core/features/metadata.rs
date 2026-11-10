@@ -6,6 +6,7 @@ use crate::core::{
 };
 use std::collections::BTreeMap;
 use std::ops::Range;
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct Record {
@@ -21,7 +22,16 @@ fn key_name(key: FieldKey) -> &'static str {
         .find(|(k, _, _, _)| *k == key)
         .map_or("", |(_, s, _, _)| *s)
 }
-pub fn records(project: &Project) -> Vec<Record> {
+/// プロジェクト全体のメタデータ（§9.5）を、**変わったプロットだけ**作り直して返す（B13-5）。
+///
+/// 毎回全ファイルをパースし直すと、費用がプロジェクトの大きさに比例して伸びる
+/// （`REF:docs/plans.md#perf-b13-5`）。中身は [`Project::plot_records`] のキャッシュ。
+pub fn records(project: &Project) -> Arc<Vec<Record>> {
+    project.plot_records()
+}
+
+/// [`records`] の中身。キャッシュが空のときだけ走る。
+pub(crate) fn build_records(project: &Project) -> Vec<Record> {
     let mut out = Vec::new();
     for doc in project.documents() {
         match doc.format {
@@ -341,7 +351,8 @@ pub struct Illustration {
 }
 pub fn illustrations(project: &Project) -> Vec<Illustration> {
     let mut out = records(project)
-        .into_iter()
+        .iter()
+        .cloned()
         .filter_map(|row| {
             row.fields
                 .get("illustration")
