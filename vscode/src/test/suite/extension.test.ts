@@ -30,7 +30,7 @@ suite("novnow VSCode extension", () => {
   test("the language client exposes semantic tokens with registered theme scopes", async () => {
     const folder = vscode.workspace.workspaceFolders?.[0];
     assert.ok(folder);
-    const uri = vscode.Uri.joinPath(folder.uri, "contents", "01-01.cnov");
+    const uri = vscode.Uri.joinPath(folder.uri, "contents", "01-04.cnov");
     const document = await vscode.workspace.openTextDocument(uri);
     await vscode.window.showTextDocument(document);
     assert.equal(vscode.workspace.getConfiguration("editor", document).get("semanticHighlighting.enabled"), true);
