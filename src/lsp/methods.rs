@@ -106,15 +106,12 @@ pub fn path_of(root: &str, uri: &str) -> Option<String> {
     let rest = uri
         .strip_prefix("file://")
         .or_else(|| uri.strip_prefix("file:"))?;
-    let decoded = percent_decode(rest);
-    // 絶対パスも相対パスのプロジェクトも、先頭の `/` を落としてから比べると同じ形になる。
-    let decoded = decoded.trim_start_matches('/');
-    let root = root.trim_start_matches('/').trim_end_matches('/');
-    let Some(trimmed) = decoded.strip_prefix(root) else {
-        // ルートの外（別のプロジェクトやシステムファイル）は扱わない。
-        return None;
-    };
-    let path = trimmed.trim_start_matches('/');
+    let root = normalized_file_path(root);
+    let decoded = normalized_file_path(&percent_decode(rest));
+    let root = root.trim_end_matches('/');
+    let trimmed = decoded.strip_prefix(root)?;
+    // A shared string prefix is not a directory boundary (novel != novel-other).
+    let path = trimmed.strip_prefix('/')?;
     if path.is_empty() || path.contains("..") {
         return None;
     }
@@ -123,6 +120,8 @@ pub fn path_of(root: &str, uri: &str) -> Option<String> {
 
 /// プロジェクトルートからの相対パスを `file://` URI にする。
 pub fn uri_of(root: &str, path: &str) -> String {
+    let unc = root.starts_with("\\\\") || root.starts_with("//");
+    let root = normalized_file_path(root);
     let root = root.trim_end_matches('/');
     let joined = if path.is_empty() {
         root.to_owned()
@@ -139,7 +138,36 @@ pub fn uri_of(root: &str, path: &str) -> String {
             _ => ch.to_string(),
         })
         .collect();
-    format!("file://{encoded}")
+    if unc && !root.contains(':') {
+        format!("file://{encoded}")
+    } else {
+        format!("file:///{encoded}")
+    }
+}
+
+/// Normalize Windows separators, verbatim prefixes and drive letters without
+/// making POSIX paths case-insensitive. Works independently of the host OS.
+fn normalized_file_path(path: &str) -> String {
+    let windows = path.replace('\\', "/");
+    let windows = if let Some(unc) = windows.strip_prefix("//?/UNC/") {
+        format!("//{unc}")
+    } else {
+        windows.strip_prefix("//?/").unwrap_or(&windows).to_owned()
+    };
+    let drive = windows.trim_start_matches('/');
+    if drive
+        .as_bytes()
+        .first()
+        .is_some_and(u8::is_ascii_alphabetic)
+        && drive.as_bytes().get(1) == Some(&b':')
+    {
+        let mut result = drive.to_owned();
+        result[..1].make_ascii_lowercase();
+        result
+    } else {
+        // URI authorities (UNC hosts) and native UNC paths use the same form.
+        windows.trim_start_matches('/').to_owned()
+    }
 }
 
 /// `%XX` を戻す（LSP の URI はパーセント符号化）。

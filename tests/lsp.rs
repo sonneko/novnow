@@ -784,3 +784,37 @@ fn semantic_tokens_preserve_reference_boundaries_and_utf16_positions() {
     assert!(references.contains(&(1, 13, 2)), "{references:?}");
     assert!(references.contains(&(2, 2, 2)), "{references:?}");
 }
+
+#[test]
+fn windows_file_uris_resolve_to_project_documents() {
+    use novnow::lsp::methods::{path_of, semantic_tokens, Outcome};
+    let uri = "file:///d%3A/novel/contents/01-01.cnov";
+    for root in [r"D:\novel", r"d:\novel\", r"\\?\D:\novel", "D:/novel"] {
+        assert_eq!(path_of(root, uri).as_deref(), Some(MANUSCRIPT));
+        assert_eq!(
+            uri_of(root, MANUSCRIPT),
+            "file:///d:/novel/contents/01-01.cnov"
+        );
+        let mut session = open();
+        let Outcome::Value(tokens) =
+            semantic_tokens(&mut session, &json!({"textDocument": {"uri": uri}}), root).unwrap()
+        else {
+            panic!("expected tokens")
+        };
+        assert!(!tokens["data"].as_array().unwrap().is_empty(), "{root}");
+    }
+    for root in [r"\\server\share\novel", r"\\?\UNC\server\share\novel"] {
+        let uri = "file://server/share/novel/contents/01-01.cnov";
+        assert_eq!(uri_of(root, MANUSCRIPT), uri);
+        assert_eq!(path_of(root, uri).as_deref(), Some(MANUSCRIPT));
+    }
+    for uri in [
+        "file:///d:/novel-other/contents/01-01.cnov",
+        "file:///e:/novel/contents/01-01.cnov",
+        "file:///d:/novel/%2e%2e/secret",
+    ] {
+        assert_eq!(path_of(r"D:\novel", uri), None);
+    }
+    assert_eq!(path_of(ROOT, "file:///tmp/novel-other/file.cnov"), None);
+    assert_eq!(path_of(ROOT, "file:///tmp/Novel/file.cnov"), None);
+}
