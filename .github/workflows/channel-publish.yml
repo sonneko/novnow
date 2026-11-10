@@ -1,0 +1,54 @@
+name: Publish channel
+on:
+  workflow_call:
+    inputs:
+      channel:
+        required: true
+        type: string
+      artifact:
+        required: true
+        type: string
+      sha:
+        required: true
+        type: string
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+concurrency:
+  group: novnow-channel-publication
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: (inputs.channel == 'nightly' && github.ref == 'refs/heads/develop') || (inputs.channel == 'stable' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Includes Release mutation, gh-pages commit AND the Pages deployment.
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.sha }}
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact }}
+          path: payload
+      - name: Publish the selected channel
+        id: assemble
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHANNEL: ${{ inputs.channel }}
+          SOURCE_SHA: ${{ inputs.sha }}
+        run: bash scripts/publish-channel.sh "$CHANNEL" payload "$SOURCE_SHA" "$GITHUB_RUN_ID"
+      - uses: actions/configure-pages@v5
+        if: steps.assemble.outputs.publish == 'true'
+      - uses: actions/upload-pages-artifact@v3
+        if: steps.assemble.outputs.publish == 'true'
+        with:
+          path: ${{ runner.temp }}/published-pages
+      - uses: actions/deploy-pages@v4
+        if: steps.assemble.outputs.publish == 'true'
+        id: deployment

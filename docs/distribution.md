@@ -214,7 +214,7 @@ novnow-<版>-<対象環境>-<gui|nogui>.<拡張子>
 | PyPI / `pypi` | TestPyPI と別に同じ公開名を確保。Trusted Publisher の environment=`pypi`、それ以外は上と同じ。必須 reviewer を登録 | OIDC。API トークン不要 |
 | VSCode / VSIX | GitHub Releases添付のみ。Marketplaceはv1到達までに開始する保留事項 | 今回はVSCE_PAT不要 |
 | GitHub Releases / Actions tags | Actions の書き込み許可、タグ作成権限。バージョンタグは変更・削除を保護し、可動の `v0` はワークフローの更新を許可する | 自動発行の `GITHUB_TOKEN`（`contents: write`）。個人 PAT は不要 |
-| GitHub Pages / `github-pages` | Settings → Pages → Source=`GitHub Actions`。main からだけデプロイを許可。カスタムドメインは設定しない | 自動トークン（`pages: write`, `id-token: write`） |
+| GitHub Pages / `github-pages` | Settings → Pages → Source=`GitHub Actions`。main と develop の branch をデプロイ許可に登録する。カスタムドメインは設定しない | 自動トークン（`pages: write`, `id-token: write`） |
 
 - `crates-io`・`testpypi`・`pypi` は版タグからのみ実行できる deployment policy にし、公開担当者の承認を必須にする。環境名と Trusted Publisher の設定は完全一致が必要。
 - ホイール単独試験の `REF:.github/workflows/wheels.yml` から公開する場合は、その workflow 名で **別の** Trusted Publisher が必要。本番 PyPI の Trusted Publisher は `release.yml` だけに設定する。wheels の公開入力は TestPyPI 専用である。
@@ -287,3 +287,14 @@ GitHub APIでpublic化、4公開environmentとgithub-pages、developの存在、
 - 補助 wheels の公開入力は TestPyPI だけ。本番 PyPI の Trusted Publisher は統合 Release にのみ紐づける。TestPyPI の所有権・承認は別途管理者が設定する。
 
 - 統合 Release は通常版のみを公開する。現在のVSIX版番号規則は通常版だけを扱うため、試験版のタグは成果物公開前の prepare で拒否する。Python 試験版は補助 wheels → TestPyPI で検証できる。Marketplace を含む全形態の試験版公開を実装済みとは扱わず、将来対応する場合は別途等価版の対応規則を決める。
+
+
+## 11. Nightly の公開・復旧
+
+- 配布範囲と動作は `REF:docs/specifications/external.md` §20.6.4、実装は `REF:docs/designs/external.md` §20.6.4。Nightly は develop 更新で自動起動し、PR では公開せずビルド検査だけを行う。
+- GitHub Pages の Source は **GitHub Actions のまま**。`gh-pages` は公開データの保存先であり、ブランチ push による別のデプロイを起動しない。共通の公開処理が明示的にデプロイする。
+- 初回前に `github-pages` environment の Deployment branches に **develop（branch）を追加**し、main も残す。無人公開のため、この environment に人手の承認待ちを追加しない。トークンには contents: write / pages: write / id-token: write が必要。`gh-pages` の作成・fast-forward 更新と `nightly` タグの更新を禁止する ruleset を適用しない。
+- 2026-11-10 の確認では公開許可は main のみ。Arena の接続権限では追加 API が HTTP 403 となったため、所有者による上記設定が必要。
+- ビルド失敗なら既存配布は残る。公開中の障害では該当 run の失敗ジョブを再実行する。同じ SHA がまだ先頭なら同じ成果物で再公開できる。既に先頭が進んだ古い run は公開せず、最新の Nightly を実行する。Release と Pages の更新は不可分ではないので、完了時に両方を確認する。
+- Release の `manifest.json` と Pages の `nightly-build.json` の SHA を照合する。通常の正式版のタグ・成果物・レジストリ公開には触れない。nightly Release は公開物であり、非公開の配布場所ではない。
+- VSIX と nogui の組み合わせ、更新・切り戻しは利用側で管理する。拡張の自動取得先は正式版のままなので、必要なら利用側で `novnow.executablePath` を指定する。

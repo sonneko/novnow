@@ -44,7 +44,7 @@ const launchBrowser = () => playwright[engine].launch(engine === 'chromium'
 const browser = await launchBrowser();
 async function snapshot(page) {
   return JSON.parse(await page.evaluate(async () => {
-    const db = await new Promise((resolve, reject) => { const r = indexedDB.open('novnow'); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error); });
+    const db = await new Promise((resolve, reject) => { const r = indexedDB.open(location.pathname.startsWith('/novnow/nightly-app/') ? 'novnow-nightly' : 'novnow'); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error); });
     try {
       return JSON.stringify(await Promise.all(['projects', 'files', 'app'].map(store => new Promise((resolve, reject) => {
         const r = db.transaction(store).objectStore(store).getAll(); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error);
@@ -103,9 +103,9 @@ async function appReady(page) {
   await page.waitForFunction(() => document.getElementById('offline-status')?.dataset.ready === 'true', null, { timeout: 60000 });
   try { await waitUntil(() => page.evaluate(async () => {
     if (window.startupErrors.length) throw new Error(`Web app initialization failed: ${window.startupErrors.join('; ')}`);
-    if (!(await indexedDB.databases()).some(db => db.name === 'novnow')) return false;
+    if (!(await indexedDB.databases()).some(db => db.name === (location.pathname.startsWith('/novnow/nightly-app/') ? 'novnow-nightly' : 'novnow'))) return false;
     return new Promise(resolve => {
-      const request = indexedDB.open('novnow');
+      const request = indexedDB.open(location.pathname.startsWith('/novnow/nightly-app/') ? 'novnow-nightly' : 'novnow');
       request.onerror = () => resolve(false);
       request.onsuccess = () => {
         const db = request.result;
@@ -178,6 +178,25 @@ try {
   } finally { offline = false; }
   assert.deepEqual(errors, []);
   console.log(`${engine}: real Trunk first-load offline WASM and IndexedDB preservation PASS`);
+
+  // The identical relocatable app must work under both paths, without deleting
+  // the other worker's cache or opening the stable project database.
+  const nightly = await fresh.newPage();
+  await nightly.goto(`${origin}/novnow/nightly-app/`);
+  await appReady(nightly);
+  assert((await snapshot(nightly))[0].some(project => project.id === 'sample'));
+  assert.deepEqual(await snapshot(app), before);
+  const cacheNames = await nightly.evaluate(() => caches.keys());
+  assert(cacheNames.some(name => name.includes(encodeURIComponent('/novnow/app/'))));
+  assert(cacheNames.some(name => name.includes(encodeURIComponent('/novnow/nightly-app/'))));
+  offline = true;
+  try {
+    await app.reload(); await appReady(app);
+    await nightly.reload(); await appReady(nightly);
+    assert.deepEqual(await snapshot(app), before);
+  } finally { offline = false; }
+  await nightly.close();
+  console.log(`${engine}: stable/nightly paths, independent databases and offline caches PASS`);
 
   // Retire a legacy root-scoped worker using the actual retirement script.
   // Unload app scripts before registering the legacy root worker: the app's

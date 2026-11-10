@@ -15,7 +15,7 @@
 - **照合値**: 初期添付（デスクトップ・ホイール）と最終添付（VSIX・全ソース）の各段階で `REF:scripts/release-matrix.py` が SHA-256 を生成・検証する。初期添付成功後にレジストリ公開を進め、最終添付時に全 17 成果物の `SHA256SUMS` を確定する。
 - **実行時の非通信**: 更新確認のコードを置かない。`tests/no_llm_sdk.rs` と同じ発想で、`reqwest` / `ureq` などの HTTP クライアントを本体の依存へ足さない（`REF:tests/layering.rs` の許可リストに追加しない）。
 - **署名**: Windows・macOS の配布元署名とmacOS公証は行わない。署名・公証ジョブと認証情報への参照を置かず、`SHA256SUMS` に未署名・公証なしを明記する。
-- **ブラウザ版**: `REF:.github/workflows/deploy.yml` が Astro の出力に Trunk の出力を `app/` として追加し、単一の Pages artifact を配信する。版は `REF:index.html` の `novnow-version` メタ情報と画面に表示し、`REF:scripts/release-matrix.py` の `--bump` / `--check` で揃える。
+- **ブラウザ版**: `REF:.github/workflows/deploy.yml` が Astro の出力に Trunk の出力を `app/` として追加し、`gh-pages` を公開データの原本として保存し、共通の公開ワークフローで Pages artifact を配信する。版は `REF:index.html` の `novnow-version` メタ情報と画面に表示し、`REF:scripts/release-matrix.py` の `--bump` / `--check` で揃える。
 
 ### 20.2 デスクトップ版
 
@@ -88,3 +88,13 @@
 
 - **[Issue #29 / B9] 市場公開を公開完了の条件から外す（実装完了: `REF:docs/plans.md#issue-29-b9`）**:
   - 公開チェック（`REF:scripts/release-check.sh`）は 5 形態の成果物と照合値を従来どおり揃えて判定し、市場への公開は条件に含めないことを確認した（リリース系スクリプトと `REF:.github/workflows/release.yml` に市場公開の手順は無い）。市場側は手動承認のジョブ（§20.4）で後から進める。
+
+
+#### 20.6.4 develop 検証用 nightly
+
+- `REF:.github/workflows/nightly.yml` は develop push と手動実行で 3 成果物を構築する。PR は同じビルド・検査までで、公開しない。Linux の梱包は既存の `REF:scripts/release-matrix.py` を再利用し、固定の nightly 配布名へ移す。VSIX のコード・内部版は変更しない。
+- `REF:scripts/build-channel-browser.sh` は相対 URL で Trunk ビルドする。同じブラウザアーカイブを Release と Pages に利用する。`REF:sw.js` の登録スコープ別キャッシュと `REF:src/adapters/storage_idb.rs` の nightly パス別 DB により共存させる。`REF:scripts/pages-e2e.mjs` が両パスの起動・オフライン利用・DB を検証する。
+- 正式版の入口は既存の main 更新（`REF:.github/workflows/deploy.yml`）。両経路は `REF:.github/workflows/channel-publish.yml` の非キャンセル共通 concurrency を通る。Release 更新、`gh-pages` 更新、Pages デプロイまでを直列化し、書き込み時点のブランチ先頭 SHA と公開済み run ID を検査する。
+- `REF:scripts/channel-pages.py` が差し替え範囲を限定する。`REF:scripts/publish-channel.sh` は一時 index と commit-tree で公開木を作り、`gh-pages` へ fast-forward push する。タグの更新・Release の削除再作成は `nightly` だけに限定し、通常の Release ワークフローは変更しない。
+- `gh-pages` がない初回は main の正式サイトを別途ビルドし、`REF:scripts/channel-link.py` による固定リンクとスコープ対応 worker だけを追加して初期化する。nightly のアプリ以外に develop のサイト内容を入れない。既存の gh-pages があれば初期化は不要。
+- 組み立て・公開境界の回帰は `REF:docs/script/test_channels.py`。環境側の公開許可と復旧操作は `REF:docs/distribution.md` に記載する。

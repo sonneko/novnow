@@ -3,7 +3,8 @@
 const CACHE = 'novnow-offline-0.1.1';
 const BUILD = 'unsealed';
 const PRECACHE = null;
-const CURRENT = `${CACHE}-${BUILD}`;
+const SCOPE_CACHE = `novnow-offline-scope-${encodeURIComponent(self.registration.scope)}-`;
+const CURRENT = `${SCOPE_CACHE}${CACHE}-${BUILD}`;
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
     if (!PRECACHE) throw new Error('Unsealed offline application; run the Trunk post_build hook');
@@ -22,7 +23,7 @@ self.addEventListener('activate', event => {
   event.waitUntil((async () => {
     await self.clients.claim();
     await Promise.all((await caches.keys())
-      .filter(key => key.startsWith('novnow-offline-') && key !== CURRENT)
+      .filter(key => key.startsWith(SCOPE_CACHE) && key !== CURRENT)
       .map(key => caches.delete(key)));
   })());
 });
