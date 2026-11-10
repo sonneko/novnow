@@ -1,0 +1,908 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="theme-color" content="#ffffff"><title>novnow 仕様書 — 診断カタログ | NovNow</title><meta name="description" content="NovNow - Dedicated Novel &amp; Scenario IDE for Writers &amp; Engineers"><link rel="canonical" href="https://sonneko.github.io/novnow/ja/specifications/diagnostics/"><link rel="alternate" hreflang="ja" href="https://sonneko.github.io/novnow/ja/specifications/diagnostics/"><link rel="alternate" hreflang="en" href="https://sonneko.github.io/novnow/en/specifications/diagnostics/"><link rel="icon" type="image/svg+xml" href="/novnow/favicon.svg"><link rel="stylesheet" href="/novnow/_astro/Footer.CS3W3i4D.css"><style>.doc{color:#23272f;max-width:820px;font-size:1.02rem;line-height:1.85}.doc h1{letter-spacing:-.025em;color:#23272f;margin-bottom:1.5rem;font-size:clamp(1.9rem,3.2vw,2.45rem);font-weight:800;line-height:1.25}.doc h2{letter-spacing:-.015em;color:#23272f;border-bottom:1px solid #ebecf0;margin:2.75rem 0 1rem;padding-bottom:.5rem;font-size:1.55rem;font-weight:700}.doc h3{color:#23272f;margin:2.1rem 0 .75rem;font-size:1.22rem;font-weight:700}.doc h4{color:#23272f;margin:1.6rem 0 .5rem;font-size:1.02rem;font-weight:700}.doc p,.doc li{color:#404756}.doc p{margin:.95rem 0}.doc ul,.doc ol{margin:.95rem 0 .95rem 1.5rem}.doc li{margin:.4rem 0}.doc strong{color:#23272f;font-weight:700}.doc a{color:#087ea4;border-bottom:1px solid #087ea44d;text-decoration:none;transition:border-color .15s,color .15s}.doc a code{color:#087ea4;background-color:#e6f7ff;transition:background-color .15s,box-shadow .15s;box-shadow:inset 0 0 0 1px #087ea438}.doc a:hover{border-bottom-color:#087ea4;text-decoration:none}.doc a:hover code{background-color:#087ea424;box-shadow:inset 0 0 0 1px #087ea45c}.doc code{color:#23272f;background-color:#99a1b326;border-radius:6px;padding:.14rem .38rem;font-size:.87em}.doc pre{border-radius:16px;margin:1.35rem 0;padding:1.15rem 1.35rem;font-size:.88rem;line-height:1.65;overflow-x:auto;box-shadow:inset 0 0 0 1px #00000014;background-color:#f6f7f9!important}.doc pre code{font-size:inherit;background:0 0;border-radius:0;padding:0}.doc table{border-collapse:separate;border-spacing:0;border:1px solid #ebecf0;border-radius:12px;width:100%;margin:1.5rem 0;font-size:.93rem;overflow:hidden}@media (width<=720px){.doc table{display:block;overflow-x:auto}}.doc th,.doc td{text-align:left;vertical-align:top;border-bottom:1px solid #ebecf0;border-right:1px solid #ebecf0;padding:.65rem .9rem}.doc th:last-child,.doc td:last-child{border-right:none}.doc tbody tr:last-child td{border-bottom:none}.doc th{color:#5e687e;white-space:nowrap;background-color:#f6f7f9;font-size:.85rem;font-weight:700}.doc td{color:#404756;background-color:#fff}.doc blockquote{background-color:#e6f7ff;border-radius:16px;margin:1.5rem 0;padding:1rem 1.25rem;box-shadow:inset 0 0 0 1px #087ea42e}.doc blockquote p{color:#23272f;margin:.3rem 0}.doc hr{border:none;border-top:1px solid #ebecf0;margin:2.5rem 0}.doc img{border-radius:12px;max-width:100%;box-shadow:0 .8px 2px #00000008,0 2.7px 6.7px #0000000c,0 12px 30px #00000014}.source-note[data-astro-cid-rv2sskwj]{color:#5e687e;border-top:1px solid #ebecf0;max-width:820px;margin-top:3rem;padding-top:1.15rem;font-size:.84rem;line-height:1.6}.source-note[data-astro-cid-rv2sskwj] code[data-astro-cid-rv2sskwj]{color:#23272f;background-color:#99a1b326;border-radius:5px;padding:.12rem .35rem;font-size:.88em}
+</style></head><body><aside class="release-notice" aria-label="リリースとデータ互換性" data-astro-cid-jtqikg62><strong data-astro-cid-jtqikg62>v0.1.1</strong>：v1 までは保存形式が変わる場合があります。v0 → v1 の移行機能は提供しません。更新前に Zip と本文テキストを保管してください。<a href="/novnow/ja/troubleshooting/#legacy-v0-project" data-astro-cid-jtqikg62>詳しく</a></aside><header class="_header_1az26_1"><div class="_inner_1az26_10"><div class="_brandGroup_1az26_21"><a href="/novnow/ja" class="_logo_1az26_27"><svg class="_logoIcon_1az26_43" viewBox="0 0 192 192" fill="none" aria-hidden="true"><rect width="192" height="192" rx="42" fill="#087EA4"></rect><path d="M43 142V50h22l62 65V50h22v92h-22L65 77v65Z" fill="#FFFFFF"></path><path d="M157 41v44" stroke="#ABE2ED" stroke-width="10" stroke-linecap="round"></path></svg><span class="_logoText_1az26_49">NovNow</span></a><span class="_versionTag_1az26_56">v0.1.1</span></div><nav class="_nav_1az26_65" aria-label="Primary"><a href="/novnow/ja/#downloads" class="_navLink_1az26_73">ダウンロード</a><a href="/novnow/ja/known-issues" class="_navLink_1az26_73">既知の問題</a><a href="/novnow/ja" class="_navLink_1az26_73">トップ</a><a href="/novnow/ja/manual/" class="_navLink_1az26_73">ガイド</a><a href="/novnow/ja/specifications/" class="_navLink_1az26_73 _active_1az26_91">仕様書</a><a href="/novnow/ja/api" class="_navLink_1az26_73">API リファレンス</a><a href="/novnow/ja/troubleshooting" class="_navLink_1az26_73 _active_1az26_91">トラブルシューティング</a></nav><div class="_actions_1az26_101"><div class="_switcher_1w0ra_1" role="group" aria-label="Language"><a href="/novnow/ja/specifications/diagnostics" class="_langBtn_1w0ra_11 _active_1w0ra_25">日本語</a><a href="/novnow/en/specifications/diagnostics" class="_langBtn_1w0ra_11">EN</a></div><a href="https://github.com/sonneko/novnow" target="_blank" rel="noopener noreferrer" class="_githubBtn_1az26_107" aria-label="GitHub" title="GitHub"><svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg><span class="_githubLabel_1az26_129">GitHub</span></a></div></div></header><div class="doc-layout" data-astro-cid-rv2sskwj><aside class="doc-sidebar" aria-label="ドキュメント目次" data-astro-cid-rv2sskwj><div class="doc-sidebar-group" data-astro-cid-rv2sskwj>ユーザーガイド</div><nav class="doc-sidebar-nav" data-astro-cid-rv2sskwj><a href="/novnow/ja/manual/" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow ユーザーガイド</span></a><a href="/novnow/ja/manual/start" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>はじめての手引き（30 分で 1 本書き上げる）</span></a><a href="/novnow/ja/manual/cheatsheet" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>早見表</span></a><a href="/novnow/ja/manual/glossary" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>用語集</span></a><a href="/novnow/ja/manual/faq" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>よくある質問</span></a><a href="/novnow/ja/manual/errors" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>よく出るエラーと直し方（12 件）</span></a><a href="/novnow/ja/manual/project-structure" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>作品のフォルダ構成</span></a><a href="/novnow/ja/manual/git" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>Git で原稿を守る（知りたい人だけ）</span></a><a href="/novnow/ja/manual/publish" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>書き出した原稿を公開する</span></a><a href="/novnow/ja/manual/install" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow の入れ方（どの版を選ぶか）</span></a></nav><hr class="doc-sidebar-divider" data-astro-cid-rv2sskwj><div class="doc-sidebar-group" data-astro-cid-rv2sskwj>仕様書</div><nav class="doc-sidebar-nav" data-astro-cid-rv2sskwj><a href="/novnow/ja/specifications/overview" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 概要・原則・処理モデル</span></a><a href="/novnow/ja/specifications/project" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — プロジェクト構造</span></a><a href="/novnow/ja/specifications/syntax" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — ファイル形式（構文仕様）</span></a><a href="/novnow/ja/specifications/semantics" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 意味解決エンジン</span></a><a href="/novnow/ja/specifications/diagnostics" aria-current="page" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 診断カタログ</span></a><a href="/novnow/ja/specifications/editing" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 編集モデルと保存</span></a><a href="/novnow/ja/specifications/ui" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 画面・ワークスペース・テーマ・国際化</span></a><a href="/novnow/ja/specifications/platform" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — ストレージと起動仕様</span></a><a href="/novnow/ja/specifications/agent" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — AI エージェント</span></a><a href="/novnow/ja/specifications/workflows" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 資料収集・エクスポート・性能品質</span></a><a href="/novnow/ja/specifications/interfaces" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 外部インターフェース（ヘッドレス全機能 API 群）</span></a><a href="/novnow/ja/specifications/external" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 配布形態（外部提供物）</span></a></nav></aside><main data-astro-cid-rv2sskwj><article class="doc" data-astro-cid-rv2sskwj><h1 data-astro-cid-rv2sskwj>novnow 仕様書 — 診断カタログ</h1><h2 id="7-診断カタログ">7. 診断カタログ</h2>
+<p><strong>廃止したコード</strong>: <code>I051</code>（未保存の変更がある）と <code>I058</code>（検索結果を資料化した）は<strong>廃止</strong>した。どちらも
+「利用者がすでに見ている画面」（保存状態のインジケータ・資料一覧の新しい行）で分かることを診断として
+二重に持っていたためである。番号は<strong>再利用しない</strong>（<code>I051</code> / <code>I058</code> は欠番）。<code>W041</code> は本版で実装した
+（下の §7.0 の行）。現在、カタログに定義があり実装が発行しないコードは無い。</p>
+<h3 id="70-コア構文解決整合の診断">7.0 コア・構文・解決・整合の診断</h3>
+<p>severity: <code>E</code>=エラー（赤波線） / <code>W</code>=警告（黄波線） / <code>I</code>=情報（下線なし、レビュー一覧のみ）</p>
+<p>各表の Sev は組み込み既定の深刻度である。作品の設定（§4.5.2 の <code>[features.diagnostics]</code>）で、コードごとに有効/無効とエラー扱いを上書きできる。診断の意味（条件）自体は設定では変わらない。</p>
+<table>
+<thead>
+<tr>
+<th>コード</th>
+<th>Sev</th>
+<th>条件</th>
+<th>ja 文言</th>
+<th>en 文言</th>
+<th>クイックフィックス</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>E001</td>
+<td>E</td>
+<td><code>'</code> の後が辞書に一致しない</td>
+<td><code>辞書にない参照です: {0}</code></td>
+<td><code>Unknown reference: {0}</code></td>
+<td>用語として登録 / キャラとして登録 / 類似候補に置換</td>
+</tr>
+<tr>
+<td>E002</td>
+<td>E</td>
+<td>SceneId・明示形の構文エラー</td>
+<td><code>構造 ID の形式が不正です</code></td>
+<td><code>Malformed structure id</code></td>
+<td>近い形式に修正</td>
+</tr>
+<tr>
+<td>E003</td>
+<td>E</td>
+<td>未定義のモード ID</td>
+<td><code>{0}にモード {1}は定義されていません</code></td>
+<td><code>Mode {1} is not defined for {0}</code></td>
+<td>モードを新規定義 / 既存モードに置換</td>
+</tr>
+<tr>
+<td>E004</td>
+<td>E</td>
+<td>モードの <code>range</code> 外での割り当て</td>
+<td><code>{0}のモード {1}は {2}では使用できません（有効範囲: {3}）</code></td>
+<td><code>Mode {1} of {0} is not available at {2} (range: {3})</code></td>
+<td>range 拡張 / 変種を追加 / 他モードへ</td>
+</tr>
+<tr>
+<td>E005</td>
+<td>E</td>
+<td>1 キャラに 3 つ以上のモード、または 1 節の <code>mode</code> に同じキャラを 2 回</td>
+<td><code>1 つの節で同じ人物に設定できるモードは 2 つまでです</code></td>
+<td><code>At most two modes per character in a section</code></td>
+<td>先頭 2 つを残す</td>
+</tr>
+<tr>
+<td>E006</td>
+<td>E</td>
+<td>資料タイトル不一致</td>
+<td><code>資料 {0}のタイトルが一致しません</code></td>
+<td><code>Title does not match material {0}</code></td>
+<td>§6.6.3 の 3 種</td>
+</tr>
+<tr>
+<td>E007</td>
+<td>E</td>
+<td>未知の資料 ID</td>
+<td><code>資料 {0}は存在しません</code></td>
+<td><code>Material {0} not found</code></td>
+<td>近い ID に置換 / 新規資料を作成</td>
+</tr>
+<tr>
+<td>E008</td>
+<td>E</td>
+<td>同一ファイル内の ID 重複</td>
+<td><code>{0}が重複しています</code></td>
+<td><code>Duplicate id {0}</code></td>
+<td>後続を採番し直す</td>
+</tr>
+<tr>
+<td>E012</td>
+<td>E</td>
+<td>話者注釈のキャラが未定義</td>
+<td><code>登場人物 {0}は characters.md にいません</code></td>
+<td><code>Character {0} is not defined</code></td>
+<td>キャラとして登録</td>
+</tr>
+<tr>
+<td>E013</td>
+<td>E</td>
+<td><code>relations</code> 等の参照不能</td>
+<td><code>参照できません: {0}</code></td>
+<td><code>Cannot resolve: {0}</code></td>
+<td>候補に置換</td>
+</tr>
+<tr>
+<td>E016</td>
+<td>E</td>
+<td>範囲式の左端 &gt; 右端</td>
+<td><code>範囲の指定が逆です</code></td>
+<td><code>Range start is after range end</code></td>
+<td>入れ替え</td>
+</tr>
+<tr>
+<td>E017</td>
+<td>E</td>
+<td>同一モード ID の range 重複</td>
+<td><code>モード {0}の有効範囲が重複しています</code></td>
+<td><code>Overlapping ranges for mode {0}</code></td>
+<td>範囲を分割</td>
+</tr>
+<tr>
+<td>E018</td>
+<td>E</td>
+<td>A 形式ブロックに <code>summary</code> 無し</td>
+<td><code>summary（要約）は必須です</code></td>
+<td><code>summary is required</code></td>
+<td>空の summary を挿入</td>
+</tr>
+<tr>
+<td>E020</td>
+<td>E</td>
+<td>見出し階層の不一致</td>
+<td><code>このファイルには {0} 階層の見出しだけを書けます</code></td>
+<td><code>Only level {0} headers are allowed here</code></td>
+<td>対応ファイルへ移動</td>
+</tr>
+<tr>
+<td>E021</td>
+<td>E</td>
+<td><code>words.md</code> に <code>definition</code> 無し</td>
+<td><code>definition（定義）は必須です</code></td>
+<td><code>definition is required</code></td>
+<td>空の definition を挿入</td>
+</tr>
+<tr>
+<td>E022</td>
+<td>E</td>
+<td>予約番号の見出し（§5.1.2）</td>
+<td><code>この番号は予約されています: {0}</code></td>
+<td><code>This number is reserved: {0}</code></td>
+<td>番号をずらす</td>
+</tr>
+<tr>
+<td>E024</td>
+<td>E</td>
+<td><code>materials</code> 外を指す <code>path</code></td>
+<td><code>資料ファイルは materials/ 配下に置いてください</code></td>
+<td><code>Material files must live under materials/</code></td>
+<td>移動して path 修正</td>
+</tr>
+<tr>
+<td>E025</td>
+<td>E</td>
+<td>JSON / TOML ファイルがパースできない（§4.3-4）</td>
+<td><code>読み込めません: {0}</code></td>
+<td><code>Cannot parse: {0}</code></td>
+<td>既定値で開く / 手動で修正</td>
+</tr>
+<tr>
+<td>E026</td>
+<td>E</td>
+<td>修飾子を付けられない参照に修飾子（§6.1.1）</td>
+<td><code>この参照に修飾子は付けられません</code></td>
+<td><code>Modifiers are not allowed on this reference</code></td>
+<td>修飾子を削除</td>
+</tr>
+<tr>
+<td>E027</td>
+<td>E</td>
+<td><code>project.toml</code> の <code>lexicon.word_classes</code> の正規表現が不正（§6.5.1）</td>
+<td><code>語クラス {0}の正規表現が不正です</code></td>
+<td><code>Invalid regular expression for word class {0}</code></td>
+<td>正規表現を直す / 項目を削除する</td>
+</tr>
+<tr>
+<td>E028</td>
+<td>E</td>
+<td>辞書キーが 96 バイト超</td>
+<td><code>辞書の項目名が長すぎます</code></td>
+<td><code>Dictionary key is too long</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>E029</td>
+<td>E</td>
+<td>プロンプトに必須のセクション（<code>## system</code> / <code>## task</code>）が無い（§15.5.4 (2)）</td>
+<td><code>プロンプトに必須のセクションがありません: {0}</code></td>
+<td><code>The prompt is missing a required section: {0}</code></td>
+<td><code>&gt;prompt reset</code> で既定に戻す</td>
+</tr>
+<tr>
+<td>E030</td>
+<td>E</td>
+<td>MCP サーバの環境変数未解決</td>
+<td><code>環境変数 {0}が設定されていません</code></td>
+<td><code>Environment variable {0} is not set</code></td>
+<td>設定方法を表示</td>
+</tr>
+<tr>
+<td>E031</td>
+<td>E</td>
+<td>プロンプトの未知変数</td>
+<td><code>使用できない変数です: {0}</code></td>
+<td><code>Unknown prompt variable: {0}</code></td>
+<td>変数一覧から選ぶ</td>
+</tr>
+<tr>
+<td>W002</td>
+<td>W</td>
+<td>本文中の裸の <code>@</code></td>
+<td><code>@ は行頭の見出しか行末の話者注釈にのみ使えます</code></td>
+<td><code>@ is only valid as a header or a trailing speaker tag</code></td>
+<td><code>\@</code> にエスケープ</td>
+</tr>
+<tr>
+<td>W006</td>
+<td>W</td>
+<td>モード未指定</td>
+<td><code>この節のモードが決まっていません</code></td>
+<td><code>No mode assigned for this section</code></td>
+<td>プロットに <code>mode:</code> を追加</td>
+</tr>
+<tr>
+<td>W011</td>
+<td>W</td>
+<td>未知のフィールドキー</td>
+<td><code>未知のキーです: {0}</code></td>
+<td><code>Unknown key: {0}</code></td>
+<td>近いキーに置換</td>
+</tr>
+<tr>
+<td>W012</td>
+<td>W</td>
+<td>空の節</td>
+<td><code>空の節です</code></td>
+<td><code>Empty section</code></td>
+<td>削除</td>
+</tr>
+<tr>
+<td>W019</td>
+<td>W</td>
+<td><code>summary</code> が 120 字超</td>
+<td><code>要約が長すぎます（{0} 字）</code></td>
+<td><code>Summary is too long ({0} chars)</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>W022</td>
+<td>W</td>
+<td>用語の <code>range</code> 外での使用</td>
+<td><code>{0}はこの時点ではまだ登場していません</code></td>
+<td><code>{0} has not appeared yet at this point</code></td>
+<td>range 拡張</td>
+</tr>
+<tr>
+<td>W025</td>
+<td>W</td>
+<td>資料 MD の H1 と index の不一致</td>
+<td><code>資料ファイルの見出しが index と一致しません</code></td>
+<td><code>Material heading differs from the index</code></td>
+<td>どちらかに揃える</td>
+</tr>
+<tr>
+<td>W027</td>
+<td>W</td>
+<td>辞書キーの種別衝突</td>
+<td><code>同じ名前の項目が複数の辞書にあります: {0}</code></td>
+<td><code>{0} exists in multiple dictionaries</code></td>
+<td>明示形に変更</td>
+</tr>
+<tr>
+<td>W029</td>
+<td>W</td>
+<td>より長い辞書項目にも一致しうる</td>
+<td><code>より長い項目 {0}にも一致します</code></td>
+<td><code>A longer entry {0} also matches</code></td>
+<td>明示形 <code>'{…}</code> に変更</td>
+</tr>
+<tr>
+<td>W030</td>
+<td>W</td>
+<td>プロットと本文の節数不一致</td>
+<td><code>プロット {0} 節 / 本文 {1} 節</code></td>
+<td><code>Plot has {0} sections, prose has {1}</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>W031</td>
+<td>W</td>
+<td>本文中の資料参照</td>
+<td><code>資料参照はプロットに書くことを推奨します</code></td>
+<td><code>Material references belong in the plot</code></td>
+<td>プロットへ移動</td>
+</tr>
+<tr>
+<td>W033</td>
+<td>W</td>
+<td><code>mcp.json</code> に秘密情報が直書き</td>
+<td><code>秘密情報は環境変数参照にしてください</code></td>
+<td><code>Use an environment variable reference for secrets</code></td>
+<td><code>${{...}}</code> に変換</td>
+</tr>
+<tr>
+<td>W041</td>
+<td>W</td>
+<td>書き込み不可のプロジェクト</td>
+<td><code>プロジェクトに書き込めません（読み取り専用）</code></td>
+<td><code>Project is read-only</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>I050</td>
+<td>I</td>
+<td>既定プロンプトを生成した</td>
+<td><code>prompts/ に既定プロンプトを作成しました</code></td>
+<td><code>Created default prompts in prompts/</code></td>
+<td>開く</td>
+</tr>
+</tbody>
+</table>
+<h3 id="71-ストレージエージェント系文書位置を持たない通知">7.1 ストレージ・エージェント系（文書位置を持たない通知）</h3>
+<p>これらは本文中の位置に紐づかないため、波線ではなく <strong>ステータスバーの通知</strong> とレビュー一覧に出す。</p>
+<table>
+<thead>
+<tr>
+<th>コード</th>
+<th>Sev</th>
+<th>条件</th>
+<th>ja 文言</th>
+<th>en 文言</th>
+<th>対応</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>E060</td>
+<td>E</td>
+<td>プロジェクト外への書き込みを拒否した（§13.1.2）</td>
+<td><code>プロジェクトの外には書き込めません: {0}</code></td>
+<td><code>Writing outside the project is not allowed: {0}</code></td>
+<td>不具合として報告（通常は起こらない）</td>
+</tr>
+<tr>
+<td>E062</td>
+<td>E</td>
+<td>IndexedDB が利用できない</td>
+<td><code>この環境ではデータを保存できません</code></td>
+<td><code>Storage is unavailable in this environment</code></td>
+<td>通常ウィンドウで開く / デスクトップ版</td>
+</tr>
+<tr>
+<td>E063</td>
+<td>E</td>
+<td>MCP サーバに接続できない</td>
+<td><code>{0}に接続できませんでした</code></td>
+<td><code>Could not connect to {0}</code></td>
+<td>設定を開く / 再試行</td>
+</tr>
+<tr>
+<td>W062</td>
+<td>W</td>
+<td>残容量が 10MB 未満</td>
+<td><code>保存領域の空きが少なくなっています</code></td>
+<td><code>Storage space is running low</code></td>
+<td>不要プロジェクトを削除</td>
+</tr>
+<tr>
+<td>W064</td>
+<td>W</td>
+<td>index に未登録の資料 MD がある</td>
+<td><code>index.json に未登録の資料があります: {0}</code></td>
+<td><code>Unregistered material file: {0}</code></td>
+<td>登録する</td>
+</tr>
+<tr>
+<td>W065</td>
+<td>W</td>
+<td>出典のない資料</td>
+<td><code>出典が設定されていません: {0}</code></td>
+<td><code>No source for material {0}</code></td>
+<td>出典を入力</td>
+</tr>
+<tr>
+<td>W068</td>
+<td>W</td>
+<td>アイコンの形式が PNG/JPEG でない（§5.5.3）</td>
+<td><code>対応していない画像形式です: {0}</code></td>
+<td><code>Unsupported image format: {0}</code></td>
+<td>PNG に変換</td>
+</tr>
+<tr>
+<td>W069</td>
+<td>W</td>
+<td>アイコンが大きすぎる（長辺 256px 超 / 256KB 超）</td>
+<td><code>アイコンが大きすぎます: {0}</code></td>
+<td><code>Icon is too large: {0}</code></td>
+<td>縮小して置き換え</td>
+</tr>
+<tr>
+<td>W070</td>
+<td>W</td>
+<td>アイコンのファイルが存在しない</td>
+<td><code>アイコンが見つかりません: {0}</code></td>
+<td><code>Icon not found: {0}</code></td>
+<td>パスを修正 / <code>icon:</code> を削除</td>
+</tr>
+<tr>
+<td>I052</td>
+<td>I</td>
+<td>外部変更を取り込んだ</td>
+<td><code>外部の変更を読み込みました: {0}</code></td>
+<td><code>Reloaded external changes: {0}</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="72-執筆支援系の診断">7.2 執筆支援系の診断</h3>
+<p>第 2 次指示で追加された検査。<strong>文章の良し悪し</strong>を言うものはすべて <strong>W（警告）または I（情報）</strong> であり、組み込み既定ではエラーにしない（作者が §4.5.2 で <code>"error"</code> と設定した場合は、その設定に従う）。
+文章の良し悪しは作者が決めるものであって、IDE が決めるものではないため（P4）。
+<strong>設定・接続・権限の誤り</strong>（カスタムロールとタスクと委譲レベルの E032〜E036、ローカル LLM に接続できない E064）だけは E とする。</p>
+<table>
+<thead>
+<tr>
+<th>コード</th>
+<th>Sev</th>
+<th>条件</th>
+<th>ja 文言</th>
+<th>en 文言</th>
+<th>クイックフィックス</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>W080</td>
+<td>W</td>
+<td>節順に対し <code>when</code> が巻き戻る（§5.3.5）</td>
+<td><code>作中日時が前の節より前に戻っています（{0} → {1}）</code></td>
+<td><code>In-story time goes backwards ({0} → {1})</code></td>
+<td><code>回想</code> を追記 / <code>when</code> を修正</td>
+</tr>
+<tr>
+<td>W081</td>
+<td>W</td>
+<td>1 文に読点が 1 つも無く <code>long_sentence_chars</code> を超える</td>
+<td><code>読点のない長い文です（{0} 字）</code></td>
+<td><code>Long sentence without a comma ({0} chars)</code></td>
+<td>句切れ候補を表示（§9.4.3）</td>
+</tr>
+<tr>
+<td>W082</td>
+<td>W</td>
+<td>同一話者の台詞行が <code>max_consecutive_speeches</code> を超えて連続</td>
+<td><code>{0}の台詞が {1} 回続いています</code></td>
+<td><code>{1} consecutive lines by {0}</code></td>
+<td>地の文を挿入 / 話者注釈を確認</td>
+</tr>
+<tr>
+<td>W083</td>
+<td>W</td>
+<td>連続 5 節以上で <code>senses</code> が視覚系のみ</td>
+<td><code>五感の宣言が視覚に偏っています（{0} 節連続）</code></td>
+<td><code>Senses are sight-only for {0} sections</code></td>
+<td><code>senses:</code> を追記</td>
+</tr>
+<tr>
+<td>W084</td>
+<td>W</td>
+<td>台詞内の呼称が <code>address:</code> に反する（§5.5.6）</td>
+<td><code>{0}は {1}を「{2}」とは呼びません</code></td>
+<td><code>{0} does not call {1} "{2}"</code></td>
+<td>正しい呼称に置換 / <code>address:</code> に追加</td>
+</tr>
+<tr>
+<td>W085</td>
+<td>W</td>
+<td>呼称参照 <code>'先輩</code> の相手が一意に決まらない</td>
+<td><code>どの人物への呼称か決められません: {0}</code></td>
+<td><code>Ambiguous appellation: {0}</code></td>
+<td>明示形 <code>'{…}</code> に置換</td>
+</tr>
+<tr>
+<td>W086</td>
+<td>W</td>
+<td>章あらすじ（<code>B=00</code>）の本文が <code>blurb</code> と大きく食い違う長さ</td>
+<td><code>あらすじが長すぎます（{0} 字）</code></td>
+<td><code>Blurb is too long ({0} chars)</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>W087</td>
+<td>W</td>
+<td>同一段落内で同じ自立語が 3 回以上（§9.4.4）</td>
+<td><code>同じ語が繰り返されています: {0}（{1} 回）</code></td>
+<td><code>Repeated word: {0} ({1} times)</code></td>
+<td>用語辞書で類語を見る</td>
+</tr>
+<tr>
+<td>W088</td>
+<td>W</td>
+<td>文頭の接続詞が 3 文連続（§9.4.4）</td>
+<td><code>接続詞で始まる文が 3 つ続いています</code></td>
+<td><code>Three consecutive sentences start with a conjunction</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>W089</td>
+<td>W</td>
+<td>1 文が <code>long_sentence_chars</code> の 2 倍を超える</td>
+<td><code>非常に長い文です（{0} 字）</code></td>
+<td><code>Very long sentence ({0} chars)</code></td>
+<td>句切れ候補を表示</td>
+</tr>
+<tr>
+<td>W090</td>
+<td>W</td>
+<td>1 節の台詞比率（§9.4.2 の算出）が <code>dialogue_ratio_target</code>（上限目安）を超える（文書全体ではなく節ごとに見る）</td>
+<td><code>台詞の比率が {0}% です（目安 {1}%）</code></td>
+<td><code>Dialogue ratio is {0}% (target {1}%)</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>W091</td>
+<td>W</td>
+<td>節の長さが話内平均の T スコア 35 未満 / 65 超（§10.3.4）</td>
+<td><code>この {0}は分量が偏っています（偏差値 {1}）</code></td>
+<td><code>Unbalanced length for this {0} (T-score {1})</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>W092</td>
+<td>W</td>
+<td><code>icon</code> / <code>space</code> の参照先ファイルが無い</td>
+<td><code>ファイルが見つかりません: {0}</code></td>
+<td><code>File not found: {0}</code></td>
+<td>パスを修正</td>
+</tr>
+<tr>
+<td>W093</td>
+<td>W</td>
+<td>提案の <code>before</code> が現在の本文と食い違う（§8.7.4）</td>
+<td><code>提案 {0}は元の本文と一致しません</code></td>
+<td><code>Proposal {0} no longer matches the text</code></td>
+<td>並置して確認 / 破棄</td>
+</tr>
+<tr>
+<td>W094</td>
+<td>W</td>
+<td>正規表現検索が 1 秒で打ち切られた（§9.7.4）</td>
+<td><code>検索が複雑すぎます。途中までの結果を表示します</code></td>
+<td><code>The search was too complex; showing partial results</code></td>
+<td>条件を絞る</td>
+</tr>
+<tr>
+<td>W095</td>
+<td>W</td>
+<td>自律タスクがセッション上限（<code>agents.limits</code>）に達して停止した（§15.1.1 A8）</td>
+<td><code>自律タスクが上限に達したため停止しました（{0}）</code></td>
+<td><code>Autonomous tasks stopped at the session limit ({0})</code></td>
+<td>上限を引き上げる / 人間が引き継ぐ</td>
+</tr>
+<tr>
+<td>W096</td>
+<td>W</td>
+<td>台詞内の句読点直後の空白が作品内多数派と揃っていない（§7.2.2）</td>
+<td><code>台詞内の句読点「{0}」の後の書き方が、作品内の大勢と揃っていません</code></td>
+<td><code>Spacing after "{0}" inside dialogue differs from the majority style in this work</code></td>
+<td>空白を多数派に合わせる</td>
+</tr>
+<tr>
+<td>W097</td>
+<td>W</td>
+<td>同じ文末尾で終わる文が 3 文連続（§7.2.3）</td>
+<td><code>連続する 3 文の文末尾が同じです</code></td>
+<td><code>Three consecutive sentences end the same way</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>W098</td>
+<td>W</td>
+<td>1 場面で同じ語が 5 回以上（§7.2.4）</td>
+<td><code>「{0}」はこの場面の中で繰り返されています（{1} 回）</code></td>
+<td><code>\"{0}\" is repeated in this scene ({1} times)</code></td>
+<td>用語辞書で類語を見る</td>
+</tr>
+<tr>
+<td>W099</td>
+<td>W</td>
+<td>同じ語が助詞・句読点のみを挟んで 2 回連続（§7.2.5）</td>
+<td><code>同じ語が続けて繰り返されています: {0}</code></td>
+<td><code>Same word back to back: {0}</code></td>
+<td>片方を別の表現に</td>
+</tr>
+<tr>
+<td>W100</td>
+<td>W</td>
+<td>同じ文末助詞で終わる文が 3 文連続（§7.2.6）</td>
+<td><code>同じ助詞で終わる文が 3 つ続いています（{0}）</code></td>
+<td><code>Three consecutive sentences end with the same particle ({0})</code></td>
+<td>文末を変える</td>
+</tr>
+<tr>
+<td>W101</td>
+<td>W</td>
+<td>同じ語で始まる文が 3 文連続（§7.2.7）</td>
+<td><code>同じ語で始まる文が 3 つ続いています（{0}）</code></td>
+<td><code>Three consecutive sentences start with the same word ({0})</code></td>
+<td>主語を省く / 語順を変える</td>
+</tr>
+<tr>
+<td>W102</td>
+<td>W</td>
+<td>1 節で波ダッシュ「……」が 3 回以上（§7.2.8）</td>
+<td><code>波ダッシュ「……」が多用されています（{0} 回）</code></td>
+<td><code>Many ellipses in this section ({0})</code></td>
+<td>一部を句点に</td>
+</tr>
+<tr>
+<td>W103</td>
+<td>W</td>
+<td>1 場面で不確か表現（固定リスト）の同じ語が 3 回以上（§7.2.9）</td>
+<td><code>不確かな表現「{0}」が多用されています（{1} 回）</code></td>
+<td><code>The hedging word \"{0}\" is overused ({1} times)</code></td>
+<td>言い切る / 別の表現に</td>
+</tr>
+<tr>
+<td>W104</td>
+<td>W</td>
+<td>1 場面で同じ動詞語幹が 5 回以上（§7.2.10）</td>
+<td><code>同じ動詞が繰り返されています（語幹「{0}」が {1} 回）</code></td>
+<td><code>The same verb is repeated ({1} forms of \"{0}\")</code></td>
+<td>別の動詞に / 一部を省略</td>
+</tr>
+<tr>
+<td>W105</td>
+<td>W</td>
+<td>1 場面で感嘆符が 5 回以上（§7.2.11）</td>
+<td><code>感嘆符が多用されています（{0} 回）</code></td>
+<td><code>Many exclamation marks in this scene ({0})</code></td>
+<td>一部を句点に</td>
+</tr>
+<tr>
+<td>W106</td>
+<td>W</td>
+<td>1 節でダッシュ「——」が 4 回以上（§7.2.12）</td>
+<td><code>ダッシュ「——」が多用されています（{0} 回）</code></td>
+<td><code>Many dashes in this section ({0})</code></td>
+<td>一部を句点・読点に</td>
+</tr>
+<tr>
+<td>E032</td>
+<td>E</td>
+<td>カスタムロール名が不正（§5.9.2）</td>
+<td><code>ロール名に使えない文字です: {0}</code></td>
+<td><code>Invalid role name: {0}</code></td>
+<td>名前を修正</td>
+</tr>
+<tr>
+<td>E033</td>
+<td>E</td>
+<td>カスタムロール名が既定ロールと衝突</td>
+<td><code>{0}は既定の役割名です</code></td>
+<td><code>{0} is a built-in role name</code></td>
+<td>別名にする</td>
+</tr>
+<tr>
+<td>E034</td>
+<td>E</td>
+<td>カスタムロールが 16 件を超えた</td>
+<td><code>カスタムロールは 16 件までです</code></td>
+<td><code>At most 16 custom roles</code></td>
+<td>不要なものを外す</td>
+</tr>
+<tr>
+<td>E035</td>
+<td>E</td>
+<td>同一 role × 同一 scene のタスク重複（§15.7.5）</td>
+<td><code>{0}の {1} タスクは既にあります</code></td>
+<td><code>A {0} task for {1} already exists</code></td>
+<td>既存を開く</td>
+</tr>
+<tr>
+<td>E036</td>
+<td>E</td>
+<td>委譲レベル不足の書き込みツールを呼んだ（§15.8.3）</td>
+<td><code>この役割の委譲レベルでは書き込めません: {0}</code></td>
+<td><code>Delegation level too low to write: {0}</code></td>
+<td>委譲レベルを上げる（§15.7.6）</td>
+</tr>
+<tr>
+<td>E064</td>
+<td>E</td>
+<td>ローカル LLM に接続できない（§15.8.4）</td>
+<td><code>ローカル LLM（{0}）に接続できませんでした</code></td>
+<td><code>Could not reach the local LLM at {0}</code></td>
+<td>URL を設定 / 無効化</td>
+</tr>
+<tr>
+<td>I054</td>
+<td>I</td>
+<td>どの節からも引用されていない採用済み資料（§5.2.4）</td>
+<td><code>引用されていない資料が {0} 件あります</code></td>
+<td><code>{0} materials are never cited</code></td>
+<td>一覧を開く</td>
+</tr>
+<tr>
+<td>I055</td>
+<td>I</td>
+<td>ストック章（<code>00</code>）に本文が残っている（§5.1.2）</td>
+<td><code>未分類ストックに {0} 件あります</code></td>
+<td><code>{0} items remain in the stock chapter</code></td>
+<td>一覧を開く</td>
+</tr>
+<tr>
+<td>I056</td>
+<td>I</td>
+<td><code>prompts/custom/</code> に未登録のロールがある（§5.9.2）</td>
+<td><code>未登録のカスタムロールがあります: {0}</code></td>
+<td><code>Unregistered custom role: {0}</code></td>
+<td>登録する</td>
+</tr>
+<tr>
+<td>I057</td>
+<td>I</td>
+<td>ローカル LLM の設定を書き込んだ（§15.8.4）</td>
+<td><code>agents/mcp.json にローカル LLM を登録しました</code></td>
+<td><code>Registered the local LLM in agents/mcp.json</code></td>
+<td>開く</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>E032〜E036 はエラーだが文書位置を持たないため、§7.1 と同じくステータスバー通知として扱う。</p>
+</blockquote>
+<p><strong>実行コストの制御（MUST）</strong></p>
+<table>
+<thead>
+<tr>
+<th>診断</th>
+<th>実行タイミング</th>
+<th>範囲</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>W081 / W087 / W088 / W089 / W090 / W097 / W099 / W100 / W101 / W102 / W106</td>
+<td>編集中（アイドル 300ms）</td>
+<td><strong>編集中の節のみ</strong></td>
+</tr>
+<tr>
+<td>W082 / W084 / W085 / W098 / W103 / W104 / W105</td>
+<td>編集中（アイドル 300ms）</td>
+<td>編集中の場面（直前の節までを文脈に含む）</td>
+</tr>
+<tr>
+<td>W080 / W083 / W091 / W096</td>
+<td>明示操作またはアイドル 5 秒</td>
+<td>プロジェクト全体</td>
+</tr>
+<tr>
+<td>I054 / I055 / I056</td>
+<td>起動時と明示操作</td>
+<td>プロジェクト全体</td>
+</tr>
+<tr>
+<td>E036 / W095</td>
+<td>イベント発生時（書き込みツール呼び出し / 上限到達）</td>
+<td>セッション</td>
+</tr>
+</tbody>
+</table>
+<p><strong>既定の有効 / 無効</strong></p>
+<p>v0.1.0 の既定で <strong>有効</strong> なのは W080・W082・W084・W092・W095・E064・I054・I055・I056。
+W081・W083・W087・W088・W089・W090・W091・W096・W097・W098・W099・W100・W101・W102・W103・W104・W105・W106 は <strong>既定で無効</strong> とし、
+文体ワークスペース（§10.9）を開いたときだけ計算・表示する。
+理由: これらは「書いている最中に言われたくない」種類の指摘であり、P3（ノイズを増やさない）に抵触するため。
+この「既定で無効」は組み込み既定であり、設定で <code>"warn"</code> / <code>"error"</code> に変えたものは、実行コスト区分の範囲で常時出す。
+有効/無効とエラー扱いの正本は <code>project.toml</code> の <code>[features.diagnostics]</code>（§4.5.2）である。作品を分け合う人同士で揃える設定であるため、<code>.novnow/ui.json</code>（個人設定）には書かない。
+設定の変更は §10.9 の画面から行える（§10.9.6）。セッション限りの一時的な絞り込みは、表示フィルタ（§10.9.4）で行い、保存しない。</p>
+<p><strong>診断の構造規則（MUST）</strong>: 診断は <strong>コードと引数だけ</strong> で識別し、表示文言は §12 の言語設定に従って解決する。</p>
+<hr>
+<h4 id="721-診断コード解説リファレンスと網羅性検証状態-実装完了">7.2.1 診断コード解説リファレンスと網羅性検証〔状態: 実装完了〕</h4>
+<ul>
+<li>本章（§7.0・§7.1・§7.2）で定義されているすべての診断コードについて、Web サイト（公開ドキュメント）上にそれぞれの発生条件・具体例・解消手順の解説ページを設ける。定義されている全診断コードの解説が漏れなく存在することを継続的検証で機械的にチェックする。</li>
+</ul>
+<h4 id="722-台詞内の句読点直後の空白w096">7.2.2 台詞内の句読点直後の空白（W096）</h4>
+<p>台詞の中で句読点の後に全角空白を開ける書き方と開けない書き方が作品内で混在しているとき、少数派の箇所を指摘する。寄せ先は作者の既存の文面が作る多数派であり、どちらが正しいかを IDE は決めない。</p>
+<ul>
+<li>対象は台詞（<code>「…」</code>）の内側だけであり、入れ子の台詞（<code>『…』</code>）の内側も台詞内として数える。地の文は数えない。</li>
+<li>記号は <code>。</code>・<code>！</code>・<code>？</code> の 3 つを別々に集計する。各記号について、作品全体で「記号の次に全角空白があって同じ台詞内に文字が続く例」と「全角空白がなく同じ台詞内に文字が続く例」の合計が 5 件以上あり、多数派が少数派より 2 件以上多い場合にだけ、少数派の箇所に W096 を出す。それ以外（同数に近い場合を含む）は診断しない。</li>
+<li>空白として数えるのは全角空白だけである。半角空白は「空白なし」として扱う。</li>
+<li>同じ台詞内に次の文字が続かない場合（閉じ括弧の直前 <code>。」</code> など）は、集計にも診断にも含めない。</li>
+<li>文章の言語は表示言語ではなく本文の文字種で決め、日本語主体でない本文ではこの診断を出さない。</li>
+<li>文言は、作品内で多い側に揃っていないことを対象の記号で示す。ja: <code>台詞内の句読点「{0}」の後の書き方が、作品内の大勢と揃っていません</code> / en: <code>Spacing after "{0}" inside dialogue differs from the majority style in this work</code>。</li>
+<li>クイックフィックスは、多数派に合わせて全角空白を入れる、または取る 1 操作とする。</li>
+<li>寄せ先を固定する設定は初版に入れない（多数派への寄せのみ）。</li>
+<li>W096 は執筆支援系の診断であり、組み込み既定では無効とする。有効化は <code>[features.diagnostics]</code>（§4.5.2）で行う。実行コストは、編集中は編集中の節のみを対象とし、多数派の集計だけは作品全体から取る。</li>
+</ul>
+<h4 id="723-文末尾の反復w097">7.2.3 文末尾の反復（W097）</h4>
+<p>同じ文末尾で終わる文が 3 文連続した場合（「〜た。」「〜た。」「〜た。」など）、その反復を指摘する。文章の良し悪しを IDE が決めるのではなく（P4）、反復を提示し直すかどうかは作者が定める。</p>
+<ul>
+<li>対象は地の文（台詞の外側）だけである。<code>「…」</code> の内側は数えない（台詞のリズムは作者の領分、MUST。§9.4.3 と同一の原則）。</li>
+<li>「文」は句点 <code>。！？</code> までの区切りとする（§9.4.3 と同一）。改行・段落の区切りは連続を切らない（同一節の読み順で数える）。節の境界は連続を切る。</li>
+<li>「文末尾」は文を導入済みの <code>tiniestsegmenter</code>（§6.2.6）で分詞して得た最後の自立語とする（§9.4.4）。末尾の助詞を固定の除外リスト（1 字の助詞と <code>から</code> / <code>まで</code>）で取り除き、自立語がもう無い文（例: 助詞だけの文）は文末尾を持たないとし、その文で連続を切って次の文から数え直す。</li>
+<li>同じ文末尾が 3 文連続したときに、3 文目の位置に W097 を 1 件出す。4 文目以降が同じ文末尾でも同じ連続区間に追加で出さない。</li>
+<li>文章の言語は表示言語ではなく本文の文字種で決め、日本語主体でない本文ではこの診断を出さない（§7.2.2 と同一）。</li>
+<li>文言: ja <code>連続する 3 文の文末尾が同じです</code> / en <code>Three consecutive sentences end the same way</code>。</li>
+<li>クイックフィックスはテキスト編集を返さない（自動置換はしない、MUST。連続する 3 文は診断の範囲とレビュー一覧で示す）。</li>
+<li>W097 は執筆支援系の診断であり、組み込み既定では無効とする。有効化は <code>[features.diagnostics]</code>（§4.5.2）で行う。実行コストは、編集中は編集中の節のみを対象とする。</li>
+</ul>
+<h4 id="724-場面内の同語反復w098">7.2.4 場面内の同語反復（W098）</h4>
+<p>1 個の場面の中で同じ語が 5 回以上出現した場合、最後の出現位置を指摘する。W087（同一段落内・3 回以上）の場面単位版であり、節をまたぐ「言った」の乱用や固有名詞の反復を拾う。</p>
+<ul>
+<li>対象の語は W087 と同じ抽出にする（§9.4.4）: 導入済みの <code>tiniestsegmenter</code>（§6.2.6）で本文を分詞した 2 字以上のトークン。1 字の助詞・助動詞は 2 字の条件で自然に除外される。</li>
+<li>集計単位は場面（その場面内の全節）である。場面をまたいで集計しない。</li>
+<li>同じ語が 5 回以上出現したとき、最後の出現位置に W098 を 1 件出す。4 回以下は診断しない。</li>
+<li>台詞（<code>「…」</code>）の内側も数える（W087 と同一）。</li>
+<li>文章の言語は表示言語ではなく本文の文字種で決め、日本語主体でない本文ではこの診断を出さない（§7.2.2 と同一）。</li>
+<li>文言: ja <code>「{0}」はこの場面の中で繰り返されています（{1} 回）</code> / en <code>"{0}" is repeated in this scene ({1} times)</code>。</li>
+<li>クイックフィックスは、用語辞書で類語を見る（W087 と同一）。</li>
+<li>W098 は執筆支援系の診断であり、組み込み既定では無効とする。有効化は <code>[features.diagnostics]</code>（§4.5.2）で行う。実行コストは、編集中は編集中の節が含まれる場面のみを対象とする。</li>
+</ul>
+<h4 id="725-隣接同語反復w099">7.2.5 隣接同語反復（W099）</h4>
+<p>同じ語が続けて 2 回現れた場合（「きみ、きみ」など）に、その反復を指摘する。</p>
+<ul>
+<li>「連続」とは、2 つの出現の間に助詞・句読点・空白のみが現れること（例: 「きみ、きみ」「きみ。きみ。」「ドン。ドン。ドン。」）。</li>
+<li>語は導入済みの <code>tiniestsegmenter</code>（§6.2.6）のトークン（§9.4.4）。2 字以上のトークンは常に対象で、1 字のトークンは固定の 1 字助詞リストに無いもののみ対象。</li>
+<li>同じ語が 2 回連続したとき、2 回目の位置に W099 を 1 件出す。同じ連続区間のさらに続きには追加で出さない。</li>
+<li>台詞（<code>「…」</code>）の内側も数える。</li>
+<li>文言: ja <code>同じ語が続けて繰り返されています: {0}</code> / en <code>Same word back to back: {0}</code>。</li>
+<li>クイックフィックスはテキスト編集を返さない（自動置換はしない、MUST。2 つの出現は診断の範囲とレビュー一覧で示す）。</li>
+<li>W099 は執筆支援系の診断であり、組み込み既定では無効（<code>[features.diagnostics]</code> で有効化、§4.5.2）。実行コストは、編集中は編集中の節のみを対象とする。日本語主体の判定は §7.2.2 と同一（日本語主体でない本文では出さない）。</li>
+</ul>
+<h4 id="726-文末助詞の反復w100">7.2.6 文末助詞の反復（W100）</h4>
+<p>同じ文末助詞で終わる文が 3 文連続した場合（「〜よ。〜よ。〜よ。」など）に、その反復を指摘する。</p>
+<ul>
+<li>「文」は句点 <code>。！？</code> までの区切り（§9.4.3）。文末助詞は、文の最後の 1 字が固定の 1 字リスト（よ ね か ぞ だ ざ な わ や さ ぜ）か、最後の 2 字が固定の 2 字リスト（だぜ わけ かな）に属する助詞（§9.4.4）。</li>
+<li>同じ文末助詞で終わる文が 3 文連続したとき、3 文目の位置に W100 を 1 件出す。同じ連続区間のさらに続きには追加で出さない。</li>
+<li>台詞（<code>「…」</code>）の内側も数える（文末助詞は台詞に多い）。</li>
+<li>文言: ja <code>同じ助詞で終わる文が 3 つ続いています（{0}）</code> / en <code>Three consecutive sentences end with the same particle ({0})</code>。</li>
+<li>クイックフィックスはテキスト編集を返さない（自動置換はしない、MUST。連続 3 文は診断の範囲とレビュー一覧で示す）。</li>
+<li>W100 は執筆支援系の診断であり、組み込み既定では無効（<code>[features.diagnostics]</code> で有効化、§4.5.2）。実行コストは、編集中は編集中の節のみを対象とする。日本語主体の判定は §7.2.2 と同一（日本語主体でない本文では出さない）。</li>
+</ul>
+<h4 id="727-文頭語の反復w101">7.2.7 文頭語の反復（W101）</h4>
+<p>同じ語で始まる文が 3 文連続した場合（「風が。風が。風が。」など）に、その反復を指摘する。</p>
+<ul>
+<li>文の先頭語は、導入済みの <code>tiniestsegmenter</code>（§6.2.6）のトークン列の先頭トークン（§9.4.4）。2 字以上のトークンを対象とし、1 字のトークンは対象にしない。</li>
+<li>同じ先頭語で始まる文が 3 文連続したとき、3 文目の位置に W101 を 1 件出す。同じ連続区間のさらに続きには追加で出さない。</li>
+<li>台詞（<code>「…」</code>）の内側も数える。</li>
+<li>文言: ja <code>同じ語で始まる文が 3 つ続いています（{0}）</code> / en <code>Three consecutive sentences start with the same word ({0})</code>。</li>
+<li>クイックフィックスはテキスト編集を返さない（自動置換はしない、MUST。連続 3 文は診断の範囲とレビュー一覧で示す）。</li>
+<li>W101 は執筆支援系の診断であり、組み込み既定では無効（<code>[features.diagnostics]</code> で有効化、§4.5.2）。実行コストは、編集中は編集中の節のみを対象とする。日本語主体の判定は §7.2.2 と同一（日本語主体でない本文では出さない）。</li>
+</ul>
+<h4 id="728-波ダッシュの多用w102">7.2.8 波ダッシュの多用（W102）</h4>
+<p>1 節の中で波ダッシュ <code>……</code> が多用された場合に、その多用を指摘する。</p>
+<ul>
+<li>1 節内の <code>……</code>（U+2026 を 2 つ連続）の非重複出現を数える（§9.4.4）。単一の <code>…</code> は数えない。</li>
+<li>1 節で 3 回以上出現したとき、3 回目の出現位置に W102 を 1 件出す。</li>
+<li>文言: ja <code>波ダッシュ「……」が多用されています（{0} 回）</code> / en <code>Many ellipses in this section ({0})</code>。</li>
+<li>クイックフィックスは無い。</li>
+<li>W102 は執筆支援系の診断であり、組み込み既定では無効（<code>[features.diagnostics]</code> で有効化、§4.5.2）。実行コストは、編集中は編集中の節のみを対象とする。日本語主体の判定は §7.2.2 と同一（日本語主体でない本文では出さない）。</li>
+</ul>
+<h4 id="729-やわらか不確か表現の多用w103">7.2.9 やわらか・不確か表現の多用（W103）</h4>
+<p>1 個の場面の中で不確かな表現（ヘッジ）が多用された場合に、その多用を指摘する。</p>
+<ul>
+<li>固定リストの 8 語: <code>だがしかし</code> <code>たぶん</code> <code>たしかに</code> <code>もしかすると</code> <code>かまわず</code> <code>おそらく</code> <code>実は</code> <code>かね</code>（§9.4.4）。表記の完全一致で数える（リストの語は 2 字以上なので境界問題が生じない）。</li>
+<li>リストの同じ語が 1 場面（その場面内の全節）で 3 回以上出現したとき、語ごとに最後の出現位置へ W103 を 1 件出す。2 回以下は診断しない。</li>
+<li>台詞（<code>「…」</code>）の内側も数える。</li>
+<li>文言: ja <code>不確かな表現「{0}」が多用されています（{1} 回）</code> / en <code>The hedging word "{0}" is overused ({1} times)</code>。</li>
+<li>クイックフィックスはテキスト編集を返さない（自動置換はしない、MUST。出現箇所は診断の範囲とレビュー一覧で示す）。</li>
+<li>W103 は執筆支援系の診断であり、組み込み既定では無効（<code>[features.diagnostics]</code> で有効化、§4.5.2）。実行コストは、編集中は編集中の節が含まれる場面のみを対象とする。日本語主体の判定は §7.2.2 と同一（日本語主体でない本文では出さない）。</li>
+</ul>
+<h4 id="7210-同一動詞語幹の反復w104">7.2.10 同一動詞語幹の反復（W104）</h4>
+<p>同じ動詞の異なる活用形（「考えた。考えて。考えながら。」など）を同じ語として数え、1 個の場面の中で多用された場合に指摘する。</p>
+<ul>
+<li>セグメンタは活用を別のトークンに切る（例: 「走った」→ <code>走っ</code> + <code>た</code>、「考えて」→ <code>考え</code> + <code>て</code>）。2 字以上の語トークンの直後の語トークンが固定の活用接尾辞リスト（<code>た</code> <code>て</code> <code>だ</code> <code>ながら</code> <code>られる</code> <code>させる</code> <code>ない</code> <code>たず</code> <code>ちゃう</code> <code>たい</code> <code>よう</code>、§9.4.4）に属するとき、その語を動詞の語幹として数える。</li>
+<li>辞書形（接尾辞を伴わない形）と 2 字未満の語（例: 「していた」の <code>し</code>）は数えない。<code>走る</code> の <code>走っ</code> と <code>走り</code> のように語幹の表記が割れる場合は、それぞれ別の語として数える（誤検出より取りこぼしを選ぶ、決定論を保つ）。</li>
+<li>同じ語幹が 1 場面（その場面内の全節）で 5 回以上出現したとき、最後の出現位置に W104 を 1 件出す。4 回以下は診断しない。</li>
+<li>接尾辞リストは固定・決定論で、規模は小さく保つ（漏れる活用形があっても誤検出はしない、§9.4.4）。</li>
+<li>文言: ja <code>同じ動詞が繰り返されています（語幹「{0}」が {1} 回）</code> / en <code>The same verb is repeated ({1} forms of "{0}")</code>。</li>
+<li>クイックフィックスはテキスト編集を返さない（自動置換はしない、MUST。出現箇所と表記は診断の引数とレビュー一覧で示す）。</li>
+<li>W104 は執筆支援系の診断であり、組み込み既定では無効（<code>[features.diagnostics]</code> で有効化、§4.5.2）。実行コストは、編集中は編集中の節が含まれる場面のみを対象とする。日本語主体の判定は §7.2.2 と同一（日本語主体でない本文では出さない）。</li>
+</ul>
+<h4 id="7211-感嘆符の多用w105">7.2.11 感嘆符の多用（W105）</h4>
+<p>1 個の場面の中で感嘆符が多用された場合に、その多用を指摘する。</p>
+<ul>
+<li>1 場面内の全角 <code>！</code> と半角 <code>!</code> を数える（§9.4.4）。</li>
+<li>1 場面で 5 回以上出現したとき、5 回目の出現位置に W105 を 1 件出す。</li>
+<li>文言: ja <code>感嘆符が多用されています（{0} 回）</code> / en <code>Many exclamation marks in this scene ({0})</code>。</li>
+<li>クイックフィックスは無い。</li>
+<li>W105 は執筆支援系の診断であり、組み込み既定では無効（<code>[features.diagnostics]</code> で有効化、§4.5.2）。実行コストは、編集中は編集中の節が含まれる場面のみを対象とする。日本語主体の判定は §7.2.2 と同一（日本語主体でない本文では出さない）。</li>
+</ul>
+<h4 id="7212-ダッシュの多用w106">7.2.12 ダッシュの多用（W106）</h4>
+<p>1 節の中でダッシュ <code>——</code> が多用された場合に、その多用を指摘する。</p>
+<ul>
+<li>1 節内の <code>——</code>（U+2014 を 2 つ連続）の非重複出現を数える（§9.4.4）。</li>
+<li>1 節で 4 回以上出現したとき、4 回目の出現位置に W106 を 1 件出す。</li>
+<li>文言: ja <code>ダッシュ「——」が多用されています（{0} 回）</code> / en <code>Many dashes in this section ({0})</code>。</li>
+<li>クイックフィックスは無い。</li>
+<li>W106 は執筆支援系の診断であり、組み込み既定では無効（<code>[features.diagnostics]</code> で有効化、§4.5.2）。実行コストは、編集中は編集中の節のみを対象とする。日本語主体の判定は §7.2.2 と同一（日本語主体でない本文では出さない）。</li>
+</ul>
+</article><p class="source-note" data-astro-cid-rv2sskwj>このページは <code data-astro-cid-rv2sskwj>docs/specifications/diagnostics.md</code> から自動生成しています。内容の正本はリポジトリのそのファイルです。</p></main></div><footer class="_footer_13bsc_1"><div class="container _inner_13bsc_8"><div><p class="_creditText_13bsc_16">NovNow - Created by <a href="https://github.com/sonneko" target="_blank" rel="noopener noreferrer" class="_author_13bsc_23">sonneko</a>.</p><p class="_copyright_13bsc_28">© 2026 NovNow Project. All rights reserved.</p></div><div class="_links_13bsc_33"><a href="/novnow/ja">トップ</a><a href="/novnow/ja/guide">機能一覧</a><a href="/novnow/ja/troubleshooting">トラブルシューティング</a><a href="https://github.com/sonneko/novnow" target="_blank" rel="noopener noreferrer">GitHub</a></div></div></footer><p><a href="/novnow/nightly-app/">Nightly (unstable) / 開発版（不安定）</a></p></body></html>

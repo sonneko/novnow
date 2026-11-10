@@ -1,0 +1,1346 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="theme-color" content="#ffffff"><title>novnow 仕様書 — AI エージェント | NovNow</title><meta name="description" content="NovNow - Dedicated Novel &amp; Scenario IDE for Writers &amp; Engineers"><link rel="canonical" href="https://sonneko.github.io/novnow/ja/specifications/agent/"><link rel="alternate" hreflang="ja" href="https://sonneko.github.io/novnow/ja/specifications/agent/"><link rel="alternate" hreflang="en" href="https://sonneko.github.io/novnow/en/specifications/agent/"><link rel="icon" type="image/svg+xml" href="/novnow/favicon.svg"><link rel="stylesheet" href="/novnow/_astro/Footer.CS3W3i4D.css"><style>.doc{color:#23272f;max-width:820px;font-size:1.02rem;line-height:1.85}.doc h1{letter-spacing:-.025em;color:#23272f;margin-bottom:1.5rem;font-size:clamp(1.9rem,3.2vw,2.45rem);font-weight:800;line-height:1.25}.doc h2{letter-spacing:-.015em;color:#23272f;border-bottom:1px solid #ebecf0;margin:2.75rem 0 1rem;padding-bottom:.5rem;font-size:1.55rem;font-weight:700}.doc h3{color:#23272f;margin:2.1rem 0 .75rem;font-size:1.22rem;font-weight:700}.doc h4{color:#23272f;margin:1.6rem 0 .5rem;font-size:1.02rem;font-weight:700}.doc p,.doc li{color:#404756}.doc p{margin:.95rem 0}.doc ul,.doc ol{margin:.95rem 0 .95rem 1.5rem}.doc li{margin:.4rem 0}.doc strong{color:#23272f;font-weight:700}.doc a{color:#087ea4;border-bottom:1px solid #087ea44d;text-decoration:none;transition:border-color .15s,color .15s}.doc a code{color:#087ea4;background-color:#e6f7ff;transition:background-color .15s,box-shadow .15s;box-shadow:inset 0 0 0 1px #087ea438}.doc a:hover{border-bottom-color:#087ea4;text-decoration:none}.doc a:hover code{background-color:#087ea424;box-shadow:inset 0 0 0 1px #087ea45c}.doc code{color:#23272f;background-color:#99a1b326;border-radius:6px;padding:.14rem .38rem;font-size:.87em}.doc pre{border-radius:16px;margin:1.35rem 0;padding:1.15rem 1.35rem;font-size:.88rem;line-height:1.65;overflow-x:auto;box-shadow:inset 0 0 0 1px #00000014;background-color:#f6f7f9!important}.doc pre code{font-size:inherit;background:0 0;border-radius:0;padding:0}.doc table{border-collapse:separate;border-spacing:0;border:1px solid #ebecf0;border-radius:12px;width:100%;margin:1.5rem 0;font-size:.93rem;overflow:hidden}@media (width<=720px){.doc table{display:block;overflow-x:auto}}.doc th,.doc td{text-align:left;vertical-align:top;border-bottom:1px solid #ebecf0;border-right:1px solid #ebecf0;padding:.65rem .9rem}.doc th:last-child,.doc td:last-child{border-right:none}.doc tbody tr:last-child td{border-bottom:none}.doc th{color:#5e687e;white-space:nowrap;background-color:#f6f7f9;font-size:.85rem;font-weight:700}.doc td{color:#404756;background-color:#fff}.doc blockquote{background-color:#e6f7ff;border-radius:16px;margin:1.5rem 0;padding:1rem 1.25rem;box-shadow:inset 0 0 0 1px #087ea42e}.doc blockquote p{color:#23272f;margin:.3rem 0}.doc hr{border:none;border-top:1px solid #ebecf0;margin:2.5rem 0}.doc img{border-radius:12px;max-width:100%;box-shadow:0 .8px 2px #00000008,0 2.7px 6.7px #0000000c,0 12px 30px #00000014}.source-note[data-astro-cid-rv2sskwj]{color:#5e687e;border-top:1px solid #ebecf0;max-width:820px;margin-top:3rem;padding-top:1.15rem;font-size:.84rem;line-height:1.6}.source-note[data-astro-cid-rv2sskwj] code[data-astro-cid-rv2sskwj]{color:#23272f;background-color:#99a1b326;border-radius:5px;padding:.12rem .35rem;font-size:.88em}
+</style></head><body><aside class="release-notice" aria-label="リリースとデータ互換性" data-astro-cid-jtqikg62><strong data-astro-cid-jtqikg62>v0.1.1</strong>：v1 までは保存形式が変わる場合があります。v0 → v1 の移行機能は提供しません。更新前に Zip と本文テキストを保管してください。<a href="/novnow/ja/troubleshooting/#legacy-v0-project" data-astro-cid-jtqikg62>詳しく</a></aside><header class="_header_1az26_1"><div class="_inner_1az26_10"><div class="_brandGroup_1az26_21"><a href="/novnow/ja" class="_logo_1az26_27"><svg class="_logoIcon_1az26_43" viewBox="0 0 192 192" fill="none" aria-hidden="true"><rect width="192" height="192" rx="42" fill="#087EA4"></rect><path d="M43 142V50h22l62 65V50h22v92h-22L65 77v65Z" fill="#FFFFFF"></path><path d="M157 41v44" stroke="#ABE2ED" stroke-width="10" stroke-linecap="round"></path></svg><span class="_logoText_1az26_49">NovNow</span></a><span class="_versionTag_1az26_56">v0.1.1</span></div><nav class="_nav_1az26_65" aria-label="Primary"><a href="/novnow/ja/#downloads" class="_navLink_1az26_73">ダウンロード</a><a href="/novnow/ja/known-issues" class="_navLink_1az26_73">既知の問題</a><a href="/novnow/ja" class="_navLink_1az26_73">トップ</a><a href="/novnow/ja/manual/" class="_navLink_1az26_73">ガイド</a><a href="/novnow/ja/specifications/" class="_navLink_1az26_73 _active_1az26_91">仕様書</a><a href="/novnow/ja/api" class="_navLink_1az26_73">API リファレンス</a><a href="/novnow/ja/troubleshooting" class="_navLink_1az26_73">トラブルシューティング</a></nav><div class="_actions_1az26_101"><div class="_switcher_1w0ra_1" role="group" aria-label="Language"><a href="/novnow/ja/specifications/agent" class="_langBtn_1w0ra_11 _active_1w0ra_25">日本語</a><a href="/novnow/en/specifications/agent" class="_langBtn_1w0ra_11">EN</a></div><a href="https://github.com/sonneko/novnow" target="_blank" rel="noopener noreferrer" class="_githubBtn_1az26_107" aria-label="GitHub" title="GitHub"><svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg><span class="_githubLabel_1az26_129">GitHub</span></a></div></div></header><div class="doc-layout" data-astro-cid-rv2sskwj><aside class="doc-sidebar" aria-label="ドキュメント目次" data-astro-cid-rv2sskwj><div class="doc-sidebar-group" data-astro-cid-rv2sskwj>ユーザーガイド</div><nav class="doc-sidebar-nav" data-astro-cid-rv2sskwj><a href="/novnow/ja/manual/" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow ユーザーガイド</span></a><a href="/novnow/ja/manual/start" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>はじめての手引き（30 分で 1 本書き上げる）</span></a><a href="/novnow/ja/manual/cheatsheet" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>早見表</span></a><a href="/novnow/ja/manual/glossary" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>用語集</span></a><a href="/novnow/ja/manual/faq" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>よくある質問</span></a><a href="/novnow/ja/manual/errors" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>よく出るエラーと直し方（12 件）</span></a><a href="/novnow/ja/manual/project-structure" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>作品のフォルダ構成</span></a><a href="/novnow/ja/manual/git" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>Git で原稿を守る（知りたい人だけ）</span></a><a href="/novnow/ja/manual/publish" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>書き出した原稿を公開する</span></a><a href="/novnow/ja/manual/install" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow の入れ方（どの版を選ぶか）</span></a></nav><hr class="doc-sidebar-divider" data-astro-cid-rv2sskwj><div class="doc-sidebar-group" data-astro-cid-rv2sskwj>仕様書</div><nav class="doc-sidebar-nav" data-astro-cid-rv2sskwj><a href="/novnow/ja/specifications/overview" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 概要・原則・処理モデル</span></a><a href="/novnow/ja/specifications/project" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — プロジェクト構造</span></a><a href="/novnow/ja/specifications/syntax" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — ファイル形式（構文仕様）</span></a><a href="/novnow/ja/specifications/semantics" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 意味解決エンジン</span></a><a href="/novnow/ja/specifications/diagnostics" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 診断カタログ</span></a><a href="/novnow/ja/specifications/editing" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 編集モデルと保存</span></a><a href="/novnow/ja/specifications/ui" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 画面・ワークスペース・テーマ・国際化</span></a><a href="/novnow/ja/specifications/platform" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — ストレージと起動仕様</span></a><a href="/novnow/ja/specifications/agent" aria-current="page" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — AI エージェント</span></a><a href="/novnow/ja/specifications/workflows" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 資料収集・エクスポート・性能品質</span></a><a href="/novnow/ja/specifications/interfaces" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 外部インターフェース（ヘッドレス全機能 API 群）</span></a><a href="/novnow/ja/specifications/external" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 配布形態（外部提供物）</span></a></nav></aside><main data-astro-cid-rv2sskwj><article class="doc" data-astro-cid-rv2sskwj><h1 data-astro-cid-rv2sskwj>novnow 仕様書 — AI エージェント</h1><h2 id="15-ai-エージェント">15. AI エージェント</h2>
+<h3 id="151-原則">15.1 原則</h3>
+<blockquote>
+<p>「あなたの執筆計画の管理だけを AI にしてもらうことも、本文やプロットは全てあなたが書き AI にアイデアだけ量産してもらうことも、小説ひとつ丸ごと AI に作ってもらうことも、プログラムのように本文を予測補完し執筆を効率化することもできます。あなたは、あなたのするべきことをするだけです。」（README）</p>
+</blockquote>
+<p>この思想を仕様に落とすと、<strong>「AI に何を任せるか」を決めるのは人間であり、novnow はその決定を実現する装置である</strong>、ということになる。
+LLM の自律作業を否定するのではなく、<strong>委ねる範囲を人間が設計し、いつでも変更できる形</strong> で提供する。</p>
+<h4 id="1511-委譲レベルdelegation">15.1.1 委譲レベル（delegation）</h4>
+<p>役割ごとに、ユーザーが <strong>AI の自律度</strong> を 4 段階で設定する。</p>
+<table>
+<thead>
+<tr>
+<th>レベル</th>
+<th>意味</th>
+<th>エージェントの書き込み</th>
+<th>連鎖・次タスク</th>
+<th>人間の関与</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>off</code></td>
+<td>人間がその役割を担う</td>
+<td>しない（補完・検索のみ）</td>
+<td>起こさない</td>
+<td>すべて人間</td>
+</tr>
+<tr>
+<td><code>propose</code>（<strong>既定</strong>）</td>
+<td>提案役</td>
+<td><code>agents/proposals/</code> への提案のみ</td>
+<td>起こせない</td>
+<td>起動・採否を人間が行う</td>
+</tr>
+<tr>
+<td><code>apply</code></td>
+<td>自動適用</td>
+<td>本文・プロットへ自動適用（before/after は <code>agents/proposals/</code> に必ず残す）</td>
+<td>起こせない</td>
+<td>起動は人間。適用の事後確認・差し戻しができる</td>
+</tr>
+<tr>
+<td><code>autonomous</code></td>
+<td>自律</td>
+<td>自動適用</td>
+<td><strong>起こせる</strong>（次のタスク起動・エージェント間連鎖）</td>
+<td>停止・範囲の変更・上限の設定</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>次タスクの起票は integrator のみ</strong>（決定事項。付録 A.8 と整合）。<code>autonomous</code> であっても
+integrator 以外の役割は他のタスクを起こせない。エージェント間の <strong>メッセージ</strong> の受け渡しは
+同一スレッド内の役割どうしで自由（§15.6）。</p>
+</blockquote>
+<p>設定は <code>project.toml</code> の <code>agents.delegation</code>（全役割の既定。既定値 <code>"propose"</code>）と
+<code>agents.roles.&lt;role&gt;</code>（役割ごとの上書き。<code>"off"</code> を含む）で行う（§4.5.1）。
+UI からも <code>agent</code> ワークスペースの委譲パネル（§15.7.6）で確認・変更でき、
+変更は監査ログ（§5.10.5）に <code>delegation_changed</code> として残る（MUST）。</p>
+<p>README の 4 つの例は、この設定の組み合わせで表現できる。</p>
+<table>
+<thead>
+<tr>
+<th>README の例</th>
+<th>設定</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>執筆計画の管理だけを AI に任せる</td>
+<td><code>roles: { "integrator": "autonomous" }</code>（他は既定のまま）</td>
+</tr>
+<tr>
+<td>本文・プロットは自分で書き、アイデアだけ AI に量産させる</td>
+<td><code>roles: { "ideator": "apply", "writer": "off", "plotter": "off" }</code></td>
+</tr>
+<tr>
+<td>小説ひとつ丸ごと AI に作ってもらう</td>
+<td><code>delegation: "autonomous"</code>（全役割）</td>
+</tr>
+<tr>
+<td>全く任せない</td>
+<td><code>delegation: "off"</code> または <code>agents.enabled: false</code></td>
+</tr>
+<tr>
+<td>プログラムのように本文を予測補完する</td>
+<td>委譲レベルとは別軸の執筆支援（§9.4.3・§9.7.3）。どのレベルでも使える</td>
+</tr>
+</tbody>
+</table>
+<h4 id="1512-原則">15.1.2 原則</h4>
+<p>v0.1.0 では次を MUST とする。</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>規範</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A1</td>
+<td><strong>委譲レベルは人間が設定する</strong>。<code>agents.delegation</code> と <code>agents.roles</code> はユーザーの明示した値のみを取り、novnow が自ら書き換えることはない（MUST）。変更はすべて監査ログに残る</td>
+</tr>
+<tr>
+<td>A2</td>
+<td>委譲レベル <code>propose</code> では、エージェントは <strong>ファイルを直接書き換えない</strong>。出力は必ず <code>agents/proposals/</code> に入り、人間が採否を決める。<code>apply</code> / <code>autonomous</code> では自動適用するが、<strong>適用の before/after 記録は必ず <code>agents/proposals/</code> に残す</strong>（MUST）</td>
+</tr>
+<tr>
+<td>A3</td>
+<td>エージェント同士の通信は <code>agents/threads/</code> に <strong>可視化</strong> される。<code>propose</code> では人間の承認なしに相手に渡らない。<code>autonomous</code> では同一スレッド内の受け渡しは自動で行われる（§15.6）</td>
+</tr>
+<tr>
+<td>A4</td>
+<td>送信されるコンテキストは <strong>送信前に全文を人間が見られる</strong>（ドライラン、§15.7.2）</td>
+</tr>
+<tr>
+<td>A5</td>
+<td>LLM へのアクセスは <strong>すべて MCP 経由</strong>。novnow 本体にプロバイダ SDK を持たない</td>
+</tr>
+<tr>
+<td>A6</td>
+<td>エージェント機能を完全に無効化（<code>project.toml</code> の <code>agents.enabled = false</code>）しても、他の全機能が無損失で動く</td>
+</tr>
+<tr>
+<td>A7</td>
+<td>委譲レベル <code>propose</code> では、<code>state: fixed</code> の節は <strong>提案対象外</strong>（人間が書いた文章を承認なしに書き換える提案を作らない）。<code>apply</code> / <code>autonomous</code> では書き換えうるが、監査ログに <code>fixed_overwrite</code> として記録し、<strong>ステータスバーに 1 行通知する</strong>（MUST）</td>
+</tr>
+<tr>
+<td>A8</td>
+<td>自律レベルの <strong>上限は人間が決める</strong>。1 セッションあたりのタスク数・連鎖ホップ数・入力文字数の上限を <code>agents.limits</code> で設定でき（既定あり）、超えたら自動で停止して人間に知らせる（W095、MUST）。上限を外す設定もできるが、その場合も監査ログは残る</td>
+</tr>
+<tr>
+<td>A9</td>
+<td><strong>エージェント機能はこの §15 の範囲で凍結する</strong>。MCP 経由の連携を中心とする現行の枠組みを超える内蔵の知能化を本体へ足さない。広げるときは本体ではなく別ソフトウェアとして作る。凍結は保守の停止を意味せず、不具合の修正と、形式・診断の変更への追随は継続する</td>
+</tr>
+</tbody>
+</table>
+<h3 id="152-役割6--統合">15.2 役割（6 + 統合）</h3>
+<table>
+<thead>
+<tr>
+<th>role</th>
+<th>日本語</th>
+<th>担当範囲</th>
+<th>入力の中心</th>
+<th>出力</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>plotter</code></td>
+<td>プロット</td>
+<td>1 節〜1 場面のプロット案</td>
+<td>上位プロット・配役・伏線</td>
+<td>B 形式の節テキスト（<code>proposal.kind = plot-field</code>）</td>
+</tr>
+<tr>
+<td><code>writer</code></td>
+<td>本文</td>
+<td>1 節の本文</td>
+<td>当該節プロット・前後節・有効モード・役割語</td>
+<td>C 形式の節テキスト（<code>section-text</code>）</td>
+</tr>
+<tr>
+<td><code>ideator</code></td>
+<td>アイデア</td>
+<td>発想の量産</td>
+<td>章の <code>summary</code>・未回収伏線・アイデア一覧</td>
+<td><code>ideas.md</code> 追記案（<code>idea</code>）</td>
+</tr>
+<tr>
+<td><code>researcher</code></td>
+<td>資料検索</td>
+<td>資料の収集と要約</td>
+<td>節のプロット・不足情報の質問</td>
+<td>資料 MD + index 追記案（<code>material</code>）</td>
+</tr>
+<tr>
+<td><code>stylist</code></td>
+<td>文体チェック</td>
+<td>役割語・語尾・リズムの検査</td>
+<td>当該節本文・役割語パターン・直近 5 節</td>
+<td>指摘リスト（<code>section-text</code> の差分提案）</td>
+</tr>
+<tr>
+<td><code>logician</code></td>
+<td>論理整合性</td>
+<td>伏線・時系列・設定矛盾の検査</td>
+<td>全体/章プロットの <code>summary</code> 群・当該話の全節・用語 range</td>
+<td>指摘リスト（提案 or メッセージ）</td>
+</tr>
+<tr>
+<td><code>integrator</code></td>
+<td>統合</td>
+<td>上記の結果を突き合わせ、次に何をするか決める</td>
+<td>各タスクの状態・診断</td>
+<td><strong>既定は人間</strong>（<code>agents.integrator = "human"</code> は <code>roles.integrator = "off"</code> と同義）。委譲レベルを <code>autonomous</code> にすれば執筆計画の管理ごと AI に任せられる（§15.1.1）</td>
+</tr>
+</tbody>
+</table>
+<p>役割の <strong>プロンプトは自由に書き換え可能</strong>。既定 7 種に加え、ユーザー定義のロールを追加できる（§15.2.1）。
+どの役割の出力も、委譲レベル（§15.1.1）に従って <strong>提案として積まれるか、自動適用されるか</strong> が決まる。</p>
+<h4 id="1521-カスタムロール">15.2.1 カスタムロール</h4>
+<p><code>prompts/custom/&lt;role&gt;.md</code> として定義し、<code>project.toml</code> の <code>agents.custom_roles</code> に登録する（形式は §5.9.2）。</p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>規則（MUST）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>権限</td>
+<td>既定 7 種と <strong>完全に同じ</strong>。委譲レベル（§15.1.1）も同じくユーザーが設定でき、その範囲で直接書込・自動連鎖もありうる。それ以上の権限（独自接続・プロジェクト外への書き込み）を持たない</td>
+</tr>
+<tr>
+<td>出力種別</td>
+<td><code>proposal.kind</code> は <code>note</code>（自由テキストの指摘）に固定。本文・プロット・資料の差し替え提案は作れない。本文を書かせたい場合は既定の <code>writer</code> 役割を委譲すればよい（§15.1.1）</td>
+</tr>
+<tr>
+<td>理由</td>
+<td>構造化された出力（B 形式の節など）を正しく生成できる保証が無いため、既定は人間が読んで判断できる指摘に固定する。これは v0.1.0 の安全側の既定であり、P5 の禁止ではない</td>
+</tr>
+<tr>
+<td>コンテキスト</td>
+<td><code>context:</code> で 9 ブロックの部分集合を選ぶ。<code>project</code> と <code>constraints</code> は常に含まれる</td>
+</tr>
+<tr>
+<td>UI</td>
+<td><code>agent</code> ワークスペースの役割リストに、既定 7 種の下に区切って並ぶ。アイコンや色で区別しない</td>
+</tr>
+<tr>
+<td>上限</td>
+<td>16 ロール（E034）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>カスタムロールの用途の例</strong>（ドキュメントに載せる想定）</p>
+<table>
+<thead>
+<tr>
+<th>ロール名</th>
+<th>目的</th>
+<th>絞ったコンテキスト</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>weapon-advisor</code></td>
+<td>武器・防具の時代考証</td>
+<td><code>materials</code> と当該節本文だけ</td>
+</tr>
+<tr>
+<td><code>medical-check</code></td>
+<td>医療描写の妥当性</td>
+<td>当該節本文と <code>constraints</code> だけ</td>
+</tr>
+<tr>
+<td><code>name-consistency</code></td>
+<td>異世界固有名詞の表記ゆれ</td>
+<td><code>lexicon</code> と当該話全文</td>
+</tr>
+<tr>
+<td><code>emotion-arc</code></td>
+<td>1 話の感情曲線の起伏</td>
+<td><code>plot</code> と <code>outline</code> だけ（本文を送らない）</td>
+</tr>
+</tbody>
+</table>
+<p>最後の例が示すとおり、<strong>本文を送らない役割を作れること</strong> がこの機能の要点である。
+「何を渡さないか」を決める装置として使う（§5.9.2）。</p>
+<h3 id="153-タスクモデル">15.3 タスクモデル</h3>
+<p>委譲レベル <code>propose</code>（既定）:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>          人間が作る              人間が押す           MCP            人間が決める</span></span>
+<span class="line"><span> [intent] ───────▶ Task(draft) ───────▶ ready ───▶ running ───▶ review ───▶ accepted</span></span>
+<span class="line"><span>                        │                                           │          └─▶ rejected</span></span>
+<span class="line"><span>                        └── ドライランで context を確認 ─────────────┘</span></span></code></pre>
+<p>委譲レベル <code>apply</code>:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span> [intent] ─▶ Task(draft) ─▶ ready ─▶ running ─▶ applied（自動）─▶ review（事後・差し戻し可）</span></span></code></pre>
+<p>委譲レベル <code>autonomous</code>:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span> [intent] ─▶ Task(draft) ─▶ ready ─▶ running ─▶ applied（自動）</span></span>
+<span class="line"><span>                ▲                                    │ エージェントが次の Task を起こせる</span></span>
+<span class="line"><span>                └────────────────────────────────────┘</span></span></code></pre>
+<ul>
+<li>タスクの単位は <strong>1 節</strong>（P1）。場面・話単位のタスクは「節タスクの束」として生成される。
+<code>propose</code> / <code>apply</code> では実行は 1 件ずつ人間が押す。<code>autonomous</code> では前タスクの完了を引き金に
+次のタスクが自動で起動される（<strong>起票できるのは integrator のみ</strong>、上限は <code>agents.limits</code>、A8）。</li>
+<li>タスク ID は <code>T</code> + 4 桁連番（<code>agents/tasks/</code> 内で最大値 +1、再利用禁止）。<code>agents/results/</code> の番号も数える
+（タスクのファイルを消しても番号は戻らない。提案 <code>P</code> とスレッド <code>TH</code> も同じ規則）。</li>
+<li><code>context-hash</code> を記録し、<strong>実行後にコンテキスト元が変わっていたら</strong> レビュー画面で「古いコンテキストに基づく提案」と表示する。</li>
+<li>自動適用（<code>apply</code> / <code>autonomous</code>）でも適用記録は <code>agents/proposals/P####.md</code> に残り（A2）、
+監査ログ（§5.10.5）に <code>auto_applied</code> イベントが書かれる（MUST）。</li>
+</ul>
+<h3 id="154-コンテキスト設計">15.4 コンテキスト設計</h3>
+<blockquote>
+<p>人間向け UI が「必要なコンテキストを参照ペインに出す」のと同じ材料を、同じ優先順位で、LLM 向けに整形したものを送る。
+<strong>人間とエージェントで情報源と優先順位を一致させる</strong>ことが設計目標である（MUST）。</p>
+</blockquote>
+<h4 id="1541-contextpacket-の構造固定順">15.4.1 ContextPacket の構造（固定順）</h4>
+<p>送信本文は Markdown。ブロックの順序と見出しは固定（LLM 側のパース安定性のため）。</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="md"><code><span class="line"><span style="color:#005CC5;font-weight:bold"># novnow context</span></span>
+<span class="line"><span style="color:#24292E">scene: 01-04-02-03</span></span>
+<span class="line"><span style="color:#24292E">role: writer</span></span>
+<span class="line"><span style="color:#24292E">delegation: propose</span></span>
+<span class="line"><span style="color:#24292E">generated_at: 2026-10-09T12:00:00+09:00</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## 1 project</span></span>
+<span class="line"><span style="color:#24292E">title / genre / 文体規約（prompts/_shared/style.md の内容）</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## 2 outline</span></span>
+<span class="line"><span style="color:#24292E">all: &lt;当該章の summary 1 行&gt;</span></span>
+<span class="line"><span style="color:#24292E">chapter: &lt;当該話の summary 1 行 + goal&gt;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## 3 plot</span></span>
+<span class="line"><span style="color:#24292E">scene: &lt;当該場面のプロット全文（B 形式、フィールド含む）&gt;</span></span>
+<span class="line"><span style="color:#24292E">section: &lt;当該節のプロット行と check&gt;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## 4 target</span></span>
+<span class="line"><span style="color:#24292E">current: &lt;当該節の現在の本文（空なら "(未執筆)"）&gt;</span></span>
+<span class="line"><span style="color:#24292E">before: &lt;直前 2 節の本文&gt;</span></span>
+<span class="line"><span style="color:#24292E">after: &lt;直後 1 節の本文（あれば）&gt;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## 5 cast</span></span>
+<span class="line"><span style="color:#24292E">&lt;有効モードのキャラのみ。name / mode / personality / emotion / role / role-language&gt;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## 6 lexicon</span></span>
+<span class="line"><span style="color:#24292E">&lt;当該節に現れる用語の term と definition 1 行&gt;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## 7 materials</span></span>
+<span class="line"><span style="color:#24292E">&lt;参照された資料の id / title / summary / 本文（予算内で切り詰め）&gt;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## 8 constraints</span></span>
+<span class="line"><span style="color:#24292E">&lt;prompts/&lt;role&gt;.md の output セクション + 機械的制約（字数・禁止記号・アノテーション規約）&gt;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## 9 history</span></span>
+<span class="line"><span style="color:#24292E">&lt;同一節に対する直近 3 件のタスクの採否と人間のコメント&gt;</span></span></code></pre>
+<p>中身の細部:</p>
+<ul>
+<li>9 つの見出しは<strong>中身が無くても必ず出す</strong>（外したブロックも見出しだけ残る）。ブロックの中は <code>ラベル: 値</code>
+（値が複数行なら <code>ラベル:</code> の次の行から）か、<code>- </code> で始まる 1 件。</li>
+<li><code>1 project</code>: <code>title</code>（<code>project.toml</code> の <code>title</code>、空ならプロジェクトの名前）・<code>genre</code>（<code>project.toml</code> に
+あれば）・<code>style</code>（<code>prompts/_shared/style.md</code> の H1 と <code>//</code> コメントを除いた本文）。</li>
+<li><code>2 outline</code>: <code>all</code>・<code>chapter</code>・<code>goal</code>（当該話のブロックの <code>goal</code>）。</li>
+<li><code>4 target</code>: <code>current</code> → <code>before &lt;ID&gt;</code>（遠い節から近い節へ）→ <code>after &lt;ID&gt;</code>。前後は §8.1 の節の並び（ファイル名の順
+→ ファイルの中の順）。当該節が本文に無ければ、ID が小さい直前の 2 節と大きい直後の 1 節。</li>
+<li><code>5 cast</code>: 当該節の本文（話者注釈と <code>'</code> 参照）と当該場面のプロットに出るキャラ。</li>
+<li><code>6 lexicon</code>: 当該節の本文と当該節のプロットに出る用語を、出現回数の多い順に。</li>
+<li><code>7 materials</code>: 当該節の本文と話プロットの <code>material:</code> が明示参照する資料（§6.6.1）。ideator には既存のアイデアの
+一覧（<code>ideas</code>）も入れる（重複させないため、付録 A.4）。</li>
+<li><code>8 constraints</code>: <code>output</code>（<code>## output</code> の本文）・<code>contract</code>（<code>prompts/_shared/output-contract.md</code> の本文）・
+機械的制約（writer の字数、記法を使わないこと、当該節が確定済みならそのこと）。</li>
+<li><code>9 history</code>: 同じ節の直近 3 タスクの <code>ID 役割 状態</code> と却下・差し戻しのコメント、宛先がこの役割の<strong>届いた</strong>
+メッセージ（§15.6）。integrator はプロジェクト全体の直近 10 タスクの <code>ID 役割 対象 状態（起動者）</code>。</li>
+<li><code>context-hash</code>（§5.10.1）は <code>generated_at:</code> の行を除いた本文の SHA-256（<code>sha256:</code> ＋ 16 進）。</li>
+<li>LLM への要求は <code>systemPrompt</code> = <code>## system</code>（＋ <code>## refuse</code>）、メッセージ = <code>## task</code> → パケット → <code>## examples</code>。
+ドライランのファイル（§15.7.2）はパケットだけ。</li>
+</ul>
+<h4 id="1542-ブロック別の文字数予算既定値promptsmd-の-max-chars-で上書き可">15.4.2 ブロック別の文字数予算（既定値・<code>prompts/*.md</code> の <code>max-chars</code> で上書き可）</h4>
+<p>単位は「文字」。日本語は概ね 1.6 文字/トークン。</p>
+<table>
+<thead>
+<tr>
+<th>ブロック</th>
+<th style="text-align: right">writer</th>
+<th style="text-align: right">plotter</th>
+<th style="text-align: right">stylist</th>
+<th style="text-align: right">logician</th>
+<th style="text-align: right">researcher</th>
+<th style="text-align: right">ideator</th>
+<th style="text-align: right">integrator</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 project</td>
+<td style="text-align: right">400</td>
+<td style="text-align: right">400</td>
+<td style="text-align: right">800</td>
+<td style="text-align: right">300</td>
+<td style="text-align: right">200</td>
+<td style="text-align: right">300</td>
+<td style="text-align: right">300</td>
+</tr>
+<tr>
+<td>2 outline</td>
+<td style="text-align: right">300</td>
+<td style="text-align: right">1,200</td>
+<td style="text-align: right">0</td>
+<td style="text-align: right">1,600</td>
+<td style="text-align: right">300</td>
+<td style="text-align: right">800</td>
+<td style="text-align: right">1,200</td>
+</tr>
+<tr>
+<td>3 plot</td>
+<td style="text-align: right">1,200</td>
+<td style="text-align: right">2,000</td>
+<td style="text-align: right">400</td>
+<td style="text-align: right">2,000</td>
+<td style="text-align: right">600</td>
+<td style="text-align: right">800</td>
+<td style="text-align: right">600</td>
+</tr>
+<tr>
+<td>4 target</td>
+<td style="text-align: right">2,400</td>
+<td style="text-align: right">600</td>
+<td style="text-align: right">2,400</td>
+<td style="text-align: right">2,400</td>
+<td style="text-align: right">300</td>
+<td style="text-align: right">400</td>
+<td style="text-align: right">300</td>
+</tr>
+<tr>
+<td>5 cast</td>
+<td style="text-align: right">1,200</td>
+<td style="text-align: right">800</td>
+<td style="text-align: right">1,600</td>
+<td style="text-align: right">800</td>
+<td style="text-align: right">200</td>
+<td style="text-align: right">600</td>
+<td style="text-align: right">300</td>
+</tr>
+<tr>
+<td>6 lexicon</td>
+<td style="text-align: right">600</td>
+<td style="text-align: right">400</td>
+<td style="text-align: right">400</td>
+<td style="text-align: right">800</td>
+<td style="text-align: right">200</td>
+<td style="text-align: right">400</td>
+<td style="text-align: right">200</td>
+</tr>
+<tr>
+<td>7 materials</td>
+<td style="text-align: right">800</td>
+<td style="text-align: right">600</td>
+<td style="text-align: right">0</td>
+<td style="text-align: right">600</td>
+<td style="text-align: right">3,000</td>
+<td style="text-align: right">1,000</td>
+<td style="text-align: right">200</td>
+</tr>
+<tr>
+<td>8 constraints</td>
+<td style="text-align: right">600</td>
+<td style="text-align: right">600</td>
+<td style="text-align: right">600</td>
+<td style="text-align: right">600</td>
+<td style="text-align: right">600</td>
+<td style="text-align: right">600</td>
+<td style="text-align: right">600</td>
+</tr>
+<tr>
+<td>9 history</td>
+<td style="text-align: right">400</td>
+<td style="text-align: right">400</td>
+<td style="text-align: right">400</td>
+<td style="text-align: right">400</td>
+<td style="text-align: right">200</td>
+<td style="text-align: right">300</td>
+<td style="text-align: right">2,300</td>
+</tr>
+<tr>
+<td><strong>合計上限</strong></td>
+<td style="text-align: right"><strong>7,900</strong></td>
+<td style="text-align: right"><strong>7,000</strong></td>
+<td style="text-align: right"><strong>6,600</strong></td>
+<td style="text-align: right"><strong>9,500</strong></td>
+<td style="text-align: right"><strong>5,600</strong></td>
+<td style="text-align: right"><strong>5,200</strong></td>
+<td style="text-align: right"><strong>6,000</strong></td>
+</tr>
+</tbody>
+</table>
+<p>integrator の列はで足した（統合に要るのはタスクの状態なので <code>9 history</code> を厚くする）。
+<code>max-chars</code> は役割の<strong>合計</strong>を上書きし、各ブロックの予算は表の比率のまま伸び縮みする。文字数はブロックの本文
+（見出しの行を除き、ラベルと改行を含む）を Unicode のスカラー値で数える。</p>
+<p><code>project.toml</code> の <code>agents.max_chars_per_request</code>（既定 12,000）を超える場合は、超過分を §15.4.3 の順で削る。</p>
+<h4 id="1543-切り詰め順序決定論固定">15.4.3 切り詰め順序（決定論・固定）</h4>
+<p>超過時、次の順に削る。各ブロック内では「末尾から」削り、削った旨を <code>…（n 文字省略）</code> と明記する。</p>
+<ol>
+<li><code>7 materials</code>（資料本文 → <code>summary</code> のみに縮退）</li>
+<li><code>9 history</code></li>
+<li><code>4 target</code> の <code>after</code> → <code>before</code>（遠い節から）</li>
+<li><code>2 outline</code> の <code>all</code></li>
+<li><code>6 lexicon</code>（出現回数の少ない語から）</li>
+<li><code>2 outline</code> の <code>chapter</code></li>
+<li><code>3 plot</code> の場面全文 → 当該節のみ</li>
+</ol>
+<p><strong>決して削らないもの（MUST）</strong>: <code>5 cast</code>（有効モード）、<code>3 plot</code> の当該節、<code>8 constraints</code>、<code>1 project</code> の文体規約。
+これらを削らないと「役割語が崩れる」「約束を破る」からである。</p>
+<p>手順: まずブロックごとに予算まで削り（上の順位の順。同じ順位の中は「後ろから」）、それでも
+<code>max_chars_per_request</code>（と合計）を超えていれば、全ブロックをまたいで同じ順に削る。<code>4 target</code> の <code>current</code> も
+削らない。決して削らない部分だけで上限を超えるときは送れない（ドライランで赤、送信できない。§15.9）。
+削った部分は全部削っても見出し（ラベル）と <code>…（n 文字省略）</code> が残る。</p>
+<h4 id="1544-モードとコンテキストの関係指示-6-との接続">15.4.4 モードとコンテキストの関係（指示 6 との接続）</h4>
+<p><code>5 cast</code> には <strong>有効モードの性格だけ</strong> を入れる（人間の参照ペインと同じ）。
+これはプロンプト長の削減であると同時に、<strong>LLM に「今はこの人格である」と一意に伝える</strong>ための設計である。
+他モードの性格を入れると平均化された人物像になるため、禁止する（MUST）。</p>
+<h4 id="1545-4-段階構造とコンテキスト削減指示-11-との接続">15.4.5 4 段階構造とコンテキスト削減（指示 11 との接続）</h4>
+<ul>
+<li>本文を書くとき、全体プロットは <code>summary</code> 1 行しか入らない。章プロットも 1 行 + <code>goal</code>。</li>
+<li>これにより、長編でも本文 1 節あたりの入力は 8,000 字前後に収まる。</li>
+<li>意味論的検索（「この伏線はどこで回収される？」）も、まず <code>all.cnov</code> の章 <code>summary</code> を検索し、
+一致した章の <code>NN.cnov</code> を検索し、一致した話の <code>NN-MM.cnov</code> を検索する <strong>段階的絞り込み</strong> で行う（全文検索しない）。
+これが指示 11 の「4 段階に分岐させることで LLM のコンテキスト削減と意味論的検索の高速性を担保する」の実装方針である。</li>
+</ul>
+<h4 id="1546-参考例指定した話の本文プロットの付与状態-実装完了">15.4.6 参考例（指定した話の本文・プロット）の付与〔状態: 実装完了〕</h4>
+<ul>
+<li>タスク起票時に「例（お手本）」として任意の章・話・場面・節の本文またはプロットを指定し、LLM へのコンテキストとして与えられるようにする。</li>
+</ul>
+<h3 id="155-プロンプト設計">15.5 プロンプト設計</h3>
+<h4 id="1551-必要なプロンプトの一覧既定で生成するもの">15.5.1 必要なプロンプトの一覧（既定で生成するもの）</h4>
+<table>
+<thead>
+<tr>
+<th>ファイル</th>
+<th>目的</th>
+<th>外してはならない要素</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>prompts/_shared/style.md</code></td>
+<td>作品共通の文体規約</td>
+<td>人称・時制・地の文と台詞の比率・禁止表現・句読点の癖</td>
+</tr>
+<tr>
+<td><code>prompts/_shared/output-contract.md</code></td>
+<td>出力の形式契約（全役割が include）</td>
+<td>「本文だけを出す」「見出しを付けない」「アノテーション記法を勝手に使わない」「不明点は書かずに質問として返す」</td>
+</tr>
+<tr>
+<td><code>prompts/writer.md</code></td>
+<td>1 節の本文生成</td>
+<td>有効モードへの忠実さ、役割語の遵守、前節との接続、<code>check</code> の充足、字数目安</td>
+</tr>
+<tr>
+<td><code>prompts/plotter.md</code></td>
+<td>1 節のプロット生成</td>
+<td>上位 <code>goal</code> との整合、1 節 1 出来事、伏線の明示、<code>check</code> の言語化</td>
+</tr>
+<tr>
+<td><code>prompts/ideator.md</code></td>
+<td>アイデア量産</td>
+<td>「採用されない前提で量を出す」「既出との重複を避ける」「1 行 1 案」</td>
+</tr>
+<tr>
+<td><code>prompts/researcher.md</code></td>
+<td>資料収集と要約</td>
+<td>出典必須、推測と事実の区別、<code>conditions</code> の提案、120 字 <code>summary</code></td>
+</tr>
+<tr>
+<td><code>prompts/stylist.md</code></td>
+<td>文体チェック</td>
+<td>「書き換えでなく指摘」「役割語の不一致を最優先」「作家の癖を矯正しない」</td>
+</tr>
+<tr>
+<td><code>prompts/logician.md</code></td>
+<td>論理整合性</td>
+<td>伏線・時系列・設定の矛盾のみを見る、推測の度合いを明示</td>
+</tr>
+<tr>
+<td><code>prompts/integrator.md</code></td>
+<td>統合（任意）</td>
+<td>次にすべき 1 手を提案する。既定では人間がすべき 1 手で、自分では作業を進めない（委譲レベル <code>autonomous</code> では次のタスクの起票まで可、§15.1.1）</td>
+</tr>
+</tbody>
+</table>
+<h4 id="1552-プロンプトに必ず含める共通の約束既定テキストの要件">15.5.2 プロンプトに必ず含める共通の約束（既定テキストの要件）</h4>
+<ol>
+<li><strong>役割の境界</strong>: 「あなたは〈役割〉だけを行う。他の役割の仕事（例: 本文担当がプロットを直す）をしてはならない」</li>
+<li><strong>出力契約</strong>: 出力は 1 種類のみ。前置き・謝辞・説明を書かない。</li>
+<li><strong>不確実性の扱い</strong>: 分からないことは創作で埋めず、<code>## question</code> セクションに質問として書く。</li>
+<li><strong>改変禁止域（既定）</strong>: 与えられた本文のうち <code>state: fixed</code> の部分は引用のみ可、改変案を出さない。
+これは既定プロンプトの約束であり、ユーザーはプロンプトを編集して変更できる（§15.5.4）。
+委譲レベル（A7）が <code>apply</code> / <code>autonomous</code> でも既定プロンプトはこの約束を守る。</li>
+<li><strong>言語</strong>: 出力は作品の言語（日本語）で。UI 言語とは独立。</li>
+<li><strong>長さ</strong>: 指定字数の ±20% 以内。</li>
+<li><strong>記法</strong>: novnow のアノテーション（<code>@</code>, <code>'</code>, <code>;</code>）は、<strong>指示された場合のみ</strong> 使う。本文生成では <code>「」</code> と地の文のみ。</li>
+<li><strong>委譲レベルとの整合</strong>: 出力は <code>{{delegation}}</code> の値と矛盾しないこと（<code>propose</code> なら提案として読まれる前提で書く。
+<code>autonomous</code> なら <code>## message</code> や次のタスクの起票を含めてよい）。実際の適用・連鎖は novnow が委譲レベルに従って判断する（§15.1.1）</li>
+</ol>
+<h4 id="1553-変数閉じた集合固定">15.5.3 変数（閉じた集合・固定）</h4>
+<table>
+<thead>
+<tr>
+<th>変数</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>{{scene_id}}</code></td>
+<td><code>01-04-02-03</code></td>
+</tr>
+<tr>
+<td><code>{{project_title}}</code> / <code>{{project_style}}</code></td>
+<td><code>project.toml</code> の <code>title</code> / <code>_shared/style.md</code></td>
+</tr>
+<tr>
+<td><code>{{outline_all}}</code> / <code>{{outline_chapter}}</code></td>
+<td>上位 <code>summary</code></td>
+</tr>
+<tr>
+<td><code>{{plot_scene}}</code> / <code>{{plot_section}}</code> / <code>{{check}}</code></td>
+<td>当該プロット</td>
+</tr>
+<tr>
+<td><code>{{text_current}}</code> / <code>{{text_before}}</code> / <code>{{text_after}}</code></td>
+<td>本文</td>
+</tr>
+<tr>
+<td><code>{{cast}}</code></td>
+<td>有効モードの配役ブロック</td>
+</tr>
+<tr>
+<td><code>{{role_language}}</code></td>
+<td>有効モードの役割語パターン一覧</td>
+</tr>
+<tr>
+<td><code>{{lexicon}}</code> / <code>{{materials}}</code></td>
+<td>用語 / 資料</td>
+</tr>
+<tr>
+<td><code>{{target_chars}}</code></td>
+<td>目標字数</td>
+</tr>
+<tr>
+<td><code>{{history}}</code></td>
+<td>直近の採否</td>
+</tr>
+<tr>
+<td><code>{{delegation}}</code></td>
+<td>当該役割の委譲レベル（<code>propose</code> / <code>apply</code> / <code>autonomous</code>）。既定プロンプトはこの値に応じて振る舞いを変える（§15.1.1）</td>
+</tr>
+<tr>
+<td><code>{{user_comment}}</code></td>
+<td>タスクの <code>human-comment</code></td>
+</tr>
+</tbody>
+</table>
+<p>未知の変数は <strong>E031</strong>。変数が解決不能（例: <code>{{text_after}}</code> が無い）なら空文字に展開し、その旨をドライランに表示する。</p>
+<h4 id="1554-編集可能性と既定への復元u-7">15.5.4 編集可能性と既定への復元（U-7）</h4>
+<p><strong>方針（確定）</strong>: novnow は <strong>プロンプトのバージョン管理を一切行わない</strong>。
+履歴・世代・差分・ロールバックの仕組みを持たない。版管理が要るなら Git を使う（§14.2.1 の導線）。
+その代わり、<strong>既定プロンプトはいつでも必ず復元できる</strong> ことを保証する。</p>
+<h5 id="1-既定プロンプトの保管場所">(1) 既定プロンプトの保管場所</h5>
+<p>既定プロンプトは <strong>novnow バイナリに埋め込む</strong>（<code>include_str!</code>）。これが「一切変更されない場所」である。</p>
+<table>
+<thead>
+<tr>
+<th>性質</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>所在</td>
+<td>実行ファイルの中。ディスク上にも、ユーザーのホームにも、プロジェクト外にも存在しない</td>
+</tr>
+<tr>
+<td>変更可能性</td>
+<td><strong>実行時に書き換える手段が存在しない</strong>（MUST）。設定でも上書きできない</td>
+</tr>
+<tr>
+<td>プロジェクト間共有</td>
+<td>既定文面は全プロジェクトで同一。これは「プロンプトを共有する」ことには当たらない（§13.1 との整合は下記）</td>
+</tr>
+<tr>
+<td>バージョン</td>
+<td>novnow 本体のバージョンに従う。本体を更新すると既定文面も変わりうる</td>
+</tr>
+</tbody>
+</table>
+<p><strong>規則 10（プロジェクト外に出てよいのは履歴パスのみ。特例は §13.1.1）との整合</strong>: 埋め込み既定は
+<strong>ファイルシステム上のどこにも存在しない</strong> ため、規則 10 に抵触しない。
+「プロジェクトごとにプロンプトを持つ」という指示 8 の要請も、
+<strong>実際に使われるのは常に <code>prompts/</code> 配下のファイルだけ</strong> であることで満たされる（MUST）。
+埋め込み既定は「生成元」であって「読み込み元」ではない。</p>
+<h5 id="2-生成と上書き">(2) 生成と上書き</h5>
+<table>
+<thead>
+<tr>
+<th>状況</th>
+<th>動作（MUST）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>prompts/</code> が無い</td>
+<td>既定一式を書き出す。I050 で通知</td>
+</tr>
+<tr>
+<td><code>prompts/writer.md</code> だけが無い</td>
+<td><strong>その 1 ファイルだけ</strong> 書き出す。他には触れない</td>
+</tr>
+<tr>
+<td>ファイルが存在する</td>
+<td><strong>何があっても上書きしない</strong>。novnow 本体を更新しても上書きしない</td>
+</tr>
+<tr>
+<td>ファイルが壊れている（必須セクション欠落）</td>
+<td>上書きせず E029 を出し、そのロールだけ実行不可にする（必須は <code>## system</code> と <code>## task</code>までは E030 と書いていたが、環境変数の未解決のコードと重なるので分けた）</td>
+</tr>
+</tbody>
+</table>
+<h5 id="3-復元コマンド">(3) 復元コマンド</h5>
+<table>
+<thead>
+<tr>
+<th>操作</th>
+<th>動作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&gt;prompt reset &lt;role&gt;</code></td>
+<td>1 ロールを既定に戻す</td>
+</tr>
+<tr>
+<td><code>&gt;prompt reset all</code></td>
+<td>全ロールを既定に戻す</td>
+</tr>
+<tr>
+<td>確認</td>
+<td>実行前に <strong>現行版と既定版を並べて表示</strong>（左右 2 ペイン）。差分は色分けせず、2 つの全文をそのまま並べる</td>
+</tr>
+<tr>
+<td>退避</td>
+<td><strong>しない</strong>（MUST）。<code>.bak-*</code> を作らない</td>
+</tr>
+<tr>
+<td>警告文</td>
+<td>「現在の内容は失われます。元に戻せません。」と明示する</td>
+</tr>
+<tr>
+<td>undo</td>
+<td><strong>できない</strong>（MUST）。できないことを確認画面に書く</td>
+</tr>
+</tbody>
+</table>
+<p><strong>なぜ退避を作らないか</strong>: <code>.bak-20261009-214012/</code> のようなディレクトリが増え続けると、
+それ自体が「novnow 独自のバージョン管理」になってしまう。
+U-7 の裁定は「版管理は Git に丸投げする」である。中途半端な退避機構を持つと、
+Git を使っているユーザーには二重で邪魔になり、使っていないユーザーには不完全な安心を与える。
+<strong>「確認を丁寧にする」ことで安全を担保し、「履歴を持つ」ことはしない</strong>。</p>
+<h5 id="4-既定との差分の可視化">(4) 既定との差分の可視化</h5>
+<ul>
+<li><code>agent</code> ワークスペースのプロンプト一覧に、既定と異なるロールには <code>編集済</code> と 1 語だけ添える。</li>
+<li><code>&gt;prompt diff &lt;role&gt;</code> で現行版と既定版を並置表示する（読み取り専用）。</li>
+<li>これは <strong>閲覧のみ</strong>。部分的に戻す操作は提供しない（部分マージは版管理であり、Git の仕事）。</li>
+</ul>
+<h5 id="5-その他">(5) その他</h5>
+<ul>
+<li><code>prompts/*.md</code> はユーザーがいつでも編集できる。外部エディタでの編集も歓迎する（§8.5 の外部変更検出が働く）。</li>
+<li>プロンプトはプロジェクト間で共有しない（MUST）。他プロジェクトからコピーしたい場合は、ユーザーがファイルをコピーする（novnow は導線を提供しない）。</li>
+<li>カスタムロール（§5.9.2）には既定が存在しないため、<code>&gt;prompt reset</code> の対象外。</li>
+</ul>
+<h3 id="156-エージェント間通信">15.6 エージェント間通信</h3>
+<ul>
+<li>媒体は <code>agents/threads/TH*.md</code>（§5.10.4）。直接の関数呼び出しは存在しない（MUST）。
+エージェント間のやり取りはすべて <strong>メッセージ</strong> としてスレッドに残る。</li>
+<li>送信フロー: エージェント A の出力に <code>## message</code> セクションがあれば、novnow はそれを <strong>未承認メッセージ</strong> としてスレッドに積む。
+委譲レベル <code>propose</code> では人間が承認して初めて、宛先エージェント B のタスク生成時に <code>9 history</code> ブロックへ載る（A3）。</li>
+<li>委譲レベルが <code>autonomous</code> の役割どうしの同一スレッド内では、承認なしに相手へ渡る（A3）。
+連鎖の各ホップはスレッドと監査ログに記録され、<code>agents.limits.max_chain_hops</code>（既定 10）を超えると自動で止まる（A8）。</li>
+<li>メッセージ種別（固定）: <code>request</code> / <code>deliver</code> / <code>question</code> / <code>reject</code> / <code>note</code>。</li>
+<li>スレッドは節単位でまとまり、<code>review</code> ワークスペースと <code>agent</code> ワークスペースの両方から辿れる。</li>
+</ul>
+<h3 id="157-人間向け管制-uiagent-ワークスペース">15.7 人間向け管制 UI（<code>agent</code> ワークスペース）</h3>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>┌──────────────────────┬──────────────────────┬──────────────────────┬──────────────────────┐</span></span>
+<span class="line"><span>│ ① タスク一覧          │ ② コンテキスト検査    │ ③ 結果レビュー        │ ④ 委譲レベル          │</span></span>
+<span class="line"><span>│  draft / ready /      │  ContextPacket 全文   │  before / after 差分  │  役割ごとのレベル表示  │</span></span>
+<span class="line"><span>│  running / review /   │  ブロック別文字数     │  採用 / 一部採用 /    │  変更・総停止        │</span></span>
+<span class="line"><span>│  applied（自動適用）   │  予算バー・切り詰め表示│  却下 + コメント      │  （人間が握る、P5）   │</span></span>
+<span class="line"><span>│  （節 ID と役割で表示）│                      │  事後の差し戻しも可   │                      │</span></span>
+<span class="line"><span>└──────────────────────┴──────────────────────┴──────────────────────┴──────────────────────┘</span></span></code></pre>
+<p>操作: テキストの入力欄にフォーカスが無いとき、<code>←</code> / <code>→</code> で列を移り、<code>↑</code> / <code>↓</code> で列の中を選ぶ。
+修飾キーなしの文字キーは、フォーカスのある列のものだけが効く（§9.8.4）。</p>
+<table>
+<thead>
+<tr>
+<th>列</th>
+<th>キー</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>① タスク</td>
+<td><code>N</code> 新規（役割・対象・目的・コメント。対象が場面・話なら節ごとに作る）・<code>R</code> 実行・<code>X</code> 中止・<code>D</code> ドライラン・<code>Space</code> 選択・<code>Ctrl+A</code> 表示中の <code>ready</code> を全選択・<code>Shift+R</code> 選択をまとめて実行（確認あり）・<code>Enter</code> 結果レビューへ</td>
+</tr>
+<tr>
+<td>② コンテキスト</td>
+<td><code>Space</code> そのブロックを外す / 戻す（<code>draft</code> / <code>ready</code> のタスクだけ。<code>exclude:</code> に書く）・<code>D</code> ドライラン</td>
+</tr>
+<tr>
+<td>③ 結果レビュー</td>
+<td><code>A</code> 採用・<code>P</code> 一部採用（<code>↑</code> / <code>↓</code> で行、<code>Space</code> で選ぶ、<code>Enter</code> で適用、<code>Esc</code> でやめる）・<code>X</code> 却下（<code>applied</code> / <code>accepted</code> なら差し戻し。どちらもコメント必須）・<code>M</code> このタスクの未承認メッセージを承認</td>
+</tr>
+<tr>
+<td>④ 委譲レベル</td>
+<td><code>1</code>〜<code>4</code>（§15.7.6）</td>
+</tr>
+</tbody>
+</table>
+<p>タスクの状態: <code>N</code> で <code>draft</code>、<code>R</code> で <code>ready</code>（実行待ちの列に入る）、走り始めると <code>running</code>。
+<code>agents.enabled</code> が <code>false</code> のときは、このワークスペースは「エージェントは無効です」とだけ出す（他のワークスペースは
+すべてそのまま使える、A6）。</p>
+<h4 id="1571-タスク一覧">15.7.1 タスク一覧</h4>
+<ul>
+<li>行: <code>T0042  writer  01-04-02-03  review</code>。<code>state</code> 色分け（<code>applied</code> は自動適用済みを示す）。</li>
+<li>タスクの起動者（人間 / エージェント）も表示する。<code>autonomous</code> で自動起動されたタスクは <code>起動: agent</code> と出る（MUST）。</li>
+<li><code>N</code> で新規タスク（役割と対象節を選ぶ）、<code>Enter</code> で詳細、<code>R</code> で実行、<code>X</code> で中止。</li>
+</ul>
+<h4 id="1572-コンテキスト検査a4-の実装">15.7.2 コンテキスト検査（A4 の実装）</h4>
+<ul>
+<li>送信予定の ContextPacket を <strong>そのまま全文表示</strong>。ブロックごとに文字数と予算に対する比率をバーで示す。</li>
+<li>切り詰められたブロックは折り畳み表示で「何が落ちたか」を見せる。</li>
+<li>ブロック単位で「このブロックを外す」トグルが可能（人間がコンテキストを設計する、という思想の実装）。</li>
+<li><code>D</code> でドライラン（送信せずパケットだけを <code>agents/results/T####.dryrun.md</code> に保存）。</li>
+</ul>
+<h4 id="1573-結果レビュー">15.7.3 結果レビュー</h4>
+<ul>
+<li>差分は行単位。<code>A</code> 採用 / <code>P</code> 一部採用（行選択）/ <code>X</code> 却下。却下時はコメント必須（次回の <code>9 history</code> に入るため）。</li>
+<li>採用時の適用先はファイル。適用は通常の編集と同じ経路を通り、§8 の保存ステートマシンに乗る（undo 可能）。</li>
+<li><code>apply</code> / <code>autonomous</code> で自動適用された提案もここに <code>applied</code> として並び、<strong>差し戻し</strong>（本文を <code>before</code> に戻す）ができる（MUST）。
+差し戻しも undo 可能で、監査ログに残る。</li>
+<li>採用・却下は <code>agents/proposals/P####.md</code> の <code>status</code> に記録され、<strong>履歴は消えない</strong>。</li>
+</ul>
+<h4 id="1574-常時表示される稼働表示と停止手段">15.7.4 常時表示される稼働表示と停止手段</h4>
+<ul>
+<li>実行中はステータスバーに <code>⟳ T0042 writer</code>（複数実行中は <code>⟳ 3件</code>）を出す。クリックで一覧（agent ワークスペースの
+① を開く）、そこから個別に中止。</li>
+<li>自律レベルで動いている役割は <code>⟳ writer (自律)</code> のように <strong>レベルも表示</strong> する（MUST）。</li>
+<li>どの役割がどの委譲レベルで動いているかは、いつでも委譲パネル（§15.7.6）で確認できる。</li>
+<li>当該セッションの累計: 呼び出し回数・入力文字数・出力文字数（コストはプロバイダ依存のため金額表示はしない）。</li>
+<li><code>Ctrl+Shift+X</code>（agent ワークスペース）で <strong>すべての自律タスクを停止</strong> し、委譲レベルを <code>propose</code> に戻す「総停止」を持つ（MUST、P5）。コマンドパレットからも <code>&gt;agent stop-all</code> で実行できる。</li>
+</ul>
+<h4 id="1575-並列実行u-8">15.7.5 並列実行（U-8）</h4>
+<p><strong>確定事項</strong>: v0.1.0 でエージェントの並列実行を提供する。並列化するのは <strong>実行だけ</strong> であり、
+<strong>自律の度合いは委譲レベル（§15.1.1）が決める</strong>。<code>propose</code> / <code>apply</code> ではエージェントは他のタスクを起こせない。
+<code>autonomous</code> では起こせる（上限は <code>agents.limits</code>、A8）。</p>
+<h5 id="1-起動の形">(1) 起動の形</h5>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>規則（MUST）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>選択</td>
+<td>タスク一覧で <code>Space</code> により複数選択。<code>Ctrl+A</code> で表示中の <code>ready</code> を全選択</td>
+</tr>
+<tr>
+<td>実行</td>
+<td><code>Shift+R</code> で <strong>選択したものをまとめて実行</strong>。これが「人間の明示操作 1 回」である</td>
+</tr>
+<tr>
+<td>禁止</td>
+<td>エージェントが別のタスクを起動できるのは、<strong>integrator 役割の委譲レベルが <code>autonomous</code> のときだけ</strong>（A1、MUST）。並列度を決めるのも人間と設定だけ</td>
+</tr>
+<tr>
+<td>自動起動</td>
+<td>integrator（<code>autonomous</code>）は、前タスクの完了を引き金に次のタスクを自ら起こせる。起こされたタスクは <code>起動: agent</code> と記録され、<code>agents.limits.max_tasks_per_session</code> で止まる</td>
+</tr>
+<tr>
+<td>確認</td>
+<td>実行前に「n 件のタスクを実行します / 合計入力 m 文字 / 使用サーバ一覧」を出して確認を取る</td>
+</tr>
+<tr>
+<td>ドライラン</td>
+<td>複数選択したままドライランもできる。全パケットが <code>agents/results/*.dryrun.md</code> に出る</td>
+</tr>
+</tbody>
+</table>
+<h5 id="2-並列度の制御">(2) 並列度の制御</h5>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>規則</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>設定</td>
+<td><code>project.toml</code> の <code>agents.max_parallel</code>（既定 <strong>2</strong>、範囲 1–8）</td>
+</tr>
+<tr>
+<td>既定が 2 である理由</td>
+<td>「少し速い」程度に留め、結果を人間が読める速度を超えさせないため。1 では並列の意味が無く、大きすぎるとレビュー待ちの山ができる</td>
+</tr>
+<tr>
+<td>キュー</td>
+<td>選択したタスクは FIFO のキューに入り、<code>max_parallel</code> 件ずつ走る</td>
+</tr>
+<tr>
+<td>サーバ別上限</td>
+<td>同一 MCP サーバへの同時接続は <strong>最大 2</strong>（MUST）。<code>max_parallel</code> がそれより大きくても、サーバごとには 2 を超えない</td>
+</tr>
+<tr>
+<td><code>max_parallel = 1</code></td>
+<td>完全に逐次。v0 相当の挙動</td>
+</tr>
+</tbody>
+</table>
+<h5 id="3-競合の排除must">(3) 競合の排除（MUST）</h5>
+<table>
+<thead>
+<tr>
+<th>規則</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R1</td>
+<td><strong>同一 SceneId を対象とするタスクは同時に走らせない</strong>。キューで後続を待たせる</td>
+</tr>
+<tr>
+<td>R2</td>
+<td>同一 role × 同一 scene のタスクは、そもそも 2 件作れない（作成時に E035）</td>
+</tr>
+<tr>
+<td>R3</td>
+<td>提案ファイル（<code>P####.md</code>）の採番は <strong>採番ロックを取って逐次に行う</strong>。並列でも ID は衝突しない</td>
+</tr>
+<tr>
+<td>R4</td>
+<td><code>materials/index.json</code> の <code>next_id</code> も同様にロックする</td>
+</tr>
+<tr>
+<td>R5</td>
+<td><code>propose</code> では出力は常に <code>agents/proposals/</code> に入り、<strong>本文ファイルへの並列書き込みは原理的に起こらない</strong>（A2 の帰結）。<code>apply</code> / <code>autonomous</code> では自動適用が本文を書き換えるが、適用は R6 の逐次キューで処理される</td>
+</tr>
+<tr>
+<td>R6</td>
+<td>本文への適用（人間の採用でも自動適用でも）は <strong>常に逐次</strong> で行う（MUST）。ここを並列化してはならない。自動適用はキューに入り 1 件ずつ適用され、すべて監査ログに残る</td>
+</tr>
+</tbody>
+</table>
+<h5 id="4-表示">(4) 表示</h5>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>実行中  ⟳ 2 / 待機 3 / 完了 4</span></span>
+<span class="line"><span>  ⟳ T0042  writer    01-04-02-03   12秒</span></span>
+<span class="line"><span>  ⟳ T0043  stylist   01-04-02-04    8秒</span></span>
+<span class="line"><span>  ·  T0044  writer    01-04-02-05   待機</span></span>
+<span class="line"><span>  ·  T0045  logician  01-04         待機</span></span>
+<span class="line"><span>  ✓  T0039  plotter   01-05-01-01   レビュー待ち</span></span></code></pre>
+<ul>
+<li>完了したものから順に「レビュー待ち」に積まれる。<strong>完了順にポップアップを出さない</strong>（MUST。執筆の邪魔になる）。</li>
+<li>レビューは人間が好きなときに <code>agent</code> ワークスペースで行う。</li>
+<li>1 件失敗しても他は続行する。失敗したタスクは <code>ready</code> に戻り、<strong>自動再試行はしない</strong>（どの委譲レベルでも、MUST）。</li>
+<li>全件完了時にステータスバーの件数が変わるだけで、音も通知も出さない。</li>
+</ul>
+<h5 id="5-並列化しても変わらないこと">(5) 並列化しても変わらないこと</h5>
+<ul>
+<li>コンテキストは <strong>タスクごとに独立</strong> に構築される。タスク間でコンテキストを共有・引き継ぎしない（MUST）。</li>
+<li><code>propose</code> / <code>apply</code> ではタスク間でメッセージを自動的にやり取りしない（A3、MUST）。</li>
+<li>「writer の結果を stylist に自動で渡す」ようなパイプラインは <code>propose</code> / <code>apply</code> では <strong>作られない</strong>（MUST）。
+<code>autonomous</code> ではユーザーが委ねた範囲でのみ連鎖が起き、各ホップはスレッドと監査ログに記録され、いつでも止められる（A8）。
+並列実行は「独立した作業を同時に始める」ことであり、<strong>自律の度合いは委譲レベルが決める</strong>（§15.1.1）。</li>
+</ul>
+<h4 id="1576-委譲パネルp5-の実装レイアウト図の-">15.7.6 委譲パネル（P5 の実装・レイアウト図の ④）</h4>
+<ul>
+<li>役割ごとの現在の委譲レベルを一覧表示する（<code>off</code> / <code>propose</code> / <code>apply</code> / <code>autonomous</code>）。</li>
+<li>役割行にフォーカスがあるとき <code>1</code> / <code>2</code> / <code>3</code> / <code>4</code> を押すと、その役割のレベルを <code>off</code> / <code>propose</code> / <code>apply</code> / <code>autonomous</code> に変更する（MUST。§9.8.4 の衝突確認どおり、修飾キーなしの数字キーは他の割当と衝突しない）。</li>
+<li>コマンドパレット（<code>Ctrl+P</code>）からも <code>&gt;agent delegation &lt;role&gt; &lt;level&gt;</code> で変更でき、<code>&gt;agent stop-all</code> で総停止できる（MUST）。</li>
+<li>変更は <code>project.toml</code> に保存され、監査ログ（§5.10.5）に <code>delegation_changed</code> として残る（MUST）。</li>
+<li>README の使い方（「計画の管理だけ AI に任せる」「この役割だけ止める」等）が、このパネルだけで完結する（MUST）。</li>
+<li>レベル変更は実行中のタスクには影響しない（実行中のタスクはその時点のレベルで最後まで動く）。
+停止したいときは総停止（§15.7.4）を使う。</li>
+</ul>
+<h4 id="1577-agentsmcpjson-編集モーダルと参考例指定-ui状態-実装完了">15.7.7 <code>agents/mcp.json</code> 編集モーダルと参考例指定 UI〔状態: 実装完了〕</h4>
+<ul>
+<li>コマンドパレットおよび <code>agent</code> ワークスペースから、<code>agents/mcp.json</code> をアプリ内で編集・保存するモーダルへ移行できる。</li>
+<li>タスク起票フォームで、LLM に「例」として渡す話の本文またはプロットの範囲を指定できる。</li>
+</ul>
+<h3 id="158-mcp">15.8 MCP</h3>
+<h4 id="1581-クライアントとしてnovnow--llm">15.8.1 クライアントとして（novnow → LLM）</h4>
+<ul>
+<li><code>agents/mcp.json</code>（§5.11）に定義されたサーバへ stdio で接続。</li>
+<li>役割 → サーバの割り当ては <code>roles</code> フィールド。複数一致時は定義順の先頭。</li>
+<li>呼び出しは MCP の <code>sampling</code>（モデル生成）または、サーバが公開する <code>tools</code> のうち許可されたもの（<code>allow_tools</code>）。</li>
+<li>タイムアウト（既定 60s）・<strong>1 タスク 1 呼び出し</strong>（連鎖は新しいタスクとして起こる、§15.3）・キャンセル可能。</li>
+<li>サーバが落ちている場合は E063 を出し、タスクは <code>ready</code> のまま残す（自動再試行しない）。</li>
+</ul>
+<h4 id="1582-web-版での扱い">15.8.2 Web 版での扱い</h4>
+<ul>
+<li>ブラウザから stdio の MCP サーバは起動できない。Web 版では:
+<ul>
+<li><code>transport: "http"</code> のサーバのみ利用可能（CORS 設定はユーザー責任）。</li>
+<li>設定が無い場合、<code>agent</code> ワークスペースは「この環境では LLM 呼び出しができない」旨を表示し、
+<strong>タスク作成とドライランは可能</strong>（コンテキスト設計は人間の作業なので、LLM なしでも価値がある）。</li>
+<li>v0.1.0 の Web 版は <code>http</code> の MCP を持たない（常に「この環境では LLM 呼び出しができない」）。</li>
+</ul>
+</li>
+</ul>
+<h4 id="1583-サーバとして外部エージェント--novnow">15.8.3 サーバとして（外部エージェント → novnow）</h4>
+<p><code>novnow mcp &lt;dir&gt;</code> で MCP サーバとして起動し、外部の AI クライアントにプロジェクトのドメイン API を公開する。
+<strong>公開するのは core の純粋関数のみ</strong>（§3）であり、UI を経由しない。</p>
+<table>
+<thead>
+<tr>
+<th>ツール名</th>
+<th>引数</th>
+<th>動作</th>
+<th>書き込み</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>novnow.project.info</code></td>
+<td>—</td>
+<td>タイトル・構造・統計</td>
+<td>なし</td>
+</tr>
+<tr>
+<td><code>novnow.structure.tree</code></td>
+<td><code>level</code></td>
+<td>章/話/場面/節のツリーと <code>summary</code></td>
+<td>なし</td>
+</tr>
+<tr>
+<td><code>novnow.plot.get</code></td>
+<td><code>scene</code>, <code>level</code></td>
+<td>指定レベルのプロット</td>
+<td>なし</td>
+</tr>
+<tr>
+<td><code>novnow.section.get</code></td>
+<td><code>scene</code>, <code>neighbors</code></td>
+<td>本文と前後節</td>
+<td>なし</td>
+</tr>
+<tr>
+<td><code>novnow.cast.get</code></td>
+<td><code>scene</code></td>
+<td><strong>有効モードのみ</strong> の配役</td>
+<td>なし</td>
+</tr>
+<tr>
+<td><code>novnow.lexicon.search</code></td>
+<td><code>query</code></td>
+<td>用語検索</td>
+<td>なし</td>
+</tr>
+<tr>
+<td><code>novnow.materials.search</code></td>
+<td><code>query</code>, <code>category</code>, <code>scope</code></td>
+<td>資料検索（§16.3）</td>
+<td>なし</td>
+</tr>
+<tr>
+<td><code>novnow.context.build</code></td>
+<td><code>role</code>, <code>scene</code></td>
+<td>ContextPacket をそのまま返す</td>
+<td>なし</td>
+</tr>
+<tr>
+<td><code>novnow.diagnostics.run</code></td>
+<td><code>scope</code></td>
+<td>診断一覧</td>
+<td>なし</td>
+</tr>
+<tr>
+<td><code>novnow.section.propose</code></td>
+<td><code>scene</code>, <code>text</code>, <code>note</code></td>
+<td><strong>提案を作る</strong>（本文は書き換えない）</td>
+<td><code>agents/proposals/</code></td>
+</tr>
+<tr>
+<td><code>novnow.section.write</code></td>
+<td><code>role</code>, <code>scene</code>, <code>text</code>, <code>note</code></td>
+<td>本文を直接書き換える。<strong><code>role</code>（呼び出し役割）は必須</strong>で、その役割の委譲レベルが <code>apply</code> / <code>autonomous</code> のときのみ書き込める（それ未満または省略時は E036）</td>
+<td><code>contents/</code>（記録は <code>agents/proposals/</code>）</td>
+</tr>
+<tr>
+<td><code>novnow.plot.write</code></td>
+<td><code>role</code>, <code>scene</code>, <code>level</code>, <code>text</code></td>
+<td>プロットを直接書き換える。<strong><code>role</code>（呼び出し役割）は必須</strong>で、その役割の委譲レベルが <code>apply</code> / <code>autonomous</code> のときのみ書き込める（それ未満または省略時は E036）</td>
+<td><code>plots/</code>（記録は <code>agents/proposals/</code>）</td>
+</tr>
+<tr>
+<td><code>novnow.materials.propose</code></td>
+<td><code>title</code>, <code>source</code>, <code>markdown</code>, …</td>
+<td>資料を <code>status: proposed</code> で追加</td>
+<td><code>materials/inbox/</code>, <code>index.json</code></td>
+</tr>
+<tr>
+<td><code>novnow.mail.send</code></td>
+<td><code>to</code>, <code>kind</code>, <code>scope</code>, <code>body</code></td>
+<td>未承認メッセージを積む</td>
+<td><code>agents/threads/</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>書き込み系ツールは <strong>呼び出し役割の委譲レベル（§15.1.1）に従う</strong>。<code>propose</code> では必ず提案のみ（A2）。
+外部クライアントはツールの <code>role</code> 引数で呼び出し役割を指定し、その役割の委譲レベルが
+<code>apply</code> / <code>autonomous</code> のときのみ <code>novnow.section.write</code> / <code>novnow.plot.write</code> で直接書き込める。</li>
+<li>直接書き換えが本文・プロットを変更しても、<strong>変更前の状態は <code>agents/proposals/</code> に記録され</strong>（A2）、
+監査ログに <code>direct_write</code> が書かれる（MUST）。</li>
+<li>サーバモードでも規則 10 は有効（書き込みはプロジェクト内のみ）。委譲レベルに関わらず規則 10 を超える権限は持たない（MUST）。</li>
+<li>細部: 呼び出しのたびにプロジェクトを読み直す。結果は JSON のテキスト 1 つ、失敗は <code>isError: true</code> と
+文言（E036 などの診断の文言）。<code>scene</code> は 4 階層の構造 ID。<code>novnow.plot.write</code> の <code>level</code> は本節では <code>episode</code>（話プロットの節）
+だけを定める（<code>chapter</code> / <code>outline</code> / <code>all</code> は §19.5.2 が拡張する）。直接書き込みも自動適用と同じ検証を通し、E 系の診断が増えるなら書かずに <code>open</code> の提案として残して失敗を返す。
+<code>novnow.mail.send</code> の送り手は <code>mcp</code>。<code>novnow.materials.propose</code> の <code>added_by</code> は <code>agent:&lt;role&gt;</code>（<code>role</code> 引数が無ければ
+<code>agent:mcp</code>）。起動時に <code>prompts/</code> の欠けた既定ファイルを書き出す（§15.5.4。<code>novnow check</code> は書かない）。</li>
+</ul>
+<h4 id="1584-ローカル-llm-簡易モード">15.8.4 ローカル LLM 簡易モード</h4>
+<p>API キーを持たないユーザーが、ローカルで動く LLM をすぐ使えるようにする。</p>
+<h5 id="1-設計上の位置づけmust">(1) 設計上の位置づけ（MUST）</h5>
+<p><strong>これは MCP の迂回路ではない。</strong> 原則 A5（LLM へのアクセスはすべて MCP 経由）は変わらない。
+簡易モードが行うのは、<strong><code>agents/mcp.json</code> を人間に代わって 1 件分だけ書く</strong> ことである。
+生成されたサーバ定義は普通の MCP サーバ定義であり、あとから自由に編集できる。</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>[設定画面で URL を入れる] → agents/mcp.json に local サーバを 1 件書く → 以降は通常の MCP 経路</span></span></code></pre>
+<p>novnow 本体が HTTP で LLM API を直接叩くコードを持つことは <strong>禁止</strong>（MUST）。
+LLM プロバイダ固有の SDK や OpenAI 互換クライアントを同梱せず、すべての LLM 通信を MCP に限定する（MUST）。</p>
+<h5 id="2-設定">(2) 設定</h5>
+<p><code>project.toml</code> の <code>agents.local_llm</code>:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{ </span><span style="color:#005CC5">"enabled"</span><span style="color:#24292E">: </span><span style="color:#005CC5">true</span><span style="color:#24292E">, </span><span style="color:#005CC5">"url"</span><span style="color:#24292E">: </span><span style="color:#032F62">"http://localhost:11434"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"model"</span><span style="color:#24292E">: </span><span style="color:#032F62">"qwen2.5:14b"</span><span style="color:#24292E"> }</span></span></code></pre>
+<table>
+<thead>
+<tr>
+<th>キー</th>
+<th>既定</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td><code>false</code></td>
+<td>簡易モードを使うか</td>
+</tr>
+<tr>
+<td><code>url</code></td>
+<td><code>"http://localhost:11434"</code></td>
+<td>ローカル LLM のエンドポイント。Ollama の既定ポート</td>
+</tr>
+<tr>
+<td><code>model</code></td>
+<td><code>""</code></td>
+<td>モデル名。空なら接続時に取得した一覧の先頭</td>
+</tr>
+</tbody>
+</table>
+<h5 id="3-設定-ui">(3) 設定 UI</h5>
+<p><code>agent</code> ワークスペースの「ローカル LLM」セクション（3 行だけ）。</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>ローカル LLM     ☐ 使う</span></span>
+<span class="line"><span>URL              http://localhost:11434</span></span>
+<span class="line"><span>モデル           qwen2.5:14b        [接続を確認]</span></span></code></pre>
+<table>
+<thead>
+<tr>
+<th>操作</th>
+<th>動作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>[接続を確認]</code></td>
+<td>エンドポイントへ 1 回だけ問い合わせ、応答すればモデル一覧をプルダウンに入れる</td>
+</tr>
+<tr>
+<td>成功</td>
+<td><code>agents/mcp.json</code> に <code>local</code> サーバを追記（既にあれば更新）。I057 で通知</td>
+</tr>
+<tr>
+<td>失敗</td>
+<td><strong>E064</strong>。原因（接続拒否 / タイムアウト / 応答が解釈できない）を 1 行で出す</td>
+</tr>
+<tr>
+<td>タイムアウト</td>
+<td>3 秒（MUST。ローカル前提なので短くてよい）</td>
+</tr>
+<tr>
+<td>自動検出</td>
+<td><strong>しない</strong>（MUST）。ポートスキャンや既知ポートの総当たりは行わない。URL は人間が入れる</td>
+</tr>
+</tbody>
+</table>
+<h5 id="4-生成される-agentsmcpjson-の断片">(4) 生成される <code>agents/mcp.json</code> の断片</h5>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "servers"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">    "local"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">      "transport"</span><span style="color:#24292E">: </span><span style="color:#032F62">"http"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "url"</span><span style="color:#24292E">: </span><span style="color:#032F62">"http://localhost:11434"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "roles"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"*"</span><span style="color:#24292E">],</span></span>
+<span class="line"><span style="color:#005CC5">      "model"</span><span style="color:#24292E">: </span><span style="color:#032F62">"qwen2.5:14b"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "managed_by"</span><span style="color:#24292E">: </span><span style="color:#032F62">"novnow-local-llm"</span></span>
+<span class="line"><span style="color:#24292E">    }</span></span>
+<span class="line"><span style="color:#24292E">  }</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<ul>
+<li><code>managed_by</code> が付いたサーバだけを簡易モードが上書きする（MUST）。
+手で書いたサーバ定義には絶対に触れない。</li>
+<li>ユーザーが <code>managed_by</code> を消せば、以後は手動管理のサーバとして扱われる。</li>
+</ul>
+<h5 id="5-制約と明示">(5) 制約と明示</h5>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>規則</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>接続先</td>
+<td><strong>localhost / 127.0.0.1 / ::1 のみ</strong>（MUST）。外部ホストの URL は拒否して E064。外部 API を使うなら通常の MCP 設定を書く</td>
+</tr>
+<tr>
+<td>Web 版</td>
+<td>ブラウザから localhost への接続は混在コンテンツ・CORS の制約を受ける。使えない場合は理由を 1 行で表示し、機能を隠す</td>
+</tr>
+<tr>
+<td>品質</td>
+<td>「ローカル LLM は出力品質が既定プロンプトの想定より低い場合があります」と設定画面に 1 行だけ書く。評価や推奨モデルの提示はしない</td>
+</tr>
+<tr>
+<td>並列</td>
+<td>§15.7.5 のサーバ別上限（同時 2）が適用される。ローカルマシンの負荷を考えると既定のままが安全である旨を 1 行添える</td>
+</tr>
+</tbody>
+</table>
+<h3 id="159-失敗モードと安全装置">15.9 失敗モードと安全装置</h3>
+<table>
+<thead>
+<tr>
+<th>事象</th>
+<th>挙動</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LLM が形式を守らない（前置きを書く等）</td>
+<td>採用時に自動整形しない。レビュー画面で「契約違反」を警告表示し、人間が整える</td>
+</tr>
+<tr>
+<td>LLM が <code>state: fixed</code> を書き換える提案を返した（<code>propose</code>）</td>
+<td>提案を <code>superseded</code> にせず、警告付きで表示。採用ボタンに確認を 1 段挟む</td>
+</tr>
+<tr>
+<td>自動適用（<code>apply</code> / <code>autonomous</code>）が構文エラー（E 系）を生む</td>
+<td>自動適用の前に §7 の検証を行い、エラーを生む適用は <strong>行わずに提案として残す</strong>（MUST）</td>
+</tr>
+<tr>
+<td>自律タスクがセッション上限（<code>agents.limits</code>）に達した</td>
+<td>自動で停止し、W095 で人間に知らせる。それまでの適用は残る</td>
+</tr>
+<tr>
+<td>自律の連鎖がホップ上限（<code>max_chain_hops</code>）を超えた</td>
+<td>連鎖を止め、最後のタスクの結果だけを残す</td>
+</tr>
+<tr>
+<td>自動適用が <code>state: fixed</code> の節を書き換えた</td>
+<td>監査ログに <code>fixed_overwrite</code> を記録し、ステータスバーに 1 行通知する（例: <code>fixed を書き換えました: T0042 → 01-04-02-03</code>）（MUST）</td>
+</tr>
+<tr>
+<td>コンテキストが予算を超え続ける</td>
+<td>ドライランで赤表示。送信ボタンを無効化し、ブロックを外すよう促す</td>
+</tr>
+<tr>
+<td>MCP サーバが大量のトークンを返す</td>
+<td>出力 20,000 字で打ち切り、<code>truncated: true</code> を記録</td>
+</tr>
+<tr>
+<td>同じ節に対する提案が複数</td>
+<td>併置して比較表示。採用すると他は <code>superseded</code></td>
+</tr>
+<tr>
+<td>ネットワーク断・プロセス異常終了</td>
+<td>タスクは <code>ready</code> に戻る。部分出力は破棄（中途半端な提案を作らない）</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="付録-a-既定プロンプトの要件">付録 A: 既定プロンプトの要件</h2>
+<p>各プロンプトに <strong>必ず書かれていなければならない内容</strong> を列挙する。文面は実装時に起こす。</p>
+<h3 id="a1-_sharedoutput-contractmd全役割が参照">A.1 <code>_shared/output-contract.md</code>（全役割が参照）</h3>
+<ol>
+<li>出力は指定された 1 種類のみ。前置き・要約・謝辞・自己言及を書かない。</li>
+<li>Markdown の見出しやコードブロックで包まない（求められた場合を除く）。</li>
+<li>入力に無い固有名詞を作らない。必要なら <code>## question</code> に質問として書く。</li>
+<li>字数指定は ±20% 以内。</li>
+<li>novnow の記法（<code>@</code> / <code>'</code> / <code>;</code>）は指示があるときだけ使う。</li>
+<li>既存文の改変提案は、変更箇所を最小にする。</li>
+<li>不確実な事実は「不確実である」と明示する。</li>
+</ol>
+<h3 id="a2-writermd">A.2 <code>writer.md</code></h3>
+<ul>
+<li>有効モードの <code>personality</code> / <code>emotion</code> に沿った内面描写をすること。</li>
+<li><code>role_language</code> のパターンに沿う台詞にすること。<strong>パターンに無い語尾を発明しない</strong>。</li>
+<li>直前の節の末尾から自然に続くこと。直後の節が与えられている場合はそこへ接続できること。</li>
+<li><code>check</code> に書かれた条件をすべて満たすこと。満たせない場合は本文を書かず質問を返すこと。</li>
+<li>説明的な地の文で心情を断定しない（「〜と思った」の多用を避ける）という作品側の文体規約を参照すること。</li>
+</ul>
+<h3 id="a3-plottermd">A.3 <code>plotter.md</code></h3>
+<ul>
+<li>1 節 = 1 出来事。2 つ以上の出来事を 1 節に入れない。</li>
+<li>親（章）プロットの <code>goal</code> に対する貢献を 1 文で述べられること。</li>
+<li>伏線を張る場合は <code>seed</code>、回収する場合は <code>payoff</code> を明記すること。</li>
+<li>本文を書かない（台詞を書かない）こと。</li>
+</ul>
+<h3 id="a4-ideatormd">A.4 <code>ideator.md</code></h3>
+<ul>
+<li>1 行 1 案、最大 20 案。採用率が低い前提で量を出す。</li>
+<li>既存の <code>ideas.md</code> と重複しないこと（入力に既存一覧が与えられる）。</li>
+<li>作品のジャンル・トーンから外れた案も 2 割程度混ぜること（発想の幅のため）。</li>
+</ul>
+<h3 id="a5-researchermd">A.5 <code>researcher.md</code></h3>
+<ul>
+<li>出典（URL または取材メモの出所）が無い情報を書かない。</li>
+<li>事実・推測・一般論を段落で分けること。</li>
+<li>120 字以内の <code>summary</code> と、<code>conditions</code>（いつ必要になるか）の案を必ず付けること。</li>
+<li>小説本文に使える形に加工しない（素材のまま渡す）。</li>
+</ul>
+<h3 id="a6-stylistmd">A.6 <code>stylist.md</code></h3>
+<ul>
+<li><strong>書き換えない。指摘する。</strong> 指摘は「位置・該当文字列・理由・改善案」の 4 点セット。</li>
+<li>役割語の不一致を最優先に検出する。</li>
+<li>作家固有の癖（句読点の打ち方、体言止めの多用など）を矯正しない。<code>_shared/style.md</code> に書かれた規約違反のみを指摘する。</li>
+</ul>
+<h3 id="a7-logicianmd">A.7 <code>logician.md</code></h3>
+<ul>
+<li>伏線（<code>seed</code>/<code>payoff</code>）、時系列、設定（用語の <code>range</code>、キャラのモード範囲）の矛盾のみを見る。</li>
+<li>物語の良し悪しを評価しない。</li>
+<li>指摘には「確実な矛盾 / 疑わしい点 / 情報不足で判断不能」の 3 段階を付ける。</li>
+</ul>
+<h3 id="a8-integratormd任意">A.8 <code>integrator.md</code>（任意）</h3>
+<ul>
+<li>次にすべき 1 手を提案する（既定では <strong>人間が</strong> すべき 1 手）。</li>
+<li>自分で作業を進めない。他エージェントを起動する指示を出さない（既定では人間が押す）。
+委譲レベルが <code>autonomous</code> のときは、次のタスクの起票まで行ってよい（§15.1.1）。</li>
+<li>現在の停滞理由（どのタスクが止まっているか）を 1 文で述べる。</li>
+</ul>
+<hr>
+</article><p class="source-note" data-astro-cid-rv2sskwj>このページは <code data-astro-cid-rv2sskwj>docs/specifications/agent.md</code> から自動生成しています。内容の正本はリポジトリのそのファイルです。</p></main></div><footer class="_footer_13bsc_1"><div class="container _inner_13bsc_8"><div><p class="_creditText_13bsc_16">NovNow - Created by <a href="https://github.com/sonneko" target="_blank" rel="noopener noreferrer" class="_author_13bsc_23">sonneko</a>.</p><p class="_copyright_13bsc_28">© 2026 NovNow Project. All rights reserved.</p></div><div class="_links_13bsc_33"><a href="/novnow/ja">トップ</a><a href="/novnow/ja/guide">機能一覧</a><a href="/novnow/ja/troubleshooting">トラブルシューティング</a><a href="https://github.com/sonneko/novnow" target="_blank" rel="noopener noreferrer">GitHub</a></div></div></footer><p><a href="/novnow/nightly-app/">Nightly (unstable) / 開発版（不安定）</a></p></body></html>

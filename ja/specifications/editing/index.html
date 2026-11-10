@@ -1,0 +1,299 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="theme-color" content="#ffffff"><title>novnow 仕様書 — 編集モデルと保存 | NovNow</title><meta name="description" content="NovNow - Dedicated Novel &amp; Scenario IDE for Writers &amp; Engineers"><link rel="canonical" href="https://sonneko.github.io/novnow/ja/specifications/editing/"><link rel="alternate" hreflang="ja" href="https://sonneko.github.io/novnow/ja/specifications/editing/"><link rel="alternate" hreflang="en" href="https://sonneko.github.io/novnow/en/specifications/editing/"><link rel="icon" type="image/svg+xml" href="/novnow/favicon.svg"><link rel="stylesheet" href="/novnow/_astro/Footer.CS3W3i4D.css"><style>.doc{color:#23272f;max-width:820px;font-size:1.02rem;line-height:1.85}.doc h1{letter-spacing:-.025em;color:#23272f;margin-bottom:1.5rem;font-size:clamp(1.9rem,3.2vw,2.45rem);font-weight:800;line-height:1.25}.doc h2{letter-spacing:-.015em;color:#23272f;border-bottom:1px solid #ebecf0;margin:2.75rem 0 1rem;padding-bottom:.5rem;font-size:1.55rem;font-weight:700}.doc h3{color:#23272f;margin:2.1rem 0 .75rem;font-size:1.22rem;font-weight:700}.doc h4{color:#23272f;margin:1.6rem 0 .5rem;font-size:1.02rem;font-weight:700}.doc p,.doc li{color:#404756}.doc p{margin:.95rem 0}.doc ul,.doc ol{margin:.95rem 0 .95rem 1.5rem}.doc li{margin:.4rem 0}.doc strong{color:#23272f;font-weight:700}.doc a{color:#087ea4;border-bottom:1px solid #087ea44d;text-decoration:none;transition:border-color .15s,color .15s}.doc a code{color:#087ea4;background-color:#e6f7ff;transition:background-color .15s,box-shadow .15s;box-shadow:inset 0 0 0 1px #087ea438}.doc a:hover{border-bottom-color:#087ea4;text-decoration:none}.doc a:hover code{background-color:#087ea424;box-shadow:inset 0 0 0 1px #087ea45c}.doc code{color:#23272f;background-color:#99a1b326;border-radius:6px;padding:.14rem .38rem;font-size:.87em}.doc pre{border-radius:16px;margin:1.35rem 0;padding:1.15rem 1.35rem;font-size:.88rem;line-height:1.65;overflow-x:auto;box-shadow:inset 0 0 0 1px #00000014;background-color:#f6f7f9!important}.doc pre code{font-size:inherit;background:0 0;border-radius:0;padding:0}.doc table{border-collapse:separate;border-spacing:0;border:1px solid #ebecf0;border-radius:12px;width:100%;margin:1.5rem 0;font-size:.93rem;overflow:hidden}@media (width<=720px){.doc table{display:block;overflow-x:auto}}.doc th,.doc td{text-align:left;vertical-align:top;border-bottom:1px solid #ebecf0;border-right:1px solid #ebecf0;padding:.65rem .9rem}.doc th:last-child,.doc td:last-child{border-right:none}.doc tbody tr:last-child td{border-bottom:none}.doc th{color:#5e687e;white-space:nowrap;background-color:#f6f7f9;font-size:.85rem;font-weight:700}.doc td{color:#404756;background-color:#fff}.doc blockquote{background-color:#e6f7ff;border-radius:16px;margin:1.5rem 0;padding:1rem 1.25rem;box-shadow:inset 0 0 0 1px #087ea42e}.doc blockquote p{color:#23272f;margin:.3rem 0}.doc hr{border:none;border-top:1px solid #ebecf0;margin:2.5rem 0}.doc img{border-radius:12px;max-width:100%;box-shadow:0 .8px 2px #00000008,0 2.7px 6.7px #0000000c,0 12px 30px #00000014}.source-note[data-astro-cid-rv2sskwj]{color:#5e687e;border-top:1px solid #ebecf0;max-width:820px;margin-top:3rem;padding-top:1.15rem;font-size:.84rem;line-height:1.6}.source-note[data-astro-cid-rv2sskwj] code[data-astro-cid-rv2sskwj]{color:#23272f;background-color:#99a1b326;border-radius:5px;padding:.12rem .35rem;font-size:.88em}
+</style></head><body><aside class="release-notice" aria-label="リリースとデータ互換性" data-astro-cid-jtqikg62><strong data-astro-cid-jtqikg62>v0.1.1</strong>：v1 までは保存形式が変わる場合があります。v0 → v1 の移行機能は提供しません。更新前に Zip と本文テキストを保管してください。<a href="/novnow/ja/troubleshooting/#legacy-v0-project" data-astro-cid-jtqikg62>詳しく</a></aside><header class="_header_1az26_1"><div class="_inner_1az26_10"><div class="_brandGroup_1az26_21"><a href="/novnow/ja" class="_logo_1az26_27"><svg class="_logoIcon_1az26_43" viewBox="0 0 192 192" fill="none" aria-hidden="true"><rect width="192" height="192" rx="42" fill="#087EA4"></rect><path d="M43 142V50h22l62 65V50h22v92h-22L65 77v65Z" fill="#FFFFFF"></path><path d="M157 41v44" stroke="#ABE2ED" stroke-width="10" stroke-linecap="round"></path></svg><span class="_logoText_1az26_49">NovNow</span></a><span class="_versionTag_1az26_56">v0.1.1</span></div><nav class="_nav_1az26_65" aria-label="Primary"><a href="/novnow/ja/#downloads" class="_navLink_1az26_73">ダウンロード</a><a href="/novnow/ja/known-issues" class="_navLink_1az26_73">既知の問題</a><a href="/novnow/ja" class="_navLink_1az26_73">トップ</a><a href="/novnow/ja/manual/" class="_navLink_1az26_73">ガイド</a><a href="/novnow/ja/specifications/" class="_navLink_1az26_73 _active_1az26_91">仕様書</a><a href="/novnow/ja/api" class="_navLink_1az26_73">API リファレンス</a><a href="/novnow/ja/troubleshooting" class="_navLink_1az26_73">トラブルシューティング</a></nav><div class="_actions_1az26_101"><div class="_switcher_1w0ra_1" role="group" aria-label="Language"><a href="/novnow/ja/specifications/editing" class="_langBtn_1w0ra_11 _active_1w0ra_25">日本語</a><a href="/novnow/en/specifications/editing" class="_langBtn_1w0ra_11">EN</a></div><a href="https://github.com/sonneko/novnow" target="_blank" rel="noopener noreferrer" class="_githubBtn_1az26_107" aria-label="GitHub" title="GitHub"><svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg><span class="_githubLabel_1az26_129">GitHub</span></a></div></div></header><div class="doc-layout" data-astro-cid-rv2sskwj><aside class="doc-sidebar" aria-label="ドキュメント目次" data-astro-cid-rv2sskwj><div class="doc-sidebar-group" data-astro-cid-rv2sskwj>ユーザーガイド</div><nav class="doc-sidebar-nav" data-astro-cid-rv2sskwj><a href="/novnow/ja/manual/" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow ユーザーガイド</span></a><a href="/novnow/ja/manual/start" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>はじめての手引き（30 分で 1 本書き上げる）</span></a><a href="/novnow/ja/manual/cheatsheet" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>早見表</span></a><a href="/novnow/ja/manual/glossary" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>用語集</span></a><a href="/novnow/ja/manual/faq" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>よくある質問</span></a><a href="/novnow/ja/manual/errors" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>よく出るエラーと直し方（12 件）</span></a><a href="/novnow/ja/manual/project-structure" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>作品のフォルダ構成</span></a><a href="/novnow/ja/manual/git" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>Git で原稿を守る（知りたい人だけ）</span></a><a href="/novnow/ja/manual/publish" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>書き出した原稿を公開する</span></a><a href="/novnow/ja/manual/install" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow の入れ方（どの版を選ぶか）</span></a></nav><hr class="doc-sidebar-divider" data-astro-cid-rv2sskwj><div class="doc-sidebar-group" data-astro-cid-rv2sskwj>仕様書</div><nav class="doc-sidebar-nav" data-astro-cid-rv2sskwj><a href="/novnow/ja/specifications/overview" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 概要・原則・処理モデル</span></a><a href="/novnow/ja/specifications/project" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — プロジェクト構造</span></a><a href="/novnow/ja/specifications/syntax" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — ファイル形式（構文仕様）</span></a><a href="/novnow/ja/specifications/semantics" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 意味解決エンジン</span></a><a href="/novnow/ja/specifications/diagnostics" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 診断カタログ</span></a><a href="/novnow/ja/specifications/editing" aria-current="page" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 編集モデルと保存</span></a><a href="/novnow/ja/specifications/ui" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 画面・ワークスペース・テーマ・国際化</span></a><a href="/novnow/ja/specifications/platform" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — ストレージと起動仕様</span></a><a href="/novnow/ja/specifications/agent" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — AI エージェント</span></a><a href="/novnow/ja/specifications/workflows" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 資料収集・エクスポート・性能品質</span></a><a href="/novnow/ja/specifications/interfaces" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 外部インターフェース（ヘッドレス全機能 API 群）</span></a><a href="/novnow/ja/specifications/external" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 配布形態（外部提供物）</span></a></nav></aside><main data-astro-cid-rv2sskwj><article class="doc" data-astro-cid-rv2sskwj><h1 data-astro-cid-rv2sskwj>novnow 仕様書 — 編集モデルと保存</h1><h2 id="8-編集モデルと保存">8. 編集モデルと保存</h2>
+<h3 id="81-節単位編集">8.1 節単位編集</h3>
+<ul>
+<li>編集対象は常に <strong>1 つの節</strong>。節エディタ（§9.4）は複数行の <code>TextEdit</code> で、節のテキスト全体を保持する。</li>
+<li>「編集中の節」は文脈ビューでは本文を表示せず、編集中であることを示すプレースホルダのみを置く（§9.3.2、指示 3）。</li>
+<li>節の移動（<code>Alt+↑</code> / <code>Alt+↓</code> / ジャンプ / クリック）で、編集中の節は即座に文書へ反映され、<strong>保存がトリガーされる</strong>。</li>
+</ul>
+<h4 id="811-節の分割">8.1.1 節の分割</h4>
+<ul>
+<li>節の分割は、カーソルのバイト位置（文字境界）で現在の節を 2 つに分ける。話者注釈・参照・ルビ等の途中でも、安全な位置へ寄せたりはしない。分割で壊れた記法が生じた場合は、通常の診断・表示規則に従う。</li>
+<li>カーソルが節の途中にあるときは、現在節と既存の次節の間に下側の新しい節を挿入する。カーソルが節先頭にあるときは何もしない。節末尾では既存の次節へ移り、無ければ作る（従来の「確定して次の節へ」と等価）。</li>
+<li>何も書かれていない節では、新たな空節を作らない。「何も書かれていない」は空の節の診断（W012）と同じく、内容行が無い節または空白行だけの節を指す。行コメントは内容として数える。</li>
+</ul>
+<h4 id="812-節の削除">8.1.2 節の削除</h4>
+<ul>
+<li>節の削除は、どの入口（文脈ビューのボタン・プロット一覧のボタン・ショートカット・コマンドパレット・ヘッドレス操作）から行っても、本文の対象節と対応するプロットの節ブロックを一緒に削除する意味に統一する。対応するプロットブロックが一意に定まらない場合は、何も削除せずその旨を知らせる。</li>
+<li>削除すると後続の節番号は繰り上がる。節番号は位置から決まる（§5.2.2）ため、プロットのモード割当や提案・タスクの対象節も位置に従って対応する。</li>
+<li>確認: 空の節は確認なしで削除する。空でない節は既定では確認モーダルを出すが、この確認の有無は個人設定（§4.4）で変更できる。削除は undo では戻せない（§8.6）。</li>
+</ul>
+<h4 id="813-複数行および--を含むテキストペースト時の自動節分割状態-実装完了">8.1.3 複数行および <code>;</code> を含むテキストペースト時の自動節分割〔状態: 実装完了〕</h4>
+<ul>
+<li>節エディタへ既存のテキストを貼り付け（ペースト）した際、改行が失われることなく複数行のまま挿入される。</li>
+<li>貼り付けられたテキスト内に節区切り行（単独の <code>;</code> 行）または場面見出し行（<code>@A-B-C</code>）が含まれている場合は、自動的にその位置で複数の節に分割して一括生成する。</li>
+</ul>
+<h3 id="82-保存ステートマシン">8.2 保存ステートマシン</h3>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>        ┌──────────┐  編集    ┌──────────┐ 400ms idle / 節移動 / 画面離脱 ┌──────────┐</span></span>
+<span class="line"><span>        │  Clean   ├────────▶│  Dirty   ├──────────────────────────────▶│  Saving  │</span></span>
+<span class="line"><span>        └────▲─────┘          └────┬─────┘                               └────┬─────┘</span></span>
+<span class="line"><span>             │                     │ 追加編集（タイマ再起動）                   │</span></span>
+<span class="line"><span>             │                     └──────────────────────────────────────────┘</span></span>
+<span class="line"><span>             │  成功                                                            │ 失敗</span></span>
+<span class="line"><span>             └──────────────────────────────────────────────┐          ┌───────▼──────┐</span></span>
+<span class="line"><span>                                                            └──────────┤ SaveFailed   │</span></span>
+<span class="line"><span>                                                 指数バックオフ再試行   └──────────────┘</span></span>
+<span class="line"><span>                                                 (1s, 2s, 4s, 8s, 以後 8s 固定)</span></span></code></pre>
+<table>
+<thead>
+<tr>
+<th>遷移トリガー</th>
+<th>条件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>自動</td>
+<td>最後の打鍵から <strong>400ms</strong>（既定、<code>ui.json</code> で 200–2000ms に変更可）</td>
+</tr>
+<tr>
+<td>即時</td>
+<td>節移動・ファイル切替・ワークスペース切替・ウィンドウ非フォーカス・アプリ終了要求</td>
+</tr>
+<tr>
+<td>明示</td>
+<td><code>Ctrl+S</code>（「今すぐ全部書き出す」。<strong>必須操作ではない</strong>）</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>保存単位はファイル。1 つの節の編集でもファイル全体を書き出す（原稿サイズでは十分高速、§18）。</li>
+<li><strong>保存の成否以外、ユーザーに保存の概念を見せない</strong>（MUST）。「保存しますか？」のダイアログは終了時を除いて出さない。</li>
+</ul>
+<h3 id="83-原子的書き込み">8.3 原子的書き込み</h3>
+<table>
+<thead>
+<tr>
+<th>環境</th>
+<th>手順</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>デスクトップ</td>
+<td>同一ディレクトリに <code>.&lt;name&gt;.novnow-tmp</code> を作成 → 全書き込み → <code>fsync</code> → <code>rename</code>（同一ボリューム内なので原子的） → 一時ファイル削除</td>
+</tr>
+<tr>
+<td>Web</td>
+<td><code>files</code> ストアへの <code>readwrite</code> トランザクション 1 回で <code>put</code>。トランザクション成功 = 保存成功</td>
+</tr>
+</tbody>
+</table>
+<p>履歴ファイル（§13.2）だけはこの手順を使わず直接上書きする（一時ファイルもプロジェクト外には置けないため、§13.1.1）。</p>
+<p>書き込み失敗（ディスクフル・権限・Quota 超過）時は <code>SaveFailed</code> へ遷移し、<strong>編集内容はメモリに保持したまま</strong>再試行する。
+その間ステータスバーは赤で「閉じないでください」を表示し続ける（§8.4）。</p>
+<h3 id="84-保存状態の表示">8.4 保存状態の表示</h3>
+<p>画面右下（ステータスバー右端）に 1 つのインジケータだけを置く。</p>
+<table>
+<thead>
+<tr>
+<th>状態</th>
+<th>表示</th>
+<th>色</th>
+<th>補足</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Clean</td>
+<td><strong>何も出さない</strong>（空白）</td>
+<td>—</td>
+<td>「保存済み」の文字は出さない（ラベル撤廃、指示 1）</td>
+</tr>
+<tr>
+<td>Dirty</td>
+<td><code>●</code>（中黒丸）</td>
+<td><code>state.unsaved</code> 橙</td>
+<td>ツールチップ: ja「未保存の変更があります」/ en「Unsaved changes」</td>
+</tr>
+<tr>
+<td>Saving</td>
+<td>回転スピナー（直径 10px）</td>
+<td><code>fg.muted</code></td>
+<td>300ms 未満で終わる場合は描画しない（ちらつき防止）</td>
+</tr>
+<tr>
+<td>SaveFailed</td>
+<td><code>!</code> を内包する三角</td>
+<td><code>state.error</code> 赤</td>
+<td><strong>点滅せず</strong>、常時表示。クリック/<code>Enter</code> で詳細モーダル</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Dirty / Saving / SaveFailed のときのみ、インジケータの左に「閉じないで」を意味するアイコン（錠前の開いた形）を並べる。</li>
+<li>終了ガード:
+<ul>
+<li>デスクトップ: <code>ViewportCommand::CancelClose</code> で一旦止め、保存完了後に自動で閉じる。保存失敗中は「破棄して閉じる / 再試行 / キャンセル」の 3 択モーダル。</li>
+<li>Web: <code>beforeunload</code> で確認ダイアログ（Dirty/SaveFailed のときのみ登録、MUST）。</li>
+</ul>
+</li>
+</ul>
+<h4 id="842-未保存ドットオレンジ点の視認サイズ状態-実装完了">8.4.2 未保存ドット（オレンジ点）の視認サイズ〔状態: 実装完了〕</h4>
+<ul>
+<li>文脈ビューおよびステータスバーで未保存（Dirty）状態を示す琥珀色（オレンジ）のドットは、一目で識別できる大きさ（直径 8〜10px 相当）で描画する。</li>
+</ul>
+<h3 id="85-外部変更との競合">8.5 外部変更との競合</h3>
+<ul>
+<li>プロジェクトディレクトリは 1,000ms 間隔でポーリング監視（v0 踏襲。<code>inotify</code> 等は使わない＝ Web と実装を揃えるため）。</li>
+<li>外部で変更されたファイルが <strong>Clean</strong> なら、カーソル位置を保ったまま再読込して I052 を出す。</li>
+<li><strong>Dirty</strong> のときは自動反映しない。ステータスバーに衝突インジケータを出し、<code>Ctrl+Shift+D</code> で差分モーダル（自分の版 / 外部の版 / 行単位マージ）を開く。</li>
+<li><code>characters.md</code> / <code>words.md</code> / <code>materials/index.json</code> の外部変更は常に即座に再読込（辞書は編集中バッファを持たないため）。</li>
+</ul>
+<h3 id="86-undo--redo">8.6 Undo / Redo</h3>
+<p>取り消しは 2 系統に分かれる。キーは同じで、<strong>ワークスペースの取り消しが効く状態ならそちらが先に消費し</strong>、
+そうでなければ節エディタ（入力欄）の取り消しになる。IME の変換中はどちらも動かさない。</p>
+<p><strong>(a) 節エディタ内の文字編集</strong></p>
+<ul>
+<li>単位は「節エディタ内の編集操作」。<code>Ctrl+Z</code> / <code>Ctrl+Shift+Z</code>（<code>Ctrl+Y</code> も可）。</li>
+<li>節をまたぐ undo は <strong>行わない</strong>（混乱を避けるため、MUST）。</li>
+<li>自動保存は undo を妨げない（保存後も undo できる）。</li>
+<li>履歴は<strong>節ごとに保持</strong>する。節を移動するとその節の履歴は退避され、戻ってくると復元される
+（直近 <strong>20 節</strong>分。21 節目より古い節の履歴は捨てる）。</li>
+<li>履歴の深さ（1 つの節の中の取り消せる回数）は入力欄の実装の既定に従う（100 段）。</li>
+<li>節を<strong>消すと後続の節番号は繰り上がる</strong>（§8.1.2）ので、履歴は「文書・節 ID・<strong>節の開始行</strong>」に
+紐づける。開始行が変わった節（＝前に別の節だった位置へ繰り上がった節）は履歴を引き継がない
+（消えた節の履歴で別の節の本文を戻してしまうのを防ぐ）。節の中で改行しても開始行は動かないので、
+書き足している節の履歴は消えない。</li>
+</ul>
+<p><strong>(b) ワークスペースの取り消し（複数ファイルにまたがる操作）</strong></p>
+<ul>
+<li>対象は「<code>WorkspaceEdit</code> として 1 回に複数の文書を書き換える操作」。プロジェクト全体の置換
+（§9.7.4）、検索結果からの一括置換、<code>agents/proposals/</code> からの採用がここに入る（MUST）。
+1 回の <code>apply</code> を 1 単位とし、ファイルごとの変更前・変更後を 1 組として積む。</li>
+<li>深さは直近 <strong>100 操作</strong>。あふれたら古いものから捨てる。</li>
+<li>取り消し・やり直しは、<strong>積んだときの状態と今の状態が一致しているときだけ</strong>効く。対象の文書が
+外部変更や他の編集で変わっていたら何もしない（上書きしない）。節エディタに未確定の入力が
+残っているときも効かない。</li>
+<li>新しい操作を積むと、やり直しの側は捨てる。</li>
+<li>提案モード（§8.7）の間は効かない（提案の採用・却下は提案側の取り消しで扱う）。</li>
+<li>取り消し・やり直しの結果は未保存として扱い、通常の保存ステートマシン（§8.2）に乗る。</li>
+</ul>
+<h3 id="87-提案モード人間用トラックチェンジ">8.7 提案モード（人間用トラックチェンジ）</h3>
+<p>「元の文を消さずに別案を試す」ための編集モード。校正記号ではなく、<strong>AI 提案と同じ仕組みを人間に開放</strong> したもの。</p>
+<h4 id="871-原理">8.7.1 原理</h4>
+<p>novnow には既に「提案は本文を書き換えず <code>agents/proposals/</code> に置く」という仕組みがある（委譲レベル <code>propose</code> の既定、原則 A2）。
+提案モードは、<strong>人間の編集を同じ器に入れる</strong> だけである。新しい概念を作らない（P3）。</p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>切替</td>
+<td><code>Ctrl+Shift+P</code>。ステータスバーに <code>提案</code> と表示され、エディタの左端に縦帯が出る</td>
+</tr>
+<tr>
+<td>入力</td>
+<td>通常どおり打つ。表示は即座に新しい文になる（打ちづらくならない）</td>
+</tr>
+<tr>
+<td>保存先</td>
+<td><strong>本文ファイルは変更しない</strong>（MUST）。<code>agents/proposals/H0044.md</code> に差分として書く</td>
+</tr>
+<tr>
+<td>ID</td>
+<td><code>H</code> + 4 桁（Human）。エージェントの <code>P####</code> とは別系列。採番は <code>agents/proposals/</code> の走査で決める</td>
+</tr>
+<tr>
+<td>通常モードに戻す</td>
+<td>再度 <code>Ctrl+Shift+P</code>。提案は残り、本文は元のまま</td>
+</tr>
+<tr>
+<td>採用</td>
+<td>提案レビュー画面（§15.7.3）で「採用」。本文に書き込まれ、提案は <code>applied</code> になる</td>
+</tr>
+<tr>
+<td>破棄</td>
+<td>同画面で「破棄」。提案ファイルを削除する</td>
+</tr>
+</tbody>
+</table>
+<h4 id="872-agentsproposalsh0044md-の形式">8.7.2 <code>agents/proposals/H0044.md</code> の形式</h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="md"><code><span class="line"><span style="color:#005CC5;font-weight:bold"># H0044</span></span>
+<span class="line"><span style="color:#24292E">kind: human</span></span>
+<span class="line"><span style="color:#24292E">target: @01-04-02-03</span></span>
+<span class="line"><span style="color:#24292E">origin: human</span></span>
+<span class="line"><span style="color:#24292E">status: open</span></span>
+<span class="line"><span style="color:#24292E">created_at: 2026-10-09T21:40:12+09:00</span></span>
+<span class="line"><span style="color:#24292E">updated_at: 2026-10-09T21:40:12+09:00</span></span>
+<span class="line"><span style="color:#24292E">comment:</span></span>
+<span class="line"><span style="color:#24292E">note: 語尾をもう少し硬くしてみる</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## before</span></span>
+<span class="line"><span style="color:#24292E">「……付き合ってあげるわよ」@リリア:B</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## after</span></span>
+<span class="line"><span style="color:#24292E">「……仕方ないわね。付き合うわ」@リリア:B</span></span></code></pre>
+<table>
+<thead>
+<tr>
+<th>欄</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code># H0044</code></td>
+<td>提案 ID。GUI の提案モードは <code>H</code> + 4 桁、エージェントのツール核（<code>section.propose</code> / <code>section.write</code> など）は <code>P</code> + 4 桁。<code>agents/proposals/</code> の同じ接頭辞の最大 + 1 を採る（接頭辞が違えば番号は独立）</td>
+</tr>
+<tr>
+<td><code>kind</code></td>
+<td><code>human</code>（GUI の提案モード）/ <code>section-text</code> / <code>plot-field</code> / <code>idea</code> / <code>material</code> / <code>note</code>。何を置き換える提案か</td>
+</tr>
+<tr>
+<td><code>target</code></td>
+<td>対象。<code>contents/01-04.cnov @01-04-02-03</code>（パス + 空白 + 節）またはプロットのパス</td>
+</tr>
+<tr>
+<td><code>origin</code></td>
+<td>作った経路。GUI の提案モードは <code>human</code>、エージェントのツール核を通るもの（MCP のツールと、そこへ委譲する正規操作 <code>section.propose</code>）は <code>mcp</code>、直接書き込み（<code>section.write</code> / <code>plot.write</code>）は <code>mcp:&lt;役割&gt;</code></td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td><code>open</code> / <code>accepted</code> / <code>rejected</code> / <code>superseded</code> / <code>applied</code></td>
+</tr>
+<tr>
+<td><code>created_at</code> / <code>updated_at</code></td>
+<td>作成・状態変更の時刻（RFC 3339）</td>
+</tr>
+<tr>
+<td><code>comment</code></td>
+<td>採用・却下の理由（人間が書く。空でよい）</td>
+</tr>
+<tr>
+<td><code>note</code></td>
+<td>提案時の一言（1 行に潰す）</td>
+</tr>
+<tr>
+<td><code>partial</code></td>
+<td><code>true</code> のときだけ出す。節の一部だけを置き換える提案（<code>partial</code> が無ければ節全体）</td>
+</tr>
+</tbody>
+</table>
+<p>読み手は未知の欄を読み飛ばす（前方互換）。<code>status</code> が無いファイルは <code>open</code> として扱われない（提案一覧のバッジ・採用・却下の対象にならない）。</p>
+<ul>
+<li><code>before</code> は提案を始めた瞬間の節の全文（スナップショット）。</li>
+<li><code>after</code> は提案モードを抜けた時点の節の全文。</li>
+<li><strong>節全体を持つ</strong>（行単位 diff にしない）。節は十分短く（既定 400 字目標）、
+差分アルゴリズムを持ち込むと「どこが変わったか」の定義が曖昧になるため（MUST）。</li>
+</ul>
+<h4 id="873-表示">8.7.3 表示</h4>
+<ul>
+<li>提案のある節は、構成ツリーとエディタのミニヘッダーに <code>提案 n</code> のバッジが出る。</li>
+<li><strong>本文エディタ上に差分を重ねて表示しない</strong>（MUST）。赤取り消し線と緑追記を本文に重ねるのは
+P3 に真っ向から反するため。比較したいときは文脈ビュー（§9.4）を「before / after 並置」に切り替える。</li>
+<li>同一節に複数の提案（<code>H0044</code> と <code>H0045</code>）を持てる。並置ビューでは <code>Tab</code> で切り替える。</li>
+</ul>
+<h4 id="874-制約">8.7.4 制約</h4>
+<ul>
+<li>提案モード中は <strong>節を移動できる</strong>（移動すると、それまでの編集が 1 件の提案として確定する）。</li>
+<li>提案モード中の外部変更（§8.5）は、<code>before</code> との不一致として検出し <strong>W093</strong> を出して提案を <code>stale</code> にする。</li>
+<li>提案は本文ではないので、文字数・進捗・統計の対象外（MUST）。</li>
+<li><code>state: fixed</code> の節にも提案は作れる（原則 A7 は <code>propose</code> レベルの <strong>エージェント</strong> の提案に関する既定であって、人間の試行は妨げない）。</li>
+</ul>
+<hr>
+</article><p class="source-note" data-astro-cid-rv2sskwj>このページは <code data-astro-cid-rv2sskwj>docs/specifications/editing.md</code> から自動生成しています。内容の正本はリポジトリのそのファイルです。</p></main></div><footer class="_footer_13bsc_1"><div class="container _inner_13bsc_8"><div><p class="_creditText_13bsc_16">NovNow - Created by <a href="https://github.com/sonneko" target="_blank" rel="noopener noreferrer" class="_author_13bsc_23">sonneko</a>.</p><p class="_copyright_13bsc_28">© 2026 NovNow Project. All rights reserved.</p></div><div class="_links_13bsc_33"><a href="/novnow/ja">トップ</a><a href="/novnow/ja/guide">機能一覧</a><a href="/novnow/ja/troubleshooting">トラブルシューティング</a><a href="https://github.com/sonneko/novnow" target="_blank" rel="noopener noreferrer">GitHub</a></div></div></footer><p><a href="/novnow/nightly-app/">Nightly (unstable) / 開発版（不安定）</a></p></body></html>

@@ -1,0 +1,602 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="theme-color" content="#ffffff"><title>novnow 仕様書 — プロジェクト構造 | NovNow</title><meta name="description" content="NovNow - Dedicated Novel &amp; Scenario IDE for Writers &amp; Engineers"><link rel="canonical" href="https://sonneko.github.io/novnow/ja/specifications/project/"><link rel="alternate" hreflang="ja" href="https://sonneko.github.io/novnow/ja/specifications/project/"><link rel="alternate" hreflang="en" href="https://sonneko.github.io/novnow/en/specifications/project/"><link rel="icon" type="image/svg+xml" href="/novnow/favicon.svg"><link rel="stylesheet" href="/novnow/_astro/Footer.CS3W3i4D.css"><style>.doc{color:#23272f;max-width:820px;font-size:1.02rem;line-height:1.85}.doc h1{letter-spacing:-.025em;color:#23272f;margin-bottom:1.5rem;font-size:clamp(1.9rem,3.2vw,2.45rem);font-weight:800;line-height:1.25}.doc h2{letter-spacing:-.015em;color:#23272f;border-bottom:1px solid #ebecf0;margin:2.75rem 0 1rem;padding-bottom:.5rem;font-size:1.55rem;font-weight:700}.doc h3{color:#23272f;margin:2.1rem 0 .75rem;font-size:1.22rem;font-weight:700}.doc h4{color:#23272f;margin:1.6rem 0 .5rem;font-size:1.02rem;font-weight:700}.doc p,.doc li{color:#404756}.doc p{margin:.95rem 0}.doc ul,.doc ol{margin:.95rem 0 .95rem 1.5rem}.doc li{margin:.4rem 0}.doc strong{color:#23272f;font-weight:700}.doc a{color:#087ea4;border-bottom:1px solid #087ea44d;text-decoration:none;transition:border-color .15s,color .15s}.doc a code{color:#087ea4;background-color:#e6f7ff;transition:background-color .15s,box-shadow .15s;box-shadow:inset 0 0 0 1px #087ea438}.doc a:hover{border-bottom-color:#087ea4;text-decoration:none}.doc a:hover code{background-color:#087ea424;box-shadow:inset 0 0 0 1px #087ea45c}.doc code{color:#23272f;background-color:#99a1b326;border-radius:6px;padding:.14rem .38rem;font-size:.87em}.doc pre{border-radius:16px;margin:1.35rem 0;padding:1.15rem 1.35rem;font-size:.88rem;line-height:1.65;overflow-x:auto;box-shadow:inset 0 0 0 1px #00000014;background-color:#f6f7f9!important}.doc pre code{font-size:inherit;background:0 0;border-radius:0;padding:0}.doc table{border-collapse:separate;border-spacing:0;border:1px solid #ebecf0;border-radius:12px;width:100%;margin:1.5rem 0;font-size:.93rem;overflow:hidden}@media (width<=720px){.doc table{display:block;overflow-x:auto}}.doc th,.doc td{text-align:left;vertical-align:top;border-bottom:1px solid #ebecf0;border-right:1px solid #ebecf0;padding:.65rem .9rem}.doc th:last-child,.doc td:last-child{border-right:none}.doc tbody tr:last-child td{border-bottom:none}.doc th{color:#5e687e;white-space:nowrap;background-color:#f6f7f9;font-size:.85rem;font-weight:700}.doc td{color:#404756;background-color:#fff}.doc blockquote{background-color:#e6f7ff;border-radius:16px;margin:1.5rem 0;padding:1rem 1.25rem;box-shadow:inset 0 0 0 1px #087ea42e}.doc blockquote p{color:#23272f;margin:.3rem 0}.doc hr{border:none;border-top:1px solid #ebecf0;margin:2.5rem 0}.doc img{border-radius:12px;max-width:100%;box-shadow:0 .8px 2px #00000008,0 2.7px 6.7px #0000000c,0 12px 30px #00000014}.source-note[data-astro-cid-rv2sskwj]{color:#5e687e;border-top:1px solid #ebecf0;max-width:820px;margin-top:3rem;padding-top:1.15rem;font-size:.84rem;line-height:1.6}.source-note[data-astro-cid-rv2sskwj] code[data-astro-cid-rv2sskwj]{color:#23272f;background-color:#99a1b326;border-radius:5px;padding:.12rem .35rem;font-size:.88em}
+</style></head><body><aside class="release-notice" aria-label="リリースとデータ互換性" data-astro-cid-jtqikg62><strong data-astro-cid-jtqikg62>v0.1.1</strong>：v1 までは保存形式が変わる場合があります。v0 → v1 の移行機能は提供しません。更新前に Zip と本文テキストを保管してください。<a href="/novnow/ja/troubleshooting/#legacy-v0-project" data-astro-cid-jtqikg62>詳しく</a></aside><header class="_header_1az26_1"><div class="_inner_1az26_10"><div class="_brandGroup_1az26_21"><a href="/novnow/ja" class="_logo_1az26_27"><svg class="_logoIcon_1az26_43" viewBox="0 0 192 192" fill="none" aria-hidden="true"><rect width="192" height="192" rx="42" fill="#087EA4"></rect><path d="M43 142V50h22l62 65V50h22v92h-22L65 77v65Z" fill="#FFFFFF"></path><path d="M157 41v44" stroke="#ABE2ED" stroke-width="10" stroke-linecap="round"></path></svg><span class="_logoText_1az26_49">NovNow</span></a><span class="_versionTag_1az26_56">v0.1.1</span></div><nav class="_nav_1az26_65" aria-label="Primary"><a href="/novnow/ja/#downloads" class="_navLink_1az26_73">ダウンロード</a><a href="/novnow/ja/known-issues" class="_navLink_1az26_73">既知の問題</a><a href="/novnow/ja" class="_navLink_1az26_73">トップ</a><a href="/novnow/ja/manual/" class="_navLink_1az26_73">ガイド</a><a href="/novnow/ja/specifications/" class="_navLink_1az26_73 _active_1az26_91">仕様書</a><a href="/novnow/ja/api" class="_navLink_1az26_73">API リファレンス</a><a href="/novnow/ja/troubleshooting" class="_navLink_1az26_73">トラブルシューティング</a></nav><div class="_actions_1az26_101"><div class="_switcher_1w0ra_1" role="group" aria-label="Language"><a href="/novnow/ja/specifications/project" class="_langBtn_1w0ra_11 _active_1w0ra_25">日本語</a><a href="/novnow/en/specifications/project" class="_langBtn_1w0ra_11">EN</a></div><a href="https://github.com/sonneko/novnow" target="_blank" rel="noopener noreferrer" class="_githubBtn_1az26_107" aria-label="GitHub" title="GitHub"><svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg><span class="_githubLabel_1az26_129">GitHub</span></a></div></div></header><div class="doc-layout" data-astro-cid-rv2sskwj><aside class="doc-sidebar" aria-label="ドキュメント目次" data-astro-cid-rv2sskwj><div class="doc-sidebar-group" data-astro-cid-rv2sskwj>ユーザーガイド</div><nav class="doc-sidebar-nav" data-astro-cid-rv2sskwj><a href="/novnow/ja/manual/" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow ユーザーガイド</span></a><a href="/novnow/ja/manual/start" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>はじめての手引き（30 分で 1 本書き上げる）</span></a><a href="/novnow/ja/manual/cheatsheet" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>早見表</span></a><a href="/novnow/ja/manual/glossary" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>用語集</span></a><a href="/novnow/ja/manual/faq" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>よくある質問</span></a><a href="/novnow/ja/manual/errors" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>よく出るエラーと直し方（12 件）</span></a><a href="/novnow/ja/manual/project-structure" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>作品のフォルダ構成</span></a><a href="/novnow/ja/manual/git" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>Git で原稿を守る（知りたい人だけ）</span></a><a href="/novnow/ja/manual/publish" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>書き出した原稿を公開する</span></a><a href="/novnow/ja/manual/install" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow の入れ方（どの版を選ぶか）</span></a></nav><hr class="doc-sidebar-divider" data-astro-cid-rv2sskwj><div class="doc-sidebar-group" data-astro-cid-rv2sskwj>仕様書</div><nav class="doc-sidebar-nav" data-astro-cid-rv2sskwj><a href="/novnow/ja/specifications/overview" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 概要・原則・処理モデル</span></a><a href="/novnow/ja/specifications/project" aria-current="page" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — プロジェクト構造</span></a><a href="/novnow/ja/specifications/syntax" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — ファイル形式（構文仕様）</span></a><a href="/novnow/ja/specifications/semantics" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 意味解決エンジン</span></a><a href="/novnow/ja/specifications/diagnostics" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 診断カタログ</span></a><a href="/novnow/ja/specifications/editing" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 編集モデルと保存</span></a><a href="/novnow/ja/specifications/ui" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 画面・ワークスペース・テーマ・国際化</span></a><a href="/novnow/ja/specifications/platform" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — ストレージと起動仕様</span></a><a href="/novnow/ja/specifications/agent" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — AI エージェント</span></a><a href="/novnow/ja/specifications/workflows" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 資料収集・エクスポート・性能品質</span></a><a href="/novnow/ja/specifications/interfaces" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 外部インターフェース（ヘッドレス全機能 API 群）</span></a><a href="/novnow/ja/specifications/external" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 配布形態（外部提供物）</span></a></nav></aside><main data-astro-cid-rv2sskwj><article class="doc" data-astro-cid-rv2sskwj><h1 data-astro-cid-rv2sskwj>novnow 仕様書 — プロジェクト構造</h1><h2 id="4-プロジェクト構造">4. プロジェクト構造</h2>
+<h3 id="41-ディレクトリレイアウト">4.1 ディレクトリレイアウト</h3>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>[title]/</span></span>
+<span class="line"><span>├── project.toml              必須。機械可読のプロジェクト設定（§4.5）</span></span>
+<span class="line"><span>├── characters.md             必須。キャラ・モード・役割語（§5.5）</span></span>
+<span class="line"><span>├── words.md                  必須。用語辞書（§5.6）</span></span>
+<span class="line"><span>├── ideas.md                  任意（無ければ自動生成）。アイデア（§5.7）</span></span>
+<span class="line"><span>├── contents/                 必須（空でも可）。本文 = C 形式</span></span>
+<span class="line"><span>│   ├── 00-01.cnov            「00 章」= 未配属ストック（§5.1.2）</span></span>
+<span class="line"><span>│   ├── 01-00.cnov            「00 話」= 章あらすじの本文（§5.1.2）</span></span>
+<span class="line"><span>│   ├── 01-01.cnov</span></span>
+<span class="line"><span>│   └── 01-04.cnov</span></span>
+<span class="line"><span>├── plots/                    必須</span></span>
+<span class="line"><span>│   ├── all.cnov              必須。全体プロット = A 形式（章を記述）</span></span>
+<span class="line"><span>│   ├── 00.cnov               ストック用プロット = A 形式（任意）</span></span>
+<span class="line"><span>│   ├── 01.cnov               章プロット = A 形式（話を記述。先頭に @01-00 あらすじブロック）</span></span>
+<span class="line"><span>│   └── 01-04.cnov            話プロット = B 形式（場面・節を記述）</span></span>
+<span class="line"><span>├── materials/                必須</span></span>
+<span class="line"><span>│   ├── index.json            必須。資料インデックス（§5.8）</span></span>
+<span class="line"><span>│   ├── docs/</span></span>
+<span class="line"><span>│   │   ├── M0137-science-koshien.md</span></span>
+<span class="line"><span>│   │   └── S0042-search.md   検索結果の保存（§16.3.1）</span></span>
+<span class="line"><span>│   └── inbox/                提案中の資料</span></span>
+<span class="line"><span>├── assets/                   任意。プロジェクト内の小さな付随ファイル</span></span>
+<span class="line"><span>│   └── icons/megumi.png      キャラアイコン（§5.5.3）</span></span>
+<span class="line"><span>├── prompts/                  任意（無ければ既定を自動生成）。AI プロンプト（§5.9）</span></span>
+<span class="line"><span>│   ├── writer.md  plotter.md  ideator.md</span></span>
+<span class="line"><span>│   ├── researcher.md  stylist.md  logician.md  integrator.md</span></span>
+<span class="line"><span>│   ├── custom/               任意。ユーザー定義ロール（§5.9.2）</span></span>
+<span class="line"><span>│   │   └── weapon-advisor.md</span></span>
+<span class="line"><span>│   └── _shared/style.md  _shared/output-contract.md</span></span>
+<span class="line"><span>├── agents/                   任意（無ければ自動生成）。AI 作業領域（§5.10）</span></span>
+<span class="line"><span>│   ├── mcp.json              MCP サーバ設定（§5.11）</span></span>
+<span class="line"><span>│   ├── tasks/     T0042.md</span></span>
+<span class="line"><span>│   ├── results/   T0042.md</span></span>
+<span class="line"><span>│   ├── threads/   TH0007.md</span></span>
+<span class="line"><span>│   ├── proposals/ P0003.md / H0044.md（H = 人間の提案、§8.7）</span></span>
+<span class="line"><span>│   └── log/       2026-10-09.jsonl</span></span>
+<span class="line"><span>├── exports/                  任意。エクスポート出力先（自動生成）</span></span>
+<span class="line"><span>├── .gitignore                `novnow new` が生成。`.novnow/` と `exports/` を無視</span></span>
+<span class="line"><span>└── .novnow/                  任意。ローカル UI 状態・キャッシュ（§4.4、VCS 無視推奨）</span></span>
+<span class="line"><span>    ├── ui.json</span></span>
+<span class="line"><span>    ├── reader.json            追加仕様 27</span></span>
+<span class="line"><span>    ├── stats.json            執筆統計の日次集計のみ（§4.4.2）</span></span>
+<span class="line"><span>    └── cache/</span></span></code></pre>
+<p>拡張点: <code>assets/</code> は novnow の文書形式の外にある付随ファイルの置き場所であり、画像などの将来の拡張はここを土台にする。資料の出典種別（§5.8）などの拡張余地は各節が明示する。プロジェクト内の未知ファイルを壊さない規則（§4.3、§13.5）が、こうした拡張をあとから入れるための前提である。外部のソフトウェア（連携ツールなど）が読む安定面は、このファイル形式と §19 の API である。本体はバージョン管理そのものは実装せず、プロジェクトを通常のフォルダとして扱う素朴さを守る。</p>
+<p><strong><code>assets/</code> の中身の扱い</strong>: 起動時に <code>assets/</code> 配下のファイルを読み込み、アイコンの表示（§5.5.3）に使う（<code>space:</code> の外部ファイルは <code>assets/</code> も含むテキストとして読む。§5.3.6）。1 ファイル <strong>256KB</strong> を超えるものは中身を保持しない（アイコンなら W069。§5.5.3）。デスクトップ版はファイルをそのまま読み、Web 版は IndexedDB の <code>bytes</code>（Zip の取り込みで入ったもの）から読む（§13.3.2）。したがってどちらの版でもアイコンは表示できる。</p>
+<h3 id="42-必須--任意の判定表">4.2 必須 / 任意の判定表</h3>
+<p>起動時スキャン（§14）での扱い。</p>
+<table>
+<thead>
+<tr>
+<th>パス</th>
+<th>種別</th>
+<th>欠けている場合</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>project.toml</code></td>
+<td>必須ファイル</td>
+<td><strong>E 起動失敗</strong></td>
+</tr>
+<tr>
+<td><code>characters.md</code></td>
+<td>必須ファイル</td>
+<td><strong>E 起動失敗</strong></td>
+</tr>
+<tr>
+<td><code>words.md</code></td>
+<td>必須ファイル</td>
+<td><strong>E 起動失敗</strong></td>
+</tr>
+<tr>
+<td><code>materials/index.json</code></td>
+<td>必須ファイル</td>
+<td><strong>E 起動失敗</strong></td>
+</tr>
+<tr>
+<td><code>plots/all.cnov</code></td>
+<td>必須ファイル</td>
+<td><strong>E 起動失敗</strong></td>
+</tr>
+<tr>
+<td><code>contents/</code></td>
+<td>必須ディレクトリ</td>
+<td><strong>E 起動失敗</strong></td>
+</tr>
+<tr>
+<td><code>plots/</code></td>
+<td>必須ディレクトリ</td>
+<td><strong>E 起動失敗</strong></td>
+</tr>
+<tr>
+<td><code>materials/docs/</code></td>
+<td>任意ディレクトリ</td>
+<td>無言で作成</td>
+</tr>
+<tr>
+<td><code>ideas.md</code></td>
+<td>任意</td>
+<td>無言で作成（空テンプレート）</td>
+</tr>
+<tr>
+<td><code>prompts/</code></td>
+<td>任意</td>
+<td>既定プロンプト一式を生成し、I050 を通知</td>
+</tr>
+<tr>
+<td><code>agents/</code></td>
+<td>任意</td>
+<td>無言で作成（<code>mcp.json</code> は空の <code>{"schema_version":1,"servers":{}}</code>）</td>
+</tr>
+<tr>
+<td><code>exports/</code>, <code>.novnow/</code></td>
+<td>任意</td>
+<td>必要時に作成</td>
+</tr>
+</tbody>
+</table>
+<p>「無言で作成」も <strong>書き込みはプロジェクトルート配下に限る</strong>（§13.1）。読み取り専用メディア上では作成を省略し、W041 を出して続行する。</p>
+<p><strong>読み取り専用の判定（W041）</strong>: 開いたときに <strong>プロジェクトの中へ 1 回だけ試し書き</strong>をして決める
+（<code>.novnow/</code> の下に空の <code>.write-probe</code> を作り、すぐ消す。作った <code>.novnow/</code> が元から無ければ一緒に消す）。
+モードビット（<code>-w</code>）ではなく実際に書けるかを見るのは、読み取り専用でマウントされた媒体・
+書き込みを拒否するサンドボックス・容量の尽きた領域を同じ扱いにするためである。パスはプロジェクトの
+中だけ（§13.1）で、失敗しても何も残らない。判定はプロセス（<code>Session</code>）ごとに 1 回で、毎回は試さない。
+書き込みを試す判定なので、<strong><code>novnow check</code> も 1 回だけ書く</strong>（<code>check</code> の方針「何も書かない」の例外。
+書けなければ何も書かない）。読み取り専用のときの挙動:</p>
+<ul>
+<li>自動作成（<code>ideas.md</code> / <code>materials/docs/</code> / <code>agents/</code> / <code>exports/</code> / <code>.novnow/</code>）と、既定プロンプトの
+書き出し（§15.5.4 の I050）を<strong>しない</strong>（作成を省略して続行する）。</li>
+<li><strong>W041</strong> を出す。出す場所は、<code>novnow check</code> の 1 行（<code>&lt;ルート&gt;: W041 文言</code>）、<code>project.validate</code> と
+<code>diagnostics.run</code>（<code>scope</code> を指定しないプロジェクト全体のとき）の <code>diagnostics</code> の 1 件（<code>path</code> は空、
+<code>line</code> / <code>column</code> は 0）、GUI を開いたときのステータスバーの通知の 3 つ。波線は出さない
+（文書の中の位置を持たない、§7.1 と同じ扱い）。</li>
+<li>編集・保存は<strong>試すだけ</strong>（保存を試みて失敗したら <code>SaveFailed</code>。§8.2）。W041 を理由に編集を止めない。</li>
+</ul>
+<p><strong>実装状況の注記</strong>: いま自動作成を行うのは <code>novnow new</code>（テンプレート一式）と、<code>prompts/</code> の欠けた既定プロンプト（開いたときと <code>novnow mcp</code> の起動時。§15.5.4。I050 を通知）だけである。既存プロジェクトを開いたときの <code>ideas.md</code> / <code>materials/docs/</code> / <code>agents/</code> の「無言で作成」は<strong>未実装</strong>。無い任意のパスは「無い」まま動く（<code>ideas.md</code> が無ければ着想は空、<code>materials/docs/</code> が無ければ資料ファイルを置く場所が無いだけ）。</p>
+<h3 id="43-プロジェクト妥当性の判定">4.3 プロジェクト妥当性の判定</h3>
+<ol>
+<li>必須パスの存在確認（上表）。欠落が 1 件でもあれば <code>ProjectError::Incomplete { missing: Vec&lt;PathBuf&gt; }</code>。</li>
+<li><code>project.toml</code> の <code>schema_version</code> 検査。
+<ul>
+<li><code>2</code>（または省略）→ OK</li>
+<li><code>&gt;2</code> → <code>ProjectError::TooNew { found }</code>（novnow 本体の更新が必要）</li>
+</ul>
+</li>
+<li>文字コード検査: 文書として認識するすべてのファイル（§5.0.9）が UTF-8 として妥当。不正バイトがあれば該当ファイルを列挙して <code>ProjectError::Encoding</code>。</li>
+<li>以降のパース失敗（構文エラー）は <strong>起動失敗にしない</strong>。診断として表示し（<strong>JSON / TOML がパースできないときは E025</strong>、§7）、該当ファイルは「部分的に壊れた文書」として開く（P4: 作家の原稿を人質に取らない）。<strong>原文は書き換えない</strong>（MUST）。</li>
+<li>仕様が定義しないファイル・ディレクトリ（§5.0.9 が文書として認識しないものを含む）は妥当性判定の対象にしない。novnow が書くのは仕様が定義するパスだけで、未知のものを削除・改名・上書きしない（MUST）。旧形式のファイル（<code>project.json</code>、<code>contents/*.txt</code>、<code>plots/*.txt</code>）も未知のファイルとして扱うため、旧形式のプロジェクトを開くと必須ファイルの不足として通常のエラーになる。旧形式の特別検出や自動変換は行わない。</li>
+</ol>
+<p>補足:</p>
+<ul>
+<li><code>project.toml</code> が TOML として読めない（または <code>schema_version</code> が数でない）ときは 2. を飛ばす。版が読めないことは起動失敗にせず、4. のとおり E025 を出して既定値で開く。壊れた <code>project.toml</code> は上書きしない（§4.5）。</li>
+<li>core は I/O を持たない（§3.2）。存在するパスの一覧・<code>project.toml</code> の中身・UTF-8 として不正なファイルの一覧はストレージ層（adapters）が集めて渡し、<code>validate</code> は判定だけを行う。Web（IndexedDB、§13.3）にはディレクトリが無いので、必須ディレクトリは常に存在するものとして扱う。</li>
+</ul>
+<h3 id="44-novnowローカル状態">4.4 <code>.novnow/</code>（ローカル状態）</h3>
+<p>プロジェクト内に置くが、VCS へのコミットは推奨しない（<code>novnow new</code> が生成する <code>.gitignore</code> に <code>.novnow/</code> と <code>exports/</code> を含める）。
+<code>.novnow/</code> に置くのは、揃える必要のない個人の表示・操作の好みと、全 feature に共通する粗い表示設定に限る。診断の有効性やエラー扱いなどの feature 単位の設定は、作品として揃える設定として <code>project.toml</code> の <code>[features]</code>（§4.5.2）に置き、ここには置かない。</p>
+<h4 id="441-novnowuijson">4.4.1 <code>.novnow/ui.json</code></h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "schema_version"</span><span style="color:#24292E">: </span><span style="color:#005CC5">1</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "theme"</span><span style="color:#24292E">: </span><span style="color:#032F62">"system"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "language"</span><span style="color:#24292E">: </span><span style="color:#032F62">"system"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "reference_pane_side"</span><span style="color:#24292E">: </span><span style="color:#032F62">"right"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "last_scene"</span><span style="color:#24292E">: </span><span style="color:#032F62">"01-04-02-03"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "pane_ratio"</span><span style="color:#24292E">: { </span><span style="color:#005CC5">"main"</span><span style="color:#24292E">: </span><span style="color:#005CC5">0.62</span><span style="color:#24292E">, </span><span style="color:#005CC5">"context_view"</span><span style="color:#24292E">: </span><span style="color:#005CC5">0.55</span><span style="color:#24292E"> },</span></span>
+<span class="line"><span style="color:#005CC5">  "font_scale"</span><span style="color:#24292E">: </span><span style="color:#005CC5">1.0</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "inlay_hints"</span><span style="color:#24292E">: </span><span style="color:#005CC5">true</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "suggest_comma"</span><span style="color:#24292E">: </span><span style="color:#005CC5">false</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "status_stats_mode"</span><span style="color:#24292E">: </span><span style="color:#005CC5">false</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "confirm_section_delete"</span><span style="color:#24292E">: </span><span style="color:#005CC5">true</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "guide_done"</span><span style="color:#24292E">: </span><span style="color:#005CC5">false</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "context_sections"</span><span style="color:#24292E">: </span><span style="color:#005CC5">3</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "autosave_ms"</span><span style="color:#24292E">: </span><span style="color:#005CC5">400</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "folded"</span><span style="color:#24292E">: { </span><span style="color:#005CC5">"outline"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"@02"</span><span style="color:#24292E">, </span><span style="color:#032F62">"@03"</span><span style="color:#24292E">], </span><span style="color:#005CC5">"context_view"</span><span style="color:#24292E">: [] }</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p><code>theme</code>: <code>"system" | "dark" | "light"</code> / <code>language</code>: <code>"system" | "ja" | "en"</code>。
+<code>autosave_ms</code>: 自動保存までの打鍵の間隔（§8.2、200–2000、既定 400。範囲外は丸める）。
+<code>suggest_comma</code>: 自動句切れ提案（§9.4.3、既定 <code>false</code>）。
+<code>status_stats_mode</code>: ステータスバーの統計モード（§9.6.3、既定 <code>false</code>）。
+<code>confirm_section_delete</code>: 空でない節の削除前に確認するか（§8.1.2、既定 <code>true</code>）。
+<code>guide_done</code>: はじめての手引きを閉じたか（§9.10、既定 <code>false</code>）。<code>true</code> なら自動では出さない。
+知らないキーは<strong>読んだまま書き戻す</strong>（将来のキーを、古い版が消してしまわないため）。
+範囲を持つキーは、範囲外の値を読んだときに読み捨てるか範囲へ丸める（<code>pane_ratio</code>・<code>font_scale</code>・<code>autosave_ms</code>・<code>max_line_chars</code> は丸め、<code>context_sections</code> は範囲外なら既定 <code>3</code> のまま）。型の違う値は読み捨てる。</p>
+<table>
+<thead>
+<tr>
+<th>キー</th>
+<th>既定</th>
+<th>範囲</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pane_ratio.main</code></td>
+<td><code>0.62</code></td>
+<td><code>0.3</code>–<code>0.85</code></td>
+</tr>
+<tr>
+<td><code>pane_ratio.context_view</code></td>
+<td><code>0.55</code></td>
+<td><code>0.2</code>–<code>0.8</code></td>
+</tr>
+<tr>
+<td><code>font_scale</code></td>
+<td><code>1.0</code></td>
+<td><code>0.8</code>–<code>1.6</code>（<code>Ctrl+Plus</code> / <code>Ctrl+Minus</code> は 0.1 刻み）</td>
+</tr>
+<tr>
+<td><code>context_sections</code></td>
+<td><code>3</code></td>
+<td><code>1</code>–<code>9</code></td>
+</tr>
+<tr>
+<td><code>autosave_ms</code></td>
+<td><code>400</code></td>
+<td><code>200</code>–<code>2000</code></td>
+</tr>
+<tr>
+<td><code>max_line_chars</code></td>
+<td>表示言語ごと（§4.4.5）</td>
+<td><code>20</code>–<code>120</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>folded</code>: 折りたたみ状態（§9.3.3）。2 つの配列を持つ。</p>
+<table>
+<thead>
+<tr>
+<th>キー</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>outline</code></td>
+<td>構成ツリー（§10.3.1）で<strong>話を展開している章</strong>の鍵（<code>@NN</code>）。構成ツリーは既定で畳んだ状態から始まるので、開いている章を並べる（§9.3.3 の注記）</td>
+</tr>
+<tr>
+<td><code>context_view</code></td>
+<td>文脈ビュー（§9.3）で<strong>畳んでいる節</strong>の鍵（<code>@AA-BB-CC-DD</code>）。現在の節を含む単位（鍵が現在の節 ID の接頭辞）は保存しない（§9.3.3「現在の節を含む単位は畳めない」）</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>既に無い章・節の鍵は、描画で参照されないだけなので害は無い（起動時に消しには行かない。ファイルを書き換えない、§4.5）。</li>
+<li>旧名 <code>folded.context</code> は<strong>読むときだけ</strong>受け付ける（書き出しは常に <code>context_view</code>）。
+<strong>このファイルが存在しない／壊れている場合は既定値で起動し、エラーを出さない</strong>（MUST）。</li>
+</ul>
+<h4 id="442-novnowstatsjson執筆統計の最小メタデータ">4.4.2 <code>.novnow/stats.json</code>（執筆統計の最小メタデータ）</h4>
+<p>§9.6.2 のセッション情報と §10.9.5 の統計タブのために、<strong>日次の集計だけ</strong> を保持する。</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "schema_version"</span><span style="color:#24292E">: </span><span style="color:#005CC5">1</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "days"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">    "2026-10-09"</span><span style="color:#24292E">: { </span><span style="color:#005CC5">"chars"</span><span style="color:#24292E">: </span><span style="color:#005CC5">3800</span><span style="color:#24292E">, </span><span style="color:#005CC5">"hours"</span><span style="color:#24292E">: [</span><span style="color:#005CC5">9</span><span style="color:#24292E">, </span><span style="color:#005CC5">10</span><span style="color:#24292E">, </span><span style="color:#005CC5">22</span><span style="color:#24292E">, </span><span style="color:#005CC5">23</span><span style="color:#24292E">] }</span></span>
+<span class="line"><span style="color:#24292E">  }</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<table>
+<thead>
+<tr>
+<th>規則</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>粒度</td>
+<td>1 日 1 レコード。<code>chars</code> は当日の増加文字数（空白除外）、<code>hours</code> は執筆のあった時刻（0–23）の集合</td>
+</tr>
+<tr>
+<td><strong>イベントログを作らない</strong>（MUST）</td>
+<td><code>*.jsonl</code> 形式の打鍵・保存ログは一切作らない。内容・文面・ファイル名は記録しない</td>
+</tr>
+<tr>
+<td>保持期間</td>
+<td>直近 400 日。超えた分は削除する</td>
+</tr>
+<tr>
+<td>サイズ上限</td>
+<td>64KB。超えたら古い日から削る</td>
+</tr>
+<tr>
+<td>欠損耐性</td>
+<td>削除・破損しても <strong>統計の履歴が消えるだけ</strong>。他の機能に影響してはならない（MUST）</td>
+</tr>
+<tr>
+<td>書き込み頻度</td>
+<td>セッション終了時と 10 分ごと。打鍵ごとには書かない</td>
+</tr>
+</tbody>
+</table>
+<h4 id="443-novnowreaderjson">4.4.3 <code>.novnow/reader.json</code></h4>
+<p>読者モードの読書位置・文字サイズ・列数・しおりを保持する。原稿・共有設定とは独立したローカル状態であり、
+削除しても読書位置が初期化されるだけである。未知のキーは保持する（読み書きのたびに温存し、既知のキーだけ上書きする）。</p>
+<table>
+<thead>
+<tr>
+<th>キー</th>
+<th>型</th>
+<th>既定</th>
+<th>範囲（外は丸める）</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>episode</code></td>
+<td>整数</td>
+<td><code>0</code></td>
+<td>話数に収める</td>
+<td>開いている話（章・話の昇順に並べた索引。パス順ではない）</td>
+</tr>
+<tr>
+<td><code>page</code></td>
+<td>整数</td>
+<td><code>0</code></td>
+<td>—</td>
+<td>話の中のページ</td>
+</tr>
+<tr>
+<td><code>font_size</code></td>
+<td>実数</td>
+<td><code>20.0</code></td>
+<td><code>12.0</code>〜<code>36.0</code></td>
+<td>本文の文字サイズ（<code>.novnow/ui.json</code> の <code>font_scale</code> とは独立、§17.3）</td>
+</tr>
+<tr>
+<td><code>columns</code></td>
+<td>整数</td>
+<td><code>18</code></td>
+<td><code>5</code>〜<code>40</code></td>
+<td>縦書きの列数（横書きでは 1 行の字数の目安）</td>
+</tr>
+<tr>
+<td><code>vertical</code></td>
+<td>真偽</td>
+<td><code>true</code></td>
+<td>—</td>
+<td>縦書き（<code>false</code> で横書き）</td>
+</tr>
+<tr>
+<td><code>ruby</code></td>
+<td>真偽</td>
+<td><code>true</code></td>
+<td>—</td>
+<td>ルビを表示する</td>
+</tr>
+<tr>
+<td><code>dark</code></td>
+<td>真偽</td>
+<td><code>false</code></td>
+<td>—</td>
+<td>読者モードだけ暗色にする</td>
+</tr>
+<tr>
+<td><code>bookmarks</code></td>
+<td>配列</td>
+<td>空</td>
+<td>—</td>
+<td>しおり。<code>[[文書パス, ページ], …]</code> の配列で、<code>b</code> を押すと今の位置を付け外しする（同じ組があれば外す）。§17.3.4</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>既定値の出どころは <code>project.toml</code> の <code>[reader]</code>（§4.5）が先で、<code>reader.json</code> にキーが無いときだけ使う。
+ただし <code>columns</code> は <code>reader.json</code> → <code>[reader] columns</code> → <code>18</code>、<code>ruby</code> は <code>reader.json</code> → <code>[reader] ruby</code> → <code>true</code> の順。
+<strong>1 段の字数（行数）は <code>reader.json</code> には持たず</strong>、<code>[reader] chars_per_column</code>（既定 42、<code>10</code>〜<code>80</code>）だけを見る。</li>
+<li>壊れた JSON（オブジェクトでない・読めない）は空の設定として扱い、既定で開く（診断は出さない。§4.4 冒頭）。</li>
+<li>保存は整形した JSON（2 字下げ）＋ 末尾の改行。値が変わったときだけ書く。</li>
+</ul>
+<h4 id="444-novnowcache">4.4.4 <code>.novnow/cache/</code></h4>
+<p>解析キャッシュ（再生成可能。削除しても動作に影響してはならない）。</p>
+<h4 id="445-本文の-1-行最大文字幅max_line_chars状態-実装完了">4.4.5 本文の 1 行最大文字幅（<code>max_line_chars</code>）〔状態: 実装完了〕</h4>
+<ul>
+<li><code>.novnow/ui.json</code> に任意キー <code>max_line_chars</code>（整数、有効範囲 <code>20..=120</code>、範囲外はクランプ）を追加する。</li>
+<li>未指定時の既定値は、日本語表示（<code>ja</code>）では全角 <strong>44 字</strong>相当、英語表示（<code>en</code>）では半角 <strong>70 字</strong>前後相当とし、言語ごとの字面幅に応じて右側に不自然な余白が残らないようにする。コマンドパレットからも変更できる。</li>
+</ul>
+<h3 id="45-projecttoml-スキーマschema_version-2">4.5 <code>project.toml</code> スキーマ（schema_version 2）</h3>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="toml"><code><span class="line"><span style="color:#24292E">schema_version = </span><span style="color:#005CC5">2</span></span>
+<span class="line"><span style="color:#24292E">title = </span><span style="color:#032F62">"星屑の時計"</span></span>
+<span class="line"><span style="color:#24292E">author = </span><span style="color:#032F62">""</span></span>
+<span class="line"><span style="color:#24292E">content_encoding = </span><span style="color:#032F62">"utf-8"</span></span>
+<span class="line"><span style="color:#24292E">newline = </span><span style="color:#032F62">"lf"</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E">[</span><span style="color:#6F42C1">structure</span><span style="color:#24292E">]</span></span>
+<span class="line"><span style="color:#24292E">scene_id_format = </span><span style="color:#032F62">"A-B-C-D"</span></span>
+<span class="line"><span style="color:#24292E">chapter_digits = </span><span style="color:#005CC5">2</span></span>
+<span class="line"><span style="color:#24292E">episode_digits = </span><span style="color:#005CC5">2</span></span>
+<span class="line"><span style="color:#24292E">scene_digits = </span><span style="color:#005CC5">2</span></span>
+<span class="line"><span style="color:#24292E">section_digits = </span><span style="color:#005CC5">2</span></span>
+<span class="line"><span style="color:#24292E">allow_chapter_zero = </span><span style="color:#005CC5">true</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E">[</span><span style="color:#6F42C1">writing</span><span style="color:#24292E">]</span></span>
+<span class="line"><span style="color:#24292E">section_target_chars = </span><span style="color:#005CC5">400</span></span>
+<span class="line"><span style="color:#24292E">section_warn_chars = </span><span style="color:#005CC5">1200</span></span>
+<span class="line"><span style="color:#24292E">episode_target_chars = </span><span style="color:#005CC5">6000</span></span>
+<span class="line"><span style="color:#24292E">manuscript_page_chars = </span><span style="color:#005CC5">400</span></span>
+<span class="line"><span style="color:#24292E">max_consecutive_speeches = </span><span style="color:#005CC5">3</span></span>
+<span class="line"><span style="color:#24292E">dialogue_ratio_target = </span><span style="color:#005CC5">0.3</span></span>
+<span class="line"><span style="color:#24292E">long_sentence_chars = </span><span style="color:#005CC5">120</span></span>
+<span class="line"><span style="color:#24292E">particle_run_threshold = </span><span style="color:#005CC5">4</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E">[</span><span style="color:#6F42C1">lexicon</span><span style="color:#24292E">.</span><span style="color:#6F42C1">word_classes</span><span style="color:#24292E">]</span></span>
+<span class="line"><span style="color:#24292E">"体言" = </span><span style="color:#032F62">'[\p{Han}\p{Katakana}\p{Hiragana}A-Za-z0-9ー]{1,24}'</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E">[</span><span style="color:#6F42C1">export</span><span style="color:#24292E">]</span></span>
+<span class="line"><span style="color:#24292E">paragraph_break = </span><span style="color:#032F62">"blank-line"</span></span>
+<span class="line"><span style="color:#24292E">indent_first_line = </span><span style="color:#005CC5">false</span></span>
+<span class="line"><span style="color:#24292E">keep_ruby = </span><span style="color:#005CC5">true</span></span>
+<span class="line"><span style="color:#24292E">insert_headings = </span><span style="color:#005CC5">false</span></span>
+<span class="line"><span style="color:#24292E">include_blurb = </span><span style="color:#005CC5">false</span></span>
+<span class="line"><span style="color:#24292E">newline = </span><span style="color:#032F62">"crlf"</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E">[</span><span style="color:#6F42C1">reader</span><span style="color:#24292E">]</span></span>
+<span class="line"><span style="color:#24292E">columns = </span><span style="color:#005CC5">18</span></span>
+<span class="line"><span style="color:#24292E">chars_per_column = </span><span style="color:#005CC5">42</span></span>
+<span class="line"><span style="color:#24292E">ruby = </span><span style="color:#005CC5">true</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E">[</span><span style="color:#6F42C1">agents</span><span style="color:#24292E">]</span></span>
+<span class="line"><span style="color:#24292E">enabled = </span><span style="color:#005CC5">true</span></span>
+<span class="line"><span style="color:#24292E">delegation = </span><span style="color:#032F62">"propose"</span></span>
+<span class="line"><span style="color:#24292E">max_chars_per_request = </span><span style="color:#005CC5">12000</span></span>
+<span class="line"><span style="color:#24292E">integrator = </span><span style="color:#032F62">"human"</span></span>
+<span class="line"><span style="color:#24292E">max_parallel = </span><span style="color:#005CC5">2</span></span>
+<span class="line"><span style="color:#24292E">custom_roles = []</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E">[</span><span style="color:#6F42C1">agents</span><span style="color:#24292E">.</span><span style="color:#6F42C1">roles</span><span style="color:#24292E">]</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E">[</span><span style="color:#6F42C1">agents</span><span style="color:#24292E">.</span><span style="color:#6F42C1">limits</span><span style="color:#24292E">]</span></span>
+<span class="line"><span style="color:#24292E">max_tasks_per_session = </span><span style="color:#005CC5">100</span></span>
+<span class="line"><span style="color:#24292E">max_chain_hops = </span><span style="color:#005CC5">10</span></span>
+<span class="line"><span style="color:#24292E">max_input_chars_per_session = </span><span style="color:#005CC5">2000000</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E">[</span><span style="color:#6F42C1">agents</span><span style="color:#24292E">.</span><span style="color:#6F42C1">local_llm</span><span style="color:#24292E">]</span></span>
+<span class="line"><span style="color:#24292E">enabled = </span><span style="color:#005CC5">false</span></span>
+<span class="line"><span style="color:#24292E">url = </span><span style="color:#032F62">"http://localhost:11434"</span></span>
+<span class="line"><span style="color:#24292E">model = </span><span style="color:#032F62">""</span></span></code></pre>
+<ul>
+<li>形式は TOML とし、スキーマの版は <code>schema_version = 2</code>（整数）。コメント（<code>#</code>）を書いてよい。</li>
+<li>書き戻しは <strong>無損失編集</strong>とする。アプリが変更したキー以外は、コメント・書式・キー順・未知キーとその値をそのまま保持する（MUST）。未知キーは保存時に温存し、novnow は未知キーを削除してはならない（MUST）。</li>
+<li>TOML として読めない場合は E025 を出して既定値で開き、そのファイルは <strong>上書きしない</strong>（MUST、§4.3）。</li>
+<li><code>title</code> が空文字のときは、表示上のタイトルにディレクトリ名を使う。</li>
+<li><code>newline</code> は保存時の改行コード。<code>"lf" | "crlf"</code>。既定 <code>crlf</code>（上の例のとおり。<code>[export]</code> を書かないプロジェクトは <code>crlf</code> になる）。</li>
+</ul>
+<h4 id="451-追加キーの意味">4.5.1 追加キーの意味</h4>
+<table>
+<thead>
+<tr>
+<th>キー</th>
+<th>既定</th>
+<th>範囲</th>
+<th>参照</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>structure.allow_chapter_zero</code></td>
+<td><code>true</code></td>
+<td>bool</td>
+<td>§5.1.2（00 章ストック）</td>
+</tr>
+<tr>
+<td><code>writing.max_consecutive_speeches</code></td>
+<td><code>3</code></td>
+<td>1–9</td>
+<td>§7.2 W082</td>
+</tr>
+<tr>
+<td><code>writing.dialogue_ratio_target</code></td>
+<td><code>0.3</code></td>
+<td>0.0–1.0（台詞の割合の上限目安）</td>
+<td>§9.4.2</td>
+</tr>
+<tr>
+<td><code>writing.long_sentence_chars</code></td>
+<td><code>120</code></td>
+<td>40–400</td>
+<td>§9.4.3, §7.2 W089</td>
+</tr>
+<tr>
+<td><code>writing.particle_run_threshold</code></td>
+<td><code>4</code></td>
+<td>2–10</td>
+<td>§9.4.3</td>
+</tr>
+<tr>
+<td><code>export.include_blurb</code></td>
+<td><code>false</code></td>
+<td>bool</td>
+<td>§17.2（章あらすじの挿入）</td>
+</tr>
+<tr>
+<td><code>agents.delegation</code></td>
+<td><code>"propose"</code></td>
+<td><code>"off" | "propose" | "apply" | "autonomous"</code></td>
+<td>§15.1.1（委譲レベルの全体既定）</td>
+</tr>
+<tr>
+<td><code>agents.roles</code></td>
+<td><code>{}</code></td>
+<td>役割名 → <code>"off" | "propose" | "apply" | "autonomous"</code></td>
+<td>§15.1.1（役割ごとの上書き）</td>
+</tr>
+<tr>
+<td><code>agents.limits</code></td>
+<td>下記参照</td>
+<td>オブジェクト</td>
+<td>§15.1.1 A8（自律の上限）</td>
+</tr>
+<tr>
+<td><code>agents.integrator</code></td>
+<td><code>"human"</code></td>
+<td><code>"human" | "agent"</code></td>
+<td>§15.2。<code>"human"</code> は <code>roles.integrator = "off"</code> と同義</td>
+</tr>
+<tr>
+<td><code>agents.max_parallel</code></td>
+<td><code>2</code></td>
+<td>1–8</td>
+<td>§15.7.5（並列実行）</td>
+</tr>
+<tr>
+<td><code>agents.custom_roles</code></td>
+<td><code>[]</code></td>
+<td>ロール名の配列</td>
+<td>§15.2.1</td>
+</tr>
+<tr>
+<td><code>agents.local_llm</code></td>
+<td>無効</td>
+<td>—</td>
+<td>§15.8.4</td>
+</tr>
+<tr>
+<td><code>reader</code></td>
+<td><code>{columns:18, chars_per_column:42, ruby:true}</code></td>
+<td>—</td>
+<td>§17.3 の既定の表示設定。読書位置・しおり・利用者の表示調整はローカル状態が優先</td>
+</tr>
+</tbody>
+</table>
+<p><code>agents.limits</code> のキー（すべて任意。超過したら自律タスクは自動停止し W095 を出す、A8）。
+上限を見るのは<strong>自動で起こす直前だけ</strong>で、人間が起こすタスクは止めない。<code>0</code> は無制限:</p>
+<table>
+<thead>
+<tr>
+<th>キー</th>
+<th>既定</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>max_tasks_per_session</code></td>
+<td><code>100</code></td>
+<td>1 セッションに<strong>自動で</strong>起動できるタスク数の上限</td>
+</tr>
+<tr>
+<td><code>max_chain_hops</code></td>
+<td><code>10</code></td>
+<td>エージェント間連鎖のホップ数上限（§15.6）。人間が起こしたタスクから数え、自動で起こすたびに 1</td>
+</tr>
+<tr>
+<td><code>max_input_chars_per_session</code></td>
+<td><code>2,000,000</code></td>
+<td>1 セッションの入力文字数上限（コストの暴走止め）</td>
+</tr>
+</tbody>
+</table>
+<h4 id="452-featuresfeature-単位の設定">4.5.2 <code>[features]</code>（feature 単位の設定）</h4>
+<p>作品として揃えるべき意味・検証のオン・オフは、すべて <code>project.toml</code> の <code>[features]</code> に置く。個人の表示設定（§4.4）には置かない。</p>
+<p><strong>診断（<code>[features.diagnostics]</code>）</strong>: 値は <code>"off"</code>（出さない）/ <code>"warn"</code>（警告として出す）/ <code>"error"</code>（エラーとして扱う）の 3 値。診断コードごとに、次の順で最初に見つかった値を適用する。</p>
+<ol>
+<li>個別の診断コード（例: <code>W083 = "off"</code>）</li>
+<li>グループ: <code>structure</code>（§7）/ <code>storage</code>（§7.1）/ <code>writing</code>（§7.2）</li>
+<li><code>default</code></li>
+</ol>
+<p>どれも無ければ、各コードの組み込み既定（§7〜§7.2 の各表の深刻度と既定）に従う。<code>"off"</code> の診断は件数にも含めない。この設定が変えるのは診断の有効性とエラー扱いだけであり、文法・名前解決・保存の規則は変えない。</p>
+<p><strong>操作系 feature</strong>: <code>[features]</code> の直下に真偽値で置く。個々のキー名と既定値は、それぞれの機能を定義する節が定める。書かないキーは組み込み既定である。</p>
+<hr>
+<h2 id="付録-c-sample-プロジェクト">付録 C: <code>sample</code> プロジェクト</h2>
+<h3 id="c1-サンプルプロジェクト構成と検証要素">C.1 サンプルプロジェクト構成と検証要素</h3>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>sample/</span></span>
+<span class="line"><span>  project.toml</span></span>
+<span class="line"><span>  characters.md          アルス（モード A/B）、リリア（モード A/B/C）、学院長（モード A）</span></span>
+<span class="line"><span>  words.md               星屑の時計 / 魔法学院 / 旧校舎</span></span>
+<span class="line"><span>  ideas.md               I0001 学院長の動機（inbox）</span></span>
+<span class="line"><span>  contents/01-04.cnov    既存の本文（`'『…』` は `『'…』` に直した v0.1.0 版）</span></span>
+<span class="line"><span>  plots/all.cnov         @01, @02 の 2 ブロック（summary 必須）</span></span>
+<span class="line"><span>  plots/01.cnov          @01-04 を含む話ブロック</span></span>
+<span class="line"><span>  plots/01-04.cnov       @01-04-01, @01-04-02（mode: と check: と material: の実例つき）</span></span>
+<span class="line"><span>  materials/index.json   M0001 を 1 件（source.kind = custom）</span></span>
+<span class="line"><span>  materials/docs/M0001-kyukousha.md</span></span>
+<span class="line"><span>  prompts/               既定 7 本</span></span>
+<span class="line"><span>  agents/mcp.json        servers: {}</span></span></code></pre>
+<p>サンプルは「<strong>機能を一通り踏んだ最小例</strong>」であること（MUST）。具体的には次をすべて 1 回ずつ含む:
+モードの併用（<code>'リリア:B+C</code>）、モードの range 変種、役割語の一致例と不一致例、資料 ID 参照、
+条件一致による資料候補、未回収の伏線 1 件、<code>state: fixed</code> の節 1 つ、アイデア 1 件。</p>
+<hr>
+</article><p class="source-note" data-astro-cid-rv2sskwj>このページは <code data-astro-cid-rv2sskwj>docs/specifications/project.md</code> から自動生成しています。内容の正本はリポジトリのそのファイルです。</p></main></div><footer class="_footer_13bsc_1"><div class="container _inner_13bsc_8"><div><p class="_creditText_13bsc_16">NovNow - Created by <a href="https://github.com/sonneko" target="_blank" rel="noopener noreferrer" class="_author_13bsc_23">sonneko</a>.</p><p class="_copyright_13bsc_28">© 2026 NovNow Project. All rights reserved.</p></div><div class="_links_13bsc_33"><a href="/novnow/ja">トップ</a><a href="/novnow/ja/guide">機能一覧</a><a href="/novnow/ja/troubleshooting">トラブルシューティング</a><a href="https://github.com/sonneko/novnow" target="_blank" rel="noopener noreferrer">GitHub</a></div></div></footer><p><a href="/novnow/nightly-app/">Nightly (unstable) / 開発版（不安定）</a></p></body></html>

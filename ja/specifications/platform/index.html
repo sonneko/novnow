@@ -1,0 +1,597 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="theme-color" content="#ffffff"><title>novnow 仕様書 — ストレージと起動仕様 | NovNow</title><meta name="description" content="NovNow - Dedicated Novel &amp; Scenario IDE for Writers &amp; Engineers"><link rel="canonical" href="https://sonneko.github.io/novnow/ja/specifications/platform/"><link rel="alternate" hreflang="ja" href="https://sonneko.github.io/novnow/ja/specifications/platform/"><link rel="alternate" hreflang="en" href="https://sonneko.github.io/novnow/en/specifications/platform/"><link rel="icon" type="image/svg+xml" href="/novnow/favicon.svg"><link rel="stylesheet" href="/novnow/_astro/Footer.CS3W3i4D.css"><style>.doc{color:#23272f;max-width:820px;font-size:1.02rem;line-height:1.85}.doc h1{letter-spacing:-.025em;color:#23272f;margin-bottom:1.5rem;font-size:clamp(1.9rem,3.2vw,2.45rem);font-weight:800;line-height:1.25}.doc h2{letter-spacing:-.015em;color:#23272f;border-bottom:1px solid #ebecf0;margin:2.75rem 0 1rem;padding-bottom:.5rem;font-size:1.55rem;font-weight:700}.doc h3{color:#23272f;margin:2.1rem 0 .75rem;font-size:1.22rem;font-weight:700}.doc h4{color:#23272f;margin:1.6rem 0 .5rem;font-size:1.02rem;font-weight:700}.doc p,.doc li{color:#404756}.doc p{margin:.95rem 0}.doc ul,.doc ol{margin:.95rem 0 .95rem 1.5rem}.doc li{margin:.4rem 0}.doc strong{color:#23272f;font-weight:700}.doc a{color:#087ea4;border-bottom:1px solid #087ea44d;text-decoration:none;transition:border-color .15s,color .15s}.doc a code{color:#087ea4;background-color:#e6f7ff;transition:background-color .15s,box-shadow .15s;box-shadow:inset 0 0 0 1px #087ea438}.doc a:hover{border-bottom-color:#087ea4;text-decoration:none}.doc a:hover code{background-color:#087ea424;box-shadow:inset 0 0 0 1px #087ea45c}.doc code{color:#23272f;background-color:#99a1b326;border-radius:6px;padding:.14rem .38rem;font-size:.87em}.doc pre{border-radius:16px;margin:1.35rem 0;padding:1.15rem 1.35rem;font-size:.88rem;line-height:1.65;overflow-x:auto;box-shadow:inset 0 0 0 1px #00000014;background-color:#f6f7f9!important}.doc pre code{font-size:inherit;background:0 0;border-radius:0;padding:0}.doc table{border-collapse:separate;border-spacing:0;border:1px solid #ebecf0;border-radius:12px;width:100%;margin:1.5rem 0;font-size:.93rem;overflow:hidden}@media (width<=720px){.doc table{display:block;overflow-x:auto}}.doc th,.doc td{text-align:left;vertical-align:top;border-bottom:1px solid #ebecf0;border-right:1px solid #ebecf0;padding:.65rem .9rem}.doc th:last-child,.doc td:last-child{border-right:none}.doc tbody tr:last-child td{border-bottom:none}.doc th{color:#5e687e;white-space:nowrap;background-color:#f6f7f9;font-size:.85rem;font-weight:700}.doc td{color:#404756;background-color:#fff}.doc blockquote{background-color:#e6f7ff;border-radius:16px;margin:1.5rem 0;padding:1rem 1.25rem;box-shadow:inset 0 0 0 1px #087ea42e}.doc blockquote p{color:#23272f;margin:.3rem 0}.doc hr{border:none;border-top:1px solid #ebecf0;margin:2.5rem 0}.doc img{border-radius:12px;max-width:100%;box-shadow:0 .8px 2px #00000008,0 2.7px 6.7px #0000000c,0 12px 30px #00000014}.source-note[data-astro-cid-rv2sskwj]{color:#5e687e;border-top:1px solid #ebecf0;max-width:820px;margin-top:3rem;padding-top:1.15rem;font-size:.84rem;line-height:1.6}.source-note[data-astro-cid-rv2sskwj] code[data-astro-cid-rv2sskwj]{color:#23272f;background-color:#99a1b326;border-radius:5px;padding:.12rem .35rem;font-size:.88em}
+</style></head><body><aside class="release-notice" aria-label="リリースとデータ互換性" data-astro-cid-jtqikg62><strong data-astro-cid-jtqikg62>v0.1.1</strong>：v1 までは保存形式が変わる場合があります。v0 → v1 の移行機能は提供しません。更新前に Zip と本文テキストを保管してください。<a href="/novnow/ja/troubleshooting/#legacy-v0-project" data-astro-cid-jtqikg62>詳しく</a></aside><header class="_header_1az26_1"><div class="_inner_1az26_10"><div class="_brandGroup_1az26_21"><a href="/novnow/ja" class="_logo_1az26_27"><svg class="_logoIcon_1az26_43" viewBox="0 0 192 192" fill="none" aria-hidden="true"><rect width="192" height="192" rx="42" fill="#087EA4"></rect><path d="M43 142V50h22l62 65V50h22v92h-22L65 77v65Z" fill="#FFFFFF"></path><path d="M157 41v44" stroke="#ABE2ED" stroke-width="10" stroke-linecap="round"></path></svg><span class="_logoText_1az26_49">NovNow</span></a><span class="_versionTag_1az26_56">v0.1.1</span></div><nav class="_nav_1az26_65" aria-label="Primary"><a href="/novnow/ja/#downloads" class="_navLink_1az26_73">ダウンロード</a><a href="/novnow/ja/known-issues" class="_navLink_1az26_73">既知の問題</a><a href="/novnow/ja" class="_navLink_1az26_73">トップ</a><a href="/novnow/ja/manual/" class="_navLink_1az26_73">ガイド</a><a href="/novnow/ja/specifications/" class="_navLink_1az26_73 _active_1az26_91">仕様書</a><a href="/novnow/ja/api" class="_navLink_1az26_73">API リファレンス</a><a href="/novnow/ja/troubleshooting" class="_navLink_1az26_73">トラブルシューティング</a></nav><div class="_actions_1az26_101"><div class="_switcher_1w0ra_1" role="group" aria-label="Language"><a href="/novnow/ja/specifications/platform" class="_langBtn_1w0ra_11 _active_1w0ra_25">日本語</a><a href="/novnow/en/specifications/platform" class="_langBtn_1w0ra_11">EN</a></div><a href="https://github.com/sonneko/novnow" target="_blank" rel="noopener noreferrer" class="_githubBtn_1az26_107" aria-label="GitHub" title="GitHub"><svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg><span class="_githubLabel_1az26_129">GitHub</span></a></div></div></header><div class="doc-layout" data-astro-cid-rv2sskwj><aside class="doc-sidebar" aria-label="ドキュメント目次" data-astro-cid-rv2sskwj><div class="doc-sidebar-group" data-astro-cid-rv2sskwj>ユーザーガイド</div><nav class="doc-sidebar-nav" data-astro-cid-rv2sskwj><a href="/novnow/ja/manual/" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow ユーザーガイド</span></a><a href="/novnow/ja/manual/start" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>はじめての手引き（30 分で 1 本書き上げる）</span></a><a href="/novnow/ja/manual/cheatsheet" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>早見表</span></a><a href="/novnow/ja/manual/glossary" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>用語集</span></a><a href="/novnow/ja/manual/faq" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>よくある質問</span></a><a href="/novnow/ja/manual/errors" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>よく出るエラーと直し方（12 件）</span></a><a href="/novnow/ja/manual/project-structure" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>作品のフォルダ構成</span></a><a href="/novnow/ja/manual/git" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>Git で原稿を守る（知りたい人だけ）</span></a><a href="/novnow/ja/manual/publish" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>書き出した原稿を公開する</span></a><a href="/novnow/ja/manual/install" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow の入れ方（どの版を選ぶか）</span></a></nav><hr class="doc-sidebar-divider" data-astro-cid-rv2sskwj><div class="doc-sidebar-group" data-astro-cid-rv2sskwj>仕様書</div><nav class="doc-sidebar-nav" data-astro-cid-rv2sskwj><a href="/novnow/ja/specifications/overview" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 概要・原則・処理モデル</span></a><a href="/novnow/ja/specifications/project" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — プロジェクト構造</span></a><a href="/novnow/ja/specifications/syntax" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — ファイル形式（構文仕様）</span></a><a href="/novnow/ja/specifications/semantics" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 意味解決エンジン</span></a><a href="/novnow/ja/specifications/diagnostics" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 診断カタログ</span></a><a href="/novnow/ja/specifications/editing" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 編集モデルと保存</span></a><a href="/novnow/ja/specifications/ui" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 画面・ワークスペース・テーマ・国際化</span></a><a href="/novnow/ja/specifications/platform" aria-current="page" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — ストレージと起動仕様</span></a><a href="/novnow/ja/specifications/agent" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — AI エージェント</span></a><a href="/novnow/ja/specifications/workflows" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 資料収集・エクスポート・性能品質</span></a><a href="/novnow/ja/specifications/interfaces" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 外部インターフェース（ヘッドレス全機能 API 群）</span></a><a href="/novnow/ja/specifications/external" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 配布形態（外部提供物）</span></a></nav></aside><main data-astro-cid-rv2sskwj><article class="doc" data-astro-cid-rv2sskwj><h1 data-astro-cid-rv2sskwj>novnow 仕様書 — ストレージと起動仕様</h1><h2 id="13-ストレージ">13. ストレージ</h2>
+<h3 id="131-規則-10--プロジェクト外に出してよい情報">13.1 規則 10 — プロジェクト外に出してよい情報</h3>
+<blockquote>
+<p>「プロジェクトディレクトリ外に存在して良い情報は、プロジェクトディレクトリパスの履歴のみ。これは厳密に守る必要がある。」</p>
+</blockquote>
+<h4 id="1311-規範">13.1.1 規範</h4>
+<p>novnow が <strong>書き込んでよい場所は次の 2 つだけ</strong>（MUST）。例外は下の明示エクスポートと、配布物の取得専用領域だけである。</p>
+<ol>
+<li>現在開いているプロジェクトルート配下</li>
+<li>パス履歴ファイル <strong>1 個</strong>（§13.2）。Web ではその等価物（§13.3.4）</li>
+</ol>
+<p><strong>特例 — 利用者が明示的に導入・有効化した配布物の取得専用領域</strong>:
+VSCode 拡張の保存領域と GitHub Actions の実行ファイルキャッシュに限り、取得した実行ファイル・照合値と版の検証情報・短命な展開ファイルを保存してよい。展開中のファイルは完了・失敗時に削除する。原稿・作品の設定・ログをこの例外で保存してはならない。これは配布物の導入だけの許可であり、本体の通常保存や書き出しの境界を広げない（MUST）。</p>
+<p><strong>特例 — ユーザーが明示的に指定したエクスポートの書き出し先</strong>:
+ユーザーが <strong>書き出しを明示的に指示し、そのとき書き出し先のパスを明示的に指定した</strong> ときに限り、<strong>指定されたそのパス</strong> には
+プロジェクトの外でも書き込んでよい。対象は次の 2 つだけ。</p>
+<table>
+<thead>
+<tr>
+<th>書き出し</th>
+<th>書き出し先の指定</th>
+<th>書けるファイル</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Zip エクスポート（§13.5。デスクトップ）</td>
+<td>保存ダイアログ</td>
+<td>名前が <code>.zip</code> か <code>.novnow</code> で終わるもの</td>
+</tr>
+<tr>
+<td>テキストエクスポート（§17.2）</td>
+<td>デスクトップの「名前を付けて保存」の保存ダイアログ、または <code>novnow export --out &lt;パス&gt;</code>（§14.1）</td>
+<td>名前が <code>.txt</code> か <code>.md</code> で終わるもの</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>書けるのは、指定された <strong>ファイル 1 個</strong> への <strong>その 1 回の書き込み</strong> だけ。許可はそこで消える
+（パスを覚えない。履歴にも書かない。§13.1.3）。</li>
+<li>一時ファイルを作らずに直接書く。親ディレクトリは作らない（ダイアログで選べるのは既存のディレクトリだけ。
+<code>--out</code> の親ディレクトリが無ければ書き込みは失敗する）。</li>
+<li>名前が表の拡張子（大文字小文字は問わない）で終わらないパス（シンボリックリンクなら行き先で判定する）と、
+履歴ファイルは指定できない（E060）。Zip の書き出しに <code>.txt</code> を指定する、のように種類に合わない拡張子も同じ。</li>
+<li>既定の書き出し先（<code>exports/…</code>）・自動保存・設定・ログなど、ユーザーがパスを指定しない書き込みに特例は無い。
+Web はダウンロードなので関係しない。</li>
+</ul>
+<p>これ以外への書き込みは、一時ファイルであっても禁止する。具体的に禁止されるもの:</p>
+<ul>
+<li>設定ファイル（テーマ・言語・ウィンドウサイズ・ペイン比）→ すべて <code>.novnow/ui.json</code>（プロジェクト内）</li>
+<li>キャッシュ（解析結果・フォントキャッシュ・サムネイル）→ <code>.novnow/cache/</code>（プロジェクト内）</li>
+<li>ログ・クラッシュレポート・テレメトリ → <code>agents/log/</code>（プロジェクト内）/ テレメトリは <strong>そもそも実装しない</strong></li>
+<li>プロンプトのグローバル共有 → 禁止</li>
+<li>MCP サーバ設定のグローバル共有 → 禁止（<code>agents/mcp.json</code> のみ）</li>
+<li>最近使ったファイル・検索履歴・undo 履歴 → プロセス内メモリのみ（終了で消える）</li>
+<li>OS の一時ディレクトリ（<code>/tmp</code> 等）への中間ファイル → 禁止（原子的保存の一時ファイルも <strong>プロジェクト内の同一ディレクトリ</strong> に作る、§8.3）</li>
+</ul>
+<h4 id="1312-強制の仕組みmust">13.1.2 強制の仕組み（MUST）</h4>
+<ul>
+<li>すべてのファイル書き込みは単一の境界検査を通過しなければならない。</li>
+<li>§13.1.1 の特例（ユーザーが明示したエクスポート先）は、保存ダイアログまたは <code>novnow export --out</code> で明示されたパスとエクスポート種別（Zip / テキスト）の組に対して 1 回限り有効とし、通常の保存経路からは利用できない（MUST）。</li>
+<li>判定は <strong>シンボリックリンク解決後の絶対パス</strong> で行い、<code>..</code> を含む脱出を拒否する。</li>
+<li>違反時は書き込みを即座に中止し、診断 <strong>E060</strong> を表示する（MUST）。</li>
+</ul>
+<h4 id="1313-読み取りについて">13.1.3 読み取りについて</h4>
+<p>読み取りは「ユーザーが明示的に選んだパス」（フォルダ選択ダイアログ、Zip インポート）に限り、プロジェクト外でも許可する。
+ただし <strong>読み取ったパス自体を履歴以外のどこにも保存しない</strong>。
+プロジェクトの中にあっても、行き先がプロジェクトの外のシンボリックリンクは読まない（ファイルのリンクは一覧に出さず、名前で
+読んでも無いものとする。ディレクトリのリンクは辿らない。プロンプトがプロジェクト外から読み込まれないこともこれで担保する）。</p>
+<h3 id="132-デスクトップ-パス履歴ファイル">13.2 デスクトップ: パス履歴ファイル</h3>
+<h4 id="1321-場所固定">13.2.1 場所（固定）</h4>
+<table>
+<thead>
+<tr>
+<th>OS</th>
+<th>パス</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Linux / BSD</td>
+<td><code>$XDG_STATE_HOME/novnow/recent.json</code>（未設定時 <code>~/.local/state/novnow/recent.json</code>）</td>
+</tr>
+<tr>
+<td>macOS</td>
+<td><code>~/Library/Application Support/novnow/recent.json</code></td>
+</tr>
+<tr>
+<td>Windows</td>
+<td><code>%APPDATA%\novnow\recent.json</code></td>
+</tr>
+</tbody>
+</table>
+<p>環境変数 <code>NOVNOW_RECENT_FILE</code> が設定されていればそれを使う（テスト・ポータブル運用のため）。</p>
+<h4 id="1322-形式これ以外のキーを足してはならないmust">13.2.2 形式（これ以外のキーを足してはならない。MUST）</h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "schema_version"</span><span style="color:#24292E">: </span><span style="color:#005CC5">1</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "items"</span><span style="color:#24292E">: [</span></span>
+<span class="line"><span style="color:#24292E">    { </span><span style="color:#005CC5">"path"</span><span style="color:#24292E">: </span><span style="color:#032F62">"/home/user/novels/hoshikuzu"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"opened_at"</span><span style="color:#24292E">: </span><span style="color:#032F62">"2026-10-09T12:00:00+09:00"</span><span style="color:#24292E"> }</span></span>
+<span class="line"><span style="color:#24292E">  ]</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<ul>
+<li><code>path</code> は絶対パス。<code>opened_at</code> は <strong>履歴の順序を保つためだけ</strong> に存在する（順序は履歴の本質であるため許容する）。</li>
+<li>上限 <strong>32 件</strong>。超えたら古い順に捨てる。</li>
+<li>タイトル・サムネイル・文字数・最後に開いた節など、<strong>プロジェクトの内容に関する情報は一切書かない</strong>（MUST）。</li>
+<li>存在しないパスは起動時の一覧表示で灰色にし、選択すると「履歴から削除」を促す。</li>
+<li>ファイルが壊れていたら黙って空の履歴として扱い、上書きする。</li>
+<li>同じ <code>path</code> は 1 件にまとめる（開くたびに先頭へ移す）。</li>
+<li>書き込みは一時ファイルを使わず <strong>直接上書き</strong> する（§13.1.1 は一時ファイルであってもプロジェクト外への書き込みを禁じる）。親ディレクトリ（<code>novnow/</code>）の作成は履歴ファイルの書き込みの一部として許す。</li>
+<li><code>opened_at</code> は RFC 3339。順序のためだけの値なので UTC（<code>Z</code>）で書いてよい。</li>
+</ul>
+<h3 id="133-web-indexeddb">13.3 Web: IndexedDB</h3>
+<h4 id="1331-なぜ-localstorage-をやめるか">13.3.1 なぜ LocalStorage をやめるか</h4>
+<p>LocalStorage は同期 API・文字列のみ・容量 5MB 前後という制約があり、長編小説 1 本（数 MB）+ 複数プロジェクトに耐えない。
+v0.1.0 では <strong>IndexedDB のみ</strong>を使い、LocalStorage は移行のためにだけ読む（移行後に消す）。</p>
+<h4 id="1332-スキーマ">13.3.2 スキーマ</h4>
+<p>DB 名 <code>novnow</code> / バージョン <code>1</code>。</p>
+<table>
+<thead>
+<tr>
+<th>ストア</th>
+<th>keyPath</th>
+<th>インデックス</th>
+<th>値</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>projects</code></td>
+<td><code>id</code>（文字列 UUIDv4 または <code>sample</code>）</td>
+<td><code>by_updated</code>（<code>updated_at</code>）</td>
+<td><code>{ id, name, created_at, updated_at, schema_version, origin }</code></td>
+</tr>
+<tr>
+<td><code>files</code></td>
+<td><code>[project_id, path]</code></td>
+<td><code>by_project</code>（<code>project_id</code>）</td>
+<td><code>{ project_id, path, text, bytes?, updated_at }</code></td>
+</tr>
+<tr>
+<td><code>app</code></td>
+<td><code>key</code></td>
+<td>—</td>
+<td><code>{ key, value }</code>。<strong>許可キーは <code>recent_projects</code> のみ</strong>（§13.3.4）</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><code>origin</code>: <code>"sample" | "new" | "import"</code>。</li>
+<li><code>path</code> はプロジェクトルートからの相対パス（<code>contents/01-04.cnov</code>）。先頭スラッシュ禁止。</li>
+<li>1 ファイル = 1 レコード。<code>text</code> は常に持ち、<code>bytes</code> は Zip の取り込みで入ったバイナリ資料（<code>assets/</code> の画像など）だけが持つ（省略可）。</li>
+<li>Web では<strong>バイナリを書かない</strong>（<code>Storage::read_binary</code> はあるが、書き込みはテキストだけ。§3.1 の <code>Unsupported</code>）。取り込んだバイナリは読み取り専用である。</li>
+<li>取り込み（§13.5）で <code>bytes</code> を持つのは <strong><code>assets/</code> 配下のエントリだけ</strong>。<code>assets/</code> 配下は UTF-8 として読めても <code>text</code> を空にして <code>bytes</code> に丸ごと入れる（バイナリ資料として扱う）。<code>assets/</code> の外で UTF-8 として読めないエントリは取り込まず、一覧で示す。</li>
+<li><code>projects</code> の一覧に出す大きさは、そのプロジェクトの全レコードの <code>bytes</code> があればその長さ、無ければ <code>text</code> の byte 数の和（選択モーダルの右端、§13.4）。</li>
+<li><code>files</code> の <code>updated_at</code> はファイル保存のたびに更新し、<code>projects.updated_at</code> も同じトランザクションで更新する（§13.3.3）。外部変更の検出（§8.5）のスタンプは <code>updated_at</code> と長さ（<code>bytes</code> があればその長さ、無ければ <code>text</code> の byte 数）から作る。</li>
+</ul>
+<h4 id="1333-操作のトランザクション境界">13.3.3 操作のトランザクション境界</h4>
+<table>
+<thead>
+<tr>
+<th>操作</th>
+<th>トランザクション</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ファイル保存</td>
+<td><code>files</code> に <code>readwrite</code> で 1 回 <code>put</code> + <code>projects.updated_at</code> 更新（同一トランザクション）</td>
+</tr>
+<tr>
+<td>プロジェクト作成</td>
+<td><code>projects</code> + <code>files</code>（雛形一式）を 1 トランザクション</td>
+</tr>
+<tr>
+<td>プロジェクト削除</td>
+<td><code>by_project</code> で全ファイル削除 + <code>projects</code> から削除を 1 トランザクション</td>
+</tr>
+<tr>
+<td>エクスポート</td>
+<td>読み取り専用トランザクションで全件取得</td>
+</tr>
+</tbody>
+</table>
+<h4 id="1334-app-ストア規則-10-の-web-版">13.3.4 <code>app</code> ストア（規則 10 の Web 版）</h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{ </span><span style="color:#005CC5">"key"</span><span style="color:#24292E">: </span><span style="color:#032F62">"recent_projects"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"value"</span><span style="color:#24292E">: { </span><span style="color:#005CC5">"schema_version"</span><span style="color:#24292E">: </span><span style="color:#005CC5">1</span><span style="color:#24292E">, </span><span style="color:#005CC5">"items"</span><span style="color:#24292E">: [ { </span><span style="color:#005CC5">"id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"…"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"opened_at"</span><span style="color:#24292E">: </span><span style="color:#032F62">"…"</span><span style="color:#24292E"> } ] } }</span></span></code></pre>
+<p>Web には「プロジェクトディレクトリパス」が存在しないため、その等価物として <strong>プロジェクト ID の履歴</strong> のみを許可する。
+<code>app</code> ストアに他のキーを書くことは禁止（MUST、テストで検証）。テーマ・言語などは <code>files</code> 内の <code>.novnow/ui.json</code> に置く（= プロジェクト内）。</p>
+<h4 id="1335-サンプルプロジェクトの初期投入">13.3.5 サンプルプロジェクトの初期投入</h4>
+<ul>
+<li>起動時に <code>projects</code> が空なら、<strong><code>sample</code> という名前のプロジェクトを 1 つだけ</strong> 作成する（<code>id = "sample"</code>, <code>origin = "sample"</code>）。</li>
+<li>中身は novnow バイナリに埋め込んだ v0.1.0 形式のサンプル小説（付録 C）。</li>
+<li>投入後も <strong>必ずプロジェクト選択モーダルを出す</strong>。一覧には <code>sample</code> 1 件だけが並ぶ（指示 2 の明文）。自動で開いてはならない（MUST）。</li>
+</ul>
+<h4 id="1336-容量エラー">13.3.6 容量・エラー</h4>
+<ul>
+<li>起動時に <code>navigator.storage.persist()</code> を要求する（拒否されても続行）。
+<ul>
+<li>要求は DB を開いた直後に<strong>待たずに</strong>投げる。許可の確認が返らないブラウザ（Firefox など）でもプロジェクトの読み込みを止めない。</li>
+</ul>
+</li>
+<li>保存前に <code>navigator.storage.estimate()</code> で残容量を確認し、残り 10MB 未満なら W062。
+<ul>
+<li>確認は<strong>1 分に 1 回まで</strong>（保存のたびに問い合わせない）。不足していれば W062 の文言を通知（トースト）で示す。診断の一覧（§9.6 の件数）には加えない。</li>
+</ul>
+</li>
+<li><code>QuotaExceededError</code> は <code>SaveFailed</code>（§8.2）として扱い、「Zip でエクスポートしてから不要プロジェクトを削除」する導線をモーダルで出す。</li>
+<li>プライベートブラウジング等で IndexedDB が使えない場合は <strong>LocalStorage へフォールバックしない</strong>（MUST）。
+起動を中止し、全画面メッセージ（i18n 済み）で状況と回避策（通常ウィンドウで開く / デスクトップ版を使う）を示す。</li>
+</ul>
+<h4 id="1337-pwa-化とオフライン動作状態-実装完了">13.3.7 PWA 化とオフライン動作〔状態: 実装完了〕</h4>
+<ul>
+<li>ブラウザ版は PWA（Progressive Web App）として構成し、ブラウザからインストール可能かつネットワーク未接続のオフライン環境でも起動・執筆・保存が完結するようにする。</li>
+</ul>
+<h3 id="134-プロジェクト選択モーダルweb">13.4 プロジェクト選択モーダル（Web）</h3>
+<p>ページを開いた瞬間（フォント読み込み完了前でも）に表示する。</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>┌──────────────────────────────────────────────┐</span></span>
+<span class="line"><span>│  [検索欄 autofocus]                           │</span></span>
+<span class="line"><span>│                                               │</span></span>
+<span class="line"><span>│   sample                 2026-10-09   124 KB  │  ← 選択行は accent 背景</span></span>
+<span class="line"><span>│   hoshikuzu-no-tokei     2026-10-08   2.1 MB  │</span></span>
+<span class="line"><span>│                                               │</span></span>
+<span class="line"><span>│   [＋]  [⇪]                                   │  ← 新規 / Zip 読み込み（アイコンのみ）</span></span>
+<span class="line"><span>└──────────────────────────────────────────────┘</span></span></code></pre>
+<ul>
+<li>タイトル文言は <code>project.pick.title</code>（これは「内容から役割が分からない」ケースなのでラベルを残す）。</li>
+<li>キーボード: <code>↑/↓</code> 選択、<code>Enter</code> 開く、<code>/</code> 検索欄へ、<code>Ctrl+N</code> 新規、<code>Ctrl+I</code> インポート、<code>F2</code> リネーム、<code>Delete</code> 削除（確認モーダル、名前の入力一致を要求）。
+ブラウザがページに渡さないキー（Chrome の <code>Ctrl+N</code> など）は、同じ操作のボタン（新規・Zip 読み込み）で代える。</li>
+<li>Web 版は別タブでの変更を自動検知しないため、モーダル内に「別のタブでの変更は検知されません。1 つのタブでお使いください」（<code>web.note.single_tab</code>）を明示する。</li>
+<li><strong>プロジェクトを選ぶまで背後の UI を描画しない</strong>（MUST）。<code>Esc</code> では閉じない。</li>
+<li>2 回目以降は <code>Ctrl+O</code> でいつでも開ける。開いている編集内容は先に保存される（§8.2 の即時トリガー）。</li>
+</ul>
+<p>一覧の表示と操作の細部:</p>
+<ul>
+<li>並びは「最後に開いた時刻（履歴）と <code>updated_at</code> の新しい方」の降順。大きい方が同じなら ID 順に依存しない（同時刻の並びは問わない）。</li>
+<li>1 行は 3 つの欄からなる。左がプロジェクト名（下線つき）、右端が大きさ、その左が <code>updated_at</code> の日付。日付は端末のローカル時刻の <code>YYYY-MM-DD</code>。大きさは 1,024KB 未満なら <code>N KB</code>（切り上げ）、以上なら <code>N.N MB</code>（小数 1 桁）で、読み込み前は空欄。</li>
+<li>検索欄はプロジェクト名の部分一致で、大小文字を区別しない。前方一致ではない。検索中も選択位置は先頭に戻る。</li>
+<li>単クリックは選択だけ、ダブルクリックは開く。キー案内は <code>↑/↓</code>・<code>Enter</code>・<code>/</code>・<code>Ctrl+N</code>・<code>Ctrl+I</code>・<code>F2</code>・<code>Delete</code> の 7 項目を並べ、押せるボタンとしても同じ操作を実行する。</li>
+<li>新規・名前の変更は、名前が空（空白だけを含む）のあいだは確定できない。削除の確認は<strong>名前の入力一致</strong>を要求する。</li>
+<li>一覧が空のときは <code>project.pick.empty</code>（「まだプロジェクトがありません」）、処理中は <code>project.pick.working</code>（「処理しています…」）を出し、その間は一覧とボタンを無効にする。</li>
+<li>初回起動（履歴が空）のときは、一覧の上にウェルカム案内とドキュメントサイトへのリンクを出す（§13.4.1）。</li>
+</ul>
+<h4 id="1341-同名プロジェクト作成の禁止と初回起動ウェルカム案内状態-実装完了">13.4.1 同名プロジェクト作成の禁止と初回起動ウェルカム案内〔状態: 実装完了〕</h4>
+<ul>
+<li><strong>同名プロジェクトの禁止</strong>: Web 版では既存のプロジェクトと同じタイトルのプロジェクトを新規作成・改名できないようにする。</li>
+<li><strong>初回起動時のウェルカム案内</strong>: プロジェクト履歴に何も存在しない初回起動時には、アプリについての簡潔な説明とドキュメントサイトの存在を知らせるウェルカムメッセージを表示する。この案内は初回以降もコマンドパレット上からいつでも呼び出せる。</li>
+</ul>
+<h4 id="1342-入口ページの初期言語">13.4.2 入口ページの初期言語</h4>
+<ul>
+<li>Web 版の入口ページは、アプリ本体が読み込まれるまでの静的な表示も含め、ブラウザ（OS）のロケールで初期表示する（§12.4）。読み込み完了前の画面が、利用者の言語とは違う言語で固定されて見えてはならない。</li>
+<li>プロジェクト選択画面（Web・デスクトップとも）に言語切替ボタンは置かない。言語は §12.4 の決定順序に従い、変更は作品を開いた後に行う。</li>
+</ul>
+<h3 id="135-zip-インポート--エクスポート">13.5 Zip インポート / エクスポート</h3>
+<ul>
+<li>エクスポート: プロジェクト全ファイルを Deflate で Zip 化し、<code>&lt;project-name&gt;.zip</code> としてダウンロード（Web）/ <strong>保存ダイアログでユーザーが指定したパスに書き出す</strong>（デスクトップ。ダイアログの初期値は <code>exports/&lt;project-name&gt;.zip</code>。プロジェクトの外を指定してもよい＝ §13.1.1 の特例での「<code>exports/</code> 固定・ダイアログなし」を改めた）。
+<code>.novnow/</code> は <strong>含めない</strong>（ローカル状態のため）。<code>exports/</code> は含める（書き出し先がプロジェクト内なら、その Zip 自身は除く）。
+名前がドットで始まるもの（<code>.git/</code>・<code>.DS_Store</code>・原子的保存の一時ファイル等）は含めない。ただし <code>novnow new</code> が作る <code>.gitignore</code> と <code>.gitkeep</code>（§14.5）は含める。<code>.git/</code> は読みもしない（§14.2.1）。</li>
+<li>インポート: Zip 内に単一のルートディレクトリがあれば剥がす。<code>__MACOSX</code> とドットファイル（<code>.gitignore</code> / <code>.gitkeep</code> を除く）は無視。
+絶対パスや <code>..</code> を含む名前は取り込まず、一覧で示す（プロジェクト外への書き込みになるため、§13.1）。
+取り込み後に §4.3 の妥当性検査を行い、不備があれば「不備のまま取り込む / 取り消す」を選ばせる。</li>
+<li>Web ではインポート先として新しいプロジェクトレコードを作る（既存に上書きしない。MUST）。Web はテキストのみ（§13.3.2）なので、UTF-8 として読めないエントリは取り込まずに一覧で示す（<code>assets/</code> 配下だけはバイナリ資料として取り込む）。
+<ul>
+<li>新しいプロジェクトの表示名は Zip のファイル名から拡張子（<code>.zip</code> / <code>.novnow</code>。大文字も同じ）を除いたもの。同じ名前のプロジェクトが既にあれば取り込まず、理由を通知に出す（§13.4.1 の同名禁止と同じ規則）。</li>
+<li>取り込まなかったエントリの通知は、<code>__MACOSX</code> などの自動的な除外（§13.5 の規則）も含めた全部の名前を対象に、先頭 5 件と残りの件数（<code>+N</code>）で示す。</li>
+</ul>
+</li>
+<li>デスクトップでは、ユーザーが選んだディレクトリを新しいプロジェクトルートとして書き込む。既存のファイルは上書きしない（§14.5 の <code>new</code> と同じ）。</li>
+<li>プロジェクト一式を入れた Zip のファイル名の拡張子が <code>.novnow</code> のものも、<code>.zip</code> と同じ規則でインポート／エクスポートできる。実体は通常の Zip であり、独自形式ではない（<code>.novnow</code> はプロジェクト全体のパッケージを表す拡張子として予約する）。<code>.novnow/</code>（ローカル状態の隠しディレクトリ）と <code>.novnow</code> ファイルは別のものである。</li>
+</ul>
+<hr>
+<h4 id="1353-デスクトップでの-zip-導入と-webデスクトップ移行ヘルプ状態-実装完了">13.5.3 デスクトップでの Zip 導入と Web⇔デスクトップ移行ヘルプ〔状態: 実装完了〕</h4>
+<ul>
+<li>デスクトップ版でも CLI（<code>novnow import &lt;zip&gt; &lt;dir&gt;</code>）および GUI から Zip ファイルを取り込んでプロジェクトを展開できるようにする。</li>
+<li>Web 版からデスクトップ版への移行、およびデスクトップ版から Web 版への移行について、Zip を使った手順を案内するヘルプを備える。</li>
+</ul>
+<h2 id="14-起動仕様">14. 起動仕様</h2>
+<h3 id="141-cli-文法">14.1 CLI 文法</h3>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>novnow &lt;dir&gt;                    既存プロジェクトを開く（フラグなし位置引数）</span></span>
+<span class="line"><span>novnow new [dir]                dir（既定 "."）に新規プロジェクトを作る</span></span>
+<span class="line"><span>novnow check &lt;dir&gt;              妥当性検査のみ行い、診断を出して終了（CI 用）</span></span>
+<span class="line"><span>novnow export &lt;dir&gt; [options]   アノテーション除去エクスポート（§17）</span></span>
+<span class="line"><span>novnow mcp &lt;dir&gt;                MCP サーバとして起動（§15.8.3）</span></span>
+<span class="line"><span>novnow migrate &lt;入力…&gt; &lt;dir&gt; [--preview]  既存本文を新しい作品へ移行（§14.6）</span></span>
+<span class="line"><span>novnow --gui                    引数があっても GUI 起動を強制</span></span>
+<span class="line"><span>novnow --help | -h</span></span>
+<span class="line"><span>novnow --version | -V</span></span></code></pre>
+<ul>
+<li><strong>サブコマンド解決規則</strong>: 第 1 位置引数が <code>new</code> / <code>check</code> / <code>export</code> / <code>mcp</code> / <code>import</code> / <code>migrate</code>、または §19 の <code>lsp</code> / <code>api</code> / 正規操作のドメイン名と完全一致したときにコマンドとして解釈する。既存コマンド語を優先し、他はプロジェクトディレクトリとして解釈する。</li>
+<li>予約語と同名のディレクトリは <code>novnow ./new</code> / <code>novnow ./api</code> / <code>novnow ./lsp</code> / <code>novnow ./project</code> のように <code>./</code> を付けて開く。</li>
+<li><code>export</code> のオプション、<code>migrate</code> の末尾 <code>--preview</code>、§19 の <code>--json</code> / <code>--lang</code> / 操作別引数を受け付ける。既存サブコマンドの名前・引数・出力・終了コードの凍結は、新しいドメイン動詞の追加と区別する（§19.6）。</li>
+</ul>
+<h4 id="1411-novnow-import-zip-dir-の追加状態-実装完了">14.1.1 <code>novnow import &lt;zip&gt; &lt;dir&gt;</code> の追加〔状態: 実装完了〕</h4>
+<ul>
+<li>サブコマンドとして <code>novnow import &lt;zip&gt; &lt;dir&gt;</code> を追加し、Zip アーカイブ <code>&lt;zip&gt;</code> をディレクトリ <code>&lt;dir&gt;</code> へ展開してプロジェクトとして導入できるようにする。</li>
+</ul>
+<h3 id="142-起動時のスキャンとエラー出力">14.2 起動時のスキャンとエラー出力</h3>
+<p><code>novnow &lt;dir&gt;</code> は、GUI を出す前に次を行う。</p>
+<ol>
+<li><code>&lt;dir&gt;</code> の存在・ディレクトリであること・読み取り権限を確認。</li>
+<li>§4.2 の必須パスを <strong>すべて</strong> 検査（最初の 1 件で止めず、不足を全部集める）。</li>
+<li><code>project.toml</code> の <code>schema_version</code> を検査（§4.3）。</li>
+<li>1 件でも問題があれば <strong>stderr に出力して終了。GUI は一切出さない</strong>（MUST、指示 2 の明文）。</li>
+</ol>
+<h4 id="1421-定数">14.2.1 定数</h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="rust"><code><span class="line"><span style="color:#6A737D">/// プロジェクト構造の解説ページ</span></span>
+<span class="line"><span style="color:#D73A49">pub</span><span style="color:#D73A49"> const</span><span style="color:#005CC5"> PROJECT_STRUCTURE_DOC_URL</span><span style="color:#D73A49">:</span><span style="color:#D73A49"> &amp;</span><span style="color:#6F42C1">str</span><span style="color:#D73A49"> =</span></span>
+<span class="line"><span style="color:#032F62">    "https://sonneko.github.io/novnow/guide/project_structure.html"</span><span style="color:#24292E">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">/// Git の解説ページ</span></span>
+<span class="line"><span style="color:#D73A49">pub</span><span style="color:#D73A49"> const</span><span style="color:#005CC5"> GIT_GUIDE_DOC_URL</span><span style="color:#D73A49">:</span><span style="color:#D73A49"> &amp;</span><span style="color:#6F42C1">str</span><span style="color:#D73A49"> =</span></span>
+<span class="line"><span style="color:#032F62">    "https://sonneko.github.io/novnow/guide/git.html"</span><span style="color:#24292E">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">/// CI/CD・自動公開の解説ページ</span></span>
+<span class="line"><span style="color:#D73A49">pub</span><span style="color:#D73A49"> const</span><span style="color:#005CC5"> CICD_GUIDE_DOC_URL</span><span style="color:#D73A49">:</span><span style="color:#D73A49"> &amp;</span><span style="color:#6F42C1">str</span><span style="color:#D73A49"> =</span></span>
+<span class="line"><span style="color:#032F62">    "https://sonneko.github.io/novnow/guide/publish.html"</span><span style="color:#24292E">;</span></span></code></pre>
+<p>これらの URL はハードコードせず、この定数群のみを参照する（MUST）。
+<strong>3 つの URL はすべて公開サイトに実在しなければならない（MUST）。</strong> 実在は CI が検査する（§18.5）。</p>
+<p><strong>解説ページへの導線（v0.1.0 追加仕様 14、MUST）</strong></p>
+<p>novnow 本体は Git も CI/CD も <strong>実装しない</strong>。ファイルベースであることの帰結として
+「Git を使えば版管理できる」「GitHub Actions を使えば自動公開できる」というだけであり、
+IDE がそれを肩代わりすると、プロジェクトディレクトリ外への書き込み（規則 10）や
+バージョン管理の二重実装（U-7）に必ず繋がるためである。</p>
+<p>したがって提供するのは <strong>解説ページへのリンクのみ</strong> とする。</p>
+<table>
+<thead>
+<tr>
+<th>導線</th>
+<th>置き場所</th>
+<th>文言</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Git の解説</td>
+<td>ヘルプメニュー / <code>novnow new</code> 完了時の案内 / <code>review</code> の下部</td>
+<td><code>原稿のバックアップと履歴（Git）について</code></td>
+</tr>
+<tr>
+<td>CI/CD の解説</td>
+<td>ヘルプメニュー / エクスポート完了ダイアログ</td>
+<td><code>公開を自動化する（GitHub Actions）について</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>リンクは <strong>外部ブラウザで開く</strong>（MUST）。アプリ内ブラウザを持たない。</li>
+<li>Web 版では新規タブで開く。</li>
+<li><strong>リンク以外のことをしない</strong>（MUST）。Git の有無を検出しない、<code>git init</code> を促さない、
+コミット状況を表示しない、<code>.git/</code> を読まない。</li>
+</ul>
+<h4 id="1422-出力ja">14.2.2 出力（ja）</h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>novnow: このディレクトリは novnow プロジェクトではありません</span></span>
+<span class="line"><span>  対象: /home/user/novels/untitled</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>不足しているもの:</span></span>
+<span class="line"><span>  - project.toml</span></span>
+<span class="line"><span>  - characters.md</span></span>
+<span class="line"><span>  - plots/all.cnov</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>プロジェクト構造: https://sonneko.github.io/novnow/guide/project_structure.html</span></span>
+<span class="line"><span>このディレクトリに新規作成する場合: novnow new</span></span></code></pre>
+<h4 id="1423-出力en">14.2.3 出力（en）</h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>novnow: this directory is not a novnow project</span></span>
+<span class="line"><span>  target: /home/user/novels/untitled</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>Missing items:</span></span>
+<span class="line"><span>  - project.toml</span></span>
+<span class="line"><span>  - characters.md</span></span>
+<span class="line"><span>  - plots/all.cnov</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>Project structure: https://sonneko.github.io/novnow/guide/project_structure.html</span></span>
+<span class="line"><span>To create a new project here: novnow new</span></span></code></pre>
+<ul>
+<li>言語の決定は §12.4（<code>NOVNOW_LANG</code> → OS のロケール → 既定 ja）。CLI は §12.4 の 1（<code>.novnow/ui.json</code>）を読まない。OS のロケールは <code>LC_ALL</code> → <code>LC_MESSAGES</code> → <code>LANG</code> の順の環境変数（Windows で無ければユーザーの既定ロケール）。<code>NOVNOW_LANG</code> は <code>ja</code> / <code>en</code> で始まる値だけを受け、他の値は無視して次へ進む。</li>
+<li>色付けは出力先が TTY のときのみ（<code>NO_COLOR</code> 環境変数を尊重）。</li>
+<li><strong>他には何もしない</strong>。ダイアログも出さず、履歴にも書かず、ディレクトリも作らない。</li>
+<li>「このディレクトリに新規作成する場合」は、対象がカレントディレクトリなら <code>novnow new</code>、そうでなければ <code>novnow new &lt;対象&gt;</code>（空白や記号を含むパスは引用符で囲む）。「対象」はシンボリックリンク解決後の絶対パス。</li>
+<li>対象が見つからないときは見出しを「ディレクトリが見つかりません」にして、構造の解説と <code>novnow new &lt;対象&gt;</code> を出す（終了コード 3）。ディレクトリでないときは見出しと対象だけ（3）。読めないとき（権限など）は 4。<code>schema_version</code> が新しすぎるときは「novnow を新しい版に更新してください」を出す（3）。</li>
+</ul>
+<h4 id="1425-終了コード">14.2.5 終了コード</h4>
+<table>
+<thead>
+<tr>
+<th>コード</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>正常終了</td>
+</tr>
+<tr>
+<td>2</td>
+<td>使い方の誤り（引数不足・未知サブコマンド）</td>
+</tr>
+<tr>
+<td>3</td>
+<td>プロジェクトが不完全 / スキーマが新しすぎる</td>
+</tr>
+<tr>
+<td>4</td>
+<td>I/O エラー（権限・不正 UTF-8）</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>check</code> が E 診断を検出（CI 用）</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>対象が見つからない・ディレクトリでないときも 3（「novnow プロジェクトではない」の一種として扱う。§14.2.3）。</li>
+<li>作者が §4.5.2 の設定で <code>"error"</code> として扱う診断も、コード 5 の対象に数える。<code>"off"</code> の診断は <code>check</code> にも出さない。</li>
+<li>まだ実装されていないサブコマンドと、GUI を含まないビルドで GUI を求められたときは 2（新しい番号は作らない）。</li>
+<li><code>check</code> の診断は標準出力に 1 行 1 件で <code>パス:行:列: [場所] コード 文言</code>（行と列は 1 始まり、列は文字数。位置を持たない診断は <code>パス: [場所] コード 文言</code>）。並びはパス → 位置 → コードで、最後に件数を 1 行出す。W と I だけなら 0。</li>
+<li><code>[場所]</code> はエンジニアでなくても分かる「どこ」で、下の表の表記を使う（ユーザー裁定 2026-10-13）。決まらない文書（<code>agents/</code> など）では <code>[場所]</code> ごと省く。GUI の診断タブの「位置」（§10.9.2）も同じ表記を使う。文言はカタログの <code>place.*</code>（§12.7。en は <code>prose @01-04-02-03</code> など）。</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>文書</th>
+<th><code>[場所]</code> の表記（ja）</th>
+<th>例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本文 <code>contents/AA-BB.cnov</code></td>
+<td><code>本文 @構造ID</code>。その行の節。区切り <code>;</code> の行はそれが閉じる節、場面見出しの行は場面。最初の場面見出しより前と位置を持たない診断はファイル名の話</td>
+<td><code>[本文 @01-04-02-03]</code></td>
+</tr>
+<tr>
+<td>話プロット <code>plots/AA-BB.cnov</code></td>
+<td><code>話プロット @構造ID</code>。本文と同じ規則で、見出し直下の場面のフィールドは場面</td>
+<td><code>[話プロット @01-04-02]</code></td>
+</tr>
+<tr>
+<td>章プロット <code>plots/AA.cnov</code></td>
+<td><code>章プロット @構造ID</code>。そのブロック。最初のブロックより前はファイル名の章</td>
+<td><code>[章プロット @01-04]</code></td>
+</tr>
+<tr>
+<td>全体プロット <code>plots/all.cnov</code></td>
+<td><code>全体プロット @構造ID</code>。最初のブロックより前は <code>全体プロット</code></td>
+<td><code>[全体プロット @02]</code></td>
+</tr>
+<tr>
+<td><code>characters.md</code></td>
+<td><code>登場人物「名前」</code>。モードの中なら <code>登場人物「名前」のモード 記号 名前</code></td>
+<td><code>[登場人物「恩田恵」のモード A 日常]</code></td>
+</tr>
+<tr>
+<td><code>words.md</code></td>
+<td><code>用語「語」</code></td>
+<td><code>[用語「旧校舎」]</code></td>
+</tr>
+<tr>
+<td><code>ideas.md</code></td>
+<td><code>アイデア ID「タイトル」</code></td>
+<td><code>[アイデア I0007「学院長の動機」]</code></td>
+</tr>
+<tr>
+<td><code>materials/index.json</code>・<code>materials/docs/</code></td>
+<td><code>資料 ID「タイトル」</code>。本体は索引の <code>path</code> で引き、索引に無ければファイル名の ID だけ（<code>資料 M0137</code>）</td>
+<td><code>[資料 M0137「科学の甲子園 本戦の運営と実技課題」]</code></td>
+</tr>
+<tr>
+<td><code>prompts/</code></td>
+<td><code>プロンプト 役割</code>。<code>## </code> の節の中なら <code>プロンプト 役割 の 節</code></td>
+<td><code>[プロンプト writer の output]</code></td>
+</tr>
+<tr>
+<td><code>project.toml</code></td>
+<td><code>作品の設定</code></td>
+<td><code>[作品の設定]</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="143-gui-直接起動の判定">14.3 GUI 直接起動の判定</h3>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="rust"><code><span class="line"><span style="color:#D73A49">enum</span><span style="color:#6F42C1"> Launch</span><span style="color:#24292E"> { </span><span style="color:#6F42C1">Cli</span><span style="color:#24292E">(</span><span style="color:#6F42C1">Subcommand</span><span style="color:#24292E">), </span><span style="color:#6F42C1">OpenProject</span><span style="color:#24292E">(</span><span style="color:#6F42C1">PathBuf</span><span style="color:#24292E">), </span><span style="color:#6F42C1">Gui</span><span style="color:#24292E"> }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">fn</span><span style="color:#6F42C1"> decide</span><span style="color:#24292E">() </span><span style="color:#D73A49">-&gt;</span><span style="color:#6F42C1"> Launch</span><span style="color:#24292E"> {</span></span>
+<span class="line"><span style="color:#D73A49">    if</span><span style="color:#24292E"> args</span><span style="color:#D73A49">.</span><span style="color:#6F42C1">contains</span><span style="color:#24292E">(</span><span style="color:#032F62">"--gui"</span><span style="color:#24292E">)            { </span><span style="color:#D73A49">return</span><span style="color:#6F42C1"> Launch</span><span style="color:#D73A49">::</span><span style="color:#6F42C1">Gui</span><span style="color:#24292E">; }</span></span>
+<span class="line"><span style="color:#D73A49">    if</span><span style="color:#D73A49"> let</span><span style="color:#6F42C1"> Some</span><span style="color:#24292E">(sub) </span><span style="color:#D73A49">=</span><span style="color:#6F42C1"> parse_subcommand</span><span style="color:#24292E">(){ </span><span style="color:#D73A49">return</span><span style="color:#6F42C1"> Launch</span><span style="color:#D73A49">::</span><span style="color:#6F42C1">Cli</span><span style="color:#24292E">(sub); }</span></span>
+<span class="line"><span style="color:#D73A49">    if</span><span style="color:#D73A49"> let</span><span style="color:#6F42C1"> Some</span><span style="color:#24292E">(dir) </span><span style="color:#D73A49">=</span><span style="color:#6F42C1"> first_positional</span><span style="color:#24292E">(){ </span><span style="color:#D73A49">return</span><span style="color:#6F42C1"> Launch</span><span style="color:#D73A49">::</span><span style="color:#6F42C1">OpenProject</span><span style="color:#24292E">(dir); }</span></span>
+<span class="line"><span style="color:#D73A49">    if</span><span style="color:#6F42C1"> stdin_is_terminal</span><span style="color:#24292E">() </span><span style="color:#D73A49">||</span><span style="color:#6F42C1"> stdout_is_terminal</span><span style="color:#24292E">() { </span><span style="color:#6F42C1">print_usage</span><span style="color:#24292E">(); </span><span style="color:#6F42C1">exit</span><span style="color:#24292E">(</span><span style="color:#005CC5">2</span><span style="color:#24292E">); }</span></span>
+<span class="line"><span style="color:#6F42C1">    Launch</span><span style="color:#D73A49">::</span><span style="color:#6F42C1">Gui</span><span style="color:#6A737D">          // 引数なし &amp; 端末に繋がっていない = GUI から起動された</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>OS 別の要件（MUST）:</p>
+<table>
+<thead>
+<tr>
+<th>OS</th>
+<th>要件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Windows</td>
+<td>リリースビルドは <code>#![windows_subsystem = "windows"]</code>。起動直後に <code>AttachConsole(ATTACH_PARENT_PROCESS)</code> を試み、成功した場合のみ stdout/stderr を親コンソールへ接続して CLI として振る舞う。<strong>新しいコンソールウィンドウを決して作らない</strong>（<code>AllocConsole</code> 禁止）</td>
+</tr>
+<tr>
+<td>macOS</td>
+<td><code>.app</code> バンドルから起動されると引数なし・非 TTY になるため GUI。<code>open -a novnow --args ./dir</code> も <code>OpenProject</code> として機能すること</td>
+</tr>
+<tr>
+<td>Linux</td>
+<td><code>.desktop</code> からの起動は非 TTY のため GUI。<code>Exec=novnow %f</code> でファイルマネージャからディレクトリを渡せること</td>
+</tr>
+</tbody>
+</table>
+<p>ターミナルから <code>novnow</code> を引数なしで実行した場合は <strong>GUI を出さず</strong> 使い方を表示して終了（コード 2）。GUI が欲しい場合は <code>novnow --gui</code>。</p>
+<ul>
+<li><code>--gui</code> / <code>--help</code>（<code>-h</code>）/ <code>--version</code>（<code>-V</code>）はどの位置にあっても効き、この順で優先する。<code>-</code> で始まる知らない引数と余分な位置引数は使い方の誤り（2）。<code>-</code> だけはディレクトリ名として扱う。</li>
+<li><strong>Windows の注意</strong>: GUI サブシステムの実行ファイルは、<code>cmd.exe</code> から起動すると終了を待たれない（出力がプロンプトの後に出て、<code>%ERRORLEVEL%</code> も取れない）。CI などで終了コードを使うときは <code>start /wait novnow check .</code>、PowerShell なら <code>Start-Process -Wait -PassThru</code> を使う。</li>
+</ul>
+<h3 id="144-gui-起動時のプロジェクト選択モーダルデスクトップ">14.4 GUI 起動時のプロジェクト選択モーダル（デスクトップ）</h3>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>┌──────────────────────────────────────────────┐</span></span>
+<span class="line"><span>│  プロジェクトを選んでください                 │</span></span>
+<span class="line"><span>│                                               │</span></span>
+<span class="line"><span>│   hoshikuzu-no-tokei   ~/novels/hoshikuzu…    │  ← 履歴（§13.2）</span></span>
+<span class="line"><span>│   sci-club             ~/work/sci-club        │</span></span>
+<span class="line"><span>│   (見つかりません)     ~/old/path             │  ← 灰色</span></span>
+<span class="line"><span>│                                               │</span></span>
+<span class="line"><span>│   [📂 フォルダを開く]   [＋ 新規作成]         │</span></span>
+<span class="line"><span>└──────────────────────────────────────────────┘</span></span></code></pre>
+<ul>
+<li>履歴が空なら一覧は出さず、「フォルダを開く」「新規作成」の 2 つだけを出す。</li>
+<li><code>↑/↓</code> + <code>Enter</code>、<code>Ctrl+O</code> でネイティブのフォルダ選択（エクスプローラ / Finder / ポータル）を開く。</li>
+<li>選択したディレクトリが不完全なら、モーダル内に §14.2.2 と同じ内容（URL はクリック可能なリンク）と
+「ここに新規作成する」ボタンを出す。<strong>ここでも勝手に作らない</strong>（明示操作が必要）。</li>
+<li>選択に成功したら履歴の先頭に積む（§13.2）。</li>
+</ul>
+<h4 id="1441-ctrlo-で一覧へ戻る-2-段構成日付表示履歴のみの削除状態-実装完了">14.4.1 <code>Ctrl+O</code> で一覧へ戻る 2 段構成・日付表示・履歴のみの削除〔状態: 実装完了〕</h4>
+<ul>
+<li><strong><code>Ctrl+O</code> の 2 段構成</strong>: デスクトップ版でも <code>Ctrl+O</code> は「現在のプロジェクトを保存してからプロジェクト選択画面（履歴一覧）へ戻る」動作に統一し、一覧画面内の「フォルダを開く」からディレクトリを選ぶ 2 段構成とする。</li>
+<li><strong>日付の表示</strong>: デスクトップのプロジェクト選択画面の各行に最終利用日付を表示する。</li>
+<li><strong>履歴削除の明示提供</strong>: デスクトップのプロジェクト選択画面に、「ディスク上の原稿データ自体は消さず、フォルダを開いた履歴のみを一覧から消す」ことをユーザーに明示した上で履歴削除機能（ボタンおよび <code>Delete</code> キー）を提供する。</li>
+</ul>
+<h3 id="145-novnow-new-の生成物">14.5 <code>novnow new</code> の生成物</h3>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>&lt;dir&gt;/</span></span>
+<span class="line"><span>  project.toml          schema_version=2, title=&lt;ディレクトリ名&gt;</span></span>
+<span class="line"><span>  characters.md         サンプル 1 名（モード 2 つ・役割語 2 本つき）</span></span>
+<span class="line"><span>  words.md              サンプル 1 語</span></span>
+<span class="line"><span>  ideas.md              書き方のコメント 1 行だけ（見出しを置くとアイデア 1 件になるため、§5.7）</span></span>
+<span class="line"><span>  contents/01-01.cnov   @01-01-01 と 1 節のサンプル</span></span>
+<span class="line"><span>  plots/all.cnov        @01 ブロック 1 つ（summary 入り）</span></span>
+<span class="line"><span>  plots/01.cnov         @01-01 ブロック 1 つ</span></span>
+<span class="line"><span>  plots/01-01.cnov      @01-01-01 と 1 節（mode: つき）</span></span>
+<span class="line"><span>  materials/index.json  {"schema_version":1,"next_id":1,"items":[]}</span></span>
+<span class="line"><span>  materials/docs/.gitkeep</span></span>
+<span class="line"><span>  prompts/*.md          既定プロンプト 7 本（§15.5）</span></span>
+<span class="line"><span>  agents/mcp.json       {"schema_version":1,"servers":{}}</span></span>
+<span class="line"><span>  agents/{tasks,results,threads,proposals,log}/.gitkeep</span></span>
+<span class="line"><span>  .gitignore            .novnow/ と exports/ を無視</span></span></code></pre>
+<ul>
+<li>生成先が空でないディレクトリの場合: 上記のうち <strong>存在しないファイルだけ</strong> を作る。既存ファイルは絶対に上書きしない（MUST）。</li>
+<li>競合が 1 件でもあれば、作成したファイルの一覧と「上書きしなかったファイル」の一覧を標準出力に出す。</li>
+<li>生成先が <code>schema_version</code> が新しすぎるプロジェクトなら、<strong>何も書かずに</strong>エラーを出して終了する（コード 3）。生成先がファイルなら 4。</li>
+<li>生成物は <code>novnow check</code> で診断が 1 件も出ないこと（サンプルが最初の警告にならないように）。<code>project.toml</code> は <code>schema_version</code> と <code>title</code> だけを書く（他は既定値）。サンプルと既定プロンプトはプロジェクトの内容なので、UI 言語に関わらず日本語（§12.6）。</li>
+<li>履歴には書かない（積むのは GUI がプロジェクトを開けたとき、§14.4）。</li>
+</ul>
+<hr>
+<h3 id="146-既存本文テキストからの移行支援">14.6 既存本文テキストからの移行支援</h3>
+<p>既存の小説本文テキストから新しい作品へ移行する。</p>
+<ul>
+<li>CLI は <code>novnow migrate &lt;入力…&gt; &lt;dir&gt; [--preview]</code>。入力は 1 個以上のテキストファイルまたはフォルダ（混在できる）であり、引数の並び順に処理する。最後の引数が移行先ディレクトリである。フォルダを指定した場合は、直下にある拡張子 <code>.txt</code> / <code>.md</code> のファイルだけを自然順に読み、サブフォルダは辿らない。<code>--preview</code> は末尾に指定し、生成ファイル一覧と変換後の本文（分割の候補を含む、§14.6.2）を標準出力へ表示する。ディレクトリ・履歴・ファイルを一切作成しない。</li>
+<li>デスクトップの作品選択画面から入力テキストを選び、プレビューを確認して新規の移行先を選択できる。確定後に作品を開く。Web のテキスト移行は対象外とする。</li>
+<li>入力にできるのはプレーンテキストだけである。<code>.docx</code> などのバイナリ文書は受け付けない。</li>
+<li>入力元は変更せず、そのパスを作品に保存しない。移行先は存在しないディレクトリのみ。親ディレクトリは既存のものを指定する。既存のファイル・ディレクトリ・シンボリックリンクへの取り込みは拒否する。</li>
+<li>入力エラーは出力前に拒否する。書き込み途中の I/O エラーでは不完全な新規ディレクトリが残る場合があり、失敗を通知する。既存作品とのマージや上書きはしない。</li>
+<li>題名は移行先ディレクトリ名とする。プロットの構造だけを用意し、サンプル本文・人物・用語は混入させない。話者推定はしない。</li>
+</ul>
+<h4 id="1461-文字コードの扱いファイル取り込みと貼り付け">14.6.1 文字コードの扱い（ファイル取り込みと貼り付け）</h4>
+<ul>
+<li>ファイル取り込み（CLI / デスクトップ）では、文字コードをバイト列から判定する。正しい UTF-8 を優先し（先頭 BOM は除く）、UTF-8 として読めない場合は Shift_JIS として変換する。Shift_JIS 以外の符号化（EUC-JP など）は対象にしない。どちらでも読めない場合、空白だけの入力、NUL を含む入力は拒否する。判定が曖昧な場合はプレビューで文字コードを切り替えられる。</li>
+<li>GUI の入力欄への貼り付けは通常は Unicode の文字列のまま扱う。ただし、UTF-8 の文字列を Shift_JIS で読み違えた文字化けらしい文字列のときは、直した候補をプレビューして選ばせる。選ばなかった場合と候補を作れない場合は、元の文字列のまま貼り付ける。この扱いは複数行の入力欄を対象とし、デスクトップと Web の双方に適用する。</li>
+<li>修復候補を出す条件は次のすべてを満たすときだけである（自動では置き換えない）。
+<ul>
+<li>4 文字以上で、ASCII だけではない。</li>
+<li>元の文字列に文字化けの指紋がある。指紋は「文字化けで頻出する固定の 17 字（<code>縺</code> <code>繧</code> <code>繝</code> <code>縲</code> <code>吶</code> <code>峨</code> <code>譖</code> <code>翫</code> <code>菴</code> <code>薙</code> <code>譁</code> <code>帙</code> <code>隱</code> <code>溘</code> <code>榊</code> <code>蜷</code> <code>荳</code>）のいずれかを含む」または「半角カタカナが 3 文字以上」のどちらか。</li>
+<li>元の文字列を Shift_JIS へ符号化し直せ、UTF-8 として読み直した結果が元と異なる（符号化できない文字が 1 つでもあれば、その文字列は Shift_JIS の読み違いでは作れないので候補にしない）。</li>
+<li>読み直した結果の欠損（置換文字）が、全体の文字数の半分以下である。</li>
+<li>読み直した結果にかな（ひらがな・カタカナ）を含む。</li>
+</ul>
+</li>
+<li>編集画面での自動の節分割は、現行どおり明示的な区切りだけとし、§14.6.2 の候補生成は移行のときだけ行う。</li>
+</ul>
+<h4 id="1462-章話場面節への分割候補提示型">14.6.2 章・話・場面・節への分割（候補提示型）</h4>
+<ul>
+<li>分割は候補の提示だけを行い、自動では確定しない。デスクトップではプレビューで章・話・場面・節のツリーと件数を示し、各候補を他の段または境界なしへ変更でき、生成は候補を確定した後だけ行う。CLI では候補を編集できず、生成した候補のとおりに生成する（<code>--preview</code> で候補を確認できる）。</li>
+<li>複数ファイルは自然順に並べ、1 ファイルを 1 話、1 フォルダを 1 章として候補化する。単一ファイルは第 1 章・第 1 話から始める。</li>
+<li>見出し行では章・話の境界候補を作る。対象は単独の短い行だけで、「第○章」「第○話」（○ は漢数字・算用数字。括弧や空白、末尾のタイトルを付けてもよい）と、序章・終章・プロローグ・エピローグ・幕間・閑話・番外編を拾う。序章・終章・プロローグ・エピローグは章の境界候補、幕間・閑話・番外編は話の境界候補とする。見出しの残りは章・話のタイトルとして使い、本文には残さない。番号が飛んだり重なったりしても、構造番号は出現順に振り直す。</li>
+<li>区切り行（<code>＊＊＊</code> のように記号だけの行）と、空行が 2 つ以上続く箇所では、場面の境界候補を作る。空行 1 つだけの段落区切りでは、節の境界候補を作る。</li>
+<li>novnow の記号はエスケープして本文として保持する。改行・行末空白は通常の保存規則で正規化する。本文内の空行は、境界として使わなかった分を保持する（エクスポート時は通常どおり連続空行が圧縮される）。ルビ記法はルビ保持設定で出力する。</li>
+</ul>
+</article><p class="source-note" data-astro-cid-rv2sskwj>このページは <code data-astro-cid-rv2sskwj>docs/specifications/platform.md</code> から自動生成しています。内容の正本はリポジトリのそのファイルです。</p></main></div><footer class="_footer_13bsc_1"><div class="container _inner_13bsc_8"><div><p class="_creditText_13bsc_16">NovNow - Created by <a href="https://github.com/sonneko" target="_blank" rel="noopener noreferrer" class="_author_13bsc_23">sonneko</a>.</p><p class="_copyright_13bsc_28">© 2026 NovNow Project. All rights reserved.</p></div><div class="_links_13bsc_33"><a href="/novnow/ja">トップ</a><a href="/novnow/ja/guide">機能一覧</a><a href="/novnow/ja/troubleshooting">トラブルシューティング</a><a href="https://github.com/sonneko/novnow" target="_blank" rel="noopener noreferrer">GitHub</a></div></div></footer><p><a href="/novnow/nightly-app/">Nightly (unstable) / 開発版（不安定）</a></p></body></html>

@@ -1,0 +1,1887 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="theme-color" content="#ffffff"><title>novnow 仕様書 — ファイル形式（構文仕様） | NovNow</title><meta name="description" content="NovNow - Dedicated Novel &amp; Scenario IDE for Writers &amp; Engineers"><link rel="canonical" href="https://sonneko.github.io/novnow/ja/specifications/syntax/"><link rel="alternate" hreflang="ja" href="https://sonneko.github.io/novnow/ja/specifications/syntax/"><link rel="alternate" hreflang="en" href="https://sonneko.github.io/novnow/en/specifications/syntax/"><link rel="icon" type="image/svg+xml" href="/novnow/favicon.svg"><link rel="stylesheet" href="/novnow/_astro/Footer.CS3W3i4D.css"><style>.doc{color:#23272f;max-width:820px;font-size:1.02rem;line-height:1.85}.doc h1{letter-spacing:-.025em;color:#23272f;margin-bottom:1.5rem;font-size:clamp(1.9rem,3.2vw,2.45rem);font-weight:800;line-height:1.25}.doc h2{letter-spacing:-.015em;color:#23272f;border-bottom:1px solid #ebecf0;margin:2.75rem 0 1rem;padding-bottom:.5rem;font-size:1.55rem;font-weight:700}.doc h3{color:#23272f;margin:2.1rem 0 .75rem;font-size:1.22rem;font-weight:700}.doc h4{color:#23272f;margin:1.6rem 0 .5rem;font-size:1.02rem;font-weight:700}.doc p,.doc li{color:#404756}.doc p{margin:.95rem 0}.doc ul,.doc ol{margin:.95rem 0 .95rem 1.5rem}.doc li{margin:.4rem 0}.doc strong{color:#23272f;font-weight:700}.doc a{color:#087ea4;border-bottom:1px solid #087ea44d;text-decoration:none;transition:border-color .15s,color .15s}.doc a code{color:#087ea4;background-color:#e6f7ff;transition:background-color .15s,box-shadow .15s;box-shadow:inset 0 0 0 1px #087ea438}.doc a:hover{border-bottom-color:#087ea4;text-decoration:none}.doc a:hover code{background-color:#087ea424;box-shadow:inset 0 0 0 1px #087ea45c}.doc code{color:#23272f;background-color:#99a1b326;border-radius:6px;padding:.14rem .38rem;font-size:.87em}.doc pre{border-radius:16px;margin:1.35rem 0;padding:1.15rem 1.35rem;font-size:.88rem;line-height:1.65;overflow-x:auto;box-shadow:inset 0 0 0 1px #00000014;background-color:#f6f7f9!important}.doc pre code{font-size:inherit;background:0 0;border-radius:0;padding:0}.doc table{border-collapse:separate;border-spacing:0;border:1px solid #ebecf0;border-radius:12px;width:100%;margin:1.5rem 0;font-size:.93rem;overflow:hidden}@media (width<=720px){.doc table{display:block;overflow-x:auto}}.doc th,.doc td{text-align:left;vertical-align:top;border-bottom:1px solid #ebecf0;border-right:1px solid #ebecf0;padding:.65rem .9rem}.doc th:last-child,.doc td:last-child{border-right:none}.doc tbody tr:last-child td{border-bottom:none}.doc th{color:#5e687e;white-space:nowrap;background-color:#f6f7f9;font-size:.85rem;font-weight:700}.doc td{color:#404756;background-color:#fff}.doc blockquote{background-color:#e6f7ff;border-radius:16px;margin:1.5rem 0;padding:1rem 1.25rem;box-shadow:inset 0 0 0 1px #087ea42e}.doc blockquote p{color:#23272f;margin:.3rem 0}.doc hr{border:none;border-top:1px solid #ebecf0;margin:2.5rem 0}.doc img{border-radius:12px;max-width:100%;box-shadow:0 .8px 2px #00000008,0 2.7px 6.7px #0000000c,0 12px 30px #00000014}.source-note[data-astro-cid-rv2sskwj]{color:#5e687e;border-top:1px solid #ebecf0;max-width:820px;margin-top:3rem;padding-top:1.15rem;font-size:.84rem;line-height:1.6}.source-note[data-astro-cid-rv2sskwj] code[data-astro-cid-rv2sskwj]{color:#23272f;background-color:#99a1b326;border-radius:5px;padding:.12rem .35rem;font-size:.88em}
+</style></head><body><aside class="release-notice" aria-label="リリースとデータ互換性" data-astro-cid-jtqikg62><strong data-astro-cid-jtqikg62>v0.1.1</strong>：v1 までは保存形式が変わる場合があります。v0 → v1 の移行機能は提供しません。更新前に Zip と本文テキストを保管してください。<a href="/novnow/ja/troubleshooting/#legacy-v0-project" data-astro-cid-jtqikg62>詳しく</a></aside><header class="_header_1az26_1"><div class="_inner_1az26_10"><div class="_brandGroup_1az26_21"><a href="/novnow/ja" class="_logo_1az26_27"><svg class="_logoIcon_1az26_43" viewBox="0 0 192 192" fill="none" aria-hidden="true"><rect width="192" height="192" rx="42" fill="#087EA4"></rect><path d="M43 142V50h22l62 65V50h22v92h-22L65 77v65Z" fill="#FFFFFF"></path><path d="M157 41v44" stroke="#ABE2ED" stroke-width="10" stroke-linecap="round"></path></svg><span class="_logoText_1az26_49">NovNow</span></a><span class="_versionTag_1az26_56">v0.1.1</span></div><nav class="_nav_1az26_65" aria-label="Primary"><a href="/novnow/ja/#downloads" class="_navLink_1az26_73">ダウンロード</a><a href="/novnow/ja/known-issues" class="_navLink_1az26_73">既知の問題</a><a href="/novnow/ja" class="_navLink_1az26_73">トップ</a><a href="/novnow/ja/manual/" class="_navLink_1az26_73">ガイド</a><a href="/novnow/ja/specifications/" class="_navLink_1az26_73 _active_1az26_91">仕様書</a><a href="/novnow/ja/api" class="_navLink_1az26_73">API リファレンス</a><a href="/novnow/ja/troubleshooting" class="_navLink_1az26_73">トラブルシューティング</a></nav><div class="_actions_1az26_101"><div class="_switcher_1w0ra_1" role="group" aria-label="Language"><a href="/novnow/ja/specifications/syntax" class="_langBtn_1w0ra_11 _active_1w0ra_25">日本語</a><a href="/novnow/en/specifications/syntax" class="_langBtn_1w0ra_11">EN</a></div><a href="https://github.com/sonneko/novnow" target="_blank" rel="noopener noreferrer" class="_githubBtn_1az26_107" aria-label="GitHub" title="GitHub"><svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg><span class="_githubLabel_1az26_129">GitHub</span></a></div></div></header><div class="doc-layout" data-astro-cid-rv2sskwj><aside class="doc-sidebar" aria-label="ドキュメント目次" data-astro-cid-rv2sskwj><div class="doc-sidebar-group" data-astro-cid-rv2sskwj>ユーザーガイド</div><nav class="doc-sidebar-nav" data-astro-cid-rv2sskwj><a href="/novnow/ja/manual/" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow ユーザーガイド</span></a><a href="/novnow/ja/manual/start" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>はじめての手引き（30 分で 1 本書き上げる）</span></a><a href="/novnow/ja/manual/cheatsheet" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>早見表</span></a><a href="/novnow/ja/manual/glossary" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>用語集</span></a><a href="/novnow/ja/manual/faq" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>よくある質問</span></a><a href="/novnow/ja/manual/errors" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>よく出るエラーと直し方（12 件）</span></a><a href="/novnow/ja/manual/project-structure" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>作品のフォルダ構成</span></a><a href="/novnow/ja/manual/git" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>Git で原稿を守る（知りたい人だけ）</span></a><a href="/novnow/ja/manual/publish" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>書き出した原稿を公開する</span></a><a href="/novnow/ja/manual/install" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow の入れ方（どの版を選ぶか）</span></a></nav><hr class="doc-sidebar-divider" data-astro-cid-rv2sskwj><div class="doc-sidebar-group" data-astro-cid-rv2sskwj>仕様書</div><nav class="doc-sidebar-nav" data-astro-cid-rv2sskwj><a href="/novnow/ja/specifications/overview" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 概要・原則・処理モデル</span></a><a href="/novnow/ja/specifications/project" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — プロジェクト構造</span></a><a href="/novnow/ja/specifications/syntax" aria-current="page" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — ファイル形式（構文仕様）</span></a><a href="/novnow/ja/specifications/semantics" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 意味解決エンジン</span></a><a href="/novnow/ja/specifications/diagnostics" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 診断カタログ</span></a><a href="/novnow/ja/specifications/editing" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 編集モデルと保存</span></a><a href="/novnow/ja/specifications/ui" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 画面・ワークスペース・テーマ・国際化</span></a><a href="/novnow/ja/specifications/platform" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — ストレージと起動仕様</span></a><a href="/novnow/ja/specifications/agent" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — AI エージェント</span></a><a href="/novnow/ja/specifications/workflows" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 資料収集・エクスポート・性能品質</span></a><a href="/novnow/ja/specifications/interfaces" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 外部インターフェース（ヘッドレス全機能 API 群）</span></a><a href="/novnow/ja/specifications/external" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 配布形態（外部提供物）</span></a></nav></aside><main data-astro-cid-rv2sskwj><article class="doc" data-astro-cid-rv2sskwj><h1 data-astro-cid-rv2sskwj>novnow 仕様書 — ファイル形式（構文仕様）</h1><h2 id="5-ファイル形式構文仕様">5. ファイル形式（構文仕様）</h2>
+<h3 id="50-共通字句規則">5.0 共通字句規則</h3>
+<p>すべての novnow テキスト形式（<code>contents/*.cnov</code>, <code>plots/*.cnov</code>, <code>*.md</code>）に共通。</p>
+<h4 id="501-行指向の原則must">5.0.1 行指向の原則（MUST）</h4>
+<p><strong>複数行にまたがるトークンは存在しない。</strong> 1 行は常に単独で字句解析できる。
+これはインクリメンタル再解析（編集行のみ再解析）と LSP 化の前提であり、v0.1.0 でも維持する。</p>
+<h4 id="502-シジル記号一覧">5.0.2 シジル（記号）一覧</h4>
+<table>
+<thead>
+<tr>
+<th>記号</th>
+<th>名称</th>
+<th>意味</th>
+<th>出現場所</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>@</code></td>
+<td>StructureSigil</td>
+<td>行頭: 構造見出し / 行末: 話者注釈 / 範囲式</td>
+<td>全形式</td>
+</tr>
+<tr>
+<td><code>'</code></td>
+<td>RefSigil</td>
+<td>辞書参照（キャラ・用語・資料）</td>
+<td>全形式の本文部</td>
+</tr>
+<tr>
+<td><code>'{ }</code></td>
+<td>明示参照</td>
+<td>区切りが曖昧なときの参照（§6.2.3）</td>
+<td>同上</td>
+</tr>
+<tr>
+<td><code>:</code></td>
+<td>Modifier</td>
+<td><code>'</code> トークンの修飾子（モード ID / 資料タイトル）</td>
+<td><code>'</code> トークン直後</td>
+</tr>
+<tr>
+<td><code>+</code></td>
+<td>ModeJoin</td>
+<td>モードの併用（最大 2、§6.4.4）</td>
+<td>モード修飾子内</td>
+</tr>
+<tr>
+<td><code>;</code></td>
+<td>SectionBreak</td>
+<td>節区切り・ブロック終わり（行全体が <code>;</code> のときのみ）</td>
+<td>A / B / C 形式（<code>.cnov</code>）</td>
+</tr>
+<tr>
+<td><code>//</code></td>
+<td>LineComment</td>
+<td>行頭: その行全体がコメント / 行内: 以降行末までコメント（<strong><code>://</code> は除く</strong>）</td>
+<td>全形式</td>
+</tr>
+<tr>
+<td><code># </code></td>
+<td>LineComment</td>
+<td><strong>行頭のみ</strong>。その行全体がコメント（§5.0.8）</td>
+<td>A / B / C 形式（<code>.cnov</code> のみ）</td>
+</tr>
+<tr>
+<td><code>/* */</code></td>
+<td>InlineComment</td>
+<td>行内コメント（<strong>単一行内で閉じること</strong>）</td>
+<td>全形式</td>
+</tr>
+<tr>
+<td><code>「」</code></td>
+<td>Dialogue</td>
+<td>会話。<code>『』</code> は入れ子の引用として同様に扱う</td>
+<td>C 形式</td>
+</tr>
+<tr>
+<td><code>^</code></td>
+<td>Citation</td>
+<td>行末の資料引用注釈（<code>^M0137</code>、§5.2.4）</td>
+<td>C 形式</td>
+</tr>
+<tr>
+<td><code>! </code></td>
+<td>IllustrationMemo</td>
+<td><strong>行頭のみ</strong>。挿絵メモ（§5.2.5）</td>
+<td>C 形式</td>
+</tr>
+<tr>
+<td><code>..</code></td>
+<td>RangeOp</td>
+<td>範囲式の区切り</td>
+<td>範囲式</td>
+</tr>
+<tr>
+<td><code>key:</code></td>
+<td>Field</td>
+<td>行頭フィールド（§5.0.5）</td>
+<td>A/B 形式, <code>*.md</code></td>
+</tr>
+<tr>
+<td><code>\</code></td>
+<td>Escape</td>
+<td>直後 1 文字をリテラル化</td>
+<td>全形式</td>
+</tr>
+</tbody>
+</table>
+<p><strong>行頭シジルの優先順位（固定）</strong>: <code>@</code> → <code>;</code> → <code># </code> → <code>! </code> → <code>//</code> → フィールド行 → 通常テキスト。
+<code># </code> と <code>! </code> は <strong>直後に半角または全角の空白が必要</strong>（<code>#1 位</code> や <code>!?</code> を誤認しないため、MUST）。</p>
+<p><strong><code>://</code> は行内コメントにしない（MUST）</strong>: 行内の <code>//</code> の<strong>直前が <code>:</code></strong> のときは、URL の scheme
+区切り（<code>https://example.com</code>、フィールド値の <code>source:https://…</code>）なのでコメントの始めにしない。
+直前が <code>:</code> でなければ、その <code>//</code> から行末までがコメント。回避にはエスケープ <code>\/</code>（§5.0.3）も使える。
+この判定は行内で完結する（§5.0.1）。</p>
+<h4 id="503-エスケープ">5.0.3 エスケープ</h4>
+<p><code>\@</code> <code>\'</code> <code>\;</code> <code>\/</code> <code>\「</code> <code>\」</code> <code>\\</code> <code>\#</code> <code>\!</code> <code>\^</code> のみ有効。それ以外の <code>\x</code> は <code>\x</code> の 2 文字としてそのまま扱う（診断なし）。
+エクスポート時にエスケープは解除される（§17.1）。</p>
+<h4 id="504-改行符号化正規化">5.0.4 改行・符号化・正規化</h4>
+<ul>
+<li>読み込み: UTF-8。BOM があれば剥がして読み、保存時は付けない（MUST）。改行 LF / CRLF / CR を受理し、内部表現は LF。</li>
+<li>保存: <code>project.toml</code> の <code>newline</code> に従う。既定 LF、BOM なし。</li>
+<li>行末の半角/全角空白は保存時に削除（MUST）。ただし行頭のインデントは保持する。</li>
+<li>ファイル末尾は必ず改行 1 個で終える（MUST）。ただし<strong>空の文書は空のまま保存する</strong>（改行 1 個を強制すると「空の 1 行」が増え、読み込み → 保存の往復で文書が変わってしまうため。MUST の例外）。
+改行だけの文書も空として扱う。</li>
+<li>Unicode 正規化は行わない（作家の入力を変えないため）。ただし <strong>辞書照合時のみ</strong> NFKC 相当の比較を行う（§6.1.3）。</li>
+</ul>
+<h4 id="505-フィールド行">5.0.5 フィールド行</h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>field_line   = ws? field_key ws? (":" | "：") field_value ;</span></span>
+<span class="line"><span>field_value  = ws value | ws | ε ;   (* ε は行末。手順 4・5 の場合は ws 無しでもよい *)</span></span>
+<span class="line"><span>field_key    = ascii_key | ja_alias ;</span></span>
+<span class="line"><span>ascii_key    = /[a-z][a-z0-9-]{0,23}/ ;</span></span></code></pre>
+<p>判定は<strong>行内で完結する</strong>（§5.0.1）。次の手順で決める。</p>
+<ol>
+<li>行頭のインデントが <strong>2 文字以上の空白（半角・全角）または 1 文字以上のタブ</strong>なら継続行であり、フィールド行ではない（下の「継続行」参照）。</li>
+<li>最初のコロン（半角 <code>:</code> または全角 <code>：</code>）の直前までを <code>key</code> 候補とし、末尾の空白を除く。
+コロンが無ければフィールド行ではない。<strong>コロンが複数あれば最初のもので切る</strong>（値にコロンが残ってよい）。</li>
+<li><code>key</code> 候補が <code>field_key</code>（<code>ascii_key</code> の形、または §5.0.6 の表にある日本語別名）でなければ
+フィールド行ではない。§5.0.6 の表に無い日本語（<code>注：これは本文</code> のような散文）はここで通常テキストになる。</li>
+<li>コロンが<strong>全角 <code>：</code></strong> なら、直後の空白を問わず<strong>フィールド行</strong>（日本語の自然な書き方
+<code>要約：あらすじ</code> を受けるため）。</li>
+<li>コロンが<strong>半角 <code>:</code></strong> のとき:
+<ul>
+<li>直後に空白（半角・全角・タブ）があるか、行末なら<strong>フィールド行</strong>。</li>
+<li>直後に空白がなくても、<code>key</code> が §5.0.6 の<strong>表にあるキー</strong>（正準形または別名）なら<strong>フィールド行</strong>
+（<code>summary:一行</code> <code>mode:B</code> <code>source:https://example.com</code> を救う）。</li>
+<li>それ以外は<strong>通常テキスト</strong>。</li>
+</ul>
+</li>
+<li>値は前後の空白を除いて保持する。<code>key:</code> / <code>key：</code> だけの行は<strong>空の値</strong>のフィールド行
+（§5.0.4 が行末の空白を削除する MUST と両立させるため、<code>ws</code> は行末でも満たされると読む）。</li>
+<li>§5.0.6 の表に無い <code>ascii_key</code> でフィールド行になったものは <strong>W011</strong>（未知のキー）とし、値は改変せず保持する。</li>
+</ol>
+<p><strong>URL 判定は除外リストを持たない（MUST）</strong>: 手順 5 が「表に無い ascii キーは空白なしではフィールド行に
+しない」ため、<code>http://example.com</code>・<code>https://…</code>・<code>mailto:foo@example.com</code>・<code>doi:10.1000/xyz</code>・
+<code>isbn:978-…</code>・<code>tel:090-…</code>・<code>file:///tmp/x</code>・<code>C:\Users\x</code>・<code>10:30</code> は<strong>自動的に本文のまま残る</strong>
+（<code>http</code> <code>doi</code> <code>10</code> などは §5.0.6 の表に無いので手順 3・5 で落ちる）。逆に、表にあるキーの値に URL を
+書くのは正当（<code>source:https://example.com</code>）なので、値の中身は検査しない。</p>
+<p><strong>不変条件（MUST）</strong>: §5.0.6 の <code>ascii_key</code> は <strong>URL scheme および本文中に書かれがちな接頭辞と
+衝突してはならない</strong>（<code>http</code> <code>https</code> <code>ftp</code> <code>file</code> <code>mailto</code> <code>data</code> <code>tel</code> <code>urn</code> <code>ssh</code> <code>git</code> <code>svn</code>
+<code>s3</code> <code>news</code> <code>doi</code> <code>isbn</code> <code>arxiv</code> <code>pmid</code> <code>javascript</code> <code>about</code> <code>blob</code> 等）。表に scheme と同名のキーを足してはならず、キー表と URI スキーム列挙の非交差を維持する（MUST）。</p>
+<ul>
+<li><code>ascii_key</code> が正準形。日本語別名は §5.0.6 の表にある語のみ受理し、<strong>保存時に正準形へ正規化しない</strong>（作家の表記を保つ）。</li>
+<li>値は 1 行。複数行が必要な場合は継続行として <strong>2 文字以上の空白（半角・全角）または 1 文字以上のタブによるインデント</strong> を用いる。
+継続行の先頭インデント（先頭がタブなら 1 文字、それ以外の空白なら 2 文字）は値から剥がす。</li>
+</ul>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>summary: 一行目</span></span>
+<span class="line"><span>  二行目（継続行）</span></span></code></pre>
+<h4 id="506-フィールドキー別名表固定双方向-11">5.0.6 フィールドキー別名表（固定・双方向 1:1）</h4>
+<table>
+<thead>
+<tr>
+<th>ascii_key</th>
+<th>日本語別名</th>
+<th>使用形式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>summary</code></td>
+<td><code>要約</code></td>
+<td>A, B</td>
+</tr>
+<tr>
+<td><code>goal</code></td>
+<td><code>目的</code></td>
+<td>A, B</td>
+</tr>
+<tr>
+<td><code>turn</code></td>
+<td><code>転換</code></td>
+<td>A</td>
+</tr>
+<tr>
+<td><code>state</code></td>
+<td><code>状態</code></td>
+<td>A, B</td>
+</tr>
+<tr>
+<td><code>cast</code></td>
+<td><code>配役</code></td>
+<td>A, B</td>
+</tr>
+<tr>
+<td><code>mode</code></td>
+<td><code>モード</code></td>
+<td>B</td>
+</tr>
+<tr>
+<td><code>pov</code></td>
+<td><code>視点</code></td>
+<td>A, B</td>
+</tr>
+<tr>
+<td><code>seed</code></td>
+<td><code>伏線</code></td>
+<td>A, B</td>
+</tr>
+<tr>
+<td><code>payoff</code></td>
+<td><code>回収</code></td>
+<td>A, B</td>
+</tr>
+<tr>
+<td><code>material</code></td>
+<td><code>資料</code></td>
+<td>A, B</td>
+</tr>
+<tr>
+<td><code>length</code></td>
+<td><code>分量</code></td>
+<td>A, B</td>
+</tr>
+<tr>
+<td><code>check</code></td>
+<td><code>確認</code></td>
+<td>B</td>
+</tr>
+<tr>
+<td><code>note</code></td>
+<td><code>メモ</code></td>
+<td>A, B, md</td>
+</tr>
+<tr>
+<td><code>alias</code></td>
+<td><code>別名</code></td>
+<td>md</td>
+</tr>
+<tr>
+<td><code>range</code></td>
+<td><code>範囲</code></td>
+<td>md</td>
+</tr>
+<tr>
+<td><code>reading</code></td>
+<td><code>読み</code></td>
+<td>md</td>
+</tr>
+<tr>
+<td><code>definition</code></td>
+<td><code>定義</code></td>
+<td>md</td>
+</tr>
+<tr>
+<td><code>category</code></td>
+<td><code>分類</code></td>
+<td>md</td>
+</tr>
+<tr>
+<td><code>tone</code></td>
+<td><code>口調</code></td>
+<td>md</td>
+</tr>
+<tr>
+<td><code>personality</code></td>
+<td><code>性格</code></td>
+<td>md</td>
+</tr>
+<tr>
+<td><code>emotion</code></td>
+<td><code>感情</code></td>
+<td>md</td>
+</tr>
+<tr>
+<td><code>role</code></td>
+<td><code>役割</code></td>
+<td>md</td>
+</tr>
+<tr>
+<td><code>relation</code></td>
+<td><code>関係</code></td>
+<td>md</td>
+</tr>
+<tr>
+<td><code>default-mode</code></td>
+<td><code>既定モード</code></td>
+<td>md</td>
+</tr>
+<tr>
+<td><code>tags</code></td>
+<td><code>タグ</code></td>
+<td>md</td>
+</tr>
+<tr>
+<td><code>source</code></td>
+<td><code>出典</code></td>
+<td>md</td>
+</tr>
+<tr>
+<td><code>condition</code></td>
+<td><code>条件</code></td>
+<td>md</td>
+</tr>
+<tr>
+<td><code>when</code></td>
+<td><code>日時</code></td>
+<td>A, B（作中日時、§10.3.2）</td>
+</tr>
+<tr>
+<td><code>senses</code></td>
+<td><code>五感</code></td>
+<td>B（§10.9.3）</td>
+</tr>
+<tr>
+<td><code>space</code></td>
+<td><code>空間</code></td>
+<td>A, B（§9.5.3）</td>
+</tr>
+<tr>
+<td><code>space-mode</code></td>
+<td><code>空間形式</code></td>
+<td>A, B</td>
+</tr>
+<tr>
+<td><code>illustration</code></td>
+<td><code>挿絵</code></td>
+<td>B（§5.2.5）</td>
+</tr>
+<tr>
+<td><code>blurb</code></td>
+<td><code>あらすじ</code></td>
+<td>A（§5.1.2）</td>
+</tr>
+<tr>
+<td><code>address</code></td>
+<td><code>呼称</code></td>
+<td>md（§5.5.6）</td>
+</tr>
+<tr>
+<td><code>icon</code></td>
+<td><code>アイコン</code></td>
+<td>md（§5.5.3）</td>
+</tr>
+<tr>
+<td><code>context</code></td>
+<td><code>文脈</code></td>
+<td>prompts（§5.9.2）</td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td><code>題</code></td>
+<td>A（§5.3.3 の前文）</td>
+</tr>
+<tr>
+<td><code>color</code></td>
+<td><code>色</code></td>
+<td>md（§5.5.3）</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td><code>状況</code></td>
+<td>md（§5.7）</td>
+</tr>
+<tr>
+<td><code>created</code></td>
+<td><code>作成日時</code></td>
+<td>md（§5.7）</td>
+</tr>
+<tr>
+<td><code>relates</code></td>
+<td><code>関連</code></td>
+<td>md（§5.7）</td>
+</tr>
+<tr>
+<td><code>promoted-to</code></td>
+<td><code>昇格先</code></td>
+<td>md（§5.7）</td>
+</tr>
+<tr>
+<td><code>model-hint</code></td>
+<td><code>モデル指定</code></td>
+<td>prompts（§5.9.1）</td>
+</tr>
+<tr>
+<td><code>max-chars</code></td>
+<td><code>最大文字数</code></td>
+<td>prompts（§5.9.1）</td>
+</tr>
+<tr>
+<td><code>temperature</code></td>
+<td><code>温度</code></td>
+<td>prompts（§5.9.1）</td>
+</tr>
+<tr>
+<td><code>label</code></td>
+<td><code>表示名</code></td>
+<td>prompts（§5.9.2）</td>
+</tr>
+</tbody>
+</table>
+<p>未知のキーは <strong>W011</strong>（警告）とし、値は改変せず保持する。</p>
+<p>日本語別名で書かれた行も、正準形と同じ<strong>キー</strong>として読む（MUST。<code>状況:</code> は <code>status:</code> と同じ意味で、
+どちらの綴りで書いても同じ値を返す）。綴りは保存時に変えない。</p>
+<ul>
+<li>日本語別名は<strong>双方向 1:1</strong>（MUST）なので、<code>state</code>（状態）と <code>status</code>（状況）のように
+<strong>意味が近い別キーは別の別名</strong>を持つ。<code>status</code> は §5.7 の <code>ideas.md</code> 専用（inbox / keep /
+promoted / dropped）で、<code>state</code> は A / B 形式の執筆状態（draft / fixed）専用。</li>
+<li><code>materials/index.json</code> の JSON キー（<code>title</code> / <code>status</code> 等）はこの表の対象外。表は
+<strong>フィールド行（<code>key: value</code>）の語彙</strong>だけを扱う（§5.0.5）。</li>
+</ul>
+<h4 id="507-コメントとアノテーションの定義">5.0.7 コメントと「アノテーション」の定義</h4>
+<p>エクスポート（§17）で除去される「アノテーション」とは、次の 9 種を指す（固定）。</p>
+<ol>
+<li>構造見出し行（<code>@A-B-C[-D] ...</code>）</li>
+<li>行末話者注釈（<code>@キャラ名[:モード]</code>）</li>
+<li>参照シジル <code>'</code> と修飾子（<code>:モード</code> / <code>:タイトル</code>）。<strong>表示名そのものは残す</strong></li>
+<li>節区切り <code>;</code></li>
+<li>行コメント <code>//...</code>、行内コメント <code>/* ... */</code></li>
+<li><strong>行頭コメント行 <code># ...</code></strong>（§5.0.8）</li>
+<li><strong>行末の資料引用注釈 <code>^M0137</code></strong>（§5.2.4）</li>
+<li><strong>挿絵メモ行 <code>! ...</code></strong>（§5.2.5）</li>
+<li>フィールド行（A/B 形式のみ。本文には現れない）</li>
+</ol>
+<h4 id="508---行コメント">5.0.8 <code># </code> 行コメント</h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>hash_comment = ws? , "#" , (" " | "　") , any* , eol ;</span></span></code></pre>
+<ul>
+<li><strong><code>.cnov</code>（A / B / C 形式）でのみ有効</strong>。<code>.md</code> ファイル（<code>characters.md</code> 等）では <code>#</code> は従来どおり見出しであり、コメントにならない（MUST）。</li>
+<li>行頭のみ。行の途中の <code>#</code> はただの文字。</li>
+<li>複数行コメントは存在しない（1 行 1 コメント、MUST）。</li>
+<li><code>//</code> との使い分けは利用者の自由。novnow はどちらも同じ <code>comment</code> トークンとして扱い、相互変換もしない。</li>
+<li>用途の想定: 執筆中の自分宛てメモ（「ここは後で直す。リリアの心情が不自然」）。</li>
+</ul>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span># ここは後で直す。リリアの心情が不自然。</span></span>
+<span class="line"><span>「……付き合ってあげるわよ」@リリア:B</span></span></code></pre>
+<h4 id="509-文書として認識する範囲">5.0.9 文書として認識する範囲</h4>
+<p>novnow が文書として読み、解析し、書き戻すのは、置き場所と拡張子の組が仕様の定義に一致するファイルだけである。</p>
+<ul>
+<li><code>contents/&lt;章&gt;-&lt;話&gt;.cnov</code> は本文（C 形式）、<code>plots/all.cnov</code> と <code>plots/&lt;章&gt;.cnov</code> はアウトライン（A 形式）、<code>plots/&lt;章&gt;-&lt;話&gt;.cnov</code> は話プロット（B 形式）。形式は拡張子単体では決まらず、置き場所とファイル名の形との組で決まる。</li>
+<li>名前がこの形に一致しないファイルは文書として認識しない。<code>contents/</code> にあっても拡張子が <code>.cnov</code> でないファイルや、章・話の番号の形に合わない <code>.cnov</code> がそうである。認識しないファイルは解析も書き戻しもせず、§4.3 のとおり未知のファイルとして触れない。</li>
+<li><code>.cnov</code> は A / B / C の 3 形式で使う novnow 専用の拡張子であり、中身は通常の UTF-8 テキストである。</li>
+</ul>
+<h3 id="51-sceneid-と範囲式">5.1 SceneId と範囲式</h3>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>scene_id      = num , "-" , num , "-" , num , [ "-" , num ] ;</span></span>
+<span class="line"><span>partial_id    = num , [ "-" , num , [ "-" , num , [ "-" , num ] ] ] ;</span></span>
+<span class="line"><span>num           = /\d{1,4}/ ;                   (* 表示は project.toml の桁数でゼロ詰め *)</span></span>
+<span class="line"><span>range_expr    = range_term , { "," , ws , range_term } ;</span></span>
+<span class="line"><span>range_term    = ( "@" partial_id , ws? , ".." , ws? , [ "@" partial_id ] )</span></span>
+<span class="line"><span>              | ( ".." , ws? , "@" partial_id )</span></span>
+<span class="line"><span>              | ( "@" partial_id ) ;</span></span></code></pre>
+<p>意味論:</p>
+<ul>
+<li><code>@01-04-02-03</code> は節、<code>@01-04-02</code> は場面全体（<code>section = 0</code> を「場面全体」の意味で用いる。v0 と同じ）。</li>
+<li><code>@01-04 .. @02-01</code> は <strong>閉区間</strong>。比較は <code>(chapter, episode, scene, section)</code> の辞書式順序。
+左辺の省略階層は最小値（0）、右辺の省略階層は最大値（9999）に展開される。
+例: <code>@01 .. @02</code> ⇒ <code>01-00-00-00 .. 02-9999-9999-9999</code>。</li>
+<li><code>@03-01 ..</code> は上端開放、<code>.. @01-03</code> は下端開放。</li>
+<li>カンマ区切りで複数区間の和集合。</li>
+<li><strong>境界検査</strong>: 区間の左端 &gt; 右端 のときは <strong>E016</strong>。</li>
+</ul>
+<p>表示（<code>SceneId::display</code>）: <code>section == 0</code> のときは 3 階層表示、それ以外は 4 階層。いずれも <code>project.toml</code> の <code>structure.*_digits</code> でゼロ詰め。</p>
+<h4 id="511-階層ごとの役割再掲">5.1.1 階層ごとの役割（再掲）</h4>
+<p><code>A</code> 章 / <code>B</code> 話 / <code>C</code> 場面 / <code>D</code> 節。</p>
+<h4 id="512-予約番号-00v010-追加仕様-1722">5.1.2 予約番号 <code>00</code>（v0.1.0 追加仕様 17・22）</h4>
+<p><code>00</code> は階層ごとに固有の意味を持つ。<strong>番号としては正当な値であり、パースを拒否しない</strong>（MUST）。</p>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>意味</th>
+<th>ファイル</th>
+<th>備考</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>A = 00</code></td>
+<td><strong>未配属ストック章</strong></td>
+<td><code>contents/00-01.cnov</code>, <code>plots/00.cnov</code>, <code>plots/00-01.cnov</code></td>
+<td>章番号を決めていない話の仮置き場。UI 表示名は「未分類ストック」。<code>structure.allow_chapter_zero = false</code> にすると <strong>E022</strong> で拒否</td>
+</tr>
+<tr>
+<td><code>B = 00</code></td>
+<td><strong>章あらすじ</strong></td>
+<td><code>contents/01-00.cnov</code>, <code>plots/01.cnov</code> 内の <code>@01-00</code> ブロック</td>
+<td>読者向けの短いあらすじ。<code>blurb:</code> フィールドを持つ（§5.3.2）</td>
+</tr>
+<tr>
+<td><code>C = 00</code></td>
+<td>予約（未使用）</td>
+<td>—</td>
+<td>v0.1.0 では書いてはならない（<strong>E022</strong>）</td>
+</tr>
+<tr>
+<td><code>D = 00</code></td>
+<td>場面全体</td>
+<td>—</td>
+<td>既存仕様（見出しで <code>D</code> を省略した状態）</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>予約番号を拒否する診断は <strong>E022</strong>。</li>
+<li><code>@00-01-02-03</code> は正当な SceneId（ストック章の 1 話 2 場面 3 節）。</li>
+<li><code>@01-00</code> は正当な PartialSceneId（1 章のあらすじ）。<code>@01-00-01-01</code> のように下位を付けることもできる（あらすじを節に分けて書く場合）。</li>
+<li>範囲式での扱いは通常の番号と同じ（<code>@00 .. @01</code> は「ストック章と 1 章」を意味する）。</li>
+<li>ソート順は数値順のため、ストック章（<code>00</code>）は常に先頭、章あらすじ（<code>B=00</code>）は章の先頭に来る。</li>
+</ul>
+<p><strong>ストックから正式な章への移動</strong>（§10.3.3）は、ファイル名のリネームと本文・プロット内の SceneId 一括置換を
+<strong>1 つの操作として原子的に</strong> 行う（途中失敗時は全て巻き戻す、MUST）。</p>
+<h3 id="52-本文形式c-形式-contentsaa-bbcnov">5.2 本文形式（C 形式）— <code>contents/AA-BB.cnov</code></h3>
+<h4 id="521-文法">5.2.1 文法</h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>content_file  = { line } ;</span></span>
+<span class="line"><span>line          = scene_header | section_break | comment_line | illust_line | blank | text_line ;</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>scene_header  = ws? , "@" , scene_id , [ ws , title_text ] , [ comment ] , eol ;</span></span>
+<span class="line"><span>section_break = ws? , ";" , [ comment ] , eol ;</span></span>
+<span class="line"><span>comment_line  = ws? , ( "//" | "#" ws1 ) , any* , eol ;</span></span>
+<span class="line"><span>illust_line   = ws? , "!" , ws1 , any* , eol ;</span></span>
+<span class="line"><span>blank         = ws? , eol ;</span></span>
+<span class="line"><span>text_line     = inline+ , [ citation* ] , [ speaker_annot ] , [ comment ] , eol ;</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>inline        = dialogue | ref | ruby | escaped | plain ;</span></span>
+<span class="line"><span>dialogue      = "「" , inline* , "」" | "『" , inline* , "』" ;</span></span>
+<span class="line"><span>ref           = "'" , ( ref_name | "{" , ref_name , "}" ) , [ ":" , modifier ] ;</span></span>
+<span class="line"><span>ruby          = "｜" , base , "《" , reading , "》" | kanji_run , "《" , reading , "》" ;</span></span>
+<span class="line"><span>citation      = ws* , "^" , material_id ;                            (* 行末側 *)</span></span>
+<span class="line"><span>speaker_annot = ws* , "@" , char_name , [ ":" , mode_expr ] , ws* ;   (* 行末のみ *)</span></span>
+<span class="line"><span>mode_expr     = mode_id , [ "+" , mode_id ] ;</span></span>
+<span class="line"><span>ws1           = " " | "　" ;</span></span></code></pre>
+<p><code>char_name</code>（話者注釈、<code>'</code> 参照、<code>address:</code> の相手）は、<strong>空白（半角空白・全角空白・タブ）と <code>:</code> を含まない 1 文字以上</strong>とする。
+<code>:</code> を含む <code>@…</code> は、<code>:</code> の後ろが <code>mode_expr</code> として読めない限り話者注釈にならない（<strong>W002</strong>）。</p>
+<h4 id="522-節の確定規則must">5.2.2 節の確定規則（MUST）</h4>
+<ul>
+<li>場面見出し <code>@A-B-C</code> の直後から最初の <code>;</code> までが節 <code>D=1</code>。以降 <code>;</code> ごとに <code>D</code> が 1 ずつ増える。</li>
+<li>見出しに <code>D</code> が明示されている（<code>@01-04-02-03</code>）場合、その見出し直後の節番号を <code>D</code> から開始する（部分ファイル・差し込み用）。</li>
+<li>節の末尾の空行は節の内容に含めない。</li>
+<li><code>;</code> が連続した場合、空の節が生成される（診断 W012「空の節」）。</li>
+<li>ファイル先頭の場面見出しより前の行は<strong>どの節にも属さない</strong>。見出しより前の <code>;</code> も節を作らない。</li>
+<li>ファイル末尾で、最後の <code>;</code> の後ろに本文（空行以外）が無ければ節を作らない（<code>;</code> や改行で終わるファイルに空の節を足さない。W012 も出さない）。</li>
+</ul>
+<h4 id="523-例">5.2.3 例</h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>@01-04-02 図書室の攻防</span></span>
+<span class="line"><span>「やっぱり'アルス、ここにいたのね」@リリア:A</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>呆れたような声とともに、'リリアが隣の椅子を引き寄せた。</span></span>
+<span class="line"><span>;</span></span>
+<span class="line"><span>「旧校舎の地下遺跡に眠っているっていう'『星屑の時計』の設計図だ」@アルス</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>'リリアは溜め息をついたが、図面の精巧な書き込みに目を奪われた。</span></span>
+<span class="line"><span>;</span></span>
+<span class="line"><span>「……付き合ってあげるわよ」@リリア:B    // ここでモードが切り替わる</span></span></code></pre>
+<h4 id="524-資料引用注釈-">5.2.4 資料引用注釈 <code>^</code></h4>
+<p>本文の行が、どの資料に基づいて書かれたかを示す。</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>citation = "^" , ( "M" | "S" ) , /\d{4,}/ ;</span></span></code></pre>
+<table>
+<thead>
+<tr>
+<th>規則</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>位置</td>
+<td>行末側。<code>speaker_annot</code> より <strong>前</strong>。複数並べられる（<code>^M0137 ^M0021</code>）</td>
+</tr>
+<tr>
+<td>連続性</td>
+<td>行末（行末コメントの手前）から<strong>遡って</strong>、空白区切りで並ぶものだけが注釈。注釈の後ろに本文が続くものは注釈ではない（<code>^M0137 の話</code> の <code>^M0137</code> は注釈）</td>
+</tr>
+<tr>
+<td>桁数</td>
+<td>4 桁以上（<code>M0137</code>。9999 を超えると桁が増える、§5.8.2）</td>
+</tr>
+<tr>
+<td>打ち消し</td>
+<td>直前の <code>\</code> が奇数個なら注釈にしない。行内コメント <code>/* … */</code> の中も注釈にしない</td>
+</tr>
+<tr>
+<td>範囲</td>
+<td>除去・文字数の対象は <code>^</code> から ID の末尾まで。<strong>直前の空白</strong>も注釈の一部として扱う</td>
+</tr>
+<tr>
+<td>スコープ</td>
+<td><strong>その 1 行</strong>。段落や節には掛からない</td>
+</tr>
+<tr>
+<td>表示</td>
+<td>本文中ではごく薄い灰色の上付き。参照ペインの「資料」節に、現在の節で引用されている資料を列挙する</td>
+</tr>
+<tr>
+<td>妥当性</td>
+<td><code>materials/index.json</code> に存在しない ID は <strong>E012</strong>（未知の資料参照）</td>
+</tr>
+<tr>
+<td>エクスポート</td>
+<td>完全に除去される（§17.1、§5.0.7-7）</td>
+</tr>
+<tr>
+<td>文字数</td>
+<td><code>^M0137</code> は本文文字数に数えない</td>
+</tr>
+<tr>
+<td>逆引き</td>
+<td>資料詳細（§10.5）に「この資料を引用している節」の一覧を出す</td>
+</tr>
+</tbody>
+</table>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>世界樹の樹皮は、剥がすと七日で再生するという。^M0137</span></span></code></pre>
+<p><strong>目的の明示</strong>: この機能は「資料を集めたが使っていない」状態を可視化するためにある。
+調査済みの資料のうち、どの節からも引用されていないものは <strong>I054</strong> で通知する（§7.2）。
+引用は義務ではない（付けなくても診断は出ない、MUST）。</p>
+<h4 id="525-挿絵メモ--">5.2.5 挿絵メモ <code>! </code></h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>illust_line = ws? , "!" , ws1 , memo_text , eol ;</span></span></code></pre>
+<table>
+<thead>
+<tr>
+<th>規則</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>位置</td>
+<td>行頭のみ。<strong>単独行</strong>（本文と混ぜられない）</td>
+</tr>
+<tr>
+<td>意味</td>
+<td>「ここに挿絵が入る」という作者のメモ。novnow は画像を生成も表示もしない</td>
+</tr>
+<tr>
+<td>所属</td>
+<td>直前の節に属する。節の先頭に書けばその節の冒頭扱い</td>
+</tr>
+<tr>
+<td>表示</td>
+<td>本文中は細い罫線 1 本＋メモ文（本文と明確に異なる地味な見た目）。参照ペインに「挿絵」節として列挙</td>
+</tr>
+<tr>
+<td>エクスポート</td>
+<td>行ごと除去（§17.1）。ただし <code>--keep-illustration-memo</code> 付きのときは <code>［挿絵: …］</code> として残す</td>
+</tr>
+<tr>
+<td>一覧</td>
+<td>§10.9 に「挿絵メモ一覧」を出し、ID 順に並べる（商業出版時のイラストレーター向け指示書の素地）</td>
+</tr>
+<tr>
+<td>文字数</td>
+<td>本文文字数に数えない</td>
+</tr>
+</tbody>
+</table>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>! 見開き。リリアが時計塔の階段を見上げている。逆光。</span></span></code></pre>
+<p><code>! </code> は <strong>構造を持たない</strong>（番号も属性も付けない）。構造化した挿絵指示が要るなら
+B 形式の <code>illustration:</code> フィールド（§5.4.2）を使う。両者は独立して併存できる。</p>
+<h4 id="528-会話閉じ括弧直後の--による話者予測補完状態-実装完了">5.2.8 会話閉じ括弧直後の <code>@</code> による話者予測補完〔状態: 実装完了〕</h4>
+<ul>
+<li>会話スパンの閉じ鉤括弧（<code>」</code> または <code>』</code>）の直後（空白を挟む場合を含む）に <code>@</code> を入力したときは、行末話者注釈の入力開始とみなし、登録済みの登場人物名および <code>@キャラ:モード</code> の予測補完候補を即座に提示する。</li>
+</ul>
+<h3 id="53-アウトライン形式a-形式-plotsallcnov-plotsaacnov">5.3 アウトライン形式（A 形式）— <code>plots/all.cnov</code>, <code>plots/AA.cnov</code></h3>
+<p><strong>全体プロットと章プロットは同一形式</strong>。違いは「見出しが指す階層」だけである。</p>
+<table>
+<thead>
+<tr>
+<th>ファイル</th>
+<th>見出しの階層</th>
+<th>記述対象</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>plots/all.cnov</code></td>
+<td><code>@A</code>（章）</td>
+<td>物語全体の構成。章の要約・目的・転換・伏線</td>
+</tr>
+<tr>
+<td><code>plots/01.cnov</code></td>
+<td><code>@A-B</code>（話）</td>
+<td>1 章の構成。話の要約・目的・転換・配役モードの推移</td>
+</tr>
+</tbody>
+</table>
+<h4 id="531-文法">5.3.1 文法</h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>outline_file = [ preamble ] , { block } ;</span></span>
+<span class="line"><span>preamble     = { field_line | comment_line | blank } ;      (* ファイル全体のメタ *)</span></span>
+<span class="line"><span>block        = outline_header , { field_line | note_line | comment_line | blank } , [ block_end ] ;</span></span>
+<span class="line"><span>outline_header = ws? , "@" , partial_id , [ ws , title_text ] , [ comment ] , eol ;</span></span>
+<span class="line"><span>block_end    = ws? , ";" , eol ;</span></span>
+<span class="line"><span>note_line    = inline+ , eol ;        (* フィールドに当てはまらない自由記述 *)</span></span></code></pre>
+<h4 id="532-フィールドa-形式">5.3.2 フィールド（A 形式）</h4>
+<table>
+<thead>
+<tr>
+<th>キー</th>
+<th>必須</th>
+<th>回数</th>
+<th>値</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>summary</code></td>
+<td><strong>必須</strong></td>
+<td>1</td>
+<td>1 行 ≤ 120 字</td>
+<td>この単位の一行要約。<strong>上位 LLM コンテキストに必ず入る唯一の行</strong>（§15.4）</td>
+</tr>
+<tr>
+<td><code>goal</code></td>
+<td>推奨</td>
+<td>0..1</td>
+<td>自由文</td>
+<td>物語上の役割（なぜこの章/話が要るのか）</td>
+</tr>
+<tr>
+<td><code>turn</code></td>
+<td>任意</td>
+<td>0..n</td>
+<td>自由文</td>
+<td>転換点</td>
+</tr>
+<tr>
+<td><code>pov</code></td>
+<td>任意</td>
+<td>0..1</td>
+<td><code>'キャラ名</code></td>
+<td>視点人物</td>
+</tr>
+<tr>
+<td><code>cast</code></td>
+<td>任意</td>
+<td>0..1</td>
+<td><code>'名前[:モード[+モード]]</code> の空白区切り</td>
+<td>登場人物と既定モード</td>
+</tr>
+<tr>
+<td><code>seed</code></td>
+<td>任意</td>
+<td>0..n</td>
+<td><code>F&lt;id&gt; 説明 -&gt; @範囲</code></td>
+<td>伏線の設置</td>
+</tr>
+<tr>
+<td><code>payoff</code></td>
+<td>任意</td>
+<td>0..n</td>
+<td><code>F&lt;id&gt; -&gt; @範囲</code></td>
+<td>伏線の回収</td>
+</tr>
+<tr>
+<td><code>material</code></td>
+<td>任意</td>
+<td>0..n</td>
+<td><code>'M0137 [補足]</code></td>
+<td>参照資料</td>
+</tr>
+<tr>
+<td><code>state</code></td>
+<td>任意</td>
+<td>0..1</td>
+<td><code>draft</code> | <code>review</code> | <code>fixed</code></td>
+<td>確定度。<code>fixed</code> は AI 書き換え提案の対象外</td>
+</tr>
+<tr>
+<td><code>length</code></td>
+<td>任意</td>
+<td>0..1</td>
+<td>整数（字）</td>
+<td>目標分量</td>
+</tr>
+<tr>
+<td><code>when</code></td>
+<td>任意</td>
+<td>0..1</td>
+<td>作中日時式（§5.3.5）</td>
+<td><strong>作中世界での日時</strong>。タイムライン表示と時系列矛盾検出に使う（追加仕様 3）</td>
+</tr>
+<tr>
+<td><code>space</code></td>
+<td>任意</td>
+<td>0..1</td>
+<td>自由文 または 相対パス</td>
+<td><strong>空間設計メモ</strong>（追加仕様 21、§5.3.6）</td>
+</tr>
+<tr>
+<td><code>space-mode</code></td>
+<td>任意</td>
+<td>0..1</td>
+<td><code>text</code> | <code>ascii</code></td>
+<td><code>space</code> の描画方法。<code>ascii</code> のときは等幅＋整形なしで表示</td>
+</tr>
+<tr>
+<td><code>blurb</code></td>
+<td>任意</td>
+<td>0..n</td>
+<td>自由文</td>
+<td><strong>読者向けあらすじ</strong>（追加仕様 17、§5.3.7）</td>
+</tr>
+<tr>
+<td><code>note</code></td>
+<td>任意</td>
+<td>0..n</td>
+<td>自由文</td>
+<td>メモ</td>
+</tr>
+</tbody>
+</table>
+<p><strong>制約（MUST）</strong></p>
+<ul>
+<li><code>summary</code> が無いブロックは <strong>E018</strong>。</li>
+<li><code>summary</code> が 120 字を超えると <strong>W019</strong>（4 段階のコンテキスト削減効果が落ちるため）。</li>
+<li>ブロックの見出し ID は同一ファイル内で一意（重複は <strong>E008</strong>）。</li>
+<li>ファイル内の見出し階層は揃っていること（<code>all.cnov</code> に <code>@01-04</code> が現れたら <strong>E020</strong>）。</li>
+</ul>
+<h4 id="533-例plotsallcnov">5.3.3 例（<code>plots/all.cnov</code>）</h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>// 全体プロット: 章を 1 ブロック 1 章で書く。</span></span>
+<span class="line"><span>title: 星屑の時計</span></span>
+<span class="line"><span>summary: 古代錬金術を追う少年と幼馴染が、学院の地下遺跡の魔導具を巡って対立と和解を繰り返す。</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>@01 失われた刻印</span></span>
+<span class="line"><span>summary: 'アルス が地下遺跡に惹かれ、'リリア を巻き込んで探索を始める導入章。</span></span>
+<span class="line"><span>goal: 二人の関係性と'星屑の時計 の存在を読者に提示する。</span></span>
+<span class="line"><span>turn: 'リリア が渋々ながら同行を決める。</span></span>
+<span class="line"><span>cast: 'アルス:A 'リリア:A</span></span>
+<span class="line"><span>seed: F01 地下遺跡の封印紋様 -&gt; @03-02</span></span>
+<span class="line"><span>state: fixed</span></span>
+<span class="line"><span>;</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>@02 補習と地図</span></span>
+<span class="line"><span>summary: 期末試験の失敗を代償に、二人は旧校舎の鍵を手に入れる。</span></span>
+<span class="line"><span>goal: 代償を払わせることで探索の重みを出す。</span></span>
+<span class="line"><span>cast: 'アルス:B 'リリア:B</span></span>
+<span class="line"><span>payoff: F02 -&gt; @02-05</span></span>
+<span class="line"><span>state: draft</span></span>
+<span class="line"><span>;</span></span></code></pre>
+<h4 id="534-例plots01cnov--章プロット">5.3.4 例（<code>plots/01.cnov</code> — 章プロット）</h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>@01-04 図書室の密談</span></span>
+<span class="line"><span>summary: 試験前の図書室で'アルス が'リリア に設計図を見せ、放課後の探索を約束させる。</span></span>
+<span class="line"><span>goal: 読者に探索の動機とリスクを同時に渡す。</span></span>
+<span class="line"><span>cast: 'アルス:A 'リリア:A</span></span>
+<span class="line"><span>material: 'M0137 旧校舎の構造メモ</span></span>
+<span class="line"><span>length: 5200</span></span>
+<span class="line"><span>state: review</span></span>
+<span class="line"><span>;</span></span></code></pre>
+<h4 id="535-作中日時式-when">5.3.5 作中日時式 <code>when:</code></h4>
+<p>現実の暦ではなく <strong>作中世界の時間</strong> を書くためのフィールド。異世界の独自暦を許すため、
+<strong>novnow は暦を解釈しない</strong>。解釈するのは「順序」だけである（MUST）。</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>when_value   = timepoint , [ ws? , ".." , ws? , timepoint ] , [ ws , free_text ] ;</span></span>
+<span class="line"><span>timepoint    = ordinal_key , [ ws , clock ] ;</span></span>
+<span class="line"><span>ordinal_key  = /[-+]?\d+(\.\d+)?/ , [ unit_label ]      (* 例: 0, 12, 405.5, -3 *)</span></span>
+<span class="line"><span>             | "?" ;                                     (* 時系列不明 *)</span></span>
+<span class="line"><span>unit_label   = /[^\s:]{1,12}/ ;                          (* 日 / 年 / 刻 / Day など *)</span></span>
+<span class="line"><span>clock        = /\d{1,2}:\d{2}/ ;</span></span></code></pre>
+<table>
+<thead>
+<tr>
+<th>規則</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>正本</td>
+<td><strong><code>ordinal_key</code> の数値だけが順序を決める</strong>。<code>unit_label</code> と <code>free_text</code> は人間向けの表示</td>
+</tr>
+<tr>
+<td>単位</td>
+<td>プロジェクト全体で 1 つの単位系を暗黙に使う。novnow は単位名を検査しない（<code>日</code> と <code>年</code> が混在しても無視）</td>
+</tr>
+<tr>
+<td>時刻</td>
+<td><code>clock</code> は <code>ordinal_key</code> 内の副順序。<code>12 08:30</code> は <code>12 09:00</code> より前</td>
+</tr>
+<tr>
+<td>範囲</td>
+<td><code>12 .. 14</code> は「12 から 14 にかけて」。順序比較には <strong>開始値</strong> を使う</td>
+</tr>
+<tr>
+<td>不明</td>
+<td><code>?</code> はタイムラインで「順序未定」の帯に置く。矛盾検出の対象外</td>
+</tr>
+<tr>
+<td>継承</td>
+<td>下位階層が <code>when</code> を持たないとき、上位の <code>when</code> を継承する（章 → 話 → 場面 → 節）</td>
+</tr>
+<tr>
+<td>相対</td>
+<td>先頭が <code>+</code> のとき、直前の同階層ブロックの値への加算（<code>+1</code> = 翌日）。<code>-</code> も同様</td>
+</tr>
+</tbody>
+</table>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>when: 405.0 春分  09:15        … 405 日目の 9 時 15 分、表示は「405 春分 09:15」</span></span>
+<span class="line"><span>when: +1 翌朝                   … 直前のブロック +1</span></span>
+<span class="line"><span>when: 12 .. 14 三日間の合宿</span></span>
+<span class="line"><span>when: ? 回想（時期不明）</span></span></code></pre>
+<p><strong>時系列矛盾の検出</strong>: 本文の節順（SceneId 昇順）に対し <code>when</code> が巻き戻る箇所を <strong>W080</strong> で通知する（§7.2）。
+ただし <strong>回想は正当な技法</strong> なので、次のいずれかがあれば警告しない（MUST）。</p>
+<ul>
+<li><code>when</code> の <code>free_text</code> に <code>回想</code> / <code>過去</code> / <code>flashback</code> のいずれかを含む</li>
+<li>同ブロックに <code>note: 回想</code> がある</li>
+<li><code>when: ?</code></li>
+</ul>
+<h4 id="536-空間設計メモ-space">5.3.6 空間設計メモ <code>space:</code></h4>
+<p>部屋の間取り・建物の位置関係・座席配置など「文章では書かないが、書く側が把握していないと矛盾する」情報。</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>space-mode: ascii</span></span>
+<span class="line"><span>space:</span></span>
+<span class="line"><span>  ┌─────────┬─────┐</span></span>
+<span class="line"><span>  │  書架A   │ 窓  │</span></span>
+<span class="line"><span>  ├─────────┤     │</span></span>
+<span class="line"><span>  │  机（アルス）  │     │</span></span>
+<span class="line"><span>  │  机（リリア）  │     │</span></span>
+<span class="line"><span>  └─────────┴─────┘</span></span>
+<span class="line"><span>  入口は左下。リリアは窓を背にして座る。</span></span></code></pre>
+<table>
+<thead>
+<tr>
+<th>規則</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>値の形</td>
+<td>継続行（2 スペース以上インデント、§5.0.5）で複数行を書ける</td>
+</tr>
+<tr>
+<td>外部ファイル</td>
+<td>値が <code>./</code> または <code>assets/</code> で始まる相対パスのとき、そのテキストファイルを読み込んで表示する。絶対パス・<code>../</code> でプロジェクトの外へ出る値は<strong>解決できず</strong>、参照先が無いものとして <strong>W092</strong></td>
+</tr>
+<tr>
+<td><code>space-mode: ascii</code></td>
+<td><strong>等幅フォント・折り返しなし・整形なし</strong> で表示（MUST）。横スクロールを許す</td>
+</tr>
+<tr>
+<td><code>space-mode: text</code></td>
+<td>通常の本文フォントで折り返して表示（既定）</td>
+</tr>
+<tr>
+<td>継承</td>
+<td><code>when</code> と同じく上位から継承。場面が独自の <code>space</code> を持てば上書き</td>
+</tr>
+<tr>
+<td>検査</td>
+<td>novnow は <strong>内容を一切解釈しない</strong>。図形の妥当性も位置矛盾も検出しない（MUST）</td>
+</tr>
+<tr>
+<td>表示</td>
+<td>参照ペインの「空間」節（§9.5.3）。長い場合は既定で折りたたむ</td>
+</tr>
+</tbody>
+</table>
+<p><strong>非目標</strong>: 間取りエディタ・ドラッグ操作・画像化は v0.1.0 では作らない（付録 E F8 参照）。</p>
+<h4 id="537-あらすじ-blurb">5.3.7 あらすじ <code>blurb:</code></h4>
+<p><strong>読者に見せる文章</strong> を、本文とは別に章単位で持つ。</p>
+<table>
+<thead>
+<tr>
+<th>書き方</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>plots/01.cnov</code> の <code>@01-00</code> ブロックに <code>blurb:</code></td>
+<td>1 章のあらすじ（短い。数行）</td>
+</tr>
+<tr>
+<td><code>plots/all.cnov</code> の前文に <code>blurb:</code></td>
+<td>作品全体のあらすじ（投稿サイトの紹介文）</td>
+</tr>
+<tr>
+<td><code>contents/01-00.cnov</code></td>
+<td>あらすじを本文として書く場合（長いとき）</td>
+</tr>
+</tbody>
+</table>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>@01-00 あらすじ</span></span>
+<span class="line"><span>summary: 1 章のあらすじ。</span></span>
+<span class="line"><span>blurb: 古代錬金術に憑かれた少年アルスは、学院の地下に眠る魔導具「星屑の時計」の</span></span>
+<span class="line"><span>  設計図を手に入れる。幼馴染のリリアは呆れながらも、その図面の美しさに惹かれていく。</span></span>
+<span class="line"><span>;</span></span></code></pre>
+<ul>
+<li><code>blurb</code> は <strong>本文文字数に含めない</strong>（MUST）。進捗・統計の対象外。</li>
+<li>エクスポートでは <code>export.include_blurb = true</code> のときのみ各章の冒頭に挿入する（§17.2）。</li>
+<li>診断: 本文が 1 文字以上ある章に <code>blurb</code> が無くても警告しない（任意機能、MUST）。</li>
+<li>読者モード（§17.3）では、章の表紙ページに <code>blurb</code> を表示する。</li>
+</ul>
+<h3 id="54-話プロット形式b-形式-plotsaa-bbcnov">5.4 話プロット形式（B 形式）— <code>plots/AA-BB.cnov</code></h3>
+<p>本文（C 形式）と <strong>1:1 で節が対応</strong> する形式。A 形式とは別物。</p>
+<h4 id="541-文法">5.4.1 文法</h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>episode_plot = [ preamble ] , { scene_block } ;</span></span>
+<span class="line"><span>scene_block  = scene_header , { scene_field | comment_line | blank } , section , { ";" eol , section } ;</span></span>
+<span class="line"><span>section      = { point_line | section_field | comment_line | blank } ;</span></span>
+<span class="line"><span>point_line   = inline+ , eol ;          (* 節の内容。1 節につき 1〜3 行を推奨 *)</span></span>
+<span class="line"><span>scene_field  = field_line ;             (* 見出し直後に書いたものは場面全体に適用 *)</span></span>
+<span class="line"><span>section_field= field_line ;             (* ";" のあとに書いたものはその節に適用 *)</span></span></code></pre>
+<h4 id="542-フィールドb-形式">5.4.2 フィールド（B 形式）</h4>
+<table>
+<thead>
+<tr>
+<th>キー</th>
+<th>適用</th>
+<th>値</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mode</code></td>
+<td>場面 / 節</td>
+<td><code>'名前:モード[+モード]</code> の空白区切り</td>
+<td><strong>モード割り当て（指示 6 の中核）</strong></td>
+</tr>
+<tr>
+<td><code>cast</code></td>
+<td>場面</td>
+<td><code>'名前 ...</code></td>
+<td>この場面に居る人物（モード未指定可）</td>
+</tr>
+<tr>
+<td><code>pov</code></td>
+<td>場面 / 節</td>
+<td><code>'名前</code></td>
+<td>視点</td>
+</tr>
+<tr>
+<td><code>material</code></td>
+<td>場面 / 節</td>
+<td><code>'M0137[:タイトル]</code></td>
+<td>参照資料（§6.6）</td>
+</tr>
+<tr>
+<td><code>check</code></td>
+<td>節</td>
+<td>自由文</td>
+<td>「この節で絶対に外せないこと」。文体/論理チェックエージェントの判定材料</td>
+</tr>
+<tr>
+<td><code>length</code></td>
+<td>節</td>
+<td>整数</td>
+<td>目標字数（既定 <code>project.toml</code> の <code>writing.section_target_chars</code>）</td>
+</tr>
+<tr>
+<td><code>state</code></td>
+<td>節</td>
+<td><code>draft</code>|<code>review</code>|<code>fixed</code></td>
+<td>確定度</td>
+</tr>
+<tr>
+<td><code>seed</code> / <code>payoff</code></td>
+<td>節</td>
+<td>A 形式と同じ</td>
+<td>伏線</td>
+</tr>
+<tr>
+<td><code>when</code></td>
+<td>場面 / 節</td>
+<td>作中日時式（§5.3.5）</td>
+<td>作中日時（追加仕様 3）</td>
+</tr>
+<tr>
+<td><code>space</code> / <code>space-mode</code></td>
+<td>場面 / 節</td>
+<td>§5.3.6</td>
+<td>空間設計メモ（追加仕様 21）</td>
+</tr>
+<tr>
+<td><code>senses</code></td>
+<td>場面 / 節</td>
+<td>五感キーの空白区切り（§5.4.4）</td>
+<td><strong>この節で描写するつもりの感覚</strong>（追加仕様 7）</td>
+</tr>
+<tr>
+<td><code>illustration</code></td>
+<td>節</td>
+<td>自由文</td>
+<td>構造化した挿絵指示（追加仕様 23）</td>
+</tr>
+<tr>
+<td><code>material</code></td>
+<td>場面 / 節</td>
+<td><code>'M0137</code> / <code>'S0042</code></td>
+<td>参照資料。本文側の <code>^M0137</code>（§5.2.4）と対になる</td>
+</tr>
+<tr>
+<td><code>note</code></td>
+<td>任意</td>
+<td>自由文</td>
+<td>メモ</td>
+</tr>
+</tbody>
+</table>
+<p><strong>制約</strong></p>
+<ul>
+<li>1 節の <code>mode</code> に同じキャラを 2 回書くのは <strong>E005</strong>。1 キャラに 3 つ以上のモード（<code>A+B+C</code>）も <strong>E005</strong>。</li>
+<li><code>mode</code> で指定したモードがそのキャラに存在しなければ <strong>E003</strong>、範囲外なら <strong>E004</strong>（§6.4）。</li>
+<li>節数が対応する本文の節数と食い違う場合は <strong>W030</strong>（プロットのみ先行して書くのは正常なので警告に留める）。</li>
+</ul>
+<h4 id="543-例">5.4.3 例</h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>@01-04-02 図書室の攻防</span></span>
+<span class="line"><span>cast: 'アルス 'リリア</span></span>
+<span class="line"><span>mode: 'アルス:A 'リリア:A</span></span>
+<span class="line"><span>pov: 'アルス</span></span>
+<span class="line"><span>when: 406 09:40</span></span>
+<span class="line"><span>space-mode: ascii</span></span>
+<span class="line"><span>space:</span></span>
+<span class="line"><span>  ┌────────┬────┐</span></span>
+<span class="line"><span>  │ 書架A  │ 窓 │     入口は左下。</span></span>
+<span class="line"><span>  │ 机     │    │     リリアは窓を背にして座る。</span></span>
+<span class="line"><span>  └────────┴────┘</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>幼馴染の'リリア が、試験勉強をサボっている'アルス を咎める。</span></span>
+<span class="line"><span>senses: 視覚 聴覚</span></span>
+<span class="line"><span>check: リリアが「怒っているが見捨てない」ことが伝わること</span></span>
+<span class="line"><span>;</span></span>
+<span class="line"><span>'アルス は地下遺跡の'星屑の時計 の謎を解こうとしていると明かす。</span></span>
+<span class="line"><span>material: 'M0137</span></span>
+<span class="line"><span>senses: 視覚 嗅覚</span></span>
+<span class="line"><span>;</span></span>
+<span class="line"><span>mode: 'リリア:B+C          // 呆れモードと好奇心モードの併用（2 つまで）</span></span>
+<span class="line"><span># ここの心変わりは何度か書き直すかもしれない</span></span>
+<span class="line"><span>'リリア は呆れつつも、図面の精巧さに好奇心を抑えられなくなる。</span></span>
+<span class="line"><span>check: 心変わりを台詞で説明しない</span></span>
+<span class="line"><span>length: 500</span></span>
+<span class="line"><span>illustration: 挿絵候補 / リリアが図面を覗き込む / 窓からの逆光</span></span>
+<span class="line"><span>;</span></span>
+<span class="line"><span>二人は放課後に旧校舎へ向かうことを決める。</span></span>
+<span class="line"><span>state: fixed</span></span>
+<span class="line"><span>;</span></span></code></pre>
+<h4 id="544-五感キー-senses">5.4.4 五感キー <code>senses:</code></h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>senses_value = sense_key , { ws , sense_key } ;</span></span>
+<span class="line"><span>sense_key    = "sight" | "hearing" | "smell" | "taste" | "touch"</span></span>
+<span class="line"><span>             | "視覚" | "聴覚" | "嗅覚" | "味覚" | "触覚" ;</span></span></code></pre>
+<table>
+<thead>
+<tr>
+<th>規則</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>意味</td>
+<td>「この節で描写する <strong>つもり</strong> の感覚」。宣言であって、実際の描写の検出ではない</td>
+</tr>
+<tr>
+<td>既定</td>
+<td>書かない場合、その節は五感チェックの対象外（<strong>診断を出さない</strong>、MUST）</td>
+</tr>
+<tr>
+<td>英日</td>
+<td>5 種のみ。どちらの表記でも同じ値。表示は UI 言語に合わせる</td>
+</tr>
+<tr>
+<td>集計</td>
+<td>§10.9.3 の文体タブで、章ごとに「宣言された感覚」の出現比率を帯グラフで出す</td>
+</tr>
+<tr>
+<td>診断</td>
+<td>連続 5 節以上にわたって <code>sight</code> 系のみが宣言されていれば <strong>W083</strong>（§7.2）</td>
+</tr>
+<tr>
+<td>参照ペイン</td>
+<td>§9.5.2 の「五感」節に、現在の節の宣言を常時表示。宣言が無ければ節ごと非表示</td>
+</tr>
+</tbody>
+</table>
+<p><strong>重要な非目標（MUST）</strong>: novnow は本文を解析して「実際に嗅覚描写があるか」を判定しない。
+形態素解析や意味解析は v0.1.0 では行わない（付録 D.2 U-5 を参照）。この機能は
+<strong>作者自身のチェックリスト</strong> であり、自動採点ではない。</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>@01-04-02 図書室の攻防</span></span>
+<span class="line"><span>senses: 視覚 聴覚</span></span>
+<span class="line"><span>;</span></span>
+<span class="line"><span>senses: 視覚 嗅覚 触覚</span></span>
+<span class="line"><span>古い紙の匂いと、埃の舌触り。</span></span>
+<span class="line"><span>;</span></span></code></pre>
+<h4 id="545-構造化挿絵指示-illustration">5.4.5 構造化挿絵指示 <code>illustration:</code></h4>
+<p><code>! </code> 行（§5.2.5）が本文中の素早いメモなのに対し、<code>illustration:</code> は <strong>プロット側の正式な発注情報</strong>。</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>@01-04-02 図書室の攻防</span></span>
+<span class="line"><span>;</span></span>
+<span class="line"><span>illustration: 見開き / リリアが階段を見上げる / 逆光 / 制服は夏服</span></span>
+<span class="line"><span>note: 口絵候補</span></span>
+<span class="line"><span>;</span></span></code></pre>
+<ul>
+<li>値は自由文。novnow は <code>/</code> 区切り等を解釈しない。</li>
+<li>§10.9 の「挿絵メモ一覧」に <code>! </code> 行と統合して SceneId 順に並べる（出典欄で区別する）。</li>
+<li>エクスポートでは B 形式そのものが出力対象外なので、何もしなくても消える。</li>
+</ul>
+<h3 id="55-charactersmd">5.5 <code>characters.md</code></h3>
+<h4 id="551-設計方針">5.5.1 設計方針</h4>
+<ul>
+<li>人間が直接書く情報は MD（読み書きしやすい）。機械が採番・管理する情報は JSON（<code>materials/index.json</code> のみ）。</li>
+<li><strong>曖昧さのない MD</strong> とするため、意味を持つのは次の 4 種類の行だけに限定する:
+<ol>
+<li><code># 見出し</code>（H1 = キャラ、H2 = セクション、H3 = モード）</li>
+<li>フィールド行 <code>key: value</code>（§5.0.5）</li>
+<li>箇条書き <code>- ...</code></li>
+<li>鉤括弧行 <code>「...」</code>（役割語パターン、§5.5.5）
+それ以外の行は、直前のフィールド／セクションに属する自由記述（<code>note</code> 相当）として保持される。</li>
+</ol>
+</li>
+<li>MD ビューアで読めること（GitHub 上で読めること）を MUST とする。</li>
+</ul>
+<h4 id="552-文法">5.5.2 文法</h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>characters_md = [ file_preamble ] , { character } ;</span></span>
+<span class="line"><span>character     = "# " , char_name , eol , { field_line | section } ;</span></span>
+<span class="line"><span>section       = "## " , section_key , eol , section_body ;</span></span>
+<span class="line"><span>section_key   = "modes" | "attributes" | "tone" | "relations" | "notes"</span></span>
+<span class="line"><span>              | "モード" | "口調" | "関係" | "メモ" ;   (* §5.0.6 の別名のうち対応する 4 語 *)</span></span>
+<span class="line"><span>section_body  = { field_line | bullet | pattern_line | free_line | blank | comment_line } ;</span></span>
+<span class="line"><span>mode_def      = "### " , mode_id , [ ws , mode_label ] , eol , { field_line | pattern_line | free_line } ;</span></span>
+<span class="line"><span>mode_id       = /[A-Za-z][A-Za-z0-9_]{0,15}/ ;</span></span>
+<span class="line"><span>pattern_line  = ws? , "「" , pattern , "」" , { ws? , "「" , pattern , "」" } , eol ;</span></span></code></pre>
+<p><code>section_key</code> の日本語表記は、§5.0.6 の別名のうちセクションとして意味が対応する 4 語（<code>モード</code> <code>口調</code> <code>関係</code> <code>メモ</code>）だけを受ける。
+これ以外の <code>## …</code>（<code>## 性格</code> など）は<strong>見出しとして保持するが、5 種のセクションとしては扱わない</strong>（中の行は自由記述として残り、失われない）。</p>
+<h4 id="553-キャラクタ直下のフィールド">5.5.3 キャラクタ直下のフィールド</h4>
+<table>
+<thead>
+<tr>
+<th>キー</th>
+<th>必須</th>
+<th>値</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>alias</code></td>
+<td>任意</td>
+<td>カンマ区切り</td>
+<td>別名。すべて辞書に登録される</td>
+</tr>
+<tr>
+<td><code>reading</code></td>
+<td>任意</td>
+<td>読み</td>
+<td>補完の並べ替えと検索に使う</td>
+</tr>
+<tr>
+<td><code>role</code></td>
+<td>推奨</td>
+<td>自由文</td>
+<td>物語上の役回り（モード別に上書き可）</td>
+</tr>
+<tr>
+<td><code>default-mode</code></td>
+<td>任意</td>
+<td><code>mode_expr</code>（§5.1、最大 2 つ）</td>
+<td>明示が無い節での既定モード（§6.4.3）。3 つ以上は <strong>E005</strong>（§6.4.4）で <code>mode_id</code> 1 つから広げた</td>
+</tr>
+<tr>
+<td><code>color</code></td>
+<td>任意</td>
+<td><code>#RRGGBB</code></td>
+<td>参照ペイン・話者注釈の識別色（任意）</td>
+</tr>
+<tr>
+<td><code>tags</code></td>
+<td>任意</td>
+<td>カンマ区切り</td>
+<td>検索用</td>
+</tr>
+<tr>
+<td><code>icon</code></td>
+<td>任意</td>
+<td><code>assets/</code> 配下の相対パス</td>
+<td><strong>キャラアイコン</strong>（追加仕様 24、下記）</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>icon:</code> の規則</strong></p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>規則</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>値</td>
+<td><code>assets/icons/megumi.png</code> のような <strong>プロジェクトルートからの相対パス</strong>。絶対パス・<code>../</code>、<code>assets/</code> の外を指す値は<strong>解決できず</strong>、<strong>W070</strong>（アイコンが見つからない）</td>
+</tr>
+<tr>
+<td>形式</td>
+<td>PNG / JPEG のみ。拡張子が <code>.png</code> / <code>.jpg</code> / <code>.jpeg</code>（大小文字を問わない）でない値は <strong>W068</strong> を出して無視する（中身では判定しない）</td>
+</tr>
+<tr>
+<td>寸法</td>
+<td>長辺 256px 以下を推奨。ヘッダから読める寸法の長辺が 256px を超える値は <strong>W069</strong>。表示は 256×256 に縮小する</td>
+</tr>
+<tr>
+<td>ファイルサイズ</td>
+<td>1 ファイル 256KB 超は中身を保持せず（§4.1 の <code>assets/</code> の扱い）、<strong>W069</strong></td>
+</tr>
+<tr>
+<td>表示箇所</td>
+<td>参照ペインの配役見出しの左に 16×16、キャラ一覧（§10.4）に 32×32。<strong>本文エディタ内には出さない</strong>（MUST）</td>
+</tr>
+<tr>
+<td>Web 版</td>
+<td><code>assets/</code> は IndexedDB に入るため動作する。ただし Zip 入出力（§13.5）に含める</td>
+</tr>
+<tr>
+<td>欠損</td>
+<td>ファイルが無くてもエラーにしない。アイコン無しで表示し <strong>W070</strong></td>
+</tr>
+<tr>
+<td>非目標</td>
+<td>アイコンの編集・切り抜き・生成はしない（MUST）</td>
+</tr>
+</tbody>
+</table>
+<p>W069 の判定（実装の詳細）: 次のいずれかで出す。中身が 0 byte、256KB を超えて保持しなかった、ヘッダから読めた長辺が 256px 超。寸法は PNG / JPEG のヘッダだけで読み、復号はしない。表示では PNG / JPEG と判定できたものだけを復号し、画素数の積が 16,000,000 を超える画像は描かない（メモリ保護）。ファイルがプロジェクトに無ければ W070（§5.5.3 の表）。一覧にあるが中身を読めなかった場合は診断を出さず、アイコン無しで表示する。</p>
+<p><strong>設計上の位置づけ</strong>: これは「顔を思い出すための備忘」であり、装飾ではない。
+P3（ノイズを増やさない）に反しないよう、<strong>表示は常に小さく、文字情報より目立ってはならない</strong>（MUST）。
+<code>icon</code> を 1 件も定義していないプロジェクトでは、アイコン用の余白を取ってはならない。</p>
+<h4 id="554--modes">5.5.4 <code>## modes</code></h4>
+<ul>
+<li><code>### &lt;mode_id&gt; &lt;表示名&gt;</code> ごとに 1 モード。</li>
+<li>モード内フィールド: <code>range</code>, <code>personality</code>, <code>emotion</code>, <code>role</code>, <code>note</code>、および役割語パターン行。</li>
+<li><strong>同一 <code>mode_id</code> を複数回定義してよい。ただし <code>range</code> が重ならないこと</strong>（重なれば <strong>E017</strong>）。
+これにより「章が進むにつれモードの性格が少しずつ変化する」を表現できる。</li>
+<li><code>range</code> 省略時は全範囲（<code>@00 ..</code>）。</li>
+</ul>
+<h4 id="555-役割語パターン行">5.5.5 役割語パターン行</h4>
+<ul>
+<li>1 行に複数パターンを並べてよい。1 パターン = <code>「</code> と <code>」</code> に囲まれた文字列。</li>
+<li><code>## tone</code> 直下に置けばキャラ共通、<code>### &lt;mode&gt;</code> 直下に置けばそのモード専用。</li>
+<li>モード専用パターンがある場合、そのモードが有効な節では <strong>モード専用 ∪ キャラ共通</strong> を使う。</li>
+<li>パターン言語の意味論は §6.5 / 付録 B。</li>
+</ul>
+<h4 id="556--relations-と呼称-address">5.5.6 <code>## relations</code> と呼称 <code>address:</code></h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>## relations</span></span>
+<span class="line"><span>'葵あおい: 魂のパートナー。あおい無しでは他者と円滑に開発できない。</span></span>
+<span class="line"><span>'瀬戸晴香: 技術の師弟関係。「絶対失敗しない設計哲学」を学ぶ。</span></span></code></pre>
+<p>左辺は <code>'</code> 参照（解決できなければ <strong>E013</strong>）。</p>
+<p><strong>呼称マトリクス <code>address:</code></strong></p>
+<p>「誰が誰をどう呼ぶか」を定義する。<code>## relations</code> の中、または <code>### &lt;mode&gt;</code> の中に書く。</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>address_line = "address:" , ws , target_ref , ws? , ("=&gt;"|"→") , ws? , appellation</span></span>
+<span class="line"><span>               , { ws? , "," , ws? , appellation } , [ ws , "#" , ws , note ] ;</span></span>
+<span class="line"><span>target_ref   = "'" , char_name | "*" ;        (* "*" = 上記以外のすべての相手 *)</span></span>
+<span class="line"><span>appellation  = /[^,#\n]+/ ;                    (* 「あおいちゃん」など。'' は不要 *)</span></span></code></pre>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="md"><code><span class="line"><span style="color:#005CC5;font-weight:bold">## relations</span></span>
+<span class="line"><span style="color:#24292E">'葵あおい: 魂のパートナー。</span></span>
+<span class="line"><span style="color:#24292E">address: '葵あおい =&gt; あおいちゃん</span></span>
+<span class="line"><span style="color:#24292E">address: '瀬戸晴香 =&gt; 瀬戸先輩, 先輩</span></span>
+<span class="line"><span style="color:#24292E">address: * =&gt; さん付け</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">### D あおい依存・感傷</span></span>
+<span class="line"><span style="color:#24292E">address: '葵あおい =&gt; あおい, あおいちゃん     # 感情が昂ると呼び捨てになる</span></span></code></pre>
+<table>
+<thead>
+<tr>
+<th>規則</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>向き</td>
+<td><strong>話者 → 相手</strong>。<code># 恩田恵</code> の下に書いた <code>address: '葵あおい =&gt; あおいちゃん</code> は「恵があおいを呼ぶとき」</td>
+</tr>
+<tr>
+<td>複数</td>
+<td>カンマ区切りで複数の正当な呼び方を列挙できる。先頭が代表値</td>
+</tr>
+<tr>
+<td>モード別</td>
+<td><code>### &lt;mode&gt;</code> 直下に書けばそのモード専用。モード専用があればキャラ共通を <strong>上書き</strong>（和集合ではない、MUST）</td>
+</tr>
+<tr>
+<td>ワイルドカード</td>
+<td><code>* =&gt;</code> は個別指定の無い相手すべてに適用する既定。値が <code>さん付け</code> のように説明的な場合は検査の対象外（下記）</td>
+</tr>
+<tr>
+<td>解決</td>
+<td><code>target_ref</code> が辞書に無ければ <strong>E013</strong></td>
+</tr>
+<tr>
+<td>範囲</td>
+<td><code>range:</code> を併記すれば期間限定にできる（<code>### &lt;mode&gt;</code> の <code>range</code> と同じ構文）。関係の変化（他人行儀 → 親しい）を表現する</td>
+</tr>
+</tbody>
+</table>
+<p><strong>検査規則（W084、§7.2）</strong></p>
+<p>ある台詞行に話者注釈 <code>@恵</code> があり、その行の <code>「…」</code> の中に <strong>別のキャラの名前または別名が文字列として出現</strong> し、
+かつその文字列が <code>address:</code> で許可された呼称のいずれにも一致しないとき、<strong>W084</strong> を出す。</p>
+<ul>
+<li>許可集合 = 「そのキャラのその相手への <code>address</code> の値」∪「相手の <code># 見出し名</code> ？いいえ、含めない」。
+<strong>本名をそのまま呼ぶことも、明示的に <code>address</code> に列挙されていなければ違反</strong>とする（これが本機能の価値）。</li>
+<li><code>address</code> が 1 件も定義されていないキャラの台詞は <strong>検査しない</strong>（MUST）。段階的導入のため。</li>
+<li><code>* =&gt;</code> の値が既知の接尾辞パターン（<code>さん付け</code> / <code>呼び捨て</code> / <code>君付け</code> / <code>ちゃん付け</code>）のときだけ機械的に検査し、
+それ以外の自由文は <strong>説明とみなして検査しない</strong>（MUST）。</li>
+<li>地の文は検査しない（視点人物の心中表現は呼称と無関係に揺れるため）。</li>
+</ul>
+<p><strong>修正支援</strong>: W084 のクイックフィックスは「正しい呼称に置換」（代表値 1 件）＋「この呼称を <code>address:</code> に追加」の 2 択。</p>
+<h4 id="557-完全な例指示で提示された恩田恵を-v010-形式に変換したもの">5.5.7 完全な例（指示で提示された恩田恵を v0.1.0 形式に変換したもの）</h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="md"><code><span class="line"><span style="color:#005CC5;font-weight:bold"># 恩田恵</span></span>
+<span class="line"><span style="color:#24292E">reading: おんだめぐみ</span></span>
+<span class="line"><span style="color:#24292E">alias: めぐみ, 恵</span></span>
+<span class="line"><span style="color:#24292E">role: メインヒロイン</span></span>
+<span class="line"><span style="color:#24292E">default-mode: A</span></span>
+<span class="line"><span style="color:#24292E">color: #8fb8ff</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## attributes</span></span>
+<span class="line"><span style="color:#24292E">属性: A高校サイエンス部員（高1→高2）。常にマイPCを持ち歩くテック女子。女子力は高い。</span></span>
+<span class="line"><span style="color:#24292E">実績: 足音解析型自動扉の開発、科学の甲子園本戦における実技課題のプログラム・構造設計完遂、数理の翼夏季セミナー参加。</span></span>
+<span class="line"><span style="color:#24292E">興味対象: 情報科学、プログラミング、工学、ハードウェア制御。</span></span>
+<span class="line"><span style="color:#24292E">きっかけ: 幼少期にキーボードを叩いて自分の指示通りに機械が動いた瞬間の万能感と感動。</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## tone</span></span>
+<span class="line"><span style="color:#24292E">「</span><span style="color:#24292E;font-style:italic">*で…」「*</span><span style="color:#24292E">です…」「…あの…*」</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## modes</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">### A 日常</span></span>
+<span class="line"><span style="color:#24292E">range: @01 ..</span></span>
+<span class="line"><span style="color:#24292E">personality: おとなしく控えめ。'葵あおい の後ろに隠れていることが多い。</span></span>
+<span class="line"><span style="color:#24292E">emotion: 平穏を好み、あおいと一緒にいられる時間を何よりの幸福と感じる。</span></span>
+<span class="line"><span style="color:#24292E">role: 主人公の傍らに寄り添う可憐な「嫁」キャラ。</span></span>
+<span class="line"><span style="color:#24292E">「</span><span style="color:#24292E;font-style:italic">*だよ…」「えへへ、*</span><span style="color:#24292E">」</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">### B 開発・実装</span></span>
+<span class="line"><span style="color:#24292E">range: @01 ..</span></span>
+<span class="line"><span style="color:#24292E">personality: キーボードを叩く手つきは極めて鋭く、エラーの原因を冷徹に潰す職人的集中力を見せる。</span></span>
+<span class="line"><span style="color:#24292E">emotion: 論理が完璧に噛み合い、コードが意図通りに動く瞬間の快感。</span></span>
+<span class="line"><span style="color:#24292E">role: 実技・情報課題における最高峰のエンジニア。</span></span>
+<span class="line"><span style="color:#24292E">「</span><span style="color:#24292E;font-style:italic">*ないと…！」「*</span><span style="color:#24292E">ないんです」</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">### C 混乱・言語化障害</span></span>
+<span class="line"><span style="color:#24292E">range: @01 .. @02</span></span>
+<span class="line"><span style="color:#24292E">personality: 高度な仕様やエラー原因を他人に言葉で説明しようとするとパニックを起こしタジタジになる。</span></span>
+<span class="line"><span style="color:#24292E">emotion: 「なぜ伝わらないのか」という焦燥感と、自分のコミュニケーション能力の低さへの絶望。</span></span>
+<span class="line"><span style="color:#24292E">role: '葵あおい との「翻訳百合」イベントを発生させるトリガー。</span></span>
+<span class="line"><span style="color:#24292E">「*あの…その…」「…伝わらない…！」</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">### C 混乱・言語化障害（改善後）</span></span>
+<span class="line"><span style="color:#24292E">range: @03 ..</span></span>
+<span class="line"><span style="color:#24292E">personality: 言語化の訓練が実り、詰まりながらも最後まで説明を完遂できるようになった。</span></span>
+<span class="line"><span style="color:#24292E">emotion: 焦燥は残るが、伝わったときの達成感を知っている。</span></span>
+<span class="line"><span style="color:#24292E">role: 成長を読者に示す指標。</span></span>
+<span class="line"><span style="color:#24292E">「</span><span style="color:#24292E;font-style:italic">*あの…でも、つまり*</span><span style="color:#24292E">」</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">### D あおい依存・感傷</span></span>
+<span class="line"><span style="color:#24292E">range: @01 ..</span></span>
+<span class="line"><span style="color:#24292E">personality: '葵あおい に対して感情が溢れ、半泣きで抱きついたり離れなくなったりする極めて重い感情を見せる。</span></span>
+<span class="line"><span style="color:#24292E">emotion: 自分を理解し世界と繋いでくれるあおいへの絶対的帰依と、手放したくないという執着。</span></span>
+<span class="line"><span style="color:#24292E">role: 主人公との絆の深さを読者に印象付けるメインヒロイン。</span></span>
+<span class="line"><span style="color:#24292E">「あおいちゃん…</span><span style="color:#24292E;font-style:italic">*」「*</span><span style="color:#24292E">いなくなったら…」</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## relations</span></span>
+<span class="line"><span style="color:#24292E">'葵あおい: 魂のパートナー。あおい無しでは他者と円滑な開発ができないが、あおいとなら最強になれる。</span></span>
+<span class="line"><span style="color:#24292E">'瀬戸晴香: 技術の師弟関係。ミスを未然に防ぐ「絶対失敗しない設計哲学」を学ぶ。</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## notes</span></span>
+<span class="line"><span style="color:#24292E">口癖サンプル:</span></span>
+<span class="line"><span style="color:#24292E">あおいちゃんが行くなら私も……。</span></span>
+<span class="line"><span style="color:#24292E">処理速度が足りないのはアルゴリズムの効率が悪いからで……あ、あの……その……。</span></span>
+<span class="line"><span style="color:#24292E">動けばいいだけじゃダメなんです。絶対に途中で落ちないシステムにしないと……！</span></span></code></pre>
+<blockquote>
+<p>上例の <code>### C</code> が 2 回現れているのが「章単位でモードの性格が変化する」表現である。
+<code>@01..@02</code> の節では前者、<code>@03..</code> の節では後者の性格が参照ペインに出る。</p>
+</blockquote>
+<h3 id="56-wordsmd">5.6 <code>words.md</code></h3>
+<p><code>characters.md</code> と同一の MD 方言を使う（実装・ハイライト・補完を共通化するため。§付録 D-2 の派生決定）。</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="md"><code><span class="line"><span style="color:#005CC5;font-weight:bold"># 星屑の時計</span></span>
+<span class="line"><span style="color:#24292E">reading: ほしくずのとけい</span></span>
+<span class="line"><span style="color:#24292E">category: 魔導具</span></span>
+<span class="line"><span style="color:#24292E">alias: 星屑時計</span></span>
+<span class="line"><span style="color:#24292E">definition: 旧校舎の地下遺跡に眠るとされる幻の魔導具。古代錬金術の存在証明とされる。</span></span>
+<span class="line"><span style="color:#24292E">range: @01 ..</span></span>
+<span class="line"><span style="color:#24292E">note: 第 3 章で贋作であることが判明する。</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold"># 旧校舎</span></span>
+<span class="line"><span style="color:#24292E">reading: きゅうこうしゃ</span></span>
+<span class="line"><span style="color:#24292E">category: 舞台</span></span>
+<span class="line"><span style="color:#24292E">definition: 地下遺跡への入口がある立ち入り制限区域。</span></span></code></pre>
+<ul>
+<li>H1 = 用語。<code>definition</code> 必須（欠落は <strong>E021</strong>）。</li>
+<li><code>range</code> を書くと、その範囲外の節で参照された場合に <strong>W022</strong>（まだ登場していない用語の先出し検出）。</li>
+</ul>
+<h3 id="57-ideasmd">5.7 <code>ideas.md</code></h3>
+<p>アイデアは「捨てやすく、拾いやすい」ことが最優先（§10.4）。</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="md"><code><span class="line"><span style="color:#005CC5;font-weight:bold"># I0007 学院長の動機</span></span>
+<span class="line"><span style="color:#24292E">status: inbox            # inbox | keep | promoted | dropped</span></span>
+<span class="line"><span style="color:#24292E">created: 2026-10-09T12:04:11+09:00</span></span>
+<span class="line"><span style="color:#24292E">tags: 学院長, 動機</span></span>
+<span class="line"><span style="color:#24292E">relates: @02, 'アルス</span></span>
+<span class="line"><span style="color:#24292E">promoted-to: plots/02.cnov#@02-03      # 昇格時のみ</span></span>
+<span class="line"><span style="color:#24292E">本文は自由記述。改行もそのまま保持する。</span></span></code></pre>
+<ul>
+<li>H1 は <code>I</code> + 4 桁 ID + 空白 + タイトル。ID は <code>ideas.md</code> 内で最大値 +1 を採番（MUST、再利用禁止）。</li>
+<li><code>status: dropped</code> のものは既定で非表示（フィルタで表示可）。</li>
+<li>「昇格」操作（§10.4）はプロット行 / 用語 / 資料へ内容を転記し、<code>promoted-to</code> を書き戻す。</li>
+</ul>
+<h3 id="58-資料">5.8 資料</h3>
+<h4 id="581-ディレクトリ">5.8.1 ディレクトリ</h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>materials/</span></span>
+<span class="line"><span>  index.json           唯一のメタデータ正本</span></span>
+<span class="line"><span>  docs/M0137-....md    採用済み資料の本体</span></span>
+<span class="line"><span>  inbox/M0141-....md   提案中（エージェント収集など）の本体</span></span></code></pre>
+<h4 id="582-materialsindexjsonスキーマ-v1">5.8.2 <code>materials/index.json</code>（スキーマ v1）</h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "schema_version"</span><span style="color:#24292E">: </span><span style="color:#005CC5">1</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "next_id"</span><span style="color:#24292E">: </span><span style="color:#005CC5">138</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "items"</span><span style="color:#24292E">: [</span></span>
+<span class="line"><span style="color:#24292E">    {</span></span>
+<span class="line"><span style="color:#005CC5">      "id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"M0137"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "title"</span><span style="color:#24292E">: </span><span style="color:#032F62">"科学の甲子園 本戦の運営と実技課題"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "path"</span><span style="color:#24292E">: </span><span style="color:#032F62">"materials/docs/M0137-kagaku-koshien.md"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "source"</span><span style="color:#24292E">: { </span><span style="color:#005CC5">"kind"</span><span style="color:#24292E">: </span><span style="color:#032F62">"url"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"url"</span><span style="color:#24292E">: </span><span style="color:#032F62">"https://example.org/report/2026"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"accessed_at"</span><span style="color:#24292E">: </span><span style="color:#032F62">"2026-10-01T09:12:00+09:00"</span><span style="color:#24292E"> },</span></span>
+<span class="line"><span style="color:#005CC5">      "category"</span><span style="color:#24292E">: </span><span style="color:#032F62">"取材"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "conditions"</span><span style="color:#24292E">: [</span></span>
+<span class="line"><span style="color:#24292E">        { </span><span style="color:#005CC5">"kind"</span><span style="color:#24292E">: </span><span style="color:#032F62">"scope"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"value"</span><span style="color:#24292E">: </span><span style="color:#032F62">"@02-03 .. @02-08"</span><span style="color:#24292E"> },</span></span>
+<span class="line"><span style="color:#24292E">        { </span><span style="color:#005CC5">"kind"</span><span style="color:#24292E">: </span><span style="color:#032F62">"ref"</span><span style="color:#24292E">,   </span><span style="color:#005CC5">"value"</span><span style="color:#24292E">: </span><span style="color:#032F62">"'科学の甲子園"</span><span style="color:#24292E"> },</span></span>
+<span class="line"><span style="color:#24292E">        { </span><span style="color:#005CC5">"kind"</span><span style="color:#24292E">: </span><span style="color:#032F62">"text"</span><span style="color:#24292E">,  </span><span style="color:#005CC5">"value"</span><span style="color:#24292E">: </span><span style="color:#032F62">"大会運営の手順を描写するとき"</span><span style="color:#24292E"> }</span></span>
+<span class="line"><span style="color:#24292E">      ],</span></span>
+<span class="line"><span style="color:#005CC5">      "saved_at"</span><span style="color:#24292E">: </span><span style="color:#032F62">"2026-10-01T09:20:33+09:00"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "updated_at"</span><span style="color:#24292E">: </span><span style="color:#032F62">"2026-10-02T22:10:00+09:00"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "tags"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"大会"</span><span style="color:#24292E">, </span><span style="color:#032F62">"高校"</span><span style="color:#24292E">, </span><span style="color:#032F62">"運営"</span><span style="color:#24292E">],</span></span>
+<span class="line"><span style="color:#005CC5">      "status"</span><span style="color:#24292E">: </span><span style="color:#032F62">"approved"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "added_by"</span><span style="color:#24292E">: </span><span style="color:#032F62">"human"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "summary"</span><span style="color:#24292E">: </span><span style="color:#032F62">"本戦の 1 日のタイムテーブルと実技課題の採点基準。"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "checksum"</span><span style="color:#24292E">: </span><span style="color:#032F62">"sha256:9f2c..."</span></span>
+<span class="line"><span style="color:#24292E">    }</span></span>
+<span class="line"><span style="color:#24292E">  ]</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>必須</th>
+<th>規則</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>✔</td>
+<td><code>M</code> または <code>S</code> + 4 桁以上のゼロ詰め連番。<strong>単調増加・再利用禁止</strong>（MUST）。接頭辞は下表</td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td>✔</td>
+<td>1〜80 字。参照の照合対象（§6.6）</td>
+</tr>
+<tr>
+<td><code>path</code></td>
+<td>✔</td>
+<td>プロジェクトルートからの相対パス。<code>materials/</code> 配下に限る（外は <strong>E024</strong>）</td>
+</tr>
+<tr>
+<td><code>source</code></td>
+<td>✔</td>
+<td><code>{"kind":"url","url":...}</code> / <code>{"kind":"custom","text":...}</code> / <code>{"kind":"search", ...}</code>（§16.3.1）</td>
+</tr>
+<tr>
+<td><code>category</code></td>
+<td>✔</td>
+<td>自由文字列。既定候補: <code>取材</code> <code>文献</code> <code>Web</code> <code>画像</code> <code>体験</code> <code>一次資料</code> <code>二次資料</code> <code>検索結果</code></td>
+</tr>
+<tr>
+<td><code>conditions</code></td>
+<td>✔(空配列可)</td>
+<td>「必要になる条件」。<code>scope</code>/<code>ref</code>/<code>tag</code>/<code>text</code> の 4 種（§16.4）</td>
+</tr>
+<tr>
+<td><code>saved_at</code></td>
+<td>✔</td>
+<td>RFC 3339、タイムゾーン付き</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>✔</td>
+<td><code>approved</code> | <code>proposed</code> | <code>rejected</code></td>
+</tr>
+<tr>
+<td><code>added_by</code></td>
+<td>✔</td>
+<td><code>human</code> または <code>agent:&lt;role&gt;</code></td>
+</tr>
+<tr>
+<td><code>summary</code></td>
+<td>任意</td>
+<td>≤ 120 字。参照ペインとコンテキストに入る短文</td>
+</tr>
+<tr>
+<td><code>checksum</code></td>
+<td>任意</td>
+<td>MD 本文の SHA-256。外部編集の検出に使う</td>
+</tr>
+</tbody>
+</table>
+<p><strong>ID 接頭辞</strong></p>
+<table>
+<thead>
+<tr>
+<th>接頭辞</th>
+<th>意味</th>
+<th>作られ方</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>M</code></td>
+<td>通常の資料</td>
+<td>人間が追加、またはエージェントの提案を承認</td>
+</tr>
+<tr>
+<td><code>S</code></td>
+<td><strong>検索結果の保存</strong>（§16.3.1）</td>
+<td>プロジェクト内検索の結果を「資料化」したもの</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong><code>M</code> と <code>S</code> は同一の連番空間を共有する</strong>（MUST）。<code>next_id</code> は 1 つだけ存在し、
+<code>M0137</code> の次に検索結果を作れば <code>S0138</code> になる。ID の衝突と、接頭辞変更時の参照切れを避けるため。</li>
+<li>本文からの引用注釈（§5.2.4）・<code>material:</code> フィールド・<code>'</code> 参照は、どちらの接頭辞も同じに扱う。</li>
+<li><code>S</code> を <code>M</code> に「昇格」させる操作は提供しない（ID は不変、MUST）。種別を変えたいときは <code>category</code> を変える。</li>
+</ul>
+<p><strong>ID 採番</strong>: <code>next_id</code> を読み、<code>M%04d</code> または <code>S%04d</code> を発行し、<code>next_id</code> をインクリメントして同一トランザクションで保存する（MUST）。
+<code>rejected</code> にしても ID は回収しない。</p>
+<p><strong>ファイルが JSON としてパースできない</strong>ときは <strong>E025</strong>（§4.3-4・§7）。診断を出したうえで
+<strong>空の索引の既定値で続行</strong>し、原文は 1 バイトも書き換えない（MUST）。<code>path</code> の <strong>E024</strong> と
+<code>id</code> の重複の <strong>E008</strong> はパースできた場合の検査で、E025 が出たときは報告しない。</p>
+<h4 id="583-資料-md-の本体">5.8.3 資料 MD の本体</h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="md"><code><span class="line"><span style="color:#005CC5;font-weight:bold"># 科学の甲子園 本戦の運営と実技課題</span></span>
+<span class="line"><span style="color:#6A737D">&lt;!-- novnow:M0137 --&gt;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## 要点</span></span>
+<span class="line"><span style="color:#E36209">-</span><span style="color:#24292E"> 実技競技は 3 人 1 組、制限時間 90 分。</span></span>
+<span class="line"><span style="color:#24292E">...</span></span></code></pre>
+<ul>
+<li>1 行目の H1 は <code>index.json</code> の <code>title</code> と一致していること。不一致は <strong>W025</strong>（クイックフィックス: どちらかに揃える）。</li>
+<li>2 行目の HTML コメントで ID を埋め込む（外部エディタで移動されても追跡できるようにするため、SHOULD）。</li>
+</ul>
+<h3 id="59-promptsmd">5.9 <code>prompts/*.md</code></h3>
+<h4 id="591-共通文法">5.9.1 共通文法</h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="md"><code><span class="line"><span style="color:#005CC5;font-weight:bold"># writer</span></span>
+<span class="line"><span style="color:#24292E">model-hint: balanced          # fast | balanced | careful（MCP サーバ選択のヒント）</span></span>
+<span class="line"><span style="color:#24292E">max-chars: 12000              # ContextPacket の上限（§15.4）</span></span>
+<span class="line"><span style="color:#24292E">temperature: 0.7</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## system</span></span>
+<span class="line"><span style="color:#24292E">あなたは novnow プロジェクトの本文執筆担当です。…</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## task</span></span>
+<span class="line"><span style="color:#24292E">次の節の本文だけを書いてください。</span></span>
+<span class="line"><span style="color:#24292E">対象: {{scene_id}}</span></span>
+<span class="line"><span style="color:#24292E">プロット: {{plot_section}}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## output</span></span>
+<span class="line"><span style="color:#E36209">-</span><span style="color:#24292E"> 出力は本文のみ。見出し・解説・前置きを書かない。</span></span>
+<span class="line"><span style="color:#E36209">-</span><span style="color:#24292E"> 役割語は {{role_language}} に従う。</span></span></code></pre>
+<ul>
+<li>セクションは <code>## system</code> / <code>## task</code> / <code>## output</code> / <code>## examples</code> / <code>## refuse</code> の 5 種（固定）。</li>
+<li><code>{{variable}}</code> は <strong>閉じた集合</strong>（§15.5.3）。未知変数は <strong>E031</strong>（保存は可能、実行は不可）。</li>
+<li>プロンプトは <strong>プロジェクト間で共有しない</strong>。<code>prompts/</code> はプロジェクト内のみを参照し、ユーザーのホーム等から読み込んではならない（MUST、§13.1）。</li>
+<li>既定プロンプトは novnow バイナリに埋め込み、<code>prompts/</code> 欠落時にファイルとして書き出す（§4.2）。以後の更新は <strong>上書きしない</strong>（ユーザーの編集が正）。
+埋め込み既定からの復元手段は §15.5.4（U-7）。</li>
+</ul>
+<h4 id="592-カスタムロール-promptscustommd">5.9.2 カスタムロール <code>prompts/custom/*.md</code></h4>
+<p>既定の 6 役割（+ integrator）に加え、<strong>ユーザーが独自の役割を定義できる</strong>。</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>prompts/custom/weapon-advisor.md</span></span>
+<span class="line"><span>prompts/custom/military-check.md</span></span></code></pre>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="md"><code><span class="line"><span style="color:#005CC5;font-weight:bold"># weapon-advisor</span></span>
+<span class="line"><span style="color:#24292E">label: 武器考証                     # UI 表示名（省略時はファイル名）</span></span>
+<span class="line"><span style="color:#24292E">model-hint: careful</span></span>
+<span class="line"><span style="color:#24292E">max-chars: 8000</span></span>
+<span class="line"><span style="color:#24292E">context: project outline target materials constraints    # 送るブロックを選ぶ（§15.4）</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## system</span></span>
+<span class="line"><span style="color:#24292E">あなたは近世ヨーロッパの武具に詳しい考証担当です。</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## task</span></span>
+<span class="line"><span style="color:#24292E">次の節の武器・防具の描写に、時代考証上の誤りがないか指摘してください。</span></span>
+<span class="line"><span style="color:#24292E">対象: {{scene_id}}</span></span>
+<span class="line"><span style="color:#24292E">本文: {{text_current}}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## output</span></span>
+<span class="line"><span style="color:#E36209">-</span><span style="color:#24292E"> 指摘は箇条書き。各項目に「該当箇所の引用」「問題」「代案」を書く。</span></span>
+<span class="line"><span style="color:#E36209">-</span><span style="color:#24292E"> 問題がなければ「問題なし」とだけ書く。</span></span></code></pre>
+<table>
+<thead>
+<tr>
+<th>規則</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ロール名</td>
+<td>ファイル名（拡張子なし）。<code>/^[a-z][a-z0-9-]{0,31}$/</code>。違反は <strong>E032</strong></td>
+</tr>
+<tr>
+<td>名前の衝突</td>
+<td>既定 7 役割と同名は <strong>E033</strong>（上書きは <code>prompts/&lt;role&gt;.md</code> 側で行う）</td>
+</tr>
+<tr>
+<td>登録</td>
+<td><code>project.toml</code> の <code>agents.custom_roles</code> に列挙されたものだけが UI に出る。ファイルがあっても未登録なら <strong>I056</strong> で「登録しますか」と案内</td>
+</tr>
+<tr>
+<td><code>context:</code></td>
+<td>§15.4 の 9 ブロックから <strong>部分集合を選ぶ</strong>。省略時は全 9 ブロック。<code>constraints</code> と <code>project</code> は常に含まれる（外せない、MUST）</td>
+</tr>
+<tr>
+<td>出力</td>
+<td>既定ロールと同じく <strong>委譲レベルに従う</strong>（§15.1.1、原則 A2）。既定 <code>propose</code> では必ず <code>agents/proposals/</code> に書く。ユーザーが <code>apply</code> / <code>autonomous</code> を設定すれば本文へ自動適用される</td>
+</tr>
+<tr>
+<td>上限</td>
+<td>1 プロジェクトあたり 16 ロール。超過は <strong>E034</strong></td>
+</tr>
+<tr>
+<td>MCP</td>
+<td>既定ロールと同じ MCP 経路を使う（原則 A5、MUST）。カスタムロールのための独自接続は作らない</td>
+</tr>
+<tr>
+<td>並列</td>
+<td>§15.7.5 の並列実行の対象になる</td>
+</tr>
+</tbody>
+</table>
+<p><strong>設計意図（README の思想との接続）</strong>: カスタムロールは <strong>役割を増やす</strong> 機能である。
+増やした役割に何をどこまで任せるかは、他の役割と同じく <strong>ユーザーが委譲レベルで決める</strong>（P5、§15.1.1）。
+既定のうちはどの役割も提案しかしないが、ユーザーが望めばカスタムロールも自律させられる。
+<code>context:</code> でコンテキストを絞れることは変わらず本質であり、「何を渡さないか」を決める装置としても提供する。</p>
+<h4 id="595-参考例展開変数-examples状態-実装完了">5.9.5 参考例展開変数 <code>{{examples}}</code>〔状態: 実装完了〕</h4>
+<ul>
+<li>閉じた変数集合に <code>{{examples}}</code> を追加する。タスク起票時に参考例（お手本）として指定された章・話・場面・節の本文またはプロットがここに展開される。未指定時は空文字列に展開される。</li>
+</ul>
+<h3 id="510-agents-のファイル形式">5.10 <code>agents/</code> のファイル形式</h3>
+<h4 id="5101-タスク-agentstaskst0042md">5.10.1 タスク <code>agents/tasks/T0042.md</code></h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="md"><code><span class="line"><span style="color:#005CC5;font-weight:bold"># T0042</span></span>
+<span class="line"><span style="color:#24292E">role: writer</span></span>
+<span class="line"><span style="color:#24292E">scope: @01-04-02-03</span></span>
+<span class="line"><span style="color:#24292E">intent: 初稿生成</span></span>
+<span class="line"><span style="color:#24292E">status: ready          # draft | ready | running | review | accepted | rejected | canceled | applied（自動適用済み）</span></span>
+<span class="line"><span style="color:#24292E">initiator: human       # human | agent（委譲レベル autonomous で自動起動された場合、§15.1.1）</span></span>
+<span class="line"><span style="color:#24292E">delegation: propose    # 実行時点の委譲レベル（監査用、§15.1.1）</span></span>
+<span class="line"><span style="color:#24292E">prompt: prompts/writer.md</span></span>
+<span class="line"><span style="color:#24292E">created_at: 2026-10-09T12:00:00+09:00</span></span>
+<span class="line"><span style="color:#24292E">updated_at: 2026-10-09T12:03:11+09:00</span></span>
+<span class="line"><span style="color:#24292E">context-hash: sha256:1a2b...</span></span>
+<span class="line"><span style="color:#24292E">result: agents/results/T0042.md</span></span>
+<span class="line"><span style="color:#24292E">server: llm-main</span></span>
+<span class="line"><span style="color:#24292E">human-comment: リリアの心変わりを台詞で説明しないこと</span></span>
+<span class="line"><span style="color:#24292E">exclude: materials, history</span></span></code></pre>
+<p><code>exclude:</code> は人間が外したブロック（§15.7.2 のトグル。ブロック名を <code>,</code> 区切り。<code>project</code> と <code>constraints</code> は
+外せないので書いても無視する）。値の無いフィールドは書かない。§5.10.1 に無いキーは削除せずに残す。</p>
+<h4 id="5102-結果-agentsresultst0042md">5.10.2 結果 <code>agents/results/T0042.md</code></h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="md"><code><span class="line"><span style="color:#005CC5;font-weight:bold"># T0042 result</span></span>
+<span class="line"><span style="color:#24292E">finished_at: 2026-10-09T12:03:40+09:00</span></span>
+<span class="line"><span style="color:#24292E">model: &lt;MCP サーバが返したモデル識別子&gt;</span></span>
+<span class="line"><span style="color:#24292E">input_chars: 7412</span></span>
+<span class="line"><span style="color:#24292E">output_chars: 612</span></span>
+<span class="line"><span style="color:#24292E">duration_ms: 4210</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## output</span></span>
+<span class="line"><span style="color:#24292E">（LLM の出力そのまま。加工禁止）</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## proposal</span></span>
+<span class="line"><span style="color:#24292E">agents/proposals/P0003.md</span></span></code></pre>
+<p><code>## output</code> は最後の <code>## proposal</code>（次の行が <code>agents/proposals/</code> のもの）の前まで。20,000 字で切ったときは
+<code>truncated: true</code> を足す（§15.9）。提案を作らなかったときは <code>## proposal</code> を書かない。</p>
+<h4 id="5103-提案-agentsproposalsp0003md">5.10.3 提案 <code>agents/proposals/P0003.md</code></h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="md"><code><span class="line"><span style="color:#005CC5;font-weight:bold"># P0003</span></span>
+<span class="line"><span style="color:#24292E">kind: section-text       # section-text | plot-field | material | word | character | idea | note</span></span>
+<span class="line"><span style="color:#24292E">target: contents/01-04.cnov @01-04-02-03</span></span>
+<span class="line"><span style="color:#24292E">origin: T0042</span></span>
+<span class="line"><span style="color:#24292E">status: open             # open | accepted | rejected | superseded | applied（適用済み）</span></span>
+<span class="line"><span style="color:#24292E">created_at: ...</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## before</span></span>
+<span class="line"><span style="color:#24292E">（現在のテキスト。空なら空）</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## after</span></span>
+<span class="line"><span style="color:#24292E">（提案テキスト）</span></span></code></pre>
+<p><code>note</code> は stylist / logician / integrator の指摘と、本体が空（質問だけ）の出力で、ファイルには適用しない（読むだけ。
+採用は「読んだ」の記録になる）。状態を変えたときは <code>updated_at:</code>、却下・差し戻しの理由は <code>comment:</code>（必須）、
+<code>novnow.section.propose</code> の添え書きは <code>note:</code>、一部採用なら <code>partial: true</code> を足す（<code>after</code> は提案のまま残す）。
+<code>## before</code> は最初の <code>## after</code> まで、<code>## after</code> はファイルの終わりまで（本文に <code>## </code> の行があってもよい）。
+MCP のツールから作られた提案の <code>origin</code> は <code>mcp</code>（<code>novnow.section.write</code> / <code>novnow.plot.write</code> は <code>mcp:&lt;role&gt;</code>）。
+採用時は <code>after</code> を対象ファイルへ適用し、<code>status: accepted</code> に書き換える。委譲レベル <code>apply</code> / <code>autonomous</code> で
+自動適用された場合は <code>status: applied</code> に書き換える（§15.1.1）。<code>applied</code> の提案はレビュー画面から <strong>差し戻せる</strong>（§15.7.3）。
+<strong>提案ファイルは削除しない</strong>（監査証跡、MUST）。</p>
+<h4 id="5104-スレッド-agentsthreadsth0007mdエージェント間通信">5.10.4 スレッド <code>agents/threads/TH0007.md</code>（エージェント間通信）</h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="md"><code><span class="line"><span style="color:#005CC5;font-weight:bold"># TH0007 旧校舎の間取り</span></span>
+<span class="line"><span style="color:#24292E">scope: @01-04-02</span></span>
+<span class="line"><span style="color:#24292E">status: open</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## msg 001</span></span>
+<span class="line"><span style="color:#24292E">from: writer</span></span>
+<span class="line"><span style="color:#24292E">to: researcher</span></span>
+<span class="line"><span style="color:#24292E">kind: request            # request | deliver | question | reject | note</span></span>
+<span class="line"><span style="color:#24292E">created_at: ...</span></span>
+<span class="line"><span style="color:#24292E">approved_by: human | auto  # 人間が中継を承認したか、自律レベルの自動受け渡しか（必須、§15.6）。未承認は pending</span></span>
+<span class="line"><span style="color:#24292E">body:</span></span>
+<span class="line"><span style="color:#24292E">  旧校舎 2 階の窓の形式が分かる資料が欲しい。時代設定は 1930 年代相当。</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## msg 002</span></span>
+<span class="line"><span style="color:#24292E">from: researcher</span></span>
+<span class="line"><span style="color:#24292E">to: writer</span></span>
+<span class="line"><span style="color:#24292E">kind: deliver</span></span>
+<span class="line"><span style="color:#24292E">created_at: ...</span></span>
+<span class="line"><span style="color:#24292E">approved_by: human</span></span>
+<span class="line"><span style="color:#24292E">refs: 'M0141</span></span>
+<span class="line"><span style="color:#24292E">body:</span></span>
+<span class="line"><span style="color:#24292E">  上下げ窓が主流。M0141 に要点を保存した。</span></span></code></pre>
+<h4 id="5105-監査ログ-agentslogyyyy-mm-ddjsonl">5.10.5 監査ログ <code>agents/log/YYYY-MM-DD.jsonl</code></h4>
+<p>1 行 1 イベントの JSON。<code>{"ts","event","task","role","server","input_chars","output_chars","duration_ms","result_path","error"}</code>
+（値の無いキーは <code>null</code>）。提案に関わるイベントには <code>"proposal"</code>、<code>delegation_changed</code>（<code>writer: propose -&gt; apply</code>）・
+<code>chain_hop</code>（<code>T0042 -&gt; T0043</code>）・<code>limit_stop</code>（上限のキー）・差し戻しの <code>reject</code>（<code>revert</code>）には <code>"detail"</code> を足す
+（値があるときだけ）。日付はイベントの <code>ts</code> の日付。
+イベント種別（固定）: <code>run</code> / <code>accept</code> / <code>reject</code> / <code>auto_applied</code> / <code>direct_write</code> / <code>fixed_overwrite</code> /
+<code>delegation_changed</code> / <code>chain_hop</code> / <code>limit_stop</code>。
+<strong>プロンプト本文・出力本文はログに書かない</strong>（結果ファイルを参照する）。API キーや環境変数値は決して書かない（MUST）。</p>
+<h4 id="5106-タスクの参考例指定フィールドexamples状態-実装完了">5.10.6 タスクの参考例指定フィールド（<code>examples:</code>）〔状態: 実装完了〕</h4>
+<ul>
+<li><code>agents/tasks/T####.md</code> のフィールド行に <code>examples: &lt;範囲式&gt; [&lt;種別&gt;]</code>（複数指定可。種別は <code>contents</code> / <code>plot</code> / <code>both</code>、省略時は <code>both</code>）を追加する。指定された話・節の本文またはプロットが「例」としてコンテキストに組み込まれる。</li>
+</ul>
+<h3 id="511-agentsmcpjson">5.11 <code>agents/mcp.json</code></h3>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "schema_version"</span><span style="color:#24292E">: </span><span style="color:#005CC5">1</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "servers"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">    "llm-main"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">      "transport"</span><span style="color:#24292E">: </span><span style="color:#032F62">"stdio"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "command"</span><span style="color:#24292E">: </span><span style="color:#032F62">"my-llm-mcp"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "args"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"--profile"</span><span style="color:#24292E">, </span><span style="color:#032F62">"balanced"</span><span style="color:#24292E">],</span></span>
+<span class="line"><span style="color:#005CC5">      "env"</span><span style="color:#24292E">: { </span><span style="color:#005CC5">"API_KEY"</span><span style="color:#24292E">: </span><span style="color:#032F62">"${NOVNOW_LLM_KEY}"</span><span style="color:#24292E"> },</span></span>
+<span class="line"><span style="color:#005CC5">      "capabilities"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"sampling"</span><span style="color:#24292E">],</span></span>
+<span class="line"><span style="color:#005CC5">      "roles"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"writer"</span><span style="color:#24292E">, </span><span style="color:#032F62">"plotter"</span><span style="color:#24292E">, </span><span style="color:#032F62">"ideator"</span><span style="color:#24292E">, </span><span style="color:#032F62">"stylist"</span><span style="color:#24292E">, </span><span style="color:#032F62">"logician"</span><span style="color:#24292E">, </span><span style="color:#032F62">"integrator"</span><span style="color:#24292E">],</span></span>
+<span class="line"><span style="color:#005CC5">      "timeout_ms"</span><span style="color:#24292E">: </span><span style="color:#005CC5">60000</span></span>
+<span class="line"><span style="color:#24292E">    },</span></span>
+<span class="line"><span style="color:#005CC5">    "web-research"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">      "transport"</span><span style="color:#24292E">: </span><span style="color:#032F62">"stdio"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "command"</span><span style="color:#24292E">: </span><span style="color:#032F62">"search-mcp"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "capabilities"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"tools"</span><span style="color:#24292E">],</span></span>
+<span class="line"><span style="color:#005CC5">      "allow_tools"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"search"</span><span style="color:#24292E">, </span><span style="color:#032F62">"fetch"</span><span style="color:#24292E">],</span></span>
+<span class="line"><span style="color:#005CC5">      "roles"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"researcher"</span><span style="color:#24292E">]</span></span>
+<span class="line"><span style="color:#24292E">    }</span></span>
+<span class="line"><span style="color:#24292E">  }</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p><strong>規則（MUST）</strong></p>
+<ul>
+<li><code>env</code> の値は <code>${ENV_NAME}</code> 形式の参照のみ許可。<strong>リテラルの秘密情報を書くことを novnow 自身は決して行わない</strong>。ユーザーが直書きした場合は W033 で警告する。</li>
+<li>環境変数が未解決のサーバは無効化し、UI に E030 を出す。</li>
+<li><code>transport</code> は v0.1.0 では <code>stdio</code> のみ必須。<code>http</code>/<code>sse</code> は MAY（v0.1.0 の本体は <code>stdio</code> だけを使う）。</li>
+<li><code>servers</code> は<strong>書かれた順</strong>に読む（§15.8.1 の「定義順」）。<code>roles</code> の <code>*</code> はどの役割にも一致する。</li>
+<li><code>capabilities</code> に <code>sampling</code> が無く <code>tools</code> があるサーバには、<code>allow_tools</code> の先頭のツールを
+<code>{"system","prompt","role","scope"}</code> の引数で呼ぶ。</li>
+<li>novnow は LLM プロバイダの SDK を直接組み込まない（MUST）。モデル呼び出しは必ず MCP サーバ経由。</li>
+</ul>
+<h4 id="5113-アプリ内-mcpjson-編集モーダル状態-実装完了">5.11.3 アプリ内 <code>mcp.json</code> 編集モーダル〔状態: 実装完了〕</h4>
+<ul>
+<li>コマンドパレットおよび <code>agent</code> ワークスペースから、<code>agents/mcp.json</code> をアプリ内で直接編集・構文検証・保存できる編集モーダルを開くことができる。JSON 構文エラーや未知のトランスポート指定がある場合はモーダル内で即座にエラー箇所を通知する。</li>
+</ul>
+<h3 id="512-フォーマッタ正規化仕様">5.12 フォーマッタ（正規化）仕様</h3>
+<p>フォーマッタは以下だけを行う（それ以外の整形は禁止、MUST）。</p>
+<ol>
+<li>行末の空白削除</li>
+<li>改行コードを <code>project.toml</code> の <code>newline</code> に統一</li>
+<li>ファイル末尾に改行 1 個</li>
+<li>3 行以上連続する空行を 2 行に圧縮</li>
+<li><code>;</code> 行の前後の空白除去（<code> ; </code> → <code>;</code>）</li>
+<li>フィールド行の <code>key</code> と <code>:</code> の間の空白を除去し、<code>: </code> の後は空白 1 個に統一</li>
+<li>全角空白のみの行は空行に変換</li>
+</ol>
+<p><strong>本文の文字（句読点・記号・改行位置）には一切触れない。</strong> 自動整形は保存時ではなく明示操作（コマンドパレット <code>format</code>）でのみ実行する。</p>
+<hr>
+</article><p class="source-note" data-astro-cid-rv2sskwj>このページは <code data-astro-cid-rv2sskwj>docs/specifications/syntax.md</code> から自動生成しています。内容の正本はリポジトリのそのファイルです。</p></main></div><footer class="_footer_13bsc_1"><div class="container _inner_13bsc_8"><div><p class="_creditText_13bsc_16">NovNow - Created by <a href="https://github.com/sonneko" target="_blank" rel="noopener noreferrer" class="_author_13bsc_23">sonneko</a>.</p><p class="_copyright_13bsc_28">© 2026 NovNow Project. All rights reserved.</p></div><div class="_links_13bsc_33"><a href="/novnow/ja">トップ</a><a href="/novnow/ja/guide">機能一覧</a><a href="/novnow/ja/troubleshooting">トラブルシューティング</a><a href="https://github.com/sonneko/novnow" target="_blank" rel="noopener noreferrer">GitHub</a></div></div></footer><p><a href="/novnow/nightly-app/">Nightly (unstable) / 開発版（不安定）</a></p></body></html>

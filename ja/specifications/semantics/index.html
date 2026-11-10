@@ -1,0 +1,779 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="theme-color" content="#ffffff"><title>novnow 仕様書 — 意味解決エンジン | NovNow</title><meta name="description" content="NovNow - Dedicated Novel &amp; Scenario IDE for Writers &amp; Engineers"><link rel="canonical" href="https://sonneko.github.io/novnow/ja/specifications/semantics/"><link rel="alternate" hreflang="ja" href="https://sonneko.github.io/novnow/ja/specifications/semantics/"><link rel="alternate" hreflang="en" href="https://sonneko.github.io/novnow/en/specifications/semantics/"><link rel="icon" type="image/svg+xml" href="/novnow/favicon.svg"><link rel="stylesheet" href="/novnow/_astro/Footer.CS3W3i4D.css"><style>.doc{color:#23272f;max-width:820px;font-size:1.02rem;line-height:1.85}.doc h1{letter-spacing:-.025em;color:#23272f;margin-bottom:1.5rem;font-size:clamp(1.9rem,3.2vw,2.45rem);font-weight:800;line-height:1.25}.doc h2{letter-spacing:-.015em;color:#23272f;border-bottom:1px solid #ebecf0;margin:2.75rem 0 1rem;padding-bottom:.5rem;font-size:1.55rem;font-weight:700}.doc h3{color:#23272f;margin:2.1rem 0 .75rem;font-size:1.22rem;font-weight:700}.doc h4{color:#23272f;margin:1.6rem 0 .5rem;font-size:1.02rem;font-weight:700}.doc p,.doc li{color:#404756}.doc p{margin:.95rem 0}.doc ul,.doc ol{margin:.95rem 0 .95rem 1.5rem}.doc li{margin:.4rem 0}.doc strong{color:#23272f;font-weight:700}.doc a{color:#087ea4;border-bottom:1px solid #087ea44d;text-decoration:none;transition:border-color .15s,color .15s}.doc a code{color:#087ea4;background-color:#e6f7ff;transition:background-color .15s,box-shadow .15s;box-shadow:inset 0 0 0 1px #087ea438}.doc a:hover{border-bottom-color:#087ea4;text-decoration:none}.doc a:hover code{background-color:#087ea424;box-shadow:inset 0 0 0 1px #087ea45c}.doc code{color:#23272f;background-color:#99a1b326;border-radius:6px;padding:.14rem .38rem;font-size:.87em}.doc pre{border-radius:16px;margin:1.35rem 0;padding:1.15rem 1.35rem;font-size:.88rem;line-height:1.65;overflow-x:auto;box-shadow:inset 0 0 0 1px #00000014;background-color:#f6f7f9!important}.doc pre code{font-size:inherit;background:0 0;border-radius:0;padding:0}.doc table{border-collapse:separate;border-spacing:0;border:1px solid #ebecf0;border-radius:12px;width:100%;margin:1.5rem 0;font-size:.93rem;overflow:hidden}@media (width<=720px){.doc table{display:block;overflow-x:auto}}.doc th,.doc td{text-align:left;vertical-align:top;border-bottom:1px solid #ebecf0;border-right:1px solid #ebecf0;padding:.65rem .9rem}.doc th:last-child,.doc td:last-child{border-right:none}.doc tbody tr:last-child td{border-bottom:none}.doc th{color:#5e687e;white-space:nowrap;background-color:#f6f7f9;font-size:.85rem;font-weight:700}.doc td{color:#404756;background-color:#fff}.doc blockquote{background-color:#e6f7ff;border-radius:16px;margin:1.5rem 0;padding:1rem 1.25rem;box-shadow:inset 0 0 0 1px #087ea42e}.doc blockquote p{color:#23272f;margin:.3rem 0}.doc hr{border:none;border-top:1px solid #ebecf0;margin:2.5rem 0}.doc img{border-radius:12px;max-width:100%;box-shadow:0 .8px 2px #00000008,0 2.7px 6.7px #0000000c,0 12px 30px #00000014}.source-note[data-astro-cid-rv2sskwj]{color:#5e687e;border-top:1px solid #ebecf0;max-width:820px;margin-top:3rem;padding-top:1.15rem;font-size:.84rem;line-height:1.6}.source-note[data-astro-cid-rv2sskwj] code[data-astro-cid-rv2sskwj]{color:#23272f;background-color:#99a1b326;border-radius:5px;padding:.12rem .35rem;font-size:.88em}
+</style></head><body><aside class="release-notice" aria-label="リリースとデータ互換性" data-astro-cid-jtqikg62><strong data-astro-cid-jtqikg62>v0.1.1</strong>：v1 までは保存形式が変わる場合があります。v0 → v1 の移行機能は提供しません。更新前に Zip と本文テキストを保管してください。<a href="/novnow/ja/troubleshooting/#legacy-v0-project" data-astro-cid-jtqikg62>詳しく</a></aside><header class="_header_1az26_1"><div class="_inner_1az26_10"><div class="_brandGroup_1az26_21"><a href="/novnow/ja" class="_logo_1az26_27"><svg class="_logoIcon_1az26_43" viewBox="0 0 192 192" fill="none" aria-hidden="true"><rect width="192" height="192" rx="42" fill="#087EA4"></rect><path d="M43 142V50h22l62 65V50h22v92h-22L65 77v65Z" fill="#FFFFFF"></path><path d="M157 41v44" stroke="#ABE2ED" stroke-width="10" stroke-linecap="round"></path></svg><span class="_logoText_1az26_49">NovNow</span></a><span class="_versionTag_1az26_56">v0.1.1</span></div><nav class="_nav_1az26_65" aria-label="Primary"><a href="/novnow/ja/#downloads" class="_navLink_1az26_73">ダウンロード</a><a href="/novnow/ja/known-issues" class="_navLink_1az26_73">既知の問題</a><a href="/novnow/ja" class="_navLink_1az26_73">トップ</a><a href="/novnow/ja/manual/" class="_navLink_1az26_73">ガイド</a><a href="/novnow/ja/specifications/" class="_navLink_1az26_73 _active_1az26_91">仕様書</a><a href="/novnow/ja/api" class="_navLink_1az26_73">API リファレンス</a><a href="/novnow/ja/troubleshooting" class="_navLink_1az26_73">トラブルシューティング</a></nav><div class="_actions_1az26_101"><div class="_switcher_1w0ra_1" role="group" aria-label="Language"><a href="/novnow/ja/specifications/semantics" class="_langBtn_1w0ra_11 _active_1w0ra_25">日本語</a><a href="/novnow/en/specifications/semantics" class="_langBtn_1w0ra_11">EN</a></div><a href="https://github.com/sonneko/novnow" target="_blank" rel="noopener noreferrer" class="_githubBtn_1az26_107" aria-label="GitHub" title="GitHub"><svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg><span class="_githubLabel_1az26_129">GitHub</span></a></div></div></header><div class="doc-layout" data-astro-cid-rv2sskwj><aside class="doc-sidebar" aria-label="ドキュメント目次" data-astro-cid-rv2sskwj><div class="doc-sidebar-group" data-astro-cid-rv2sskwj>ユーザーガイド</div><nav class="doc-sidebar-nav" data-astro-cid-rv2sskwj><a href="/novnow/ja/manual/" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow ユーザーガイド</span></a><a href="/novnow/ja/manual/start" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>はじめての手引き（30 分で 1 本書き上げる）</span></a><a href="/novnow/ja/manual/cheatsheet" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>早見表</span></a><a href="/novnow/ja/manual/glossary" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>用語集</span></a><a href="/novnow/ja/manual/faq" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>よくある質問</span></a><a href="/novnow/ja/manual/errors" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>よく出るエラーと直し方（12 件）</span></a><a href="/novnow/ja/manual/project-structure" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>作品のフォルダ構成</span></a><a href="/novnow/ja/manual/git" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>Git で原稿を守る（知りたい人だけ）</span></a><a href="/novnow/ja/manual/publish" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>書き出した原稿を公開する</span></a><a href="/novnow/ja/manual/install" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow の入れ方（どの版を選ぶか）</span></a></nav><hr class="doc-sidebar-divider" data-astro-cid-rv2sskwj><div class="doc-sidebar-group" data-astro-cid-rv2sskwj>仕様書</div><nav class="doc-sidebar-nav" data-astro-cid-rv2sskwj><a href="/novnow/ja/specifications/overview" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 概要・原則・処理モデル</span></a><a href="/novnow/ja/specifications/project" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — プロジェクト構造</span></a><a href="/novnow/ja/specifications/syntax" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — ファイル形式（構文仕様）</span></a><a href="/novnow/ja/specifications/semantics" aria-current="page" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 意味解決エンジン</span></a><a href="/novnow/ja/specifications/diagnostics" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 診断カタログ</span></a><a href="/novnow/ja/specifications/editing" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 編集モデルと保存</span></a><a href="/novnow/ja/specifications/ui" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 画面・ワークスペース・テーマ・国際化</span></a><a href="/novnow/ja/specifications/platform" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — ストレージと起動仕様</span></a><a href="/novnow/ja/specifications/agent" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — AI エージェント</span></a><a href="/novnow/ja/specifications/workflows" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 資料収集・エクスポート・性能品質</span></a><a href="/novnow/ja/specifications/interfaces" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 外部インターフェース（ヘッドレス全機能 API 群）</span></a><a href="/novnow/ja/specifications/external" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 配布形態（外部提供物）</span></a></nav></aside><main data-astro-cid-rv2sskwj><article class="doc" data-astro-cid-rv2sskwj><h1 data-astro-cid-rv2sskwj>novnow 仕様書 — 意味解決エンジン</h1><h2 id="6-意味解決エンジン">6. 意味解決エンジン</h2>
+<h3 id="61-辞書">6.1 辞書</h3>
+<h4 id="611-名前空間">6.1.1 名前空間</h4>
+<p><code>'</code> の後ろで解決される辞書は 1 本のトライに統合する。エントリ種別は次の 5 つ。</p>
+<table>
+<thead>
+<tr>
+<th>種別</th>
+<th>供給元</th>
+<th>キー</th>
+<th>修飾子 <code>:</code> の意味</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Character</code></td>
+<td><code>characters.md</code> の H1 と <code>alias</code></td>
+<td>表示名・別名</td>
+<td>モード ID（<code>:B</code> / <code>:B+D</code>）</td>
+</tr>
+<tr>
+<td><code>Address</code></td>
+<td><code>characters.md</code> の <code>address:</code> の値（§5.5.6）</td>
+<td>呼称（「あおいちゃん」等）</td>
+<td>（不可。付ければ <strong>E026</strong>）</td>
+</tr>
+<tr>
+<td><code>Word</code></td>
+<td><code>words.md</code> の H1 と <code>alias</code></td>
+<td>用語・別名</td>
+<td>（不可。付ければ <strong>E026</strong>）</td>
+</tr>
+<tr>
+<td><code>Material</code></td>
+<td><code>materials/index.json</code> の <code>id</code></td>
+<td><code>M0137</code> / <code>S0042</code></td>
+<td>資料タイトル（§6.6）</td>
+</tr>
+<tr>
+<td><code>MaterialTitle</code></td>
+<td>同 <code>title</code></td>
+<td>タイトル全文</td>
+<td>（不可）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>衝突規則（固定）</strong>: 同一キーが複数種別に存在する場合の優先順位は
+<code>Character &gt; Address &gt; Word &gt; Material &gt; MaterialTitle</code>。
+衝突したキーには起動時に <strong>W027</strong> を出し、参照ペインに「別種別の同名項目あり」を併記する。</p>
+<p><strong><code>Address</code> エントリの特則（MUST）</strong></p>
+<ul>
+<li><code>Address</code> は <strong>解決先を持つが、それ自身はキャラではない</strong>。<code>'あおいちゃん</code> は「葵あおいへの呼称」として解決され、
+ホバー・参照ペインでは葵あおいの情報を出す。</li>
+<li><code>Address</code> は <strong>呼ぶ側に依存する</strong>。同じ「先輩」が複数キャラの <code>address:</code> に現れうるため、
+<code>'先輩</code> のように曖昧な場合は <strong>その行の話者</strong>（§6.5.3 の話者決定規則）で絞り込む。
+話者が不明、または話者から見て一意に決まらないときは <strong>W085</strong>（「どの人物への呼称か決められません」）とし、
+クイックフィックスで明示形 <code>'{葵あおい}</code> への置換を提案する。</li>
+<li><code>Address</code> は <strong>話者注釈 <code>@</code> の解決対象外</strong>（MUST）。<code>@あおいちゃん</code> は E012 のままとする
+（話者は常に正式なキャラ名で書く）。</li>
+<li><code>Address</code> は <strong>W084 の呼称検査（§5.5.6）とは独立</strong>。<code>'</code> を付けていない素の文字列も検査対象である。</li>
+</ul>
+<h4 id="612-構築とキャッシュ">6.1.2 構築とキャッシュ</h4>
+<ul>
+<li>トライは <code>characters.md</code> / <code>words.md</code> / <code>materials/index.json</code> のいずれかが変化したときのみ再構築する。</li>
+<li>再構築は O(総キー長)。目標 5,000 エントリで 10ms 以内（§18）。</li>
+<li>用語の本文中出現検出（参照ペインの「この節に出てくる用語」）は Aho-Corasick を併用する（v0 を踏襲）。</li>
+</ul>
+<h4 id="613-照合の正規化">6.1.3 照合の正規化</h4>
+<p>比較は次の正規化後に行う（MUST）。元テキストは一切書き換えない。</p>
+<ol>
+<li>長音符 <code>ー</code>（U+30FC）/ <code>－</code>（U+FF0D）/ <code>—</code>（U+2014）/ <code>〜</code>（U+301C）を <code>ー</code> に統一</li>
+<li>NFKC</li>
+<li>英字は小文字化</li>
+<li>空白（半角・全角）を除去</li>
+</ol>
+<p><strong>長音の統一は NFKC より先</strong>。
+<code>－</code>（U+FF0D 全角ハイフン）は NFKC で ASCII の <code>-</code>（U+002D）になり、<code>〜</code>（U+301C 波ダッシュ）は
+NFKC で U+FF5E に変わるため、NFKC を先にすると 1 の長音統一が<strong>永久に発火しない</strong>
+。正規化は 1 文字ずつ行い、<strong>正規化後の byte 位置から
+元の byte 位置への対応表</strong>を持つ（一致位置を元テキストに戻すため。結合文字は合成されない）。
+§6.2.1 の <code>MAX_KEY_BYTES = 96</code> は<strong>正規化後</strong>の byte 数で測る。</p>
+<h4 id="614-登場人物の透過的な辞書統合と重複抑止状態-実装完了">6.1.4 登場人物の透過的な辞書統合と重複抑止〔状態: 実装完了〕</h4>
+<ul>
+<li><code>characters.md</code> に定義された登場人物名および別名（<code>alias:</code>）は、<code>words.md</code> に重複記載しなくても自動的に統合辞書に登録され、用語と同様に参照解決・補完・ホバー・定義ジャンプの対象となる（<code>words.md</code> のファイル自体に勝手に書き込むことはしない）。</li>
+<li>同一の名前が <code>characters.md</code> と <code>words.md</code> の双方に存在する場合でも、UI（参照ペイン・パレット・補完候補）に二重表示せず、<code>characters.md</code> の登場人物エントリに透過的に統合して扱う。</li>
+</ul>
+<h3 id="62--の最短一致">6.2 <code>'</code> の最短一致</h3>
+<blockquote>
+<p>「<code>@</code> 及び <code>'</code> の後の <strong>最短で何らかの辞書に一致する文字列まで</strong> が範囲」</p>
+</blockquote>
+<h4 id="621-アルゴリズム決定論">6.2.1 アルゴリズム（決定論）</h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="rust"><code><span class="line"><span style="color:#6A737D">// line: 1 行のテキスト, at: ' のバイト位置</span></span>
+<span class="line"><span style="color:#D73A49">fn</span><span style="color:#6F42C1"> resolve_ref</span><span style="color:#24292E">(line</span><span style="color:#D73A49">:</span><span style="color:#D73A49"> &amp;</span><span style="color:#6F42C1">str</span><span style="color:#24292E">, at</span><span style="color:#D73A49">:</span><span style="color:#6F42C1"> usize</span><span style="color:#24292E">, trie</span><span style="color:#D73A49">:</span><span style="color:#D73A49"> &amp;</span><span style="color:#6F42C1">Trie</span><span style="color:#24292E">) </span><span style="color:#D73A49">-&gt;</span><span style="color:#6F42C1"> RefToken</span><span style="color:#24292E"> {</span></span>
+<span class="line"><span style="color:#D73A49">    let</span><span style="color:#24292E"> rest </span><span style="color:#D73A49">=</span><span style="color:#D73A49"> &amp;</span><span style="color:#24292E">line[at </span><span style="color:#D73A49">+</span><span style="color:#005CC5"> 1</span><span style="color:#D73A49">..</span><span style="color:#24292E">];</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">    // (a) 明示形 '{...}</span></span>
+<span class="line"><span style="color:#D73A49">    if</span><span style="color:#24292E"> rest</span><span style="color:#D73A49">.</span><span style="color:#6F42C1">starts_with</span><span style="color:#24292E">(</span><span style="color:#032F62">'{'</span><span style="color:#24292E">) {</span></span>
+<span class="line"><span style="color:#D73A49">        return</span><span style="color:#6F42C1"> explicit_form</span><span style="color:#24292E">(rest);            </span><span style="color:#6A737D">// } までをキーとする</span></span>
+<span class="line"><span style="color:#24292E">    }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">    // (b) 最短一致: 1 文字ずつ進め、辞書の終端に当たった瞬間に確定</span></span>
+<span class="line"><span style="color:#D73A49">    let</span><span style="color:#D73A49"> mut</span><span style="color:#24292E"> node </span><span style="color:#D73A49">=</span><span style="color:#24292E"> trie</span><span style="color:#D73A49">.</span><span style="color:#6F42C1">root</span><span style="color:#24292E">();</span></span>
+<span class="line"><span style="color:#D73A49">    let</span><span style="color:#D73A49"> mut</span><span style="color:#24292E"> end</span><span style="color:#D73A49">:</span><span style="color:#6F42C1"> Option</span><span style="color:#24292E">&lt;(</span><span style="color:#6F42C1">usize</span><span style="color:#24292E">, </span><span style="color:#6F42C1">EntryId</span><span style="color:#24292E">)&gt; </span><span style="color:#D73A49">=</span><span style="color:#6F42C1"> None</span><span style="color:#24292E">;</span></span>
+<span class="line"><span style="color:#D73A49">    for</span><span style="color:#24292E"> (i, ch) </span><span style="color:#D73A49">in</span><span style="color:#24292E"> rest</span><span style="color:#D73A49">.</span><span style="color:#6F42C1">char_indices</span><span style="color:#24292E">() {</span></span>
+<span class="line"><span style="color:#D73A49">        match</span><span style="color:#24292E"> node</span><span style="color:#D73A49">.</span><span style="color:#6F42C1">step</span><span style="color:#24292E">(ch) {</span></span>
+<span class="line"><span style="color:#6F42C1">            Some</span><span style="color:#24292E">(next) </span><span style="color:#D73A49">=&gt;</span><span style="color:#24292E"> {</span></span>
+<span class="line"><span style="color:#24292E">                node </span><span style="color:#D73A49">=</span><span style="color:#24292E"> next;</span></span>
+<span class="line"><span style="color:#D73A49">                if</span><span style="color:#D73A49"> let</span><span style="color:#6F42C1"> Some</span><span style="color:#24292E">(id) </span><span style="color:#D73A49">=</span><span style="color:#24292E"> node</span><span style="color:#D73A49">.</span><span style="color:#6F42C1">terminal</span><span style="color:#24292E">() {        </span><span style="color:#6A737D">// ← 最短一致で打ち切り</span></span>
+<span class="line"><span style="color:#24292E">                    end </span><span style="color:#D73A49">=</span><span style="color:#6F42C1"> Some</span><span style="color:#24292E">((i </span><span style="color:#D73A49">+</span><span style="color:#24292E"> ch</span><span style="color:#D73A49">.</span><span style="color:#6F42C1">len_utf8</span><span style="color:#24292E">(), id));</span></span>
+<span class="line"><span style="color:#D73A49">                    break</span><span style="color:#24292E">;</span></span>
+<span class="line"><span style="color:#24292E">                }</span></span>
+<span class="line"><span style="color:#D73A49">                if</span><span style="color:#24292E"> i </span><span style="color:#D73A49">+</span><span style="color:#24292E"> ch</span><span style="color:#D73A49">.</span><span style="color:#6F42C1">len_utf8</span><span style="color:#24292E">() </span><span style="color:#D73A49">&gt;=</span><span style="color:#005CC5"> MAX_KEY_BYTES</span><span style="color:#24292E"> { </span><span style="color:#D73A49">break</span><span style="color:#24292E">; }   </span><span style="color:#6A737D">// MAX_KEY_BYTES = 96</span></span>
+<span class="line"><span style="color:#24292E">            }</span></span>
+<span class="line"><span style="color:#6F42C1">            None</span><span style="color:#D73A49"> =&gt;</span><span style="color:#D73A49"> break</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#24292E">        }</span></span>
+<span class="line"><span style="color:#24292E">    }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">    match</span><span style="color:#24292E"> end {</span></span>
+<span class="line"><span style="color:#6F42C1">        Some</span><span style="color:#24292E">((len, id)) </span><span style="color:#D73A49">=&gt;</span><span style="color:#24292E"> {</span></span>
+<span class="line"><span style="color:#D73A49">            let</span><span style="color:#24292E"> modifier </span><span style="color:#D73A49">=</span><span style="color:#6F42C1"> parse_modifier</span><span style="color:#24292E">(</span><span style="color:#D73A49">&amp;</span><span style="color:#24292E">rest[len</span><span style="color:#D73A49">..</span><span style="color:#24292E">]);   </span><span style="color:#6A737D">// ":" 以降（§6.2.4）</span></span>
+<span class="line"><span style="color:#6F42C1">            RefToken</span><span style="color:#D73A49">::</span><span style="color:#6F42C1">resolved</span><span style="color:#24292E">(at, len, id, modifier)</span></span>
+<span class="line"><span style="color:#24292E">        }</span></span>
+<span class="line"><span style="color:#6A737D">        // (c) 未解決: 区切り文字までを範囲とし、診断 E001 を付ける</span></span>
+<span class="line"><span style="color:#6F42C1">        None</span><span style="color:#D73A49"> =&gt;</span><span style="color:#6F42C1"> RefToken</span><span style="color:#D73A49">::</span><span style="color:#6F42C1">unresolved</span><span style="color:#24292E">(at, </span><span style="color:#6F42C1">scan_to_delimiter</span><span style="color:#24292E">(rest)),</span></span>
+<span class="line"><span style="color:#24292E">    }</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<ul>
+<li><code>MAX_KEY_BYTES = 96</code>（固定）。これを超える辞書キーは登録時に <strong>E028</strong> で拒否する。</li>
+<li>未解決時の区切り文字集合（固定）:
+<code>空白 全角空白 " 「 」 『 』 、 。 ， ． ！ ？ ； ： @ ' ( )  / \n</code> とタブ。</li>
+</ul>
+<h4 id="622-最短一致の帰結仕様として受け入れる挙動">6.2.2 最短一致の帰結（仕様として受け入れる挙動）</h4>
+<p>辞書に <code>リリア</code> があり <code>リリアナ</code> が無いとき、<code>'リリアナ</code> は <code>リリア</code> + 地の文 <code>ナ</code> と解釈される。
+辞書に両方があるときは <strong><code>リリア</code>（短い方）</strong> が選ばれる。これは指示どおりの決定である。</p>
+<p>ただしこの挙動は作家を驚かせうるため、次の補助を MUST で付ける。</p>
+<ul>
+<li><strong>W029</strong>: 「より長い辞書項目にも一致しうる」。クイックフィックス = 明示形 <code>'{リリアナ}</code> に書き換える。</li>
+<li>入力補完（§9.7.3）は <code>'</code> 入力直後に候補を出すため、通常は曖昧ケースに入らない。</li>
+</ul>
+<h4 id="623-明示形---">6.2.3 明示形 <code>'{ ... }</code></h4>
+<p><code>'{葵あおい}</code> のように波括弧で囲むと、その内側全体がキーになる。
+閉じ括弧が無い場合は <strong>E002</strong>（行末までを未解決範囲とする）。</p>
+<h4 id="624-修飾子-">6.2.4 修飾子 <code>:</code></h4>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>modifier = ":" , ( mode_expr | material_title ) ;</span></span>
+<span class="line"><span>mode_expr      = mode_id , [ "+" , mode_id ] ;</span></span>
+<span class="line"><span>material_title = /[^「」『』。、；;\n]+/ ;   (* 空白を許す。下記 *)</span></span></code></pre>
+<ul>
+<li>直前の参照が <code>Character</code> のとき → モード式。</li>
+<li><code>Material</code> のとき → 資料タイトル（§6.6）。<strong>空白を許す</strong>。
+前後の空白は値に含めない。<code>:</code> の後ろが空（<code>'M0137:</code>）なら<strong>修飾子として扱わない</strong>
+（<code>:</code> は本文の句読点のまま）。</li>
+<li><code>Word</code> / <code>Address</code> のとき → <strong>E026</strong>（§6.1.1 の表。<code>MaterialTitle</code> も同じく <strong>E026</strong>）。</li>
+</ul>
+<p><strong><code>:</code> の文脈例外（固定表）</strong></p>
+<p><code>:</code> は参照の修飾子であると同時にフィールド行の区切りでもあるため、次の表で曖昧さを消す（MUST）。</p>
+<table>
+<thead>
+<tr>
+<th>文脈</th>
+<th><code>:</code> の解釈</th>
+<th>例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>フィールド行の最初の <code>:</code>（§5.0.5）</td>
+<td><strong>フィールド区切り</strong>。参照修飾子ではない</td>
+<td><code>mode: 'リリア:B</code> の 1 つ目</td>
+</tr>
+<tr>
+<td><code>'参照</code> の直後の <code>:</code></td>
+<td>修飾子</td>
+<td><code>'リリア:B</code> の 2 つ目</td>
+</tr>
+<tr>
+<td>行末話者注釈 <code>@名前</code> の直後の <code>:</code></td>
+<td>モード式</td>
+<td><code>@リリア:B</code></td>
+</tr>
+<tr>
+<td><strong><code>address:</code> 行の <code>=&gt;</code> より右にある <code>:</code></strong></td>
+<td><strong>呼称の一部</strong>（モードでも区切りでもない）</td>
+<td><code>address: '佐倉 =&gt; 佐倉先生:担任</code> → 呼称は <code>佐倉先生:担任</code></td>
+</tr>
+<tr>
+<td><code>address:</code> 行の <code>=&gt;</code> より左にある <code>:</code></td>
+<td>修飾子（<code>range</code> 併記時のモード限定）</td>
+<td><code>address: '葵あおい:D =&gt; あおい</code></td>
+</tr>
+<tr>
+<td><code>source</code> / URL 中の <code>:</code></td>
+<td>文字（<code>:</code> の直後が空白でないため、§5.0.5）</td>
+<td><code>https://example.org</code></td>
+</tr>
+<tr>
+<td>資料タイトル修飾子の中の <code>:</code></td>
+<td>タイトルの一部</td>
+<td><code>'M0137:取材: 甲子園本戦</code></td>
+</tr>
+<tr>
+<td>継続行（2 スペース以上のインデント）の <code>:</code></td>
+<td>文字</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p><code>address:</code> が特別扱いされるのは、呼称そのものが <code>:</code> を含みうる自然言語だからである。
+<code>=&gt;</code> の右側は <strong>行末まで（<code>#</code> コメントを除く）すべて値</strong> として読む（MUST）。</p>
+<h4 id="625--の解決">6.2.5 <code>@</code> の解決</h4>
+<table>
+<thead>
+<tr>
+<th>文脈</th>
+<th>解釈</th>
+<th>失敗時</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>行頭（空白のみ先行）</td>
+<td>構造見出し。<code>scene_id</code>（A 形式は <code>partial_id</code>）としてパース</td>
+<td>形が崩れていれば <strong>E002</strong>。ID としては読めるが階層数がそのファイルの許容と違えば <strong>E020</strong>（C・B 形式は 3〜4 階層、A 形式は §5.3.2）。予約番号（§5.1.2）は <strong>E022</strong></td>
+</tr>
+<tr>
+<td>行末（<code>@名前</code> が行の最後）</td>
+<td>話者注釈。辞書の <code>Character</code> を最短一致</td>
+<td><strong>E012</strong></td>
+</tr>
+<tr>
+<td>範囲式の中</td>
+<td><code>partial_id</code></td>
+<td><strong>E002</strong></td>
+</tr>
+<tr>
+<td>それ以外の位置</td>
+<td>C 形式では <strong>W002</strong>（エスケープ <code>\@</code> を提案）、A/B 形式では自由テキスト</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>行頭の E002 と E020 の分け方はで確定した。C・B 形式の E020 の <code>{0}</code> には許容範囲 <code>3-4</code> が入る。</p>
+<h4 id="626-未知の--参照に対する形態素解析境界と自動回復状態-実装完了">6.2.6 未知の <code>'</code> 参照に対する形態素解析境界と自動回復〔状態: 実装完了〕</h4>
+<ul>
+<li><code>'名前</code> が辞書に存在せず未解決参照（<code>E001</code>）となる場合、句読点まで漫然と赤波線を引くのではなく、形態素解析（漢字・カタカナ・ひらがな・英数字の文字種境界および助詞切り出し）によって先頭の **1 形態素（語幹）**のみを未解決参照の範囲として区切り、その範囲だけに赤波線を引く。</li>
+<li>参照ペインおよびエディタのクイックフィックスから、その切り出された 1 形態素をワンクリックで「用語（<code>words.md</code>）に追加」または「登場人物（<code>characters.md</code>）に追加」して診断から自動回復できる。</li>
+</ul>
+<p><strong>文字種の範囲（全機能で共通の固定値）</strong></p>
+<p>日本語かどうかの判定は用途ごとに範囲が違う。<strong>意図して違う</strong>ので、下の表を唯一の定義とし、
+範囲を動かすときはこの表を先に直す（MUST）。表に書いていない文字は、その判定の対象にしない。</p>
+<table>
+<thead>
+<tr>
+<th>判定</th>
+<th>使う場面</th>
+<th>範囲</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>文字種（形態素境界）</td>
+<td>§6.2.6 の 1 形態素切り出し、参照の切れ目</td>
+<td>ひらがな <code>U+3041</code>–<code>U+3096</code>・<code>U+309D</code>–<code>U+309F</code> / カタカナ <code>U+30A1</code>–<code>U+30FA</code>・<code>U+30FC</code>–<code>U+30FE</code>・半角カナ <code>U+FF66</code>–<code>U+FF9F</code> / 漢字 <code>々</code> <code>〆</code>・<code>U+4E00</code>–<code>U+9FFF</code>・互換漢字 <code>U+F900</code>–<code>U+FAFF</code> / 英数字 ASCII と全角 <code>U+FF10</code>–<code>U+FF19</code>・<code>U+FF21</code>–<code>U+FF3A</code>・<code>U+FF41</code>–<code>U+FF5A</code> / それ以外は記号。<strong>拡張 A（<code>U+3400</code>–<code>U+4DBF</code>）は記号</strong>として扱う</td>
+</tr>
+<tr>
+<td>ルビの親文字</td>
+<td>§5.2.1 の <code>kanji_run</code></td>
+<td>CJK 統合漢字 <code>U+4E00</code>–<code>U+9FFF</code>・拡張 A <code>U+3400</code>–<code>U+4DBF</code>・互換漢字 <code>U+F900</code>–<code>U+FAFF</code>。繰返し字 <code>々</code>（<code>U+3005</code>）・<code>〻</code>（<code>U+303B</code>）は漢字列に含めるが親文字そのものには数えない。文字種の判定と違い<strong>拡張 A を含む</strong></td>
+</tr>
+<tr>
+<td>本文が日本語か</td>
+<td>§7.2.2（文体系の診断を出すかどうか）</td>
+<td>ひらがな <code>U+3041</code>–<code>U+3096</code>・カタカナ <code>U+30A1</code>–<code>U+30F6</code>・長音符 <code>U+30FC</code>・漢字 <code>U+4E00</code>–<code>U+9FFF</code>。<strong>半角カナ・拡張 A・互換漢字・繰返し字は数えない</strong>。ラテンは ASCII の英字だけを数え、他の文字（キリル文字など）はどちらにも数えない</td>
+</tr>
+<tr>
+<td>診断の「語」</td>
+<td>§9.4.4 の語の抽出</td>
+<td>文字の性質（英数字・仮名 <code>U+3041</code>–<code>U+30FF</code>・漢字 <code>U+3400</code>–<code>U+9FFF</code>・ハングル <code>U+AC00</code>–<code>U+D7AF</code>）。ラテン文字・〇 付き数字も語になる。標点と空白は語にならない</td>
+</tr>
+<tr>
+<td>文字化けの指紋</td>
+<td>§14.6.1（貼り付けの修復候補）</td>
+<td>かな <code>U+3041</code>–<code>U+3096</code>・<code>U+30A1</code>–<code>U+30FA</code>（<strong>長音符と半角カナを含まない</strong>）／半角カナ <code>U+FF66</code>–<code>U+FF9D</code>（<strong>濁点・半濁点 <code>U+FF9E</code>–<code>U+FF9F</code> を含まない</strong>）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="63-トークン種別セマンティックトークン">6.3 トークン種別（セマンティックトークン）</h3>
+<p>構文ハイライトで区別するセマンティックトークン種別。配色は §11.2。</p>
+<table>
+<thead>
+<tr>
+<th>TokenType</th>
+<th>対象</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sigil.structure</code></td>
+<td>行頭 <code>@</code>、話者注釈の <code>@</code></td>
+</tr>
+<tr>
+<td><code>sigil.ref</code></td>
+<td><code>'</code>、<code>'{</code>、<code>}</code></td>
+</tr>
+<tr>
+<td><code>scene.id</code></td>
+<td><code>01-04-02-03</code> の数値部</td>
+</tr>
+<tr>
+<td><code>scene.title</code></td>
+<td>見出し行のタイトル部</td>
+</tr>
+<tr>
+<td><code>ref.character</code></td>
+<td>解決済みキャラ名</td>
+</tr>
+<tr>
+<td><code>ref.address</code></td>
+<td>解決済み呼称（§5.5.6）</td>
+</tr>
+<tr>
+<td><code>ref.word</code></td>
+<td>解決済み用語</td>
+</tr>
+<tr>
+<td><code>ref.material</code></td>
+<td>解決済み資料 ID</td>
+</tr>
+<tr>
+<td><code>ref.unresolved</code></td>
+<td>未解決参照</td>
+</tr>
+<tr>
+<td><code>citation</code></td>
+<td>行末の資料引用注釈 <code>^M0137</code>（§5.2.4）</td>
+</tr>
+<tr>
+<td><code>illustration</code></td>
+<td>挿絵メモ行 <code>! ...</code>（§5.2.5）</td>
+</tr>
+<tr>
+<td><code>modifier.mode</code></td>
+<td><code>:B</code> <code>:B+D</code></td>
+</tr>
+<tr>
+<td><code>modifier.title</code></td>
+<td>資料タイトル修飾子</td>
+</tr>
+<tr>
+<td><code>dialogue.bracket</code></td>
+<td><code>「</code> <code>」</code> <code>『</code> <code>』</code></td>
+</tr>
+<tr>
+<td><code>dialogue.text</code></td>
+<td>鉤括弧の内側</td>
+</tr>
+<tr>
+<td><code>speaker</code></td>
+<td>話者注釈のキャラ名</td>
+</tr>
+<tr>
+<td><code>section.break</code></td>
+<td><code>;</code></td>
+</tr>
+<tr>
+<td><code>field.key</code></td>
+<td>フィールド行のキー部</td>
+</tr>
+<tr>
+<td><code>comment</code></td>
+<td><code>//</code>, <code>/* */</code></td>
+</tr>
+<tr>
+<td><code>ruby.base</code> / <code>ruby.text</code></td>
+<td>ルビ</td>
+</tr>
+<tr>
+<td><code>role-language</code></td>
+<td>役割語一致部（下線専用、色は変えない）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="64-モード解決">6.4 モード解決</h3>
+<h4 id="641-モードの定義元">6.4.1 モードの定義元</h4>
+<p><code>characters.md</code> の <code>## modes</code> 配下。<code>(mode_id, range)</code> の組で一意。</p>
+<h4 id="642-割り当てプロットが正">6.4.2 割り当て（プロットが正）</h4>
+<p>モードの割り当ては <strong>話プロット（B 形式）の <code>mode:</code> フィールドで行う</strong>。本文側の話者注釈 <code>@名前:B</code> は「その台詞だけの一時上書き」である。</p>
+<h4 id="643-解決順序上から順に最初に見つかったものを採用固定">6.4.3 解決順序（上から順に最初に見つかったものを採用、固定）</h4>
+<ol>
+<li>本文の当該行の話者注釈の修飾子（<code>@リリア:C</code>）— その行のみ</li>
+<li>話プロットの <strong>当該節</strong> の <code>mode:</code></li>
+<li>話プロットの <strong>当該場面</strong>（見出し直下）の <code>mode:</code></li>
+<li>話プロットの preamble の <code>mode:</code></li>
+<li>章プロット（<code>plots/AA.cnov</code>）の当該話ブロックの <code>cast:</code> に書かれたモード</li>
+<li>全体プロット（<code>plots/all.cnov</code>）の当該章ブロックの <code>cast:</code> に書かれたモード</li>
+<li><code>characters.md</code> の <code>default-mode</code></li>
+<li>モード未決定 → <strong>W006</strong>。参照ペインには「モード未指定」と表示し、全モードの <code>role</code> だけを 1 行ずつ畳んで出す</li>
+</ol>
+<h4 id="644-制約">6.4.4 制約</h4>
+<ul>
+<li>1 キャラ 1 節につき <strong>最大 2 モード</strong>（<code>A+B</code>）。3 つ以上は <strong>E005</strong>。</li>
+<li>2 モードが有効なときの参照ペイン表示は、<code>personality</code> → <code>emotion</code> → <code>role</code> の順に <strong>モードごとに並べる</strong>（マージしない）。</li>
+<li>割り当てたモードの <code>range</code> が対象 SceneId を含まなければ <strong>E004</strong>。
+クイックフィックス: (a) <code>range</code> を拡張する、(b) 範囲を含む別の同名モード定義を作る、(c) 範囲内の他モードに差し替える。</li>
+</ul>
+<h4 id="645-変種同一-id異-rangeの選択">6.4.5 変種（同一 ID・異 range）の選択</h4>
+<p>対象 SceneId を含む <code>range</code> を持つ定義が一意に決まること。
+複数が一致したら <strong>E017</strong>（定義側の range 重複エラー。パース時に検出するので実行時は起きない）。</p>
+<h4 id="646-参照ペインの表示規則指示-6モードの性格のみを左に表示する">6.4.6 参照ペインの表示規則（指示 6「モードの性格のみを左に表示する」）</h4>
+<ul>
+<li>有効モードの <code>personality</code> / <code>emotion</code> / <code>role</code> / 役割語パターンのみ表示する。</li>
+<li><strong>他モードの本文は表示しない</strong>（折り畳みボタンすら置かない。キーボード操作 <code>Ctrl+Shift+M</code> で初めて全モード一覧を別ポップアップに出す）。</li>
+<li>キャラ直下の <code>attributes</code> は常時表示（モードに依存しない事実のため）。</li>
+</ul>
+<h3 id="65-役割語の照合">6.5 役割語の照合</h3>
+<h4 id="651-パターン言語rolepattern">6.5.1 パターン言語（RolePattern）</h4>
+<p><code>「</code> <code>」</code> に囲んで書く。<strong>正規表現そのものではなく</strong>、次の 5 種のアトムだけを持つ小言語とする。</p>
+<table>
+<thead>
+<tr>
+<th>アトム</th>
+<th>意味</th>
+<th>変換後の正規表現</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>*</code> / <code>〜</code></td>
+<td>0 文字以上の任意文字列（改行を含まない）</td>
+<td><code>[^\n]*?</code></td>
+</tr>
+<tr>
+<td><code>…</code> / <code>...</code> / <code>‥</code></td>
+<td>間（1 個以上の省略記号・句点の連続）</td>
+<td><code>[…‥.。]{1,6}</code></td>
+</tr>
+<tr>
+<td><code>(体言)</code> 等</td>
+<td>語クラス。<code>project.toml</code> の <code>lexicon.word_classes</code> で定義</td>
+<td>定義された正規表現</td>
+</tr>
+<tr>
+<td><code>?</code></td>
+<td>任意の 1 文字</td>
+<td><code>[^\n]</code></td>
+</tr>
+<tr>
+<td>それ以外</td>
+<td>リテラル（正規表現メタ文字はエスケープ）</td>
+<td><code>\Q...\E</code> 相当</td>
+</tr>
+</tbody>
+</table>
+<p>既定の語クラス（<code>project.toml</code> 未指定時）:</p>
+<table>
+<thead>
+<tr>
+<th>クラス</th>
+<th>正規表現</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>(体言)</code></td>
+<td><code>[\p{Han}\p{Katakana}\p{Hiragana}A-Za-z0-9ー]{1,24}</code></td>
+</tr>
+<tr>
+<td><code>(用言)</code></td>
+<td><code>[\p{Han}\p{Hiragana}]{1,16}</code></td>
+</tr>
+<tr>
+<td><code>(数)</code></td>
+<td><code>[0-9０-９一二三四五六七八九十百千万]{1,8}</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>project.toml</code> の <code>lexicon.word_classes</code> に<strong>正規表現として不正な値</strong>を書いた場合は、<code>project.toml</code> のその値に <strong>E027</strong> を出し、<strong>そのクラスを使うパターンだけ</strong>を無効にする（他のパターンは生かす。役割語の色が消えるだけで執筆は止まらない、§4.3-4）。不正かどうかは値を<strong>単独で</strong>正規表現としてコンパイルできるかで決める。</p>
+<h4 id="652-アンカー規則固定">6.5.2 アンカー規則（固定）</h4>
+<p>パターンの先頭・末尾がワイルドカード（<code>*</code> / <code>〜</code>）かどうかで決まる。</p>
+<table>
+<thead>
+<tr>
+<th>形</th>
+<th>例</th>
+<th>照合</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>先頭ワイルドカード・末尾リテラル</td>
+<td><code>「*だよ！」</code></td>
+<td><strong>文末一致</strong>（<code>$</code> アンカー）</td>
+</tr>
+<tr>
+<td>先頭リテラル・末尾ワイルドカード</td>
+<td><code>「ちょっ…*」</code></td>
+<td><strong>文頭一致</strong>（<code>^</code> アンカー）</td>
+</tr>
+<tr>
+<td>両端ワイルドカード</td>
+<td><code>「*ヨシ*」</code></td>
+<td>位置自由</td>
+</tr>
+<tr>
+<td>ワイルドカード無し</td>
+<td><code>「です。」</code> <code>「ほう…」</code></td>
+<td><strong>文末一致</strong>（既定）</td>
+</tr>
+<tr>
+<td><code>=</code> 前置</td>
+<td><code>「=ほう…」</code></td>
+<td><strong>完全一致</strong>（発話全体が一致）</td>
+</tr>
+</tbody>
+</table>
+<p>ここで <code>^</code> / <code>$</code> が指すのは<strong>文</strong>の先頭・末尾である。文は、発話（<code>「」</code> / <code>『』</code> の内側の文字列）を
+文末記号 <code>。</code> <code>！</code> <code>？</code> <code>!</code> <code>?</code> <code>…</code> の<strong>連続の直後</strong>で区切った単位とし、次の 3 点を決めておく。</p>
+<ul>
+<li>発話の頭（または区切りの直後）にある文末記号の連続は区切りにせず、<strong>次の文の頭に含める</strong>
+（<code>…あの…その…</code> は <code>…あの…</code> と <code>その…</code> の 2 文。<code>…</code> で始まる文が空にならない）。</li>
+<li>文の前後の空白（半角・全角・タブ）は文に含めない（<code>えっ！　ちょっ…待って</code> の 2 文目は <code>ちょっ…待って</code>）。</li>
+<li><strong><code>=</code> 前置の完全一致だけは文に分けず、発話全体</strong>と照合する。</li>
+</ul>
+<p>したがって <code>「分かってるよ。でも、これを見てくれ」</code> に文末固定の <code>*よ。</code> は 1 文目の末尾に<strong>一致する</strong>。
+文末記号の<strong>後ろにさらに文字が続く</strong>パターン（<code>*よ。でも*</code> など）は、その記号で文が切れるため一致しない。
+1 つの台詞で複数の文が一致したら、すべての一致に下線を引く（§6.5.4 の和集合）。</p>
+<h4 id="653-照合対象">6.5.3 照合対象</h4>
+<ul>
+<li>C 形式の <code>dialogue.text</code>（<code>「」</code> / <code>『』</code> の内側）のみ。地の文は照合しない（MUST）。</li>
+<li>入れ子（<code>「『…』」</code>）は内側・外側の<strong>両方</strong>を台詞として扱う。種類の違う閉じ括弧（<code>「…』</code>）は閉じとして扱わない。</li>
+<li>閉じ忘れた <code>「</code> / <code>『</code> の内側は <strong>行末まで</strong> とする（行をまたがない。書きかけの台詞でも役割語が見えるほうが役に立ち、原文は書き換えないので往復は影響を受けない）。同じ規則を、台詞の字数（§9.4.2）・台詞内の句読点直後の空白（§7.2.2）・読点候補の除外（§9.4.3）も用いる。</li>
+<li>話者は、行末の話者注釈 → 直前の話者注釈の継続 → プロットの <code>pov</code> の順に決める。話者不明の台詞は照合しない。</li>
+<li>適用パターン集合 = （有効モードのパターン）∪（キャラ共通 <code>## tone</code> のパターン）。有効モードが 2 つならそれぞれの和。</li>
+</ul>
+<h4 id="654-表示">6.5.4 表示</h4>
+<ul>
+<li>一致した範囲から <strong><code>*</code> / <code>〜</code>（<code>[^\n]*?</code>）が食った部分を除いた</strong>ところに緑の下線（<code>syntax.role-language</code>、§11.3）。語クラス <code>(体言)</code>・省略記号 <code>…</code>・<code>?</code> が食った部分は<strong>下線に含める</strong>（。付録 B.3 の 4 行目が <code>(体言)！</code> → <code>静粛に！</code> の全体を下線としているためで、B.3 を正とした。§9.1 A-21）。</li>
+<li>複数パターンが一致したら、一致範囲の和集合に 1 本の下線を引く（二重線にしない）。</li>
+<li><strong>一致しない場合は何もしない。</strong> 診断も色も出さない（指示 6 の明文、MUST）。</li>
+<li>例外として、文体チェックワークスペース（§10.9）でだけ「役割語が検出されなかった台詞」を一覧できる（本文編集画面には出さない）。</li>
+</ul>
+<h4 id="655-計算量">6.5.5 計算量</h4>
+<p>1 台詞あたり（適用パターン数 × 文数）回の正規表現検索。パターンはモードごとに <code>RegexSet</code> へ事前コンパイルしてキャッシュする。
+目標: 1 行 10 パターンで 20µs 以内。</p>
+<h3 id="66-資料-id-の解決とインレイヒント">6.6 資料 ID の解決とインレイヒント</h3>
+<h4 id="661-参照の書き方">6.6.1 参照の書き方</h4>
+<table>
+<thead>
+<tr>
+<th>書き方</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>'M0137</code></td>
+<td>ID のみ。タイトルは <strong>インレイヒント</strong>（ファイルには書かれない）として表示</td>
+</tr>
+<tr>
+<td><code>'M0137:科学の甲子園 本戦の運営と実技課題</code></td>
+<td>タイトル明示。index と照合される</td>
+</tr>
+<tr>
+<td><code>'科学の甲子園 本戦の運営と実技課題</code></td>
+<td>タイトル直接参照（<code>MaterialTitle</code> 辞書）。ID へ正規化するクイックフィックスを提供</td>
+</tr>
+</tbody>
+</table>
+<h4 id="662-インレイヒント">6.6.2 インレイヒント</h4>
+<ul>
+<li>表示位置: トークン直後。内容: <code>⟨タイトル⟩</code>。24 字を超える場合は 23 字 + <code>…</code>。</li>
+<li><code>status</code> が <code>proposed</code> の資料は <code>⟨タイトル・提案中⟩</code>、<code>rejected</code> は <code>⟨タイトル・却下⟩</code> と添える。</li>
+<li>文字色は <code>fg.faint</code>、フォントサイズは本文の 0.85 倍。<strong>選択・コピーの対象にしない</strong>（MUST）。</li>
+<li>トグル: <code>Alt+H</code>。<code>.novnow/ui.json.inlay_hints</code> に保存。</li>
+<li>エクスポート・読者モード・印刷では絶対に出さない（MUST）。</li>
+<li>出すのは<strong>エディタ</strong>（節エディタと、各ワークスペースのプロット・資料などのエディタ）。文脈ビューや上段の親プロットなど
+読むだけの表示には出さない。後ろに続く文字はヒントの幅だけ右へずらして描く（ファイルの中身もカーソルの位置づけも
+変わらない）。行末のヒントはそのまま行の後ろに描く。</li>
+<li>§3.4 の「モード名の薄表示」（<code>'リリア:B</code> と話者注釈 <code>@リリア:B</code> の直後）も同じ見た目で <code>⟨呆れ（強）⟩</code> と出す。併用（<code>B+C</code>）は
+表示名を書かれた順に <code>+</code> でつなぐ。英語の UI では <code>⟨title · proposed⟩</code> / <code>⟨title · rejected⟩</code>（括弧と添え文言は §12.2 の
+カタログ）。</li>
+</ul>
+<blockquote>
+<p>これは「Rust の LSP が型推論結果をファイルに書かずに表示する」のと同じ仕組み（指示 9 の明文）である。</p>
+</blockquote>
+<h4 id="663-タイトル不一致">6.6.3 タイトル不一致</h4>
+<p>明示タイトルが index の <code>title</code> と <strong>正規化比較（§6.1.3）で不一致</strong> のとき:</p>
+<ul>
+<li><strong>E006</strong>: 赤い波線を <code>modifier.title</code> の範囲に引く。</li>
+<li>クイックフィックス 1（既定・<code>Enter</code> 一発で適用）: index のタイトルで置換する。</li>
+<li>クイックフィックス 2: index 側のタイトルをファイルの記述に合わせる（<code>index.json</code> を書き換える）。</li>
+<li>クイックフィックス 3: 同名タイトルを持つ別 ID が存在する場合、その ID に貼り替える。</li>
+</ul>
+<p>存在しない ID は <strong>E007</strong>（補完候補として近い ID / タイトルを 5 件提示）。</p>
+<h4 id="664-参照の方向">6.6.4 参照の方向</h4>
+<p>資料 ID は <strong>プロットに書く</strong>。本文（C 形式）にも書けるが、エクスポート時に消える前提の注釈であるため <strong>W031</strong> で「プロットに書くこと」を促す。</p>
+<h3 id="67-インクリメンタル再解析">6.7 インクリメンタル再解析</h3>
+<ul>
+<li>1 行編集 → その行のみ再字句解析 → <strong>節番号（D）に影響する種別が変わった場合のみ</strong>、その行以降の <strong>節番号（D）の付番</strong> を再計算（O(ファイル行数) だが単純ループ、10 万行で 2ms 以内）。
+付番に影響するのは構造見出し（<code>@</code>）と節区切り（<code>;</code>）だけで、コメント・フィールド行・継続行・本文行のあいだの種別変化は付番を変えないので再計算しない。</li>
+<li>行数が変わる編集（改行の挿入・削除、複数行の貼り付け）は、種別が変わらなくても編集位置以降の付番を再計算する（行番号と節番号の対応がずれるため）。編集位置が行数を超えていたら末尾への追加として扱い、パニックしない。</li>
+<li>参照解決は「編集行」と「参照ペインに出ている行」だけを即時、ファイル全体は 300ms アイドルで再計算。</li>
+<li>診断は編集行を即時、ファイル全体はアイドル 300ms、プロジェクト全体は明示操作（§10.9）またはアイドル 5 秒。</li>
+</ul>
+<hr>
+<h4 id="673-節単位の同期解析と他節デバウンス状態-実装完了">6.7.3 節単位の同期解析と他節デバウンス〔状態: 実装完了〕</h4>
+<ul>
+<li>打鍵時の同期処理では<strong>現在編集中の 1 節のみ</strong>を解析・トークン化・ローカル診断し、同一ファイル内の他の節およびプロジェクト全体の再解析・診断はアイドル時（デバウンス後）に遅延実行する。これによりファイル全体の文字量に比例して打鍵が重くなることを防ぎ、10 万字のファイルでも <strong>1 打鍵 16ms 以内</strong>を維持する。</li>
+</ul>
+<h2 id="付録-b-役割語パターン言語と提示された例の変換表">付録 B: 役割語パターン言語と、提示された例の変換表</h2>
+<h3 id="b1-変換規則651-の再掲">B.1 変換規則（§6.5.1 の再掲）</h3>
+<table>
+<thead>
+<tr>
+<th>記法</th>
+<th>正規表現</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>*</code> / <code>〜</code></td>
+<td><code>[^\n]*?</code></td>
+</tr>
+<tr>
+<td><code>…</code> / <code>...</code></td>
+<td><code>[…‥.。]{1,6}</code></td>
+</tr>
+<tr>
+<td><code>(体言)</code></td>
+<td><code>[\p{Han}\p{Katakana}\p{Hiragana}A-Za-z0-9ー]{1,24}</code></td>
+</tr>
+<tr>
+<td><code>?</code></td>
+<td><code>[^\n]</code></td>
+</tr>
+<tr>
+<td>その他</td>
+<td>リテラル（メタ文字はエスケープ）</td>
+</tr>
+</tbody>
+</table>
+<p>アンカー: 先頭ワイルドカード → <code>$</code> 固定 / 末尾ワイルドカード → <code>^</code> 固定 / 両端ワイルドカード → 自由 / ワイルドカード無し → <code>$</code> 固定 / <code>=</code> 前置 → 完全一致。<code>^</code> / <code>$</code> は<strong>文</strong>の先頭・末尾、完全一致だけは発話全体（§6.5.2）。</p>
+<h3 id="b2-提示された役割語の-v010-表記">B.2 提示された役割語の v0.1.0 表記</h3>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="md"><code><span class="line"><span style="color:#005CC5;font-weight:bold"># 葵あおい</span></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## tone</span></span>
+<span class="line"><span style="color:#24292E">「</span><span style="color:#24292E;font-style:italic">*だよ！」「*</span><span style="color:#24292E">じゃん！」</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold"># 恩田恵</span></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## tone</span></span>
+<span class="line"><span style="color:#24292E">「</span><span style="color:#24292E;font-style:italic">*で…」「*</span><span style="color:#24292E">です…」「…あの…*」</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold"># しろい</span></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## tone</span></span>
+<span class="line"><span style="color:#24292E">「です。」「ます。」「ほう…」「ですね。」</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold"># かずさ</span></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## tone</span></span>
+<span class="line"><span style="color:#24292E">「</span><span style="color:#24292E;font-style:italic">*でしょ。」「*</span><span style="color:#24292E">ってば。」「</span><span style="color:#24292E;font-style:italic">*じゃない！」「ちょっ…*</span><span style="color:#24292E">」</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold"># 佐倉先生</span></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## tone</span></span>
+<span class="line"><span style="color:#24292E">「</span><span style="color:#24292E;font-style:italic">*よ」「*</span><span style="color:#24292E">なさーい」「(体言)！」</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold"># 遠藤</span></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## tone</span></span>
+<span class="line"><span style="color:#24292E">「</span><span style="color:#24292E;font-style:italic">*でお願いね。」「*</span><span style="color:#24292E">ね」</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold"># 千代</span></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## tone</span></span>
+<span class="line"><span style="color:#24292E">「</span><span style="color:#24292E;font-style:italic">*やで〜」「*</span><span style="color:#24292E">らしいで〜」「*なんよ〜」</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold"># 瀬戸晴香</span></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## tone</span></span>
+<span class="line"><span style="color:#24292E">「</span><span style="color:#24292E;font-style:italic">*んだよ！」「*</span><span style="color:#24292E">ヨシ」「</span><span style="color:#24292E;font-style:italic">*つーの」「オッケーっじゃあ*</span><span style="color:#24292E">」「そか…」「*な」</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold"># 日向</span></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## tone</span></span>
+<span class="line"><span style="color:#24292E">「(体言)」「*ある」「かな」「だし」</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold"># すず</span></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## tone</span></span>
+<span class="line"><span style="color:#24292E">「</span><span style="color:#24292E;font-style:italic">*よ」「*</span><span style="color:#24292E">ね」「</span><span style="color:#24292E;font-style:italic">*だわ」「*</span><span style="color:#24292E">かしら」</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold"># りつ</span></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## tone</span></span>
+<span class="line"><span style="color:#24292E">「</span><span style="color:#24292E;font-style:italic">*たまえ」「*</span><span style="color:#24292E">だ」</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold"># ひな</span></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## tone</span></span>
+<span class="line"><span style="color:#24292E">「</span><span style="color:#24292E;font-style:italic">*なの！」「*</span><span style="color:#24292E">じゃないの！」「ふーん。*」</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold"># 長谷川</span></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## tone</span></span>
+<span class="line"><span style="color:#24292E">「</span><span style="color:#24292E;font-style:italic">*です！」「*</span><span style="color:#24292E">ですよ！」「*ますね。」</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold"># 伊吹</span></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## tone</span></span>
+<span class="line"><span style="color:#24292E">「</span><span style="color:#24292E;font-style:italic">*っす！」「*</span><span style="color:#24292E">であります！」</span></span></code></pre>
+<h3 id="b3-変換結果の例テストの期待値">B.3 変換結果の例（テストの期待値）</h3>
+<table>
+<thead>
+<tr>
+<th>パターン</th>
+<th>アンカー</th>
+<th>正規表現</th>
+<th>一致例（下線部）</th>
+<th>不一致例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>*だよ！</code></td>
+<td>文末</td>
+<td><code>[^\n]*?だよ！$</code></td>
+<td>「もう行く__だよ！__」</td>
+<td>「本当だよ！？」</td>
+</tr>
+<tr>
+<td><code>…あの…*</code></td>
+<td>文頭</td>
+<td><code>^[…‥.。]{1,6}あの[…‥.。]{1,6}[^\n]*?</code></td>
+<td>「__…あの…__その…」</td>
+<td>「えっと、…あの…」</td>
+</tr>
+<tr>
+<td><code>です。</code></td>
+<td>文末</td>
+<td><code>です。$</code></td>
+<td>「承知しました__です。__」</td>
+<td>「ですが」</td>
+</tr>
+<tr>
+<td><code>(体言)！</code></td>
+<td>文末</td>
+<td><code>[\p{Han}\p{Katakana}\p{Hiragana}A-Za-z0-9ー]{1,24}！$</code></td>
+<td>「<strong>静粛に！</strong>」</td>
+<td>「ねえ、いいでしょ？」</td>
+</tr>
+<tr>
+<td><code>ちょっ…*</code></td>
+<td>文頭</td>
+<td><code>^ちょっ[…‥.。]{1,6}[^\n]*?</code></td>
+<td>「__ちょっ…__待って」</td>
+<td>「あ、ちょっ…」</td>
+</tr>
+<tr>
+<td><code>*ヨシ</code></td>
+<td>文末</td>
+<td><code>[^\n]*?ヨシ$</code></td>
+<td>「指差し確認__ヨシ__」</td>
+<td>「ヨシと言った」</td>
+</tr>
+<tr>
+<td><code>オッケーっじゃあ*</code></td>
+<td>文頭</td>
+<td><code>^オッケーっじゃあ[^\n]*?</code></td>
+<td>「__オッケーっじゃあ__始めるぞ」</td>
+<td>「じゃあオッケー」</td>
+</tr>
+<tr>
+<td><code>かな</code></td>
+<td>文末</td>
+<td><code>かな$</code></td>
+<td>「行ける__かな__」</td>
+<td>「かなり」</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><code>「*よ」</code>（すず）と <code>「*よ」</code>（佐倉先生）のように <strong>複数キャラで同じパターン</strong> が現れてよい。
+照合は常に「その台詞の話者のパターン集合」に対してのみ行うため、衝突は起きない。</p>
+</blockquote>
+<h3 id="b4-下線範囲の決定">B.4 下線範囲の決定</h3>
+<p>正規表現のマッチ全体のうち、<strong><code>*</code> / <code>〜</code>（<code>[^\n]*?</code>）が消費した範囲を除いた部分</strong>に下線を引く。
+語クラス <code>(体言)</code>・省略記号 <code>…</code>・<code>?</code> が消費した部分は<strong>含める</strong>。
+実装はキャプチャグループを自動挿入して行う（<strong>下線に含めるアトムの連続</strong>を <code>(...)</code> で囲んだ
+正規表現を生成する。アトムごとに囲むと <code>…あの…</code> が 3 本に割れ、B.3 の 2 行目の期待値にならない）。</p>
+<hr>
+</article><p class="source-note" data-astro-cid-rv2sskwj>このページは <code data-astro-cid-rv2sskwj>docs/specifications/semantics.md</code> から自動生成しています。内容の正本はリポジトリのそのファイルです。</p></main></div><footer class="_footer_13bsc_1"><div class="container _inner_13bsc_8"><div><p class="_creditText_13bsc_16">NovNow - Created by <a href="https://github.com/sonneko" target="_blank" rel="noopener noreferrer" class="_author_13bsc_23">sonneko</a>.</p><p class="_copyright_13bsc_28">© 2026 NovNow Project. All rights reserved.</p></div><div class="_links_13bsc_33"><a href="/novnow/ja">トップ</a><a href="/novnow/ja/guide">機能一覧</a><a href="/novnow/ja/troubleshooting">トラブルシューティング</a><a href="https://github.com/sonneko/novnow" target="_blank" rel="noopener noreferrer">GitHub</a></div></div></footer><p><a href="/novnow/nightly-app/">Nightly (unstable) / 開発版（不安定）</a></p></body></html>

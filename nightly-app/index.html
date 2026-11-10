@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8">
+    <title>novnow — 小説プロジェクト向け執筆 IDE</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#1a1a1a">
+    <meta name="novnow-version" content="0.1.1">
+    
+    
+    
+    
+    <!-- ユーザーガイド（`docs/users` から scripts/docs-site.py が作る。§14.2.1 の 3 URL がここに実在する） -->
+    
+    
+<script type="module">
+import init, * as bindings from './novnow-a723571b0a6f7a44.js';
+const wasm = await init({ module_or_path: './novnow-a723571b0a6f7a44_bg.wasm' });
+
+
+window.wasmBindings = bindings;
+
+
+dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
+
+</script>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #1a1a1a;
+        }
+        /* eframe の Web が前提にする置き方（eframe_template と同じ）。eframe は IME の変換候補を出す隠れた
+           入力欄の位置を「canvas が横に 50% ずらしてある」前提で計算するので、left: 50% と translate(-50%) が
+           要る（無いと変換候補が左に canvas の幅の半分ずれる）。display: block は行の下の隙間を無くす。 */
+        canvas {
+            margin-right: auto;
+            margin-left: auto;
+            display: block;
+            position: absolute;
+            top: 0%;
+            left: 50%;
+            transform: translate(-50%, 0%);
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+<link rel="modulepreload" href="./novnow-a723571b0a6f7a44.js" crossorigin="anonymous" integrity="sha384-gLc91dMb1UP1eW8Zn+8JrlOE4U0D0XycrWDvkEF52NK23TP6ylBIQNnw/a96Nh0T"><link rel="preload" href="./novnow-a723571b0a6f7a44_bg.wasm" crossorigin="anonymous" integrity="sha384-VGnuX8MnLgPNTQkHN78JpMNSGhgfdooOhQp11tTyBt/2Hgg9E6Ks9IIpu06wL0SP" as="fetch" type="application/wasm"></head>
+<body>
+    <div id="offline-status" role="status" aria-live="polite" style="position:fixed;bottom:0;right:0;z-index:10;font:12px sans-serif;color:#ccc;background:#1a1a1a;padding:2px 6px">オフライン準備中</div>
+    <script>
+      // 入口ページの初期言語（§13.4.2）: 本体が読み込まれる前からブラウザのロケールで出す
+      (function () {
+        var ja = (navigator.language || '').toLowerCase().indexOf('ja') === 0;
+        document.documentElement.lang = ja ? 'ja' : 'en';
+        document.title = ja ? 'novnow — 小説プロジェクト向け執筆 IDE' : 'novnow — a writing IDE for novel projects';
+        if (!ja) document.getElementById('offline-status').textContent = 'Preparing offline';
+      })();
+    </script>
+    <canvas id="the_canvas_id"></canvas>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', async () => {
+          const status = document.getElementById('offline-status');
+          try {
+            const registration = await navigator.serviceWorker.register('./sw.js');
+            const worker = registration.installing || registration.waiting || registration.active;
+            if (worker && worker.state !== 'activated') {
+              await new Promise((resolve, reject) => {
+                const changed = () => {
+                  if (worker.state === 'activated') resolve();
+                  if (worker.state === 'redundant') reject(new Error('offline installation failed'));
+                };
+                worker.addEventListener('statechange', changed);
+                changed();
+              });
+            }
+            await navigator.serviceWorker.ready;
+            status.textContent = navigator.language.startsWith('ja') ? 'オフライン準備完了' : 'Ready offline';
+            status.dataset.ready = 'true';
+          } catch (error) {
+            status.textContent = navigator.language.startsWith('ja') ? 'オフライン準備未完了' : 'Offline setup incomplete';
+            console.warn(error);
+          }
+        });
+      } else {
+        document.getElementById('offline-status').textContent = navigator.language.startsWith('ja') ? 'オフライン非対応' : 'Offline setup unavailable';
+      }
+    </script>
+</body>
+</html>

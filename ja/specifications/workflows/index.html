@@ -1,0 +1,772 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="theme-color" content="#ffffff"><title>novnow 仕様書 — 資料収集・エクスポート・性能品質 | NovNow</title><meta name="description" content="NovNow - Dedicated Novel &amp; Scenario IDE for Writers &amp; Engineers"><link rel="canonical" href="https://sonneko.github.io/novnow/ja/specifications/workflows/"><link rel="alternate" hreflang="ja" href="https://sonneko.github.io/novnow/ja/specifications/workflows/"><link rel="alternate" hreflang="en" href="https://sonneko.github.io/novnow/en/specifications/workflows/"><link rel="icon" type="image/svg+xml" href="/novnow/favicon.svg"><link rel="stylesheet" href="/novnow/_astro/Footer.CS3W3i4D.css"><style>.doc{color:#23272f;max-width:820px;font-size:1.02rem;line-height:1.85}.doc h1{letter-spacing:-.025em;color:#23272f;margin-bottom:1.5rem;font-size:clamp(1.9rem,3.2vw,2.45rem);font-weight:800;line-height:1.25}.doc h2{letter-spacing:-.015em;color:#23272f;border-bottom:1px solid #ebecf0;margin:2.75rem 0 1rem;padding-bottom:.5rem;font-size:1.55rem;font-weight:700}.doc h3{color:#23272f;margin:2.1rem 0 .75rem;font-size:1.22rem;font-weight:700}.doc h4{color:#23272f;margin:1.6rem 0 .5rem;font-size:1.02rem;font-weight:700}.doc p,.doc li{color:#404756}.doc p{margin:.95rem 0}.doc ul,.doc ol{margin:.95rem 0 .95rem 1.5rem}.doc li{margin:.4rem 0}.doc strong{color:#23272f;font-weight:700}.doc a{color:#087ea4;border-bottom:1px solid #087ea44d;text-decoration:none;transition:border-color .15s,color .15s}.doc a code{color:#087ea4;background-color:#e6f7ff;transition:background-color .15s,box-shadow .15s;box-shadow:inset 0 0 0 1px #087ea438}.doc a:hover{border-bottom-color:#087ea4;text-decoration:none}.doc a:hover code{background-color:#087ea424;box-shadow:inset 0 0 0 1px #087ea45c}.doc code{color:#23272f;background-color:#99a1b326;border-radius:6px;padding:.14rem .38rem;font-size:.87em}.doc pre{border-radius:16px;margin:1.35rem 0;padding:1.15rem 1.35rem;font-size:.88rem;line-height:1.65;overflow-x:auto;box-shadow:inset 0 0 0 1px #00000014;background-color:#f6f7f9!important}.doc pre code{font-size:inherit;background:0 0;border-radius:0;padding:0}.doc table{border-collapse:separate;border-spacing:0;border:1px solid #ebecf0;border-radius:12px;width:100%;margin:1.5rem 0;font-size:.93rem;overflow:hidden}@media (width<=720px){.doc table{display:block;overflow-x:auto}}.doc th,.doc td{text-align:left;vertical-align:top;border-bottom:1px solid #ebecf0;border-right:1px solid #ebecf0;padding:.65rem .9rem}.doc th:last-child,.doc td:last-child{border-right:none}.doc tbody tr:last-child td{border-bottom:none}.doc th{color:#5e687e;white-space:nowrap;background-color:#f6f7f9;font-size:.85rem;font-weight:700}.doc td{color:#404756;background-color:#fff}.doc blockquote{background-color:#e6f7ff;border-radius:16px;margin:1.5rem 0;padding:1rem 1.25rem;box-shadow:inset 0 0 0 1px #087ea42e}.doc blockquote p{color:#23272f;margin:.3rem 0}.doc hr{border:none;border-top:1px solid #ebecf0;margin:2.5rem 0}.doc img{border-radius:12px;max-width:100%;box-shadow:0 .8px 2px #00000008,0 2.7px 6.7px #0000000c,0 12px 30px #00000014}.source-note[data-astro-cid-rv2sskwj]{color:#5e687e;border-top:1px solid #ebecf0;max-width:820px;margin-top:3rem;padding-top:1.15rem;font-size:.84rem;line-height:1.6}.source-note[data-astro-cid-rv2sskwj] code[data-astro-cid-rv2sskwj]{color:#23272f;background-color:#99a1b326;border-radius:5px;padding:.12rem .35rem;font-size:.88em}
+</style></head><body><aside class="release-notice" aria-label="リリースとデータ互換性" data-astro-cid-jtqikg62><strong data-astro-cid-jtqikg62>v0.1.1</strong>：v1 までは保存形式が変わる場合があります。v0 → v1 の移行機能は提供しません。更新前に Zip と本文テキストを保管してください。<a href="/novnow/ja/troubleshooting/#legacy-v0-project" data-astro-cid-jtqikg62>詳しく</a></aside><header class="_header_1az26_1"><div class="_inner_1az26_10"><div class="_brandGroup_1az26_21"><a href="/novnow/ja" class="_logo_1az26_27"><svg class="_logoIcon_1az26_43" viewBox="0 0 192 192" fill="none" aria-hidden="true"><rect width="192" height="192" rx="42" fill="#087EA4"></rect><path d="M43 142V50h22l62 65V50h22v92h-22L65 77v65Z" fill="#FFFFFF"></path><path d="M157 41v44" stroke="#ABE2ED" stroke-width="10" stroke-linecap="round"></path></svg><span class="_logoText_1az26_49">NovNow</span></a><span class="_versionTag_1az26_56">v0.1.1</span></div><nav class="_nav_1az26_65" aria-label="Primary"><a href="/novnow/ja/#downloads" class="_navLink_1az26_73">ダウンロード</a><a href="/novnow/ja/known-issues" class="_navLink_1az26_73">既知の問題</a><a href="/novnow/ja" class="_navLink_1az26_73">トップ</a><a href="/novnow/ja/manual/" class="_navLink_1az26_73">ガイド</a><a href="/novnow/ja/specifications/" class="_navLink_1az26_73 _active_1az26_91">仕様書</a><a href="/novnow/ja/api" class="_navLink_1az26_73">API リファレンス</a><a href="/novnow/ja/troubleshooting" class="_navLink_1az26_73">トラブルシューティング</a></nav><div class="_actions_1az26_101"><div class="_switcher_1w0ra_1" role="group" aria-label="Language"><a href="/novnow/ja/specifications/workflows" class="_langBtn_1w0ra_11 _active_1w0ra_25">日本語</a><a href="/novnow/en/specifications/workflows" class="_langBtn_1w0ra_11">EN</a></div><a href="https://github.com/sonneko/novnow" target="_blank" rel="noopener noreferrer" class="_githubBtn_1az26_107" aria-label="GitHub" title="GitHub"><svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg><span class="_githubLabel_1az26_129">GitHub</span></a></div></div></header><div class="doc-layout" data-astro-cid-rv2sskwj><aside class="doc-sidebar" aria-label="ドキュメント目次" data-astro-cid-rv2sskwj><div class="doc-sidebar-group" data-astro-cid-rv2sskwj>ユーザーガイド</div><nav class="doc-sidebar-nav" data-astro-cid-rv2sskwj><a href="/novnow/ja/manual/" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow ユーザーガイド</span></a><a href="/novnow/ja/manual/start" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>はじめての手引き（30 分で 1 本書き上げる）</span></a><a href="/novnow/ja/manual/cheatsheet" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>早見表</span></a><a href="/novnow/ja/manual/glossary" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>用語集</span></a><a href="/novnow/ja/manual/faq" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>よくある質問</span></a><a href="/novnow/ja/manual/errors" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>よく出るエラーと直し方（12 件）</span></a><a href="/novnow/ja/manual/project-structure" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>作品のフォルダ構成</span></a><a href="/novnow/ja/manual/git" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>Git で原稿を守る（知りたい人だけ）</span></a><a href="/novnow/ja/manual/publish" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>書き出した原稿を公開する</span></a><a href="/novnow/ja/manual/install" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow の入れ方（どの版を選ぶか）</span></a></nav><hr class="doc-sidebar-divider" data-astro-cid-rv2sskwj><div class="doc-sidebar-group" data-astro-cid-rv2sskwj>仕様書</div><nav class="doc-sidebar-nav" data-astro-cid-rv2sskwj><a href="/novnow/ja/specifications/overview" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 概要・原則・処理モデル</span></a><a href="/novnow/ja/specifications/project" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — プロジェクト構造</span></a><a href="/novnow/ja/specifications/syntax" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — ファイル形式（構文仕様）</span></a><a href="/novnow/ja/specifications/semantics" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 意味解決エンジン</span></a><a href="/novnow/ja/specifications/diagnostics" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 診断カタログ</span></a><a href="/novnow/ja/specifications/editing" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 編集モデルと保存</span></a><a href="/novnow/ja/specifications/ui" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 画面・ワークスペース・テーマ・国際化</span></a><a href="/novnow/ja/specifications/platform" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — ストレージと起動仕様</span></a><a href="/novnow/ja/specifications/agent" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — AI エージェント</span></a><a href="/novnow/ja/specifications/workflows" aria-current="page" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 資料収集・エクスポート・性能品質</span></a><a href="/novnow/ja/specifications/interfaces" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 外部インターフェース（ヘッドレス全機能 API 群）</span></a><a href="/novnow/ja/specifications/external" class="doc-sidebar-link" data-astro-cid-rv2sskwj><span data-astro-cid-rv2sskwj>novnow 仕様書 — 配布形態（外部提供物）</span></a></nav></aside><main data-astro-cid-rv2sskwj><article class="doc" data-astro-cid-rv2sskwj><h1 data-astro-cid-rv2sskwj>novnow 仕様書 — 資料収集・エクスポート・性能品質</h1><h2 id="16-資料収集機能">16. 資料収集機能</h2>
+<h3 id="161-ワークフロー">16.1 ワークフロー</h3>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>  収集（人間 or researcher）</span></span>
+<span class="line"><span>        │  materials/inbox/M####.md + index(status=proposed)</span></span>
+<span class="line"><span>        ▼</span></span>
+<span class="line"><span>  審査（人間・material ワークスペース）</span></span>
+<span class="line"><span>        │  タイトル / カテゴリ / conditions / summary を整える</span></span>
+<span class="line"><span>        ▼</span></span>
+<span class="line"><span>  採用  → materials/docs/ へ移動、status=approved</span></span>
+<span class="line"><span>  却下  → status=rejected（ファイルは inbox に残す。ID は回収しない）</span></span></code></pre>
+<blockquote>
+<p>これは委譲レベル <code>propose</code>（既定）の流れである。<code>apply</code> / <code>autonomous</code> では researcher の収集物は
+自動で採用され、上の審査は事後確認になる（§15.1.1、§16.7）。</p>
+</blockquote>
+<h4 id="1611-新規資料作成操作の全域有効化とボタン化状態-実装完了">16.1.1 新規資料作成操作の全域有効化とボタン化〔状態: 実装完了〕</h4>
+<ul>
+<li><code>material</code> ワークスペースでの <code>Ctrl+Shift+N</code>（新しい資料）は左一覧にフォーカスがあるときだけでなくワークスペース内のどこにフォーカスがあっても機能し、画面上のボタンからも実行できる。</li>
+</ul>
+<h4 id="1612-url-からの本文取得廃止">16.1.2 URL からの本文取得〔廃止〕</h4>
+<ul>
+<li>素材の <code>source:</code> の URL から本文を取りに行く機能は<strong>廃止</strong>した（v1 では行わない、ではなく、仕様から外す）。
+novnow はネットワークから素材を取得しない。素材の本文は利用者が <code>materials/inbox/</code> に置くか、
+<code>materials.propose</code> の <code>markdown</code> で渡す。<code>source:</code> は<strong>出所の記録</strong>としてだけ残す（取得には使わない）。</li>
+<li>採用（<code>materials.approve</code>）は <code>inbox/</code> から <code>docs/</code> への移動と索引の更新だけを行う（§16.2）。</li>
+<li>判断の理由: 取得の口（ホワイトリスト・上限・タイムアウト・失敗時の扱い）を仕様に持つ割に、
+利用者の手元（ブラウザのコピー、PDF、メモ）から本文を持ち込む経路の方が実際の使い方に合っていた。
+依存（HTTP クライアント）とセキュリティ面（SSRF・巨大ファイル）の検討も要らない。</li>
+</ul>
+<h3 id="162-インデックス582-の運用規則">16.2 インデックス（§5.8.2 の運用規則）</h3>
+<ul>
+<li><code>index.json</code> が <strong>唯一の正本</strong>。MD ファイルを手で足しただけでは資料として認識しない（W064 で「未登録の MD がある」と通知し、ワンクリックで登録できる）。
+登録は material ワークスペースでその MD を選んで <code>Ctrl+Enter</code>: 新しい ID を振り、H1（無ければファイル名）をタイトルに、<code>docs/</code> の下なら
+<code>approved</code>・それ以外は <code>proposed</code> で索引に足し、MD に ID のコメント（<code>&lt;!-- novnow:M0137 --&gt;</code>）を入れる。</li>
+<li>ID 採番は <code>next_id</code> を用いた単調増加（§5.8.2）。</li>
+<li>並べ替え・絞り込みは UI 側の表示順であり、<code>items</code> 配列の順序は <strong>追加順を保つ</strong>（差分を読みやすくするため、MUST）。</li>
+</ul>
+<h3 id="163-検索-ux">16.3 検索 UX</h3>
+<p><code>Ctrl+M</code> で開くパレット。クエリは次のトークンの組み合わせ（空白区切り、AND）。</p>
+<table>
+<thead>
+<tr>
+<th>トークン</th>
+<th>意味</th>
+<th>例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>素のテキスト</td>
+<td>タイトル・<code>summary</code>・本文・タグのあいまい一致</td>
+<td><code>甲子園 運営</code></td>
+</tr>
+<tr>
+<td><code>#カテゴリ</code></td>
+<td>カテゴリ完全一致</td>
+<td><code>#取材</code></td>
+</tr>
+<tr>
+<td><code>@範囲</code></td>
+<td><code>conditions.scope</code> が交差</td>
+<td><code>@02-03</code></td>
+</tr>
+<tr>
+<td><code>'参照</code></td>
+<td><code>conditions.ref</code> が一致</td>
+<td><code>'科学の甲子園</code></td>
+</tr>
+<tr>
+<td><code>M数字</code> / <code>S数字</code></td>
+<td>ID 前方一致</td>
+<td><code>M01</code>, <code>S00</code></td>
+</tr>
+<tr>
+<td><code>!status</code></td>
+<td>ステータス</td>
+<td><code>!proposed</code></td>
+</tr>
+<tr>
+<td><code>~日付</code></td>
+<td><code>saved_at</code> の範囲</td>
+<td><code>~2026-10</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>素のテキストは §6.1.3 の正規化と小文字化をしてから部分一致を見る。重みはタイトル 4・タグ 3・<code>summary</code> 2・本文 1（語ごとに
+最も重い 1 つ）で、スコアはその和。<code>!status</code> の語が無いときは却下（<code>rejected</code>）を出さない。</li>
+<li>既定の並び: スコア降順 → <code>saved_at</code> 降順 → ID 昇順（決定論）。</li>
+<li>各行の表示: <code>M0137  科学の甲子園 本戦の運営と実技課題   #取材  2026-10-01</code>。選択行の下に <code>summary</code> と出典を 2 行で展開。</li>
+<li><code>Enter</code>: カーソル位置に <code>'M0137</code> を挿入。<code>Shift+Enter</code>: 資料 MD を開く。<code>Ctrl+Enter</code>: 新規資料を作成してその ID を挿入。
+挿入先はワークスペースで決まる: write はキャレット、plot-episode は選んでいる節の最後に <code>material: 'M0137</code> の行、idea / plot-outline /
+cast はエディタのキャレット。material / review では挿入せずに資料を開く。もう一度 <code>Ctrl+M</code> で閉じる。</li>
+<li><strong>ID を覚えていなくても良い</strong>ことを保証する: タイトル・カテゴリ・条件・本文のどれからでも辿り着けること（MUST）。</li>
+</ul>
+<h4 id="1631-検索結果の資料化">16.3.1 検索結果の資料化</h4>
+<p><strong>正規表現検索（§9.7.4）の結果</strong> を、そのまま 1 件の資料として凍結保存する。画面では一致範囲を強調して描くが、保存する MD では次に定める固定の形（一致を <code>**…**</code> で囲む）で組み立てる。</p>
+<blockquote>
+<p>目的: 「『あの指輪』が出てくる箇所を全部探した」という <strong>調査の成果</strong> を捨てずに残す。
+次に同じことを調べ直さなくて済む。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>操作</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>起動</td>
+<td>正規表現検索の結果画面で <code>Ctrl+Shift+S</code>（「この検索結果を資料にする」）</td>
+</tr>
+<tr>
+<td>入力</td>
+<td>タイトル（既定はクエリ文字列）と、任意の <code>summary</code></td>
+</tr>
+<tr>
+<td>採番</td>
+<td><code>S####</code>（<code>M</code> と連番共有、§5.8.2）</td>
+</tr>
+<tr>
+<td>本体</td>
+<td><code>materials/docs/S0042-&lt;slug&gt;.md</code> を生成</td>
+</tr>
+<tr>
+<td>index</td>
+<td><code>materials/index.json</code> に 1 件追記。<code>category: "検索結果"</code>、<code>status: "approved"</code>、<code>added_by: "human"</code></td>
+</tr>
+<tr>
+<td>通知</td>
+<td>なし（資料一覧に新しい行が現れる。<code>I058</code> は廃止したので診断・トーストは出さない）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>生成される MD の形（固定）</strong></p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="md"><code><span class="line"><span style="color:#005CC5;font-weight:bold"># 「指輪」を含む箇所</span></span>
+<span class="line"><span style="color:#6A737D">&lt;!-- novnow:S0042 --&gt;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E">query: 指輪</span></span>
+<span class="line"><span style="color:#24292E">regex: false</span></span>
+<span class="line"><span style="color:#24292E">case_sensitive: true</span></span>
+<span class="line"><span style="color:#24292E">searched_at: 2026-10-09T21:40:12+09:00</span></span>
+<span class="line"><span style="color:#24292E">hits: 14</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;font-weight:bold">## 結果</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#E36209">-</span><span style="color:#24292E"> @01-04-02-03 … 銀の</span><span style="color:#24292E;font-weight:bold">**指輪**</span><span style="color:#24292E">を外して机に置いた。</span></span>
+<span class="line"><span style="color:#E36209">-</span><span style="color:#24292E"> @02-01-01-01 … 母の</span><span style="color:#24292E;font-weight:bold">**指輪**</span><span style="color:#24292E">はもう手元に無い。</span></span>
+<span class="line"><span style="color:#E36209">-</span><span style="color:#24292E"> @05-03-02-02 … </span><span style="color:#24292E;font-weight:bold">**指輪**</span><span style="color:#24292E">の内側に刻まれた文字。</span></span></code></pre>
+<table>
+<thead>
+<tr>
+<th>規則</th>
+<th>内容（MUST）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>凍結</strong></td>
+<td>保存した時点の結果をそのまま持つ。<strong>本文が変わっても自動更新しない</strong></td>
+</tr>
+<tr>
+<td>再実行</td>
+<td>資料詳細画面の <code>[再検索]</code> で同じクエリを走らせ、<strong>差分を表示</strong> する（新規ヒット / 消えたヒット）。更新するかは人間が決める</td>
+</tr>
+<tr>
+<td>引用の長さ</td>
+<td>1 ヒットにつき前後 20 字。全文は保存しない（本文の複製を作らないため）</td>
+</tr>
+<tr>
+<td>ヒット数上限</td>
+<td>500 件。超えたら先頭 500 件を保存し、<code>hits</code> に実数を書いて「500 件まで保存」と註記する</td>
+</tr>
+<tr>
+<td><code>source.kind</code></td>
+<td><code>"search"</code>。<code>{"kind":"search","query":"指輪","regex":false,"searched_at":"…"}</code></td>
+</tr>
+<tr>
+<td>参照</td>
+<td><code>'S0042</code> として本文・プロットから参照できる。インレイヒントにはタイトルが出る</td>
+</tr>
+<tr>
+<td>削除</td>
+<td>通常の資料と同じ。ID は回収しない</td>
+</tr>
+</tbody>
+</table>
+<p><strong>非目標</strong>: 保存した検索を「生きたクエリ」として常時再評価する機能は作らない（MUST）。
+常時再評価は、本文を書き換えるたびに全文検索が走ることを意味し、P2（執筆を妨げない）に反する。</p>
+<h3 id="164-必要になる条件と自動提示">16.4 「必要になる条件」と自動提示</h3>
+<p><code>conditions</code> の 4 種:</p>
+<table>
+<thead>
+<tr>
+<th>kind</th>
+<th>値</th>
+<th>一致判定</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scope</code></td>
+<td>範囲式</td>
+<td>現在の SceneId が範囲に含まれる</td>
+</tr>
+<tr>
+<td><code>ref</code></td>
+<td><code>'名前</code></td>
+<td>現在の節に当該参照が出現する</td>
+</tr>
+<tr>
+<td><code>tag</code></td>
+<td>文字列</td>
+<td>現在の節のプロットに同じタグがある</td>
+</tr>
+<tr>
+<td><code>text</code></td>
+<td>自由文</td>
+<td>機械判定しない（人間とエージェントが読む）</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>参照ペインの「資料」欄は <strong>明示参照</strong> を先に、続けて <strong>条件一致した候補</strong> を薄い色で並べる。
+候補は「まだ参照していないが、今必要かもしれない資料」であり、<code>Enter</code> でプロットに <code>material:</code> として追記できる。
+明示参照は本文の参照と、話プロットの場面見出しの行・節の <code>material:</code>。候補にするのは採用済み（<code>approved</code>）の資料だけで、<code>tag</code> は
+話プロット（B 形式）の <code>tags:</code> / <code>タグ:</code> の値と比べる。候補はダブルクリックか <code>Ctrl+3</code> → <code>Enter</code> で、話プロットのその節の最後に
+<code>material:</code> の行として足す。</li>
+<li><code>researcher</code> のコンテキストには、条件一致した資料も含める（§15.4.1 の <code>7 materials</code>）。</li>
+</ul>
+<h3 id="165-プロットからの参照と表示">16.5 プロットからの参照と表示</h3>
+<p>§6.6 のとおり。要点を再掲する。</p>
+<ul>
+<li>プロットには <strong>数字 ID を書く</strong>。タイトルは <strong>インレイヒント</strong>で表示される（ファイルには書かれない）。</li>
+<li>タイトルを明示的に書くこともできる（<code>'M0137:タイトル</code>）。</li>
+<li>明示タイトルが ID と食い違えば <strong>赤波線（E006）</strong>、クイックフィックスで ID からタイトルを補完・提案する。</li>
+</ul>
+<h4 id="1651-要約の続き表示と-url-外部リンク状態-実装完了">16.5.1 要約の「続き…」表示と URL 外部リンク〔状態: 実装完了〕</h4>
+<ul>
+<li>参照ペインで資料の要約が上限により途中で切れる場合は「<code>続き...</code>」の 1 行を表示する。</li>
+<li>資料ビュワーおよび参照表示に URL が含まれる場合は、外部リンクアイコンと薄い黒のアンダーライン＋ホバー時青色を付け、クリックでその URL を開けるようにする。</li>
+</ul>
+<h3 id="166-資料-md-の編集">16.6 資料 MD の編集</h3>
+<ul>
+<li><code>material</code> ワークスペースの中央ペインで直接編集できる（MD のプレビューは出さない。素の MD を見せる）。</li>
+<li>保存は §8 と同じ自動保存。</li>
+<li>保存のたびに <code>checksum</code> を更新し、<code>updated_at</code> を書き換える。<code>checksum</code> は <code>sha256:</code> ＋ 本文（UTF-8）の SHA-256 の 16 進。</li>
+</ul>
+<h3 id="167-エージェントとの連携">16.7 エージェントとの連携</h3>
+<ul>
+<li><code>researcher</code> は <code>novnow.materials.propose</code> 相当の提案を作る。委譲レベル <code>propose</code> では <strong>人間の採用操作なしに <code>approved</code> にはならない</strong>（A2）。
+<code>apply</code> / <code>autonomous</code> では自動で <code>approved</code> になり、監査ログに <code>auto_applied</code> が残る</li>
+<li>出典のない提案は自動的に W065（「出典が無い資料」）を付け、採用ボタンに確認を挟む。W065 の対象は <code>proposed</code> で <code>source</code> が空の
+項目で、位置は <code>index.json</code> のその項目の <code>id</code> の値。</li>
+<li>Web 検索などの外部アクセスは novnow が行わず、MCP サーバ（例: <code>web-research</code>）の責務とする。</li>
+</ul>
+<hr>
+<h2 id="17-エクスポート">17. エクスポート</h2>
+<p>指示 12 は「アノテーションを除去した出力」と「読者目線でのプレビュー」の 2 つを求めている。
+本章は前者（§17.1 / §17.2）を <strong>v0.1.0 本体</strong> として定義し、後者（§17.3 読者モード）は
+<strong>v0.1.0 追加仕様 #27</strong> として定義する。</p>
+<h3 id="171-アノテーション除去パイプライン">17.1 アノテーション除去パイプライン</h3>
+<p>エクスポート変換はプロジェクトと範囲・設定のみから出力文字列を決定論的に生成する（MUST）。</p>
+<p>処理順（固定）:</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>処理</th>
+<th>既定</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>対象節の収集（範囲指定、§17.2）</td>
+<td>—</td>
+</tr>
+<tr>
+<td>2</td>
+<td>構造見出し行の除去</td>
+<td>除去（<code>insert_headings</code> が真なら章・話のタイトルを見出しテキストとして挿入）</td>
+</tr>
+<tr>
+<td>3</td>
+<td>コメント（<code>//</code>, <code>/* */</code>）の除去</td>
+<td>除去。行がコメントのみなら行ごと削除</td>
+</tr>
+<tr>
+<td>3b</td>
+<td><strong><code># </code> 行コメントの除去</strong>（§5.0.8）</td>
+<td><strong>行ごと削除</strong>（MUST）</td>
+</tr>
+<tr>
+<td>3c</td>
+<td><strong>挿絵メモ行 <code>! </code> の除去</strong>（§5.2.5）</td>
+<td><strong>行ごと削除</strong>。<code>--keep-illustration-memo</code> 指定時のみ <code>［挿絵: …］</code> に変換して残す</td>
+</tr>
+<tr>
+<td>4</td>
+<td>フィールド行の除去</td>
+<td>除去（本文には通常現れない）</td>
+</tr>
+<tr>
+<td>5</td>
+<td>行末話者注釈 <code>@名前[:モード]</code> の除去</td>
+<td>除去。直前の空白も削除</td>
+</tr>
+<tr>
+<td>5b</td>
+<td><strong>資料引用注釈 <code>^M0137</code> の除去</strong>（§5.2.4）</td>
+<td>除去。直前の空白も削除（MUST）</td>
+</tr>
+<tr>
+<td>6</td>
+<td>参照の平文化（<code>'名前</code> → <code>名前</code>、<code>'{名前}</code> → <code>名前</code>、<code>:修飾子</code> 除去）</td>
+<td>平文化。呼称参照（<code>Address</code>）も表示文字列をそのまま残す</td>
+</tr>
+<tr>
+<td>7</td>
+<td>資料参照 <code>'M0137[:…]</code> / <code>'S0042</code> の除去</td>
+<td>行から除去（本文に残っていた場合）</td>
+</tr>
+<tr>
+<td>8</td>
+<td>エスケープ解除（<code>\@</code> → <code>@</code> 等）</td>
+<td>解除</td>
+</tr>
+<tr>
+<td>9</td>
+<td>ルビの処理</td>
+<td><code>keep_ruby: true</code> なら <code>｜base《ruby》</code> を保持。<code>false</code> なら base のみ</td>
+</tr>
+<tr>
+<td>10</td>
+<td>節区切り <code>;</code> の変換</td>
+<td><code>blank-line</code>（空行 1 行）。他に <code>none</code> / <code>separator</code>（<code>　　＊</code>）を選択可</td>
+</tr>
+<tr>
+<td>10b</td>
+<td><strong>章あらすじの挿入</strong>（§5.3.7）</td>
+<td><code>export.include_blurb: true</code> のときのみ、各章の先頭に <code>blurb</code> を 1 段落として挿入し、1 行空ける</td>
+</tr>
+<tr>
+<td>11</td>
+<td>連続空行の圧縮</td>
+<td>2 行以上 → 1 行</td>
+</tr>
+<tr>
+<td>12</td>
+<td>行頭字下げ</td>
+<td><code>indent_first_line: false</code>（真なら段落先頭に全角空白 1 字。ただし <code>「</code> で始まる行には入れない）</td>
+</tr>
+<tr>
+<td>13</td>
+<td>改行コード変換</td>
+<td><code>export.newline</code>（既定 <code>crlf</code>。投稿サイト互換のため）</td>
+</tr>
+<tr>
+<td>14</td>
+<td>末尾の整形</td>
+<td>末尾の空行を削り、改行 1 個で終える</td>
+</tr>
+</tbody>
+</table>
+<p><strong>不変条件（MUST）</strong>: エクスポート結果に次が残っていてはならない。</p>
+<ol>
+<li><code>@</code> で始まる行</li>
+<li><code>;</code> だけの行</li>
+<li><code>'</code> のシジル</li>
+<li><code>//</code></li>
+<li><strong><code># </code> で始まる行</strong></li>
+<li><strong><code>! </code> で始まる行</strong>（<code>--keep-illustration-memo</code> 指定時を除く）</li>
+<li><strong><code>^M</code> / <code>^S</code> + 4 桁の文字列</strong></li>
+</ol>
+<p>すべてのエクスポート出力はこの不変条件を満たさなければならない（MUST）。</p>
+<p><strong>表の読み方</strong>:</p>
+<ul>
+<li><strong>見出しと区切り</strong>（2・10）: 出す節と節のあいだ 1 か所につき、区切りを 1 回入れる。<code>;</code> の行だけでなく、
+場面・話・章の境目（見出し行を除いたところ）も同じ 1 回にする。範囲や状態の絞り込みで節が飛んでも 1 回。
+<code>insert_headings</code> で見出しを入れたところには区切りを入れない（見出しの前後に空行を 1 行ずつ置く）。
+見出しは章が全体プロット、話が章プロットの見出しのタイトルで、タイトルが空なら入れない。場面のタイトルは入れない。</li>
+<li><strong>コメント</strong>（3）: 行内コメント・行末コメントを除いた残りが空白だけになった行は行ごと消す
+（資料参照だけの行も同じ）。</li>
+<li><strong>フィールド行</strong>（4）: C 形式にフィールド行は無い（§5.0.5。<code>key: value</code> の形の行も本文）ので、本文からは何も消さない。</li>
+<li><strong>参照</strong>（6・7）: 名前部が資料 ID の形（<code>M0137</code> / <code>S0042</code>、§5.8.2）なら、解決できなくても修飾子ごと消す。
+未解決の参照は <code>'</code> を消して名前部を残し、<code>:</code> の後ろがモード式（§5.1 <code>mode_expr</code>）ならそれも消す。
+直後が区切り文字か行末の <code>'</code>（<code>'『星屑の時計』</code> の <code>'</code>）も名前を持たないシジルとして消す。英語の短縮形の
+<code>'</code>（直前が ASCII の英数字）と、エスケープ <code>\'</code> で書いた <code>'</code> は残す。</li>
+<li><strong>エスケープ</strong>（8）: エスケープで書いた文字は作家が書いたリテラルなので、結果に <code>@</code> で始まる行や <code>'</code> が
+現れることがある（不変条件はアノテーションについての約束で、リテラルは対象外）。</li>
+<li><strong>連続空行</strong>（11）: 先頭の空行も削る。</li>
+<li><strong>字下げ</strong>（12）: 「段落」は本文の 1 行。既に空白（半角・全角）で始まる行には足さない（二重にしない）。
+見出し・区切り線・空行には入れない。</li>
+</ul>
+<h3 id="172-範囲指定と出力">17.2 範囲指定と出力</h3>
+<table>
+<thead>
+<tr>
+<th>範囲</th>
+<th>指定方法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>全体</td>
+<td><code>&gt;export</code> → 既定。<strong>ストック章（<code>@00</code>）は含まない</strong>（§10.3.3、MUST）</td>
+</tr>
+<tr>
+<td>章 / 話 / 場面 / 節</td>
+<td>SceneId（<code>@01</code>, <code>@01-04</code>, <code>@01-04-02</code>, <code>@01-04-02-03</code>）</td>
+</tr>
+<tr>
+<td>複数範囲</td>
+<td>範囲式（<code>@01 .. @03, @05</code>）</td>
+</tr>
+<tr>
+<td>ストック</td>
+<td><code>@00</code> を明示指定したときのみ</td>
+</tr>
+<tr>
+<td>状態で絞る</td>
+<td><code>--state fixed</code>（<code>draft</code> を除外して公開分だけ出す）</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>出力先: デスクトップ/Web とも既定は <code>exports/&lt;title&gt;-&lt;範囲&gt;-&lt;YYYYMMDD-HHMM&gt;.txt</code>（プロジェクト内＝規則 10 適合）。
+加えて「名前を付けて保存」（ユーザーの明示操作）とクリップボードコピーを提供する。デスクトップ版の「名前を付けて保存」は保存ダイアログで書き出し先を選ばせ、<strong>プロジェクトの外も選べる</strong>（§13.1.1 の特例。名前が <code>.txt</code> / <code>.md</code> で終わるファイル 1 個に、その 1 回だけ書く。それ以外の名前は E060 で拒否して書き込まない。Web 版はブラウザのダウンロードでの「プロジェクト内だけ」を改めた）。</li>
+<li>形式: <code>.txt</code>（既定）、<code>.md</code>（見出しを <code>#</code> として出力）。</li>
+<li>CLI: <code>novnow export ./ --range @01-04 --state fixed --out -</code>（<code>-</code> は標準出力）。<code>--out &lt;パス&gt;</code> は指定されたファイル 1 個に書く。プロジェクトの外も指定できる（§13.1.1 の特例。名前は <code>.txt</code> / <code>.md</code> で終わること、親ディレクトリは作らない）。<code>--out</code> を省くと既定の <code>exports/…</code> に書く。</li>
+<li>追加オプション:</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>オプション</th>
+<th>既定</th>
+<th>動作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--include-blurb</code></td>
+<td><code>export.include_blurb</code></td>
+<td>章あらすじを挿入（§5.3.7）</td>
+</tr>
+<tr>
+<td><code>--blurb-only</code></td>
+<td>off</td>
+<td><strong>あらすじだけ</strong> を出力する（投稿サイトの紹介文欄に貼るため）。本文は出さない</td>
+</tr>
+<tr>
+<td><code>--keep-illustration-memo</code></td>
+<td>off</td>
+<td>挿絵メモを <code>［挿絵: …］</code> として残す（§5.2.5）</td>
+</tr>
+<tr>
+<td><code>--include-stock</code></td>
+<td>off</td>
+<td>ストック章を含める</td>
+</tr>
+</tbody>
+</table>
+<p><strong>範囲・状態・出力の細部</strong>:</p>
+<ul>
+<li><strong>範囲の書き方</strong>: §5.1 の範囲式に加えて、<code>@</code> を省いた書き方（<code>01-04</code>、<code>01 .. 03, 05</code>）も受け付ける
+（シェルによっては <code>@</code> が特別な意味を持つため）。左端 &gt; 右端の項は誤り（CLI は 2）。</li>
+<li><strong>状態</strong>（<code>--state s</code>）: <code>draft</code> &lt; <code>review</code> &lt; <code>fixed</code> の順で、<strong>実効の状態が <code>s</code> 以上</strong>の節だけを出す。
+実効の状態は近いものから順に見て最初に書かれていたもの: 話プロット（B 形式）の節の <code>state</code> → 同じ場面の
+場面レベル（最初の要点より前）の <code>state</code> → 章プロットの話のブロック → 全体プロットの章のブロック。
+どこにも無ければ <code>draft</code>。<code>draft</code> / <code>review</code> / <code>fixed</code> 以外の値は書かれていないものとして扱う。</li>
+<li><strong>当てはまる節が無い</strong>: 何も書かない。CLI は標準エラーに知らせて 0 で終わる。</li>
+<li><strong>既定の名前</strong>: <code>&lt;範囲&gt;</code> は全体なら <code>all</code>、項は <code>01-04</code> / <code>01~03</code>（区間）/ <code>~03</code>・<code>03~</code>（開放端）で、
+複数の項は <code>_</code> でつなぐ。<code>&lt;title&gt;</code> は <code>project.toml</code> の <code>title</code>（空ならディレクトリ名）で、ファイル名に
+使えない文字（<code>/ \ : * ? " &lt; &gt; |</code> と制御文字）は <code>_</code> にする。<code>&lt;YYYYMMDD-HHMM&gt;</code> はローカル時刻だが、
+タイムゾーンを得る手段の無いデスクトップ版は UTC（§13.2.2 の <code>opened_at</code> と同じ扱い）。</li>
+<li><strong>形式</strong>: <code>--out</code> / 保存ダイアログで選んだ名前が <code>.md</code> で終われば <code>.md</code> 形式（<code>insert_headings</code> で入れる
+見出しを章 <code>#</code>・話 <code>##</code> で書く）。それ以外は <code>.txt</code>。</li>
+<li><strong>CLI のオプション</strong>: <code>--range</code> / <code>--state</code> / <code>--out</code> は値を次の引数か <code>--name=value</code> で取る。同じオプションが
+2 回あれば後のほう。値が無い・知らないオプション（② の <code>--include-stock</code> などを含む）は 2。
+書けたら標準出力に件数（節・字）と書き出し先を出す（<code>--out -</code> のときは本文だけ）。</li>
+<li><strong>デスクトップの「エクスポート」</strong>: コマンドパレットの <code>&gt;export</code> でモーダルを開く。範囲の欄（空欄なら全体）と
+状態（<code>Tab</code> で すべて → review 以上 → fixed だけ）を選ぶと、節の数と字数がすぐ出る。<code>Enter</code> で既定の
+<code>exports/…</code> に保存、<code>Shift+Enter</code> で名前を付けて保存（保存ダイアログ）、<code>Ctrl+Shift+C</code> でクリップボードへ。
+3 つのボタンの文字は §9.2.1 の 1（内容から役割が分からない）に当たる。</li>
+</ul>
+<p>エクスポート完了ダイアログの下部に、CI/CD 解説ページ（§14.2.1 <code>CICD_GUIDE_DOC_URL</code>）へのリンクを 1 行置く。</p>
+<h3 id="173-読者モードreader-ワークスペース">17.3 読者モード（<code>reader</code> ワークスペース）</h3>
+<blockquote>
+<p>縦書き組版計算はフォント実測値（文字ごとの送り幅と縦書きグリフの有無）を入力として受け取り、グリフ幅を固定仮定せずに各文字の座標を決定論的に算出する（MUST）。</p>
+</blockquote>
+<h4 id="1731-要件">17.3.1 要件</h4>
+<ul>
+<li><strong>縦書き</strong>（右上から左下へ、行は右から左へ進む）。</li>
+<li>アノテーションは §17.1 の変換を通してから表示する（= 読者が読むものと同一）。</li>
+<li><strong>原稿に対して読み取り専用</strong>。いかなるキー操作でも原稿・プロット・資料・共有設定を変更しない（MUST）。読書位置・表示設定・しおりのローカル状態の保存だけを例外とする。</li>
+</ul>
+<h4 id="1732-レイアウト">17.3.2 レイアウト</h4>
+<ul>
+<li>1 画面 = 1 ページ。既定 18 列 × 42 字（<code>project.toml</code> の <code>reader</code>）。ウィンドウサイズに応じて列数を自動調整（<code>auto</code> 指定時）。</li>
+<li>本文フォントサイズは <code>font_scale</code> とは独立（読者モード専用の値を <code>.novnow/reader.json</code> に保持）。</li>
+<li>余白: 上下 <code>1 字分</code>、左右 <code>2 字分</code>。</li>
+<li>柱（ページ上部の小さな章題）と ノンブル（ページ番号）を表示（<code>fg.faint</code>、9px）。</li>
+<li><strong>章の表紙ページ</strong>: 章の先頭に、章題と <code>blurb</code>（§5.3.7）だけのページを 1 枚挟む。
+<code>blurb</code> が無い章では章題のみ。<code>include_blurb</code> の設定に関わらず、読者モードでは常に表示する
+（読者モードは「読み返す」ための場所であり、あらすじは読み返しの助けになるため）。</li>
+</ul>
+<h4 id="1733-組版規則must">17.3.3 組版規則（MUST）</h4>
+<table>
+<thead>
+<tr>
+<th>規則</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>行頭禁則</td>
+<td><code>、。，．）］｝〉》」』】！？ゝゞ々ー</code> と小書き仮名（<code>ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮ</code>）</td>
+</tr>
+<tr>
+<td>行末禁則</td>
+<td><code>（［｛〈《「『【</code></td>
+</tr>
+<tr>
+<td>ぶら下げ</td>
+<td>行わない（禁則処理で追い出す）</td>
+</tr>
+<tr>
+<td>縦中横</td>
+<td>半角数字 2 桁は縦中横。3 桁以上は 1 字ずつ縦置き</td>
+</tr>
+<tr>
+<td>回転</td>
+<td>ラテン文字の連続（3 文字以上）は 90° 回転して配置</td>
+</tr>
+<tr>
+<td>括弧</td>
+<td>縦書き用の互換形への置換は、使用するフォントにその文字が収録されている場合だけ行う。収録されていない字は元の括弧を 90° 回転して描く</td>
+</tr>
+<tr>
+<td>句読点位置</td>
+<td>全角の右上寄せ（仮想ボディの右上 1/4 に配置）</td>
+</tr>
+<tr>
+<td>長音・ダッシュ</td>
+<td><code>ー</code> <code>―</code> <code>…</code> は縦向きグリフ（なければ 90° 回転）</td>
+</tr>
+<tr>
+<td>ルビ</td>
+<td>親文字の右側に 0.5 倍サイズでモノルビ。はみ出しは前後に分散</td>
+</tr>
+</tbody>
+</table>
+<p>組版計算は純粋に「文字と座標の列」を算出し、画面はそれを描画する。</p>
+<p>組版計算はフォントメトリクス（文字の縦送り幅・横送り幅・縦書き用グリフの有無）とページ寸法（1 行の字数・1 ページの行数・字送り・行送り）を受け取り、各ページ内の各文字の描画座標と回転角を決定論的に算出する（MUST）。</p>
+<h4 id="1734-操作">17.3.4 操作</h4>
+<table>
+<thead>
+<tr>
+<th>キー</th>
+<th>動作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>←</code> / <code>Space</code> / <code>PageDown</code></td>
+<td>次のページ（縦書きなので左へ進む）</td>
+</tr>
+<tr>
+<td><code>→</code> / <code>PageUp</code></td>
+<td>前のページ</td>
+</tr>
+<tr>
+<td><code>Home</code> / <code>End</code></td>
+<td>作品の先頭 / 末尾</td>
+</tr>
+<tr>
+<td><code>Ctrl+G</code></td>
+<td>SceneId ジャンプ（読者モードのまま）</td>
+</tr>
+<tr>
+<td><code>+</code> / <code>-</code> / <code>0</code></td>
+<td>文字サイズ</td>
+</tr>
+<tr>
+<td><code>r</code></td>
+<td>ルビ表示トグル</td>
+</tr>
+<tr>
+<td><code>t</code></td>
+<td>テーマ切替</td>
+</tr>
+<tr>
+<td><code>b</code></td>
+<td>しおり（<code>.novnow/reader.json</code> に位置を保存）</td>
+</tr>
+<tr>
+<td><code>Esc</code> / <code>Alt+1</code></td>
+<td>編集に戻る（直前に読んでいた節の節エディタに着地）</td>
+</tr>
+</tbody>
+</table>
+<h4 id="1735-読者モードで表示しないものmust">17.3.5 読者モードで表示しないもの（MUST）</h4>
+<p>診断、インレイヒント、モードバッジ、役割語の緑下線、保存インジケータ、パンくず、資料参照、コメント。
+<strong>読者の目に入るものだけを出す</strong>。</p>
+<hr>
+<h2 id="18-性能品質要件">18. 性能・品質要件</h2>
+<h3 id="181-性能目標既定のリファレンス環境-4-コア--8gb--統合-gpu">18.1 性能目標（既定のリファレンス環境: 4 コア / 8GB / 統合 GPU）</h3>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>目標</th>
+<th>測定方法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>打鍵 → 再描画</td>
+<td>16ms 以内（60fps を割らない）。10 万字のファイルでも同じ</td>
+<td>ベンチマーク + 実機計測</td>
+</tr>
+<tr>
+<td>1 行の再字句解析</td>
+<td>50µs 以内</td>
+<td>ベンチ</td>
+</tr>
+<tr>
+<td>役割語照合（1 台詞・10 パターン）</td>
+<td>20µs 以内</td>
+<td>ベンチ</td>
+</tr>
+<tr>
+<td>辞書トライ構築（5,000 エントリ）</td>
+<td>10ms 以内</td>
+<td>ベンチ</td>
+</tr>
+<tr>
+<td>参照ペインの再構築</td>
+<td>5ms 以内</td>
+<td>ベンチ</td>
+</tr>
+<tr>
+<td>プロジェクト読み込み（500 ファイル / 合計 5MB）</td>
+<td>300ms 以内</td>
+<td>統合テスト</td>
+</tr>
+<tr>
+<td>ファイル保存（100KB）</td>
+<td>デスクトップ 20ms / Web 50ms 以内</td>
+<td>統合テスト</td>
+</tr>
+<tr>
+<td>起動（デスクトップ・プロジェクト指定あり）</td>
+<td>800ms 以内に最初のフレーム</td>
+<td>手動計測</td>
+</tr>
+<tr>
+<td>Web 初回ロード（gzip 後の wasm）</td>
+<td>8MB 以下 / 3 秒以内に選択モーダル表示</td>
+<td>CI でサイズ検査</td>
+</tr>
+<tr>
+<td>エクスポート（10 万字）</td>
+<td>200ms 以内</td>
+<td>ベンチ</td>
+</tr>
+<tr>
+<td>縦書きレイアウト（1 ページ）</td>
+<td>3ms 以内</td>
+<td>ベンチ ※追加仕様 27</td>
+</tr>
+</tbody>
+</table>
+<h4 id="1811-大規模ファイル打鍵大量一覧文脈ビューの性能要件状態-実装完了">18.1.1 大規模ファイル打鍵・大量一覧・文脈ビューの性能要件〔状態: 実装完了〕</h4>
+<ul>
+<li><strong>10 万字ファイルでの打鍵</strong>: 打鍵時は編集中の節のみを同期解析して他節をデバウンスし、<strong>10 万字のファイルで 1 打鍵 16ms 以内</strong>を保証する。</li>
+<li><strong>大量一覧の仮想スクロール</strong>: アイデア 1,000 件の一覧を開いたまま <code>Alt+↓</code> / <code>↓</code> で連続移動しても **60fps（1 フレーム 16ms 以内）**を維持するよう可視行のみを描画する。</li>
+<li><strong>文脈ビューの可視範囲レイアウト</strong>: 文脈ビューは可視範囲に入る節のみをレイアウト・描画する。</li>
+</ul>
+<h3 id="182-メモリ">18.2 メモリ</h3>
+<ul>
+<li>本文は Rope 構造 1 本 / ファイルで保持する。開いているファイルは最大 16 件までキャッシュし、それを超えたら LRU で解放する（未保存のものは解放しない）。</li>
+<li>解析結果（トークン・診断）は行単位で保持し、ファイルサイズの 2 倍を超えないこと。</li>
+</ul>
+<h3 id="183-堅牢性">18.3 堅牢性</h3>
+<ul>
+<li>パーサはどのような入力（不正な UTF-8 境界・極端に長い行・壊れた構文）に対しても <strong>パニックしない</strong>（MUST）。</li>
+<li>壊れたファイルがあってもプロジェクトは開ける（§4.3-4）。</li>
+<li>ドメイン処理および通常のアプリケーション処理ではメモリ安全性を破る操作を禁止し、OS 固有のコンソール接続およびロケール取得の最小限のシステム境界にのみ限定する（MUST）。</li>
+</ul>
+<h3 id="184-継続的検証要件">18.4 継続的検証要件</h3>
+<p>すべての変更は以下の自動検証を通過しなければならない（MUST）。</p>
+<table>
+<thead>
+<tr>
+<th>検証項目</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>コード整形・静的解析</td>
+<td>フォーマット検査および警告ゼロの静的解析</td>
+</tr>
+<tr>
+<td>機能・境界テスト</td>
+<td>層分離・規則 10（プロジェクト外書き込み禁止）・文言カタログ整合・エクスポート不変条件を含む全テスト</td>
+</tr>
+<tr>
+<td>Web バンドル検査</td>
+<td>Web 向けリリースビルドの成立および gzip 圧縮後のサイズが 8MB 以下であること（§18.1）</td>
+</tr>
+<tr>
+<td>性能ベンチマーク</td>
+<td>§18.1 の主要処理（1 行再字句解析・役割語照合・辞書トライ構築・参照ペイン再構築・10 万字エクスポート）のベンチマーク完走</td>
+</tr>
+<tr>
+<td>ドキュメント整合</td>
+<td>仕様・設計・重複許容ブロックの整合検査</td>
+</tr>
+</tbody>
+</table>
+<h4 id="1841-追加の継続的自動検査項目状態-実装完了">18.4.1 追加の継続的自動検査項目〔状態: 実装完了〕</h4>
+<ul>
+<li>押せる要素すべてに薄い下線・ホバー時背景変化・ポインタ変更・24×24px 以上の当たり判定が付いていることの自動テスト。</li>
+<li>日本語カタログでプレースホルダ直後に助詞が続く際に半角空白が入っていないことの自動テスト。</li>
+<li>10 万字のファイルで 1 打鍵 16ms 以内であることを計測・検証する退行防止テスト。</li>
+<li>Web サイトに定義されている全診断コードそれぞれの解説ページが存在することの CI チェック。</li>
+</ul>
+<h3 id="185-ドキュメント公開仕様書とユーザー向けガイド">18.5 ドキュメント公開（仕様書とユーザー向けガイド）</h3>
+<p>公開サイトは、リポジトリの文書を<strong>そのままの内容で</strong>公開する（MUST）。手で書き写した複製を置かない。</p>
+<table>
+<thead>
+<tr>
+<th>公開するもの</th>
+<th>内容</th>
+<th>主な読者</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>仕様書</td>
+<td>仕様の全章</td>
+<td>実装者・決まりを正確に知りたい人</td>
+</tr>
+<tr>
+<td>ユーザー向けガイド</td>
+<td>はじめての手引き・早見表・用語集・FAQ</td>
+<td>これから使う人</td>
+</tr>
+<tr>
+<td>診断一覧・API リファレンス</td>
+<td>診断カタログ・正規操作カタログ</td>
+<td>全員</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>ユーザー向けガイドは、対応する仕様書の節へのリンクを持つ（MUST）。逆向き（仕様書からガイド）の参照は持たない。</li>
+<li>用語集は用語を言い換えず、<strong>定義と対応する仕様書の節</strong>を示す（MUST）。</li>
+<li>診断一覧・API リファレンスは生成物であり、手で編集しない（§18.4.1）。</li>
+<li>公開物の URL は、ユーザー向けガイドを <code>/ja/manual/</code>、仕様書を <code>/ja/specifications/</code> の下に置く（MUST）。</li>
+<li>本文が日本語のみの間、英語のページにはその旨と日本語版への案内を出す（MUST）。空のページを出さない。</li>
+<li>公開物が元の文書と一致することを、CI が検査する（MUST）。</li>
+<li>アプリ内の解説ページの URL（§14.2.1）は、<strong>すべて公開サイトに実在する</strong>（MUST）。その存在は CI が検査する。</li>
+<li>ユーザー向けガイドの手順は、アプリ内のガイドモード（§9.10）と同一でなければならない（MUST）。</li>
+</ul>
+</article><p class="source-note" data-astro-cid-rv2sskwj>このページは <code data-astro-cid-rv2sskwj>docs/specifications/workflows.md</code> から自動生成しています。内容の正本はリポジトリのそのファイルです。</p></main></div><footer class="_footer_13bsc_1"><div class="container _inner_13bsc_8"><div><p class="_creditText_13bsc_16">NovNow - Created by <a href="https://github.com/sonneko" target="_blank" rel="noopener noreferrer" class="_author_13bsc_23">sonneko</a>.</p><p class="_copyright_13bsc_28">© 2026 NovNow Project. All rights reserved.</p></div><div class="_links_13bsc_33"><a href="/novnow/ja">トップ</a><a href="/novnow/ja/guide">機能一覧</a><a href="/novnow/ja/troubleshooting">トラブルシューティング</a><a href="https://github.com/sonneko/novnow" target="_blank" rel="noopener noreferrer">GitHub</a></div></div></footer><p><a href="/novnow/nightly-app/">Nightly (unstable) / 開発版（不安定）</a></p></body></html>
