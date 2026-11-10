@@ -920,16 +920,18 @@ pub fn semantic_tokens(
         data.push(index as u32);
         data.push(modifier);
         line = start_line;
-        character = end_character;
+        // LSP deltaStart is relative to the previous token start, not its end.
+        character = start_character;
     }
     Ok(Outcome::Value(json!({ "data": data })))
 }
 
-/// `semanticTokens` の legend（§6.3 の表の名前。`TokenType::as_str`）。
+/// `semanticTokens` の legend。VSCode では `.` が修飾子の区切りなので、
+/// §6.3 の名前の `.` を `-` に変換する（コア API の種別名は変えない）。
 pub fn legend() -> Vec<String> {
     TokenType::ALL
         .iter()
-        .map(|kind| kind.as_str().to_owned())
+        .map(|kind| kind.as_str().replace('.', "-"))
         .collect()
 }
 

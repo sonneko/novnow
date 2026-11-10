@@ -27,6 +27,26 @@ suite("novnow VSCode extension", () => {
     assert.equal(api.isLanguageServerActive(), true);
   });
 
+  test("the language client exposes semantic tokens with registered theme scopes", async () => {
+    const folder = vscode.workspace.workspaceFolders?.[0];
+    assert.ok(folder);
+    const uri = vscode.Uri.joinPath(folder.uri, "contents", "01-04.cnov");
+    const document = await vscode.workspace.openTextDocument(uri);
+    await vscode.window.showTextDocument(document);
+    assert.equal(vscode.workspace.getConfiguration("editor", document).get("semanticHighlighting.enabled"), true);
+    const legend = await vscode.commands.executeCommand<vscode.SemanticTokensLegend>(
+      "vscode.provideDocumentSemanticTokensLegend", uri,
+    );
+    assert.ok(legend);
+    assert.ok(legend.tokenTypes.includes("ref-word"));
+    assert.ok(legend.tokenTypes.every(type => !type.includes(".")));
+    const tokens = await vscode.commands.executeCommand<vscode.SemanticTokens>(
+      "vscode.provideDocumentSemanticTokens", uri,
+    );
+    assert.ok(tokens && tokens.data.length > 0);
+    assert.equal(tokens.data.length % 5, 0);
+  });
+
   test("all four commands are registered and check delegates to the CLI", async () => {
     const commands = await vscode.commands.getCommands(true);
     for (const command of ["check", "export", "newProject", "restartServer"]) {
