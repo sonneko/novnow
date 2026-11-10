@@ -332,11 +332,11 @@ fn example_text(project: &Project, specs: &[String]) -> String {
             continue;
         };
         if kind != "plot" {
-            for section in sections::all(project) {
+            for section in sections::all(project).iter() {
                 if !range.contains(section.id) {
                     continue;
                 }
-                let body = sections::text_of(project.text(&section.path), &section);
+                let body = sections::text_of(project.text(&section.path), section);
                 output.push_str(&format!(
                     "\n### @{} contents\n{}\n",
                     section.id.display(digits),

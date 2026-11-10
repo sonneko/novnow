@@ -717,3 +717,104 @@ fn uris_round_trip_through_the_project_root() {
         Some("plots/01 下書.txt")
     );
 }
+
+#[test]
+fn semantic_tokens_preserve_reference_boundaries_and_utf16_positions() {
+    let mut session = open();
+    let text =
+        "@01-01 😀見出し\r\n😀'星図が出てきた。'{星図}を読む。\r\n「'星図を見る」 // '星図\r\n";
+    let uri = uri_of(ROOT, MANUSCRIPT);
+    let messages = talk(
+        &mut session,
+        &[
+            request(1, "initialize", json!({"capabilities": {}})),
+            notify("initialized", json!({})),
+            notify(
+                "textDocument/didOpen",
+                json!({"textDocument": {
+                    "uri": uri, "languageId": "novnow", "version": 1, "text": text
+                }}),
+            ),
+            request(
+                2,
+                "textDocument/semanticTokens/full",
+                json!({"textDocument": {"uri": uri}}),
+            ),
+        ],
+    );
+    let expected = session
+        .run("lang.tokens", json!({"path": MANUSCRIPT}))
+        .unwrap();
+    let result = result_of(&messages, 2);
+    let data = result["data"].as_array().unwrap();
+    let legend = result_of(&messages, 1)["capabilities"]["semanticTokensProvider"]["legend"]
+        ["tokenTypes"]
+        .clone();
+    assert_eq!(data.len(), expected["tokens"].as_array().unwrap().len() * 5);
+    let (mut line, mut column) = (0u32, 0u32);
+    let mut references = Vec::new();
+    for (encoded, token) in data
+        .as_chunks::<5>()
+        .0
+        .iter()
+        .zip(expected["tokens"].as_array().unwrap())
+    {
+        let delta_line = encoded[0].as_u64().unwrap() as u32;
+        line += delta_line;
+        column = if delta_line == 0 { column } else { 0 } + encoded[1].as_u64().unwrap() as u32;
+        let range = convert::range_of_value(text, token.get("range"));
+        assert_eq!(json!({"line": line, "character": column}), range["start"]);
+        assert_eq!(
+            column as u64 + encoded[2].as_u64().unwrap(),
+            range["end"]["character"].as_u64().unwrap()
+        );
+        let kind = legend[encoded[3].as_u64().unwrap() as usize]
+            .as_str()
+            .unwrap();
+        assert!(
+            !kind.contains('.'),
+            "VSCode treats dots as modifier separators"
+        );
+        if kind == "ref-word" {
+            references.push((line, column, encoded[2].as_u64().unwrap()));
+        }
+    }
+    // The following prose is not part of the reference. The emoji occupies two UTF-16 units.
+    assert!(references.contains(&(1, 3, 2)), "{references:?}");
+    assert!(references.contains(&(1, 13, 2)), "{references:?}");
+    assert!(references.contains(&(2, 2, 2)), "{references:?}");
+}
+
+#[test]
+fn windows_file_uris_resolve_to_project_documents() {
+    use novnow::lsp::methods::{path_of, semantic_tokens, Outcome};
+    let uri = "file:///d%3A/novel/contents/01-01.cnov";
+    for root in [r"D:\novel", r"d:\novel\", r"\\?\D:\novel", "D:/novel"] {
+        assert_eq!(path_of(root, uri).as_deref(), Some(MANUSCRIPT));
+        assert_eq!(
+            uri_of(root, MANUSCRIPT),
+            "file:///d:/novel/contents/01-01.cnov"
+        );
+        let mut session = open();
+        let Outcome::Value(tokens) =
+            semantic_tokens(&mut session, &json!({"textDocument": {"uri": uri}}), root).unwrap()
+        else {
+            panic!("expected tokens")
+        };
+        assert!(!tokens["data"].as_array().unwrap().is_empty(), "{root}");
+    }
+    for root in [r"\\server\share\novel", r"\\?\UNC\server\share\novel"] {
+        let uri = "file://server/share/novel/contents/01-01.cnov";
+        assert_eq!(uri_of(root, MANUSCRIPT), uri);
+        assert_eq!(path_of(root, uri).as_deref(), Some(MANUSCRIPT));
+    }
+    for uri in [
+        "file:///d:/novel-other/contents/01-01.cnov",
+        "file:///e:/novel/contents/01-01.cnov",
+        "file:///d:/novel/%2e%2e/secret",
+    ] {
+        assert_eq!(path_of(r"D:\novel", uri), None);
+    }
+    assert_eq!(path_of(ROOT, "file:///tmp/novel-other/file.cnov"), None);
+    assert_eq!(path_of(ROOT, "file:///tmp/Novel/file.cnov"), None);
+}

@@ -561,7 +561,7 @@ pub fn progress(project: &Project) -> Vec<ProgressRow> {
     let prose = crate::core::features::sections::all(project);
     let mut chars: BTreeMap<SceneId, usize> = BTreeMap::new();
     let mut scene_titles: BTreeMap<SceneId, String> = BTreeMap::new();
-    for section in &prose {
+    for section in prose.iter() {
         if section.id.chapter == 0 || section.id.episode == 0 {
             continue;
         }

@@ -16,6 +16,19 @@ fn diag(code: C, range: std::ops::Range<usize>, args: Vec<Arg>) -> Diagnostic {
     Diagnostic::new(code, Some(range), args)
 }
 pub fn document(doc: &Document, project: &Project, explicit: bool) -> Vec<Diagnostic> {
+    document_with(doc, project, explicit, None)
+}
+
+/// [`document`] の、辞書の供給元を渡す版（B13-2）。
+///
+/// `diagnostics::document` は `characters.md` と `materials/index.json` を既に読んでいるので、
+/// 同じ呼び出しでもう一度パースしないよう参照で渡す（費用が辞書の大きさに比例して伸びるのを断つ）。
+pub fn document_with(
+    doc: &Document,
+    project: &Project,
+    explicit: bool,
+    sources: Option<(&characters_md::Characters<'_>, &materials_index::Index<'_>)>,
+) -> Vec<Diagnostic> {
     let mut out = Vec::new();
     // W097–W106（§7.2.3–§7.2.12）は組み込み既定では無効。`[features.diagnostics]`
     // で有効化されたとき、または文体の明示操作（explicit）のときだけ出す（W096 と同じ）。
@@ -52,13 +65,23 @@ pub fn document(doc: &Document, project: &Project, explicit: bool) -> Vec<Diagno
         let tree = contents::parse_with(&doc.text, &project.contents_options());
         // 日本語主体の判定は文書ごとに 1 回だけ（§7.2.2 と同一）。
         let jp = if writing_on {
-            japanese_dominant(project)
+            project.japanese_dominant()
         } else {
             true
         };
-        let index = materials_index::parse(project.text("materials/index.json"));
+        // 辞書の供給元は呼び出し側が持っていれば受け取る（B13-2）。無ければここで 1 回だけ読む。
+        let local;
+        let (characters, index) = match sources {
+            Some(found) => found,
+            None => {
+                local = (
+                    characters_md::parse(project.text("characters.md")),
+                    materials_index::parse(project.text("materials/index.json")),
+                );
+                (&local.0, &local.1)
+            }
+        };
         let addresses = metadata::addresses(project.text("characters.md"));
-        let characters = characters_md::parse(project.text("characters.md"));
         let mut previous = String::new();
         let mut run = 0;
         let mut offset = 0;
@@ -324,7 +347,7 @@ pub fn document(doc: &Document, project: &Project, explicit: bool) -> Vec<Diagno
                 }
             }
             let mut sight_run = 0;
-            for row in &rows {
+            for row in rows.iter() {
                 if let Some(senses) = row.fields.get("senses") {
                     let sight = senses
                         .split([',', '、', ' '])
@@ -536,7 +559,10 @@ pub fn document(doc: &Document, project: &Project, explicit: bool) -> Vec<Diagno
 const DIALOGUE_MARKS: [char; 3] = ['。', '！', '？'];
 
 /// 台詞内 1 件（記号の位置〔文書内 byte〕、記号の添字、全角空白の有無）。
-struct SpacingEvent {
+///
+/// 作品全体の集計は `Project` がキャッシュする（B13-2・U1）ので、`crate` 内に公開する。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct SpacingEvent {
     range: std::ops::Range<usize>,
     mark: usize,
     spaced: bool,
@@ -583,7 +609,9 @@ fn spacing_events(body: &str, base: usize, out: &mut Vec<SpacingEvent>) {
 }
 
 /// プロジェクトの全本文からイベントを集める（W096 の作品全体集計）。
-fn all_spacing_events(project: &Project) -> Vec<(String, SpacingEvent)> {
+///
+/// `document()` はこれを [`Project::spacing_events`] 経由で呼ぶ（本文の版が同じ間は作り直さない）。
+pub(crate) fn all_spacing_events(project: &Project) -> Vec<(String, SpacingEvent)> {
     let mut out = Vec::new();
     for document in project
         .documents()
@@ -610,7 +638,9 @@ fn all_spacing_events(project: &Project) -> Vec<(String, SpacingEvent)> {
 }
 
 /// 日本語主体かどうかを本文の文字種だけで決める（表示言語は使わない、§7.2.2）。
-fn japanese_dominant(project: &Project) -> bool {
+///
+/// `document()` はこれを [`Project::japanese_dominant`] 経由で呼ぶ（本文の版が同じ間は数え直さない）。
+pub(crate) fn japanese_dominant_all(project: &Project) -> bool {
     let mut japanese = 0usize;
     let mut latin = 0usize;
     for document in project
@@ -630,14 +660,14 @@ fn japanese_dominant(project: &Project) -> bool {
 
 /// W096: 作品全体の多数派に揃っていない箇所だけを、この文書について出す（§7.2.2）。
 fn dialogue_spacing(doc: &Document, project: &Project) -> Vec<Diagnostic> {
-    if !japanese_dominant(project) {
+    if !project.japanese_dominant() {
         return Vec::new();
     }
-    let events = all_spacing_events(project);
+    let events = project.spacing_events();
     // 記号ごとに（空白あり, 空白なし）を数え、合計 5 件以上かつ差 2 件以上の
     // ときだけ少数派を指摘する。
     let mut counts = [(0usize, 0usize); 3];
-    for (_, event) in &events {
+    for (_, event) in events.iter() {
         if event.spaced {
             counts[event.mark].0 += 1;
         } else {
@@ -645,7 +675,7 @@ fn dialogue_spacing(doc: &Document, project: &Project) -> Vec<Diagnostic> {
         }
     }
     let mut out = Vec::new();
-    for (path, event) in &events {
+    for (path, event) in events.iter() {
         if path != &doc.path {
             continue;
         }
@@ -1098,11 +1128,6 @@ fn section_lints(section: &[(String, usize)], active: &[C], out: &mut Vec<Diagno
 
 /// 場面（その場面内の全節: `(本文, 文書内 byte)`）を受け取って場面単位の 4 診断を出す。
 fn scene_lints(scene: &[(String, usize)], active: &[C], out: &mut Vec<Diagnostic>) {
-    eprintln!(
-        "PROBE scene_lints: scene={:?} active={:?}",
-        scene.iter().map(|(b, o)| (o, b)).collect::<Vec<_>>(),
-        active
-    );
     if scene.is_empty() {
         return;
     }
@@ -1135,13 +1160,6 @@ fn scene_word_repeat(scene: &[(String, usize)]) -> Vec<Diagnostic> {
             entry.1 += 1;
         }
     }
-    for (body, _) in scene.iter().take(1) {
-        eprintln!(
-            "PROBE tok: {body:?} => {tokens:?}",
-            tokens = token_positions(body)
-        );
-    }
-    eprintln!("PROBE scene_word_repeat counts: {counts:?}");
     for (word, (last_pos, count)) in counts {
         if count >= 5 {
             out.push(diag(

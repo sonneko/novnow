@@ -1105,9 +1105,7 @@ impl NovnowApp {
                             self.settings.folded.retain(|key| !key.starts_with('@'));
                         } else {
                             let active = session.bench.current_id();
-                            for section in
-                                crate::core::features::sections::all(session.bench.project())
-                            {
+                            for section in session.bench.project().sections().iter() {
                                 if active.is_none_or(|id| id.chapter != section.id.chapter) {
                                     let key = format!(
                                         "@{}",

@@ -46,7 +46,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$CI_SCOPE" = develop ]; then
-            echo 'electron={"os":["ubuntu-latest"]}' >> "$GITHUB_OUTPUT"
+            echo 'electron={"os":["ubuntu-latest","windows-latest"]}' >> "$GITHUB_OUTPUT"
           else
             echo 'electron={"os":["ubuntu-latest","macos-latest","windows-latest"]}' >> "$GITHUB_OUTPUT"
           fi

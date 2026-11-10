@@ -101,6 +101,61 @@ fn the_catalog_is_sorted_and_unique() {
 }
 
 #[test]
+fn every_code_has_its_own_row_in_the_attribute_table() {
+    // B13-1: 属性はコードの添字（`#[repr(u16)]` の宣言順）で引く配列なので、
+    // (1) 添字が 0..COUNT の全単射であること、(2) `CATALOG` が全コードを 1 行ずつ持つこと
+    // （表の長さ = コード数）を固定する。片方でも崩れると、属性が黙って既定値になる。
+    let mut seen = [false; DiagnosticCode::COUNT];
+    for row in CATALOG {
+        let index = row.0.index();
+        assert!(index < DiagnosticCode::COUNT, "{}", row.0.as_str());
+        assert!(!seen[index], "{}", row.0.as_str());
+        seen[index] = true;
+    }
+    assert!(seen.iter().all(|found| *found));
+    assert_eq!(CATALOG.len(), DiagnosticCode::COUNT);
+    // 属性表は定義表と同じ値を返す（並びの取り違えを防ぐ）
+    for row in CATALOG {
+        let code = row.0;
+        assert_eq!(code.attributes().params, row.1, "{}", code.as_str());
+        assert_eq!(
+            code.attributes().anchor,
+            if STATUS_ANCHOR.contains(&code) {
+                Anchor::Status
+            } else {
+                Anchor::Document
+            },
+            "{}",
+            code.as_str()
+        );
+        assert_eq!(
+            code.attributes().trigger,
+            code.cost().map_or(Trigger::Unspecified, |found| found.1),
+            "{}",
+            code.as_str()
+        );
+        assert_eq!(
+            code.attributes().scope,
+            code.cost().map_or(Scope::Unspecified, |found| found.2),
+            "{}",
+            code.as_str()
+        );
+        assert_eq!(
+            code.attributes().toggle,
+            if TOGGLE_OFF.contains(&code) {
+                Toggle::OffByDefault
+            } else if TOGGLE_ON.contains(&code) {
+                Toggle::OnByDefault
+            } else {
+                Toggle::Always
+            },
+            "{}",
+            code.as_str()
+        );
+    }
+}
+
+#[test]
 fn code_strings_are_well_formed() {
     for row in CATALOG {
         let code = row.0;
