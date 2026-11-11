@@ -24,6 +24,8 @@
 
 ## 2. 現在のブランチ・PR・直近の作業状態
 
+- 2026-11-10（my-novels 用 nightly 更新スクリプト）: コピーして単独実行できる `REF:scripts/update-novnow-nightly.py` と手順 `REF:scripts/update-novnow-nightly.md` を追加。Linux x64 の VSIX・nogui を asset ID 指定で取得し、照合・導入後に current を切り替える。利用側の設定ファイルは上書きしない。オフライン回帰 `REF:docs/script/test_nightly_update.py` 7 件成功。
+
 - 2026-11-10（nightly 配布経路）: 所有者承認の 3 成果物・gh-pages 共存方式を実装。ローカル一括検証（Rust 1,480 件）・Web smoke・サイト検査成功。VSIX の取得・版管理は対象外。現行仕様は `REF:docs/specifications/external.md` §20.6.4、公開環境の要設定事項は `REF:docs/distribution.md` §11。
 
 - 2026-11-10（Windows LSP URI 修正）: `REF:src/lsp/methods.rs` でネイティブパスの区切り・ドライブ文字・verbatim prefix と file URI の表記差を正規化。`REF:tests/lsp.rs` に Windows の本文取得・トークン生成と UNC 往復・ルート境界の回帰を追加。`REF:.github/workflows/vscode.yml` は develop 向けでも Windows Electron を実行する。
