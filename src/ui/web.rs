@@ -31,7 +31,9 @@ use crate::core::policy::{ExportKind, ProjectPath};
 use crate::ports::clock::Clock;
 use crate::ports::dialog::ChosenPath;
 use crate::ports::storage::{Storage, StorageError};
-use crate::ui::app::{ExportFailure, Host, HostEvent, NovnowApp, Picker, SaveOutcome, Session};
+use crate::ui::app::{
+    ExportFailure, ExternalChange, Host, HostEvent, NovnowApp, Picker, SaveOutcome, Session,
+};
 use crate::ui::i18n::{self, Locale};
 use crate::ui::settings::{LanguageChoice, UiSettings, UI_JSON};
 use crate::ui::shell::{self, BrowserKeys};
@@ -414,7 +416,7 @@ impl Host for WebHost {
         Ok(())
     }
 
-    fn poll(&mut self) -> Vec<(String, Option<String>)> {
+    fn poll(&mut self) -> Vec<ExternalChange> {
         // 別のタブでの変更は見ない（`docs/history.md` B-157）
         Vec::new()
     }

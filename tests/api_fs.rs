@@ -8,9 +8,13 @@ mod sandbox;
 
 use serde_json::json;
 
+use novnow::adapters::project_load::is_document;
 use novnow::app::error::Class;
 use novnow::app::memory_host::MemoryHost;
 use novnow::app::session::{CreateOptions, Interface, Session};
+use novnow::core::model::document::Document;
+use novnow::core::policy::ProjectPath;
+use novnow::core::template;
 use sandbox::TempDir;
 
 /// `create` → `open` の往復（§19.2.1 の入口。§14.2 の起動前チェックと同じ検証を通る）。
@@ -80,16 +84,27 @@ fn opening_a_directory_without_a_project_is_a_project_error() {
 /// `with_host` は注入したホストをそのまま使う（§19.2.1「ホストは差し替えられる」）。
 ///
 /// 書き出し先を選んだ書き込み（§13.1.1 の特例の口）が注入したホストへ届くことで確かめる。
+/// 雛形のプロジェクトを入れる: 当てはまる節が無い書き出しは**何も書かない**（§17.2）ので、
+/// 空のプロジェクトでは注入が効いているか確かめられない。
 #[test]
 fn with_host_takes_the_injected_host() {
     let host = MemoryHost::default();
     let files = host.files.clone();
-    let mut session = Session::with_host(Box::new(host));
+    let documents = template::new_project("星屑の時計")
+        .into_iter()
+        .filter(|file| is_document(&ProjectPath::new(&file.path).expect("path")))
+        .map(|file| Document::new(file.path, file.text))
+        .collect();
+    let mut session = Session::with_documents(Box::new(host), documents);
     assert_eq!(session.root(), None, "メモリホストにルートは無い");
     assert_eq!(session.host_mut().stamp(), "20261013-2140", "ホストが違う");
-    session
+    let exported_now = session
         .run("export.text", json!({ "out": "manuscript.txt" }))
         .expect("export.text");
+    assert!(
+        exported_now["sections"].as_u64().expect("sections") > 0,
+        "雛形の節が 1 つも選ばれていない: {exported_now}"
+    );
     let exported = files.borrow().exported.clone();
     assert_eq!(exported.len(), 1, "注入したホストへ書かれていない");
     let (path, _) = exported.iter().next().expect("exported");

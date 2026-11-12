@@ -59,6 +59,18 @@ pub enum AppEvent {
         /// 理由。
         message: String,
     },
+    /// 外部で変わったファイルを読めなかった（§8.5）。
+    ///
+    /// **削除とは区別する**: 文書はそのまま残し、理由だけを示す（§4.3 の encoding / I/O
+    /// エラーの扱い）。読み取りの失敗や文字コード不正を利用者の削除操作と誤認しないため。
+    ExternalUnreadable {
+        /// パス。
+        path: String,
+        /// エラー応答に載せるコード（`S024` = UTF-8 でない、`S030` = I/O。§19.1.7）。
+        code: String,
+        /// 理由（表示用）。
+        message: String,
+    },
     /// 設定が変わった（§19.4.2 `workspace/didChangeConfiguration` 相当）。
     SettingsChanged {
         /// 変わったキー（`.novnow/ui.json` のキー名）。
@@ -83,6 +95,7 @@ impl AppEvent {
             Self::MaterialsChanged { .. } => "novnow/materialsChanged",
             Self::DocumentChanged { .. }
             | Self::WriteFailed { .. }
+            | Self::ExternalUnreadable { .. }
             | Self::SettingsChanged { .. }
             | Self::Cancelled { .. } => return None,
         })
@@ -126,6 +139,15 @@ impl AppEvent {
                 map.insert("path".into(), serde_json::json!(path));
                 map.insert("message".into(), serde_json::json!(message));
             }
+            Self::ExternalUnreadable {
+                path,
+                code,
+                message,
+            } => {
+                map.insert("path".into(), serde_json::json!(path));
+                map.insert("code".into(), serde_json::json!(code));
+                map.insert("message".into(), serde_json::json!(message));
+            }
             Self::SettingsChanged { key } => {
                 map.insert("key".into(), serde_json::json!(key));
             }
@@ -152,6 +174,7 @@ impl AppEvent {
             Self::MaterialsChanged { .. } => "materials_changed",
             Self::DocumentChanged { .. } => "document_changed",
             Self::WriteFailed { .. } => "write_failed",
+            Self::ExternalUnreadable { .. } => "external_unreadable",
             Self::SettingsChanged { .. } => "settings_changed",
             Self::Cancelled { .. } => "cancelled",
         }
