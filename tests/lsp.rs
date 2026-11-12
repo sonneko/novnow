@@ -845,7 +845,7 @@ fn apply_lsp_workspace_edit(
                 (range, new_text)
             })
             .collect();
-        pairs.sort_by(|a, b| b.0.start.cmp(&a.0.start));
+        pairs.sort_by_key(|a| std::cmp::Reverse(a.0.start));
         let mut next = original.clone();
         for (range, new_text) in pairs {
             next.replace_range(range, &new_text);
@@ -1030,7 +1030,8 @@ fn nine_error_classes_map_consistently_across_rust_cli_lsp_and_mcp() {
     use novnow::app::error::{Class, Error};
     use novnow::cli::{json as cli_json, mcp as cli_mcp};
 
-    let expected: [(Class, &str, i64, u8, &str, Option<&str>); 9] = [
+    type ExpectedRow<'a> = (Class, &'a str, i64, u8, &'a str, Option<&'a str>);
+    let expected: [ExpectedRow<'_>; 9] = [
         (Class::Usage, "usage", -32602, 2, "", None),
         (
             Class::Project,

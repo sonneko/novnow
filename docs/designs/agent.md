@@ -43,9 +43,9 @@
 
 ### 15.6 エージェント間通信
 
-状態: 実装完了（REF:src/core/agents/files.rs, REF:src/core/agents/runner.rs, REF:tests/agents_files.rs, REF:tests/delegation.rs）
+状態: 実装完了（REF:src/core/agents/files.rs, REF:src/core/agents/runner.rs, REF:src/ui/workspaces/review.rs, REF:src/ui/workspaces/agent.rs, REF:tests/agents_files.rs, REF:tests/delegation.rs, REF:tests/workspaces.rs）
 
-- スレッドファイル `agents/threads/TH####.md` の読み書きと、受信側ロールの委譲レベルに応じた承認待ち（`pending`）/ 自動中継（`approved_by: auto`）および連鎖深度 `max_chain_depth` の制御は `REF:src/core/agents/files.rs` と `REF:src/core/agents/runner.rs` に実装する。
+- スレッドファイル `agents/threads/TH####.md` の読み書きと、受信側ロールの委譲レベルに応じた承認待ち（`pending`）/ 自動中継（`approved_by: auto`）および連鎖深度 `max_chain_depth` の制御は `REF:src/core/agents/files.rs` と `REF:src/core/agents/runner.rs` に実装し、`review` ワークスペース（スレッドタブ）と `agent` ワークスペースの双方からスレッド ID・メッセージ本文・承認状態の閲覧と相互遷移・人間承認を行える（`REF:docs/plans.md#issue-55`）。
 
 ### 15.7 人間向け管制 UI（`agent` ワークスペース）
 

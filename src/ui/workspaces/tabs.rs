@@ -1037,10 +1037,8 @@ pub fn show(
     let exit_reader = ctx
         .data_mut(|d| d.remove_temp::<bool>(egui::Id::new("reader-exit")))
         .unwrap_or(false);
-    if exit_reader || jump.is_some() {
-        if workspace == Workspace::Reader {
-            bench.save.request_now();
-        }
+    if (exit_reader || jump.is_some()) && workspace == Workspace::Reader {
+        bench.save.request_now();
     }
     TabOutcome::Active { jump, exit_reader }
 }

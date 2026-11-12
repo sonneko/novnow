@@ -61,6 +61,6 @@
 
 ### 8.7 提案モード（人間用トラックチェンジ）
 
-状態: 実装完了（REF:src/core/agents/files.rs, REF:src/ui/app.rs, REF:tests/workspaces.rs）
+状態: 実装完了（REF:src/core/agents/files.rs, REF:src/core/agents/apply.rs, REF:src/app/workbench.rs, REF:src/ui/workspaces/proposals.rs, REF:src/ui/app.rs, REF:tests/stage_two.rs, REF:tests/workspaces.rs）
 
-- 人間用の変更提案 `H####.diff` の採番・作成・一覧・適用・破棄・差分比較（`Ctrl+Shift+D`）は `core::features::proposals`（`REF:src/core/agents/files.rs`）および `NovnowApp`（`REF:src/ui/app.rs`）に実装する（`B-120`、検証: `REF:tests/workspaces.rs`）。
+- 人間用の変更提案 `agents/proposals/H####.md` の採番・作成・一覧・採用・破棄・差分比較（`Ctrl+Shift+D`）は `core::agents::files`（`REF:src/core/agents/files.rs`）、`core::agents::apply`（`REF:src/core/agents/apply.rs`）、`Workbench`（`REF:src/app/workbench.rs`）、`REF:src/ui/workspaces/proposals.rs` および `NovnowApp`（`REF:src/ui/app.rs`）に実装する（`B-120`）。破棄時はファイルを削除せず `status: discarded` として履歴を残し、対象節の現在値が `before` と一致しなくなった場合（外部変更を含む）は本文を上書きせず `status: stale` に遷移させて `W093` を通知する（`REF:docs/plans.md#issue-55`、検証: `REF:tests/stage_two.rs`, `REF:tests/workspaces.rs`）。

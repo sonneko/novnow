@@ -753,10 +753,13 @@ fn conflict_paths(session: &mut Session, args: &Args) -> Result<Vec<String>> {
     let active: std::collections::BTreeSet<String> =
         session.bench.conflicts().map(str::to_owned).collect();
     Ok(match args.get("path").and_then(Value::as_str) {
-        Some(path) => active
-            .contains(path)
-            .then(|| vec![path.to_owned()])
-            .unwrap_or_default(),
+        Some(path) => {
+            if active.contains(path) {
+                vec![path.to_owned()]
+            } else {
+                Vec::new()
+            }
+        }
         None => active.into_iter().collect(),
     })
 }

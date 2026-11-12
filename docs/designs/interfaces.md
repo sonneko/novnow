@@ -35,7 +35,7 @@
 
 - `REF:Cargo.toml` は `default-members = ["."]`、`exclude = ["python/novnow-py"]` とする。Python 拡張は独立ワークスペースと `REF:python/novnow-py/Cargo.lock` を持ち、本体の既定ビルドへ巻き込まない。
 - `python/novnow-py/`（新クレート）: pyo3（`abi3-py39` + `extension-module`、cdylib）。`#[pyclass] Session` はワーカーへの汎用呼び出し口を持つ。Python のドメインメソッドは正規操作カタログを使って動的に解決し、操作本体の写しを置かない。データ受け渡しは dict / list / str、Zip 操作は bytes。結果は `dict` の派生 `Record` に写し、キーを属性としても読めるようにする（§19.3.2 の `info["title"]` と `info.title`）。
-- GIL: ブロック区間（FsGate I/O・LLM）は `Python::allow_threads` で解放する。`REF:src/app/driver.rs` のワーカースレッドが Session を所有し、Python 側の `Mutex<Driver>` が操作を直列化する。ロック取得も GIL を解放した区間で行う（`REF:python/novnow-py/src/lib.rs`）。
+- GIL: ブロック区間（FsGate I/O・LLM）は `Python::allow_threads` で解放し、`Session` は Python コンテキストマネージャ（`__enter__` / `__exit__`）に対応する。`REF:src/app/driver.rs` のワーカースレッドが Session を所有し、Python 側の `Mutex<Driver>` が操作を直列化する。ロック取得も GIL を解放した区間で行い、ロック破損時はパニックせず `LockPoisoned` 例外を返す（`REF:python/novnow-py/src/lib.rs`, `REF:docs/plans.md#issue-55`）。
 - 型スタブ `REF:python/novnow-py/python/novnow/__init__.pyi` は `REF:scripts/pyi-site.py` がカタログから生成する。`REF:python/novnow-py/python/novnow/py.typed` とともにホイールへ同梱する。
 - ビルド・配布は maturin（pip で導入 — pypi.org はサンドボックスから到達可能）。pyo3-ffi は生成済みバインディングを使うため、extension-module のビルドに Python.h も libpython リンクも要らず、サンドボックスの python3（3.11）で `pyo3-build-config` のインタプリタ検出が足りる。
 - pyo3 系クレートの vendoring 手順は `REF:docs/plans.md#stage-3` の §5.3（`REF:.github/workflows/sandbox-tools.yml` の Git Blob 差分追加）に従う。
@@ -46,7 +46,7 @@
 状態: 実装完了（REF:src/lsp/server.rs, REF:src/lsp/methods.rs, REF:src/cli/lsp.rs, REF:tests/lsp.rs）
 
 - `src/lsp/`（新設、`cli` と同じくネイティブターゲット限定でコンパイル）: `framing.rs`（Content-Length フレーミングの手書き実装 — 追加依存ゼロ、serde_json は既存。stdio ループの構成は `REF:src/adapters/mcp_stdio.rs` を踏襲）、`server.rs`（リクエスト路由）、`methods.rs`（§19.4.2 の標準メソッド対応）、`commands.rs`（`executeCommand` → `OPS` ディスパッチ）、`convert.rs`（UTF-16 ↔ バイト位置、`REF:src/core/text/position.rs` の行表を利用）。
-- 文書同期は Full: 受け取った全文を `REF:src/core/text/incremental.rs` の差分編集器で rope に適用する。単節診断は `REF:src/core/features/sections.rs` のスコープ限定機構を再利用し、`publishDiagnostics` を §12.3 の地域化メッセージで配信する。
+- 文書同期は Full および `workspace/didChangeWatchedFiles` による外部変更再読み込み・削除同期に対応し、受け取った全文を `REF:src/core/text/incremental.rs` の差分編集器で rope に適用する。単節診断は `REF:src/core/features/sections.rs` のスコープ限定機構を再利用し、`publishDiagnostics` を §12.3 の地域化メッセージで配信する（`REF:docs/plans.md#issue-55`）。
 - サーバ→クライアントは §19.4.4 の `novnow/*` 通知 4 種と `workspace/applyEdit`（リネーム・提案の適用）。通知ペイロードは §19.2.4 の `AppEvent` と同じシリアライズを共有する。
 - 起動口は `REF:src/cli/mod.rs` の `lsp` サブコマンド（`mcp` と同じ cfg ゲート）。
 - 検証: `REF:tests/lsp.rs`がスクリプト化した JSON-RPC で実 stdio フレーミングを駆動する（`REF:tests/mcp_stdio.rs` と同じ方式）。CJK とサロゲートペアの UTF-16 往復を含む。

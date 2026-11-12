@@ -720,7 +720,7 @@ fn stock_bidirectional_assignment_and_collision_errors() {
             .unwrap_or_else(|| Document::new(&file.path, ""));
         let mut text = doc.text.to_string();
         let mut edits = file.edits.clone();
-        edits.sort_by(|a, b| b.range.start.cmp(&a.range.start));
+        edits.sort_by_key(|a| std::cmp::Reverse(a.range.start));
         for e in edits {
             text.replace_range(e.range, &e.new_text);
         }
