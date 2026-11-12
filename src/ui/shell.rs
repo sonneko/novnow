@@ -111,6 +111,7 @@ pub fn command_of(
         Key::P if ctrl && !alt && !shift => Command::Palette,
         Key::G if ctrl && !alt && !shift => Command::Jump,
         Key::O if ctrl && !alt && !shift => Command::Open,
+        Key::S if ctrl && !alt && shift => Command::SaveSearch,
         Key::S if ctrl && !alt && !shift => Command::SaveNow,
         Key::F5 if !ctrl && !alt => Command::Reload,
         Key::Plus | Key::Equals if ctrl && !alt => Command::FontUp,
@@ -139,6 +140,7 @@ pub fn command_of(
         Key::F3 if !ctrl && !alt => Command::FindNext(!shift),
         Key::F12 if !ctrl && !alt && !shift => Command::Definition,
         Key::F12 if !ctrl && !alt && shift => Command::References,
+        Key::Space if ctrl && !alt && shift => Command::SpacePopup,
         Key::Space if ctrl && !alt && !shift => Command::Complete,
         Key::M if ctrl && !alt && shift => Command::Modes,
         Key::M if ctrl && !alt => Command::MaterialSearch,
@@ -217,7 +219,19 @@ pub fn local_command_of(
             Key::ArrowLeft,
         ) if ctrl && shift && !alt => Some(Command::Tab(false)),
         (Workspace::Cast, Key::V) if ctrl && shift && !alt => Some(Command::Scan),
+        (Workspace::Cast, Key::A) if ctrl && shift && !alt => Some(Command::ExtractAddresses),
         (Workspace::Agent, Key::X) if ctrl && shift && !alt => Some(Command::StopAll),
+        (Workspace::PlotEpisode, Key::D) if ctrl && !alt && !shift => Some(Command::InsertMode),
+        (Workspace::PlotEpisode, Key::ArrowUp) if alt && !ctrl && shift => {
+            Some(Command::SwapSection(false))
+        }
+        (Workspace::PlotEpisode, Key::ArrowDown) if alt && !ctrl && shift => {
+            Some(Command::SwapSection(true))
+        }
+        (Workspace::Write, Key::S) if ctrl && shift && !alt => Some(Command::SaveSearch),
+        (Workspace::PlotOutline, Key::Enter) if ctrl && shift && !alt => {
+            Some(Command::ReturnToStock)
+        }
         (Workspace::PlotOutline | Workspace::Write, Key::OpenBracket) if ctrl && shift && !alt => {
             Some(Command::Fold(true))
         }

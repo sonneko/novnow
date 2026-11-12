@@ -182,6 +182,16 @@ enum Overlay {
         locations: Vec<crate::core::features::Location>,
         selected: usize,
     },
+    /// 話プロットでの節入替時の本文連動確認（§10.2 `Alt+Shift+↑/↓`）。
+    ConfirmSwapSections {
+        current: crate::core::id::SceneId,
+        neighbor: crate::core::id::SceneId,
+    },
+    /// 話プロットでの `mode:` 行挿入（§10.2 `Ctrl+D`）。
+    InsertMode {
+        options: Vec<(String, String)>,
+        selected: usize,
+    },
 }
 
 /// 重ね物の種類（§9.7.5）。[`Overlay::kind`] の網羅的な対応付けと [`Overlay::sample`] の
@@ -220,6 +230,8 @@ pub enum OverlayKind {
     PromptDiff,
     Rename,
     References,
+    ConfirmSwapSections,
+    InsertMode,
 }
 
 impl OverlayKind {
@@ -256,6 +268,8 @@ impl OverlayKind {
         OverlayKind::PromptDiff,
         OverlayKind::Rename,
         OverlayKind::References,
+        OverlayKind::ConfirmSwapSections,
+        OverlayKind::InsertMode,
     ];
 
     /// `Esc` と外側クリックで閉じてよいか（§9.7.5。保存失敗と終了ガードだけ閉じない）。
@@ -323,6 +337,8 @@ impl Overlay {
             Overlay::PromptDiff { .. } => OverlayKind::PromptDiff,
             Overlay::Rename { .. } => OverlayKind::Rename,
             Overlay::References { .. } => OverlayKind::References,
+            Overlay::ConfirmSwapSections { .. } => OverlayKind::ConfirmSwapSections,
+            Overlay::InsertMode { .. } => OverlayKind::InsertMode,
         })
     }
 
@@ -336,7 +352,8 @@ impl Overlay {
                 | OverlayKind::Search
                 | OverlayKind::Materials
                 | OverlayKind::References
-                | OverlayKind::Promote,
+                | OverlayKind::Promote
+                | OverlayKind::InsertMode,
             ) => PopupPlacement::Top,
             _ => PopupPlacement::Center,
         }
@@ -455,6 +472,24 @@ impl Overlay {
             OverlayKind::References => Overlay::References {
                 name: "sample".to_owned(),
                 locations: Vec::new(),
+                selected: 0,
+            },
+            OverlayKind::ConfirmSwapSections => Overlay::ConfirmSwapSections {
+                current: crate::core::id::SceneId {
+                    chapter: 1,
+                    episode: 1,
+                    scene: 1,
+                    section: 1,
+                },
+                neighbor: crate::core::id::SceneId {
+                    chapter: 1,
+                    episode: 1,
+                    scene: 1,
+                    section: 2,
+                },
+            },
+            OverlayKind::InsertMode => Overlay::InsertMode {
+                options: Vec::new(),
                 selected: 0,
             },
         }
@@ -1115,7 +1150,7 @@ impl NovnowApp {
         let text_focused = ctx.wants_keyboard_input();
         let workspace = self.workspace().unwrap_or_default();
         self.ime.update(&ctx.input(|i| i.clone()));
-        if !self.ime.composing() && workspace == Workspace::Write {
+        if !self.ime.composing() && matches!(workspace, Workspace::Write | Workspace::PlotOutline) {
             let chord = ctx.data(|d| d.get_temp::<f64>(Id::new("fold-chord")));
             let ctrl = Modifiers::CTRL;
             if ctx.input_mut(|i| i.consume_key(ctrl, Key::K)) {
@@ -1126,7 +1161,13 @@ impl NovnowApp {
                 if fold || unfold {
                     ctx.data_mut(|d| d.remove::<f64>(Id::new("fold-chord")));
                     if let Stage::Open(session) = &mut self.stage {
-                        if unfold {
+                        if workspace == Workspace::PlotOutline {
+                            if unfold {
+                                session.spaces.outline.unfold_all(&session.bench);
+                            } else {
+                                session.spaces.outline.fold_all();
+                            }
+                        } else if unfold {
                             self.settings.folded.retain(|key| !key.starts_with('@'));
                         } else {
                             let active = session.bench.current_id();
@@ -1553,6 +1594,7 @@ impl NovnowApp {
             Command::Search => {
                 if session.spaces.switcher.current() == Workspace::Write {
                     session.tabs.tabs[0] = 1;
+                    session.tabs.focus_search_input = true;
                 } else {
                     self.overlay = Overlay::Search {
                         query: session.last_find.clone(),
@@ -1798,6 +1840,68 @@ impl NovnowApp {
             Command::PreviousWorkspace => {
                 if let Some(previous) = session.spaces.switcher.previous() {
                     self.switch_to(ctx, previous, now);
+                }
+                return true;
+            }
+            Command::SpacePopup => {
+                let scene = match current {
+                    Workspace::PlotEpisode => session
+                        .spaces
+                        .episode
+                        .selected()
+                        .or_else(|| session.bench.current_id()),
+                    Workspace::PlotOutline => session
+                        .spaces
+                        .outline
+                        .selected()
+                        .or_else(|| session.bench.current_id()),
+                    _ => session.bench.current_id(),
+                };
+                let lines = scene
+                    .map(|id| {
+                        crate::core::features::plots::space_lines(session.bench.project(), id)
+                    })
+                    .unwrap_or_default();
+                let lines = if lines.is_empty() {
+                    vec![i18n::text(locale, "stage.space_empty").to_owned()]
+                } else {
+                    lines
+                };
+                self.overlay = Overlay::Info { lines };
+                return true;
+            }
+            Command::SaveSearch => {
+                if let Overlay::Search { query, .. } = &self.overlay {
+                    let q_text = query.clone();
+                    if !q_text.trim().is_empty() {
+                        session.bench.commit();
+                        session.spaces.switcher.switch(Workspace::Write);
+                        session.tabs.tabs[0] = 1;
+                        session.tabs.query = crate::core::features::search::Query {
+                            text: q_text.clone(),
+                            regex: false,
+                            case_sensitive: false,
+                        };
+                        let start = web_time::Instant::now();
+                        session.tabs.results = Some(crate::core::features::search::run(
+                            session.bench.project(),
+                            &session.tabs.query,
+                            || start.elapsed().as_millis() as u64,
+                        ));
+                        session.tabs.save_search_open = true;
+                        session.tabs.save_search_title = q_text;
+                        session.tabs.save_search_summary.clear();
+                        session.tabs.save_search_fresh = true;
+                        self.overlay = Overlay::None;
+                    }
+                } else if current == Workspace::Write {
+                    session.tabs.tabs[0] = 1;
+                    if matches!(&session.tabs.results, Some(Ok(_))) {
+                        session.tabs.save_search_open = true;
+                        session.tabs.save_search_title = session.tabs.query.text.clone();
+                        session.tabs.save_search_summary.clear();
+                        session.tabs.save_search_fresh = true;
+                    }
                 }
                 return true;
             }
@@ -2058,6 +2162,60 @@ impl NovnowApp {
                 let scene = bench.current_id().unwrap_or_default();
                 spaces.episode.insert(bench, scene, now);
             }
+            (Workspace::PlotEpisode, Command::SwapSection(down)) => {
+                if let Some((cur, neighbor)) = spaces.episode.swap_target(bench, down) {
+                    if crate::core::features::plots::has_prose_for_swap(
+                        bench.project(),
+                        cur,
+                        neighbor,
+                    ) {
+                        self.overlay = Overlay::ConfirmSwapSections {
+                            current: cur,
+                            neighbor,
+                        };
+                    } else {
+                        bench.commit();
+                        if let Some(edit) = crate::core::features::plots::swap_episode_sections(
+                            bench.project(),
+                            cur,
+                            neighbor,
+                            false,
+                        ) {
+                            bench.apply_edit(&edit, now);
+                            spaces.episode.select_after_swap(neighbor);
+                        }
+                    }
+                }
+            }
+            (Workspace::PlotEpisode, Command::InsertMode) => {
+                let mut options: Vec<(String, String)> = Vec::new();
+                for character in crate::core::features::cast::characters(bench.project()) {
+                    let tl =
+                        crate::core::features::cast::timeline(bench.project(), character.index);
+                    if tl.bands.is_empty() {
+                        let token = format!("'{}", character.name);
+                        options.push((token.clone(), token));
+                    } else {
+                        for band in tl.bands {
+                            let token = format!("'{}:{}", character.name, band.id);
+                            let label = if band.label.is_empty() {
+                                token.clone()
+                            } else {
+                                format!("{token}  {}", band.label)
+                            };
+                            options.push((token, label));
+                        }
+                    }
+                }
+                if options.is_empty() {
+                    spaces.episode.insert_mode_line(bench, "'", now);
+                } else {
+                    self.overlay = Overlay::InsertMode {
+                        options,
+                        selected: 0,
+                    };
+                }
+            }
             (Workspace::PlotOutline, Command::Nav(nav)) => {
                 spaces.outline.nav(bench, nav);
             }
@@ -2066,6 +2224,41 @@ impl NovnowApp {
             }
             (Workspace::PlotOutline, Command::Fold(fold)) => {
                 spaces.outline.set_folded(bench, fold);
+            }
+            (Workspace::PlotOutline, Command::ReturnToStock) => {
+                if let Some(sel) = spaces
+                    .outline
+                    .selected()
+                    .filter(|id| id.chapter > 0 && id.episode > 0)
+                {
+                    match crate::core::features::stock::return_to_stock(
+                        bench.project(),
+                        sel.chapter,
+                        sel.episode,
+                    ) {
+                        Ok(plan) => {
+                            workspaces::tabs::apply_stock_assignment(bench, &plan, now);
+                            let digits = bench.project().digits();
+                            let dst = crate::core::id::SceneId {
+                                chapter: 0,
+                                episode: plan.target_episode,
+                                scene: 0,
+                                section: 0,
+                            }
+                            .display(digits)
+                            .split('-')
+                            .take(2)
+                            .collect::<Vec<_>>()
+                            .join("-");
+                            session.notice =
+                                Some((i18n::format(locale, "stage.stock_returned", &[&dst]), now));
+                        }
+                        Err(err) => {
+                            session.notice =
+                                Some((workspaces::tabs::format_stock_error(locale, &err), now));
+                        }
+                    }
+                }
             }
             (Workspace::Review, Command::Nav(nav)) => {
                 spaces.review.nav(bench, locale, nav);
@@ -2121,7 +2314,9 @@ impl NovnowApp {
                 }
             }
             (Workspace::PlotOutline, Command::ConfirmNext) => {
-                if let Some(workspaces::plot_outline::Down::Episode(chapter, episode)) =
+                if session.tabs.is_stock_tab() {
+                    session.tabs.open_selected_stock_modal(bench.project());
+                } else if let Some(workspaces::plot_outline::Down::Episode(chapter, episode)) =
                     spaces.outline.down(bench)
                 {
                     spaces.episode.land_episode(bench, chapter, episode);
@@ -2862,6 +3057,15 @@ impl NovnowApp {
                 });
                 match document.format {
                     DocumentFormat::Contents => {
+                        if let Some(id) = session.bench.project().scene_at(&document, line) {
+                            let digits = session.bench.project().digits();
+                            unfold_scene_keys(
+                                &mut self.settings.folded,
+                                &mut session.spaces.outline,
+                                digits,
+                                id,
+                            );
+                        }
                         session.tabs.reset_tab(Workspace::Write);
                         session.bench.reveal(&path, byte.unwrap_or(0));
                         session.settings_dirty = true;
@@ -3192,9 +3396,15 @@ impl NovnowApp {
         let Stage::Open(session) = &mut self.stage else {
             return;
         };
+        let digits = session.bench.project().digits();
+        unfold_scene_keys(
+            &mut self.settings.folded,
+            &mut session.spaces.outline,
+            digits,
+            id,
+        );
         session.tabs.reset_tab(Workspace::Write);
         session.bench.close_slice();
-        let digits = session.bench.project().digits();
         let path = session
             .bench
             .project()
@@ -3807,6 +4017,14 @@ impl NovnowApp {
                             session.bench.replace_document(path, edited, now);
                         }
                     }
+                }
+                Some(workspaces::Request::OpenEpisodeScene(scene_id)) => {
+                    if let Stage::Open(session) = &mut self.stage {
+                        session.bench.commit();
+                        session.spaces.episode.land(&session.bench, scene_id);
+                        session.spaces.switcher.mark_visited(Workspace::PlotEpisode);
+                    }
+                    self.switch_to(ctx, Workspace::PlotEpisode, now);
                 }
                 None => {}
             }
@@ -4983,86 +5201,130 @@ impl NovnowApp {
                 }
             }
             Overlay::Search { query, selected } => {
+                let save_as_material =
+                    ctx.input_mut(|i| i.consume_key(Modifiers::COMMAND | Modifiers::SHIFT, Key::S));
                 let down = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::ArrowDown));
                 let up = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::ArrowUp));
                 let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
-                let generation = session.bench.generation();
-                let stale = !matches!(
-                    &session.search_cache,
-                    Some((cached, at, _)) if cached == query && *at == generation
-                );
-                if stale {
-                    let hits = crate::ui::assist::search(session.bench.project(), query);
-                    session.search_cache = Some((query.clone(), generation, hits));
-                }
-                let hits = session
-                    .search_cache
-                    .as_ref()
-                    .map(|(_, _, hits)| hits.clone())
-                    .unwrap_or_default();
-                if down && *selected + 1 < hits.len() {
-                    *selected += 1;
-                }
-                if up {
-                    *selected = selected.saturating_sub(1);
-                }
-                let mut chosen = enter.then_some(*selected);
-                popup(ctx, "search", colors, style, |ui| {
-                    let edit = ui.add(
-                        egui::TextEdit::singleline(query)
-                            .hint_text(i18n::text(locale, "search.placeholder"))
-                            .desired_width(520.0),
+                if save_as_material && !query.trim().is_empty() {
+                    let q_text = query.clone();
+                    session.bench.commit();
+                    session.spaces.switcher.switch(Workspace::Write);
+                    session.tabs.tabs[0] = 1;
+                    session.tabs.query = crate::core::features::search::Query {
+                        text: q_text.clone(),
+                        regex: false,
+                        case_sensitive: false,
+                    };
+                    let start = web_time::Instant::now();
+                    session.tabs.results = Some(crate::core::features::search::run(
+                        session.bench.project(),
+                        &session.tabs.query,
+                        || start.elapsed().as_millis() as u64,
+                    ));
+                    session.tabs.save_search_open = true;
+                    session.tabs.save_search_title = q_text;
+                    session.tabs.save_search_summary.clear();
+                    session.tabs.save_search_fresh = true;
+                    close = true;
+                } else {
+                    let generation = session.bench.generation();
+                    let stale = !matches!(
+                        &session.search_cache,
+                        Some((cached, at, _)) if cached == query && *at == generation
                     );
-                    edit.request_focus();
-                    if edit.changed() {
-                        *selected = 0;
-                    }
-                    ui.add_space(4.0);
-                    crate::ui::widgets::candidate_scroll(ui, "search-list", 360.0, |ui| {
-                        let font = ui
-                            .style()
-                            .text_styles
-                            .get(&egui::TextStyle::Button)
-                            .cloned()
-                            .unwrap_or_else(|| egui::FontId::proportional(13.0));
-                        for (index, hit) in hits.iter().enumerate() {
-                            let color = if index == *selected {
-                                colors.accent
-                            } else {
-                                colors.fg_primary
-                            };
-                            // 一致した範囲は §11.3 の検索一致の背景塗り（`bg.selection`）で示す。
-                            let mut job = egui::text::LayoutJob::default();
-                            crate::ui::widgets::append_text(
-                                &mut job,
-                                &format!("{}:{}  ", hit.path, hit.line),
-                                &font,
-                                color,
-                            );
-                            crate::ui::widgets::append_match(
-                                &mut job,
-                                &hit.text,
-                                query,
-                                &font,
-                                color,
-                                colors.bg_selection,
-                            );
-                            let row =
-                                crate::ui::widgets::selectable_job(ui, index == *selected, job);
-                            crate::ui::widgets::follow_selection(&row, index == *selected);
-                            if row.clicked() {
-                                chosen = Some(index);
+                    if stale {
+                        let hits = crate::ui::assist::search(session.bench.project(), query);
+                        if !query.is_empty() {
+                            let digits = session.bench.project().digits();
+                            for hit in &hits {
+                                if let Some(doc) = session.bench.project().document(&hit.path) {
+                                    if let Some(id) = session
+                                        .bench
+                                        .project()
+                                        .scene_at(doc, hit.line.saturating_sub(1))
+                                    {
+                                        unfold_scene_keys(
+                                            &mut self.settings.folded,
+                                            &mut session.spaces.outline,
+                                            digits,
+                                            id,
+                                        );
+                                    }
+                                }
                             }
                         }
-                    });
-                });
-                if let Some(hit) = chosen.and_then(|index| hits.get(index)) {
-                    session.last_find = query.clone();
-                    if let Some(offset) = session.bench.reveal(&hit.path, hit.range.start) {
-                        session.pending_selection = Some(offset..offset + hit.range.len());
+                        session.search_cache = Some((query.clone(), generation, hits));
                     }
-                    session.settings_dirty = true;
-                    close = true;
+                    let hits = session
+                        .search_cache
+                        .as_ref()
+                        .map(|(_, _, hits)| hits.clone())
+                        .unwrap_or_default();
+                    if down && *selected + 1 < hits.len() {
+                        *selected += 1;
+                    }
+                    if up {
+                        *selected = selected.saturating_sub(1);
+                    }
+                    let mut chosen = enter.then_some(*selected);
+                    popup(ctx, "search", colors, style, |ui| {
+                        let edit = ui.add(
+                            egui::TextEdit::singleline(query)
+                                .hint_text(i18n::text(locale, "search.placeholder"))
+                                .desired_width(520.0),
+                        );
+                        edit.request_focus();
+                        if edit.changed() {
+                            *selected = 0;
+                        }
+                        ui.add_space(4.0);
+                        crate::ui::widgets::candidate_scroll(ui, "search-list", 360.0, |ui| {
+                            let font = ui
+                                .style()
+                                .text_styles
+                                .get(&egui::TextStyle::Button)
+                                .cloned()
+                                .unwrap_or_else(|| egui::FontId::proportional(13.0));
+                            for (index, hit) in hits.iter().enumerate() {
+                                let color = if index == *selected {
+                                    colors.accent
+                                } else {
+                                    colors.fg_primary
+                                };
+                                // 一致した範囲は §11.3 の検索一致の背景塗り（`bg.selection`）で示す。
+                                let mut job = egui::text::LayoutJob::default();
+                                crate::ui::widgets::append_text(
+                                    &mut job,
+                                    &format!("{}:{}  ", hit.path, hit.line),
+                                    &font,
+                                    color,
+                                );
+                                crate::ui::widgets::append_match(
+                                    &mut job,
+                                    &hit.text,
+                                    query,
+                                    &font,
+                                    color,
+                                    colors.bg_selection,
+                                );
+                                let row =
+                                    crate::ui::widgets::selectable_job(ui, index == *selected, job);
+                                crate::ui::widgets::follow_selection(&row, index == *selected);
+                                if row.clicked() {
+                                    chosen = Some(index);
+                                }
+                            }
+                        });
+                    });
+                    if let Some(hit) = chosen.and_then(|index| hits.get(index)) {
+                        session.last_find = query.clone();
+                        if let Some(offset) = session.bench.reveal(&hit.path, hit.range.start) {
+                            session.pending_selection = Some(offset..offset + hit.range.len());
+                        }
+                        session.settings_dirty = true;
+                        close = true;
+                    }
                 }
             }
             Overlay::Completion { .. } | Overlay::QuickFix { .. } => {}
@@ -6018,6 +6280,110 @@ impl NovnowApp {
                 });
                 if let Some(loc) = chosen.and_then(|index| locations.get(index)).cloned() {
                     jump_target = Some((loc.path, loc.range));
+                    close = true;
+                }
+            }
+            Overlay::ConfirmSwapSections { current, neighbor } => {
+                let cur = *current;
+                let nb = *neighbor;
+                let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
+                let mut choice: Option<bool> = enter.then_some(true);
+                popup(ctx, "confirm-swap-sections", colors, style, |ui| {
+                    let digits = session.bench.project().digits();
+                    ui.label(
+                        RichText::new(i18n::text(locale, "stage.swap_confirm_title"))
+                            .color(colors.fg_primary)
+                            .strong(),
+                    );
+                    ui.add_space(4.0);
+                    ui.label(
+                        RichText::new(format!(
+                            "@{} <-> @{}",
+                            cur.display(digits),
+                            nb.display(digits),
+                        ))
+                        .color(colors.fg_muted),
+                    );
+                    ui.add_space(8.0);
+                    ui.horizontal(|ui| {
+                        if crate::ui::widgets::action_button(
+                            ui,
+                            i18n::text(locale, "stage.swap_both"),
+                        )
+                        .clicked()
+                        {
+                            choice = Some(true);
+                        }
+                        if crate::ui::widgets::action_button(
+                            ui,
+                            i18n::text(locale, "stage.swap_plot_only"),
+                        )
+                        .clicked()
+                        {
+                            choice = Some(false);
+                        }
+                        if crate::ui::widgets::action_button(ui, i18n::text(locale, "stage.cancel"))
+                            .clicked()
+                        {
+                            close = true;
+                        }
+                    });
+                });
+                if let Some(sync_prose) = choice {
+                    session.bench.commit();
+                    if let Some(edit) = crate::core::features::plots::swap_episode_sections(
+                        session.bench.project(),
+                        cur,
+                        nb,
+                        sync_prose,
+                    ) {
+                        session.bench.apply_edit(&edit, now);
+                        session.spaces.episode.select_after_swap(nb);
+                    }
+                    close = true;
+                }
+            }
+            Overlay::InsertMode { options, selected } => {
+                let down = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::ArrowDown));
+                let up = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::ArrowUp));
+                let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
+                if down && *selected + 1 < options.len() {
+                    *selected += 1;
+                }
+                if up {
+                    *selected = selected.saturating_sub(1);
+                }
+                let mut chosen = enter.then_some(*selected);
+                popup(ctx, "insert-mode", colors, style, |ui| {
+                    ui.label(
+                        RichText::new(i18n::text(locale, "stage.insert_mode_title"))
+                            .color(colors.fg_faint),
+                    );
+                    ui.add_space(4.0);
+                    crate::ui::widgets::candidate_scroll(ui, "insert-mode-list", 320.0, |ui| {
+                        for (index, (_, label)) in options.iter().enumerate() {
+                            let color = if index == *selected {
+                                colors.accent
+                            } else {
+                                colors.fg_primary
+                            };
+                            let row = crate::ui::widgets::selectable_action(
+                                ui,
+                                index == *selected,
+                                RichText::new(label).color(color),
+                            );
+                            crate::ui::widgets::follow_selection(&row, index == *selected);
+                            if row.clicked() {
+                                chosen = Some(index);
+                            }
+                        }
+                    });
+                });
+                if let Some((token, _)) = chosen.and_then(|i| options.get(i)).cloned() {
+                    session
+                        .spaces
+                        .episode
+                        .insert_mode_line(&mut session.bench, &token, now);
                     close = true;
                 }
             }
@@ -7139,6 +7505,29 @@ fn materials_for_scene(
         .map(|m| m.id.clone())
         .collect();
     (explicit, candidates)
+}
+
+fn unfold_scene_keys(
+    folded: &mut Vec<String>,
+    outline: &mut workspaces::plot_outline::State,
+    digits: crate::core::id::Digits,
+    id: crate::core::id::SceneId,
+) {
+    let full = id.display(digits);
+    let parts: Vec<&str> = full.split('-').collect();
+    if let Some(ch) = parts.first() {
+        let ch_key = format!("@{ch}");
+        folded.retain(|k| k != &ch_key);
+        if let Some(ep) = parts.get(1) {
+            let ep_key = format!("@{ch}-{ep}");
+            folded.retain(|k| k != &ep_key);
+            if let Some(sc) = parts.get(2) {
+                let sc_key = format!("@{ch}-{ep}-{sc}");
+                folded.retain(|k| k != &sc_key);
+            }
+        }
+    }
+    outline.expand_for_scene(id);
 }
 
 pub use crate::app::memory_host::{HeldSave, MemoryFiles, MemoryHost, MEMORY_NOW, MEMORY_STAMP};

@@ -120,4 +120,16 @@ pub enum Command {
     References,
     /// `Ctrl+Shift+[` / `Ctrl+Shift+]` 構成ツリーの章→話展開・折り畳み（§10.3.1。`plot-outline` の中だけ）。
     Fold(bool),
+    /// `Ctrl+Shift+Space` 空間設計メモの全文ポップアップ（§9.5.3・§9.8.3）。
+    SpacePopup,
+    /// `Ctrl+D` 話プロットに `mode:` 行を補完付きで挿入（§10.2）。
+    InsertMode,
+    /// `Alt+Shift+↑`（`false`）/ `Alt+Shift+↓`（`true`）話プロットの節を入れ替え（§10.2）。
+    SwapSection(bool),
+    /// `Ctrl+Shift+S` 正規表現検索の結果を資料として保存（§16.3.1）。
+    SaveSearch,
+    /// `Ctrl+Shift+Enter` 正式な話をストックへ戻す（§10.3.3）。
+    ReturnToStock,
+    /// `Ctrl+Shift+A` 本文から呼称候補を抽出する（§10.6.1）。
+    ExtractAddresses,
 }

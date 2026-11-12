@@ -592,3 +592,249 @@ fn search_excerpts_are_structured_and_snapshots_use_the_fixed_form() {
         );
     }
 }
+
+#[test]
+fn search_snapshot_slug_summary_and_rerun_diff_workflow() {
+    let mut p = project(&[(
+        "contents/01-01.cnov",
+        "@01-01-01\n銀の指輪を外した。\n;\n金の指輪を見つめた。\n",
+    )]);
+    let q = search::Query {
+        text: "指輪".into(),
+        case_sensitive: true,
+        ..Default::default()
+    };
+    let hits = search::run(&p, &q, || 0).unwrap();
+    let created = search::snapshot_with(
+        &p,
+        &q,
+        &hits,
+        "2026-11-12T10:00:00+09:00",
+        "指輪の登場箇所",
+        "伏線チェック用の固定結果",
+    )
+    .unwrap();
+    assert_eq!(created.id, "S0001");
+    assert_eq!(created.path, "materials/docs/S0001-指輪の登場箇所.md");
+    let index_json: serde_json::Value = serde_json::from_str(&created.index).unwrap();
+    assert_eq!(
+        index_json["items"][0]["summary"],
+        "伏線チェック用の固定結果"
+    );
+
+    p.insert(Document::new(&created.path, &created.body));
+    p.insert(Document::new("materials/index.json", &created.index));
+
+    // 本文を編集して 1 節目のヒットを消し、3 節目に新しいヒットを足す
+    p.insert(Document::new(
+        "contents/01-01.cnov",
+        "@01-01-01\n銀の腕輪を外した。\n;\n金の指輪を見つめた。\n;\n銅の指輪を拾った。\n",
+    ));
+    let new_hits = search::run(&p, &q, || 0).unwrap();
+    let diff = search::rerun_diff(
+        &p,
+        p.text(&created.path),
+        "S0001",
+        "指輪の登場箇所",
+        &q,
+        &new_hits,
+        "2026-11-12T12:30:00+09:00",
+    );
+    assert_eq!(
+        diff.unchanged_count, 1,
+        "created.body={:?}\ndiff={diff:?}",
+        created.body
+    );
+    assert_eq!(diff.added.len(), 1);
+    assert!(diff.added[0].contains("@01-01-01-03") && diff.added[0].contains("銅の**指輪**"));
+    assert_eq!(diff.removed.len(), 1);
+    assert!(diff.removed[0].contains("@01-01-01-01") && diff.removed[0].contains("銀の**指輪**"));
+
+    // 再検索しただけでは保存済み本文は変わらない
+    assert_eq!(p.text(&created.path), created.body);
+
+    // 人間が更新適用を選んだときのみ本文と index.json の updated_at / searched_at が更新される
+    let updated_body = diff.new_body.clone();
+    let updated_index = search::apply_rerun(
+        p.text("materials/index.json"),
+        "S0001",
+        "2026-11-12T12:30:00+09:00",
+    )
+    .unwrap();
+    assert!(updated_body.contains("searched_at: 2026-11-12T12:30:00+09:00\n"));
+    assert!(updated_body.contains("@01-01-01-03 … 銅の**指輪**"));
+    assert!(!updated_body.contains("銀の**指輪**"));
+    let updated_json: serde_json::Value = serde_json::from_str(&updated_index).unwrap();
+    assert_eq!(
+        updated_json["items"][0]["updated_at"],
+        "2026-11-12T12:30:00+09:00"
+    );
+}
+
+#[test]
+fn stock_bidirectional_assignment_and_collision_errors() {
+    use novnow::core::features::stock::StockError;
+
+    let mut p = project(&[
+        (
+            "project.toml",
+            "[project]\ntitle = \"t\"\n[structure]\nallow_chapter_zero = true\n",
+        ),
+        (
+            "plots/00.cnov",
+            "@00-01 秘蔵の幕間\nsummary: ストックの要約\nupdated: 2026-11-10\n",
+        ),
+        ("contents/00-01.cnov", "@00-01-01\n幕間の本文です。\n"),
+        (
+            "plots/00-01.cnov",
+            "@00-01-01\n; @00-01-01-01\nsummary: 幕間節\n",
+        ),
+        ("contents/02-01.cnov", "@02-01-01\n既存の二章一話。\n"),
+        ("ideas.md", "# I0001\nrelates: @00-01-01-01\n"),
+    ]);
+
+    let items = stock::list(&p);
+    assert_eq!(items.len(), 1);
+    assert_eq!(items[0].episode, 1);
+    assert_eq!(items[0].summary, "ストックの要約");
+    assert!(items[0].chars > 0);
+    assert_eq!(items[0].updated_at, "2026-11-10");
+
+    // 既存の 02-01 への配属は衝突エラーで中止される
+    assert!(matches!(
+        stock::move_episode(&p, 0, 1, 2, 1),
+        Err(StockError::DestinationExists(_))
+    ));
+
+    // 空いている 02-05 へ章・話番号指定で配属する
+    let assigned = stock::move_episode(&p, 0, 1, 2, 5).unwrap();
+    assert_eq!(assigned.target_chapter, 2);
+    assert_eq!(assigned.target_episode, 5);
+    assert!(assigned
+        .renames
+        .contains(&("contents/00-01.cnov".into(), "contents/02-05.cnov".into())));
+    for file in &assigned.edit.changes {
+        let doc = p
+            .document(&file.path)
+            .cloned()
+            .unwrap_or_else(|| Document::new(&file.path, ""));
+        let mut text = doc.text.to_string();
+        let mut edits = file.edits.clone();
+        edits.sort_by(|a, b| b.range.start.cmp(&a.range.start));
+        for e in edits {
+            text.replace_range(e.range, &e.new_text);
+        }
+        p.insert(Document::new(&file.path, text));
+    }
+    for (from, to) in &assigned.renames {
+        let body = p.text(from).to_owned();
+        p.remove(from);
+        p.insert(Document::new(to, body));
+    }
+    assert!(p.text("ideas.md").contains("@02-05-01-01"));
+
+    // 正式な話 02-05 をストックへ戻す（00-01 へリネーム＋参照一括更新）
+    let returned = stock::return_to_stock(&p, 2, 5).unwrap();
+    assert_eq!(returned.target_chapter, 0);
+    assert_eq!(returned.target_episode, 1);
+    assert!(returned
+        .renames
+        .contains(&("contents/02-05.cnov".into(), "contents/00-01.cnov".into())));
+}
+
+#[test]
+fn episode_section_swap_and_outline_three_tier_stock_last() {
+    use novnow::core::features::plots;
+    use novnow::core::id::SceneId;
+
+    let p = project(&[
+        (
+            "project.toml",
+            "[project]\ntitle = \"t\"\n[structure]\nallow_chapter_zero = true\n",
+        ),
+        ("plots/all.cnov", "@00\n;\n@01 第一章\n;\n@02 第二章\n"),
+        ("plots/01.cnov", "@01-01 旅立ち\n"),
+        (
+            "plots/01-01.cnov",
+            "@01-01-01 宿屋\nspace: 木造二階建ての宿屋\n朝の支度\nwhen: 第一日 朝\n;\n出発\nwhen: 第一日 昼\nspace: 宿屋の玄関前\n",
+        ),
+        (
+            "contents/01-01.cnov",
+            "@01-01-01\n朝の本文。\n;\n昼の本文。\n",
+        ),
+        ("contents/00-01.cnov", "@00-01-01\nストックの本文。\n"),
+    ]);
+
+    // 1. 構成ツリーは 3 階層（章 → 話 → 場面）で、ストック章 00 が最後尾に並ぶ
+    let tree = plots::outline_tree(&p);
+    let chapter_order: Vec<u16> = tree.iter().map(|c| c.chapter).collect();
+    assert_eq!(chapter_order, vec![1, 2, 0], "ストック章 00 は常に最後尾");
+    assert_eq!(tree[0].episode_count, 1);
+    assert_eq!(tree[0].episodes[0].section_count, 2);
+    assert_eq!(tree[0].episodes[0].scenes.len(), 1);
+    assert_eq!(tree[0].episodes[0].scenes[0].title, "宿屋");
+
+    // 2. episode_rows の when 抽出と space_lines
+    let rows = plots::episode_rows(&p, 1, 1);
+    assert_eq!(rows[1].when.as_deref(), Some("第一日 朝"));
+    assert_eq!(rows[2].when.as_deref(), Some("第一日 昼"));
+    let spaces = plots::space_lines(
+        &p,
+        SceneId {
+            chapter: 1,
+            episode: 1,
+            scene: 1,
+            section: 2,
+        },
+    );
+    assert!(
+        spaces.iter().any(|l| l.contains("宿屋の玄関前")),
+        "節の space: が優先して取得される: {spaces:?}"
+    );
+    let scene_spaces = plots::space_lines(
+        &p,
+        SceneId {
+            chapter: 1,
+            episode: 1,
+            scene: 1,
+            section: 1,
+        },
+    );
+    assert!(
+        scene_spaces
+            .iter()
+            .any(|l| l.contains("木造二階建ての宿屋")),
+        "節に space: が無ければ場面の space: を継承する: {scene_spaces:?}"
+    );
+
+    // 3. 節入替（本文連動あり）
+    let s1 = SceneId {
+        chapter: 1,
+        episode: 1,
+        scene: 1,
+        section: 1,
+    };
+    let s2 = SceneId {
+        chapter: 1,
+        episode: 1,
+        scene: 1,
+        section: 2,
+    };
+    assert!(plots::has_prose_for_swap(&p, s1, s2));
+    let edit = plots::swap_episode_sections(&p, s1, s2, true).unwrap();
+    assert_eq!(edit.changes.len(), 2);
+    let plot_change = edit
+        .changes
+        .iter()
+        .find(|f| f.path == "plots/01-01.cnov")
+        .unwrap();
+    assert!(plot_change.edits[0].new_text.contains("出発"));
+    assert!(plot_change.edits[1].new_text.contains("朝の支度"));
+    let prose_change = edit
+        .changes
+        .iter()
+        .find(|f| f.path == "contents/01-01.cnov")
+        .unwrap();
+    assert!(prose_change.edits[0].new_text.contains("昼の本文。"));
+    assert!(prose_change.edits[1].new_text.contains("朝の本文。"));
+}

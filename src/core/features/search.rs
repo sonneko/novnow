@@ -232,13 +232,44 @@ pub fn expand_escapes(replacement: &str) -> String {
     replacement.replace("\\n", "\n")
 }
 
+/// 検索結果から資料ファイル名用の slug を作る（§16.3.1 `S0042-<slug>.md`）。
+pub fn slug_of(input: &str) -> String {
+    let mut slug = String::new();
+    let mut prev_dash = false;
+    for ch in input.trim().chars() {
+        let safe = ch.is_alphanumeric() || ('\u{3040}'..='\u{9fff}').contains(&ch) || ch == '_';
+        if safe {
+            slug.push(ch.to_ascii_lowercase());
+            prev_dash = false;
+        } else if !prev_dash && !slug.is_empty() {
+            slug.push('-');
+            prev_dash = true;
+        }
+        if slug.chars().count() >= 32 {
+            break;
+        }
+    }
+    slug.trim_matches('-').to_owned()
+}
+
 /// 検索の結果を資料として凍結する。元の本文への生きた依存は残さない（§16.3.1）。
-/// i18n: format-vocabulary
 pub fn snapshot(
     project: &Project,
     query: &Query,
     results: &Results,
     stamp: &str,
+) -> Result<crate::core::features::materials_ops::Created, String> {
+    snapshot_with(project, query, results, stamp, "", "")
+}
+
+/// タイトルと任意の `summary` を指定して検索結果を資料化する（§16.3.1）。
+pub fn snapshot_with(
+    project: &Project,
+    query: &Query,
+    results: &Results,
+    stamp: &str,
+    custom_title: &str,
+    summary: &str,
 ) -> Result<crate::core::features::materials_ops::Created, String> {
     use crate::core::model::material::{Material, MaterialIndex, Source, PREFIX_SEARCH};
     let text = project.text("materials/index.json");
@@ -252,8 +283,22 @@ pub fn snapshot(
         serde_json::from_str(text).map_err(|e| e.to_string())?
     };
     let id = index.issue(PREFIX_SEARCH).to_string();
-    let path = format!("materials/docs/{id}.md");
-    let title = query.text.chars().take(70).collect::<String>();
+    let raw_title = if custom_title.trim().is_empty() {
+        &query.text
+    } else {
+        custom_title.trim()
+    };
+    let title = raw_title
+        .replace('\n', " ")
+        .chars()
+        .take(70)
+        .collect::<String>();
+    let slug = slug_of(&title);
+    let path = if slug.is_empty() {
+        format!("materials/docs/{id}.md")
+    } else {
+        format!("materials/docs/{id}-{slug}.md")
+    };
     let body = snapshot_body(project, query, results, stamp, &id, &title);
     let mut source = Source {
         kind: "search".to_owned(),
@@ -268,11 +313,13 @@ pub fn snapshot(
         "case_sensitive".to_owned(),
         serde_json::json!(query.case_sensitive),
     );
+    let trimmed_summary = summary.trim();
     index.items.push(Material {
         id: id.clone(),
         title,
         path: path.clone(),
         category: SEARCH_CATEGORY.to_owned(),
+        summary: (!trimmed_summary.is_empty()).then(|| trimmed_summary.to_owned()),
         source,
         status: "approved".to_owned(),
         added_by: "human".to_owned(),
@@ -286,6 +333,123 @@ pub fn snapshot(
         body,
         index,
     })
+}
+
+/// 保存済み検索資料に対する再検索の新旧差分（§16.3.1）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SearchDiff {
+    pub added: Vec<String>,
+    pub removed: Vec<String>,
+    pub unchanged_count: usize,
+    pub new_body: String,
+    pub new_hits: usize,
+}
+
+fn extract_result_bullets(md: &str) -> Vec<String> {
+    let after = md
+        .split_once(SNAPSHOT_RESULTS_HEADING)
+        .map_or("", |(_, rest)| rest);
+    after
+        .lines()
+        .map(str::trim)
+        .filter(|line| line.starts_with("- "))
+        .map(ToOwned::to_owned)
+        .collect()
+}
+
+/// 保存済みの検索資料 MD と再実行した検索結果を比較し、新規ヒット / 消失ヒットと更新後 MD を返す。
+pub fn rerun_diff(
+    project: &Project,
+    old_md: &str,
+    id: &str,
+    title: &str,
+    query: &Query,
+    results: &Results,
+    stamp: &str,
+) -> SearchDiff {
+    let effective_title = if title.trim().is_empty() {
+        old_md
+            .lines()
+            .next()
+            .and_then(|l| l.strip_prefix("# "))
+            .unwrap_or(&query.text)
+    } else {
+        title.trim()
+    };
+    let self_exact = format!("materials/docs/{id}.md");
+    let self_prefix = format!("materials/docs/{id}-");
+    let filtered_results = Results {
+        hits: results
+            .hits
+            .iter()
+            .filter(|h| h.path != self_exact && !h.path.starts_with(&self_prefix))
+            .cloned()
+            .collect(),
+        timed_out: results.timed_out,
+    };
+    let new_body = snapshot_body(
+        project,
+        query,
+        &filtered_results,
+        stamp,
+        id,
+        effective_title,
+    );
+    let old_bullets = extract_result_bullets(old_md);
+    let new_bullets = extract_result_bullets(&new_body);
+    let mut old_counts: std::collections::BTreeMap<&str, usize> = std::collections::BTreeMap::new();
+    for line in &old_bullets {
+        *old_counts.entry(line.as_str()).or_default() += 1;
+    }
+    let mut new_counts: std::collections::BTreeMap<&str, usize> = std::collections::BTreeMap::new();
+    for line in &new_bullets {
+        *new_counts.entry(line.as_str()).or_default() += 1;
+    }
+    let mut added = Vec::new();
+    let mut unchanged_count = 0usize;
+    let mut rem_old = old_counts.clone();
+    for line in &new_bullets {
+        if let Some(c) = rem_old.get_mut(line.as_str()) {
+            if *c > 0 {
+                *c -= 1;
+                unchanged_count += 1;
+                continue;
+            }
+        }
+        added.push(line.clone());
+    }
+    let mut removed = Vec::new();
+    let mut rem_new = new_counts;
+    for line in &old_bullets {
+        if let Some(c) = rem_new.get_mut(line.as_str()) {
+            if *c > 0 {
+                *c -= 1;
+                continue;
+            }
+        }
+        removed.push(line.clone());
+    }
+    SearchDiff {
+        added,
+        removed,
+        unchanged_count,
+        new_body,
+        new_hits: filtered_results.hits.len(),
+    }
+}
+
+/// 再検索結果を人間が採用したときに `materials/index.json` の `searched_at` / `updated_at` を更新する。
+pub fn apply_rerun(index_text: &str, id: &str, stamp: &str) -> Result<String, String> {
+    use crate::core::model::material::MaterialIndex;
+    let mut index: MaterialIndex = serde_json::from_str(index_text).map_err(|e| e.to_string())?;
+    let found = index
+        .items
+        .iter_mut()
+        .find(|item| item.id == id)
+        .ok_or_else(|| format!("material not found: {id}"))?;
+    found.source.searched_at = Some(stamp.to_owned());
+    found.updated_at = Some(stamp.to_owned());
+    Ok(serde_json::to_string_pretty(&index).map_err(|e| e.to_string())? + "\n")
 }
 
 /// 保存上限を超えたときの末尾の注記（§16.3.1 の固定形の一部）。
@@ -322,10 +486,12 @@ fn snapshot_body(
                     crate::core::features::sections::of_document(doc, project)
                         .iter()
                         .map(|section| {
-                            (
-                                section.header.unwrap_or(section.lines.start),
-                                section.id.display(digits),
-                            )
+                            let start_line = if section.id.section <= 1 {
+                                section.header.unwrap_or(section.lines.start)
+                            } else {
+                                section.lines.start
+                            };
+                            (start_line, section.id.display(digits))
                         })
                         .collect()
                 })

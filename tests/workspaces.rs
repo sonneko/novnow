@@ -3205,3 +3205,271 @@ fn reader_toc_cover_folio_clean_chrome_and_escape_return_stay_aligned() {
         "Esc で直前に読んでいた節の節エディタに正確に戻る"
     );
 }
+
+#[test]
+fn plot_episode_when_label_insert_mode_space_popup_and_section_swap_work() {
+    let mut project = novel::novel();
+    project.insert(Document::new(
+        "plots/01-01.cnov",
+        "@01-01-01 広場\nspace: 石畳の中央広場\n第一節の要約\nwhen: 第三日 夕刻\n;\n第二節の要約\nwhen: 第三日 夜\n",
+    ));
+    let mut harness = Harness::start_with(project, true).0;
+    harness.frame(vec![key(Key::Num2, ALT)]);
+    let out = harness.frame(Vec::new());
+    assert_eq!(harness.app.workspace(), Some(Workspace::PlotEpisode));
+
+    // 1. 右端に when: の値が表示されている
+    let shown = painted_text(&out);
+    assert!(
+        shown.contains("第三日 夕刻"),
+        "when: が節リスト右端に表示される: {shown}"
+    );
+
+    // 2. Ctrl+Shift+Space で空間設計メモの全文ポップアップが開く
+    harness.frame(vec![key(Key::Space, CTRL_SHIFT)]);
+    let popup_out = harness.frame(Vec::new());
+    assert_eq!(
+        harness.app.overlay_kind(),
+        Some(novnow::ui::app::OverlayKind::Info)
+    );
+    assert!(painted_text(&popup_out).contains("石畳の中央広場"));
+    harness.frame(vec![key(Key::Escape, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+
+    // 3. Ctrl+D で mode: 行を補完から挿入できる（着地時は第1節が選択されている）
+    harness.frame(vec![key(Key::D, CTRL)]);
+    harness.frame(Vec::new());
+    assert_eq!(
+        harness.app.overlay_kind(),
+        Some(novnow::ui::app::OverlayKind::InsertMode)
+    );
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+    let plot_after_mode = harness
+        .app
+        .workbench()
+        .unwrap()
+        .project()
+        .text("plots/01-01.cnov")
+        .to_owned();
+    assert!(
+        plot_after_mode.contains("mode: '"),
+        "Ctrl+D → Enter で mode: 行が挿入される: {plot_after_mode}"
+    );
+
+    // 4. Alt+Shift+Down で本文あり節の入替確認モーダルが開き、Enter で連動入替される
+    harness.frame(vec![key(Key::ArrowDown, ALT | Modifiers::SHIFT)]);
+    harness.frame(Vec::new());
+    assert_eq!(
+        harness.app.overlay_kind(),
+        Some(novnow::ui::app::OverlayKind::ConfirmSwapSections)
+    );
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+    let plot_after_swap = harness
+        .app
+        .workbench()
+        .unwrap()
+        .project()
+        .text("plots/01-01.cnov")
+        .to_owned();
+    let idx_second = plot_after_swap.find("第二節の要約").unwrap();
+    let idx_first = plot_after_swap.find("第一節の要約").unwrap();
+    assert!(
+        idx_second < idx_first,
+        "節プロットが入れ替わる: {plot_after_swap}"
+    );
+}
+
+#[test]
+fn outline_tree_keeps_stock_last_and_search_auto_expands_folded_units() {
+    let mut project = novel::novel();
+    project.insert(Document::new(
+        "project.toml",
+        "[project]\ntitle = \"t\"\n[structure]\nallow_chapter_zero = true\n",
+    ));
+    project.insert(Document::new(
+        "plots/all.cnov",
+        "@00\n;\n@01 序章\n;\n@02 転章\n",
+    ));
+    project.insert(Document::new(
+        "contents/00-01.cnov",
+        "@00-01-01\n秘蔵ストック本文\n",
+    ));
+    let mut harness = Harness::start_with(project, true).0;
+
+    // PlotOutline を開く: ストック章 00（「未分類ストック」）は 01・02 より下（最後尾）に描かれる
+    harness.frame(vec![key(Key::Num3, ALT)]);
+    let out = harness.frame(Vec::new());
+    let texts = painted_texts(&out);
+    let y_ch1 = texts
+        .iter()
+        .find(|(t, _)| t.contains("序章"))
+        .map(|(_, r)| r.center().y)
+        .expect("序章");
+    let y_ch2 = texts
+        .iter()
+        .find(|(t, _)| t.contains("転章"))
+        .map(|(_, r)| r.center().y)
+        .expect("転章");
+    let y_stock = texts
+        .iter()
+        .find(|(t, _)| t.contains("未分類ストック"))
+        .map(|(_, r)| r.center().y)
+        .expect("未分類ストック");
+    assert!(
+        y_ch1 < y_ch2 && y_ch2 < y_stock,
+        "ストック章は常に最後尾に並ぶ"
+    );
+
+    // すべて折りたたんだ状態から Ctrl+Shift+F で検索すると該当単位が自動展開される
+    harness.frame(vec![key(Key::K, CTRL)]);
+    harness.frame(vec![key(Key::Num0, CTRL)]);
+    harness.frame(vec![key(Key::F, CTRL_SHIFT)]);
+    harness.frame(vec![egui::Event::Text("秘蔵ストック".into())]);
+    harness.frame(Vec::new());
+    harness.frame(vec![key(Key::Escape, Modifiers::NONE)]);
+    let expanded_out = harness.frame(Vec::new());
+    assert!(
+        painted_text(&expanded_out).contains("00-01"),
+        "検索ヒットにより折りたたまれたストック章が自動展開される"
+    );
+}
+
+#[test]
+fn save_search_with_ctrl_shift_s_and_material_rerun_diff_preview() {
+    let mut harness = novel_harness();
+    // Write で Ctrl+Shift+F → 検索タブが開いて入力欄にフォーカス → "アルス" + Enter で検索 → Ctrl+Shift+S
+    harness.frame(vec![key(Key::F, CTRL_SHIFT)]);
+    harness.frame(Vec::new());
+    harness.frame(vec![
+        egui::Event::Text("アルス".into()),
+        key(Key::Enter, Modifiers::NONE),
+    ]);
+    harness.frame(Vec::new());
+    harness.frame(vec![key(Key::S, CTRL_SHIFT)]);
+    let modal_out = harness.frame(Vec::new());
+    assert!(
+        painted_text(&modal_out).contains("この検索結果を資料にする"),
+        "Ctrl+Shift+S で検索資料化モーダルが開く: open={:?} text={}",
+        harness.app.tabs_state().map(|t| t.save_search_open),
+        painted_text(&modal_out)
+    );
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+
+    let saved_path = harness
+        .app
+        .workbench()
+        .unwrap()
+        .project()
+        .documents()
+        .find(|d| d.path.starts_with("materials/docs/S") && d.path.ends_with("-アルス.md"))
+        .map(|d| d.path.clone())
+        .expect("S####-<slug>.md として保存される");
+    assert_eq!(saved_path, "materials/docs/S0138-アルス.md");
+
+    // Write 節エディタへ戻って本文に新しいヒットを追記してから Material ワークスペースで [再検索]
+    let (_, basic_tab) = painted_texts(&harness.frame(Vec::new()))
+        .into_iter()
+        .find(|(t, _)| t == "基本")
+        .expect("基本タブ");
+    harness.click_at(basic_tab.center());
+    harness.frame(vec![key(Key::Num2, CTRL)]);
+    harness.frame(Vec::new());
+    harness.frame(vec![egui::Event::Text("\nアルスが新しく頷いた。\n".into())]);
+    harness.frame(Vec::new());
+    harness.frame(vec![key(Key::Num5, ALT)]);
+    let detail_out = harness.frame(Vec::new());
+    let (_, rerun_btn) = painted_texts(&detail_out)
+        .into_iter()
+        .find(|(t, _)| t == "再検索")
+        .expect("再検索ボタン");
+    harness.click_at(rerun_btn.center());
+    let diff_out = harness.frame(Vec::new());
+    assert!(
+        painted_text(&diff_out).contains("新規ヒット"),
+        "再検索で未適用の差分プレビューが表示される: {}",
+        painted_text(&diff_out)
+    );
+    // まだ保存済み本文は書き換わっていない
+    assert!(
+        !harness
+            .app
+            .workbench()
+            .unwrap()
+            .project()
+            .text(&saved_path)
+            .contains("新しく頷いた"),
+        "人間が採用するまで本文は自動上書きされない"
+    );
+    let (_, apply_btn) = painted_texts(&diff_out)
+        .into_iter()
+        .find(|(t, _)| t == "この検索結果で更新を適用")
+        .expect("適用ボタン");
+    harness.click_at(apply_btn.center());
+    harness.frame(Vec::new());
+    assert!(
+        harness
+            .app
+            .workbench()
+            .unwrap()
+            .project()
+            .text(&saved_path)
+            .contains("新しく頷いた"),
+        "適用ボタンで本文が更新される"
+    );
+}
+
+#[test]
+fn stock_tab_bidirectional_assign_and_return_work_in_gui() {
+    let mut project = novel::novel();
+    project.insert(Document::new(
+        "project.toml",
+        "[project]\ntitle = \"t\"\n[structure]\nallow_chapter_zero = true\n",
+    ));
+    project.insert(Document::new(
+        "contents/00-01.cnov",
+        "@00-01-01\nストックの挿話。\n",
+    ));
+    project.insert(Document::new(
+        "plots/00.cnov",
+        "@00-01 秘蔵挿話\nsummary: 幕間の構想\n",
+    ));
+    let mut harness = Harness::start_with(project, true).0;
+
+    // PlotOutline → ストック配属タブ（末尾タブなので Ctrl+Shift+Left 1 回で到達）
+    harness.frame(vec![key(Key::Num3, ALT)]);
+    harness.frame(vec![key(Key::ArrowLeft, CTRL_SHIFT)]);
+    let stock_out = harness.frame(Vec::new());
+    let text = painted_text(&stock_out);
+    assert!(
+        text.contains("00-01") && text.contains("幕間の構想"),
+        "ストック一覧に話番号と要約が表示される: {text}"
+    );
+
+    // Ctrl+Enter で章・話番号指定モーダルを開き、Enter で既定の空き話番号へ配属
+    harness.frame(vec![key(Key::Enter, CTRL)]);
+    let modal_out = harness.frame(Vec::new());
+    assert!(
+        painted_text(&modal_out).contains("移動先の章番号"),
+        "stock modal open={:?} text={}",
+        harness
+            .app
+            .tabs_state()
+            .map(|t| (t.tabs[2], t.stock_modal_open)),
+        painted_text(&modal_out)
+    );
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+    assert!(
+        harness
+            .app
+            .workbench()
+            .unwrap()
+            .project()
+            .document("contents/00-01.cnov")
+            .is_none(),
+        "ストックから正式な章へファイルが移動した"
+    );
+}

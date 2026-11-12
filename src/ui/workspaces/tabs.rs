@@ -29,9 +29,9 @@ pub struct State {
     pub tabs: [usize; 9],
     pub tab_selected: usize,
     last_active_tab: Option<(Workspace, usize)>,
-    pub(super) query: search::Query,
+    pub(crate) query: search::Query,
     pub(super) replacement: String,
-    pub(super) results: Option<Result<search::Results, String>>,
+    pub(crate) results: Option<Result<search::Results, String>>,
     pub(super) confirmed: bool,
     pub stats: metrics::Stats,
     pub session: metrics::Session,
@@ -53,6 +53,19 @@ pub struct State {
     pub reader_raw: serde_json::Value,
     pub stock_episode: u16,
     pub stock_chapter: u16,
+    pub stock_selected: usize,
+    pub stock_modal_open: bool,
+    pub stock_modal_episode: u16,
+    pub stock_modal_chapter_input: String,
+    pub stock_modal_episode_input: String,
+    pub stock_modal_fresh: bool,
+    pub stock_error: String,
+    pub stock_notice: String,
+    pub save_search_open: bool,
+    pub save_search_title: String,
+    pub save_search_summary: String,
+    pub save_search_fresh: bool,
+    pub focus_search_input: bool,
     pub local_enabled: bool,
     pub local_url: String,
     pub local_model: String,
@@ -314,21 +327,7 @@ pub fn show(
                 super::local_llm::local_ui(ui, state, bench, locale, now, host);
             }
             "stage.stock" => {
-                ui.add(egui::DragValue::new(&mut state.stock_episode).clamp_range(1..=999));
-                ui.add(egui::DragValue::new(&mut state.stock_chapter).clamp_range(1..=999));
-                if ui.button(label(locale, "stage.assign")).clicked() {
-                    bench.commit();
-                    if let Ok(plan) = crate::core::features::stock::assign(
-                        bench.project(),
-                        state.stock_episode,
-                        state.stock_chapter,
-                    ) {
-                        bench.apply_edit(&plan.edit, now);
-                        for (from, to) in plan.renames {
-                            bench.rename_document(&from, &to, now);
-                        }
-                    }
-                }
+                stock_ui(ui, state, bench, locale, now);
             }
             "stage.proposals" => {
                 super::proposals::proposals_ui(ui, bench, locale, now, &state.stamp);
@@ -676,4 +675,315 @@ pub fn show(
         }
     }
     TabOutcome::Active { jump, exit_reader }
+}
+
+impl State {
+    pub fn is_stock_tab(&self) -> bool {
+        self.tabs[Workspace::PlotOutline.number() as usize - 1] == 8
+    }
+
+    pub fn open_stock_modal_for(
+        &mut self,
+        project: &crate::core::features::Project,
+        selected_ep: u16,
+    ) {
+        let default_ch = self.stock_chapter.max(1);
+        let default_ep =
+            crate::core::features::stock::next_episode_in_chapter(project, default_ch).unwrap_or(1);
+        self.stock_modal_open = true;
+        self.stock_modal_episode = selected_ep;
+        self.stock_modal_chapter_input = default_ch.to_string();
+        self.stock_modal_episode_input = default_ep.to_string();
+        self.stock_modal_fresh = true;
+        self.stock_error.clear();
+    }
+
+    pub fn open_selected_stock_modal(&mut self, project: &crate::core::features::Project) -> bool {
+        let items = crate::core::features::stock::list(project);
+        let Some(item) = items.get(self.stock_selected.min(items.len().saturating_sub(1))) else {
+            return false;
+        };
+        self.open_stock_modal_for(project, item.episode);
+        true
+    }
+}
+
+pub(crate) fn format_stock_error(
+    locale: Locale,
+    err: &crate::core::features::stock::StockError,
+) -> String {
+    use crate::core::features::stock::StockError;
+    match err {
+        StockError::ZeroTarget => label(locale, "stage.stock_err_zero"),
+        StockError::SameLocation => label(locale, "stage.stock_err_same"),
+        StockError::SourceMissing(path) => i18n::format(locale, "stage.stock_err_missing", &[path]),
+        StockError::DestinationExists(dest) => {
+            i18n::format(locale, "stage.stock_err_exists", &[dest])
+        }
+        StockError::EpisodeLimit => label(locale, "stage.stock_err_limit"),
+    }
+}
+
+pub(crate) fn apply_stock_assignment(
+    bench: &mut Workbench,
+    plan: &crate::core::features::stock::Assignment,
+    now: f64,
+) {
+    bench.commit();
+    bench.apply_edit(&plan.edit, now);
+    for (from, to) in &plan.renames {
+        bench.rename_document(from, to, now);
+    }
+}
+
+fn stock_ui(ui: &mut egui::Ui, state: &mut State, bench: &mut Workbench, locale: Locale, now: f64) {
+    use crate::core::features::{plots, stock};
+    use crate::core::id::SceneId;
+
+    let digits = bench.project().digits();
+    ui.strong(label(locale, "stage.assign"));
+    let items = stock::list(bench.project());
+    if items.is_empty() {
+        state.stock_selected = 0;
+        ui.label(label(locale, "stage.stock_empty"));
+    } else {
+        state.stock_selected = state.stock_selected.min(items.len() - 1);
+        if !state.stock_modal_open && !ui.ctx().wants_keyboard_input() {
+            if ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowDown)) {
+                state.stock_selected = (state.stock_selected + 1).min(items.len() - 1);
+            }
+            if ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowUp)) {
+                state.stock_selected = state.stock_selected.saturating_sub(1);
+            }
+        }
+        let selected_ep = items[state.stock_selected].episode;
+        let open_assign = (!state.stock_modal_open
+            && (ui.input_mut(|i| i.consume_key(egui::Modifiers::CTRL, egui::Key::Enter))
+                || ui.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::Enter))))
+            || ui
+                .button(label(locale, "stage.stock_assign_button"))
+                .clicked();
+        if open_assign {
+            state.open_stock_modal_for(bench.project(), selected_ep);
+        }
+        egui::ScrollArea::vertical()
+            .id_source("stock-episode-list")
+            .max_height(240.0)
+            .show(ui, |ui| {
+                for (idx, item) in items.iter().enumerate() {
+                    let id_str = plots::short_id(
+                        SceneId {
+                            chapter: 0,
+                            episode: item.episode,
+                            scene: 0,
+                            section: 0,
+                        },
+                        digits,
+                    );
+                    let chars_str = i18n::format(
+                        locale,
+                        "stage.stock_chars_unit",
+                        &[&crate::ui::widgets::context_view::group(item.chars)],
+                    );
+                    let summary_part = if !item.summary.is_empty() {
+                        item.summary.as_str()
+                    } else if !item.title.is_empty() {
+                        item.title.as_str()
+                    } else {
+                        "—"
+                    };
+                    let date_part = if item.updated_at.is_empty() {
+                        "—"
+                    } else {
+                        item.updated_at.as_str()
+                    };
+                    let row_text = format!("{id_str}  {summary_part}  {chars_str}  {date_part}");
+                    if ui
+                        .selectable_label(idx == state.stock_selected, row_text)
+                        .clicked()
+                    {
+                        state.stock_selected = idx;
+                    }
+                }
+            });
+    }
+
+    ui.separator();
+    ui.label(label(locale, "stage.stock_regular_heading"));
+    let mut regular_episodes = Vec::new();
+    for ch in plots::chapters(bench.project()) {
+        if ch == 0 {
+            continue;
+        }
+        for ep in plots::episodes(bench.project(), ch) {
+            if ep > 0 {
+                regular_episodes.push((ch, ep));
+            }
+        }
+    }
+    if !regular_episodes.is_empty() {
+        egui::ScrollArea::vertical()
+            .id_source("stock-regular-episodes")
+            .max_height(180.0)
+            .show(ui, |ui| {
+                for (ch, ep) in regular_episodes {
+                    let id_str = plots::short_id(
+                        SceneId {
+                            chapter: ch,
+                            episode: ep,
+                            scene: 0,
+                            section: 0,
+                        },
+                        digits,
+                    );
+                    ui.horizontal(|ui| {
+                        ui.label(format!("@{id_str}"));
+                        if ui
+                            .button(label(locale, "stage.stock_return_button"))
+                            .clicked()
+                        {
+                            match stock::return_to_stock(bench.project(), ch, ep) {
+                                Ok(plan) => {
+                                    let dest = plots::short_id(
+                                        SceneId {
+                                            chapter: plan.target_chapter,
+                                            episode: plan.target_episode,
+                                            scene: 0,
+                                            section: 0,
+                                        },
+                                        digits,
+                                    );
+                                    apply_stock_assignment(bench, &plan, now);
+                                    state.stock_error.clear();
+                                    state.stock_notice =
+                                        i18n::format(locale, "stage.stock_returned", &[&dest]);
+                                }
+                                Err(err) => {
+                                    state.stock_error = format_stock_error(locale, &err);
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+    }
+
+    if !state.stock_error.is_empty() {
+        ui.colored_label(egui::Color32::from_rgb(220, 80, 80), &state.stock_error);
+    } else if !state.stock_notice.is_empty() {
+        ui.label(&state.stock_notice);
+    }
+
+    if state.stock_modal_open {
+        let mut cancel = ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape));
+        let mut submit = false;
+        let from_id = plots::short_id(
+            SceneId {
+                chapter: 0,
+                episode: state.stock_modal_episode,
+                scene: 0,
+                section: 0,
+            },
+            digits,
+        );
+        egui::Window::new(i18n::format(
+            locale,
+            "stage.stock_assign_title",
+            &[&from_id],
+        ))
+        .collapsible(false)
+        .resizable(false)
+        .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
+        .show(ui.ctx(), |ui| {
+            ui.label(label(locale, "stage.stock_target_chapter"));
+            let ch_resp = ui.add(
+                egui::TextEdit::singleline(&mut state.stock_modal_chapter_input)
+                    .id(egui::Id::new("stock-target-chapter"))
+                    .desired_width(140.0),
+            );
+            if state.stock_modal_fresh {
+                ch_resp.request_focus();
+                state.stock_modal_fresh = false;
+            }
+            if ch_resp.changed() {
+                if let Ok(ch) = state.stock_modal_chapter_input.trim().parse::<u16>() {
+                    if ch > 0 {
+                        if let Some(next_ep) = stock::next_episode_in_chapter(bench.project(), ch) {
+                            state.stock_modal_episode_input = next_ep.to_string();
+                        }
+                    }
+                }
+            }
+            ui.label(label(locale, "stage.stock_target_episode"));
+            let ep_resp = ui.add(
+                egui::TextEdit::singleline(&mut state.stock_modal_episode_input)
+                    .id(egui::Id::new("stock-target-episode"))
+                    .desired_width(140.0),
+            );
+            if !state.stock_error.is_empty() {
+                ui.colored_label(egui::Color32::from_rgb(220, 80, 80), &state.stock_error);
+            }
+            let enter_pressed = ((ch_resp.lost_focus() || ep_resp.lost_focus())
+                && ui.input(|i| i.key_pressed(egui::Key::Enter)))
+                || ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter));
+            ui.horizontal(|ui| {
+                if ui
+                    .button(label(locale, "stage.stock_assign_confirm"))
+                    .clicked()
+                    || enter_pressed
+                {
+                    submit = true;
+                }
+                if ui.button(label(locale, "stage.cancel")).clicked() {
+                    cancel = true;
+                }
+            });
+        });
+        if cancel {
+            state.stock_modal_open = false;
+            state.stock_error.clear();
+        } else if submit {
+            let parsed_ch = state
+                .stock_modal_chapter_input
+                .trim()
+                .parse::<u16>()
+                .unwrap_or(0);
+            let parsed_ep = state
+                .stock_modal_episode_input
+                .trim()
+                .parse::<u16>()
+                .unwrap_or(0);
+            if parsed_ch == 0 || parsed_ep == 0 {
+                state.stock_error = label(locale, "stage.stock_err_zero");
+            } else {
+                match stock::move_episode(
+                    bench.project(),
+                    0,
+                    state.stock_modal_episode,
+                    parsed_ch,
+                    parsed_ep,
+                ) {
+                    Ok(plan) => {
+                        let dest = plots::short_id(
+                            SceneId {
+                                chapter: plan.target_chapter,
+                                episode: plan.target_episode,
+                                scene: 0,
+                                section: 0,
+                            },
+                            digits,
+                        );
+                        apply_stock_assignment(bench, &plan, now);
+                        state.stock_chapter = parsed_ch;
+                        state.stock_modal_open = false;
+                        state.stock_error.clear();
+                        state.stock_notice = i18n::format(locale, "stage.stock_assigned", &[&dest]);
+                    }
+                    Err(err) => {
+                        state.stock_error = format_stock_error(locale, &err);
+                    }
+                }
+            }
+        }
+    }
 }

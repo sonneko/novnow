@@ -42,14 +42,8 @@ pub type Level = Option<u16>;
 /// 親のブロックの中身（文字列・色分け）。
 type Parent = (String, Highlight);
 
-/// 左の構成ツリーの 1 章ぶん（§10.3.1: `folding::ranges` と `document_symbol::all` で章→話を展開）。
-#[derive(Debug, Clone)]
-struct ChapterNode {
-    chapter: u16,
-    title: String,
-    foldable: bool,
-    episodes: Vec<(u16, String)>,
-}
+/// 左の構成ツリーの 1 章ぶん（§10.3.1: 章 → 話 → 場面の 3 階層と集計）。
+type ChapterNode = plots::OutlineChapterNode;
 
 /// `plot-outline` の状態（切替で破棄しない、§10.0）。
 #[derive(Debug, Default)]
@@ -62,8 +56,8 @@ pub struct State {
     chapters: Option<(u64, Vec<ChapterNode>)>,
     foreshadows: Option<(u64, Vec<Foreshadow>)>,
     parent: Option<(u64, Level, Option<Parent>)>,
-    /// 構成ツリーで話を展開している章（`Ctrl+Shift+]` で展開、`Ctrl+Shift+[` で畳む）。
-    expanded: BTreeSet<u16>,
+    /// 構成ツリーで展開している単位（章 `@01`、話 `@01-04`）。
+    expanded: BTreeSet<String>,
     editor: slice_editor::Cache,
     reveal: bool,
     /// 一覧の選択だけを動かし、そのブロックの本文は開かず確定もしない（§10.3）。
@@ -139,6 +133,8 @@ impl State {
                 blocks.retain(|block| block.id.chapter == chapter && block.id.episode > 0);
             } else {
                 blocks.retain(|block| block.id.episode == 0);
+                // ストック章（`00`）は番号順では先頭だが、表示上は常に最後に置く（§10.3.1）
+                blocks.sort_by_key(|block| block.id.chapter == 0);
             }
             self.blocks = Some((bench.generation(), level, blocks));
         }
@@ -147,47 +143,139 @@ impl State {
             .map_or(&[], |(_, _, blocks)| blocks.as_slice())
     }
 
-    /// 章 `chapter` の話一覧を展開しているか。
-    pub fn is_expanded(&self, chapter: u16) -> bool {
-        self.expanded.contains(&chapter)
+    fn chapter_key(chapter: u16) -> String {
+        format!("@{chapter:02}")
     }
 
-    /// 話を展開している章の鍵（`@NN`。`.novnow/ui.json` の `folded.outline`、§4.4.1）。
+    fn episode_key(chapter: u16, episode: u16) -> String {
+        format!("@{chapter:02}-{episode:02}")
+    }
+
+    /// 章 `chapter` の話一覧を展開しているか。
+    pub fn is_expanded(&self, chapter: u16) -> bool {
+        self.expanded.contains(&Self::chapter_key(chapter))
+    }
+
+    /// 話 `(chapter, episode)` の場面一覧を展開しているか。
+    pub fn is_episode_expanded(&self, chapter: u16, episode: u16) -> bool {
+        self.expanded.contains(&Self::episode_key(chapter, episode))
+    }
+
+    /// 展開している単位の鍵（`@NN` / `@NN-MM`。`.novnow/ui.json` の `folded.outline`、§4.4.1）。
     pub fn expanded_keys(&self) -> Vec<String> {
-        self.expanded
-            .iter()
-            .map(|chapter| format!("@{chapter:02}"))
-            .collect()
+        self.expanded.iter().cloned().collect()
     }
 
     /// `.novnow/ui.json` の `folded.outline` から展開状態を復元する（§4.4.1・§10.3.1）。
     /// 読めない鍵は無視する（壊れていても既定値で動く、§4.4）。
     pub fn restore_expanded(&mut self, keys: &[String]) {
-        self.expanded = keys
-            .iter()
-            .filter_map(|key| key.trim_start_matches('@').parse().ok())
-            .collect();
+        self.expanded.clear();
+        for raw in keys {
+            let trimmed = raw.trim().trim_start_matches('@');
+            let parts: Vec<&str> = trimmed.split('-').collect();
+            match parts.as_slice() {
+                [ch] => {
+                    if let Ok(c) = ch.parse::<u16>() {
+                        self.expanded.insert(Self::chapter_key(c));
+                    }
+                }
+                [ch, ep, ..] => {
+                    if let (Ok(c), Ok(e)) = (ch.parse::<u16>(), ep.parse::<u16>()) {
+                        self.expanded.insert(Self::chapter_key(c));
+                        if e > 0 {
+                            self.expanded.insert(Self::episode_key(c, e));
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
     }
 
     /// 1 つの章だけを畳む（`fold == true`）/ 展開する（`plot.outline_fold`、§10.3.1）。
     pub fn set_chapter_folded(&mut self, chapter: u16, fold: bool) {
+        let key = Self::chapter_key(chapter);
         if fold {
-            self.expanded.remove(&chapter);
+            let prefix = format!("{key}-");
+            self.expanded
+                .retain(|k| k != &key && !k.starts_with(&prefix));
         } else {
-            self.expanded.insert(chapter);
+            self.expanded.insert(key);
         }
     }
 
-    /// 今の章（全体なら選んでいる章）の話一覧を畳む（`fold == true`）/ 展開する（`false`、§10.3.1）。
+    /// 1 つの話の場面一覧だけを畳む / 展開する。
+    pub fn set_episode_folded(&mut self, chapter: u16, episode: u16, fold: bool) {
+        let key = Self::episode_key(chapter, episode);
+        if fold {
+            self.expanded.remove(&key);
+        } else {
+            self.expanded.insert(Self::chapter_key(chapter));
+            self.expanded.insert(key);
+        }
+    }
+
+    /// すべて畳む（`Ctrl+K Ctrl+0`）。
+    pub fn fold_all(&mut self) {
+        self.expanded.clear();
+    }
+
+    /// すべて展開する（`Ctrl+K Ctrl+J`）。
+    pub fn unfold_all(&mut self, bench: &Workbench) {
+        for node in self.chapters(bench).to_vec() {
+            self.expanded.insert(Self::chapter_key(node.chapter));
+            for ep in &node.episodes {
+                if ep.episode > 0 && !ep.scenes.is_empty() {
+                    self.expanded
+                        .insert(Self::episode_key(node.chapter, ep.episode));
+                }
+            }
+        }
+    }
+
+    /// 検索ヒット等で対象 `id` が見えるよう該当する章・話を自動展開する（§9.3.3・§9.7.4）。
+    pub fn expand_for_scene(&mut self, id: SceneId) {
+        self.expanded.insert(Self::chapter_key(id.chapter));
+        if id.episode > 0 && id.scene > 0 {
+            self.expanded
+                .insert(Self::episode_key(id.chapter, id.episode));
+        }
+    }
+
+    /// 今の単位を段階的に畳む（`fold == true`）/ 展開する（`false`、§9.3.3・§10.3.1）。
     pub fn set_folded(&mut self, bench: &Workbench, fold: bool) -> bool {
+        let sel = self.selected;
         let target = self
             .level
             .flatten()
-            .or_else(|| self.selected.map(|id| id.chapter))
+            .or_else(|| sel.map(|id| id.chapter))
             .or_else(|| self.chapters(bench).first().map(|node| node.chapter));
         let Some(chapter) = target else {
             return false;
         };
+        if let Some(ep) = sel
+            .filter(|id| id.chapter == chapter && id.episode > 0)
+            .map(|id| id.episode)
+        {
+            let has_scenes = self
+                .chapters(bench)
+                .iter()
+                .find(|c| c.chapter == chapter)
+                .and_then(|c| c.episodes.iter().find(|e| e.episode == ep))
+                .is_some_and(|e| !e.scenes.is_empty());
+            if fold {
+                if self.is_episode_expanded(chapter, ep) {
+                    self.set_episode_folded(chapter, ep, true);
+                    return true;
+                }
+            } else if self.is_expanded(chapter)
+                && has_scenes
+                && !self.is_episode_expanded(chapter, ep)
+            {
+                self.set_episode_folded(chapter, ep, false);
+                return true;
+            }
+        }
         self.set_chapter_folded(chapter, fold);
         true
     }
@@ -201,47 +289,32 @@ impl State {
                 .document("plots/all.cnov")
                 .map(folding::ranges)
                 .unwrap_or_default();
-            let titles = plots::outline_blocks(project, None);
-            let list = plots::chapters(project)
-                .into_iter()
-                .map(|chapter| {
-                    let title = titles
-                        .iter()
-                        .find(|block| block.id.chapter == chapter && block.id.episode == 0)
-                        .map(|block| block.title.clone())
-                        .unwrap_or_default();
-                    let path = project.chapter_plot_path(chapter);
-                    let (ranges, symbols) = project
-                        .document(&path)
-                        .map(|doc| (folding::ranges(doc), document_symbol::all(doc)))
-                        .unwrap_or_default();
-                    let mut episodes: Vec<(u16, String)> = symbols
-                        .into_iter()
-                        .filter(|symbol| symbol.kind == SymbolKind::Episode)
-                        .filter_map(|symbol| {
-                            let id = SceneId::parse(&symbol.name).ok()?;
-                            (id.chapter == chapter && id.episode > 0)
-                                .then_some((id.episode, symbol.detail))
-                        })
-                        .collect();
-                    if episodes.is_empty() {
-                        episodes = plots::outline_blocks(project, Some(chapter))
-                            .into_iter()
-                            .filter(|block| block.id.chapter == chapter && block.id.episode > 0)
-                            .map(|block| (block.id.episode, block.title))
-                            .collect();
+            let mut list = plots::outline_tree(project);
+            for node in &mut list {
+                let path = project.chapter_plot_path(node.chapter);
+                let (ranges, symbols) = project
+                    .document(&path)
+                    .map(|doc| (folding::ranges(doc), document_symbol::all(doc)))
+                    .unwrap_or_default();
+                for ep in &mut node.episodes {
+                    if ep.title.is_empty() && ep.episode > 0 {
+                        if let Some(detail) = symbols
+                            .iter()
+                            .filter(|s| s.kind == SymbolKind::Episode)
+                            .find_map(|s| {
+                                let id = SceneId::parse(&s.name).ok()?;
+                                (id.chapter == node.chapter && id.episode == ep.episode)
+                                    .then(|| s.detail.clone())
+                            })
+                        {
+                            ep.title = detail;
+                        }
                     }
-                    let foldable = !episodes.is_empty()
-                        || ranges.iter().any(|item| item.depth == 2)
-                        || all_folds.iter().any(|item| item.depth == 1);
-                    ChapterNode {
-                        chapter,
-                        title,
-                        foldable,
-                        episodes,
-                    }
-                })
-                .collect();
+                }
+                node.foldable = !node.episodes.is_empty()
+                    || ranges.iter().any(|item| item.depth == 2)
+                    || all_folds.iter().any(|item| item.depth == 1);
+            }
             self.chapters = Some((bench.generation(), list));
         }
         self.chapters
@@ -479,10 +552,10 @@ pub fn show(
         state.preview_row(bench, forward);
     }
     let mut request = None;
-    // 左: レベル切替
+    // 左: 構成ツリー（章 → 話 → 場面、§10.3.1）
     super::fixed_width(
         egui::SidePanel::left("outline-levels"),
-        200.0 * scale.min(1.2),
+        250.0 * scale.min(1.2),
         8.0,
     )
     .frame(
@@ -491,111 +564,252 @@ pub fn show(
             .inner_margin(Margin::symmetric(8.0, 8.0)),
     )
     .show(ctx, |ui| {
-        let current = state.level.unwrap_or(None);
-        let mut chosen: Option<Level> = None;
-        let mut chosen_episode: Option<(u16, u16)> = None;
-        let all = i18n::text(locale, "outline.all");
-        if list_row(
-            ui,
-            view.mode,
-            scale,
-            Row {
-                selected: current.is_none(),
-                text: all,
-                ..Row::default()
-            },
-        )
-        .clicked()
-        {
-            chosen = Some(None);
-        }
-        let chapters = state.chapters(bench).to_vec();
-        let digits = bench.project().digits();
-        for node in chapters {
-            let chapter = node.chapter;
-            let expanded = state.expanded.contains(&chapter);
-            let arrow = if !node.foldable || node.episodes.is_empty() {
-                ""
-            } else if expanded {
-                "▾ "
-            } else {
-                "▸ "
-            };
-            let label = format!(
-                "{arrow}{}",
-                plots::short_id(
-                    SceneId {
-                        chapter,
-                        episode: 0,
-                        scene: 0,
-                        section: 0,
+        egui::ScrollArea::vertical()
+            .id_source("outline-tree-scroll")
+            .auto_shrink([false, false])
+            .show(ui, |ui| {
+                let current = state.level.unwrap_or(None);
+                let mut chosen: Option<Level> = None;
+                let mut chosen_episode: Option<(u16, u16)> = None;
+                let mut chosen_scene: Option<SceneId> = None;
+                let all = i18n::text(locale, "outline.all");
+                if list_row(
+                    ui,
+                    view.mode,
+                    scale,
+                    Row {
+                        selected: current.is_none(),
+                        text: all,
+                        ..Row::default()
                     },
-                    digits,
                 )
-            );
-            if list_row(
-                ui,
-                view.mode,
-                scale,
-                Row {
-                    selected: current == Some(chapter),
-                    label: &label,
-                    text: &node.title,
-                    ..Row::default()
-                },
-            )
-            .clicked()
-            {
-                if current == Some(chapter) && !node.episodes.is_empty() {
-                    // 見出しの `▾` / `▸` を押したら開閉を反転する（§10.3.1）
-                    state.set_chapter_folded(chapter, expanded);
+                .clicked()
+                {
+                    chosen = Some(None);
                 }
-                chosen = Some(Some(chapter));
-            }
-            if expanded {
-                for (episode, ep_title) in &node.episodes {
-                    let ep_id = SceneId {
-                        chapter,
-                        episode: *episode,
-                        scene: 0,
-                        section: 0,
+                let chapters = state.chapters(bench).to_vec();
+                let digits = bench.project().digits();
+                for node in chapters {
+                    let chapter = node.chapter;
+                    let expanded = state.is_expanded(chapter);
+                    let arrow = if !node.foldable || node.episodes.is_empty() {
+                        ""
+                    } else if expanded {
+                        "▾ "
+                    } else {
+                        "▸ "
                     };
-                    let ep_label = format!("  {}", plots::short_id(ep_id, digits));
-                    if list_row(
+                    let ch_label = format!(
+                        "{arrow}{}",
+                        plots::short_id(
+                            SceneId {
+                                chapter,
+                                episode: 0,
+                                scene: 0,
+                                section: 0,
+                            },
+                            digits,
+                        )
+                    );
+                    let ch_title = if chapter == 0 && node.title.is_empty() {
+                        i18n::text(locale, "stage.outline_stock").to_owned()
+                    } else {
+                        node.title.clone()
+                    };
+                    let ch_stats = format!(
+                        "{}  {}",
+                        i18n::format(
+                            locale,
+                            "stage.stock_chars_unit",
+                            &[&context_view::group(node.chars)],
+                        ),
+                        i18n::format(
+                            locale,
+                            "stage.outline_episodes_unit",
+                            &[&node.episode_count.to_string()],
+                        ),
+                    );
+                    let ch_text = if ch_title.is_empty() {
+                        ch_stats
+                    } else {
+                        format!("{ch_title}  {ch_stats}")
+                    };
+                    let ch_resp = list_row(
                         ui,
                         view.mode,
                         scale,
                         Row {
-                            selected: current == Some(chapter) && state.selected == Some(ep_id),
-                            label: &ep_label,
-                            text: ep_title,
-                            muted: true,
+                            selected: current == Some(chapter),
+                            label: &ch_label,
+                            text: &ch_text,
                             ..Row::default()
                         },
-                    )
-                    .clicked()
-                    {
-                        chosen_episode = Some((chapter, *episode));
+                    );
+                    if ch_resp.clicked() {
+                        if current == Some(chapter) && !node.episodes.is_empty() {
+                            state.set_chapter_folded(chapter, expanded);
+                        }
+                        chosen = Some(Some(chapter));
+                    }
+                    if expanded {
+                        for ep_node in &node.episodes {
+                            let episode = ep_node.episode;
+                            let ep_id = SceneId {
+                                chapter,
+                                episode,
+                                scene: 0,
+                                section: 0,
+                            };
+                            let ep_expanded =
+                                episode > 0 && state.is_episode_expanded(chapter, episode);
+                            let ep_arrow = if episode == 0 || ep_node.scenes.is_empty() {
+                                "  "
+                            } else if ep_expanded {
+                                "▾ "
+                            } else {
+                                "▸ "
+                            };
+                            let ep_label = if episode == 0 {
+                                format!(
+                                    "    {}-{:0width$}",
+                                    plots::short_id(
+                                        SceneId {
+                                            chapter,
+                                            episode: 0,
+                                            scene: 0,
+                                            section: 0,
+                                        },
+                                        digits,
+                                    ),
+                                    0,
+                                    width = usize::from(digits.episode),
+                                )
+                            } else {
+                                format!("  {ep_arrow}{}", plots::short_id(ep_id, digits))
+                            };
+                            let base_ep_title = if episode == 0 && ep_node.title.is_empty() {
+                                i18n::text(locale, "stage.outline_synopsis").to_owned()
+                            } else {
+                                ep_node.title.clone()
+                            };
+                            let ep_stats = if episode == 0 {
+                                i18n::format(
+                                    locale,
+                                    "stage.stock_chars_unit",
+                                    &[&context_view::group(ep_node.chars)],
+                                )
+                            } else {
+                                format!(
+                                    "{}  {}",
+                                    i18n::format(
+                                        locale,
+                                        "stage.stock_chars_unit",
+                                        &[&context_view::group(ep_node.chars)],
+                                    ),
+                                    i18n::format(
+                                        locale,
+                                        "stage.outline_sections_unit",
+                                        &[&ep_node.section_count.to_string()],
+                                    ),
+                                )
+                            };
+                            let ep_text = if base_ep_title.is_empty() {
+                                ep_stats
+                            } else {
+                                format!("{base_ep_title}  {ep_stats}")
+                            };
+                            let is_ep_selected =
+                                current == Some(chapter) && state.selected == Some(ep_id);
+                            let ep_resp = list_row(
+                                ui,
+                                view.mode,
+                                scale,
+                                Row {
+                                    selected: is_ep_selected,
+                                    label: &ep_label,
+                                    text: &ep_text,
+                                    muted: true,
+                                    ..Row::default()
+                                },
+                            );
+                            if ep_resp.double_clicked() && episode > 0 {
+                                chosen_scene = Some(SceneId {
+                                    chapter,
+                                    episode,
+                                    scene: 1,
+                                    section: 0,
+                                });
+                            } else if ep_resp.clicked() && episode > 0 {
+                                if is_ep_selected && !ep_node.scenes.is_empty() {
+                                    state.set_episode_folded(chapter, episode, ep_expanded);
+                                }
+                                chosen_episode = Some((chapter, episode));
+                            }
+                            if ep_expanded {
+                                for sc_node in &ep_node.scenes {
+                                    let sc_id = SceneId {
+                                        chapter,
+                                        episode,
+                                        scene: sc_node.scene,
+                                        section: 0,
+                                    };
+                                    let sc_prefix = sc_id
+                                        .display(digits)
+                                        .split('-')
+                                        .take(3)
+                                        .collect::<Vec<_>>()
+                                        .join("-");
+                                    let sc_label = format!("      {sc_prefix}");
+                                    let sc_chars = i18n::format(
+                                        locale,
+                                        "stage.stock_chars_unit",
+                                        &[&context_view::group(sc_node.chars)],
+                                    );
+                                    let sc_text = if sc_node.title.is_empty() {
+                                        sc_chars
+                                    } else {
+                                        format!("{}  {sc_chars}", sc_node.title)
+                                    };
+                                    if list_row(
+                                        ui,
+                                        view.mode,
+                                        scale,
+                                        Row {
+                                            selected: false,
+                                            label: &sc_label,
+                                            text: &sc_text,
+                                            muted: true,
+                                            ..Row::default()
+                                        },
+                                    )
+                                    .clicked()
+                                    {
+                                        chosen_scene = Some(sc_id);
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
-            }
-        }
-        if let Some((chapter, episode)) = chosen_episode {
-            bench.commit();
-            state.land_chapter(bench, chapter, episode);
-        } else {
-            match chosen {
-                Some(None) => {
+                if let Some(sc_id) = chosen_scene {
+                    request = Some(Request::OpenEpisodeScene(sc_id));
+                } else if let Some((chapter, episode)) = chosen_episode {
                     bench.commit();
-                    state.land_all(bench, current.unwrap_or(0));
+                    state.land_chapter(bench, chapter, episode);
+                } else {
+                    match chosen {
+                        Some(None) => {
+                            bench.commit();
+                            state.land_all(bench, current.unwrap_or(0));
+                        }
+                        Some(Some(chapter)) => {
+                            bench.commit();
+                            state.land_chapter(bench, chapter, 0);
+                        }
+                        None => {}
+                    }
                 }
-                Some(Some(chapter)) => {
-                    bench.commit();
-                    state.land_chapter(bench, chapter, 0);
-                }
-                None => {}
-            }
-        }
+            });
     });
     // 右: 伏線
     if let Some((side, width)) = view.reference {
