@@ -8,9 +8,9 @@ exclude = ["python/novnow-py"]
 
 [package]
 name = "novnow"
-version = "0.1.2"
+version = "0.1.1"
 edition = "2021"
-description = "小説プロジェクト向け執筆 IDE+世界観ファイル形式"
+description = "小説プロジェクト（[title]/ レイアウト）向け執筆 IDE — egui + ropey"
 license = "MIT"
 repository = "https://github.com/sonneko/novnow"
 homepage = "https://sonneko.github.io/novnow/"
