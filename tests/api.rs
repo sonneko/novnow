@@ -1194,3 +1194,497 @@ fn a_read_only_project_reports_w041_and_keeps_working_for_reads() {
         .expect("section.get")
         .is_empty());
 }
+
+// =========================================================================== Issue #55 Batch 1 回帰検査
+
+#[test]
+fn find_next_and_find_previous_commands_step_both_ways_from_first_middle_and_last() {
+    let (mut session, _) = open();
+    let scene = open_first_section(&mut session);
+    session
+        .run(
+            "section.write",
+            json!({ "scene": scene.clone(), "text": "鈴と月の鈴と風の鈴\n" }),
+        )
+        .expect("section.write");
+    // 最初の検索で 0 番目（最初の一致）に位置づく
+    let first = session
+        .run("search.file", json!({ "query": "鈴" }))
+        .expect("search.file");
+    assert_eq!(first["count"], json!(3), "{first}");
+    let hits = first["hits"].as_array().expect("hits").clone();
+    assert_eq!(hits.len(), 3);
+
+    // 最初(0) -> 中央(1) -> 末尾(2) -> 折り返し最初(0)
+    let to_mid = session.command("find-next").expect("find-next from first")["data"].clone();
+    assert_eq!(
+        (&to_mid["selected"], &to_mid["range"]),
+        (&json!(1), &hits[1])
+    );
+    let to_last = session.command("find-next").expect("find-next from middle")["data"].clone();
+    assert_eq!(
+        (&to_last["selected"], &to_last["range"]),
+        (&json!(2), &hits[2])
+    );
+    let wrapped_first = session.command("find-next").expect("find-next from last")["data"].clone();
+    assert_eq!(
+        (&wrapped_first["selected"], &wrapped_first["range"]),
+        (&json!(0), &hits[0])
+    );
+
+    // 逆方向: 最初(0) -> 折り返し末尾(2) -> 中央(1) -> 最初(0)
+    let wrapped_last = session
+        .command("find-previous")
+        .expect("find-previous from first")["data"]
+        .clone();
+    assert_eq!(
+        (&wrapped_last["selected"], &wrapped_last["range"]),
+        (&json!(2), &hits[2])
+    );
+    let back_mid = session
+        .command("find-previous")
+        .expect("find-previous from last")["data"]
+        .clone();
+    assert_eq!(
+        (&back_mid["selected"], &back_mid["range"]),
+        (&json!(1), &hits[1])
+    );
+    let back_first = session
+        .command("find-previous")
+        .expect("find-previous from middle")["data"]
+        .clone();
+    assert_eq!(
+        (&back_first["selected"], &back_first["range"]),
+        (&json!(0), &hits[0])
+    );
+}
+
+#[test]
+fn regex_replace_expands_numbered_named_and_newline_without_offset_drift() {
+    let (mut session, _) = open();
+    let scene = open_first_section(&mut session);
+
+    // 1) 番号キャプチャ（複数一致・文字長変化でも範囲がずれない）
+    session
+        .run(
+            "section.write",
+            json!({ "scene": scene.clone(), "text": "A=1, BB=222, CCC=33\n" }),
+        )
+        .expect("section.write");
+    let res = session
+        .run(
+            "search.replace_file",
+            json!({
+                "query": "([A-Z]+)=(\\d+)",
+                "replace": "[$2:$1]",
+                "regex": true,
+            }),
+        )
+        .expect("numbered capture");
+    assert_eq!(res["count"], json!(3));
+    assert_eq!(
+        session.section().get(&scene).expect("get"),
+        "[1:A], [222:BB], [33:CCC]"
+    );
+
+    // 2) 名前付きキャプチャ（`search.file` 側の置換経路でも同じ）
+    session
+        .run(
+            "section.write",
+            json!({ "scene": scene.clone(), "text": "id:01/春 id:02/夏風 id:03/秋\n" }),
+        )
+        .expect("section.write");
+    let via_search = session
+        .run(
+            "search.file",
+            json!({
+                "query": "id:(?P<num>\\d+)/(?P<word>\\S+)",
+                "replace": "${word}(#${num})",
+                "regex": true,
+            }),
+        )
+        .expect("named capture via search.file");
+    assert_eq!(via_search["count"], json!(3));
+    assert_eq!(
+        session.section().get(&scene).expect("get"),
+        "春(#01) 夏風(#02) 秋(#03)"
+    );
+
+    // 3) `\n` 改行展開（リテラル検索と正規表現検索の双方）
+    session
+        .run(
+            "section.write",
+            json!({ "scene": scene.clone(), "text": "壱 / 弐 / 参\n" }),
+        )
+        .expect("section.write");
+    session
+        .run(
+            "search.replace_file",
+            json!({
+                "query": " / ",
+                "replace": "\\n",
+                "regex": false,
+            }),
+        )
+        .expect("newline literal");
+    assert_eq!(session.section().get(&scene).expect("get"), "壱\n弐\n参");
+}
+
+#[test]
+fn export_text_selects_markdown_by_format_or_case_insensitive_out_extension() {
+    let (base, _) = open();
+    let mut proj_settings = base.aggregate().settings().clone();
+    proj_settings.export.insert_headings = true;
+    let mut docs: Vec<Document> = base
+        .aggregate()
+        .documents()
+        .filter(|d| {
+            d.path != "project.toml" && d.path != "plots/all.cnov" && d.path != "plots/01.cnov"
+        })
+        .cloned()
+        .collect();
+    docs.push(Document::new(
+        "plots/all.cnov",
+        "title: 星屑の時計\n\n@01 星の章\n;\n",
+    ));
+    docs.push(Document::new(
+        "plots/01.cnov",
+        "title: 星の章\n\n@01-01 屋根裏の星図\n;\n",
+    ));
+    let project = novnow::core::features::Project::with_documents(proj_settings, docs);
+    let host = MemoryHost::default();
+    let host_files = host.files.clone();
+    let mut session = Session::from_project(
+        Box::new(host),
+        project,
+        &novnow::app::settings::UiSettings::default(),
+    );
+
+    let txt = session.run("export.text", json!({})).expect("default txt");
+    let txt_body = txt["text"].as_str().expect("txt body").to_owned();
+    assert!(txt["name"].as_str().unwrap().ends_with(".txt"), "{txt}");
+    assert!(
+        !txt_body.starts_with("# "),
+        "既定はプレーンテキスト: {txt_body}"
+    );
+    assert!(txt_body.contains("星の章"), "{txt_body}");
+
+    let md = session
+        .run("export.text", json!({ "format": "md" }))
+        .expect("format md");
+    let md_body = md["text"].as_str().expect("md body").to_owned();
+    assert!(md["name"].as_str().unwrap().ends_with(".md"), "{md}");
+    assert!(
+        md_body.contains("# 星の章"),
+        "Markdown 章見出しが無い: {md_body}"
+    );
+    assert!(
+        md_body.contains("## 屋根裏の星図"),
+        "Markdown 話見出しが無い: {md_body}"
+    );
+    assert_ne!(md_body, txt_body);
+
+    let out_lower = session
+        .run("export.text", json!({ "out": "/tmp/manuscript.md" }))
+        .expect("out .md");
+    assert!(out_lower["name"].as_str().unwrap().ends_with(".md"));
+
+    let out_upper = session
+        .run("export.text", json!({ "out": "/tmp/MANUSCRIPT.MD" }))
+        .expect("out .MD");
+    assert!(out_upper["name"].as_str().unwrap().ends_with(".md"));
+
+    let exported = host_files.borrow().exported.clone();
+    assert_eq!(exported.get("/tmp/manuscript.md"), Some(&md_body));
+    assert_eq!(exported.get("/tmp/MANUSCRIPT.MD"), Some(&md_body));
+
+    // 未知 format と不正拡張子は拒否し書き込まない
+    let bad_fmt = session
+        .run("export.text", json!({ "format": "docx" }))
+        .expect_err("unknown format");
+    assert_eq!(bad_fmt.class, Class::Usage);
+    let bad_ext = session
+        .run("export.text", json!({ "out": "/tmp/manuscript.zip" }))
+        .expect_err("disallowed extension");
+    assert_eq!(bad_ext.class, Class::Io);
+    assert!(!host_files
+        .borrow()
+        .exported
+        .contains_key("/tmp/manuscript.zip"));
+}
+
+#[test]
+fn poll_events_drains_at_most_limit_in_fifo_order_without_dropping_remainder() {
+    let (mut session, _) = open();
+    let _ = session.poll_events();
+    let keys = [
+        "theme",
+        "inlay_hints",
+        "max_line_chars",
+        "font_scale",
+        "context_sections",
+    ];
+    let values = [json!("dark"), json!(false), json!(42), json!(1.2), json!(3)];
+    for (k, v) in keys.into_iter().zip(values) {
+        session
+            .run("settings.set", json!({ "key": k, "value": v }))
+            .expect("settings.set");
+    }
+
+    let first = session
+        .run("session.poll_events", json!({ "limit": 2 }))
+        .expect("poll 1");
+    let second = session
+        .run("session.poll_events", json!({ "limit": 2 }))
+        .expect("poll 2");
+    let third = session
+        .run("session.poll_events", json!({ "limit": 2 }))
+        .expect("poll 3");
+    let fourth = session
+        .run("session.poll_events", json!({ "limit": 2 }))
+        .expect("poll 4");
+
+    let keys_of = |v: &Value| -> Vec<String> {
+        v["events"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|e| e["key"].as_str().unwrap().to_owned())
+            .collect()
+    };
+    assert_eq!(first["count"], json!(2));
+    assert_eq!(keys_of(&first), vec!["theme", "inlay_hints"]);
+    assert_eq!(second["count"], json!(2));
+    assert_eq!(keys_of(&second), vec!["max_line_chars", "font_scale"]);
+    assert_eq!(third["count"], json!(1));
+    assert_eq!(keys_of(&third), vec!["context_sections"]);
+    assert_eq!(fourth["count"], json!(0));
+
+    let bad = session
+        .run("session.poll_events", json!({ "limit": -1 }))
+        .expect_err("negative limit");
+    assert_eq!(bad.class, Class::Usage);
+}
+
+#[test]
+fn recent_document_records_navigation_deduplicates_and_cycles_both_ways_across_three_docs() {
+    let host = MemoryHost::default();
+    let mut docs: Vec<Document> = template::new_project("星屑の時計")
+        .into_iter()
+        .filter(|file| is_document(&ProjectPath::new(&file.path).expect("path")))
+        .map(|file| Document::new(file.path, file.text))
+        .collect();
+    docs.push(Document::new(
+        "contents/01-02.cnov",
+        "@01-02-01 二話\n二話の本文。\n",
+    ));
+    docs.push(Document::new(
+        "contents/02-01.cnov",
+        "@02-01-01 二章\n二章の本文。\n",
+    ));
+    let mut session = Session::with_documents(Box::new(host), docs);
+
+    // A -> B -> C の順に開くので MRU は [C, B, A]
+    session
+        .run("nav.section", json!({ "scene": "01-01-01-01" }))
+        .expect("open A");
+    session
+        .run("nav.section", json!({ "scene": "01-02-01-01" }))
+        .expect("open B");
+    session
+        .run("nav.section", json!({ "scene": "02-01-01-01" }))
+        .expect("open C");
+
+    // recent-next（Ctrl+Tab = back: false）で B -> A -> C -> B と一周以上循環
+    let mut forward_paths = Vec::new();
+    for _ in 0..4 {
+        let step = session.command("recent-next").expect("recent-next")["data"].clone();
+        assert_eq!(step["moved"], json!(true));
+        forward_paths.push(step["path"].as_str().unwrap().to_owned());
+    }
+    assert_eq!(
+        forward_paths,
+        vec![
+            "contents/01-02.cnov",
+            "contents/01-01.cnov",
+            "contents/02-01.cnov",
+            "contents/01-02.cnov",
+        ]
+    );
+
+    // recent-previous（Ctrl+Shift+Tab = back: true）で C -> A -> B と逆順に循環
+    let mut backward_paths = Vec::new();
+    for _ in 0..3 {
+        let step = session.command("recent-previous").expect("recent-previous")["data"].clone();
+        assert_eq!(step["moved"], json!(true));
+        backward_paths.push(step["path"].as_str().unwrap().to_owned());
+    }
+    assert_eq!(
+        backward_paths,
+        vec![
+            "contents/02-01.cnov",
+            "contents/01-01.cnov",
+            "contents/01-02.cnov",
+        ]
+    );
+
+    // 通常の移動で A を開き直すと重複除去され [A, B, C] に更新される
+    session
+        .run("nav.section", json!({ "scene": "01-01-01-01" }))
+        .expect("reopen A");
+    let step1 = session.command("recent-next").expect("step1")["data"].clone();
+    let step2 = session.command("recent-next").expect("step2")["data"].clone();
+    let step3 = session.command("recent-next").expect("step3")["data"].clone();
+    assert_eq!(step1["path"], json!("contents/01-02.cnov"));
+    assert_eq!(step2["path"], json!("contents/02-01.cnov"));
+    assert_eq!(step3["path"], json!("contents/01-01.cnov"));
+}
+
+#[test]
+fn settings_set_rejects_unknown_wrong_type_and_out_of_range_without_side_effects() {
+    let (mut session, files) = open();
+    let _ = session.poll_events();
+    let before_settings = session.run("settings.get", json!({})).expect("get before");
+    let before_ui_json = files.borrow().written.get(".novnow/ui.json").cloned();
+
+    let invalid_cases = [
+        json!({ "key": "unknown_key", "value": 1 }),
+        json!({ "key": "schema_version", "value": 2 }),
+        json!({ "key": "reference_visible", "value": true }),
+        json!({ "key": "font_scale", "value": "big" }),
+        json!({ "key": "font_scale", "value": 0.5 }),
+        json!({ "key": "font_scale", "value": 1.8 }),
+        json!({ "key": "inlay_hints", "value": "true" }),
+        json!({ "key": "autosave_ms", "value": 100 }),
+        json!({ "key": "autosave_ms", "value": 5000 }),
+        json!({ "key": "max_line_chars", "value": 10 }),
+        json!({ "key": "max_line_chars", "value": 44.5 }),
+        json!({ "key": "context_sections", "value": 0 }),
+        json!({ "key": "context_sections", "value": 11 }),
+        json!({ "key": "pane_ratio.main", "value": 0.99 }),
+        json!({ "key": "theme", "value": "sepia" }),
+        json!({ "key": "language", "value": "fr" }),
+        json!({ "key": "reference_side", "value": "top" }),
+    ];
+    for case in invalid_cases {
+        let err = session
+            .run("settings.set", case.clone())
+            .expect_err(&format!("不正入力が通った: {case}"));
+        assert_eq!(err.class, Class::Usage, "{case}: {err:?}");
+    }
+    assert_eq!(
+        session.run("settings.get", json!({})).expect("get after"),
+        before_settings,
+        "失敗した settings.set がメモリ上の設定を変えた"
+    );
+    assert_eq!(
+        files.borrow().written.get(".novnow/ui.json").cloned(),
+        before_ui_json,
+        "失敗した settings.set が ui.json を書き換えた"
+    );
+    assert!(
+        session.poll_events().is_empty(),
+        "失敗した settings.set がイベントを発行した"
+    );
+
+    // 有効な変更では set の応答値 == settings.get の値 == 永続化値 かつイベントは 1 件
+    let set_scale = session
+        .run(
+            "settings.set",
+            json!({ "key": "font_scale", "value": 1.25 }),
+        )
+        .expect("valid font_scale");
+    let got = session.run("settings.get", json!({})).expect("get");
+    let persisted: Value = serde_json::from_str(
+        files
+            .borrow()
+            .written
+            .get(".novnow/ui.json")
+            .expect("ui.json"),
+    )
+    .expect("json");
+    assert_eq!(set_scale["value"], got["settings"]["font_scale"]);
+    assert_eq!(set_scale["value"], persisted["font_scale"]);
+    let events = session.poll_events();
+    assert_eq!(events.len(), 1, "{events:?}");
+    assert_eq!(events[0].to_json()["key"], json!("font_scale"));
+
+    // language 変更でもイベントが重複せず 1 件だけ出る
+    session
+        .run("settings.set", json!({ "key": "language", "value": "en" }))
+        .expect("valid language");
+    let lang_events = session.poll_events();
+    assert_eq!(lang_events.len(), 1, "{lang_events:?}");
+}
+
+#[test]
+fn clean_external_reload_and_unchanged_never_populate_conflicts() {
+    let (mut session, files) = open();
+    let scene = open_first_section(&mut session);
+    let path = "contents/01-01.cnov";
+    let original = session.aggregate().text(path).to_owned();
+
+    // 1) Unchanged: 同一内容の外部通知では衝突は空のまま
+    files
+        .borrow_mut()
+        .changes
+        .push((path.to_owned(), Some(original.clone())));
+    let unchanged = session.poll_external();
+    assert_eq!(unchanged.len(), 1);
+    assert!(session.conflicts().is_empty());
+    assert_eq!(
+        session.run("save.state", json!({})).unwrap()["conflicts"],
+        json!([])
+    );
+
+    // 2) Clean 外部変更（Reloaded）: 自動再読込され、全衝突公開面が空のまま
+    let external_v1 = format!("{original}外部からの追記\n");
+    files
+        .borrow_mut()
+        .changes
+        .push((path.to_owned(), Some(external_v1.clone())));
+    let reloaded = session.poll_external();
+    assert_eq!(reloaded.len(), 1);
+    assert!(
+        session.conflicts().is_empty(),
+        "Reloaded なのに Session::conflicts に入った"
+    );
+    let state = session.run("save.state", json!({})).unwrap();
+    assert_eq!(state["conflicts"], json!([]), "{state}");
+    for op in [
+        "save.keep_mine",
+        "save.reload_external",
+        "save.diff_external",
+    ] {
+        let err = session.run(op, json!({})).expect_err(op);
+        assert_eq!(err.class, Class::Conflict, "{op}: {err:?}");
+    }
+
+    // 3) Dirty 外部変更でのみ全公開面に同じ衝突が現れ、解決後は全てから消える
+    session
+        .run(
+            "section.write",
+            json!({ "scene": scene, "text": "自分の未保存編集\n" }),
+        )
+        .expect("dirty edit");
+    let external_v2 = format!("{external_v1}さらに外部変更\n");
+    files
+        .borrow_mut()
+        .changes
+        .push((path.to_owned(), Some(external_v2)));
+    session.poll_external();
+    assert!(session.conflicts().contains_key(path));
+    assert_eq!(
+        session.run("save.state", json!({})).unwrap()["conflicts"],
+        json!([path])
+    );
+
+    session
+        .run("save.reload_external", json!({}))
+        .expect("resolve");
+    assert!(session.conflicts().is_empty());
+    assert_eq!(
+        session.run("save.state", json!({})).unwrap()["conflicts"],
+        json!([])
+    );
+}

@@ -185,7 +185,7 @@ def stub(catalog: dict) -> str:
     out.append("    def run(self, op: str, *args: Any, **kwargs: Any) -> Any:")
     out.append('        """正規操作を 1 つ実行する。位置引数は `arguments.order` の順。"""')
     out.append("    def command(self, name: str) -> Any: ...")
-    out.append("    def poll_events(self) -> list[dict[str, Any]]: ...")
+    out.append("    def poll_events(self, limit: int | None = ...) -> list[dict[str, Any]]: ...")
     out.append("    def on_event(self, callback: Callable[[dict[str, Any]], None]) -> None: ...")
     out.append("    def cancel(self, handle: str) -> Any: ...")
     out.append("    def set_locale(self, locale: str) -> None: ...")

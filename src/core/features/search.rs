@@ -126,19 +126,36 @@ pub fn replacement(
         .size_limit(SIZE_LIMIT)
         .build()
         .map_err(|e| e.to_string())?;
+    let expanded = expand_escapes(replacement);
     let mut changes: Vec<FileEdit> = Vec::new();
     for hit in &results.hits {
-        let old = project
-            .text(&hit.path)
-            .get(hit.range.clone())
-            .ok_or("stale search")?;
+        let doc_text = project.text(&hit.path);
+        let old = doc_text.get(hit.range.clone()).ok_or("stale search")?;
         if old != hit.matched {
             return Err("stale search".to_owned());
         }
         let new_text = if query.regex {
-            re.replace(old, &expand_escapes(replacement)).into_owned()
+            let line_start = doc_text[..hit.range.start]
+                .rfind('\n')
+                .map_or(0, |at| at + 1);
+            let line_end = doc_text[hit.range.end..]
+                .find('\n')
+                .map_or(doc_text.len(), |at| hit.range.end + at + 1)
+                .min(doc_text.len());
+            let line = &doc_text[line_start..line_end];
+            let rel_range = (hit.range.start - line_start)..(hit.range.end - line_start);
+            if let Some(caps) = re
+                .captures_iter(line)
+                .find(|c| c.get(0).is_some_and(|m| m.range() == rel_range))
+            {
+                let mut dst = String::new();
+                caps.expand(&expanded, &mut dst);
+                dst
+            } else {
+                re.replace(old, expanded.as_str()).into_owned()
+            }
         } else {
-            expand_escapes(replacement)
+            expanded.clone()
         };
         if changes.last().is_none_or(|f| f.path != hit.path) {
             changes.push(FileEdit {
@@ -153,10 +170,65 @@ pub fn replacement(
     }
     Ok(WorkspaceEdit { changes })
 }
+
+/// 1 つの文書に対する一括置換（§9.7.4。`$1`・`${name}` キャプチャ参照と `\n` 改行を展開し、
+/// 複数一致を後ろから置換して範囲ずれを防ぐ）。戻り値は `(一致件数, 置換後全文)`。
+pub fn replace_in_text(
+    text: &str,
+    query: &str,
+    replacement: &str,
+    regex: bool,
+    case_sensitive: bool,
+) -> Result<(usize, String), String> {
+    if query.is_empty() {
+        return Ok((0, text.to_owned()));
+    }
+    let expanded = expand_escapes(replacement);
+    if !regex {
+        let hits: Vec<Range<usize>> = if case_sensitive {
+            text.match_indices(query)
+                .map(|(at, found)| at..at + found.len())
+                .collect()
+        } else {
+            let re = regex::RegexBuilder::new(&regex::escape(query))
+                .case_insensitive(true)
+                .size_limit(SIZE_LIMIT)
+                .build()
+                .map_err(|e| e.to_string())?;
+            re.find_iter(text).map(|m| m.range()).collect()
+        };
+        let mut out = text.to_owned();
+        for range in hits.iter().rev() {
+            out.replace_range(range.clone(), &expanded);
+        }
+        return Ok((hits.len(), out));
+    }
+    let re = regex::RegexBuilder::new(query)
+        .case_insensitive(!case_sensitive)
+        .size_limit(SIZE_LIMIT)
+        .build()
+        .map_err(|e| e.to_string())?;
+    let mut edits: Vec<(Range<usize>, String)> = Vec::new();
+    for caps in re.captures_iter(text) {
+        let Some(matched) = caps.get(0) else {
+            continue;
+        };
+        let mut dst = String::new();
+        caps.expand(&expanded, &mut dst);
+        edits.push((matched.range(), dst));
+    }
+    let count = edits.len();
+    let mut out = text.to_owned();
+    for (range, new_text) in edits.into_iter().rev() {
+        out.replace_range(range, &new_text);
+    }
+    Ok((count, out))
+}
+
 /// 置換の入力に書かれた `\n` を改行にする（§9.7.4「`\n` は改行」）。
 ///
 /// 置換の入力欄は 1 行なので、改行は書けず `\n` と打つ決まりになっている。
-fn expand_escapes(replacement: &str) -> String {
+pub fn expand_escapes(replacement: &str) -> String {
     replacement.replace("\\n", "\n")
 }
 

@@ -62,8 +62,13 @@ class FakeSession:
         self.calls.append(("command", name))
         return {"command": name}
 
-    def poll_events(self):
-        return []
+    def poll_events(self, limit=None):
+        events = list(getattr(self, "events", []))
+        if limit is None:
+            self.events = []
+            return events
+        self.events = events[limit:]
+        return events[:limit]
 
     def on_event(self, callback):
         self.callback = callback
@@ -212,6 +217,22 @@ class Record(unittest.TestCase):
         with new_session() as session:
             events = session.poll_events()
         self.assertEqual(events, [])
+
+    def test_poll_events_honors_limit_in_fifo_order(self):
+        with new_session() as session:
+            session._session.events = [
+                {"kind": "saved", "seq": 1},
+                {"kind": "saved", "seq": 2},
+                {"kind": "saved", "seq": 3},
+            ]
+            first = session.poll_events(2)
+            second = session.poll_events(2)
+            third = session.poll_events(2)
+            with self.assertRaises(novnow.UsageError):
+                session.poll_events(-1)
+        self.assertEqual([e.seq for e in first], [1, 2])
+        self.assertEqual([e.seq for e in second], [3])
+        self.assertEqual(third, [])
 
 
 class ErrorClassification(unittest.TestCase):

@@ -112,10 +112,12 @@ impl Session {
         self.collect_events(py)
     }
 
-    /// 溜まった分を取り出す（§19.2.4「1 回だけ」）。
-    fn take_events(&self, py: Python<'_>) -> PyResult<Vec<PyObject>> {
+    /// 溜まった分を取り出す（§19.2.4「1 回だけ」）。`limit` 指定時は超過分を保持する。
+    fn take_events(&self, py: Python<'_>, limit: Option<usize>) -> PyResult<Vec<PyObject>> {
         self.collect_events(py)?;
-        Ok(std::mem::take(&mut *self.pending.borrow_mut()))
+        let mut pending = self.pending.borrow_mut();
+        let count = limit.unwrap_or(pending.len()).min(pending.len());
+        Ok(pending.drain(..count).collect())
     }
 }
 
@@ -151,6 +153,31 @@ impl Session {
             Some(dict) => from_python(&dict)?,
             None => Value::Object(Map::new()),
         };
+        if op == "session.poll_events" {
+            let map = match &args {
+                Value::Object(map) => map,
+                _ => {
+                    return Err(into_error(Error::usage(Locale::Ja, "arguments")));
+                }
+            };
+            let limit = match map.get("limit") {
+                None | Some(Value::Null) => 64,
+                Some(val) => val
+                    .as_u64()
+                    .map(|n| n as usize)
+                    .ok_or_else(|| into_error(Error::usage(Locale::Ja, "limit")))?,
+            };
+            let values = self.take_events(py, Some(limit))?;
+            let count = values.len();
+            let list = PyList::empty_bound(py);
+            for item in values {
+                list.append(item)?;
+            }
+            let out = PyDict::new_bound(py);
+            out.set_item("count", count)?;
+            out.set_item("events", list)?;
+            return Ok(out.into_py(py));
+        }
         let op = op.to_owned();
         let core = &self.core;
         // GIL を解放して待つ（§19.3.4）。渡す 1 通も応答も Python に触れない
@@ -181,8 +208,9 @@ impl Session {
     }
 
     /// イベントキューを取り出す（§19.2.4・§19.3.5）。登録済みのコールバックにも渡す。
-    fn poll_events(&self, py: Python<'_>) -> PyResult<PyObject> {
-        let values = self.take_events(py)?;
+    #[pyo3(signature = (limit = None))]
+    fn poll_events(&self, py: Python<'_>, limit: Option<usize>) -> PyResult<PyObject> {
+        let values = self.take_events(py, limit)?;
         let list = PyList::empty_bound(py);
         for value in values {
             list.append(value)?;

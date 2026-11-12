@@ -200,8 +200,13 @@ class Session:
             raise _retype(error) from None
 
     # -- イベントと中断（§19.3.5） ---------------------------------------
-    def poll_events(self) -> list[dict[str, Any]]:
-        return _records(list(self._session.poll_events()))
+    def poll_events(self, limit: int | None = None) -> list[dict[str, Any]]:
+        if limit is not None and (isinstance(limit, bool) or not isinstance(limit, int) or limit < 0):
+            err = UsageError("invalid argument: limit")
+            err.class_ = "usage"
+            err.exit_code = 2
+            raise err
+        return _records(list(self._session.poll_events(limit)))
 
     def on_event(self, callback: Callable[[dict[str, Any]], None]) -> None:
         self._session.on_event(callback)

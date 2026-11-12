@@ -94,6 +94,15 @@ pub enum Format {
 }
 
 impl Format {
+    /// 明示指定の形式名から引く（`txt` / `md` / `.txt` / `.md` / `text` / `markdown`）。
+    pub fn parse(text: &str) -> Option<Self> {
+        match text.trim().to_ascii_lowercase().as_str() {
+            "txt" | ".txt" | "text" => Some(Self::Text),
+            "md" | ".md" | "markdown" => Some(Self::Markdown),
+            _ => None,
+        }
+    }
+
     /// 書き出し先の名前から決める（`.md` で終われば Markdown、それ以外は `.txt`）。
     pub fn of_name(name: &str) -> Self {
         if name.to_ascii_lowercase().ends_with(".md") {

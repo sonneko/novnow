@@ -3731,3 +3731,297 @@ fn the_editor_keeps_the_history_of_the_twenty_most_recent_sections() {
         "直近の節の履歴は残る"
     );
 }
+
+// ============================================================ Issue #55 Batch 1 GUI 回帰検査
+
+#[test]
+fn gui_find_next_and_previous_step_both_ways_from_first_middle_and_last() {
+    let project = world_with(CONTENTS_PATH, "@01-04-01 屋上\n星と月の星と風の星\n");
+    let (mut harness, _) = Harness::start_with(project, true);
+    let ctrl = Modifiers::CTRL | Modifiers::COMMAND;
+
+    // Ctrl+F -> "星" -> Enter で最初の一致(0)を選択してオーバーレイを閉じる
+    harness.frame(vec![key(Key::F, ctrl)]);
+    harness.frame(vec![Event::Text("星".into())]);
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(vec![key(Key::Escape, Modifiers::NONE)]);
+    let buf = harness.app.workbench().unwrap().buffer().to_owned();
+    let expected: Vec<std::ops::Range<usize>> = novnow::ui::assist::find_all(&buf, "星");
+    assert_eq!(expected.len(), 3, "{buf:?}");
+    assert_eq!(harness.app.selection(), Some(expected[0].clone()));
+
+    // F3: 最初(0) -> 中央(1) -> 末尾(2) -> 最初(0)
+    harness.frame(vec![key(Key::F3, Modifiers::NONE)]);
+    assert_eq!(harness.app.selection(), Some(expected[1].clone()));
+    harness.frame(vec![key(Key::F3, Modifiers::NONE)]);
+    assert_eq!(harness.app.selection(), Some(expected[2].clone()));
+    harness.frame(vec![key(Key::F3, Modifiers::NONE)]);
+    assert_eq!(harness.app.selection(), Some(expected[0].clone()));
+
+    // Shift+F3: 最初(0) -> 末尾(2) -> 中央(1) -> 最初(0)
+    harness.frame(vec![key(Key::F3, Modifiers::SHIFT)]);
+    assert_eq!(harness.app.selection(), Some(expected[2].clone()));
+    harness.frame(vec![key(Key::F3, Modifiers::SHIFT)]);
+    assert_eq!(harness.app.selection(), Some(expected[1].clone()));
+    harness.frame(vec![key(Key::F3, Modifiers::SHIFT)]);
+    assert_eq!(harness.app.selection(), Some(expected[0].clone()));
+}
+
+#[test]
+fn gui_and_headless_recent_file_navigation_match_across_three_documents() {
+    use novnow::adapters::project_load::is_document;
+    use novnow::app::memory_host::MemoryHost;
+    use novnow::app::session::Session as HeadlessSession;
+    use novnow::core::model::document::Document;
+    use novnow::core::policy::ProjectPath;
+
+    let mut project = world();
+    project.insert(Document::new(
+        "contents/01-01.cnov",
+        "@01-01-01 一話\n一話本文。\n",
+    ));
+    project.insert(Document::new(
+        "contents/01-02.cnov",
+        "@01-02-01 二話\n二話本文。\n",
+    ));
+    project.insert(Document::new(
+        "contents/02-01.cnov",
+        "@02-01-01 二章\n二章本文。\n",
+    ));
+    let docs: Vec<Document> = project
+        .documents()
+        .filter(|d| is_document(&ProjectPath::new(&d.path).unwrap()))
+        .cloned()
+        .collect();
+    let mut headless = HeadlessSession::with_documents(Box::new(MemoryHost::default()), docs);
+    let (mut harness, _) = Harness::start_with(project, true);
+
+    // 同じ順（01-01 -> 01-02 -> 01-04 -> 02-01）に 3 回 next-file（Ctrl+Alt+Right）で訪問する
+    let ctrl = Modifiers::CTRL | Modifiers::COMMAND;
+    let ctrl_alt = ctrl | Modifiers::ALT;
+    let ctrl_shift = ctrl | Modifiers::SHIFT;
+    for _ in 0..3 {
+        let moved = headless.command("next-file").expect("headless next-file");
+        assert_eq!(moved["moved"], serde_json::json!(true));
+        harness.frame(vec![key(Key::ArrowRight, ctrl_alt)]);
+    }
+
+    assert_eq!(
+        harness.app.workbench().unwrap().current().unwrap().path,
+        "contents/02-01.cnov"
+    );
+
+    // 順方向 5 歩 + 逆方向 4 歩の遷移列（4 文書すべてを一周以上）が GUI とヘッドレスで完全一致する
+    let mut gui_trace = Vec::new();
+    let mut headless_trace = Vec::new();
+    for forward in [true, true, true, true, true, false, false, false, false] {
+        let modifiers = if forward { ctrl } else { ctrl_shift };
+        harness.frame(vec![key(Key::Tab, modifiers)]);
+        let cur = harness.app.workbench().unwrap().current().unwrap();
+        gui_trace.push((cur.path.clone(), cur.id));
+
+        let cmd = if forward {
+            "recent-next"
+        } else {
+            "recent-previous"
+        };
+        let step = headless.command(cmd).expect(cmd)["data"].clone();
+        let cur_h = headless.workbench().current().unwrap();
+        assert_eq!(step["path"].as_str(), Some(cur_h.path.as_str()));
+        headless_trace.push((cur_h.path.clone(), cur_h.id));
+    }
+    assert_eq!(gui_trace, headless_trace);
+    assert_eq!(
+        gui_trace
+            .iter()
+            .map(|(p, _)| p.as_str())
+            .collect::<Vec<_>>(),
+        vec![
+            "contents/01-04.cnov",
+            "contents/01-02.cnov",
+            "contents/01-01.cnov",
+            "contents/02-01.cnov",
+            "contents/01-04.cnov",
+            "contents/02-01.cnov",
+            "contents/01-01.cnov",
+            "contents/01-02.cnov",
+            "contents/01-04.cnov",
+        ]
+    );
+}
+
+#[test]
+fn slice_and_section_buffers_guard_workspace_undo_and_redo_without_overwriting_edits() {
+    use novnow::core::features::{TextEdit, WorkspaceEdit};
+
+    let mut bench = Workbench::new(world(), None, 400);
+    let before_all = bench.project().text(world::ALL_PATH).to_owned();
+    let updated_all = format!("{before_all}\n// workspace edit\n");
+    let ws_edit = WorkspaceEdit::single(
+        world::ALL_PATH,
+        vec![TextEdit {
+            range: 0..before_all.len(),
+            new_text: updated_all.clone(),
+        }],
+    );
+    bench.apply_edit(&ws_edit, 1.0);
+    let _ = bench.take_writes();
+    bench.save.succeeded();
+    assert!(bench.workspace_undo_ready(false));
+
+    // 1) 通常エディタに未確定編集がある間は Undo 不可・何も変えない
+    bench.buffer_mut().push_str("未確定追記\n");
+    assert!(!bench.workspace_undo_ready(false));
+    assert!(!bench.undo_workspace(false, 2.0));
+    assert_eq!(bench.project().text(world::ALL_PATH), updated_all);
+
+    // 対象外文書（CONTENTS_PATH）なので commit 後は Undo でき、Redo もできる
+    bench.commit();
+    assert!(bench.workspace_undo_ready(false));
+    assert!(bench.undo_workspace(false, 2.1));
+    assert_eq!(bench.project().text(world::ALL_PATH), before_all);
+    assert!(bench.workspace_undo_ready(true));
+    assert!(bench.undo_workspace(true, 2.2));
+    assert_eq!(bench.project().text(world::ALL_PATH), updated_all);
+
+    // 2) 無関係な文書（words.md）の Slice で未確定編集中は Undo がブロックされ、確定後は動く
+    bench.open_slice("words.md", 1..2, "test");
+    bench.slice_buffer_mut().push_str("slice draft\n");
+    assert!(!bench.workspace_undo_ready(false));
+    assert!(!bench.undo_workspace(false, 3.0));
+    assert_eq!(bench.project().text(world::ALL_PATH), updated_all);
+    // Slice を閉じて確定（対象外文書なので Undo が動く）
+    bench.close_slice();
+    assert!(bench.workspace_undo_ready(false));
+
+    // 3) 対象文書（ALL_PATH）の Slice に未確定編集 -> Undo ブロック -> 確定後も後からの編集を絶対に上書きしない
+    bench.open_slice(world::ALL_PATH, 1..2, "test");
+    bench
+        .slice_buffer_mut()
+        .push_str("後からの大切なプロット編集\n");
+    assert!(!bench.workspace_undo_ready(false));
+    assert!(!bench.undo_workspace(false, 4.0));
+    bench.close_slice();
+    let after_slice_commit = bench.project().text(world::ALL_PATH).to_owned();
+    assert!(after_slice_commit.contains("後からの大切なプロット編集"));
+    assert!(!bench.workspace_undo_ready(false));
+    assert!(!bench.undo_workspace(false, 4.1));
+    assert_eq!(bench.project().text(world::ALL_PATH), after_slice_commit);
+}
+
+#[test]
+fn gui_regex_replacement_and_uppercase_md_save_as_match_headless_ops() {
+    use novnow::adapters::project_load::is_document;
+    use novnow::app::memory_host::MemoryHost;
+    use novnow::app::session::Session as HeadlessSession;
+    use novnow::core::features::search::{self, Query};
+    use novnow::core::model::document::Document;
+    use novnow::core::policy::ProjectPath;
+
+    let sample = "@01-04-01 屋上\nid:01=春 / id:02=夏風\n";
+    let project_gui = world_with(CONTENTS_PATH, sample);
+    let project_api = world_with(CONTENTS_PATH, sample);
+
+    // GUI 経路（search::run -> search::replacement -> Workbench::apply_edit）
+    let mut bench = Workbench::new(project_gui, None, 400);
+    let q1 = Query {
+        text: "id:(?P<n>\\d+)=(?P<w>\\S+)".into(),
+        regex: true,
+        case_sensitive: true,
+    };
+    let r1 = search::run(bench.project(), &q1, || 0).expect("run 1");
+    let e1 = search::replacement(bench.project(), &q1, "[${w}:$1]", &r1).expect("rep 1");
+    bench.apply_edit(&e1, 1.0);
+    let q2 = Query {
+        text: " / ".into(),
+        regex: false,
+        case_sensitive: true,
+    };
+    let r2 = search::run(bench.project(), &q2, || 0).expect("run 2");
+    let e2 = search::replacement(bench.project(), &q2, "\\n", &r2).expect("rep 2");
+    bench.apply_edit(&e2, 2.0);
+
+    // Rust API 経路
+    let docs: Vec<Document> = project_api
+        .documents()
+        .filter(|d| is_document(&ProjectPath::new(&d.path).unwrap()))
+        .cloned()
+        .collect();
+    let mut session = HeadlessSession::with_documents(Box::new(MemoryHost::default()), docs);
+    session
+        .run(
+            "search.replace_file",
+            serde_json::json!({
+                "path": CONTENTS_PATH,
+                "query": "id:(?P<n>\\d+)=(?P<w>\\S+)",
+                "replace": "[${w}:$1]",
+                "regex": true,
+            }),
+        )
+        .unwrap();
+    session
+        .run(
+            "search.replace_file",
+            serde_json::json!({
+                "path": CONTENTS_PATH,
+                "query": " / ",
+                "replace": "\\n",
+                "regex": false,
+            }),
+        )
+        .unwrap();
+    assert_eq!(
+        bench.project().text(CONTENTS_PATH),
+        session.aggregate().text(CONTENTS_PATH)
+    );
+    assert_eq!(
+        bench.project().text(CONTENTS_PATH),
+        "@01-04-01 屋上\n[春:01]\n[夏風:02]\n"
+    );
+
+    // GUI「名前を付けて保存」で大文字 `.MD` でも `export.text` の Markdown と一致する
+    let base_world = world();
+    let mut s = base_world.settings().clone();
+    s.export.insert_headings = true;
+    let md_proj_gui = novnow::core::features::Project::with_documents(
+        s.clone(),
+        base_world.documents().cloned().collect::<Vec<_>>(),
+    );
+    let md_proj_api = novnow::core::features::Project::with_documents(
+        s,
+        base_world.documents().cloned().collect::<Vec<_>>(),
+    );
+    let (mut harness, _) = Harness::start_with(md_proj_gui, true);
+    harness.host.files.borrow_mut().chosen = Some("/elsewhere/MANUSCRIPT.MD".into());
+    open_export(&mut harness);
+    harness.frame(vec![key(Key::Enter, Modifiers::SHIFT)]);
+    let saved_gui = harness
+        .host
+        .files
+        .borrow()
+        .exported
+        .get("/elsewhere/MANUSCRIPT.MD")
+        .cloned()
+        .expect("saved .MD");
+    assert!(saved_gui.contains("# "), "{saved_gui}");
+
+    let host_api2 = MemoryHost::default();
+    let files_api2 = host_api2.files.clone();
+    let mut api_md =
+        HeadlessSession::from_project(Box::new(host_api2), md_proj_api, &UiSettings::default());
+    let out_fmt = api_md
+        .run("export.text", serde_json::json!({ "format": "md" }))
+        .expect("api export format md");
+    assert_eq!(out_fmt["text"].as_str(), Some(saved_gui.as_str()));
+    let out_api = api_md
+        .run(
+            "export.text",
+            serde_json::json!({ "out": "/elsewhere/MANUSCRIPT.MD" }),
+        )
+        .expect("api export .MD");
+    assert!(out_api["name"].as_str().unwrap().ends_with(".md"));
+    assert_eq!(
+        files_api2.borrow().exported.get("/elsewhere/MANUSCRIPT.MD"),
+        Some(&saved_gui)
+    );
+}

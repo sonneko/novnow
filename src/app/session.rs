@@ -196,7 +196,7 @@ impl Session {
             settings.last_scene.as_deref(),
             settings.autosave_ms,
         );
-        Self {
+        let mut session = Self {
             host,
             bench,
             settings: settings.clone(),
@@ -218,7 +218,9 @@ impl Session {
             trace: Vec::new(),
             root: None,
             read_only,
-        }
+        };
+        session.sync_recent();
+        session
     }
 
     /// メモリ上の仮想プロジェクト（§19.2.1「テスト用。ファイルシステムに触れない」）。
@@ -380,6 +382,12 @@ impl Session {
         self.events.drain(..).collect()
     }
 
+    /// 先頭から最大 `limit` 件のイベントを取り出し、残りはキューに保持する（§19.2.4）。
+    pub fn poll_events_up_to(&mut self, limit: usize) -> Vec<AppEvent> {
+        let count = limit.min(self.events.len());
+        self.events.drain(..count).collect()
+    }
+
     /// イベントのコールバックを登録する（§19.2.4「`poll_events()` で取り出すか、コールバックを登録」）。
     pub fn on_event(&mut self, callback: impl FnMut(&AppEvent) + 'static) {
         self.callbacks.push(Box::new(callback));
@@ -411,7 +419,19 @@ impl Session {
         if let Some(column) = def.excepts(self.interface) {
             return Err(Error::unsupported(self.locale, op, column));
         }
+        let is_recent_cycle = op == "session.recent_document"
+            || (op == "session.command"
+                && matches!(
+                    map.get("name").and_then(Value::as_str),
+                    Some("recent-next" | "recent-previous")
+                ));
+        if !is_recent_cycle {
+            self.sync_recent();
+        }
         let outcome = (def.handler)(self, &map);
+        if outcome.is_ok() && !is_recent_cycle {
+            self.sync_recent();
+        }
         self.trace.push(Trace {
             op: op.to_owned(),
             ok: outcome.is_ok(),
@@ -450,22 +470,33 @@ impl Session {
         let changes = self.host.poll();
         for (path, text) in &changes {
             let reaction = self.bench.external_change(path, text.clone());
-            self.conflicts.insert(path.clone(), text.clone());
-            self.push(AppEvent::DocumentChanged {
-                path: path.clone(),
-                change: match reaction {
-                    crate::app::workbench::Reaction::Reloaded => "external",
-                    crate::app::workbench::Reaction::Conflict => "conflict",
-                    crate::app::workbench::Reaction::Unchanged => "unchanged",
+            match reaction {
+                crate::app::workbench::Reaction::Conflict => {
+                    self.conflicts.insert(path.clone(), text.clone());
+                    self.bench.save.request_now();
+                    self.push(AppEvent::DocumentChanged {
+                        path: path.clone(),
+                        change: "conflict".to_owned(),
+                    });
+                    self.push(AppEvent::SaveStateChanged {
+                        state: "conflict".to_owned(),
+                        message: String::new(),
+                    });
                 }
-                .to_owned(),
-            });
-            if reaction == crate::app::workbench::Reaction::Conflict {
-                self.bench.save.request_now();
-                self.push(AppEvent::SaveStateChanged {
-                    state: "conflict".to_owned(),
-                    message: String::new(),
-                });
+                crate::app::workbench::Reaction::Reloaded => {
+                    self.conflicts.remove(path);
+                    self.push(AppEvent::DocumentChanged {
+                        path: path.clone(),
+                        change: "external".to_owned(),
+                    });
+                }
+                crate::app::workbench::Reaction::Unchanged => {
+                    self.conflicts.remove(path);
+                    self.push(AppEvent::DocumentChanged {
+                        path: path.clone(),
+                        change: "unchanged".to_owned(),
+                    });
+                }
             }
         }
         changes
@@ -645,6 +676,97 @@ impl Session {
             .write(crate::app::settings::UI_JSON, &text)
             .map_err(|message| Error::io(message, Some(crate::app::settings::UI_JSON)))
     }
+
+    /// 最近開いた文書の履歴を現在位置に追従させる（GUI と同じ MRU + 循環保持）。
+    pub(crate) fn sync_recent(&mut self) {
+        let mut entries: Vec<(String, SceneId)> = self
+            .recent
+            .iter()
+            .map(|p| (p.path.clone(), p.scene))
+            .collect();
+        let current = self.current_place().map(|p| (p.path, p.scene));
+        sync_recent_list(&mut entries, &mut self.recent_at, current);
+        self.recent = entries
+            .into_iter()
+            .map(|(path, scene)| Place {
+                path,
+                scene,
+                byte: 0,
+            })
+            .collect();
+    }
+
+    /// 文書リネーム・削除に合わせて `recent` を整える。
+    pub(crate) fn rename_recent(&mut self, from: &str, to: Option<&str>) {
+        match to {
+            Some(to) => {
+                let mut seen = BTreeSet::new();
+                for item in &mut self.recent {
+                    if item.path == from {
+                        item.path = to.to_owned();
+                    }
+                }
+                self.recent.retain(|item| seen.insert(item.path.clone()));
+            }
+            None => {
+                self.recent.retain(|item| item.path != from);
+            }
+        }
+        if self.recent_at >= self.recent.len() {
+            self.recent_at = 0;
+        }
+        self.sync_recent();
+    }
+}
+
+/// GUI とヘッドレスが共有する「最近開いた文書」の更新規則（最大 20 件）。
+///
+/// - 循環移動中（`recent_at > 0`）に着地先の `(path, scene)` に留まっている間は並び替えない
+///   （連続で `Ctrl+Tab` / `Ctrl+Shift+Tab` を押したときに 3 文書以上をそのまま巡回するため）。
+/// - 通常移動で別の文書へ移った場合、または着地先の文書内で別の節へ移った場合は、重複を除いて
+///   先頭へ積み、`recent_at = 0` に戻す。
+pub fn sync_recent_list(
+    recent: &mut Vec<(String, SceneId)>,
+    recent_at: &mut usize,
+    current: Option<(String, SceneId)>,
+) {
+    let Some((path, id)) = current else {
+        return;
+    };
+    if let Some((at_path, at_id)) = recent.get(*recent_at) {
+        if *at_path == path {
+            if *recent_at == 0 {
+                recent[0] = (path, id);
+                return;
+            }
+            if *at_id == id {
+                return;
+            }
+        }
+    }
+    if *recent_at > 0 && *recent_at < recent.len() {
+        let visited = recent.remove(*recent_at);
+        recent.insert(0, visited);
+    }
+    recent.retain(|(p, _)| p != &path);
+    recent.insert(0, (path, id));
+    recent.truncate(20);
+    *recent_at = 0;
+}
+
+/// 最近開いた文書の循環で次の添字を計算する（2 件未満なら移動しない）。
+pub fn step_recent_index(len: usize, recent_at: &mut usize, forward: bool) -> Option<usize> {
+    if len < 2 {
+        return None;
+    }
+    let base = (*recent_at).min(len - 1);
+    let next = if forward {
+        (base + 1) % len
+    } else {
+        base.checked_sub(1).unwrap_or(len - 1)
+    };
+    *recent_at = next;
+    Some(next)
 }
 
 /// §9.6 の状態の名前（`save.state`・`novnow/saveStateChanged` が共有する）。

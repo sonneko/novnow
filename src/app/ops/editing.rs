@@ -477,6 +477,8 @@ pub fn document_rename(session: &mut Session, args: &Args) -> Result<Value> {
     if !renamed {
         return Err(Error::not_found(locale, &from, Some(&from)));
     }
+    session.conflicts.remove(&from);
+    session.rename_recent(&from, Some(&to));
     if role.is_some() {
         audit(
             session,
@@ -700,7 +702,14 @@ pub fn keep_mine(session: &mut Session, args: &Args) -> Result<Value> {
 
 /// `save.reload_external`（§9.6）。
 pub fn reload_external(session: &mut Session, args: &Args) -> Result<Value> {
+    let locale = session.locale;
     let paths = conflict_paths(session, args)?;
+    if paths.is_empty() {
+        return Err(Error::new(
+            Class::Conflict,
+            i18n::text(locale, "api.error.no_conflict").to_owned(),
+        ));
+    }
     let mut reloaded = Vec::new();
     for path in &paths {
         let text = session.conflicts.get(path).cloned().unwrap_or(None);
@@ -741,9 +750,14 @@ pub fn diff_external(session: &mut Session, args: &Args) -> Result<Value> {
 }
 
 fn conflict_paths(session: &mut Session, args: &Args) -> Result<Vec<String>> {
+    let active: std::collections::BTreeSet<String> =
+        session.bench.conflicts().map(str::to_owned).collect();
     Ok(match args.get("path").and_then(Value::as_str) {
-        Some(path) => vec![path.to_owned()],
-        None => session.bench.conflicts().map(str::to_owned).collect(),
+        Some(path) => active
+            .contains(path)
+            .then(|| vec![path.to_owned()])
+            .unwrap_or_default(),
+        None => active.into_iter().collect(),
     })
 }
 
@@ -773,16 +787,18 @@ pub fn search_file(session: &mut Session, args: &Args) -> Result<Value> {
     let query = str_arg(locale, args, "query")?;
     let regex = bool_or(args, "regex", false);
     let (path, text, start) = editing_document(session)?;
-    let hits = matches_in(&text, &query, regex, locale)?;
     let replace = args.get("replace").and_then(Value::as_str);
     if let Some(replace) = replace {
         gate(session, args)?;
-        let next = replace_all(&text, &hits, replace);
+        let (count, next) =
+            crate::core::features::search::replace_in_text(&text, &query, replace, regex, true)
+                .map_err(|_| Error::usage(locale, "query"))?;
         let spliced = splice_slice(session, &path, start, next);
         write_document(session, &path, spliced);
         let saved = commit(session)?;
-        return Ok(json!({ "count": hits.len(), "path": path, "replaced": true, "save": saved }));
+        return Ok(json!({ "count": count, "path": path, "replaced": true, "save": saved }));
     }
+    let hits = matches_in(&text, &query, regex, locale)?;
     session.find = Some(Find {
         query: query.clone(),
         replace: None,
@@ -805,8 +821,9 @@ pub fn replace_file(session: &mut Session, args: &Args) -> Result<Value> {
     let replace = str_arg(locale, args, "replace")?;
     let regex = bool_or(args, "regex", false);
     let (path, text, start) = editing_document(session)?;
-    let hits = matches_in(&text, &query, regex, locale)?;
-    let next = replace_all(&text, &hits, &replace);
+    let (count, next) =
+        crate::core::features::search::replace_in_text(&text, &query, &replace, regex, true)
+            .map_err(|_| Error::usage(locale, "query"))?;
     let spliced = splice_slice(session, &path, start, next);
     write_document(session, &path, spliced.clone());
     let saved = commit(session)?;
@@ -815,7 +832,7 @@ pub fn replace_file(session: &mut Session, args: &Args) -> Result<Value> {
         "direct_write",
         &format!("op:search.replace_file {}", path),
     );
-    Ok(json!({ "count": hits.len(), "path": path, "save": saved }))
+    Ok(json!({ "count": count, "path": path, "save": saved }))
 }
 
 /// `search.project`（`Ctrl+Shift+F`。LSP の `workspace/symbol`）。
@@ -1038,20 +1055,14 @@ fn matches_in(
     if !regex {
         return Ok(crate::app::assist::find_all(text, query));
     }
-    let pattern = regex::Regex::new(query).map_err(|_| Error::usage(locale, "query"))?;
+    let pattern = regex::RegexBuilder::new(query)
+        .size_limit(1024 * 1024)
+        .build()
+        .map_err(|_| Error::usage(locale, "query"))?;
     Ok(pattern
         .find_iter(text)
         .map(|found| found.range())
         .collect::<Vec<_>>())
-}
-
-/// 一致を後ろから置換する（範囲がずれないように）。
-fn replace_all(text: &str, hits: &[std::ops::Range<usize>], replace: &str) -> String {
-    let mut out = text.to_owned();
-    for range in hits.iter().rev() {
-        out.replace_range(range.clone(), replace);
-    }
-    out
 }
 
 /// 章（引数が無ければ編集中の節の章）。

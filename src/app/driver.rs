@@ -274,6 +274,9 @@ fn start_failed(locale: Locale) -> Error {
 }
 
 /// ワーカースレッド（1 本）。`Session` はここで作り、ここで捨てる。
+///
+/// イベントは `Session` 自身のキューに保持し、`Job::Drain`（`Driver::poll_events`）または
+/// `session.poll_events`（`limit` 指定を含む）が明示的に取り出すまで吸い出さない。
 fn serve(queue: Receiver<Job>, events: Sender<AppEvent>) {
     let mut session: Option<Session> = None;
     for job in queue {
@@ -286,7 +289,6 @@ fn serve(queue: Receiver<Job>, events: Sender<AppEvent>) {
             Job::Close => break,
             job => {
                 handle(job, &mut session);
-                forward(&mut session, &events);
             }
         }
     }

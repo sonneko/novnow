@@ -319,6 +319,198 @@ impl UiSettings {
             self.context_ratio = clamp_ratio(round2(self.context_ratio + delta), 0.2, 0.8, 0.55);
         }
     }
+
+    /// `settings.set` の 1 キー更新（§4.4.1・§19.7）。未知キー・型違い・範囲外は `Err` とし、
+    /// 自身の状態を一切変更しない。
+    pub fn set_key(&mut self, key: &str, value: &Value) -> Result<(), SettingError> {
+        let string_array = |val: &Value| -> Option<Vec<String>> {
+            let items = val.as_array()?;
+            items
+                .iter()
+                .map(|item| item.as_str().map(str::to_owned))
+                .collect()
+        };
+        let ratio_val = |val: &Value, low: f64, high: f64| -> Option<f32> {
+            let num = val.as_f64().filter(|n| n.is_finite())?;
+            (low..=high).contains(&num).then_some(round2(num as f32))
+        };
+        match key {
+            "theme" => {
+                let choice = value
+                    .as_str()
+                    .and_then(ThemeChoice::parse)
+                    .ok_or(SettingError::BadValue)?;
+                self.theme = choice;
+            }
+            "language" => {
+                let choice = value
+                    .as_str()
+                    .and_then(LanguageChoice::parse)
+                    .ok_or(SettingError::BadValue)?;
+                self.language = choice;
+            }
+            "reference_pane_side" => match value.as_str() {
+                Some("right") => self.reference_pane_side = PaneSide::Right,
+                Some("left") => self.reference_pane_side = PaneSide::Left,
+                _ => return Err(SettingError::BadValue),
+            },
+            "last_scene" => match value {
+                Value::Null => self.last_scene = None,
+                Value::String(text) => {
+                    let parsed = crate::core::id::PartialSceneId::parse_with_sigil(text.trim())
+                        .or_else(|_| crate::core::id::PartialSceneId::parse(text.trim()))
+                        .map_err(|_| SettingError::BadValue)?;
+                    if parsed.depth() != 4 {
+                        return Err(SettingError::BadValue);
+                    }
+                    self.last_scene = Some(text.trim().trim_start_matches('@').to_owned());
+                }
+                _ => return Err(SettingError::BadValue),
+            },
+            "pane_ratio.main" => {
+                self.main_ratio = ratio_val(value, 0.3, 0.85).ok_or(SettingError::BadValue)?;
+            }
+            "pane_ratio.context_view" => {
+                self.context_ratio = ratio_val(value, 0.2, 0.8).ok_or(SettingError::BadValue)?;
+            }
+            "pane_ratio" => {
+                let map = value.as_object().ok_or(SettingError::BadValue)?;
+                if map.is_empty()
+                    || map
+                        .keys()
+                        .any(|k| !matches!(k.as_str(), "main" | "context_view"))
+                {
+                    return Err(SettingError::BadValue);
+                }
+                let next_main = match map.get("main") {
+                    Some(v) => Some(ratio_val(v, 0.3, 0.85).ok_or(SettingError::BadValue)?),
+                    None => None,
+                };
+                let next_ctx = match map.get("context_view") {
+                    Some(v) => Some(ratio_val(v, 0.2, 0.8).ok_or(SettingError::BadValue)?),
+                    None => None,
+                };
+                if let Some(m) = next_main {
+                    self.main_ratio = m;
+                }
+                if let Some(c) = next_ctx {
+                    self.context_ratio = c;
+                }
+            }
+            "font_scale" => {
+                self.font_scale = ratio_val(value, 0.8, 1.6).ok_or(SettingError::BadValue)?;
+            }
+            "max_line_chars" => match value {
+                Value::Null => self.max_line_chars = None,
+                Value::Number(num) => {
+                    let chars = num
+                        .as_u64()
+                        .filter(|v| (20..=120).contains(v))
+                        .ok_or(SettingError::BadValue)?;
+                    self.max_line_chars = Some(chars as usize);
+                }
+                _ => return Err(SettingError::BadValue),
+            },
+            "context_sections" => {
+                let count = value
+                    .as_u64()
+                    .filter(|v| (1..=9).contains(v))
+                    .ok_or(SettingError::BadValue)?;
+                self.context_sections = count as usize;
+            }
+            "autosave_ms" => {
+                let ms = value
+                    .as_u64()
+                    .filter(|v| (200..=2000).contains(v))
+                    .ok_or(SettingError::BadValue)?;
+                self.autosave_ms = ms as u32;
+            }
+            "inlay_hints" => {
+                self.inlay_hints = value.as_bool().ok_or(SettingError::BadValue)?;
+            }
+            "status_stats_mode" => {
+                self.status_stats_mode = value.as_bool().ok_or(SettingError::BadValue)?;
+            }
+            "suggest_comma" => {
+                self.suggest_comma = value.as_bool().ok_or(SettingError::BadValue)?;
+            }
+            "confirm_section_delete" => {
+                self.confirm_section_delete = value.as_bool().ok_or(SettingError::BadValue)?;
+            }
+            "guide_done" => {
+                self.guide_done = value.as_bool().ok_or(SettingError::BadValue)?;
+            }
+            "folded.context_view" => {
+                self.folded = string_array(value).ok_or(SettingError::BadValue)?;
+            }
+            "folded.outline" => {
+                self.outline = string_array(value).ok_or(SettingError::BadValue)?;
+            }
+            "folded" => {
+                let map = value.as_object().ok_or(SettingError::BadValue)?;
+                if map.is_empty()
+                    || map
+                        .keys()
+                        .any(|k| !matches!(k.as_str(), "context_view" | "outline"))
+                {
+                    return Err(SettingError::BadValue);
+                }
+                let next_cv = match map.get("context_view") {
+                    Some(v) => Some(string_array(v).ok_or(SettingError::BadValue)?),
+                    None => None,
+                };
+                let next_ol = match map.get("outline") {
+                    Some(v) => Some(string_array(v).ok_or(SettingError::BadValue)?),
+                    None => None,
+                };
+                if let Some(cv) = next_cv {
+                    self.folded = cv;
+                }
+                if let Some(ol) = next_ol {
+                    self.outline = ol;
+                }
+            }
+            _ => return Err(SettingError::UnknownKey),
+        }
+        Ok(())
+    }
+
+    /// `settings.get` と同一表現の有効値を返す。
+    pub fn effective_value(&self, key: &str) -> Value {
+        let parsed: Value = serde_json::from_str(&self.to_json()).unwrap_or_else(|_| json!({}));
+        match key {
+            "pane_ratio.main" => parsed
+                .get("pane_ratio")
+                .and_then(|v| v.get("main"))
+                .cloned()
+                .unwrap_or(Value::Null),
+            "pane_ratio.context_view" => parsed
+                .get("pane_ratio")
+                .and_then(|v| v.get("context_view"))
+                .cloned()
+                .unwrap_or(Value::Null),
+            "folded.context_view" => parsed
+                .get("folded")
+                .and_then(|v| v.get("context_view"))
+                .cloned()
+                .unwrap_or(Value::Null),
+            "folded.outline" => parsed
+                .get("folded")
+                .and_then(|v| v.get("outline"))
+                .cloned()
+                .unwrap_or(Value::Null),
+            other => parsed.get(other).cloned().unwrap_or(Value::Null),
+        }
+    }
+}
+
+/// `UiSettings::set_key` の検証エラー。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SettingError {
+    /// 未知のキー。
+    UnknownKey,
+    /// 型違いまたは範囲外。
+    BadValue,
 }
 
 fn clamp_ratio(value: f32, low: f32, high: f32, fallback: f32) -> f32 {

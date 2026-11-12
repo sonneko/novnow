@@ -525,6 +525,8 @@ pub struct Session {
     pending_selection: Option<std::ops::Range<usize>>,
     /// 最近開いたファイル（先頭が今。`Ctrl+Tab`）。
     recent: Vec<(String, crate::core::id::SceneId)>,
+    /// `recent` の循環位置（§9.8.2 `Ctrl+Tab` / `Ctrl+Shift+Tab`）。
+    recent_at: usize,
     /// 最後に検索した文字列（`F3`）。
     last_find: String,
     /// パレットで最近選んだ項目（モード別・新しい順・最大 10 件。入力が空のときだけ先頭へ出す）。
@@ -593,7 +595,7 @@ impl Session {
             settings.last_scene.as_deref(),
             settings.autosave_ms,
         );
-        Self {
+        let mut session = Self {
             tabs: workspaces::tabs::State::default(),
             host,
             bench,
@@ -610,6 +612,7 @@ impl Session {
             caret: None,
             pending_selection: None,
             recent: Vec::new(),
+            recent_at: 0,
             last_find: String::new(),
             palette_recent_commands: Vec::new(),
             palette_recent_scenes: Vec::new(),
@@ -627,7 +630,14 @@ impl Session {
             guide_zipped: false,
             guide_reader: false,
             guide_restart: false,
-        }
+        };
+        session.sync_recent();
+        session
+    }
+
+    fn sync_recent(&mut self) {
+        let current = self.bench.current().map(|c| (c.path.clone(), c.id));
+        crate::app::session::sync_recent_list(&mut self.recent, &mut self.recent_at, current);
     }
 
     /// 開いたときのエージェントの準備（U-7・§15.5.4）: `prompts/` の欠けた既定ファイルを書き出す。
@@ -872,6 +882,13 @@ impl NovnowApp {
         }
     }
 
+    /// 今選択しているバイト範囲（テスト用の読み口）。
+    pub fn selection(&self) -> Option<std::ops::Range<usize>> {
+        match &self.stage {
+            Stage::Open(session) => session.selection.clone(),
+            Stage::Picker => None,
+        }
+    }
     /// 今のワークスペース（プロジェクトを開いていなければ `None`）。
     pub fn workspace(&self) -> Option<Workspace> {
         match &self.stage {
@@ -1636,22 +1653,21 @@ impl NovnowApp {
                 }
             }
             Command::RecentFile(forward) => {
-                let target = if forward {
-                    session.recent.get(1).cloned()
-                } else if session.recent.len() > 1 {
-                    session.recent.last().cloned()
-                } else {
-                    None
-                };
-                if let Some((path, id)) = target {
-                    if let Some(index) = crate::core::features::sections::position_of(
+                session.sync_recent();
+                if let Some(index) = crate::app::session::step_recent_index(
+                    session.recent.len(),
+                    &mut session.recent_at,
+                    forward,
+                ) {
+                    let (path, id) = session.recent[index].clone();
+                    if crate::core::features::sections::position_of(
                         session.bench.sections(),
                         &path,
                         id,
-                    ) {
-                        if session.bench.go_to(index) {
-                            session.settings_dirty = true;
-                        }
+                    )
+                    .is_some_and(|pos| session.bench.go_to(pos))
+                    {
+                        session.settings_dirty = true;
                     }
                 }
             }
@@ -3728,17 +3744,7 @@ impl NovnowApp {
             }
         }
         // 最近開いたファイル（`Ctrl+Tab`）
-        if let Some(current) = session.bench.current() {
-            let entry = (current.path.clone(), current.id);
-            match session.recent.first_mut() {
-                Some(first) if first.0 == entry.0 => *first = entry,
-                _ => {
-                    session.recent.retain(|(path, _)| path != &entry.0);
-                    session.recent.insert(0, entry);
-                    session.recent.truncate(20);
-                }
-            }
-        }
+        session.sync_recent();
         if let Overlay::Completion { selected } = &mut self.overlay {
             let (down, up, enter) = completion_keys;
             if !completion(ctx, session, selected, (down, up, enter), mode, now) {
@@ -3782,6 +3788,7 @@ impl NovnowApp {
         let Stage::Open(session) = &mut self.stage else {
             return;
         };
+        session.sync_recent();
         if let Some(folded) =
             ctx.data_mut(|d| d.remove_temp::<Vec<String>>(Id::new("context-folded-changed")))
         {
@@ -4689,7 +4696,9 @@ impl NovnowApp {
                     session.last_find = query.clone();
                 }
                 if replace_one {
-                    let replacement = replace.clone().unwrap_or_default();
+                    let replacement = crate::core::features::search::expand_escapes(
+                        replace.as_deref().unwrap_or_default(),
+                    );
                     let selected = session.selection.clone().filter(|range| {
                         session.bench.buffer().get(range.clone()) == Some(query.as_str())
                     });
@@ -4707,11 +4716,14 @@ impl NovnowApp {
                 if replace_all && !query.is_empty() {
                     session.bench.commit();
                     if let Some(current) = session.bench.current() {
+                        let expanded = crate::core::features::search::expand_escapes(
+                            replace.as_deref().unwrap_or_default(),
+                        );
                         let text = session
                             .bench
                             .project()
                             .text(&current.path)
-                            .replace(query.as_str(), replace.as_deref().unwrap_or_default());
+                            .replace(query.as_str(), &expanded);
                         session.bench.replace_current_file(text, now);
                     }
                 }

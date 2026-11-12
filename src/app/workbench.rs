@@ -847,6 +847,12 @@ impl Workbench {
         if self.human_active() {
             return false;
         }
+        if self.slice.as_ref().is_some_and(|slice| {
+            sections::text_of_lines(self.project.text(&slice.path), &slice.lines)
+                != self.slice_buffer
+        }) {
+            return false;
+        }
         let stack = if redo {
             &self.workspace_redo
         } else {
@@ -873,6 +879,11 @@ impl Workbench {
         let target = if redo { &item.1 } else { &item.0 };
         let current = self.editing.clone();
         for (path, text) in target {
+            if self.slice.as_ref().is_some_and(|slice| &slice.path == path) {
+                self.slice = None;
+                self.slice_buffer.clear();
+                self.slice_caret = None;
+            }
             self.project
                 .insert(Document::new(path.clone(), text.clone()));
             self.unsaved.insert(path.clone());
