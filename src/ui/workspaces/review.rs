@@ -23,7 +23,7 @@ use crate::ui::workbench::{Nav, Workbench};
 
 use super::{list_row, state_color, Request, Row, View};
 
-/// タブ（§10.9.1 の 1・2）。
+/// タブ（§10.9.1 の 1・2 + §15.6 スレッド）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Tab {
     /// 診断（§10.9.2）。
@@ -31,6 +31,8 @@ pub enum Tab {
     Diagnostics,
     /// 進捗。
     Progress,
+    /// エージェント間通信のスレッド（§15.6）。
+    Threads,
 }
 
 /// 診断の並べ替え。
@@ -79,11 +81,15 @@ pub struct State {
     /// 今のタブ。
     pub tab: Tab,
     /// 選んでいる行（タブごと）。
-    selected: [usize; 2],
+    selected: [usize; 3],
     /// 重大度の絞り込み（E / W / I）。
     pub shown: [bool; 3],
     /// 並べ替え。
     pub sort: Sort,
+    /// 全診断コードの有効設定パネルを開いているか（§10.9.6）。
+    pub settings_open: bool,
+    /// 診断コード設定パネルの絞り込み文字列。
+    pub settings_filter: String,
     diagnostics: Option<(u64, Locale, Vec<DiagnosticRow>)>,
     progress: Option<(u64, Vec<ProgressRow>)>,
     reveal: bool,
@@ -93,9 +99,11 @@ impl Default for State {
     fn default() -> Self {
         Self {
             tab: Tab::Diagnostics,
-            selected: [0, 0],
+            selected: [0, 0, 0],
             shown: [true, true, true],
             sort: Sort::Position,
+            settings_open: false,
+            settings_filter: String::new(),
             diagnostics: None,
             progress: None,
             reveal: false,
@@ -165,6 +173,7 @@ impl State {
         self.tab = match self.tab {
             Tab::Diagnostics => Tab::Progress,
             Tab::Progress => Tab::Diagnostics,
+            Tab::Threads => Tab::Diagnostics,
         };
         self.reveal = true;
     }
@@ -172,6 +181,18 @@ impl State {
     /// 指定のサブタブに切り替える。
     pub fn set_tab(&mut self, tab: Tab) {
         self.tab = tab;
+        self.reveal = true;
+    }
+
+    /// 指定の `thread_id` のスレッドを `Tab::Threads` で開く（§15.6）。
+    pub fn select_thread(&mut self, bench: &Workbench, thread_id: &str) {
+        self.tab = Tab::Threads;
+        let board = crate::core::agents::files::Board::of(bench.project());
+        if let Some(pos) = board.threads.iter().position(|t| t.id == thread_id) {
+            self.selected[2] = pos;
+        } else {
+            self.selected[2] = 0;
+        }
         self.reveal = true;
     }
 
@@ -240,6 +261,9 @@ impl State {
         match self.tab {
             Tab::Diagnostics => self.visible(bench, locale).len(),
             Tab::Progress => self.progress(bench).len(),
+            Tab::Threads => crate::core::agents::files::Board::of(bench.project())
+                .threads
+                .len(),
         }
     }
 
@@ -252,6 +276,7 @@ impl State {
         match self.tab {
             Tab::Diagnostics => 0,
             Tab::Progress => 1,
+            Tab::Threads => 2,
         }
     }
 
@@ -289,6 +314,14 @@ impl State {
                 .progress(bench)
                 .get(at)
                 .map(|row| Target::Scene(row.id)),
+            Tab::Threads => {
+                let board = crate::core::agents::files::Board::of(bench.project());
+                let thread = board.threads.get(at)?;
+                let raw = thread.scope.trim().trim_start_matches('@');
+                crate::core::id::PartialSceneId::parse(raw)
+                    .ok()
+                    .map(|p| Target::Scene(p.expand_low()))
+            }
         }
     }
 }
@@ -351,7 +384,8 @@ pub fn show(
     let locale = view.locale;
     // この画面にはテキストの入力欄が無い。見出しのボタンにフォーカスがあるときも、
     // 診断・進み具合の一覧から修飾なしの矢印を奪わない。
-    let typing = view.overlay;
+    let filter_id = egui::Id::new("review-settings-filter");
+    let typing = view.overlay || (state.settings_open && ctx.memory(|m| m.has_focus(filter_id)));
     let mut jump = None;
     let mut request = None;
     if !typing {
@@ -393,12 +427,13 @@ pub fn show(
                 None => {}
             }
             super::separator(ui, view.mode);
-            let (clicked, level) = match state.tab {
+            let (clicked, sub_request) = match state.tab {
                 Tab::Diagnostics => diagnostics_tab(ui, state, bench, view),
                 Tab::Progress => (progress_tab(ui, state, bench, view), None),
+                Tab::Threads => threads_tab(ui, state, bench, view),
             };
-            if level.is_some() {
-                request = level;
+            if sub_request.is_some() {
+                request = sub_request;
             }
             if let Some((index, double)) = clicked {
                 let tab = state.tab_index();
@@ -426,6 +461,7 @@ fn tabs(ui: &mut Ui, state: &mut State, view: &View) -> (bool, Option<Guide>) {
         for (tab, key) in [
             (Tab::Diagnostics, "review.tab_diagnostics"),
             (Tab::Progress, "review.tab_progress"),
+            (Tab::Threads, "review.tab_threads"),
         ] {
             let selected = state.tab == tab;
             let text = RichText::new(i18n::text(view.locale, key))
@@ -456,7 +492,8 @@ fn tabs(ui: &mut Ui, state: &mut State, view: &View) -> (bool, Option<Guide>) {
         Some(0) => {
             state.tab = match state.tab {
                 Tab::Diagnostics => Tab::Progress,
-                Tab::Progress => Tab::Diagnostics,
+                Tab::Progress => Tab::Threads,
+                Tab::Threads => Tab::Diagnostics,
             };
         }
         Some(1) => guide = Some(Guide::Next),
@@ -522,11 +559,91 @@ fn diagnostics_tab(
                 state.sort = sort;
             }
         }
+        ui.add_space(12.0);
+        let settings_text = RichText::new(i18n::text(locale, "review.settings_toggle"))
+            .font(FontId::new(12.0 * scale, FontFamily::Proportional))
+            .color(if state.settings_open {
+                colors.accent
+            } else {
+                colors.fg_muted
+            });
+        if super::selectable_action(ui, state.settings_open, settings_text).clicked() {
+            state.settings_open = !state.settings_open;
+        }
     });
     ui.add_space(4.0);
-    let rows = state.visible(bench, locale);
-    // 選択中コードの有効設定（§10.9.6。[features.diagnostics] へ保存する）
     let mut level_request = None;
+    if state.settings_open {
+        let overrides = &bench.project().settings().features.diagnostics;
+        let query = state.settings_filter.trim().to_ascii_uppercase();
+        Frame::none()
+            .fill(colors.bg_raised)
+            .inner_margin(Margin::symmetric(8.0, 6.0))
+            .show(ui, |ui| {
+                ui.add(
+                    egui::TextEdit::singleline(&mut state.settings_filter)
+                        .id(egui::Id::new("review-settings-filter"))
+                        .hint_text(i18n::text(locale, "review.settings_filter_hint"))
+                        .desired_width(220.0),
+                );
+                egui::ScrollArea::vertical()
+                    .id_source("review-catalog-levels")
+                    .max_height(160.0)
+                    .show(ui, |ui| {
+                        for (code, _) in diagnostics::CATALOG {
+                            let code_str = code.as_str();
+                            if !query.is_empty() && !code_str.contains(&query) {
+                                continue;
+                            }
+                            let current = diagnostics::level_for(*code, overrides);
+                            ui.horizontal(|ui| {
+                                ui.monospace(code_str);
+                                for (value, key, lv) in [
+                                    ("off", "review.level_off", diagnostics::DiagnosticLevel::Off),
+                                    (
+                                        "warn",
+                                        "review.level_warn",
+                                        diagnostics::DiagnosticLevel::Warn,
+                                    ),
+                                    (
+                                        "error",
+                                        "review.level_error",
+                                        diagnostics::DiagnosticLevel::Error,
+                                    ),
+                                ] {
+                                    let selected = current == Some(lv);
+                                    let text = RichText::new(i18n::text(locale, key))
+                                        .font(FontId::new(11.0 * scale, FontFamily::Proportional))
+                                        .color(if selected {
+                                            colors.accent
+                                        } else {
+                                            colors.fg_muted
+                                        });
+                                    if super::selectable_action(ui, selected, text).clicked() {
+                                        level_request = Some(Request::SetDiagnosticLevel {
+                                            code: code_str.to_owned(),
+                                            level: value.to_owned(),
+                                        });
+                                    }
+                                }
+                                if current.is_none() {
+                                    ui.label(
+                                        RichText::new(i18n::text(locale, "review.level_default"))
+                                            .font(FontId::new(
+                                                11.0 * scale,
+                                                FontFamily::Proportional,
+                                            ))
+                                            .color(colors.fg_faint),
+                                    );
+                                }
+                            });
+                        }
+                    });
+            });
+        ui.add_space(4.0);
+    }
+    let rows = state.visible(bench, locale);
+    // 選択中コードの有効設定（§10.9.6。[features.diagnostics] へ保存する）と W084 ペア導線（§10.6.1）
     if let Some(row) = rows.get(state.selected()) {
         let overrides = &bench.project().settings().features.diagnostics;
         let current = diagnostics::CATALOG
@@ -573,6 +690,23 @@ fn diagnostics_tab(
                         .font(FontId::new(11.0 * scale, FontFamily::Proportional))
                         .color(colors.fg_muted),
                 );
+            }
+            if row.code == "W084" {
+                let matched = crate::core::features::metadata::address_violations(bench.project())
+                    .into_iter()
+                    .find(|v| v.path == row.path && Some(v.byte) == row.byte);
+                if let Some(v) = matched {
+                    ui.add_space(8.0);
+                    let btn_label =
+                        i18n::format(locale, "review.open_address_pair", &[&v.speaker, &v.target]);
+                    if ui.button(btn_label).clicked() {
+                        level_request = Some(Request::OpenAddressPair {
+                            speaker: v.speaker,
+                            target: v.target,
+                            mode: v.mode,
+                        });
+                    }
+                }
             }
         });
         ui.add_space(4.0);
@@ -709,4 +843,130 @@ fn progress_tab(
             }
         });
     clicked
+}
+
+/// エージェント間通信のスレッド一覧・本文・承認状態タブ（§15.6）。
+fn threads_tab(
+    ui: &mut Ui,
+    state: &mut State,
+    bench: &Workbench,
+    view: &View,
+) -> (Option<(usize, bool)>, Option<Request>) {
+    let colors = theme::palette(view.mode);
+    let scale = view.scale;
+    let locale = view.locale;
+    let board = crate::core::agents::files::Board::of(bench.project());
+    if board.threads.is_empty() {
+        super::hint(
+            ui,
+            view.mode,
+            scale,
+            i18n::text(locale, "review.no_threads"),
+        );
+        return (None, None);
+    }
+    let selected = state.selected().min(board.threads.len() - 1);
+    let reveal = state.reveal;
+    let mut clicked = None;
+    let mut req = None;
+
+    egui::ScrollArea::vertical()
+        .id_source("review-threads-list")
+        .max_height(160.0)
+        .auto_shrink([false, false])
+        .show(ui, |ui| {
+            for (index, thread) in board.threads.iter().enumerate() {
+                let has_pending = thread
+                    .messages
+                    .iter()
+                    .any(|m| m.approved_by == crate::core::agents::files::PENDING);
+                let bar_color = if has_pending {
+                    colors.warn
+                } else {
+                    colors.fg_faint
+                };
+                let text = format!(
+                    "{}  {}  [{}] ({})",
+                    thread.title,
+                    thread.scope,
+                    thread.status,
+                    thread.messages.len()
+                );
+                let response = list_row(
+                    ui,
+                    view.mode,
+                    scale,
+                    Row {
+                        selected: index == selected,
+                        bar: Some(bar_color),
+                        label: &thread.id,
+                        text: &text,
+                        muted: false,
+                    },
+                );
+                if index == selected && reveal {
+                    response.scroll_to_me(Some(egui::Align::Center));
+                }
+                if response.double_clicked() {
+                    clicked = Some((index, true));
+                } else if response.clicked() {
+                    clicked = Some((index, false));
+                }
+            }
+        });
+
+    super::separator(ui, view.mode);
+    if let Some(thread) = board.threads.get(selected) {
+        ui.horizontal_wrapped(|ui| {
+            ui.strong(i18n::format(
+                locale,
+                "review.thread_header",
+                &[&thread.id, &thread.title, &thread.scope, &thread.status],
+            ));
+            if ui
+                .button(i18n::text(locale, "review.open_in_agent"))
+                .clicked()
+            {
+                req = Some(Request::OpenAgentThread(thread.id.clone()));
+            }
+        });
+        ui.add_space(4.0);
+        egui::ScrollArea::vertical()
+            .id_source("review-thread-messages")
+            .auto_shrink([false, false])
+            .show(ui, |ui| {
+                for msg in &thread.messages {
+                    let is_pending = msg.approved_by == crate::core::agents::files::PENDING;
+                    let hdr = i18n::format(
+                        locale,
+                        "review.thread_message",
+                        &[
+                            &format!("{:03}", msg.number),
+                            &msg.from,
+                            &msg.to,
+                            &msg.kind,
+                            &msg.approved_by,
+                        ],
+                    );
+                    ui.label(
+                        RichText::new(hdr)
+                            .font(FontId::new(12.0 * scale, FontFamily::Monospace))
+                            .color(if is_pending {
+                                colors.warn
+                            } else {
+                                colors.fg_muted
+                            }),
+                    );
+                    if !msg.body.is_empty() {
+                        ui.label(
+                            RichText::new(&msg.body)
+                                .font(FontId::new(13.0 * scale, FontFamily::Proportional))
+                                .color(colors.fg_primary),
+                        );
+                    }
+                    ui.add_space(6.0);
+                }
+            });
+    }
+    (clicked, req)
 }

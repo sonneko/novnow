@@ -17,13 +17,27 @@ use egui::Context;
 #[derive(Default)]
 pub struct State {
     pub stamp: String,
-    pub(super) address_generation: Option<u64>,
     observation_unmatched: bool,
     pub reader_position: Option<(String, usize)>,
     pub reader_section: Option<crate::core::id::SceneId>,
     pub(super) reader_pinned_section: Option<(usize, usize, crate::core::id::SceneId)>,
     pub reader_auto_columns: bool,
-    pub(super) address_cells: std::collections::BTreeMap<(String, String), String>,
+    pub address_mode: Option<String>,
+    pub address_selected_pair: Option<(String, String)>,
+    pub address_speaker_filter: String,
+    pub(super) address_editing: Option<(String, Option<String>, String)>,
+    pub(super) address_edit_buffer: String,
+    pub(super) address_edit_fresh: bool,
+    pub address_violation_selected: usize,
+    pub address_focus_violations: bool,
+    pub address_candidates_open: bool,
+    pub address_candidates: Vec<(metadata::AddressCandidate, bool)>,
+    pub metrics_scope: metadata::MetricsScope,
+    pub senses_selected_kind: Option<metadata::SenseKind>,
+    pub senses_cursor: usize,
+    pub obs_show_dialogue_bands: bool,
+    pub obs_show_sentence_lengths: bool,
+    pub obs_levels_open: bool,
     observation_filters: [bool; 18],
     observation_loaded: bool,
     pub tabs: [usize; 9],
@@ -342,65 +356,116 @@ pub fn show(
                 super::stats::stats_ui(ui, state, locale);
             }
             "stage.speakers" => {
-                let m = metrics::project(bench.project());
+                scope_selector_ui(ui, &mut state.metrics_scope, bench.project(), locale);
+                let report = metrics::speakers_in_scope(bench.project(), state.metrics_scope);
                 ui.label(format!(
                     "{}: {:.1}%",
                     label(locale, "stage.dialogue_ratio"),
-                    m.ratio() * 100.0
+                    report.ratio() * 100.0
                 ));
-                for (name, speech) in m.speakers {
-                    let name = if name.is_empty() {
-                        label(locale, "stage.unknown")
-                    } else {
-                        name
-                    };
-                    ui.label(format!("{name}  {} / {}", speech.lines, speech.chars));
-                }
+                ui.label(
+                    egui::RichText::new(label(locale, "stage.speaker_columns"))
+                        .small()
+                        .color(ui.visuals().weak_text_color()),
+                );
+                egui::ScrollArea::vertical()
+                    .id_source("speakers-table-scroll")
+                    .show(ui, |ui| {
+                        egui::Grid::new("speakers-stats-grid")
+                            .striped(true)
+                            .show(ui, |ui| {
+                                for row in &report.rows {
+                                    let shown_name = if row.name.is_empty() {
+                                        label(locale, "stage.unknown")
+                                    } else {
+                                        row.name.clone()
+                                    };
+                                    ui.label(shown_name);
+                                    ui.label(row.lines.to_string());
+                                    ui.label(row.chars.to_string());
+                                    ui.label(row.sections.to_string());
+                                    ui.label(row.pov_sections.to_string());
+                                    ui.end_row();
+                                }
+                            });
+                    });
             }
             "stage.histogram" => {
-                let m = metrics::project(bench.project());
-                for (bin, n) in metrics::histogram(&m.lengths, 100) {
-                    ui.label(format!("{bin}–{} {}", bin + 99, "▮".repeat(n.min(100))));
+                let rep = metrics::section_length_report(bench.project());
+                ui.strong(i18n::format(
+                    locale,
+                    "stage.length_summary",
+                    &[
+                        &format!("{:.0}", rep.summary.median),
+                        &format!("{:.0}", rep.summary.mean),
+                        &rep.summary.max.to_string(),
+                        &rep.summary.min.to_string(),
+                    ],
+                ));
+                for (bin, n) in &rep.histogram {
+                    ui.label(format!("{bin}–{} {}", bin + 99, "▮".repeat((*n).min(100))));
                 }
-                let scores = metrics::t_scores(&m.lengths);
-                let items: Vec<_> = bench
-                    .project()
-                    .sections()
-                    .iter()
-                    .filter(|s| s.id.chapter > 0 && s.id.episode > 0)
-                    .cloned()
-                    .collect();
-                let mut targets = Vec::with_capacity(items.len());
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    for (row_idx, ((item, n), score)) in
-                        items.iter().zip(m.lengths).zip(scores).enumerate()
-                    {
-                        let target = (
-                            item.path.clone(),
-                            crate::core::features::project::line_starts_of(
-                                bench.project().text(&item.path),
-                            )
-                            .get(item.lines.start)
-                            .copied()
-                            .unwrap_or(0),
-                        );
-                        let score_str =
-                            score.map_or_else(|| "—".to_owned(), |val| format!("{val:.1}"));
-                        if nav_link(
-                            ui,
-                            row_idx,
-                            state.tab_selected,
-                            format!(
-                                "{}  {n}  {score_str}",
-                                item.id.display(bench.project().digits())
-                            ),
-                        ) {
-                            state.tab_selected = row_idx;
-                            jump = Some(target.clone());
-                        }
-                        targets.push(target);
+                if !rep.ratio_bins.is_empty() {
+                    ui.separator();
+                    ui.strong(label(locale, "stage.length_target_ratio"));
+                    for (pct, count) in &rep.ratio_bins {
+                        ui.label(format!(
+                            "{pct}–{}%  {}",
+                            pct + 24,
+                            "▮".repeat((*count).min(80))
+                        ));
                     }
-                });
+                }
+                let outliers: Vec<_> = rep
+                    .rows
+                    .iter()
+                    .filter(|r| r.t_score.is_some_and(|t| !(35.0..=65.0).contains(&t)))
+                    .collect();
+                if !outliers.is_empty() {
+                    ui.separator();
+                    ui.strong(label(locale, "stage.length_outliers"));
+                }
+                let mut targets = Vec::with_capacity(rep.rows.len());
+                egui::ScrollArea::vertical()
+                    .id_source("histogram-sections-scroll")
+                    .show(ui, |ui| {
+                        for (row_idx, row) in rep.rows.iter().enumerate() {
+                            let target = (row.path.clone(), row.byte);
+                            let score_str = row
+                                .t_score
+                                .map_or_else(|| "—".to_owned(), |val| format!("T {val:.0}"));
+                            let ratio_str = match (row.target, row.target_ratio) {
+                                (Some(tgt), Some(r)) => {
+                                    format!(" / {tgt} ({:.0}%)", r * 100.0)
+                                }
+                                _ => String::new(),
+                            };
+                            let outlier_tag = match row.t_score {
+                                Some(t) if t > 65.0 => {
+                                    format!("  {}", label(locale, "stage.length_long"))
+                                }
+                                Some(t) if t < 35.0 => {
+                                    format!("  {}", label(locale, "stage.length_short"))
+                                }
+                                _ => String::new(),
+                            };
+                            if nav_link(
+                                ui,
+                                row_idx,
+                                state.tab_selected,
+                                format!(
+                                    "{}  {}{}  {score_str}{outlier_tag}",
+                                    row.id.display(bench.project().digits()),
+                                    row.chars,
+                                    ratio_str
+                                ),
+                            ) {
+                                state.tab_selected = row_idx;
+                                jump = Some(target.clone());
+                            }
+                            targets.push(target);
+                        }
+                    });
                 handle_list_keys(ui, &mut state.tab_selected, &targets, &mut jump);
             }
             "stage.observations" => {
@@ -411,6 +476,8 @@ pub fn show(
                         false, false, false, false, false, false, false,
                     ];
                     state.observation_unmatched = true;
+                    state.obs_show_dialogue_bands = true;
+                    state.obs_show_sentence_lengths = true;
                     state.observation_loaded = true;
                 }
                 ui.label(label(locale, "stage.advisory"));
@@ -435,6 +502,7 @@ pub fn show(
                     C::W106,
                 ];
                 ui.horizontal_wrapped(|ui| {
+                    ui.strong(label(locale, "stage.obs_filter_label"));
                     for (idx, code) in codes.iter().enumerate() {
                         ui.checkbox(&mut state.observation_filters[idx], code.as_str());
                     }
@@ -442,44 +510,170 @@ pub fn show(
                         &mut state.observation_unmatched,
                         i18n::text(locale, "cast.tab_unmatched"),
                     );
+                    ui.checkbox(
+                        &mut state.obs_show_dialogue_bands,
+                        label(locale, "stage.obs_dialogue_bands"),
+                    );
+                    ui.checkbox(
+                        &mut state.obs_show_sentence_lengths,
+                        label(locale, "stage.obs_sentence_lengths"),
+                    );
+                    if ui
+                        .selectable_label(
+                            state.obs_levels_open,
+                            label(locale, "stage.obs_project_levels"),
+                        )
+                        .clicked()
+                    {
+                        state.obs_levels_open = !state.obs_levels_open;
+                    }
                 });
-                let mut targets = Vec::new();
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    if state.observation_unmatched {
-                        for found in
-                            crate::core::features::cast::unmatched_dialogue(bench.project())
+                if state.obs_levels_open {
+                    let mut pending_level: Option<(&str, &str)> = None;
+                    let overrides = bench.project().settings().features.diagnostics.clone();
+                    ui.separator();
+                    ui.vertical(|ui| {
+                        egui::ScrollArea::vertical()
+                            .id_source("obs-diagnostic-levels")
+                            .max_height(150.0)
+                            .show(ui, |ui| {
+                                for code in &codes {
+                                    let current =
+                                        crate::core::diagnostics::level_for(*code, &overrides);
+                                    ui.horizontal(|ui| {
+                                        ui.monospace(code.as_str());
+                                        for (val, key_name, lv) in [
+                                            (
+                                                "off",
+                                                "review.level_off",
+                                                crate::core::diagnostics::DiagnosticLevel::Off,
+                                            ),
+                                            (
+                                                "warn",
+                                                "review.level_warn",
+                                                crate::core::diagnostics::DiagnosticLevel::Warn,
+                                            ),
+                                            (
+                                                "error",
+                                                "review.level_error",
+                                                crate::core::diagnostics::DiagnosticLevel::Error,
+                                            ),
+                                        ] {
+                                            if ui
+                                                .selectable_label(
+                                                    current == Some(lv),
+                                                    i18n::text(locale, key_name),
+                                                )
+                                                .clicked()
+                                            {
+                                                pending_level = Some((code.as_str(), val));
+                                            }
+                                        }
+                                        if current.is_none() {
+                                            ui.label(i18n::text(locale, "review.level_default"));
+                                        }
+                                    });
+                                }
+                            });
+                    });
+                    if let Some((code_str, lv_str)) = pending_level {
+                        let path = crate::core::model::project::PROJECT_FILE;
+                        let cur_toml = bench.project().text(path).to_owned();
+                        if let Some(edited) =
+                            crate::core::syntax::project_toml::set_diagnostic_level(
+                                &cur_toml, code_str, lv_str,
+                            )
                         {
-                            let row_idx = targets.len();
-                            let target = (found.path, found.byte);
-                            if nav_link(
-                                ui,
-                                row_idx,
-                                state.tab_selected,
-                                format!("{}: {}", found.speaker, found.text),
-                            ) {
-                                state.tab_selected = row_idx;
-                                jump = Some(target.clone());
-                            }
-                            targets.push(target);
+                            bench.replace_document(path, edited, now);
                         }
                     }
-                    for doc in bench.project().documents() {
-                        for d in
-                            crate::core::features::diagnose::document(doc, bench.project(), true)
-                        {
-                            if codes
-                                .iter()
-                                .position(|code| *code == d.code)
-                                .is_some_and(|idx| state.observation_filters[idx])
+                }
+                let mut targets = Vec::new();
+                egui::ScrollArea::vertical()
+                    .id_source("observations-main-scroll")
+                    .show(ui, |ui| {
+                        if state.obs_show_dialogue_bands {
+                            let bands = metrics::dialogue_ratio_bands(bench.project());
+                            if !bands.is_empty() {
+                                ui.strong(label(locale, "stage.obs_dialogue_bands"));
+                                let digits = bench.project().digits();
+                                for band in bands {
+                                    let row_idx = targets.len();
+                                    let target = (band.path.clone(), band.byte);
+                                    let filled = ((band.ratio() * 10.0).round() as usize).min(10);
+                                    let bar = format!(
+                                        "{}{}",
+                                        "▓".repeat(filled),
+                                        "░".repeat(10 - filled)
+                                    );
+                                    let indent = if band.depth == 2 { "  " } else { "" };
+                                    let short =
+                                        crate::core::features::plots::short_id(band.id, digits);
+                                    if nav_link(
+                                        ui,
+                                        row_idx,
+                                        state.tab_selected,
+                                        format!(
+                                            "{indent}@{short}  {bar}  {:.1}% ({}/{})",
+                                            band.ratio() * 100.0,
+                                            band.dialogue,
+                                            band.total
+                                        ),
+                                    ) {
+                                        state.tab_selected = row_idx;
+                                        jump = Some(target.clone());
+                                    }
+                                    targets.push(target);
+                                }
+                                ui.separator();
+                            }
+                        }
+                        if state.obs_show_sentence_lengths {
+                            let sent_rep = metrics::sentence_lengths(bench.project());
+                            if !sent_rep.histogram.is_empty() {
+                                ui.strong(label(locale, "stage.obs_sentence_lengths"));
+                                for (bin, n) in &sent_rep.histogram {
+                                    ui.label(format!(
+                                        "{bin}–{}  {}",
+                                        bin + 19,
+                                        "▮".repeat((*n).min(60))
+                                    ));
+                                }
+                                let digits = bench.project().digits();
+                                for entry in &sent_rep.longest {
+                                    let row_idx = targets.len();
+                                    let target = (entry.path.clone(), entry.byte);
+                                    let snippet: String = entry.text.chars().take(36).collect();
+                                    if nav_link(
+                                        ui,
+                                        row_idx,
+                                        state.tab_selected,
+                                        format!(
+                                            "@{} ({})  {}",
+                                            entry.id.display(digits),
+                                            entry.chars,
+                                            snippet
+                                        ),
+                                    ) {
+                                        state.tab_selected = row_idx;
+                                        jump = Some(target.clone());
+                                    }
+                                    targets.push(target);
+                                }
+                                ui.separator();
+                            }
+                        }
+                        if state.observation_unmatched {
+                            for found in
+                                crate::core::features::cast::unmatched_dialogue(bench.project())
                             {
                                 let row_idx = targets.len();
-                                let target =
-                                    (doc.path.clone(), d.range.as_ref().map_or(0, |r| r.start));
+                                let target = (found.path, found.byte);
                                 if nav_link(
                                     ui,
                                     row_idx,
                                     state.tab_selected,
-                                    i18n::diagnostic(locale, &d),
+                                    format!("{}: {}", found.speaker, found.text),
                                 ) {
                                     state.tab_selected = row_idx;
                                     jump = Some(target.clone());
@@ -487,12 +681,38 @@ pub fn show(
                                 targets.push(target);
                             }
                         }
-                    }
-                });
+                        for doc in bench.project().documents() {
+                            for d in crate::core::features::diagnose::document(
+                                doc,
+                                bench.project(),
+                                true,
+                            ) {
+                                if codes
+                                    .iter()
+                                    .position(|code| *code == d.code)
+                                    .is_some_and(|idx| state.observation_filters[idx])
+                                {
+                                    let row_idx = targets.len();
+                                    let target =
+                                        (doc.path.clone(), d.range.as_ref().map_or(0, |r| r.start));
+                                    if nav_link(
+                                        ui,
+                                        row_idx,
+                                        state.tab_selected,
+                                        i18n::diagnostic(locale, &d),
+                                    ) {
+                                        state.tab_selected = row_idx;
+                                        jump = Some(target.clone());
+                                    }
+                                    targets.push(target);
+                                }
+                            }
+                        }
+                    });
                 handle_list_keys(ui, &mut state.tab_selected, &targets, &mut jump);
             }
             "stage.addresses" => {
-                super::addresses::addresses_ui(ui, state, bench, locale, now);
+                super::addresses::addresses_ui(ui, state, bench, locale, now, &mut jump);
             }
             "stage.illustrations" => {
                 let mut targets = Vec::new();
@@ -592,42 +812,190 @@ pub fn show(
                 });
                 handle_list_keys(ui, &mut state.tab_selected, &targets, &mut jump);
             }
+            "stage.senses" => {
+                scope_selector_ui(ui, &mut state.metrics_scope, bench.project(), locale);
+                let summary = metadata::senses_summary(bench.project(), state.metrics_scope);
+                ui.strong(i18n::format(
+                    locale,
+                    "stage.senses_header",
+                    &[
+                        &summary.total_sections.to_string(),
+                        &summary.declared_sections.to_string(),
+                        &summary.undeclared_sections.to_string(),
+                    ],
+                ));
+                let sense_keys = [
+                    (metadata::SenseKind::Sight, "stage.sense_sight"),
+                    (metadata::SenseKind::Hearing, "stage.sense_hearing"),
+                    (metadata::SenseKind::Smell, "stage.sense_smell"),
+                    (metadata::SenseKind::Taste, "stage.sense_taste"),
+                    (metadata::SenseKind::Touch, "stage.sense_touch"),
+                ];
+                let denom = summary.declared_sections.max(1);
+                for (idx, (kind, key_name)) in sense_keys.iter().enumerate() {
+                    let count = summary.counts[*kind as usize];
+                    let bar_len = ((count * 20) / denom).min(20);
+                    let bar = format!("{}{}", "▓".repeat(bar_len), "░".repeat(20 - bar_len));
+                    let sense_name = label(locale, key_name);
+                    let obs_text = i18n::format(
+                        locale,
+                        "stage.sense_count_obs",
+                        &[&sense_name, &count.to_string()],
+                    );
+                    let selected = state.senses_selected_kind == Some(*kind)
+                        || (state.senses_selected_kind.is_none() && state.senses_cursor == idx);
+                    let resp =
+                        ui.selectable_label(selected, format!("{sense_name}  {bar}  {obs_text}"));
+                    if resp.clicked() {
+                        state.senses_cursor = idx;
+                        state.senses_selected_kind = if state.senses_selected_kind == Some(*kind) {
+                            None
+                        } else {
+                            Some(*kind)
+                        };
+                        state.tab_selected = 0;
+                    }
+                }
+                let mut targets = Vec::new();
+                let digits = bench.project().digits();
+                if !summary.visual_streaks.is_empty() {
+                    ui.separator();
+                    for streak in &summary.visual_streaks {
+                        let row_idx = targets.len();
+                        let target = (streak.path.clone(), streak.byte);
+                        let msg = i18n::format(
+                            locale,
+                            "stage.sense_visual_streak",
+                            &[
+                                &streak.count.to_string(),
+                                &streak.start.display(digits),
+                                &streak.end.display(digits),
+                            ],
+                        );
+                        if nav_link(ui, row_idx, state.tab_selected, format!("⚠ {msg}")) {
+                            state.tab_selected = row_idx;
+                            jump = Some(target.clone());
+                        }
+                        targets.push(target);
+                    }
+                }
+                if let Some(active_kind) = state.senses_selected_kind {
+                    ui.separator();
+                    egui::ScrollArea::vertical()
+                        .id_source("senses-detail-scroll")
+                        .show(ui, |ui| {
+                            for hit in &summary.sections_by_sense[active_kind as usize] {
+                                let row_idx = targets.len();
+                                let target = (hit.path.clone(), hit.byte);
+                                if nav_link(
+                                    ui,
+                                    row_idx,
+                                    state.tab_selected,
+                                    format!("@{}  {}", hit.id.display(digits), hit.raw),
+                                ) {
+                                    state.tab_selected = row_idx;
+                                    jump = Some(target.clone());
+                                }
+                                targets.push(target);
+                            }
+                        });
+                    handle_list_keys(ui, &mut state.tab_selected, &targets, &mut jump);
+                } else {
+                    // 感覚行を ↑/↓ で選んで Enter でその感覚の節一覧を展開する（§10.9.3）
+                    let editing_text = ui.ctx().wants_keyboard_input();
+                    if !editing_text {
+                        if ui
+                            .input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowUp))
+                        {
+                            state.senses_cursor = state.senses_cursor.saturating_sub(1);
+                        }
+                        if ui.input_mut(|i| {
+                            i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowDown)
+                        }) {
+                            state.senses_cursor = (state.senses_cursor + 1).min(4);
+                        }
+                        if ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter))
+                        {
+                            state.senses_selected_kind = Some(sense_keys[state.senses_cursor].0);
+                            state.tab_selected = 0;
+                        }
+                    }
+                }
+            }
             _ => {
                 let rows = metadata::records(bench.project());
                 let mut targets = Vec::new();
                 egui::ScrollArea::both().show(ui, |ui| {
                     if key == "stage.timeline" {
-                        let mut timeline = metadata::timeline(&rows);
-                        timeline.sort_by(|a, b| {
-                            match (a.time.start, b.time.start) {
-                                (Some(a), Some(b)) => a.total_cmp(&b),
-                                (Some(_), None) => std::cmp::Ordering::Less,
-                                (None, Some(_)) => std::cmp::Ordering::Greater,
-                                _ => std::cmp::Ordering::Equal,
+                        let timeline = metadata::timeline_view(&rows);
+                        let digits = bench.project().digits();
+                        let mut entered_undetermined = false;
+                        for (row_idx, entry) in timeline.into_iter().enumerate() {
+                            if entry.time.start.is_none() && !entered_undetermined {
+                                entered_undetermined = true;
+                                ui.separator();
+                                ui.strong(label(locale, "stage.timeline_undetermined"));
                             }
-                            .then(a.time.clock.cmp(&b.time.clock))
-                        });
-                        for (row_idx, row) in timeline.into_iter().enumerate() {
-                            let target = (row.record.path.clone(), row.record.range.start);
-                            if nav_link(
-                                ui,
-                                row_idx,
-                                state.tab_selected,
-                                format!(
-                                    "{}  {}",
-                                    row.record.id.display(bench.project().digits()),
-                                    row.record.fields.get("when").cloned().unwrap_or_default()
-                                ),
-                            ) {
-                                state.tab_selected = row_idx;
-                                jump = Some(target.clone());
+                            let target = (entry.record.path.clone(), entry.record.range.start);
+                            let short =
+                                crate::core::features::plots::short_id(entry.record.id, digits);
+                            let summary = entry
+                                .record
+                                .fields
+                                .get("summary")
+                                .cloned()
+                                .unwrap_or_default();
+                            let mut suffix = String::new();
+                            if entry.inherited {
+                                suffix.push(' ');
+                                suffix.push_str(&label(locale, "stage.timeline_inherited"));
                             }
+                            if entry.time.flashback {
+                                suffix.push(' ');
+                                suffix.push_str(&label(locale, "stage.timeline_flashback"));
+                            }
+                            if let Some(prev_id) = entry.rewind_from {
+                                let prev_short =
+                                    crate::core::features::plots::short_id(prev_id, digits);
+                                suffix.push_str("  ");
+                                suffix.push_str(&i18n::format(
+                                    locale,
+                                    "stage.timeline_rewind",
+                                    &[&prev_short],
+                                ));
+                            }
+                            let indent = "  ".repeat(entry.record.depth.saturating_sub(1));
+                            let line_str = format!(
+                                "{indent}{}  @{short} {summary}{suffix}",
+                                entry.display_when
+                            );
+                            ui.horizontal(|ui| {
+                                let is_sel = row_idx == state.tab_selected;
+                                let mut rich = egui::RichText::new(line_str);
+                                if is_sel {
+                                    rich = rich
+                                        .strong()
+                                        .background_color(ui.visuals().selection.bg_fill);
+                                } else if entry.rewind_from.is_some() {
+                                    rich = rich.color(egui::Color32::from_rgb(220, 140, 40));
+                                } else if entry.inherited {
+                                    rich = rich.color(ui.visuals().weak_text_color());
+                                }
+                                let resp = ui.link(rich);
+                                let enter = resp.has_focus()
+                                    && ui.input_mut(|i| {
+                                        i.consume_key(egui::Modifiers::NONE, egui::Key::Enter)
+                                    });
+                                if resp.clicked() || enter {
+                                    state.tab_selected = row_idx;
+                                    jump = Some(target.clone());
+                                }
+                            });
                             targets.push(target);
                         }
                     } else {
                         for row in rows.iter() {
                             let field = match key {
-                                "stage.senses" => "senses",
                                 "stage.space" => "space",
                                 "stage.blurb" => "blurb",
                                 "stage.illustrations" => "illustration",
@@ -678,6 +1046,34 @@ pub fn show(
 }
 
 impl State {
+    pub fn extract_address_candidates(&mut self, project: &crate::core::features::Project) {
+        let found = metadata::extract_address_candidates(project);
+        self.address_candidates = found.into_iter().map(|c| (c, true)).collect();
+        self.address_candidates_open = true;
+    }
+
+    pub fn select_address_pair(&mut self, speaker: String, target: String, mode: Option<String>) {
+        self.tabs[Workspace::Cast.number() as usize - 1] = 1;
+        self.address_mode = mode;
+        self.address_speaker_filter = speaker.clone();
+        self.address_selected_pair = Some((speaker, target));
+        self.address_editing = None;
+        self.address_violation_selected = 0;
+        self.address_focus_violations = false;
+    }
+
+    pub fn escape_inline(&mut self) -> bool {
+        if self.address_editing.take().is_some() {
+            self.address_edit_fresh = false;
+            return true;
+        }
+        if self.address_candidates_open {
+            self.address_candidates_open = false;
+            return true;
+        }
+        false
+    }
+
     pub fn is_stock_tab(&self) -> bool {
         self.tabs[Workspace::PlotOutline.number() as usize - 1] == 8
     }
@@ -734,6 +1130,68 @@ pub(crate) fn apply_stock_assignment(
     for (from, to) in &plan.renames {
         bench.rename_document(from, to, now);
     }
+}
+
+fn scope_selector_ui(
+    ui: &mut egui::Ui,
+    scope: &mut metadata::MetricsScope,
+    project: &crate::core::features::Project,
+    locale: Locale,
+) {
+    let digits = project.digits();
+    let chapters = metadata::chapters_in_project(project);
+    let episodes = metadata::episodes_in_project(project);
+    ui.horizontal_wrapped(|ui| {
+        if ui
+            .selectable_label(
+                *scope == metadata::MetricsScope::All,
+                label(locale, "stage.scope_all"),
+            )
+            .clicked()
+        {
+            *scope = metadata::MetricsScope::All;
+        }
+        for ch in chapters {
+            let ch_str = crate::core::features::plots::short_id(
+                crate::core::id::SceneId {
+                    chapter: ch,
+                    episode: 0,
+                    scene: 0,
+                    section: 0,
+                },
+                digits,
+            );
+            if ui
+                .selectable_label(
+                    *scope == metadata::MetricsScope::Chapter(ch),
+                    i18n::format(locale, "stage.scope_chapter", &[&ch_str]),
+                )
+                .clicked()
+            {
+                *scope = metadata::MetricsScope::Chapter(ch);
+            }
+        }
+        for (ch, ep) in episodes {
+            let ep_str = crate::core::features::plots::short_id(
+                crate::core::id::SceneId {
+                    chapter: ch,
+                    episode: ep,
+                    scene: 0,
+                    section: 0,
+                },
+                digits,
+            );
+            if ui
+                .selectable_label(
+                    *scope == metadata::MetricsScope::Episode(ch, ep),
+                    i18n::format(locale, "stage.scope_episode", &[&ep_str]),
+                )
+                .clicked()
+            {
+                *scope = metadata::MetricsScope::Episode(ch, ep);
+            }
+        }
+    });
 }
 
 fn stock_ui(ui: &mut egui::Ui, state: &mut State, bench: &mut Workbench, locale: Locale, now: f64) {

@@ -339,6 +339,30 @@ pub fn command(session: &mut Session, args: &Args) -> Result<Value> {
                 .map(|scene| crate::app::ops::id_text(session, scene)),
         }));
     }
+    if matches!(command, Command::ExtractAddresses) {
+        session.bench.commit();
+        let candidates: Vec<Value> =
+            crate::core::features::metadata::extract_address_candidates(session.aggregate())
+                .into_iter()
+                .map(|c| {
+                    json!({
+                        "speaker": c.speaker,
+                        "mode": c.mode,
+                        "target": c.target,
+                        "surface": c.surface,
+                        "count": c.count,
+                        "sample_path": c.sample_path,
+                    })
+                })
+                .collect();
+        return Ok(json!({
+            "command": name,
+            "label": label,
+            "data": {
+                "candidates": candidates,
+            },
+        }));
+    }
     // (4) 設定だけを変えるコマンド（§9.8.1・§9.1）
     let key = match command {
         Command::CycleTheme => {

@@ -1546,6 +1546,13 @@ impl NovnowApp {
                 let stamp = session.host.now();
                 bench.toggle_human(&stamp, now);
             }
+            Command::ExtractAddresses => {
+                bench.commit();
+                session.tabs.tabs[Workspace::Cast.number() as usize - 1] = 1;
+                session.tabs.extract_address_candidates(bench.project());
+                session.spaces.switcher.mark_visited(Workspace::Cast);
+                self.switch_to(ctx, Workspace::Cast, now);
+            }
             Command::InsertComma => {
                 if self.settings.suggest_comma {
                     let candidates = crate::core::features::metrics::comma_candidates(
@@ -2278,6 +2285,16 @@ impl NovnowApp {
                 self.settings.reference_visible = true;
                 session.settings_dirty = true;
             }
+            (Workspace::Cast, Command::ExtractAddresses) => {
+                bench.commit();
+                session.tabs.tabs[Workspace::Cast.number() as usize - 1] = 1;
+                session.tabs.extract_address_candidates(bench.project());
+            }
+            (Workspace::Cast, Command::Escape) => {
+                if !session.tabs.escape_inline() {
+                    return false;
+                }
+            }
             (Workspace::Material, Command::Nav(nav)) => {
                 spaces.material.nav(bench, nav);
             }
@@ -2381,7 +2398,7 @@ impl NovnowApp {
     // ============================================================ エージェント（§15）
 
     /// agent ワークスペースからの頼みを実行する（§15.7）。
-    fn agent_actions(&mut self, actions: Vec<workspaces::agent::Action>, now: f64) {
+    fn agent_actions(&mut self, ctx: &Context, actions: Vec<workspaces::agent::Action>, now: f64) {
         use crate::core::agents::files::{self, Board};
         use workspaces::agent::Action;
         let locale = self.locale();
@@ -2565,6 +2582,42 @@ impl NovnowApp {
                         "agent.approved",
                         &[&count.to_string()],
                     ));
+                }
+                Action::ApproveThread(thread_id) => {
+                    session.bench.commit();
+                    let board = Board::of(session.bench.project());
+                    let mut count = 0usize;
+                    if let Some(th) = board.threads.iter().find(|t| t.id == thread_id) {
+                        let mut updated = th.clone();
+                        for msg in &mut updated.messages {
+                            if msg.approved_by == files::PENDING {
+                                msg.approved_by = "human".to_owned();
+                                count += 1;
+                            }
+                        }
+                        if count > 0 {
+                            session.bench.replace_document(
+                                &files::thread_path(&updated.id),
+                                files::write_thread(&updated),
+                                now,
+                            );
+                        }
+                    }
+                    notices.push(i18n::format(
+                        locale,
+                        "agent.approved",
+                        &[&count.to_string()],
+                    ));
+                }
+                Action::OpenReviewThread(thread_id) => {
+                    session.tabs.reset_tab(Workspace::Review);
+                    session
+                        .spaces
+                        .review
+                        .select_thread(&session.bench, &thread_id);
+                    session.spaces.switcher.mark_visited(Workspace::Review);
+                    self.switch_to(ctx, Workspace::Review, now);
+                    continue;
                 }
                 Action::Level { role, level } => {
                     if let Some(message) = crate::ui::agents::set_level(
@@ -2859,6 +2912,12 @@ impl NovnowApp {
                 );
                 let mut slots: Vec<(usize, RTab)> =
                     vec![(0, RTab::Diagnostics), (0, RTab::Progress)];
+                if !crate::core::agents::files::Board::of(session.bench.project())
+                    .threads
+                    .is_empty()
+                {
+                    slots.push((0, RTab::Threads));
+                }
                 for idx in visible.into_iter().filter(|&i| i >= 1) {
                     slots.push((idx, RTab::Diagnostics));
                 }
@@ -3175,6 +3234,19 @@ impl NovnowApp {
                         if !lines.is_empty() {
                             self.overlay = Overlay::Info { lines };
                         }
+                    }
+                    DocumentFormat::Thread => {
+                        if let Some(th) = crate::core::agents::files::parse_thread(&document.text) {
+                            session.tabs.reset_tab(Workspace::Review);
+                            session.spaces.review.select_thread(&session.bench, &th.id);
+                            session.spaces.switcher.mark_visited(Workspace::Review);
+                            self.switch_to(ctx, Workspace::Review, now);
+                        }
+                    }
+                    DocumentFormat::Proposal => {
+                        session.tabs.tabs[Workspace::Review.number() as usize - 1] = 8;
+                        session.spaces.switcher.mark_visited(Workspace::Review);
+                        self.switch_to(ctx, Workspace::Review, now);
                     }
                     _ => {
                         session.notice =
@@ -4026,10 +4098,34 @@ impl NovnowApp {
                     }
                     self.switch_to(ctx, Workspace::PlotEpisode, now);
                 }
+                Some(workspaces::Request::OpenAddressPair {
+                    speaker,
+                    target,
+                    mode,
+                }) => {
+                    if let Stage::Open(session) = &mut self.stage {
+                        session.bench.commit();
+                        session.tabs.select_address_pair(speaker, target, mode);
+                        session.spaces.switcher.mark_visited(Workspace::Cast);
+                    }
+                    self.switch_to(ctx, Workspace::Cast, now);
+                }
+                Some(workspaces::Request::OpenAgentThread(thread_id)) => {
+                    if let Stage::Open(session) = &mut self.stage {
+                        session.bench.commit();
+                        session.tabs.reset_tab(Workspace::Agent);
+                        session
+                            .spaces
+                            .agent
+                            .select_thread(&session.bench, &thread_id);
+                        session.spaces.switcher.mark_visited(Workspace::Agent);
+                    }
+                    self.switch_to(ctx, Workspace::Agent, now);
+                }
                 None => {}
             }
             if !agent_actions.is_empty() {
-                self.agent_actions(agent_actions, now);
+                self.agent_actions(ctx, agent_actions, now);
             }
             if let Some(target) = jump {
                 self.review_jump(ctx, target, now);

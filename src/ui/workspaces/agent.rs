@@ -99,6 +99,10 @@ pub enum Action {
     },
     /// `M`: 未承認メッセージの承認。
     Approve(String),
+    /// スレッド単位で未承認メッセージを承認する（§15.6）。
+    ApproveThread(String),
+    /// 点検ワークスペースのスレッド表示を開く（§15.6）。
+    OpenReviewThread(String),
     /// `1`〜`4`: 委譲レベル。
     Level {
         /// 役割。
@@ -146,6 +150,8 @@ pub struct State {
     pub block: usize,
     /// ④ で選んでいる役割。
     pub role: usize,
+    /// ③ で選んでいるスレッド ID（§15.6）。
+    pub selected_thread: Option<String>,
     partial: Option<Partial>,
     board: Option<(u64, Board)>,
     packet: Option<((u64, String, String), Option<Packet>)>,
@@ -153,6 +159,18 @@ pub struct State {
 }
 
 impl State {
+    /// 指定スレッドを選び、同じ `scope` のタスクがあればそれも選択する（§15.6）。
+    pub fn select_thread(&mut self, bench: &Workbench, thread_id: &str) {
+        self.column = Column::Review;
+        self.selected_thread = Some(thread_id.to_owned());
+        self.partial = None;
+        let board = Board::of(bench.project());
+        if let Some(th) = board.threads.iter().find(|t| t.id == thread_id) {
+            if let Some(task) = board.tasks.iter().rev().find(|t| t.scope == th.scope) {
+                self.task = Some(task.id.clone());
+            }
+        }
+    }
     /// `Esc`: 一部採用をやめる。やめたら `true`。
     pub fn escape(&mut self) -> bool {
         self.partial.take().is_some()
@@ -322,6 +340,7 @@ pub fn show(
                     proposal.as_ref(),
                     view,
                     info,
+                    &mut actions,
                 );
             });
         });
@@ -490,6 +509,16 @@ fn review_keys(
 ) {
     let pressed =
         |key: Key, modifiers: Modifiers| ctx.input_mut(|input| input.consume_key(modifiers, key));
+    if proposal.is_none() {
+        if pressed(Key::M, Modifiers::NONE) {
+            if let Some(task) = task {
+                actions.push(Action::Approve(task.to_owned()));
+            } else if let Some(th_id) = state.selected_thread.clone() {
+                actions.push(Action::ApproveThread(th_id));
+            }
+        }
+        return;
+    }
     let Some(proposal) = proposal else {
         return;
     };
@@ -909,6 +938,7 @@ fn context_column(
         });
 }
 
+#[allow(clippy::too_many_arguments)]
 fn review_column(
     ui: &mut Ui,
     state: &mut State,
@@ -917,6 +947,7 @@ fn review_column(
     proposal: Option<&Proposal>,
     view: &View,
     info: &Info<'_>,
+    actions: &mut Vec<Action>,
 ) {
     let colors = theme::palette(view.mode);
     let locale = view.locale;
@@ -933,6 +964,7 @@ fn review_column(
             view.scale,
             i18n::text(locale, "agent.no_selection"),
         );
+        agent_threads_section(ui, state, bench, None, view, actions);
         return;
     };
     let Some(proposal) = proposal else {
@@ -946,6 +978,7 @@ fn review_column(
         if !task.intent.is_empty() {
             super::hint(ui, view.mode, view.scale, &task.intent);
         }
+        agent_threads_section(ui, state, bench, Some(&task.scope), view, actions);
         return;
     };
     ui.label(
@@ -1071,6 +1104,7 @@ fn review_column(
         .filter(|found| found.proposal == proposal.id);
     ScrollArea::vertical()
         .id_source("agent-diff")
+        .max_height(260.0)
         .auto_shrink([false, false])
         .show(ui, |ui| {
             if !matches!(kind, Kind::SectionText | Kind::PlotField) {
@@ -1115,6 +1149,123 @@ fn review_column(
                     ui.set_width(ui.available_width());
                     ui.label(text);
                 });
+            }
+        });
+    agent_threads_section(ui, state, bench, Some(&task.scope), view, actions);
+}
+
+fn agent_threads_section(
+    ui: &mut Ui,
+    state: &mut State,
+    bench: &Workbench,
+    preferred_scope: Option<&str>,
+    view: &View,
+    actions: &mut Vec<Action>,
+) {
+    let threads = state.board(bench).threads.clone();
+    if threads.is_empty() {
+        return;
+    }
+    let colors = theme::palette(view.mode);
+    let locale = view.locale;
+    super::separator(ui, view.mode);
+    ui.label(
+        RichText::new(i18n::text(locale, "agent.threads_heading"))
+            .font(FontId::new(12.0 * view.scale, FontFamily::Proportional))
+            .color(colors.fg_muted),
+    );
+
+    // 選択中スレッドが無いか存在しなければ、preferred_scope 一致 → 先頭スレッドを選ぶ
+    let valid = state
+        .selected_thread
+        .as_ref()
+        .is_some_and(|id| threads.iter().any(|t| &t.id == id));
+    if !valid {
+        let chosen = preferred_scope
+            .and_then(|sc| threads.iter().find(|t| t.scope == sc))
+            .or_else(|| threads.first())
+            .map(|t| t.id.clone());
+        state.selected_thread = chosen;
+    }
+
+    ui.horizontal_wrapped(|ui| {
+        for th in &threads {
+            let sel = state.selected_thread.as_deref() == Some(th.id.as_str());
+            let chip = format!("{} {}", th.id, th.scope);
+            if ui.selectable_label(sel, chip).clicked() {
+                state.selected_thread = Some(th.id.clone());
+            }
+        }
+    });
+
+    let Some(active) = state
+        .selected_thread
+        .as_ref()
+        .and_then(|id| threads.iter().find(|t| &t.id == id))
+    else {
+        return;
+    };
+
+    let has_pending = active
+        .messages
+        .iter()
+        .any(|m| m.approved_by == files::PENDING);
+    ui.horizontal_wrapped(|ui| {
+        ui.label(
+            RichText::new(i18n::format(
+                locale,
+                "review.thread_header",
+                &[&active.id, &active.title, &active.scope, &active.status],
+            ))
+            .font(small(view))
+            .color(colors.fg_primary),
+        );
+        if ui
+            .small_button(i18n::text(locale, "agent.open_in_review"))
+            .clicked()
+        {
+            actions.push(Action::OpenReviewThread(active.id.clone()));
+        }
+        if has_pending
+            && ui
+                .small_button(i18n::text(locale, "agent.approve_thread"))
+                .clicked()
+        {
+            actions.push(Action::ApproveThread(active.id.clone()));
+        }
+    });
+
+    ScrollArea::vertical()
+        .id_source("agent-thread-messages")
+        .max_height(180.0)
+        .auto_shrink([false, false])
+        .show(ui, |ui| {
+            for msg in &active.messages {
+                let is_pending = msg.approved_by == files::PENDING;
+                let hdr = i18n::format(
+                    locale,
+                    "review.thread_message",
+                    &[
+                        &format!("{:03}", msg.number),
+                        &msg.from,
+                        &msg.to,
+                        &msg.kind,
+                        &msg.approved_by,
+                    ],
+                );
+                ui.label(RichText::new(hdr).font(mono(view)).color(if is_pending {
+                    colors.warn
+                } else {
+                    colors.fg_muted
+                }));
+                if !msg.body.is_empty() {
+                    ui.label(
+                        RichText::new(&msg.body)
+                            .font(small(view))
+                            .color(colors.fg_primary),
+                    );
+                }
+                ui.add_space(4.0);
             }
         });
 }

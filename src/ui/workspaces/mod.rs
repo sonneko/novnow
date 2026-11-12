@@ -142,6 +142,14 @@ pub enum Request {
     },
     /// 構成ツリーの場面ノードから話プロットのその場面を開く（§10.3.1）。
     OpenEpisodeScene(crate::core::id::SceneId),
+    /// 診断の W084 から配役ワークスペースの呼称タブの該当ペアを開く（§10.6.1）。
+    OpenAddressPair {
+        speaker: String,
+        target: String,
+        mode: Option<String>,
+    },
+    /// 点検のスレッド表示からエージェント管制ワークスペースで同じスレッドを開く（§15.6）。
+    OpenAgentThread(String),
 }
 
 /// 状態の縦線の色（§10.2: draft = 灰 / review = 橙 / fixed = 緑）。
