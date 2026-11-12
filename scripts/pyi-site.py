@@ -65,11 +65,13 @@ def parameter(name: str) -> str:
     return f"{name}_" if keyword.iskeyword(name) else name
 
 
-def python_type(name: str, kind: str) -> str:
+def python_type(op_id: str, name: str, kind: str) -> str:
     """引数名と JSON Schema の型から Python の型注釈を作る。"""
     if name == "bytes":
         # Zip の導入・書き出しは Python 側で base64 へ変換する（§19.3.2）
         return "bytes | str"
+    if op_id == "project.import_zip" and name == "path":
+        return "str | bytes | None"
     return PYTHON_TYPES.get(kind, "Any")
 
 
@@ -82,6 +84,7 @@ def signature(operation: dict) -> str:
     実行時（`REF:python/novnow-py/python/novnow/__init__.py` の `run`）は位置でも受け付けるが、
     `role` は明示的に書くほうが §19.1.5 の意図に合う。
     """
+    op_id = operation["id"]
     arguments = operation["arguments"]
     order = list(arguments.get("order") or arguments.get("properties", {}).keys())
     properties = arguments.get("properties", {})
@@ -91,7 +94,7 @@ def signature(operation: dict) -> str:
     keyword_only = False
     for name in order:
         kind = properties.get(name, {}).get("type", "string")
-        annotation = python_type(name, kind)
+        annotation = python_type(op_id, name, kind)
         shown = parameter(name)
         if name in required:
             if defaulted and not keyword_only:

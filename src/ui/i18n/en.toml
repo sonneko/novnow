@@ -881,6 +881,7 @@ bookmark = "Bookmark"
 minutes = "min"
 
 [api.error]
+cancelled = "Request cancelled"
 conflict = "{0} changed outside novnow"
 duplicate_task = "{0} already has a task for {1}"
 encoding = "Some files cannot be read: {0}"

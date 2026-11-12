@@ -818,3 +818,516 @@ fn windows_file_uris_resolve_to_project_documents() {
     assert_eq!(path_of(ROOT, "file:///tmp/novel-other/file.cnov"), None);
     assert_eq!(path_of(ROOT, "file:///tmp/Novel/file.cnov"), None);
 }
+
+// =========================================================================== Issue #55 回帰（Items 14 / 22 / 23）
+
+fn apply_lsp_workspace_edit(
+    before: &std::collections::BTreeMap<String, String>,
+    ws_edit: &Value,
+    root: &str,
+) -> std::collections::BTreeMap<String, String> {
+    let mut out = before.clone();
+    let Some(changes) = ws_edit.get("changes").and_then(Value::as_object) else {
+        return out;
+    };
+    for (uri, raw_edits) in changes {
+        let path = novnow::lsp::methods::path_of(root, uri).expect("workspace_edit URI");
+        let original = before
+            .get(&path)
+            .unwrap_or_else(|| panic!("改名前テキストに {path} が無い"));
+        let mut pairs: Vec<(std::ops::Range<usize>, String)> = raw_edits
+            .as_array()
+            .expect("TextEdit[]")
+            .iter()
+            .map(|edit| {
+                let range = convert::range_of(&edit["range"], original);
+                let new_text = edit["newText"].as_str().expect("newText").to_owned();
+                (range, new_text)
+            })
+            .collect();
+        pairs.sort_by(|a, b| b.0.start.cmp(&a.0.start));
+        let mut next = original.clone();
+        for (range, new_text) in pairs {
+            next.replace_range(range, &new_text);
+        }
+        out.insert(path, next);
+    }
+    out
+}
+
+fn multi_file_surrogate_docs() -> Vec<Document> {
+    let mut docs: Vec<Document> = template::new_project("星屑の時計")
+        .into_iter()
+        .filter(|file| is_document(&ProjectPath::new(&file.path).expect("path")))
+        .map(|file| Document::new(file.path, file.text))
+        .collect();
+    for doc in &mut docs {
+        if doc.path == MANUSCRIPT {
+            doc.text =
+                "@01-01-01 😀始まり\n😀'星図を広げて、もう一度'{星図}を確かめた。\n".to_owned();
+        }
+    }
+    docs.push(Document::new(
+        "contents/01-02.cnov",
+        "@01-02-01 😀続き\n港でも😀'星図が頼りだった。\n",
+    ));
+    docs
+}
+
+#[test]
+fn prepare_rename_and_rename_match_canonical_operations_across_utf16_surrogates_and_multiple_files()
+{
+    use std::collections::BTreeMap;
+
+    let docs = multi_file_surrogate_docs();
+    let manuscript_text = docs
+        .iter()
+        .find(|d| d.path == MANUSCRIPT)
+        .unwrap()
+        .text
+        .clone();
+    // 2行目 `😀'星図` の `星` のバイト位置と UTF-16 位置
+    let byte_pos = manuscript_text.find("'星図").expect("参照がある") + 1;
+    let utf16_pos = convert::position_json(&manuscript_text, byte_pos);
+    // 改名不能な地の文（`を広げて` の `広`）の位置
+    let prose_pos = convert::position_json(
+        &manuscript_text,
+        manuscript_text.find("広げて").expect("地の文"),
+    );
+
+    // 1) Rust 正規操作（`lang.rename_preview` + `lang.rename_apply`）
+    let mut rust_session = Session::with_documents(Box::new(MemoryHost::default()), docs.clone());
+    rust_session.set_interface(Interface::Rust);
+    let preview = rust_session
+        .run(
+            "lang.rename_preview",
+            json!({ "path": MANUSCRIPT, "pos": byte_pos, "to": "星座図" }),
+        )
+        .expect("rename_preview");
+    assert_eq!(preview["prepared"]["placeholder"], json!("星図"));
+    let expected_utf16_range =
+        convert::range_of_value(&manuscript_text, preview["prepared"].get("range"));
+
+    let before_map: BTreeMap<String, String> = rust_session
+        .aggregate()
+        .documents()
+        .map(|d| (d.path.clone(), d.text.clone()))
+        .collect();
+
+    rust_session
+        .run(
+            "lang.rename_apply",
+            json!({ "path": MANUSCRIPT, "pos": byte_pos, "to": "星座図" }),
+        )
+        .expect("rename_apply");
+    let rust_after: BTreeMap<String, String> = rust_session
+        .aggregate()
+        .documents()
+        .map(|d| (d.path.clone(), d.text.clone()))
+        .collect();
+
+    // 2) LSP `textDocument/prepareRename` と `textDocument/rename`
+    let mut lsp_session = Session::with_documents(Box::new(MemoryHost::default()), docs.clone());
+    lsp_session.set_interface(Interface::Lsp);
+    let uri = uri_of(ROOT, MANUSCRIPT);
+    let messages = talk(
+        &mut lsp_session,
+        &[
+            request(1, "initialize", json!({})),
+            notify("initialized", json!({})),
+            request(
+                2,
+                "textDocument/prepareRename",
+                json!({ "position": prose_pos, "textDocument": { "uri": uri } }),
+            ),
+            request(
+                3,
+                "textDocument/prepareRename",
+                json!({ "position": utf16_pos, "textDocument": { "uri": uri } }),
+            ),
+            request(
+                4,
+                "textDocument/rename",
+                json!({
+                    "newName": "星座図",
+                    "position": utf16_pos,
+                    "textDocument": { "uri": uri },
+                }),
+            ),
+            notify("exit", Value::Null),
+        ],
+    );
+    assert_eq!(
+        result_of(&messages, 2),
+        Value::Null,
+        "改名不能位置では prepareRename は null を返す"
+    );
+    let prepared = result_of(&messages, 3);
+    assert_eq!(prepared["placeholder"], json!("星図"));
+    assert_eq!(
+        prepared["range"], expected_utf16_range,
+        "サロゲートペア後ろの UTF-16 範囲が正規操作と一致する"
+    );
+
+    let ws_edit = result_of(&messages, 4);
+    let edit_uris: Vec<&String> = ws_edit["changes"]
+        .as_object()
+        .expect("changes object")
+        .keys()
+        .collect();
+    assert!(
+        edit_uris.iter().any(|u| u.ends_with("contents/01-01.cnov"))
+            && edit_uris.iter().any(|u| u.ends_with("contents/01-02.cnov"))
+            && edit_uris.iter().any(|u| u.ends_with("words.md")),
+        "複数ファイル（原稿 2 本 + 辞書）すべてに編集が出る: {edit_uris:?}"
+    );
+    let client_applied = apply_lsp_workspace_edit(&before_map, &ws_edit, ROOT);
+    assert_eq!(
+        client_applied, rust_after,
+        "LSP WorkspaceEdit を改名前テキストへ適用した結果が Rust 正規操作と完全一致する"
+    );
+
+    // 3) CLI `novnow lang rename_apply` とも全文書が一致する
+    let temp = std::env::temp_dir().join(format!("novnow-lsp-rename-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&temp);
+    std::fs::create_dir_all(&temp).expect("mkdir");
+    for file in template::new_project("星屑の時計") {
+        let target = temp.join(&file.path);
+        if let Some(parent) = target.parent() {
+            std::fs::create_dir_all(parent).expect("parent");
+        }
+        let text = before_map.get(&file.path).cloned().unwrap_or(file.text);
+        std::fs::write(target, text).expect("write");
+    }
+    std::fs::write(
+        temp.join("contents/01-02.cnov"),
+        before_map.get("contents/01-02.cnov").unwrap(),
+    )
+    .expect("write 01-02");
+
+    let mut cli_session = Session::open_with(&temp, Interface::Cli).expect("open cli");
+    cli_session
+        .run(
+            "lang.rename_apply",
+            json!({ "path": MANUSCRIPT, "pos": byte_pos, "to": "星座図" }),
+        )
+        .expect("cli rename_apply");
+    let cli_after: BTreeMap<String, String> = cli_session
+        .aggregate()
+        .documents()
+        .map(|d| (d.path.clone(), d.text.clone()))
+        .collect();
+    let _ = std::fs::remove_dir_all(&temp);
+
+    assert_eq!(
+        cli_after, rust_after,
+        "CLI と Rust と LSP の改名後の全文書が完全一致する"
+    );
+}
+
+#[test]
+fn nine_error_classes_map_consistently_across_rust_cli_lsp_and_mcp() {
+    use novnow::app::error::{Class, Error};
+    use novnow::cli::{json as cli_json, mcp as cli_mcp};
+
+    let expected: [(Class, &str, i64, u8, &str, Option<&str>); 9] = [
+        (Class::Usage, "usage", -32602, 2, "", None),
+        (
+            Class::Project,
+            "project",
+            -32602,
+            3,
+            "S021",
+            Some("project.toml"),
+        ),
+        (
+            Class::Io,
+            "io",
+            -32000,
+            4,
+            "S030",
+            Some("contents/01-01.cnov"),
+        ),
+        (
+            Class::Validation,
+            "validation",
+            -32000,
+            5,
+            "E001",
+            Some("contents/01-01.cnov"),
+        ),
+        (Class::Policy, "policy", -32000, 5, "E036", None),
+        (
+            Class::NotFound,
+            "not_found",
+            -32001,
+            3,
+            "",
+            Some("contents/99.cnov"),
+        ),
+        (
+            Class::Conflict,
+            "conflict",
+            -32002,
+            4,
+            "",
+            Some("contents/01-01.cnov"),
+        ),
+        (Class::Timeout, "timeout", -32003, 4, "", None),
+        (Class::Cancelled, "cancelled", -32800, 0, "", None),
+    ];
+
+    assert_eq!(Class::ALL.len(), 9);
+    for ((class, code_str, rpc_code, exit_code, kind, path), listed) in
+        expected.into_iter().zip(Class::ALL)
+    {
+        assert_eq!(class, listed);
+        let mut err = Error::new(class, format!("msg-{code_str}")).with_kind(kind);
+        if let Some(p) = path {
+            err = err.with_path(p);
+        }
+
+        // Rust
+        assert_eq!(err.class.as_str(), code_str);
+        assert_eq!(err.class.jsonrpc(), rpc_code);
+        assert_eq!(err.class.exit_code(), exit_code);
+        let structured = err.to_json();
+        assert_eq!(structured["code"], json!(code_str));
+        assert_eq!(structured["kind"], json!(kind));
+        assert_eq!(structured["message"], json!(format!("msg-{code_str}")));
+        assert_eq!(
+            structured["path"],
+            path.map(|p| json!(p)).unwrap_or(Value::Null)
+        );
+
+        // CLI (`--json` 封筒 + 終了コード)
+        assert_eq!(cli_json::exit_of(&class).code(), exit_code);
+        let cli_env: Value =
+            serde_json::from_str(&cli_json::failure("section.get", &err)).expect("cli json");
+        assert_eq!(cli_env["ok"], json!(false));
+        assert_eq!(cli_env["error"], structured);
+
+        // LSP 符号表
+        assert_eq!(server::code_of(&class), rpc_code);
+
+        // MCP ツール応答
+        let mcp_res = cli_mcp::tool_failure(&err);
+        assert_eq!(mcp_res["isError"], json!(true));
+        assert_eq!(mcp_res["content"][0]["text"], json!(err.message));
+        assert_eq!(mcp_res["error"], structured);
+        assert_eq!(mcp_res["data"]["code"], json!(code_str));
+        assert_eq!(mcp_res["data"]["kind"], json!(kind));
+        assert_eq!(mcp_res["data"]["jsonrpc"], json!(rpc_code));
+    }
+
+    // 実 LSP セッションで `Io` エラーが `-32000` + `error.data` になることを検証
+    let failing_host = MemoryHost::default();
+    failing_host.files.borrow_mut().fail = true;
+    let docs: Vec<Document> = template::new_project("星屑の時計")
+        .into_iter()
+        .filter(|file| is_document(&ProjectPath::new(&file.path).expect("path")))
+        .map(|file| Document::new(file.path, file.text))
+        .collect();
+    let mut io_session = Session::with_documents(Box::new(failing_host), docs);
+    io_session.set_interface(Interface::Lsp);
+    let io_messages = talk(
+        &mut io_session,
+        &[
+            request(1, "initialize", json!({})),
+            notify("initialized", json!({})),
+            request(
+                2,
+                "workspace/executeCommand",
+                json!({
+                    "command": "section.write",
+                    "arguments": [{ "scene": "@01-01-01-01", "text": "変更" }],
+                }),
+            ),
+            request(
+                3,
+                "workspace/executeCommand",
+                json!({ "command": "save.now", "arguments": [{}] }),
+            ),
+            notify("exit", Value::Null),
+        ],
+    );
+    let io_err = error_of(&io_messages, 3);
+    assert_eq!(io_err["code"], json!(-32000), "Io は -32000（§19.1.7）");
+    assert_eq!(io_err["data"]["code"], json!("io"));
+    assert!(!io_err["data"]["message"].as_str().unwrap().is_empty());
+}
+
+#[test]
+fn cancel_request_returns_minus_32800_without_side_effects_and_did_change_configuration_applies_and_reloads(
+) {
+    let mut session = open();
+    let before_body = session
+        .run("section.get", json!({ "scene": "@01-01-01-01" }))
+        .expect("section.get")["text"]
+        .as_str()
+        .expect("text")
+        .to_owned();
+
+    let uri = uri_of(ROOT, MANUSCRIPT);
+    let doc_text = session
+        .run("document.get", json!({ "path": MANUSCRIPT }))
+        .expect("document.get")["text"]
+        .as_str()
+        .expect("text")
+        .to_owned();
+
+    let messages = talk(
+        &mut session,
+        &[
+            request(1, "initialize", json!({})),
+            notify("initialized", json!({})),
+            notify(
+                "textDocument/didOpen",
+                json!({
+                    "textDocument": {
+                        "uri": uri,
+                        "languageId": "novnow",
+                        "version": 1,
+                        "text": doc_text,
+                    }
+                }),
+            ),
+            // 1) 通常順: リクエストの直後に `$/cancelRequest`
+            request(
+                20,
+                "workspace/executeCommand",
+                json!({
+                    "command": "section.write",
+                    "arguments": [{ "scene": "@01-01-01-01", "text": "副作用で書いてはいけない" }],
+                }),
+            ),
+            notify("$/cancelRequest", json!({ "id": 20 })),
+            // 2) 先行順: `$/cancelRequest` が先に届いた場合
+            notify("$/cancelRequest", json!({ "id": 21 })),
+            request(
+                21,
+                "workspace/executeCommand",
+                json!({
+                    "command": "idea.capture",
+                    "arguments": [{ "title": "作られない着想", "kind": "memo" }],
+                }),
+            ),
+            // 3) 続くリクエストは正常に処理される
+            request(
+                22,
+                "workspace/executeCommand",
+                json!({ "command": "idea.list", "arguments": [{}] }),
+            ),
+            // 4) `workspace/didChangeConfiguration` で UI 設定と言語を反映
+            notify(
+                "workspace/didChangeConfiguration",
+                json!({
+                    "settings": {
+                        "novnow": {
+                            "theme": "light",
+                            "context_sections": 5,
+                            "locale": "en",
+                        }
+                    }
+                }),
+            ),
+            request(
+                23,
+                "workspace/executeCommand",
+                json!({ "command": "settings.get", "arguments": [{}] }),
+            ),
+            request(
+                24,
+                "workspace/executeCommand",
+                json!({ "command": "no.such.op", "arguments": [{}] }),
+            ),
+            notify("exit", Value::Null),
+        ],
+    );
+
+    // キャンセル済み 2 件はどちらも `-32800` + `data.code == "cancelled"`
+    for cancelled_id in [20u64, 21u64] {
+        let err = error_of(&messages, cancelled_id);
+        assert_eq!(err["code"], json!(-32800), "id {cancelled_id}: {err}");
+        assert_eq!(err["data"]["code"], json!("cancelled"));
+    }
+
+    // 無副作用性の確認: 本文も着想一覧も一切変わっていない
+    let after_body = session
+        .run("section.get", json!({ "scene": "@01-01-01-01" }))
+        .expect("section.get")["text"]
+        .as_str()
+        .expect("text")
+        .to_owned();
+    assert_eq!(after_body, before_body, "キャンセルされた書き込みが漏れた");
+    assert_eq!(
+        result_of(&messages, 22)["ideas"].as_array().unwrap().len(),
+        0,
+        "キャンセルされた idea.capture が実行された"
+    );
+
+    // 設定変更の反映と言語切り替え（英語エラー文言）の確認
+    let updated_settings = result_of(&messages, 23);
+    assert_eq!(updated_settings["settings"]["theme"], json!("light"));
+    assert_eq!(updated_settings["settings"]["context_sections"], json!(5));
+    assert_eq!(updated_settings["language"], json!("en"));
+    let not_found_en = error_of(&messages, 24);
+    assert_eq!(not_found_en["code"], json!(-32001));
+    assert!(
+        not_found_en["message"]
+            .as_str()
+            .unwrap()
+            .contains("Not found"),
+        "locale=en が反映されていない: {not_found_en}"
+    );
+
+    // 実ファイルシステム上のプロジェクトで外部 `project.toml` 変更が `didChangeConfiguration` で再読込されること
+    let temp = std::env::temp_dir().join(format!("novnow-lsp-cfg-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&temp);
+    std::fs::create_dir_all(&temp).expect("mkdir");
+    for file in template::new_project("初期タイトル") {
+        let target = temp.join(&file.path);
+        if let Some(parent) = target.parent() {
+            std::fs::create_dir_all(parent).expect("parent");
+        }
+        std::fs::write(target, file.text).expect("write");
+    }
+    let mut fs_session = Session::open_with(&temp, Interface::Lsp).expect("open fs lsp");
+    let toml_path = temp.join("project.toml");
+    let updated_toml = std::fs::read_to_string(&toml_path)
+        .expect("read toml")
+        .replace("初期タイトル", "再読込後のタイトル");
+    std::fs::write(&toml_path, updated_toml).expect("write toml");
+
+    let root_str = temp.to_string_lossy().into_owned();
+    let mut input = Cursor::new(
+        [
+            request(1, "initialize", json!({})),
+            notify("initialized", json!({})),
+            notify(
+                "workspace/didChangeConfiguration",
+                json!({ "settings": { "reload": true } }),
+            ),
+            request(
+                2,
+                "workspace/executeCommand",
+                json!({ "command": "project.info", "arguments": [{}] }),
+            ),
+            notify("exit", Value::Null),
+        ]
+        .concat(),
+    );
+    let mut out = server::Writer(Vec::new());
+    server::run(&mut fs_session, &root_str, &mut input, &mut out);
+    let _ = std::fs::remove_dir_all(&temp);
+
+    let mut written = Cursor::new(out.0);
+    let mut fs_messages = Vec::new();
+    while let Some(body) = framing::read_message(&mut written) {
+        fs_messages.push(serde_json::from_str::<Value>(&body).expect("JSON"));
+    }
+    assert_eq!(
+        result_of(&fs_messages, 2)["title"],
+        json!("再読込後のタイトル")
+    );
+}

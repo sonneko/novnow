@@ -378,7 +378,7 @@ class project(Protocol):
     def recent_remove(self, path: str) -> Any:
         """最近開いた一覧からの削除（`project.recent_remove`）　[M—（stateful）]"""
 
-    def import_zip(self, path: str = ..., bytes: bytes | str = ...) -> Any:
+    def import_zip(self, path: str | bytes | None = ..., bytes: bytes | str = ...) -> Any:
         """Zip 導入（`project.import_zip`）　[M—（binary）]"""
 
     def export_zip(self, out: str = ...) -> Any:

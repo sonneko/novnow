@@ -177,13 +177,34 @@ class ArgumentBinding(unittest.TestCase):
         self.assertIn("section.write", str(caught.exception))
 
     def test_bytes_arguments_are_base64_encoded(self):
-        # `project.import_zip` の宣言順は path, bytes なので `bytes` は名前で渡す
+        expected = base64.b64encode(b"PK\x03\x04").decode("ascii")
+        # キーワード引数
         with new_session() as session:
             session.project.import_zip(bytes=b"PK\x03\x04")
-        self.assertEqual(
-            last_arguments()["bytes"],
-            base64.b64encode(b"PK\x03\x04").decode("ascii"),
-        )
+        self.assertEqual(last_arguments()["bytes"], expected)
+        # 宣言順（path, bytes）の位置引数
+        with new_session() as session:
+            session.project.import_zip(None, b"PK\x03\x04")
+        self.assertEqual(last_arguments()["bytes"], expected)
+        # 単一位置引数（bytes のみ）
+        with new_session() as session:
+            session.project.import_zip(b"PK\x03\x04")
+        self.assertEqual(last_arguments(), {"bytes": expected})
+
+    def test_export_zip_decodes_base64_bytes_to_python_bytes(self):
+        payload = b"PK\x03\x04archive-bytes"
+        encoded = base64.b64encode(payload).decode("ascii")
+        with new_session() as session:
+            session._session.run = lambda op, arguments: {
+                "bytes": encoded,
+                "name": "novel.zip",
+                "size": len(payload),
+            }
+            exported = session.project.export_zip()
+        self.assertIsInstance(exported["bytes"], bytes)
+        self.assertIsInstance(exported.bytes, bytes)
+        self.assertEqual(exported.bytes, payload)
+        self.assertEqual(exported.size, len(payload))
 
     def test_domain_calls_reach_the_canonical_operation_id(self):
         with new_session() as session:
@@ -254,15 +275,37 @@ class ErrorClassification(unittest.TestCase):
         self.assertEqual(len(novnow.TYPES), 9, "§19.1.7 の 9 分類")
 
     def test_a_core_error_is_retyped_by_its_class(self):
-        with new_session() as session:
-            session._session.run = lambda op, arguments: (_ for _ in ()).throw(
-                FakeCoreError("引数が足りない", class_="usage", code="E001", exit_code=2)
-            )
-            with self.assertRaises(novnow.UsageError) as caught:
-                session.section.write("@01", "本文")
-        self.assertEqual(caught.exception.code, "E001")
-        self.assertEqual(caught.exception.exit_code, 2)
-        self.assertEqual(caught.exception.class_, "usage")
+        table = [
+            ("usage", novnow.UsageError, "E001", 2),
+            ("project", novnow.ProjectError, "S021", 3),
+            ("io", novnow.IOError, "S030", 4),
+            ("validation", novnow.ValidationError, "E010", 5),
+            ("policy", novnow.PolicyError, "E036", 5),
+            ("not_found", novnow.NotFoundError, "", 3),
+            ("conflict", novnow.ConflictError, "", 4),
+            ("timeout", novnow.TimeoutError, "", 4),
+            ("cancelled", novnow.CancelledError, "", 0),
+        ]
+        for class_name, exc_type, kind, exit_code in table:
+            with self.subTest(class_name=class_name):
+                with new_session() as session:
+                    session._session.run = lambda op, arguments, c=class_name, k=kind, e=exit_code: (
+                        _ for _ in ()
+                    ).throw(
+                        FakeCoreError(
+                            f"msg-{c}",
+                            class_=c,
+                            code=k,
+                            path="contents/01-01.cnov",
+                            exit_code=e,
+                        )
+                    )
+                    with self.assertRaises(exc_type) as caught:
+                        session.section.write("@01", "本文")
+                self.assertEqual(caught.exception.class_, class_name)
+                self.assertEqual(caught.exception.code, kind)
+                self.assertEqual(caught.exception.exit_code, exit_code)
+                self.assertEqual(caught.exception.path, "contents/01-01.cnov")
 
 
 class ModuleSurface(unittest.TestCase):

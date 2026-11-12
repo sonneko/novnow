@@ -138,12 +138,24 @@ def _retype(error: _core.NovnowError) -> NovnowError:
     return typed
 
 
+def _encode_arg(value: Any) -> Any:
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        return base64.b64encode(bytes(value)).decode("ascii")
+    return value
+
+
 def _arguments(kwargs: dict[str, Any]) -> dict[str, Any]:
-    """`bytes` の引数は base64 文字列にする（Zip 導入・書き出し。§19.3.2）。"""
-    return {
-        key: base64.b64encode(value).decode("ascii") if isinstance(value, (bytes, bytearray)) else value
-        for key, value in kwargs.items()
-    }
+    """`bytes` の引数は位置・キーワードを問わず base64 文字列にする（§19.3.2）。"""
+    return {key: _encode_arg(value) for key, value in kwargs.items()}
+
+
+def _decode_result(op: str, value: Any) -> Any:
+    """バイト列を返す操作（`project.export_zip`）の base64 文字列を `bytes` に戻す（§19.3.2）。"""
+    if op == "project.export_zip" and isinstance(value, dict) and isinstance(value.get("bytes"), str):
+        decoded = dict(value)
+        decoded["bytes"] = base64.b64decode(value["bytes"])
+        return decoded
+    return value
 
 
 class _Domain:
@@ -178,19 +190,29 @@ class Session:
     # -- 正規操作（§19.7） ------------------------------------------------
     def run(self, op: str, *args: Any, **kwargs: Any) -> Any:
         """正規操作を 1 つ実行する。位置引数は宣言順の引数、キーワード引数は名前指定。"""
-        arguments = _arguments(kwargs)
         names = _argument_names(op)
         if len(args) > len(names):
             raise TypeError(
                 f"{op}() takes {len(names)} positional argument(s) "
                 f"({', '.join(names) or 'none'}) but {len(args)} were given"
             )
-        for index, value in enumerate(args):
-            arguments[names[index]] = value
+        raw_args: dict[str, Any] = dict(kwargs)
+        if (
+            op == "project.import_zip"
+            and len(args) == 1
+            and "bytes" not in raw_args
+            and isinstance(args[0], (bytes, bytearray, memoryview))
+        ):
+            raw_args["bytes"] = args[0]
+        else:
+            for index, value in enumerate(args):
+                raw_args[names[index]] = value
+        arguments = _arguments(raw_args)
         try:
-            return _records(self._session.run(op, arguments))
+            result = self._session.run(op, arguments)
         except _core.NovnowError as error:
             raise _retype(error) from None
+        return _records(_decode_result(op, result))
 
     def command(self, name: str) -> Any:
         """パレットのコマンドを実行する（§19.2.3）。"""

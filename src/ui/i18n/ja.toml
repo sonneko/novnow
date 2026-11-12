@@ -906,6 +906,7 @@ bookmark = "しおり"
 minutes = "分"
 
 [api.error]
+cancelled = "操作を中断しました"
 conflict = "{0}は外部で変わっています"
 duplicate_task = "{0}の{1}には実行中のタスクがあります"
 encoding = "読み込めないファイルがあります: {0}"

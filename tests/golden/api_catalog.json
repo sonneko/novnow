@@ -3360,7 +3360,7 @@
       "returns": {
         "properties": {
           "renamed": {
-            "type": "array"
+            "type": "string"
           },
           "save": {
             "type": "object"

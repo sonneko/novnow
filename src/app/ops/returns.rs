@@ -312,7 +312,7 @@ pub const RETURNS: &[(&str, Returns)] = &[
     (
         "lang.rename_apply",
         &[
-            ("renamed", "array"),
+            ("renamed", "string"),
             ("save", "object"),
             ("written", "array"),
         ],
