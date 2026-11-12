@@ -35,6 +35,8 @@ pub struct EpisodeRow {
     pub summary: String,
     /// 実効の状態（節の行だけ。B-122）。
     pub state: Option<State>,
+    /// この行のブロックに書かれた `when:`（作中日時、§5.3.5・§10.2）。無ければ `None`。
+    pub when: Option<String>,
 }
 
 impl EpisodeRow {
@@ -66,11 +68,21 @@ pub fn episode_rows(project: &Project, chapter: u16, episode: u16) -> Vec<Episod
             _ => String::new(),
         };
         let head = trim_blank_tail(&plot.lines, scene.header..head_end);
+        let scene_when = (scene.header..head_end)
+            .filter_map(|idx| plot.lines.get(idx))
+            .find_map(|line| match line {
+                plot_episode::Line::Field(f) if f.key == FieldKey::When => {
+                    let v = f.value.trim();
+                    (!v.is_empty()).then(|| v.to_owned())
+                }
+                _ => None,
+            });
         out.push(EpisodeRow {
             id: scene_id,
             lines: head.clone(),
             summary: title,
             state: None,
+            when: scene_when,
         });
         if scene.sections.is_empty() {
             // 見出し（と場面レベルのフィールド）だけの場面: 節は 0 個（§5.4.1・B-35）。書き始める
@@ -88,6 +100,7 @@ pub fn episode_rows(project: &Project, chapter: u16, episode: u16) -> Vec<Episod
                 lines: head.end..head.end,
                 summary: String::new(),
                 state: None,
+                when: None,
             });
             ids.push(section_id);
         }
@@ -104,11 +117,23 @@ pub fn episode_rows(project: &Project, chapter: u16, episode: u16) -> Vec<Episod
                 .find(|line| !line.is_empty())
                 .unwrap_or_default()
                 .to_owned();
+            let sec_when = section
+                .span
+                .clone()
+                .filter_map(|idx| plot.lines.get(idx))
+                .find_map(|line| match line {
+                    plot_episode::Line::Field(f) if f.key == FieldKey::When => {
+                        let v = f.value.trim();
+                        (!v.is_empty()).then(|| v.to_owned())
+                    }
+                    _ => None,
+                });
             out.push(EpisodeRow {
                 id: section_id,
                 lines: section.content.clone(),
                 summary,
                 state: None,
+                when: sec_when,
             });
             ids.push(section_id);
         }
@@ -561,7 +586,7 @@ pub fn progress(project: &Project) -> Vec<ProgressRow> {
     let prose = crate::core::features::sections::all(project);
     let mut chars: BTreeMap<SceneId, usize> = BTreeMap::new();
     let mut scene_titles: BTreeMap<SceneId, String> = BTreeMap::new();
-    for section in &prose {
+    for section in prose.iter() {
         if section.id.chapter == 0 || section.id.episode == 0 {
             continue;
         }
@@ -795,5 +820,285 @@ pub fn foreshadows(project: &Project) -> Vec<Foreshadow> {
     }
     let mut out: Vec<Foreshadow> = by_tag.into_values().collect();
     out.sort_by_key(|found| (!found.open(), !found.doubled(), found.tag.clone()));
+    out
+}
+
+/// 同一場面内の 2 つの節 `id_a` と `id_b` について、本文側に非空の節が存在するか（§10.2 `Alt+Shift+↑/↓` 確認モーダル判定）。
+pub fn has_prose_for_swap(project: &Project, id_a: SceneId, id_b: SceneId) -> bool {
+    let path = project.contents_path(id_a.chapter, id_a.episode);
+    let Some(doc) = project.document(&path) else {
+        return false;
+    };
+    project
+        .sections()
+        .iter()
+        .filter(|s| s.path == path && (s.id == id_a || s.id == id_b))
+        .any(|s| {
+            !crate::core::features::sections::text_of(&doc.text, s)
+                .trim()
+                .is_empty()
+        })
+}
+
+fn line_span_bytes(text: &str, lines: &Range<usize>) -> Range<usize> {
+    let starts = crate::core::features::project::line_starts_of(text);
+    let from = starts.get(lines.start).copied().unwrap_or(text.len());
+    let to = if lines.end == 0 {
+        from
+    } else if lines.end < starts.len() {
+        starts[lines.end].saturating_sub(1)
+    } else {
+        text.len()
+    };
+    from..to.max(from)
+}
+
+/// 話プロット内の隣り合う 2 つの節（同じ場面内）を入れ替える `WorkspaceEdit` を作る（§10.2 `Alt+Shift+↑/↓`）。
+/// `include_prose == true` なら、対応する本文ファイルの 2 節の中身も連動して入れ替える。
+pub fn swap_episode_sections(
+    project: &Project,
+    id_a: SceneId,
+    id_b: SceneId,
+    include_prose: bool,
+) -> Option<crate::core::features::WorkspaceEdit> {
+    use crate::core::features::{FileEdit, TextEdit, WorkspaceEdit};
+    if id_a.chapter != id_b.chapter
+        || id_a.episode != id_b.episode
+        || id_a.scene != id_b.scene
+        || id_a.section == 0
+        || id_b.section == 0
+        || id_a == id_b
+    {
+        return None;
+    }
+    let (first_id, second_id) = if id_a < id_b {
+        (id_a, id_b)
+    } else {
+        (id_b, id_a)
+    };
+    let plot_path = project.episode_plot_path(first_id.chapter, first_id.episode);
+    let plot_doc = project.document(&plot_path)?;
+    let blocks_first = section_blocks(project, first_id);
+    let blocks_second = section_blocks(project, second_id);
+    if blocks_first.len() != 1 || blocks_second.len() != 1 {
+        return None;
+    }
+    let r1 = line_span_bytes(&plot_doc.text, &blocks_first[0].span);
+    let r2 = line_span_bytes(&plot_doc.text, &blocks_second[0].span);
+    if r1.end > r2.start {
+        return None;
+    }
+    let t1 = plot_doc.text[r1.clone()].to_owned();
+    let t2 = plot_doc.text[r2.clone()].to_owned();
+    let mut changes = vec![FileEdit {
+        path: plot_path,
+        edits: vec![
+            TextEdit {
+                range: r1,
+                new_text: t2,
+            },
+            TextEdit {
+                range: r2,
+                new_text: t1,
+            },
+        ],
+    }];
+
+    if include_prose {
+        let prose_path = project.contents_path(first_id.chapter, first_id.episode);
+        if let Some(prose_doc) = project.document(&prose_path) {
+            let secs: Vec<_> = project
+                .sections()
+                .iter()
+                .filter(|s| s.path == prose_path && (s.id == first_id || s.id == second_id))
+                .cloned()
+                .collect();
+            if secs.len() == 2 && secs[0].id == first_id && secs[1].id == second_id {
+                let pr1 = line_span_bytes(&prose_doc.text, &secs[0].lines);
+                let pr2 = line_span_bytes(&prose_doc.text, &secs[1].lines);
+                if pr1.end <= pr2.start {
+                    let pt1 = prose_doc.text[pr1.clone()].to_owned();
+                    let pt2 = prose_doc.text[pr2.clone()].to_owned();
+                    changes.push(FileEdit {
+                        path: prose_path,
+                        edits: vec![
+                            TextEdit {
+                                range: pr1,
+                                new_text: pt2,
+                            },
+                            TextEdit {
+                                range: pr2,
+                                new_text: pt1,
+                            },
+                        ],
+                    });
+                }
+            }
+        }
+    }
+
+    Some(WorkspaceEdit { changes })
+}
+
+/// 現在の節/場面 `id` に対して有効な `space:`（節 → 場面 → 話 → 章の順で継承、`assets/...` も展開）を返す（§9.5.3・§9.8.3）。
+pub fn space_lines(project: &Project, id: SceneId) -> Vec<String> {
+    let records = crate::core::features::metadata::records(project);
+    let candidates = [
+        id,
+        SceneId { section: 0, ..id },
+        SceneId {
+            scene: 0,
+            section: 0,
+            ..id
+        },
+        SceneId {
+            episode: 0,
+            scene: 0,
+            section: 0,
+            ..id
+        },
+    ];
+    for wanted in candidates {
+        if let Some(rec) = records.iter().find(|r| r.id == wanted) {
+            if let Some(raw) = rec.fields.get("space").filter(|s| !s.trim().is_empty()) {
+                let resolved = crate::core::features::metadata::asset_path(raw, false)
+                    .and_then(|p| project.document(&p))
+                    .map(|d| d.text.clone())
+                    .unwrap_or_else(|| raw.clone());
+                return resolved.lines().map(ToOwned::to_owned).collect();
+            }
+        }
+    }
+    Vec::new()
+}
+
+/// 構成ツリー（§10.3.1）の場面ノード。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OutlineSceneNode {
+    pub scene: u16,
+    pub title: String,
+    pub chars: usize,
+}
+
+/// 構成ツリー（§10.3.1）の話ノード。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OutlineEpisodeNode {
+    pub episode: u16,
+    pub title: String,
+    pub chars: usize,
+    pub section_count: usize,
+    pub scenes: Vec<OutlineSceneNode>,
+}
+
+/// 構成ツリー（§10.3.1）の章ノード（ストック章 `0` は常に末尾）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OutlineChapterNode {
+    pub chapter: u16,
+    pub title: String,
+    pub chars: usize,
+    pub episode_count: usize,
+    pub foldable: bool,
+    pub episodes: Vec<OutlineEpisodeNode>,
+}
+
+/// 章 → 話 → 場面の 3 階層構成ツリーと文字数・下位数を集計する（§10.3.1）。
+/// ストック章（`chapter == 0`）は番号順にかかわらず常に最後尾に置く。
+pub fn outline_tree(project: &Project) -> Vec<OutlineChapterNode> {
+    use std::collections::BTreeMap;
+    let progress_rows = progress(project);
+    let titles_all = outline_blocks(project, None);
+    let mut chapter_list = chapters(project);
+    chapter_list.sort_by_key(|&ch| (ch == 0, ch));
+    chapter_list.dedup();
+
+    let mut out = Vec::new();
+    for chapter in chapter_list {
+        let title = titles_all
+            .iter()
+            .find(|b| b.id.chapter == chapter && b.id.episode == 0)
+            .map(|b| b.title.clone())
+            .unwrap_or_default();
+        let ch_blocks = outline_blocks(project, Some(chapter));
+        let ep_numbers = episodes(project, chapter);
+
+        let mut ep_nodes = Vec::new();
+        let mut ch_chars = 0usize;
+        let mut regular_episode_count = 0usize;
+
+        for ep in ep_numbers {
+            let ep_title = ch_blocks
+                .iter()
+                .find(|b| b.id.chapter == chapter && b.id.episode == ep)
+                .map(|b| b.title.clone())
+                .unwrap_or_default();
+            let mut ep_chars = 0usize;
+            let mut sec_count = 0usize;
+            let mut scene_map: BTreeMap<u16, (String, usize)> = BTreeMap::new();
+
+            if ep > 0 {
+                for row in episode_rows(project, chapter, ep) {
+                    if row.is_scene() && row.id.scene > 0 {
+                        scene_map
+                            .entry(row.id.scene)
+                            .or_insert_with(|| (row.summary, 0));
+                    }
+                }
+            }
+            for prow in progress_rows
+                .iter()
+                .filter(|r| r.id.chapter == chapter && r.id.episode == ep)
+            {
+                if prow.depth == 2 && prow.id.scene > 0 {
+                    let entry = scene_map
+                        .entry(prow.id.scene)
+                        .or_insert_with(|| (prow.title.clone(), 0));
+                    if entry.0.is_empty() && !prow.title.is_empty() {
+                        entry.0 = prow.title.clone();
+                    }
+                } else if prow.depth == 3 && prow.id.section > 0 {
+                    ep_chars += prow.chars;
+                    sec_count += 1;
+                    let entry = scene_map
+                        .entry(prow.id.scene)
+                        .or_insert_with(|| (String::new(), 0));
+                    entry.1 += prow.chars;
+                }
+            }
+            if ep == 0 {
+                let syn_path = project.contents_path(chapter, 0);
+                if let Some(doc) = project.document(&syn_path) {
+                    ep_chars = crate::core::features::sections::count_chars(&doc.text);
+                }
+            } else {
+                regular_episode_count += 1;
+            }
+            ch_chars += ep_chars;
+            let scenes = scene_map
+                .into_iter()
+                .map(|(sc, (sc_title, sc_chars))| OutlineSceneNode {
+                    scene: sc,
+                    title: sc_title,
+                    chars: sc_chars,
+                })
+                .collect();
+            ep_nodes.push(OutlineEpisodeNode {
+                episode: ep,
+                title: ep_title,
+                chars: ep_chars,
+                section_count: sec_count,
+                scenes,
+            });
+        }
+
+        let foldable = !ep_nodes.is_empty();
+        out.push(OutlineChapterNode {
+            chapter,
+            title,
+            chars: ch_chars,
+            episode_count: regular_episode_count,
+            foldable,
+            episodes: ep_nodes,
+        });
+    }
     out
 }

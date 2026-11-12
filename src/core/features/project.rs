@@ -29,10 +29,13 @@
 //! [`scan_ranges`] が決め（`docs/history.md` B-77）、[`Project::ref_sites`] がその範囲だけを
 //! 辞書で走査する。位置は**ファイル単位の byte**（B-1・B-56）で返す。
 
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::ops::Range;
+use std::sync::Arc;
 
 use crate::core::diagnostics::Diagnostic;
+use crate::core::features::sections::{self, SectionRef};
 use crate::core::features::Location;
 use crate::core::id::{Digits, SceneId};
 use crate::core::model::document::{Document, DocumentFormat};
@@ -56,7 +59,59 @@ pub struct Project {
     pub assets: BTreeMap<String, Vec<u8>>,
     files: BTreeMap<String, Document>,
     dictionary: Dictionary,
-    dictionary_diagnostics: Vec<dictionary::FileDiagnostic>,
+    dictionary_diagnostics: DictionaryDiagnostics,
+    /// 文書ごとの版番号（[`Project::insert`] / [`Project::remove`] で進む）。キャッシュの鍵。
+    versions: BTreeMap<String, u64>,
+    /// 最後に発行した版番号。
+    revision: u64,
+    /// 構造（ファイルの集合・版・設定）の版。全節の並びの鍵。
+    structure: u64,
+    /// 本文（`contents/`）の版。文書横断の集計（日本語主体の判定・W096）の鍵。
+    contents: u64,
+    /// プロットの版。プロジェクト全体のメタデータ（§9.5 の五感・空間）の鍵。
+    plots: u64,
+    /// 版番号で引くキャッシュ（B13-4。`&Project` のまま引けるよう内部可変にする）。
+    cache: RefCell<Cache>,
+}
+
+/// 作品全体の `'` の空き方の集計（W096。本文の版番号つき）。
+type SpacingCache = Option<(
+    u64,
+    Arc<Vec<(String, crate::core::features::diagnose::SpacingEvent)>>,
+)>;
+
+/// [`Project`] が持つキャッシュ（B13-4 / B13-5。`REF:docs/designs/overview.md` §3.5）。
+///
+/// どの欄も「版番号が一致する間だけ使う」。版番号は [`Project::insert`] / [`Project::remove`] /
+/// [`Project::set_settings`] の 3 か所だけが進める（`Document` を直接書き換える経路は無い）。
+#[derive(Debug, Default)]
+struct Cache {
+    /// 本文ファイルの節の並び（パス → (版, 節)）。
+    sections: BTreeMap<String, (u64, Vec<SectionRef>)>,
+    /// 本文ファイルの文字数（パス → (版, 文字数)）。
+    chars: BTreeMap<String, (u64, usize)>,
+    /// 全節の並び（構造の版が同じ間だけ使う）。
+    all: Option<(u64, Arc<Vec<SectionRef>>)>,
+    /// プロット全体のメタデータ（プロットの版が同じ間だけ使う）。
+    plot_records: Option<(u64, Arc<Vec<crate::core::features::metadata::Record>>)>,
+    /// 日本語主体の判定（本文の版が同じ間だけ使う）。
+    japanese: Option<(u64, bool)>,
+    /// W096 の作品全体集計（本文の版が同じ間だけ使う）。
+    spacing: SpacingCache,
+}
+
+impl Cache {
+    /// `path` の分を捨て、全体の並びも捨てる。
+    fn forget(&mut self, path: &str) {
+        self.sections.remove(path);
+        self.chars.remove(path);
+        self.all = None;
+    }
+
+    /// すべて捨てる（設定が変わったとき。パーサの設定と表示桁数が全ファイルに効く）。
+    fn clear(&mut self) {
+        *self = Self::default();
+    }
 }
 
 impl Default for Project {
@@ -73,7 +128,13 @@ impl Project {
             assets: BTreeMap::new(),
             files: BTreeMap::new(),
             dictionary: Dictionary::empty(),
-            dictionary_diagnostics: Vec::new(),
+            dictionary_diagnostics: DictionaryDiagnostics::default(),
+            versions: BTreeMap::new(),
+            revision: 0,
+            structure: 0,
+            contents: 0,
+            plots: 0,
+            cache: RefCell::new(Cache::default()),
         }
     }
 
@@ -87,18 +148,60 @@ impl Project {
         let mut project = Self::new(settings);
         for document in documents {
             project.adopt_settings(&document);
+            project.revision += 1;
+            let version = project.revision;
+            project.versions.insert(document.path.clone(), version);
+            project.count_change(&document);
             project.files.insert(document.path.clone(), document);
         }
+        project.structure += 1;
         project.rebuild_dictionary();
         project
+    }
+
+    /// 版番号を進める（[`Project::insert`] / [`Project::with_documents`] の共通部品）。
+    ///
+    /// 構造の版は常に、本文・プロットの版はその形式のときだけ進める（プロットの編集で
+    /// 本文の集計を作り直さないため）。
+    fn count_change(&mut self, document: &Document) {
+        self.structure += 1;
+        match document.format {
+            DocumentFormat::Contents => self.contents += 1,
+            DocumentFormat::PlotOutline | DocumentFormat::PlotEpisode => self.plots += 1,
+            DocumentFormat::ProjectFile => {
+                // 設定はパーサの設定と表示桁数を通じて全ファイルに効く
+                self.contents += 1;
+                self.plots += 1;
+            }
+            _ => {}
+        }
     }
 
     /// 文書を足す／置き換える。辞書の供給元（§6.1.1 の 3 ファイル）なら辞書を作り直す。
     /// `project.toml` なら設定をその中身で置き換える（B-89）。
     pub fn insert(&mut self, document: Document) {
         let rebuild = is_dictionary_source(&document.path);
+        let path = document.path.clone();
+        let changed = self
+            .files
+            .get(&path)
+            .is_none_or(|old| old.text != document.text || old.format != document.format);
+        let settings_changed = document.format == DocumentFormat::ProjectFile && changed;
         self.adopt_settings(&document);
-        self.files.insert(document.path.clone(), document);
+        if changed {
+            // 中身が同じなら版を進めない（キャッシュを使い続ける）
+            self.revision += 1;
+            let version = self.revision;
+            self.versions.insert(path.clone(), version);
+            self.count_change(&document);
+            if settings_changed {
+                // 設定が変わるとパーサの設定・表示桁数が全ファイルに効く
+                self.cache.borrow_mut().clear();
+            } else {
+                self.cache.borrow_mut().all = None;
+            }
+        }
+        self.files.insert(path, document);
         if rebuild {
             self.rebuild_dictionary();
         }
@@ -110,10 +213,15 @@ impl Project {
         if let Some(document) = &removed {
             if document.format == DocumentFormat::ProjectFile {
                 self.settings = Settings::default();
+                self.cache.borrow_mut().clear();
             }
             if is_dictionary_source(path) {
                 self.rebuild_dictionary();
             }
+            self.revision += 1;
+            self.versions.remove(path);
+            self.count_change(document);
+            self.cache.borrow_mut().forget(path);
         }
         removed
     }
@@ -127,8 +235,15 @@ impl Project {
 
     /// 設定（`project.toml`）を差し替える。`project.toml` の文書を後から `insert` すると、
     /// そちらの中身で置き換わる。
+    ///
+    /// 設定はパーサの設定（`structure.allow_chapter_zero`）と表示桁数を通じて全ファイルに効くので、
+    /// 版を進めてキャッシュを捨てる。
     pub fn set_settings(&mut self, settings: Settings) {
         self.settings = settings;
+        self.structure += 1;
+        self.contents += 1;
+        self.plots += 1;
+        self.cache.borrow_mut().clear();
     }
 
     /// 設定（`project.toml`、§4.5）。
@@ -144,6 +259,144 @@ impl Project {
     pub fn has_file(&self, path: &str) -> bool {
         self.files.contains_key(path) || self.assets.contains_key(path)
     }
+    /// 全節の並び（`contents/` のファイル名順 → ファイルの中の順）。**変わったファイルだけ**を
+    /// 作り直す（B13-4。`REF:docs/designs/overview.md` §3.5）。
+    ///
+    /// 返すのは共有した並び（[`Arc`]）。毎フレーム描く側はこれを読み、フレームの中で
+    /// [`crate::core::features::sections::all`] を呼ばない。
+    pub fn sections(&self) -> Arc<Vec<SectionRef>> {
+        if let Some((structure, list)) = self.cache.borrow().all.as_ref() {
+            if *structure == self.structure {
+                return Arc::clone(list);
+            }
+        }
+        let list = self.build_sections();
+        let shared = Arc::new(list);
+        let mut cache = self.cache.borrow_mut();
+        cache.all = Some((self.structure, Arc::clone(&shared)));
+        shared
+    }
+
+    /// 全節の並びを組み立てる（版が変わったファイルだけ [`sections::of_document`] を呼ぶ）。
+    fn build_sections(&self) -> Vec<SectionRef> {
+        let mut cache = self.cache.borrow_mut();
+        cache
+            .sections
+            .retain(|path, _| self.files.contains_key(path));
+        let mut out = Vec::new();
+        for document in self.files.values() {
+            if document.format != DocumentFormat::Contents
+                || episode_of_path(&document.path).is_none()
+            {
+                continue;
+            }
+            let version = self.version_of(&document.path);
+            let fresh = cache
+                .sections
+                .get(&document.path)
+                .is_some_and(|(seen, _)| *seen == version);
+            if !fresh {
+                let list = sections::of_document(document, self);
+                cache
+                    .sections
+                    .insert(document.path.clone(), (version, list));
+            }
+            if let Some((_, list)) = cache.sections.get(&document.path) {
+                out.extend(list.iter().cloned());
+            }
+        }
+        out
+    }
+
+    /// 本文ファイルごとの文字数（節の本文の合計、§9.6.1）。**変わったファイルだけ**数え直す。
+    pub fn section_chars(&self) -> BTreeMap<String, usize> {
+        // 節の並びを先に用意しておく（中で `cache` を借り直すため）
+        let _ = self.sections();
+        let mut cache = self.cache.borrow_mut();
+        cache.chars.retain(|path, _| self.files.contains_key(path));
+        let mut out = BTreeMap::new();
+        for document in self.files.values() {
+            if document.format != DocumentFormat::Contents
+                || episode_of_path(&document.path).is_none()
+            {
+                continue;
+            }
+            let version = self.version_of(&document.path);
+            if let Some((seen, chars)) = cache.chars.get(&document.path) {
+                if *seen == version {
+                    out.insert(document.path.clone(), *chars);
+                    continue;
+                }
+            }
+            let chars: usize = cache
+                .sections
+                .get(&document.path)
+                .filter(|(seen, _)| *seen == version)
+                .map(|(_, list)| {
+                    list.iter()
+                        .filter(|section| section.id.chapter != 0 && section.id.episode != 0)
+                        .map(|section| {
+                            sections::count_chars(&sections::text_of(&document.text, section))
+                        })
+                        .sum()
+                })
+                .unwrap_or_default();
+            cache.chars.insert(document.path.clone(), (version, chars));
+            out.insert(document.path.clone(), chars);
+        }
+        out
+    }
+
+    /// 本文が日本語主体か（§7.2.2）。本文の版が同じ間は数え直さない（B13-2・U1）。
+    pub fn japanese_dominant(&self) -> bool {
+        if let Some((seen, value)) = self.cache.borrow().japanese {
+            if seen == self.contents {
+                return value;
+            }
+        }
+        let value = crate::core::features::diagnose::japanese_dominant_all(self);
+        self.cache.borrow_mut().japanese = Some((self.contents, value));
+        value
+    }
+
+    /// W096 の作品全体集計（§7.2.2）。本文の版が同じ間は作り直さない（B13-2・U1）。
+    pub(crate) fn spacing_events(
+        &self,
+    ) -> Arc<Vec<(String, crate::core::features::diagnose::SpacingEvent)>> {
+        if let Some((seen, value)) = self.cache.borrow().spacing.as_ref() {
+            if *seen == self.contents {
+                return Arc::clone(value);
+            }
+        }
+        let value = Arc::new(crate::core::features::diagnose::all_spacing_events(self));
+        self.cache.borrow_mut().spacing = Some((self.contents, Arc::clone(&value)));
+        value
+    }
+
+    /// 文書の版番号（無ければ 0）。
+    /// プロジェクト全体のメタデータ（§9.5）。プロットの版が同じ間だけ使う（B13-5）。
+    ///
+    /// プロットのファイルは [`Project::insert`] のたびに版が進むので、キャッシュが効いている間は
+    /// 100 ファイルでも再パースが起きない（`REF:docs/plans.md#perf-b13-5`）。
+    pub(crate) fn plot_records(&self) -> Arc<Vec<crate::core::features::metadata::Record>> {
+        if let Some((_, rows)) = self
+            .cache
+            .borrow()
+            .plot_records
+            .as_ref()
+            .filter(|(version, _)| *version == self.plots)
+        {
+            return Arc::clone(rows);
+        }
+        let rows = Arc::new(crate::core::features::metadata::build_records(self));
+        self.cache.borrow_mut().plot_records = Some((self.plots, Arc::clone(&rows)));
+        rows
+    }
+
+    pub fn version_of(&self, path: &str) -> u64 {
+        self.versions.get(path).copied().unwrap_or(0)
+    }
+
     /// 全文書（パスの昇順）。
     pub fn documents(&self) -> impl Iterator<Item = &Document> {
         self.files.values()
@@ -160,12 +413,10 @@ impl Project {
     }
 
     /// 辞書の構築で出た診断（E028 / W027）のうち、`file` に載るもの。
-    pub fn dictionary_diagnostics(&self, file: SourceFile) -> Vec<Diagnostic> {
-        self.dictionary_diagnostics
-            .iter()
-            .filter(|found| found.file == file)
-            .map(|found| found.diagnostic.clone())
-            .collect()
+    ///
+    /// 索引からそのまま返す（全件の走査と複製はしない。B13-3）。
+    pub fn dictionary_diagnostics(&self, file: SourceFile) -> &[Diagnostic] {
+        self.dictionary_diagnostics.of(file)
     }
 
     /// SceneId の表示桁数（§4.5 `structure.*_digits`）。
@@ -489,7 +740,42 @@ impl Project {
         let index = materials_index::parse(self.text(SourceFile::MaterialsIndex.path()));
         let built = Dictionary::from_sources(&characters, &words, &index);
         self.dictionary = built.dictionary;
-        self.dictionary_diagnostics = built.diagnostics;
+        self.dictionary_diagnostics = DictionaryDiagnostics::from(built.diagnostics);
+    }
+}
+
+/// 辞書の構築で出た診断のファイル別索引（B13-3）。
+///
+/// 供給元は 3 つだけなので、`Vec` を走査して絞る代わりに構築時に 1 回だけ振り分ける。
+/// 取得は [`DictionaryDiagnostics::of`] のスライス返しで、複製もしない。
+#[derive(Debug, Default)]
+struct DictionaryDiagnostics {
+    characters: Vec<Diagnostic>,
+    words: Vec<Diagnostic>,
+    materials: Vec<Diagnostic>,
+}
+
+impl DictionaryDiagnostics {
+    /// 構築結果をファイル別に振り分ける（辞書の再構築のときに 1 回だけ）。
+    fn from(found: Vec<dictionary::FileDiagnostic>) -> Self {
+        let mut out = Self::default();
+        for entry in found {
+            match entry.file {
+                SourceFile::Characters => out.characters.push(entry.diagnostic),
+                SourceFile::Words => out.words.push(entry.diagnostic),
+                SourceFile::MaterialsIndex => out.materials.push(entry.diagnostic),
+            }
+        }
+        out
+    }
+
+    /// `file` に載る診断。
+    fn of(&self, file: SourceFile) -> &[Diagnostic] {
+        match file {
+            SourceFile::Characters => &self.characters,
+            SourceFile::Words => &self.words,
+            SourceFile::MaterialsIndex => &self.materials,
+        }
     }
 }
 

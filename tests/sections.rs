@@ -43,7 +43,7 @@ fn splicing_a_section_keeps_the_rest_of_the_file_byte_for_byte() {
     let list = sections::all(&project);
     let text = project.text(CONTENTS_PATH);
     // 書き戻して読み直すと元どおり（何も変えなければ同じ文字列）
-    for item in &list {
+    for item in list.iter() {
         let body = sections::text_of(text, item);
         assert_eq!(sections::splice(text, item, &body), text);
     }

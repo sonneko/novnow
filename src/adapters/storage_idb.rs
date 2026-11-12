@@ -438,8 +438,15 @@ mod web {
                 .ok()
                 .flatten()
                 .ok_or_else(|| unavailable("indexedDB is not available"))?;
+            // Keep experimental app data separate even on the same Pages origin.
+            let pathname = window.location().pathname().unwrap_or_default();
+            let database = if pathname.starts_with("/novnow/nightly-app/") {
+                "novnow-nightly"
+            } else {
+                DB_NAME
+            };
             let request: IdbOpenDbRequest = factory
-                .open_with_u32(DB_NAME, DB_VERSION)
+                .open_with_u32(database, DB_VERSION)
                 .map_err(|_| unavailable("indexedDB.open failed"))?;
             let upgrading = request.clone();
             let on_upgrade: Handler = Closure::new(move |_: Event| {

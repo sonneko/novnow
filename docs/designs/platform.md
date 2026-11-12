@@ -24,7 +24,9 @@
 
 状態: 実装完了（REF:src/adapters/storage_idb.rs, REF:tests/storage_idb.rs, REF:index.html, REF:sw.js, REF:manifest.webmanifest, REF:scripts/web-smoke.mjs）
 
-- DB 名 `novnow`（version 1）の 3 オブジェクトストア（`projects`, `files`, `app`）と `APP_KEYS`（`recent_projects` のみ許可）、残容量 10MB 未満の `W063`、IndexedDB 利用不可時の `E062`、初回 `sample` プロジェクト投入は `REF:src/adapters/storage_idb.rs` に実装する。
+検証用の `/novnow/nightly-app/` では `REF:src/adapters/storage_idb.rs` が DB を `novnow-nightly` に切り替える。通常の DB 名・スキーマは維持する。
+
+- DB 名 `novnow`（version 1）の 3 オブジェクトストア（`projects`, `files`, `app`）と `APP_KEYS`（`recent_projects` のみ許可）、残容量 10MB 未満の `W063` とクォータ使用量の選択画面表示、IndexedDB 利用不可時の `E062`、旧形式プロジェクト（`project.json` / `.txt`）の開時自動移行（`migrate_legacy_project_in_place`）、初回 `sample` プロジェクト投入は `REF:src/adapters/storage_idb.rs` と `REF:src/ui/web.rs` に実装する（`REF:docs/plans.md#issue-55`）。
 - スキーマ定数と仕様表の一致は `REF:tests/storage_idb.rs` が `include_str!` で検証し、ブラウザ実機動作は `REF:scripts/web-smoke.mjs` で検証する。
 
 - **[S-03] Web 版の PWA 化とオフライン動作（実装完了: `REF:index.html`, `REF:sw.js`, `REF:README.md`, `REF:scripts/web-smoke.mjs`）**:

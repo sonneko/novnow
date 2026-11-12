@@ -100,7 +100,7 @@ def resolve(root: Path, page_url: str, reference: str, website_only: bool):
     path = unquote(url.path)
     if not path.startswith(BASE):
         return None, "", f"outside Pages base: {reference}"
-    if website_only and path == BASE + "app/" and not url.fragment:
+    if website_only and path in (BASE + "app/", BASE + "nightly-app/") and not url.fragment:
         return None, "", None
     target = root / path[len(BASE):]
     if not target.resolve().is_relative_to(root.resolve()):

@@ -27,8 +27,8 @@
 
 - `Ctrl+M` 資料検索モーダルのクエリ解析（`tag:`, `cat:`, `id:`, `scene:`, `status:`, `!status:`）と決定論的スコアリング（ID 完全一致 +500、タイトル先頭一致 +400、部分一致 +250、タグ完全一致 +200、要約一致 +100、本文一致 +50）、および `Enter`（参照挿入）/ `Shift+Enter`（`material` で開く）/ `Ctrl+Enter`（新規提案作成）は `REF:src/core/features/reference.rs` と `REF:src/ui/app.rs` に実装する。
 
-- **[Issue #29 / B6] 検索結果の表示と保存の分離（実装完了: `REF:docs/plans.md#issue-29-b6`）**:
-  - 正規表現検索（`REF:src/core/features/search.rs`）の抜粋は「前文・一致・後文」の構造（ `Hit.before` / `matched` / `after` ）で返し、画面は一致範囲だけを強調して描く。資料として保存する MD は §16.3.1 の固定形（タイトル見出し＋ `<!-- novnow:S#### -->`、`query` / `regex` / `case_sensitive` / `searched_at` / `hits`、節 ID 付きの結果箇条書き、500 件上限の註記）を `snapshot_body` で組み立てる。表示用の記法（ `**…**` ）は保存時にだけ使う（検証: `REF:tests/stage_two.rs` の `search_excerpts_are_structured_and_snapshots_use_the_fixed_form`）。
+- **[Issue #29 / B6・Issue #55] 検索結果の表示・保存・再検索差分（実装完了: `REF:docs/plans.md#issue-29-b6`, `REF:docs/plans.md#issue-55`）**:
+  - 正規表現検索（`REF:src/core/features/search.rs`）の抜粋は「前文・一致・後文」の構造（ `Hit.before` / `matched` / `after` ）で返し、無効パターンのエラー通知およびサイズ超過時の `W085` 案内を画面へ表示する（`REF:src/ui/workspaces/tabs.rs`）。資料として保存する MD は §16.3.1 の固定形（タイトル見出し＋ `<!-- novnow:S#### -->`、`query` / `regex` / `case_sensitive` / `searched_at` / `hits`、節 ID 付きの結果箇条書き、500 件上限の註記）を `snapshot_body` で組み立てる。保存済み検索資料は `REF:src/ui/workspaces/material.rs` から再検索でき、未適用の差分（新規・消失ヒット）をプレビューした上で人間が採用したときだけ本文と索引チェックサムを更新する（検証: `REF:tests/stage_two.rs`, `REF:tests/workspaces.rs`）。
 
 ### 16.4 「必要になる条件」と自動提示
 
@@ -74,11 +74,11 @@
 
 ### 17.3 読者モード（`reader` ワークスペース）
 
-状態: 実装完了（REF:src/core/reader.rs, REF:src/ui/workspaces/reader.rs, REF:tests/stage_two.rs）
+状態: 実装完了（REF:src/core/reader.rs, REF:src/ui/workspaces/reader.rs, REF:src/ui/app.rs, REF:src/adapters/recent_file.rs, REF:src/adapters/storage_idb.rs, REF:tests/stage_two.rs, REF:tests/workspaces.rs）
 
 - 組版は `REF:src/core/reader.rs` の純粋関数 `layout(text, options, metrics)`。実測送り幅と縦書き字形の有無を引数として注入し、禁則・縦中横・Unicode 縦字形・回転・モノルビを座標列へ変換する。
-- 描画とページ操作・章表紙・目次・しおりは `REF:src/ui/workspaces/reader.rs`。原稿と章プロットの指紋および組版設定をキーにページをキャッシュし、ページ送りで再組版しない。
-- 読書位置と表示設定はローカル状態のみ。未知キーを保持し、原稿の変更経路とは分離する。
+- 描画とページ操作（`PageUp`/`PageDown`・`Home`/`End`・話移動・`Esc` 復帰）・1 ページ収容の章表紙・柱（章題）と指定余白・目次・しおりは `REF:src/ui/workspaces/reader.rs`。`reader` 表示中は `REF:src/ui/app.rs` が共通ヘッダ・ステータスバー・パンくず・保存インジケータを一切描かないクリーン表示（§17.3.5）とする。原稿と章プロットの指紋および組版設定をキーにページをキャッシュし、ページ送りで再組版しない。
+- 読書位置と表示設定はプロジェクト外を含むローカル状態（デスクトップは `recent.json` 隣接の `reader.json`、Web は `localStorage`、上限 50 作品、`REF:src/core/policy/recent.rs`, `REF:src/adapters/recent_file.rs`, `REF:src/adapters/storage_idb.rs`）に永続化し、再起動後に自動復元する。未知キーを保持し、原稿の変更経路とは分離する（`REF:docs/plans.md#issue-55`）。
 
 - **[Issue #29 / B6] 縦書き括弧の豆腐解消（実装完了: `REF:docs/plans.md#issue-29-b6`）**:
   - 括弧の互換形置換は、使用フォントに置換先の字が収録されている場合だけ行う。UI（`REF:src/ui/workspaces/reader.rs`）は組版のキャッシュ再構築時に egui の `Fonts::has_glyph` で `VERTICAL_FORMS` の互換形を確かめ、`Metrics.vertical_forms` へ渡す。組版（`REF:src/core/reader.rs`）は収録のある字だけ互換形へ置換し、無い字は元の括弧を 90° 回転して描くグリフにする。同梱の IPA ゴシックには互換形が 1 字も無い（実測）ため、同梱フォント使用時は常に回転描画になる。
@@ -95,6 +95,30 @@
 
 - **[F-38 / F-43 / S-12] 10 万字打鍵 16ms 以内・アイデア 1,000 件 60fps・文脈ビュー可視範囲レイアウト（実装完了: `REF:docs/plans.md#plan-F-43`）**:
   - 打鍵時の編集中節限定解析（F-43）、一覧の `show_rows` 仮想スクロール（F-38）、文脈ビューのビューポートカリング（S-12）を実装し、`REF:tests/editor_performance.rs`（release で画面全体の打鍵 16ms とアイデア 1,000 件の一覧移動 16ms を確認）、`REF:tests/incremental.rs` と `REF:benches/core.rs` で計測・検証する。
+
+- **[B13] 探索・再構築・複製の計算量の退行防止（実装完了: `REF:benches/core.rs`, `REF:docs/plans.md#perf-b13-6`, `REF:docs/plans.md#perf-b13`）**:
+  - 本文ファイル数・辞書の大きさ・診断件数に対する伸びを、`REF:benches/core.rs` の次のベンチで常時測る（CI の `bench` ジョブが `--quick` で完走することも検査する）。
+    - `diagnostic_attribute_lookup`: 属性 1 回の参照（コード数に依存しないこと）
+    - `diagnostics_dedup_1000`: 診断 1,000 件の重複除去（件数に線形であること）
+    - `dictionary_diagnostics_index`: ファイル別索引からの取得
+    - `sections_all_cached`: 2 回目の節の並びの取得（キャッシュ命中）
+    - `workbench_rebuild_100_files`: 100 ファイルの書き戻し後の再構築
+    - `metadata_records_cached`: 2 回目のプロジェクト全体メタデータの取得
+    - `project_diagnostics_100_files`: W096 / W097 有効時の本文 1 ファイルの診断
+  - 実測値は環境依存なので、**受け入れは倍率と次数**で書く。目標は §18.1 の「打鍵 → 再描画 16ms」と「プロジェクト読み込み 300ms」を 100 ファイル・3,500 節で満たすこと。
+  - 単価の目標と実測（サンドボックス、`--release`、100 ファイル・2,300 節の合成プロジェクト。括弧内は B13 前）:
+
+| ベンチ | 目標 | 実測 |
+|---|---|---|
+| `diagnostic_attribute_lookup` | 属性 1 回 5ns 未満 | 全 85 コードで 93ns（1 コードあたり 1.1ns。以前は 1 コードあたり 10ns） |
+| `diagnostics_dedup_1000` | 件数に線形 | 診断 1,000 件の文書で 2.8ms。4,000 件で 10.7ms、8,000 件で 22.4ms（倍率どおり） |
+| `dictionary_diagnostics_index` | 2,000 件の取得が 1µs 未満 | 157ps（以前は 1 回 32µs） |
+| `sections_all_cached` | 2 回目が 0.2ms 未満 | 15.7ns（以前は 2 回目も 5.2ms） |
+| `workbench_rebuild_100_files` | 再構築 3ms 未満 | 14.1µs（以前は 100 ファイルで 53.5ms） |
+| `metadata_records_cached` | 2 回目が 20µs 未満 | 15.6ns（以前は 2 回目も 3.2ms） |
+| `project_diagnostics_100_files` | ファイル数に依存しない | 1.3ms（以前は 100 ファイルで 14.6ms） |
+
+  - 上記のほか、`characters.md` 2,000 名 + `words.md` 5,000 語の辞書でも本文 1 ファイルの診断が 2.1ms（以前は 17.1ms）、診断 4,000 件の文書の診断が 10.7ms（`finish` の重複除去は 0.3ms 未満。以前は `finish` だけで 58.5ms）。
 
 ### 18.2 メモリ
 

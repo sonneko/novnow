@@ -342,8 +342,9 @@ pub fn accept(project: &Project, id: &str, text: Option<&str>, now: &str) -> Res
         let current = scene
             .and_then(|id| {
                 crate::core::features::sections::all(project)
-                    .into_iter()
+                    .iter()
                     .find(|s| s.id == id && s.path == path)
+                    .cloned()
             })
             .map(|s| crate::core::features::sections::text_of(project.text(&path), &s));
         if current.as_deref() != Some(proposal.before.as_str()) {
@@ -447,6 +448,63 @@ pub fn revert(project: &Project, id: &str, comment: &str, now: &str) -> Result<P
     event.detail = Some("revert".to_owned());
     plan.log.push(event);
     Ok(plan)
+}
+
+/// 人間の提案の破棄（§8.7.2）。ファイルを削除せず `status: discarded` として履歴を残す。
+pub fn discard(project: &Project, id: &str, now: &str) -> Result<Plan, Refusal> {
+    let board = Board::of(project);
+    let proposal = board.proposal(id).ok_or(Refusal::Unknown)?;
+    if !matches!(
+        proposal.status_kind(),
+        Some(ProposalStatus::Open | ProposalStatus::Stale)
+    ) {
+        return Err(Refusal::Settled);
+    }
+    let mut plan = Plan::default();
+    let mut updated = proposal.clone();
+    updated.status = ProposalStatus::Discarded.as_str().to_owned();
+    updated.updated_at = if now.is_empty() {
+        proposal.updated_at.clone()
+    } else {
+        now.to_owned()
+    };
+    plan.write(
+        files::proposal_path(&updated.id),
+        files::write_proposal(&updated),
+    );
+    Ok(plan)
+}
+
+/// `open` の人間提案のうち、対象節の現在値が `before` と一致しなくなったものを `status: stale` にする（§8.7.4）。
+pub fn mark_stale_human_proposals(project: &Project, now: &str) -> Plan {
+    let board = Board::of(project);
+    let mut plan = Plan::default();
+    for proposal in &board.proposals {
+        if proposal.kind != "human" || proposal.status_kind() != Some(ProposalStatus::Open) {
+            continue;
+        }
+        let (path, scene) = proposal.target_parts();
+        let current = scene
+            .and_then(|id| {
+                sections::all(project)
+                    .iter()
+                    .find(|s| s.id == id && s.path == path)
+                    .cloned()
+            })
+            .map(|s| sections::text_of(project.text(&path), &s));
+        if current.as_deref() != Some(proposal.before.as_str()) {
+            let mut updated = proposal.clone();
+            updated.status = ProposalStatus::Stale.as_str().to_owned();
+            if !now.is_empty() {
+                updated.updated_at = now.to_owned();
+            }
+            plan.write(
+                files::proposal_path(&updated.id),
+                files::write_proposal(&updated),
+            );
+        }
+    }
+    plan
 }
 
 fn settle_task(board: &Board, proposal: &Proposal, status: &str, now: &str, plan: &mut Plan) {

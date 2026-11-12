@@ -163,3 +163,82 @@ def test_specification_python_example_runs_against_native_extension(project):
     finally:
         if "session" in namespace:
             namespace["session"].close()
+
+
+def test_zip_export_returns_bytes_and_import_accepts_positional_and_keyword_bytes(tmp_path):
+    """Item 20: `export_zip()` の `bytes` 返却と `import_zip` の位置・キーワード双方の `bytes` 受け渡し。"""
+    import io
+    import zipfile
+
+    src_dir = tmp_path / "source-novel"
+    with novnow.create(str(src_dir), title="Zip往復テスト") as src:
+        scene = src.section.list()["sections"][0]["id"]
+        src.section.write(scene, "海風と星図の記憶。")
+        src.save.now()
+        exported = src.project.export_zip()
+
+    assert isinstance(exported["bytes"], bytes)
+    assert isinstance(exported.bytes, bytes)
+    assert exported.bytes.startswith(b"PK\x03\x04")
+    assert exported.size == len(exported.bytes)
+    with zipfile.ZipFile(io.BytesIO(exported.bytes), "r") as zf:
+        assert "project.toml" in zf.namelist()
+
+    # 1) キーワード引数 `bytes=...`
+    kw_dir = tmp_path / "imported-kw"
+    with novnow.create(str(kw_dir), title="空1") as s1:
+        # 既存ファイルを避けるため新規ファイルをアーカイブから取り込める先を用意
+        pass
+    # 空ディレクトリを開いた別プロジェクト上で新規原稿入りのアーカイブを取り込むため、
+    # まず source に `contents/01-02.cnov` を足した Zip を作って 3 通りで import_zip を検証する
+    (src_dir / "contents" / "01-02.cnov").write_text(
+        "@01-02-01 第二節\n港の灯り。\n", encoding="utf-8"
+    )
+    with novnow.Session(str(src_dir)) as src2:
+        archive_bytes = src2.project.export_zip().bytes
+    assert isinstance(archive_bytes, bytes)
+
+    for idx, call_style in enumerate(["keyword", "positional_two", "positional_one"]):
+        target_dir = tmp_path / f"dest-{idx}"
+        with novnow.create(str(target_dir), title=f"Dest-{idx}") as dest:
+            if call_style == "keyword":
+                res = dest.project.import_zip(bytes=archive_bytes)
+            elif call_style == "positional_two":
+                res = dest.project.import_zip(None, archive_bytes)
+            else:
+                res = dest.project.import_zip(archive_bytes)
+            assert "contents/01-02.cnov" in res["written"], f"{call_style}: {res}"
+            dest.save.now()
+        assert (target_dir / "contents" / "01-02.cnov").read_text(encoding="utf-8") == (
+            "@01-02-01 第二節\n港の灯り。\n"
+        )
+
+
+def test_rename_across_utf16_surrogates_and_multiple_files_matches_canonical_contract(tmp_path):
+    """Item 14: 日本語・サロゲートペア・複数ファイル参照で Python API の改名結果が一致する。"""
+    novel_dir = tmp_path / "rename-novel"
+    with novnow.create(str(novel_dir), title="星屑の時計") as session:
+        pass
+    manuscript = "@01-01-01 😀始まり\n😀'星図を広げて、もう一度'{星図}を確かめた。\n"
+    second = "@01-02-01 😀続き\n港でも😀'星図が頼りだった。\n"
+    (novel_dir / "contents" / "01-01.cnov").write_text(manuscript, encoding="utf-8")
+    (novel_dir / "contents" / "01-02.cnov").write_text(second, encoding="utf-8")
+
+    byte_pos = manuscript.encode("utf-8").index("'星図".encode("utf-8")) + 1
+    with novnow.Session(str(novel_dir)) as session:
+        preview = session.lang.rename_preview("contents/01-01.cnov", byte_pos, "星座図")
+        assert preview.prepared.placeholder == "星図"
+        applied = session.lang.rename_apply("contents/01-01.cnov", byte_pos, "星座図")
+        assert applied.renamed == "星座図"
+        assert "contents/01-01.cnov" in applied.written
+        assert "contents/01-02.cnov" in applied.written
+        assert "words.md" in applied.written
+        session.save.now()
+
+    assert (novel_dir / "contents" / "01-01.cnov").read_text(encoding="utf-8") == (
+        "@01-01-01 😀始まり\n😀'星座図を広げて、もう一度'{星座図}を確かめた。\n"
+    )
+    assert (novel_dir / "contents" / "01-02.cnov").read_text(encoding="utf-8") == (
+        "@01-02-01 😀続き\n港でも😀'星座図が頼りだった。\n"
+    )
+    assert "# 星座図" in (novel_dir / "words.md").read_text(encoding="utf-8")

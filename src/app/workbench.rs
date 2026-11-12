@@ -11,6 +11,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Range;
+use std::sync::Arc;
 
 use crate::app::save_machine::SaveMachine;
 use crate::core::features::plots;
@@ -88,7 +89,7 @@ pub struct Workbench {
     workspace_redo: Vec<WorkspaceTransaction>,
     human: Option<(SectionRef, String, String, String)>,
     project: Project,
-    list: Vec<SectionRef>,
+    list: Arc<Vec<SectionRef>>,
     editing: Option<Editing>,
     buffer: String,
     /// 保存ステートマシン（§8.2）。
@@ -115,7 +116,7 @@ impl Workbench {
             workspace_redo: Vec::new(),
             human: None,
             project,
-            list: Vec::new(),
+            list: Arc::new(Vec::new()),
             editing: None,
             buffer: String::new(),
             save: SaveMachine::new(autosave_ms),
@@ -151,7 +152,7 @@ impl Workbench {
 
     /// 全節の並び（最後に書き戻した時点の）。
     pub fn sections(&self) -> &[SectionRef] {
-        &self.list
+        self.list.as_slice()
     }
 
     /// 編集中の節。
@@ -535,7 +536,10 @@ impl Workbench {
         self.editing = Some(Editing {
             section: SectionRef {
                 path: path.to_owned(),
-                id: SceneId { section: 1, ..id },
+                id: SceneId {
+                    section: id.section.max(1),
+                    ..id
+                },
                 lines: 1..1,
                 span: 1..1,
                 header: Some(0),
@@ -846,6 +850,12 @@ impl Workbench {
         if self.human_active() {
             return false;
         }
+        if self.slice.as_ref().is_some_and(|slice| {
+            sections::text_of_lines(self.project.text(&slice.path), &slice.lines)
+                != self.slice_buffer
+        }) {
+            return false;
+        }
         let stack = if redo {
             &self.workspace_redo
         } else {
@@ -872,6 +882,11 @@ impl Workbench {
         let target = if redo { &item.1 } else { &item.0 };
         let current = self.editing.clone();
         for (path, text) in target {
+            if self.slice.as_ref().is_some_and(|slice| &slice.path == path) {
+                self.slice = None;
+                self.slice_buffer.clear();
+                self.slice_caret = None;
+            }
             self.project
                 .insert(Document::new(path.clone(), text.clone()));
             self.unsaved.insert(path.clone());
@@ -907,6 +922,9 @@ impl Workbench {
             self.slice_buffer.clear();
         }
         if editing_here {
+            if self.human.is_some() {
+                self.finish_human(0.0);
+            }
             // 節エディタの中身は外部の版で読み直す（未保存の編集は捨てる）
             if let Some(current) = self.editing.as_ref() {
                 if let Some(document) = self.project.document(path) {
@@ -1281,13 +1299,32 @@ impl Workbench {
                 match sections::position_of(&self.list, path, editing.section.id) {
                     Some(index) => self.enter(index),
                     None => {
+                        self.finish_human(0.0);
                         self.editing = None;
                         self.buffer.clear();
                     }
                 }
             }
         }
+        self.sync_stale_human_proposals("", 0.0);
         Reaction::Reloaded
+    }
+
+    /// `open` の人間提案が現在の本文と食い違っていれば `status: stale` に更新する（§8.7.4）。
+    /// 本文は一切上書きしない。
+    pub fn sync_stale_human_proposals(&mut self, stamp: &str, now: f64) -> bool {
+        let plan = crate::core::agents::apply::mark_stale_human_proposals(&self.project, stamp);
+        if plan.writes.is_empty() {
+            return false;
+        }
+        for write in plan.writes {
+            self.project.insert(Document::new(&write.path, write.text));
+            self.unsaved.insert(write.path);
+        }
+        self.save.edited(now);
+        self.save.request_now();
+        self.generation += 1;
+        true
     }
 
     /// 文字数（§9.6.1）: 節 / 話 / プロジェクト（空白除外）。節は節エディタの中身で数える。
@@ -1350,19 +1387,14 @@ impl Workbench {
         self.editing = Some(Editing { section });
     }
 
-    fn rebuild(&mut self) {
-        self.list = sections::all(&self.project);
-        self.counts.clear();
-        for item in &self.list {
-            if item.id.chapter == 0 || item.id.episode == 0 {
-                continue;
-            }
-            let Some(document) = self.project.document(&item.path) else {
-                continue;
-            };
-            *self.counts.entry(item.path.clone()).or_default() +=
-                sections::count_chars(&sections::text_of(&document.text, item));
-        }
+    /// 節の並びと文字数を取り直す（`Project` のキャッシュ経由。B13-4）。
+    ///
+    /// 呼ぶのは、`Project` の中身が外から変わったとき（読み込み・保存の後）。編集の
+    /// 書き戻しは各所が呼んでいる。1 回あたりの費用は、変わったファイルの数にだけ比例する。
+    pub fn rebuild(&mut self) {
+        // 節の並びと文字数は `Project` のキャッシュ（B13-4）。変わったファイルだけを作り直す。
+        self.list = self.project.sections();
+        self.counts = self.project.section_chars();
         self.generation += 1;
     }
 

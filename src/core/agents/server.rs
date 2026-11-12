@@ -302,7 +302,7 @@ fn tree(project: &Project, level: &str) -> Value {
     };
     let mut out: Vec<Value> = Vec::new();
     let mut seen: Vec<String> = Vec::new();
-    for found in sections::all(project) {
+    for found in sections::all(project).iter() {
         let id = match depth {
             1 => SceneId {
                 episode: 0,

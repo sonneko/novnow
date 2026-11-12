@@ -368,11 +368,11 @@ Desktop の Windows ビルドが全体の最長なので、PR 全体の待ち時
 | wheels ビルド | 5 構成 | Linux x64 のみ（1 構成。Python 試験が導入するホイールと同一） |
 | wheels Python 試験 | 3.9 / 3.11 / 3.13 | 3.9 / 3.13（abi3-py39 の境界 2 版） |
 | Pages ブラウザ試験 | chromium / firefox / webkit | chromium のみ（firefox / webkit は偽陽性が多発するため develop 向け PR では実行しない） |
-| VSCode Electron | ubuntu / macos / windows | ubuntu のみ |
+| VSCode Electron | ubuntu / macos / windows | ubuntu / windows（Windows の URI 回帰を検証） |
 
 CI コア（文書整合・Rustfmt・Clippy・全テスト・WASM サイズ・ベンチマーク・性能予算・Python API 検査）
 はスコープに関係なく常時実行する。develop 向け PR のプラットフォームの行列ジョブは 21 本（desktop 10・wheel 5・
-Electron 3・ブラウザ 3）から 4 本（desktop 1・wheel 1・Electron 1・ブラウザ 1）になる（Python 試験は 3 版から 2 版）。
+Electron 3・ブラウザ 3）から 5 本（desktop 1・wheel 1・Electron 2・ブラウザ 1）になる（Python 試験は 3 版から 2 版）。
 `main` への統合（リリースゲート）では full 行列が走り、macOS / Windows / arm64 のビルドはそこで検証される。
 
 **develop への push（マージコミット）でも同じ検査を報告する**: 必須チェックの平台 2 行（wheels の Linux x64・

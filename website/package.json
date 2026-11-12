@@ -13,6 +13,7 @@
     "check:site": "astro build && node --test integrations/base-links.test.mjs && python3 ../scripts/website-check.py --dir dist --website-only"
   },
   "dependencies": {
+    "@astrojs/sitemap": "^3.7.4",
     "astro": "^7.3.8"
   },
   "devDependencies": {

@@ -89,6 +89,163 @@
         "scopeName": "source.novnow",
         "path": "./syntaxes/novnow.tmLanguage.json"
       }
+    ],
+    "configurationDefaults": {
+      "[novnow]": {
+        "editor.semanticHighlighting.enabled": true
+      }
+    },
+    "semanticTokenTypes": [
+      {
+        "id": "sigil-structure",
+        "description": "novnow sigil structure"
+      },
+      {
+        "id": "sigil-ref",
+        "description": "novnow sigil ref"
+      },
+      {
+        "id": "scene-id",
+        "description": "novnow scene id"
+      },
+      {
+        "id": "scene-title",
+        "description": "novnow scene title"
+      },
+      {
+        "id": "ref-character",
+        "description": "novnow ref character"
+      },
+      {
+        "id": "ref-address",
+        "description": "novnow ref address"
+      },
+      {
+        "id": "ref-word",
+        "description": "novnow ref word"
+      },
+      {
+        "id": "ref-material",
+        "description": "novnow ref material"
+      },
+      {
+        "id": "ref-unresolved",
+        "description": "novnow ref unresolved"
+      },
+      {
+        "id": "citation",
+        "description": "novnow citation"
+      },
+      {
+        "id": "illustration",
+        "description": "novnow illustration"
+      },
+      {
+        "id": "modifier-mode",
+        "description": "novnow modifier mode"
+      },
+      {
+        "id": "modifier-title",
+        "description": "novnow modifier title"
+      },
+      {
+        "id": "dialogue-bracket",
+        "description": "novnow dialogue bracket"
+      },
+      {
+        "id": "dialogue-text",
+        "description": "novnow dialogue text"
+      },
+      {
+        "id": "speaker",
+        "description": "novnow speaker"
+      },
+      {
+        "id": "section-break",
+        "description": "novnow section break"
+      },
+      {
+        "id": "field-key",
+        "description": "novnow field key"
+      },
+      {
+        "id": "ruby-base",
+        "description": "novnow ruby base"
+      },
+      {
+        "id": "ruby-text",
+        "description": "novnow ruby text"
+      }
+    ],
+    "semanticTokenScopes": [
+      {
+        "language": "novnow",
+        "scopes": {
+          "sigil-structure": [
+            "keyword.control.novnow"
+          ],
+          "sigil-ref": [
+            "keyword.operator.novnow"
+          ],
+          "scene-id": [
+            "constant.numeric.novnow"
+          ],
+          "scene-title": [
+            "entity.name.section.novnow"
+          ],
+          "ref-character": [
+            "entity.name.type.novnow"
+          ],
+          "ref-address": [
+            "entity.name.type.novnow"
+          ],
+          "ref-word": [
+            "variable.other.constant.novnow"
+          ],
+          "ref-material": [
+            "markup.underline.link.novnow"
+          ],
+          "ref-unresolved": [
+            "invalid.illegal.novnow"
+          ],
+          "citation": [
+            "markup.underline.link.novnow"
+          ],
+          "illustration": [
+            "comment.block.novnow"
+          ],
+          "modifier-mode": [
+            "storage.modifier.novnow"
+          ],
+          "modifier-title": [
+            "string.other.novnow"
+          ],
+          "dialogue-bracket": [
+            "punctuation.definition.string.novnow"
+          ],
+          "dialogue-text": [
+            "string.quoted.other.novnow"
+          ],
+          "speaker": [
+            "entity.name.type.novnow"
+          ],
+          "section-break": [
+            "keyword.control.novnow"
+          ],
+          "field-key": [
+            "variable.other.property.novnow"
+          ],
+          "comment": [
+            "comment.novnow"
+          ],
+          "ruby-base": [
+            "string.other.novnow"
+          ],
+          "ruby-text": [
+            "string.other.novnow"
+          ]
+        }
+      }
     ]
   },
   "novnow": {

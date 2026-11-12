@@ -104,7 +104,7 @@ v0.1.0 では **IndexedDB のみ**を使い、LocalStorage は移行のために
 
 #### 13.3.2 スキーマ
 
-DB 名 `novnow` / バージョン `1`。
+DB 名 `novnow` / バージョン `1`。検証用の `/novnow/nightly-app/` では DB 名を `novnow-nightly` とし、正式版と作品・履歴を共有しない。
 
 | ストア | keyPath | インデックス | 値 |
 |---|---|---|---|

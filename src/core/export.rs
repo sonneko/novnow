@@ -94,6 +94,15 @@ pub enum Format {
 }
 
 impl Format {
+    /// 明示指定の形式名から引く（`txt` / `md` / `.txt` / `.md` / `text` / `markdown`）。
+    pub fn parse(text: &str) -> Option<Self> {
+        match text.trim().to_ascii_lowercase().as_str() {
+            "txt" | ".txt" | "text" => Some(Self::Text),
+            "md" | ".md" | "markdown" => Some(Self::Markdown),
+            _ => None,
+        }
+    }
+
     /// 書き出し先の名前から決める（`.md` で終われば Markdown、それ以外は `.txt`）。
     pub fn of_name(name: &str) -> Self {
         if name.to_ascii_lowercase().ends_with(".md") {
@@ -286,9 +295,10 @@ pub fn select(
 ) -> Vec<SectionRef> {
     let mut states = States::new(project);
     sections::all(project)
-        .into_iter()
+        .iter()
         .filter(|section| range.is_none_or(|range| range.contains(section.id)))
         .filter(|section| state.is_none_or(|least| states.of(section.id) >= least))
+        .cloned()
         .collect()
 }
 
@@ -746,27 +756,59 @@ fn mask(text: &str, hide: &[Range<usize>]) -> String {
     String::from_utf8(bytes).unwrap_or_else(|_| text.to_owned())
 }
 
+/// 断片変換の結果と、各節が変換後テキストのどの byte 位置に対応するか（読者モード用、§17.3）。
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct FragmentWithScenes {
+    /// 変換後の文字列（[`fragment`] と同一）。
+    pub text: String,
+    /// 変換後の文字列内の byte 範囲と所属 `SceneId`。
+    pub byte_scenes: Vec<(Range<usize>, SceneId)>,
+    /// 入力された各節が変換後テキスト上で始まる byte 位置（空の節も含む）。
+    pub section_bytes: Vec<(SceneId, usize)>,
+}
+
 /// §17.1 の 11〜14。
 fn finish(lines: Vec<Out>, options: &Options) -> String {
+    finish_tagged(
+        lines.into_iter().map(|line| (None, line)).collect(),
+        &[],
+        options,
+    )
+    .text
+}
+
+fn finish_tagged(
+    lines: Vec<(Option<SceneId>, Out)>,
+    ordered_sections: &[SceneId],
+    options: &Options,
+) -> FragmentWithScenes {
     // 11: 連続空行の圧縮（先頭の空行も落とす）
-    let mut compact: Vec<Out> = Vec::with_capacity(lines.len());
-    for line in lines {
+    let mut compact: Vec<(Option<SceneId>, Out)> = Vec::with_capacity(lines.len());
+    for (scene, line) in lines {
         let blank = line == Out::Blank;
-        if blank && compact.last().is_none_or(|last| *last == Out::Blank) {
+        if blank && compact.last().is_none_or(|(_, last)| *last == Out::Blank) {
             continue;
         }
-        compact.push(line);
+        compact.push((scene, line));
     }
     // 14: 末尾の空行
-    while compact.last() == Some(&Out::Blank) {
+    while compact.last().is_some_and(|(_, last)| *last == Out::Blank) {
         compact.pop();
     }
     if compact.is_empty() {
-        return String::new();
+        return FragmentWithScenes {
+            text: String::new(),
+            byte_scenes: Vec::new(),
+            section_bytes: ordered_sections.iter().map(|&id| (id, 0)).collect(),
+        };
     }
     let newline = options.newline.text();
     let mut out = String::new();
-    for line in compact {
+    let mut byte_scenes: Vec<(Range<usize>, SceneId)> = Vec::new();
+    let mut first_seen: BTreeMap<SceneId, usize> = BTreeMap::new();
+    let mut last_end: BTreeMap<SceneId, usize> = BTreeMap::new();
+    for (scene, line) in compact {
+        let start = out.len();
         match line {
             Out::Text(text) => {
                 // 12: 行頭字下げ
@@ -790,8 +832,36 @@ fn finish(lines: Vec<Out>, options: &Options) -> String {
         }
         // 13: 改行コード
         out.push_str(newline);
+        let end = out.len();
+        if let Some(id) = scene {
+            first_seen.entry(id).or_insert(start);
+            last_end.insert(id, end);
+            if let Some((prev_range, prev_id)) = byte_scenes.last_mut() {
+                if *prev_id == id && prev_range.end == start {
+                    prev_range.end = end;
+                } else {
+                    byte_scenes.push((start..end, id));
+                }
+            } else {
+                byte_scenes.push((start..end, id));
+            }
+        }
     }
-    out
+    let mut section_bytes = Vec::with_capacity(ordered_sections.len());
+    let mut cursor = 0usize;
+    for &id in ordered_sections {
+        if let Some(&at) = first_seen.get(&id) {
+            section_bytes.push((id, at));
+            cursor = last_end.get(&id).copied().unwrap_or(at);
+        } else {
+            section_bytes.push((id, cursor));
+        }
+    }
+    FragmentWithScenes {
+        text: out,
+        byte_scenes,
+        section_bytes,
+    }
 }
 
 /// 注釈をすべて取り除いた断片。段階 ② の計測はすべてこれを使う（§17.1）。
@@ -800,6 +870,15 @@ pub fn plain(text: &str) -> String {
 }
 
 pub fn fragment(text: &str, keep_ruby: bool) -> String {
+    fragment_with_scenes(text, &[], keep_ruby).text
+}
+
+/// [`fragment`] と同じ変換を行いつつ、各節 `sections` が変換後のどの byte 範囲に対応するかを返す。
+pub fn fragment_with_scenes(
+    text: &str,
+    sections: &[SectionRef],
+    keep_ruby: bool,
+) -> FragmentWithScenes {
     let dictionary = Dictionary::empty();
     let options = Options {
         newline: Newline::Lf,
@@ -807,12 +886,21 @@ pub fn fragment(text: &str, keep_ruby: bool) -> String {
         ..Default::default()
     };
     let parsed = contents::parse(text);
+    let ordered: Vec<SceneId> = sections.iter().map(|s| s.id).collect();
     let lines = parsed
         .lines
         .iter()
-        .filter_map(|line| convert_line(line, &dictionary, &options))
+        .enumerate()
+        .filter_map(|(idx, line)| {
+            let converted = convert_line(line, &dictionary, &options)?;
+            let scene = sections
+                .iter()
+                .find(|s| s.lines.contains(&idx))
+                .map(|s| s.id);
+            Some((scene, converted))
+        })
         .collect();
-    finish(lines, &options)
+    finish_tagged(lines, &ordered, &options)
 }
 
 /// i18n: format-vocabulary

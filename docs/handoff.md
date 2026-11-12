@@ -24,6 +24,16 @@
 
 ## 2. 現在のブランチ・PR・直近の作業状態
 
+- 2026-11-10（my-novels 用 nightly 更新スクリプト）: コピーして単独実行できる `REF:scripts/update-novnow-nightly.py` と手順 `REF:scripts/update-novnow-nightly.md` を追加。Linux x64 の VSIX・nogui を asset ID 指定で取得し、照合・導入後に current を切り替える。利用側の設定ファイルは上書きしない。オフライン回帰 `REF:docs/script/test_nightly_update.py` 7 件成功。
+
+- 2026-11-10（nightly 配布経路）: 所有者承認の 3 成果物・gh-pages 共存方式を実装。ローカル一括検証（Rust 1,480 件）・Web smoke・サイト検査成功。VSIX の取得・版管理は対象外。現行仕様は `REF:docs/specifications/external.md` §20.6.4、公開環境の要設定事項は `REF:docs/distribution.md` §11。
+
+- 2026-11-10（Windows LSP URI 修正）: `REF:src/lsp/methods.rs` でネイティブパスの区切り・ドライブ文字・verbatim prefix と file URI の表記差を正規化。`REF:tests/lsp.rs` に Windows の本文取得・トークン生成と UNC 往復・ルート境界の回帰を追加。`REF:.github/workflows/vscode.yml` は develop 向けでも Windows Electron を実行する。
+
+- 2026-11-10（PR #51 マージ前検証）: 最新 develop を取り込み、CI を起動。Electron 回帰のサンプル参照先を実在する本文へ修正（`REF:vscode/src/test/suite/extension.test.ts`）。手動 dispatch は権限不足のため、PR 更新による起動を使用。
+
+- 2026-11-10（VSCode Semantic Token 修正）: `REF:vscode/package.json` に novnow 限定の有効化と全トークンのテーマスコープを追加。`REF:src/lsp/methods.rs` は同一行の差分を前トークンの開始位置基準へ修正し、LSP の種別名のドットをハイフンへ変換（VSCode の修飾子区切りとの衝突回避、コア API は不変）。`REF:vscode/syntaxes/novnow.tmLanguage.json` は辞書依存の参照終端を推測せずシジルのみをフォールバック着色する。回帰は `REF:tests/lsp.rs`・`REF:vscode/test/highlighting.test.cjs`・`REF:vscode/src/test/suite/extension.test.ts`。検証: `REF:scripts/verify.sh` 全項目成功（Rust 1,472 passed）、拡張 check・単体 8 件・Electron テストの型検査成功。Electron 実行は VSCode 取得先が通信許可対象外のため未実施。
+
 - PR #38（X1・X3・CI スコープ・CI 修正 2 件）は 2026-10-27 に所有者が `develop` へマージ済み（merge commit `6b5853b`。ruleset `protect-develop` の必須チェック 11 件へは所有者が同日更新済み）。
 - 2026-10-27（CI スコープ）: `browsers (webkit)` の偽陽性で Checks が赤くなった件をきっかけに、各プラットフォームのビルドを最小化した（所有者指示: 開発速度を第一に）。`CI_SCOPE` で対象ブランチごとに行列を切り替え、develop 向け PR は 1 プラットフォーム（Linux x64・desktop nogui / wheel / chromium / ubuntu Electron / Python 3.9・3.13）、main 向け PR・main push・手動実行（`scope` 入力、既定 full）は full 行列。正本は `REF:docs/developers.md` §4.7 と `REF:docs/distribution.md` §8。
 - 2026-10-27（CI 不整合の修正）: マージ commit の実測で develop への push が必須 11 件のうち平台 2 行（wheels・desktop の Linux x64）を報告しないことが分かったので、wheels / desktop-check に `develop` への push トリガーを追加（wheels は PR 同一 `paths`）、4 ワークフローの手動実行に `scope` 入力を追加した。**PR #39**（develop 向け、`[ci run]` 付き）として提出済み。マージは所有者が行う。マージ後の develop push で発火を確認すること。
@@ -33,6 +43,7 @@
 - 2026-10-28（執筆支援ラウンド 2・3 の実装）: B11（W097 文末尾の反復・W098 場面内の同語反復）と B12（W099–W106）を実装し、診断は 77 種から **87 種** になった（設計書 142 節すべて実装完了）。語の抽出は導入済みの `tiniestsegmenter`（§6.2.6）と固定の語彙リスト。節単位の診断は節内の改行をまたいで数え（`SectionText` で本文 byte に戻す）、場面単位は場面の全節を集計する。実装中に分かった仕様の前提違い 2 件（セグメンタが活用・標点を別トークンに切ること）を仕様 §7.2.10・§9.4.4 にも反映した。全て組み込み既定は無効（`[features.diagnostics]` で有効化、文体タブの明示操作では有効化なしでも計算）。
 - v0.1.0は公開済み。既存の版タグ・可動v0・配布バイナリは変更しない。Issue #29 の方針は「V1 延期、開発は V0 で継続」である。
 - 既知の問題の原本は `REF:docs/known-issues/ja.md` と `REF:docs/known-issues/en.md`。サイトで直接表示し、修正版公開後に削除する運用は `REF:docs/developers.md` §9に従う。READMEに不具合本文を重複させない。
+- 2026-11-06（性能改善 B13 の実装完了）: 5 つの既知の問題と調査で見つけた 4 件（執筆支援診断の全走査、UI の毎フレーム再パース、辞書供給元の多重パース、文字数の再計算）を B13-1〜B13-6 の 6 段で実装した。仕様書は変更していない。設計書 4 節（`REF:docs/designs/overview.md` §3.5・`REF:docs/designs/diagnostics.md` §7.0・`REF:docs/designs/semantics.md` §6.1・`REF:docs/designs/workflows.md` §18.1）に実装の形と実測を、`REF:docs/plans.md` §9.8 に実施記録と計画からの逸脱（`sections::all` / `metadata::records` の戻り値を `Arc<Vec<_>>` に変更、診断 4,000 件の目標を 12ms へ）を書いた。7 本のベンチは `REF:benches/core.rs`、キャッシュの差分一致と `Project: Send` は `REF:tests/project_cache.rs`。所有者の指示で途中レビューは省略し、最終レビューだけを挟む（マージは所有者）。
 - 所有者指示: この作業は `develop` へマージすることを目指し、マージは所有者自身が行う。
 
 ## 3. 継続作業の手順

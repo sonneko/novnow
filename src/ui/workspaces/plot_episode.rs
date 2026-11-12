@@ -16,7 +16,7 @@
 //! - 節リストの行は場面見出し（場面レベルのフィールドを編集する）と節（節の内容を編集する）。
 //!   `Alt+↑/↓` で前 / 次の行、`Alt+←/→` で前 / 次の場面、`Ctrl+Alt+←/→` で前 / 次の話。
 //! - 下段は `Workbench` の Slice（B-126）。書き戻しと保存は節エディタと同じ規則（§8.1・§8.2）。
-//! - 右端の台詞比率バーは幅 48px（§9.4.2、B2）。`when:`（作中日時）の表示は未実装。
+//! - 右端の台詞比率バーは幅 48px（§9.4.2、B2）。`when:`（作中日時）は右端に 10px・`fg.faint` で添える（§10.2）。
 
 use std::ops::Range;
 
@@ -37,7 +37,7 @@ use crate::ui::widgets::slice_editor;
 use crate::ui::widgets::syntax_text::{self, Highlight, Metrics};
 use crate::ui::workbench::{Nav, Workbench};
 
-use super::{list_row, state_color, Request, Row, View};
+use super::{state_color, Request, Row, View};
 
 /// 上段の中身（章プロットの話ブロック・その文字列・色分け）。
 type Upper = (OutlineBlock, String, Highlight);
@@ -269,6 +269,69 @@ impl State {
             .or_else(|| rows.iter().rev().find(|row| !row.is_scene()))
             .map(|row| row.id);
         self.selected = found;
+        self.reveal = true;
+        true
+    }
+
+    /// 選択中の節と上下に入れ替える対象節 `(current, neighbor)` を返す（§10.2 `Alt+Shift+↑/↓`）。
+    pub fn swap_target(&mut self, bench: &Workbench, down: bool) -> Option<(SceneId, SceneId)> {
+        let index = self.selected_index(bench)?;
+        let rows = self.rows(bench);
+        let current = rows.get(index)?;
+        if current.is_scene() || current.id.section == 0 {
+            return None;
+        }
+        let neighbor = if down {
+            rows.get(index + 1)
+                .filter(|r| !r.is_scene() && r.id.scene == current.id.scene)?
+        } else {
+            index
+                .checked_sub(1)
+                .and_then(|i| rows.get(i))
+                .filter(|r| !r.is_scene() && r.id.scene == current.id.scene)?
+        };
+        Some((current.id, neighbor.id))
+    }
+
+    /// 入れ替え後に新しい節番号を選択する。
+    pub fn select_after_swap(&mut self, target: SceneId) {
+        self.selected = Some(target);
+        self.preview = false;
+        self.reveal = true;
+    }
+
+    /// 選択中のブロックに `mode: {token}` 行を挿入する（§10.2 `Ctrl+D`）。
+    pub fn insert_mode_line(&mut self, bench: &mut Workbench, token: &str, now: f64) -> bool {
+        self.preview = false;
+        self.sync(bench);
+        if bench.slice().is_some() {
+            let buf = bench.slice_buffer_mut();
+            if !buf.is_empty() && !buf.ends_with('\n') {
+                buf.push('\n');
+            }
+            buf.push_str(&format!("mode: {token}"));
+            bench.slice_edited(now);
+            bench.commit();
+            self.reveal = true;
+            return true;
+        }
+        let Some(path) = self.path(bench) else {
+            return false;
+        };
+        let Some(row) = self.current_row(bench) else {
+            return false;
+        };
+        let doc_text = bench.project().text(&path).to_owned();
+        let starts = line_starts_of(&doc_text);
+        let at = starts.get(row.lines.end).copied().unwrap_or(doc_text.len());
+        let mut updated = doc_text;
+        let prefix = if at > 0 && !updated[..at].ends_with('\n') {
+            "\n"
+        } else {
+            ""
+        };
+        updated.insert_str(at, &format!("{prefix}mode: {token}\n"));
+        bench.replace_document(&path, updated, now);
         self.reveal = true;
         true
     }
@@ -512,7 +575,7 @@ fn list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) -> Optio
     let selected = state.selected_index(bench);
     let reveal = state.reveal || std::mem::take(&mut state.scroll_list);
     let rows = state.rows(bench).to_vec();
-    let prose_sections = crate::core::features::sections::all(bench.project());
+    let prose_sections = bench.project().sections();
     let mut request = None;
     let mut clicked = None;
     if rows.is_empty() {
@@ -534,11 +597,12 @@ fn list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) -> Optio
         .show(ui, |ui| {
             for (index, row) in rows.iter().enumerate() {
                 let is_selected = Some(index) == selected;
+                let trailing_when = row.when.as_deref().unwrap_or("");
                 let response = if row.is_scene() {
                     let id = row.id.display(digits);
                     let id: Vec<&str> = id.split('-').take(3).collect();
                     let text = format!("@{} {}", id.join("-"), row.summary);
-                    list_row(
+                    super::list_row_with_trailing(
                         ui,
                         view.mode,
                         view.scale,
@@ -548,10 +612,11 @@ fn list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) -> Optio
                             muted: true,
                             ..Row::default()
                         },
+                        trailing_when,
                     )
                 } else {
                     let number = format!("{:02}", row.id.section);
-                    // 節の行の右端に削除ボタン（§8.1.2。一体削除は App の単一入口）
+                    // 節の行の右端に削除ボタン（§8.1.2）と `when:`（10px・`fg.faint`、§10.2）
                     let mut row_response = None;
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if crate::ui::widgets::action_button(
@@ -562,7 +627,7 @@ fn list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) -> Optio
                         {
                             request = Some(Request::DeleteSection(row.id));
                         }
-                        row_response = Some(list_row(
+                        row_response = Some(super::list_row_with_trailing(
                             ui,
                             view.mode,
                             view.scale,
@@ -576,6 +641,7 @@ fn list(ui: &mut Ui, state: &mut State, bench: &Workbench, view: &View) -> Optio
                                 text: &row.summary,
                                 muted: false,
                             },
+                            trailing_when,
                         ));
                     });
                     row_response.expect("list_row in the same layout")

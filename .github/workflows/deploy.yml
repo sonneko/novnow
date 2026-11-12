@@ -8,13 +8,13 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: true
+  group: stable-pages-build
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -70,24 +70,23 @@ jobs:
 
       - name: Build with Trunk
         run: |
-          trunk build --release --public-url "/novnow/app/"
+          bash scripts/build-channel-browser.sh
           test ! -e website/dist/app
           cp -a dist website/dist/app
+          cp -a dist website/dist/nightly-app
           python3 scripts/website-check.py
 
-      - name: Upload Pages Artifact
-        uses: actions/upload-pages-artifact@v3
+      - run: mkdir -p payload && cp -a website/dist payload/site
+      - uses: actions/upload-artifact@v4
         with:
-          path: ./website/dist
+          name: stable-site-payload
+          path: payload
+          if-no-files-found: error
 
-  deploy:
+  publish:
     needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+    uses: ./.github/workflows/channel-publish.yml
+    with:
+      channel: stable
+      artifact: stable-site-payload
+      sha: ${{ github.sha }}
