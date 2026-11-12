@@ -905,6 +905,14 @@ impl NovnowApp {
         }
     }
 
+    /// 共有タブ・読者モードの状態（テスト用の読み口）。
+    pub fn tabs_state(&self) -> Option<&workspaces::tabs::State> {
+        match &self.stage {
+            Stage::Open(session) => Some(&session.tabs),
+            Stage::Picker => None,
+        }
+    }
+
     /// エージェントの実行の状態（テスト用の読み口）。
     pub fn agents(&self) -> Option<&crate::ui::agents::Runtime> {
         match &self.stage {
@@ -1772,24 +1780,13 @@ impl NovnowApp {
         let current = session.spaces.switcher.current();
         match command {
             Command::CarryWorkspace(number) => {
-                session.bench.finish_human(now);
                 if let Some(target) = Workspace::of_number(number) {
-                    let id = session.bench.current_id();
-                    if let Some(id) = id {
-                        match target {
-                            Workspace::PlotEpisode => {
-                                session.spaces.episode.land(&session.bench, id)
-                            }
-                            Workspace::PlotOutline => session.spaces.outline.land_chapter(
-                                &session.bench,
-                                id.chapter,
-                                id.episode,
-                            ),
-                            _ => {}
-                        }
-                    }
-                    self.switch_to(ctx, target, now);
+                    self.carry_workspace(ctx, target, now);
                 }
+                return true;
+            }
+            Command::Tab(forward) => {
+                self.cycle_workspace_tab(current, forward);
                 return true;
             }
             Command::Workspace(number) => {
@@ -1805,6 +1802,9 @@ impl NovnowApp {
                 return true;
             }
             Command::Capture => {
+                if current == Workspace::Reader {
+                    return true;
+                }
                 // §10.4 MUST: どこからでも開き、画面は変えない（§9.7.5: 下書きを復元する）
                 self.overlay = Overlay::Capture {
                     input: self.drafts.capture.clone().unwrap_or_default(),
@@ -1812,6 +1812,9 @@ impl NovnowApp {
                 return true;
             }
             Command::MaterialSearch => {
+                if current == Workspace::Reader {
+                    return true;
+                }
                 // §16.3: どのワークスペースからでも開く。挿入先は今のワークスペースのエディタ
                 session.bench.commit();
                 self.overlay = Overlay::Materials {
@@ -1823,6 +1826,7 @@ impl NovnowApp {
             }
             Command::Review => {
                 // §10.9.2: 整合チェックの一括実行。点検の診断タブで数え直す
+                session.tabs.reset_tab(Workspace::Review);
                 session.spaces.review.rerun();
                 if current != Workspace::Review {
                     self.switch_to(ctx, Workspace::Review, now);
@@ -1844,6 +1848,7 @@ impl NovnowApp {
                         // 話 → 章プロットのその話のブロック
                         if let Some((chapter, episode)) = session.spaces.episode.episode() {
                             session.bench.commit();
+                            session.tabs.reset_tab(Workspace::PlotOutline);
                             session
                                 .spaces
                                 .outline
@@ -1860,6 +1865,9 @@ impl NovnowApp {
                 return true;
             }
             Command::Format => {
+                if current == Workspace::Reader {
+                    return true;
+                }
                 session.bench.commit();
                 let document = if current == Workspace::Write {
                     session.bench.spliced_document().map(|(doc, _)| doc)
@@ -1889,6 +1897,9 @@ impl NovnowApp {
                 return true;
             }
             Command::Rename => {
+                if current == Workspace::Reader {
+                    return true;
+                }
                 session.bench.commit();
                 let target = active_document_and_caret(session, current)
                     .and_then(|(document, caret)| {
@@ -2059,9 +2070,6 @@ impl NovnowApp {
             (Workspace::Review, Command::Nav(nav)) => {
                 spaces.review.nav(bench, locale, nav);
             }
-            (Workspace::Review, Command::Tab(_)) => {
-                spaces.review.next_tab();
-            }
             (Workspace::Review, Command::ConfirmNext) => {
                 if let Some(target) = spaces.review.target(bench, locale) {
                     self.review_jump(ctx, target, now);
@@ -2070,10 +2078,8 @@ impl NovnowApp {
             (Workspace::Cast, Command::Nav(nav)) => {
                 spaces.cast.nav(bench, nav);
             }
-            (Workspace::Cast, Command::Tab(forward)) => {
-                spaces.cast.step_tab(forward);
-            }
             (Workspace::Cast, Command::Scan) => {
+                session.tabs.reset_tab(Workspace::Cast);
                 spaces.cast.scan();
                 // 一覧は右のペインに出すので、畳んでいれば出す
                 self.settings.reference_visible = true;
@@ -2459,8 +2465,18 @@ impl NovnowApp {
             return false;
         }
         if session.spaces.switcher.current() == Workspace::Reader && target == Workspace::Write {
-            if let Some((path, at)) = &session.tabs.reader_position {
-                session.bench.reveal(path, *at);
+            session.tabs.reset_tab(Workspace::Write);
+            let mut landed = false;
+            if let Some(id) = session.tabs.reader_section {
+                if let Some(idx) = session.bench.sections().iter().position(|s| s.id == id) {
+                    session.bench.go_to(idx);
+                    landed = true;
+                }
+            }
+            if !landed {
+                if let Some((path, at)) = &session.tabs.reader_position {
+                    session.bench.reveal(path, *at);
+                }
             }
         }
         // 開いている文書の一部を書き戻して閉じ、すぐに保存する
@@ -2489,22 +2505,14 @@ impl NovnowApp {
                     session.spaces.outline.land_all(&session.bench, 0);
                 }
                 (Workspace::Material, _) => {
-                    // 今の節の明示参照 → 条件一致の候補 → 一覧の最初（B-134）
-                    let materials = &session.reference_cache.content().materials;
-                    let explicit: Vec<String> = materials
-                        .iter()
-                        .filter(|found| !found.candidate)
-                        .map(|found| found.id.clone())
-                        .collect();
-                    let candidates: Vec<String> = materials
-                        .iter()
-                        .filter(|found| found.candidate)
-                        .map(|found| found.id.clone())
-                        .collect();
+                    let (explicit, candidates) = materials_for_scene(session.bench.project(), id);
                     session
                         .spaces
                         .material
                         .land(&session.bench, &explicit, &candidates);
+                }
+                (Workspace::Reader, Some(id)) => {
+                    session.tabs.reader_jump = Some(id);
                 }
                 _ => {}
             }
@@ -2523,6 +2531,210 @@ impl NovnowApp {
         self.focus = Pane::Editor;
         let _ = ctx;
         true
+    }
+
+    /// `Ctrl+Shift+1..9`: 節位置を強制的に持ち越して切替先の対応物に着地する（§10.0 固定表）。
+    fn carry_workspace(&mut self, ctx: &Context, target: Workspace, now: f64) {
+        let locale = self.locale();
+        let (current, id, outline_target) = {
+            let Stage::Open(session) = &mut self.stage else {
+                return;
+            };
+            if !target.available() {
+                let name = i18n::text(locale, target.label_key()).to_owned();
+                session.notice =
+                    Some((i18n::format(locale, "workspace.unavailable", &[&name]), now));
+                return;
+            }
+            let current = session.spaces.switcher.current();
+            session.bench.finish_human(now);
+            session.bench.close_slice();
+            session.bench.commit();
+            let id = current_context_scene(session, current);
+            let outline_target = if current == Workspace::PlotOutline && target == Workspace::Write
+            {
+                first_unfinished_scene_for_outline(session)
+            } else {
+                None
+            };
+            session.tabs.reset_tab(target);
+            (current, id, outline_target)
+        };
+
+        if target == Workspace::Write {
+            let write_id = if current == Workspace::PlotOutline {
+                outline_target.or(id)
+            } else {
+                id
+            };
+            if let Some(scene_id) = write_id {
+                self.go_write(ctx, scene_id, now);
+            } else {
+                self.switch_to(ctx, Workspace::Write, now);
+            }
+            return;
+        }
+
+        if let Stage::Open(session) = &mut self.stage {
+            match target {
+                Workspace::PlotEpisode => {
+                    if let Some(scene_id) = id {
+                        if scene_id.chapter > 0 && scene_id.episode > 0 {
+                            session.spaces.episode.land(&session.bench, scene_id);
+                        } else if scene_id.chapter > 0 {
+                            let ep = session
+                                .bench
+                                .project()
+                                .sections()
+                                .iter()
+                                .find(|s| s.id.chapter == scene_id.chapter && s.id.episode > 0)
+                                .map_or(1, |s| s.id.episode);
+                            session.spaces.episode.land_episode(
+                                &session.bench,
+                                scene_id.chapter,
+                                ep,
+                            );
+                        }
+                        session.spaces.switcher.mark_visited(Workspace::PlotEpisode);
+                    }
+                }
+                Workspace::PlotOutline => {
+                    match id {
+                        Some(scene_id) if scene_id.chapter > 0 => {
+                            session.spaces.outline.land_chapter(
+                                &session.bench,
+                                scene_id.chapter,
+                                scene_id.episode,
+                            );
+                        }
+                        _ => {
+                            session.spaces.outline.land_all(&session.bench, 0);
+                        }
+                    }
+                    session.spaces.switcher.mark_visited(Workspace::PlotOutline);
+                }
+                Workspace::Cast => {
+                    if let Some(ch_idx) = first_mode_character(session.bench.project(), id) {
+                        session.spaces.cast.select(ch_idx);
+                    }
+                    session.spaces.cast.set_tab(workspaces::cast::Tab::Modes);
+                    session.spaces.switcher.mark_visited(Workspace::Cast);
+                }
+                Workspace::Material => {
+                    let (explicit, candidates) = materials_for_scene(session.bench.project(), id);
+                    session
+                        .spaces
+                        .material
+                        .land(&session.bench, &explicit, &candidates);
+                    session.spaces.switcher.mark_visited(Workspace::Material);
+                }
+                Workspace::Reader => {
+                    session.tabs.reader_jump = id;
+                    session.spaces.switcher.mark_visited(Workspace::Reader);
+                }
+                Workspace::Review => {
+                    session.spaces.review.land_scene(&session.bench, locale, id);
+                    session.spaces.switcher.mark_visited(Workspace::Review);
+                }
+                Workspace::Idea => {
+                    session.spaces.idea.land_first(&session.bench);
+                    session.spaces.switcher.mark_visited(Workspace::Idea);
+                }
+                Workspace::Agent => {
+                    session.spaces.agent.land_first(&session.bench);
+                    session.spaces.switcher.mark_visited(Workspace::Agent);
+                }
+                Workspace::Write => {}
+            }
+        }
+        self.switch_to(ctx, target, now);
+    }
+
+    /// `Ctrl+Shift+←/→`: 現在のワークスペースの表示対象タブを双方向に巡回する。
+    fn cycle_workspace_tab(&mut self, current: Workspace, forward: bool) {
+        let Stage::Open(session) = &mut self.stage else {
+            return;
+        };
+        match current {
+            Workspace::Review => {
+                use workspaces::review::Tab as RTab;
+                let visible = workspaces::tabs::visible_tab_indices(
+                    session.bench.project(),
+                    Workspace::Review,
+                );
+                let mut slots: Vec<(usize, RTab)> =
+                    vec![(0, RTab::Diagnostics), (0, RTab::Progress)];
+                for idx in visible.into_iter().filter(|&i| i >= 1) {
+                    slots.push((idx, RTab::Diagnostics));
+                }
+                let ws_idx = Workspace::Review.number() as usize - 1;
+                let cur_outer = session.tabs.tabs[ws_idx];
+                let cur_inner = session.spaces.review.tab;
+                let pos = slots
+                    .iter()
+                    .position(|&(outer, inner)| {
+                        if cur_outer == 0 {
+                            outer == 0 && inner == cur_inner
+                        } else {
+                            outer == cur_outer
+                        }
+                    })
+                    .unwrap_or(0);
+                let next_pos = if forward {
+                    (pos + 1) % slots.len()
+                } else {
+                    (pos + slots.len() - 1) % slots.len()
+                };
+                let (next_outer, next_inner) = slots[next_pos];
+                session.tabs.tabs[ws_idx] = next_outer;
+                session.tabs.tab_selected = 0;
+                if next_outer == 0 {
+                    session.spaces.review.set_tab(next_inner);
+                }
+            }
+            Workspace::Cast => {
+                use workspaces::cast::Tab as CTab;
+                let ws_idx = Workspace::Cast.number() as usize - 1;
+                let cur_outer = session.tabs.tabs[ws_idx];
+                let cur_inner = session.spaces.cast.tab;
+                let (next_outer, next_inner) = if cur_outer == 0 && cur_inner == CTab::Unmatched {
+                    if forward {
+                        (1, CTab::Modes)
+                    } else {
+                        (0, CTab::Tester)
+                    }
+                } else {
+                    let slots = [(0usize, CTab::Modes), (0, CTab::Tester), (1, CTab::Modes)];
+                    let pos = slots
+                        .iter()
+                        .position(|&(outer, inner)| {
+                            if cur_outer == 0 {
+                                outer == 0 && inner == cur_inner
+                            } else {
+                                outer == cur_outer
+                            }
+                        })
+                        .unwrap_or(0);
+                    let next_pos = if forward {
+                        (pos + 1) % slots.len()
+                    } else {
+                        (pos + slots.len() - 1) % slots.len()
+                    };
+                    slots[next_pos]
+                };
+                session.tabs.tabs[ws_idx] = next_outer;
+                session.tabs.tab_selected = 0;
+                if next_outer == 0 {
+                    session.spaces.cast.set_tab(next_inner);
+                }
+            }
+            Workspace::PlotOutline | Workspace::Material | Workspace::Agent | Workspace::Write => {
+                session
+                    .tabs
+                    .step_tab(session.bench.project(), current, forward);
+            }
+            _ => {}
+        }
     }
 
     /// 点検の行から該当箇所へ（§10.9.2「`Enter` で該当節へジャンプ」、B-132）。文書の種類で
@@ -2628,6 +2840,7 @@ impl NovnowApp {
                 } else {
                     let episode = id.episode;
                     session.bench.commit();
+                    session.tabs.reset_tab(Workspace::PlotOutline);
                     if episode > 0 {
                         session
                             .spaces
@@ -2649,6 +2862,7 @@ impl NovnowApp {
                 });
                 match document.format {
                     DocumentFormat::Contents => {
+                        session.tabs.reset_tab(Workspace::Write);
                         session.bench.reveal(&path, byte.unwrap_or(0));
                         session.settings_dirty = true;
                         self.switch_to(ctx, Workspace::Write, now);
@@ -2675,6 +2889,7 @@ impl NovnowApp {
                                 });
                         if let Some(id) = found {
                             session.bench.commit();
+                            session.tabs.reset_tab(Workspace::PlotEpisode);
                             if id.scene > 0 {
                                 session.spaces.episode.land(&session.bench, id);
                             } else {
@@ -2700,6 +2915,7 @@ impl NovnowApp {
                             .find(|block| block.lines.start <= line)
                             .map(|block| block.id);
                         session.bench.commit();
+                        session.tabs.reset_tab(Workspace::PlotOutline);
                         match (chapter, block) {
                             (Some(number), found) => session.spaces.outline.land_chapter(
                                 &session.bench,
@@ -2715,20 +2931,24 @@ impl NovnowApp {
                         self.switch_to(ctx, Workspace::PlotOutline, now);
                     }
                     DocumentFormat::Ideas => {
+                        session.tabs.reset_tab(Workspace::Idea);
                         session.spaces.idea.select_line(&session.bench, line);
                         self.switch_to(ctx, Workspace::Idea, now);
                     }
                     DocumentFormat::Characters => {
+                        session.tabs.reset_tab(Workspace::Cast);
                         session.spaces.cast.select_line(&session.bench, line);
                         session.spaces.switcher.mark_visited(Workspace::Cast);
                         self.switch_to(ctx, Workspace::Cast, now);
                     }
                     DocumentFormat::MaterialDoc => {
+                        session.tabs.reset_tab(Workspace::Material);
                         session.spaces.material.select_path(&session.bench, &path);
                         session.spaces.switcher.mark_visited(Workspace::Material);
                         self.switch_to(ctx, Workspace::Material, now);
                     }
                     DocumentFormat::MaterialsIndex => {
+                        session.tabs.reset_tab(Workspace::Material);
                         // 位置の前にある最後の `"id"` の資料（無ければ一覧の最初）
                         let id = byte.and_then(|at| material_id_before(&document.text, at));
                         if let Some(id) = id {
@@ -2736,6 +2956,21 @@ impl NovnowApp {
                         }
                         session.spaces.switcher.mark_visited(Workspace::Material);
                         self.switch_to(ctx, Workspace::Material, now);
+                    }
+                    DocumentFormat::Words => {
+                        let parsed = crate::core::syntax::words_md::parse(&document.text);
+                        let index = parsed
+                            .words
+                            .iter()
+                            .enumerate()
+                            .rev()
+                            .find(|(_, entry)| entry.heading <= line)
+                            .map(|(i, _)| i)
+                            .unwrap_or(0);
+                        let lines = term_lines(session.bench.project(), index);
+                        if !lines.is_empty() {
+                            self.overlay = Overlay::Info { lines };
+                        }
                     }
                     _ => {
                         session.notice =
@@ -2957,6 +3192,7 @@ impl NovnowApp {
         let Stage::Open(session) = &mut self.stage else {
             return;
         };
+        session.tabs.reset_tab(Workspace::Write);
         session.bench.close_slice();
         let digits = session.bench.project().digits();
         let path = session
@@ -3069,212 +3305,220 @@ impl NovnowApp {
             }
             _ => None,
         };
-        egui::TopBottomPanel::top("header")
-            .exact_height(28.0)
-            .frame(
-                Frame::none()
-                    .fill(colors.bg_raised)
-                    .inner_margin(Margin::symmetric(10.0, 4.0)),
-            )
-            .show(ctx, |ui| {
-                ui.horizontal_centered(|ui| {
-                    // ワークスペースインジケータ（§9.2.1。図形だけ、今のものを accent）
-                    let current = session.spaces.switcher.current();
-                    let row_start = ui.next_widget_position().x;
-                    if let Some(target) = workspaces::indicator(
-                        ui,
-                        mode,
-                        locale,
-                        current,
-                        project_problem(session, locale),
-                    ) {
-                        switch_to = Some(target);
-                    }
-                    // ヘッダ左側の省略は各要素の実測幅で決める（省略の順は
-                    // 画面名の一時表示 → プロジェクト名 → パンくず）。
-                    // 右端のボタン群の幅は前フレームの実測を使う
-                    let name = session.host.name();
-                    let name_font = FontId::new(11.0 * scale, FontFamily::Proportional);
-                    let crumb_font = FontId::new(12.0 * scale, FontFamily::Monospace);
-                    let transient = session
-                        .workspace_switched_at
-                        .is_some_and(|at| now - at < 1.0)
-                        .then(|| {
-                            i18n::text(locale, session.spaces.switcher.current().label_key())
-                                .to_owned()
-                        });
-                    let fonts_ctx = ctx.clone();
-                    let measure = |text: &str, font: &FontId| -> f32 {
-                        fonts_ctx.fonts(|fonts| {
-                            fonts
-                                .layout_no_wrap(text.to_owned(), font.clone(), colors.fg_primary)
-                                .rect
-                                .width()
-                        }) + 8.0
-                    };
-                    let right_width = ctx.data(|data| {
-                        data.get_temp::<f32>(Id::new("header-right-width"))
-                            .unwrap_or(190.0 * scale)
-                    });
-                    let room = ui.max_rect().width()
-                        - (ui.next_widget_position().x - row_start)
-                        - right_width;
-                    let (show_crumb, show_name, show_transient) = header_left_visibility(
-                        room,
-                        crumb
-                            .as_deref()
-                            .map_or(0.0, |text| measure(text, &crumb_font)),
-                        measure(&name, &name_font),
-                        transient.as_deref().map_or(0.0, |text| {
-                            measure(text, &FontId::proportional(11.0 * scale))
-                        }),
-                    );
-                    if show_name {
-                        ui.add_space(8.0);
-                        // プロジェクト名はボタン（`Ctrl+O` と同じ経路）
-                        if crate::ui::widgets::clickable_label(
+        if session.spaces.switcher.current() != Workspace::Reader {
+            egui::TopBottomPanel::top("header")
+                .exact_height(28.0)
+                .frame(
+                    Frame::none()
+                        .fill(colors.bg_raised)
+                        .inner_margin(Margin::symmetric(10.0, 4.0)),
+                )
+                .show(ctx, |ui| {
+                    ui.horizontal_centered(|ui| {
+                        // ワークスペースインジケータ（§9.2.1。図形だけ、今のものを accent）
+                        let current = session.spaces.switcher.current();
+                        let row_start = ui.next_widget_position().x;
+                        if let Some(target) = workspaces::indicator(
                             ui,
-                            RichText::new(name)
-                                .font(name_font.clone())
-                                .color(colors.fg_faint),
-                            Id::new("header-project-name"),
-                        )
-                        .clicked()
-                        {
-                            open_project = true;
+                            mode,
+                            locale,
+                            current,
+                            project_problem(session, locale),
+                        ) {
+                            switch_to = Some(target);
                         }
-                    }
-                    if show_crumb {
-                        if let Some(crumb) = &crumb {
+                        // ヘッダ左側の省略は各要素の実測幅で決める（省略の順は
+                        // 画面名の一時表示 → プロジェクト名 → パンくず）。
+                        // 右端のボタン群の幅は前フレームの実測を使う
+                        let name = session.host.name();
+                        let name_font = FontId::new(11.0 * scale, FontFamily::Proportional);
+                        let crumb_font = FontId::new(12.0 * scale, FontFamily::Monospace);
+                        let transient = session
+                            .workspace_switched_at
+                            .is_some_and(|at| now - at < 1.0)
+                            .then(|| {
+                                i18n::text(locale, session.spaces.switcher.current().label_key())
+                                    .to_owned()
+                            });
+                        let fonts_ctx = ctx.clone();
+                        let measure = |text: &str, font: &FontId| -> f32 {
+                            fonts_ctx.fonts(|fonts| {
+                                fonts
+                                    .layout_no_wrap(
+                                        text.to_owned(),
+                                        font.clone(),
+                                        colors.fg_primary,
+                                    )
+                                    .rect
+                                    .width()
+                            }) + 8.0
+                        };
+                        let right_width = ctx.data(|data| {
+                            data.get_temp::<f32>(Id::new("header-right-width"))
+                                .unwrap_or(190.0 * scale)
+                        });
+                        let room = ui.max_rect().width()
+                            - (ui.next_widget_position().x - row_start)
+                            - right_width;
+                        let (show_crumb, show_name, show_transient) = header_left_visibility(
+                            room,
+                            crumb
+                                .as_deref()
+                                .map_or(0.0, |text| measure(text, &crumb_font)),
+                            measure(&name, &name_font),
+                            transient.as_deref().map_or(0.0, |text| {
+                                measure(text, &FontId::proportional(11.0 * scale))
+                            }),
+                        );
+                        if show_name {
                             ui.add_space(8.0);
-                            // パンくずはボタン（`@` を初期入力とするパレット）
+                            // プロジェクト名はボタン（`Ctrl+O` と同じ経路）
                             if crate::ui::widgets::clickable_label(
                                 ui,
-                                RichText::new(crumb.clone())
-                                    .font(crumb_font.clone())
-                                    .color(colors.fg_muted),
-                                Id::new("header-breadcrumb"),
+                                RichText::new(name)
+                                    .font(name_font.clone())
+                                    .color(colors.fg_faint),
+                                Id::new("header-project-name"),
                             )
                             .clicked()
                             {
-                                open_palette_at_scene = true;
+                                open_project = true;
                             }
                         }
-                    }
-                    if show_transient {
-                        if let Some(label) = &transient {
-                            ui.add_space(8.0);
-                            ui.label(RichText::new(label.clone()).color(colors.fg_faint));
-                            ctx.request_repaint_after(std::time::Duration::from_secs(1));
+                        if show_crumb {
+                            if let Some(crumb) = &crumb {
+                                ui.add_space(8.0);
+                                // パンくずはボタン（`@` を初期入力とするパレット）
+                                if crate::ui::widgets::clickable_label(
+                                    ui,
+                                    RichText::new(crumb.clone())
+                                        .font(crumb_font.clone())
+                                        .color(colors.fg_muted),
+                                    Id::new("header-breadcrumb"),
+                                )
+                                .clicked()
+                                {
+                                    open_palette_at_scene = true;
+                                }
+                            }
                         }
-                    }
-                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        let help = ui
-                            .add(
-                                egui::Button::new(RichText::new("?").underline())
-                                    .small()
-                                    .min_size(Vec2::splat(24.0)),
-                            )
-                            .on_hover_text(i18n::text(locale, "command.help"));
-                        if help.hovered() {
-                            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                        if show_transient {
+                            if let Some(label) = &transient {
+                                ui.add_space(8.0);
+                                ui.label(RichText::new(label.clone()).color(colors.fg_faint));
+                                ctx.request_repaint_after(std::time::Duration::from_secs(1));
+                            }
                         }
-                        if help.clicked() {
-                            open_help = true;
-                        }
-                        let palette = ui
-                            .add(
-                                egui::Button::new(RichText::new("Ctrl+P").underline())
-                                    .small()
-                                    .min_size(Vec2::splat(24.0)),
-                            )
-                            .on_hover_text(i18n::text(locale, "help.palette"));
-                        if palette.hovered() {
-                            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
-                        }
-                        if palette.clicked() {
-                            open_palette = true;
-                        }
-                        let theme_hover = ui.painter().add(egui::Shape::Noop);
-                        let theme_button = ui
-                            .add(
-                                egui::Button::new(" ")
+                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                            let help = ui
+                                .add(
+                                    egui::Button::new(RichText::new("?").underline())
+                                        .small()
+                                        .min_size(Vec2::splat(24.0)),
+                                )
+                                .on_hover_text(i18n::text(locale, "command.help"));
+                            if help.hovered() {
+                                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                            }
+                            if help.clicked() {
+                                open_help = true;
+                            }
+                            let palette = ui
+                                .add(
+                                    egui::Button::new(RichText::new("Ctrl+P").underline())
+                                        .small()
+                                        .min_size(Vec2::splat(24.0)),
+                                )
+                                .on_hover_text(i18n::text(locale, "help.palette"));
+                            if palette.hovered() {
+                                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                            }
+                            if palette.clicked() {
+                                open_palette = true;
+                            }
+                            let theme_hover = ui.painter().add(egui::Shape::Noop);
+                            let theme_button = ui
+                                .add(
+                                    egui::Button::new(" ")
+                                        .frame(false)
+                                        .min_size(Vec2::splat(24.0)),
+                                )
+                                .on_hover_text(i18n::text(locale, "header.theme"));
+                            theme_button.widget_info(|| {
+                                egui::WidgetInfo::labeled(
+                                    egui::WidgetType::Button,
+                                    i18n::text(locale, "header.theme"),
+                                )
+                            });
+                            theme::paint_theme_icon(
+                                ui.painter(),
+                                theme_button.rect.center(),
+                                self.settings.theme,
+                                colors.fg_primary,
+                            );
+                            ui.painter().line_segment(
+                                [
+                                    theme_button.rect.left_bottom(),
+                                    theme_button.rect.right_bottom(),
+                                ],
+                                Stroke::new(0.6_f32, colors.border),
+                            );
+                            if theme_button.hovered() {
+                                ui.painter().set(
+                                    theme_hover,
+                                    egui::Shape::rect_filled(
+                                        theme_button.rect,
+                                        2.0,
+                                        colors.bg_selection.gamma_multiply(0.6),
+                                    ),
+                                );
+                                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                            }
+                            if theme_button.clicked() {
+                                self.settings.theme = self.settings.theme.next();
+                                session.settings_dirty = true;
+                            }
+                            // §12.5: 記号ボタン（ja は「あ」、en は「A」。カタログの header.language_symbol）。文字ラベルは置かない
+                            let symbol = i18n::text(locale, "header.language_symbol");
+                            let language_hover = ui.painter().add(egui::Shape::Noop);
+                            let language = ui.add(
+                                egui::Button::new(RichText::new(symbol).underline())
                                     .frame(false)
                                     .min_size(Vec2::splat(24.0)),
-                            )
-                            .on_hover_text(i18n::text(locale, "header.theme"));
-                        theme_button.widget_info(|| {
-                            egui::WidgetInfo::labeled(
-                                egui::WidgetType::Button,
-                                i18n::text(locale, "header.theme"),
-                            )
-                        });
-                        theme::paint_theme_icon(
-                            ui.painter(),
-                            theme_button.rect.center(),
-                            self.settings.theme,
-                            colors.fg_primary,
-                        );
-                        ui.painter().line_segment(
-                            [
-                                theme_button.rect.left_bottom(),
-                                theme_button.rect.right_bottom(),
-                            ],
-                            Stroke::new(0.6_f32, colors.border),
-                        );
-                        if theme_button.hovered() {
-                            ui.painter().set(
-                                theme_hover,
-                                egui::Shape::rect_filled(
-                                    theme_button.rect,
-                                    2.0,
-                                    colors.bg_selection.gamma_multiply(0.6),
-                                ),
                             );
-                            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
-                        }
-                        if theme_button.clicked() {
-                            self.settings.theme = self.settings.theme.next();
-                            session.settings_dirty = true;
-                        }
-                        // §12.5: 記号ボタン（ja は「あ」、en は「A」。カタログの header.language_symbol）。文字ラベルは置かない
-                        let symbol = i18n::text(locale, "header.language_symbol");
-                        let language_hover = ui.painter().add(egui::Shape::Noop);
-                        let language = ui.add(
-                            egui::Button::new(RichText::new(symbol).underline())
-                                .frame(false)
-                                .min_size(Vec2::splat(24.0)),
-                        );
-                        language.widget_info(|| {
-                            egui::WidgetInfo::labeled(
-                                egui::WidgetType::Button,
-                                i18n::text(locale, "header.language"),
-                            )
+                            language.widget_info(|| {
+                                egui::WidgetInfo::labeled(
+                                    egui::WidgetType::Button,
+                                    i18n::text(locale, "header.language"),
+                                )
+                            });
+                            if language.hovered() {
+                                ui.painter().set(
+                                    language_hover,
+                                    egui::Shape::rect_filled(
+                                        language.rect,
+                                        2.0,
+                                        colors.bg_selection.gamma_multiply(0.6),
+                                    ),
+                                );
+                                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                            }
+                            if language.clicked() {
+                                self.settings.language = match locale {
+                                    Locale::Ja => LanguageChoice::En,
+                                    Locale::En => LanguageChoice::Ja,
+                                };
+                                session.settings_dirty = true;
+                            }
+                            // 右端のボタン群の実測幅（次のフレームの省略判定に使う）
+                            let right = ui.max_rect().max.x - language.rect.min.x + 8.0;
+                            ctx.data_mut(|data| {
+                                data.insert_temp(Id::new("header-right-width"), right)
+                            });
                         });
-                        if language.hovered() {
-                            ui.painter().set(
-                                language_hover,
-                                egui::Shape::rect_filled(
-                                    language.rect,
-                                    2.0,
-                                    colors.bg_selection.gamma_multiply(0.6),
-                                ),
-                            );
-                            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
-                        }
-                        if language.clicked() {
-                            self.settings.language = match locale {
-                                Locale::Ja => LanguageChoice::En,
-                                Locale::En => LanguageChoice::Ja,
-                            };
-                            session.settings_dirty = true;
-                        }
-                        // 右端のボタン群の実測幅（次のフレームの省略判定に使う）
-                        let right = ui.max_rect().max.x - language.rect.min.x + 8.0;
-                        ctx.data_mut(|data| data.insert_temp(Id::new("header-right-width"), right));
                     });
                 });
-            });
+        }
         if let Some(target) = switch_to {
             self.switch_to(ctx, target, now);
         }
@@ -3346,21 +3590,23 @@ impl NovnowApp {
             );
             d.insert_temp(Id::new("context-folded"), self.settings.folded.clone());
         });
-        // ④ ステータスバー（22px）
+        let workspace = session.spaces.switcher.current();
+        // ④ ステータスバー（22px。読者モードでは表示しない、§17.3.5）
         let stamp = session.host.now();
         let date = stamp.get(..10).unwrap_or("");
         let hour = stamp.get(11..13).and_then(|h| h.parse().ok()).unwrap_or(0);
-        let activity = ctx.input(|i| {
-            i.events.iter().any(|e| {
-                matches!(
-                    e,
-                    egui::Event::Text(_) | egui::Event::Key { pressed: true, .. }
-                )
-            })
-        });
+        let activity = workspace != Workspace::Reader
+            && ctx.input(|i| {
+                i.events.iter().any(|e| {
+                    matches!(
+                        e,
+                        egui::Event::Text(_) | egui::Event::Key { pressed: true, .. }
+                    )
+                })
+            });
         session.tabs.stamp = stamp.clone();
         session.tabs.tick(&session.bench, now, date, hour, activity);
-        if !self.ime.composing() {
+        if !self.ime.composing() && workspace != Workspace::Reader {
             for (redo, mods, key) in [
                 (false, egui::Modifiers::CTRL, egui::Key::Z),
                 (
@@ -3378,35 +3624,36 @@ impl NovnowApp {
             }
         }
         let indicator = session.bench.save.indicator(now);
-        let mut open_error = false;
-        egui::TopBottomPanel::bottom("status")
-            .exact_height(22.0)
-            .frame(
-                Frame::none()
-                    .fill(colors.bg_raised)
-                    .inner_margin(Margin::symmetric(10.0, 2.0)),
-            )
-            .show(ctx, |ui| {
-                open_error = status_bar(
-                    ui,
-                    session,
-                    locale,
-                    mode,
-                    scale,
-                    indicator,
-                    now,
-                    self.settings.status_stats_mode,
-                );
-            });
-        if open_error {
-            self.overlay = Overlay::SaveError;
+        if workspace != Workspace::Reader {
+            let mut open_error = false;
+            egui::TopBottomPanel::bottom("status")
+                .exact_height(22.0)
+                .frame(
+                    Frame::none()
+                        .fill(colors.bg_raised)
+                        .inner_margin(Margin::symmetric(10.0, 2.0)),
+                )
+                .show(ctx, |ui| {
+                    open_error = status_bar(
+                        ui,
+                        session,
+                        locale,
+                        mode,
+                        scale,
+                        indicator,
+                        now,
+                        self.settings.status_stats_mode,
+                    );
+                });
+            if open_error {
+                self.overlay = Overlay::SaveError;
+            }
         }
         // ③ 参照ペイン（既定 38%、最小 320px / 最大 560px）。幅 < 900px では畳む（§9.1）
         let width = ctx.screen_rect().width();
         let show_reference =
             self.settings.reference_visible && (width >= 900.0 || self.focus == Pane::Reference);
-        let workspace = session.spaces.switcher.current();
-        if workspaces::tabs::show(
+        if let workspaces::tabs::TabOutcome::Active { jump, exit_reader } = workspaces::tabs::show(
             ctx,
             &mut session.tabs,
             &mut session.bench,
@@ -3415,11 +3662,14 @@ impl NovnowApp {
             now,
             session.host.as_mut(),
         ) {
-            let exit = ctx
-                .data_mut(|d| d.remove_temp::<bool>(Id::new("reader-exit")))
-                .unwrap_or(false);
-            if exit {
+            if exit_reader {
                 self.switch_to(ctx, Workspace::Write, now);
+            } else if let Some((path, at)) = jump {
+                self.review_jump(
+                    ctx,
+                    workspaces::review::Target::Document(path, Some(at)),
+                    now,
+                );
             }
             self.common_tail(ctx, locale, now);
             return;
@@ -6649,6 +6899,246 @@ fn editor_rect(ctx: &Context) -> Rect {
         egui::pos2(screen.left() + 8.0, screen.top() + 34.0),
         egui::pos2(screen.right() - 8.0, screen.bottom() - 30.0),
     )
+}
+
+/// 現在のワークスペースから `Ctrl+Shift+1..9` の基準となる `SceneId` を取り出す（§10.0）。
+fn current_context_scene(
+    session: &Session,
+    current: Workspace,
+) -> Option<crate::core::id::SceneId> {
+    match current {
+        Workspace::Write => session.bench.current_id(),
+        Workspace::PlotEpisode => session
+            .spaces
+            .episode
+            .selected()
+            .or_else(|| session.bench.current_id()),
+        Workspace::PlotOutline => {
+            session
+                .spaces
+                .outline
+                .selected()
+                .or_else(|| match session.spaces.outline.level() {
+                    Some(Some(chapter)) => Some(crate::core::id::SceneId {
+                        chapter,
+                        episode: 0,
+                        scene: 0,
+                        section: 0,
+                    }),
+                    _ => session.bench.current_id(),
+                })
+        }
+        Workspace::Reader => session
+            .tabs
+            .reader_section
+            .or_else(|| session.bench.current_id()),
+        _ => session.bench.current_id(),
+    }
+}
+
+/// `plot-outline` → `write`（`Ctrl+Shift+1`）: その章/話の最初の未完（`state != fixed`）の節、
+/// 無ければ最初の節を返す（§10.0）。
+fn first_unfinished_scene_for_outline(session: &mut Session) -> Option<crate::core::id::SceneId> {
+    let selected = session.spaces.outline.selected();
+    let level = session.spaces.outline.level();
+    let (chapter_filter, episode_filter) = match selected {
+        Some(id) if id.chapter > 0 && id.episode > 0 => (Some(id.chapter), Some(id.episode)),
+        Some(id) if id.chapter > 0 => (Some(id.chapter), None),
+        _ => match level {
+            Some(Some(ch)) if ch > 0 => (Some(ch), None),
+            _ => (None, None),
+        },
+    };
+    let rows = crate::core::features::plots::progress(session.bench.project());
+    let mut first_any: Option<crate::core::id::SceneId> = None;
+    for row in rows {
+        if row.id.section == 0 || row.id.chapter == 0 || row.id.episode == 0 {
+            continue;
+        }
+        if chapter_filter.is_some_and(|want| want != row.id.chapter) {
+            continue;
+        }
+        if episode_filter.is_some_and(|want| want != row.id.episode) {
+            continue;
+        }
+        if first_any.is_none() {
+            first_any = Some(row.id);
+        }
+        if row.state != crate::core::export::State::Fixed {
+            return Some(row.id);
+        }
+    }
+    first_any
+}
+
+/// 任意 → `cast`（`Ctrl+Shift+6`）: 現在の節の `mode:` に出てくる先頭のキャラ（無ければ一覧の先頭）の
+/// `characters.md` 添字を返す（§10.0）。
+fn first_mode_character(
+    project: &crate::core::features::Project,
+    scene: Option<crate::core::id::SceneId>,
+) -> Option<usize> {
+    use crate::core::resolve::dictionary::{EntryKind, Target};
+    use crate::core::text::lexer::FieldKey;
+
+    let dictionary = project.dictionary();
+    let lookup_char = |name: &str| -> Option<usize> {
+        let id = dictionary.lookup(name, Some(&[EntryKind::Character]))?;
+        match &dictionary.entry(id)?.target {
+            Target::Character { index, .. } => Some(*index),
+            _ => None,
+        }
+    };
+
+    if let Some(scene) = scene {
+        if let Some(plot) = project.episode_plot(scene.chapter, scene.episode) {
+            let from_field_lines = |lines: &[usize]| -> Option<usize> {
+                for &line in lines {
+                    let Some(field) = plot.field(line) else {
+                        continue;
+                    };
+                    if field.key != FieldKey::Mode {
+                        continue;
+                    }
+                    for reference in field.refs() {
+                        if let Some(idx) = lookup_char(reference.name) {
+                            return Some(idx);
+                        }
+                    }
+                }
+                None
+            };
+            let whole = crate::core::id::SceneId {
+                section: 0,
+                ..scene
+            };
+            if let Some(found_scene) = plot.scenes.iter().find(|s| {
+                s.id.map(|id| crate::core::id::SceneId { section: 0, ..id }) == Some(whole)
+            }) {
+                if let Some(found_sec) = found_scene
+                    .sections
+                    .iter()
+                    .find(|sec| sec.number == scene.section)
+                {
+                    if let Some(idx) = from_field_lines(&found_sec.fields) {
+                        return Some(idx);
+                    }
+                }
+                if let Some(idx) = from_field_lines(&found_scene.fields) {
+                    return Some(idx);
+                }
+            }
+            if let Some(idx) = from_field_lines(&plot.preamble.fields) {
+                return Some(idx);
+            }
+        }
+
+        let contents_path = project.contents_path(scene.chapter, scene.episode);
+        if let Some(doc) = project.document(&contents_path) {
+            if let Some(sec_ref) = project
+                .sections()
+                .iter()
+                .find(|s| s.path == contents_path && s.id == scene)
+            {
+                let parsed = crate::core::syntax::contents::parse_with(
+                    &doc.text,
+                    &project.contents_options(),
+                );
+                for line_idx in sec_ref.lines.clone() {
+                    if let Some(crate::core::syntax::contents::Line::Text(t)) =
+                        parsed.lines.get(line_idx)
+                    {
+                        if let Some(sp) = &t.speaker {
+                            if !sp.modes.is_empty() {
+                                if let Some(idx) = lookup_char(sp.name) {
+                                    return Some(idx);
+                                }
+                            }
+                        }
+                    }
+                }
+                let content = crate::core::features::reference::at(
+                    doc,
+                    sec_ref.lines.clone(),
+                    scene,
+                    project,
+                );
+                if let Some(first_cast) = content.cast.first() {
+                    if let Some(idx) = lookup_char(&first_cast.name) {
+                        return Some(idx);
+                    }
+                }
+            }
+        }
+
+        for outline in [project.chapter_plot(scene.chapter), project.all_plot()]
+            .into_iter()
+            .flatten()
+        {
+            for block in &outline.blocks {
+                let Some(block_id) = block.id else {
+                    continue;
+                };
+                let matches = block_id.chapter == scene.chapter
+                    && (block_id.episode == 0 || block_id.episode == scene.episode);
+                if !matches {
+                    continue;
+                }
+                for &line in &block.fields {
+                    let Some(field) = outline.field(line) else {
+                        continue;
+                    };
+                    if field.key != FieldKey::Cast {
+                        continue;
+                    }
+                    for reference in field.refs() {
+                        if let Some(idx) = lookup_char(reference.name) {
+                            return Some(idx);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    crate::core::features::cast::characters(project)
+        .first()
+        .map(|row| row.index)
+}
+
+/// 任意 → `material`（`Ctrl+Shift+5`）: 現在の節の明示参照資料と条件一致候補を返す（§10.0）。
+fn materials_for_scene(
+    project: &crate::core::features::Project,
+    scene: Option<crate::core::id::SceneId>,
+) -> (Vec<String>, Vec<String>) {
+    let Some(scene) = scene else {
+        return (Vec::new(), Vec::new());
+    };
+    let contents_path = project.contents_path(scene.chapter, scene.episode);
+    let content = if let (Some(doc), Some(sec)) = (
+        project.document(&contents_path),
+        project
+            .sections()
+            .iter()
+            .find(|s| s.path == contents_path && s.id == scene),
+    ) {
+        crate::core::features::reference::at(doc, sec.lines.clone(), scene, project)
+    } else {
+        let empty = crate::core::model::document::Document::new(contents_path, String::new());
+        crate::core::features::reference::at(&empty, 0..0, scene, project)
+    };
+    let explicit = content
+        .materials
+        .iter()
+        .filter(|m| !m.candidate)
+        .map(|m| m.id.clone())
+        .collect();
+    let candidates = content
+        .materials
+        .iter()
+        .filter(|m| m.candidate)
+        .map(|m| m.id.clone())
+        .collect();
+    (explicit, candidates)
 }
 
 pub use crate::app::memory_host::{HeldSave, MemoryFiles, MemoryHost, MEMORY_NOW, MEMORY_STAMP};

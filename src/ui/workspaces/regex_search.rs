@@ -22,16 +22,18 @@ pub(super) fn search_ui(
         state.query.case_sensitive = !state.query.case_sensitive;
     }
     ui.horizontal(|ui| {
-        ui.text_edit_singleline(&mut state.query.text);
+        let query_edit = ui.text_edit_singleline(&mut state.query.text);
+        let run_enter = query_edit.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
         ui.checkbox(&mut state.query.regex, label(locale, "stage.regex"));
         ui.checkbox(&mut state.query.case_sensitive, label(locale, "stage.case"));
-        if ui.button(label(locale, "stage.search")).clicked() {
+        if ui.button(label(locale, "stage.search")).clicked() || run_enter {
             bench.commit();
             let start = web_time::Instant::now();
             state.results = Some(search::run(bench.project(), &state.query, || {
                 start.elapsed().as_millis() as u64
             }));
             state.confirmed = false;
+            state.tab_selected = 0;
         }
     });
     ui.horizontal(|ui| {
@@ -164,6 +166,7 @@ pub(super) fn search_ui(
                     ),
                 ));
             }
+            let mut targets = Vec::with_capacity(results.hits.len());
             egui::ScrollArea::vertical().show(ui, |ui| {
                 let font = ui
                     .style()
@@ -174,7 +177,7 @@ pub(super) fn search_ui(
                 let link = ui.visuals().hyperlink_color;
                 let color = ui.visuals().text_color();
                 let match_bg = ui.visuals().selection.bg_fill;
-                for hit in &results.hits {
+                for (row_idx, hit) in results.hits.iter().enumerate() {
                     // 抜粋は前文・一致・後文の構造で受け、画面では一致だけを強調する。
                     let mut job = egui::text::LayoutJob::default();
                     crate::ui::widgets::append_text(
@@ -192,11 +195,19 @@ pub(super) fn search_ui(
                         color,
                         match_bg,
                     );
-                    if crate::ui::widgets::selectable_job(ui, false, job).clicked() {
-                        *jump = Some((hit.path.clone(), hit.range.start));
+                    let target = (hit.path.clone(), hit.range.start);
+                    let selected = row_idx == state.tab_selected;
+                    let resp = crate::ui::widgets::selectable_job(ui, selected, job);
+                    let enter = resp.has_focus()
+                        && ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter));
+                    if resp.clicked() || enter {
+                        state.tab_selected = row_idx;
+                        *jump = Some(target.clone());
                     }
+                    targets.push(target);
                 }
             });
+            super::tabs::handle_list_keys(ui, &mut state.tab_selected, &targets, jump);
         }
         None => {}
     }

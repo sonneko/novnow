@@ -207,14 +207,23 @@ impl State {
         }
     }
 
-    /// 初めて開いたときの着地（§10.0）: 今の節が明示的に参照している資料、無ければ条件一致の候補、
-    /// どちらも無ければ一覧の最初の行（B-134）。
+    /// 初めて開いたとき・`Ctrl+Shift+5` の着地（§10.0）: 今の節が明示的に参照している資料、
+    /// 無ければ条件一致の候補、どちらも無ければ一覧の最初の行（B-134）。
     pub fn land(&mut self, bench: &Workbench, explicit: &[String], candidates: &[String]) {
         for id in explicit.iter().chain(candidates) {
             if self.select(bench, id) {
                 return;
             }
         }
+        if self.entries(bench).is_empty() {
+            self.query.clear();
+            self.filter = Filter::Active;
+        }
+        if let Some(first) = self.entries(bench).first().map(|e| e.key().to_owned()) {
+            self.selected = Some(first);
+        }
+        self.preview = false;
+        self.reveal = true;
     }
 
     /// 資料 MD のエディタにフォーカスを移す（`Ctrl+2`）。

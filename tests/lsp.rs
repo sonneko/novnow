@@ -1298,6 +1298,12 @@ fn cancel_request_returns_minus_32800_without_side_effects_and_did_change_config
         .expect("read toml")
         .replace("初期タイトル", "再読込後のタイトル");
     std::fs::write(&toml_path, updated_toml).expect("write toml");
+    std::fs::create_dir_all(temp.join(".novnow")).expect("mkdir .novnow");
+    std::fs::write(
+        temp.join(".novnow/ui.json"),
+        r#"{ "theme": "dark", "context_sections": 7 }"#,
+    )
+    .expect("write ui.json");
 
     let root_str = temp.to_string_lossy().into_owned();
     let mut input = Cursor::new(
@@ -1306,12 +1312,17 @@ fn cancel_request_returns_minus_32800_without_side_effects_and_did_change_config
             notify("initialized", json!({})),
             notify(
                 "workspace/didChangeConfiguration",
-                json!({ "settings": { "reload": true } }),
+                json!({ "settings": {} }),
             ),
             request(
                 2,
                 "workspace/executeCommand",
                 json!({ "command": "project.info", "arguments": [{}] }),
+            ),
+            request(
+                3,
+                "workspace/executeCommand",
+                json!({ "command": "settings.get", "arguments": [{}] }),
             ),
             notify("exit", Value::Null),
         ]
@@ -1329,5 +1340,9 @@ fn cancel_request_returns_minus_32800_without_side_effects_and_did_change_config
     assert_eq!(
         result_of(&fs_messages, 2)["title"],
         json!("再読込後のタイトル")
+    );
+    assert_eq!(
+        result_of(&fs_messages, 3)["settings"]["context_sections"],
+        json!(7)
     );
 }

@@ -160,13 +160,80 @@ impl State {
             .map_or(&[], |(_, rows)| rows.as_slice())
     }
 
-    /// タブを切り替える（`Ctrl+Shift+→` / `←`。2 つなので行き来する）。
+    /// タブを切り替える（`Ctrl+Shift+→` / `←`）。
     pub fn next_tab(&mut self) {
         self.tab = match self.tab {
             Tab::Diagnostics => Tab::Progress,
             Tab::Progress => Tab::Diagnostics,
         };
         self.reveal = true;
+    }
+
+    /// 指定のサブタブに切り替える。
+    pub fn set_tab(&mut self, tab: Tab) {
+        self.tab = tab;
+        self.reveal = true;
+    }
+
+    /// 現在の節 `scene` に関する診断（無ければ診断一覧の先頭）に着地する（`Ctrl+Shift+9`、§10.0）。
+    pub fn land_scene(&mut self, bench: &Workbench, locale: Locale, scene: Option<SceneId>) {
+        self.tab = Tab::Diagnostics;
+        self.reveal = true;
+        let Some(scene) = scene else {
+            self.selected[0] = 0;
+            return;
+        };
+        let matches_scene = |row: &DiagnosticRow| -> bool {
+            let digits = bench.project().digits();
+            let full_id = scene.display(digits);
+            if row.place.as_deref().is_some_and(|p| p.contains(&full_id)) {
+                return true;
+            }
+            let contents_path = bench.project().contents_path(scene.chapter, scene.episode);
+            if row.path == contents_path {
+                if let Some((line_1, _)) = row.position {
+                    let line_0 = line_1.saturating_sub(1);
+                    if bench.project().sections().iter().any(|s| {
+                        s.path == contents_path && s.id == scene && s.lines.contains(&line_0)
+                    }) {
+                        return true;
+                    }
+                }
+            }
+            let plot_path = bench
+                .project()
+                .episode_plot_path(scene.chapter, scene.episode);
+            if row.path == plot_path {
+                if let Some((line_1, _)) = row.position {
+                    let line_0 = line_1.saturating_sub(1);
+                    let ep_rows =
+                        plots::episode_rows(bench.project(), scene.chapter, scene.episode);
+                    if ep_rows
+                        .iter()
+                        .any(|r| r.id == scene && r.lines.contains(&line_0))
+                    {
+                        return true;
+                    }
+                }
+            }
+            false
+        };
+        let visible = self.visible(bench, locale);
+        if let Some(index) = visible.iter().position(&matches_scene) {
+            self.selected[0] = index;
+            return;
+        }
+        if self.shown != [true, true, true]
+            && self.diagnostics(bench, locale).iter().any(&matches_scene)
+        {
+            self.shown = [true, true, true];
+            let expanded = self.visible(bench, locale);
+            if let Some(index) = expanded.iter().position(&matches_scene) {
+                self.selected[0] = index;
+                return;
+            }
+        }
+        self.selected[0] = 0;
     }
 
     fn count(&mut self, bench: &Workbench, locale: Locale) -> usize {

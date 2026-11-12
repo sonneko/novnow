@@ -1022,11 +1022,29 @@ pub fn did_change_configuration(
         && (explicit_reload
             || (!session.bench.save.guards_close() && session.conflicts().is_empty()))
     {
+        #[cfg(not(target_arch = "wasm32"))]
+        let ui_persisted = session
+            .root()
+            .is_some_and(|r| r.join(crate::app::settings::UI_JSON).is_file());
+        #[cfg(target_arch = "wasm32")]
+        let ui_persisted = false;
         let keep_settings = session.settings.clone();
         let keep_locale = session.locale;
         let _ = run(session, "project.reload", json!({}));
-        session.settings = keep_settings;
-        session.set_locale(keep_locale);
+        if !ui_persisted {
+            session.settings = keep_settings;
+            session.set_locale(keep_locale);
+        } else {
+            match session.settings.language {
+                crate::app::settings::LanguageChoice::Ja => {
+                    session.set_locale(crate::ui::i18n::Locale::Ja)
+                }
+                crate::app::settings::LanguageChoice::En => {
+                    session.set_locale(crate::ui::i18n::Locale::En)
+                }
+                crate::app::settings::LanguageChoice::System => session.set_locale(keep_locale),
+            }
+        }
     }
 
     let scoped = params

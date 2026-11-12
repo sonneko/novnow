@@ -200,10 +200,22 @@ pub fn local_command_of(
         (Workspace::Idea | Workspace::Material, Key::Delete) if ctrl && !alt && !shift => {
             Some(Command::Drop)
         }
-        (Workspace::Review, Key::ArrowRight) if ctrl && shift && !alt => Some(Command::Tab(true)),
-        (Workspace::Review, Key::ArrowLeft) if ctrl && shift && !alt => Some(Command::Tab(false)),
-        (Workspace::Cast, Key::ArrowRight) if ctrl && shift && !alt => Some(Command::Tab(true)),
-        (Workspace::Cast, Key::ArrowLeft) if ctrl && shift && !alt => Some(Command::Tab(false)),
+        (
+            Workspace::Review
+            | Workspace::Cast
+            | Workspace::PlotOutline
+            | Workspace::Material
+            | Workspace::Agent,
+            Key::ArrowRight,
+        ) if ctrl && shift && !alt => Some(Command::Tab(true)),
+        (
+            Workspace::Review
+            | Workspace::Cast
+            | Workspace::PlotOutline
+            | Workspace::Material
+            | Workspace::Agent,
+            Key::ArrowLeft,
+        ) if ctrl && shift && !alt => Some(Command::Tab(false)),
         (Workspace::Cast, Key::V) if ctrl && shift && !alt => Some(Command::Scan),
         (Workspace::Agent, Key::X) if ctrl && shift && !alt => Some(Command::StopAll),
         (Workspace::PlotOutline | Workspace::Write, Key::OpenBracket) if ctrl && shift && !alt => {

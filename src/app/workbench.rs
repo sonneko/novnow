@@ -536,7 +536,10 @@ impl Workbench {
         self.editing = Some(Editing {
             section: SectionRef {
                 path: path.to_owned(),
-                id: SceneId { section: 1, ..id },
+                id: SceneId {
+                    section: id.section.max(1),
+                    ..id
+                },
                 lines: 1..1,
                 span: 1..1,
                 header: Some(0),

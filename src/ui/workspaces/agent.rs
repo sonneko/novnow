@@ -163,9 +163,23 @@ impl State {
         self.partial.is_some()
     }
 
+    /// 選んでいるタスク ID。
+    pub fn selected_task(&self) -> Option<&str> {
+        self.task.as_deref()
+    }
+
     /// タスクを選ぶ（新しく作ったとき・ステータスバーから来たとき）。
     pub fn select(&mut self, task: &str) {
         self.task = Some(task.to_owned());
+        self.partial = None;
+    }
+
+    /// 一覧の先頭に着地する（`Ctrl+Shift+8`、§10.0）。
+    pub fn land_first(&mut self, bench: &Workbench) {
+        self.column = Column::Tasks;
+        // 画面の一覧（`show`）は `board.tasks.iter().rev()` の順なので、一覧の先頭は `last()`。
+        let first = self.board(bench).tasks.last().map(|t| t.id.clone());
+        self.task = first;
         self.partial = None;
     }
 

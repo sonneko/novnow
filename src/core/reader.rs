@@ -53,6 +53,17 @@ pub struct Glyph {
 pub struct Page {
     pub glyphs: Vec<Glyph>,
 }
+
+/// 組版結果と、各ページ・各節の対応関係（§17.3）。
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct LayoutWithScenes {
+    pub pages: Vec<Page>,
+    /// 各ページの先頭に対応する `SceneId`。
+    pub page_scenes: Vec<Option<crate::core::id::SceneId>>,
+    /// 各節が始まる 0 始まりのページ番号。
+    pub section_pages: Vec<(crate::core::id::SceneId, usize)>,
+}
+
 #[derive(Clone)]
 struct Unit {
     ch: char,
@@ -60,6 +71,7 @@ struct Unit {
     ruby: String,
     rotate: bool,
     compact: bool,
+    byte_offset: usize,
 }
 /// i18n: format-vocabulary
 const NO_START: &str =
@@ -72,28 +84,32 @@ const PUNCTUATION: &str = "、。";
 const VERTICAL_ROTATE: &str = "ー―…";
 fn units(text: &str, vertical: bool) -> Vec<Unit> {
     let rubies = crate::core::syntax::contents::rubies_of(text);
-    let mut prepared = Vec::new();
+    let mut prepared: Vec<(char, String, usize)> = Vec::new();
     let mut at = 0;
     for ruby in rubies {
         prepared.extend(
             text[at..ruby.range.start]
-                .chars()
-                .map(|ch| (ch, String::new())),
+                .char_indices()
+                .map(|(rel, ch)| (ch, String::new(), at + rel)),
         );
         let reading: Vec<char> = ruby.reading.chars().collect();
         let base: Vec<char> = ruby.base.chars().collect();
         for (index, ch) in base.iter().enumerate() {
             let lo = index * reading.len() / base.len().max(1);
             let hi = (index + 1) * reading.len() / base.len().max(1);
-            prepared.push((*ch, reading[lo..hi].iter().collect()));
+            prepared.push((*ch, reading[lo..hi].iter().collect(), ruby.range.start));
         }
         at = ruby.range.end;
     }
-    prepared.extend(text[at..].chars().map(|ch| (ch, String::new())));
+    prepared.extend(
+        text[at..]
+            .char_indices()
+            .map(|(rel, ch)| (ch, String::new(), at + rel)),
+    );
     let mut result = Vec::new();
     let mut index = 0;
     while index < prepared.len() {
-        let (ch, _) = &prepared[index];
+        let (ch, _, byte_offset) = &prepared[index];
         let mut count = 1;
         if ch.is_ascii_alphabetic() {
             while index + count < prepared.len() && prepared[index + count].0.is_ascii_alphabetic()
@@ -115,18 +131,20 @@ fn units(text: &str, vertical: bool) -> Vec<Unit> {
                 ruby: String::new(),
                 rotate: false,
                 compact: true,
+                byte_offset: *byte_offset,
             });
             index += 2;
             continue;
         }
         let length = if latin { count } else { 1 };
-        for (ch, ruby) in &prepared[index..index + length] {
+        for (ch, ruby, pos) in &prepared[index..index + length] {
             result.push(Unit {
                 ch: *ch,
                 text: ch.to_string(),
                 ruby: ruby.clone(),
                 rotate: vertical && (latin || VERTICAL_ROTATE.contains(*ch)),
                 compact: false,
+                byte_offset: *pos,
             });
         }
         index += length;
@@ -167,6 +185,32 @@ pub fn layout_cells(text: &str, options: Options) -> Vec<Page> {
 }
 /// 字送りと縦書き字形の有無は呼び出し側が [`Metrics`] で渡す（§17.3.3）。
 pub fn layout(text: &str, options: Options, metrics: &Metrics) -> Vec<Page> {
+    layout_internal(text, &[], &[], options, metrics).pages
+}
+
+/// 節ごとの変換断片 [`crate::core::export::FragmentWithScenes`] を組版し、
+/// 各ページの先頭 `SceneId` と各節の開始ページ番号を同じ組版結果から返す（§17.3）。
+pub fn layout_with_scenes(
+    fragment: &crate::core::export::FragmentWithScenes,
+    options: Options,
+    metrics: &Metrics,
+) -> LayoutWithScenes {
+    layout_internal(
+        &fragment.text,
+        &fragment.byte_scenes,
+        &fragment.section_bytes,
+        options,
+        metrics,
+    )
+}
+
+fn layout_internal(
+    text: &str,
+    byte_scenes: &[(std::ops::Range<usize>, crate::core::id::SceneId)],
+    section_bytes: &[(crate::core::id::SceneId, usize)],
+    options: Options,
+    metrics: &Metrics,
+) -> LayoutWithScenes {
     let rows = options.rows.clamp(1, 100);
     let columns = options.columns.clamp(1, 100);
     let extent = if options.vertical { rows } else { columns };
@@ -216,11 +260,19 @@ pub fn layout(text: &str, options: Options, metrics: &Metrics) -> Vec<Page> {
     } else {
         1.0
     };
+    let scene_at = |byte_offset: usize| -> Option<crate::core::id::SceneId> {
+        byte_scenes
+            .iter()
+            .find(|(range, _)| range.contains(&byte_offset))
+            .map(|(_, id)| *id)
+    };
     let mut pages = vec![Page::default()];
+    let mut glyph_positions: Vec<(usize, usize, Option<crate::core::id::SceneId>)> = Vec::new();
     for (line, units) in lines.into_iter().enumerate() {
         if line > 0 && line % breadth == 0 {
             pages.push(Page::default());
         }
+        let page_index = pages.len() - 1;
         let mut feed = 0.0;
         for (cell, unit) in units.into_iter().enumerate() {
             let (row, column) = if options.vertical {
@@ -258,6 +310,7 @@ pub fn layout(text: &str, options: Options, metrics: &Metrics) -> Vec<Page> {
                     }
                 }
             }
+            glyph_positions.push((page_index, unit.byte_offset, scene_at(unit.byte_offset)));
             pages.last_mut().unwrap().glyphs.push(Glyph {
                 ch: unit.ch,
                 text,
@@ -275,5 +328,39 @@ pub fn layout(text: &str, options: Options, metrics: &Metrics) -> Vec<Page> {
     while pages.len() > 1 && pages.last().unwrap().glyphs.is_empty() {
         pages.pop();
     }
-    pages
+    let last_page = pages.len().saturating_sub(1);
+    let mut page_scenes = vec![None; pages.len()];
+    for &(page_idx, _, scene) in &glyph_positions {
+        if page_idx < page_scenes.len() && page_scenes[page_idx].is_none() && scene.is_some() {
+            page_scenes[page_idx] = scene;
+        }
+    }
+    let mut carry = section_bytes.first().map(|(id, _)| *id);
+    for slot in &mut page_scenes {
+        if let Some(id) = *slot {
+            carry = Some(id);
+        } else {
+            *slot = carry;
+        }
+    }
+    let section_pages = section_bytes
+        .iter()
+        .map(|&(id, start_byte)| {
+            let page = glyph_positions
+                .iter()
+                .find(|(_, _, scene)| *scene == Some(id))
+                .or_else(|| {
+                    glyph_positions
+                        .iter()
+                        .find(|(_, byte_offset, _)| *byte_offset >= start_byte)
+                })
+                .map_or(last_page, |(page_idx, _, _)| (*page_idx).min(last_page));
+            (id, page)
+        })
+        .collect();
+    LayoutWithScenes {
+        pages,
+        page_scenes,
+        section_pages,
+    }
 }
