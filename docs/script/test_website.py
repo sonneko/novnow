@@ -64,7 +64,7 @@ class WebsiteTests(unittest.TestCase):
                                     website.version_key(website.published_version()))
             errors = website.audit(root, version="0.1.0")[1]
             self.assertFalse([e for e in errors if "header version" in e], errors)
-            errors = website.audit(root, version="0.1.1")[1]
+            errors = website.audit(root, version="0.1.2")[1]
             self.assertEqual(sum("header version" in e for e in errors), 2, errors)
 
     def test_site_may_not_claim_a_version_ahead_of_development(self):
