@@ -52,3 +52,96 @@ pub fn read_message<R: BufRead + ?Sized>(input: &mut R) -> Option<String> {
     input.read_exact(&mut body).ok()?;
     String::from_utf8(body).ok()
 }
+
+/// バッファ内にある完結済みフレームを 1 件取り出す（ブロックしない）。
+///
+/// - `Ok(Some(body))` — 1 フレーム取り出して `buf` から消費した。
+/// - `Ok(None)` — まだフレームが完結していない（`buf` はそのまま）。
+/// - `Err(())` — 壊れた枠（`Content-Length` 不正・上限超え・非 UTF-8）。
+pub(crate) fn take_buffered(buf: &mut Vec<u8>) -> Result<Option<String>, ()> {
+    let Some((header_end, body_start)) = find_header_end(buf) else {
+        return Ok(None);
+    };
+    let header_text = std::str::from_utf8(&buf[..header_end]).map_err(|_| ())?;
+    let mut length = 0usize;
+    let mut saw_length = false;
+    for line in header_text.split('\n') {
+        let line = line.trim_end_matches('\r');
+        if line.is_empty() {
+            continue;
+        }
+        let (name, value) = line.split_once(':').ok_or(())?;
+        if name.trim().eq_ignore_ascii_case("content-length") {
+            length = value.trim().parse().map_err(|_| ())?;
+            saw_length = true;
+        }
+    }
+    if !saw_length || length == 0 || length > MAX_MESSAGE {
+        return Err(());
+    }
+    let frame_end = body_start.checked_add(length).ok_or(())?;
+    if buf.len() < frame_end {
+        return Ok(None);
+    }
+    let body = String::from_utf8(buf[body_start..frame_end].to_vec()).map_err(|_| ())?;
+    buf.drain(..frame_end);
+    Ok(Some(body))
+}
+
+/// 少なくとも 1 フレームが揃うまで読み、同じ読み込みでバッファ内に揃っている後続フレームも
+/// ブロックせずにまとめて返す（`$/cancelRequest` の先読み用、§19.1.9）。
+pub(crate) fn read_available_messages<R: BufRead + ?Sized>(
+    buf: &mut Vec<u8>,
+    input: &mut R,
+) -> Vec<String> {
+    let mut out = Vec::new();
+    loop {
+        match take_buffered(buf) {
+            Ok(Some(body)) => out.push(body),
+            Ok(None) => break,
+            Err(()) => {
+                buf.clear();
+                return out;
+            }
+        }
+    }
+    if !out.is_empty() {
+        return out;
+    }
+    loop {
+        let chunk = match input.fill_buf() {
+            Ok([]) | Err(_) => return out,
+            Ok(chunk) => chunk,
+        };
+        let count = chunk.len();
+        buf.extend_from_slice(chunk);
+        input.consume(count);
+        loop {
+            match take_buffered(buf) {
+                Ok(Some(body)) => out.push(body),
+                Ok(None) => break,
+                Err(()) => {
+                    buf.clear();
+                    return out;
+                }
+            }
+        }
+        if !out.is_empty() {
+            return out;
+        }
+    }
+}
+
+fn find_header_end(buf: &[u8]) -> Option<(usize, usize)> {
+    let mut i = 0usize;
+    while i + 1 < buf.len() {
+        if i + 3 < buf.len() && &buf[i..i + 4] == b"\r\n\r\n" {
+            return Some((i, i + 4));
+        }
+        if &buf[i..i + 2] == b"\n\n" {
+            return Some((i, i + 2));
+        }
+        i += 1;
+    }
+    None
+}

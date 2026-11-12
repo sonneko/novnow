@@ -205,6 +205,12 @@ impl State {
         self.focus_tab = true;
     }
 
+    /// 指定のサブタブに切り替える。
+    pub fn set_tab(&mut self, tab: Tab) {
+        self.tab = tab;
+        self.focus_tab = true;
+    }
+
     /// `Ctrl+Shift+V`: 未一致の台詞を数え直してタブを開く。
     pub fn scan(&mut self) {
         self.unmatched = None;

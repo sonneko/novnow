@@ -44,6 +44,19 @@ pub enum Class {
 }
 
 impl Class {
+    /// 9 分類の全件（§19.1.7 の表の順）。
+    pub const ALL: [Self; 9] = [
+        Self::Usage,
+        Self::Project,
+        Self::Io,
+        Self::Validation,
+        Self::Policy,
+        Self::NotFound,
+        Self::Conflict,
+        Self::Timeout,
+        Self::Cancelled,
+    ];
+
     /// JSON・例外クラス名に使う名前（`usage` など）。
     pub fn as_str(self) -> &'static str {
         match self {
@@ -190,6 +203,14 @@ impl Error {
                 i18n::format(locale, "api.error.conflict", &[path]),
             )
         }
+    }
+
+    /// 操作の中断（`cancelled`）。
+    pub fn cancelled(locale: Locale) -> Self {
+        Self::new(
+            Class::Cancelled,
+            i18n::text(locale, "api.error.cancelled").to_owned(),
+        )
     }
 
     /// このインターフェースでは提供しない操作（`usage`。§19.7 の例外列）。

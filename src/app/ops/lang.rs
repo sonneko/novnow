@@ -215,14 +215,24 @@ pub fn rename_preview(session: &mut Session, args: &Args) -> Result<Value> {
     match args.get("to").and_then(Value::as_str) {
         Some(to) => {
             let edit = rename::apply(&document, pos, to, session.aggregate());
-            let changes = edit.as_ref().map(|edit| {
-                edit.changes
-                    .iter()
-                    .map(|change| json!({ "edits": change.edits.len(), "path": change.path }))
-                    .collect::<Vec<_>>()
-            });
+            let changes = edit
+                .as_ref()
+                .ok()
+                .and_then(|edit| serde_json::to_value(&edit.changes).ok())
+                .unwrap_or_else(|| Value::Array(Vec::new()));
+            let edits = edit
+                .as_ref()
+                .ok()
+                .and_then(|edit| {
+                    edit.changes
+                        .iter()
+                        .find(|change| change.path == document.path)
+                        .and_then(|change| serde_json::to_value(&change.edits).ok())
+                })
+                .unwrap_or_else(|| Value::Array(Vec::new()));
             Ok(json!({
-                "changes": changes.unwrap_or_default(),
+                "changes": changes,
+                "edits": edits,
                 "error": edit.err().map(|error| format!("{error:?}")),
                 "path": document.path,
                 "prepared": value,
@@ -239,12 +249,17 @@ pub fn rename_apply(session: &mut Session, args: &Args) -> Result<Value> {
     let document = target(session, args)?;
     let pos = usize_or(args, "pos", 0);
     let to = str_arg(locale, args, "to")?;
-    let edit = rename::apply(&document, pos, &to, session.aggregate()).map_err(|error| {
-        Error::new(
-            Class::Validation,
-            i18n::format(locale, "api.error.rename_failed", &[&format!("{error:?}")]),
-        )
-    })?;
+    let edit =
+        rename::apply(&document, pos, &to, session.aggregate()).map_err(|error| match error {
+            rename::RenameError::NotRenamable => Error::new(
+                Class::NotFound,
+                i18n::text(locale, "api.error.not_renamable").to_owned(),
+            ),
+            _ => Error::new(
+                Class::Validation,
+                i18n::format(locale, "api.error.rename_failed", &[&format!("{error:?}")]),
+            ),
+        })?;
     let mut written = Vec::new();
     for change in edit.changes.iter() {
         let Some(current) = session.aggregate().document(&change.path) else {

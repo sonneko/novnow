@@ -27,8 +27,8 @@
 
 - `Ctrl+M` 資料検索モーダルのクエリ解析（`tag:`, `cat:`, `id:`, `scene:`, `status:`, `!status:`）と決定論的スコアリング（ID 完全一致 +500、タイトル先頭一致 +400、部分一致 +250、タグ完全一致 +200、要約一致 +100、本文一致 +50）、および `Enter`（参照挿入）/ `Shift+Enter`（`material` で開く）/ `Ctrl+Enter`（新規提案作成）は `REF:src/core/features/reference.rs` と `REF:src/ui/app.rs` に実装する。
 
-- **[Issue #29 / B6] 検索結果の表示と保存の分離（実装完了: `REF:docs/plans.md#issue-29-b6`）**:
-  - 正規表現検索（`REF:src/core/features/search.rs`）の抜粋は「前文・一致・後文」の構造（ `Hit.before` / `matched` / `after` ）で返し、画面は一致範囲だけを強調して描く。資料として保存する MD は §16.3.1 の固定形（タイトル見出し＋ `<!-- novnow:S#### -->`、`query` / `regex` / `case_sensitive` / `searched_at` / `hits`、節 ID 付きの結果箇条書き、500 件上限の註記）を `snapshot_body` で組み立てる。表示用の記法（ `**…**` ）は保存時にだけ使う（検証: `REF:tests/stage_two.rs` の `search_excerpts_are_structured_and_snapshots_use_the_fixed_form`）。
+- **[Issue #29 / B6・Issue #55] 検索結果の表示・保存・再検索差分（実装完了: `REF:docs/plans.md#issue-29-b6`, `REF:docs/plans.md#issue-55`）**:
+  - 正規表現検索（`REF:src/core/features/search.rs`）の抜粋は「前文・一致・後文」の構造（ `Hit.before` / `matched` / `after` ）で返し、無効パターンのエラー通知およびサイズ超過時の `W085` 案内を画面へ表示する（`REF:src/ui/workspaces/tabs.rs`）。資料として保存する MD は §16.3.1 の固定形（タイトル見出し＋ `<!-- novnow:S#### -->`、`query` / `regex` / `case_sensitive` / `searched_at` / `hits`、節 ID 付きの結果箇条書き、500 件上限の註記）を `snapshot_body` で組み立てる。保存済み検索資料は `REF:src/ui/workspaces/material.rs` から再検索でき、未適用の差分（新規・消失ヒット）をプレビューした上で人間が採用したときだけ本文と索引チェックサムを更新する（検証: `REF:tests/stage_two.rs`, `REF:tests/workspaces.rs`）。
 
 ### 16.4 「必要になる条件」と自動提示
 
@@ -74,11 +74,11 @@
 
 ### 17.3 読者モード（`reader` ワークスペース）
 
-状態: 実装完了（REF:src/core/reader.rs, REF:src/ui/workspaces/reader.rs, REF:tests/stage_two.rs）
+状態: 実装完了（REF:src/core/reader.rs, REF:src/ui/workspaces/reader.rs, REF:src/ui/app.rs, REF:src/adapters/recent_file.rs, REF:src/adapters/storage_idb.rs, REF:tests/stage_two.rs, REF:tests/workspaces.rs）
 
 - 組版は `REF:src/core/reader.rs` の純粋関数 `layout(text, options, metrics)`。実測送り幅と縦書き字形の有無を引数として注入し、禁則・縦中横・Unicode 縦字形・回転・モノルビを座標列へ変換する。
-- 描画とページ操作・章表紙・目次・しおりは `REF:src/ui/workspaces/reader.rs`。原稿と章プロットの指紋および組版設定をキーにページをキャッシュし、ページ送りで再組版しない。
-- 読書位置と表示設定はローカル状態のみ。未知キーを保持し、原稿の変更経路とは分離する。
+- 描画とページ操作（`PageUp`/`PageDown`・`Home`/`End`・話移動・`Esc` 復帰）・1 ページ収容の章表紙・柱（章題）と指定余白・目次・しおりは `REF:src/ui/workspaces/reader.rs`。`reader` 表示中は `REF:src/ui/app.rs` が共通ヘッダ・ステータスバー・パンくず・保存インジケータを一切描かないクリーン表示（§17.3.5）とする。原稿と章プロットの指紋および組版設定をキーにページをキャッシュし、ページ送りで再組版しない。
+- 読書位置と表示設定はプロジェクト外を含むローカル状態（デスクトップは `recent.json` 隣接の `reader.json`、Web は `localStorage`、上限 50 作品、`REF:src/core/policy/recent.rs`, `REF:src/adapters/recent_file.rs`, `REF:src/adapters/storage_idb.rs`）に永続化し、再起動後に自動復元する。未知キーを保持し、原稿の変更経路とは分離する（`REF:docs/plans.md#issue-55`）。
 
 - **[Issue #29 / B6] 縦書き括弧の豆腐解消（実装完了: `REF:docs/plans.md#issue-29-b6`）**:
   - 括弧の互換形置換は、使用フォントに置換先の字が収録されている場合だけ行う。UI（`REF:src/ui/workspaces/reader.rs`）は組版のキャッシュ再構築時に egui の `Fonts::has_glyph` で `VERTICAL_FORMS` の互換形を確かめ、`Metrics.vertical_forms` へ渡す。組版（`REF:src/core/reader.rs`）は収録のある字だけ互換形へ置換し、無い字は元の括弧を 90° 回転して描くグリフにする。同梱の IPA ゴシックには互換形が 1 字も無い（実測）ため、同梱フォント使用時は常に回転描画になる。

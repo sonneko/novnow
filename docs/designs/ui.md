@@ -37,7 +37,7 @@
 状態: 実装完了（REF:src/ui/widgets/context_view.rs, REF:tests/gui.rs）
 
 - 前後最大 3 節の読み取り専用表示と、編集中の節の位置に本文を重複描画せず 1 行プレースホルダ `─── @01-04-02-03 ───` のみを置く処理は `ui::widgets::context_view`（`REF:src/ui/widgets/context_view.rs`）に実装する（検証: `REF:tests/gui.rs` の `the_context_view_never_paints_the_section_being_edited`）。
-- ※§9.3.3 の折りたたみは、各階層の見出しボタン（`▾`/`▸`）と `Ctrl+K Ctrl+0` / `Ctrl+K Ctrl+J`、`ui.json` の `folded` への保存まで実装済み（`REF:src/ui/widgets/context_view.rs`, `REF:src/ui/app.rs`）。`Ctrl+Shift+[` / `Ctrl+Shift+]` の段階的な折りたたみと、畳んだ単位の 1 行要約（文字数・節数）、検索ヒットによる自動展開は未実装（`REF:docs/specifications/ui.md` §9.3.3 の注記）。
+- ※§9.3.3 の折りたたみは、構成ツリー（§10.3.1、`REF:src/ui/workspaces/plot_outline.rs`）では章→話→場面の階層・`Ctrl+Shift+[` / `Ctrl+Shift+]` の段階的折りたたみ・`Ctrl+K Ctrl+0` / `Ctrl+K Ctrl+J`・各折りたたみ単位の 1 行集計（文字数・下位数）・検索ヒットによる自動展開・`ui.json` への保存まで実装完了（検証: `REF:tests/workspaces.rs`）。本文の文脈ビュー（`REF:src/ui/widgets/context_view.rs`）側は `REF:docs/specifications/ui.md` §9.3.3 の実装範囲注記のとおり、見出しボタン（`▾`/`▸`）・選択単位の開閉・`Ctrl+K Ctrl+0` / `Ctrl+K Ctrl+J`・`ui.json` の `folded.context_view` への保存の範囲で動作する。
 
 - **[F-21 / F-22 / F-39 / F-41 / S-04 / S-12] 文脈ビューの視認性・ガイド・可視範囲レイアウト改善（実装完了: `REF:docs/plans.md#plan-F-21`）**:
   - `REF:src/ui/widgets/context_view.rs` で各節境界に `border` 色の横線を描画し（F-21）、節見出しを章省略なしの `@AA-BB-CC-DD`（`A-B-C-D`）に統一する（F-22）。両項目とも `REF:tests/gui.rs` で検証済み。
@@ -102,7 +102,7 @@
 状態: 実装完了（REF:src/app/palette.rs, REF:src/app/assist.rs, REF:src/ui/app.rs, REF:tests/gui.rs）
 
 - 統一パレット（`Ctrl+P` / `Ctrl+G` / `Ctrl+Shift+P`）の先頭文字によるモード切替（通常 / `@` 構造 / `'` 辞書 / `#` 資料 / `>` コマンド）と決定論的ファジースコアリング（完全一致 +1000、先頭一致 +500、連続一致 +200、頭文字 +100、50 件上限）は `ui::palette`（`REF:src/app/palette.rs`）に実装する。
-- `'名前` パレットでの `Enter`（`core::features::definition::at` による定義ジャンプ）と `Shift+Enter`（`core::features::references::find` による使用箇所一覧）、および入力中補完ポップアップ（`REF:src/app/assist.rs`）は `REF:src/ui/app.rs` で接続されている（検証: `REF:tests/gui.rs`, `REF:tests/workspaces.rs`）。
+- `'名前` パレットでの `Enter`（`core::features::definition::at` による定義ジャンプ）と `Shift+Enter`（`core::features::references::find` による使用箇所一覧）、エディタ上の `'名前` / `M####` に対する `Ctrl+Click` / `F12`（定義ジャンプ）・`Shift+F12`（使用箇所一覧）・`Alt+←/→`（ジャンプ履歴）、`Ctrl+Shift+F` の章・話・場面・節の順での全体検索、および入力中補完ポップアップ（`REF:src/app/assist.rs`）は `REF:src/ui/app.rs` と `REF:src/ui/widgets/section_editor.rs` で接続されている（検証: `REF:tests/gui.rs`, `REF:tests/workspaces.rs`, `REF:docs/plans.md#issue-55`）。
 
 - **[F-06〜F-09 / F-12〜F-15 / F-25〜F-27 / S-08 / S-13] パレットの UX 全面改善（実装完了: `REF:docs/plans.md#plan-F-06`）**:
   - `REF:src/ui/app.rs` と `REF:src/app/palette.rs` でパレットを画面水平中央・上端に固定し（F-06）、`Order::Foreground` で青枠より前面に描画し（F-08）、背面シールドでパレット外クリック時は背面要素を発火させずにパレットのみを閉じる（F-27）。
@@ -207,17 +207,17 @@
 
 状態: 実装完了（REF:src/core/features/plots.rs, REF:src/ui/workspaces/plot_episode.rs, REF:tests/plots.rs, REF:tests/workspaces.rs）
 
-- 場面・節のカード一覧と本文冒頭 1 行プレビュー・文字数集計・状態バッジは `core::features::plots`（`REF:src/core/features/plots.rs`）が計算し、`REF:src/ui/workspaces/plot_episode.rs` が描画・編集（`Enter` で `write` へ移動、`Space` で `state` 巡回、`M` でモード選択）を担う。
+- 場面・節のカード一覧と本文冒頭 1 行プレビュー・文字数集計・状態バッジ・各行右端の `when:`（10px・`fg.faint`）は `core::features::plots`（`REF:src/core/features/plots.rs`）が計算し、`REF:src/ui/workspaces/plot_episode.rs` が描画・編集（`Enter` で `write` へ移動、`Space` で `state` 巡回、`M` でモード選択、`Alt+Shift+↑/↓` で節入替と本文連動確認、`Ctrl+D` で `mode:` 行挿入、`Ctrl+Shift+Space` で継承込み空間メモ全文モーダル）を担う（`REF:docs/plans.md#issue-55`、検証: `REF:tests/stage_two.rs`, `REF:tests/workspaces.rs`）。
 
 - **[Issue #29 / B3] 節リストの削除ボタン（実装完了: `REF:docs/plans.md#issue-29-b3`）**:
   - `REF:src/ui/workspaces/plot_episode.rs` の節リストの各行（場面見出しの行を除く）の右端に削除ボタンを置き、`Request::DeleteSection` として返す。削除の意味（本文と対応プロットの一体削除）と確認は §8.1.2 の単一経路に従う（検証: `REF:tests/workspaces.rs` の `plot_list_delete_button_uses_the_unified_delete`）。
 
 ### 10.3 `plot-outline` — 全体 / 章プロット
 
-状態: 実装完了（REF:src/core/features/plots.rs, REF:src/core/features/folding.rs, REF:src/ui/workspaces/plot_outline.rs, REF:tests/workspaces.rs）
+状態: 実装完了（REF:src/core/features/plots.rs, REF:src/core/features/folding.rs, REF:src/core/features/stock.rs, REF:src/ui/workspaces/plot_outline.rs, REF:src/ui/workspaces/tabs.rs, REF:tests/workspaces.rs）
 
-- 左ペインの構成ツリー（章→話展開に `core::features::folding::ranges` を使用）と中央ペインのブロックエディタ・進捗バーは `REF:src/ui/workspaces/plot_outline.rs` に実装する。
-- ※右パネルの伏線（`seed:` / `payoff:`）は基本タブのときだけ出し、他のタブは中央に全幅で出す（`REF:src/ui/workspaces/tabs.rs`）。タイムライン（`when:` が 1 件も無ければタブを出さない）・俯瞰表・挿絵メモ・五感・空間・章のあらすじ・字数分布・ストックは `stage.*` タブとして実装済み（`REF:src/ui/workspaces/tabs.rs`）。章話番号の振り直しはストックタブの `stock::assign`（`REF:src/core/features/stock.rs`）。
+- 左ペインの構成ツリー（章→話→場面の 3 階層、各折りたたみ状態の文字数・下位数 1 行集計、`Ctrl+Shift+[` / `Ctrl+Shift+]` 段階的折りたたみ、`Ctrl+K Ctrl+0` / `Ctrl+K Ctrl+J`、検索ヒット時の自動展開、ストック章 `00` の常時最後尾）と中央ペインのブロックエディタ・進捗バーは `REF:src/ui/workspaces/plot_outline.rs` に実装する（`REF:docs/plans.md#issue-55`）。
+- ※右パネルの伏線（`seed:` / `payoff:`）は基本タブのときだけ出し、他のタブは中央に全幅で出す（`REF:src/ui/workspaces/tabs.rs`）。タイムライン（`when:` が 1 件も無ければタブを出さない）・俯瞰表・挿絵メモ・五感・空間・章のあらすじ・字数分布・ストックは `stage.*` タブとして実装済み（`REF:src/ui/workspaces/tabs.rs`）。ストック配属タブは要約・文字数・更新日を表示し、`Ctrl+Enter` の章・話番号指定配属モーダルおよび `Ctrl+Shift+Enter` のストック返却逆操作を `stock::assign_to` / `stock::return_to_stock`（`REF:src/core/features/stock.rs`）で実行して衝突診断と全参照書き換えを行う。
 
 ### 10.4 `idea` — アイデア
 
@@ -241,9 +241,10 @@
 
 ### 10.6 `cast` — 配役・モード・役割語
 
-状態: 実装完了（REF:src/core/features/cast.rs, REF:src/ui/workspaces/cast.rs, REF:tests/cast.rs, REF:tests/workspaces.rs）
+状態: 実装完了（REF:src/core/features/cast.rs, REF:src/core/features/metadata.rs, REF:src/ui/workspaces/cast.rs, REF:src/ui/workspaces/addresses.rs, REF:tests/cast.rs, REF:tests/stage_two.rs, REF:tests/workspaces.rs）
 
 - キャラ一覧、属性・モード一覧・役割語パターン表示、および役割語テスター（入力文に対する `role_language::MatcherSet` のリアルタイム緑下線プレビュー）と節別モード割当マトリクスは `REF:src/core/features/cast.rs` と `REF:src/ui/workspaces/cast.rs` に実装する。
+- 呼称マトリクス（§10.6.1・§10.6.2）は `REF:src/ui/workspaces/addresses.rs` と `REF:src/core/features/metadata.rs` に実装する（`reading` 順・12 名超の横スクロール・24 名超の 1 行リスト切替、基底 / モード別セレクタと `•` ドット、代表名 `+N`・`* =>` 薄字・対角 `—`、`Enter` インライン編集・確定 / `Esc` キャンセル、ペア別の `W084` 一覧と `review` からの該当ペア遷移、`Ctrl+Shift+A` による会話からの候補抽出と人間の選択登録、`REF:docs/plans.md#issue-55`）。
 
 ### 10.7 `reader` — 読者モード（§17.3 に詳細）
 
@@ -255,23 +256,22 @@
 
 状態: 実装完了（REF:src/ui/workspaces/agent.rs, REF:src/app/agents.rs, REF:tests/workspaces.rs）
 
-- 4 ペイン構成（タスク一覧・コンテキストプレビュー・結果/提案差分レビュー・委譲レベル管制と MCP 状態）は `REF:src/ui/workspaces/agent.rs` と `REF:src/app/agents.rs` に実装する。
+- 4 ペイン構成（タスク一覧・コンテキストプレビュー・結果/提案差分レビューおよびスレッド `TH####.md` の本文閲覧と承認・委譲レベル管制と MCP 状態）は `REF:src/ui/workspaces/agent.rs` と `REF:src/app/agents.rs` に実装し、`review` ワークスペースと双方向に同一スレッドを辿れる（`REF:docs/plans.md#issue-55`）。
 
 ### 10.9 `review` — 点検
 
-状態: 実装完了（REF:src/core/features/project.rs, REF:src/ui/workspaces/review.rs, REF:src/ui/workspaces/mod.rs, REF:tests/workspaces.rs, REF:tests/gui.rs）
+状態: 実装完了（REF:src/core/features/project.rs, REF:src/core/features/metadata.rs, REF:src/core/features/metrics.rs, REF:src/ui/workspaces/review.rs, REF:src/ui/workspaces/tabs.rs, REF:src/ui/workspaces/stats.rs, REF:src/ui/workspaces/proposals.rs, REF:tests/stage_two.rs, REF:tests/workspaces.rs, REF:tests/gui.rs）
 
-- 診断一覧タブ（重大度・コード・位置・クイックフィックス適用）と進捗ツリータブ（章・話・節ごとの `state` と文字数集計）は `REF:src/core/features/project.rs` と `REF:src/ui/workspaces/review.rs` に実装する。
-- ※タブは 9 個（基本・時系列・話者別・字数分布・文体観察・執筆統計・五感・挿絵メモ・提案）で、`REF:src/ui/workspaces/tabs.rs` が描く。1 の「基本」だけは `REF:src/ui/workspaces/review.rs` の 2 タブ（診断・進捗）を使う。
+- 基本タブのサブビュー（診断一覧・進捗ツリー・エージェントスレッド一覧）と全診断コードの有効設定パネルは `REF:src/core/features/project.rs` と `REF:src/ui/workspaces/review.rs` に実装する（`W084` からは該当呼称ペアへ直接移動可能）。
+- ※タブは 9 個（基本・時系列・話者別・字数分布・文体観察・執筆統計・五感・挿絵メモ・人間の提案）で、`REF:src/ui/workspaces/tabs.rs`・`REF:src/ui/workspaces/stats.rs`・`REF:src/ui/workspaces/proposals.rs` が描く。時系列の上位継承・回想・`?`・`W080` 巻き戻り警告、話者別の登場節数・視点節数・話者不明・範囲切替、字数分布の中央値・平均・最長・最短と `length:` 目標比、文体観察の章/話台詞比率バー・1 文長分布・一時フィルタ、執筆統計の最長連続記録、五感の宣言集計・未宣言件数・5 節以上連続視覚区間・範囲切替・節ジャンプをすべて実装している（`REF:docs/plans.md#issue-55`）。
 
 - **[F-20] エラー・警告発生時の `review` アイコン変化（実装完了: `REF:docs/plans.md#plan-F-20`）**:
   - `REF:src/ui/app.rs` のヘッダアイコン描画でエラー/警告件数に応じたバッジ・色変化を表示する。
 
 ## 11. テーマ・配色・タイポグラフィ
 
-- **[Issue #29 / B7] 診断の有効設定の編集と W096 指標（実装完了: `REF:docs/plans.md#issue-29-b7`）**:
-  - 診断タブ（`REF:src/ui/workspaces/review.rs`）で選択中の行のコードについて「出さない / 警告 / エラー扱い」を切り替えられ、`Request::SetDiagnosticLevel` を介して `project.toml` の `[features.diagnostics]` へ無損失編集（`project_toml::set_diagnostic_level`、`REF:src/core/syntax/project_toml.rs`: 既存のコードキーを優先して更新し、無ければコードキーを足す）で保存する（§10.9.6）。現在の有効値は §4.5.2 の解決結果で示し、上書きが無い場合は「既定」と出す。表示フィルタ（重大度の絞り込み）は従来どおり保存しない。
-  - W096 を文体タブの指標（`REF:src/ui/workspaces/tabs.rs` の所見ペインのコード一覧）へ加えた。既定ではチェックを外してあり、診断としての有効化は `[features.diagnostics]` で行う。
+- **[Issue #29 / B7・Issue #55] 診断の有効設定の編集と W096 指標（実装完了: `REF:docs/plans.md#issue-29-b7`, `REF:docs/plans.md#issue-55`）**:
+  - 診断タブ（`REF:src/ui/workspaces/review.rs`）の選択行および全 `CATALOG` コードを対象とする「診断設定」パネルから、現在発火していないコードや `off` に設定済みのコードを含めて「出さない / 警告 / エラー扱い」を切り替えられ、`Request::SetDiagnosticLevel` を介して `project.toml` の `[features.diagnostics]` へ無損失編集（`project_toml::set_diagnostic_level`、`REF:src/core/syntax/project_toml.rs`）で保存する（§10.9.6）。文体観察タブ（`REF:src/ui/workspaces/tabs.rs`）からも各指標の永続レベルを編集でき、一時表示フィルタとは明確に分離する。
 
 ### 11.1 セマンティックカラートークン
 

@@ -536,7 +536,10 @@ impl Workbench {
         self.editing = Some(Editing {
             section: SectionRef {
                 path: path.to_owned(),
-                id: SceneId { section: 1, ..id },
+                id: SceneId {
+                    section: id.section.max(1),
+                    ..id
+                },
                 lines: 1..1,
                 span: 1..1,
                 header: Some(0),
@@ -847,6 +850,12 @@ impl Workbench {
         if self.human_active() {
             return false;
         }
+        if self.slice.as_ref().is_some_and(|slice| {
+            sections::text_of_lines(self.project.text(&slice.path), &slice.lines)
+                != self.slice_buffer
+        }) {
+            return false;
+        }
         let stack = if redo {
             &self.workspace_redo
         } else {
@@ -873,6 +882,11 @@ impl Workbench {
         let target = if redo { &item.1 } else { &item.0 };
         let current = self.editing.clone();
         for (path, text) in target {
+            if self.slice.as_ref().is_some_and(|slice| &slice.path == path) {
+                self.slice = None;
+                self.slice_buffer.clear();
+                self.slice_caret = None;
+            }
             self.project
                 .insert(Document::new(path.clone(), text.clone()));
             self.unsaved.insert(path.clone());
@@ -908,6 +922,9 @@ impl Workbench {
             self.slice_buffer.clear();
         }
         if editing_here {
+            if self.human.is_some() {
+                self.finish_human(0.0);
+            }
             // 節エディタの中身は外部の版で読み直す（未保存の編集は捨てる）
             if let Some(current) = self.editing.as_ref() {
                 if let Some(document) = self.project.document(path) {
@@ -1282,13 +1299,32 @@ impl Workbench {
                 match sections::position_of(&self.list, path, editing.section.id) {
                     Some(index) => self.enter(index),
                     None => {
+                        self.finish_human(0.0);
                         self.editing = None;
                         self.buffer.clear();
                     }
                 }
             }
         }
+        self.sync_stale_human_proposals("", 0.0);
         Reaction::Reloaded
+    }
+
+    /// `open` の人間提案が現在の本文と食い違っていれば `status: stale` に更新する（§8.7.4）。
+    /// 本文は一切上書きしない。
+    pub fn sync_stale_human_proposals(&mut self, stamp: &str, now: f64) -> bool {
+        let plan = crate::core::agents::apply::mark_stale_human_proposals(&self.project, stamp);
+        if plan.writes.is_empty() {
+            return false;
+        }
+        for write in plan.writes {
+            self.project.insert(Document::new(&write.path, write.text));
+            self.unsaved.insert(write.path);
+        }
+        self.save.edited(now);
+        self.save.request_now();
+        self.generation += 1;
+        true
     }
 
     /// 文字数（§9.6.1）: 節 / 話 / プロジェクト（空白除外）。節は節エディタの中身で数える。

@@ -317,3 +317,39 @@ fn first_section(driver: &mut Driver) -> String {
     assert_eq!(id.split('-').count(), 4, "節の ID ではない: {id}");
     id
 }
+
+#[test]
+fn driver_poll_events_op_respects_limit_and_keeps_remaining_events_queued() {
+    let (mut driver, _dir) = memory_driver();
+    let _ = driver.poll_events();
+    for (k, v) in [
+        ("theme", json!("dark")),
+        ("inlay_hints", json!(false)),
+        ("max_line_chars", json!(40)),
+        ("font_scale", json!(1.2)),
+        ("context_sections", json!(3)),
+    ] {
+        driver
+            .run("settings.set", json!({ "key": k, "value": v }))
+            .expect("settings.set");
+    }
+
+    let first = driver
+        .run("session.poll_events", json!({ "limit": 2 }))
+        .expect("poll 1");
+    let second = driver
+        .run("session.poll_events", json!({ "limit": 2 }))
+        .expect("poll 2");
+    let third = driver
+        .run("session.poll_events", json!({ "limit": 2 }))
+        .expect("poll 3");
+    assert_eq!(first["count"], json!(2));
+    assert_eq!(second["count"], json!(2));
+    assert_eq!(third["count"], json!(1));
+    assert_eq!(
+        first["events"][0]["key"],
+        json!("theme"),
+        "FIFO 順が崩れている"
+    );
+    assert_eq!(third["events"][0]["key"], json!("context_sections"));
+}

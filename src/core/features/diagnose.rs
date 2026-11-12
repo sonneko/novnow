@@ -439,7 +439,7 @@ pub fn document_with(
     }
     if doc.format == DocumentFormat::Proposal {
         if let Some(p) = crate::core::agents::files::parse_proposal(&doc.text)
-            .filter(|p| p.kind == "human" && p.status == "open")
+            .filter(|p| p.kind == "human" && (p.status == "open" || p.status == "stale"))
         {
             let current = p.target_parts().1.map(|id| {
                 crate::core::agents::apply::current_text(
@@ -448,7 +448,7 @@ pub fn document_with(
                     id,
                 )
             });
-            if current.as_deref() != Some(p.before.as_str()) {
+            if p.status == "stale" || current.as_deref() != Some(p.before.as_str()) {
                 out.push(Diagnostic::new(C::W093, None, vec![Arg::text(p.id)]));
             }
         }

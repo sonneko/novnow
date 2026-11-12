@@ -130,12 +130,15 @@ fn arguments<E: Env>(
     };
     let mut args = Map::new();
     for (name, value) in options {
-        let kind = def
-            .args
-            .iter()
-            .find(|arg| arg.name == name)
-            .map(|arg| arg.kind)
-            .unwrap_or("string");
+        let kind = if id == "settings.set" && name == "value" {
+            "any"
+        } else {
+            def.args
+                .iter()
+                .find(|arg| arg.name == name)
+                .map(|arg| arg.kind)
+                .unwrap_or("string")
+        };
         args.insert(name.clone(), coerce(value, kind));
     }
     if let Some(operand) = operand {
@@ -151,6 +154,11 @@ fn arguments<E: Env>(
             .map(|arg| (arg.name, arg.kind));
         match target {
             Some((name, kind)) => {
+                let kind = if id == "settings.set" && name == "value" {
+                    "any"
+                } else {
+                    kind
+                };
                 args.insert(name.to_owned(), coerce(&text, kind));
             }
             None => return Err(format!("{id}: {operand}")),
@@ -191,7 +199,7 @@ fn coerce(text: &str, kind: &str) -> Value {
             "false" | "0" => json!(false),
             _ => json!(text),
         },
-        "object" | "array" => serde_json::from_str(text).unwrap_or_else(|_| json!(text)),
+        "object" | "array" | "any" => serde_json::from_str(text).unwrap_or_else(|_| json!(text)),
         _ => json!(text),
     }
 }

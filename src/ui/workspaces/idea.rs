@@ -150,6 +150,17 @@ impl State {
         }
     }
 
+    /// 一覧の先頭に着地する（`Ctrl+Shift+4`、§10.0）。
+    pub fn land_first(&mut self, bench: &Workbench) {
+        if self.visible(bench).is_empty() {
+            self.filter = Filter::Active;
+            self.tag.clear();
+        }
+        self.selected = self.visible(bench).first().map(|row| row.id.clone());
+        self.preview = false;
+        self.reveal = true;
+    }
+
     /// 選んだアイデアをエディタ（Slice）に開く。
     pub fn sync(&mut self, bench: &mut Workbench) {
         if self.preview {

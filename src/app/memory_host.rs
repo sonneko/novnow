@@ -184,8 +184,11 @@ impl Host for MemoryHost {
         &mut self,
         path: &str,
         bytes: &[u8],
-        _kind: crate::ports::dialog::ExportKind,
+        kind: crate::ports::dialog::ExportKind,
     ) -> Result<String, String> {
+        if !kind.accepts(std::path::Path::new(path)) {
+            return Err("E060".into());
+        }
         let text = String::from_utf8(bytes.to_vec()).map_err(|error| error.to_string())?;
         let mut files = self.files.borrow_mut();
         if files.fail {

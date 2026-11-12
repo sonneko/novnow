@@ -2384,3 +2384,169 @@ fn check_reports_w041_on_a_read_only_project_without_writing_anything() {
     assert!(ran.out.contains("警告 1"), "{}", ran.out);
     assert!(!left.contains_key(".novnow/.write-probe"), "何も残さない");
 }
+
+#[test]
+fn cli_and_mcp_regex_replace_and_markdown_export_and_settings_validation() {
+    let dir = TempDir::new("cli-batch1");
+    let env = env_ja(&dir);
+    assert_eq!(run(dir.path(), &env, &["new", "novel"]).exit(), Exit::Ok);
+    let root = dir.join("novel");
+
+    // 1) CLI で正規表現キャプチャと改行置換を実行（Item 15）
+    std::fs::write(
+        root.join("contents/01-01.cnov"),
+        "@01-01-01 始まり\nA=10 / B=20\n",
+    )
+    .unwrap();
+    let replaced = run(
+        &root,
+        &env,
+        &[
+            "search",
+            "replace_file",
+            ".",
+            "--path",
+            "contents/01-01.cnov",
+            "--query",
+            "(?P<k>[A-Z])=(?P<v>\\d+)",
+            "--replace",
+            "[${v}:$1]",
+            "--regex",
+            "true",
+            "--json",
+        ],
+    );
+    assert_eq!(
+        replaced.exit(),
+        Exit::Ok,
+        "{} {}",
+        replaced.out,
+        replaced.err
+    );
+    let nl = run(
+        &root,
+        &env,
+        &[
+            "search",
+            "replace_file",
+            ".",
+            "--path",
+            "contents/01-01.cnov",
+            "--query",
+            " / ",
+            "--replace",
+            "\\n",
+            "--json",
+        ],
+    );
+    assert_eq!(nl.exit(), Exit::Ok, "{} {}", nl.out, nl.err);
+    let after_cli = std::fs::read_to_string(root.join("contents/01-01.cnov")).unwrap();
+    assert_eq!(after_cli, "@01-01-01 始まり\n[10:A]\n[20:B]\n");
+
+    // MCP でも同じ正規表現置換が同じ結果を出すこと
+    std::fs::write(
+        root.join("contents/01-01.cnov"),
+        "@01-01-01 始まり\nA=10 / B=20\n",
+    )
+    .unwrap();
+    let toml_with_role = format!(
+        "{}\n[agents.roles]\nwriter = \"apply\"\n",
+        std::fs::read_to_string(root.join("project.toml")).unwrap()
+    );
+    std::fs::write(root.join("project.toml"), toml_with_role).unwrap();
+    let mcp_in = mcp_lines(&[
+        serde_json::json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}),
+        serde_json::json!({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"novnow.search.replace_file","arguments":{"query":"(?P<k>[A-Z])=(?P<v>\\d+)","replace":"[${v}:$1]","regex":true,"role":"writer"}}}),
+        serde_json::json!({"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"novnow.search.replace_file","arguments":{"query":" / ","replace":"\\n","regex":false,"role":"writer"}}}),
+    ]);
+    let mcp_ran = run_mcp(dir.path(), &env, "novel", &mcp_in);
+    assert_eq!(mcp_ran.exit(), Exit::Ok, "{} {}", mcp_ran.out, mcp_ran.err);
+    let after_mcp = std::fs::read_to_string(root.join("contents/01-01.cnov")).unwrap();
+    assert_eq!(after_mcp, after_cli);
+
+    // 2) `export text` と `export` の Markdown 出力一致（Item 16）
+    std::fs::write(
+        root.join("plots/all.cnov"),
+        "title: 星屑の時計\n\n@01 星の章\n;\n",
+    )
+    .unwrap();
+    let toml_path = root.join("project.toml");
+    let toml_text = format!(
+        "{}\n[export]\ninsert_headings = true\n",
+        std::fs::read_to_string(&toml_path).unwrap()
+    );
+    std::fs::write(&toml_path, toml_text).unwrap();
+    let out_cli_md = dir.join("cli.MD");
+    let out_op_md = dir.join("op.MD");
+    assert_eq!(
+        run(
+            &root,
+            &env,
+            &["export", ".", "--out", out_cli_md.to_str().unwrap()]
+        )
+        .exit(),
+        Exit::Ok
+    );
+    let mcp_export = mcp_lines(&[
+        serde_json::json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}),
+        serde_json::json!({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"novnow.export.text","arguments":{"out":out_op_md.to_str().unwrap(),"role":"writer"}}}),
+    ]);
+    let mcp_exp_ran = run_mcp(dir.path(), &env, "novel", &mcp_export);
+    assert_eq!(mcp_exp_ran.exit(), Exit::Ok, "{}", mcp_exp_ran.err);
+    let cli_md = std::fs::read_to_string(&out_cli_md).unwrap();
+    let op_md = std::fs::read_to_string(&out_op_md).unwrap();
+    assert!(cli_md.contains("# "), "{cli_md}");
+    assert_eq!(op_md, cli_md);
+
+    // 3) `settings set` の型変換と範囲外・未知キー拒否（Item 21）
+    let ok_set = run(
+        &root,
+        &env,
+        &[
+            "settings",
+            "set",
+            ".",
+            "--key",
+            "font_scale",
+            "--value",
+            "1.25",
+            "--json",
+        ],
+    );
+    assert_eq!(ok_set.exit(), Exit::Ok, "{} {}", ok_set.out, ok_set.err);
+    assert_eq!(
+        envelope(&ok_set.out)["data"]["value"],
+        serde_json::json!(1.25)
+    );
+
+    let bad_set = run(
+        &root,
+        &env,
+        &[
+            "settings",
+            "set",
+            ".",
+            "--key",
+            "font_scale",
+            "--value",
+            "9.9",
+            "--json",
+        ],
+    );
+    assert_eq!(bad_set.exit(), Exit::Usage);
+    let bad_key = run(
+        &root,
+        &env,
+        &[
+            "settings",
+            "set",
+            ".",
+            "--key",
+            "no_such_key",
+            "--value",
+            "1",
+            "--json",
+        ],
+    );
+    assert_eq!(bad_key.exit(), Exit::Usage);
+}
