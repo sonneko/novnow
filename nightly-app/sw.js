@@ -1,8 +1,8 @@
 /* The post_build hook seals every app asset into this worker. Installation
    succeeds only after the complete first-load offline application is cached. */
-const CACHE = 'novnow-offline-0.1.1';
-const BUILD = '5f2ba8df3896e74468ba8ace71952bbf308716b0b266965cbbdf60b5b34ca065';
-const PRECACHE = ["./", "./guide/cheatsheet.html", "./guide/errors.html", "./guide/faq.html", "./guide/git.html", "./guide/glossary.html", "./guide/index.html", "./guide/install.html", "./guide/project_structure.html", "./guide/publish.html", "./guide/start.html", "./icon.svg", "./index.html", "./licenses/IPA_Font_License_Agreement_v1.0.txt", "./licenses/README.txt", "./manifest.webmanifest", "./novnow-193c0f551547c892.js", "./novnow-193c0f551547c892_bg.wasm"];
+const CACHE = 'novnow-offline-0.1.2';
+const BUILD = '96f44252cb2748f1b987a961c772d8869bf6ed7201ae2606bb7f7da284d06576';
+const PRECACHE = ["./", "./guide/cheatsheet.html", "./guide/errors.html", "./guide/faq.html", "./guide/git.html", "./guide/glossary.html", "./guide/index.html", "./guide/install.html", "./guide/project_structure.html", "./guide/publish.html", "./guide/start.html", "./icon.svg", "./index.html", "./licenses/IPA_Font_License_Agreement_v1.0.txt", "./licenses/README.txt", "./manifest.webmanifest", "./novnow-33966542e81cc4e8.js", "./novnow-33966542e81cc4e8_bg.wasm"];
 const SCOPE_CACHE = `novnow-offline-scope-${encodeURIComponent(self.registration.scope)}-`;
 const CURRENT = `${SCOPE_CACHE}${CACHE}-${BUILD}`;
 self.addEventListener('install', event => {
