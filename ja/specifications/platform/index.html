@@ -115,7 +115,7 @@ Web はダウンロードなので関係しない。</li>
 <p>LocalStorage は同期 API・文字列のみ・容量 5MB 前後という制約があり、長編小説 1 本（数 MB）+ 複数プロジェクトに耐えない。
 v0.1.0 では <strong>IndexedDB のみ</strong>を使い、LocalStorage は移行のためにだけ読む（移行後に消す）。</p>
 <h4 id="1332-スキーマ">13.3.2 スキーマ</h4>
-<p>DB 名 <code>novnow</code> / バージョン <code>1</code>。</p>
+<p>DB 名 <code>novnow</code> / バージョン <code>1</code>。検証用の <code>/novnow/nightly-app/</code> では DB 名を <code>novnow-nightly</code> とし、正式版と作品・履歴を共有しない。</p>
 <table>
 <thead>
 <tr>
@@ -594,4 +594,4 @@ IDE がそれを肩代わりすると、プロジェクトディレクトリ外�
 <li>区切り行（<code>＊＊＊</code> のように記号だけの行）と、空行が 2 つ以上続く箇所では、場面の境界候補を作る。空行 1 つだけの段落区切りでは、節の境界候補を作る。</li>
 <li>novnow の記号はエスケープして本文として保持する。改行・行末空白は通常の保存規則で正規化する。本文内の空行は、境界として使わなかった分を保持する（エクスポート時は通常どおり連続空行が圧縮される）。ルビ記法はルビ保持設定で出力する。</li>
 </ul>
-</article><p class="source-note" data-astro-cid-rv2sskwj>このページは <code data-astro-cid-rv2sskwj>docs/specifications/platform.md</code> から自動生成しています。内容の正本はリポジトリのそのファイルです。</p></main></div><footer class="_footer_13bsc_1"><div class="container _inner_13bsc_8"><div><p class="_creditText_13bsc_16">NovNow - Created by <a href="https://github.com/sonneko" target="_blank" rel="noopener noreferrer" class="_author_13bsc_23">sonneko</a>.</p><p class="_copyright_13bsc_28">© 2026 NovNow Project. All rights reserved.</p></div><div class="_links_13bsc_33"><a href="/novnow/ja">トップ</a><a href="/novnow/ja/guide">機能一覧</a><a href="/novnow/ja/troubleshooting">トラブルシューティング</a><a href="https://github.com/sonneko/novnow" target="_blank" rel="noopener noreferrer">GitHub</a></div></div></footer><p><a href="/novnow/nightly-app/">Nightly (unstable) / 開発版（不安定）</a></p></body></html>
+</article><p class="source-note" data-astro-cid-rv2sskwj>このページは <code data-astro-cid-rv2sskwj>docs/specifications/platform.md</code> から自動生成しています。内容の正本はリポジトリのそのファイルです。</p></main></div><footer class="_footer_13bsc_1"><div class="container _inner_13bsc_8"><div><p class="_creditText_13bsc_16">NovNow - Created by <a href="https://github.com/sonneko" target="_blank" rel="noopener noreferrer" class="_author_13bsc_23">sonneko</a>.</p><p class="_copyright_13bsc_28">© 2026 NovNow Project. All rights reserved.</p></div><div class="_links_13bsc_33"><a href="/novnow/ja">トップ</a><a href="/novnow/ja/guide">機能一覧</a><a href="/novnow/ja/troubleshooting">トラブルシューティング</a><a href="https://github.com/sonneko/novnow" target="_blank" rel="noopener noreferrer">GitHub</a></div></div></footer></body></html>

@@ -333,4 +333,13 @@
 <li>主要版の可動タグは、その主要版の最新の通常リリースを指す（MUST）。v0 の可動タグは互換性を保証しない。再現性が必要な場合は完全な版のタグを指定する。</li>
 <li>公開を止める場合は、同じ版の全形態を同時に「未提供」へ戻す（MUST）。形態ごとに残さない。</li>
 </ul>
-</article><p class="source-note" data-astro-cid-rv2sskwj>このページは <code data-astro-cid-rv2sskwj>docs/specifications/external.md</code> から自動生成しています。内容の正本はリポジトリのそのファイルです。</p></main></div><footer class="_footer_13bsc_1"><div class="container _inner_13bsc_8"><div><p class="_creditText_13bsc_16">NovNow - Created by <a href="https://github.com/sonneko" target="_blank" rel="noopener noreferrer" class="_author_13bsc_23">sonneko</a>.</p><p class="_copyright_13bsc_28">© 2026 NovNow Project. All rights reserved.</p></div><div class="_links_13bsc_33"><a href="/novnow/ja">トップ</a><a href="/novnow/ja/guide">機能一覧</a><a href="/novnow/ja/troubleshooting">トラブルシューティング</a><a href="https://github.com/sonneko/novnow" target="_blank" rel="noopener noreferrer">GitHub</a></div></div></footer><p><a href="/novnow/nightly-app/">Nightly (unstable) / 開発版（不安定）</a></p></body></html>
+<h4 id="2064-develop-検証用-nightly">20.6.4 develop 検証用 nightly</h4>
+<ul>
+<li>正式版とは別に、develop 更新時に Linux x86_64 の GUI なし版（CLI・LSP）、VSIX、ブラウザアプリの 3 成果物を自動生成する。各成果物は同じコミットに由来し、出典コミット・生成日時・照合値を添える。</li>
+<li>可動タグ <code>nightly</code> の GitHub Prerelease を 1 つだけ保持する。通常版の Latest にはせず、PyPI・crates.io・拡張市場への公開は行わない。内部の製品版番号は変更しない。§20.6.1〜§20.6.3 の正式版の公開単位・不変性とは別の検証経路とする。</li>
+<li>ビルド・検査の失敗時は前回の正常な公開物を残す。公開時だけ置き換え、古い実行で新しい公開内容を巻き戻さない。公開途中の障害では再実行で復旧する。</li>
+<li>検証用ブラウザアプリは <code>https://sonneko.github.io/novnow/nightly-app/</code> で公開し、正式版サイトに不安定版としてリンクを置く。更新するのは開発版アプリだけで、正式版サイト・アプリは保持する。正式版サイトの公開時には両アプリを同じ正式版へ揃える。</li>
+<li>正式版と開発版のオフラインキャッシュ・ブラウザ保存領域は分離する。作品の自動移行は行わない。</li>
+<li>VSIX の自動取得処理や版管理は変更しない。検証用 VSIX と LSP バイナリの組み合わせの管理は利用側の責任とする。</li>
+</ul>
+</article><p class="source-note" data-astro-cid-rv2sskwj>このページは <code data-astro-cid-rv2sskwj>docs/specifications/external.md</code> から自動生成しています。内容の正本はリポジトリのそのファイルです。</p></main></div><footer class="_footer_13bsc_1"><div class="container _inner_13bsc_8"><div><p class="_creditText_13bsc_16">NovNow - Created by <a href="https://github.com/sonneko" target="_blank" rel="noopener noreferrer" class="_author_13bsc_23">sonneko</a>.</p><p class="_copyright_13bsc_28">© 2026 NovNow Project. All rights reserved.</p></div><div class="_links_13bsc_33"><a href="/novnow/ja">トップ</a><a href="/novnow/ja/guide">機能一覧</a><a href="/novnow/ja/troubleshooting">トラブルシューティング</a><a href="https://github.com/sonneko/novnow" target="_blank" rel="noopener noreferrer">GitHub</a></div></div></footer></body></html>
