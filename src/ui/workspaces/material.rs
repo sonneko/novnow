@@ -128,6 +128,8 @@ pub struct State {
     entries: Option<(ListKey, Vec<Entry>)>,
     editor: slice_editor::Cache,
     form: Option<Form>,
+    /// 検索資料（`source.kind == "search"`）で `[再検索]` を押したときの未適用差分（資料 ID, 差分）。
+    rerun_diff: Option<(String, crate::core::features::search::SearchDiff)>,
     reveal: bool,
     /// 一覧の選択だけを動かし、その資料の本文は開かず確定もしない（§10.5）。
     preview: bool,
@@ -207,14 +209,23 @@ impl State {
         }
     }
 
-    /// 初めて開いたときの着地（§10.0）: 今の節が明示的に参照している資料、無ければ条件一致の候補、
-    /// どちらも無ければ一覧の最初の行（B-134）。
+    /// 初めて開いたとき・`Ctrl+Shift+5` の着地（§10.0）: 今の節が明示的に参照している資料、
+    /// 無ければ条件一致の候補、どちらも無ければ一覧の最初の行（B-134）。
     pub fn land(&mut self, bench: &Workbench, explicit: &[String], candidates: &[String]) {
         for id in explicit.iter().chain(candidates) {
             if self.select(bench, id) {
                 return;
             }
         }
+        if self.entries(bench).is_empty() {
+            self.query.clear();
+            self.filter = Filter::Active;
+        }
+        if let Some(first) = self.entries(bench).first().map(|e| e.key().to_owned()) {
+            self.selected = Some(first);
+        }
+        self.preview = false;
+        self.reveal = true;
     }
 
     /// 資料 MD のエディタにフォーカスを移す（`Ctrl+2`）。
@@ -719,6 +730,113 @@ fn form(
                 .font(FontId::new(12.0 * scale, FontFamily::Proportional))
                 .color(colors.warn),
         );
+    }
+    if item.source.kind == "search" {
+        ui.add_space(4.0);
+        if super::action_button(ui, i18n::text(locale, "stage.rerun")).clicked() {
+            bench.commit();
+            let q = crate::core::features::search::Query {
+                text: item.source.query.clone().unwrap_or_default(),
+                regex: item
+                    .source
+                    .unknown
+                    .get("regex")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false),
+                case_sensitive: item
+                    .source
+                    .unknown
+                    .get("case_sensitive")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(true),
+            };
+            let clock = web_time::Instant::now();
+            if let Ok(results) = crate::core::features::search::run(bench.project(), &q, || {
+                clock.elapsed().as_millis() as u64
+            }) {
+                let old_md = bench.project().text(&item.path);
+                let diff = crate::core::features::search::rerun_diff(
+                    bench.project(),
+                    old_md,
+                    &id,
+                    &form.draft.title,
+                    &q,
+                    &results,
+                    stamp,
+                );
+                state.rerun_diff = Some((id.clone(), diff));
+            }
+        }
+        let active_diff = state
+            .rerun_diff
+            .as_ref()
+            .filter(|(diff_id, _)| diff_id == &id)
+            .map(|(_, d)| d.clone());
+        if let Some(diff) = active_diff {
+            ui.add_space(4.0);
+            reference_pane::heading(ui, i18n::text(locale, "stage.diff"), view.mode, scale);
+            if diff.added.is_empty() && diff.removed.is_empty() {
+                ui.label(
+                    RichText::new(i18n::text(locale, "stage.rerun_no_changes"))
+                        .font(FontId::new(12.0 * scale, FontFamily::Proportional))
+                        .color(colors.fg_faint),
+                );
+            } else {
+                if !diff.added.is_empty() {
+                    ui.label(
+                        RichText::new(i18n::text(locale, "stage.rerun_added"))
+                            .font(FontId::new(11.0 * scale, FontFamily::Proportional))
+                            .color(colors.ok),
+                    );
+                    for line in &diff.added {
+                        ui.label(
+                            RichText::new(format!("+ {line}"))
+                                .font(FontId::new(11.0 * scale, FontFamily::Monospace))
+                                .color(colors.ok),
+                        );
+                    }
+                }
+                if !diff.removed.is_empty() {
+                    ui.label(
+                        RichText::new(i18n::text(locale, "stage.rerun_removed"))
+                            .font(FontId::new(11.0 * scale, FontFamily::Proportional))
+                            .color(colors.warn),
+                    );
+                    for line in &diff.removed {
+                        ui.label(
+                            RichText::new(format!("- {line}"))
+                                .font(FontId::new(11.0 * scale, FontFamily::Monospace))
+                                .color(colors.warn),
+                        );
+                    }
+                }
+                ui.label(
+                    RichText::new(i18n::format(
+                        locale,
+                        "stage.rerun_unchanged",
+                        &[&diff.unchanged_count.to_string()],
+                    ))
+                    .font(FontId::new(11.0 * scale, FontFamily::Proportional))
+                    .color(colors.fg_faint),
+                );
+            }
+            ui.horizontal_wrapped(|ui| {
+                if super::action_button(ui, i18n::text(locale, "stage.rerun_apply")).clicked() {
+                    bench.close_slice();
+                    bench.replace_document(&item.path, diff.new_body, view.now);
+                    if let Ok(updated_idx) =
+                        crate::core::features::search::apply_rerun(&index_text, &id, stamp)
+                    {
+                        bench.replace_document(INDEX_PATH, updated_idx, view.now);
+                    }
+                    state.rerun_diff = None;
+                    state.reveal = true;
+                }
+                if super::action_button(ui, i18n::text(locale, "stage.cancel")).clicked() {
+                    state.rerun_diff = None;
+                }
+            });
+        }
     }
     let font = FontId::new(13.0 * scale, FontFamily::Proportional);
     // フィールド（役割が中身から分からないので見出しを置く。§9.2.1 の 1）

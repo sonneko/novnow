@@ -434,7 +434,7 @@ pub fn parse_result(text: &str) -> Option<RunResult> {
 
 // ============================================================ 提案（§5.10.3）
 
-/// 提案の状態（§5.10.3）。
+/// 提案の状態（§5.10.3・§8.7.2・§8.7.4）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ProposalStatus {
     /// レビュー待ち。
@@ -445,8 +445,12 @@ pub enum ProposalStatus {
     Rejected,
     /// 同じ対象の別の提案が採用された。
     Superseded,
-    /// 自動適用済み（§15.1.1）。
+    /// 自動適用済み（§15.1.1）または人間の提案の採用（§8.7.1）。
     Applied,
+    /// 人間の提案の破棄（ファイルは残して履歴を保つ、§8.7.2）。
+    Discarded,
+    /// 外部変更などで `before` と本文が一致しなくなった提案（§8.7.4、W093）。
+    Stale,
 }
 
 impl ProposalStatus {
@@ -458,6 +462,8 @@ impl ProposalStatus {
             Self::Rejected => "rejected",
             Self::Superseded => "superseded",
             Self::Applied => "applied",
+            Self::Discarded => "discarded",
+            Self::Stale => "stale",
         }
     }
 
@@ -469,6 +475,8 @@ impl ProposalStatus {
             "rejected" => Some(Self::Rejected),
             "superseded" => Some(Self::Superseded),
             "applied" => Some(Self::Applied),
+            "discarded" => Some(Self::Discarded),
+            "stale" => Some(Self::Stale),
             _ => None,
         }
     }

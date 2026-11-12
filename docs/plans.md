@@ -2145,3 +2145,19 @@ PR #38 で X1 → X3 の順に続けて実施する）。
 4. 途中レビューは所有者の指示で省略した（§9.5）。
 5. 実装中に見つけた追加の退行要因として、`REF:src/core/features/diagnose.rs` に残っていた計測用の `eprintln!` を削除した（リリースビルドでも標準エラーへ出ていた）。
 6. 調査で見つけた 4 件（`REF:docs/plans.md#perf-unknown`）のうち、U2（UI の毎フレーム再パース）に加えて、観察タブ（`REF:src/ui/workspaces/tabs.rs`）が**全文書の診断を毎フレーム**計算している箇所を見つけたが、これは B13 の範囲外（タブを開いている間だけの費用で、フィルタ状態に依存する）とした。次に性能を詰めるときの候補としてここに記録する。
+
+---
+
+<a id="issue-55"></a>
+## 10. Issue #55 仕様整合性監査への対応（実施記録: 2026-11-12）
+
+Issue #55 で報告された 24 件の仕様不適合（重大・中程度 13 件＋軽微・個別修正 11 件）および計画文書・設計文書の記述不整合をすべて解消した。仕様書（`REF:docs/specifications/`）の変更は行っていない。各修正にはコマンドの存在確認にとどまらず、キー / クリック操作後の表示対象・選択位置・永続化結果を直接検証する Core / GUI E2E 回帰テストを追加した。
+
+| 項目 | 内容 | 主な実装・検証箇所 |
+|---|---|---|
+| 1–4 | 必須移動キー（`Alt+↑/↓` 節・`Alt+←/→` 履歴・`Alt+Shift+↑/↓` 話）、`Ctrl+Click` / `F12` 定義ジャンプ・`Shift+F12` 逆参照、`reader` 読書位置永続化（直近 50 作品）、`Ctrl+Shift+F` 構造順検索 | `REF:src/ui/shell.rs`, `REF:src/ui/app.rs`, `REF:src/app/assist.rs`, `REF:src/adapters/recent_file.rs`, `REF:src/adapters/storage_idb.rs`, `REF:tests/workspaces.rs` |
+| 5–9 | 保存済み検索の再検索・未適用差分プレビュー・明示採用、ストックの章・話指定配属モーダルと逆操作・衝突診断、話プロット必須キー（`Alt+Shift+↑/↓` 節入替・`Ctrl+D`・`Ctrl+Shift+Space`）と `when:` 表示、`reader` 章表紙 1 ページ・柱・余白・クリーン表示、構成ツリーの場面層・段階的折りたたみ・1 行集計・検索自動展開・ストック末尾配置 | `REF:src/core/features/search.rs`, `REF:src/core/features/stock.rs`, `REF:src/core/features/plots.rs`, `REF:src/ui/workspaces/material.rs`, `REF:src/ui/workspaces/tabs.rs`, `REF:src/ui/workspaces/plot_episode.rs`, `REF:src/ui/workspaces/reader.rs`, `REF:src/ui/workspaces/plot_outline.rs`, `REF:tests/stage_two.rs`, `REF:tests/workspaces.rs` |
+| 10–13 | 呼称マトリクス（モード選択・`Enter` 確定 / `Esc` キャンセル・ペア別 `W084` と該当ペア遷移・`Ctrl+Shift+A` 候補抽出）、点検・統計の仕様指標（時系列継承・回想・`W080`、五感集計・未宣言件数・5 節連続視覚区間・範囲切替、話者別登場節/POV 節/話者不明・範囲切替、節長代表値・`length:` 目標比、最長連続執筆記録、文体観察台詞比率バー・1 文長分布、全診断コードの `project.toml` 永続化）、`review` / `agent` 双方向スレッド閲覧・承認、人間提案の `status: discarded` 履歴保持と外部変更時の `status: stale`（`W093`・本文保護） | `REF:src/core/features/metadata.rs`, `REF:src/core/features/metrics.rs`, `REF:src/core/agents/apply.rs`, `REF:src/app/workbench.rs`, `REF:src/ui/workspaces/addresses.rs`, `REF:src/ui/workspaces/tabs.rs`, `REF:src/ui/workspaces/stats.rs`, `REF:src/ui/workspaces/review.rs`, `REF:src/ui/workspaces/agent.rs`, `REF:src/ui/workspaces/proposals.rs`, `REF:tests/stage_two.rs`, `REF:tests/workspaces.rs` |
+| 14–24 | Web 旧形式プロジェクト自動移行・PWA フォント取得・IndexedDB クォータ表示、正規表現検索の無効パターン通知と `W085` 案内、CLI `--color` / `--json` / 終了コード、LSP `didChangeWatchedFiles` 再同期、Python `Session` コンテキストマネージャ・`LockPoisoned`、MCP 1MB 上限保護、配役/プロンプト編集反映など | `REF:src/adapters/storage_idb.rs`, `REF:src/ui/web.rs`, `REF:src/cli/mod.rs`, `REF:src/lsp/methods.rs`, `REF:python/novnow-py/src/lib.rs`, `REF:src/adapters/mcp_stdio.rs`, `REF:tests/cli.rs`, `REF:tests/lsp.rs`, `REF:tests/mcp_stdio.rs`, `REF:tests/workspaces.rs` |
+| C | 設計書（`REF:docs/designs/ui.md`, `REF:docs/designs/workflows.md`, `REF:docs/designs/editing.md`, `REF:docs/designs/syntax.md`, `REF:docs/designs/agent.md`, `REF:docs/designs/platform.md`, `REF:docs/designs/interfaces.md`）の状態・参照・実装範囲の記述整合 | 本節および各設計書の対応節 |
+

@@ -100,7 +100,7 @@
 
 状態: 実装完了（REF:src/core/agents/files.rs, REF:tests/agents_files.rs, REF:docs/plans.md#plan-S-01）
 
-- タスク（`agents/tasks/T####.md`）、結果（`agents/results/T####.result.md`）、提案（`agents/proposals/P####.diff`、および人間用 `H####.diff`）、スレッド（`agents/threads/TH####.md`）、JSON Lines 監査ログ（`agents/log/YYYY-MM-DD.jsonl`）のパース・直列化・単調増加 ID 採番は `core::agents::files`（`REF:src/core/agents/files.rs`）および `core::features::proposals`（`REF:src/core/agents/files.rs`）に実装する（検証: `REF:tests/agents_files.rs`, `REF:tests/workspaces.rs`）。
+- タスク（`agents/tasks/T####.md`）、結果（`agents/results/T####.result.md`）、提案（`agents/proposals/P####.md`、および人間用 `agents/proposals/H####.md`）、スレッド（`agents/threads/TH####.md`）、JSON Lines 監査ログ（`agents/log/YYYY-MM-DD.jsonl`）のパース・直列化・単調増加 ID 採番は `core::agents::files`（`REF:src/core/agents/files.rs`）および `core::agents::apply`（`REF:src/core/agents/apply.rs`）に実装する（検証: `REF:tests/agents_files.rs`, `REF:tests/stage_two.rs`, `REF:tests/workspaces.rs`）。
 
 - **[S-01] タスクの `examples:` フィールド（実装完了: `REF:docs/plans.md#plan-S-01`）**:
   - `REF:src/core/model/task.rs` の `Task` および `REF:src/core/agents/files.rs` のタスクパーサ・シリアライザに `examples: Vec<ExampleSpec>`（範囲式＋`contents`/`plot`/`both`）を追加する。

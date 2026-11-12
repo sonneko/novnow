@@ -11,6 +11,7 @@
 //! - 結果は JSON のテキスト 1 つ。失敗は `isError: true` と、カタログの文言（E036 などは診断の文言）。
 //!   標準出力はプロトコルだけに使い、それ以外は stderr に出す（`docs/history.md` B-149）。
 
+use std::collections::BTreeMap;
 use std::io::{self, BufRead};
 use std::path::Path;
 
@@ -20,6 +21,7 @@ use crate::adapters::clock_system::{self, SystemClock};
 use crate::adapters::project_load;
 use crate::adapters::storage_fs::FsStorage;
 use crate::adapters::{block_on, mcp_stdio};
+use crate::app::error::{Class, Error};
 use crate::app::ops::{self, Args};
 use crate::app::session::{Interface, Session};
 use crate::core::agents::server::{self, ToolError};
@@ -27,7 +29,7 @@ use crate::core::agents::{prompts, Plan};
 use crate::core::diagnostics::{Diagnostic, DiagnosticCode};
 use crate::core::policy::write_policy::ProjectPath;
 use crate::ports::env::Env;
-use crate::ports::storage::Storage;
+use crate::ports::storage::{Storage, StorageError};
 use crate::ui::i18n;
 
 use super::open::{describe, open_storage};
@@ -96,52 +98,178 @@ fn write_prompts<E: Env>(cli: &mut Cli<'_, E>, storage: &FsStorage) {
     }
 }
 
+fn id_key(id: &Value) -> Option<String> {
+    match id {
+        Value::Number(num) => Some(format!("n:{num}")),
+        Value::String(text) => Some(format!("s:{text}")),
+        _ => None,
+    }
+}
+
+fn cancel_target(message: &Value) -> Option<String> {
+    let method = message.get("method").and_then(Value::as_str)?;
+    if !matches!(method, "notifications/cancelled" | "$/cancelRequest") {
+        return None;
+    }
+    let params = message.get("params")?;
+    params
+        .get("requestId")
+        .or_else(|| params.get("id"))
+        .and_then(id_key)
+}
+
+fn read_available_lines(buf: &mut Vec<u8>, input: &mut dyn BufRead) -> Vec<String> {
+    let take_lines = |buffer: &mut Vec<u8>| -> Vec<String> {
+        let mut lines = Vec::new();
+        while let Some(pos) = buffer.iter().position(|&b| b == b'\n') {
+            let chunk: Vec<u8> = buffer.drain(..=pos).collect();
+            lines.push(String::from_utf8_lossy(&chunk).into_owned());
+        }
+        lines
+    };
+    let ready = take_lines(buf);
+    if !ready.is_empty() {
+        return ready;
+    }
+    loop {
+        let chunk = match input.fill_buf() {
+            Ok([]) | Err(_) => {
+                if buf.is_empty() {
+                    return Vec::new();
+                }
+                let tail = String::from_utf8_lossy(buf).into_owned();
+                buf.clear();
+                return vec![tail];
+            }
+            Ok(chunk) => chunk,
+        };
+        let count = chunk.len();
+        buf.extend_from_slice(chunk);
+        input.consume(count);
+        let lines = take_lines(buf);
+        if !lines.is_empty() {
+            return lines;
+        }
+    }
+}
+
 fn serve<E: Env>(
     cli: &mut Cli<'_, E>,
     storage: &FsStorage,
     title: &str,
     input: &mut dyn BufRead,
 ) -> Exit {
-    let mut line = String::new();
+    let mut raw_buf = Vec::new();
+    let mut cancelled: BTreeMap<String, usize> = BTreeMap::new();
     loop {
-        line.clear();
-        match input.read_line(&mut line) {
-            Ok(0) | Err(_) => return Exit::Ok,
-            Ok(_) => {}
+        let lines = read_available_lines(&mut raw_buf, input);
+        if lines.is_empty() {
+            return Exit::Ok;
         }
-        let text = line.trim();
-        if text.is_empty() {
-            continue;
+        let mut parsed: Vec<Option<Result<Value, ()>>> = Vec::with_capacity(lines.len());
+        for line in &lines {
+            let text = line.trim();
+            if text.is_empty() {
+                parsed.push(None);
+            } else {
+                parsed.push(Some(serde_json::from_str::<Value>(text).map_err(|_| ())));
+            }
         }
-        let Ok(message) = serde_json::from_str::<Value>(text) else {
-            reply(
-                cli,
-                &json!({ "jsonrpc": "2.0", "id": null, "error": { "code": -32700, "message": "Parse error" } }),
-            );
-            continue;
-        };
-        let Some(id) = message.get("id").cloned() else {
-            // 通知（`notifications/initialized` など）には答えない
-            continue;
-        };
-        let method = message.get("method").and_then(Value::as_str).unwrap_or("");
-        let params = message.get("params").cloned().unwrap_or(Value::Null);
-        let result = match method {
-            "initialize" => Ok(json!({
-                "protocolVersion": mcp_stdio::PROTOCOL_VERSION,
-                "capabilities": { "tools": {} },
-                "serverInfo": { "name": "novnow", "version": env!("CARGO_PKG_VERSION") }
-            })),
-            "ping" => Ok(json!({})),
-            "tools/list" => Ok(json!({ "tools": ops::mcp_tools(cli.locale(), &server::tools()) })),
-            "tools/call" => Ok(call(cli, storage, title, &params)),
-            _ => Err(json!({ "code": -32601, "message": "Method not found" })),
-        };
-        let response = match result {
-            Ok(result) => json!({ "jsonrpc": "2.0", "id": id, "result": result }),
-            Err(error) => json!({ "jsonrpc": "2.0", "id": id, "error": error }),
-        };
-        reply(cli, &response);
+        let mut consumed = vec![false; parsed.len()];
+
+        for idx in 0..parsed.len() {
+            let Some(entry) = &parsed[idx] else {
+                continue;
+            };
+            let Ok(message) = entry else {
+                reply(
+                    cli,
+                    &json!({ "jsonrpc": "2.0", "id": null, "error": { "code": -32700, "message": "Parse error" } }),
+                );
+                continue;
+            };
+            if let Some(target) = cancel_target(message) {
+                if !consumed[idx] {
+                    *cancelled.entry(target).or_insert(0) += 1;
+                }
+                continue;
+            }
+            let Some(id) = message.get("id").cloned() else {
+                // 通知（`notifications/initialized` など）には答えない
+                continue;
+            };
+            if let Some(req_key) = id_key(&id) {
+                let mut is_cancelled = false;
+                if let Some(count) = cancelled.get_mut(&req_key) {
+                    if *count <= 1 {
+                        cancelled.remove(&req_key);
+                    } else {
+                        *count -= 1;
+                    }
+                    is_cancelled = true;
+                } else {
+                    for (later_idx, later) in parsed.iter().enumerate().skip(idx + 1) {
+                        let Some(Ok(later_msg)) = later else {
+                            continue;
+                        };
+                        if !consumed[later_idx]
+                            && cancel_target(later_msg).as_deref() == Some(req_key.as_str())
+                        {
+                            consumed[later_idx] = true;
+                            is_cancelled = true;
+                            break;
+                        }
+                        if later_msg.get("id").and_then(id_key).as_deref() == Some(req_key.as_str())
+                        {
+                            break;
+                        }
+                    }
+                }
+                if is_cancelled {
+                    let err = Error::cancelled(cli.locale());
+                    reply(
+                        cli,
+                        &json!({ "jsonrpc": "2.0", "id": id, "result": tool_failure(&err) }),
+                    );
+                    continue;
+                }
+            }
+
+            let method = message.get("method").and_then(Value::as_str).unwrap_or("");
+            let params = message.get("params").cloned().unwrap_or(Value::Null);
+            let result = match method {
+                "initialize" => {
+                    if let Some(tag) = params.get("locale").and_then(Value::as_str).or_else(|| {
+                        params
+                            .get("capabilities")
+                            .and_then(|c| c.get("locale"))
+                            .and_then(Value::as_str)
+                    }) {
+                        if tag == "en" || tag.starts_with("en-") {
+                            cli.set_locale(i18n::Locale::En);
+                        } else if tag == "ja" || tag.starts_with("ja-") {
+                            cli.set_locale(i18n::Locale::Ja);
+                        }
+                    }
+                    Ok(json!({
+                        "protocolVersion": mcp_stdio::PROTOCOL_VERSION,
+                        "capabilities": { "tools": {} },
+                        "serverInfo": { "name": "novnow", "version": env!("CARGO_PKG_VERSION") }
+                    }))
+                }
+                "ping" => Ok(json!({})),
+                "tools/list" => {
+                    Ok(json!({ "tools": ops::mcp_tools(cli.locale(), &server::tools()) }))
+                }
+                "tools/call" => Ok(call(cli, storage, title, &params)),
+                _ => Err(json!({ "code": -32601, "message": "Method not found" })),
+            };
+            let response = match result {
+                Ok(result) => json!({ "jsonrpc": "2.0", "id": id, "result": result }),
+                Err(error) => json!({ "jsonrpc": "2.0", "id": id, "error": error }),
+            };
+            reply(cli, &response);
+        }
     }
 }
 
@@ -161,11 +289,14 @@ fn reply<E: Env>(cli: &mut Cli<'_, E>, message: &Value) {
 ///    4 件は `Session::run` が断る。
 /// 3. どちらでもない名前は未知のツール（既存の文言）。
 fn call<E: Env>(cli: &mut Cli<'_, E>, storage: &FsStorage, title: &str, params: &Value) -> Value {
-    let name = params.get("name").and_then(Value::as_str).unwrap_or("");
-    let arguments = params
-        .get("arguments")
-        .cloned()
-        .unwrap_or_else(|| json!({}));
+    let Some(name) = params.get("name").and_then(Value::as_str) else {
+        return tool_failure(&Error::missing(cli.locale(), "name"));
+    };
+    let arguments = match params.get("arguments") {
+        None | Some(Value::Null) => json!({}),
+        Some(val @ Value::Object(_)) => val.clone(),
+        Some(_) => return tool_failure(&Error::usage(cli.locale(), "arguments")),
+    };
     let level = arguments
         .get("level")
         .and_then(Value::as_str)
@@ -173,25 +304,25 @@ fn call<E: Env>(cli: &mut Cli<'_, E>, storage: &FsStorage, title: &str, params: 
     let frozen = server::is_tool(name) && !(name == "novnow.plot.write" && level != "episode");
     if !frozen {
         let Some(op) = ops::op_of_tool(name) else {
-            return failure(&cli.format("cli.mcp.unknown_tool", &[name]));
+            let err = Error::new(Class::NotFound, cli.format("cli.mcp.unknown_tool", &[name]));
+            return tool_failure(&err);
         };
         return call_op(cli, storage, op, &arguments);
     }
     let loaded = match block_on(project_load::load(storage)) {
         Ok(loaded) => loaded,
         Err(error) => {
-            let message = describe(cli, &error);
-            return failure(&message);
+            return tool_failure(&storage_to_app_error(cli, &error));
         }
     };
     let now = clock_system::now_rfc3339(&SystemClock);
     let outcome = server::call(&loaded.project, name, &arguments, &now, title);
-    if let Err(message) = execute(storage, &outcome.plan) {
-        return failure(&message);
+    if let Err(error) = execute(cli, storage, &outcome.plan) {
+        return tool_failure(&error);
     }
     match outcome.result {
         Ok(value) => answer(&value),
-        Err(error) => failure(&message_of(cli, &error)),
+        Err(error) => tool_failure(&tool_to_app_error(cli, &error)),
     }
 }
 
@@ -204,16 +335,17 @@ fn call_op<E: Env>(
 ) -> Value {
     let mut session = match Session::open_with(storage.root(), Interface::Mcp) {
         Ok(session) => session,
-        Err(error) => return failure(&error.message),
+        Err(error) => return tool_failure(&error),
     };
     session.set_locale(cli.locale());
     let args = match arguments {
         Value::Object(map) => Value::Object(map.clone()),
-        _ => Value::Object(Args::new()),
+        Value::Null => Value::Object(Args::new()),
+        _ => return tool_failure(&Error::usage(session.locale, "arguments")),
     };
     match session.run(op, args) {
         Ok(data) => answer(&data),
-        Err(error) => failure(&error.message),
+        Err(error) => tool_failure(&error),
     }
 }
 
@@ -225,21 +357,77 @@ fn answer(value: &Value) -> Value {
     })
 }
 
-fn failure(message: &str) -> Value {
-    json!({ "content": [{ "type": "text", "text": message }], "isError": true })
+/// 失敗の `CallToolResult`（§19.1.7・§15.8.3）。
+///
+/// MCP 従来どおり `isError: true` と `content[0].text` を維持しつつ、`error`（`code`・`kind`・
+/// `message`・`path`）と `data`（`jsonrpc` 符号を含む）を揃えて 9 分類を欠落なく伝える。
+pub fn tool_failure(error: &Error) -> Value {
+    let mut data = error.to_json();
+    if let Some(map) = data.as_object_mut() {
+        map.insert("jsonrpc".to_owned(), json!(error.class.jsonrpc()));
+    }
+    json!({
+        "content": [{ "type": "text", "text": error.message }],
+        "data": data,
+        "error": error.to_json(),
+        "isError": true,
+    })
 }
 
 /// 計画を実行する（書き込みはプロジェクトの中だけ。ログは追記）。
-fn execute(storage: &FsStorage, plan: &Plan) -> Result<(), String> {
+fn execute<E: Env>(cli: &Cli<'_, E>, storage: &FsStorage, plan: &Plan) -> Result<(), Error> {
     for change in &plan.writes {
-        let path = ProjectPath::new(&change.path).map_err(|error| format!("{error:?}"))?;
-        block_on(storage.write(&path, &change.text)).map_err(|error| format!("{error:?}"))?;
+        let path = ProjectPath::new(&change.path).map_err(|violation| {
+            Error::policy(cli.locale(), "E060", format!("{violation:?}"))
+                .with_path(change.path.clone())
+        })?;
+        block_on(storage.write(&path, &change.text))
+            .map_err(|err| storage_to_app_error(cli, &err))?;
     }
     for event in &plan.log {
-        let path = ProjectPath::new(&event.path()).map_err(|error| format!("{error:?}"))?;
-        block_on(storage.append(&path, &event.line())).map_err(|error| format!("{error:?}"))?;
+        let log_path = event.path();
+        let path = ProjectPath::new(&log_path).map_err(|violation| {
+            Error::policy(cli.locale(), "E060", format!("{violation:?}"))
+                .with_path(log_path.clone())
+        })?;
+        block_on(storage.append(&path, &event.line()))
+            .map_err(|err| storage_to_app_error(cli, &err))?;
     }
     Ok(())
+}
+
+fn storage_to_app_error<E: Env>(cli: &Cli<'_, E>, error: &StorageError) -> Error {
+    let message = describe(cli, error);
+    match error {
+        StorageError::Policy(violation) => {
+            let diag = violation.diagnostic();
+            Error::policy(cli.locale(), diag.code.as_str(), message)
+        }
+        StorageError::NotFound(path) => {
+            Error::not_found(cli.locale(), path.as_str(), Some(path.as_str()))
+        }
+        StorageError::Encoding(path) => Error::io(message, Some(path.as_str())).with_kind("S024"),
+        StorageError::Io { path, .. } => Error::io(message, Some(path.as_str())).with_kind("S030"),
+        _ => Error::io(message, None).with_kind("S030"),
+    }
+}
+
+fn tool_to_app_error<E: Env>(cli: &Cli<'_, E>, error: &ToolError) -> Error {
+    let message = message_of(cli, error);
+    match error {
+        ToolError::Unknown(_) => Error::new(Class::NotFound, message),
+        ToolError::Argument(_) => Error::new(Class::Usage, message),
+        ToolError::Diagnostic(found) => {
+            let class = if found.code == DiagnosticCode::E036 {
+                Class::Policy
+            } else {
+                Class::Validation
+            };
+            Error::new(class, message).with_kind(found.code.as_str())
+        }
+        ToolError::Missing(_) => Error::new(Class::NotFound, message),
+        ToolError::Gate { .. } => Error::new(Class::Validation, message),
+    }
 }
 
 fn message_of<E: Env>(cli: &Cli<'_, E>, error: &ToolError) -> String {

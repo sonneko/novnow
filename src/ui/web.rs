@@ -162,7 +162,7 @@ fn sync_text_agent(typing: bool) {
             let x = window.scroll_x().unwrap_or(0.0);
             let y = window.scroll_y().unwrap_or(0.0);
             let _ = agent.focus();
-            let _ = window.scroll_to_with_x_and_y(x, y);
+            window.scroll_to_with_x_and_y(x, y);
         }
     } else if !agent.hidden() {
         let idle = IDLE_FRAMES.with(|frames| {

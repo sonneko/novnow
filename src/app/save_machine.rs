@@ -80,6 +80,11 @@ impl SaveMachine {
         }
     }
 
+    /// `idle_ms` を更新する（`settings.set` や `didChangeConfiguration` で `autosave_ms` が変わったとき）。
+    pub fn set_idle_ms(&mut self, idle_ms: u32) {
+        self.idle_secs = f64::from(idle_ms.clamp(200, 2000)) / 1000.0;
+    }
+
     /// 今の状態。
     pub fn state(&self) -> State {
         self.state

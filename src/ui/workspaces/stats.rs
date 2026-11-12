@@ -27,21 +27,29 @@ pub(super) fn stats_ui(ui: &mut Ui, state: &State, locale: Locale) {
     let dates = metrics::recent_dates(state.stamp.get(..10).unwrap_or(""), 400);
     let stats = &state.stats;
     egui::ScrollArea::vertical().show(ui, |ui| {
-        ui.label(i18n::format(
-            locale,
-            "stage.stats_averages",
-            &[
-                &format!(
-                    "{:.0}",
-                    stats.average(&dates.iter().take(7).cloned().collect::<Vec<_>>())
-                ),
-                &format!(
-                    "{:.0}",
-                    stats.average(&dates.iter().take(30).cloned().collect::<Vec<_>>())
-                ),
-                &stats.streak(&dates).to_string(),
-            ],
-        ));
+        ui.horizontal_wrapped(|ui| {
+            ui.label(i18n::format(
+                locale,
+                "stage.stats_averages",
+                &[
+                    &format!(
+                        "{:.0}",
+                        stats.average(&dates.iter().take(7).cloned().collect::<Vec<_>>())
+                    ),
+                    &format!(
+                        "{:.0}",
+                        stats.average(&dates.iter().take(30).cloned().collect::<Vec<_>>())
+                    ),
+                    &stats.streak(&dates).to_string(),
+                ],
+            ));
+            ui.label("·");
+            ui.label(i18n::format(
+                locale,
+                "stage.stats_longest_streak",
+                &[&stats.longest_streak().to_string()],
+            ));
+        });
         ui.heading(label(locale, "stage.daily"));
         let daily = dates
             .iter()

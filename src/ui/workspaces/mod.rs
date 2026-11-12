@@ -4,7 +4,7 @@
 //!   追加仕様 #27、`agent`（`Alt+8`）は M10 で有効にした（`docs/history.md` B-126）。
 //! - 切替で **SceneId は変わらない**（MUST）。各ワークスペースは自分の状態（選んでいる行・開いている
 //!   文書）を `Session` の中に持ち続け、切替で破棄・再構築しない（§10.0「事前計算」）。初めて開く
-//!   ワークスペースだけ、今の節の対応物に着地する。`Ctrl+Shift+1..9`（強制持ち越し）は未実装。
+//!   ワークスペース、または `Ctrl+Shift+1..9`（強制持ち越し）では今の節の対応物に着地する。
 //! - 切替は保存のきっかけ（§8.2「ワークスペース切替」）。確認ダイアログは出さない。
 //!
 //! 状態の規則（どれが選べるか・直前はどれか）は egui に依存しない [`Switcher`] に置き、描画は
@@ -140,6 +140,16 @@ pub enum Request {
         /// 登録する名前。
         name: String,
     },
+    /// 構成ツリーの場面ノードから話プロットのその場面を開く（§10.3.1）。
+    OpenEpisodeScene(crate::core::id::SceneId),
+    /// 診断の W084 から配役ワークスペースの呼称タブの該当ペアを開く（§10.6.1）。
+    OpenAddressPair {
+        speaker: String,
+        target: String,
+        mode: Option<String>,
+    },
+    /// 点検のスレッド表示からエージェント管制ワークスペースで同じスレッドを開く（§15.6）。
+    OpenAgentThread(String),
 }
 
 /// 状態の縦線の色（§10.2: draft = 灰 / review = 橙 / fixed = 緑）。
@@ -189,6 +199,17 @@ pub struct Row<'a> {
 /// 一覧の 1 行（§10.2 の節リストなど）。左端に 3px の縦線、選択中は `bg.selection`。クリックは
 /// 返す `Response` で分かる。
 pub fn list_row(ui: &mut Ui, mode: Mode, scale: f32, row: Row<'_>) -> egui::Response {
+    list_row_with_trailing(ui, mode, scale, row, "")
+}
+
+/// 右端に 10px・`fg.faint` の補助テキスト（§10.2 の `when:` など）を添える一覧の 1 行。
+pub fn list_row_with_trailing(
+    ui: &mut Ui,
+    mode: Mode,
+    scale: f32,
+    row: Row<'_>,
+    trailing: &str,
+) -> egui::Response {
     let Row {
         selected,
         bar,
@@ -219,6 +240,24 @@ pub fn list_row(ui: &mut Ui, mode: Mode, scale: f32, row: Row<'_>) -> egui::Resp
             color,
         );
     }
+    let mut right_limit = rect.max.x - 6.0;
+    if !trailing.is_empty() {
+        let trailing_galley = ui.fonts(|fonts| {
+            fonts.layout_job(one_line(
+                trailing,
+                FontId::new(10.0 * scale, FontFamily::Proportional),
+                colors.fg_faint,
+                (width * 0.45).max(40.0),
+            ))
+        });
+        let tx = (rect.max.x - 6.0 - trailing_galley.size().x).max(rect.min.x + 24.0);
+        painter.galley(
+            egui::pos2(tx, rect.center().y - trailing_galley.size().y / 2.0),
+            trailing_galley,
+            colors.fg_faint,
+        );
+        right_limit = (tx - 8.0).max(rect.min.x + 24.0);
+    }
     let mut x = rect.min.x + 10.0;
     if !label.is_empty() {
         let galley = ui.fonts(|fonts| {
@@ -246,7 +285,7 @@ pub fn list_row(ui: &mut Ui, mode: Mode, scale: f32, row: Row<'_>) -> egui::Resp
             text,
             FontId::new(13.0 * scale, FontFamily::Proportional),
             color,
-            rect.max.x - x - 6.0,
+            (right_limit - x).max(1.0),
         ))
     });
     let text_width = galley.size().x;
@@ -255,7 +294,7 @@ pub fn list_row(ui: &mut Ui, mode: Mode, scale: f32, row: Row<'_>) -> egui::Resp
         galley,
         color,
     );
-    let end = (x + text_width).min(rect.max.x - 6.0);
+    let end = (x + text_width).min(right_limit);
     painter.line_segment(
         [
             egui::pos2(x, rect.center().y + 8.0 * scale),

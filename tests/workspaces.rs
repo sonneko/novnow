@@ -2796,3 +2796,1075 @@ fn plot_list_delete_button_uses_the_unified_delete() {
     );
     assert_eq!(harness.app.overlay_kind(), None);
 }
+
+#[test]
+fn ctrl_shift_carryover_lands_on_every_spec_counterpart() {
+    let mut project = novel::novel();
+    project.insert(Document::new(
+        "project.toml",
+        format!("{}\n[agents]\nenabled = true\n", novel::PROJECT_TOML),
+    ));
+    project.insert(Document::new(
+        "ideas.md",
+        "# I0001 第一の着想\nstatus: inbox\n最初のメモ。\n\n# I0002 第二の着想\nstatus: keep\n二番目のメモ。\n",
+    ));
+    project.insert(Document::new(
+        "materials/index.json",
+        r#"{
+  "version": 1,
+  "items": [
+    {
+      "id": "M0100",
+      "title": "別の資料",
+      "category": "setting",
+      "status": "approved",
+      "path": "materials/docs/M0100.md",
+      "source": { "kind": "manual", "origin": "著者メモ" }
+    },
+    {
+      "id": "M0137",
+      "title": "科学の甲子園",
+      "category": "fact",
+      "status": "approved",
+      "path": "materials/docs/M0137.md",
+      "source": { "kind": "manual", "origin": "大会記録" }
+    }
+  ]
+}"#,
+    ));
+    project.insert(Document::new(
+        "materials/docs/M0100.md",
+        "# 別の資料\n内容A。\n",
+    ));
+    project.insert(Document::new(
+        "materials/docs/M0137.md",
+        "# 科学の甲子園\n内容B。\n",
+    ));
+    project.insert(Document::new(
+        "plots/01-01.cnov",
+        "@01-01-01 放課後\nmode: 'リリア:C\n二人が図書室で話す。\nstate: fixed\n;\n'アルス が資料を見せる。\n;\n'リリア が設計図を覗き込む。\nstate: draft\n;\n\n@01-01-02 帰り道\n二人で帰る。\n",
+    ));
+    project.insert(Document::new(
+        "plots/01-03.cnov",
+        "@01-03-01 屋上\nまだ本文の無いプロット節。\n",
+    ));
+    for scope in ["@01-01-01-01", "@01-01-01-02"] {
+        let plan = runner::new_tasks(
+            &project,
+            &runner::Draft {
+                role: "writer",
+                scope,
+                intent: "テンポ調整",
+                comment: "",
+                examples: "",
+                initiator: "human",
+                status: "draft",
+            },
+            "2026-10-13T21:00:00+09:00",
+        );
+        for change in &plan.writes {
+            project.insert(Document::new(change.path.clone(), change.text.clone()));
+        }
+    }
+
+    let (mut harness, _) = Harness::start_agents(project, |_| {});
+
+    // 事前に各ワークスペースを先頭以外の場所へ動かしておく
+    harness.frame(vec![key(Key::Num4, ALT)]);
+    harness.frame(vec![key(Key::ArrowDown, ALT)]);
+    assert_eq!(
+        harness.app.spaces().and_then(|s| s.idea.selected()),
+        Some("I0002")
+    );
+    harness.frame(vec![key(Key::Num5, ALT)]);
+    assert_eq!(
+        harness.app.spaces().and_then(|s| s.material.selected()),
+        Some("M0100")
+    );
+    // agent 画面の一覧は新しい順（board.tasks.iter().rev()）
+    let task_ids: Vec<String> = board(&harness)
+        .tasks
+        .into_iter()
+        .rev()
+        .map(|t| t.id)
+        .collect();
+    assert_eq!(task_ids.len(), 2);
+    harness.frame(vec![key(Key::Num8, ALT)]);
+    harness.frame(Vec::new());
+    harness.frame(vec![key(Key::ArrowDown, Modifiers::NONE)]);
+    assert_eq!(
+        harness.app.spaces().and_then(|s| s.agent.selected_task()),
+        Some(task_ids[1].as_str())
+    );
+
+    // 1. write(01-01-01-01, mode: 'リリア:C) → Ctrl+Shift+6 (cast): 先頭キャラ「アルス」(0) ではなく mode: の先頭「リリア」(1)
+    harness.frame(vec![key(Key::Num1, ALT)]);
+    assert_eq!(
+        harness.app.workbench().and_then(Workbench::current_id),
+        Some(id(1, 1, 1, 1))
+    );
+    harness.frame(vec![key(Key::Num6, CTRL_SHIFT)]);
+    let out_cast = harness.frame(Vec::new());
+    assert_eq!(harness.app.workspace(), Some(Workspace::Cast));
+    assert_eq!(
+        harness.app.spaces().and_then(|s| s.cast.selected()),
+        Some(1)
+    );
+    assert!(painted_text(&out_cast).contains("# リリア"));
+
+    // 2. write を @01-01-01-02 ('M0137 参照 + @アルス:B の E004 診断あり) に進める
+    harness.frame(vec![key(Key::Num1, ALT)]);
+    harness.frame(vec![key(Key::ArrowDown, ALT)]);
+    assert_eq!(
+        harness.app.workbench().and_then(Workbench::current_id),
+        Some(id(1, 1, 1, 2))
+    );
+
+    // write → Ctrl+Shift+2 (plot-episode): 同じ SceneId の節ブロック
+    harness.frame(vec![key(Key::Num2, CTRL_SHIFT)]);
+    harness.frame(Vec::new());
+    assert_eq!(harness.app.workspace(), Some(Workspace::PlotEpisode));
+    assert_eq!(selected(&harness), Some(id(1, 1, 1, 2)));
+
+    // write → Ctrl+Shift+3 (plot-outline): 属する話 @01-01 のブロック
+    harness.frame(vec![key(Key::Num1, ALT)]);
+    harness.frame(vec![key(Key::Num3, CTRL_SHIFT)]);
+    harness.frame(Vec::new());
+    assert_eq!(harness.app.workspace(), Some(Workspace::PlotOutline));
+    assert_eq!(
+        harness.app.spaces().and_then(|s| s.outline.selected()),
+        Some(id(1, 1, 0, 0))
+    );
+
+    // 3. plot-outline (@01-01: 01-01-01-01 は fixed、01-01-01-02 が最初の state != fixed) → Ctrl+Shift+1 (write)
+    harness.frame(vec![key(Key::Num1, ALT)]);
+    harness.frame(vec![key(Key::ArrowUp, ALT)]);
+    assert_eq!(
+        harness.app.workbench().and_then(Workbench::current_id),
+        Some(id(1, 1, 1, 1))
+    );
+    harness.frame(vec![key(Key::Num3, ALT)]);
+    harness.frame(vec![key(Key::Num1, CTRL_SHIFT)]);
+    harness.frame(Vec::new());
+    assert_eq!(harness.app.workspace(), Some(Workspace::Write));
+    assert_eq!(
+        harness.app.workbench().and_then(Workbench::current_id),
+        Some(id(1, 1, 1, 2)),
+        "plot-outline → write は最初の state != fixed の節に着地する"
+    );
+
+    // 4. 任意 (01-01-01-02) → Ctrl+Shift+5 (material): 現在の節が参照している M0137 に着地
+    harness.frame(vec![key(Key::Num5, CTRL_SHIFT)]);
+    let out_mat = harness.frame(Vec::new());
+    assert_eq!(harness.app.workspace(), Some(Workspace::Material));
+    assert_eq!(
+        harness.app.spaces().and_then(|s| s.material.selected()),
+        Some("M0137")
+    );
+    assert!(painted_text(&out_mat).contains("# 科学の甲子園"));
+
+    // 5. 任意 (01-01-01-02) → Ctrl+Shift+9 (review): 01-01-01-02 の診断行に着地
+    harness.frame(vec![key(Key::Num1, ALT)]);
+    harness.frame(vec![key(Key::Num9, CTRL_SHIFT)]);
+    harness.frame(Vec::new());
+    assert_eq!(harness.app.workspace(), Some(Workspace::Review));
+    let review_idx = harness.app.spaces().map(|s| s.review.selected()).unwrap();
+    let cached = harness
+        .app
+        .spaces()
+        .and_then(|s| s.review.cached())
+        .expect("diagnostics cached");
+    assert!(
+        cached[review_idx]
+            .place
+            .as_deref()
+            .is_some_and(|p| p.contains("01-01-01-02")),
+        "現在の節の診断に着地する: {:?}",
+        cached[review_idx]
+    );
+
+    // 6. 任意 → Ctrl+Shift+4 (idea) / Ctrl+Shift+8 (agent): 一覧の先頭に着地
+    harness.frame(vec![key(Key::Num4, CTRL_SHIFT)]);
+    harness.frame(Vec::new());
+    assert_eq!(
+        harness.app.spaces().and_then(|s| s.idea.selected()),
+        Some("I0001")
+    );
+    harness.frame(vec![key(Key::Num8, CTRL_SHIFT)]);
+    harness.frame(Vec::new());
+    assert_eq!(
+        harness.app.spaces().and_then(|s| s.agent.selected_task()),
+        Some(task_ids[0].as_str())
+    );
+
+    // 7. plot-episode (本文ファイルが無い 01-03-01-01) → Ctrl+Shift+1 (write): 空の節ファイルを作らずカーソルだけ置く
+    harness.frame(vec![key(Key::Num2, ALT)]);
+    harness.frame(vec![key(Key::ArrowRight, CTRL_ALT)]);
+    harness.frame(vec![key(Key::ArrowRight, CTRL_ALT)]);
+    harness.frame(vec![key(Key::ArrowDown, ALT)]);
+    assert_eq!(selected(&harness), Some(id(1, 3, 1, 1)));
+    harness.frame(vec![key(Key::Num1, CTRL_SHIFT)]);
+    harness.frame(Vec::new());
+    assert_eq!(harness.app.workspace(), Some(Workspace::Write));
+    assert_eq!(
+        harness.app.workbench().and_then(Workbench::current_id),
+        Some(id(1, 3, 1, 1))
+    );
+    assert!(
+        harness
+            .app
+            .workbench()
+            .unwrap()
+            .project()
+            .document("contents/01-03.cnov")
+            .is_none(),
+        "文字を打つまで空の本文ファイルは作らない"
+    );
+}
+
+#[test]
+fn ctrl_shift_arrows_cycle_tabs_and_links_open_their_target_workspaces() {
+    let mut base = novel::novel();
+    // 引用注釈 ^M0137 を第2話に入れて stage.citations からの遷移も検証する
+    base.insert(Document::new("materials/index.json", world::INDEX));
+    base.insert(Document::new(
+        "contents/01-02.cnov",
+        "@01-02-01 旧校舎\n旧校舎の扉は錆びついていた。^M0137\n",
+    ));
+    let (mut harness, _) = Harness::start_with(base, true);
+
+    // when: が 1 件も無いプロジェクトでは PlotOutline と Review に「時系列」タブを出さない
+    harness.frame(vec![key(Key::Num3, ALT)]);
+    let out_outline = harness.frame(Vec::new());
+    assert!(
+        !painted_text(&out_outline).contains("時系列"),
+        "when: が無ければ時系列タブは出さない"
+    );
+    // Ctrl+Shift+→ でマトリクスへ進み、Ctrl+Shift+← で基本に戻る
+    harness.frame(vec![key(Key::ArrowRight, CTRL_SHIFT)]);
+    let out_matrix = harness.frame(Vec::new());
+    assert!(painted_text(&out_matrix).contains("summary"));
+    // マトリクスの先頭行で Enter を押すと該当プロットのワークスペースへ遷移して表示される
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+    assert_eq!(
+        harness.app.tabs_state().map(|t| t.tabs[2]),
+        Some(0),
+        "リンク遷移で基本ビューが開く"
+    );
+
+    // Cast: モード → 役割語 → 呼称表 → モード（逆方向も）
+    harness.frame(vec![key(Key::Num6, ALT)]);
+    harness.frame(vec![key(Key::ArrowRight, CTRL_SHIFT)]); // Tester
+    harness.frame(vec![key(Key::ArrowRight, CTRL_SHIFT)]); // Addresses
+    let out_addr = harness.frame(Vec::new());
+    assert_eq!(harness.app.tabs_state().map(|t| t.tabs[5]), Some(1));
+    assert!(painted_text(&out_addr).contains("呼称表"));
+    harness.frame(vec![key(Key::ArrowLeft, CTRL_SHIFT)]); // Tester へ戻る
+    assert_eq!(harness.app.tabs_state().map(|t| t.tabs[5]), Some(0));
+    assert_eq!(
+        harness.app.spaces().map(|s| s.cast.tab),
+        Some(novnow::ui::workspaces::cast::Tab::Tester)
+    );
+
+    // Material: Ctrl+Shift+→ で「引用元から本文へ」タブへ移り、Enter で Write の 01-02-01-01 が開く
+    harness.frame(vec![key(Key::Num5, ALT)]);
+    harness.frame(vec![key(Key::ArrowRight, CTRL_SHIFT)]);
+    let out_cit = harness.frame(Vec::new());
+    assert!(painted_text(&out_cit).contains("contents/01-02.cnov"));
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+    assert_eq!(harness.app.workspace(), Some(Workspace::Write));
+    assert_eq!(
+        harness.app.workbench().and_then(Workbench::current_id),
+        Some(id(1, 2, 1, 1))
+    );
+
+    // Review: Ctrl+Shift+← で末尾の「提案」タブへ逆巡回し、Ctrl+Shift+→ で「診断」へ戻る
+    harness.frame(vec![key(Key::Num9, ALT)]);
+    harness.frame(vec![key(Key::ArrowLeft, CTRL_SHIFT)]);
+    let out_prop = harness.frame(Vec::new());
+    assert_eq!(harness.app.tabs_state().map(|t| t.tabs[8]), Some(8));
+    assert!(painted_text(&out_prop).contains("提案"));
+    harness.frame(vec![key(Key::ArrowRight, CTRL_SHIFT)]);
+    harness.frame(Vec::new());
+    assert_eq!(harness.app.tabs_state().map(|t| t.tabs[8]), Some(0));
+    assert_eq!(
+        harness.app.spaces().map(|s| s.review.tab),
+        Some(novnow::ui::workspaces::review::Tab::Diagnostics)
+    );
+}
+
+#[test]
+fn reader_toc_cover_folio_clean_chrome_and_escape_return_stay_aligned() {
+    let mut project = novel::novel();
+    // 長大な blurb を設定しても表紙は必ず 1 ページに収まること、複数ページの本文で目次と Esc 復帰が一致すること
+    let long_blurb = "あらすじの文。".repeat(300);
+    project.insert(Document::new(
+        "plots/all.cnov",
+        format!(
+            "title: 星屑の時計\n\n@01 失われた刻印\nsummary: 導入章。\nblurb: {long_blurb}\n;\n"
+        ),
+    ));
+    let sec1 = "春の風が吹く図書室で｜古文書《こもんじょ》をめくる。\n".repeat(35);
+    let sec2 =
+        "// 先頭コメント\n「見つけたぞ」'アルス @アルス:A\n星の地図が光り始める場面の本文。\n"
+            .repeat(25);
+    let sec3 = "夕暮れの帰り道で二人が約束を交わす結びの場面。\n".repeat(20);
+    project.insert(Document::new(
+        "contents/01-01.cnov",
+        format!("@01-01-01 放課後\n{sec1};\n{sec2};\n{sec3}"),
+    ));
+
+    let (mut harness, _) = Harness::start_with(project, true);
+    // 第2節 (01-01-01-02) から Ctrl+Shift+7 で読者モードへ強制持ち越し
+    harness.frame(vec![key(Key::ArrowDown, ALT)]);
+    assert_eq!(
+        harness.app.workbench().and_then(Workbench::current_id),
+        Some(id(1, 1, 1, 2))
+    );
+    harness.frame(vec![key(Key::Num7, CTRL_SHIFT)]);
+    let out_sec2 = harness.frame(Vec::new());
+    let text_sec2 = painted_text(&out_sec2);
+
+    // §17.3.5: パンくず・保存状態・診断バッジは読者モードで一切表示しない
+    assert!(
+        !text_sec2.contains("01›01"),
+        "パンくずは出さない: {text_sec2}"
+    );
+    assert!(
+        !text_sec2.contains('⚑'),
+        "診断件数バッジは出さない: {text_sec2}"
+    );
+    // §17.3.2: 柱（章題）とノンブルが描かれている
+    assert!(
+        text_sec2.contains("失われた刻印"),
+        "柱に章題が出る: {text_sec2}"
+    );
+    let sec2_page = harness.app.tabs_state().map(|t| t.reader_page).unwrap();
+    assert!(
+        sec2_page >= 2,
+        "表紙(0) + 第1節(1..) の後ろのページに着地する: page={sec2_page}"
+    );
+    assert_eq!(
+        harness.app.tabs_state().and_then(|t| t.reader_section),
+        Some(id(1, 1, 1, 2))
+    );
+
+    // Home で先頭（表紙 = page 0）へ行き、1回 ← で第1節の先頭（page 1 = p.2）になる（＝長大 blurb でも表紙は 1 枚！）
+    harness.frame(vec![key(Key::Home, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+    assert_eq!(harness.app.tabs_state().map(|t| t.reader_page), Some(0));
+    harness.frame(vec![key(Key::ArrowLeft, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+    assert_eq!(harness.app.tabs_state().map(|t| t.reader_page), Some(1));
+    assert_eq!(
+        harness.app.tabs_state().and_then(|t| t.reader_section),
+        Some(id(1, 1, 1, 1)),
+        "2ページ目（index 1）が第1節の先頭＝表紙は厳密に1枚"
+    );
+
+    // 目次を開いて第3節 01-01-01-03 のリンクをクリックすると、表示されたページ番号どおりのページへ飛び、Esc で 01-01-01-03 の節エディタに戻る
+    let toc_out = harness.frame(Vec::new());
+    let toc_header = painted_texts(&toc_out)
+        .into_iter()
+        .find(|(t, _)| t == "目次")
+        .map(|(_, r)| r)
+        .expect("目次ヘッダ");
+    harness.click_at(toc_header.center());
+    let opened_toc = harness.frame(Vec::new());
+    let (toc_label, toc_rect) = painted_texts(&opened_toc)
+        .into_iter()
+        .find(|(t, _)| t.starts_with("01-01-01-03"))
+        .expect("第3節の目次リンク");
+    let expected_page_1based: usize = toc_label
+        .rsplit("p.")
+        .next()
+        .and_then(|n| n.trim().parse().ok())
+        .expect("目次ページ番号");
+    harness.click_at(toc_rect.center());
+    let after_click = harness.frame(Vec::new());
+    let actual_page_0based = harness.app.tabs_state().map(|t| t.reader_page).unwrap();
+    assert_eq!(
+        actual_page_0based + 1,
+        expected_page_1based,
+        "目次のページ表記とジャンプ後の実ページが完全一致する"
+    );
+    assert!(
+        painted_text(&after_click).contains(&format!("{expected_page_1based} / ")),
+        "ノンブルも一致する"
+    );
+
+    // Esc で編集に戻ると、注釈やルビがあっても正確に第3節 01-01-01-03 に着地する
+    harness.frame(vec![key(Key::Escape, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+    assert_eq!(harness.app.workspace(), Some(Workspace::Write));
+    assert_eq!(
+        harness.app.workbench().and_then(Workbench::current_id),
+        Some(id(1, 1, 1, 3)),
+        "Esc で直前に読んでいた節の節エディタに正確に戻る"
+    );
+}
+
+#[test]
+fn plot_episode_when_label_insert_mode_space_popup_and_section_swap_work() {
+    let mut project = novel::novel();
+    project.insert(Document::new(
+        "plots/01-01.cnov",
+        "@01-01-01 広場\nspace: 石畳の中央広場\n第一節の要約\nwhen: 第三日 夕刻\n;\n第二節の要約\nwhen: 第三日 夜\n",
+    ));
+    let mut harness = Harness::start_with(project, true).0;
+    harness.frame(vec![key(Key::Num2, ALT)]);
+    let out = harness.frame(Vec::new());
+    assert_eq!(harness.app.workspace(), Some(Workspace::PlotEpisode));
+
+    // 1. 右端に when: の値が表示されている
+    let shown = painted_text(&out);
+    assert!(
+        shown.contains("第三日 夕刻"),
+        "when: が節リスト右端に表示される: {shown}"
+    );
+
+    // 2. Ctrl+Shift+Space で空間設計メモの全文ポップアップが開く
+    harness.frame(vec![key(Key::Space, CTRL_SHIFT)]);
+    let popup_out = harness.frame(Vec::new());
+    assert_eq!(
+        harness.app.overlay_kind(),
+        Some(novnow::ui::app::OverlayKind::Info)
+    );
+    assert!(painted_text(&popup_out).contains("石畳の中央広場"));
+    harness.frame(vec![key(Key::Escape, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+
+    // 3. Ctrl+D で mode: 行を補完から挿入できる（着地時は第1節が選択されている）
+    harness.frame(vec![key(Key::D, CTRL)]);
+    harness.frame(Vec::new());
+    assert_eq!(
+        harness.app.overlay_kind(),
+        Some(novnow::ui::app::OverlayKind::InsertMode)
+    );
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+    let plot_after_mode = harness
+        .app
+        .workbench()
+        .unwrap()
+        .project()
+        .text("plots/01-01.cnov")
+        .to_owned();
+    assert!(
+        plot_after_mode.contains("mode: '"),
+        "Ctrl+D → Enter で mode: 行が挿入される: {plot_after_mode}"
+    );
+
+    // 4. Alt+Shift+Down で本文あり節の入替確認モーダルが開き、Enter で連動入替される
+    harness.frame(vec![key(Key::ArrowDown, ALT | Modifiers::SHIFT)]);
+    harness.frame(Vec::new());
+    assert_eq!(
+        harness.app.overlay_kind(),
+        Some(novnow::ui::app::OverlayKind::ConfirmSwapSections)
+    );
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+    let plot_after_swap = harness
+        .app
+        .workbench()
+        .unwrap()
+        .project()
+        .text("plots/01-01.cnov")
+        .to_owned();
+    let idx_second = plot_after_swap.find("第二節の要約").unwrap();
+    let idx_first = plot_after_swap.find("第一節の要約").unwrap();
+    assert!(
+        idx_second < idx_first,
+        "節プロットが入れ替わる: {plot_after_swap}"
+    );
+}
+
+#[test]
+fn outline_tree_keeps_stock_last_and_search_auto_expands_folded_units() {
+    let mut project = novel::novel();
+    project.insert(Document::new(
+        "project.toml",
+        "[project]\ntitle = \"t\"\n[structure]\nallow_chapter_zero = true\n",
+    ));
+    project.insert(Document::new(
+        "plots/all.cnov",
+        "@00\n;\n@01 序章\n;\n@02 転章\n",
+    ));
+    project.insert(Document::new(
+        "contents/00-01.cnov",
+        "@00-01-01\n秘蔵ストック本文\n",
+    ));
+    let mut harness = Harness::start_with(project, true).0;
+
+    // PlotOutline を開く: ストック章 00（「未分類ストック」）は 01・02 より下（最後尾）に描かれる
+    harness.frame(vec![key(Key::Num3, ALT)]);
+    let out = harness.frame(Vec::new());
+    let texts = painted_texts(&out);
+    let y_ch1 = texts
+        .iter()
+        .find(|(t, _)| t.contains("序章"))
+        .map(|(_, r)| r.center().y)
+        .expect("序章");
+    let y_ch2 = texts
+        .iter()
+        .find(|(t, _)| t.contains("転章"))
+        .map(|(_, r)| r.center().y)
+        .expect("転章");
+    let y_stock = texts
+        .iter()
+        .find(|(t, _)| t.contains("未分類ストック"))
+        .map(|(_, r)| r.center().y)
+        .expect("未分類ストック");
+    assert!(
+        y_ch1 < y_ch2 && y_ch2 < y_stock,
+        "ストック章は常に最後尾に並ぶ"
+    );
+
+    // すべて折りたたんだ状態から Ctrl+Shift+F で検索すると該当単位が自動展開される
+    harness.frame(vec![key(Key::K, CTRL)]);
+    harness.frame(vec![key(Key::Num0, CTRL)]);
+    harness.frame(vec![key(Key::F, CTRL_SHIFT)]);
+    harness.frame(vec![egui::Event::Text("秘蔵ストック".into())]);
+    harness.frame(Vec::new());
+    harness.frame(vec![key(Key::Escape, Modifiers::NONE)]);
+    let expanded_out = harness.frame(Vec::new());
+    assert!(
+        painted_text(&expanded_out).contains("00-01"),
+        "検索ヒットにより折りたたまれたストック章が自動展開される"
+    );
+}
+
+#[test]
+fn save_search_with_ctrl_shift_s_and_material_rerun_diff_preview() {
+    let mut harness = novel_harness();
+    // Write で Ctrl+Shift+F → 検索タブが開いて入力欄にフォーカス → "アルス" + Enter で検索 → Ctrl+Shift+S
+    harness.frame(vec![key(Key::F, CTRL_SHIFT)]);
+    harness.frame(Vec::new());
+    harness.frame(vec![
+        egui::Event::Text("アルス".into()),
+        key(Key::Enter, Modifiers::NONE),
+    ]);
+    harness.frame(Vec::new());
+    harness.frame(vec![key(Key::S, CTRL_SHIFT)]);
+    let modal_out = harness.frame(Vec::new());
+    assert!(
+        painted_text(&modal_out).contains("この検索結果を資料にする"),
+        "Ctrl+Shift+S で検索資料化モーダルが開く: open={:?} text={}",
+        harness.app.tabs_state().map(|t| t.save_search_open),
+        painted_text(&modal_out)
+    );
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+
+    let saved_path = harness
+        .app
+        .workbench()
+        .unwrap()
+        .project()
+        .documents()
+        .find(|d| d.path.starts_with("materials/docs/S") && d.path.ends_with("-アルス.md"))
+        .map(|d| d.path.clone())
+        .expect("S####-<slug>.md として保存される");
+    assert_eq!(saved_path, "materials/docs/S0138-アルス.md");
+
+    // Write 節エディタへ戻って本文に新しいヒットを追記してから Material ワークスペースで [再検索]
+    let (_, basic_tab) = painted_texts(&harness.frame(Vec::new()))
+        .into_iter()
+        .find(|(t, _)| t == "基本")
+        .expect("基本タブ");
+    harness.click_at(basic_tab.center());
+    harness.frame(vec![key(Key::Num2, CTRL)]);
+    harness.frame(Vec::new());
+    harness.frame(vec![egui::Event::Text("\nアルスが新しく頷いた。\n".into())]);
+    harness.frame(Vec::new());
+    harness.frame(vec![key(Key::Num5, ALT)]);
+    let detail_out = harness.frame(Vec::new());
+    let (_, rerun_btn) = painted_texts(&detail_out)
+        .into_iter()
+        .find(|(t, _)| t == "再検索")
+        .expect("再検索ボタン");
+    harness.click_at(rerun_btn.center());
+    let diff_out = harness.frame(Vec::new());
+    assert!(
+        painted_text(&diff_out).contains("新規ヒット"),
+        "再検索で未適用の差分プレビューが表示される: {}",
+        painted_text(&diff_out)
+    );
+    // まだ保存済み本文は書き換わっていない
+    assert!(
+        !harness
+            .app
+            .workbench()
+            .unwrap()
+            .project()
+            .text(&saved_path)
+            .contains("新しく頷いた"),
+        "人間が採用するまで本文は自動上書きされない"
+    );
+    let (_, apply_btn) = painted_texts(&diff_out)
+        .into_iter()
+        .find(|(t, _)| t == "この検索結果で更新を適用")
+        .expect("適用ボタン");
+    harness.click_at(apply_btn.center());
+    harness.frame(Vec::new());
+    assert!(
+        harness
+            .app
+            .workbench()
+            .unwrap()
+            .project()
+            .text(&saved_path)
+            .contains("新しく頷いた"),
+        "適用ボタンで本文が更新される"
+    );
+}
+
+#[test]
+fn stock_tab_bidirectional_assign_and_return_work_in_gui() {
+    let mut project = novel::novel();
+    project.insert(Document::new(
+        "project.toml",
+        "[project]\ntitle = \"t\"\n[structure]\nallow_chapter_zero = true\n",
+    ));
+    project.insert(Document::new(
+        "contents/00-01.cnov",
+        "@00-01-01\nストックの挿話。\n",
+    ));
+    project.insert(Document::new(
+        "plots/00.cnov",
+        "@00-01 秘蔵挿話\nsummary: 幕間の構想\n",
+    ));
+    let mut harness = Harness::start_with(project, true).0;
+
+    // PlotOutline → ストック配属タブ（末尾タブなので Ctrl+Shift+Left 1 回で到達）
+    harness.frame(vec![key(Key::Num3, ALT)]);
+    harness.frame(vec![key(Key::ArrowLeft, CTRL_SHIFT)]);
+    let stock_out = harness.frame(Vec::new());
+    let text = painted_text(&stock_out);
+    assert!(
+        text.contains("00-01") && text.contains("幕間の構想"),
+        "ストック一覧に話番号と要約が表示される: {text}"
+    );
+
+    // Ctrl+Enter で章・話番号指定モーダルを開き、Enter で既定の空き話番号へ配属
+    harness.frame(vec![key(Key::Enter, CTRL)]);
+    let modal_out = harness.frame(Vec::new());
+    assert!(
+        painted_text(&modal_out).contains("移動先の章番号"),
+        "stock modal open={:?} text={}",
+        harness
+            .app
+            .tabs_state()
+            .map(|t| (t.tabs[2], t.stock_modal_open)),
+        painted_text(&modal_out)
+    );
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+    assert!(
+        harness
+            .app
+            .workbench()
+            .unwrap()
+            .project()
+            .document("contents/00-01.cnov")
+            .is_none(),
+        "ストックから正式な章へファイルが移動した"
+    );
+}
+
+fn text_rect(output: &egui::FullOutput, needle: &str) -> Option<egui::Rect> {
+    painted_texts(output)
+        .into_iter()
+        .find(|(t, _)| t == needle)
+        .or_else(|| {
+            painted_texts(output)
+                .into_iter()
+                .find(|(t, _)| t.contains(needle))
+        })
+        .map(|(_, r)| r)
+}
+
+#[test]
+fn address_matrix_enter_commit_escape_cancel_candidate_extract_and_w084_pair_jump_work() {
+    let mut project = novel::novel();
+    project.insert(Document::new(
+        "characters.md",
+        "# アルス\nreading: あるす\naddress: リリア => リリア嬢\n## modes\n### B\naddress: リリア => お前\n\n# リリア\nreading: りりあ\n\n# 佐倉\nreading: さくら\n",
+    ));
+    project.insert(Document::new(
+        "contents/01-01.cnov",
+        "@01-01-01\n「リリア、佐倉先生を呼んでくれ」@アルス\n",
+    ));
+    let mut harness = Harness::start_with(project, true).0;
+
+    // 1. Review の診断一覧で W084 を選び、「呼称ペアを開く」ボタンで Cast の呼称タブの該当ペアへ移動する
+    harness.frame(vec![key(Key::Num9, ALT)]);
+    let rev_out = harness.frame(Vec::new());
+    // W084 の行を選択する
+    let w084_idx = harness
+        .app
+        .spaces()
+        .and_then(|s| s.review.cached())
+        .and_then(|rows| rows.iter().position(|r| r.code == "W084"))
+        .expect("W084 diagnostic must exist");
+    for _ in 0..w084_idx {
+        harness.frame(vec![key(Key::ArrowDown, Modifiers::NONE)]);
+    }
+    let w084_out = harness.frame(Vec::new());
+    let _ = rev_out;
+    let open_pair_btn = text_rect(&w084_out, "呼称ペアを開く")
+        .expect("W084 選択時は呼称ペアを開くボタンが表示される");
+    harness.click_at(open_pair_btn.center());
+    let addr_out = harness.frame(Vec::new());
+    assert_eq!(harness.app.workspace(), Some(Workspace::Cast));
+    assert_eq!(harness.app.tabs_state().map(|t| t.tabs[5]), Some(1));
+    assert_eq!(
+        harness
+            .app
+            .tabs_state()
+            .and_then(|t| t.address_selected_pair.clone()),
+        Some(("アルス".to_owned(), "リリア".to_owned()))
+    );
+    assert!(
+        painted_text(&addr_out).contains("W084 違反箇所"),
+        "選択ペアの W084 セクションが表示される"
+    );
+
+    // 2. Enter でインライン編集を開始し、書き換えてから Esc でキャンセルすると characters.md は変更されない
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(vec![Event::Text("キャンセル呼称".to_owned())]);
+    harness.frame(vec![key(Key::Escape, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+    let after_cancel = harness
+        .app
+        .workbench()
+        .unwrap()
+        .project()
+        .text("characters.md")
+        .to_owned();
+    assert!(
+        !after_cancel.contains("キャンセル呼称") && after_cancel.contains("リリア嬢"),
+        "Esc キャンセル時は characters.md を変更しない: {after_cancel}"
+    );
+
+    // 3. モード `:B` に切り替え、Enter で編集開始 → 入力 → Enter で確定するとモード別ペアに保存される
+    let mode_b = text_rect(&addr_out, ":B").expect(":B mode selector");
+    harness.click_at(mode_b.center());
+    harness.frame(Vec::new());
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(vec![key(Key::A, CTRL), Event::Text("貴様".to_owned())]);
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+    let after_commit = harness
+        .app
+        .workbench()
+        .unwrap()
+        .project()
+        .text("characters.md")
+        .to_owned();
+    assert!(
+        after_commit.contains("### B\naddress: リリア => 貴様"),
+        "Enter 確定でモード別 address: が書き戻される: {after_commit}"
+    );
+    assert!(
+        after_commit.contains("address: リリア => リリア嬢"),
+        "基底モードの定義は保たれる: {after_commit}"
+    );
+
+    // 4. Ctrl+Shift+A で候補抽出: 自動では書き込まず、登録ボタンを押した後に書き込まれる
+    harness.frame(vec![key(Key::A, CTRL_SHIFT)]);
+    let cand_out = harness.frame(Vec::new());
+    assert!(
+        painted_text(&cand_out).contains("佐倉先生"),
+        "会話内の呼称候補『佐倉先生』が提示される: {}",
+        painted_text(&cand_out)
+    );
+    assert!(
+        !harness
+            .app
+            .workbench()
+            .unwrap()
+            .project()
+            .text("characters.md")
+            .contains("佐倉先生"),
+        "自動では characters.md に書き込まない"
+    );
+    let reg_btn = text_rect(&cand_out, "選択した候補を登録").expect("register selected button");
+    harness.click_at(reg_btn.center());
+    harness.frame(Vec::new());
+    assert!(
+        harness
+            .app
+            .workbench()
+            .unwrap()
+            .project()
+            .text("characters.md")
+            .contains("佐倉 => 佐倉先生"),
+        "人間が登録を実行した後に characters.md へ反映される"
+    );
+}
+
+#[test]
+fn review_tabs_metrics_scopes_senses_jump_and_diagnostic_level_persistence_work() {
+    let mut project = novel::novel();
+    project.insert(Document::new(
+        "plots/all.cnov",
+        "title: テスト作品\n\n@01 第一章\nsummary: 導入\nwhen: 405\n;\n@02 第二章\nsummary: 展開\n;\n",
+    ));
+    project.insert(Document::new(
+        "plots/01.cnov",
+        "@01-01 第一話\nsummary: 発端\n;\n@01-02 第二話\nsummary: 事件\nwhen: 410\n;\n@01-03 第三話\nsummary: 逆転\nwhen: 408\n;\n@01-04 第四話\nsummary: 過去編\nwhen: 200 回想\n;\n",
+    ));
+    project.insert(Document::new(
+        "plots/01-01.cnov",
+        "@01-01-01 図書室\ncast: 'アルス 'リリア\npov: 'アルス\nsenses: 視覚\nlength: 20\n;\nsenses: 視覚\n;\nsenses: 視覚\n;\nsenses: 視覚\n;\nsenses: 視覚\n;\nsenses: 聴覚\n;\n",
+    ));
+    project.insert(Document::new(
+        "plots/02-01.cnov",
+        "@02-01-01 中庭\npov: 'リリア\n;\n",
+    ));
+    project.insert(Document::new(
+        "contents/01-01.cnov",
+        "@01-01-01\n「おはよう」@アルス\n光が差す。\n;\n二節。\n;\n三節。\n;\n四節。\n;\n五節。\n;\n「聞こえる？」\n",
+    ));
+    project.insert(Document::new(
+        "contents/02-01.cnov",
+        "@02-01-01\n「二章よ」@リリア\n風が吹く。\n",
+    ));
+    project.insert(Document::new(
+        ".novnow/stats.json",
+        r#"{"schema_version":1,"days":{"2026-09-01":{"chars":100,"hours":[9]},"2026-09-02":{"chars":120,"hours":[10]},"2026-09-03":{"chars":140,"hours":[11]},"2026-09-04":{"chars":90,"hours":[12]}}}"#,
+    ));
+    let mut harness = Harness::start_with(project, true).0;
+
+    // 1. Review 診断設定パネルから W097 を error に変更し project.toml へ永続化されることを確認
+    harness.frame(vec![key(Key::Num9, ALT)]);
+    let diag_out = harness.frame(Vec::new());
+    let settings_btn = text_rect(&diag_out, "診断設定").expect("診断設定ボタン");
+    harness.click_at(settings_btn.center());
+    let panel_out = harness.frame(Vec::new());
+    let filter_box = text_rect(&panel_out, "コードで絞り込み").expect("絞り込み欄");
+    harness.click_at(filter_box.center());
+    harness.frame(vec![Event::Text("W097".to_owned())]);
+    let filtered_out = harness.frame(Vec::new());
+    let as_err_btn = text_rect(&filtered_out, "エラー扱い").expect("エラー扱いボタン");
+    harness.click_at(as_err_btn.center());
+    harness.frame(Vec::new());
+    let saved_toml = harness
+        .app
+        .workbench()
+        .unwrap()
+        .project()
+        .text("project.toml")
+        .to_owned();
+    assert!(
+        saved_toml.contains("[features.diagnostics]") && saved_toml.contains("W097 = \"error\""),
+        "診断設定が project.toml に永続化される: {saved_toml}"
+    );
+
+    // 2. 時系列タブ（tabs[8] = 1）: 継承・回想・巻き戻り警告 ⚠ が表示される
+    let tl_tab = text_rect(&filtered_out, "時系列").expect("時系列タブ");
+    harness.click_at(tl_tab.center());
+    let tl_out = harness.frame(Vec::new());
+    let tl_text = painted_text(&tl_out);
+    assert!(
+        tl_text.contains("（継承）") && tl_text.contains("（回想）") && tl_text.contains("⚠"),
+        "時系列タブに継承・回想・矛盾警告が表示される: {tl_text}"
+    );
+
+    // 3. 話者別タブ（tabs[8] = 2）: 登場節数・視点節数・（不明）・章範囲切替
+    let sp_tab = text_rect(&tl_out, "話者別").expect("話者別タブ");
+    harness.click_at(sp_tab.center());
+    let sp_out = harness.frame(Vec::new());
+    let sp_text = painted_text(&sp_out);
+    assert!(
+        sp_text.contains("（不明）") && sp_text.contains("登場節"),
+        "話者別タブに話者不明と登場節・視点節列が表示される: {sp_text}"
+    );
+    let ch2_btn = text_rect(&sp_out, "章 02").expect("章 02 スコープボタン");
+    harness.click_at(ch2_btn.center());
+    let sp_ch2_out = harness.frame(Vec::new());
+    assert!(
+        !painted_text(&sp_ch2_out).contains("（不明）"),
+        "章 02 に切り替えると 1 章のみの話者不明行は集計外になる"
+    );
+    let all_btn = text_rect(&sp_ch2_out, "全体").expect("全体ボタン");
+    harness.click_at(all_btn.center());
+    harness.frame(Vec::new());
+
+    // 4. 字数分布タブ: 中央値・平均・最長・最短と目標比が表示される
+    let hist_tab = text_rect(&sp_ch2_out, "字数分布").expect("字数分布タブ");
+    harness.click_at(hist_tab.center());
+    let hist_out = harness.frame(Vec::new());
+    let hist_text = painted_text(&hist_out);
+    assert!(
+        hist_text.contains("中央値") && hist_text.contains("目標比"),
+        "字数分布に代表値と目標比が表示される: {hist_text}"
+    );
+
+    // 4.5. 文体観察タブ: 章ごと・話ごとの台詞比率バーと 1 文長分布が表示される
+    let style_tab = text_rect(&hist_out, "文体観察").expect("文体観察タブ");
+    harness.click_at(style_tab.center());
+    let style_out = harness.frame(Vec::new());
+    let style_text = painted_text(&style_out);
+    assert!(
+        style_text.contains("台詞比率") && style_text.contains("1文の長さ分布"),
+        "文体観察タブに台詞比率バーと 1 文長分布が表示される: {style_text}"
+    );
+
+    // 5. 執筆統計タブ: 最長連続記録 4日 が表示される
+    let stats_tab = text_rect(&style_out, "執筆統計").expect("執筆統計タブ");
+    harness.click_at(stats_tab.center());
+    let stats_out = harness.frame(Vec::new());
+    assert!(
+        painted_text(&stats_out).contains("最長連続記録: 4日"),
+        "最長連続記録が表示される: {}",
+        painted_text(&stats_out)
+    );
+
+    // 6. 五感タブ: 宣言節数・未宣言節数・5節連続視覚区間が表示され、Enter で節一覧 → Enter でプロットへ遷移
+    let senses_tab = text_rect(&stats_out, "五感").expect("五感タブ");
+    harness.click_at(senses_tab.center());
+    let senses_out = harness.frame(Vec::new());
+    let senses_text = painted_text(&senses_out);
+    assert!(
+        senses_text.contains("未宣言 4節") && senses_text.contains("視覚のみが 5節連続"),
+        "五感タブに未宣言数と 5節連続視覚区間が表示される: {senses_text}"
+    );
+    // 1 回目の Enter で視覚の節一覧を展開し、下へ動かして Enter で話プロットへジャンプ
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+    harness.frame(vec![key(Key::Enter, Modifiers::NONE)]);
+    harness.frame(Vec::new());
+    assert_eq!(harness.app.workspace(), Some(Workspace::PlotEpisode));
+}
+
+#[test]
+fn agent_threads_are_navigable_and_consistent_between_review_and_agent_workspaces() {
+    let mut project = world::world();
+    project.insert(Document::new(
+        "project.toml",
+        "[project]\ntitle = \"t\"\n[agents]\nenabled = true\n",
+    ));
+    project.insert(Document::new(
+        "agents/threads/TH0001.md",
+        "# TH0001 伏線照会の連絡\nscope: @01-01-01-01\nstatus: open\n\n## msg 001\nfrom: writer\nto: continuity\nkind: question\ncreated_at: 2026-11-12T09:00:00Z\napproved_by: pending\nrefs: 'M0137\nbody:\n  時計の針の向きは右回りで整合しますか？\n",
+    ));
+    let mut harness = Harness::start_with(project, true).0;
+
+    // 1. Review ワークスペースで「スレッド」タブを開き、TH0001・本文・pending を確認
+    harness.frame(vec![key(Key::Num9, ALT)]);
+    let rev_out = harness.frame(Vec::new());
+    let threads_btn = text_rect(&rev_out, "スレッド").expect("Review スレッドタブ");
+    harness.click_at(threads_btn.center());
+    let rev_th_out = harness.frame(Vec::new());
+    let rev_text = painted_text(&rev_th_out);
+    assert!(
+        rev_text.contains("TH0001")
+            && rev_text.contains("時計の針の向きは右回りで整合しますか？")
+            && rev_text.contains("承認: pending"),
+        "Review でスレッド ID・メッセージ本文・未承認状態が確認できる: {rev_text}"
+    );
+
+    // 2. 「エージェント管制で開く」で Agent ワークスペースへ遷移し、同一スレッドを確認して承認する
+    let to_agent_btn =
+        text_rect(&rev_th_out, "エージェント管制で開く").expect("エージェント管制で開くボタン");
+    harness.click_at(to_agent_btn.center());
+    let agent_out = harness.frame(Vec::new());
+    assert_eq!(harness.app.workspace(), Some(Workspace::Agent));
+    let agent_text = painted_text(&agent_out);
+    assert!(
+        agent_text.contains("TH0001")
+            && agent_text.contains("時計の針の向きは右回りで整合しますか？")
+            && agent_text.contains("承認: pending"),
+        "Agent でも同一スレッドの本文と承認状態が確認できる: {agent_text}"
+    );
+
+    let approve_btn = text_rect(&agent_out, "未承認を承認").expect("未承認を承認ボタン");
+    harness.click_at(approve_btn.center());
+    let approved_out = harness.frame(Vec::new());
+    assert!(
+        painted_text(&approved_out).contains("承認: human"),
+        "承認後に human へ更新される: {}",
+        painted_text(&approved_out)
+    );
+
+    // 3. 「点検で開く」で Review に戻っても同じ TH0001 が human 承認済みで表示される
+    let to_review_btn = text_rect(&approved_out, "点検で開く").expect("点検で開くボタン");
+    harness.click_at(to_review_btn.center());
+    let back_out = harness.frame(Vec::new());
+    assert_eq!(harness.app.workspace(), Some(Workspace::Review));
+    assert!(
+        painted_text(&back_out).contains("TH0001")
+            && painted_text(&back_out).contains("承認: human"),
+        "Review に戻っても承認済み状態が一致する: {}",
+        painted_text(&back_out)
+    );
+}
+
+#[test]
+fn human_proposal_discard_and_external_stale_keep_history_and_protect_manuscript_in_gui() {
+    let mut project = novel::novel();
+    project.insert(Document::new(
+        "agents/proposals/H0001.md",
+        "# H0001\nkind: human\ntarget: contents/01-01.cnov @01-01-01-01\norigin: human\nstatus: open\ncreated_at: 2026-11-12T10:00:00Z\nupdated_at: 2026-11-12T10:00:00Z\n\n## before\n春の風が吹いていた。\n\n## after\n冷たい北風が吹いていた。\n",
+    ));
+    project.insert(Document::new(
+        "agents/proposals/H0002.md",
+        "# H0002\nkind: human\ntarget: contents/01-01.cnov @01-01-01-01\norigin: human\nstatus: open\ncreated_at: 2026-11-12T10:01:00Z\nupdated_at: 2026-11-12T10:01:00Z\n\n## before\n古い版のスナップショット。\n\n## after\n採用されてはいけない提案文。\n",
+    ));
+    let mut harness = Harness::start_with(project, true).0;
+
+    // 1. Review → 人間の提案タブ（Ctrl+Shift+Left で末尾タブへ）で H0002 は即座に stale + W093 になり、H0001 は [破棄] で discarded になる
+    harness.frame(vec![key(Key::Num9, ALT)]);
+    harness.frame(vec![key(Key::ArrowLeft, CTRL_SHIFT)]);
+    let prop_out = harness.frame(Vec::new());
+    let prop_text = painted_text(&prop_out);
+    assert!(
+        prop_text.contains("H0002 stale"),
+        "不一致の提案は status: stale として表示される: {prop_text}"
+    );
+    let h2_saved = harness
+        .app
+        .workbench()
+        .unwrap()
+        .project()
+        .text("agents/proposals/H0002.md")
+        .to_owned();
+    assert!(
+        h2_saved.contains("status: stale"),
+        "H0002 のファイル自体も status: stale に更新される: {h2_saved}"
+    );
+
+    let discard_btn = text_rect(&prop_out, "破棄").expect("破棄ボタン");
+    harness.click_at(discard_btn.center());
+    let after_discard = harness.frame(Vec::new());
+    assert!(
+        painted_text(&after_discard).contains("H0001 discarded"),
+        "破棄後も一覧に discarded として残る: {}",
+        painted_text(&after_discard)
+    );
+    let kept_text = harness
+        .app
+        .workbench()
+        .unwrap()
+        .project()
+        .text("agents/proposals/H0001.md")
+        .to_owned();
+    assert!(
+        kept_text.contains("status: discarded") && kept_text.contains("冷たい北風が吹いていた。"),
+        "ファイルと履歴は削除されない: {kept_text}"
+    );
+    assert!(
+        !harness
+            .app
+            .workbench()
+            .unwrap()
+            .project()
+            .text("contents/01-01.cnov")
+            .contains("採用されてはいけない提案文。"),
+        "stale 提案は本文を上書きしない"
+    );
+}

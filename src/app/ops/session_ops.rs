@@ -6,8 +6,8 @@ use crate::app::command::Command;
 use crate::app::error::{Class, Error, Result};
 use crate::app::event::AppEvent;
 use crate::app::ops::{self, Args};
-use crate::app::session::{str_arg, str_or, usize_opt, ExportQuery, Session};
-use crate::app::settings::{LanguageChoice, PaneSide, UiSettings};
+use crate::app::session::{str_arg, str_or, ExportQuery, Session};
+use crate::app::settings::{LanguageChoice, PaneSide};
 use crate::core::export::{self, Format, State};
 use crate::ui::i18n::{self, Locale};
 
@@ -48,7 +48,10 @@ pub fn export_text(session: &mut Session, args: &Args) -> Result<Value> {
         return Err(Error::usage(locale, "state"));
     }
     if !query.format.is_empty() {
-        options.format = Format::of_name(&query.format);
+        options.format =
+            Format::parse(&query.format).ok_or_else(|| Error::usage(locale, "format"))?;
+    } else if !query.out.is_empty() {
+        options.format = Format::of_name(&query.out);
     }
     options.include_blurb |= query.blurb;
     options.blurb_only |= query.blurb_only;
@@ -116,25 +119,42 @@ pub fn settings_get(session: &mut Session, args: &Args) -> Result<Value> {
 
 /// `settings.set`（§4.4.1。MCP には出さない安全上の除外、§19.4.3）。
 pub fn settings_set(session: &mut Session, args: &Args) -> Result<Value> {
+    use crate::app::settings::SettingError;
     let locale = session.locale;
-    let key = str_arg(locale, args, "key")?;
+    let key = match args.get("key") {
+        Some(Value::String(text)) if !text.is_empty() => text.clone(),
+        Some(_) => return Err(Error::usage(locale, "key")),
+        None => return Err(Error::missing(locale, "key")),
+    };
     let value = match args.get("value") {
         Some(found) => found.clone(),
         None => return Err(Error::missing(locale, "value")),
     };
-    let mut raw: Value = serde_json::from_str(&session.settings.to_json()).unwrap_or(json!({}));
-    if let Some(map) = raw.as_object_mut() {
-        map.insert(key.clone(), value.clone());
+    let mut next = session.settings.clone();
+    match next.set_key(&key, &value) {
+        Ok(()) => {}
+        Err(SettingError::UnknownKey) => return Err(Error::usage(locale, "key")),
+        Err(SettingError::BadValue) => return Err(Error::usage(locale, "value")),
     }
-    let next = UiSettings::parse(&raw.to_string());
+    let previous = session.settings.clone();
     session.settings = next;
-    session.flush_settings()?;
-    session.push(AppEvent::SettingsChanged { key: key.clone() });
-    if key == "language" {
-        let language = language_of(session.locale, value.as_str().unwrap_or("system"));
-        session.set_locale(language);
+    if let Err(error) = session.flush_settings() {
+        session.settings = previous;
+        return Err(error);
     }
-    Ok(json!({ "key": key, "language": language_name(session.locale), "value": value }))
+    if key == "autosave_ms" {
+        session.bench.save.set_idle_ms(session.settings.autosave_ms);
+    }
+    if key == "language" {
+        session.locale = language_of(session.locale, value.as_str().unwrap_or("system"));
+    }
+    let effective = session.settings.effective_value(&key);
+    session.push(AppEvent::SettingsChanged { key: key.clone() });
+    Ok(json!({
+        "key": key,
+        "language": language_name(session.locale),
+        "value": effective,
+    }))
 }
 
 fn language_name(locale: Locale) -> &'static str {
@@ -198,22 +218,22 @@ pub fn workspace_switch(session: &mut Session, args: &Args) -> Result<Value> {
 
 /// `session.recent_document`（`Ctrl+Tab` の循環）。
 pub fn recent_document(session: &mut Session, args: &Args) -> Result<Value> {
-    let back = args.get("back").and_then(Value::as_bool).unwrap_or(false);
+    let locale = session.locale;
+    let back = match args.get("back") {
+        None | Some(Value::Null) => false,
+        Some(Value::Bool(flag)) => *flag,
+        Some(_) => return Err(Error::usage(locale, "back")),
+    };
     let places: Vec<String> = session
         .recent
         .iter()
         .map(|place| place.path.clone())
         .collect();
-    let mut index = session.recent_at;
-    if places.is_empty() {
+    let Some(index) =
+        crate::app::session::step_recent_index(places.len(), &mut session.recent_at, !back)
+    else {
         return Ok(json!({ "moved": false, "recent": places }));
-    }
-    index = if back {
-        index.checked_sub(1).unwrap_or(places.len() - 1)
-    } else {
-        (index + 1) % places.len()
     };
-    session.recent_at = index;
     let place = session.recent[index].clone();
     session
         .bench
@@ -248,9 +268,11 @@ pub fn command(session: &mut Session, args: &Args) -> Result<Value> {
     // (1) パレットが文脈から引数を補うコマンド（今の章・直前の文書・今の節。§19.2.3）。
     //     カタログの `command` 列より先に見る（名前だけでは埋まらない引数を GUI と同じ既定で埋める）
     let mapped: Option<(&'static str, Value)> = match command {
-        Command::FindNext(false) => Some(("search.find_next", json!({}))),
-        Command::FindNext(true) => Some(("search.find_prev", json!({}))),
-        Command::RecentFile(back) => Some(("session.recent_document", json!({ "back": back }))),
+        Command::FindNext(true) => Some(("search.find_next", json!({}))),
+        Command::FindNext(false) => Some(("search.find_prev", json!({}))),
+        Command::RecentFile(forward) => {
+            Some(("session.recent_document", json!({ "back": !forward })))
+        }
         Command::Modes => Some(("dictionary.modes_list", json!({}))),
         Command::Term => Some(("dictionary.term_full", Value::Object(payload.clone()))),
         Command::MaterialSearch => Some(("materials.search", Value::Object(payload.clone()))),
@@ -315,6 +337,30 @@ pub fn command(session: &mut Session, args: &Args) -> Result<Value> {
                 .workbench()
                 .current_id()
                 .map(|scene| crate::app::ops::id_text(session, scene)),
+        }));
+    }
+    if matches!(command, Command::ExtractAddresses) {
+        session.bench.commit();
+        let candidates: Vec<Value> =
+            crate::core::features::metadata::extract_address_candidates(session.aggregate())
+                .into_iter()
+                .map(|c| {
+                    json!({
+                        "speaker": c.speaker,
+                        "mode": c.mode,
+                        "target": c.target,
+                        "surface": c.surface,
+                        "count": c.count,
+                        "sample_path": c.sample_path,
+                    })
+                })
+                .collect();
+        return Ok(json!({
+            "command": name,
+            "label": label,
+            "data": {
+                "candidates": candidates,
+            },
         }));
     }
     // (4) 設定だけを変えるコマンド（§9.8.1・§9.1）
@@ -414,11 +460,17 @@ fn continuation(name: &str, label: &str, op: &str, given: &Args) -> Value {
 
 /// `session.poll_events`（§19.2.4 のイベントキュー）。
 pub fn poll_events(session: &mut Session, args: &Args) -> Result<Value> {
-    let limit = usize_opt(args, "limit").unwrap_or(64);
+    let locale = session.locale;
+    let limit = match args.get("limit") {
+        None | Some(Value::Null) => 64,
+        Some(value) => value
+            .as_u64()
+            .map(|n| n as usize)
+            .ok_or_else(|| Error::usage(locale, "limit"))?,
+    };
     let drained: Vec<Value> = session
-        .poll_events()
+        .poll_events_up_to(limit)
         .into_iter()
-        .take(limit)
         .map(|event| event.to_json())
         .collect();
     Ok(json!({ "count": drained.len(), "events": drained }))

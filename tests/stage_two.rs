@@ -592,3 +592,473 @@ fn search_excerpts_are_structured_and_snapshots_use_the_fixed_form() {
         );
     }
 }
+
+#[test]
+fn search_snapshot_slug_summary_and_rerun_diff_workflow() {
+    let mut p = project(&[(
+        "contents/01-01.cnov",
+        "@01-01-01\n銀の指輪を外した。\n;\n金の指輪を見つめた。\n",
+    )]);
+    let q = search::Query {
+        text: "指輪".into(),
+        case_sensitive: true,
+        ..Default::default()
+    };
+    let hits = search::run(&p, &q, || 0).unwrap();
+    let created = search::snapshot_with(
+        &p,
+        &q,
+        &hits,
+        "2026-11-12T10:00:00+09:00",
+        "指輪の登場箇所",
+        "伏線チェック用の固定結果",
+    )
+    .unwrap();
+    assert_eq!(created.id, "S0001");
+    assert_eq!(created.path, "materials/docs/S0001-指輪の登場箇所.md");
+    let index_json: serde_json::Value = serde_json::from_str(&created.index).unwrap();
+    assert_eq!(
+        index_json["items"][0]["summary"],
+        "伏線チェック用の固定結果"
+    );
+
+    p.insert(Document::new(&created.path, &created.body));
+    p.insert(Document::new("materials/index.json", &created.index));
+
+    // 本文を編集して 1 節目のヒットを消し、3 節目に新しいヒットを足す
+    p.insert(Document::new(
+        "contents/01-01.cnov",
+        "@01-01-01\n銀の腕輪を外した。\n;\n金の指輪を見つめた。\n;\n銅の指輪を拾った。\n",
+    ));
+    let new_hits = search::run(&p, &q, || 0).unwrap();
+    let diff = search::rerun_diff(
+        &p,
+        p.text(&created.path),
+        "S0001",
+        "指輪の登場箇所",
+        &q,
+        &new_hits,
+        "2026-11-12T12:30:00+09:00",
+    );
+    assert_eq!(
+        diff.unchanged_count, 1,
+        "created.body={:?}\ndiff={diff:?}",
+        created.body
+    );
+    assert_eq!(diff.added.len(), 1);
+    assert!(diff.added[0].contains("@01-01-01-03") && diff.added[0].contains("銅の**指輪**"));
+    assert_eq!(diff.removed.len(), 1);
+    assert!(diff.removed[0].contains("@01-01-01-01") && diff.removed[0].contains("銀の**指輪**"));
+
+    // 再検索しただけでは保存済み本文は変わらない
+    assert_eq!(p.text(&created.path), created.body);
+
+    // 人間が更新適用を選んだときのみ本文と index.json の updated_at / searched_at が更新される
+    let updated_body = diff.new_body.clone();
+    let updated_index = search::apply_rerun(
+        p.text("materials/index.json"),
+        "S0001",
+        "2026-11-12T12:30:00+09:00",
+    )
+    .unwrap();
+    assert!(updated_body.contains("searched_at: 2026-11-12T12:30:00+09:00\n"));
+    assert!(updated_body.contains("@01-01-01-03 … 銅の**指輪**"));
+    assert!(!updated_body.contains("銀の**指輪**"));
+    let updated_json: serde_json::Value = serde_json::from_str(&updated_index).unwrap();
+    assert_eq!(
+        updated_json["items"][0]["updated_at"],
+        "2026-11-12T12:30:00+09:00"
+    );
+}
+
+#[test]
+fn stock_bidirectional_assignment_and_collision_errors() {
+    use novnow::core::features::stock::StockError;
+
+    let mut p = project(&[
+        (
+            "project.toml",
+            "[project]\ntitle = \"t\"\n[structure]\nallow_chapter_zero = true\n",
+        ),
+        (
+            "plots/00.cnov",
+            "@00-01 秘蔵の幕間\nsummary: ストックの要約\nupdated: 2026-11-10\n",
+        ),
+        ("contents/00-01.cnov", "@00-01-01\n幕間の本文です。\n"),
+        (
+            "plots/00-01.cnov",
+            "@00-01-01\n; @00-01-01-01\nsummary: 幕間節\n",
+        ),
+        ("contents/02-01.cnov", "@02-01-01\n既存の二章一話。\n"),
+        ("ideas.md", "# I0001\nrelates: @00-01-01-01\n"),
+    ]);
+
+    let items = stock::list(&p);
+    assert_eq!(items.len(), 1);
+    assert_eq!(items[0].episode, 1);
+    assert_eq!(items[0].summary, "ストックの要約");
+    assert!(items[0].chars > 0);
+    assert_eq!(items[0].updated_at, "2026-11-10");
+
+    // 既存の 02-01 への配属は衝突エラーで中止される
+    assert!(matches!(
+        stock::move_episode(&p, 0, 1, 2, 1),
+        Err(StockError::DestinationExists(_))
+    ));
+
+    // 空いている 02-05 へ章・話番号指定で配属する
+    let assigned = stock::move_episode(&p, 0, 1, 2, 5).unwrap();
+    assert_eq!(assigned.target_chapter, 2);
+    assert_eq!(assigned.target_episode, 5);
+    assert!(assigned
+        .renames
+        .contains(&("contents/00-01.cnov".into(), "contents/02-05.cnov".into())));
+    for file in &assigned.edit.changes {
+        let doc = p
+            .document(&file.path)
+            .cloned()
+            .unwrap_or_else(|| Document::new(&file.path, ""));
+        let mut text = doc.text.to_string();
+        let mut edits = file.edits.clone();
+        edits.sort_by_key(|a| std::cmp::Reverse(a.range.start));
+        for e in edits {
+            text.replace_range(e.range, &e.new_text);
+        }
+        p.insert(Document::new(&file.path, text));
+    }
+    for (from, to) in &assigned.renames {
+        let body = p.text(from).to_owned();
+        p.remove(from);
+        p.insert(Document::new(to, body));
+    }
+    assert!(p.text("ideas.md").contains("@02-05-01-01"));
+
+    // 正式な話 02-05 をストックへ戻す（00-01 へリネーム＋参照一括更新）
+    let returned = stock::return_to_stock(&p, 2, 5).unwrap();
+    assert_eq!(returned.target_chapter, 0);
+    assert_eq!(returned.target_episode, 1);
+    assert!(returned
+        .renames
+        .contains(&("contents/02-05.cnov".into(), "contents/00-01.cnov".into())));
+}
+
+#[test]
+fn episode_section_swap_and_outline_three_tier_stock_last() {
+    use novnow::core::features::plots;
+    use novnow::core::id::SceneId;
+
+    let p = project(&[
+        (
+            "project.toml",
+            "[project]\ntitle = \"t\"\n[structure]\nallow_chapter_zero = true\n",
+        ),
+        ("plots/all.cnov", "@00\n;\n@01 第一章\n;\n@02 第二章\n"),
+        ("plots/01.cnov", "@01-01 旅立ち\n"),
+        (
+            "plots/01-01.cnov",
+            "@01-01-01 宿屋\nspace: 木造二階建ての宿屋\n朝の支度\nwhen: 第一日 朝\n;\n出発\nwhen: 第一日 昼\nspace: 宿屋の玄関前\n",
+        ),
+        (
+            "contents/01-01.cnov",
+            "@01-01-01\n朝の本文。\n;\n昼の本文。\n",
+        ),
+        ("contents/00-01.cnov", "@00-01-01\nストックの本文。\n"),
+    ]);
+
+    // 1. 構成ツリーは 3 階層（章 → 話 → 場面）で、ストック章 00 が最後尾に並ぶ
+    let tree = plots::outline_tree(&p);
+    let chapter_order: Vec<u16> = tree.iter().map(|c| c.chapter).collect();
+    assert_eq!(chapter_order, vec![1, 2, 0], "ストック章 00 は常に最後尾");
+    assert_eq!(tree[0].episode_count, 1);
+    assert_eq!(tree[0].episodes[0].section_count, 2);
+    assert_eq!(tree[0].episodes[0].scenes.len(), 1);
+    assert_eq!(tree[0].episodes[0].scenes[0].title, "宿屋");
+
+    // 2. episode_rows の when 抽出と space_lines
+    let rows = plots::episode_rows(&p, 1, 1);
+    assert_eq!(rows[1].when.as_deref(), Some("第一日 朝"));
+    assert_eq!(rows[2].when.as_deref(), Some("第一日 昼"));
+    let spaces = plots::space_lines(
+        &p,
+        SceneId {
+            chapter: 1,
+            episode: 1,
+            scene: 1,
+            section: 2,
+        },
+    );
+    assert!(
+        spaces.iter().any(|l| l.contains("宿屋の玄関前")),
+        "節の space: が優先して取得される: {spaces:?}"
+    );
+    let scene_spaces = plots::space_lines(
+        &p,
+        SceneId {
+            chapter: 1,
+            episode: 1,
+            scene: 1,
+            section: 1,
+        },
+    );
+    assert!(
+        scene_spaces
+            .iter()
+            .any(|l| l.contains("木造二階建ての宿屋")),
+        "節に space: が無ければ場面の space: を継承する: {scene_spaces:?}"
+    );
+
+    // 3. 節入替（本文連動あり）
+    let s1 = SceneId {
+        chapter: 1,
+        episode: 1,
+        scene: 1,
+        section: 1,
+    };
+    let s2 = SceneId {
+        chapter: 1,
+        episode: 1,
+        scene: 1,
+        section: 2,
+    };
+    assert!(plots::has_prose_for_swap(&p, s1, s2));
+    let edit = plots::swap_episode_sections(&p, s1, s2, true).unwrap();
+    assert_eq!(edit.changes.len(), 2);
+    let plot_change = edit
+        .changes
+        .iter()
+        .find(|f| f.path == "plots/01-01.cnov")
+        .unwrap();
+    assert!(plot_change.edits[0].new_text.contains("出発"));
+    assert!(plot_change.edits[1].new_text.contains("朝の支度"));
+    let prose_change = edit
+        .changes
+        .iter()
+        .find(|f| f.path == "contents/01-01.cnov")
+        .unwrap();
+    assert!(prose_change.edits[0].new_text.contains("昼の本文。"));
+    assert!(prose_change.edits[1].new_text.contains("朝の本文。"));
+}
+
+#[test]
+fn mode_specific_addresses_candidate_extraction_and_violations_work() {
+    let chars = "# アルス\naddress: リリア => リリア\n## modes\n### formal\naddress: リリア => リリア様\n# リリア\n# 佐倉\n";
+    // モード別の更新・新規モード挿入・空文字による削除
+    let updated =
+        metadata::set_address_with_mode(chars, "アルス", Some("formal"), "リリア", "王女殿下")
+            .unwrap();
+    assert!(updated.contains("address: リリア => リリア\n"));
+    assert!(updated.contains("### formal\naddress: リリア => 王女殿下\n"));
+
+    let inserted_mode =
+        metadata::set_address_with_mode(&updated, "リリア", Some("battle"), "アルス", "貴様")
+            .unwrap();
+    assert!(inserted_mode.contains("## modes\n### battle\naddress: アルス => 貴様\n"));
+
+    let cleared =
+        metadata::set_address_with_mode(&inserted_mode, "リリア", Some("battle"), "アルス", "   ")
+            .unwrap();
+    assert!(!cleared.contains("address: アルス => 貴様"));
+
+    // 本文からの呼称候補抽出（自動では characters.md を書き換えない）と W084 ペア違反
+    let mut project = Project::default();
+    project.insert(Document::new("characters.md", chars));
+    project.insert(Document::new(
+        "contents/01-01.cnov",
+        "@01-01-01\n「リリア、佐倉先生を呼んでこい」@アルス:formal\n「アルスくん、待ってよ」@リリア\n",
+    ));
+    let violations = metadata::address_violations(&project);
+    assert_eq!(violations.len(), 1);
+    assert_eq!(violations[0].speaker, "アルス");
+    assert_eq!(violations[0].mode.as_deref(), Some("formal"));
+    assert_eq!(violations[0].target, "リリア");
+
+    let cands = metadata::extract_address_candidates(&project);
+    assert!(
+        cands
+            .iter()
+            .any(|c| c.speaker == "アルス" && c.target == "佐倉" && c.surface == "佐倉先生"),
+        "cands={cands:?}"
+    );
+    assert!(
+        cands
+            .iter()
+            .any(|c| c.speaker == "リリア" && c.target == "アルス" && c.surface == "アルスくん"),
+        "cands={cands:?}"
+    );
+    assert_eq!(project.text("characters.md"), chars);
+}
+
+#[test]
+fn timeline_inheritance_flashback_senses_streaks_speakers_and_length_metrics_work() {
+    let mut project = Project::default();
+    project.insert(Document::new(
+        "characters.md",
+        "# アルス\nreading: あるす\n# リリア\nreading: りりあ\n",
+    ));
+    project.insert(Document::new(
+        "plots/all.cnov",
+        "@01 第一章\nsummary: 導入\nwhen: 405\n;\n@02 第二章\nsummary: 展開\n;\n",
+    ));
+    project.insert(Document::new(
+        "plots/01.cnov",
+        "@01-01 朝\nsummary: 登校\n;\n@01-02 昼\nsummary: 昼休み\nwhen: 410\n;\n@01-03 夕\nsummary: 巻き戻りテスト\nwhen: 408\n;\n@01-04 記憶\nsummary: 幼少期\nwhen: 100 回想\n;\n@01-05 未定\nsummary: 謎の幕間\nwhen: ?\n;\n",
+    ));
+    project.insert(Document::new(
+        "plots/01-01.cnov",
+        "@01-01-01 通学路\ncast: 'アルス 'リリア\npov: 'アルス\nsenses: 視覚\nlength: 20\n;\nsenses: 視覚\nlength: 10\n;\nsenses: 視覚\n;\nsenses: 視覚\n;\nsenses: 視覚\n;\nsenses: 聴覚\n;\n",
+    ));
+    project.insert(Document::new(
+        "plots/02-01.cnov",
+        "@02-01-01 別章\npov: 'リリア\n;\n",
+    ));
+    project.insert(Document::new(
+        "contents/01-01.cnov",
+        "@01-01-01\n「おはよう」@アルス\n朝の光が差す。長い文をここに書いて読点の無いまま終端まで伸ばす。\n;\n「ええ」@リリア\n;\n「誰の声だろう」\n;\n四節目の短い文。\n;\n五節目の短い文。\n;\n六節目の音が響く。\n",
+    ));
+    project.insert(Document::new(
+        "contents/02-01.cnov",
+        "@02-01-01\n「二章の台詞よ」@リリア\n二章の地の文。\n",
+    ));
+
+    // 1. 時系列: 章 01 (when: 405) を 01-01 が継承し、01-03 (408 < 410) に rewind_from が付き、01-04 (回想) には付かず、`?` は末尾
+    let tl = metadata::timeline_view(&metadata::records(&project));
+    let ep0101 = tl
+        .iter()
+        .find(|e| e.record.depth == 2 && e.record.id.episode == 1)
+        .expect("01-01 inherited");
+    assert!(ep0101.inherited);
+    assert_eq!(ep0101.time.start, Some(405.0));
+
+    let ep0103 = tl
+        .iter()
+        .find(|e| e.record.depth == 2 && e.record.id.episode == 3)
+        .expect("01-03");
+    assert_eq!(ep0103.rewind_from.map(|id| id.episode), Some(2));
+
+    let ep0104 = tl
+        .iter()
+        .find(|e| e.record.depth == 2 && e.record.id.episode == 4)
+        .expect("01-04 flashback");
+    assert!(ep0104.time.flashback);
+    assert!(ep0104.rewind_from.is_none());
+    assert!(tl.last().unwrap().time.start.is_none());
+
+    // 2. 五感: 全体では 7 節中 6 節宣言・1 節未宣言、視覚 5 連続区間が 1 件、章 02 切替では未宣言 1 節のみ
+    let senses_all = metadata::senses_summary(&project, metadata::MetricsScope::All);
+    assert_eq!(senses_all.total_sections, 7);
+    assert_eq!(senses_all.declared_sections, 6);
+    assert_eq!(senses_all.undeclared_sections, 1);
+    assert_eq!(senses_all.counts[metadata::SenseKind::Sight as usize], 5);
+    assert_eq!(senses_all.counts[metadata::SenseKind::Hearing as usize], 1);
+    assert_eq!(senses_all.visual_streaks.len(), 1);
+    assert_eq!(senses_all.visual_streaks[0].count, 5);
+
+    let senses_ch2 = metadata::senses_summary(&project, metadata::MetricsScope::Chapter(2));
+    assert_eq!(senses_ch2.total_sections, 1);
+    assert_eq!(senses_ch2.declared_sections, 0);
+    assert_eq!(senses_ch2.undeclared_sections, 1);
+
+    // 3. 話者別: 登場節数・視点節数・話者不明・範囲切替
+    let sp_all = metrics::speakers_in_scope(&project, metadata::MetricsScope::All);
+    let ars = sp_all.rows.iter().find(|r| r.name == "アルス").unwrap();
+    let lilia = sp_all.rows.iter().find(|r| r.name == "リリア").unwrap();
+    let unknown = sp_all.rows.iter().find(|r| r.name.is_empty()).unwrap();
+    assert_eq!(ars.lines, 1);
+    assert_eq!(ars.sections, 6); // 場面 01-01-01 の cast: 'アルス を 6 節継承
+    assert_eq!(ars.pov_sections, 6);
+    assert_eq!(lilia.lines, 2); // 1 章 + 2 章
+    assert_eq!(lilia.pov_sections, 1); // 2 章のみ
+    assert_eq!(unknown.lines, 1); // 3 節目の話者不明台詞を除外しない
+
+    let sp_ch2 = metrics::speakers_in_scope(&project, metadata::MetricsScope::Chapter(2));
+    let ars_ch2 = sp_ch2.rows.iter().find(|r| r.name == "アルス").unwrap();
+    assert_eq!(ars_ch2.lines, 0);
+    assert_eq!(ars_ch2.sections, 0);
+
+    // 4. 節長: 中央値・平均・最長・最短・目標比
+    let len_rep = metrics::section_length_report(&project);
+    assert_eq!(len_rep.summary.count, 7);
+    assert!(len_rep.summary.max >= len_rep.summary.min && len_rep.summary.min > 0);
+    assert_eq!(len_rep.rows[0].target, Some(20));
+    assert!(len_rep.rows[0].target_ratio.is_some());
+
+    // 5. 最長連続執筆日数: 過去に 5 日連続、直近は 2 日連続
+    let mut stats = metrics::Stats::default();
+    for d in [
+        "2026-09-01",
+        "2026-09-02",
+        "2026-09-03",
+        "2026-09-04",
+        "2026-09-05",
+        "2026-10-10",
+        "2026-10-11",
+    ] {
+        stats.record(d, 21, 300, 600, true);
+    }
+    let recent = metrics::recent_dates("2026-10-11", 60);
+    assert_eq!(stats.streak(&recent), 2);
+    assert_eq!(stats.longest_streak(), 5);
+}
+
+#[test]
+fn human_proposal_discard_preserves_history_and_external_change_marks_stale() {
+    use novnow::app::workbench::Workbench;
+    use novnow::core::agents::{apply, files};
+
+    let mut project = Project::default();
+    project.insert(Document::new(
+        "contents/01-01.cnov",
+        "@01-01-01\n元の本文です。\n",
+    ));
+    let mut bench = Workbench::new(project, None, 2000);
+
+    // 提案モードで H0001 と H0002 を作成
+    bench.toggle_human("2026-11-12T10:00:00Z", 1.0);
+    *bench.buffer_mut() = "提案1の本文です。".to_owned();
+    bench.toggle_human("2026-11-12T10:01:00Z", 2.0);
+
+    bench.toggle_human("2026-11-12T10:02:00Z", 3.0);
+    *bench.buffer_mut() = "提案2の本文です。".to_owned();
+    bench.toggle_human("2026-11-12T10:03:00Z", 4.0);
+
+    // 1. H0001 を破棄してもファイルは残っており、status: discarded と before/after が保持される
+    let plan = apply::discard(bench.project(), "H0001", "2026-11-12T10:05:00Z").unwrap();
+    for w in plan.writes {
+        bench.replace_document(&w.path, w.text, 5.0);
+    }
+    let h1_doc = bench
+        .project()
+        .document("agents/proposals/H0001.md")
+        .expect("discarded proposal file must remain");
+    let h1 = files::parse_proposal(&h1_doc.text).unwrap();
+    assert_eq!(h1.status, "discarded");
+    assert_eq!(h1.before, "元の本文です。");
+    assert_eq!(h1.after, "提案1の本文です。");
+
+    // 2. 外部変更で本文が変わると H0002 は status: stale になり、本文は上書きされず W093 が出る
+    bench.external_change(
+        "contents/01-01.cnov",
+        Some("@01-01-01\n外部エディタで書き換えた本文。\n".to_owned()),
+    );
+    assert!(bench
+        .project()
+        .text("contents/01-01.cnov")
+        .contains("外部エディタで書き換えた本文。"));
+    let h2_doc = bench
+        .project()
+        .document("agents/proposals/H0002.md")
+        .expect("H0002 exists");
+    let h2 = files::parse_proposal(&h2_doc.text).unwrap();
+    assert_eq!(h2.status, "stale");
+    assert!(
+        apply::accept(bench.project(), "H0002", None, "2026-11-12T10:10:00Z").is_err(),
+        "stale proposal must never overwrite manuscript"
+    );
+    let diags = novnow::core::diagnostics::document(h2_doc, bench.project());
+    assert!(
+        diags
+            .iter()
+            .any(|d| d.code == novnow::core::diagnostics::DiagnosticCode::W093),
+        "W093 must be emitted for stale proposal: {diags:?}"
+    );
+}

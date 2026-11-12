@@ -729,22 +729,44 @@ pub fn rename(
         .and_then(Value::as_str)
         .unwrap_or_default();
     if prepare {
-        let value = run(
+        match run(
             session,
             "lang.rename_preview",
             json!({ "path": path, "pos": at }),
-        )?;
-        return Ok(Outcome::Value(json!({
-            "placeholder": value.get("from"),
-            "range": convert::range_of_value(&text, value.get("range")),
-        })));
+        ) {
+            Ok(value) => {
+                let prepared = value.get("prepared").unwrap_or(&Value::Null);
+                return Ok(Outcome::Value(json!({
+                    "placeholder": prepared.get("placeholder"),
+                    "range": convert::range_of_value(&text, prepared.get("range")),
+                })));
+            }
+            Err(error) if error.class == crate::app::error::Class::NotFound => {
+                return Ok(Outcome::None);
+            }
+            Err(error) => return Err(error),
+        }
     }
-    let value = run(
+    // UTF-16 の範囲は書き換え前のテキストに対して計算する必要があるため、先にプレビューで
+    // `WorkspaceEdit` を作ってから `lang.rename_apply` で検証・適用する（§19.4.2）。
+    let preview = match run(
+        session,
+        "lang.rename_preview",
+        json!({ "path": path, "pos": at, "to": to }),
+    ) {
+        Ok(value) => value,
+        Err(error) if error.class == crate::app::error::Class::NotFound => {
+            return Err(error);
+        }
+        Err(error) => return Err(error),
+    };
+    let ws_edit = workspace_edit(session, root, &preview);
+    run(
         session,
         "lang.rename_apply",
         json!({ "path": path, "pos": at, "to": to }),
     )?;
-    Ok(Outcome::Value(workspace_edit(session, root, &value)))
+    Ok(Outcome::Value(ws_edit))
 }
 
 /// `WorkspaceEdit`（`{changes:[{path,edits}]}`）を LSP の `{changes:{uri:[TextEdit]}}` にする。
@@ -978,8 +1000,101 @@ fn position_pair(value: &Value) -> (u32, u32) {
     )
 }
 
-/// `workspace/didChangeConfiguration`（`settings.get`）。
-pub fn did_change_configuration(session: &mut Session) -> Result<Outcome, Error> {
+/// `workspace/didChangeConfiguration`（設定反映・外部変更の取り込み・診断の再配信、§19.4.2）。
+pub fn did_change_configuration(
+    session: &mut Session,
+    out: &mut Outbox,
+    params: &Value,
+    root: &str,
+    open_docs: &std::collections::BTreeSet<String>,
+) -> Result<Outcome, Error> {
+    let external = session.poll_external();
+    let explicit_reload = params
+        .get("settings")
+        .and_then(|s| {
+            s.get("novnow")
+                .and_then(|n| n.get("reload"))
+                .or_else(|| s.get("reload"))
+        })
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    if session.root().is_some()
+        && (explicit_reload
+            || (!session.bench.save.guards_close() && session.conflicts().is_empty()))
+    {
+        #[cfg(not(target_arch = "wasm32"))]
+        let ui_persisted = session
+            .root()
+            .is_some_and(|r| r.join(crate::app::settings::UI_JSON).is_file());
+        #[cfg(target_arch = "wasm32")]
+        let ui_persisted = false;
+        let keep_settings = session.settings.clone();
+        let keep_locale = session.locale;
+        let _ = run(session, "project.reload", json!({}));
+        if !ui_persisted {
+            session.settings = keep_settings;
+            session.set_locale(keep_locale);
+        } else {
+            match session.settings.language {
+                crate::app::settings::LanguageChoice::Ja => {
+                    session.set_locale(crate::ui::i18n::Locale::Ja)
+                }
+                crate::app::settings::LanguageChoice::En => {
+                    session.set_locale(crate::ui::i18n::Locale::En)
+                }
+                crate::app::settings::LanguageChoice::System => session.set_locale(keep_locale),
+            }
+        }
+    }
+
+    let scoped = params
+        .get("settings")
+        .and_then(|s| s.get("novnow"))
+        .and_then(Value::as_object);
+    let settings_map = scoped.or_else(|| params.get("settings").and_then(Value::as_object));
+    if let Some(map) = settings_map {
+        let strict_keys = scoped.is_some();
+        for (key, val) in map {
+            if key == "reload" {
+                continue;
+            }
+            if key == "locale" {
+                match val.as_str() {
+                    Some("ja") => session.set_locale(crate::ui::i18n::Locale::Ja),
+                    Some("en") => session.set_locale(crate::ui::i18n::Locale::En),
+                    _ if strict_keys => return Err(Error::usage(session.locale, "locale")),
+                    _ => {}
+                }
+                continue;
+            }
+            let mut probe = session.settings.clone();
+            match probe.set_key(key, val) {
+                Ok(()) => {
+                    run(session, "settings.set", json!({ "key": key, "value": val }))?;
+                    if key == "language" {
+                        match val.as_str() {
+                            Some("ja") => session.set_locale(crate::ui::i18n::Locale::Ja),
+                            Some("en") => session.set_locale(crate::ui::i18n::Locale::En),
+                            _ => {}
+                        }
+                    }
+                }
+                Err(crate::app::settings::SettingError::UnknownKey) if !strict_keys => {}
+                Err(_) => {
+                    run(session, "settings.set", json!({ "key": key, "value": val }))?;
+                }
+            }
+        }
+    }
+
+    let mut targets: std::collections::BTreeSet<String> = open_docs.clone();
+    for (path, _) in external {
+        targets.insert(path);
+    }
+    for path in targets {
+        publish(session, out, &path, root);
+    }
+
     let value = run(session, "settings.get", json!({}))?;
     Ok(Outcome::Value(json!({ "settings": value })))
 }

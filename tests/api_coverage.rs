@@ -283,15 +283,16 @@ fn every_catalog_operation_is_callable_and_classified() {
         malformed.join("\n")
     );
 
-    // 3. 到達率。見本の引数で実行できる操作の数を固定する（減ったら退行）
+    // 3. 到達率。見本の引数で実行できる操作の数を固定する（減ったら退行）。
+    //    `save.reload_external` は `save.keep_mine` と同じく競合が無い状態では `Conflict` を返す。
     let done = results
         .iter()
         .filter(|(_, outcome)| matches!(outcome, Outcome::Done))
         .count();
     assert_eq!(results.len(), 121, "カタログの全操作数");
     assert!(
-        done >= 86,
-        "実行できた操作が {done} 件まで減った（期待 86 以上）:\n{table}"
+        done >= 85,
+        "実行できた操作が {done} 件まで減った（期待 85 以上）:\n{table}"
     );
 
     // 4. カタログ（§19.8.2）と `OPS` 表は同じ 121 件（二重管理が無いことの確認）
@@ -311,6 +312,8 @@ fn every_catalog_operation_is_callable_and_classified() {
             );
         }
     }
+    // `project.new` が見本引数 `path = "project.toml"` で作る一時ディレクトリを掃除する
+    let _ = std::fs::remove_dir_all("project.toml");
 }
 
 /// 可視化の後片付け: 表に全ドメインが出る（＝カタログの全域を走査した）こと。
@@ -346,4 +349,5 @@ fn the_coverage_table_lists_every_domain_of_the_catalog() {
         "表の印（{marks}）が操作数（{}）より少ない",
         OPS.len()
     );
+    let _ = std::fs::remove_dir_all("project.toml");
 }
