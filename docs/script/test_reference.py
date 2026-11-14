@@ -39,6 +39,7 @@ class ChapterMapTests(unittest.TestCase):
             "workflows",
             "interfaces",
             "external",
+            "webui",
         }
         self.assertEqual(set(reference.CHAPTERS.values()), expected)
 
