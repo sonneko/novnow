@@ -3,7 +3,7 @@
 docs/script/reference.py — ドキュメントとコードの**実物の突き合わせ**を行う検査。
 
 `duplicate.py` は「文書の規約」（構成・重複・`REF:` の実在・見出し一致・`SYNC` の一致）を見る。
-それに対してこのスクリプトは、**規約では守れない「中身のずれ」**を見る。対象は次の 13 個。
+それに対してこのスクリプトは、**規約では守れない「中身のずれ」**を見る。対象は次の 14 個。
 
 1. 廃止済みの文書名（`SPECIFICATIONS.md` / `PLANS.md` / `DEVELOPERS.md`）を
    コード・スクリプト・CI から参照していないこと。
@@ -22,6 +22,9 @@ docs/script/reference.py — ドキュメントとコードの**実物の突き�
     仕様・設計・手順・利用者向けの文書へ戻っていないか。
 13. 検証の地図（`docs/developers.md` §4.6.2）に書いた検査のパスと名前が**実在するか**
     （検査一覧そのものの陳腐化を防ぐ）。
+14. 依存の更新（`.github/dependabot.yml`）と週次の監査（`.github/workflows/dependency-audit.yml`）が
+    実物の lockfile / manifest を**取りこぼしていないか**、major を minor/patch とまとめていないか、
+    **自動 merge する設定が無い**か。
 
 使い方:
     python3 docs/script/reference.py           # 検査（違反があれば終了コード 1）
@@ -46,7 +49,7 @@ CODE_SUFFIXES = {".rs", ".toml", ".py", ".sh", ".mjs", ".yml", ".yaml"}
 # ディレクトリの外にあるが「コード側」として見るもの（マニフェストと PR テンプレート）。
 # ここを漏らすと、`Cargo.toml` のコメントや `.github/pull_request_template.md` に
 # 廃止名が残ったまま検査が緑になる（実際に残っていた）。
-CODE_ROOT_FILES = ["Cargo.toml", "rust-toolchain.toml", ".github/pull_request_template.md"]
+CODE_ROOT_FILES = ["Cargo.toml", "rust-toolchain.toml", "deny.toml", ".github/pull_request_template.md"]
 
 # 章番号 → 仕様書（`docs/developers.md` §1.1 の対応表と同じ）。
 CHAPTERS = {
@@ -904,6 +907,169 @@ def check_verification_map() -> list[str]:
     return map_name_errors(section, defined_names(ROOT), ROOT)
 
 
+# ============================================================ 14. 依存の更新と監査
+
+
+DEPENDABOT_FILE = ".github/dependabot.yml"
+AUDIT_WORKFLOW = ".github/workflows/dependency-audit.yml"
+AUDIT_SCRIPT = "scripts/dependency-audit.py"
+AUDIT_ISSUE_SCRIPT = "scripts/action/dependency-audit-issue.sh"
+DENY_CONFIG = "deny.toml"
+# 「人が確認する前にマージする」設定。コメントに書いた例文は `yaml_code` で除いてから探す。
+AUTO_MERGE_RE = re.compile(
+    r"pr\s+merge\b[^\n]*--auto\b|auto-?merge\s*:\s*true|\benablement[^\n]*auto\b",
+    re.IGNORECASE,
+)
+DEPENDENCY_SKIP_PARTS = {"node_modules", "dist", "target", "build", "vendor", ".git"}
+
+
+def yaml_code(text: str) -> str:
+    """YAML のコメント行を除いた本文（コメントの例文を検査が拾わないようにする）。"""
+    return "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
+
+
+def yaml_field(text: str, key: str) -> str:
+    """`key: value` の value（引用符は外す。無ければ空文字）。"""
+    match = re.search(rf"^\s*{re.escape(key)}:\s*(.*)$", text, re.MULTILINE)
+    return match.group(1).strip().strip("'\"") if match else ""
+
+
+def dependabot_entries(text: str) -> list[dict[str, str]]:
+    """`- package-ecosystem:` の塊を字段ごとの dict にする（YAML  Library 無しで読む）。"""
+    entries: list[dict[str, str]] = []
+    for chunk in re.split(r"^\s*-\s+package-ecosystem:", text, flags=re.MULTILINE)[1:]:
+        head, _, rest = chunk.partition("\n")
+        entries.append(
+            {
+                "ecosystem": head.strip().strip("'\""),
+                "directory": yaml_field(rest, "directory"),
+                "interval": yaml_field(rest, "interval"),
+                "target-branch": yaml_field(rest, "target-branch"),
+                # major をまとめに入れたかどうかは `update-types` の並びで見る。
+                "group-types": sorted(set(re.findall(r"^\s*-\s+(major|minor|patch)\s*$", rest, re.MULTILINE))),
+            }
+        )
+    return entries
+
+
+def dependency_roots() -> list[tuple[str, str]]:
+    """実物の manifest から「Dependabot が知るべき (ecosystem, directory)」を作る。
+
+    一覧は書かずに実物から作る。新しい front-end の root や Python の package を足したときに、
+    更新 PR が黙って止まる（＝監査が古くなる）のを防ぐためである。
+    """
+    wanted: list[tuple[str, str]] = []
+    for lock in sorted(ROOT.rglob("package-lock.json")):
+        parts = set(lock.relative_to(ROOT).parts[:-1])
+        if parts & DEPENDENCY_SKIP_PARTS:
+            continue
+        wanted.append(("npm", "/" + lock.parent.relative_to(ROOT).as_posix()))
+    if (ROOT / "Cargo.lock").is_file():
+        wanted.append(("cargo", "/"))
+    for manifest in sorted(ROOT.glob("python/*/pyproject.toml")):
+        wanted.append(("pip", "/" + manifest.parent.relative_to(ROOT).as_posix()))
+    if (ROOT / ".github" / "workflows").is_dir():
+        wanted.append(("github-actions", "/"))
+    return wanted
+
+
+def function_body(text: str, name: str) -> str:
+    """`def <name>(` から次の top-level `def` まで（説明の文字列ではなく実装を見るための切り出し）。"""
+    start = text.find(f"def {name}(")
+    if start < 0:
+        return ""
+    rest = text[start:]
+    following = re.search(r"^def ", rest[1:], re.MULTILINE)
+    return rest[: following.start() + 1] if following else rest
+
+
+def check_dependency_policy() -> list[str]:
+    """依存の更新と週次の監査が、実物を取りこぼさず、勝手にマージしないこと。
+
+    Issue #61 の提案 D。見るのは次の 4 つ。
+
+    - **網羅**: lockfile / manifest を持つ root が全部 `dependabot.yml` に登録されているか
+      （実在しない root の登録＝設定の陳腐化も落とす）。
+    - **段階分け**: 週次・develop 向け・minor と patch はまとめる・**major はまとめない**。
+    - **自動 merge しない**: ワークフローにも Dependabot 設定にも自動マージが無い。
+    - **週次の監査**: `dependency-audit.yml` が schedule で回り、npm は公開経路と開発経路を
+      分けるスクリプトを、Rust は `cargo deny check advisories` を呼び、指摘を Issue にできる。
+    """
+    errors: list[str] = []
+    config = read(ROOT / DEPENDABOT_FILE)
+    if not config:
+        return [f"[14] {DEPENDABOT_FILE} が無い（依存の更新 PR が自動で作られない）"]
+    if not re.search(r"^version:\s*2\s*$", yaml_code(config), re.MULTILINE):
+        errors.append(f"[14] {DEPENDABOT_FILE}: `version: 2` が無い")
+
+    entries = dependabot_entries(config)
+    wanted = dependency_roots()
+    covered = {(entry["ecosystem"], entry["directory"]) for entry in entries}
+    for ecosystem, directory in wanted:
+        if (ecosystem, directory) not in covered:
+            errors.append(
+                f"[14] {DEPENDABOT_FILE}: {ecosystem} の {directory} が登録されていない"
+                "（その root の更新 PR が作られない）"
+            )
+    known = set(wanted)
+    for entry in entries:
+        pair = (entry["ecosystem"], entry["directory"])
+        where = f"{entry['ecosystem']} {entry['directory'] or '(directory 無し)'}"
+        if pair not in known:
+            errors.append(f"[14] {DEPENDABOT_FILE}: {where} は実在しない root（設定が古い）")
+        if entry["interval"] != "weekly":
+            errors.append(f"[14] {DEPENDABOT_FILE}: {where} が週次でない（interval: {entry['interval'] or '無し'}）")
+        if entry["target-branch"] != "develop":
+            errors.append(
+                f"[14] {DEPENDABOT_FILE}: {where} の target-branch が develop でない"
+                "（既定ブランチ main はリリースゲートなので、依存の更新を直接入れない）"
+            )
+        types = set(entry["group-types"])
+        if "major" in types:
+            errors.append(f"[14] {DEPENDABOT_FILE}: {where} が major を minor/patch とまとめている（破壊的変更は 1 件ずつ見る）")
+        if not {"minor", "patch"} <= types:
+            errors.append(f"[14] {DEPENDABOT_FILE}: {where} に minor/patch のグループが無い（PR が増える）")
+
+    # 自動 merge は「緑だから」という理由だけで内容を見ずにマージする仕組みなので置かない。
+    for path in [*(ROOT / ".github" / "workflows").glob("*.yml"), ROOT / DEPENDABOT_FILE]:
+        if AUTO_MERGE_RE.search(yaml_code(read(path))):
+            errors.append(f"[14] {rel(path)}: 依存の更新を自動 merge する設定がある（人が確認してマージする）")
+
+    audit = read(ROOT / AUDIT_WORKFLOW)
+    if not audit:
+        errors.append(f"[14] {AUDIT_WORKFLOW} が無い（週次の監査が回らない）")
+        return errors
+    code = yaml_code(audit)
+    triggers = workflow_triggers(audit)
+    if "schedule" not in triggers:
+        errors.append(f"[14] {AUDIT_WORKFLOW}: schedule が無い（週次で回らない）")
+    if not re.search(r"cron:\s*['\"]?[^'\"\n]*\*\s+\*\s+1['\"]?", code):
+        errors.append(f"[14] {AUDIT_WORKFLOW}: cron が週 1 回（曜日を指定した形）でない")
+    if triggers - {"schedule", "workflow_dispatch"}:
+        errors.append(
+            f"[14] {AUDIT_WORKFLOW}: PR や push で走る（監査は週 1 回と手動だけにして Actions を節約する）"
+        )
+    if AUDIT_SCRIPT not in code:
+        errors.append(f"[14] {AUDIT_WORKFLOW}: {AUDIT_SCRIPT} を実行していない（npm の公開経路 / 開発経路の区別が無い）")
+    if "check advisories" not in code:
+        errors.append(f"[14] {AUDIT_WORKFLOW}: Rust の advisories 検査（`check advisories`）が無い")
+    if AUDIT_ISSUE_SCRIPT not in code:
+        errors.append(f"[14] {AUDIT_WORKFLOW}: 指摘を Issue にする {AUDIT_ISSUE_SCRIPT} を呼んでいない（赤い run が忘れられる）")
+    if "issues: write" not in code:
+        errors.append(f"[14] {AUDIT_WORKFLOW}: `issues: write` が無い（Issue を作れない）")
+
+    script = read(ROOT / AUDIT_SCRIPT)
+    if '"--omit=dev"' not in function_body(script, "audit_root"):
+        errors.append(
+            f"[14] {AUDIT_SCRIPT}: `audit_root` が公開経路（`npm audit --omit=dev`）を問い合わせない"
+            "（dev 依存と混ざると、公開物に入らない指摘で失敗する）"
+        )
+    deny = read(ROOT / DENY_CONFIG)
+    if "[advisories]" not in yaml_code(deny):
+        errors.append(f"[14] {DENY_CONFIG}: `[advisories]` が無い（cargo-deny のレベルが決まらない）")
+    return errors
+
+
 CHECKS = {
     "1": ("廃止済みの文書名を参照しない", check_retired),
     "2": ("仕様書の節番号が実在する", check_spec_sections),
@@ -918,6 +1084,7 @@ CHECKS = {
     "11": ("公開する手引きが実在し、参照と段階が揃っている", check_published_guide),
     "12": ("配布形態の数と、廃止した軸が戻っていない", check_distribution_forms),
     "13": ("検証の地図の検査名が実在する", check_verification_map),
+    "14": ("依存の更新と週次の監査が実物を取りこぼさない", check_dependency_policy),
 }
 
 
@@ -940,7 +1107,8 @@ def main() -> int:
     total = len(CHECKS)
     print(
         f"OK: ドキュメントと実装の突き合わせ {total} 項目（廃止名 / 節番号 / history ID / "
-        f"src ツリー / verify と CI / ルート文書 / 数の主張 / include_str / リンク / Actions の節約 / 手引き / 配布形態 / 検証の地図）"
+        f"src ツリー / verify と CI / ルート文書 / 数の主張 / include_str / リンク / Actions の節約 / 手引き / "
+        f"配布形態 / 検証の地図 / 依存の監査）"
     )
     return 0
 

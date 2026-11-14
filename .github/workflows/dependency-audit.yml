@@ -1,0 +1,95 @@
+name: Dependency audit
+# 週次の依存監査（docs/developers.md §4.10 / Issue #61 の提案 D）。
+#
+# PR では走らせない。毎週月曜 09:00（Asia/Tokyo）と手動実行だけにして、
+# Actions の使用時間を「人が読む結果」にだけ使う（§4.7）。
+#
+# 役割の分担:
+# - 更新 PR を作るのは `REF:.github/dependabot.yml`（minor/patch はまとめる、major は 1 件ずつ）。
+# - このワークフローは「今の lockfile に何が残っているか」を週 1 回確かめ、
+#   公開経路の指摘は Issue にして残す。**自動 merge はしない**。
+on:
+  schedule:
+    # 月曜 09:00 JST = 月曜 00:00 UTC
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+concurrency:
+  group: dependency-audit
+  # 監査は取り消さずに queued する（途中で消すと「今週は見ていない」が分からなくなる）。
+  cancel-in-progress: false
+jobs:
+  npm:
+    name: npm audit（公開経路は high 以上で失敗）
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            vscode/package-lock.json
+            website/package-lock.json
+      # `REF:scripts/dependency-audit.py` が lockfile を 2 回問い合わせ、
+      # 公開経路（--omit=dev）と開発経路（ビルドツール）を分ける。失敗するのは公開経路だけ。
+      - name: Audit every npm root
+        run: |
+          set -euo pipefail
+          python3 scripts/dependency-audit.py \
+            --summary "${GITHUB_STEP_SUMMARY:-/dev/stdout}" \
+            --report audit-report.json \
+            --issue-body dependency-audit-issue.md
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-audit-report
+          path: |
+            audit-report.json
+            dependency-audit-issue.md
+          if-no-files-found: ignore
+      - name: File or update the weekly issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/action/dependency-audit-issue.sh dependency-audit-issue.md
+
+  rust:
+    name: Rust advisories（cargo-deny）
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # cargo-deny は依存グラフを Cargo.lock から作るが、manifest を読むために
+      # クレートの実体が要る。ロックどおりにだけ取得する。
+      - name: Fetch the locked crates
+        run: cargo fetch --locked
+      # 設定は `REF:deny.toml`。セキュリティ advisory は error（＝このジョブが赤くなる）、
+      # yanked / unmaintained / unsound は warning。
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check advisories
+      - name: File or update the weekly issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cat > rust-advisories-issue.md <<EOF
+          週次の Rust advisory 検査（\`cargo deny check advisories\`、設定 \`REF:deny.toml\`）が失敗した。
+
+          - run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+          - ジョブ \`Rust advisories（cargo-deny）\` のログに crate 名・版・RUSTSEC ID・patched 版が出る。
+
+          対応（\`REF:docs/developers.md\` §4.10 の手順 4）:
+
+          1. patched 版へ上げる: \`cargo update -p <crate>\`（必要なら \`--precise <版>\`）。
+          2. \`bash scripts/verify.sh\` を回す（lockfile の変更は Rust のテストを全部回す扱い）。
+          3. 上げられない理由があるときは \`REF:deny.toml\` の \`ignore\` に **理由と確認日**を書いて残す。
+          EOF
+          bash scripts/action/dependency-audit-issue.sh rust-advisories-issue.md "依存監査（週次）: Cargo.lock に advisory"

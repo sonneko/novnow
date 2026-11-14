@@ -314,6 +314,7 @@ CI だけに検査が増えた時点で静かに壊れるため。CI の `docs` 
 | Web | `scripts/web-smoke.sh` / `scripts/web-smoke.mjs` / `tests/storage_idb.rs` | iOS Safari の実機動作（再現不可、M-6） |
 | 文書 | `docs/script/duplicate.py` / `docs/script/reference.py` / `docs/script/test_reference.py` | 散文の意味のずれ（§4.6.1） |
 | 配布 | `tests/distribution.rs` / `scripts/release-check.sh` / `scripts/release-matrix.py` / `scripts/action/test_install.py` / `docs/script/test_release_policy.py` | 市場公開の実績（発行者トークン待ち）、実機での起動（§4.9） |
+| 依存 | `.github/dependabot.yml` / `.github/workflows/dependency-audit.yml` / `scripts/dependency-audit.py` / `scripts/action/dependency-audit-issue.sh` / `deny.toml` / `docs/script/test_dependency_policy.py` | 実害の判断（開発経路の指摘を上げるか残すか）、licenses / bans の検査、Dependabot alerts の有効化（リポジトリ設定側。§4.10） |
 | 公開サイト | `scripts/website-check.py`（生成 HTML のリンク・版表示・診断数・inline code） / `scripts/diagnostics-site.py` / `scripts/api-site.py` / `scripts/docs-site.py` / `docs/script/test_website.py` / `website/integrations/base-links.test.mjs` | 手書きの紹介文の文面（§4.6.1）、見た目・実ブラウザの描画 |
 
 ---
@@ -332,6 +333,7 @@ GitHub Actions は**走った分だけ**課金される。このリポジトリ�
 | 変更フィルタ | `REF:.github/workflows/ci.yml` の `docs` ジョブ（`rust_changed`） | 文書だけの変更で Rust 5 ジョブを skip |
 | `paths` / `paths-ignore` | 各ワークフロー | 無関係な変更でワークフロー自体を起動しない |
 | `concurrency` | 全ワークフロー（PR は `cancel-in-progress`） | 同じブランチを続けて push したとき、古い実行を取り消す |
+| 週 1 回だけ回す | `REF:.github/workflows/dependency-audit.yml`（`schedule` と `workflow_dispatch` のみ） | 依存の監査。PR では走らせない（§4.10） |
 | draft PR では走らせない | 全ワークフローの `if: github.event_name != 'pull_request' \|\| !github.event.pull_request.draft` | 作業中の push で行列を埋めない（検査 10 が全ワークフローで見る） |
 | ブランチ別の CI スコープ（`CI_SCOPE`） | wheels / desktop-check / pages-check / vscode の 4 ワークフローが PR の対象ブランチ（push は push 先ブランチ）で行列を決める。`REF:scripts/release-matrix.py --scope` | develop 向け PR で全プラットフォームの行列を走らせない（次節） |
 
@@ -488,6 +490,45 @@ Web サイト側を変更したら `npm ci --prefix website && npm run check:sit
 
 確認で問題が見つかったら、公開版の症状は `REF:docs/known-issues/ja.md` へ載せ（§9）、
 仕様・実装の直しは通常の作業として計画へ起こす。
+
+### 4.10 依存の更新と週次の監査（Dependabot / cargo-deny）
+
+依存の更新は**人が読んで決める**が、探す作業は機械にさせる（Issue #61 の提案 D）。担当は 3 つに分かれる。
+
+| 役割 | 実体 | 何をすることか |
+|---|---|---|
+| 更新 PR を作る | `REF:.github/dependabot.yml` | 週次（月曜 09:00 JST）に cargo / npm（`website`・`vscode`）/ pip / github-actions を見て `develop` 向け PR を作る。**minor と patch は 1 本にまとめ、major は 1 件ずつ**（破壊的変更はまとめて読めない） |
+| 今の lockfile を監査する | `REF:.github/workflows/dependency-audit.yml`（週次＋手動） | npm は `REF:scripts/dependency-audit.py` が公開経路と開発経路を分けて報告し、公開経路に high 以上があれば失敗する。Rust は `cargo deny check advisories`（設定 `REF:deny.toml`）がセキュリティ advisory で失敗する |
+| 指摘を残す | `REF:scripts/action/dependency-audit-issue.sh` | 開いている週次監査の Issue があれば追記、無ければ作る（毎週 Issue を増やさない） |
+
+**自動 merge はしない。** 検査が緑でも、人が内容（CHANGELOG・破壊的変更・成果物への影響）を確認してからマージする。
+ワークフローにも Dependabot の設定にも自動マージの仕組みは無く、検査 14（`check_dependency_policy`）が復活を落とす。
+
+**公開経路と開発経路の分け方**: `REF:scripts/dependency-audit.py` は同じ lockfile に `npm audit --json` と
+`npm audit --json --omit=dev` の 2 回問い合わせ、差集合を開発経路とする。公開経路＝配布物や公開サイトに**入る**依存
+（`REF:vscode/package.json` の `dependencies` は VSIX に同梱される）、開発経路＝ビルドマシンでだけ動く依存である。
+開発経路の指摘は失敗させないが、報告（run の summary と成果物 `dependency-audit-report`）には残すので、
+実害があると判断したときは上げる。`REF:website/package.json` の `astro` / `@astrojs/sitemap` が
+`devDependencies` にあるのはこのためで、公開されるのは `astro build` の出力（静的 HTML）だけである。
+
+**手順**
+
+1. **一度だけの設定**（リポジトリ設定の操作であり、ファイルでは済まない）: Settings → Code security で
+   Dependabot alerts と Dependabot security updates を有効にする。security の更新 PR は
+   `dependabot.yml` の version-update とは別枠で作られる。
+2. **更新 PR が来たら**: 必須チェックの緑を確認し、major の PR は CHANGELOG と成果物（VSIX の同梱物・サイトの出力・ホイール）
+   への影響を読む。`bash scripts/verify.sh` を手元で回してからマージする。
+3. **週次の監査が赤くなったら**: run のログ（npm は summary の表、Rust は crate 名と RUSTSEC ID）を見て、
+   `cargo update -p <crate>` / `npm audit fix` で patched 版へ上げる。上げられない理由があるときだけ
+   `REF:deny.toml` の `ignore` に**理由と確認日**を書く（理由の無い ignore は足さない）。
+4. **環境の下限が上がる更新に注意する**: 例えば astro 7.4 は Node ≥ 22.23.4 を要求する。上げる前に
+   `REF:website/package.json` の `engines`、CI の `node-version: '22'`、開発環境（Arena サンドボックスの Node は 22.22.3）を
+   一緒に確認する。開発環境で `npm run check:site` が回せなくなる更新は、その場では入れない。
+
+**Actions の使用時間**: 週 1 回・2 ジョブだけで、PR では走らない（§4.7）。手元で同じ報告が欲しいときは
+`python3 scripts/dependency-audit.py`（registry への通信が必要。`--offline` は設定だけ確かめる）。
+`REF:deny.toml` は advisories だけを検査し、licenses / bans は検査しない（足すときは warn から始め、
+指摘を消してからレベルを上げる）。yanked / unmaintained / unsound は warning であり、ジョブを赤くしない。
 
 ---
 
