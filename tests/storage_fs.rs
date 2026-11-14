@@ -8,7 +8,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use novnow::adapters::block_on;
-use novnow::adapters::storage_fs::{resolve, FsStorage, TMP_SUFFIX};
+use novnow::adapters::storage_fs::{resolve, BatchFailure, FsStorage, TMP_SUFFIX};
 use novnow::core::policy::ProjectPath;
 use novnow::ports::storage::{Storage, StorageError};
 
@@ -292,4 +292,82 @@ fn a_read_only_directory_is_detected_by_the_probe_write() {
     let _ = dir;
     assert!(!writable, "書けないディレクトリは読み取り専用");
     assert!(!root.join(".novnow/.write-probe").exists(), "何も残らない");
+}
+
+/// ロールバックに失敗したファイルは**黙って捨てない**（§19.1.6「戻せなかったものは失敗として
+/// 報告する」）。`failures()` は元の失敗とロールバックの失敗を別に 1 件ずつ載せ、`report()` は
+/// 1 行にまとめる。
+#[test]
+fn a_batch_failure_reports_the_files_it_could_not_roll_back() {
+    let mut failure = BatchFailure::new(
+        "contents/bad.cnov".to_owned(),
+        "Is a directory (os error 21)".to_owned(),
+    );
+    assert!(
+        failure.rollback.is_empty(),
+        "1 件目の失敗にロールバックは無い: {failure:?}"
+    );
+    failure.rollback.push((
+        "contents/01-01.cnov".to_owned(),
+        "Permission denied (os error 13)".to_owned(),
+    ));
+
+    let failures = failure.failures();
+    assert_eq!(
+        failures,
+        vec![
+            (
+                "contents/bad.cnov".to_owned(),
+                "Is a directory (os error 21)".to_owned()
+            ),
+            (
+                "contents/01-01.cnov".to_owned(),
+                "Permission denied (os error 13)".to_owned()
+            )
+        ],
+        "ロールバックの失敗が呼び出し側へ届かない: {failures:?}"
+    );
+    let report = failure.report();
+    assert!(
+        report.contains("contents/bad.cnov") && report.contains("rollback contents/01-01.cnov"),
+        "表示用の 1 行に両方が出ない: {report}"
+    );
+    assert_eq!(report, failure.to_string(), "Display は report() と同じ");
+}
+
+/// 束の途中で失敗したら、**先に書けたファイルも元へ戻り**、戻せなかったものだけが
+/// `rollback` に載る（§19.1.6 の原子性。実ディスクでの確認）。
+#[test]
+fn a_batch_that_fails_partway_names_what_it_could_not_restore() {
+    let (_dir, storage) = setup("fs-batch-report");
+    let first = path("contents/01-01.cnov");
+    storage.write_bytes(&first, b"first original").unwrap();
+    let second = path("contents/bad.cnov");
+    // 2 本目の一時ファイルをディレクトリでふさぐ（書き込みは必ず失敗する）
+    std::fs::create_dir(
+        storage
+            .root()
+            .join(format!("contents/.bad.cnov{TMP_SUFFIX}")),
+    )
+    .unwrap();
+
+    let failure = storage
+        .write_batch(
+            &[
+                (first.clone(), "first changed".into()),
+                (second.clone(), "new".into()),
+            ],
+            &[],
+        )
+        .expect_err("束が失敗していない");
+    assert_eq!(failure.path, "contents/bad.cnov", "{failure:?}");
+    assert!(
+        failure.rollback.is_empty(),
+        "メモリと同じディスクなら戻せるはず: {failure:?}"
+    );
+    // 1 本目は変更されていない状態へ戻っている（部分コミットが無い）
+    assert_eq!(storage.read_bytes(&first).unwrap(), b"first original");
+    assert!(!storage.absolute(&second).exists(), "2 本目が残っている");
+    // 失敗は 1 件だけ（ロールバックの失敗は無い）
+    assert_eq!(failure.failures().len(), 1, "{failure:?}");
 }

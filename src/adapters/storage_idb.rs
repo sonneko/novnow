@@ -5,7 +5,7 @@
 //! | 部分 | 中身 | どこで動くか・どう確かめるか |
 //! |---|---|---|
 //! | 純粋な部分（このファイルの上半分） | レコードの形（§13.3.2）・`app` ストアの許可キー（§13.3.4）・残容量の判定（W062）・ID の採番 | どこでも。`tests/storage_idb.rs` |
-//! | ブラウザとの接続（`web`、`wasm32` だけ） | `IndexedDB` の DB `novnow` v1・ストア 3 つ・トランザクション境界（§13.3.3）・[`Storage`](crate::ports::storage::Storage) の実装・`navigator.storage`・ダウンロード | ブラウザ。CI の WASM ジョブはコンパイルだけを確かめる |
+//! | ブラウザとの接続（`web`、`wasm32` だけ） | `IndexedDB` の DB `novnow` v2・ストア 4 つ・トランザクション境界（§13.3.3）・スナップショット（§13.3.8）・[`Storage`](crate::ports::storage::Storage) の実装・`navigator.storage`・ダウンロード | ブラウザ。CI の WASM ジョブはコンパイルだけを確かめる |
 //!
 //! # 規則 10 の Web 版（§13.3.4）
 //!
@@ -25,8 +25,8 @@ use super::clock_system::parse_utc;
 
 /// DB 名（§13.3.2）。
 pub const DB_NAME: &str = "novnow";
-/// DB の版（§13.3.2）。
-pub const DB_VERSION: u32 = 1;
+/// DB の版（§13.3.2）。2 = `snapshots` ストアを追加（§13.3.8。既存のレコードはそのまま）。
+pub const DB_VERSION: u32 = 2;
 /// プロジェクトのストア（keyPath `id`）。
 pub const PROJECTS: &str = "projects";
 /// ファイルのストア（keyPath `[project_id, path]`）。
@@ -35,8 +35,10 @@ pub const FILES: &str = "files";
 pub const APP: &str = "app";
 /// `projects` の索引（`updated_at`）。
 pub const BY_UPDATED: &str = "by_updated";
-/// `files` の索引（`project_id`）。
+/// `files` の索引（`project_id`）。`snapshots` も同じ名前の索引を持つ（§13.3.8）。
 pub const BY_PROJECT: &str = "by_project";
+/// スナップショットのストア（keyPath `[project_id, name]`。§13.3.8）。
+pub const SNAPSHOTS: &str = "snapshots";
 /// `app` ストアの唯一の許可キー（§13.3.4）。
 pub const RECENT_PROJECTS_KEY: &str = "recent_projects";
 /// `app` ストアに書いてよいキーの全部（§13.3.4 MUST。テストで固定する）。
@@ -47,6 +49,12 @@ pub const SAMPLE_ID: &str = "sample";
 pub const LOW_SPACE_BYTES: f64 = 10.0 * 1024.0 * 1024.0;
 /// プロジェクトの形式の版（`projects.schema_version`）。
 pub const PROJECT_SCHEMA_VERSION: u32 = 1;
+/// 1 プロジェクトのスナップショットの上限（§13.3.8。超えたら**新しく作れない**）。
+pub const MAX_SNAPSHOTS: usize = 8;
+/// スナップショットの名前の長さの上限（§13.3.8。文字数）。
+pub const SNAPSHOT_NAME_LEN: usize = 40;
+/// スナップショットの名前に使えない文字（§13.3.8）。
+pub const SNAPSHOT_NAME_FORBIDDEN: &[char] = &['/', '\\', ':', '*', '?', '"', '<', '>', '|'];
 
 // ============================================================ レコード（§13.3.2）
 
@@ -173,6 +181,148 @@ impl AppRecord {
     }
 }
 
+/// スナップショットの中の 1 ファイル（§13.3.8。`files` のレコードから時刻を除いた形）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SnapshotFile {
+    /// プロジェクトルートからの相対パス。
+    pub path: String,
+    /// 中身（バイナリ資料は空）。
+    pub text: String,
+    /// バイナリ資料（`assets/` の画像など。§13.3.2 と同じく省略可）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bytes: Option<Vec<u8>>,
+}
+
+impl SnapshotFile {
+    /// パス（相対パスとして読めないレコードは `None`。手で壊された DB でも止まらない）。
+    pub fn project_path(&self) -> Option<ProjectPath> {
+        ProjectPath::new(&self.path).ok()
+    }
+
+    /// 大きさ（byte。`bytes` があればその長さ、無ければ `text` の byte 数）。
+    pub fn size(&self) -> usize {
+        self.bytes.as_ref().map_or(self.text.len(), Vec::len)
+    }
+}
+
+/// `snapshots` のレコード（§13.3.8）。1 件 = プロジェクト 1 つ分の写し。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SnapshotRecord {
+    /// プロジェクトの ID。
+    pub project_id: String,
+    /// 名前（プロジェクト内で 1 つ。前後の空白は落としてある）。
+    pub name: String,
+    /// 作った日時（UTC の RFC 3339）。
+    pub created_at: String,
+    /// 写したファイル（パスの昇順）。
+    pub files: Vec<SnapshotFile>,
+}
+
+impl SnapshotRecord {
+    /// `files` のレコードからスナップショットを作る（パスの昇順に並べる）。
+    pub fn new(project_id: &str, name: &str, records: &[FileRecord], now: &str) -> Self {
+        let mut files: Vec<SnapshotFile> = records
+            .iter()
+            .filter(|record| record.project_path().is_some())
+            .map(|record| SnapshotFile {
+                path: record.path.clone(),
+                text: record.text.clone(),
+                bytes: record.bytes.clone(),
+            })
+            .collect();
+        files.sort_by(|left, right| left.path.cmp(&right.path));
+        Self {
+            project_id: project_id.to_owned(),
+            name: name.trim().to_owned(),
+            created_at: now.to_owned(),
+            files,
+        }
+    }
+
+    /// 写したファイルの数。
+    pub fn file_count(&self) -> usize {
+        self.files.len()
+    }
+
+    /// 大きさ（byte。選択モーダルの表示は `files` と同じ数え方、§13.3.2）。
+    pub fn size(&self) -> usize {
+        self.files.iter().map(SnapshotFile::size).sum()
+    }
+}
+
+/// スナップショットの名前の誤り（§13.3.8）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SnapshotNameError {
+    /// 空白だけ・空。
+    Empty,
+    /// [`SNAPSHOT_NAME_LEN`] を超える。
+    TooLong,
+    /// [`SNAPSHOT_NAME_FORBIDDEN`] の文字か制御文字を含む。
+    Forbidden,
+    /// 同じプロジェクトに同じ名前のスナップショットがある。
+    Duplicate,
+}
+
+/// 名前を検査し、**前後の空白を落とした名前**を返す（§13.3.8）。
+///
+/// 空・長すぎ・使えない文字・同じ名前は拒否する。同じ名前の比較は前後の空白を落としてから
+/// （プロジェクトの名前と同じ規則、§13.4.1）。
+pub fn snapshot_name(name: &str, existing: &[SnapshotRecord]) -> Result<String, SnapshotNameError> {
+    let wanted = name.trim();
+    if wanted.is_empty() {
+        return Err(SnapshotNameError::Empty);
+    }
+    if wanted.chars().count() > SNAPSHOT_NAME_LEN {
+        return Err(SnapshotNameError::TooLong);
+    }
+    if wanted
+        .chars()
+        .any(|character| character.is_control() || SNAPSHOT_NAME_FORBIDDEN.contains(&character))
+    {
+        return Err(SnapshotNameError::Forbidden);
+    }
+    if existing.iter().any(|record| record.name.trim() == wanted) {
+        return Err(SnapshotNameError::Duplicate);
+    }
+    Ok(wanted.to_owned())
+}
+
+/// まだスナップショットを作れるか（§13.3.8 の上限。**古いものを黙って捨てない**）。
+pub fn snapshot_room(existing: &[SnapshotRecord]) -> bool {
+    existing.len() < MAX_SNAPSHOTS
+}
+
+/// 復元の計画（§13.3.8）。
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RestorePlan {
+    /// 書くファイル（スナップショットの中身。パスの昇順）。
+    pub put: Vec<SnapshotFile>,
+    /// 消すファイル（今はあるがスナップショットに無い。パスの昇順）。
+    pub remove: Vec<ProjectPath>,
+}
+
+/// 復元で何を置き換えるか（§13.3.8「スナップショットに無いファイルは消える」）。
+///
+/// 相対パスとして読めないレコード（手で壊された DB）はどちらにも入れない。
+pub fn restore_plan(snapshot: &SnapshotRecord, current: &[FileRecord]) -> RestorePlan {
+    let mut put: Vec<SnapshotFile> = snapshot
+        .files
+        .iter()
+        .filter(|file| file.project_path().is_some())
+        .cloned()
+        .collect();
+    put.sort_by(|left, right| left.path.cmp(&right.path));
+    let kept: std::collections::BTreeSet<String> =
+        put.iter().map(|file| file.path.clone()).collect();
+    let mut remove: Vec<ProjectPath> = current
+        .iter()
+        .filter_map(|record| record.project_path())
+        .filter(|path| !kept.contains(path.as_str()))
+        .collect();
+    remove.sort();
+    RestorePlan { put, remove }
+}
+
 // ============================================================ 判定・採番
 
 /// 残りが 10MB 未満か（§13.3.6、W062）。
@@ -220,13 +370,15 @@ mod web {
     use wasm_bindgen::{JsCast, JsValue};
     use wasm_bindgen_futures::JsFuture;
     use web_sys::{
-        DomException, Event, IdbDatabase, IdbObjectStoreParameters, IdbOpenDbRequest, IdbRequest,
-        IdbTransaction, IdbTransactionMode, StorageEstimate,
+        DomException, Event, IdbDatabase, IdbObjectStore, IdbObjectStoreParameters,
+        IdbOpenDbRequest, IdbRequest, IdbTransaction, IdbTransactionMode, StorageEstimate,
     };
 
     use super::{
-        name_available, uuid_v4, AppRecord, FileRecord, Origin, ProjectRecord, APP, BY_PROJECT,
-        BY_UPDATED, DB_NAME, DB_VERSION, FILES, PROJECTS, RECENT_PROJECTS_KEY, SAMPLE_ID,
+        name_available, restore_plan, snapshot_name, snapshot_room, uuid_v4, AppRecord, FileRecord,
+        Origin, ProjectRecord, SnapshotNameError, SnapshotRecord, APP, BY_PROJECT, BY_UPDATED,
+        DB_NAME, DB_VERSION, FILES, MAX_SNAPSHOTS, PROJECTS, RECENT_PROJECTS_KEY, SAMPLE_ID,
+        SNAPSHOTS, SNAPSHOT_NAME_LEN,
     };
     use crate::adapters::clock_system::{rfc3339_millis, SystemClock};
     use crate::adapters::zip::{self as archive_io, ArchiveError};
@@ -420,6 +572,38 @@ mod web {
         Array::of2(&JsValue::from_str(project_id), &JsValue::from_str(path)).into()
     }
 
+    /// `snapshots` のキー（keyPath `[project_id, name]`、§13.3.8）。
+    fn snapshot_key(project_id: &str, name: &str) -> JsValue {
+        Array::of2(&JsValue::from_str(project_id), &JsValue::from_str(name)).into()
+    }
+
+    /// ストアから 1 プロジェクトのスナップショットを読む（作った日時の新しい順）。
+    /// トランザクションの中で呼ぶ（読み取りの後に同じトランザクションで書くため）。
+    async fn snapshot_list(
+        store: &IdbObjectStore,
+        project_id: &str,
+    ) -> Result<Vec<SnapshotRecord>, StorageError> {
+        let index = store.index(BY_PROJECT).map_err(js_error)?;
+        let request = index
+            .get_all_with_key(&JsValue::from_str(project_id))
+            .map_err(js_error)?;
+        let mut records: Vec<SnapshotRecord> = from_js(&wait(&request).await?)?;
+        records.sort_by(|left, right| right.created_at.cmp(&left.created_at));
+        Ok(records)
+    }
+
+    /// 名前の誤りの内部メッセージ（利用者向けの文言は UI がカタログで引く。§12.3）。
+    fn name_message(error: SnapshotNameError) -> String {
+        match error {
+            SnapshotNameError::Empty => "snapshot name is empty".to_owned(),
+            SnapshotNameError::TooLong => {
+                format!("snapshot name is longer than {SNAPSHOT_NAME_LEN} characters")
+            }
+            SnapshotNameError::Forbidden => "snapshot name has a forbidden character".to_owned(),
+            SnapshotNameError::Duplicate => "snapshot name already exists".to_owned(),
+        }
+    }
+
     // ---------------------------------------------------------------- DB
 
     /// 開いた DB（§13.3.2）。
@@ -429,7 +613,7 @@ mod web {
     }
 
     impl Idb {
-        /// DB `novnow` v1 を開く（無ければストア 3 つと索引 2 つを作る）。使えなければ
+        /// DB `novnow` v2 を開く（無ければストア 4 つと索引 3 つを作る）。使えなければ
         /// [`StorageError::Unavailable`]（**E062**。LocalStorage へはフォールバックしない、§13.3.6）。
         pub async fn open() -> Result<Self, StorageError> {
             let window = web_sys::window().ok_or_else(|| unavailable("no window"))?;
@@ -565,10 +749,11 @@ mod web {
                 .sum())
         }
 
-        /// プロジェクトを消す（`by_project` で全ファイル ＋ `projects` を 1 トランザクション、§13.3.3）。
+        /// プロジェクトを消す（`by_project` で全ファイル ＋ 全スナップショット ＋ `projects` を
+        /// 1 トランザクション、§13.3.3・§13.3.8）。
         pub async fn delete_project(&self, project_id: &str) -> Result<(), StorageError> {
             let transaction =
-                self.transaction(&[PROJECTS, FILES], IdbTransactionMode::Readwrite)?;
+                self.transaction(&[PROJECTS, FILES, SNAPSHOTS], IdbTransactionMode::Readwrite)?;
             let store = transaction.object_store(FILES).map_err(js_error)?;
             let index = store.index(BY_PROJECT).map_err(js_error)?;
             let request = index
@@ -577,6 +762,15 @@ mod web {
             let keys: Array = wait(&request).await?.unchecked_into();
             for key in keys.iter() {
                 store.delete(&key).map_err(js_error)?;
+            }
+            let snapshots = transaction.object_store(SNAPSHOTS).map_err(js_error)?;
+            let snapshot_index = snapshots.index(BY_PROJECT).map_err(js_error)?;
+            let snapshot_request = snapshot_index
+                .get_all_keys_with_key(&JsValue::from_str(project_id))
+                .map_err(js_error)?;
+            let snapshot_keys: Array = wait(&snapshot_request).await?.unchecked_into();
+            for key in snapshot_keys.iter() {
+                snapshots.delete(&key).map_err(js_error)?;
             }
             let projects = transaction.object_store(PROJECTS).map_err(js_error)?;
             projects
@@ -609,6 +803,126 @@ mod web {
             record.name = name.to_owned();
             record.updated_at = now();
             projects.put(&to_js(&record)?).map_err(js_error)?;
+            commit(&transaction).await
+        }
+
+        /// 1 つのプロジェクトレコード（無ければ失敗）。
+        async fn project_record(&self, project_id: &str) -> Result<ProjectRecord, StorageError> {
+            let transaction = self.transaction(&[PROJECTS], IdbTransactionMode::Readonly)?;
+            let projects = transaction.object_store(PROJECTS).map_err(js_error)?;
+            let request = projects
+                .get(&JsValue::from_str(project_id))
+                .map_err(js_error)?;
+            let found = wait(&request).await?;
+            if found.is_undefined() || found.is_null() {
+                return Err(other(format!("no project {project_id}")));
+            }
+            from_js(&found)
+        }
+
+        /// 1 プロジェクトのスナップショット（新しい順。選択モーダル、§13.3.8）。
+        pub async fn snapshots(
+            &self,
+            project_id: &str,
+        ) -> Result<Vec<SnapshotRecord>, StorageError> {
+            let transaction = self.transaction(&[SNAPSHOTS], IdbTransactionMode::Readonly)?;
+            let store = transaction.object_store(SNAPSHOTS).map_err(js_error)?;
+            snapshot_list(&store, project_id).await
+        }
+
+        /// 1 件のスナップショット（名前は**空白を落としてから**比べる。無ければ失敗）。
+        pub async fn snapshot(
+            &self,
+            project_id: &str,
+            name: &str,
+        ) -> Result<SnapshotRecord, StorageError> {
+            let transaction = self.transaction(&[SNAPSHOTS], IdbTransactionMode::Readonly)?;
+            let store = transaction.object_store(SNAPSHOTS).map_err(js_error)?;
+            let request = store
+                .get(&snapshot_key(project_id, name.trim()))
+                .map_err(js_error)?;
+            let found = wait(&request).await?;
+            if found.is_undefined() || found.is_null() {
+                return Err(other(format!("no snapshot {}", name.trim())));
+            }
+            from_js(&found)
+        }
+
+        /// スナップショットを保存する（§13.3.8）。写すのは `files` に**保存済み**の内容で、
+        /// 名前の検査（衝突・上限）と書き込みは 1 つの書き込みトランザクションに収める。
+        /// 容量が足りなければ `QuotaExceededError` → [`StorageError::QuotaExceeded`]（§13.3.6）。
+        pub async fn save_snapshot(
+            &self,
+            project_id: &str,
+            name: &str,
+        ) -> Result<SnapshotRecord, StorageError> {
+            let records = self.storage(project_id).records().await?;
+            let transaction = self.transaction(&[SNAPSHOTS], IdbTransactionMode::Readwrite)?;
+            let store = transaction.object_store(SNAPSHOTS).map_err(js_error)?;
+            let existing = snapshot_list(&store, project_id).await?;
+            if !snapshot_room(&existing) {
+                return Err(other(format!("too many snapshots (max {MAX_SNAPSHOTS})")));
+            }
+            let name =
+                snapshot_name(name, &existing).map_err(|error| other(name_message(error)))?;
+            let record = SnapshotRecord::new(project_id, &name, &records, &now());
+            store.put(&to_js(&record)?).map_err(js_error)?;
+            commit(&transaction).await?;
+            Ok(record)
+        }
+
+        /// スナップショットから復元する（§13.3.8）。返るのは（書いた数、消した数）。
+        ///
+        /// ファイルの置き換えと `projects.updated_at` の更新は 1 トランザクション（§13.3.3）。
+        /// 書くレコードの時刻はすべて**復元したとき**（外部変更の検出が自分の書き込みを
+        /// 候補にしない、§8.5）。
+        pub async fn restore_snapshot(
+            &self,
+            project_id: &str,
+            name: &str,
+        ) -> Result<(usize, usize), StorageError> {
+            let snapshot = self.snapshot(project_id, name).await?;
+            let current = self.storage(project_id).records().await?;
+            let project = self.project_record(project_id).await?;
+            let plan = restore_plan(&snapshot, &current);
+            let stamp = now();
+            let transaction =
+                self.transaction(&[FILES, PROJECTS], IdbTransactionMode::Readwrite)?;
+            let files = transaction.object_store(FILES).map_err(js_error)?;
+            for path in &plan.remove {
+                files
+                    .delete(&file_key(project_id, path.as_str()))
+                    .map_err(js_error)?;
+            }
+            for file in &plan.put {
+                let Some(path) = file.project_path() else {
+                    continue;
+                };
+                let mut record = FileRecord::new(project_id, &path, &file.text, &stamp);
+                record.bytes = file.bytes.clone();
+                files.put(&to_js(&record)?).map_err(js_error)?;
+            }
+            let projects = transaction.object_store(PROJECTS).map_err(js_error)?;
+            let updated = ProjectRecord {
+                updated_at: stamp,
+                ..project
+            };
+            projects.put(&to_js(&updated)?).map_err(js_error)?;
+            commit(&transaction).await?;
+            Ok((plan.put.len(), plan.remove.len()))
+        }
+
+        /// スナップショットを消す（§13.3.8）。
+        pub async fn delete_snapshot(
+            &self,
+            project_id: &str,
+            name: &str,
+        ) -> Result<(), StorageError> {
+            let transaction = self.transaction(&[SNAPSHOTS], IdbTransactionMode::Readwrite)?;
+            let store = transaction.object_store(SNAPSHOTS).map_err(js_error)?;
+            store
+                .delete(&snapshot_key(project_id, name.trim()))
+                .map_err(js_error)?;
             commit(&transaction).await
         }
 
@@ -751,6 +1065,14 @@ mod web {
             let params = IdbObjectStoreParameters::new();
             params.set_key_path(&JsValue::from_str("key"));
             db.create_object_store_with_optional_parameters(APP, &params)?;
+        }
+        // §13.3.8: 版 1 → 2 の更新は**新しいストアを足すだけ**（既存のレコードは触らない）
+        if !names.contains(SNAPSHOTS) {
+            let params = IdbObjectStoreParameters::new();
+            let key_path = Array::of2(&JsValue::from_str("project_id"), &JsValue::from_str("name"));
+            params.set_key_path(&key_path);
+            let store = db.create_object_store_with_optional_parameters(SNAPSHOTS, &params)?;
+            store.create_index_with_str(BY_PROJECT, "project_id")?;
         }
         Ok(())
     }

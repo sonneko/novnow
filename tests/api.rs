@@ -16,6 +16,8 @@ use serde_json::{json, Value};
 use novnow::adapters::project_load::is_document;
 use novnow::app::commands::{PALETTE_COMMANDS, SHORTCUT_PALETTE_COMMANDS};
 use novnow::app::error::{Class, Error};
+use novnow::app::event::AppEvent;
+use novnow::app::host::ReadFailure;
 use novnow::app::memory_host::{MemoryFiles, MemoryHost};
 use novnow::app::ops::CATALOG_VERSION;
 use novnow::app::session::{canonical, command_names, Interface, Session};
@@ -1686,5 +1688,329 @@ fn clean_external_reload_and_unchanged_never_populate_conflicts() {
     assert_eq!(
         session.run("save.state", json!({})).unwrap()["conflicts"],
         json!([])
+    );
+}
+
+// =========================================================================== Issue #61 回帰検査
+
+/// 2 ファイル以上にまたがる保存の途中で失敗したら、**どのファイルも変わっていない**状態へ戻る
+/// （§19.1.6 の原子性）。成功済みの書き込みが残る部分コミットを起こさない。
+///
+/// 失敗は書き込み・削除の**それぞれの位置**に注入する（`MemoryFiles::fail_write_at` /
+/// `fail_remove_at`）。
+#[test]
+fn a_save_that_fails_partway_leaves_every_file_as_it_was() {
+    // (失敗を注入する書き込みの位置, 失敗を注入する削除の位置)
+    for (write_at, remove_at) in [(Some(0), None), (Some(1), None), (None, Some(0))] {
+        let (mut session, files) = open();
+        let scene = open_first_section(&mut session);
+        let path = "contents/01-01.cnov";
+        let before = session.aggregate().text(path).to_owned();
+
+        // 束を 2 ファイル以上にする: 本文の書き換え + 資料のリネーム（書き 1・消し 1）
+        session
+            .run(
+                "section.write",
+                json!({ "scene": scene, "text": "保存に失敗する本文\n" }),
+            )
+            .expect("section.write");
+        session
+            .run(
+                "document.rename",
+                json!({ "from": "characters.md", "to": "cast.md" }),
+            )
+            .expect("document.rename");
+        assert!(
+            files.borrow().written.is_empty(),
+            "save.now の前に書いている（§19.1.6）: {:?}",
+            files.borrow().written.keys().collect::<Vec<_>>()
+        );
+
+        {
+            let mut files = files.borrow_mut();
+            files.fail_write_at = write_at;
+            files.fail_remove_at = remove_at;
+        }
+        let error = session
+            .run("save.now", json!({}))
+            .expect_err("失敗を注入した保存が通った");
+        assert_eq!(error.class, Class::Io, "{error:?}");
+
+        // どのファイルも操作前のまま（新しいファイルも残らない）
+        let state = files.borrow();
+        assert!(
+            state.written.is_empty(),
+            "部分コミットが残っている（write_at={write_at:?} remove_at={remove_at:?}）: {:?}",
+            state.written.keys().collect::<Vec<_>>()
+        );
+        assert!(
+            state.removed.is_empty(),
+            "消したファイルが戻っていない（write_at={write_at:?} remove_at={remove_at:?}）: {:?}",
+            state.removed
+        );
+        drop(state);
+
+        // セッション側も嘘を言わない: 保存は失敗した状態（§9.6）・未保存のまま・消すものも残ったまま
+        let save = session.run("save.state", json!({})).expect("save.state");
+        assert_eq!(save["state"], json!("error"), "{save}");
+        let unsaved: Vec<&str> = save["unsaved"]
+            .as_array()
+            .expect("unsaved")
+            .iter()
+            .filter_map(|value| value.as_str())
+            .collect();
+        assert!(
+            unsaved.contains(&path) && unsaved.contains(&"cast.md"),
+            "失敗した書き込みを保存済みにしている: {save}"
+        );
+        // 衝突扱いにもならない（書いていないものを外部版として持たない）
+        assert!(
+            session.conflicts().is_empty(),
+            "失敗した保存が衝突を作っている: {:?}",
+            session.conflicts()
+        );
+
+        // 注入を外すと、同じ束がそのまま書ける（消すものもやり直す）
+        {
+            let mut files = files.borrow_mut();
+            files.fail_write_at = None;
+            files.fail_remove_at = None;
+        }
+        let saved = session.run("save.now", json!({})).expect("save.now");
+        assert_eq!(saved["state"], json!("clean"), "{saved}");
+        let state = files.borrow();
+        assert!(
+            state.written.contains_key("cast.md"),
+            "リネームの先が書かれていない: {:?}",
+            state.written.keys().collect::<Vec<_>>()
+        );
+        assert_eq!(
+            state.removed,
+            vec!["characters.md".to_owned()],
+            "リネームの元が消えていない: {:?}",
+            state.removed
+        );
+        assert!(
+            state.written.values().any(|text| text != &before),
+            "書き直した本文が入っていない: {:?}",
+            state.written.keys().collect::<Vec<_>>()
+        );
+    }
+}
+
+/// 保存に失敗した操作の**監査ログは残らない**（§19.1.6・§15.8.4）。
+///
+/// 実体のない `direct_write` の記録が溜まると、監査ログが「何が行われたか」の正本でなくなる。
+#[test]
+fn an_operation_whose_save_failed_leaves_no_audit_record() {
+    let (mut session, files) = open();
+    // MCP 経路（関門が要る）で `direct_write` の記録が出る形にする
+    session
+        .run(
+            "agent.delegation_set",
+            json!({ "role": "writer", "level": "apply" }),
+        )
+        .expect("agent.delegation_set");
+    session.set_interface(Interface::Mcp);
+    let scene = first_section(&mut session);
+    files.borrow_mut().fail = true;
+
+    let error = session
+        .run(
+            "section.write",
+            json!({ "scene": scene.clone(), "text": "書けない本文\n", "role": "writer" }),
+        )
+        .expect_err("書けないのに通った");
+    assert_eq!(error.class, Class::Io, "{error:?}");
+    let log = files.borrow().appended.clone();
+    assert!(
+        log.values().all(|text| !text.contains("direct_write")),
+        "保存に失敗した操作の監査記録が残っている: {log:?}"
+    );
+
+    // 書けるようになれば同じ操作の記録は付く（記録を消しただけではない）
+    files.borrow_mut().fail = false;
+    session
+        .run(
+            "section.write",
+            json!({ "scene": scene, "text": "書ける本文\n", "role": "writer" }),
+        )
+        .expect("section.write");
+    let log = files.borrow().appended.clone();
+    assert!(
+        log.values().any(|text| text.contains("direct_write")),
+        "成功した操作の監査記録が無い: {log:?}"
+    );
+}
+
+/// 外部で変わったファイルが**読めなかった**ときは削除と区別する（§8.5・§4.3）。
+///
+/// 読み取りの失敗や文字コード不正を削除として扱うと、利用者が消していない文書が
+/// セッションから消える。Dirty の本文も、衝突として持つ外部版も上書きしない。
+#[test]
+fn an_unreadable_external_change_is_not_a_removal() {
+    for (failure, code) in [
+        (ReadFailure::Encoding("invalid utf-8".to_owned()), "S024"),
+        (ReadFailure::Io("PermissionDenied".to_owned()), "S030"),
+    ] {
+        let (mut session, files) = open();
+        let scene = open_first_section(&mut session);
+        let path = "contents/01-01.cnov";
+        session
+            .run(
+                "section.write",
+                json!({ "scene": scene, "text": "自分の未保存の本文\n" }),
+            )
+            .expect("section.write");
+        let mine = session.aggregate().text(path).to_owned();
+        let _ = session.poll_events();
+
+        files
+            .borrow_mut()
+            .unreadable
+            .push((path.to_owned(), failure.clone()));
+        let changes = session.poll_external();
+        assert_eq!(changes.len(), 1, "{changes:?}");
+        assert_eq!(
+            changes[0].failure().map(ReadFailure::kind),
+            Some(code),
+            "読めなかった理由が無い・違う: {changes:?}"
+        );
+        assert!(
+            !changes[0].removed(),
+            "読めなかったものを削除としている: {changes:?}"
+        );
+
+        // 文書はそのまま・本文も自分の編集のまま・衝突にもならない（外部版を持っていない）
+        assert!(
+            session.aggregate().document(path).is_some(),
+            "読めなかっただけで文書が消えた"
+        );
+        assert_eq!(
+            session.aggregate().text(path),
+            mine,
+            "読めなかったのに本文を置き換えた"
+        );
+        assert!(
+            session.conflicts().is_empty(),
+            "外部版を読んでいないのに衝突にしている: {:?}",
+            session.conflicts()
+        );
+        let save = session.run("save.state", json!({})).expect("save.state");
+        assert_eq!(save["conflicts"], json!([]), "{save}");
+
+        // S024 / S030 相当の出来事で知らせる（§19.2.4）
+        let events: Vec<Value> = session
+            .poll_events()
+            .iter()
+            .map(AppEvent::to_json)
+            .collect();
+        let found = events
+            .iter()
+            .find(|event| event["kind"] == json!("external_unreadable"))
+            .unwrap_or_else(|| panic!("読めなかった出来事が無い: {events:?}"));
+        assert_eq!(found["code"], json!(code), "{found}");
+        assert_eq!(found["path"], json!(path), "{found}");
+    }
+}
+
+/// 本当に消えたファイルは今までどおり文書が無くなる（読めなかったものとの区別の反対側）。
+#[test]
+fn a_removed_external_file_still_removes_the_document() {
+    let (mut session, files) = open();
+    let path = "contents/01-01.cnov";
+    files.borrow_mut().changes.push((path.to_owned(), None));
+    let changes = session.poll_external();
+    assert_eq!(changes.len(), 1, "{changes:?}");
+    assert!(changes[0].removed(), "{changes:?}");
+    assert!(changes[0].failure().is_none(), "{changes:?}");
+    assert!(
+        session.aggregate().document(path).is_none(),
+        "消えた文書が残っている"
+    );
+}
+
+/// 当てはまる節が無い書き出しは**何も書かない**（§17.2）。
+///
+/// 空のファイルも作らず、既存のファイルも上書きせず、書き込みの出来事も監査ログも残さない。
+/// テキストの返却だけは今までどおり（形を変えない）。
+#[test]
+fn export_text_writes_nothing_when_no_section_matches() {
+    let out = "/tmp/novnow-no-sections.txt";
+    for args in [
+        json!({ "range": "@99-99", "out": out }),
+        json!({ "state": "fixed", "out": out }),
+    ] {
+        let (mut session, files) = open();
+        // 既にあるファイルを上書きしないことも確かめる
+        files
+            .borrow_mut()
+            .exported
+            .insert(out.to_owned(), "もともとの中身".to_owned());
+        let _ = session.poll_events();
+
+        let value = session
+            .run("export.text", args.clone())
+            .expect("export.text");
+        assert_eq!(value["sections"], json!(0), "{args}: {value}");
+        assert_eq!(value["chars"], json!(0), "{args}: {value}");
+        assert_eq!(
+            files.borrow().exported.get(out).map(String::as_str),
+            Some("もともとの中身"),
+            "{args}: 0 件なのに書き出した: {:?}",
+            files.borrow().exported
+        );
+        let events: Vec<Value> = session
+            .poll_events()
+            .iter()
+            .map(AppEvent::to_json)
+            .collect();
+        assert!(
+            events
+                .iter()
+                .all(|event| event["kind"] != json!("document_changed")),
+            "{args}: 書いていないのに出来事を積んだ: {events:?}"
+        );
+        assert!(
+            files
+                .borrow()
+                .appended
+                .values()
+                .all(|text| !text.contains("export.text")),
+            "{args}: 書いていないのに監査ログに残した: {:?}",
+            files.borrow().appended
+        );
+    }
+
+    // テキストの返却だけなら 0 件でも今までどおり（§19.7「テキストの返却のみは無関門」）
+    let (mut session, files) = open();
+    let value = session
+        .run("export.text", json!({ "range": "@99-99" }))
+        .expect("export.text");
+    assert_eq!(value["sections"], json!(0), "{value}");
+    assert_eq!(value["text"], json!(""), "{value}");
+    assert!(
+        value["name"].as_str().expect("name").ends_with(".txt"),
+        "{value}"
+    );
+    assert!(
+        files.borrow().exported.is_empty(),
+        "out を指定していないのに書いている: {:?}",
+        files.borrow().exported
+    );
+
+    // 当てはまる節があれば今までどおり書く（0 件だけを止めたことの確認）
+    let (mut session, files) = open();
+    let value = session
+        .run("export.text", json!({ "out": out }))
+        .expect("export.text");
+    assert!(
+        value["sections"].as_u64().expect("sections") > 0,
+        "雛形の節が 1 つも選ばれていない: {value}"
+    );
+    assert!(
+        files.borrow().exported.contains_key(out),
+        "書けていない: {:?}",
+        files.borrow().exported
     );
 }

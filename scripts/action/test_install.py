@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Offline regressions for the composite action; use macOS's Bash 3.2 explicitly."""
+"""Offline regressions for the composite action; use macOS's Bash 3.2 explicitly.
+
+公開後 smoke（`.github/workflows/action-smoke.yml`）が負例を作る手順も含む（#61 追加監査 7）。
+"""
 import hashlib
 import io
 import os
@@ -13,6 +16,10 @@ import zipfile
 import unittest
 
 SCRIPT = Path(__file__).with_name("install.sh").resolve()
+PREPARE = Path(__file__).with_name("prepare-invalid-project.sh").resolve()
+REPOSITORY = Path(__file__).resolve().parents[2]
+SAMPLE_PROJECT = REPOSITORY / "examples" / "sample-novel"
+SMOKE_WORKFLOW = REPOSITORY / ".github" / "workflows" / "action-smoke.yml"
 BASH = "/bin/bash" if sys.platform == "darwin" else "bash"
 if sys.platform == "win32":
     # Do not accidentally launch Windows System32/WSL bash instead of Git Bash.
@@ -129,6 +136,98 @@ class ActionShellTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, f"{BASH}: {result.stderr}\n{result.stdout}")
         self.assertEqual(result.stdout.strip(), hashlib.sha256(file.read_bytes()).hexdigest())
+
+
+class PrepareInvalidProjectTests(unittest.TestCase):
+    """公開後 smoke が「E 診断が出る作品」を作れること（#61 追加監査 7）。
+
+    本文を `-name '*.txt'` で決め打ちしていたため、サンプルの本文が `.cnov` へ変わったあと
+    3 OS とも準備の段階で失敗し、後段の「E 診断で exit code 5」が一度も走らなかった。
+    """
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+
+    def prepare(self, source, target):
+        return subprocess.run([BASH, str(PREPARE), str(source), str(target)],
+                              capture_output=True, text=True, encoding="utf-8", timeout=60)
+
+    def make_project(self, name, manuscripts):
+        """`contents/` の中身だけを指定した最小の作品を作る。"""
+        project = self.root / name
+        (project / "contents").mkdir(parents=True)
+        (project / "project.toml").write_text("[project]\n", encoding="utf-8", newline="\n")
+        for manuscript in manuscripts:
+            path = project / "contents" / manuscript
+            path.write_text("@01-01-01 屋根裏\n本文。\n", encoding="utf-8", newline="\n")
+        return project
+
+    def test_the_sample_project_yields_an_injected_reference(self):
+        before = {path.relative_to(SAMPLE_PROJECT).as_posix(): path.read_bytes()
+                  for path in sorted(SAMPLE_PROJECT.rglob("*")) if path.is_file()}
+        target = self.root / "novnow-invalid"
+        result = self.prepare(SAMPLE_PROJECT, target)
+        self.assertEqual(result.returncode, 0, f"{BASH}: {result.stderr}\n{result.stdout}")
+        manuscript = Path(result.stdout.strip())
+        self.assertTrue(manuscript.is_file(), result.stdout)
+        self.assertEqual(manuscript.parent, target / "contents")
+        self.assertIn("'action_unknown_term", manuscript.read_text(encoding="utf-8"))
+        # 元の作品（追跡対象）は書き換えない
+        after = {path.relative_to(SAMPLE_PROJECT).as_posix(): path.read_bytes()
+                 for path in sorted(SAMPLE_PROJECT.rglob("*")) if path.is_file()}
+        self.assertEqual(before, after)
+
+    def test_the_manuscript_is_not_resolved_by_extension(self):
+        """本文の拡張子が変わっても準備できる（決め打ちへ戻すとここで落ちる）。"""
+        candidates = sorted(path.name for path in (SAMPLE_PROJECT / "contents").iterdir()
+                            if path.is_file() and not path.name.startswith("."))
+        self.assertTrue(candidates, "examples/sample-novel/contents に本文が無い")
+        target = self.root / "resolved"
+        result = self.prepare(SAMPLE_PROJECT, target)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(Path(result.stdout.strip()).name, candidates[0])
+        # サンプルと違う拡張子でも同じ手順で足りる
+        for extension in (".txt", ".cnov", ".md"):
+            project = self.make_project(f"project{extension.replace('.', '_')}", [f"01-01{extension}"])
+            outcome = self.prepare(project, self.root / f"out{extension.replace('.', '_')}")
+            self.assertEqual(outcome.returncode, 0, f"{extension}: {outcome.stderr}")
+            self.assertEqual(Path(outcome.stdout.strip()).name, f"01-01{extension}")
+
+    def test_a_project_without_a_manuscript_fails_loudly(self):
+        """空の結果を曖昧なリダイレクトで先へ送らず、理由を出して止まる。"""
+        empty = self.make_project("empty", [])
+        (empty / "contents" / ".novnow-local").write_text("local state\n", encoding="utf-8", newline="\n")
+        result = self.prepare(empty, self.root / "empty-out")
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("::error::", result.stderr)
+        self.assertIn("本文ファイルが無い", result.stderr)
+
+    def test_a_project_without_contents_is_rejected(self):
+        project = self.root / "no-contents"
+        project.mkdir()
+        result = self.prepare(project, self.root / "no-contents-out")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("本文のディクトリが無い", result.stderr)
+
+    def test_a_missing_source_or_argument_is_rejected(self):
+        self.assertEqual(self.prepare(self.root / "absent", self.root / "out").returncode, 1)
+        without_arguments = subprocess.run([BASH, str(PREPARE)], capture_output=True,
+                                           text=True, encoding="utf-8", timeout=30)
+        self.assertEqual(without_arguments.returncode, 2)
+        self.assertIn("usage:", without_arguments.stderr)
+
+    def test_the_smoke_workflow_delegates_to_the_shared_script(self):
+        lines = SMOKE_WORKFLOW.read_text(encoding="utf-8").splitlines()
+        # 経緯を説明するコメントを除いた**実行される部分**が、本文を拡張子で決め打っていないこと。
+        # 決めうちへ戻すと空振りしても気付けなくなる（#61 追加監査 7 の再現）。
+        code = "\n".join(line for line in lines if not line.lstrip().startswith("#"))
+        self.assertIn("scripts/action/prepare-invalid-project.sh", code)
+        self.assertNotIn("-name '*.", code)
+        self.assertNotIn(".txt", code)
+        # 負例の確認（E 診断で exit code 5）はこれまでどおり後段が担う
+        self.assertIn('[ "$INVALID_CODE" = 5 ]', code)
 
 
 if __name__ == "__main__":

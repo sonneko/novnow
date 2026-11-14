@@ -1,6 +1,7 @@
 """Approved distribution policies: license, Python spelling, publication route."""
 import importlib.util
 import hashlib
+import json
 import re
 import tempfile
 import unittest
@@ -173,3 +174,119 @@ class ReleasePolicy(unittest.TestCase):
         self.assertIn("IPA_FONT_LICENSE", (ROOT / "src/ui/app.rs").read_text())
         entries = matrix.archive_entries(Path("fake-binary"), None, "0.1.0", matrix.TARGET_NAMES[0], "gui")
         self.assertIn(("licenses/IPA_Font_License_Agreement_v1.0.txt", license_path, False), entries)
+
+
+class VsixReadmePolicy(unittest.TestCase):
+    """VSIX に同梱する README の版・VSIX 名・URL が manifest と一致すること（#61 追加監査 8）。
+
+    公開済みの novnow-0.1.1.vsix に「novnow-0.1.0.vsix / Version v0.1.0 is published」という
+    古い README が入っていた。同梱物は公開後に差し替えられないので、作る前で止める。
+    """
+
+    def build(self, path, version, readme):
+        with zipfile.ZipFile(path, "w") as bundle:
+            bundle.writestr(
+                "extension/package.json",
+                json.dumps({"name": "novnow", "publisher": "sonneko", "version": version}),
+            )
+            if readme is not None:
+                bundle.writestr("extension/readme.md", readme)
+
+    def readme(self, version):
+        return (
+            f"Download [novnow-{version}.vsix]"
+            f"(https://github.com/sonneko/novnow/releases/download/v{version}/novnow-{version}.vsix)."
+            f" Version v{version} is published. No later than product v1."
+        )
+
+    def test_matching_readme_is_accepted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / matrix.vsix_name("0.1.1")
+            self.build(path, "0.1.1", self.readme("0.1.1"))
+            matrix.verify_vsix(path, "0.1.1")
+
+    def test_stale_readme_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / matrix.vsix_name("0.1.1")
+            self.build(path, "0.1.1", self.readme("0.1.0"))
+            with self.assertRaises(ValueError) as caught:
+                matrix.verify_vsix(path, "0.1.1")
+            self.assertIn("0.1.0", str(caught.exception))
+            self.assertIn("README", str(caught.exception))
+
+    def test_missing_readme_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / matrix.vsix_name("0.1.1")
+            self.build(path, "0.1.1", None)
+            with self.assertRaises(ValueError) as caught:
+                matrix.verify_vsix(path, "0.1.1")
+            self.assertIn("must bundle the extension README", str(caught.exception))
+
+    def test_the_bundled_readme_is_derived_from_the_manifest(self):
+        """`--bump` / `--check` が同梱 README の元ファイルを manifest から作ること。"""
+        files = matrix.versioned_files("9.9.9")
+        readme = ROOT / "vscode" / "README.md"
+        self.assertIn(readme, files)
+        derived = files[readme]
+        self.assertIn("[novnow-9.9.9.vsix]", derived)
+        self.assertIn("releases/download/v9.9.9/novnow-9.9.9.vsix", derived)
+        self.assertIn("Version v9.9.9 is published", derived)
+        # VSIX 名・ダウンロード URL のタグとファイル名・「公開済み」の文（4 か所）が同じ版になる
+        self.assertEqual(re.findall(r"\d+\.\d+\.\d+", derived), ["9.9.9"] * 4)
+
+
+class PublishedDisplayPolicy(unittest.TestCase):
+    """公開表示の allowlist（#61 追加監査 8 / 提案 C）。
+
+    開発版の bump と「実 Release を確認したあとの公開版表示の更新」は別の段階なので、
+    利用者に見える版表示は manifest から作り、`--check` で食い違いを落とす。
+    過去の版を説明する文書（履歴・仕様書・旧形式の解説）は対象にしない。
+    """
+
+    def displays(self, version):
+        return {
+            path.relative_to(ROOT).as_posix(): text
+            for path, text in matrix.published_display_files(version).items()
+        }
+
+    def test_public_displays_follow_the_manifest(self):
+        by_name = self.displays("9.9.9")
+        self.assertEqual(
+            sorted(by_name), ["README.en.md", "README.md", "docs/users/install.md"]
+        )
+        self.assertIn("**v9.9.9を公開しました。**", by_name["README.md"])
+        self.assertIn("各配布形態の v9.9.9 を公開済みです。", by_name["README.md"])
+        self.assertIn("**v9.9.9 is available.**", by_name["README.en.md"])
+        self.assertIn(
+            "Version v9.9.9 is published for all of these channels.", by_name["README.en.md"]
+        )
+        install = by_name["docs/users/install.md"]
+        self.assertIn("ほかの配布形態も v9.9.9 を公開済みです。", install)
+        self.assertIn("（v9.9.9 は公開済みです）", install)
+        self.assertIn("pip install novnow==9.9.9", install)
+        for target in matrix.TARGET_NAMES:
+            self.assertIn(f"`{matrix.artifact_name('9.9.9', target, 'gui')}`", install)
+
+    def test_prerelease_uses_pep440_in_the_pip_claim(self):
+        install = self.displays("9.9.9-rc.1")["docs/users/install.md"]
+        self.assertIn("pip install novnow==9.9.9rc1", install)
+        self.assertIn("ほかの配布形態も v9.9.9-rc.1 を公開済みです。", install)
+
+    def test_historical_documents_are_not_replaced(self):
+        by_name = self.displays("9.9.9")
+        for name in (
+            "docs/history.md",
+            "docs/specifications/external.md",
+            "docs/distribution.md",
+            "website/src/data/troubleshooting.ts",
+            "website/src/data/release.ts",
+        ):
+            self.assertNotIn(name, by_name)
+
+    def test_versioned_files_cover_the_public_displays(self):
+        files = matrix.versioned_files(matrix.version())
+        for name in ("README.md", "README.en.md", "docs/users/install.md", "vscode/README.md"):
+            self.assertIn(ROOT / name, files, name)
+
+    def test_the_repository_displays_are_in_sync(self):
+        self.assertEqual(matrix.sync_versions(None, True), 0)

@@ -84,6 +84,9 @@ jobs:
       - name: Check the user guides for readability (easy-read.py)
         run: python3 docs/script/easy-read.py
 
+      - name: Verify release notes and their wiring (release-notes.py)
+        run: python3 scripts/release-notes.py --check-all
+
       - name: Verify website diagnostic catalog covers all codes
         run: python3 scripts/diagnostics-site.py --check
 

@@ -190,7 +190,7 @@ novnow/
 
 ### 4.1 `bash scripts/verify.sh`（コミット前の必須検証）
 
-Actions取得スクリプトのオフライン回帰は `REF:scripts/action/test_install.py` で検査する。macOSでは標準Bash 3.2を明示し、空引数・終了コード・export先・バックスラッシュを含むパスのSHA-256を確認する。
+Actions取得スクリプトのオフライン回帰は `REF:scripts/action/test_install.py` で検査する。macOSでは標準Bash 3.2を明示し、空引数・終了コード・export先・バックスラッシュを含むパスのSHA-256を確認する。同じファイルが、公開後 smoke（`REF:.github/workflows/action-smoke.yml`）が負例を作る手順 `REF:scripts/action/prepare-invalid-project.sh` も検査する。本文を拡張子で決め打たないこと、サンプル作品から本文を解決して未知参照を注入できること、本文が無い作品では理由を出して止まることを確認する（決め打ちに戻すと 3 OS の公開後 smoke が準備段階で止まり、exit code 5 の検査が一度も走らない）。
 
 `REF:scripts/verify.sh` は次を一括で実行する（`--quick` で wasm を、`--python` で Python だけに絞れる）。コミット・プッシュ前に必ず実行し、すべて通ることを確認する。
 
@@ -276,7 +276,7 @@ CI_LOG=/tmp/ci.log CI_JOB="Local test run" CI_KIND=test CI_STATUS=success \
 | 4 | `src/` ツリー | `REF:docs/developers.md` §3 のツリーと `src/` の実物が違う | `app/` と `lsp/` の記載漏れ |
 | 5 | `verify.sh` と CI | CI が走らせる静的検査を `verify.sh` が走らせていない | Web サイトの生成物 2 検査の欠落 |
 | 6 | ルート文書の重複 | `README.md` / `README.en.md` / `GUIDE.md` の間に丸写しの 3 行ブロック | README と GUIDE の機能説明 21 行 |
-| 7 | 数の主張 | 「N ワークスペース」「MCP N ツール」「N の正規操作」が実装と違う | README の「8 個のワークスペース」という記述（実装は 9） |
+| 7 | 数の主張 | 「N ワークスペース」「MCP N ツール」「N の正規操作」「N 種の診断」が実装と違う | README の「8 個のワークスペース」という記述（実装は 9）。サイトのトップだけが「76 種の診断」だった（カタログは 85） |
 | 8 | `include_str!` | テスト・本体が埋め込むパスが存在しない | 仕様書の改名に追随していないテスト |
 | 9 | リンクとアンカー | ルート文書の相対リンク・画像、`REF:…` の `#アンカー` が飛べない | 見出しを書き換えた後の `REF:` のアンカー |
 | 10 | Actions の節約 | `concurrency` の無いワークフロー、draft で走る PR ジョブ、廃止ランナー（`macos-13`）、変更フィルタの消失、`[ci skip]` フックの欠落 | `REF:.github/workflows/wheels.yml` に `concurrency` が無かった（4 OS の行列が二重に走る） |
@@ -290,7 +290,9 @@ python3 docs/script/reference.py --list   # 検査項目の一覧
 ```
 
 **数の主張（7）を足した理由**: 文書の数は、コードを 1 行直すたびに古くなる。`REF:docs/plans.md` の `SYNC` ブロックは
-節数の集計を守っているが、それ以外の本文中の数（ワークスペース数・ツール数・操作数）は誰も見ていなかった。
+節数の集計を守っているが、それ以外の本文中の数（ワークスペース数・ツール数・操作数・診断数）は誰も見ていなかった。
+診断数は README・`REF:README.en.md`・仕様 §2・`REF:docs/users/glossary.md` の 4 文書に書き写しており、仕様 §7 の表の行数と
+突き合わせる（表と `CATALOG` の一致は `REF:tests/diagnostics_catalog.rs`、サイトの生成物側は `REF:scripts/website-check.py` が見る）。
 
 **リンク（9）を足した理由**: 節の改名は `duplicate.py` の `REF:` パス検査を通ってしまう（ファイルは在る）。
 飛び先だけが消える壊れ方は、読むまで気づけない。
@@ -330,7 +332,9 @@ CI だけに検査が増えた時点で静かに壊れるため。CI の `docs` 
 | Python | `scripts/python-check.sh` / `python/novnow-py/tests/test_binding.py` | 実機ホイールの取り込み確認（§4.9） |
 | Web | `scripts/web-smoke.sh` / `scripts/web-smoke.mjs` / `tests/storage_idb.rs` | iOS Safari の実機動作（再現不可、M-6） |
 | 文書 | `docs/script/duplicate.py` / `docs/script/reference.py` / `docs/script/test_reference.py` | 散文の意味のずれ（§4.6.1） |
-| 配布 | `tests/distribution.rs` / `scripts/release-check.sh` / `scripts/release-matrix.py` | 市場公開の実績（発行者トークン待ち）、実機での起動（§4.9） |
+| 配布 | `tests/distribution.rs` / `scripts/release-check.sh` / `scripts/release-matrix.py` / `scripts/action/test_install.py` / `docs/script/test_release_policy.py` | 市場公開の実績（発行者トークン待ち）、実機での起動（§4.9） |
+| 依存 | `.github/dependabot.yml` / `.github/workflows/dependency-audit.yml` / `scripts/dependency-audit.py` / `scripts/action/dependency-audit-issue.sh` / `deny.toml` / `docs/script/test_dependency_policy.py` | 実害の判断（開発経路の指摘を上げるか残すか）、licenses / bans の検査、Dependabot alerts の有効化（リポジトリ設定側。§4.10） |
+| 公開サイト | `scripts/website-check.py`（生成 HTML のリンク・版表示・診断数・inline code・検索索引） / `scripts/diagnostics-site.py` / `scripts/api-site.py` / `scripts/docs-site.py` / `docs/script/test_website.py` / `website/integrations/base-links.test.mjs` / `website/integrations/search-index.test.mjs` | 手書きの紹介文の文面（§4.6.1）、見た目・実ブラウザの描画、検索結果の並び順の妥当性 |
 | 第 2 の画面（W2 以降） | `docs/script/reference.py`（13 ファイル対） / `docs/plans.md#webui` の W2〜W7 | 画面の見た目（§7.5 の方針どおり固定しない）、Tauri の実機（§4.9） |
 
 ---
@@ -349,6 +353,7 @@ GitHub Actions は**走った分だけ**課金される。このリポジトリ�
 | 変更フィルタ | `REF:.github/workflows/ci.yml` の `docs` ジョブ（`rust_changed`） | 文書だけの変更で Rust 5 ジョブを skip |
 | `paths` / `paths-ignore` | 各ワークフロー | 無関係な変更でワークフロー自体を起動しない |
 | `concurrency` | 全ワークフロー（PR は `cancel-in-progress`） | 同じブランチを続けて push したとき、古い実行を取り消す |
+| 週 1 回だけ回す | `REF:.github/workflows/dependency-audit.yml`（`schedule` と `workflow_dispatch` のみ） | 依存の監査。PR では走らせない（§4.10） |
 | draft PR では走らせない | 全ワークフローの `if: github.event_name != 'pull_request' \|\| !github.event.pull_request.draft` | 作業中の push で行列を埋めない（検査 10 が全ワークフローで見る） |
 | ブランチ別の CI スコープ（`CI_SCOPE`） | wheels / desktop-check / pages-check / vscode の 4 ワークフローが PR の対象ブランチ（push は push 先ブランチ）で行列を決める。`REF:scripts/release-matrix.py --scope` | develop 向け PR で全プラットフォームの行列を走らせない（次節） |
 
@@ -505,6 +510,49 @@ Web サイト側を変更したら `npm ci --prefix website && npm run check:sit
 
 確認で問題が見つかったら、公開版の症状は `REF:docs/known-issues/ja.md` へ載せ（§9）、
 仕様・実装の直しは通常の作業として計画へ起こす。
+
+### 4.10 依存の更新と週次の監査（Dependabot / cargo-deny）
+
+依存の更新は**人が読んで決める**が、探す作業は機械にさせる（Issue #61 の提案 D）。担当は 3 つに分かれる。
+
+| 役割 | 実体 | 何をすることか |
+|---|---|---|
+| 更新 PR を作る | `REF:.github/dependabot.yml` | 週次（月曜 09:00 JST）に cargo / npm（`website`・`vscode`）/ pip / github-actions を見て `develop` 向け PR を作る。**minor と patch は 1 本にまとめ、major は 1 件ずつ**（破壊的変更はまとめて読めない） |
+| 今の lockfile を監査する | `REF:.github/workflows/dependency-audit.yml`（週次＋手動） | npm は `REF:scripts/dependency-audit.py` が公開経路と開発経路を分けて報告し、公開経路に high 以上があれば失敗する。Rust は `cargo deny check advisories`（設定 `REF:deny.toml`）がセキュリティ advisory で失敗する |
+| 指摘を残す | `REF:scripts/action/dependency-audit-issue.sh` | 開いている週次監査の Issue があれば追記、無ければ作る（毎週 Issue を増やさない） |
+
+**自動 merge はしない。** 検査が緑でも、人が内容（CHANGELOG・破壊的変更・成果物への影響）を確認してからマージする。
+ワークフローにも Dependabot の設定にも自動マージの仕組みは無く、検査 14（`check_dependency_policy`）が復活を落とす。
+
+**公開経路と開発経路の分け方**: `REF:scripts/dependency-audit.py` は同じ lockfile に `npm audit --json` と
+`npm audit --json --omit=dev` の 2 回問い合わせ、差集合を開発経路とする。公開経路＝配布物や公開サイトに**入る**依存
+（`REF:vscode/package.json` の `dependencies` は VSIX に同梱される）、開発経路＝ビルドマシンでだけ動く依存である。
+開発経路の指摘は失敗させないが、報告（run の summary と成果物 `dependency-audit-report`）には残すので、
+実害があると判断したときは上げる。`REF:website/package.json` の `astro` / `@astrojs/sitemap` が
+`devDependencies` にあるのはこのためで、公開されるのは `astro build` の出力（静的 HTML）だけである。
+
+**手順**
+
+1. **一度だけの設定**（リポジトリ設定の操作であり、ファイルでは済まない）: Settings → Code security で
+   Dependabot alerts と Dependabot security updates を有効にする。security の更新 PR は
+   `dependabot.yml` の version-update とは別枠で作られる。
+2. **更新 PR が来たら**: 必須チェックの緑を確認し、major の PR は CHANGELOG と成果物（VSIX の同梱物・サイトの出力・ホイール）
+   への影響を読む。`bash scripts/verify.sh` を手元で回してからマージする。
+3. **週次の監査が赤くなったら**: run のログ（npm は summary の表、Rust は crate 名と RUSTSEC ID）を見て、
+   `cargo update -p <crate>` / `npm audit fix` で patched 版へ上げる。上げられない理由があるときだけ
+   `REF:deny.toml` の `ignore` に**理由と確認日**を書く（理由の無い ignore は足さない）。
+4. **環境の下限が上がる更新に注意する**: 例えば astro 7.4 は Node ≥ 22.23.4 を要求する。上げる前に
+   `REF:website/package.json` の `engines`、CI の `node-version: '22'`、開発環境（Arena サンドボックスの Node は 22.22.3）を
+   一緒に確認する。開発環境で `npm run check:site` が回せなくなる更新は、その場では入れない。
+
+**Actions の使用時間**: 週 1 回・2 ジョブだけで、PR では走らない（§4.7）。手元で同じ報告が欲しいときは
+`python3 scripts/dependency-audit.py`（registry への通信が必要。`--offline` は設定だけ確かめる）。
+`workflow_dispatch` は**既定ブランチ（`main`）に存在するワークフローしか起動できない**ので、
+このワークフローを初めて回せるのは `main` へ入ってからである（開発ブランチでは起動しない＝未実行のままマージされる）。
+npm 側は手元で同じスクリプトを回して確かめられるが、Rust 側（cargo-deny）はサンドボックスから取得できないため、
+初回実行のログで確認する。
+`REF:deny.toml` は advisories だけを検査し、licenses / bans は検査しない（足すときは warn から始め、
+指摘を消してからレベルを上げる）。yanked / unmaintained / unsound は warning であり、ジョブを赤くしない。
 
 ---
 
@@ -691,4 +739,5 @@ GUI の見た目（パレット位置、下線・波線の座標、枠線やバ�
 - 発見時に識別子・対象の公開版・環境・症状・回避策・対応状況を両言語で記録する。READMEには不具合本文を重複掲載しない。
 - コード修正、develop/mainへのマージだけでは一覧から削除しない。修正版の公開と修正確認が完了してから、当該項目を両言語の現行一覧から削除する。公開済みの履歴はリリースノートと `REF:docs/history.md` に残す。項目がなくなった場合も一覧ページは維持する。
 - ダウンロード先と公開版の表示は `REF:website/src/data/release.ts` で管理する。開発版のCargo.tomlから自動推測せず、公開済みの版・成果物を確認したときだけ更新する。サイトの見出しと告知もこの値だけを使うので、`REF:scripts/website-check.py` は見出しの版を `release.ts` と突き合わせる（`Cargo.toml` とは比べない。版更新 PR から公開までの間は意図的に食い違う）。`release.ts` の版が `Cargo.toml` より新しいときだけ誤りとする。
+- **公開版の表示は書き写さない**。`release.ts` を正本とし、サイトの告知（`REF:website/src/data/i18n.ts` の `installNotice.status`）はそこから導出する。拡張の同梱 README（`REF:vscode/README.md` → VSIX の `extension/readme.md`）の版・VSIX 名・ダウンロード URL は `REF:scripts/release-matrix.py` が manifest から作り、`--check` と `verify_vsix` で一致を強制する。トップページの診断数もカタログから導出する。`REF:README.md`・`REF:README.en.md`・`REF:docs/users/install.md` の「公開しました」と Desktop 5 環境のファイル名の例も `published_display_files()` が同じ版から作る。書き写した表示は公開後に差し替えられない成果物の中で矛盾するため、生成物側でも検査する（`data-announcement` / `data-fact` フック）。公開表示の allowlist と「だれが更新するか」の一覧は `REF:docs/distribution.md` §6.1（公開後の追随）。
 - 今回のv0.1.0公開告知に限り、所有者承認により版更新なしでサイト・文書とActions修正をmainへ統合する。順序は作業ブランチ→develop→mainとし、両マージは所有者が行う。タグ変更・追加リリースは行わない。通常のGitFlow規則を一般的に緩和するものではない。

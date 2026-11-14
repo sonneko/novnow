@@ -179,3 +179,34 @@
   相対リンクが仕様書か自分自身だけを指すこと、(4) `REF:src/ui/guide.rs` の段階と
   `REF:docs/users/start.md` の見出しが 1〜9 で揃うこと、(5) 生成した HTML どうしのリンクの実在を見る。
 - **まだ実装していないこと**: 英語の本文（`docs/users/*.en.md` と `/en` の生成）。Phase 5 として残す。
+
+#### 18.5.1 サイト内検索
+
+状態: 実装完了（REF:website/integrations/search-index.mjs, REF:website/src/components/SiteSearch.astro, REF:scripts/website-check.py, REF:docs/script/test_website.py）
+
+- **索引はビルド時に作る**: `REF:website/integrations/search-index.mjs`（Astro の統合）が
+  `astro:build:done` で dist を走査し、`dist/search-index/ja.json`・`dist/search-index/en.json` を書く。
+  生成元は dist（リポジトリの文書を直接読まない）なので、base 適用後の公開 URL がそのまま入る。
+  形は `{base, generated, language, pages: [{url, lang, title, headings, text}]}`。
+- **対象**: `app/`・`nightly-app/`（Trunk の出力で Astro のビルド後に載る）・`_astro/`（資産）・
+  ルートの `index.html`（中身を持たないリダイレクト）・検索のページ自身を除く。本文は `<main>`
+  （無ければ `<body>`）から script/style/noscript/svg/nav/header/footer を落とした文字列だけで、
+  導線とフッター（どのページも同じ）は入れない。
+- **検索は公開元の中だけで完結**: `REF:website/src/components/SiteSearch.astro` が `data-index-url` の
+  JSON を 1 本 fetch するだけ。`<form>` を置かず、検索語を載せた要求が他所へ出る経路を持たない。
+  一致は入力した全語の包含のみで、重みは題×100＋h2×30＋min(本文の出現, 8)×4、上限 50 件。
+  一致箇所の `<mark>` は `textContent` で組み立て、HTML を注入しない。
+- **鍵盤**: `/`・Ctrl+K で入力欄へ、↑↓ で選択、Enter で開く、Esc で閉じる。入力中は `/` を奪わない。
+- **文言と導線**: `REF:website/src/data/i18n.ts` の `nav.search`・`search` 節（日英）。ページは
+  `REF:website/src/pages/ja/search.astro`・`REF:website/src/pages/en/search.astro` の 2 行で、導線は
+  `REF:website/src/components/Header.astro` に足した。索引の生成は `REF:website/astro.config.mjs` で
+  base-links の後ろに並ぶ（base を決めた後に索引を作るため）。
+- **検査**: `REF:scripts/website-check.py` の `audit_search_index()` が (1) 公開されているのに索引に
+  無いページ、(2) 索引にだけ残った古い項目、(3) base / language / lang の食い違いと空のエントリ、
+  (4) 検索ページの索引 URL が同じ公開元か、(5) script に外部 URL が無いか、(6) `<form>` が無いか、
+  (7) 実地検査が同じ所を見られるフック（`data-search-input`・`data-search-results`・
+  `data-search-status`）があるかを見る。退行テストは `REF:docs/script/test_website.py` の
+  `SearchIndexTests`（13 件）、索引の生成そのものは `REF:website/integrations/search-index.test.mjs`
+  （12 件。`npm run check:site` が両方を回す）。
+- **実地検査**: `REF:scripts/pages-e2e.mjs` が日英それぞれで検索し、結果がその言語の URL だけか、
+  矢印キー・Enter・Esc・`/` が動くか、そして**要求が公開元以外へ出ていないか**を確認する。

@@ -231,6 +231,53 @@ def replace_required(text: str, pattern: str, replacement: str, label: str) -> s
     return updated
 
 
+# 利用者に見える「公開済みの版」の表示。書き写したまま公開されると実 Release と食い違う
+# （#61 追加監査 8 / 提案 C）。対象は**公開表示の allowlist だけ**に限定し、過去の版を説明する
+# 仕様書・`docs/history.md`・`website/src/data/troubleshooting.ts` は機械的に置換しない。
+VERSION_TOKEN = r"[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?"
+
+
+def published_display_files(new_version: str) -> dict[Path, str]:
+    """README・導入ガイドの公開版表示を ``new_version`` に揃えた中身を返す。"""
+    python = python_version(new_version)
+    plans: dict[str, tuple[tuple[str, str], ...]] = {
+        "README.md": (
+            (rf"\*\*v{VERSION_TOKEN}を公開しました。\*\*", f"**v{new_version}を公開しました。**"),
+            (rf"各配布形態の v{VERSION_TOKEN} を公開済みです。", f"各配布形態の v{new_version} を公開済みです。"),
+        ),
+        "README.en.md": (
+            (rf"\*\*v{VERSION_TOKEN} is available\.\*\*", f"**v{new_version} is available.**"),
+            (
+                rf"Version v{VERSION_TOKEN} is published for all of these channels\.",
+                f"Version v{new_version} is published for all of these channels.",
+            ),
+        ),
+        "docs/users/install.md": (
+            (rf"ほかの配布形態も v{VERSION_TOKEN} を公開済みです。", f"ほかの配布形態も v{new_version} を公開済みです。"),
+            (rf"（v{VERSION_TOKEN} は公開済みです）", f"（v{new_version} は公開済みです）"),
+            (rf"pip install novnow=={VERSION_TOKEN}", f"pip install novnow=={python}"),
+            # デスクトップ 5 環境の GUI アーカイブ名（§3.2 の表）。名前の正本は artifact_name()
+            *(
+                (
+                    rf"`novnow-[^`]*-{re.escape(target)}-gui[^`]*`",
+                    f"`{artifact_name(new_version, target, 'gui')}`",
+                )
+                for target in TARGET_NAMES
+            ),
+        ),
+    }
+    files: dict[Path, str] = {}
+    for relative, replacements in plans.items():
+        path = ROOT / relative
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for pattern, replacement in replacements:
+            text = replace_required(text, pattern, replacement, f"{relative} published version")
+        files[path] = text
+    return files
+
+
 def versioned_files(new_version: str) -> dict[Path, str]:
     """Return every derived file as it should look for ``new_version``."""
     files: dict[Path, str] = {}
@@ -280,6 +327,27 @@ def versioned_files(new_version: str) -> dict[Path, str]:
             "action.yml NOVNOW_ACTION_VERSION",
         )
 
+    readme = ROOT / "vscode/README.md"
+    if readme.exists():
+        # 同梱 README（VSIX では `extension/readme.md`）は利用者が最初に読む案内なので、
+        # 版・VSIX 名・ダウンロード URL を manifest から導出する。書き写したままだと
+        # 公開済みの VSIX の中で manifest と README の版が食い違う（#61 追加監査 8:
+        # novnow-0.1.1.vsix に「novnow-0.1.0.vsix / v0.1.0 is published」が入っていた）。
+        text = replace_required(
+            readme.read_text(encoding="utf-8"),
+            r"\[novnow-[0-9][^\]]*\.vsix\]\([^)]*\)",
+            f"[novnow-{new_version}.vsix]"
+            f"(https://github.com/sonneko/novnow/releases/download/v{new_version}/"
+            f"novnow-{new_version}.vsix)",
+            "vscode/README.md VSIX link",
+        )
+        files[readme] = replace_required(
+            text,
+            r"Version v[0-9][0-9.]* is published",
+            f"Version v{new_version} is published",
+            "vscode/README.md published version",
+        )
+
     index = ROOT / "index.html"
     files[index] = replace_required(
         index.read_text(encoding="utf-8"),
@@ -294,6 +362,7 @@ def versioned_files(new_version: str) -> dict[Path, str]:
         f"const CACHE = 'novnow-offline-{new_version}';",
         "sw.js cache version",
     )
+    files.update(published_display_files(new_version))
     return files
 
 
@@ -534,16 +603,30 @@ def verify_wheel(path: Path, release_version: str, target: str) -> None:
 
 def verify_vsix(path: Path, release_version: str) -> None:
     with zipfile.ZipFile(path) as archive:
+        names = archive.namelist()
         try:
             manifest = json.loads(archive.read("extension/package.json"))
         except KeyError as error:
             raise ValueError(f"VSIX package.json is missing: {path.name}") from error
+        # 同梱 README は利用者が最初に読む案内なので、manifest と版が食い違うまま公開しない。
+        bundled = next((name for name in names if name.lower() == "extension/readme.md"), None)
+        if bundled is None:
+            raise ValueError(f"VSIX must bundle the extension README: {path.name}")
+        readme = archive.read(bundled).decode("utf-8", "replace")
     if manifest.get("publisher") != "sonneko" or manifest.get("name") != "novnow":
         raise ValueError(f"VSIX identifier must be sonneko.novnow: {path.name}")
     if manifest.get("version") != release_version:
         raise ValueError(f"VSIX version differs from Cargo.toml: {path.name}")
-    if any(re.search(r"(?:^|/)novnow(?:\.exe)?$", name) for name in archive.namelist()):
+    if any(re.search(r"(?:^|/)novnow(?:\.exe)?$", name) for name in names):
         raise ValueError(f"VSIX must not bundle the novnow executable: {path.name}")
+    stale = sorted(
+        {found for found in re.findall(r"\d+\.\d+\.\d+", readme) if found != release_version}
+    )
+    if stale:
+        raise ValueError(
+            f"VSIX README announces {', '.join(stale)} but the manifest is {release_version}: "
+            f"{path.name}"
+        )
 
 
 def verify_source(path: Path, release_version: str) -> None:

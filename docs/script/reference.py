@@ -3,7 +3,7 @@
 docs/script/reference.py — ドキュメントとコードの**実物の突き合わせ**を行う検査。
 
 `duplicate.py` は「文書の規約」（構成・重複・`REF:` の実在・見出し一致・`SYNC` の一致）を見る。
-それに対してこのスクリプトは、**規約では守れない「中身のずれ」**を見る。対象は次の 13 個。
+それに対してこのスクリプトは、**規約では守れない「中身のずれ」**を見る。対象は次の 14 個。
 
 1. 廃止済みの文書名（`SPECIFICATIONS.md` / `PLANS.md` / `DEVELOPERS.md`）を
    コード・スクリプト・CI から参照していないこと。
@@ -12,7 +12,7 @@ docs/script/reference.py — ドキュメントとコードの**実物の突き�
 4. `docs/developers.md` §3 の `src/` ツリーが、`src/` の**実際の中身と一致するか**。
 5. `scripts/verify.sh` が CI（`.github/workflows/ci.yml`）の**静的検査をすべて含むか**。
 6. `README.md` / `README.en.md` / `GUIDE.md` の間に**丸写しの重複**が無いか。
-7. 文書に書いた**数の主張**（ワークスペース数・MCP ツール数・正規操作数）が実装と一致するか。
+7. 文書に書いた**数の主張**（ワークスペース数・MCP ツール数・正規操作数・診断数）が実装と一致するか。
 8. `include_str!` で読み込むパス（仕様書・カタログ・ゴールデン）が**実在するか**。
 9. ルート文書の相対リンク・画像と、`REF:` のアンカーが**実在するか**。
 10. Actions を無駄に使わない設定（全ワークフローの `concurrency`・PR の全ジョブの draft 条件・変更フィルタ・`[ci skip]` のフック）が揃っているか。
@@ -22,6 +22,9 @@ docs/script/reference.py — ドキュメントとコードの**実物の突き�
     仕様・設計・手順・利用者向けの文書へ戻っていないか。
 13. 検証の地図（`docs/developers.md` §4.6.2）に書いた検査のパスと名前が**実在するか**
     （検査一覧そのものの陳腐化を防ぐ）。
+14. 依存の更新（`.github/dependabot.yml`）と週次の監査（`.github/workflows/dependency-audit.yml`）が
+    実物の lockfile / manifest を**取りこぼしていないか**、major を minor/patch とまとめていないか、
+    **自動 merge する設定が無い**か。
 
 使い方:
     python3 docs/script/reference.py           # 検査（違反があれば終了コード 1）
@@ -46,7 +49,7 @@ CODE_SUFFIXES = {".rs", ".toml", ".py", ".sh", ".mjs", ".yml", ".yaml"}
 # ディレクトリの外にあるが「コード側」として見るもの（マニフェストと PR テンプレート）。
 # ここを漏らすと、`Cargo.toml` のコメントや `.github/pull_request_template.md` に
 # 廃止名が残ったまま検査が緑になる（実際に残っていた）。
-CODE_ROOT_FILES = ["Cargo.toml", "rust-toolchain.toml", ".github/pull_request_template.md"]
+CODE_ROOT_FILES = ["Cargo.toml", "rust-toolchain.toml", "deny.toml", ".github/pull_request_template.md"]
 
 # 章番号 → 仕様書（`docs/developers.md` §1.1 の対応表と同じ）。
 CHAPTERS = {
@@ -72,6 +75,18 @@ CHAPTERS = {
 }
 
 RETIRED = ("SPECIFICATIONS.md", "PLANS.md", "DEVELOPERS.md")
+
+# 公開前の配布状態の言い回し。実公開状態（5 形態すべて公開済み）へ更新したあとに
+# 戻っていないかを検査 12 で見る（#61 追加監査 8 / 提案 C の「公開後の追随」）。
+RETIRED_STATE_PHRASES = (
+    "初回リリースはまだ実行しておらず",
+    "ブラウザ版だけが公開済み",
+    "ブラウザ版以外は未提供",
+)
+# 過去の状態を**説明している**行は許す（「以前は…だった」）。
+RETIRED_STATE_MARKERS = ("以前", "かつて", "旧", "履歴", "記録")
+# 「いまの状態」を日付きで持つ文書（正本は実公開状態。書き写しの版番号は持たない）。
+STATE_LINE_RE = re.compile(r"^\*\*いまの状態（\d{4}-\d{2}-\d{2}）\*\*")
 
 # 廃止名を含んでよいファイル（歴史の記録・検査器そのもの・名前の説明）。
 RETIRED_ALLOWED = {
@@ -292,6 +307,8 @@ def check_claims() -> list[str]:
     - 「N ワークスペース」⇔ `src/app/workspace.rs` の `Workspace` の variant 数
     - 「MCP N ツール」⇔ `src/core/agents/server.rs` の `TOOLS` の件数
     - 「N の正規操作」⇔ `tests/golden/api_catalog.json` の操作数
+    - 「N 種の診断」⇔ `docs/specifications/diagnostics.md` §7 の表の行数
+      （表と `CATALOG` の一致は `REF:tests/diagnostics_catalog.rs` が見る）
     """
     errors: list[str] = []
 
@@ -300,6 +317,10 @@ def check_claims() -> list[str]:
     # 正規操作の数は JSON の `operations` 配列の長さで数える（`"id":` を数えると、
     # 引数や例外の中の `id` まで拾って 135 になる）。
     operations = len(json.loads(read(ROOT / "tests" / "golden" / "api_catalog.json")).get("operations", []))
+    # 診断の数は仕様 §7 の表が正本（サイトと日英のカタログは同じ表から生成する）。
+    diagnostics = count_items(
+        ROOT / "docs" / "specifications" / "diagnostics.md", r"^\| [EWI][0-9]{3} \|"
+    )
 
     claims = [
         (workspaces, r"(?<![0-9.\-§])([0-9]+) ワークスペース", "ワークスペース数"),
@@ -322,6 +343,43 @@ def check_claims() -> list[str]:
                             f"[7] {rel(path)}:{number}: {label}が {match.group(1)} と書かれている"
                             f"（実装は {actual}）"
                         )
+    errors.extend(check_diagnostic_claims(diagnostics))
+    return errors
+
+
+# 診断の数を書き写している文書（README・仕様 §2・用語集）。サイトのトップは書き写さず
+# カタログから導出し、生成物は `REF:scripts/website-check.py` が検査する。診断を足したときに
+# 4 か所とも直さないと落ちる（#61 追加監査 9: サイトのトップだけ 76 のままだった）。
+DIAGNOSTIC_CLAIM_DOCUMENTS = (
+    (ROOT / "README.md", (r"([0-9]+) 種のリアルタイム診断", r"診断は ([0-9]+) 種")),
+    (ROOT / "README.en.md", (r"([0-9]+) Types of Real-Time Diagnostics", r"one of the ([0-9]+) diagnostics")),
+    (ROOT / "docs" / "specifications" / "overview.md", (r"([0-9]+) 種の診断コード",)),
+    (ROOT / "docs" / "users" / "glossary.md", (r"全部で ([0-9]+) 種類あり",)),
+)
+
+
+def check_diagnostic_claims(actual: int | None) -> list[str]:
+    """「N 種の診断」の書き写しが仕様 §7 の表の件数と一致すること。"""
+    if actual is None:
+        return ["[7] docs/specifications/diagnostics.md が無い（診断カタログの正本）"]
+    errors: list[str] = []
+    for path, patterns in DIAGNOSTIC_CLAIM_DOCUMENTS:
+        # 検査器の単体テストはリポジトリ外の一時ファイルを使うので、表示名は安全に落とす。
+        name = rel(path) if path.is_relative_to(ROOT) else path.name
+        text = read(path)
+        if not text:
+            errors.append(f"[7] {name} が無い")
+            continue
+        for pattern in patterns:
+            found = [int(number) for number in re.findall(pattern, text)]
+            if not found:
+                errors.append(f"[7] {name} に診断の数（{pattern}）が無い")
+            for number in found:
+                if number != actual:
+                    errors.append(
+                        f"[7] {name}: 診断が {number} 種と書かれている"
+                        f"（仕様 §7 の表は {actual} 行）"
+                    )
     return errors
 
 
@@ -676,6 +734,34 @@ def stale_release_claims(text: str, expected_artifacts: int) -> list[str]:
     return errors
 
 
+def check_published_state() -> list[str]:
+    """配布の「いまの状態」が公開前の言い回しへ戻っていないこと。
+
+    実際の公開状態は人が確かめて直す（Releases・PyPI・Pages）ので、機械では
+    (a) 状態行が日付きで存在するか、(b) 古い言い回しが復活していないか、だけを見る。
+    最新の公開版番号は**書き写さない**方針なので、版番号の一致は見ない
+    （表示の版は `REF:scripts/release-matrix.py --check` と `REF:scripts/website-check.py`）。
+    """
+    errors: list[str] = []
+    distribution = read(ROOT / "docs" / "distribution.md")
+    if not any(STATE_LINE_RE.match(line) for line in distribution.splitlines()):
+        errors.append(
+            "[12] docs/distribution.md の冒頭に「**いまの状態（YYYY-MM-DD）**」の行が無い"
+        )
+    for name in ("docs/distribution.md", "docs/plans.md", "docs/users/install.md"):
+        for number, line in enumerate(read(ROOT / name).splitlines(), 1):
+            for phrase in RETIRED_STATE_PHRASES:
+                if phrase not in line:
+                    continue
+                if any(marker in line for marker in RETIRED_STATE_MARKERS):
+                    continue
+                errors.append(
+                    f"[12] {name}:{number}: 公開前の状態「{phrase}」が残っている"
+                    "（§6.1 の公開後の追随。実公開状態に合わせて直す）"
+                )
+    return errors
+
+
 def check_distribution_forms() -> list[str]:
     """配布形態の数と、廃止した軸が文書へ戻っていないこと。
 
@@ -739,6 +825,9 @@ def check_distribution_forms() -> list[str]:
                     f"[12] {rel(path)} のデスクトップ版が {number} 通り"
                     f"（{DISTRIBUTION_FORMS['デスクトップ版']} 通りであること）"
                 )
+
+    # 配布状態の表示（`REF:docs/distribution.md` §6.1 のチェックリスト）
+    errors.extend(check_published_state())
 
     targets = [
         ROOT / "docs/specifications/external.md",
@@ -819,6 +908,169 @@ def check_verification_map() -> list[str]:
     return map_name_errors(section, defined_names(ROOT), ROOT)
 
 
+# ============================================================ 14. 依存の更新と監査
+
+
+DEPENDABOT_FILE = ".github/dependabot.yml"
+AUDIT_WORKFLOW = ".github/workflows/dependency-audit.yml"
+AUDIT_SCRIPT = "scripts/dependency-audit.py"
+AUDIT_ISSUE_SCRIPT = "scripts/action/dependency-audit-issue.sh"
+DENY_CONFIG = "deny.toml"
+# 「人が確認する前にマージする」設定。コメントに書いた例文は `yaml_code` で除いてから探す。
+AUTO_MERGE_RE = re.compile(
+    r"pr\s+merge\b[^\n]*--auto\b|auto-?merge\s*:\s*true|\benablement[^\n]*auto\b",
+    re.IGNORECASE,
+)
+DEPENDENCY_SKIP_PARTS = {"node_modules", "dist", "target", "build", "vendor", ".git"}
+
+
+def yaml_code(text: str) -> str:
+    """YAML のコメント行を除いた本文（コメントの例文を検査が拾わないようにする）。"""
+    return "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
+
+
+def yaml_field(text: str, key: str) -> str:
+    """`key: value` の value（引用符は外す。無ければ空文字）。"""
+    match = re.search(rf"^\s*{re.escape(key)}:\s*(.*)$", text, re.MULTILINE)
+    return match.group(1).strip().strip("'\"") if match else ""
+
+
+def dependabot_entries(text: str) -> list[dict[str, str]]:
+    """`- package-ecosystem:` の塊を字段ごとの dict にする（YAML  Library 無しで読む）。"""
+    entries: list[dict[str, str]] = []
+    for chunk in re.split(r"^\s*-\s+package-ecosystem:", text, flags=re.MULTILINE)[1:]:
+        head, _, rest = chunk.partition("\n")
+        entries.append(
+            {
+                "ecosystem": head.strip().strip("'\""),
+                "directory": yaml_field(rest, "directory"),
+                "interval": yaml_field(rest, "interval"),
+                "target-branch": yaml_field(rest, "target-branch"),
+                # major をまとめに入れたかどうかは `update-types` の並びで見る。
+                "group-types": sorted(set(re.findall(r"^\s*-\s+(major|minor|patch)\s*$", rest, re.MULTILINE))),
+            }
+        )
+    return entries
+
+
+def dependency_roots() -> list[tuple[str, str]]:
+    """実物の manifest から「Dependabot が知るべき (ecosystem, directory)」を作る。
+
+    一覧は書かずに実物から作る。新しい front-end の root や Python の package を足したときに、
+    更新 PR が黙って止まる（＝監査が古くなる）のを防ぐためである。
+    """
+    wanted: list[tuple[str, str]] = []
+    for lock in sorted(ROOT.rglob("package-lock.json")):
+        parts = set(lock.relative_to(ROOT).parts[:-1])
+        if parts & DEPENDENCY_SKIP_PARTS:
+            continue
+        wanted.append(("npm", "/" + lock.parent.relative_to(ROOT).as_posix()))
+    if (ROOT / "Cargo.lock").is_file():
+        wanted.append(("cargo", "/"))
+    for manifest in sorted(ROOT.glob("python/*/pyproject.toml")):
+        wanted.append(("pip", "/" + manifest.parent.relative_to(ROOT).as_posix()))
+    if (ROOT / ".github" / "workflows").is_dir():
+        wanted.append(("github-actions", "/"))
+    return wanted
+
+
+def function_body(text: str, name: str) -> str:
+    """`def <name>(` から次の top-level `def` まで（説明の文字列ではなく実装を見るための切り出し）。"""
+    start = text.find(f"def {name}(")
+    if start < 0:
+        return ""
+    rest = text[start:]
+    following = re.search(r"^def ", rest[1:], re.MULTILINE)
+    return rest[: following.start() + 1] if following else rest
+
+
+def check_dependency_policy() -> list[str]:
+    """依存の更新と週次の監査が、実物を取りこぼさず、勝手にマージしないこと。
+
+    Issue #61 の提案 D。見るのは次の 4 つ。
+
+    - **網羅**: lockfile / manifest を持つ root が全部 `dependabot.yml` に登録されているか
+      （実在しない root の登録＝設定の陳腐化も落とす）。
+    - **段階分け**: 週次・develop 向け・minor と patch はまとめる・**major はまとめない**。
+    - **自動 merge しない**: ワークフローにも Dependabot 設定にも自動マージが無い。
+    - **週次の監査**: `dependency-audit.yml` が schedule で回り、npm は公開経路と開発経路を
+      分けるスクリプトを、Rust は `cargo deny check advisories` を呼び、指摘を Issue にできる。
+    """
+    errors: list[str] = []
+    config = read(ROOT / DEPENDABOT_FILE)
+    if not config:
+        return [f"[14] {DEPENDABOT_FILE} が無い（依存の更新 PR が自動で作られない）"]
+    if not re.search(r"^version:\s*2\s*$", yaml_code(config), re.MULTILINE):
+        errors.append(f"[14] {DEPENDABOT_FILE}: `version: 2` が無い")
+
+    entries = dependabot_entries(config)
+    wanted = dependency_roots()
+    covered = {(entry["ecosystem"], entry["directory"]) for entry in entries}
+    for ecosystem, directory in wanted:
+        if (ecosystem, directory) not in covered:
+            errors.append(
+                f"[14] {DEPENDABOT_FILE}: {ecosystem} の {directory} が登録されていない"
+                "（その root の更新 PR が作られない）"
+            )
+    known = set(wanted)
+    for entry in entries:
+        pair = (entry["ecosystem"], entry["directory"])
+        where = f"{entry['ecosystem']} {entry['directory'] or '(directory 無し)'}"
+        if pair not in known:
+            errors.append(f"[14] {DEPENDABOT_FILE}: {where} は実在しない root（設定が古い）")
+        if entry["interval"] != "weekly":
+            errors.append(f"[14] {DEPENDABOT_FILE}: {where} が週次でない（interval: {entry['interval'] or '無し'}）")
+        if entry["target-branch"] != "develop":
+            errors.append(
+                f"[14] {DEPENDABOT_FILE}: {where} の target-branch が develop でない"
+                "（既定ブランチ main はリリースゲートなので、依存の更新を直接入れない）"
+            )
+        types = set(entry["group-types"])
+        if "major" in types:
+            errors.append(f"[14] {DEPENDABOT_FILE}: {where} が major を minor/patch とまとめている（破壊的変更は 1 件ずつ見る）")
+        if not {"minor", "patch"} <= types:
+            errors.append(f"[14] {DEPENDABOT_FILE}: {where} に minor/patch のグループが無い（PR が増える）")
+
+    # 自動 merge は「緑だから」という理由だけで内容を見ずにマージする仕組みなので置かない。
+    for path in [*(ROOT / ".github" / "workflows").glob("*.yml"), ROOT / DEPENDABOT_FILE]:
+        if AUTO_MERGE_RE.search(yaml_code(read(path))):
+            errors.append(f"[14] {rel(path)}: 依存の更新を自動 merge する設定がある（人が確認してマージする）")
+
+    audit = read(ROOT / AUDIT_WORKFLOW)
+    if not audit:
+        errors.append(f"[14] {AUDIT_WORKFLOW} が無い（週次の監査が回らない）")
+        return errors
+    code = yaml_code(audit)
+    triggers = workflow_triggers(audit)
+    if "schedule" not in triggers:
+        errors.append(f"[14] {AUDIT_WORKFLOW}: schedule が無い（週次で回らない）")
+    if not re.search(r"cron:\s*['\"]?[^'\"\n]*\*\s+\*\s+1['\"]?", code):
+        errors.append(f"[14] {AUDIT_WORKFLOW}: cron が週 1 回（曜日を指定した形）でない")
+    if triggers - {"schedule", "workflow_dispatch"}:
+        errors.append(
+            f"[14] {AUDIT_WORKFLOW}: PR や push で走る（監査は週 1 回と手動だけにして Actions を節約する）"
+        )
+    if AUDIT_SCRIPT not in code:
+        errors.append(f"[14] {AUDIT_WORKFLOW}: {AUDIT_SCRIPT} を実行していない（npm の公開経路 / 開発経路の区別が無い）")
+    if "check advisories" not in code:
+        errors.append(f"[14] {AUDIT_WORKFLOW}: Rust の advisories 検査（`check advisories`）が無い")
+    if AUDIT_ISSUE_SCRIPT not in code:
+        errors.append(f"[14] {AUDIT_WORKFLOW}: 指摘を Issue にする {AUDIT_ISSUE_SCRIPT} を呼んでいない（赤い run が忘れられる）")
+    if "issues: write" not in code:
+        errors.append(f"[14] {AUDIT_WORKFLOW}: `issues: write` が無い（Issue を作れない）")
+
+    script = read(ROOT / AUDIT_SCRIPT)
+    if '"--omit=dev"' not in function_body(script, "audit_root"):
+        errors.append(
+            f"[14] {AUDIT_SCRIPT}: `audit_root` が公開経路（`npm audit --omit=dev`）を問い合わせない"
+            "（dev 依存と混ざると、公開物に入らない指摘で失敗する）"
+        )
+    deny = read(ROOT / DENY_CONFIG)
+    if "[advisories]" not in yaml_code(deny):
+        errors.append(f"[14] {DENY_CONFIG}: `[advisories]` が無い（cargo-deny のレベルが決まらない）")
+    return errors
+
+
 CHECKS = {
     "1": ("廃止済みの文書名を参照しない", check_retired),
     "2": ("仕様書の節番号が実在する", check_spec_sections),
@@ -833,6 +1085,7 @@ CHECKS = {
     "11": ("公開する手引きが実在し、参照と段階が揃っている", check_published_guide),
     "12": ("配布形態の数と、廃止した軸が戻っていない", check_distribution_forms),
     "13": ("検証の地図の検査名が実在する", check_verification_map),
+    "14": ("依存の更新と週次の監査が実物を取りこぼさない", check_dependency_policy),
 }
 
 
@@ -855,7 +1108,8 @@ def main() -> int:
     total = len(CHECKS)
     print(
         f"OK: ドキュメントと実装の突き合わせ {total} 項目（廃止名 / 節番号 / history ID / "
-        f"src ツリー / verify と CI / ルート文書 / 数の主張 / include_str / リンク / Actions の節約 / 手引き / 配布形態 / 検証の地図）"
+        f"src ツリー / verify と CI / ルート文書 / 数の主張 / include_str / リンク / Actions の節約 / 手引き / "
+        f"配布形態 / 検証の地図 / 依存の監査）"
     )
     return 0
 

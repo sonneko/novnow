@@ -5,6 +5,7 @@ Run: python3 -m unittest discover -s docs/script -p 'test_*.py'
 検査器そのものが壊れると「不整合が無い」という結論だけが残るので、
 判定の関数を直接叩いて、検出できること・誤検出しないことを固定する。
 """
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -266,3 +267,102 @@ class VerificationMapTests(unittest.TestCase):
     def test_non_name_tokens_are_ignored(self):
         section = "`src/core` と `novnow check` と `TOGGLE_ON` と `rule-6`"
         self.assertEqual(reference.map_name_errors(section, set(), reference.ROOT), [])
+
+
+class DiagnosticClaimTests(unittest.TestCase):
+    """検査 7 のうち「N 種の診断」の書き写し（#61 追加監査 9）。
+
+    サイトのトップだけが 76 のまま、同じサイトの診断一覧・README・仕様は 85 だった。
+    件数を書き写している 4 文書すべてが仕様 §7 の表の行数と一致することを検査する。
+    """
+
+    def check(self, documents, actual):
+        original = reference.DIAGNOSTIC_CLAIM_DOCUMENTS
+        self.addCleanup(setattr, reference, "DIAGNOSTIC_CLAIM_DOCUMENTS", original)
+        reference.DIAGNOSTIC_CLAIM_DOCUMENTS = documents
+        return reference.check_diagnostic_claims(actual)
+
+    def write(self, directory, name, text):
+        path = Path(directory) / name
+        path.write_text(text, encoding="utf-8")
+        return path
+
+    def test_stale_count_is_reported(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write(directory, "README.md", "85 種のリアルタイム診断\n")
+            errors = self.check(((path, (r"([0-9]+) 種のリアルタイム診断",)),), 86)
+            self.assertEqual(len(errors), 1, errors)
+            self.assertIn("86", errors[0])
+            self.assertIn("85", errors[0])
+
+    def test_missing_claim_is_reported(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write(directory, "README.md", "診断がある。\n")
+            errors = self.check(((path, (r"([0-9]+) 種のリアルタイム診断",)),), 85)
+            self.assertEqual(len(errors), 1, errors)
+            self.assertIn("無い", errors[0])
+
+    def test_missing_document_is_reported(self):
+        errors = self.check(((Path("/tmp/novnow-absent-claim.md"), (r"([0-9]+) 種",)),), 85)
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn("novnow-absent-claim.md が無い", errors[0])
+
+    def test_missing_catalog_is_reported(self):
+        self.assertIn("diagnostics.md", self.check((), None)[0])
+
+    def test_repository_claims_match_the_catalog_table(self):
+        """診断を足したときに 4 文書の書き写しまで直すこと（件数は固定しない）。"""
+        rows = reference.count_items(
+            reference.ROOT / "docs" / "specifications" / "diagnostics.md",
+            r"^\| [EWI][0-9]{3} \|",
+        )
+        self.assertGreater(rows, 0)
+        self.assertEqual(reference.check_diagnostic_claims(rows), [])
+        # 検査が実際に 4 文書・6 の書き写しを見ていること（0 件なら検査が無いのと同じ）
+        self.assertEqual(len(reference.DIAGNOSTIC_CLAIM_DOCUMENTS), 4)
+        self.assertEqual(
+            sum(len(patterns) for _, patterns in reference.DIAGNOSTIC_CLAIM_DOCUMENTS), 6
+        )
+
+
+class PublishedStateTests(unittest.TestCase):
+    """検査 12 のうち「配布のいまの状態」（#61 追加監査 8 / 提案 C の公開後の追随）。"""
+
+    def fake_read(self, mapping):
+        original = reference.read
+        self.addCleanup(setattr, reference, "read", original)
+        reference.read = lambda path: mapping.get(
+            path.relative_to(reference.ROOT).as_posix(), ""
+        )
+
+    def test_repository_state_is_current(self):
+        self.assertEqual(reference.check_published_state(), [])
+
+    def test_pre_release_wording_is_reported(self):
+        self.fake_read({
+            "docs/distribution.md": (
+                "**いまの状態（2026-10-25）**: ブラウザ版だけが公開済み。"
+                "初回リリースはまだ実行しておらず、ブラウザ版以外は未提供である。\n"
+            ),
+        })
+        errors = reference.check_published_state()
+        self.assertEqual(len(errors), 3, errors)
+        self.assertTrue(all("公開前の状態" in error for error in errors), errors)
+
+    def test_missing_state_line_is_reported(self):
+        self.fake_read({"docs/distribution.md": "状態の行が無い。\n"})
+        errors = reference.check_published_state()
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn("いまの状態", errors[0])
+
+    def test_undated_state_line_is_reported(self):
+        self.fake_read({"docs/distribution.md": "**いまの状態**: 5 形態すべて公開済み。\n"})
+        errors = reference.check_published_state()
+        self.assertEqual(len(errors), 1, errors)
+
+    def test_explaining_the_past_is_allowed(self):
+        self.fake_read({
+            "docs/distribution.md": "**いまの状態（2026-11-13）**: 5 形態すべて公開済み。\n",
+            "docs/plans.md": "以前はブラウザ版だけが公開済みだった（履歴）。\n",
+        })
+        self.assertEqual(reference.check_published_state(), [])
