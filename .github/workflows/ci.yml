@@ -174,20 +174,45 @@ jobs:
   webui:
     name: Web UI
     needs: docs
-    # `webui` の第 2 の画面実装（docs/plans.md §11.6 の W6）。Rust のビルドは要らない
-    # （wasm のビルドは `wasm` ジョブが見る）ので、`rust_changed` に関わらず走らせる。
+    # 第 2 の画面実装（docs/plans.md §11.6 の W6）。生成物の一致・型検査・Node の回帰・
+    # 本番ビルドに加えて、`webui/src/wasm/` を作るための wasm のビルドも回す（git に入れない
+    # 生成物なので、ここで組めなければ画面は動かない）。`rust_changed` に関わらず走らせる。
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: webui/package-lock.json
+      # wasm-bindgen の CLI は Cargo.lock と同じ版を使う（食い違うと wasm-bindgen が
+      # 生成物を読めない）。`wasm` ジョブの trunk と同じく、版をキーにして持っておく。
+      - name: Cache wasm-bindgen CLI
+        id: bindgen-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/wasm-bindgen
+          key: wasm-bindgen-${{ hashFiles('Cargo.lock') }}-x86_64-unknown-linux-musl
+      - name: Install wasm-bindgen CLI
+        if: steps.bindgen-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(awk '/^name = "wasm-bindgen"$/ { getline; gsub(/version = |"/, ""); print; exit }' Cargo.lock)"
+          name="wasm-bindgen-${version}-x86_64-unknown-linux-musl"
+          curl -fsSL --retry 3 "https://github.com/wasm-bindgen/wasm-bindgen/releases/download/${version}/${name}.tar.gz" \
+            | tar xzf - -C "$HOME/.cargo/bin"
+          wasm-bindgen --version
       - name: Web UI checks (generators, types, tests, build)
         id: cargo
         shell: bash

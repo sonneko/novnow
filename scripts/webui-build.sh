@@ -65,9 +65,12 @@ find_bindgen() {
 }
 
 cd "$ROOT" || exit 2
-echo "webui-build: cargo build --release --target wasm32-unknown-unknown -p novnow-wasm"
-cargo build --release --target wasm32-unknown-unknown -p novnow-wasm --offline >/dev/null || {
-    echo "error: wasm のビルドに失敗した" >&2
+echo "webui-build: cargo build --locked --release --target wasm32-unknown-unknown -p novnow-wasm"
+# `--offline` は付けない。手元（`scripts/bootstrap-toolchain.sh` の vendor）は
+# `$CARGO_HOME/config.toml` の `[net] offline = true` で既にオフラインになり、CI は
+# registry から取る。ここで固定すると、CI で「no matching package」になる。
+cargo build --locked --release --target wasm32-unknown-unknown -p novnow-wasm >/dev/null || {
+    echo "error: wasm のビルドに失敗した（cargo build --locked --release --target wasm32-unknown-unknown -p novnow-wasm）" >&2
     exit 1
 }
 WASM="$ROOT/target/wasm32-unknown-unknown/release/novnow_wasm.wasm"
@@ -79,13 +82,17 @@ if [ "$CHECK" = 1 ]; then
 fi
 
 BINDGEN="$(find_bindgen)" || {
-    cat >&2 <<'MSG'
-error: wasm-bindgen が見つからない。
+    version="$(awk '/^name = "wasm-bindgen"$/ { getline; gsub(/version = |\"/, ""); print; exit }' Cargo.lock)"
+    cat >&2 <<MSG
+error: wasm-bindgen が見つからない（Cargo.lock の版は ${version}）。
 
-    bash scripts/bootstrap-toolchain.sh     # ツールチェーンと一緒に入る
+    bash scripts/bootstrap-toolchain.sh     # 手元のツールチェーンと一緒に入る
+    # CI は .github/workflows/ci.yml の webui ジョブが次の形で入れる:
+    #   curl -fsSL https://github.com/wasm-bindgen/wasm-bindgen/releases/download/${version}/\
+    #     wasm-bindgen-${version}-x86_64-unknown-linux-musl.tar.gz | tar xzf - -C ~/.cargo/bin
     # または WASM_BINDGEN=/path/to/wasm-bindgen bash scripts/webui-build.sh
 
-（wasm-bindgen の版は Cargo.lock の wasm-bindgen と同じにする。`docs/developers.md` §8.10 の 33）
+（wasm-bindgen の版は Cargo.lock の wasm-bindgen と同じにする。\`docs/developers.md\` §8.10 の 33）
 MSG
     exit 2
 }

@@ -202,7 +202,9 @@ Actions取得スクリプトのオフライン回帰は `REF:scripts/action/test
 4. `python3 scripts/diagnostics-site.py --check`（Web サイトの診断解説が全コードを網羅すること）
 5. `python3 scripts/api-site.py --check`（Web サイトの API 表が仕様 §19.7 の写しであること）
 6. `bash scripts/python-check.sh`（型スタブの生成一致・構文・位置引数の束縛）
-7. `bash scripts/webui-check.sh`（第 2 の画面の生成物 3 種が正本どおりか・wasm が組めるか。§4.1.1）
+7. `bash scripts/webui-check.sh`（第 2 の画面の生成物 3 種が正本どおりか・wasm が組めるか。
+   wasm を組むには `wasm32-unknown-unknown` と、`Cargo.lock` と同じ版の wasm-bindgen の CLI が要る。
+   CI の `webui` ジョブはどちらも自分の手順で入れ、`--full`（型検査・Node の回帰・本番ビルド）まで回す）
 8. `cargo fmt --all --check`
 9. `cargo clippy --locked --all-targets -- -D warnings`（`ui` feature なし）
 10. `cargo clippy --locked --all-targets --features ui -- -D warnings`（`ui` feature あり）
