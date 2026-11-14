@@ -231,6 +231,53 @@ def replace_required(text: str, pattern: str, replacement: str, label: str) -> s
     return updated
 
 
+# 利用者に見える「公開済みの版」の表示。書き写したまま公開されると実 Release と食い違う
+# （#61 追加監査 8 / 提案 C）。対象は**公開表示の allowlist だけ**に限定し、過去の版を説明する
+# 仕様書・`docs/history.md`・`website/src/data/troubleshooting.ts` は機械的に置換しない。
+VERSION_TOKEN = r"[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?"
+
+
+def published_display_files(new_version: str) -> dict[Path, str]:
+    """README・導入ガイドの公開版表示を ``new_version`` に揃えた中身を返す。"""
+    python = python_version(new_version)
+    plans: dict[str, tuple[tuple[str, str], ...]] = {
+        "README.md": (
+            (rf"\*\*v{VERSION_TOKEN}を公開しました。\*\*", f"**v{new_version}を公開しました。**"),
+            (rf"各配布形態の v{VERSION_TOKEN} を公開済みです。", f"各配布形態の v{new_version} を公開済みです。"),
+        ),
+        "README.en.md": (
+            (rf"\*\*v{VERSION_TOKEN} is available\.\*\*", f"**v{new_version} is available.**"),
+            (
+                rf"Version v{VERSION_TOKEN} is published for all of these channels\.",
+                f"Version v{new_version} is published for all of these channels.",
+            ),
+        ),
+        "docs/users/install.md": (
+            (rf"ほかの配布形態も v{VERSION_TOKEN} を公開済みです。", f"ほかの配布形態も v{new_version} を公開済みです。"),
+            (rf"（v{VERSION_TOKEN} は公開済みです）", f"（v{new_version} は公開済みです）"),
+            (rf"pip install novnow=={VERSION_TOKEN}", f"pip install novnow=={python}"),
+            # デスクトップ 5 環境の GUI アーカイブ名（§3.2 の表）。名前の正本は artifact_name()
+            *(
+                (
+                    rf"`novnow-[^`]*-{re.escape(target)}-gui[^`]*`",
+                    f"`{artifact_name(new_version, target, 'gui')}`",
+                )
+                for target in TARGET_NAMES
+            ),
+        ),
+    }
+    files: dict[Path, str] = {}
+    for relative, replacements in plans.items():
+        path = ROOT / relative
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for pattern, replacement in replacements:
+            text = replace_required(text, pattern, replacement, f"{relative} published version")
+        files[path] = text
+    return files
+
+
 def versioned_files(new_version: str) -> dict[Path, str]:
     """Return every derived file as it should look for ``new_version``."""
     files: dict[Path, str] = {}
@@ -315,6 +362,7 @@ def versioned_files(new_version: str) -> dict[Path, str]:
         f"const CACHE = 'novnow-offline-{new_version}';",
         "sw.js cache version",
     )
+    files.update(published_display_files(new_version))
     return files
 
 

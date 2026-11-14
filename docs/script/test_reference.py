@@ -322,3 +322,46 @@ class DiagnosticClaimTests(unittest.TestCase):
         self.assertEqual(
             sum(len(patterns) for _, patterns in reference.DIAGNOSTIC_CLAIM_DOCUMENTS), 6
         )
+
+
+class PublishedStateTests(unittest.TestCase):
+    """検査 12 のうち「配布のいまの状態」（#61 追加監査 8 / 提案 C の公開後の追随）。"""
+
+    def fake_read(self, mapping):
+        original = reference.read
+        self.addCleanup(setattr, reference, "read", original)
+        reference.read = lambda path: mapping.get(
+            path.relative_to(reference.ROOT).as_posix(), ""
+        )
+
+    def test_repository_state_is_current(self):
+        self.assertEqual(reference.check_published_state(), [])
+
+    def test_pre_release_wording_is_reported(self):
+        self.fake_read({
+            "docs/distribution.md": (
+                "**いまの状態（2026-10-25）**: ブラウザ版だけが公開済み。"
+                "初回リリースはまだ実行しておらず、ブラウザ版以外は未提供である。\n"
+            ),
+        })
+        errors = reference.check_published_state()
+        self.assertEqual(len(errors), 3, errors)
+        self.assertTrue(all("公開前の状態" in error for error in errors), errors)
+
+    def test_missing_state_line_is_reported(self):
+        self.fake_read({"docs/distribution.md": "状態の行が無い。\n"})
+        errors = reference.check_published_state()
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn("いまの状態", errors[0])
+
+    def test_undated_state_line_is_reported(self):
+        self.fake_read({"docs/distribution.md": "**いまの状態**: 5 形態すべて公開済み。\n"})
+        errors = reference.check_published_state()
+        self.assertEqual(len(errors), 1, errors)
+
+    def test_explaining_the_past_is_allowed(self):
+        self.fake_read({
+            "docs/distribution.md": "**いまの状態（2026-11-13）**: 5 形態すべて公開済み。\n",
+            "docs/plans.md": "以前はブラウザ版だけが公開済みだった（履歴）。\n",
+        })
+        self.assertEqual(reference.check_published_state(), [])

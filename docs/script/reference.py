@@ -72,6 +72,18 @@ CHAPTERS = {
 
 RETIRED = ("SPECIFICATIONS.md", "PLANS.md", "DEVELOPERS.md")
 
+# 公開前の配布状態の言い回し。実公開状態（5 形態すべて公開済み）へ更新したあとに
+# 戻っていないかを検査 12 で見る（#61 追加監査 8 / 提案 C の「公開後の追随」）。
+RETIRED_STATE_PHRASES = (
+    "初回リリースはまだ実行しておらず",
+    "ブラウザ版だけが公開済み",
+    "ブラウザ版以外は未提供",
+)
+# 過去の状態を**説明している**行は許す（「以前は…だった」）。
+RETIRED_STATE_MARKERS = ("以前", "かつて", "旧", "履歴", "記録")
+# 「いまの状態」を日付きで持つ文書（正本は実公開状態。書き写しの版番号は持たない）。
+STATE_LINE_RE = re.compile(r"^\*\*いまの状態（\d{4}-\d{2}-\d{2}）\*\*")
+
 # 廃止名を含んでよいファイル（歴史の記録・検査器そのもの・名前の説明）。
 RETIRED_ALLOWED = {
     "docs/history.md",
@@ -718,6 +730,34 @@ def stale_release_claims(text: str, expected_artifacts: int) -> list[str]:
     return errors
 
 
+def check_published_state() -> list[str]:
+    """配布の「いまの状態」が公開前の言い回しへ戻っていないこと。
+
+    実際の公開状態は人が確かめて直す（Releases・PyPI・Pages）ので、機械では
+    (a) 状態行が日付きで存在するか、(b) 古い言い回しが復活していないか、だけを見る。
+    最新の公開版番号は**書き写さない**方針なので、版番号の一致は見ない
+    （表示の版は `REF:scripts/release-matrix.py --check` と `REF:scripts/website-check.py`）。
+    """
+    errors: list[str] = []
+    distribution = read(ROOT / "docs" / "distribution.md")
+    if not any(STATE_LINE_RE.match(line) for line in distribution.splitlines()):
+        errors.append(
+            "[12] docs/distribution.md の冒頭に「**いまの状態（YYYY-MM-DD）**」の行が無い"
+        )
+    for name in ("docs/distribution.md", "docs/plans.md", "docs/users/install.md"):
+        for number, line in enumerate(read(ROOT / name).splitlines(), 1):
+            for phrase in RETIRED_STATE_PHRASES:
+                if phrase not in line:
+                    continue
+                if any(marker in line for marker in RETIRED_STATE_MARKERS):
+                    continue
+                errors.append(
+                    f"[12] {name}:{number}: 公開前の状態「{phrase}」が残っている"
+                    "（§6.1 の公開後の追随。実公開状態に合わせて直す）"
+                )
+    return errors
+
+
 def check_distribution_forms() -> list[str]:
     """配布形態の数と、廃止した軸が文書へ戻っていないこと。
 
@@ -781,6 +821,9 @@ def check_distribution_forms() -> list[str]:
                     f"[12] {rel(path)} のデスクトップ版が {number} 通り"
                     f"（{DISTRIBUTION_FORMS['デスクトップ版']} 通りであること）"
                 )
+
+    # 配布状態の表示（`REF:docs/distribution.md` §6.1 のチェックリスト）
+    errors.extend(check_published_state())
 
     targets = [
         ROOT / "docs/specifications/external.md",

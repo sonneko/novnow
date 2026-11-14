@@ -233,3 +233,60 @@ class VsixReadmePolicy(unittest.TestCase):
         self.assertIn("Version v9.9.9 is published", derived)
         # VSIX 名・ダウンロード URL のタグとファイル名・「公開済み」の文（4 か所）が同じ版になる
         self.assertEqual(re.findall(r"\d+\.\d+\.\d+", derived), ["9.9.9"] * 4)
+
+
+class PublishedDisplayPolicy(unittest.TestCase):
+    """公開表示の allowlist（#61 追加監査 8 / 提案 C）。
+
+    開発版の bump と「実 Release を確認したあとの公開版表示の更新」は別の段階なので、
+    利用者に見える版表示は manifest から作り、`--check` で食い違いを落とす。
+    過去の版を説明する文書（履歴・仕様書・旧形式の解説）は対象にしない。
+    """
+
+    def displays(self, version):
+        return {
+            path.relative_to(ROOT).as_posix(): text
+            for path, text in matrix.published_display_files(version).items()
+        }
+
+    def test_public_displays_follow_the_manifest(self):
+        by_name = self.displays("9.9.9")
+        self.assertEqual(
+            sorted(by_name), ["README.en.md", "README.md", "docs/users/install.md"]
+        )
+        self.assertIn("**v9.9.9を公開しました。**", by_name["README.md"])
+        self.assertIn("各配布形態の v9.9.9 を公開済みです。", by_name["README.md"])
+        self.assertIn("**v9.9.9 is available.**", by_name["README.en.md"])
+        self.assertIn(
+            "Version v9.9.9 is published for all of these channels.", by_name["README.en.md"]
+        )
+        install = by_name["docs/users/install.md"]
+        self.assertIn("ほかの配布形態も v9.9.9 を公開済みです。", install)
+        self.assertIn("（v9.9.9 は公開済みです）", install)
+        self.assertIn("pip install novnow==9.9.9", install)
+        for target in matrix.TARGET_NAMES:
+            self.assertIn(f"`{matrix.artifact_name('9.9.9', target, 'gui')}`", install)
+
+    def test_prerelease_uses_pep440_in_the_pip_claim(self):
+        install = self.displays("9.9.9-rc.1")["docs/users/install.md"]
+        self.assertIn("pip install novnow==9.9.9rc1", install)
+        self.assertIn("ほかの配布形態も v9.9.9-rc.1 を公開済みです。", install)
+
+    def test_historical_documents_are_not_replaced(self):
+        by_name = self.displays("9.9.9")
+        for name in (
+            "docs/history.md",
+            "docs/specifications/external.md",
+            "docs/distribution.md",
+            "website/src/data/troubleshooting.ts",
+            "website/src/data/release.ts",
+        ):
+            self.assertNotIn(name, by_name)
+
+    def test_versioned_files_cover_the_public_displays(self):
+        files = matrix.versioned_files(matrix.version())
+        for name in ("README.md", "README.en.md", "docs/users/install.md", "vscode/README.md"):
+            self.assertIn(ROOT / name, files, name)
+
+    def test_the_repository_displays_are_in_sync(self):
+        self.assertEqual(matrix.sync_versions(None, True), 0)
