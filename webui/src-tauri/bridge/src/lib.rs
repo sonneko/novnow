@@ -28,6 +28,9 @@
 //! - **JSON は文字列で渡す**: 引数と戻り値は文字列の JSON。キーの順は `serde_json` の既定
 //!   （辞書順）で決まり、ブラウザ版と同じバイト列になる（`REF:docs/developers.md` §8.10 の 32）。
 //!   [`deterministic_json`] がこの前提を確かめる。
+//! - **既存のファイルを雛形で置き換えない**: 新しく作る（`open` の `create_options`・正規操作
+//!   `project.new`）のは、無いディレクトリか空のディレクトリだけ。機能核の `Session::create` は
+//!   雛形をそのまま書くので、橋渡しが先に確かめて断る（[`NativeSession::run`] の唯一の例外）。
 //! - **panic した操作の後のセッションは使わない**: 関門はデバッグビルドで違反を `panic!` に
 //!   する（§13.1.2）。持ち主のスレッドは panic を受け止めて `io` のエラーを返し、
 //!   **セッションを捨てる**（途中で止まった状態を保存させない）。画面は開き直す。
@@ -49,9 +52,11 @@ use std::thread::JoinHandle;
 
 use serde_json::{json, Map, Value};
 
+use novnow::adapters::storage_fs;
 use novnow::app::error::{Class, Error};
 use novnow::app::host::ExternalChange;
 use novnow::app::session::{CreateOptions, Session};
+use novnow::core::policy::write_policy;
 use novnow::ports::storage::StorageError;
 use novnow::ui::i18n::{self, Locale};
 
@@ -64,6 +69,9 @@ const NOT_AN_OBJECT: &str = "arguments must be a JSON object";
 
 /// セッションが無い間の文言の言語（`REF:src/app/driver.rs` と同じく既定の `ja`）。
 const DEFAULT_LOCALE: Locale = Locale::Ja;
+
+/// 新しいプロジェクトを作る正規操作（`REF:src/app/ops/project.rs`。中で `Session::create` を呼ぶ）。
+const CREATE_OP: &str = "project.new";
 
 /// 持ち主のスレッドへ渡す 1 通。`Session` はスレッドの中から出ない。
 type Task = Box<dyn FnOnce(&mut Option<Session>) + Send + 'static>;
@@ -110,9 +118,8 @@ impl NativeSession {
     ///   **新しく作ってから**開く（`Session::create`。キーは `title` / `author` / `language`
     ///   で、どれも省ける）。
     ///
-    /// 新しく作るのは、**無いディレクトリか空のディレクトリ**だけにする。`Session::create` は
-    /// 雛形のファイルをそのまま書くので、既にファイルがある場所で呼ぶと同じ名前のファイルが
-    /// 置き換わる。ここで先に確かめて断る（§14.5 の「既存のファイルは上書きしない」を守る）。
+    /// 新しく作るのは、**無いディレクトリか空のディレクトリ**だけにする
+    /// （理由はこのファイルの `vacant` の説明）。
     ///
     /// 成功: `{"ok":true,"result":{"locale":"ja","root":"<絶対パス>","version":"<版>"}}`。
     /// 画面の橋渡しの同期の口（`projectId` / `locale` / `version`）がそのまま使える 3 つである。
@@ -129,11 +136,7 @@ impl NativeSession {
         let called = self.call(move |slot| {
             let root = Path::new(&path);
             let opened = match create {
-                Some(options) => match occupied(root) {
-                    Ok(false) => Session::create(root, options),
-                    Ok(true) => Err(exists(&path)),
-                    Err(error) => Err(Error::io(error.to_string(), Some(path.as_str()))),
-                },
+                Some(options) => vacant(&path).and_then(|()| Session::create(root, options)),
                 None => Session::open(root),
             };
             match opened {
@@ -160,6 +163,10 @@ impl NativeSession {
     ///
     /// 成功: `{"ok":true,"result":{…}}` / 失敗: `{"ok":false,"error":{"code":…}}`。
     /// `args` は文字列の JSON（空文字・`null` は空のオブジェクト）。
+    ///
+    /// 機能核の答えをそのまま返す。**例外は 1 つだけ**: `project.new` は、`path` に既に何かが
+    /// あれば機能核を呼ばずに `io` で断る（[`NativeSession::open`] の新規作成と同じ規則。
+    /// 理由はこのファイルの `vacant` の説明）。断るだけで、作れたときの戻り値は機能核のままである。
     pub fn run(&mut self, op: &str, args: &str) -> String {
         let args = match parse_args(args) {
             Ok(args) => args,
@@ -167,10 +174,18 @@ impl NativeSession {
         };
         let op = op.to_owned();
         let called = self.call(move |slot| match slot.as_mut() {
-            Some(session) => match session.run(&op, args) {
-                Ok(value) => ok(&value),
-                Err(error) => fail(&error),
-            },
+            Some(session) => {
+                if op == CREATE_OP {
+                    // `path` を読めないときは、機能核に断らせる（文言を機能核と揃える）
+                    if let Some(Err(error)) = create_target(&args).as_deref().map(vacant) {
+                        return fail(&error);
+                    }
+                }
+                match session.run(&op, args) {
+                    Ok(value) => ok(&value),
+                    Err(error) => fail(&error),
+                }
+            }
             None => not_open(),
         });
         called.unwrap_or_else(|stopped| fail(&stopped.error()))
@@ -384,11 +399,52 @@ fn parse_create_options(text: Option<&str>) -> Result<Option<CreateOptions>, Err
     }))
 }
 
-/// 新しく作る場所に何かあるか（無い・空のディレクトリなら `false`）。**読むだけ**。
+/// 新しく作ってよい場所か（**無いディレクトリか、空のディレクトリ**）。違えば `io` の失敗。
+///
+/// 機能核の `Session::create`（と、それを呼ぶ正規操作 `project.new`）は雛形のファイルを
+/// そのまま書くので、既にファイルがある場所で呼ぶと、同じ名前のファイル（`project.toml`・
+/// `characters.md`・`words.md`・`ideas.md`・`plots/all.cnov` など）が雛形に置き換わる。
+/// §14.5 は `novnow new` に「既存ファイルは絶対に上書きしない（MUST）」を求め、§19.6.1 は
+/// `project.new` を `novnow new` と同じ動作としている。`src/` は第 2 のために変えない決まり
+/// なので、橋渡しが**先に確かめて断る**（書かずに断るだけ。機能核が §14.5 のとおりに
+/// なったら、この確認は外せる）。
+///
+/// 確かめるのは**機能核が実際に書く場所**である。`FsStorage::create_project`
+/// （`REF:src/adapters/storage_fs.rs`）と同じ 2 つの関数で解決する（絶対パスにして、実在する
+/// 部分のシンボリックリンクを解き、`..` を畳む）。別の規則で確かめると、`無い/../既存` のような
+/// 書き方や、既存の作品を指すシンボリックリンクで、確認と書き込みの場所が食い違う。
+fn vacant(path: &str) -> Result<(), Error> {
+    let resolved = storage_fs::resolve(Path::new(path))
+        .ok()
+        .and_then(|resolved| write_policy::normalize(&resolved));
+    let Some(target) = resolved else {
+        // 解決できないパスは、機能核が同じ関数で、何も書かずに断る
+        return Ok(());
+    };
+    match occupied(&target) {
+        Ok(false) => Ok(()),
+        Ok(true) => Err(exists(path)),
+        Err(error) => Err(Error::io(error.to_string(), Some(path))),
+    }
+}
+
+/// `project.new` の `path`。機能核の引数の読み方（`REF:src/app/session.rs` の `str_arg`）に
+/// 合わせて、文字列のほか**数と真偽値も文字列として読む**（`{"path":1}` は `1` という名前の
+/// ディレクトリになる）。それ以外の型と、`path` が無いときは `None`（機能核が `usage` で断る）。
+fn create_target(args: &Value) -> Option<String> {
+    match args.get("path")? {
+        Value::String(text) => Some(text.clone()),
+        Value::Number(number) => Some(number.to_string()),
+        Value::Bool(flag) => Some(flag.to_string()),
+        _ => None,
+    }
+}
+
+/// 新しく作る場所（解決済み）に何かあるか（無い・空のディレクトリなら `false`）。**読むだけ**。
 fn occupied(root: &Path) -> std::io::Result<bool> {
     match std::fs::symlink_metadata(root) {
         Ok(metadata) if metadata.is_dir() => Ok(std::fs::read_dir(root)?.next().is_some()),
-        // ファイル・シンボリックリンクは「ある」（辿って中を確かめない）
+        // ディレクトリでないもの（ファイルなど）は「ある」
         Ok(_) => Ok(true),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
         Err(error) => Err(error),
@@ -458,6 +514,27 @@ mod tests {
                 language: "ja".to_owned(),
             })
         );
+    }
+
+    #[test]
+    fn the_create_target_is_read_like_the_core_reads_it() {
+        let target = |args: Value| create_target(&args);
+        assert_eq!(target(json!({ "path": "新作" })), Some("新作".to_owned()));
+        assert_eq!(target(json!({ "path": "" })), Some(String::new()));
+        // 機能核は数と真偽値も文字列として読む（`1` という名前のディレクトリを作る）
+        assert_eq!(target(json!({ "path": 1 })), Some("1".to_owned()));
+        assert_eq!(target(json!({ "path": 1.5 })), Some("1.5".to_owned()));
+        assert_eq!(target(json!({ "path": true })), Some("true".to_owned()));
+        // それ以外は機能核が断る（何も作らない）
+        for args in [
+            json!({}),
+            json!({ "path": null }),
+            json!({ "path": ["a"] }),
+            json!({ "path": { "a": 1 } }),
+            json!({ "title": "題だけ" }),
+        ] {
+            assert_eq!(target(args.clone()), None, "{args}");
+        }
     }
 
     #[test]

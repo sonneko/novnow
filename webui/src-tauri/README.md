@@ -61,7 +61,18 @@ const out = await window.__TAURI__.dialog.save({ filters: [{ name: 'text', exten
 - **`open`**: 既存を開くときは `Session::open`（§14.2 の起動前チェックと同じ検証。必須のものが
   欠けていれば `project` / `S022` で断る）。開けなかったら、開いていたセッションはそのまま残る。
   新しく作るのは **無いディレクトリか空のディレクトリだけ**（既に何かあれば `io` で断り、1 バイトも
-  変えない。機能核の `Session::create` は雛形をそのまま書くので、橋渡しが先に確かめる）。
+  変えない）。確かめるのは機能核が実際に書く場所（シンボリックリンクと `..` を、機能核と同じ関数で
+  解いた先）。
+- **`run`**: 機能核（`Session::run`）の答えをそのまま返す。**例外は `project.new` だけ**で、
+  `path` に既に何かあれば機能核を呼ばずに `io` で断る（`open` の新規作成と同じ規則）。作れたときの
+  戻り値は機能核のまま。`project.new` は作るだけで、開いているセッションは替わらない。新しく
+  作って開くなら `open(path, create_options)` を使う。
+  **機能核の既知の動き**: `Session::create`（`project.new` もこれを呼ぶ）は雛形をそのまま書くので、
+  既存の作品に対して呼ぶと `project.toml`・`characters.md`・`words.md`・`ideas.md`・
+  `materials/index.json`・`plots/all.cnov`・`plots/01.cnov` が雛形に置き換わる（§14.5 は
+  `novnow new` に「既存ファイルは絶対に上書きしない」を求め、§19.6.1 は `project.new` を同じ
+  動作としている）。直すのは機能核の側（`REF:src/app/session.rs`）で、直るまで橋渡しが先に
+  確かめて断る（`bridge/tests/create.rs`）。機能核が直ったら、この確認は外せる。
 - **`poll_external`**: 画面が **1 秒ごと**に呼ぶ（§8.5）。`changes` は Host が見た差分
   （`Session::poll_external` の戻り値。本文は載せない）で、`change` は `updated` / `removed` /
   `unreadable`（`code` と `message` も持つ）。**セッションの反応は `poll_events` の出来事で受け取る**:
