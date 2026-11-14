@@ -25,6 +25,7 @@
 
 ## 2. 現在のブランチ・PR・直近の作業状態
 
+- 2026-11-14（第 2 の画面実装の並列開発戦略）: 複数エージェントが同時に W2〜W7 を進めても衝突が小さくなるよう、レーン分割（L0 基盤・L1〜L5 の画面グループ・L6 Tauri・L7 配線）と共有ファイルの所有者表を `REF:docs/plans.md#webui-parallel` に追記した。要点は「1 ファイル 1 所有者」「生成物は生成器だけが書く」「共有ファイルは小さな PR で先に着地」。W2 は全レーンの前提なので 1 本で仕上げる。
 - 2026-11-14（第 2 の画面実装の計画）: 所有者指示により、画面を Svelte + TypeScript で作り、Tauri でネイティブ化する第 2 の系統を、egui の第 1 と**並行**して作る方針を仕様・設計・計画に起こした。仕様 §21（`REF:docs/specifications/webui.md`）と設計 §21（`REF:docs/designs/webui.md`）を新設し、計画は `REF:docs/plans.md#webui`（W1〜W7）。既存の記述は削除せず追記のみ。文書だけの変更で、`src/` には触れていない（W1 の完了分）。反映先は `REF:docs/developers.md` §1.1（13 ファイル対）・§2.1（Node / wasm-pack / Tauri の前提）・§3（`crates/`・`webui/` の予定ツリー）、SYNC 表（13 設計書・147 節）、`REF:docs/script/reference.py` の章番号表と `REF:docs/script/test_reference.py`、`REF:scripts/docs-site.py` の並び順、README（日・英）・`REF:GUIDE.md`・サイトの「13 冊」表記。
 - 2026-11-10（my-novels 用 nightly 更新スクリプト）: コピーして単独実行できる `REF:scripts/update-novnow-nightly.py` と手順 `REF:scripts/update-novnow-nightly.md` を追加。Linux x64 の VSIX・nogui を asset ID 指定で取得し、照合・導入後に current を切り替える。利用側の設定ファイルは上書きしない。オフライン回帰 `REF:docs/script/test_nightly_update.py` 7 件成功。
 

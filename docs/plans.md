@@ -2247,3 +2247,97 @@ W1（文書整備）だけを実施した。`webui/`・`crates/novnow-wasm/` は
 - 新設: `REF:docs/specifications/webui.md`（§21）と `REF:docs/designs/webui.md`（§21）。設計書の 5 節はすべて「未実装・実装計画済み」（W1〜W7 を指す）。
 - 追記のみの追随: `REF:docs/developers.md` §1.1（12 → 13 ファイル対）・§2.1（Node / wasm-pack / Tauri の前提）・§3（予定ツリー。実物には無いので「これから加わる」と明記）・§4.6.2（検証の地図に 1 行）・§7.5（第 2 のテスト方針）・§8.10（注意点 30〜36）、SYNC 表（13 設計書・147 節）、`REF:docs/script/reference.py` の章番号表、`REF:docs/script/test_reference.py` の期待集合、`REF:scripts/docs-site.py` の `SPEC_ORDER`、README（日・英）・`REF:GUIDE.md`・サイトの「13 冊」表記。経緯は `REF:docs/history.md` の `D-018`。
 - 検証: `python3 docs/script/duplicate.py`（13 specifications / 13 designs / 142 完了・5 計画済み）、`python3 docs/script/reference.py`（13 項目）、`python3 -B -m unittest discover -s docs/script`（83 件）、`python3 scripts/docs-site.py --check`（docs と一致）が緑。Rust・Node のビルドは変更が無いため回していない。
+
+<a id="webui-parallel"></a>
+### 11.11 並列開発戦略（複数エージェントで同時に進める）
+
+W2〜W7 を複数のエージェントが同時に進めても衝突が小さくなるように、**触ってよいファイルを先に決め、共有ファイルは短い PR で先に着地させる**。ねらいは「迷わないこと」であり、調整会議を増やすことではない。
+
+#### 11.11.1 3 つの原則
+
+1. **1 ファイル 1 所有者**: ふだん 1 つのファイルを触るのは 1 レーンだけにする。共有ファイル（下の表）は所有者を決め、他は触らない。
+2. **生成物は生成器だけが書く**: `catalog.ts` / `tokens.ts` / `ops.ts` の一覧部分 / `package-lock.json` / サイトの生成物は、スクリプトの出力だけを置く（W3）。手で直さないので、文言や色の変更は生成器の入力（`src/ui/i18n/*.toml`・仕様 §11.1）1 か所で済み、レーン間で衝突しない。
+3. **共有ファイルは先に、小さく**: 共有ファイルを触る変更は、レーンの作業より先に単独の小さな PR で着地させる。着地後は他レーンは rebase するだけでよい。
+
+#### 11.11.2 レーン分割（W2 のあと）
+
+W2（橋渡し＋シェル＋`write`）は全レーンの前提なので、**最初は 1 本で仕上げる**。W2 が着地したら次のレーンを並列に開く。
+
+| レーン | 担当 | 主に触るファイル | 前提 |
+|---|---|---|---|
+| L0 基盤（1 本） | W2 → W3 → W6 | `crates/novnow-wasm/`・`webui/src/lib/bridge/`・`shell/`・`scripts/*-ts.py`・`webui-build.sh` | なし |
+| L1 本文 | `write`・節エディタ・文脈ビュー | `webui/src/lib/workspaces/write/`・`editor/`・`context/` | W2・W3 |
+| L2 プロット | `plot-episode`・`plot-outline` | `webui/src/lib/workspaces/plot-episode/`・`plot-outline/` | W2・W3 |
+| L3 知識 | `idea`・`material` | `webui/src/lib/workspaces/idea/`・`material/` | W2・W3 |
+| L4 人物・読者 | `cast`・`reader` | `webui/src/lib/workspaces/cast/`・`reader/` | W2・W3 |
+| L5 管制・点検 | `agent`・`review` | `webui/src/lib/workspaces/agent/`・`review/` | W2・W3 |
+| L6 ネイティブ | W5（Tauri） | `webui/src-tauri/` だけ | W2 |
+| L7 配線・判定 | W6・W7 | `webui/tests/`・`coverage.ts`・`verify.sh`・CI | 各レーンの着地後 |
+
+- レーンは**ディレクトリで分ける**。1 つのワークスペースは 1 つのディレクトリに閉じ、他のレーンのディレクトリを import しない（共通部品は L0 の `shell/`・`components/` に置き、L0 が所有する）。
+- L6（ネイティブ）は画面を触らない。L7 は判定と配線だけを行い、画面を直さない（直す必要が出たら該当レーンへ戻す）。
+
+#### 11.11.3 共有ファイルと扱い
+
+| 共有ファイル | 所有者 | 他レーンの扱い |
+|---|---|---|
+| `webui/package.json` / `package-lock.json` | L0 | 依存を足したくなったら L0 へ依頼（自分で足さない） |
+| `webui/src/lib/bridge/`（`run` / `open` / `poll_events` / `flush` の型） | L0 | W2 で確定。以降は**追加のみ**（既存の引数・戻り値を変えない） |
+| `webui/src/lib/shell/` / `components/` | L0 | 変更は L0 へ。レーンは使うだけ |
+| ルーター・ワークスペース登録表 | L0 | レーンは登録を追加しない。L0 がレーンの着地に合わせて 1 行足す |
+| `webui/src/lib/i18n/catalog.ts` / `theme/tokens.ts` / `ops.ts`（生成部分） | 生成器 | 手で編集しない |
+| `docs/plans.md`・`docs/handoff.md`・SYNC 表 | 進行役 1 名 | 各レーンは追記しない。実施記録は進行役がまとめて書く |
+| `docs/specifications/**`・`docs/designs/**` | 変更提案のみ | 仕様の変更は人間の承認が要る。レーンは実装を合わせる |
+| `REF:src/ui/i18n/*.toml` | L0（文言の追加だけ） | 文言を足すときは L0 へ。キーを勝手に増やさない |
+| `src/**`（機能核） | なし（凍結） | 第 2 のために `src/` を変えない。必要なら先に仕様 §19 と相談する |
+| `tests/golden/api_catalog.json` | 生成器 | 再生成だけ |
+| `Cargo.toml` / `Cargo.lock` | L0 | `crates/novnow-wasm` の追加は L0 が W2 で行う |
+
+#### 11.11.4 ブランチ・PR・着地の順序
+
+- 1 レーン = 1 ブランチ = 1 系列の PR。名前は `webui/<W番号>-<レーン>`（例 `webui/w4-write`）。`develop` 向けに出す。
+- **着地の順序**: 共有ファイルを持つ PR → 依存するレーンの PR。L0 の PR が先、L6・L7 は最後。
+- 1 つの PR は 1 つの関心事だけにする。画面と生成器と CI を 1 つの PR に混ぜない（混ぜた瞬間に他レーンが rebase できなくなる）。
+- 毎朝（または作業開始時に）`git fetch` して自分のブランチを `develop` へ rebase する。rebase がつらい変更（共有ファイルの同時編集）は、そもそも上の表の違反である。
+- 生成物の衝突（`package-lock.json`・`catalog.ts`）は**手で解決しない**。`npm install` と生成器の再実行で作り直し、差分が説明できることだけ確かめる。
+
+#### 11.11.5 インターフェースの凍結（衝突を減らす核心）
+
+- W2 の終わりに、画面と橋渡しのあいだの型を `webui/src/lib/bridge/types.ts` に固定する（`open` / `run` / `poll_events` / `flush` / イベント形）。以降のレーンはこの型を読むだけで、変更権を持たない。
+- 操作 ID は `REF:tests/golden/api_catalog.json` が正本。レーンは文字列を手書きせず、生成された `ops.ts` を参照する（タイポで衝突しない）。
+- 画面の状態は「セッションの状態を読む」だけにする。レーンが独自にストア（Svelte の store）を増やすときは、自分のワークスペース配下に閉じる。
+- CSS は `tokens.ts` の変数とコンポーネントローカルの `<style>` だけを使う。グローバルの CSS を書き換えない（`app.css` は L0 が所有する）。
+
+#### 11.11.6 検証をレーンごとに閉じる
+
+- 各レーンは `webui/tests/<lane>.test.mjs` を 1 つ持ち、自分のワークスペースだけを確かめる。`parity.mjs` / `coverage.mjs` は L7 が所有し、レーンは触らない。
+- L7 はレーンの着地ごとに `coverage.ts` の `pending` を 1 行減らす。`pending` の件数がそのまま進み具合になる（§21.5.1 の公開にも使う）。
+- CI は `webui/**` の変更があるときだけ走らせる（W6）。レーンごとの PR で `webui` ジョブが緑になることを着地の条件にする。
+
+#### 11.11.7 進行役（1 名）の仕事
+
+同時に走るレーンが 3 本を超えたら、進行役を 1 名置く。進行役は画面を書かない。
+
+1. 共有ファイルの変更を小さな PR にして先に着地させる。
+2. ルーター・登録表・生成物の再生成をまとめて行う。
+3. `docs/plans.md` §11・`REF:docs/handoff.md`・SYNC 表の更新を 1 か所に集める（レーンごとに書かせない）。
+4. レーン間で同じ部品を作っていないかを見て、L0 の `components/` へ寄せる。
+5. 週 1 回、`pending` の件数と着地済みレーンを `REF:docs/handoff.md` に記録する。
+
+#### 11.11.8 クリティカルパスと目安
+
+```
+W1（済）
+ └→ L0: W2（橋渡し＋シェル＋write）──┬→ L1 本文（仕上げ・磨き）
+                                      ├→ L2 プロット
+                                      ├→ L3 知識
+                                      ├→ L4 人物・読者
+                                      ├→ L5 管制・点検
+                                      └→ L6 Tauri（W2 直後から並行可）
+                                                    ↓（全レーン着地）
+                                              L7: W6 配線 → W7 パリティ判定
+```
+
+- **並列度の目安は 4〜6 レーン**。それ以上に分けると L0 の共有部品待ちで止まる時間が増える。
+- 各レーンの見積もりは、ワークスペース 1 つあたり W2 の `write` を 1.0 とした相対値で置く（初回の実測後にここへ書く。推測で先に埋めない）。
+- 遅れてよいのは L2〜L5。W2・W3・W6・W7 は遅らせない（他が全部止まる）。
