@@ -1,0 +1,27 @@
+{
+  "name": "novnow-webui",
+  "private": true,
+  "version": "0.0.0",
+  "description": "novnow の第 2 の画面実装（REF:docs/specifications/webui.md §21）",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
+    "wasm": "bash ../scripts/webui-build.sh",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "7.3.1",
+    "fake-indexeddb": "^6.2.8",
+    "svelte": "5.57.3",
+    "svelte-check": "4.7.8",
+    "typescript": "6.0.3",
+    "vite": "8.3.8"
+  }
+}

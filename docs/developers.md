@@ -176,7 +176,9 @@ novnow/
 └── webui/                     # Svelte + TypeScript の画面（`src/lib/**`、`src-tauri/` は W5 で追加）
     ├── package.json / package-lock.json
     ├── vite.config.ts / tsconfig.json
-    └── tests/                 # parity.mjs（121 操作の到達） / coverage.mjs（§9〜§12 の未提供）
+    ├── src/wasm/              # 生成物（`scripts/webui-build.sh`）。git に入れない
+    └── tests/                 # session.test.mjs（IndexedDB の永続化） / parity.mjs（121 操作の到達） /
+                               # coverage.mjs（§9〜§12 の未提供）
 ```
 
 - `webui/` は第 1 の画面（`REF:src/ui/`）を import しない。共有するのは「生成物」（文言・色・操作 ID）だけで、生成は `scripts/` の Python が行う（`REF:docs/plans.md#webui-w3`）。
@@ -200,16 +202,20 @@ Actions取得スクリプトのオフライン回帰は `REF:scripts/action/test
 4. `python3 scripts/diagnostics-site.py --check`（Web サイトの診断解説が全コードを網羅すること）
 5. `python3 scripts/api-site.py --check`（Web サイトの API 表が仕様 §19.7 の写しであること）
 6. `bash scripts/python-check.sh`（型スタブの生成一致・構文・位置引数の束縛）
-7. `cargo fmt --all --check`
-8. `cargo clippy --locked --all-targets -- -D warnings`（`ui` feature なし）
-9. `cargo clippy --locked --all-targets --features ui -- -D warnings`（`ui` feature あり）
-10. `cargo test --locked --all-targets --no-fail-fast --features ui`（`ui` feature あり・全ターゲット）
-11. `cargo test --locked --all-targets --no-fail-fast`（`ui` feature なし・全ターゲット）
-12. `cargo check --locked --target wasm32-unknown-unknown --features ui`
+7. `bash scripts/webui-check.sh`（第 2 の画面の生成物 3 種が正本どおりか・wasm が組めるか。
+   wasm を組むには `wasm32-unknown-unknown` と、`Cargo.lock` と同じ版の wasm-bindgen の CLI が要る。
+   CI の `webui` ジョブはどちらも自分の手順で入れ、`--full`（型検査・Node の回帰・本番ビルド）まで回す）
+8. `cargo fmt --all --check`
+9. `cargo clippy --locked --all-targets -- -D warnings`（`ui` feature なし）
+10. `cargo clippy --locked --all-targets --features ui -- -D warnings`（`ui` feature あり）
+11. `cargo test --locked --all-targets --no-fail-fast --features ui`（`ui` feature あり・全ターゲット）
+12. `cargo test --locked --all-targets --no-fail-fast`（`ui` feature なし・全ターゲット）
+13. `cargo check --locked --target wasm32-unknown-unknown --features ui`
 
 `--python` を付けると 6 が本検査（拡張の release ビルド + pytest。pytest が無い環境では skip）に変わる。
-4 と 5 は `verify.sh` では `site-check` の 1 ステップにまとまる（合計 11 ステップ・12 の検査）。
-**1〜5 は CI の `docs` ジョブと同一**（§4.6 の検査 5 がこの一致を機械的に保証する）。
+4 と 5 は `verify.sh` では `site-check` の 1 ステップにまとまる（合計 15 ステップ・13 の検査）。
+**1〜6 は CI の `docs` ジョブと同一**（§4.6 の検査 5 がこの一致を機械的に保証する）。
+7 は CI の `webui` ジョブと同一の入口である（CI は `--full` を付けて型検査・Node の回帰・本番ビルドまで回す）。
 
 ### 4.2 `python3 docs/script/duplicate.py`（ドキュメント規則検査）
 
@@ -335,7 +341,7 @@ CI だけに検査が増えた時点で静かに壊れるため。CI の `docs` 
 | 配布 | `tests/distribution.rs` / `scripts/release-check.sh` / `scripts/release-matrix.py` / `scripts/action/test_install.py` / `docs/script/test_release_policy.py` | 市場公開の実績（発行者トークン待ち）、実機での起動（§4.9） |
 | 依存 | `.github/dependabot.yml` / `.github/workflows/dependency-audit.yml` / `scripts/dependency-audit.py` / `scripts/action/dependency-audit-issue.sh` / `deny.toml` / `docs/script/test_dependency_policy.py` | 実害の判断（開発経路の指摘を上げるか残すか）、licenses / bans の検査、Dependabot alerts の有効化（リポジトリ設定側。§4.10） |
 | 公開サイト | `scripts/website-check.py`（生成 HTML のリンク・版表示・診断数・inline code・検索索引） / `scripts/diagnostics-site.py` / `scripts/api-site.py` / `scripts/docs-site.py` / `docs/script/test_website.py` / `website/integrations/base-links.test.mjs` / `website/integrations/search-index.test.mjs` | 手書きの紹介文の文面（§4.6.1）、見た目・実ブラウザの描画、検索結果の並び順の妥当性 |
-| 第 2 の画面（W2 以降） | `docs/script/reference.py`（13 ファイル対） / `docs/plans.md#webui` の W2〜W7 | 画面の見た目（§7.5 の方針どおり固定しない）、Tauri の実機（§4.9） |
+| 第 2 の画面（W2 以降） | `scripts/webui-check.sh`（生成物 3 種の一致・wasm のビルド・型検査・Node の回帰・本番ビルド） / `scripts/api-ts.py` / `scripts/theme-ts.py` / `scripts/i18n-ts.py` / `webui/tests/session.test.mjs` / `docs/script/reference.py`（13 ファイル対） / `docs/plans.md#webui` の W2〜W7 | 画面の見た目（§7.5 の方針どおり固定しない）、実ブラウザの打鍵と IME（§7.5 に書いた画面テストは未作成）、Tauri の実機（§4.9） |
 
 ---
 
@@ -650,13 +656,17 @@ GUI の見た目（パレット位置、下線・波線の座標、枠線やバ�
 | 層 | 何を確かめるか | どこで |
 |---|---|---|
 | 機能核（従来どおり） | 121 操作・保存状態・診断 | `REF:tests/api.rs` ほか（Rust。第 2 のために増やさない） |
-| 橋渡し（wasm） | `NovnowSession` の `run` が Rust と同じ JSON を返す | `webui/tests/bridge.test.mjs`（wasm-pack の `--target web` 出力を Node で読む） |
-| 画面 | キー・IME・保存の見え方・ワークスペース切替 | `webui/tests/ui.test.mjs`（Playwright。第 1 の `REF:scripts/web-smoke.mjs` と同じ `check(...)` の形） |
+| 橋渡し（wasm） | `NovnowSession` の `run` が Rust と同じ JSON を返す | `webui/tests/session.test.mjs`（`wasm-bindgen --target web` の出力を Node で読み、IndexedDB は `fake-indexeddb` で代替する。`npm test`） |
+| キー写像 | キー → コマンド名が実在するか、`?` / `Ctrl+P` / `Esc` が画面側で完結するか、ヘルプの一覧の文言 | `webui/tests/keys.test.mjs`（`src/app/commands.rs` と `i18n/catalog.ts` を実物として読む） |
+| 画面 | キー・IME・保存の見え方・ワークスペース切替 | `webui/tests/ui.test.mjs`（Playwright。第 1 の `REF:scripts/web-smoke.mjs` と同じ `check(...)` の形。**未作成**） |
 | 到達性 | カタログ全操作に画面から届くか、§9〜§12 の未提供件数 | `webui/tests/parity.mjs` / `webui/tests/coverage.mjs` |
 
 - **同じ入力で比べる**: 第 1 と第 2 の出力が同じであることは、同じ操作列を `REF:tests/golden/api_catalog.json` の順に流し、返る JSON を文字列で比べて確かめる（キー順まで含む。§19.1.4 の決定論）。
 - **実描画に頼らない**: 第 2 のテストで「見た目」を固定しない（第 1 の §7.4 の PNG に相当する仕組みは作らない）。色と文言は生成物（W3）の一致で守る。
 - **サンドボックスでの制約**: Playwright のブラウザは `REF:scripts/bootstrap-toolchain.sh` の退避に含まれるものを使う。`npm ci` はネットワークが要るため、サンドボックスで回せない日は「Node 側は CI で見る」と記録し、緑と書かない。
+- **`webui/src/wasm/` は生成物**: 型検査もビルドも、先に `REF:scripts/webui-build.sh` を通す（`bash scripts/webui-check.sh --full` が順に面倒を見る）。git には入れないので、手元で `src/wasm` を消したら次の `npm run check` は「モジュールが無い」で落ちる。
+- **CI の `webui` ジョブは wasm も組む**: `webui/src/wasm/` は git に無いので、`scripts/webui-build.sh` が CI でも通る必要がある。そのため `scripts/webui-build.sh` は `--offline` を付けない（手元の vendor は `$CARGO_HOME/config.toml` がオフラインにする）。wasm-bindgen の CLI は `Cargo.lock` の版を workflow が入れる（版が食い違うと生成物を読めない。§8.10 の 33）。
+- **IndexedDB の代役**: Node には IndexedDB が無いので、`webui/tests/session.test.mjs` は `fake-indexeddb` を `globalThis` に差して `open()` を呼ぶ。`webui/tests/session.test.mjs` は 1 ファイルで完結させ、差し替えた global を他のテストへ持ち越さない（持ち越すと後続が偽の成功になる）。
 
 ---
 

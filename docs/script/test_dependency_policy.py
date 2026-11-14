@@ -171,13 +171,19 @@ class ReportTests(unittest.TestCase):
             self.assertIn("依存監査", summary.read_text(encoding="utf-8"))
             data = json.loads(report.read_text(encoding="utf-8"))
             self.assertFalse(data["failed"])
-            self.assertEqual({root["root"] for root in data["roots"]}, {"vscode", "website"})
+            # `webui`（第 2 の画面実装）は 2026-11 に加わった 3 つ目の npm root。
+            self.assertEqual(
+                {root["root"] for root in data["roots"]}, {"vscode", "website", "webui"}
+            )
 
     def test_unknown_root_is_rejected(self):
         self.assertEqual(audit.main(["--root", "does-not-exist"]), 2)
 
     def test_roots_are_found_from_the_lockfiles(self):
-        self.assertEqual({root.name for root in audit.npm_roots()}, {"vscode", "website"})
+        # 一覧は実物の `package-lock.json` から作る（足したときに黙って止まらないため）。
+        self.assertEqual(
+            {root.name for root in audit.npm_roots()}, {"vscode", "website", "webui"}
+        )
 
 
 class DependencyPolicyTests(unittest.TestCase):
