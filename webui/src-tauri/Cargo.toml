@@ -1,0 +1,34 @@
+[package]
+name = "novnow-webui-native"
+version = "0.0.0"
+edition = "2021"
+# Tauri 2.12 の下限（`tauri` クレートの `rust-version`）。
+rust-version = "1.90"
+description = "novnow の第 2 の画面実装（REF:docs/specifications/webui.md §21）のネイティブ実行（Tauri 2）。開発版"
+license = "MIT"
+repository = "https://github.com/sonneko/novnow"
+publish = false
+
+[[bin]]
+name = "novnow-webui-native"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# コマンド 4 つの中身（Tauri に依存しない。`Session` と `FsHost` はこの中に居る）。
+novnow-native-bridge = { path = "bridge" }
+# 既定の feature だけを使う。`protocol-asset`・`tray-icon`・`devtools` などは立てない
+# （`REF:docs/specifications/webui.md` §21.4.1: ファイルの読み書き以外の権限を要求しない）。
+tauri = { version = "2", features = [] }
+# 保存・選択のダイアログだけ（設計 §21.2）。`fs` / `http` / `shell` / `updater` /
+# `autostart` のプラグインは**足さない**（`REF:docs/developers.md` §8.10 の 34、§21.4.3）。
+tauri-plugin-dialog = "2"
+
+# root の workspace（`REF:Cargo.toml`）には入れない: root の `Cargo.lock` に Tauri のクレートを
+# 持ち込むと、Tauri を解決できない環境（作業サンドボックスの vendor）で本体まで組めなくなる。
+# `bridge/` は Tauri 無しで組めるよう、さらに別の workspace にしてある。
+[workspace]
+resolver = "2"
+exclude = ["bridge"]
