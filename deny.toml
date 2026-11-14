@@ -1,0 +1,25 @@
+# cargo-deny の設定。週次の `REF:.github/workflows/dependency-audit.yml`（rust ジョブ）が
+# `check advisories` だけを実行する（docs/developers.md §4.10）。
+#
+# レベルの考え方（npm 側 `REF:scripts/dependency-audit.py` の「公開経路 / 開発経路」と揃える）:
+# - **セキュリティ advisory（informational でないもの）は error**。ジョブが赤くなり、Issue になる。
+# - yanked / unmaintained / unsound は**更新の判断材料**なので warning（赤にしない）。
+#   日志は run のログに残り、 Dependabot の更新 PR が実際の上げ方を作る。
+# - licenses / bans / sources はここでは検査しない。足すときは warn から始め、
+#   指摘を消してからレベルを上げる（最初から赤い検査は読まれなくなる）。
+
+[graph]
+# 依存グラフは Cargo.lock から作る。targets を書かないと全ターゲット分（wasm32 を含む）を見る。
+all-features = true
+
+[advisories]
+# yank された版は「上げどき」の合図。失敗はさせない。
+yanked = "warn"
+# メンテナンス停止（informational = unmaintained）は全部拾って警告にする。
+# 例: derivative / instant / paste / xml-rs / ttf-parser は推移的依存として残っている。
+unmaintained = "all"
+# soundness の指摘は workspace 外（＝実際の依存クレート）でも拾う。
+unsound = "all"
+# 理由の無い ignore は足さない。足すときは必ず reason を書く（§4.10 の手順 4）。
+# 例: { id = "RUSTSEC-0000-0000", reason = "…の影響が無い理由と、確認した日" }
+ignore = []

@@ -18,8 +18,11 @@ pub trait Host {
     fn writable(&self) -> bool {
         true
     }
-    /// 外部変更の監視 1 回分（§8.5）: 変わったファイルと中身（消えたら `None`）。
-    fn poll(&mut self) -> Vec<(String, Option<String>)>;
+    /// 外部変更の監視 1 回分（§8.5）: 変わったファイルと中身。
+    ///
+    /// 消えたファイルは [`ExternalChange::Removed`]、**読めなかった**ファイルは
+    /// [`ExternalChange::Unreadable`]（削除ではないので文書を消してはいけない）。
+    fn poll(&mut self) -> Vec<ExternalChange>;
     /// プロジェクトの名前（ヘッダ・ウィンドウ題名）。
     fn name(&self) -> String;
     /// 今の日時 `YYYYMMDD-HHMM`（テキストのエクスポートの既定の名前、§17.2）。
@@ -97,9 +100,29 @@ pub trait Host {
         let _ = path;
         false
     }
+    /// 保存 1 回分の前に中身を控える（§19.1.6 の原子性）。
+    ///
+    /// 各パスについて「今の内容」（無かったファイルは `None`）を返す。`None`（外側の `Option`）は
+    /// **この Host では控えられない**＝ロールバックできないという意味で、既定はこちら。
+    /// 控えを取れる Host（メモリ・読み出しの口を持つもの）だけ上書きする。
+    fn backup(&mut self, paths: &[String]) -> Option<Vec<(String, Option<String>)>> {
+        let _ = paths;
+        None
+    }
+    /// [`Host::backup`] の控えへ戻す（ロールバック）。**戻せなかった**ファイルと理由を返す
+    /// （§19.1.6「rollback 自体の失敗も報告する」）。既定は何もしない（控えられない Host は
+    /// 呼ばれない）。
+    fn restore(&mut self, backup: Vec<(String, Option<String>)>) -> Vec<(String, String)> {
+        let _ = backup;
+        Vec::new()
+    }
     /// 保存 1 回分（§8.3）: `writes` を書き、全部書けたら `removals` を消す。同期の Host（デスクトップ・
     /// テスト）は既定のまま、その場で書いて結果を返す。非同期の Host（Web の IndexedDB）は始めるだけで
     /// `None` を返し、終わったら [`Host::save_finished`] が結果を返す（`docs/history.md` B-156）。
+    ///
+    /// 2 つ以上のファイルにまたがる保存は**原子性を持つ**（§19.1.6）: 既定実装の [`save_now`] は
+    /// [`Host::backup`] / [`Host::restore`] で元へ戻し、実ファイルシステムの Host は
+    /// `Storage::write_batch`（控え + rollback）を使う。
     fn save(
         &mut self,
         writes: Vec<(String, String)>,
@@ -128,13 +151,101 @@ pub trait Host {
     }
 }
 
+/// 外部変更の監視 1 件（§8.5）。
+///
+/// 「消えた」と「読めなかった」は**別の出来事**である。読み取りの失敗（権限・I/O）や
+/// UTF-8 復号の失敗を削除として扱うと、利用者が消していない文書がセッションから消える
+/// （§4.3 の encoding / I/O エラーの扱い・§19.1.6）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExternalChange {
+    /// 中身が変わった（読めた）。
+    Updated(String, String),
+    /// ファイルが消えた。
+    Removed(String),
+    /// 変わったが読めなかった。**削除ではない**ので文書はそのままにする。
+    Unreadable(String, ReadFailure),
+}
+
+impl ExternalChange {
+    /// 対象のパス。
+    pub fn path(&self) -> &str {
+        match self {
+            Self::Updated(path, _) | Self::Removed(path) | Self::Unreadable(path, _) => path,
+        }
+    }
+
+    /// 読めた中身（[`ExternalChange::Removed`] と [`ExternalChange::Unreadable`] は `None`）。
+    pub fn text(&self) -> Option<&str> {
+        match self {
+            Self::Updated(_, text) => Some(text),
+            Self::Removed(_) | Self::Unreadable(..) => None,
+        }
+    }
+
+    /// 消えたか。
+    pub fn removed(&self) -> bool {
+        matches!(self, Self::Removed(_))
+    }
+
+    /// 読めなかった理由（読めた・消えたときは `None`）。
+    pub fn failure(&self) -> Option<&ReadFailure> {
+        match self {
+            Self::Unreadable(_, failure) => Some(failure),
+            Self::Updated(..) | Self::Removed(_) => None,
+        }
+    }
+}
+
+/// 外部のファイルを読めなかった理由（§4.3・§19.1.7 の `io`）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ReadFailure {
+    /// UTF-8 として復号できない（S024）。
+    Encoding(String),
+    /// 読み取りの I/O エラー（S030。権限・媒体の不調など）。
+    Io(String),
+}
+
+impl ReadFailure {
+    /// エラー応答に載せるコード（§19.1.7 の `data.code`。S024 / S030）。
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Self::Encoding(_) => "S024",
+            Self::Io(_) => "S030",
+        }
+    }
+
+    /// 理由（OS のメッセージなど。表示用）。
+    pub fn message(&self) -> &str {
+        match self {
+            Self::Encoding(message) | Self::Io(message) => message,
+        }
+    }
+}
+
 /// 保存 1 回分をその場で行う（[`Host::save`] の既定）: `writes` を書き、全部書けたら `removals` を消す
 /// （動かした文書の元は、新しい側を書けてから消す）。
+///
+/// **2 つ以上のファイルにまたがるときは原子性を持つ**（§19.1.6）: [`Host::backup`] で控えを
+/// 取れる Host では、途中の失敗時に成功済みの書き込み・削除も元へ戻し、部分コミットを残さない。
+/// 控えを取れない Host（読み出しの口を持たない環境）では書けた分が残るので、呼び出し側は
+/// `written` を見て unsaved を落とす（従来どおり）。
 pub fn save_now<H: Host + ?Sized>(
     host: &mut H,
     writes: Vec<(String, String)>,
     removals: Vec<String>,
 ) -> SaveOutcome {
+    let touched: Vec<String> = writes
+        .iter()
+        .map(|(path, _)| path.clone())
+        .chain(removals.iter().cloned())
+        .collect();
+    // 1 ファイルだけの保存は `write_atomic`（一時ファイル + rename）でそもそも原子的なので
+    // 控えを取らない（余分な読み書きを避ける）。
+    let backup = if touched.len() > 1 {
+        host.backup(&touched)
+    } else {
+        None
+    };
     let mut outcome = SaveOutcome::default();
     for (path, text) in writes {
         match host.write(&path, &text) {
@@ -142,14 +253,35 @@ pub fn save_now<H: Host + ?Sized>(
             Err(message) => outcome.failures.push((path, message)),
         }
     }
-    if !outcome.failures.is_empty() {
-        outcome.removals_left = removals;
+    let mut removals_left: Vec<String> = Vec::new();
+    if outcome.failures.is_empty() {
+        for path in &removals {
+            if let Err(message) = host.remove(path) {
+                outcome.failures.push((path.clone(), message));
+                removals_left.push(path.clone());
+            }
+        }
+    }
+    if outcome.failures.is_empty() {
         return outcome;
     }
-    for path in removals {
-        if let Err(message) = host.remove(&path) {
-            outcome.failures.push((path.clone(), message));
-            outcome.removals_left.push(path);
+    match backup {
+        Some(backup) => {
+            // どのファイルも変更されていない状態へ戻す（§19.1.6）。戻せなかったものは
+            // 失敗として報告する（黙って部分的な状態を残さない）。
+            outcome.written.clear();
+            outcome.failures.extend(host.restore(backup));
+            // 戻した削除は次の保存でもう一度行う。
+            outcome.removals_left = removals;
+        }
+        None => {
+            // 控えを取れない Host: 書けた分はそのまま残る（部分適用）。書き込みで失敗した
+            // ときは何も消していないので、消すものは全部次の保存へ回す。
+            outcome.removals_left = if removals_left.is_empty() {
+                removals
+            } else {
+                removals_left
+            };
         }
     }
     outcome

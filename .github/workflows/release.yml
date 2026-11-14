@@ -59,6 +59,9 @@ jobs:
             echo "::error::Integrated Release supports stable versions only; use wheels.yml for TestPyPI prerelease rehearsals"
             exit 1
           fi
+          # リリースノートは必須（docs/release-notes/v<版>.md、定型 4 節＋既知の問題へのリンク）。
+          # 本文が無い・書きかけの版は、成果物を作る前にここで止める（Issue #61 の提案 E）。
+          python3 scripts/release-notes.py --check --version "$version"
           tag="v$version"
           if [ "$EVENT_NAME" = push ]; then
             tag="$REF_NAME"
@@ -293,7 +296,9 @@ jobs:
           prerelease=()
           if [[ "$VERSION" == *-* ]]; then prerelease=(--prerelease); fi
           if ! gh release view "$TAG" >/dev/null 2>&1; then
-            gh release create "$TAG" --target "$GITHUB_SHA" --title "novnow $VERSION" --notes "novnow $VERSION distribution artifacts" "${prerelease[@]}"
+            # 本文はリポジトリの docs/release-notes/v<版>.md をそのまま使う（1 行の本文を作らない）。
+            python3 scripts/release-notes.py --print --version "$VERSION" > release-notes.md
+            gh release create "$TAG" --target "$GITHUB_SHA" --title "novnow $VERSION" --notes-file release-notes.md "${prerelease[@]}"
           fi
           gh release upload "$TAG" release/*
 

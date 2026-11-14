@@ -2,7 +2,9 @@
 
 本書は、novnow を利用者の手元へ届ける**手順**をまとめる。何を配るか（形・選択肢・名前・MUST）は `REF:docs/specifications/external.md` §20、どう作るかは `REF:docs/designs/external.md` §20 が正本である。本書は「だれが、どこへ、どの順で置くか」だけを扱う。
 
-**いまの状態（2026-10-25）**: ブラウザ版だけが公開済み。デスクトップ版・Python ライブラリ版・VSCode 拡張版・GitHub Actions 版の実装と公開用ワークフローは用意済み。初回リリースはまだ実行しておらず、ブラウザ版以外は未提供である（`REF:docs/plans.md#distribution`）。
+**いまの状態（2026-11-13）**: **5 形態すべて公開済み**。番号付きのリリースは `v0.1.0`（2026-10-25）から続いており、同じリリースにデスクトップ版の 10 アーカイブ・ホイール 5 個・VSIX 1 個・ソースアーカイブが揃い、`SHA256SUMS` と合わせて 18 ファイルになる。Python ライブラリ版は PyPI（`novnow`）にも公開し、ブラウザ版は GitHub Pages で常時公開、GitHub Actions 版は可動タグ `v0` から `uses:` で参照できる。開発版は `nightly` タグのリリースと `nightly-app/` で別に公開する（`REF:scripts/update-novnow-nightly.md`）。公開後の実測は `REF:.github/workflows/release-audit.yml` が版ごとに自動で行う（`REF:docs/plans.md#distribution`）。
+
+**最新の公開版はここに書き写さない**。サイト側の正本は `REF:website/src/data/release.ts`、成果物は Releases の一覧を見ること。書き写した表示（サイトの告知・拡張の同梱 README・トップの診断数）が正本と食い違わないかは `REF:scripts/release-matrix.py --check` と `REF:scripts/website-check.py` が検査する。
 
 ---
 
@@ -173,18 +175,49 @@ novnow-<版>-<対象環境>-<gui|nogui>.<拡張子>
 
 | 順 | すること | 失敗したら |
 |---|---|---|
-| 1 | 版番号を `REF:Cargo.toml` で決め、`python3 scripts/release-matrix.py --bump` で Python・拡張・Actions の版を揃える | 公開しない |
-| 2 | デスクトップ 10・ホイール 5 とクレート dry-run を検証し、15 成果物と照合値をリリースへ添付する | 公開しない（成果物だけ差し替えない） |
-| 3 | crates.io と、TestPyPI → PyPI の公開を並行して進める | 以降を止める。タグは残す |
-| 4 | VSIX と全ソースをReleasesへ添付し、17 成果物の最終照合を行う（Marketplaceには公開しない） | 以降を止める。新しい版で直す |
-| 5 | Actions の `v<版>` と `v0` を公開する | 利用者へ「未提供」と表示する |
-| 6 | README・サイト・手引きに実際の取得先を載せ、未公開の形態は「未提供」と記す | 文書だけが古い状態になる。次の版までに直す |
+| 1 | 版番号を `REF:Cargo.toml` で決め、`python3 scripts/release-matrix.py --bump` で Python・拡張・Actions の版と、利用者に見える版表示（`REF:vscode/README.md`・`REF:README.md`・`REF:README.en.md`・`REF:docs/users/install.md`）を揃える | 公開しない |
+| 2 | リリースノート `docs/release-notes/v<版>.md` を書く（定型は `REF:docs/release-notes/TEMPLATE.md`。必須 4 節: 変更点 / 参照（Issue・PR）/ 互換性 / 既知の問題。`python3 scripts/release-notes.py --new --version <版>` で書き始める） | 公開しない（`REF:.github/workflows/release.yml` の prepare が `--check` で止める） |
+| 3 | デスクトップ 10・ホイール 5 とクレート dry-run を検証し、15 成果物と照合値をリリースへ添付する | 公開しない（成果物だけ差し替えない） |
+| 4 | crates.io と、TestPyPI → PyPI の公開を並行して進める | 以降を止める。タグは残す |
+| 5 | VSIX と全ソースをReleasesへ添付し、17 成果物の最終照合を行う（Marketplaceには公開しない） | 以降を止める。新しい版で直す |
+| 6 | Actions の `v<版>` と `v0` を公開する | 利用者へ「未提供」と表示する |
+| 7 | 公開後の追随（§6.1）を行う。`release.ts` を実公開版へ上げ、文書の「いまの状態」を実際の状態に直す | 文書だけが古い状態になる。次の版までに直す（§6.1 の検査が落とす） |
 
+- **Release の本文はリポジトリのリリースノートから出す**: `REF:.github/workflows/release.yml` は
+  `python3 scripts/release-notes.py --print --version <版>` の出力を `--notes-file` で渡す。
+  本文は `REF:docs/release-notes/v<版>.md` が正本で、`REF:scripts/release-notes.py --check-all` が
+  定型（4 節の順・箇条書き・Issue / PR の参照・`REF:docs/known-issues/ja.md` へのリンク）と配線を検査する。
+  定型より前に公開した v0.1.0 の本文は `REF:docs/release-notes/v0.1.0.md` にそのまま残してある。
 - **版を上げても必須チェックの名前は変わらない**: ruleset の `required_status_checks` は
   `wheel (x86_64-unknown-linux-gnu)`・`desktop (x86_64-unknown-linux-gnu, nogui)` のような
   版を含まない名前を使う（§8。2026-10-28 改定。以前は行列の既定名が版を含み、`--bump` のたびに
   ruleset を差し替える必要があった）。8 つの名前は初回に一度だけ設定すれば、以後の版更新で
   触る必要は無い。差し替え・設定は管理者が行う。
+### 6.1 公開後の追随（チェックリスト）
+
+開発版の bump（手順 1）と、**実 Release と成果物を確認したあとの公開版表示の更新**は別の段階である。
+後者を飛ばすと、公開ページの中で版が食い違う（#61 追加監査 8: 同じページに v0.1.0 と v0.1.2 が出ていた）。
+表示は正本から**導出**し、導出できないものだけ人が直す。書き写しは機械で落とす。
+
+| 公開表示 | 正本 | だれが更新するか | 食い違いを落とす検査 |
+|---|---|---|---|
+| サイトの Downloads・見出し・告知 | `REF:website/src/data/release.ts` | 人（公開物を確認してから上げる） | `REF:scripts/website-check.py`（見出しの版・`data-announcement`） |
+| サイト トップの診断数 | `REF:website/src/data/diagnostics.ts`（生成） | `REF:scripts/diagnostics-site.py` が生成 | `REF:scripts/website-check.py`（`data-fact="diagnostics"`） |
+| 診断カタログのコード表記 | `REF:docs/specifications/diagnostics.md` §7 の表 | 人（表を直す） | `REF:scripts/diagnostics-site.py --check` と `REF:scripts/website-check.py` |
+| VSIX 同梱 README（`extension/readme.md`） | `REF:vscode/package.json` の版 | `--bump` が生成 | `release-matrix.py --check` と `verify_vsix`（成果物の中を見る） |
+| README・README.en・導入ガイドの「公開しました」 | `REF:Cargo.toml` の版 | `--bump` が生成 | `release-matrix.py --check` |
+| デスクトップ 5 環境のファイル名の例（導入ガイド §3.2） | `artifact_name()` | `--bump` が生成 | `release-matrix.py --check` |
+| 本書の「いまの状態」と `REF:docs/plans.md#distribution` の状態 | 実公開状態（Releases・PyPI・Pages） | 人 | `REF:docs/script/reference.py` 検査 12（古い文言の復活を落とす） |
+| 既知の問題の一覧 | `REF:docs/known-issues/ja.md`・`REF:docs/known-issues/en.md` | 人（§9 の規則。修正版の公開と確認が済むまで削除しない） | `REF:docs/script/duplicate.py`（`REF:` と同期ブロック） |
+
+- **公開表示の allowlist は `REF:scripts/release-matrix.py` の `published_display_files()` と
+  `versioned_files()` だけ**である。これ以外は機械的に置換しない。とくに過去の版を説明する
+  `REF:docs/history.md`・仕様書・`REF:website/src/data/troubleshooting.ts` の v0.1.0 の形式説明は
+  書き換えない（「いま公開されている版」の表示と「過去の版の説明」は別物）。
+- `release.ts` は開発版（`REF:Cargo.toml`）から自動推測しない。公開済みの版・成果物を確認したときだけ上げる
+  （§9・`REF:docs/developers.md` §9）。版更新 PR から公開までの間は 2 つが意図的に食い違う。
+- 公開済み成果物（Releases の VSIX など）は差し替えない。同梱 README の版違いは**作る前**に止める。
+
 - 版ごとの成果物は削除しない。重大な不具合は新しい版で直す（仕様 §20.6.3）。
 - 公開を止めるときは、同じ版の 5 形態をまとめて「未提供」に戻す。形態ごとに残さない。
 

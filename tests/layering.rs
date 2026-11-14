@@ -1067,12 +1067,30 @@ fn the_moved_state_machines_are_reexported_from_their_old_paths() {
         "src/ui/workspaces/mod.rs が Switcher / Workspace を再エクスポートしていない"
     );
     let gui = include_str!("../src/ui/app.rs");
-    assert!(
-        gui.contains(
-            "pub use crate::app::host::{save_now, ExportFailure, Host, HostEvent, SaveOutcome};"
-        ),
-        "src/ui/app.rs が Host 一式を再エクスポートしていない"
-    );
+    // `Host` 一式（`REF:src/app/host.rs`）を GUI の旧パスから引けるようにしておく
+    let head = "pub use crate::app::host::{";
+    let at = gui
+        .find(head)
+        .expect("src/ui/app.rs が Host 一式を再エクスポートしていない");
+    let end = gui[at..]
+        .find("};")
+        .map(|offset| at + offset)
+        .expect("src/ui/app.rs の Host の再エクスポートが閉じていない");
+    let listed = &gui[at + head.len()..end];
+    for name in [
+        "save_now",
+        "ExportFailure",
+        "ExternalChange",
+        "Host",
+        "HostEvent",
+        "ReadFailure",
+        "SaveOutcome",
+    ] {
+        assert!(
+            listed.split([',', '\n']).any(|part| part.trim() == name),
+            "src/ui/app.rs が Host の {name} を再エクスポートしていない: {listed}"
+        );
+    }
     // app 層が GUI 層を逆に参照していないこと（依存の向き ui → app、`overview.md` §3.3）。
     let mut files = Vec::new();
     collect_rs(Path::new("src/app"), &mut files);

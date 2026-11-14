@@ -15,9 +15,10 @@ name: CI
 # 3. `clippy` (Clippy: GUI あり + GUI なし)
 # 4. `test` (Test: GUI あり全ターゲット + GUI なし CLI)
 # 5. `wasm` (WASM Build Check: trunk build --release & 8MiB サイズ検査 + windows check)
-# 6. `bench` (Benchmarks: criterion ベンチマーク §18.1)
-# 7. `perf` (Performance budgets: リリースビルドでの打鍵・移動のフレーム予算 §18.1。bench と並行に走る)
-# 8. `python` (Python API: §19.3。型スタブの生成検査・構文・位置引数の束縛。Rust のビルド不要)
+# 6. `webui` (Web UI: 生成物の一致・型検査・IndexedDB の回帰・本番ビルド。§11.6 の W6)
+# 7. `bench` (Benchmarks: criterion ベンチマーク §18.1)
+# 8. `perf` (Performance budgets: リリースビルドでの打鍵・移動のフレーム予算 §18.1。bench と並行に走る)
+# 9. `python` (Python API: §19.3。型スタブの生成検査・構文・位置引数の束縛。Rust のビルド不要)
 
 on:
   push:
@@ -84,6 +85,9 @@ jobs:
       - name: Check the user guides for readability (easy-read.py)
         run: python3 docs/script/easy-read.py
 
+      - name: Verify release notes and their wiring (release-notes.py)
+        run: python3 scripts/release-notes.py --check-all
+
       - name: Verify website diagnostic catalog covers all codes
         run: python3 scripts/diagnostics-site.py --check
 
@@ -100,6 +104,7 @@ jobs:
           set -euo pipefail
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "rust_changed=true" >> "$GITHUB_OUTPUT"
+            echo "webui_changed=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if [ "${{ github.event_name }}" = "pull_request" ]; then
@@ -109,25 +114,32 @@ jobs:
           fi
           if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
             echo "rust_changed=true" >> "$GITHUB_OUTPUT"
+            echo "webui_changed=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           changed="$(git diff --name-only "$base" HEAD)"
           echo "Changed files:"
           echo "$changed"
           rust_changed=false
+          webui_changed=false
           while IFS= read -r file; do
             [ -z "$file" ] && continue
             case "$file" in
+              webui/*)
+                # 第 2 の画面実装だけの変更は Rust の再ビルドを要さず、
+                # `webui` ジョブだけを走らせる（docs/plans.md §11.6 の W6）。
+                webui_changed=true
+                ;;
               docs/developers.md|docs/plans.md|docs/handoff.md|docs/history.md|docs/designs/*|docs/script/*|README.md|LICENSE|screenshot.png|.github/workflows/deploy.yml|.github/workflows/sandbox-tools.yml|.github/workflows/toolchain-export.yml|.github/*.env)
                 ;;
               *)
                 rust_changed=true
-                break
                 ;;
             esac
           done <<< "$changed"
           echo "rust_changed=$rust_changed"
           echo "rust_changed=$rust_changed" >> "$GITHUB_OUTPUT"
+          echo "webui_changed=$webui_changed" >> "$GITHUB_OUTPUT"
 
   python:
     name: Python API
@@ -166,6 +178,83 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh pr comment "${{ github.event.pull_request.number }}" --body-file /tmp/body.md
+
+  webui:
+    name: Web UI
+    needs: docs
+    # 第 2 の画面実装（docs/plans.md §11.6 の W6）。`webui/**` の変更があるときだけ走らせる
+    #（docs ジョブの変更フィルタで `webui_changed` を検知）。Rust の入力だけが変わった PR
+    # ではスキップする。生成物の一致・型検査・Node の回帰・本番ビルドに加えて、`webui/src/wasm/`
+    # を作るための wasm のビルドも回す（git に入れない生成物なので、ここで組めなければ
+    # 画面は動かない）。
+    if: needs.docs.outputs.webui_changed == 'true' && (github.event_name != 'pull_request' || !github.event.pull_request.draft)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: webui/package-lock.json
+      # wasm-bindgen の CLI は Cargo.lock と同じ版を使う（食い違うと wasm-bindgen が
+      # 生成物を読めない）。`wasm` ジョブの trunk と同じく、版をキーにして持っておく。
+      - name: Cache wasm-bindgen CLI
+        id: bindgen-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/wasm-bindgen
+          key: wasm-bindgen-${{ hashFiles('Cargo.lock') }}-x86_64-unknown-linux-musl
+      - name: Install wasm-bindgen CLI
+        if: steps.bindgen-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(awk '/^name = "wasm-bindgen"$/ { getline; gsub(/version = |"/, ""); print; exit }' Cargo.lock)"
+          name="wasm-bindgen-${version}-x86_64-unknown-linux-musl"
+          # tar の中は `<name>/wasm-bindgen` の形なので、一度展開してから PATH の通った場所へ置く
+          # （`-C "$HOME/.cargo/bin"` に流すだけでは、`bin/<name>/wasm-bindgen` になって見つからない）。
+          mkdir -p "$RUNNER_TEMP/wasm-bindgen" "$HOME/.cargo/bin"
+          curl -fsSL --retry 3 "https://github.com/wasm-bindgen/wasm-bindgen/releases/download/${version}/${name}.tar.gz" \
+            | tar xzf - -C "$RUNNER_TEMP/wasm-bindgen"
+          install -m 755 "$RUNNER_TEMP/wasm-bindgen/${name}/wasm-bindgen" "$HOME/.cargo/bin/wasm-bindgen"
+          wasm-bindgen --version
+      - name: Web UI checks (generators, types, tests, build)
+        id: cargo
+        shell: bash
+        run: |
+          set -o pipefail
+          # 生成物（操作 ID・色・文言）が正本どおりか、型検査・IndexedDB の回帰・本番ビルド。
+          # `webui/src/wasm/` は git に入れないので、この中で組む（scripts/webui-build.sh）。
+          bash scripts/webui-check.sh --full 2>&1 | tee /tmp/ci.log
+      - name: Report to the run summary
+        if: always() && steps.cargo.outcome != 'skipped'
+        shell: bash
+        env:
+          CI_LOG: /tmp/ci.log
+          CI_JOB: Web UI
+          CI_KIND: test
+          CI_STATUS: ${{ steps.cargo.outcome }}
+        run: python3 .github/report.py /tmp/body.md || echo "::warning::レポートの生成に失敗しました（合否には影響しません）"
+      - name: Comment on the PR
+        if: failure() && github.event_name == 'pull_request'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 前の手順が skip された（例: wasm-bindgen の導入で落ちた）ときは本体が無いので、
+          # コメントは作らずにジョブの失敗だけを残す（ここで落ちても合否は変わらない）。
+          if [ -f /tmp/body.md ]; then
+            gh pr comment "${{ github.event.pull_request.number }}" --body-file /tmp/body.md
+          fi
 
   fmt:
     name: Rustfmt

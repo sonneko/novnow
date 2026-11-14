@@ -2365,7 +2365,7 @@ checksum = "2bf50223579dc7cdcfb3bfcacf7069ff68243f8c363f62ffa99cf000a6b9c451"
 
 [[package]]
 name = "novnow"
-version = "0.1.2"
+version = "0.1.1"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -2396,6 +2396,20 @@ dependencies = [
  "web-sys",
  "web-time",
  "zip",
+]
+
+[[package]]
+name = "novnow-wasm"
+version = "0.0.0"
+dependencies = [
+ "console_error_panic_hook",
+ "js-sys",
+ "novnow",
+ "serde",
+ "serde_json",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]

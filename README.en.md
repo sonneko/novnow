@@ -173,7 +173,7 @@ novnow structure tree my-novel --json                    # canonical operations 
 
 ## About the Specifications
 
-The editor and the novnow format are specified in the twelve documents below:
+The editor and the novnow format are specified in the thirteen documents below:
 
 - [`overview.md`](./docs/specifications/overview.md): Design principles, terminology, and architecture
 - [`project.md`](./docs/specifications/project.md): Project structure, `project.toml`, and sample layouts
@@ -187,6 +187,7 @@ The editor and the novnow format are specified in the twelve documents below:
 - [`workflows.md`](./docs/specifications/workflows.md): Material collection, export, and performance/quality requirements
 - [`interfaces.md`](./docs/specifications/interfaces.md): CLI, LSP, MCP, Python, and Rust interfaces
 - [`external.md`](./docs/specifications/external.md): Distribution formats (10 desktop builds, 5 wheels, a VS Code extension, and a GitHub Action)
+- [`webui.md`](./docs/specifications/webui.md): The second UI implementation (Svelte + Tauri, run in parallel, and the conditions for replacing the first)
 
 Our website ([https://sonneko.github.io/novnow/](https://sonneko.github.io/novnow/)) has a feature guide, the full diagnostics catalog, and an API reference. The specifications themselves live in this repository under [`docs/specifications/`](./docs/specifications/) and are versioned with the implementation.
 

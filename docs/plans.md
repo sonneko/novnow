@@ -12,13 +12,14 @@
 | 区分 | 状態 | 対象範囲 | 参照 |
 |---|---|---|---|
 | 段階 ①（M0〜M11） | 完了 | コア仕様・全 9 ワークスペース・MCP・CLI・Web 版・ベンチマーク・サンプル一式 | `REF:docs/history.md` |
-| 設計書セクション実装状況 | 実装完了 142 節 / 実装中 0 節 / 未実装・実装計画済み 0 節 / 未実装・未計画 0 節 / 実装待ち 0 節 | 全 12 設計書の `### ` 節（合計 142 節） | `REF:docs/designs/` |
+| 設計書セクション実装状況 | 実装完了 142 節 / 実装中 0 節 / 未実装・実装計画済み 5 節 / 未実装・未計画 0 節 / 実装待ち 0 節 | 全 13 設計書の `### ` 節（合計 147 節） | `REF:docs/designs/` |
 | 仕様変更・修正（F-01〜F-44） | 実装完了（44 件） | UI・エディタ・パレット・辞書・ショートカット・性能等の修正 44 項目 | `REF:docs/plans.md#planned-fixes` |
 | 機能追加（小規模：S-01〜S-18） | 実装完了（18 件） | エージェント例指定・PWA・Zip 導入・形態素波線等の小規模機能追加 18 項目 | `REF:docs/plans.md#planned-small-features` |
 | 機能追加（比較的大規模：L-01） | 実装済み（CLI・デスクトップ） | 既存の本文テキストから `novnow` に移行するための手段の提供 | `REF:docs/plans.md#unplanned-large` |
 | 段階 ②（追加仕様 1〜27） | 実装済み・検証完了（#1〜27） | 予約済みの追加機能 27 項目（10 個の縫い代で受け入れ準備済み） | `REF:docs/plans.md#stage-2` |
 | 段階 ③（§19 外部インターフェース） | 実装済み・検証完了（H1〜H7。Python 拡張もサンドボックスでビルドし pytest まで通る。正式な wheel 検証は CI のホイール行列 `REF:.github/workflows/wheels.yml`。`REF:docs/plans.md` §5.5・§5.6） | Rust API・Python API・LSP・MCP 拡張・CLI 拡張による GUI 全機能のヘッドレス公開 | `REF:docs/plans.md#stage-3` |
 | 配布（D-01〜D-20） | v0.1.0公開済み。既知の問題は公開版一覧で管理 | 5 形態・17 成果物とSHA256SUMS、公開・検査ワークフロー | `REF:docs/plans.md#distribution` |
+| 第 2 の画面実装（仕様 §21） | 計画確定・未着手（W1 の文書整備だけ完了） | Svelte + TypeScript の画面と Tauri のネイティブ実行を、第 1 の画面と並行して作る | `REF:docs/plans.md#webui` |
 <!-- SYNC:END stage1-status -->
 
 ---
@@ -1033,7 +1034,7 @@ CI の docs ジョブに入れた。規則は 1 文 60 字・1 段落 3 文・�
 <a id="distribution"></a>
 ## 7. 配布の実装計画（5 形態・18 通り。仕様は §20、設計は `REF:docs/designs/external.md`）
 
-**状態**: 実装済み。5 形態の公開経路・リリースのワークフロー・VSCode 拡張・複合アクションをそろえた。ブラウザ版だけが公開済みで、その他は初回リリースまで未提供。実際の公開と 3 OS / 5 対象環境のリモート検証は、リリース時の Actions で行う。
+**状態**: 実装済み・公開済み。5 形態の公開経路・リリースのワークフロー・VSCode 拡張・複合アクションをそろえ、`v0.1.0`（2026-10-25）以降の番号付きリリースで 5 形態すべてを利用できる（`v0.1.1`・`v0.1.2` を公開済み。最新の公開版は `REF:docs/distribution.md` の「いまの状態」と `REF:website/src/data/release.ts` を見る）。公開と 3 OS / 5 対象環境のリモート検証はリリース時の Actions が行い、公開後の実測は `REF:.github/workflows/release-audit.yml` が版ごとに自動で繰り返す。
 
 **前提（2026-10-23 のユーザー指示）**
 
@@ -2161,3 +2162,182 @@ Issue #55 で報告された 24 件の仕様不適合（重大・中程度 13 �
 | 14–24 | Web 旧形式プロジェクト自動移行・PWA フォント取得・IndexedDB クォータ表示、正規表現検索の無効パターン通知と `W085` 案内、CLI `--color` / `--json` / 終了コード、LSP `didChangeWatchedFiles` 再同期、Python `Session` コンテキストマネージャ・`LockPoisoned`、MCP 1MB 上限保護、配役/プロンプト編集反映など | `REF:src/adapters/storage_idb.rs`, `REF:src/ui/web.rs`, `REF:src/cli/mod.rs`, `REF:src/lsp/methods.rs`, `REF:python/novnow-py/src/lib.rs`, `REF:src/adapters/mcp_stdio.rs`, `REF:tests/cli.rs`, `REF:tests/lsp.rs`, `REF:tests/mcp_stdio.rs`, `REF:tests/workspaces.rs` |
 | C | 設計書（`REF:docs/designs/ui.md`, `REF:docs/designs/workflows.md`, `REF:docs/designs/editing.md`, `REF:docs/designs/syntax.md`, `REF:docs/designs/agent.md`, `REF:docs/designs/platform.md`, `REF:docs/designs/interfaces.md`）の状態・参照・実装範囲の記述整合 | 本節および各設計書の対応節 |
 
+
+---
+
+<a id="webui"></a>
+## 11. 第 2 の画面実装（Web UI = Svelte + TypeScript / ネイティブ = Tauri）の計画（状態: 計画確定・未着手）
+
+仕様は `REF:docs/specifications/webui.md`（§21）、設計は `REF:docs/designs/webui.md`（§21）に置いた。現在の画面（egui を `trunk` で Web 化し、`eframe` でデスクトップ化したもの）は**そのまま残す**。第 2 の画面を並行して作り、パリティが揃ってから置き換える。
+
+- **なぜ並行にするか**: 第 1 は既に全機能・全診断・全キー・実機検証まで終わっている。作り直しの途中で第 1 を止めると、利用者から見て機能が減る期間ができる。2 系統を同じ機能核（`REF:src/app/mod.rs` のセッションと 121 の正規操作）の上に置けば、`core` / `app` の修正は両方へ同時に効き、二重実装の負債も出ない。
+- **依存の追加**: `webui/`（Svelte + TypeScript + Vite）と `REF:webui/...` の Tauri 2、`REF:crates/novnow-wasm/...` の wasm-pack。npm 側の依存は `website/`・`vscode/` と同じく `package-lock.json` を持ち、`npm ci` で固定する。Rust 側は新しいクレートを `core` / `app` に足さない（wasm-bindgen は既に wasm 目標で使用済み）。追加の判断は `REF:docs/add-dependencies.md` の手順に従う。
+
+<a id="webui-w1"></a>
+### 11.1 W1: 文書と骨組み（仕様・設計・計画、ディレクトリの新設）
+
+- 完了条件: 本章と §21 の仕様・設計が入っている。`REF:docs/developers.md` §3 のツリー・§1.1 のファイル対の表・§7 のテスト戦略が 13 ファイル対へ追随している。`REF:docs/script/duplicate.py` と `REF:docs/script/reference.py` が緑。
+- この段階では `webui/` を作らない（空のディレクトリを置かない）。
+
+<a id="webui-w2"></a>
+### 11.2 W2: WASM の橋渡しと画面の骨格
+
+- `REF:crates/novnow-wasm/...` を作り、`NovnowSession`（`open` / `run` / `poll_events` / `flush`）を wasm-pack で公開する。Host は `REF:src/app/memory_host.rs` を土台にした「メモリ正本＋IndexedDB 書き込みキュー」。
+- `webui/` にシェル（ヘッダ・文脈ビュー・節エディタ・参照ペイン・ステータスバー）と `write` ワークスペースだけを作る。キー入力・IME・自動保存の 3 つは W2 の受け入れ条件に含める（後回しにしない。ここが崩れると後続の画面を作り直すことになる）。
+- 受け入れ: 手元で `npm run dev` を起動し、サンプル作品を開いて打鍵・節移動・保存ができ、`session.flush()` の後に再読み込みしても本文が残る。
+
+<a id="webui-w3"></a>
+### 11.3 W3: 生成物（文言・テーマ・操作 ID）の一本化
+
+- `scripts/i18n-ts.py`（未作成） が `REF:src/ui/i18n/*.toml` から `catalog.ts` を作り、`scripts/theme-ts.py`（未作成） が仕様 §11.1 の表から `tokens.ts` を作る。どちらも `--check` を持たせ、`REF:scripts/verify.sh` の `site-check` と同じ位置で一致を強制する。
+- 操作 ID の一覧は `REF:tests/golden/api_catalog.json` から取り、TS の定数と突き合わせる（`REF:tests` の Rust 側と同じ「カタログが正本」の形）。
+- 受け入れ: 第 1 の `ja.toml` を 1 行直すと、第 2 の画面の文言も同じ 1 行で変わる。CSS 変数は仕様の表と一致する。
+
+<a id="webui-w4"></a>
+### 11.4 W4: 残りのワークスペースとブラウザ提供
+
+- `plot-episode` / `plot-outline` / `idea` / `material` / `cast` / `reader` / `agent` / `review` を順に作る。§10 の節ごとに、対応する画面仕様（§9.1〜§9.10）の要件を満たしたことを確認して次へ進む。
+- `scripts/webui-build.sh`（未作成） でビルドし、Pages の `webui/` に出す。第 1 の `app/` はそのまま残す。Service Worker とマニフェストを付け、オフライン起動を確認する。
+- 受け入れ: `webui/tests/coverage.mjs` の `pending` が 0 件。オフラインで起動・執筆・保存ができる。第 1 の保存領域（DB 名 `novnow`）と混ざらない。
+
+<a id="webui-w5"></a>
+### 11.5 W5: Tauri によるネイティブ実行（開発版）
+
+- `REF:webui/...`（未作成）に `src-tauri` を置き、コマンド 4 つ（`open` / `run` / `poll_events` / `poll_external`）を実装する。Host は `REF:src/app/fs_host.rs` をそのまま使う。
+- CI の成果物としてだけ配る（§20 の 5 形態には加えない）。`REF:scripts/release-matrix.py` と `REF:action.yml` は触らない。
+- 受け入れ: 同じ作品をブラウザ版とネイティブ版で開き、保存後のファイルが 1 バイトも違わないこと。規則 10 の検査（`REF:tests/layering.rs`）が緑のままであること。
+
+<a id="webui-w6"></a>
+### 11.6 W6: 検証の配線（CI・実機チェックリスト）
+
+- `REF:scripts/verify.sh` に `webui` ジョブ（型検査・単体・ビルド・パリティ）を足す。Actions の使用時間を抑えるため、`docs` ジョブの変更フィルタに `webui/**` を加え、`webui` の変更があるときだけ走らせる。
+- 版の一元化: `webui/package.json` と `tauri.conf.json` の版を `REF:scripts/release-matrix.py --bump` の対象に加える。
+- `REF:docs/developers.md` §4.9（実機チェックリスト）に、WebView の IME・日本語入力・HiDPI の行を足す。
+
+<a id="webui-w7"></a>
+### 11.7 W7: パリティ判定と置き換えの判断
+
+- `REF:crates/novnow-wasm/...`（未作成）の Rust 側ではなく、Node 側の回帰で、カタログ全 121 操作に画面から到達できることを判定する（`webui/tests/parity.mjs`）。
+- `webui/src/lib/coverage.ts` の `pending` を 0 にし、`REF:docs/specifications/webui.md` §21.5.2 の 5 条件を満たしたことを記録する。置き換えと §20 の改訂は、所有者の承認を得てから別 PR で行う。
+
+<a id="webui-parity"></a>
+### 11.8 受け入れ基準（W1〜W7 共通）
+
+1. 第 1 の画面実装に退行がない（`REF:scripts/verify.sh` の全ジョブが緑）。
+2. 第 2 の画面で、同じ操作が同じ JSON・同じファイル内容を返す（`webui/tests/parity.mjs` と、`REF:tests/api_parity.rs` が守る仕様表）。
+3. 仕様書（`REF:docs/specifications/`）を第 2 のために緩めていない。
+4. 未提供の機能は「未提供」と表示され、黙って別の結果に置き換わらない。
+5. 規則 10（`REF:docs/specifications/platform.md` §13.1）が両系統で守られる。
+
+### 11.9 リスクと対策
+
+| リスク | 対策 | 状態 |
+|---|---|---|
+| 2 系統のキー割当・文言・色が食い違う | 文言とテーマは 1 か所から生成する（W3）。キーは `Command` 名を第 1 と共有する | 未然に防ぐ（W3 の生成物の `--check`） |
+| ブラウザの Host が非同期で `Session` の同期 API と合わない | メモリ正本＋書き込みキュー（W2）。IndexedDB の失敗は状態機械の `error` として見せる | 設計で回避（§21.3 の Host） |
+| IME の挙動が WebView ごとに違う | `composition*` と 2 秒のフェイルセーフで統一し、実機チェックリストに追加する（W6） | 第 1 の規則をそのまま使う |
+| ビルド時間と Actions の使用量が増える | `webui/**` の変更時だけ走らせる（W6）。`npm ci` のキャッシュを使う | 未然に防ぐ（W6） |
+| 第 2 の完成が遅れて 2 系統が長期化する | 置き換えの条件（§21.5.2）を先に決め、`pending` の件数を公開して進み具合を見えるようにする | 仕様 §21.5 で先に決めた |
+| 配布形態（§20）の数・名前が揺れる | 置き換えまで §20 を触らない（W5）。改訂は承認を得た別 PR にする | 未然に防ぐ（`REF:docs/script/reference.py` の検査 12 が数を見張る） |
+
+### 11.10 実施記録（2026-11-14: W1）
+
+W1（文書整備）だけを実施した。`webui/`・`crates/novnow-wasm/` は作っていない（空のディレクトリを置かない方針。`REF:docs/developers.md` §3）。
+
+- 新設: `REF:docs/specifications/webui.md`（§21）と `REF:docs/designs/webui.md`（§21）。設計書の 5 節はすべて「未実装・実装計画済み」（W1〜W7 を指す）。
+- 追記のみの追随: `REF:docs/developers.md` §1.1（12 → 13 ファイル対）・§2.1（Node / wasm-pack / Tauri の前提）・§3（予定ツリー。実物には無いので「これから加わる」と明記）・§4.6.2（検証の地図に 1 行）・§7.5（第 2 のテスト方針）・§8.10（注意点 30〜36）、SYNC 表（13 設計書・147 節）、`REF:docs/script/reference.py` の章番号表、`REF:docs/script/test_reference.py` の期待集合、`REF:scripts/docs-site.py` の `SPEC_ORDER`、README（日・英）・`REF:GUIDE.md`・サイトの「13 冊」表記。経緯は `REF:docs/history.md` の `D-018`。
+- 検証: `python3 docs/script/duplicate.py`（13 specifications / 13 designs / 142 完了・5 計画済み）、`python3 docs/script/reference.py`（13 項目）、`python3 -B -m unittest discover -s docs/script`（83 件）、`python3 scripts/docs-site.py --check`（docs と一致）が緑。Rust・Node のビルドは変更が無いため回していない。
+
+<a id="webui-parallel"></a>
+### 11.11 並列開発戦略（複数エージェントで同時に進める）
+
+W2〜W7 を複数のエージェントが同時に進めても衝突が小さくなるように、**触ってよいファイルを先に決め、共有ファイルは短い PR で先に着地させる**。ねらいは「迷わないこと」であり、調整会議を増やすことではない。
+
+#### 11.11.1 3 つの原則
+
+1. **1 ファイル 1 所有者**: ふだん 1 つのファイルを触るのは 1 レーンだけにする。共有ファイル（下の表）は所有者を決め、他は触らない。
+2. **生成物は生成器だけが書く**: `catalog.ts` / `tokens.ts` / `ops.ts` の一覧部分 / `package-lock.json` / サイトの生成物は、スクリプトの出力だけを置く（W3）。手で直さないので、文言や色の変更は生成器の入力（`src/ui/i18n/*.toml`・仕様 §11.1）1 か所で済み、レーン間で衝突しない。
+3. **共有ファイルは先に、小さく**: 共有ファイルを触る変更は、レーンの作業より先に単独の小さな PR で着地させる。着地後は他レーンは rebase するだけでよい。
+
+#### 11.11.2 レーン分割（W2 のあと）
+
+W2（橋渡し＋シェル＋`write`）は全レーンの前提なので、**最初は 1 本で仕上げる**。W2 が着地したら次のレーンを並列に開く。
+
+| レーン | 担当 | 主に触るファイル | 前提 |
+|---|---|---|---|
+| L0 基盤（1 本） | W2 → W3 → W6 | `crates/novnow-wasm/`・`webui/src/lib/bridge/`・`shell/`・`scripts/*-ts.py`・`webui-build.sh` | なし |
+| L1 本文 | `write`・節エディタ・文脈ビュー | `webui/src/lib/workspaces/write/`・`editor/`・`context/` | W2・W3 |
+| L2 プロット | `plot-episode`・`plot-outline` | `webui/src/lib/workspaces/plot-episode/`・`plot-outline/` | W2・W3 |
+| L3 知識 | `idea`・`material` | `webui/src/lib/workspaces/idea/`・`material/` | W2・W3 |
+| L4 人物・読者 | `cast`・`reader` | `webui/src/lib/workspaces/cast/`・`reader/` | W2・W3 |
+| L5 管制・点検 | `agent`・`review` | `webui/src/lib/workspaces/agent/`・`review/` | W2・W3 |
+| L6 ネイティブ | W5（Tauri） | `webui/src-tauri/` だけ | W2 |
+| L7 配線・判定 | W6・W7 | `webui/tests/`・`coverage.ts`・`verify.sh`・CI | 各レーンの着地後 |
+
+- レーンは**ディレクトリで分ける**。1 つのワークスペースは 1 つのディレクトリに閉じ、他のレーンのディレクトリを import しない（共通部品は L0 の `shell/`・`components/` に置き、L0 が所有する）。
+- L6（ネイティブ）は画面を触らない。L7 は判定と配線だけを行い、画面を直さない（直す必要が出たら該当レーンへ戻す）。
+
+#### 11.11.3 共有ファイルと扱い
+
+| 共有ファイル | 所有者 | 他レーンの扱い |
+|---|---|---|
+| `webui/package.json` / `package-lock.json` | L0 | 依存を足したくなったら L0 へ依頼（自分で足さない） |
+| `webui/src/lib/bridge/`（`run` / `open` / `poll_events` / `flush` の型） | L0 | W2 で確定。以降は**追加のみ**（既存の引数・戻り値を変えない） |
+| `webui/src/lib/shell/` / `components/` | L0 | 変更は L0 へ。レーンは使うだけ |
+| ルーター・ワークスペース登録表 | L0 | レーンは登録を追加しない。L0 がレーンの着地に合わせて 1 行足す |
+| `webui/src/lib/i18n/catalog.ts` / `theme/tokens.ts` / `ops.ts`（生成部分） | 生成器 | 手で編集しない |
+| `docs/plans.md`・`docs/handoff.md`・SYNC 表 | 進行役 1 名 | 各レーンは追記しない。実施記録は進行役がまとめて書く |
+| `docs/specifications/**`・`docs/designs/**` | 変更提案のみ | 仕様の変更は人間の承認が要る。レーンは実装を合わせる |
+| `REF:src/ui/i18n/*.toml` | L0（文言の追加だけ） | 文言を足すときは L0 へ。キーを勝手に増やさない |
+| `src/**`（機能核） | なし（凍結） | 第 2 のために `src/` を変えない。必要なら先に仕様 §19 と相談する |
+| `tests/golden/api_catalog.json` | 生成器 | 再生成だけ |
+| `Cargo.toml` / `Cargo.lock` | L0 | `crates/novnow-wasm` の追加は L0 が W2 で行う |
+
+#### 11.11.4 ブランチ・PR・着地の順序
+
+- 1 レーン = 1 ブランチ = 1 系列の PR。名前は `webui/<W番号>-<レーン>`（例 `webui/w4-write`）。`develop` 向けに出す。
+- **着地の順序**: 共有ファイルを持つ PR → 依存するレーンの PR。L0 の PR が先、L6・L7 は最後。
+- 1 つの PR は 1 つの関心事だけにする。画面と生成器と CI を 1 つの PR に混ぜない（混ぜた瞬間に他レーンが rebase できなくなる）。
+- 毎朝（または作業開始時に）`git fetch` して自分のブランチを `develop` へ rebase する。rebase がつらい変更（共有ファイルの同時編集）は、そもそも上の表の違反である。
+- 生成物の衝突（`package-lock.json`・`catalog.ts`）は**手で解決しない**。`npm install` と生成器の再実行で作り直し、差分が説明できることだけ確かめる。
+
+#### 11.11.5 インターフェースの凍結（衝突を減らす核心）
+
+- W2 の終わりに、画面と橋渡しのあいだの型を `webui/src/lib/bridge/types.ts` に固定する（`open` / `run` / `poll_events` / `flush` / イベント形）。以降のレーンはこの型を読むだけで、変更権を持たない。
+- 操作 ID は `REF:tests/golden/api_catalog.json` が正本。レーンは文字列を手書きせず、生成された `ops.ts` を参照する（タイポで衝突しない）。
+- 画面の状態は「セッションの状態を読む」だけにする。レーンが独自にストア（Svelte の store）を増やすときは、自分のワークスペース配下に閉じる。
+- CSS は `tokens.ts` の変数とコンポーネントローカルの `<style>` だけを使う。グローバルの CSS を書き換えない（`app.css` は L0 が所有する）。
+
+#### 11.11.6 検証をレーンごとに閉じる
+
+- 各レーンは `webui/tests/<lane>.test.mjs` を 1 つ持ち、自分のワークスペースだけを確かめる。`parity.mjs` / `coverage.mjs` は L7 が所有し、レーンは触らない。
+- L7 はレーンの着地ごとに `coverage.ts` の `pending` を 1 行減らす。`pending` の件数がそのまま進み具合になる（§21.5.1 の公開にも使う）。
+- CI は `webui/**` の変更があるときだけ走らせる（W6）。レーンごとの PR で `webui` ジョブが緑になることを着地の条件にする。
+
+#### 11.11.7 進行役（1 名）の仕事
+
+同時に走るレーンが 3 本を超えたら、進行役を 1 名置く。進行役は画面を書かない。
+
+1. 共有ファイルの変更を小さな PR にして先に着地させる。
+2. ルーター・登録表・生成物の再生成をまとめて行う。
+3. `docs/plans.md` §11・`REF:docs/handoff.md`・SYNC 表の更新を 1 か所に集める（レーンごとに書かせない）。
+4. レーン間で同じ部品を作っていないかを見て、L0 の `components/` へ寄せる。
+5. 週 1 回、`pending` の件数と着地済みレーンを `REF:docs/handoff.md` に記録する。
+
+#### 11.11.8 クリティカルパスと目安
+
+```
+W1（済）
+ └→ L0: W2（橋渡し＋シェル＋write）──┬→ L1 本文（仕上げ・磨き）
+                                      ├→ L2 プロット
+                                      ├→ L3 知識
+                                      ├→ L4 人物・読者
+                                      ├→ L5 管制・点検
+                                      └→ L6 Tauri（W2 直後から並行可）
+                                                    ↓（全レーン着地）
+                                              L7: W6 配線 → W7 パリティ判定
+```
+
+- **並列度の目安は 4〜6 レーン**。それ以上に分けると L0 の共有部品待ちで止まる時間が増える。
+- 各レーンの見積もりは、ワークスペース 1 つあたり W2 の `write` を 1.0 とした相対値で置く（初回の実測後にここへ書く。推測で先に埋めない）。
+- 遅れてよいのは L2〜L5。W2・W3・W6・W7 は遅らせない（他が全部止まる）。
