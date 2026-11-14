@@ -129,7 +129,11 @@ cd webui/src-tauri/bridge && cp ../../../Cargo.lock Cargo.lock && cargo test
 ## 窓を動かす（Tauri が要る）
 
 Linux は `libwebkit2gtk-4.1-dev`・`libappindicator3-dev`・`librsvg2-dev`（`REF:docs/developers.md` §2.1）。
+`pkg-config` が `dbus-1` を見つけられない環境では `libdbus-1-dev` も入れる（tauri の既定の feature
+`dbus` が、`tao` → `libdbus-sys` を通して、組むときに探す）。
 Tauri の CLI は無くてもよい（`beforeDevCommand` / `beforeBuildCommand` は CLI を使う人のための設定）。
+下の `cargo build` は、CLI（2.12.4）の `tauri build --no-bundle` が走らせる
+`cargo build --bins --features tauri/custom-protocol --release` に `--locked` を足したもの。
 
 ```bash
 # 開発: Vite の開発サーバ（ポート 5273）を見る
