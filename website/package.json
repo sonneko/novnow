@@ -10,7 +10,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "check:site": "astro build && node --test integrations/base-links.test.mjs && python3 ../scripts/website-check.py --dir dist --website-only"
+    "check:site": "astro build && node --test integrations/base-links.test.mjs integrations/search-index.test.mjs && python3 ../scripts/website-check.py --dir dist --website-only"
   },
   "dependencies": {},
   "devDependencies": {

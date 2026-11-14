@@ -1,0 +1,375 @@
+---
+// サイト内検索（仕様 §18.5.1）。索引はビルド時に作る静的な JSON だけで、
+// 検索語を外部のサービスへ送らない（fetch は同じ公開元の 1 本のみ）。
+// 索引の生成は `website/integrations/search-index.mjs`、対象漏れの検査は
+// `scripts/website-check.py`、ブラウザでの実地検査は `scripts/pages-e2e.mjs`。
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Header from "./Header.astro";
+import Footer from "./Footer.astro";
+import { translations, type Language } from "../data/i18n";
+
+interface Props {
+  lang: Language;
+}
+const { lang } = Astro.props;
+const t = translations[lang].search;
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+// `search-index` は INDEX_DIRECTORY（website/integrations/search-index.mjs）と同じ名前。
+const indexUrl = `${base}/search-index/${lang}.json`;
+---
+
+<BaseLayout title={t.title} lang={lang} description={t.description}>
+  <Header lang={lang} currentPath={`/${lang}/search`} />
+  <main class="container search-page">
+    <h1>{t.title}</h1>
+    <p class="lead">{t.lead}</p>
+
+    <div
+      class="search"
+      data-search-root
+      data-lang={lang}
+      data-index-url={indexUrl}
+      data-labels={JSON.stringify(t)}
+    >
+      <label class="field">
+        <span class="visually-hidden">{t.inputLabel}</span>
+        <input
+          id="site-search"
+          class="input"
+          type="search"
+          data-search-input
+          placeholder={t.placeholder}
+          autocomplete="off"
+          autocapitalize="off"
+          spellcheck="false"
+          role="combobox"
+          aria-expanded="false"
+          aria-autocomplete="list"
+          aria-controls="site-search-results"
+          aria-describedby="site-search-status"
+        />
+      </label>
+      <p class="status" id="site-search-status" data-search-status data-state="loading">{t.loading}</p>
+      <ul class="results" id="site-search-results" data-search-results role="listbox" aria-label={t.resultsLabel}></ul>
+      <noscript><p class="status" data-state="error">{t.noscript}</p></noscript>
+    </div>
+
+    <p class="hint" data-search-hint>{t.hint}</p>
+  </main>
+  <Footer lang={lang} />
+</BaseLayout>
+
+<script>
+  // 索引は同じ公開元から読むだけ（相対 URL の fetch 1 本）。検索語はどこにも送らない。
+  const MAX_RESULTS = 50;
+  const DEBOUNCE_MS = 120;
+
+  interface Entry {
+    url: string;
+    lang: string;
+    title: string;
+    headings: string[];
+    text: string;
+  }
+  type Labels = Record<string, string>;
+
+  const root = document.querySelector<HTMLElement>("[data-search-root]");
+
+  if (root) {
+    const input = root.querySelector<HTMLInputElement>("[data-search-input]")!;
+    const status = root.querySelector<HTMLElement>("[data-search-status]")!;
+    const list = root.querySelector<HTMLElement>("[data-search-results]")!;
+    const labels: Labels = JSON.parse(root.dataset.labels ?? "{}");
+    const lang = root.dataset.lang ?? "ja";
+    const indexUrl = root.dataset.indexUrl ?? "";
+    let pages: Entry[] = [];
+    let shown: Entry[] = [];
+    let active = -1;
+    let timer = 0;
+
+    const fill = (template: string, vars: Record<string, string | number>) =>
+      (template ?? "").replace(/\{(\w+)\}/g, (match, key: string) =>
+        key in vars ? String(vars[key]) : match);
+
+    const setStatus = (text: string, state: string) => {
+      status.textContent = text;
+      status.dataset.state = state;
+    };
+
+    const occurrences = (haystack: string, needle: string) => {
+      let count = 0;
+      let from = haystack.indexOf(needle);
+      while (from !== -1) {
+        count += 1;
+        from = haystack.indexOf(needle, from + needle.length);
+      }
+      return count;
+    };
+
+    // 全ての語を含むページだけを出す（題・節の見出し・本文のどこにあってもよい）。
+    const score = (entry: Entry, tokens: string[]) => {
+      const title = entry.title.toLowerCase();
+      const headings = entry.headings.join("\n").toLowerCase();
+      const text = entry.text.toLowerCase();
+      let total = 0;
+      for (const token of tokens) {
+        const inTitle = occurrences(title, token);
+        const inHeadings = occurrences(headings, token);
+        const inText = occurrences(text, token);
+        if (!inTitle && !inHeadings && !inText) return 0;
+        total += inTitle * 100 + inHeadings * 30 + Math.min(inText, 8) * 4;
+      }
+      return total;
+    };
+
+    const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    // 一致した語を <mark> で囲む。文言は必ず textContent で入れる（索引は生成物だが、
+    // innerHTML にしないことで表示崩れと注入の両方を防ぐ）。
+    const appendHighlighted = (parent: HTMLElement, text: string, tokens: string[]) => {
+      if (!tokens.length) {
+        parent.append(text);
+        return;
+      }
+      const pattern = new RegExp(`(${tokens.map(escapeRegExp).join("|")})`, "gi");
+      let last = 0;
+      for (const match of text.matchAll(pattern)) {
+        const start = match.index ?? 0;
+        if (start > last) parent.append(text.slice(last, start));
+        const mark = document.createElement("mark");
+        mark.textContent = match[0];
+        parent.append(mark);
+        last = start + match[0].length;
+      }
+      if (last < text.length) parent.append(text.slice(last));
+    };
+
+    const snippet = (entry: Entry, tokens: string[]) => {
+      const lower = entry.text.toLowerCase();
+      let at = -1;
+      for (const token of tokens) {
+        const found = lower.indexOf(token);
+        if (found !== -1 && (at === -1 || found < at)) at = found;
+      }
+      if (at === -1) return entry.text.slice(0, 120);
+      const start = Math.max(0, at - 40);
+      const end = Math.min(entry.text.length, at + 120);
+      return `${start > 0 ? "…" : ""}${entry.text.slice(start, end)}${end < entry.text.length ? "…" : ""}`;
+    };
+
+    const setActive = (index: number) => {
+      const items = Array.from(list.querySelectorAll<HTMLElement>("[data-search-result]"));
+      active = index;
+      items.forEach((item, position) => {
+        item.setAttribute("aria-selected", position === index ? "true" : "false");
+        if (position === index) item.scrollIntoView({ block: "nearest" });
+      });
+      if (index >= 0 && items[index]) input.setAttribute("aria-activedescendant", items[index].id);
+      else input.removeAttribute("aria-activedescendant");
+      input.setAttribute("aria-expanded", items.length ? "true" : "false");
+    };
+
+    const render = (results: Entry[], tokens: string[]) => {
+      list.replaceChildren();
+      shown = results.slice(0, MAX_RESULTS);
+      shown.forEach((entry, index) => {
+        const item = document.createElement("li");
+        item.id = `site-search-result-${index}`;
+        item.className = "result";
+        item.setAttribute("role", "option");
+        item.setAttribute("aria-selected", "false");
+        item.dataset.searchResult = "";
+        const link = document.createElement("a");
+        link.href = entry.url;
+        const title = document.createElement("span");
+        title.className = "result-title";
+        appendHighlighted(title, entry.title || entry.url, tokens);
+        const where = document.createElement("span");
+        where.className = "result-url";
+        where.textContent = entry.url;
+        const body = document.createElement("span");
+        body.className = "result-snippet";
+        appendHighlighted(body, snippet(entry, tokens), tokens);
+        link.append(title, where, body);
+        item.append(link);
+        list.append(item);
+      });
+      setActive(-1);
+      setStatus(
+        shown.length ? fill(labels.results, { count: shown.length }) : fill(labels.none, {}),
+        shown.length ? "results" : "none",
+      );
+    };
+
+    const search = (query: string) => {
+      const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+      if (!tokens.length) {
+        list.replaceChildren();
+        shown = [];
+        setActive(-1);
+        setStatus(fill(labels.ready, { count: pages.length }), pages.length ? "ready" : "loading");
+        return;
+      }
+      const ranked = pages
+        .map((entry) => ({ entry, points: score(entry, tokens) }))
+        .filter((item) => item.points > 0)
+        .sort((a, b) => b.points - a.points || (a.entry.url < b.entry.url ? -1 : 1))
+        .map((item) => item.entry);
+      render(ranked, tokens);
+    };
+
+    const load = async () => {
+      try {
+        const response = await fetch(indexUrl, { credentials: "omit" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const payload = await response.json();
+        pages = Array.isArray(payload?.pages) ? payload.pages : [];
+        setStatus(fill(labels.ready, { count: pages.length }), "ready");
+        if (input.value.trim()) search(input.value);
+      } catch {
+        setStatus(fill(labels.error, { lang }), "error");
+      }
+    };
+
+    input.addEventListener("input", () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => search(input.value), DEBOUNCE_MS);
+    });
+
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        if (!shown.length) return;
+        event.preventDefault();
+        const next = event.key === "ArrowDown"
+          ? (active + 1) % shown.length
+          : (active <= 0 ? shown.length - 1 : active - 1);
+        setActive(next);
+        return;
+      }
+      if (event.key === "Enter") {
+        const current = active >= 0 ? list.querySelector<HTMLElement>(`#site-search-result-${active} a`) : null;
+        if (current) {
+          event.preventDefault();
+          current.click();
+        }
+        return;
+      }
+      if (event.key === "Escape") {
+        input.value = "";
+        search("");
+        input.setAttribute("aria-expanded", "false");
+      }
+    });
+
+    // マウス無しで入力欄へ届くようにする（編集中の入力を奪わない）。
+    document.addEventListener("keydown", (event) => {
+      const target = event.target as HTMLElement | null;
+      const typing = !!target && (target === input || /^(input|textarea|select)$/i.test(target.tagName)
+        || target.isContentEditable);
+      if (typing) return;
+      if (event.key === "/" || ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k")) {
+        event.preventDefault();
+        input.focus();
+        input.select();
+      }
+    });
+
+    void load();
+  }
+</script>
+
+<style>
+  .search-page {
+    max-width: 900px;
+    padding-block: 3rem;
+    line-height: 1.9;
+  }
+  h1 {
+    font-size: clamp(2rem, 4vw, 2.8rem);
+    margin-bottom: 1rem;
+  }
+  .lead {
+    color: var(--text-muted, #5b6472);
+    margin-bottom: 2rem;
+  }
+  .field {
+    display: block;
+  }
+  .input {
+    width: 100%;
+    padding: 0.85rem 1rem;
+    font-size: 1.05rem;
+    border: 1px solid rgba(153, 161, 179, 0.45);
+    border-radius: 10px;
+    background: var(--bg-subtle, #fff);
+    color: inherit;
+  }
+  .input:focus-visible {
+    outline: 3px solid #087ea4;
+    outline-offset: 2px;
+  }
+  .status {
+    margin-top: 0.75rem;
+    font-size: 0.95rem;
+    color: var(--text-muted, #5b6472);
+  }
+  .status[data-state="error"] {
+    color: #b42318;
+  }
+  .hint {
+    margin-top: 1.5rem;
+    font-size: 0.88rem;
+    color: var(--text-muted, #5b6472);
+  }
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .results {
+    list-style: none;
+    margin: 1rem 0 0;
+    padding: 0;
+  }
+  /* 結果はスクリプトが作る要素なので、スコープ付きの選択子は :global で書く。 */
+  .results :global(.result) {
+    border-bottom: 1px solid rgba(153, 161, 179, 0.25);
+  }
+  .results :global(.result[aria-selected="true"]) {
+    background: rgba(8, 126, 164, 0.08);
+    box-shadow: inset 3px 0 0 #087ea4;
+  }
+  .results :global(a) {
+    display: block;
+    padding: 0.85rem 0.75rem;
+    text-decoration: none;
+    color: inherit;
+  }
+  .results :global(.result-title) {
+    display: block;
+    font-weight: 650;
+  }
+  .results :global(.result-url) {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-muted, #5b6472);
+    word-break: break-all;
+  }
+  .results :global(.result-snippet) {
+    display: block;
+    font-size: 0.92rem;
+    margin-top: 0.25rem;
+  }
+  .results :global(mark) {
+    background: rgba(255, 214, 102, 0.55);
+    color: inherit;
+    padding: 0 0.1rem;
+    border-radius: 3px;
+  }
+</style>

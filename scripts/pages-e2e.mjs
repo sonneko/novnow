@@ -142,7 +142,8 @@ try {
   const page = await context.newPage();
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 });
-    for (const route of ['ja/', 'en/', 'ja/manual/start/', 'en/manual/start/', 'ja/api/', 'en/api/']) {
+    for (const route of ['ja/', 'en/', 'ja/manual/start/', 'en/manual/start/', 'ja/api/', 'en/api/',
+                         'ja/search/', 'en/search/']) {
       for (const suffix of ['', '/']) {
         const response = await page.goto(`${origin}/novnow/${route.replace(/\/$/, '')}${suffix}`);
         assert.equal(response.status(), 200);
@@ -154,8 +155,58 @@ try {
   await page.goto(`${origin}/novnow/en/manual/start/`);
   await page.locator('[aria-label="Language"] a').first().click();
   await page.waitForURL('**/novnow/ja/manual/start/');
-  await context.close();
   console.log(`${engine}: merged website, both slash forms, desktop/mobile and language switching PASS`);
+
+  // サイト内検索（仕様 §18.5.1）: 索引はビルド時に作った同じ公開元の JSON だけで、
+  // 検索語を外部のサービスへ送らない。結果は矢印キーで移動し、Enter で開く。
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const siteOrigin = new URL(origin).origin;
+  const offsite = [];
+  const watch = request => { if (!request.url().startsWith(`${siteOrigin}/`)) offsite.push(request.url()); };
+  page.on('request', watch);
+  for (const [lang, term, allowed] of [['ja', '保存', ['/novnow/ja/', '/novnow/guide/']], ['en', 'save', ['/novnow/en/']]]) {
+    await page.goto(`${origin}/novnow/${lang}/search/`);
+    await page.waitForFunction(() => document.querySelector('[data-search-status]')?.dataset.state === 'ready',
+      null, { timeout: 20000 });
+    const input = page.locator('[data-search-input]');
+    await input.fill(term);
+    await page.waitForSelector('[data-search-result]');
+    const hrefs = await page.locator('[data-search-result] a').evaluateAll(links => links.map(link => link.getAttribute('href')));
+    assert(hrefs.length > 0, `${lang}: no results for ${term}`);
+    assert(hrefs.every(href => allowed.some(prefix => href.startsWith(prefix))), `${lang}: ${JSON.stringify(hrefs)}`);
+    // 索引は同じ公開元からだけ読む（data-index-url は website-check.py も見る）。
+    const indexUrl = await page.locator('[data-search-root]').getAttribute('data-index-url');
+    assert.equal(indexUrl, `/novnow/search-index/${lang}.json`);
+    // 矢印キーで 1 件目へ、上下で戻り、Enter で開く。
+    await input.press('ArrowDown');
+    assert.equal(await page.locator('[data-search-result][aria-selected="true"]').count(), 1);
+    const first = await page.locator('[data-search-result][aria-selected="true"] a').getAttribute('href');
+    await input.press('ArrowDown');
+    await input.press('ArrowUp');
+    assert.equal(await page.locator('[data-search-result][aria-selected="true"] a').getAttribute('href'), first);
+    await input.press('Enter');
+    await page.waitForFunction(expected => location.pathname.replace(/\/$/, '') === expected.replace(/\/$/, ''),
+      first, { timeout: 20000 });
+    // Esc で結果が消え、/ で入力欄へ戻る（マウスを使わない）。
+    await page.goto(`${origin}/novnow/${lang}/search/`);
+    await page.waitForFunction(() => document.querySelector('[data-search-status]')?.dataset.state === 'ready',
+      null, { timeout: 20000 });
+    await input.fill(term);
+    await page.waitForSelector('[data-search-result]');
+    await input.press('Escape');
+    assert.equal(await page.locator('[data-search-result]').count(), 0);
+    await input.fill(`${term} zzz-${lang}-missing-zzz`);
+    await page.waitForFunction(() => document.querySelector('[data-search-status]')?.dataset.state === 'none',
+      null, { timeout: 20000 });
+    await input.evaluate(element => element.blur());
+    await page.keyboard.press('/');
+    assert(await page.evaluate(() => document.activeElement === document.querySelector('[data-search-input]')),
+      `${lang}: '/' did not focus the search input`);
+  }
+  page.off('request', watch);
+  assert.deepEqual(offsite, [], `site search contacted other origins: ${offsite.join(', ')}`);
+  console.log(`${engine}: site search index, keyboard results and same-origin queries PASS`);
+  await context.close();
 
   const fresh = await browser.newContext({ serviceWorkers: 'allow' });
   await instrument(fresh);

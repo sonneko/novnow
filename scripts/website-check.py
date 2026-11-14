@@ -34,6 +34,18 @@ FACT_RE = re.compile(r'data-fact="([^"]+)"[^>]*>([^<]*)<')
 ANNOUNCEMENT_RE = re.compile(r'data-announcement="([^"]+)"[^>]*>([^<]*)<')
 
 
+# サイト内検索（仕様 §18.5.1）: 索引はビルド時の生成物で、言語別に置く。
+SEARCH_INDEX_DIR = "search-index"
+SEARCH_LANGUAGES = ("ja", "en")
+SEARCH_PAGE_RE = re.compile(r"^(?:ja|en)/search/index\.html$")
+# 索引に入れないもの。app / nightly-app は Astro のビルド**後**に追加される Trunk の出力、
+# _astro は資産、ルートの index.html はリダイレクトだけの中身を持たないページ。
+SEARCH_EXCLUDED_PREFIXES = ("app/", "nightly-app/", "_astro/")
+SEARCH_HOOKS = ("data-search-input", "data-search-results", "data-search-status")
+SCRIPT_RE = re.compile(r"<script([^>]*)>(.*?)</script>", re.DOTALL)
+EXTERNAL_URL_RE = re.compile(r"https?://[^\"'\s)]+")
+
+
 def published_version() -> str:
     """Return the version the site announces (the published release, from release.ts)."""
     found = re.search(r'export const version = "([^"]+)"', RELEASE_DATA.read_text(encoding="utf-8"))
@@ -106,6 +118,8 @@ class Page(HTMLParser):
         self.visible_text: list[str] = []
         self.code_texts: set[str] = set()
         self.facts: dict[str, str] = dict(FACT_RE.findall(text))
+        # `<html lang="…">`（サイト内検索の索引は言語別なので、生成物側でも言語を見る）。
+        self.language = ""
         self.announcements: dict[str, str] = dict(ANNOUNCEMENT_RE.findall(text))
         self._skip_depth = 0
         self._code_buffer: list[str] | None = None
@@ -122,6 +136,8 @@ class Page(HTMLParser):
             if identifier in self.ids:
                 self.duplicates.add(identifier)
             self.ids.add(identifier)
+        if tag == "html" and attrs.get("lang"):
+            self.language = attrs["lang"].split("-")[0].lower()
         if tag == "header":
             self.in_header = True
         if "release-notice" in attrs.get("class", "").split():
@@ -225,6 +241,120 @@ def audit_published_claims(root: Path, pages: dict[Path, "Page"], version: str) 
     return errors
 
 
+def search_index_entries(root: Path, language: str) -> tuple[set[str], list[str]]:
+    """`search-index/<lang>.json` の URL 集合と、形の誤り。"""
+    relative = f"{SEARCH_INDEX_DIR}/{language}.json"
+    path = root / SEARCH_INDEX_DIR / f"{language}.json"
+    if not path.is_file():
+        return set(), [f"{relative}: 索引が無い（サイト内検索が読み込めない）"]
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        return set(), [f"{relative}: JSON として読めない（{error}）"]
+    errors: list[str] = []
+    if not isinstance(payload, dict):
+        return set(), [f"{relative}: 形が {{base, language, pages}} でない"]
+    if payload.get("language") != language:
+        errors.append(f"{relative}: language が {payload.get('language')!r}（{language} の索引ではない）")
+    if payload.get("base") != BASE.rstrip("/"):
+        errors.append(f"{relative}: base が {payload.get('base')!r}（公開の base は {BASE.rstrip('/')!r}）")
+    entries = payload.get("pages")
+    if not isinstance(entries, list):
+        return set(), errors + [f"{relative}: pages が配列でない"]
+    urls: set[str] = set()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            errors.append(f"{relative}: エントリがオブジェクトでない: {str(entry)[:40]}")
+            continue
+        url = entry.get("url")
+        if not isinstance(url, str) or not url.startswith(BASE):
+            errors.append(f"{relative}: エントリの url が {url!r}（{BASE} で始まる公開 URLにする）")
+            continue
+        if entry.get("lang") != language:
+            errors.append(f"{relative}: {url} の lang が {entry.get('lang')!r}（{language} の索引に混ぜない）")
+        if not entry.get("title") and not entry.get("text"):
+            errors.append(f"{relative}: {url} に題も本文も無い（空の索引エントリ）")
+        urls.add(url)
+    return urls, errors
+
+
+def audit_search_index(root: Path, pages: dict[Path, "Page"]) -> list[str]:
+    """サイト内検索の索引が公開物と食い違わないこと（仕様 §18.5.1）。
+
+    - **対象漏れ**: 公開されているのに索引に無いページ、索引にだけあるページを落とす。
+      索引はビルド時に dist から作るので、 通常ずれることは無い。ずれるのは
+      索引を作る統合を外した・手で作った dist を置いたときで、どちらも検索が壊れる。
+    - **言語別**: 索引は言語ごとに分かれ、表示中の言語のページだけを含む。
+    - **外部へ送らない**: 検索ページの script に外部 URL が無く、索引は同じ公開元の
+      相対 URL からだけ読む。form も置かない（送信する経路を作らない）。
+    """
+    relative_of = {path: path.relative_to(root).as_posix() for path in pages}
+    searchable = {
+        path: relative
+        for path, relative in relative_of.items()
+        if relative != "index.html"
+        and not SEARCH_PAGE_RE.match(relative)
+        and not relative.startswith(SEARCH_EXCLUDED_PREFIXES)
+        and pages[path].language in SEARCH_LANGUAGES
+    }
+    search_pages = {path: relative for path, relative in relative_of.items() if SEARCH_PAGE_RE.match(relative)}
+    if not searchable and not search_pages:
+        # 公開サイトの生成物ではない（検査の fixture）。索引の有無は言わない。
+        return []
+
+    errors: list[str] = []
+    urls: dict[str, set[str]] = {}
+    for language in SEARCH_LANGUAGES:
+        found, problems = search_index_entries(root, language)
+        urls[language] = found
+        errors.extend(problems)
+
+    for path, relative in sorted(searchable.items(), key=lambda item: item[1]):
+        language = pages[path].language
+        url = BASE + relative.removesuffix("index.html")
+        if url not in urls.get(language, set()):
+            errors.append(
+                f"{relative}: サイト内検索の索引（{SEARCH_INDEX_DIR}/{language}.json）に含まれない"
+                "（公開されているのに検索できない）"
+            )
+    for language, entries in sorted(urls.items()):
+        for url in sorted(entries):
+            relative = url.removeprefix(BASE)
+            candidate = root / (f"{relative}index.html" if relative.endswith("/") else relative)
+            if not candidate.is_file():
+                errors.append(
+                    f"{SEARCH_INDEX_DIR}/{language}.json: 索引の {url} が公開物に無い（索引が古い）"
+                )
+
+    for path, relative in sorted(search_pages.items(), key=lambda item: item[1]):
+        language = relative.split("/")[0]
+        text = path.read_text(encoding="utf-8")
+        for hook in SEARCH_HOOKS:
+            if hook not in text:
+                errors.append(f"{relative}: 検索のフック（{hook}）が無い（実地検査が同じ所を見られない）")
+        found = re.search(r'data-index-url="([^"]*)"', text)
+        expected = f"{BASE}{SEARCH_INDEX_DIR}/{language}.json"
+        if not found:
+            errors.append(f"{relative}: 索引の URL（data-index-url）が無い")
+        elif found.group(1) != expected:
+            errors.append(
+                f"{relative}: 索引の URL が {found.group(1)!r}（期待: {expected!r}。同じ公開元からだけ読む）"
+            )
+        if "<form" in text:
+            errors.append(f"{relative}: form がある（検索語を送信しない。入力欄と結果の一覧だけでよい）")
+        for attributes, body in SCRIPT_RE.findall(text):
+            external = sorted(set(EXTERNAL_URL_RE.findall(body)))
+            if external:
+                errors.append(
+                    f"{relative}: 検索ページの script に外部 URL がある（{', '.join(external[:3])}）"
+                    "。検索語を外部のサービスへ送らない"
+                )
+            source = re.search(r'src="([^"]+)"', attributes)
+            if source and urlsplit(source.group(1)).netloc:
+                errors.append(f"{relative}: script を外部から読んでいる（{source.group(1)}）")
+    return errors
+
+
 def audit(root: Path, website_only: bool = False, version: str | None = None) -> tuple[int, list[str]]:
     pages = {p: Page(p.read_text(encoding="utf-8")) for p in root.rglob("*.html")}
     errors = []
@@ -261,6 +391,7 @@ def audit(root: Path, website_only: bool = False, version: str | None = None) ->
             if actual != {ref.rstrip("/") for ref in expected}:
                 errors.append(f"{relative}: language switch does not preserve article")
     errors.extend(audit_published_claims(root, pages, version))
+    errors.extend(audit_search_index(root, pages))
     for path in root.rglob("*.css"):
         page_url = ORIGIN + BASE + path.relative_to(root).as_posix()
         for reference in re.findall(r"url\(\s*['\"]?([^'\"\s)]+)", path.read_text(encoding="utf-8")):
@@ -282,7 +413,7 @@ def main():
         raise SystemExit(1)
     print(
         f"OK: {count} HTML files; internal links, anchors, assets, CSS, language switching, IDs,"
-        " image alt, published version, diagnostic count and inline code"
+        " image alt, published version, diagnostic count, inline code and search index"
     )
 
 

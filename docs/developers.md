@@ -315,7 +315,7 @@ CI だけに検査が増えた時点で静かに壊れるため。CI の `docs` 
 | 文書 | `docs/script/duplicate.py` / `docs/script/reference.py` / `docs/script/test_reference.py` | 散文の意味のずれ（§4.6.1） |
 | 配布 | `tests/distribution.rs` / `scripts/release-check.sh` / `scripts/release-matrix.py` / `scripts/action/test_install.py` / `docs/script/test_release_policy.py` | 市場公開の実績（発行者トークン待ち）、実機での起動（§4.9） |
 | 依存 | `.github/dependabot.yml` / `.github/workflows/dependency-audit.yml` / `scripts/dependency-audit.py` / `scripts/action/dependency-audit-issue.sh` / `deny.toml` / `docs/script/test_dependency_policy.py` | 実害の判断（開発経路の指摘を上げるか残すか）、licenses / bans の検査、Dependabot alerts の有効化（リポジトリ設定側。§4.10） |
-| 公開サイト | `scripts/website-check.py`（生成 HTML のリンク・版表示・診断数・inline code） / `scripts/diagnostics-site.py` / `scripts/api-site.py` / `scripts/docs-site.py` / `docs/script/test_website.py` / `website/integrations/base-links.test.mjs` | 手書きの紹介文の文面（§4.6.1）、見た目・実ブラウザの描画 |
+| 公開サイト | `scripts/website-check.py`（生成 HTML のリンク・版表示・診断数・inline code・検索索引） / `scripts/diagnostics-site.py` / `scripts/api-site.py` / `scripts/docs-site.py` / `docs/script/test_website.py` / `website/integrations/base-links.test.mjs` / `website/integrations/search-index.test.mjs` | 手書きの紹介文の文面（§4.6.1）、見た目・実ブラウザの描画、検索結果の並び順の妥当性 |
 
 ---
 
