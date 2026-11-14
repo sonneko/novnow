@@ -63,12 +63,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      # cargo-deny は依存グラフを Cargo.lock から作るが、manifest を読むために
-      # クレートの実体が要る。ロックどおりにだけ取得する。
-      - name: Fetch the locked crates
-        run: cargo fetch --locked
+      # アクションは自前のコンテナでツールチェーン（`REF:rust-toolchain.toml`）を用意し、
+      # advisory DB（github.com/rustsec/advisory-db）を取得して `cargo-deny check advisories` を回す。
       # 設定は `REF:deny.toml`。セキュリティ advisory は error（＝このジョブが赤くなる）、
       # yanked / unmaintained / unsound は warning。
       - uses: EmbarkStudios/cargo-deny-action@v2

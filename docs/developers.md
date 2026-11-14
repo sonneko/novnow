@@ -527,6 +527,10 @@ Web サイト側を変更したら `npm ci --prefix website && npm run check:sit
 
 **Actions の使用時間**: 週 1 回・2 ジョブだけで、PR では走らない（§4.7）。手元で同じ報告が欲しいときは
 `python3 scripts/dependency-audit.py`（registry への通信が必要。`--offline` は設定だけ確かめる）。
+`workflow_dispatch` は**既定ブランチ（`main`）に存在するワークフローしか起動できない**ので、
+このワークフローを初めて回せるのは `main` へ入ってからである（開発ブランチでは起動しない＝未実行のままマージされる）。
+npm 側は手元で同じスクリプトを回して確かめられるが、Rust 側（cargo-deny）はサンドボックスから取得できないため、
+初回実行のログで確認する。
 `REF:deny.toml` は advisories だけを検査し、licenses / bans は検査しない（足すときは warn から始め、
 指摘を消してからレベルを上げる）。yanked / unmaintained / unsound は warning であり、ジョブを赤くしない。
 
