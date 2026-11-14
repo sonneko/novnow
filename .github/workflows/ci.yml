@@ -15,9 +15,10 @@ name: CI
 # 3. `clippy` (Clippy: GUI あり + GUI なし)
 # 4. `test` (Test: GUI あり全ターゲット + GUI なし CLI)
 # 5. `wasm` (WASM Build Check: trunk build --release & 8MiB サイズ検査 + windows check)
-# 6. `bench` (Benchmarks: criterion ベンチマーク §18.1)
-# 7. `perf` (Performance budgets: リリースビルドでの打鍵・移動のフレーム予算 §18.1。bench と並行に走る)
-# 8. `python` (Python API: §19.3。型スタブの生成検査・構文・位置引数の束縛。Rust のビルド不要)
+# 6. `webui` (Web UI: 生成物の一致・型検査・IndexedDB の回帰・本番ビルド。§11.6 の W6)
+# 7. `bench` (Benchmarks: criterion ベンチマーク §18.1)
+# 8. `perf` (Performance budgets: リリースビルドでの打鍵・移動のフレーム予算 §18.1。bench と並行に走る)
+# 9. `python` (Python API: §19.3。型スタブの生成検査・構文・位置引数の束縛。Rust のビルド不要)
 
 on:
   push:
@@ -160,6 +161,47 @@ jobs:
         env:
           CI_LOG: /tmp/ci.log
           CI_JOB: Python API
+          CI_KIND: test
+          CI_STATUS: ${{ steps.cargo.outcome }}
+        run: python3 .github/report.py /tmp/body.md || echo "::warning::レポートの生成に失敗しました（合否には影響しません）"
+      - name: Comment on the PR
+        if: failure() && github.event_name == 'pull_request'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr comment "${{ github.event.pull_request.number }}" --body-file /tmp/body.md
+
+  webui:
+    name: Web UI
+    needs: docs
+    # `webui` の第 2 の画面実装（docs/plans.md §11.6 の W6）。Rust のビルドは要らない
+    # （wasm のビルドは `wasm` ジョブが見る）ので、`rust_changed` に関わらず走らせる。
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: webui/package-lock.json
+      - name: Web UI checks (generators, types, tests, build)
+        id: cargo
+        shell: bash
+        run: |
+          set -o pipefail
+          # 生成物（操作 ID・色・文言）が正本どおりか、型検査・IndexedDB の回帰・本番ビルド。
+          # `webui/src/wasm/` は git に入れないので、この中で組む（scripts/webui-build.sh）。
+          bash scripts/webui-check.sh --full 2>&1 | tee /tmp/ci.log
+      - name: Report to the run summary
+        if: always() && steps.cargo.outcome != 'skipped'
+        shell: bash
+        env:
+          CI_LOG: /tmp/ci.log
+          CI_JOB: Web UI
           CI_KIND: test
           CI_STATUS: ${{ steps.cargo.outcome }}
         run: python3 .github/report.py /tmp/body.md || echo "::warning::レポートの生成に失敗しました（合否には影響しません）"

@@ -113,6 +113,11 @@ run docs-notes  python3 "$ROOT/scripts/release-notes.py" --check-all
 # サイトの本文は docs/ から生成する（複製を作らない）。ここで一致を強制し、
 # docs を直して生成し忘れた状態や、生成物を手で編集した状態を落とす
 run site-check  bash -c "python3 '$ROOT/scripts/diagnostics-site.py' --check && python3 '$ROOT/scripts/api-site.py' --check && python3 '$ROOT/scripts/docs-site.py' --check"
+# 第 2 の画面実装（REF:webui/）: 生成物（操作 ID・色・文言）が正本どおりか、wasm が組めるか。
+# 型検査・Node の回帰・本番ビルドまで含む `--full` は CI の `webui` ジョブが回す（node 22 が要る）。
+# 手元で同じところまで見るときは `bash scripts/webui-check.sh --full`。
+# `scripts/webui-check.sh` は wasm のビルドに `scripts/webui-build.sh --check` を使う。
+run webui-check bash "${ROOT}/scripts/webui-check.sh"
 # Python API（§19.3）: 型スタブの生成・構文・位置引数の束縛。Rust のビルドは要らない
 # Python API（§19.3）: 既定は 1 秒の検査（型スタブ・構文・束縛）。`--python` のときは
 # 拡張のビルドと本物の pytest まで回す（pyo3 の vendor が必要。約 2 分半）
