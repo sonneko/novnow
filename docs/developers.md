@@ -665,6 +665,7 @@ GUI の見た目（パレット位置、下線・波線の座標、枠線やバ�
 - **実描画に頼らない**: 第 2 のテストで「見た目」を固定しない（第 1 の §7.4 の PNG に相当する仕組みは作らない）。色と文言は生成物（W3）の一致で守る。
 - **サンドボックスでの制約**: Playwright のブラウザは `REF:scripts/bootstrap-toolchain.sh` の退避に含まれるものを使う。`npm ci` はネットワークが要るため、サンドボックスで回せない日は「Node 側は CI で見る」と記録し、緑と書かない。
 - **`webui/src/wasm/` は生成物**: 型検査もビルドも、先に `REF:scripts/webui-build.sh` を通す（`bash scripts/webui-check.sh --full` が順に面倒を見る）。git には入れないので、手元で `src/wasm` を消したら次の `npm run check` は「モジュールが無い」で落ちる。
+- **CI の `webui` ジョブは wasm も組む**: `webui/src/wasm/` は git に無いので、`scripts/webui-build.sh` が CI でも通る必要がある。そのため `scripts/webui-build.sh` は `--offline` を付けない（手元の vendor は `$CARGO_HOME/config.toml` がオフラインにする）。wasm-bindgen の CLI は `Cargo.lock` の版を workflow が入れる（版が食い違うと生成物を読めない。§8.10 の 33）。
 - **IndexedDB の代役**: Node には IndexedDB が無いので、`webui/tests/session.test.mjs` は `fake-indexeddb` を `globalThis` に差して `open()` を呼ぶ。`webui/tests/session.test.mjs` は 1 ファイルで完結させ、差し替えた global を他のテストへ持ち越さない（持ち越すと後続が偽の成功になる）。
 
 ---

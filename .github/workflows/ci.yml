@@ -210,8 +210,12 @@ jobs:
           set -euo pipefail
           version="$(awk '/^name = "wasm-bindgen"$/ { getline; gsub(/version = |"/, ""); print; exit }' Cargo.lock)"
           name="wasm-bindgen-${version}-x86_64-unknown-linux-musl"
+          # tar の中は `<name>/wasm-bindgen` の形なので、一度展開してから PATH の通った場所へ置く
+          # （`-C "$HOME/.cargo/bin"` に流すだけでは、`bin/<name>/wasm-bindgen` になって見つからない）。
+          mkdir -p "$RUNNER_TEMP/wasm-bindgen" "$HOME/.cargo/bin"
           curl -fsSL --retry 3 "https://github.com/wasm-bindgen/wasm-bindgen/releases/download/${version}/${name}.tar.gz" \
-            | tar xzf - -C "$HOME/.cargo/bin"
+            | tar xzf - -C "$RUNNER_TEMP/wasm-bindgen"
+          install -m 755 "$RUNNER_TEMP/wasm-bindgen/${name}/wasm-bindgen" "$HOME/.cargo/bin/wasm-bindgen"
           wasm-bindgen --version
       - name: Web UI checks (generators, types, tests, build)
         id: cargo
@@ -235,7 +239,12 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh pr comment "${{ github.event.pull_request.number }}" --body-file /tmp/body.md
+        run: |
+          # 前の手順が skip された（例: wasm-bindgen の導入で落ちた）ときは本体が無いので、
+          # コメントは作らずにジョブの失敗だけを残す（ここで落ちても合否は変わらない）。
+          if [ -f /tmp/body.md ]; then
+            gh pr comment "${{ github.event.pull_request.number }}" --body-file /tmp/body.md
+          fi
 
   fmt:
     name: Rustfmt
