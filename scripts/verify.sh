@@ -107,6 +107,8 @@ run docs-tests  python3 -B -m unittest discover -s "$ROOT/docs/script" -p 'test_
 run docs-sync   python3 "$ROOT/docs/script/reference.py"
 # ユーザー向け文書（docs/users）の読みやすさ（docs/plans.md §6 Phase 3）
 run docs-users  python3 "$ROOT/docs/script/easy-read.py"
+# リリースノートの定型と配線（docs/release-notes/。公開時にそのまま Release 本文になる）
+run docs-notes  python3 "$ROOT/scripts/release-notes.py" --check-all
 # Web サイトの生成物（診断解説・API 表）が仕様書の写しであること（CI の docs ジョブと同じ）
 # サイトの本文は docs/ から生成する（複製を作らない）。ここで一致を強制し、
 # docs を直して生成し忘れた状態や、生成物を手で編集した状態を落とす

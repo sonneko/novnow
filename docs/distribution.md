@@ -176,12 +176,18 @@ novnow-<版>-<対象環境>-<gui|nogui>.<拡張子>
 | 順 | すること | 失敗したら |
 |---|---|---|
 | 1 | 版番号を `REF:Cargo.toml` で決め、`python3 scripts/release-matrix.py --bump` で Python・拡張・Actions の版と、利用者に見える版表示（`REF:vscode/README.md`・`REF:README.md`・`REF:README.en.md`・`REF:docs/users/install.md`）を揃える | 公開しない |
-| 2 | デスクトップ 10・ホイール 5 とクレート dry-run を検証し、15 成果物と照合値をリリースへ添付する | 公開しない（成果物だけ差し替えない） |
-| 3 | crates.io と、TestPyPI → PyPI の公開を並行して進める | 以降を止める。タグは残す |
-| 4 | VSIX と全ソースをReleasesへ添付し、17 成果物の最終照合を行う（Marketplaceには公開しない） | 以降を止める。新しい版で直す |
-| 5 | Actions の `v<版>` と `v0` を公開する | 利用者へ「未提供」と表示する |
-| 6 | 公開後の追随（§6.1）を行う。`release.ts` を実公開版へ上げ、文書の「いまの状態」を実際の状態に直す | 文書だけが古い状態になる。次の版までに直す（§6.1 の検査が落とす） |
+| 2 | リリースノート `docs/release-notes/v<版>.md` を書く（定型は `REF:docs/release-notes/TEMPLATE.md`。必須 4 節: 変更点 / 参照（Issue・PR）/ 互換性 / 既知の問題。`python3 scripts/release-notes.py --new --version <版>` で書き始める） | 公開しない（`REF:.github/workflows/release.yml` の prepare が `--check` で止める） |
+| 3 | デスクトップ 10・ホイール 5 とクレート dry-run を検証し、15 成果物と照合値をリリースへ添付する | 公開しない（成果物だけ差し替えない） |
+| 4 | crates.io と、TestPyPI → PyPI の公開を並行して進める | 以降を止める。タグは残す |
+| 5 | VSIX と全ソースをReleasesへ添付し、17 成果物の最終照合を行う（Marketplaceには公開しない） | 以降を止める。新しい版で直す |
+| 6 | Actions の `v<版>` と `v0` を公開する | 利用者へ「未提供」と表示する |
+| 7 | 公開後の追随（§6.1）を行う。`release.ts` を実公開版へ上げ、文書の「いまの状態」を実際の状態に直す | 文書だけが古い状態になる。次の版までに直す（§6.1 の検査が落とす） |
 
+- **Release の本文はリポジトリのリリースノートから出す**: `REF:.github/workflows/release.yml` は
+  `python3 scripts/release-notes.py --print --version <版>` の出力を `--notes-file` で渡す。
+  本文は `REF:docs/release-notes/v<版>.md` が正本で、`REF:scripts/release-notes.py --check-all` が
+  定型（4 節の順・箇条書き・Issue / PR の参照・`REF:docs/known-issues/ja.md` へのリンク）と配線を検査する。
+  定型より前に公開した v0.1.0 の本文は `REF:docs/release-notes/v0.1.0.md` にそのまま残してある。
 - **版を上げても必須チェックの名前は変わらない**: ruleset の `required_status_checks` は
   `wheel (x86_64-unknown-linux-gnu)`・`desktop (x86_64-unknown-linux-gnu, nogui)` のような
   版を含まない名前を使う（§8。2026-10-28 改定。以前は行列の既定名が版を含み、`--bump` のたびに

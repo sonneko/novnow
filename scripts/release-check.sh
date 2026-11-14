@@ -24,6 +24,8 @@ done
 cd "$ROOT"
 VERSION="$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["package"]["version"])')"
 python3 scripts/release-matrix.py --check
+# リリースノート（定型 4 節と既知の問題へのリンク）は公開の前提条件である。
+python3 scripts/release-notes.py --check --version "$VERSION"
 if [ "$ARTIFACTS_ONLY" = 1 ]; then
   python3 scripts/release-matrix.py --verify-release "$DIRECTORY" --artifacts-only
 else
