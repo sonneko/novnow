@@ -1,4 +1,9 @@
 // Navigation and UI translation labels
+//
+// 公開済みの版は `REF:website/src/data/release.ts` が正本。ここに書き写すと、同じページの中で
+// Downloads の見出し（`novnow v<版>を公開しました`）と告知の版が食い違う（#61 追加監査 8:
+// v0.1.0 と v0.1.2 が並んで出ていた）。告知は release.ts から導出する。
+import { version } from "./release";
 
 export const translations = {
   ja: {
@@ -35,7 +40,7 @@ export const translations = {
     },
     installNotice: {
       title: "インストール・導入方法について",
-      status: "v0.1.0 公開",
+      status: `v${version} 公開`,
       desc: "ブラウザ版はインストール不要で使えます。デスクトップ版（Windows / macOS / Linux）とブラウザ版（WebAssembly）は同じ画面・同じキー操作で、同じプロジェクトをそのまま開けます。公開バイナリは下のダウンロード一覧から取得できます。",
     }
   },
@@ -73,7 +78,7 @@ export const translations = {
     },
     installNotice: {
       title: "Installation & Setup Guide",
-      status: "v0.1.0 released",
+      status: `v${version} released`,
       desc: "The browser build needs no installation. The desktop build (Windows / macOS / Linux) and browser build (WebAssembly) share the same layout, the same keys, and open the same project. Published binaries are available in the download section below.",
     }
   }

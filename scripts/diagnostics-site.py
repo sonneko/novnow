@@ -27,13 +27,32 @@ def write_text(target: Path, text: str) -> None:
         handle.write(text)
 
 
+def unwrap(cell: str) -> str:
+    """セル全体を囲む 1 組の引用だけを剥がし、内部のコードスパンは残す。
+
+    `str.strip('`')` は前後のバッククォートを**全部**食べるので、`` `'` の後が辞書に一致しない ``
+    のようなセルは内部スパンの開き記号まで失い、``'` の後が…`` という釣り合いの崩れた文字列が
+    サイトへ出ていた（E001 / E013 / E024 で確認）。セルがちょうど 1 つのスパン
+    （バッククォート 2 個で全体が囲まれている）ときだけ「囲み」とみなす。それ以外は
+    本文の中のコード表記なので、そのまま残して表示側（`splitInlineCode`）に `<code>` へ
+    変換させる。
+    """
+    if cell.count('`') == 2 and cell.startswith('`') and cell.endswith('`'):
+        return cell[1:-1]
+    return cell
+
+
 rows = []
 for line in read_text(SPEC).splitlines():
     if not re.match(r'^\| [EWI]\d{3} \|', line):
         continue
-    cells = [cell.strip().strip('`') for cell in line.strip('|').split(' | ')]
+    cells = [unwrap(cell.strip()) for cell in line.strip('|').split(' | ')]
     if len(cells) != 6:
         raise SystemExit(f"malformed diagnostic row: {line}")
+    for cell in cells:
+        # 内部スパンを残す以上、釣り合いは生成物の側で保証する（奇数個は表示が壊れる）。
+        if cell.count('`') % 2:
+            raise SystemExit(f"unbalanced code span in diagnostic row: {line}")
     code, severity, condition, ja, en, action = cells
     rows.append(dict(code=code, severity=severity, condition=condition,
                      ja=ja, en=en, action=action))

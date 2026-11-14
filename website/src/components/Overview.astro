@@ -4,6 +4,7 @@
 // （ガイドの中身は docs/users から、入口の一覧は src/data/site.ts から取る）。
 import { platforms, guideLinks } from "../data/site";
 import { manualNav } from "../data/docs-nav";
+import { diagnostics } from "../data/diagnostics";
 import type { Language } from "../data/i18n";
 import { splitInlineCode } from "../utils/inlineCode";
 
@@ -83,11 +84,15 @@ const guideCards = manualNav
     note: cardNotes[entry.slug],
   }));
 
+// 診断の件数は書き写さずカタログのデータから導出する。同じサイトの診断一覧・README・仕様は
+// みな同じ表（docs/specifications/diagnostics.md §7）から作るので、書き写した数だけズレる
+// （#61 追加監査 9: トップだけが 76 のままだった）。件数の一致は scripts/website-check.py と
+// docs/script/reference.py が検査する。
 const facts = [
-  { value: "9", label: { ja: "ワークスペース", en: "workspaces" }, note: { ja: "Alt+1 〜 Alt+9 で切替", en: "switch with Alt+1 – Alt+9" } },
-  { value: "76", label: { ja: "リアルタイム診断", en: "live diagnostics" }, note: { ja: "すべてに固定のコード", en: "each with a stable code" } },
-  { value: "5", label: { ja: "入口", en: "entry points" }, note: { ja: "CLI・LSP・MCP・Python・Rust", en: "CLI, LSP, MCP, Python, Rust" } },
-  { value: "MIT", label: { ja: "ライセンス", en: "license" }, note: { ja: "仕様書も実装も自由", en: "specs and code alike" } },
+  { id: "workspaces", value: "9", label: { ja: "ワークスペース", en: "workspaces" }, note: { ja: "Alt+1 〜 Alt+9 で切替", en: "switch with Alt+1 – Alt+9" } },
+  { id: "diagnostics", value: String(diagnostics.length), label: { ja: "リアルタイム診断", en: "live diagnostics" }, note: { ja: "すべてに固定のコード", en: "each with a stable code" } },
+  { id: "entry-points", value: "5", label: { ja: "入口", en: "entry points" }, note: { ja: "CLI・LSP・MCP・Python・Rust", en: "CLI, LSP, MCP, Python, Rust" } },
+  { id: "license", value: "MIT", label: { ja: "ライセンス", en: "license" }, note: { ja: "仕様書も実装も自由", en: "specs and code alike" } },
 ];
 ---
 
@@ -179,7 +184,7 @@ const facts = [
     <div class="facts-grid">
       {facts.map((fact) => (
         <div class="fact-card">
-          <div class="fact-value">{fact.value}</div>
+          <div class="fact-value" data-fact={fact.id}>{fact.value}</div>
           <div class="fact-label">{fact.label[lang]}</div>
           <div class="fact-note">{fact.note[lang]}</div>
         </div>

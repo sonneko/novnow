@@ -1,6 +1,7 @@
 """Approved distribution policies: license, Python spelling, publication route."""
 import importlib.util
 import hashlib
+import json
 import re
 import tempfile
 import unittest
@@ -173,3 +174,62 @@ class ReleasePolicy(unittest.TestCase):
         self.assertIn("IPA_FONT_LICENSE", (ROOT / "src/ui/app.rs").read_text())
         entries = matrix.archive_entries(Path("fake-binary"), None, "0.1.0", matrix.TARGET_NAMES[0], "gui")
         self.assertIn(("licenses/IPA_Font_License_Agreement_v1.0.txt", license_path, False), entries)
+
+
+class VsixReadmePolicy(unittest.TestCase):
+    """VSIX に同梱する README の版・VSIX 名・URL が manifest と一致すること（#61 追加監査 8）。
+
+    公開済みの novnow-0.1.1.vsix に「novnow-0.1.0.vsix / Version v0.1.0 is published」という
+    古い README が入っていた。同梱物は公開後に差し替えられないので、作る前で止める。
+    """
+
+    def build(self, path, version, readme):
+        with zipfile.ZipFile(path, "w") as bundle:
+            bundle.writestr(
+                "extension/package.json",
+                json.dumps({"name": "novnow", "publisher": "sonneko", "version": version}),
+            )
+            if readme is not None:
+                bundle.writestr("extension/readme.md", readme)
+
+    def readme(self, version):
+        return (
+            f"Download [novnow-{version}.vsix]"
+            f"(https://github.com/sonneko/novnow/releases/download/v{version}/novnow-{version}.vsix)."
+            f" Version v{version} is published. No later than product v1."
+        )
+
+    def test_matching_readme_is_accepted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / matrix.vsix_name("0.1.1")
+            self.build(path, "0.1.1", self.readme("0.1.1"))
+            matrix.verify_vsix(path, "0.1.1")
+
+    def test_stale_readme_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / matrix.vsix_name("0.1.1")
+            self.build(path, "0.1.1", self.readme("0.1.0"))
+            with self.assertRaises(ValueError) as caught:
+                matrix.verify_vsix(path, "0.1.1")
+            self.assertIn("0.1.0", str(caught.exception))
+            self.assertIn("README", str(caught.exception))
+
+    def test_missing_readme_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / matrix.vsix_name("0.1.1")
+            self.build(path, "0.1.1", None)
+            with self.assertRaises(ValueError) as caught:
+                matrix.verify_vsix(path, "0.1.1")
+            self.assertIn("must bundle the extension README", str(caught.exception))
+
+    def test_the_bundled_readme_is_derived_from_the_manifest(self):
+        """`--bump` / `--check` が同梱 README の元ファイルを manifest から作ること。"""
+        files = matrix.versioned_files("9.9.9")
+        readme = ROOT / "vscode" / "README.md"
+        self.assertIn(readme, files)
+        derived = files[readme]
+        self.assertIn("[novnow-9.9.9.vsix]", derived)
+        self.assertIn("releases/download/v9.9.9/novnow-9.9.9.vsix", derived)
+        self.assertIn("Version v9.9.9 is published", derived)
+        # VSIX 名・ダウンロード URL のタグとファイル名・「公開済み」の文（4 か所）が同じ版になる
+        self.assertEqual(re.findall(r"\d+\.\d+\.\d+", derived), ["9.9.9"] * 4)

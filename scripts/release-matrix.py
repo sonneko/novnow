@@ -280,6 +280,27 @@ def versioned_files(new_version: str) -> dict[Path, str]:
             "action.yml NOVNOW_ACTION_VERSION",
         )
 
+    readme = ROOT / "vscode/README.md"
+    if readme.exists():
+        # 同梱 README（VSIX では `extension/readme.md`）は利用者が最初に読む案内なので、
+        # 版・VSIX 名・ダウンロード URL を manifest から導出する。書き写したままだと
+        # 公開済みの VSIX の中で manifest と README の版が食い違う（#61 追加監査 8:
+        # novnow-0.1.1.vsix に「novnow-0.1.0.vsix / v0.1.0 is published」が入っていた）。
+        text = replace_required(
+            readme.read_text(encoding="utf-8"),
+            r"\[novnow-[0-9][^\]]*\.vsix\]\([^)]*\)",
+            f"[novnow-{new_version}.vsix]"
+            f"(https://github.com/sonneko/novnow/releases/download/v{new_version}/"
+            f"novnow-{new_version}.vsix)",
+            "vscode/README.md VSIX link",
+        )
+        files[readme] = replace_required(
+            text,
+            r"Version v[0-9][0-9.]* is published",
+            f"Version v{new_version} is published",
+            "vscode/README.md published version",
+        )
+
     index = ROOT / "index.html"
     files[index] = replace_required(
         index.read_text(encoding="utf-8"),
@@ -534,16 +555,30 @@ def verify_wheel(path: Path, release_version: str, target: str) -> None:
 
 def verify_vsix(path: Path, release_version: str) -> None:
     with zipfile.ZipFile(path) as archive:
+        names = archive.namelist()
         try:
             manifest = json.loads(archive.read("extension/package.json"))
         except KeyError as error:
             raise ValueError(f"VSIX package.json is missing: {path.name}") from error
+        # 同梱 README は利用者が最初に読む案内なので、manifest と版が食い違うまま公開しない。
+        bundled = next((name for name in names if name.lower() == "extension/readme.md"), None)
+        if bundled is None:
+            raise ValueError(f"VSIX must bundle the extension README: {path.name}")
+        readme = archive.read(bundled).decode("utf-8", "replace")
     if manifest.get("publisher") != "sonneko" or manifest.get("name") != "novnow":
         raise ValueError(f"VSIX identifier must be sonneko.novnow: {path.name}")
     if manifest.get("version") != release_version:
         raise ValueError(f"VSIX version differs from Cargo.toml: {path.name}")
-    if any(re.search(r"(?:^|/)novnow(?:\.exe)?$", name) for name in archive.namelist()):
+    if any(re.search(r"(?:^|/)novnow(?:\.exe)?$", name) for name in names):
         raise ValueError(f"VSIX must not bundle the novnow executable: {path.name}")
+    stale = sorted(
+        {found for found in re.findall(r"\d+\.\d+\.\d+", readme) if found != release_version}
+    )
+    if stale:
+        raise ValueError(
+            f"VSIX README announces {', '.join(stale)} but the manifest is {release_version}: "
+            f"{path.name}"
+        )
 
 
 def verify_source(path: Path, release_version: str) -> None:

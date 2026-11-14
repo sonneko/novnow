@@ -1,0 +1,69 @@
+---
+// 生成データの中の Markdown 風の inline `code`（と公開 URL）を表示用の要素へ変換する。
+// 診断カタログの発生条件・対応・メッセージは仕様書の表から作るので、`range` や
+// `project.toml` などのコード表記がバッククォートごと本文に出ることがあった
+// （#61 追加監査 10）。ここでは記号を見せず <code> として描画する。
+import { splitInlineCode } from "../utils/inlineCode";
+
+interface Props {
+  text: string;
+}
+
+const { text } = Astro.props;
+---
+
+{
+  splitInlineCode(text).map((part) =>
+    part.href ? (
+      <a
+        href={part.href}
+        class="inline-url-link"
+        target={part.href.startsWith("http") ? "_blank" : undefined}
+        rel={part.href.startsWith("http") ? "noopener noreferrer" : undefined}
+      >
+        {part.code ? <code class="inline-code inline-code-link">{part.text}</code> : part.text}
+      </a>
+    ) : part.code ? (
+      <code class="inline-code">{part.text}</code>
+    ) : (
+      part.text
+    )
+  )
+}
+
+<style lang="scss">
+  @use "../styles/variables.scss" as *;
+
+  .inline-code {
+    background-color: rgba(153, 161, 179, 0.16);
+    color: $text-primary;
+    padding: 0.14rem 0.4rem;
+    border-radius: 6px;
+    font-size: 0.86em;
+    font-family: $font-family-mono;
+  }
+
+  .inline-url-link {
+    color: $accent-brand;
+    text-decoration: underline;
+    text-decoration-color: rgba($accent-brand, 0.4);
+    text-underline-offset: 3px;
+    transition: text-decoration-color 0.15s ease;
+
+    &:hover {
+      text-decoration-color: $accent-brand;
+
+      .inline-code-link {
+        background-color: rgba($accent-brand, 0.15);
+        box-shadow: inset 0 0 0 1px rgba($accent-brand, 0.36);
+      }
+    }
+  }
+
+  .inline-code-link {
+    background-color: $bg-highlight;
+    color: $accent-brand;
+    box-shadow: inset 0 0 0 1px rgba($accent-brand, 0.22);
+    transition: background-color 0.15s ease, box-shadow 0.15s ease;
+  }
+</style>

@@ -82,3 +82,93 @@ class WebsiteTests(unittest.TestCase):
                 folder.mkdir(parents=True)
                 (folder / "index.html").write_text('<div aria-label="Language"></div>')
             self.assertEqual(sum("language switch" in e for e in website.audit(root)[1]), 2)
+
+
+class PublishedClaimTests(unittest.TestCase):
+    """生成物の中の「書き写された数・版・コード表記」（#61 追加監査 8・9・10）。
+
+    いずれも実際の公開ページで確認された矛盾: 同じページに v0.1.0 と v0.1.2 が並ぶ（8）、
+    トップだけ診断数が 76（9）、E001 の発生条件が `` `' の後が辞書に一致しない`` と
+    釣り合いの崩れた文字列になる（10）。
+    """
+
+    def test_top_page_must_derive_the_diagnostic_count(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "ja").mkdir()
+            stale = root / "ja" / "index.html"
+            stale.write_text('<div class="fact-value" data-fact="diagnostics">76</div>', encoding="utf-8")
+            errors = website.audit_published_claims(root, {stale: website.Page(stale.read_text())}, "0.1.1")
+            self.assertEqual(len(errors), 1, errors)
+            self.assertIn("診断数 76", errors[0])
+            self.assertIn(str(len(website.diagnostics_rows())), errors[0])
+
+    def test_top_page_without_the_count_hook_is_reported(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "en").mkdir()
+            page = root / "en" / "index.html"
+            page.write_text('<div class="fact-value">76</div>', encoding="utf-8")
+            errors = website.audit_published_claims(root, {page: website.Page(page.read_text())}, "0.1.1")
+            self.assertTrue(any("data-fact" in error for error in errors), errors)
+
+    def test_announced_version_must_match_the_published_release(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            page = root / "index.html"
+            page.write_text('<span data-announcement="version">v0.1.0 公開</span>', encoding="utf-8")
+            errors = website.audit_published_claims(root, {page: website.Page(page.read_text())}, "0.1.2")
+            self.assertEqual(len(errors), 1, errors)
+            self.assertIn("v0.1.0 公開", errors[0])
+            page.write_text('<span data-announcement="version">v0.1.2 公開</span>', encoding="utf-8")
+            self.assertEqual(website.audit_published_claims(root, {page: website.Page(page.read_text())}, "0.1.2"), [])
+
+    def test_diagnostic_page_must_render_inline_code(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            folder = root / "ja" / "diagnostics" / "E001"
+            folder.mkdir(parents=True)
+            page = folder / "index.html"
+            page.write_text("<p><code>&#39;</code> の後が辞書に一致しない</p>", encoding="utf-8")
+            parsed = {page: website.Page(page.read_text(encoding="utf-8"))}
+            self.assertEqual(website.audit_published_claims(root, parsed, "0.1.1"), [])
+
+    def test_diagnostic_page_may_not_show_a_stray_backtick(self):
+        """公開ページで実際に出ていた表示（`` `' の後が…``）を落とすこと。"""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            folder = root / "ja" / "diagnostics" / "E001"
+            folder.mkdir(parents=True)
+            page = folder / "index.html"
+            page.write_text("<p>'` の後が辞書に一致しない</p>", encoding="utf-8")
+            errors = website.audit_published_claims(root, {page: website.Page(page.read_text(encoding="utf-8"))}, "0.1.1")
+            self.assertTrue(any("バッククォート" in error for error in errors), errors)
+            self.assertTrue(any("<code> で描画されていない" in error for error in errors), errors)
+
+    def test_generated_catalog_matches_the_specification_table(self):
+        rows = website.diagnostics_rows()
+        spec = (website.ROOT / "docs" / "specifications" / "diagnostics.md").read_text(encoding="utf-8")
+        table = [line for line in spec.splitlines() if website.re.match(r"^\| [EWI]\d{3} \|", line)]
+        self.assertEqual(len(rows), len(table))
+        self.assertEqual([row["code"] for row in rows],
+                         [line.split("|")[1].strip() for line in table])
+
+    def test_generated_catalog_keeps_inner_code_spans_balanced(self):
+        by_code = {row["code"]: row for row in website.diagnostics_rows()}
+        # 生成時に前後のバッククォートを一律に削ると、内部スパンが崩れる（監査の再現）
+        self.assertEqual(by_code["E001"]["condition"], "`'` の後が辞書に一致しない")
+        self.assertEqual(by_code["E013"]["condition"], "`relations` 等の参照不能")
+        self.assertEqual(by_code["E024"]["condition"], "`materials` 外を指す `path`")
+        for row in by_code.values():
+            for field in ("condition", "ja", "en", "action"):
+                self.assertEqual(row[field].count("`") % 2, 0, f"{row['code']} {field}: {row[field]}")
+                self.assertNotIn("``", row[field])
+
+    def test_visible_text_skips_style_and_script_and_collects_code(self):
+        page = website.Page(
+            "<style>.a { --tick: '`'; }</style><script>var s = '`';</script>"
+            "<p>本文 <code>range</code> の外</p>"
+        )
+        # <code> の中身も利用者に見える本文（そこにバッククォートが残っても落とするため）
+        self.assertEqual("".join(page.visible_text), "本文 range の外")
+        self.assertEqual(page.code_texts, {"range"})

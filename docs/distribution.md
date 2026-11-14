@@ -2,7 +2,9 @@
 
 本書は、novnow を利用者の手元へ届ける**手順**をまとめる。何を配るか（形・選択肢・名前・MUST）は `REF:docs/specifications/external.md` §20、どう作るかは `REF:docs/designs/external.md` §20 が正本である。本書は「だれが、どこへ、どの順で置くか」だけを扱う。
 
-**いまの状態（2026-10-25）**: ブラウザ版だけが公開済み。デスクトップ版・Python ライブラリ版・VSCode 拡張版・GitHub Actions 版の実装と公開用ワークフローは用意済み。初回リリースはまだ実行しておらず、ブラウザ版以外は未提供である（`REF:docs/plans.md#distribution`）。
+**いまの状態（2026-11-13）**: **5 形態すべて公開済み**。番号付きのリリースは `v0.1.0`（2026-10-25）から続いており、同じリリースにデスクトップ版の 10 アーカイブ・ホイール 5 個・VSIX 1 個・ソースアーカイブが揃い、`SHA256SUMS` と合わせて 18 ファイルになる。Python ライブラリ版は PyPI（`novnow`）にも公開し、ブラウザ版は GitHub Pages で常時公開、GitHub Actions 版は可動タグ `v0` から `uses:` で参照できる。開発版は `nightly` タグのリリースと `nightly-app/` で別に公開する（`REF:scripts/update-novnow-nightly.md`）。公開後の実測は `REF:.github/workflows/release-audit.yml` が版ごとに自動で行う（`REF:docs/plans.md#distribution`）。
+
+**最新の公開版はここに書き写さない**。サイト側の正本は `REF:website/src/data/release.ts`、成果物は Releases の一覧を見ること。書き写した表示（サイトの告知・拡張の同梱 README・トップの診断数）が正本と食い違わないかは `REF:scripts/release-matrix.py --check` と `REF:scripts/website-check.py` が検査する。
 
 ---
 

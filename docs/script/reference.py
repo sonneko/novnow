@@ -12,7 +12,7 @@ docs/script/reference.py — ドキュメントとコードの**実物の突き�
 4. `docs/developers.md` §3 の `src/` ツリーが、`src/` の**実際の中身と一致するか**。
 5. `scripts/verify.sh` が CI（`.github/workflows/ci.yml`）の**静的検査をすべて含むか**。
 6. `README.md` / `README.en.md` / `GUIDE.md` の間に**丸写しの重複**が無いか。
-7. 文書に書いた**数の主張**（ワークスペース数・MCP ツール数・正規操作数）が実装と一致するか。
+7. 文書に書いた**数の主張**（ワークスペース数・MCP ツール数・正規操作数・診断数）が実装と一致するか。
 8. `include_str!` で読み込むパス（仕様書・カタログ・ゴールデン）が**実在するか**。
 9. ルート文書の相対リンク・画像と、`REF:` のアンカーが**実在するか**。
 10. Actions を無駄に使わない設定（全ワークフローの `concurrency`・PR の全ジョブの draft 条件・変更フィルタ・`[ci skip]` のフック）が揃っているか。
@@ -291,6 +291,8 @@ def check_claims() -> list[str]:
     - 「N ワークスペース」⇔ `src/app/workspace.rs` の `Workspace` の variant 数
     - 「MCP N ツール」⇔ `src/core/agents/server.rs` の `TOOLS` の件数
     - 「N の正規操作」⇔ `tests/golden/api_catalog.json` の操作数
+    - 「N 種の診断」⇔ `docs/specifications/diagnostics.md` §7 の表の行数
+      （表と `CATALOG` の一致は `REF:tests/diagnostics_catalog.rs` が見る）
     """
     errors: list[str] = []
 
@@ -299,6 +301,10 @@ def check_claims() -> list[str]:
     # 正規操作の数は JSON の `operations` 配列の長さで数える（`"id":` を数えると、
     # 引数や例外の中の `id` まで拾って 135 になる）。
     operations = len(json.loads(read(ROOT / "tests" / "golden" / "api_catalog.json")).get("operations", []))
+    # 診断の数は仕様 §7 の表が正本（サイトと日英のカタログは同じ表から生成する）。
+    diagnostics = count_items(
+        ROOT / "docs" / "specifications" / "diagnostics.md", r"^\| [EWI][0-9]{3} \|"
+    )
 
     claims = [
         (workspaces, r"(?<![0-9.\-§])([0-9]+) ワークスペース", "ワークスペース数"),
@@ -321,6 +327,43 @@ def check_claims() -> list[str]:
                             f"[7] {rel(path)}:{number}: {label}が {match.group(1)} と書かれている"
                             f"（実装は {actual}）"
                         )
+    errors.extend(check_diagnostic_claims(diagnostics))
+    return errors
+
+
+# 診断の数を書き写している文書（README・仕様 §2・用語集）。サイトのトップは書き写さず
+# カタログから導出し、生成物は `REF:scripts/website-check.py` が検査する。診断を足したときに
+# 4 か所とも直さないと落ちる（#61 追加監査 9: サイトのトップだけ 76 のままだった）。
+DIAGNOSTIC_CLAIM_DOCUMENTS = (
+    (ROOT / "README.md", (r"([0-9]+) 種のリアルタイム診断", r"診断は ([0-9]+) 種")),
+    (ROOT / "README.en.md", (r"([0-9]+) Types of Real-Time Diagnostics", r"one of the ([0-9]+) diagnostics")),
+    (ROOT / "docs" / "specifications" / "overview.md", (r"([0-9]+) 種の診断コード",)),
+    (ROOT / "docs" / "users" / "glossary.md", (r"全部で ([0-9]+) 種類あり",)),
+)
+
+
+def check_diagnostic_claims(actual: int | None) -> list[str]:
+    """「N 種の診断」の書き写しが仕様 §7 の表の件数と一致すること。"""
+    if actual is None:
+        return ["[7] docs/specifications/diagnostics.md が無い（診断カタログの正本）"]
+    errors: list[str] = []
+    for path, patterns in DIAGNOSTIC_CLAIM_DOCUMENTS:
+        # 検査器の単体テストはリポジトリ外の一時ファイルを使うので、表示名は安全に落とす。
+        name = rel(path) if path.is_relative_to(ROOT) else path.name
+        text = read(path)
+        if not text:
+            errors.append(f"[7] {name} が無い")
+            continue
+        for pattern in patterns:
+            found = [int(number) for number in re.findall(pattern, text)]
+            if not found:
+                errors.append(f"[7] {name} に診断の数（{pattern}）が無い")
+            for number in found:
+                if number != actual:
+                    errors.append(
+                        f"[7] {name}: 診断が {number} 種と書かれている"
+                        f"（仕様 §7 の表は {actual} 行）"
+                    )
     return errors
 
 

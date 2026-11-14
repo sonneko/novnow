@@ -171,7 +171,7 @@ novnow/
 
 ### 4.1 `bash scripts/verify.sh`（コミット前の必須検証）
 
-Actions取得スクリプトのオフライン回帰は `REF:scripts/action/test_install.py` で検査する。macOSでは標準Bash 3.2を明示し、空引数・終了コード・export先・バックスラッシュを含むパスのSHA-256を確認する。
+Actions取得スクリプトのオフライン回帰は `REF:scripts/action/test_install.py` で検査する。macOSでは標準Bash 3.2を明示し、空引数・終了コード・export先・バックスラッシュを含むパスのSHA-256を確認する。同じファイルが、公開後 smoke（`REF:.github/workflows/action-smoke.yml`）が負例を作る手順 `REF:scripts/action/prepare-invalid-project.sh` も検査する。本文を拡張子で決め打たないこと、サンプル作品から本文を解決して未知参照を注入できること、本文が無い作品では理由を出して止まることを確認する（決め打ちに戻すと 3 OS の公開後 smoke が準備段階で止まり、exit code 5 の検査が一度も走らない）。
 
 `REF:scripts/verify.sh` は次を一括で実行する（`--quick` で wasm を、`--python` で Python だけに絞れる）。コミット・プッシュ前に必ず実行し、すべて通ることを確認する。
 
@@ -257,7 +257,7 @@ CI_LOG=/tmp/ci.log CI_JOB="Local test run" CI_KIND=test CI_STATUS=success \
 | 4 | `src/` ツリー | `REF:docs/developers.md` §3 のツリーと `src/` の実物が違う | `app/` と `lsp/` の記載漏れ |
 | 5 | `verify.sh` と CI | CI が走らせる静的検査を `verify.sh` が走らせていない | Web サイトの生成物 2 検査の欠落 |
 | 6 | ルート文書の重複 | `README.md` / `README.en.md` / `GUIDE.md` の間に丸写しの 3 行ブロック | README と GUIDE の機能説明 21 行 |
-| 7 | 数の主張 | 「N ワークスペース」「MCP N ツール」「N の正規操作」が実装と違う | README の「8 個のワークスペース」という記述（実装は 9） |
+| 7 | 数の主張 | 「N ワークスペース」「MCP N ツール」「N の正規操作」「N 種の診断」が実装と違う | README の「8 個のワークスペース」という記述（実装は 9）。サイトのトップだけが「76 種の診断」だった（カタログは 85） |
 | 8 | `include_str!` | テスト・本体が埋め込むパスが存在しない | 仕様書の改名に追随していないテスト |
 | 9 | リンクとアンカー | ルート文書の相対リンク・画像、`REF:…` の `#アンカー` が飛べない | 見出しを書き換えた後の `REF:` のアンカー |
 | 10 | Actions の節約 | `concurrency` の無いワークフロー、draft で走る PR ジョブ、廃止ランナー（`macos-13`）、変更フィルタの消失、`[ci skip]` フックの欠落 | `REF:.github/workflows/wheels.yml` に `concurrency` が無かった（4 OS の行列が二重に走る） |
@@ -271,7 +271,9 @@ python3 docs/script/reference.py --list   # 検査項目の一覧
 ```
 
 **数の主張（7）を足した理由**: 文書の数は、コードを 1 行直すたびに古くなる。`REF:docs/plans.md` の `SYNC` ブロックは
-節数の集計を守っているが、それ以外の本文中の数（ワークスペース数・ツール数・操作数）は誰も見ていなかった。
+節数の集計を守っているが、それ以外の本文中の数（ワークスペース数・ツール数・操作数・診断数）は誰も見ていなかった。
+診断数は README・`REF:README.en.md`・仕様 §2・`REF:docs/users/glossary.md` の 4 文書に書き写しており、仕様 §7 の表の行数と
+突き合わせる（表と `CATALOG` の一致は `REF:tests/diagnostics_catalog.rs`、サイトの生成物側は `REF:scripts/website-check.py` が見る）。
 
 **リンク（9）を足した理由**: 節の改名は `duplicate.py` の `REF:` パス検査を通ってしまう（ファイルは在る）。
 飛び先だけが消える壊れ方は、読むまで気づけない。
@@ -311,7 +313,8 @@ CI だけに検査が増えた時点で静かに壊れるため。CI の `docs` 
 | Python | `scripts/python-check.sh` / `python/novnow-py/tests/test_binding.py` | 実機ホイールの取り込み確認（§4.9） |
 | Web | `scripts/web-smoke.sh` / `scripts/web-smoke.mjs` / `tests/storage_idb.rs` | iOS Safari の実機動作（再現不可、M-6） |
 | 文書 | `docs/script/duplicate.py` / `docs/script/reference.py` / `docs/script/test_reference.py` | 散文の意味のずれ（§4.6.1） |
-| 配布 | `tests/distribution.rs` / `scripts/release-check.sh` / `scripts/release-matrix.py` | 市場公開の実績（発行者トークン待ち）、実機での起動（§4.9） |
+| 配布 | `tests/distribution.rs` / `scripts/release-check.sh` / `scripts/release-matrix.py` / `scripts/action/test_install.py` / `docs/script/test_release_policy.py` | 市場公開の実績（発行者トークン待ち）、実機での起動（§4.9） |
+| 公開サイト | `scripts/website-check.py`（生成 HTML のリンク・版表示・診断数・inline code） / `scripts/diagnostics-site.py` / `scripts/api-site.py` / `scripts/docs-site.py` / `docs/script/test_website.py` / `website/integrations/base-links.test.mjs` | 手書きの紹介文の文面（§4.6.1）、見た目・実ブラウザの描画 |
 
 ---
 
@@ -644,4 +647,5 @@ GUI の見た目（パレット位置、下線・波線の座標、枠線やバ�
 - 発見時に識別子・対象の公開版・環境・症状・回避策・対応状況を両言語で記録する。READMEには不具合本文を重複掲載しない。
 - コード修正、develop/mainへのマージだけでは一覧から削除しない。修正版の公開と修正確認が完了してから、当該項目を両言語の現行一覧から削除する。公開済みの履歴はリリースノートと `REF:docs/history.md` に残す。項目がなくなった場合も一覧ページは維持する。
 - ダウンロード先と公開版の表示は `REF:website/src/data/release.ts` で管理する。開発版のCargo.tomlから自動推測せず、公開済みの版・成果物を確認したときだけ更新する。サイトの見出しと告知もこの値だけを使うので、`REF:scripts/website-check.py` は見出しの版を `release.ts` と突き合わせる（`Cargo.toml` とは比べない。版更新 PR から公開までの間は意図的に食い違う）。`release.ts` の版が `Cargo.toml` より新しいときだけ誤りとする。
+- **公開版の表示は書き写さない**。`release.ts` を正本とし、サイトの告知（`REF:website/src/data/i18n.ts` の `installNotice.status`）はそこから導出する。拡張の同梱 README（`REF:vscode/README.md` → VSIX の `extension/readme.md`）の版・VSIX 名・ダウンロード URL は `REF:scripts/release-matrix.py` が manifest から作り、`--check` と `verify_vsix` で一致を強制する。トップページの診断数もカタログから導出する。書き写した表示は公開後に差し替えられない成果物の中で矛盾するため、生成物側でも検査する（`data-announcement` / `data-fact` フック）。
 - 今回のv0.1.0公開告知に限り、所有者承認により版更新なしでサイト・文書とActions修正をmainへ統合する。順序は作業ブランチ→develop→mainとし、両マージは所有者が行う。タグ変更・追加リリースは行わない。通常のGitFlow規則を一般的に緩和するものではない。
