@@ -24,7 +24,10 @@ use wasm_bindgen_futures::{spawn_local, JsFuture};
 use crate::adapters::clock_system::{self, SystemClock};
 use crate::adapters::env_system::SystemEnv;
 use crate::adapters::project_load;
-use crate::adapters::storage_idb::{self, Idb, IdbStorage, Origin, ProjectRecord};
+use crate::adapters::storage_idb::{
+    self, Idb, IdbStorage, Origin, ProjectRecord, SnapshotNameError, SnapshotRecord, MAX_SNAPSHOTS,
+    SNAPSHOT_NAME_FORBIDDEN, SNAPSHOT_NAME_LEN,
+};
 use crate::core::model::project::ProjectError;
 use crate::core::policy::archive::Skipped;
 use crate::core::policy::{ExportKind, ProjectPath};
@@ -620,6 +623,21 @@ struct Shared {
     first_visit: bool,
     /// 次に一覧で選ぶプロジェクト（作った・取り込んだもの）。
     select: Option<String>,
+    /// 開いているスナップショットの一覧（§13.3.8）。
+    snapshots: Option<Snapshots>,
+}
+
+/// スナップショットの一覧（§13.3.8。プロジェクト選択の画面で管理する）。
+#[derive(Clone)]
+struct Snapshots {
+    /// 対象のプロジェクト。
+    project: ProjectRecord,
+    /// スナップショット（作った日時の新しい順）。
+    items: Vec<SnapshotRecord>,
+    /// 一覧を読み終えたか。
+    loaded: bool,
+    /// 選んでいる行（↑↓ で動かす）。
+    selected: usize,
 }
 
 /// 名前を入力している操作。
@@ -631,6 +649,22 @@ enum Edit {
     Rename(String, String),
     /// `Delete`: 削除の確認（名前の入力が一致したら消す）。
     Delete(ProjectRecord, String),
+    /// `F9` → 「スナップショットを保存」: スナップショットの名前（§13.3.8）。
+    SnapshotSave(ProjectRecord, String),
+    /// 復元の確認（プロジェクト・スナップショットの名前・入力中の名前）。
+    SnapshotRestore(ProjectRecord, String, String),
+    /// スナップショットの削除の確認（同上）。
+    SnapshotRemove(ProjectRecord, String, String),
+}
+
+/// 入力の確認のしかた（[`Edit`] の種類ごと）。
+enum Expect {
+    /// 空でなければよい。
+    Any,
+    /// この文字列と一致したら実行する（削除・復元・スナップショットの削除）。
+    Exact(String),
+    /// スナップショットの名前の規則（§13.3.8）を満たしたら実行する。
+    SnapshotName,
 }
 
 /// Web のプロジェクト選択（§13.4）。
@@ -821,6 +855,81 @@ impl WebPicker {
         });
     }
 
+    /// スナップショットの一覧を開く（`F9`、§13.3.8）。
+    fn snapshots_open(&self, record: ProjectRecord, locale: Locale) {
+        self.spawn(move |idb, shared, ctx| async move {
+            shared.borrow_mut().snapshots = Some(Snapshots {
+                project: record.clone(),
+                items: Vec::new(),
+                loaded: false,
+                selected: 0,
+            });
+            match idb.snapshots(&record.id).await {
+                Ok(items) => {
+                    let mut state = shared.borrow_mut();
+                    if let Some(list) = state.snapshots.as_mut() {
+                        list.items = items;
+                        list.loaded = true;
+                    }
+                }
+                Err(error) => {
+                    let mut state = shared.borrow_mut();
+                    state.snapshots = None;
+                    state.notice = Some(i18n::format(
+                        locale,
+                        "project.pick.failed",
+                        &[&message(&error)],
+                    ));
+                }
+            }
+            ctx.request_repaint();
+        });
+    }
+
+    /// スナップショットを保存する（§13.3.8）。写るのは**保存済みの内容**。
+    fn snapshot_save(&self, project: ProjectRecord, name: String, locale: Locale) {
+        self.spawn(move |idb, shared, ctx| async move {
+            let notice = match idb.save_snapshot(&project.id, &name).await {
+                Ok(record) => i18n::format(locale, "project.pick.snapshot_saved", &[&record.name]),
+                Err(error) => i18n::format(locale, "project.pick.failed", &[&message(&error)]),
+            };
+            shared.borrow_mut().notice = Some(notice);
+            reload_snapshots(&shared, &idb, &project, locale).await;
+            // 復元・保存はプロジェクトの更新日時と大きさを変えるので行も読み直す
+            refresh(&shared, &idb, &ctx, locale).await;
+        });
+    }
+
+    /// スナップショットから復元する（§13.3.8。今の内容は置き換わる）。
+    fn snapshot_restore(&self, project: ProjectRecord, name: String, locale: Locale) {
+        self.spawn(move |idb, shared, ctx| async move {
+            let notice = match idb.restore_snapshot(&project.id, &name).await {
+                Ok((written, removed)) => i18n::format(
+                    locale,
+                    "project.pick.snapshot_restored",
+                    &[&name, &written.to_string(), &removed.to_string()],
+                ),
+                Err(error) => i18n::format(locale, "project.pick.failed", &[&message(&error)]),
+            };
+            shared.borrow_mut().notice = Some(notice);
+            reload_snapshots(&shared, &idb, &project, locale).await;
+            refresh(&shared, &idb, &ctx, locale).await;
+        });
+    }
+
+    /// スナップショットを消す（§13.3.8。プロジェクトの中身は触らない）。
+    fn snapshot_remove(&self, project: ProjectRecord, name: String, locale: Locale) {
+        self.spawn(move |idb, shared, ctx| async move {
+            let notice = match idb.delete_snapshot(&project.id, &name).await {
+                Ok(()) => i18n::format(locale, "project.pick.snapshot_removed", &[&name]),
+                Err(error) => i18n::format(locale, "project.pick.failed", &[&message(&error)]),
+            };
+            shared.borrow_mut().notice = Some(notice);
+            reload_snapshots(&shared, &idb, &project, locale).await;
+            ctx.request_repaint();
+        });
+    }
+
     /// 足りないファイルを補ってから開く。
     fn fill_and_open(&self, record: ProjectRecord, locale: Locale) {
         self.spawn(move |idb, shared, ctx| async move {
@@ -949,6 +1058,59 @@ async fn refresh(shared: &Rc<RefCell<Shared>>, idb: &Idb, ctx: &Context, locale:
         }
     }
     ctx.request_repaint();
+}
+
+/// スナップショットの一覧を読み直す（そのプロジェクトのパネルが開いているときだけ）。
+async fn reload_snapshots(
+    shared: &Rc<RefCell<Shared>>,
+    idb: &Idb,
+    project: &ProjectRecord,
+    locale: Locale,
+) {
+    let open = shared
+        .borrow()
+        .snapshots
+        .as_ref()
+        .is_some_and(|state| state.project.id == project.id);
+    if !open {
+        return;
+    }
+    if let Err(error) = idb.snapshots(&project.id).await.map(|items| {
+        let mut state = shared.borrow_mut();
+        if let Some(list) = state.snapshots.as_mut() {
+            list.items = items;
+            list.loaded = true;
+            list.selected = list.selected.min(list.items.len().saturating_sub(1));
+        }
+    }) {
+        shared.borrow_mut().notice = Some(i18n::format(
+            locale,
+            "project.pick.failed",
+            &[&message(&error)],
+        ));
+    }
+}
+
+/// スナップショットの名前の誤りの文言（§13.3.8）。
+fn snapshot_name_text(locale: Locale, error: SnapshotNameError) -> String {
+    match error {
+        SnapshotNameError::Empty => {
+            i18n::text(locale, "project.pick.snapshot_name_empty").to_owned()
+        }
+        SnapshotNameError::TooLong => i18n::format(
+            locale,
+            "project.pick.snapshot_name_long",
+            &[&SNAPSHOT_NAME_LEN.to_string()],
+        ),
+        SnapshotNameError::Forbidden => i18n::format(
+            locale,
+            "project.pick.snapshot_name_char",
+            &[&SNAPSHOT_NAME_FORBIDDEN.iter().collect::<String>()],
+        ),
+        SnapshotNameError::Duplicate => {
+            i18n::text(locale, "project.pick.snapshot_name_dup").to_owned()
+        }
+    }
 }
 
 /// 取り込みの本体（読み込み → 新しいレコード → §4.3 の検査 → 一覧）。
@@ -1140,6 +1302,12 @@ impl Picker for WebPicker {
             return;
         }
         let mut shared = self.shared.borrow_mut();
+        if shared.snapshots.is_some() {
+            shared.snapshots = None;
+            drop(shared);
+            self.focus_search = true;
+            return;
+        }
         if shared
             .invalid
             .as_ref()
@@ -1164,21 +1332,26 @@ impl WebPicker {
         self.selected = self.selected.min(rows.len().saturating_sub(1));
         let busy = self.shared.borrow().busy;
         let editing = !matches!(self.edit, Edit::None);
-        let blocked = self.shared.borrow().invalid.is_some();
-        // キー（§13.4）: ↑/↓ 選択・Enter 開く・/ 検索・Ctrl+N 新規・Ctrl+I 取り込み・F2 名前の変更・Delete 削除
+        // スナップショットのパネル（§13.3.8）が開いている間も一覧の操作は止める
+        let blocked =
+            self.shared.borrow().invalid.is_some() || self.shared.borrow().snapshots.is_some();
+        // キー（§13.4）: ↑/↓ 選択・Enter 開く・/ 検索・Ctrl+N 新規・Ctrl+I 取り込み・F2 名前の変更・
+        // Delete 削除・F9 スナップショット（§13.3.8）
         let mut open: Option<ProjectRecord> = None;
         if !editing && !blocked {
-            let (down, up, enter, new, import, rename, delete) = ctx.input_mut(|input| {
-                (
-                    input.consume_key(Modifiers::NONE, Key::ArrowDown),
-                    input.consume_key(Modifiers::NONE, Key::ArrowUp),
-                    input.consume_key(Modifiers::NONE, Key::Enter),
-                    input.consume_key(Modifiers::COMMAND, Key::N),
-                    input.consume_key(Modifiers::COMMAND, Key::I),
-                    input.consume_key(Modifiers::NONE, Key::F2),
-                    input.consume_key(Modifiers::NONE, Key::Delete),
-                )
-            });
+            let (down, up, enter, new, import, rename, delete, snapshots) =
+                ctx.input_mut(|input| {
+                    (
+                        input.consume_key(Modifiers::NONE, Key::ArrowDown),
+                        input.consume_key(Modifiers::NONE, Key::ArrowUp),
+                        input.consume_key(Modifiers::NONE, Key::Enter),
+                        input.consume_key(Modifiers::COMMAND, Key::N),
+                        input.consume_key(Modifiers::COMMAND, Key::I),
+                        input.consume_key(Modifiers::NONE, Key::F2),
+                        input.consume_key(Modifiers::NONE, Key::Delete),
+                        input.consume_key(Modifiers::NONE, Key::F9),
+                    )
+                });
             if down && self.selected + 1 < rows.len() {
                 self.selected += 1;
             }
@@ -1205,6 +1378,11 @@ impl WebPicker {
                 if let Some(row) = rows.get(self.selected) {
                     self.edit = Edit::Delete(row.record.clone(), String::new());
                     self.focus_edit = true;
+                }
+            }
+            if snapshots {
+                if let Some(row) = rows.get(self.selected) {
+                    self.snapshots_open(row.record.clone(), locale);
                 }
             }
             // `/` で検索欄へ（検索欄の外で打ったとき）
@@ -1342,6 +1520,7 @@ impl WebPicker {
             i18n::text(locale, "project.pick.key_import"),
             i18n::text(locale, "project.pick.key_rename"),
             i18n::text(locale, "project.pick.key_delete"),
+            i18n::text(locale, "project.pick.key_snapshot"),
         ];
         if !editing && !blocked {
             match crate::ui::widgets::key_guide(
@@ -1376,6 +1555,11 @@ impl WebPicker {
                         self.focus_edit = true;
                     }
                 }
+                Some(7) => {
+                    if let Some(row) = rows.get(self.selected) {
+                        self.snapshots_open(row.record.clone(), locale);
+                    }
+                }
                 _ => {}
             }
         }
@@ -1391,6 +1575,7 @@ impl WebPicker {
                 RichText::new(i18n::text(locale, "project.pick.working")).color(colors.fg_muted),
             );
         }
+        self.snapshot_panel(ui, locale, colors);
         self.edit_panel(ui, ctx, locale, colors);
         self.invalid_panel(ui, locale, colors);
         let notice = self.shared.borrow().notice.clone();
@@ -1403,7 +1588,227 @@ impl WebPicker {
         }
     }
 
-    /// 名前の入力（新規・名前の変更・削除の確認）。
+    /// スナップショットの一覧と操作（§13.3.8）。プロジェクトを開く前の画面で管理する。
+    ///
+    /// キーだけでも使える（プロジェクトの一覧と同じ流儀）: ↑/↓ 選択・`S` 保存・`R` 復元・
+    /// `Delete` 削除・`Esc` 閉じる（[`Picker::escape`]）。案内の項目はボタンにもなっている。
+    fn snapshot_panel(&mut self, ui: &mut egui::Ui, locale: Locale, colors: theme::Palette) {
+        if self.shared.borrow().snapshots.is_none() {
+            return;
+        }
+        let editing = !matches!(self.edit, Edit::None);
+        let mut close = false;
+        let mut save = false;
+        let mut advance = false;
+        let mut restore: Option<String> = None;
+        let mut remove: Option<String> = None;
+        if !editing {
+            let (down, up, save_key, restore_key, remove_key) = ui.ctx().input_mut(|input| {
+                (
+                    input.consume_key(Modifiers::NONE, Key::ArrowDown),
+                    input.consume_key(Modifiers::NONE, Key::ArrowUp),
+                    input.consume_key(Modifiers::NONE, Key::S),
+                    input.consume_key(Modifiers::NONE, Key::R),
+                    input.consume_key(Modifiers::NONE, Key::Delete),
+                )
+            });
+            let mut shared = self.shared.borrow_mut();
+            let busy = shared.busy;
+            if let Some(list) = shared.snapshots.as_mut() {
+                let last = list.items.len().saturating_sub(1);
+                if down {
+                    list.selected = (list.selected + 1).min(last);
+                }
+                if up {
+                    list.selected = list.selected.saturating_sub(1);
+                }
+                advance = down;
+                let ready = list.loaded && !busy;
+                if save_key && ready && storage_idb::snapshot_room(&list.items) {
+                    save = true;
+                }
+                if restore_key && ready {
+                    restore = list.items.get(list.selected).map(|item| item.name.clone());
+                }
+                if remove_key && ready {
+                    remove = list.items.get(list.selected).map(|item| item.name.clone());
+                }
+            }
+        }
+        let (state, busy) = {
+            let shared = self.shared.borrow();
+            let Some(state) = shared.snapshots.clone() else {
+                return;
+            };
+            (state, shared.busy)
+        };
+        ui.add_space(16.0);
+        Frame::none()
+            .fill(colors.bg_inset)
+            .inner_margin(Margin::same(12.0))
+            .show(ui, |ui| {
+                ui.set_width(ui.available_width());
+                ui.label(
+                    RichText::new(i18n::format(
+                        locale,
+                        "project.pick.snapshots",
+                        &[&state.project.name],
+                    ))
+                    .color(colors.fg_primary),
+                );
+                ui.label(
+                    RichText::new(i18n::text(locale, "project.pick.snapshot_note"))
+                        .small()
+                        .color(colors.fg_muted),
+                );
+                ui.add_space(6.0);
+                if !state.loaded {
+                    ui.label(
+                        RichText::new(i18n::text(locale, "project.pick.loading"))
+                            .color(colors.fg_muted),
+                    );
+                } else if state.items.is_empty() {
+                    ui.label(
+                        RichText::new(i18n::text(locale, "project.pick.snapshot_empty"))
+                            .color(colors.fg_faint),
+                    );
+                }
+                for (index, item) in state.items.iter().enumerate() {
+                    let chosen = index == state.selected;
+                    ui.horizontal(|ui| {
+                        ui.label(
+                            RichText::new(if chosen { "▸" } else { " " }).color(colors.accent),
+                        );
+                        ui.label(RichText::new(&item.name).color(if chosen {
+                            colors.fg_primary
+                        } else {
+                            colors.fg_muted
+                        }));
+                        for detail in [
+                            date_text(&item.created_at),
+                            size_text(item.size()),
+                            i18n::format(
+                                locale,
+                                "project.pick.snapshot_files",
+                                &[&item.file_count().to_string()],
+                            ),
+                        ] {
+                            ui.label(RichText::new(detail).small().color(colors.fg_muted));
+                        }
+                        if !busy {
+                            if crate::ui::widgets::action_button(
+                                ui,
+                                i18n::text(locale, "project.pick.snapshot_restore"),
+                            )
+                            .clicked()
+                            {
+                                restore = Some(item.name.clone());
+                            }
+                            if crate::ui::widgets::action_button(
+                                ui,
+                                i18n::text(locale, "project.pick.snapshot_remove"),
+                            )
+                            .clicked()
+                            {
+                                remove = Some(item.name.clone());
+                            }
+                        }
+                    });
+                }
+                ui.add_space(6.0);
+                let room = storage_idb::snapshot_room(&state.items);
+                if !room {
+                    ui.label(
+                        RichText::new(i18n::format(
+                            locale,
+                            "project.pick.snapshot_limit",
+                            &[&MAX_SNAPSHOTS.to_string()],
+                        ))
+                        .small()
+                        .color(colors.warn),
+                    );
+                }
+                ui.horizontal(|ui| {
+                    let can_save = !busy && room;
+                    let button = ui.add_enabled(
+                        can_save,
+                        egui::Button::new(
+                            RichText::new(i18n::text(locale, "project.pick.snapshot_save"))
+                                .underline(),
+                        )
+                        .min_size(egui::Vec2::splat(24.0)),
+                    );
+                    if can_save && button.hovered() {
+                        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                    }
+                    if button.clicked() {
+                        save = true;
+                    }
+                    if crate::ui::widgets::action_button(ui, i18n::text(locale, "modal.close"))
+                        .clicked()
+                    {
+                        close = true;
+                    }
+                });
+                ui.add_space(4.0);
+                // キー案内（項目ごとにボタン。実行はキーと同じ経路）
+                let guide = [
+                    i18n::text(locale, "project.pick.key_snapshot_select"),
+                    i18n::text(locale, "project.pick.key_snapshot_save"),
+                    i18n::text(locale, "project.pick.key_snapshot_restore"),
+                    i18n::text(locale, "project.pick.key_snapshot_remove"),
+                    i18n::text(locale, "project.pick.key_snapshot_close"),
+                ];
+                match crate::ui::widgets::key_guide(
+                    ui,
+                    &guide,
+                    FontId::new(11.0, FontFamily::Proportional),
+                    &colors,
+                ) {
+                    Some(0) => advance = true,
+                    Some(1) => save = true,
+                    Some(2) => {
+                        restore = state
+                            .items
+                            .get(state.selected)
+                            .map(|item| item.name.clone())
+                    }
+                    Some(3) => {
+                        remove = state
+                            .items
+                            .get(state.selected)
+                            .map(|item| item.name.clone())
+                    }
+                    Some(4) => close = true,
+                    _ => {}
+                }
+            });
+        if advance {
+            let mut shared = self.shared.borrow_mut();
+            if let Some(list) = shared.snapshots.as_mut() {
+                list.selected = (list.selected + 1).min(list.items.len().saturating_sub(1));
+            }
+        }
+        if close {
+            self.shared.borrow_mut().snapshots = None;
+            self.focus_search = true;
+            return;
+        }
+        if save {
+            self.edit = Edit::SnapshotSave(state.project.clone(), String::new());
+            self.focus_edit = true;
+        }
+        if let Some(name) = restore {
+            self.edit = Edit::SnapshotRestore(state.project.clone(), name, String::new());
+            self.focus_edit = true;
+        }
+        if let Some(name) = remove {
+            self.edit = Edit::SnapshotRemove(state.project.clone(), name, String::new());
+            self.focus_edit = true;
+        }
+    }
+
+    /// 名前の入力（新規・名前の変更・削除の確認・スナップショットの名前と確認、§13.3.8）。
     fn edit_panel(
         &mut self,
         ui: &mut egui::Ui,
@@ -1411,30 +1816,65 @@ impl WebPicker {
         locale: Locale,
         colors: theme::Palette,
     ) {
-        let (label, expected, button) = match &self.edit {
-            Edit::None => return,
-            Edit::New(_) => (
+        let prepared = match &self.edit {
+            Edit::None => None,
+            Edit::New(_) => Some((
                 i18n::text(locale, "project.pick.new_name").to_owned(),
-                None,
-                i18n::text(locale, "project.pick.ok"),
-            ),
-            Edit::Rename(..) => (
+                Expect::Any,
+                i18n::text(locale, "project.pick.ok").to_owned(),
+            )),
+            Edit::Rename(..) => Some((
                 i18n::text(locale, "project.pick.rename").to_owned(),
-                None,
-                i18n::text(locale, "project.pick.ok"),
-            ),
-            Edit::Delete(record, _) => (
+                Expect::Any,
+                i18n::text(locale, "project.pick.ok").to_owned(),
+            )),
+            Edit::Delete(record, _) => Some((
                 i18n::format(locale, "project.pick.delete_confirm", &[&record.name]),
-                Some(record.name.clone()),
-                i18n::text(locale, "project.pick.delete"),
-            ),
+                Expect::Exact(record.name.clone()),
+                i18n::text(locale, "project.pick.delete").to_owned(),
+            )),
+            Edit::SnapshotSave(..) => Some((
+                i18n::text(locale, "project.pick.snapshot_name").to_owned(),
+                Expect::SnapshotName,
+                i18n::text(locale, "project.pick.snapshot_save").to_owned(),
+            )),
+            Edit::SnapshotRestore(record, name, _) => Some((
+                i18n::format(
+                    locale,
+                    "project.pick.snapshot_restore_confirm",
+                    &[&record.name, name],
+                ),
+                Expect::Exact(name.clone()),
+                i18n::text(locale, "project.pick.snapshot_restore").to_owned(),
+            )),
+            Edit::SnapshotRemove(_, name, _) => Some((
+                i18n::format(locale, "project.pick.snapshot_remove_confirm", &[name]),
+                Expect::Exact(name.clone()),
+                i18n::text(locale, "project.pick.snapshot_remove").to_owned(),
+            )),
         };
+        let Some((label, expect, button)) = prepared else {
+            return;
+        };
+        // スナップショットの名前は、同じプロジェクトの他の名前と比べて決める（§13.3.8）
+        let existing: Vec<SnapshotRecord> = self
+            .shared
+            .borrow()
+            .snapshots
+            .as_ref()
+            .map(|state| state.items.clone())
+            .unwrap_or_default();
         let focus = std::mem::take(&mut self.focus_edit);
         let mut submit = false;
         let mut cancel = false;
         let enter = ctx.input(|input| input.key_pressed(Key::Enter));
         let value = match &mut self.edit {
-            Edit::New(value) | Edit::Rename(_, value) | Edit::Delete(_, value) => value,
+            Edit::New(value)
+            | Edit::Rename(_, value)
+            | Edit::Delete(_, value)
+            | Edit::SnapshotSave(_, value)
+            | Edit::SnapshotRestore(_, _, value)
+            | Edit::SnapshotRemove(_, _, value) => value,
             Edit::None => return,
         };
         ui.add_space(16.0);
@@ -1453,10 +1893,21 @@ impl WebPicker {
                 if focus {
                     response.request_focus();
                 }
-                let ok = match &expected {
-                    Some(name) => value.trim() == name,
-                    None => !value.trim().is_empty(),
+                let checked = match &expect {
+                    Expect::Any => Ok(()),
+                    Expect::Exact(name) if value.trim() == name => Ok(()),
+                    Expect::Exact(_) => Err(String::new()),
+                    Expect::SnapshotName => storage_idb::snapshot_name(value, &existing)
+                        .map(|_| ())
+                        .map_err(|error| snapshot_name_text(locale, error)),
                 };
+                let ok = checked.is_ok();
+                // 名前の規則（§13.3.8）に合わなければ、理由を入力欄の下に出す
+                if let Err(reason) = &checked {
+                    if !reason.is_empty() {
+                        ui.label(RichText::new(reason).small().color(colors.warn));
+                    }
+                }
                 if response.lost_focus() && enter && ok {
                     submit = true;
                 }
@@ -1496,6 +1947,11 @@ impl WebPicker {
             Edit::New(name) => self.create(name.trim().to_owned(), locale),
             Edit::Rename(id, name) => self.rename(id, name.trim().to_owned(), locale),
             Edit::Delete(record, _) => self.delete(record, locale),
+            Edit::SnapshotSave(record, name) => {
+                self.snapshot_save(record, name.trim().to_owned(), locale)
+            }
+            Edit::SnapshotRestore(record, name, _) => self.snapshot_restore(record, name, locale),
+            Edit::SnapshotRemove(record, name, _) => self.snapshot_remove(record, name, locale),
             Edit::None => {}
         }
         self.focus_search = true;
