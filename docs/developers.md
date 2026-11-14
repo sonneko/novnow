@@ -655,7 +655,8 @@ GUI の見た目（パレット位置、下線・波線の座標、枠線やバ�
 |---|---|---|
 | 機能核（従来どおり） | 121 操作・保存状態・診断 | `REF:tests/api.rs` ほか（Rust。第 2 のために増やさない） |
 | 橋渡し（wasm） | `NovnowSession` の `run` が Rust と同じ JSON を返す | `webui/tests/session.test.mjs`（`wasm-bindgen --target web` の出力を Node で読み、IndexedDB は `fake-indexeddb` で代替する。`npm test`） |
-| 画面 | キー・IME・保存の見え方・ワークスペース切替 | `webui/tests/ui.test.mjs`（Playwright。第 1 の `REF:scripts/web-smoke.mjs` と同じ `check(...)` の形） |
+| キー写像 | キー → コマンド名が実在するか、`?` / `Ctrl+P` / `Esc` が画面側で完結するか、ヘルプの一覧の文言 | `webui/tests/keys.test.mjs`（`src/app/commands.rs` と `i18n/catalog.ts` を実物として読む） |
+| 画面 | キー・IME・保存の見え方・ワークスペース切替 | `webui/tests/ui.test.mjs`（Playwright。第 1 の `REF:scripts/web-smoke.mjs` と同じ `check(...)` の形。**未作成**） |
 | 到達性 | カタログ全操作に画面から届くか、§9〜§12 の未提供件数 | `webui/tests/parity.mjs` / `webui/tests/coverage.mjs` |
 
 - **同じ入力で比べる**: 第 1 と第 2 の出力が同じであることは、同じ操作列を `REF:tests/golden/api_catalog.json` の順に流し、返る JSON を文字列で比べて確かめる（キー順まで含む。§19.1.4 の決定論）。

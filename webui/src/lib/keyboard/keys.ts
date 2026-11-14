@@ -168,6 +168,24 @@ export const SHORTCUTS: Readonly<Record<string, string>> = {
 /** `?` を押したとき（入力欄の外）。 */
 export const HELP = '?';
 
+/**
+ * 画面側だけで完結する操作（`session.command` へ渡さない）。
+ *
+ * `REF:src/app/commands.rs` の表に**無い**ものは、`session.command` が `usage` エラーに
+ * するので `ui:` を付けて区別する（`webui/tests/keys.test.mjs` が、`ui:` 以外の名前が
+ * すべて表に載っていることを確かめる）。
+ *
+ * - `ui:help` … `?`（§9.8.1 の「入力欄外」）。表に `help` はあるが、パレット用の
+ *   `Command::Help` とは別物（オーバーレイを出すのは画面の仕事）。
+ * - `ui:palette` … `Ctrl+P`。表の `palette` は機能核のパレットで、画面の重ね物は画面が開く。
+ * - `ui:close` … `Esc`（重ね物を閉じる → 無ければ節エディタへ。§9.7.5）。
+ */
+export const LOCAL: Readonly<Record<string, string>> = {
+  '?': 'ui:help',
+  'Ctrl+P': 'ui:palette',
+  Escape: 'ui:close',
+};
+
 /** コマンド名からキーの表示を得る（`?` の一覧とボタンのツールチップに使う）。 */
 export function shortcutFor(command: string): string {
   for (const [key, found] of Object.entries(SHORTCUTS)) {
@@ -180,6 +198,20 @@ export function shortcutFor(command: string): string {
 
 /** 押されたキーをコマンド名へ写す（写せなければ `null`）。 */
 export function command(stroke: KeyStroke, options: KeyOptions): string | null {
+  // 画面だけで完結する 3 つ（`?` / `Ctrl+P` / `Esc`）は、修飾キーの読み替えより先に見る。
+  // `?` は配列によって `Shift+/` として届くので、シフトは無視する（`?` 以外の Shift 付きは
+  // 表にそのまま載っている）。`Ctrl+Shift+P` は提案モードのトグルで、`Ctrl+P` とは別。
+  if (!stroke.alt && !stroke.ctrl) {
+    if (stroke.key === '?' || stroke.key === 'Escape') {
+      return LOCAL[stroke.key] ?? null;
+    }
+  }
+  if (!stroke.alt) {
+    const local = LOCAL[chord(stroke)];
+    if (local) {
+      return local;
+    }
+  }
   let found = stroke;
   // macOS では `Option` が文字入力に使われるので `Alt` を `Ctrl+Alt` に読み替える（§9.8.4）
   if (options.mac && stroke.alt && !stroke.ctrl) {

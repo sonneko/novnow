@@ -14,6 +14,7 @@
   // 画面は「いつ呼ぶか」だけを持つ。
 
   import AppShell from './lib/shell/AppShell.svelte';
+  import Overlay from './lib/shell/Overlay.svelte';
   import { Ime } from './lib/keyboard/ime';
   import { command as commandOf, isLocal, keepPayload, strokeOf } from './lib/keyboard/keys';
   import { texts, type Locale, type Texts } from './lib/i18n';
@@ -31,6 +32,9 @@
 
   /** 変換中（IME）。 */
   let composing = false;
+
+  /** 重ね物（`?` のヘルプと `Ctrl+P` のパレット。§9.7.5: 重ね物は 1 つずつ）。 */
+  let overlay: 'help' | 'palette' | null = null;
   const ime = new Ime((found) => {
     composing = found;
   });
@@ -326,10 +330,27 @@
 
   /** 画面側だけで完結する操作（`session.command` に無いもの）。 */
   function local(found: string): void {
-    if (found === 'ui:toggle-reference') {
-      store.update((next) => {
-        next.referenceVisible = !next.referenceVisible;
-      });
+    switch (found) {
+      case 'ui:toggle-reference':
+        store.update((next) => {
+          next.referenceVisible = !next.referenceVisible;
+        });
+        return;
+      case 'ui:help':
+        // `?` は重ね物を開く（§9.8.1 の「入力欄外」）。開いていれば閉じる。
+        overlay = overlay === 'help' ? null : 'help';
+        return;
+      case 'ui:palette':
+        overlay = overlay === 'palette' ? null : 'palette';
+        return;
+      case 'ui:close':
+        // `Esc` は重ね物を閉じる。無ければ節エディタへフォーカスを戻す（§9.7.5）。
+        if (overlay) {
+          overlay = null;
+        }
+        return;
+      default:
+        return;
     }
   }
 
@@ -450,6 +471,66 @@
     }
   }
 
+  /**
+   * ヘルプの行を押したとき、そのキーを実行する（§9.8.7 MUST: 案内の項目は押せる）。
+   *
+   * 押された表示（`Alt+↑ / Alt+↓` など）は**実際のキーではない**ので、`session.command` では
+   * なく正規操作を直接呼ぶ。実行したら重ね物を閉じる（§9.8.7 の「閉じてから実行」）。
+   */
+  async function runHelpRow(key: string): Promise<void> {
+    overlay = null;
+    switch (key) {
+      case 'Alt+0':
+        await setWorkspace('write');
+        return;
+      case 'Ctrl+S':
+        await saveNow();
+        return;
+      case 'Ctrl+Alt+L':
+        await toggleLanguage();
+        return;
+      case 'Ctrl+Alt+T':
+        await toggleTheme();
+        return;
+      case 'F5':
+        await runNamed('reload');
+        return;
+      case 'Ctrl+\\':
+        local('ui:toggle-reference');
+        return;
+      case 'Ctrl+\\'.replace('+', '+Shift+'):
+        await runNamed('swap-reference');
+        return;
+      case 'Alt+↑ / Alt+↓':
+        await runNamed('previous-section');
+        return;
+      case 'Ctrl+Home / Ctrl+End':
+        await runNamed('file-start');
+        return;
+      case 'Ctrl+Enter':
+        await runNamed('confirm-next');
+        return;
+      case 'Ctrl+;':
+        await runNamed('new-section');
+        return;
+      default:
+        // 行によっては押しても動かない（複数のキーをまとめた表示）。**何も起きないより、
+        // 何が起きたか分かるほうがよい**ので、動かせないことを通知に出す（§21.1.2）。
+        store.notice(t('workspace.unavailable', ['']), 'info');
+        return;
+    }
+  }
+
+  /** `session.command` を名前で 1 回呼ぶ（結果を画面へ反映する）。 */
+  async function runNamed(name: string): Promise<void> {
+    const result = await store.run('session.command', { name });
+    if (!result.ok) {
+      store.notice(result.message, 'error');
+      return;
+    }
+    await afterCommand(result.result as Record<string, unknown>);
+  }
+
   /** 画面を離れるときにタイマを片付ける。 */
   export function stop(): void {
     if (timer !== null) {
@@ -487,3 +568,6 @@
   onsave={retrySave}
   onreview={() => setWorkspace('review')}
 />
+
+<!-- 重ね物（`?` のヘルプ / `Ctrl+P` のパレット）。`Esc` と外側クリックで閉じる（§9.7.5）。 -->
+<Overlay {t} mode={overlay} onclose={() => (overlay = null)} onrun={runHelpRow} />
