@@ -46,7 +46,7 @@ docs/
 2. **重複許可ブロック（`SYNC` マーカー）**:
    - `REF:docs/handoff.md` と `REF:docs/plans.md` の間で共有するマイルストーン達成状況など、重複が避けられない箇所は `<!-- SYNC:START <id> -->` と `<!-- SYNC:END <id> -->` で囲み、`REF:docs/script/duplicate.py` でバイト単位の一致を検証する。
 3. **仕様書と設計書の対応表**:
-   - `docs/specifications/<name>.md` と `docs/designs/<name>.md` は以下の 12 ファイル対で構成し、`## ` および `### ` 見出しを完全一致させる。
+   - `docs/specifications/<name>.md` と `docs/designs/<name>.md` は以下の 13 ファイル対で構成し、`## ` および `### ` 見出しを完全一致させる。
      1. `overview.md`（§1 設計原則・§2 用語・§3 アーキテクチャと処理モデル）
      2. `project.md`（§4 プロジェクト構造・付録 C サンプルプロジェクト）
      3. `syntax.md`（§5 ファイル形式）
@@ -59,6 +59,7 @@ docs/
      10. `workflows.md`（§16 資料収集・§17 エクスポート・§18 性能・品質要件）
      11. `interfaces.md`（§19 外部インターフェース：ヘッドレス全機能 API 群）
      12. `external.md`（§20 配布形態：ブラウザ・デスクトップ・Python・VSCode 拡張・GitHub Actions）
+     13. `webui.md`（§21 第 2 の画面実装：並行運用・画面要件・ブラウザ提供・ネイティブ提供・パリティと置き換え）
 
 ---
 
@@ -71,6 +72,9 @@ docs/
   - `libxcb-render0-dev`, `libxcb-shape0-dev`, `libxcb-xfixes0-dev`, `libxkbcommon-dev`, `libssl-dev`, `libgtk-3-dev`
 - **Web ビルド・スモークテスト時**:
   - `trunk`（`0.21.14`）、`wasm-bindgen-cli`（`0.2.118`）、`nodejs` / `playwright` / Headless Chromium。
+- **第 2 の画面実装（`REF:webui/...`、`REF:crates/novnow-wasm/...`。`REF:docs/plans.md#webui`）**:
+  - Node.js 22（`website/`・`vscode/` と同じ版）、`npm ci --prefix webui` で固定、`wasm-pack`、`rustup target add wasm32-unknown-unknown`。
+  - Tauri 2 の前提（Linux は `libwebkit2gtk-4.1-dev` / `libappindicator3-dev` / `librsvg2-dev`）。CI では開発版の成果物を作るときだけ入れる。
 
 ### 2.2 Arena サンドボックス環境でのツールチェーン復旧
 
@@ -113,8 +117,8 @@ novnow/
 │   ├── history.md             # 過去の仕様改訂・意思決定・完了履歴（追記専用、REF:docs/history.md）
 │   ├── verify-rule10.md       # 規則 10（プロジェクト外に書かない）の確認手順
 │   ├── script/                # duplicate.py（文書規則）/ reference.py（実装との突き合わせ）/ 各 test_*.py
-│   ├── specifications/        # 純粋な仕様書（12 ファイル）
-│   └── designs/               # 対応する設計書（12 ファイル）
+│   ├── specifications/        # 純粋な仕様書（13 ファイル）
+│   └── designs/               # 対応する設計書（13 ファイル）
 ├── examples/
 │   ├── api_catalog.rs         # 正規操作カタログのゴールデン生成（REF:examples/api_catalog.rs）
 │   ├── mcp_tools.rs           # MCP ツール定義のゴールデン生成（REF:examples/mcp_tools.rs）
@@ -162,6 +166,21 @@ novnow/
 ├── website/                   # Astro の公式サイト（診断・API のページは仕様書から生成）
 └── tests/                     # 統合テスト・アーキテクチャ境界検査・仕様照合テスト群
 ```
+
+第 2 の画面実装（`REF:docs/plans.md#webui`、仕様 §21）を作るときは、上のツリーに次の 3 つが加わる（W1 の時点ではまだ無い。空のディレクトリを先に置かない）。
+
+```text
+novnow/
+├── crates/
+│   └── novnow-wasm/           # ブラウザ用の橋渡し（wasm-pack の cdylib。`src/lib.rs` と IndexedDB の Host）
+└── webui/                     # Svelte + TypeScript の画面（`src/lib/**`、`src-tauri/` は W5 で追加）
+    ├── package.json / package-lock.json
+    ├── vite.config.ts / tsconfig.json
+    └── tests/                 # parity.mjs（121 操作の到達） / coverage.mjs（§9〜§12 の未提供）
+```
+
+- `webui/` は第 1 の画面（`REF:src/ui/`）を import しない。共有するのは「生成物」（文言・色・操作 ID）だけで、生成は `scripts/` の Python が行う（`REF:docs/plans.md#webui-w3`）。
+- `crates/` は `REF:Cargo.toml` の `[workspace] members` に加える（`python/novnow-py` と同じく、解決から外す場合は `exclude` の扱いを `REF:docs/plans.md#webui-w2` で決める）。
 
 リポジトリ直下に置いてよいのは、ビルド・配布・文書・サイトに直接必要なファイルとディレクトリだけとし、動作確認用のプロジェクトは `examples/` 配下に置く。
 
@@ -312,6 +331,7 @@ CI だけに検査が増えた時点で静かに壊れるため。CI の `docs` 
 | Web | `scripts/web-smoke.sh` / `scripts/web-smoke.mjs` / `tests/storage_idb.rs` | iOS Safari の実機動作（再現不可、M-6） |
 | 文書 | `docs/script/duplicate.py` / `docs/script/reference.py` / `docs/script/test_reference.py` | 散文の意味のずれ（§4.6.1） |
 | 配布 | `tests/distribution.rs` / `scripts/release-check.sh` / `scripts/release-matrix.py` | 市場公開の実績（発行者トークン待ち）、実機での起動（§4.9） |
+| 第 2 の画面（W2 以降） | `docs/script/reference.py`（13 ファイル対） / `docs/plans.md#webui` の W2〜W7 | 画面の見た目（§7.5 の方針どおり固定しない）、Tauri の実機（§4.9） |
 
 ---
 
@@ -575,6 +595,21 @@ GUI の見た目（パレット位置、下線・波線の座標、枠線やバ�
 
 生成された `/tmp/shot.png` を `read_file` ツールで読み込むことで、サンドボックス内でも実際の描画結果を直接目視確認できる。
 
+### 7.5 第 2 の画面実装（`REF:webui/...`）のテスト（W2 以降）
+
+第 1（`REF:tests/gui.rs` のヘッドレス）に対して、第 2 は**ブラウザと Node の上**で確かめる。層を混ぜない。
+
+| 層 | 何を確かめるか | どこで |
+|---|---|---|
+| 機能核（従来どおり） | 121 操作・保存状態・診断 | `REF:tests/api.rs` ほか（Rust。第 2 のために増やさない） |
+| 橋渡し（wasm） | `NovnowSession` の `run` が Rust と同じ JSON を返す | `webui/tests/bridge.test.mjs`（wasm-pack の `--target web` 出力を Node で読む） |
+| 画面 | キー・IME・保存の見え方・ワークスペース切替 | `webui/tests/ui.test.mjs`（Playwright。第 1 の `REF:scripts/web-smoke.mjs` と同じ `check(...)` の形） |
+| 到達性 | カタログ全操作に画面から届くか、§9〜§12 の未提供件数 | `webui/tests/parity.mjs` / `webui/tests/coverage.mjs` |
+
+- **同じ入力で比べる**: 第 1 と第 2 の出力が同じであることは、同じ操作列を `REF:tests/golden/api_catalog.json` の順に流し、返る JSON を文字列で比べて確かめる（キー順まで含む。§19.1.4 の決定論）。
+- **実描画に頼らない**: 第 2 のテストで「見た目」を固定しない（第 1 の §7.4 の PNG に相当する仕組みは作らない）。色と文言は生成物（W3）の一致で守る。
+- **サンドボックスでの制約**: Playwright のブラウザは `REF:scripts/bootstrap-toolchain.sh` の退避に含まれるものを使う。`npm ci` はネットワークが要るため、サンドボックスで回せない日は「Node 側は CI で見る」と記録し、緑と書かない。
+
 ---
 
 ## 8. 仕様外の注意点（技術的な落とし穴一覧）
@@ -637,6 +672,18 @@ GUI の見た目（パレット位置、下線・波線の座標、枠線やバ�
 28. **`gh pr edit` の Classic Projects 廃止エラー**: `gh pr edit` は GraphQL の Classic Projects 廃止エラーで失敗するため、PR のタイトル・本文更新には `gh api repos/sonneko/novnow/pulls/<PR番号> -X PATCH --input -` を使用する。
 29. **ロックファイル v4（`Cargo.lock`）**: 本リポジトリの `Cargo.lock` は format version 4（Rust 1.78 以降）を使用しているため、古い `cargo`（1.77 等）では `--locked` が読めない。GitHub Actions 等で扱う際は `dtolnay/rust-toolchain@stable` などの新しいツールチェーンを使う。
 
+
+### 8.10 第 2 の画面実装（Svelte + Tauri）の注意点
+
+30. **`Host` は同期、IndexedDB は非同期**: `REF:src/app/host.rs` の `write` は同期で結果を返す。ブラウザの IndexedDB は非同期なので、`write` の中で待てない。書き込みはメモリへ即時に反映し、IndexedDB への流し込みを別に持つ（`REF:docs/plans.md#webui-w2`）。IndexedDB の失敗を `write` の戻り値に混ぜない（保存状態機械の `error` として後から返す）。
+31. **wasm ではスレッドを持てない**: `Session` は `Send` ではない（`REF:src/app/driver.rs` の注記と同じ理由）。ブラウザ用の橋渡しにワーカースレッドを挟まない。Tauri 側はコマンドの中で 1 つの `Mutex<Session>` を持つ。
+32. **`Session` の JSON を二重に包まない**: 画面と橋渡しのあいだは**文字列の JSON**で渡す（`run(op, args)` の `args` と戻り値）。`wasm-bindgen` の `JsValue` へ直接写すと、キー順が環境で変わり §19.1.4 の決定論が崩れる。
+33. **IME のイベントは 3 つ揃っていない**: `compositionend` が来ない環境（一部の WebView）があるため、最後の変換イベントから 2 秒のフェイルセーフを必ず入れる（§9.8.5 の 3）。キー処理は変換中に早期 return し、`preventDefault` を呼ばない（呼ぶと変換候補の選択まで止まる）。
+34. **Tauri の権限を広げない**: `capabilities` に `fs` プラグインを足さない。ファイル入出力は Rust 側の `Host`（`FsGate`）を通す（§21.4.1）。`shell` / `http` / `autostart` の許可を置かない。足したくなったら、先に仕様 §13.1 を読む。
+35. **第 1 の保存領域と混ぜない**: ブラウザの DB 名は第 2 が `novnow-webui`（§13.3.2 の `novnow` と別）。Service Worker もスコープが違うので、第 1 の `REF:sw.js` の登録を流用しない。
+36. **文言・色を写さない**: `REF:src/ui/i18n/*.toml` と仕様 §11.1 の表から生成する（`REF:docs/plans.md#webui-w3`）。手で `catalog.ts` を書くと、第 1 の文言修正が第 2 に届かない。
+
+---
 
 ## 9. 公開版の既知の問題の管理
 

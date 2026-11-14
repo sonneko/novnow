@@ -11,19 +11,22 @@
 | 区分 | 状態 | 対象範囲 | 参照 |
 |---|---|---|---|
 | 段階 ①（M0〜M11） | 完了 | コア仕様・全 9 ワークスペース・MCP・CLI・Web 版・ベンチマーク・サンプル一式 | `REF:docs/history.md` |
-| 設計書セクション実装状況 | 実装完了 142 節 / 実装中 0 節 / 未実装・実装計画済み 0 節 / 未実装・未計画 0 節 / 実装待ち 0 節 | 全 12 設計書の `### ` 節（合計 142 節） | `REF:docs/designs/` |
+| 設計書セクション実装状況 | 実装完了 142 節 / 実装中 0 節 / 未実装・実装計画済み 5 節 / 未実装・未計画 0 節 / 実装待ち 0 節 | 全 13 設計書の `### ` 節（合計 147 節） | `REF:docs/designs/` |
 | 仕様変更・修正（F-01〜F-44） | 実装完了（44 件） | UI・エディタ・パレット・辞書・ショートカット・性能等の修正 44 項目 | `REF:docs/plans.md#planned-fixes` |
 | 機能追加（小規模：S-01〜S-18） | 実装完了（18 件） | エージェント例指定・PWA・Zip 導入・形態素波線等の小規模機能追加 18 項目 | `REF:docs/plans.md#planned-small-features` |
 | 機能追加（比較的大規模：L-01） | 実装済み（CLI・デスクトップ） | 既存の本文テキストから `novnow` に移行するための手段の提供 | `REF:docs/plans.md#unplanned-large` |
 | 段階 ②（追加仕様 1〜27） | 実装済み・検証完了（#1〜27） | 予約済みの追加機能 27 項目（10 個の縫い代で受け入れ準備済み） | `REF:docs/plans.md#stage-2` |
 | 段階 ③（§19 外部インターフェース） | 実装済み・検証完了（H1〜H7。Python 拡張もサンドボックスでビルドし pytest まで通る。正式な wheel 検証は CI のホイール行列 `REF:.github/workflows/wheels.yml`。`REF:docs/plans.md` §5.5・§5.6） | Rust API・Python API・LSP・MCP 拡張・CLI 拡張による GUI 全機能のヘッドレス公開 | `REF:docs/plans.md#stage-3` |
 | 配布（D-01〜D-20） | v0.1.0公開済み。既知の問題は公開版一覧で管理 | 5 形態・17 成果物とSHA256SUMS、公開・検査ワークフロー | `REF:docs/plans.md#distribution` |
+| 第 2 の画面実装（仕様 §21） | 計画確定・未着手（W1 の文書整備だけ完了） | Svelte + TypeScript の画面と Tauri のネイティブ実行を、第 1 の画面と並行して作る | `REF:docs/plans.md#webui` |
 <!-- SYNC:END stage1-status -->
 
 ---
 
 ## 2. 現在のブランチ・PR・直近の作業状態
 
+- 2026-11-14（第 2 の画面実装の並列開発戦略）: 複数エージェントが同時に W2〜W7 を進めても衝突が小さくなるよう、レーン分割（L0 基盤・L1〜L5 の画面グループ・L6 Tauri・L7 配線）と共有ファイルの所有者表を `REF:docs/plans.md#webui-parallel` に追記した。要点は「1 ファイル 1 所有者」「生成物は生成器だけが書く」「共有ファイルは小さな PR で先に着地」。W2 は全レーンの前提なので 1 本で仕上げる。
+- 2026-11-14（第 2 の画面実装の計画）: 所有者指示により、画面を Svelte + TypeScript で作り、Tauri でネイティブ化する第 2 の系統を、egui の第 1 と**並行**して作る方針を仕様・設計・計画に起こした。仕様 §21（`REF:docs/specifications/webui.md`）と設計 §21（`REF:docs/designs/webui.md`）を新設し、計画は `REF:docs/plans.md#webui`（W1〜W7）。既存の記述は削除せず追記のみ。文書だけの変更で、`src/` には触れていない（W1 の完了分）。反映先は `REF:docs/developers.md` §1.1（13 ファイル対）・§2.1（Node / wasm-pack / Tauri の前提）・§3（`crates/`・`webui/` の予定ツリー）、SYNC 表（13 設計書・147 節）、`REF:docs/script/reference.py` の章番号表と `REF:docs/script/test_reference.py`、`REF:scripts/docs-site.py` の並び順、README（日・英）・`REF:GUIDE.md`・サイトの「13 冊」表記。
 - 2026-11-10（my-novels 用 nightly 更新スクリプト）: コピーして単独実行できる `REF:scripts/update-novnow-nightly.py` と手順 `REF:scripts/update-novnow-nightly.md` を追加。Linux x64 の VSIX・nogui を asset ID 指定で取得し、照合・導入後に current を切り替える。利用側の設定ファイルは上書きしない。オフライン回帰 `REF:docs/script/test_nightly_update.py` 7 件成功。
 
 - 2026-11-10（nightly 配布経路）: 所有者承認の 3 成果物・gh-pages 共存方式を実装。ローカル一括検証（Rust 1,480 件）・Web smoke・サイト検査成功。VSIX の取得・版管理は対象外。現行仕様は `REF:docs/specifications/external.md` §20.6.4、公開環境の要設定事項は `REF:docs/distribution.md` §11。
