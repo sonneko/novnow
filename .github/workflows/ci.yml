@@ -104,6 +104,7 @@ jobs:
           set -euo pipefail
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "rust_changed=true" >> "$GITHUB_OUTPUT"
+            echo "webui_changed=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if [ "${{ github.event_name }}" = "pull_request" ]; then
@@ -113,25 +114,32 @@ jobs:
           fi
           if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
             echo "rust_changed=true" >> "$GITHUB_OUTPUT"
+            echo "webui_changed=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           changed="$(git diff --name-only "$base" HEAD)"
           echo "Changed files:"
           echo "$changed"
           rust_changed=false
+          webui_changed=false
           while IFS= read -r file; do
             [ -z "$file" ] && continue
             case "$file" in
+              webui/*)
+                # 第 2 の画面実装だけの変更は Rust の再ビルドを要さず、
+                # `webui` ジョブだけを走らせる（docs/plans.md §11.6 の W6）。
+                webui_changed=true
+                ;;
               docs/developers.md|docs/plans.md|docs/handoff.md|docs/history.md|docs/designs/*|docs/script/*|README.md|LICENSE|screenshot.png|.github/workflows/deploy.yml|.github/workflows/sandbox-tools.yml|.github/workflows/toolchain-export.yml|.github/*.env)
                 ;;
               *)
                 rust_changed=true
-                break
                 ;;
             esac
           done <<< "$changed"
           echo "rust_changed=$rust_changed"
           echo "rust_changed=$rust_changed" >> "$GITHUB_OUTPUT"
+          echo "webui_changed=$webui_changed" >> "$GITHUB_OUTPUT"
 
   python:
     name: Python API
@@ -174,10 +182,12 @@ jobs:
   webui:
     name: Web UI
     needs: docs
-    # 第 2 の画面実装（docs/plans.md §11.6 の W6）。生成物の一致・型検査・Node の回帰・
-    # 本番ビルドに加えて、`webui/src/wasm/` を作るための wasm のビルドも回す（git に入れない
-    # 生成物なので、ここで組めなければ画面は動かない）。`rust_changed` に関わらず走らせる。
-    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    # 第 2 の画面実装（docs/plans.md §11.6 の W6）。`webui/**` の変更があるときだけ走らせる
+    #（docs ジョブの変更フィルタで `webui_changed` を検知）。Rust の入力だけが変わった PR
+    # ではスキップする。生成物の一致・型検査・Node の回帰・本番ビルドに加えて、`webui/src/wasm/`
+    # を作るための wasm のビルドも回す（git に入れない生成物なので、ここで組めなければ
+    # 画面は動かない）。
+    if: needs.docs.outputs.webui_changed == 'true' && (github.event_name != 'pull_request' || !github.event.pull_request.draft)
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
