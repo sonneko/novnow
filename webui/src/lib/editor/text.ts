@@ -119,3 +119,36 @@ export function charsWithoutSpace(text: string): number {
 export function grouped(count: number): string {
   return count.toLocaleString('en-US');
 }
+
+/**
+ * 文書の本文を行ごとの byte 位置に分ける（`diagnostics.run` の `line` を節の中の位置へ直すため。
+ * §11.3）。
+ *
+ * `line` は 1 始まりなので、返す `Map` の鍵も 1 始まり。`text` が空でも 1 行目（0 byte）を返す。
+ */
+export function lineBytes(text: string): Map<number, number> {
+  const encoder = new TextEncoder();
+  const out = new Map<number, number>();
+  let byte = 0;
+  const rows = text.split('\n');
+  for (let index = 0; index < rows.length; index += 1) {
+    out.set(index + 1, byte);
+    byte += encoder.encode(rows[index] ?? '').length + 1;
+  }
+  return out;
+}
+
+/**
+ * 診断の行（1 始まり・文書の中）を、節の中の byte 位置へ直す。
+ *
+ * `base` は節の先頭（文書の中の byte）、`byLine` は [`lineBytes`] の戻り値。
+ * 節の外（前の行）を指す診断は捨てる（`null`）。位置のずれた下線を引かない。
+ */
+export function sectionByteOf(byLine: Map<number, number>, base: number, line: number): number | null {
+  const at = byLine.get(line);
+  if (at === undefined) {
+    return null;
+  }
+  const local = at - base;
+  return local < 0 ? null : local;
+}
