@@ -99,7 +99,9 @@ v0.1.0 では **IndexedDB のみ**を使い、LocalStorage は移行のために
 
 #### 13.3.2 スキーマ
 
-DB 名 `novnow` / バージョン `2`（2 = `snapshots` の追加。§13.3.8）。検証用の `/novnow/nightly-app/` では DB 名を `novnow-nightly` とし、正式版と作品・履歴を共有しない。
+DB 名 `novnow` / バージョン `2`（2 = `snapshots` の追加。§13.3.8）。検証用の `/novnow/nightly-app/` では DB 名を `novnow-nightly` とし、正式版と作品・履歴を共有しない。第 2 の画面実装の入口（`/novnow/webui/`・`/novnow/nightly-webui/`）も同じスキーマを使い、DB 名は入口の系統ごとに分ける（MUST。正式版と開発版、および第 1 と第 2 のあいだで作品・履歴を共有しない）。
+
+公開の入口は 4 つある（`/novnow/app/`・`/novnow/webui/`・`/novnow/nightly-app/`・`/novnow/nightly-webui/`）。どの入口から開いたかは URL のパスで決まり、保存領域の選択はその入口だけを根拠にする（MUST）。入口の追加・変更で既存の保存領域の名前を変えない。
 
 | ストア | keyPath | インデックス | 値 |
 |---|---|---|---|
@@ -156,6 +158,9 @@ Web には「プロジェクトディレクトリパス」が存在しないた�
 #### 13.3.7 PWA 化とオフライン動作〔状態: 実装完了〕
 
 - ブラウザ版は PWA（Progressive Web App）として構成し、ブラウザからインストール可能かつネットワーク未接続のオフライン環境でも起動・執筆・保存が完結するようにする。
+- オフライン起動に必要な資源の一覧は、Web App Manifest と Service Worker の 2 つを入口として持つ（MUST）。Manifest は名前・開始 URL・表示形式・テーマ色を、Service Worker は資源の取得とキャッシュの保持を受け持つ。
+- 4 つの入口（`/novnow/app/`・`/novnow/webui/`・`/novnow/nightly-app/`・`/novnow/nightly-webui/`）は、それぞれの入口の範囲だけをキャッシュする（MUST）。Service Worker の受け持ち範囲は自身の入口の配下に限り、ほかの入口の資源を横取りしない。キャッシュの名前も入口ごとに分ける。
+- 更新時は、新しい資源の取得がすべて成功するまで、既存の動作可能なキャッシュを残す（MUST、§20.1.3）。取得に失敗した入口は前回の内容のまま起動でき、ほかの入口の状態を変えない。
 
 #### 13.3.8 名前付きスナップショットと復元〔状態: 実装完了〕
 

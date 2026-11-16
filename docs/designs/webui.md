@@ -44,14 +44,16 @@
 
 状態: 未実装・実装計画済み（REF:docs/plans.md#webui-w4）
 
-- **ビルド**: `webui/` を Vite で静的ファイルにし、`scripts/webui-build.sh`（未作成。計画は `REF:docs/plans.md#webui-w4`） が `dist/` へ出す（W4）。第 1 のブラウザ版（Trunk の `REF:Trunk.toml`）は `dist/` の別ディレクトリ（`app/`）に置き、入口を分ける。第 2 は `webui/` 配下（`sonneko.github.io/novnow/webui/`）に出し、`REF:index.html` とサイトの導線から辿れるようにする。
+- **ビルド**: `webui/` を Vite で静的ファイルにし、`REF:scripts/webui-build.sh`（wasm の組立）と `npm run build --prefix webui`（Vite）が `webui/dist/` へ出す（W4）。第 1 のブラウザ版（Trunk の `REF:Trunk.toml`）は `dist/` の別ディレクトリ（`app/`）に置き、入口を分ける。第 2 は `webui/` 配下（`sonneko.github.io/novnow/webui/`）に出し、`REF:index.html` とサイトの導線から辿れるようにする。
 - **WASM の組立**: `REF:crates/novnow-wasm/...` は `crate-type = ["cdylib", "rlib"]`、`wasm-bindgen` を使い、`wasm-pack build --target web` で `pkg/` を出す。公開する型は 3 つに絞る。
   - `NovnowSession`: `open(root_text)` / `run(op, args_json) -> string` / `poll_events() -> string` / `flush()` / `locale` の getter・setter。
   - `open_project_files(files_json)`: Zip 取り込みの入力を渡す（`REF:src/adapters/zip.rs` を共有）。
   - `version()`: 版文字列（`session.version()`）。
 - **Host の実装**: ブラウザ用の Host（`REF:crates/novnow-wasm/...`（未作成）の中）は、既存の `REF:src/adapters/storage_idb.rs` をそのまま使えない（同期の `Host` と非同期の IndexedDB の差）。そこで「起動時にプロジェクトの全文をメモリへ読み、書き込みはメモリへ反映して IndexedDB へ非同期で流す」形にする（`REF:src/app/memory_host.rs` を土台にし、書き込みキューを 1 本持つ）。読み取りは常にメモリから返すので `Session` は同期のままでよい。書き込みの失敗は `poll_events` の次回に `SaveStateChanged(state=error)` として返す。
 - **保存領域の分離**: 第 2 のブラウザ版は IndexedDB の DB 名を `novnow-webui`（検証版は `novnow-webui-nightly`）にする（§13.3.2 の `novnow` と共有しない。§21.3.2）。`app` ストアの許可キーは `recent_projects` だけのままにする。
-- **PWA**: `webui/` のビルドにも `manifest.webmanifest` と Service Worker を持たせる（`REF:scripts/pwa-assets.py` の考え方で、ハッシュ付き資源を先に固定する）。第 1 の `REF:sw.js` とはスコープが違うので互いに干渉しない。
+- **PWA**: `webui/` のビルドにも `manifest.webmanifest` と Service Worker を持たせる（`REF:scripts/pwa-assets.py` の考え方で、ハッシュ付き資源を先に固定する）。第 1 の `REF:sw.js` とはスコープが違うので互いに干渉しない。配置は `REF:webui/public/` の 2 ファイル（`sw.js`・`manifest.webmanifest`）で、Vite が `webui/dist/` の直下へ写す。登録は `REF:webui/index.html` が `./manifest.webmanifest` の読み込みと `./sw.js`（スコープ `./`）の登録を行う。キャッシュ名は `self.registration.scope` を含める（`novnow-webui-<入口>`）ので、`/novnow/webui/` と `/novnow/nightly-webui/` のキャッシュは入口ごとに分かれる。第 1 の worker が資源一覧を封入して全件取得成功で activate するのに対し、第 2 は入口の `index.html` を install で固定し、以降の GET を随時キャッシュする（§13.3.7）。
+- **Pages の 2 チャネル配置**: GitHub Pages の入口は 4 つ（`app/`・`webui/`・`nightly-app/`・`nightly-webui/`）。第 2 は正式版が `webui/`、開発版が `nightly-webui/` で、ビルドは 1 つ（`webui/dist/`）を両方へ写す（`REF:.github/workflows/deploy.yml`・`REF:.github/workflows/nightly.yml`）。入れ替えの規則は `REF:scripts/channel-pages.py` が持つ: `nightly` の公開は `nightly-webui/` だけを `REF:scripts/publish-channel.sh` が渡す `--incoming-webui` の木で差し替え、`stable` の公開は `webui/` を置いたうえで `nightly-webui/` を `webui/` の写しでリセットする。payload の検証名は `novnow-nightly-webui.tar.gz`（`webui/dist/` を tar にしたもの）。入口の一覧・起動は `REF:scripts/website-check.py`（`--website-only`）と `REF:scripts/pages-e2e.mjs` が見る。
+- **CI の配線**: `REF:.github/workflows/ci.yml` の `docs` ジョブの変更フィルタは `webui/**` のときに `webui_changed=true` を立て、`crates/novnow-wasm/*` のときは `rust_changed` と `webui_changed` の両方を立てる（第 2 の wasm の実体は `REF:crates/novnow-wasm/` にあり、画面だけを直したときに Rust ジョブを回さないため）。`webui` ジョブは `REF:scripts/webui-check.sh --full` に続けて `cargo test --manifest-path webui/src-tauri/bridge/Cargo.toml` を実行する。ブリッジのクレート名は `novnow-native-bridge`（`REF:webui/src-tauri/bridge/Cargo.toml`）で、Tauri に依存しないので WebView の開発ライブラリが無い CI でも組める。手元の `REF:scripts/verify.sh` は `webui` ジョブで `REF:scripts/webui-check.sh`（`--full` なし）だけを回し、Node 22 と本番ビルドを要する部分とブリッジのテストは CI に任せる（同じところまで手元で見るときは `bash scripts/webui-check.sh --full` とブリッジの `cargo test`）。
 
 ### 21.4 ネイティブ実行での提供
 

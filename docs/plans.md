@@ -2214,6 +2214,7 @@ Issue #55 で報告された 24 件の仕様不適合（重大・中程度 13 �
 - 版の一元化: `webui/package.json` と `tauri.conf.json` の版を `REF:scripts/release-matrix.py --bump` の対象に加える。
 - `REF:docs/developers.md` §4.9（実機チェックリスト）に、WebView の IME・日本語入力・HiDPI の行を足す。
 - 実施記録（CI 補完 + GitHub Pages 公開）: `.github/workflows/ci.yml` の変更フィルタに `crates/novnow-wasm/*` を追加し、`webui` ジョブで `webui/src-tauri/bridge/Cargo.toml` の `cargo test` を実行するようにした。GitHub Pages 公開は `nightly.yml` / `deploy.yml` / `scripts/publish-channel.sh` / `scripts/channel-pages.py` に `webui/` と `nightly-webui/` を追加し、`webui/public/` に Service Worker とマニフェスト、`website/src/components/Hero.astro` に 4 形態の案内リンク、`scripts/website-check.py` と `scripts/pages-e2e.mjs` に検査・起動確認を追加した。
+- 実施記録（仕様・設計への反映。所有者の承認済み）: `REF:docs/specifications/external.md` §20.6.4 に公開の入口 4 つ（`app/`・`webui/`・`nightly-app/`・`nightly-webui/`）と nightly / stable の更新範囲を明記し、`REF:docs/specifications/platform.md` §13.3.2・§13.3.7 に第 2 の入口の DB 名の分離と入口ごとの Service Worker / Manifest の扱いを追記した。設計側は `REF:docs/designs/external.md` §20.6.4（payload と `--incoming-webui` の受け渡し）、`REF:docs/designs/platform.md` §13.3（第 2 の DB 名とオフライン資源の配置）、`REF:docs/designs/webui.md` §21.3（Pages の 2 チャネル配置・PWA の配置・CI の配線）に実装の在り処を書いた。
 
 <a id="webui-w7"></a>
 ### 11.7 W7: パリティ判定と置き換えの判断

@@ -92,9 +92,11 @@
 
 #### 20.6.4 develop 検証用 nightly
 
-- `REF:.github/workflows/nightly.yml` は develop push と手動実行で 3 成果物を構築する。PR は同じビルド・検査までで、公開しない。Linux の梱包は既存の `REF:scripts/release-matrix.py` を再利用し、固定の nightly 配布名へ移す。VSIX のコード・内部版は変更しない。
+- `REF:.github/workflows/nightly.yml` は develop push と手動実行で 4 件の成果物（Linux nogui・VSIX・第 1 のブラウザアプリ・第 2 のブラウザアプリ）を構築する。PR は同じビルド・検査までで、公開しない。Linux の梱包は既存の `REF:scripts/release-matrix.py` を再利用し、固定の nightly 配布名へ移す。VSIX のコード・内部版は変更しない。第 2 の画面実装は `REF:scripts/webui-build.sh`（wasm）→ `npm run build --prefix webui`（Vite）で `webui/dist/` を作り、`novnow-nightly-webui.tar.gz` として同じ payload に置く（`REF:.github/workflows/nightly.yml`）。
+- 公開の入口は 4 つ（`app/`・`webui/`・`nightly-app/`・`nightly-webui/`）。`REF:scripts/channel-pages.py` の `assemble` が入口ごとの差し替えを担う。`nightly` は `previous` を土台に `nightly-app/`（`--incoming`）と `nightly-webui/`（`--incoming-webui`）だけを入れ替え、`stable` は `--incoming` のサイト木をそのまま置いたうえで `nightly-app/` を `app/` の写し、`nightly-webui/` を `webui/` の写しでリセットする（`webui/index.html` があるときだけ。第 2 をまだ配っていない版では入口を作らない）。`REF:scripts/publish-channel.sh` は payload の名前集合に `novnow-nightly-webui.tar.gz` を含めて検査し、展開した木を `--incoming-webui` で渡す。
 - `REF:scripts/build-channel-browser.sh` は相対 URL で Trunk ビルドする。同じブラウザアーカイブを Release と Pages に利用する。`REF:sw.js` の登録スコープ別キャッシュと `REF:src/adapters/storage_idb.rs` の nightly パス別 DB により共存させる。`REF:scripts/pages-e2e.mjs` が両パスの起動・オフライン利用・DB を検証する。
 - 正式版の入口は既存の main 更新（`REF:.github/workflows/deploy.yml`）。両経路は `REF:.github/workflows/channel-publish.yml` の非キャンセル共通 concurrency を通る。Release 更新、`gh-pages` 更新、Pages デプロイまでを直列化し、書き込み時点のブランチ先頭 SHA と公開済み run ID を検査する。
 - `REF:scripts/channel-pages.py` が差し替え範囲を限定する。`REF:scripts/publish-channel.sh` は一時 index と commit-tree で公開木を作り、`gh-pages` へ fast-forward push する。タグの更新・Release の削除再作成は `nightly` だけに限定し、通常の Release ワークフローは変更しない。
+- 正式版の公開（`REF:.github/workflows/deploy.yml`）は第 1 のサイトを組み立てたあと、`REF:scripts/webui-build.sh` と `npm run build --prefix webui` で `webui/dist/` を作り、`website/dist/webui` と `website/dist/nightly-webui` の両方へ写す。写したあとのサーバー起点の確認は `REF:scripts/website-check.py`（`--website-only` で 4 つの入口を許す）と `REF:scripts/pages-e2e.mjs`（`/novnow/webui/`・`/novnow/nightly-webui/` の起動）が担う。
 - `gh-pages` がない初回は main の正式サイトを別途ビルドし、`REF:scripts/channel-link.py` による固定リンクとスコープ対応 worker だけを追加して初期化する。nightly のアプリ以外に develop のサイト内容を入れない。既存の gh-pages があれば初期化は不要。
 - 組み立て・公開境界の回帰は `REF:docs/script/test_channels.py`。環境側の公開許可と復旧操作は `REF:docs/distribution.md` に記載する。

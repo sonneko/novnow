@@ -24,7 +24,7 @@
 
 状態: 実装完了（REF:src/adapters/storage_idb.rs, REF:tests/storage_idb.rs, REF:index.html, REF:sw.js, REF:manifest.webmanifest, REF:scripts/web-smoke.mjs）
 
-検証用の `/novnow/nightly-app/` では `REF:src/adapters/storage_idb.rs` が DB を `novnow-nightly` に切り替える。通常の DB 名・スキーマは維持する。
+検証用の `/novnow/nightly-app/` では `REF:src/adapters/storage_idb.rs` が DB を `novnow-nightly` に切り替える。通常の DB 名・スキーマは維持する。第 2 の画面実装（`/novnow/webui/`・`/novnow/nightly-webui/`）は同じスキーマを別の DB 名で使う（`REF:crates/novnow-wasm/src/storage.rs` の `DB_NAME` = `novnow-webui` と `NIGHTLY_DB_NAME` = `novnow-webui-nightly`）。DB 名は `window.location.pathname` の入口だけで決め、第 1 の `novnow` は第 2 から決して選ばない（`db_name`。`/novnow/nightly-app/` の判定を第 1 が持つのと同じ形）。
 
 - DB 名 `novnow`（version 2）の 4 オブジェクトストア（`projects`, `files`, `app`, `snapshots`）と `APP_KEYS`（`recent_projects` のみ許可）、残容量 10MB 未満の `W063` とクォータ使用量の選択画面表示、IndexedDB 利用不可時の `E062`、旧形式プロジェクト（`project.json` / `.txt`）の開時自動移行（`migrate_legacy_project_in_place`）、初回 `sample` プロジェクト投入は `REF:src/adapters/storage_idb.rs` と `REF:src/ui/web.rs` に実装する（`REF:docs/plans.md#issue-55`）。
 - スキーマ定数と仕様表の一致は `REF:tests/storage_idb.rs` が `include_str!` で検証し、ブラウザ実機動作は `REF:scripts/web-smoke.mjs` で検証する。
@@ -45,6 +45,11 @@
 
 - **[S-03] Web 版の PWA 化とオフライン動作（実装完了: `REF:index.html`, `REF:sw.js`, `REF:README.md`, `REF:scripts/web-smoke.mjs`）**:
   - `REF:index.html` に Web App Manifest（`REF:manifest.webmanifest`）と Service Worker（`REF:sw.js`）登録を設け、オフラインキャッシュと `REF:README.md` への PWA 案内を実装する。`REF:scripts/pwa-assets.py` を Trunk post_build で実行し、全資源の一覧と内容ハッシュを worker に封入する。`REF:sw.js` は全件キャッシュが成功したときだけ activate する。旧キャッシュを install 中に消さない。`REF:scripts/web-smoke.mjs` では追加のオンライン再読み込みを挟まず、オフライン再起動と IndexedDB の継続性を確認する。
+
+- **4 つの入口のオフライン資源（実装完了: `REF:webui/public/sw.js`, `REF:webui/public/manifest.webmanifest`, `REF:webui/index.html`, `REF:scripts/website-check.py`, `REF:scripts/pages-e2e.mjs`）**:
+  - 第 2 の画面実装の Manifest と Service Worker は `REF:webui/public/` に置き、Vite がそのまま `dist/` へ写す。`REF:webui/index.html` は `./manifest.webmanifest` を読み、`./sw.js` をスコープ `./` で登録する（相対 URL なので `/novnow/webui/` と `/novnow/nightly-webui/` のどちらでも同じ資源で動く）。
+  - `REF:webui/public/sw.js` はキャッシュ名に `self.registration.scope` を含める（`novnow-webui-<入口>`）。したがって入口ごとにキャッシュが分かれ、`activate` で消すのは同じ接頭辞の古い世代だけ、`fetch` は同一 origin の GET だけを扱う（§13.3.7）。
+  - 第 1 の `REF:sw.js` は資源一覧を封入して全件取得できたときだけ activate する形なので、第 2 の「初回は入口の `index.html` だけを先に固定し、以降の取得を随時キャッシュする」形とは仕組みが違う。**受け持ち範囲が入口ごとに閉じているので、2 つの worker は干渉しない。** どちらの形を採るかは入口ごとに閉じた判断であり、同じ入口に 2 つの worker を置かない。
 
 ### 13.4 プロジェクト選択モーダル（Web）
 
