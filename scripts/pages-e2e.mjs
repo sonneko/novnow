@@ -10,7 +10,7 @@ const playwright = require('playwright');
 const root = path.resolve('website/dist');
 let offline = false;
 let retire = false;
-const mime = { '.html': 'text/html', '.js': 'text/javascript', '.wasm': 'application/wasm', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json' };
+const mime = { '.html': 'text/html', '.js': 'text/javascript', '.wasm': 'application/wasm', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.webmanifest': 'application/manifest+json' };
 const server = http.createServer(async (req, res) => {
   if (offline) { req.socket.destroy(); return; }
   try {

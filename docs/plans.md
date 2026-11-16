@@ -2213,6 +2213,7 @@ Issue #55 で報告された 24 件の仕様不適合（重大・中程度 13 �
 - `REF:scripts/verify.sh` に `webui` ジョブ（型検査・単体・ビルド・パリティ）を足す。Actions の使用時間を抑えるため、`docs` ジョブの変更フィルタに `webui/**` を加え、`webui` の変更があるときだけ走らせる。
 - 版の一元化: `webui/package.json` と `tauri.conf.json` の版を `REF:scripts/release-matrix.py --bump` の対象に加える。
 - `REF:docs/developers.md` §4.9（実機チェックリスト）に、WebView の IME・日本語入力・HiDPI の行を足す。
+- 実施記録（CI 補完 + GitHub Pages 公開）: `.github/workflows/ci.yml` の変更フィルタに `crates/novnow-wasm/*` を追加し、`webui` ジョブで `webui/src-tauri/bridge/Cargo.toml` の `cargo test` を実行するようにした。GitHub Pages 公開は `nightly.yml` / `deploy.yml` / `scripts/publish-channel.sh` / `scripts/channel-pages.py` に `webui/` と `nightly-webui/` を追加し、`webui/public/` に Service Worker とマニフェスト、`website/src/components/Hero.astro` に 4 形態の案内リンク、`scripts/website-check.py` と `scripts/pages-e2e.mjs` に検査・起動確認を追加した。
 
 <a id="webui-w7"></a>
 ### 11.7 W7: パリティ判定と置き換えの判断
