@@ -10,7 +10,7 @@ const playwright = require('playwright');
 const root = path.resolve('website/dist');
 let offline = false;
 let retire = false;
-const mime = { '.html': 'text/html', '.js': 'text/javascript', '.wasm': 'application/wasm', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json' };
+const mime = { '.html': 'text/html', '.js': 'text/javascript', '.wasm': 'application/wasm', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.webmanifest': 'application/manifest+json' };
 const server = http.createServer(async (req, res) => {
   if (offline) { req.socket.destroy(); return; }
   try {
@@ -302,7 +302,8 @@ try {
   } finally { await permissionBrowser.close(); }
 
   for (const webuiPath of ['/novnow/webui/', '/novnow/nightly-webui/']) {
-    if (!fs.existsSync(path.join(root, webuiPath.replace(/^\/novnow\//, ''), 'index.html'))) continue;
+    const indexPath = path.join(root, webuiPath.replace(/^\/novnow\//, ''), 'index.html');
+    if (!(await fs.access(indexPath).then(() => true, () => false))) continue;
     const webuiPage = await fresh.newPage();
     const webuiErrors = [];
     webuiPage.on('pageerror', error => webuiErrors.push(error.message));
