@@ -40,7 +40,7 @@ SEARCH_LANGUAGES = ("ja", "en")
 SEARCH_PAGE_RE = re.compile(r"^(?:ja|en)/search/index\.html$")
 # 索引に入れないもの。app / nightly-app は Astro のビルド**後**に追加される Trunk の出力、
 # _astro は資産、ルートの index.html はリダイレクトだけの中身を持たないページ。
-SEARCH_EXCLUDED_PREFIXES = ("app/", "nightly-app/", "_astro/")
+SEARCH_EXCLUDED_PREFIXES = ("app/", "nightly-app/", "webui/", "nightly-webui/", "_astro/")
 SEARCH_HOOKS = ("data-search-input", "data-search-results", "data-search-status")
 SCRIPT_RE = re.compile(r"<script([^>]*)>(.*?)</script>", re.DOTALL)
 EXTERNAL_URL_RE = re.compile(r"https?://[^\"'\s)]+")
@@ -186,7 +186,7 @@ def resolve(root: Path, page_url: str, reference: str, website_only: bool):
     path = unquote(url.path)
     if not path.startswith(BASE):
         return None, "", f"outside Pages base: {reference}"
-    if website_only and path in (BASE + "app/", BASE + "nightly-app/") and not url.fragment:
+    if website_only and path in (BASE + "app/", BASE + "nightly-app/", BASE + "webui/", BASE + "nightly-webui/") and not url.fragment:
         return None, "", None
     target = root / path[len(BASE):]
     if not target.resolve().is_relative_to(root.resolve()):

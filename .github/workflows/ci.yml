@@ -130,6 +130,11 @@ jobs:
                 # `webui` ジョブだけを走らせる（docs/plans.md §11.6 の W6）。
                 webui_changed=true
                 ;;
+              crates/novnow-wasm/*)
+                # webui の wasm は crates/novnow-wasm から組むため、Rust ジョブと webui ジョブの両方を走らせる。
+                rust_changed=true
+                webui_changed=true
+                ;;
               docs/developers.md|docs/plans.md|docs/handoff.md|docs/history.md|docs/designs/*|docs/script/*|README.md|LICENSE|screenshot.png|.github/workflows/deploy.yml|.github/workflows/sandbox-tools.yml|.github/workflows/toolchain-export.yml|.github/*.env)
                 ;;
               *)
@@ -235,6 +240,7 @@ jobs:
           # 生成物（操作 ID・色・文言）が正本どおりか、型検査・IndexedDB の回帰・本番ビルド。
           # `webui/src/wasm/` は git に入れないので、この中で組む（scripts/webui-build.sh）。
           bash scripts/webui-check.sh --full 2>&1 | tee /tmp/ci.log
+          cargo test --manifest-path webui/src-tauri/bridge/Cargo.toml 2>&1 | tee -a /tmp/ci.log
       - name: Report to the run summary
         if: always() && steps.cargo.outcome != 'skipped'
         shell: bash

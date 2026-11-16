@@ -32,6 +32,7 @@ jobs:
           cache-dependency-path: |
             vscode/package-lock.json
             website/package-lock.json
+            webui/package-lock.json
       - name: Verify sources and build Linux nogui
         run: |
           set -euo pipefail
@@ -66,10 +67,16 @@ jobs:
           set -euo pipefail
           bash scripts/build-channel-browser.sh
           tar -czf payload/release/novnow-nightly-browser.tar.gz -C dist .
+          npm ci --prefix webui
+          bash scripts/webui-build.sh
+          npm run build --prefix webui
+          tar -czf payload/release/novnow-nightly-webui.tar.gz -C webui/dist .
           npm ci --prefix website
           npm run build --prefix website
           cp -a dist website/dist/app
           cp -a dist website/dist/nightly-app
+          cp -a webui/dist website/dist/webui
+          cp -a webui/dist website/dist/nightly-webui
           python3 scripts/website-check.py
       - name: Test browser startup, offline use and channel isolation
         env:

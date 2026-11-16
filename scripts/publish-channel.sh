@@ -39,7 +39,7 @@ if [ "$channel" = nightly ]; then
 import json, sys
 from pathlib import Path
 root = Path(sys.argv[1])
-expected = {'novnow-nightly-linux-x86_64-nogui.tar.gz', 'novnow-nightly.vsix', 'novnow-nightly-browser.tar.gz', 'manifest.json', 'SHA256SUMS'}
+expected = {'novnow-nightly-linux-x86_64-nogui.tar.gz', 'novnow-nightly.vsix', 'novnow-nightly-browser.tar.gz', 'novnow-nightly-webui.tar.gz', 'manifest.json', 'SHA256SUMS'}
 assert {p.name for p in root.iterdir()} == expected, 'incomplete nightly payload'
 assert json.loads((root / 'manifest.json').read_text())['sha'] == sys.argv[2], 'wrong source SHA'
 PYVALIDATE
@@ -47,13 +47,17 @@ PYVALIDATE
   mkdir -p "$RUNNER_TEMP/nightly-browser"
   tar -xzf "$payload/release/novnow-nightly-browser.tar.gz" -C "$RUNNER_TEMP/nightly-browser"
   incoming="$RUNNER_TEMP/nightly-browser"
+  mkdir -p "$RUNNER_TEMP/nightly-webui"
+  tar -xzf "$payload/release/novnow-nightly-webui.tar.gz" -C "$RUNNER_TEMP/nightly-webui"
+  webui_args=(--incoming-webui "$RUNNER_TEMP/nightly-webui")
 else
   current=$(git ls-remote origin refs/heads/main | cut -f1)
   if [ "$current" != "$sha" ]; then echo 'publish=false' >> "$GITHUB_OUTPUT"; exit 0; fi
   incoming="$payload/site"
+  webui_args=()
 fi
 python3 scripts/channel-pages.py "$channel" --incoming "$incoming" --previous "$previous" \
-  --output "$output" --sha "$sha" --run "$run"
+  --output "$output" --sha "$sha" --run "$run" "${webui_args[@]}"
 if [ "$channel" = nightly ]; then
   # Build and validate everything before touching the sole mutable release.
   if gh release view nightly >/dev/null 2>&1; then

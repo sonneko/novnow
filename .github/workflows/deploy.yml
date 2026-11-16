@@ -56,7 +56,9 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: website/package-lock.json
+          cache-dependency-path: |
+            website/package-lock.json
+            webui/package-lock.json
       - uses: actions/configure-pages@v5
       - name: Build the official website
         run: |
@@ -68,12 +70,18 @@ jobs:
           node --test website/integrations/base-links.test.mjs
           python3 scripts/website-check.py --website-only
 
-      - name: Build with Trunk
+      - name: Build with Trunk and Web UI
         run: |
           bash scripts/build-channel-browser.sh
           test ! -e website/dist/app
           cp -a dist website/dist/app
           cp -a dist website/dist/nightly-app
+          npm ci --prefix webui
+          bash scripts/webui-build.sh
+          npm run build --prefix webui
+          test ! -e website/dist/webui
+          cp -a webui/dist website/dist/webui
+          cp -a webui/dist website/dist/nightly-webui
           python3 scripts/website-check.py
 
       - run: mkdir -p payload && cp -a website/dist payload/site

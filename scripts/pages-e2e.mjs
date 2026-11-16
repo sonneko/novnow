@@ -300,6 +300,17 @@ try {
     const mocked = await pendingApp.evaluate(() => window.persistencePermissionMocked === true);
     console.log(`${engine}: ${mocked ? 'unanswered persistence permission does not block startup PASS' : 'persistence API unavailable; normal startup PASS (pending-permission injection not applicable)'}`);
   } finally { await permissionBrowser.close(); }
+
+  for (const webuiPath of ['/novnow/webui/', '/novnow/nightly-webui/']) {
+    const webuiPage = await fresh.newPage();
+    const webuiErrors = [];
+    webuiPage.on('pageerror', error => webuiErrors.push(error.message));
+    await webuiPage.goto(`${origin}${webuiPath}`);
+    await webuiPage.waitForFunction(() => document.querySelector('#app')?.children.length > 0, null, { timeout: 30000 });
+    assert.deepEqual(webuiErrors, [], `Web UI startup failed at ${webuiPath}: ${webuiErrors.join('; ')}`);
+    await webuiPage.close();
+  }
+  console.log(`${engine}: webui and nightly-webui startup PASS`);
 } finally {
   offline = false;
   await browser.close();
