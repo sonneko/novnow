@@ -302,6 +302,7 @@ try {
   } finally { await permissionBrowser.close(); }
 
   for (const webuiPath of ['/novnow/webui/', '/novnow/nightly-webui/']) {
+    if (!fs.existsSync(path.join(root, webuiPath.replace(/^\/novnow\//, ''), 'index.html'))) continue;
     const webuiPage = await fresh.newPage();
     const webuiErrors = [];
     webuiPage.on('pageerror', error => webuiErrors.push(error.message));

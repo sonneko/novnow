@@ -62,6 +62,13 @@ jobs:
         run: |
           set -euo pipefail
           curl -fsSL --retry 3 https://github.com/trunk-rs/trunk/releases/download/v0.21.14/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xz -C "$HOME/.cargo/bin"
+      - name: Install wasm-bindgen-cli
+        run: |
+          set -euo pipefail
+          version="$(awk -F '"' '/^name = "wasm-bindgen"/{f=1} f && /^version = /{print $2; exit}' Cargo.lock)"
+          name="wasm-bindgen-${version}-x86_64-unknown-linux-gnu"
+          curl -fsSL --retry 3 "https://github.com/wasm-bindgen/wasm-bindgen/releases/download/${version}/${name}.tar.gz" | tar -xz -C "$RUNNER_TEMP"
+          install -m 755 "$RUNNER_TEMP/${name}/wasm-bindgen" "$HOME/.cargo/bin/wasm-bindgen"
       - name: Build relocatable browser app and test site
         run: |
           set -euo pipefail

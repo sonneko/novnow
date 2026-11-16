@@ -68,6 +68,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       rust_changed: ${{ steps.filter.outputs.rust_changed }}
+      webui_changed: ${{ steps.filter.outputs.webui_changed }}
     steps:
       - uses: actions/checkout@v4
         with:
