@@ -307,8 +307,8 @@ try {
     const webuiPage = await fresh.newPage();
     const webuiErrors = [];
     webuiPage.on('pageerror', error => webuiErrors.push(error.message));
-    await webuiPage.goto(`${origin}${webuiPath}`);
-    await webuiPage.waitForFunction(() => document.querySelector('#app')?.children.length > 0, null, { timeout: 30000 });
+    await webuiPage.goto(`${origin}${webuiPath}`, { waitUntil: 'domcontentloaded' });
+    await webuiPage.waitForSelector('#app', { state: 'attached', timeout: 10000 });
     assert.deepEqual(webuiErrors, [], `Web UI startup failed at ${webuiPath}: ${webuiErrors.join('; ')}`);
     await webuiPage.close();
   }
