@@ -318,6 +318,38 @@ def versioned_files(new_version: str) -> dict[Path, str]:
             lock_data["packages"][""]["version"] = new_version
         files[package_lock] = json.dumps(lock_data, ensure_ascii=False, indent=2) + "\n"
 
+    # 第 2 の画面実装（`REF:docs/plans.md` §11.6 の W6、`REF:docs/designs/webui.md` §21.1）:
+    # 版は `Cargo.toml` を唯一の正本とし、`webui/package.json` と `tauri.conf.json` の版も
+    # ここで一緒に進める。2 系統は同じ製品版を名乗る（`REF:docs/specifications/webui.md` §21.1.1）ので、
+    # 片方だけ 0.0.0 のまま取り残さない。`--check` は同じ値を見るので、ずれたら落ちる。
+    webui_package = ROOT / "webui/package.json"
+    if webui_package.exists():
+        webui_data = json.loads(webui_package.read_text(encoding="utf-8"))
+        webui_data["version"] = new_version
+        files[webui_package] = json.dumps(webui_data, ensure_ascii=False, indent=2) + "\n"
+
+    # `package-lock.json` は `npm install` の出力でもある。`npm ci` は manifest と root の版が
+    # 食い違うと失敗するので、同じ値へ揃える（vscode の lock と同じ扱い）。
+    webui_lock = ROOT / "webui/package-lock.json"
+    if webui_lock.exists():
+        webui_lock_data = json.loads(webui_lock.read_text(encoding="utf-8"))
+        webui_lock_data["version"] = new_version
+        if "" in webui_lock_data.get("packages", {}):
+            webui_lock_data["packages"][""]["version"] = new_version
+        files[webui_lock] = json.dumps(webui_lock_data, ensure_ascii=False, indent=2) + "\n"
+
+    # `tauri.conf.json` は手で読む設定なので、`json.dumps` で丸ごと書き直さない
+    # （配列が 1 行から複数行へ崩れると、版と関係のない差分がレビューに出る）。
+    # 最上位の `"version"` だけを置き換える。
+    tauri_conf = ROOT / "webui/src-tauri/tauri.conf.json"
+    if tauri_conf.exists():
+        files[tauri_conf] = replace_required(
+            tauri_conf.read_text(encoding="utf-8"),
+            r'^(\s*)"version":\s*"[^"]*"',
+            rf'\1"version": "{new_version}"',
+            "tauri.conf.json version",
+        )
+
     action = ROOT / "action.yml"
     if action.exists():
         files[action] = replace_required(

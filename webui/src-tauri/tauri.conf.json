@@ -1,6 +1,6 @@
 {
   "productName": "novnow-webui-native",
-  "version": "0.0.0",
+  "version": "0.1.1",
   "identifier": "io.github.sonneko.novnow.webui.dev",
   "build": {
     "frontendDist": "../dist",

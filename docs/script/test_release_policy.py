@@ -234,6 +234,30 @@ class VsixReadmePolicy(unittest.TestCase):
         # VSIX 名・ダウンロード URL のタグとファイル名・「公開済み」の文（4 か所）が同じ版になる
         self.assertEqual(re.findall(r"\d+\.\d+\.\d+", derived), ["9.9.9"] * 4)
 
+    def test_the_webui_versions_follow_the_manifest(self):
+        """`--bump` / `--check` が第 2 の画面の版も manifest に揃えること（§11.6 の W6）。
+
+        2 系統は同じ製品版を名乗る（仕様 §21.1.1）ので、片方だけ 0.0.0 のまま取り残さない。
+        `npm ci` は manifest と lock の版が食い違うと失敗するため、lock も同じ値にする。
+        """
+        files = matrix.versioned_files("9.9.9")
+        package = ROOT / "webui" / "package.json"
+        lock = ROOT / "webui" / "package-lock.json"
+        tauri = ROOT / "webui" / "src-tauri" / "tauri.conf.json"
+        self.assertEqual(json.loads(files[package])["version"], "9.9.9")
+        self.assertEqual(json.loads(files[lock])["version"], "9.9.9")
+        self.assertEqual(json.loads(files[lock])["packages"][""]["version"], "9.9.9")
+        self.assertEqual(json.loads(files[tauri])["version"], "9.9.9")
+        # 版以外の設定は書き換えない（レビューに出る差分を版の 1 行に留める）
+        self.assertEqual(
+            json.loads(files[tauri])["app"],
+            json.loads(tauri.read_text(encoding="utf-8"))["app"],
+        )
+        self.assertEqual(
+            json.loads(files[tauri])["bundle"],
+            json.loads(tauri.read_text(encoding="utf-8"))["bundle"],
+        )
+
 
 class PublishedDisplayPolicy(unittest.TestCase):
     """公開表示の allowlist（#61 追加監査 8 / 提案 C）。
