@@ -40,11 +40,6 @@ export interface SpecGap {
  * 並びはカタログの順（`tests/golden/api_catalog.json` の `operations`）に合わせる。
  */
 export const PENDING: readonly string[] = [
-  'project.new', // 新規プロジェクトの作成（保存領域の選択を含む）
-  'project.recent_list', // 最近開いた一覧（入口の面）
-  'project.recent_remove',
-  'project.import_zip', // Zip の入出力（パレットの `open` は未実装）
-  'project.export_zip',
   'section.split', // 節の分割
   'section.propose', // 節の提案
   'nav.prev', // 位置の移動（前後・親子・切替パネル）
@@ -90,6 +85,10 @@ export const PENDING: readonly string[] = [
 export const SPEC_GAPS: readonly SpecGap[] = [
   { section: '9.7.1', what: 'コマンドパレット（`Ctrl+P`）の候補一覧（開いて理由を書くところまで）' },
   { section: '9.7.3', what: '整形・リネーム・シンボル一覧のパレット項目' },
+  // §9.7 の `Ctrl+O`（プロジェクト選択画面へ戻る 2 段構成）は解消した。入口の面は
+  // `webui/src/lib/project/ProjectPicker.svelte` が持ち、`Ctrl+O` から開く。
+  // ただし**ブラウザでは一覧と新規作成が押せない**（機能核が `no_fs` を返す。下の §9.7 の行）。
+  { section: '9.7', what: 'ブラウザでの最近開いた一覧・新規作成（機能核が `no_fs`。ネイティブのみ）' },
   { section: '9.8.2', what: '構造移動（前後の節・場面・ファイル、`Ctrl+Home`/`Ctrl+End`）' },
   { section: '9.8.3', what: '検索・置換の入り口（キーは表にあるが、入力欄が未提供）' },
   { section: '10.0', what: '切替パネル（`nav.switcher`）の一覧' },

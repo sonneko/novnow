@@ -207,8 +207,9 @@ export interface PromoteChoice {
  * - プロットの節: 今の節（`scene`）があるときだけ押せる。無ければ「本文で場面を開いてから」。
  * - 用語: いつでも押せる。
  * - キャラのメモ: 登場人物が 1 人以上のとき。人物ごとに並べる（`to` は索引）。
- * - 資料: `idea.promote` の `target` に `material` が無い（Rust 側は usage エラーにする）ため押せない。
- *   第 1 の画面は `materials_ops::propose` で行うが、それはブリッジの正規操作に無い。未提供と示す。
+ * - 資料: いつでも押せる。`idea.promote` の `target: material` が `materials/inbox/` へ
+ *   **提案**として 1 件作り（`status: proposed`）、`materials/index.json` を更新する。
+ *   第 1 の画面の「資料へ」と同じ意味（`REF:src/ui/workspaces/idea.rs` の `Target::Material`）。
  */
 export function promoteChoices(
   scene: string,
@@ -240,7 +241,7 @@ export function promoteChoices(
       });
     }
   }
-  choices.push({ target: 'material', available: false, labelKey: 'idea.promote_material', labelArgs: [] });
+  choices.push({ target: 'material', available: true, labelKey: 'idea.promote_material', labelArgs: [] });
   return choices;
 }
 

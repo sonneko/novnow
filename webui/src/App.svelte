@@ -15,6 +15,8 @@
 
   import AppShell from './lib/shell/AppShell.svelte';
   import Overlay from './lib/shell/Overlay.svelte';
+  import ProjectPicker from './lib/project/ProjectPicker.svelte';
+  import type { Runtime, ZipExport } from './lib/project/picker';
   import { Ime } from './lib/keyboard/ime';
   import { command as commandOf, isLocal, keepPayload, strokeOf } from './lib/keyboard/keys';
   import { texts, type Locale, type Texts } from './lib/i18n';
@@ -34,7 +36,13 @@
   let composing = false;
 
   /** 重ね物（`?` のヘルプと `Ctrl+P` のパレット。§9.7.5: 重ね物は 1 つずつ）。 */
-  let overlay: 'help' | 'palette' | null = null;
+  let overlay: 'help' | 'palette' | 'project' | null = null;
+  /**
+   * 動いている環境。Tauri は `window.__TAURI__` を置く（`tauri.conf.json` の
+   * `withGlobalTauri`）。ブラウザの wasm には無い。
+   */
+  const runtime: Runtime =
+    typeof window !== 'undefined' && '__TAURI__' in window ? 'native' : 'browser';
   const ime = new Ime((found) => {
     composing = found;
   });
@@ -343,6 +351,11 @@
       case 'ui:palette':
         overlay = overlay === 'palette' ? null : 'palette';
         return;
+      case 'ui:project':
+        // `Ctrl+O` と同じ規則（§9.7・§9.8）: 変更を保存してから入口の面を開く。
+        // 保存に失敗している間は開かない（仕様 §9.7 の `Ctrl+O` の統一）。
+        void openProjectPicker();
+        return;
       case 'ui:close':
         // `Esc` は重ね物を閉じる。無ければ節エディタへフォーカスを戻す（§9.7.5）。
         if (overlay) {
@@ -531,6 +544,86 @@
     await afterCommand(result.result as Record<string, unknown>);
   }
 
+  // ---------------------------------------------------------------- プロジェクトの入口
+  //
+  // `Ctrl+O`（`ui:project`）とプロジェクト名のボタンから開く面（§9.7・§13.5）。
+  // 2 段の段取りは第 1 の画面と同じ: 変更を保存してから一覧へ戻る。保存に失敗している間は
+  // 戻らない（仕様 §9.7 の `Ctrl+O` の統一）。
+
+  /** 入口の面を開く（保存が済んでから）。 */
+  async function openProjectPicker(): Promise<void> {
+    await saveNow();
+    if (screen.save === 'error' || screen.save === 'conflict') {
+      // 保存できていないので、いまの作品から離れない（§8.2・§9.7）。
+      return;
+    }
+    overlay = 'project';
+  }
+
+  /** 最近開いた一覧（`project.recent_list`。ブラウザでは機能核が `no_fs` を返す）。 */
+  async function listProjects(): Promise<{ path: string; opened_at: string }[]> {
+    const found = await store.run('project.recent_list');
+    if (!found.ok) {
+      throw new Error(found.message);
+    }
+    const projects = (found.result as { projects?: unknown }).projects;
+    return Array.isArray(projects) ? (projects as { path: string; opened_at: string }[]) : [];
+  }
+
+  /** その作品を開く（`bridge.open` のあと、画面の材料を集め直す）。 */
+  async function openProject(path: string): Promise<void> {
+    await bridge.open(path);
+    store.update((next) => {
+      next.projectId = bridge.projectId();
+      next.version = bridge.version();
+      next.locale = bridge.locale();
+    });
+    await refresh();
+  }
+
+  /** 新しく作る（`project.new` → その場所を開く）。 */
+  async function createProject(path: string, title: string): Promise<void> {
+    const found = await store.run('project.new', { path, title });
+    if (!found.ok) {
+      throw new Error(found.message);
+    }
+    await openProject(path);
+  }
+
+  /** 履歴から消す（`project.recent_remove`。作品のデータは消さない）。 */
+  async function forgetProject(path: string): Promise<void> {
+    const found = await store.run('project.recent_remove', { path });
+    if (!found.ok) {
+      throw new Error(found.message);
+    }
+  }
+
+  /** Zip を取り込む（`project.import_zip`。取り込んだ本文を画面へ反映する）。 */
+  async function importProject(args: Record<string, unknown>): Promise<string[]> {
+    const found = await store.run('project.import_zip', args);
+    if (!found.ok) {
+      throw new Error(found.message);
+    }
+    const written = (found.result as { written?: unknown }).written;
+    const list = Array.isArray(written) ? written.filter((item): item is string => typeof item === 'string') : [];
+    await refresh();
+    return list;
+  }
+
+  /** Zip を書き出す（`project.export_zip`。ブラウザは `bytes` をダウンロードする）。 */
+  async function exportProject(args: Record<string, unknown>): Promise<ZipExport | null> {
+    const found = await store.run('project.export_zip', args);
+    if (!found.ok) {
+      throw new Error(found.message);
+    }
+    const result = found.result as Partial<ZipExport>;
+    if (typeof result?.bytes === 'string' && typeof result?.name === 'string') {
+      return { bytes: result.bytes, name: result.name, out: result.out };
+    }
+    // `out` を渡した（ネイティブ）ときは `bytes` が返らない。書いた先だけを持つ。
+    return typeof result?.out === 'string' ? { bytes: '', name: '', out: result.out } : null;
+  }
+
   /** 画面を離れるときにタイマを片付ける。 */
   export function stop(): void {
     if (timer !== null) {
@@ -567,7 +660,24 @@
   ontheme={toggleTheme}
   onsave={retrySave}
   onreview={() => setWorkspace('review')}
+  onproject={() => void openProjectPicker()}
 />
 
 <!-- 重ね物（`?` のヘルプ / `Ctrl+P` のパレット）。`Esc` と外側クリックで閉じる（§9.7.5）。 -->
-<Overlay {t} mode={overlay} onclose={() => (overlay = null)} onrun={runHelpRow} />
+<Overlay {t} mode={overlay === 'project' ? null : overlay} onclose={() => (overlay = null)} onrun={runHelpRow} />
+
+<!-- プロジェクトの入口の面（`Ctrl+O` とプロジェクト名。§9.7・§13.5）。 -->
+{#if overlay === 'project'}
+  <ProjectPicker
+    {t}
+    {runtime}
+    current={screen.projectId}
+    onclose={() => (overlay = null)}
+    onlist={listProjects}
+    onopen={openProject}
+    oncreate={createProject}
+    onforget={forgetProject}
+    onimport={importProject}
+    onexport={exportProject}
+  />
+{/if}
