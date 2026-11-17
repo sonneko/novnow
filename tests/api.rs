@@ -838,7 +838,9 @@ fn an_idea_promoted_to_material_becomes_a_proposal_in_the_inbox() {
         "資料 MD が written に無い: {written:?}"
     );
     assert!(
-        written.iter().any(|item| item == &json!("materials/index.json")),
+        written
+            .iter()
+            .any(|item| item == &json!("materials/index.json")),
         "索引が written に無い: {written:?}"
     );
 
@@ -853,7 +855,9 @@ fn an_idea_promoted_to_material_becomes_a_proposal_in_the_inbox() {
     let body = saved.get(path).expect("資料 MD が書かれていない");
     assert!(body.contains("時計塔の設計図"), "資料 MD: {body}");
     // 資料の一覧にも出る（`materials.list` から見える）。
-    let list = session.run("materials.list", json!({})).expect("materials.list");
+    let list = session
+        .run("materials.list", json!({}))
+        .expect("materials.list");
     assert!(
         list["materials"]
             .as_array()
