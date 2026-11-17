@@ -34,6 +34,13 @@
   export let ontheme: (() => void) | null = null;
   export let onsave: (() => void) | null = null;
   export let onreview: (() => void) | null = null;
+  /**
+   * プロジェクト名を押した（`Ctrl+O` と同じ規則。§9.1・§9.7）。
+   *
+   * 押すと**プロジェクトの入口の面**を開く（変更を保存してから）。渡されていなければ
+   * 何もしない（黙って別の画面へ移らない）。
+   */
+  export let onproject: (() => void) | null = null;
 
   /** テーマ（`ui.json` の `theme`。W2 では OS の設定に従う）。 */
   let theme: 'dark' | 'light' = 'dark';
@@ -72,7 +79,7 @@
     onworkspace={onworkspace}
     onlanguage={onlanguage}
     ontheme={ontheme}
-    onproject={() => onworkspace?.('write')}
+    onproject={onproject}
     oncrumb={() => onworkspace?.('write')}
   />
   <main class="body">

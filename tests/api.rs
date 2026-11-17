@@ -801,6 +801,93 @@ fn a_captured_idea_is_listed_and_the_file_is_saved() {
     assert!(ideas.contains(&id), "ID が書かれていない: {ideas}");
 }
 
+/// 着想を資料へ昇格する（§10.4 の 4 つ目の行き先）。
+///
+/// 第 1 の画面は `Target::Material` で `materials_ops::propose` を呼び、`materials/inbox/` へ
+/// **提案**として 1 件作る（`src/ui/workspaces/idea.rs` の `promote`）。正規操作 `idea.promote` も
+/// 同じ意味で `target: material` を受ける（第 2 の画面はこの op からしか昇格できない）。
+#[test]
+fn an_idea_promoted_to_material_becomes_a_proposal_in_the_inbox() {
+    let (mut session, files) = open();
+    let captured = session
+        .run("idea.capture", json!({ "title": "時計塔の設計図" }))
+        .expect("idea.capture");
+    let id = captured["captured"].as_str().expect("id").to_owned();
+    session.run("save.now", json!({})).expect("save.now");
+
+    let promoted = session
+        .run("idea.promote", json!({ "id": id, "target": "material" }))
+        .expect("idea.promote target=material");
+    // 返す `target` は「作られた資料 MD のパス#ID」（第 1 の画面の `promoted-to` と同じ形）。
+    let placed = promoted["target"].as_str().expect("target").to_owned();
+    assert!(
+        placed.starts_with("materials/inbox/"),
+        "資料の置き場が違う: {placed}"
+    );
+    assert!(
+        placed.contains('#'),
+        "パスと ID が `#` で結ばれていない: {placed}"
+    );
+    let (path, material_id) = placed.split_once('#').expect("path#id");
+    assert!(material_id.starts_with('M'), "資料の ID: {material_id}");
+
+    // 書いたのは資料 MD と索引の 2 つ（`written` に両方）。
+    let written = promoted["written"].as_array().expect("written").clone();
+    assert!(
+        written.iter().any(|item| item == &json!(path)),
+        "資料 MD が written に無い: {written:?}"
+    );
+    assert!(
+        written
+            .iter()
+            .any(|item| item == &json!("materials/index.json")),
+        "索引が written に無い: {written:?}"
+    );
+
+    session.run("save.now", json!({})).expect("save.now");
+    let saved = files.borrow().written.clone();
+    // 索引に載り、状態は「提案」（勝手に承認済みにしない）。
+    let index = saved
+        .get("materials/index.json")
+        .expect("index.json が書かれていない");
+    assert!(index.contains(material_id), "索引に ID が無い: {index}");
+    assert!(index.contains("\"proposed\""), "提案でない: {index}");
+    let body = saved.get(path).expect("資料 MD が書かれていない");
+    assert!(body.contains("時計塔の設計図"), "資料 MD: {body}");
+    // 資料の一覧にも出る（`materials.list` から見える）。
+    let list = session
+        .run("materials.list", json!({}))
+        .expect("materials.list");
+    assert!(
+        list["materials"]
+            .as_array()
+            .expect("materials")
+            .iter()
+            .any(|item| item["id"] == json!(material_id)),
+        "一覧に資料が無い: {list}"
+    );
+
+    // `ideas.md` の状態は「昇格」（`promoted-to` の書き込みはこの PR では変えない）。
+    let ideas = saved.get("ideas.md").expect("ideas.md が書かれていない");
+    assert!(
+        ideas.contains(&format!("# {id} ")) && ideas.contains("status: promoted"),
+        "status が promoted でない: {ideas}"
+    );
+}
+
+#[test]
+fn an_unknown_promote_target_is_a_usage_error() {
+    let (mut session, _files) = open();
+    let captured = session
+        .run("idea.capture", json!({ "title": "行き先の無い着想" }))
+        .expect("idea.capture");
+    let id = captured["captured"].as_str().expect("id").to_owned();
+    let error = session
+        .run("idea.promote", json!({ "id": id, "target": "nowhere" }))
+        .expect_err("知らない行き先は usage エラー");
+    assert_eq!(error.class, Class::Usage, "{error:?}");
+}
+
 #[test]
 fn a_proposed_material_lands_in_the_index() {
     let (mut session, files) = open();

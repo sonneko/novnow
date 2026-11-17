@@ -169,7 +169,7 @@ test('idea: 昇格先は今の節・人物がある時だけ押せ、資料は�
       ['plot', false],
       ['term', true],
       ['character', false],
-      ['material', false],
+      ['material', true],
     ],
   );
   assert.equal(none[0].labelKey, 'idea.promote_plot_none');
@@ -184,7 +184,27 @@ test('idea: 昇格先は今の節・人物がある時だけ押せ、資料は�
   const people = full.filter((choice) => choice.target === 'character');
   assert.deepEqual(people.map((choice) => choice.to), ['0', '3']);
   assert.ok(people.every((choice) => choice.available));
-  assert.equal(full.at(-1)?.available, false, '資料への昇格は押せない');
+  // 資料への昇格はいつでも押せる（`idea.promote` の `target: material` が `materials/inbox/` へ
+  // 提案を作る。第 1 の画面の `Target::Material` と同じ意味）。
+  assert.equal(full.at(-1)?.target, 'material');
+  assert.equal(full.at(-1)?.available, true, '資料への昇格は押せる');
+  assert.equal(full.at(-1)?.to, undefined, '資料への昇格に `to` は要らない');
+});
+
+test('idea: 昇格の画面は `target` をそのまま `idea.promote` へ渡す（資料も通る）', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { join } = await import('node:path');
+  const svelte = await readFile(join(WEBUI, 'src/lib/workspaces/idea/IdeaWorkspace.svelte'), 'utf8');
+  // 押された行の `target` を写す（`'material'` を特別扱いで落としていないこと）。
+  assert.match(svelte, /session\.run\('idea\.promote',\s*\{[^}]*target:\s*choice\.target/s);
+  // 押せない行は押しても走らない（`available` を見る）。
+  assert.match(svelte, /if \(target === null \|\| !choice\.available\)/);
+  // 資料の行は押せるので、`choices` に `available: true` が入る（規則側の担保）。
+  const { promoteChoices } = await ideas();
+  const material = promoteChoices('', []).find((choice) => choice.target === 'material');
+  assert.ok(material, '資料の行が無い');
+  assert.equal(material.available, true);
+  assert.equal(material.labelKey, 'idea.promote_material');
 });
 
 test('idea: キーの写像（この画面が横取りするものだけ）', async () => {

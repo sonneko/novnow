@@ -180,10 +180,13 @@ export const HELP = '?';
  *   `Command::Help` とは別物（オーバーレイを出すのは画面の仕事）。
  * - `ui:palette` … `Ctrl+P`。表の `palette` は機能核のパレットで、画面の重ね物は画面が開く。
  * - `ui:close` … `Esc`（重ね物を閉じる → 無ければ節エディタへ。§9.7.5）。
+ * - `ui:project` … `Ctrl+O`。表の `open` は機能核のパレット（`>` + `open`）で、画面の
+ *   入口の面（`ProjectPicker`）を開くのは画面の仕事（§9.7 の `Ctrl+O` の統一）。
  */
 export const LOCAL: Readonly<Record<string, string>> = {
   '?': 'ui:help',
   'Ctrl+P': 'ui:palette',
+  'Ctrl+O': 'ui:project',
   Escape: 'ui:close',
 };
 
@@ -199,7 +202,7 @@ export function shortcutFor(command: string): string {
 
 /** 押されたキーをコマンド名へ写す（写せなければ `null`）。 */
 export function command(stroke: KeyStroke, options: KeyOptions): string | null {
-  // 画面だけで完結する 3 つ（`?` / `Ctrl+P` / `Esc`）は、修飾キーの読み替えより先に見る。
+  // 画面だけで完結する 4 つ（`?` / `Ctrl+P` / `Ctrl+O` / `Esc`）は、修飾キーの読み替えより先に見る。
   // `?` は配列によって `Shift+/` として届くので、シフトは無視する（`?` 以外の Shift 付きは
   // 表にそのまま載っている）。`Ctrl+Shift+P` は提案モードのトグルで、`Ctrl+P` とは別。
   if (!stroke.alt && !stroke.ctrl) {

@@ -364,7 +364,7 @@ pub fn idea_capture(session: &mut Session, args: &Args) -> Result<Value> {
     Ok(json!({ "captured": id, "index": index, "save": saved }))
 }
 
-/// `idea.promote`（§10.4 の昇格: 話プロット / 用語 / 人物メモ）。
+/// `idea.promote`（§10.4 の昇格: 話プロット / 用語 / 人物メモ / 資料）。
 pub fn idea_promote(session: &mut Session, args: &Args) -> Result<Value> {
     let locale = session.locale;
     let role = gate(session, args)?;
@@ -435,6 +435,26 @@ pub fn idea_promote(session: &mut Session, args: &Args) -> Result<Value> {
             write_document(session, &path, next);
             written.push(path);
             json!(index)
+        }
+        // 資料への昇格（§10.4 の 4 つ目）。第 1 の画面の `Target::Material`
+        // （`REF:src/ui/workspaces/idea.rs` の `promote`）と同じ意味にする: `materials/inbox/` へ
+        // **提案**として 1 件作り（`status: proposed`。勝手に承認済みにしない）、`index.json` を更新する。
+        "material" => {
+            let index = session.aggregate().text(INDEX_PATH).to_owned();
+            let Some(created) =
+                materials_ops::propose(&index, &title, &points.join("\n"), &stamp(session))
+            else {
+                return Err(Error::new(
+                    Class::Validation,
+                    i18n::text(locale, "api.error.index_invalid").to_owned(),
+                )
+                .with_kind("E025"));
+            };
+            write_document(session, &created.path, created.body.clone());
+            write_document(session, INDEX_PATH, created.index);
+            written.push(created.path.clone());
+            written.push(INDEX_PATH.to_owned());
+            json!(format!("{}#{}", created.path, created.id))
         }
         _ => return Err(Error::usage(locale, "target")),
     };
