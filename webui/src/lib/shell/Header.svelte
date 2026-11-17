@@ -30,6 +30,10 @@
   export let onproject: (() => void) | null = null;
   /** パンくずを押した（`@` だけでパレットを開く）。 */
   export let oncrumb: (() => void) | null = null;
+  /** 切替パネルを開く（`Ctrl+K`。§10.0）。 */
+  export let onswitcher: (() => void) | null = null;
+  /** 文書の名前を変える（`document.rename`。パレットの `>rename-document` と同じ）。 */
+  export let onrename: (() => void) | null = null;
 
   /** ワークスペースのアイコン（文字ではなく図形で示す。§9.2）。 */
   const ICONS: Record<string, string> = {
@@ -72,6 +76,15 @@
   {#if breadcrumb}
     <button type="button" class="crumb" on:click={() => oncrumb?.()}>{breadcrumb}</button>
   {/if}
+  <button
+    type="button"
+    class="crumb"
+    title={`${t('project.pick.key_rename')} (${t('command.rename')})`}
+    aria-label={t('project.pick.key_rename')}
+    on:click={() => onrename?.()}
+  >
+    {t('project.pick.key_rename')}
+  </button>
 
   <div class="right">
     <button
@@ -91,6 +104,15 @@
       on:click={() => ontheme?.()}
     >
       <span aria-hidden="true">{theme === 'dark' ? '◐' : '◑'}</span>
+    </button>
+    <button
+      type="button"
+      class="icon"
+      aria-label={t('api.op.nav.switcher')}
+      title={`${t('api.op.nav.switcher')} (Ctrl+K)`}
+      on:click={() => onswitcher?.()}
+    >
+      <span aria-hidden="true">⇥</span>
     </button>
     <button type="button" class="icon" aria-label="Ctrl+P" title="Ctrl+P" on:click={() => onpalette?.()}>
       <span aria-hidden="true">⌘</span>

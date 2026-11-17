@@ -19,6 +19,20 @@
   export let onclose: (() => void) | null = null;
   /** キーを 1 つ実行する（`?` の行を押したとき。§9.8.7）。 */
   export let onrun: ((command: string) => void) | null = null;
+  /**
+   * `>` パレットから引けるコマンド（§9.7.1 の `>`）。
+   *
+   * `{ name, label }` を並べる。`name` は `session.command` が受ける名前
+   * （`REF:src/app/commands.rs` の表）**でなければならない**。表に無い名前は `usage`
+   * エラーになるので、ここに載せる前に表と突き合わせる（`webui/tests/nav.test.mjs`）。
+   *
+   * 画面の面を開くだけのもの（文書のリネームなど）は**ここに載せない**。`>` は機能核の
+   * コマンドを実行する場所で、画面の入力欄を開く場所ではない（載せると、押しても効かない
+   * 行になる。§21.1.2）ため、それらはヘッダと切替パネルから開く。
+   */
+  export let commands: readonly { name: string; label: string }[] = [];
+  /** `>` のコマンドを 1 つ実行する（`session.command` の名前）。 */
+  export let oncommand: ((name: string) => void) | null = null;
 
   /** 背景（外側）を押したら閉じる（§9.7.5）。 */
   function outside(event: MouseEvent): void {
@@ -63,8 +77,23 @@
       {:else}
         <h2>{t('help.palette')}</h2>
         <p class="hint">{t('palette.placeholder')}</p>
-        <!-- 未提供を明示する（§21.1.2）。空白の一覧を出さない（§9.7 の 0 件表示の規則）。 -->
-        <p class="empty" role="status">{t('palette.no_matches')}</p>
+        {#if commands.length > 0}
+          <!-- `>` のコマンド（§9.7.1）。キーに無いものの入り口もここに置く。 -->
+          <div class="groups">
+            <div class="group">
+              {#each commands as row (row.name)}
+                <button type="button" class="row" on:click={() => oncommand?.(row.name)}>
+                  <kbd>&gt;{row.name}</kbd>
+                  <span>{t(row.label)}</span>
+                </button>
+              {/each}
+            </div>
+          </div>
+          <p class="hint">{t('palette.guide')}</p>
+        {:else}
+          <!-- 未提供を明示する（§21.1.2）。空白の一覧を出さない（§9.7 の 0 件表示の規則）。 -->
+          <p class="empty" role="status">{t('palette.no_matches')}</p>
+        {/if}
       {/if}
       <p class="close-hint">{t('modal.close_hint')}</p>
     </div>

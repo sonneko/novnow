@@ -182,11 +182,30 @@ export const HELP = '?';
  * - `ui:close` … `Esc`（重ね物を閉じる → 無ければ節エディタへ。§9.7.5）。
  * - `ui:project` … `Ctrl+O`。表の `open` は機能核のパレット（`>` + `open`）で、画面の
  *   入口の面（`ProjectPicker`）を開くのは画面の仕事（§9.7 の `Ctrl+O` の統一）。
+ * - `ui:switcher` … `Ctrl+K`。切替パネル（§10.0）を開く。表に同名のコマンドは無い
+ *   （`Ctrl+K` は第 1 の画面でも 2 打鍵の前置きなので、画面側の重ね物として開く）。
+ * - **文書の名前の変更（`document.rename`）のキーは足さない。** 仕様 §9.8 の一覧に無く、
+ *   表の `rename` は**キャラ名・用語の一括改名**（別物）である。第 2 の画面ではパレットの
+ *   `>` + `rename-document`（§9.7.1 の `>` は全コマンドを引ける。§9.7.8）と、切替パネルの
+ *   文書行・ヘッダのボタンから呼ぶ（仕様に無いキーを勝手に決めない。§21.2.2）。
+ * - `ui:nav-prev` / `ui:nav-next` … `Ctrl+[` / `Ctrl+]`（前 / 次の位置）。カタログの
+ *   `nav.*` には `command` 列が無い（`session.command` から引けない）ので、画面から正規操作
+ *   `nav.prev` / `nav.next` を直接呼ぶ。この 2 つは表に無いので意味を変えない。
+ *
+ * **`Ctrl+H` / `Ctrl+Shift+H` は画面側で取らない。** 表の `Ctrl+H` は `replace`
+ * （仕様 §9.8.1 の「検索 / 置換」）で、値 `replace` → `search.replace_file` の**唯一の口**に
+ * なっている。ここで `nav.back` に奪うと、置換の入り口が消える（キーの意味を画面の都合で
+ * 変えない。§21.2.2）。なお `REF:docs/specifications/interfaces.md` は `nav.back` のキーを
+ * `Ctrl+H` と書いており、§9.8.1 と食い違っている（仕様側の宿題。第 2 の画面では
+ * 切替パネルの行から呼ぶ）。
  */
 export const LOCAL: Readonly<Record<string, string>> = {
   '?': 'ui:help',
   'Ctrl+P': 'ui:palette',
   'Ctrl+O': 'ui:project',
+  'Ctrl+K': 'ui:switcher',
+  'Ctrl+[': 'ui:nav-prev',
+  'Ctrl+]': 'ui:nav-next',
   Escape: 'ui:close',
 };
 
@@ -202,7 +221,7 @@ export function shortcutFor(command: string): string {
 
 /** 押されたキーをコマンド名へ写す（写せなければ `null`）。 */
 export function command(stroke: KeyStroke, options: KeyOptions): string | null {
-  // 画面だけで完結する 4 つ（`?` / `Ctrl+P` / `Ctrl+O` / `Esc`）は、修飾キーの読み替えより先に見る。
+  // 画面だけで完結するもの（`?` / `Esc`）は、修飾キーの読み替えより先に見る。
   // `?` は配列によって `Shift+/` として届くので、シフトは無視する（`?` 以外の Shift 付きは
   // 表にそのまま載っている）。`Ctrl+Shift+P` は提案モードのトグルで、`Ctrl+P` とは別。
   if (!stroke.alt && !stroke.ctrl) {
