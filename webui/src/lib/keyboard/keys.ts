@@ -85,8 +85,9 @@ export function chord(stroke: KeyStroke): string {
 /**
  * ショートカット表（§9.8.1〜§9.8.3）。
  *
- * 値は `REF:src/app/commands.rs` の**コマンド名**。W2 で使うものだけを置き、残りは
- * ワークスペースを作るときに足す（`webui/src/lib/coverage.ts` の `pending` に載っている）。
+ * 値は `REF:src/app/commands.rs` の**コマンド名**。表に名前があっても、画面側の処理が
+ * 未提供なら押しても何も起きない（第 1 の表を写したもの）。どの操作に到達できるかの判定は
+ * `webui/src/lib/coverage.ts` が持ち、`webui/tests/parity.mjs` が実物と突き合わせる（L7）。
  */
 export const SHORTCUTS: Readonly<Record<string, string>> = {
   // §9.8.1 グローバル

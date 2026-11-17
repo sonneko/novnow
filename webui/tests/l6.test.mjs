@@ -137,8 +137,12 @@ test('tauri.conf.json は Vite の出力を配り、独自の枠も自動更新�
   assert.equal(conf.build.devUrl, `http://localhost:${port}`, 'devUrl が Vite の開発サーバと違う');
   assert.match(vite, /outDir:\s*'dist'/, 'Vite の出力先が dist でない');
 
-  // 版は W6 まで 0.0.0（設計 §21.1）。識別子は既定値のままにしない
-  assert.equal(conf.version, '0.0.0');
+  // 版は `scripts/release-matrix.py --bump` が `Cargo.toml` から配る（W6・設計 §21.1）。
+  // ここで固定値を書くと版更新のたびに落ちるので、正本（root の Cargo.toml）と一致することを見る。
+  const crate = /^version = "([^"]+)"/m.exec(read(path.join(REPO, 'Cargo.toml')))?.[1];
+  assert.ok(crate, 'Cargo.toml から版を読めない');
+  assert.equal(conf.version, crate, 'tauri.conf.json の版が Cargo.toml と違う');
+  assert.notEqual(conf.version, '0.0.0', '版が --bump の対象になっていない');
   assert.match(conf.identifier, /^[A-Za-z0-9.-]+$/);
   assert.notEqual(conf.identifier, 'com.tauri.dev');
 
