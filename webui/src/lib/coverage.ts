@@ -42,12 +42,6 @@ export interface SpecGap {
 export const PENDING: readonly string[] = [
   'section.split', // 節の分割
   'section.propose', // 節の提案
-  'nav.prev', // 位置の移動（前後・親子・切替パネル）
-  'nav.next',
-  'nav.back',
-  'nav.forward',
-  'nav.switcher',
-  'document.rename',
   'plot.set_state', // プロットの確認状態
   'save.keep_mine', // 外部変更との衝突の解決（ブラウザは監視しないが、操作としては未提供）
   'save.reload_external',
@@ -89,9 +83,17 @@ export const SPEC_GAPS: readonly SpecGap[] = [
   // `webui/src/lib/project/ProjectPicker.svelte` が持ち、`Ctrl+O` から開く。
   // ただし**ブラウザでは一覧と新規作成が押せない**（機能核が `no_fs` を返す。下の §9.7 の行）。
   { section: '9.7', what: 'ブラウザでの最近開いた一覧・新規作成（機能核が `no_fs`。ネイティブのみ）' },
-  { section: '9.8.2', what: '構造移動（前後の節・場面・ファイル、`Ctrl+Home`/`Ctrl+End`）' },
+  // §9.8.2 のうち、`nav.*` の 4 つ（移動履歴の前後・親へ・子の先頭へ）は解消した。
+  // 切替パネル（`Switcher.svelte`）の行から呼べる。**残りは下の行**（節・場面・ファイルの
+  // 構造移動そのものは `session.command` の `previous-section` などで、まだ口が無い）。
+  // `Ctrl+H` は表の `replace`（検索・置換）が使うので、`nav.back` のキーには**しない**
+  // （仕様 §9.8.1 と `interfaces.md` の食い違い。仕様側の宿題）。
+  { section: '9.8.2', what: '構造移動の残り（前後の節・場面・ファイルのキー、`Ctrl+Home`/`Ctrl+End`）' },
   { section: '9.8.3', what: '検索・置換の入り口（キーは表にあるが、入力欄が未提供）' },
-  { section: '10.0', what: '切替パネル（`nav.switcher`）の一覧' },
+  // §10.0 の切替パネル（`nav.switcher` の一覧）は解消した（`Ctrl+K` とヘッダの `⇥`）。
+  // 9 ワークスペースは `Alt+1..9` / パネルの行から切り替えられる。ただし切替先の**中身**は
+  // `write` 以外が未実装なので、着地点の対応表（§10.0 の「対応物」）はまだ効かない。
+  { section: '10.0', what: '`write` 以外のワークスペースの中身（着地点の対応表が未実装）' },
   { section: '10.3', what: 'エージェントの監査ログ（`agent.audit_list`）' },
   { section: '10.4', what: 'プロンプトの閲覧・比較・初期化（`prompt.*`）' },
   { section: '11.3', what: '診断の地名解決（`diagnostics.place`）の表示' },

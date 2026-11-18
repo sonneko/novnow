@@ -41,6 +41,10 @@
    * 何もしない（黙って別の画面へ移らない）。
    */
   export let onproject: (() => void) | null = null;
+  /** 切替パネルを開く（`Ctrl+K`。§10.0）。 */
+  export let onswitcher: (() => void) | null = null;
+  /** 文書の名前を変える（`document.rename`。パレットの `>rename-document` と同じ）。 */
+  export let onrename: (() => void) | null = null;
 
   /** テーマ（`ui.json` の `theme`。W2 では OS の設定に従う）。 */
   let theme: 'dark' | 'light' = 'dark';
@@ -80,6 +84,8 @@
     onlanguage={onlanguage}
     ontheme={ontheme}
     onproject={onproject}
+    onswitcher={onswitcher}
+    onrename={onrename}
     oncrumb={() => onworkspace?.('write')}
   />
   <main class="body">

@@ -16,13 +16,16 @@
   import AppShell from './lib/shell/AppShell.svelte';
   import Overlay from './lib/shell/Overlay.svelte';
   import ProjectPicker from './lib/project/ProjectPicker.svelte';
+  import Switcher from './lib/nav/Switcher.svelte';
+  import RenameDialog from './lib/nav/RenameDialog.svelte';
+  import { didMove, movedScene, type SwitcherRow } from './lib/nav/moves';
   import type { Runtime, ZipExport } from './lib/project/picker';
   import { Ime } from './lib/keyboard/ime';
   import { command as commandOf, isLocal, keepPayload, strokeOf } from './lib/keyboard/keys';
   import { texts, type Locale, type Texts } from './lib/i18n';
   import type { Session } from './lib/store/session';
   import { Session as SessionStore } from './lib/store/session';
-  import type { Bridge, SaveState } from './lib/bridge/types';
+  import type { Bridge, OpId, SaveState } from './lib/bridge/types';
 
   /** 橋渡し（wasm）。 */
   export let bridge: Bridge;
@@ -36,7 +39,26 @@
   let composing = false;
 
   /** 重ね物（`?` のヘルプと `Ctrl+P` のパレット。§9.7.5: 重ね物は 1 つずつ）。 */
-  let overlay: 'help' | 'palette' | 'project' | null = null;
+  let overlay: 'help' | 'palette' | 'project' | 'switcher' | null = null;
+
+  /**
+   * `>` パレットに出すコマンド（§9.7.1）。まだ空。
+   *
+   * `name` は `session.command` が受ける名前（`REF:src/app/commands.rs` の表）でなければ
+   * ならない。`document.rename` のカタログ上の `command` は `rename-document` だが、
+   * **`commands.rs` の表にその名前は無い**（`session.command` では引けない）。したがって
+   * `>` には載せず、ヘッダのボタンと切替パネルの文書行から開く（押しても効かない行を作らない。
+   * §21.1.2）。
+   */
+  const PALETTE_ROWS: readonly { name: string; label: string }[] = [];
+
+  /** 切替パネルの一覧（`nav.switcher` の戻り値。開くたびに取り直す）。 */
+  let switcher: Record<string, unknown> | null = null;
+
+  /** 文書のリネームの入力欄を出しているか（`document.rename`）。 */
+  let renaming = false;
+  /** リネームの対象（`document.rename` の `from`）。 */
+  let renamingFrom = '';
   /**
    * 動いている環境。Tauri は `window.__TAURI__` を置く（`tauri.conf.json` の
    * `withGlobalTauri`）。ブラウザの wasm には無い。
@@ -356,6 +378,16 @@
         // 保存に失敗している間は開かない（仕様 §9.7 の `Ctrl+O` の統一）。
         void openProjectPicker();
         return;
+      case 'ui:switcher':
+        // 切替パネル（§10.0）。開いている間にもう一度押したら閉じる（§9.7.5: 重ね物は 1 つ）。
+        void openSwitcher();
+        return;
+      case 'ui:nav-prev':
+        void move('nav.prev');
+        return;
+      case 'ui:nav-next':
+        void move('nav.next');
+        return;
       case 'ui:close':
         // `Esc` は重ね物を閉じる。無ければ節エディタへフォーカスを戻す（§9.7.5）。
         if (overlay) {
@@ -544,6 +576,131 @@
     await afterCommand(result.result as Record<string, unknown>);
   }
 
+  // ---------------------------------------------------------------- ナビゲーション（§9.7・§10.0）
+  //
+  // 6 つの操作（`nav.prev` / `nav.next` / `nav.back` / `nav.forward` / `nav.switcher` /
+  // `document.rename`）の口。意味は機能核が決める（`src/app/ops/editing.rs`）ので、ここは
+  // 「いつ呼ぶか」と「結果をどう画面へ反映するか」だけを持つ。
+
+  /**
+   * 移動の操作を 1 つ実行する（`nav.prev` / `nav.next` / `nav.back` / `nav.forward`）。
+   *
+   * 端に居るときは `moved: false` が返る。それは**失敗ではない**ので通知を出さない
+   * （§9.8 の移動は端で黙って止まる）。動いたときだけ節を開き直す。
+   */
+  async function move(op: 'nav.prev' | 'nav.next' | 'nav.back' | 'nav.forward'): Promise<void> {
+    // 操作 ID はリテラルで呼ぶ（`run('nav.prev')` の形）。変数で回すと、到達の判定
+    // （`webui/tests/parity.mjs` がソースから `run('<ID>')` を拾う）に映らない。
+    const found =
+      op === 'nav.prev'
+        ? await store.run('nav.prev')
+        : op === 'nav.next'
+          ? await store.run('nav.next')
+          : op === 'nav.back'
+            ? await store.run('nav.back')
+            : await store.run('nav.forward');
+    if (!found.ok) {
+      store.notice(found.message, 'error');
+      return;
+    }
+    const result = found.result as Record<string, unknown>;
+    const scene = movedScene(result);
+    if (scene) {
+      await openSection(scene);
+      return;
+    }
+    if (didMove(result) && !scene) {
+      // `scene` を返さない実装でも、位置が変わっていれば開き直す（今の節を取り直す）。
+      const now = await currentScene();
+      if (now) {
+        await openSection(now);
+      }
+    }
+  }
+
+  /** `>` パレットの行を実行する（`session.command` の名前 → 機能核が操作を決める）。 */
+  async function runPalette(name: string): Promise<void> {
+    overlay = null;
+    await runNamed(name);
+  }
+
+  /** 切替パネルを開く（`nav.switcher` で一覧を取り直してから出す）。 */
+  async function openSwitcher(): Promise<void> {
+    if (overlay === 'switcher') {
+      overlay = null;
+      return;
+    }
+    // 打鍵を捨てない（保存は自動保存に任せるが、切替の前に確定させる。§10.0 の「未保存」）。
+    await saveNow();
+    const found = await store.run('nav.switcher');
+    if (!found.ok) {
+      store.notice(found.message, 'error');
+      return;
+    }
+    switcher = found.result as Record<string, unknown>;
+    overlay = 'switcher';
+  }
+
+  /** 切替パネルの行を押した（ワークスペースの切替と移動の両方）。 */
+  async function pickSwitcher(row: SwitcherRow): Promise<void> {
+    overlay = null;
+    if (row.kind === 'move') {
+      await move(row.op as 'nav.prev' | 'nav.next' | 'nav.back' | 'nav.forward');
+      return;
+    }
+    const found = await store.run(row.op as OpId, row.args);
+    if (!found.ok) {
+      store.notice(found.message, 'error');
+      return;
+    }
+    store.update((next) => {
+      next.workspace = String((found.result as { current?: unknown }).current ?? next.workspace);
+    });
+  }
+
+  /** 文書のリネームの入力欄を開く（`document.rename`）。開いている間にもう一度押したら閉じる。 */
+  async function startRename(): Promise<void> {
+    if (renaming) {
+      renaming = false;
+      return;
+    }
+    // いま開いている文書を対象にする（`section.get` の `path`）。無ければ何もしない。
+    if (!screen.path) {
+      store.notice(t('api.error.no_document'), 'error');
+      return;
+    }
+    overlay = null;
+    await saveNow();
+    renamingFrom = screen.path;
+    renaming = true;
+  }
+
+  /**
+   * リネームを実行する（`document.rename`）。失敗したら文言を返す（入力欄がそのまま出す）。
+   *
+   * 成功したら、新しいパスの節を開き直す（いま開いていたパスが変わったため）。`App` は
+   * リネームの前後関係を知らないので、機能核の戻り値（`from` / `to`）だけを材料にする。
+   */
+  async function renameDocument(from: string, to: string): Promise<string> {
+    // `role` は MCP の関門（§19.1.5）のための欄。画面は人間の経路なので空で渡す
+    // （`section.write` と同じ。関門は `Interface::Mcp` のときだけ効く）。
+    const found = await store.run('document.rename', { from, to, role: '' });
+    if (!found.ok) {
+      return found.message;
+    }
+    renaming = false;
+    const result = found.result as { to?: unknown; save?: unknown };
+    // 保存は機能核が `save.now` まで溜める（状態を持つインターフェース）。ここで流し切る。
+    await drain();
+    const now = await currentScene();
+    if (now) {
+      await openSection(now);
+    } else if (typeof result.to === 'string') {
+      await navTo('', result.to);
+    }
+    return '';
+  }
+
   // ---------------------------------------------------------------- プロジェクトの入口
   //
   // `Ctrl+O`（`ui:project`）とプロジェクト名のボタンから開く面（§9.7・§13.5）。
@@ -661,10 +818,41 @@
   onsave={retrySave}
   onreview={() => setWorkspace('review')}
   onproject={() => void openProjectPicker()}
+  onswitcher={() => void openSwitcher()}
+  onrename={() => void startRename()}
 />
 
 <!-- 重ね物（`?` のヘルプ / `Ctrl+P` のパレット）。`Esc` と外側クリックで閉じる（§9.7.5）。 -->
-<Overlay {t} mode={overlay === 'project' ? null : overlay} onclose={() => (overlay = null)} onrun={runHelpRow} />
+<Overlay
+  {t}
+  mode={overlay === 'help' || overlay === 'palette' ? overlay : null}
+  commands={PALETTE_ROWS}
+  onclose={() => (overlay = null)}
+  onrun={runHelpRow}
+  oncommand={(name) => void runPalette(name)}
+/>
+
+<!-- 切替パネル（`Ctrl+K`。§10.0 の一覧 + §9.7 の移動の口）。 -->
+{#if overlay === 'switcher'}
+  <Switcher
+    {t}
+    found={switcher}
+    document={screen.path}
+    onclose={() => (overlay = null)}
+    onpick={(row) => void pickSwitcher(row)}
+    onrename={() => void startRename()}
+  />
+{/if}
+
+<!-- 文書の名前の変更（切替パネルの文書行・ヘッダのボタン。`document.rename`）。 -->
+{#if renaming}
+  <RenameDialog
+    {t}
+    from={renamingFrom}
+    onclose={() => (renaming = false)}
+    onrename={renameDocument}
+  />
+{/if}
 
 <!-- プロジェクトの入口の面（`Ctrl+O` とプロジェクト名。§9.7・§13.5）。 -->
 {#if overlay === 'project'}
