@@ -5,7 +5,8 @@
   //
   // 1. **移動の行**（`nav.prev` / `nav.next` / `nav.back` / `nav.forward`）
   // 2. **ワークスペース 9 つ**（`nav.switcher` の `workspaces` をそのまま並べる。番号も写す）
-  // 3. **文書の行**（`document.rename` の口。パレットの `>rename-document` と同じ）
+  // 3. **プロットの確認状態**（`plot.set_state`。§10.3.3）と
+  //    **文書の行**（`document.rename` の口）
   //
   // 一覧は `nav.switcher` の戻り値だけで作る（画面で並べ直さない。§19.1.4）。押せないものは
   // 置かない。文言は生成物 `i18n/catalog.ts` に実在するキーだけを引く（§12.3）。
@@ -28,6 +29,12 @@
   export let onpick: ((row: SwitcherRow) => void) | null = null;
   /** 文書のリネームを始める（`document.rename`）。 */
   export let onrename: (() => void) | null = null;
+  /** いまの節（`plot.set_state` の対象）。空なら出さない。 */
+  export let scene = '';
+  /** いまの節のプロットの確認状態（`fixed` / `draft`）。 */
+  export let plotState: 'fixed' | 'draft' = 'draft';
+  /** 確認状態を切り替える（`plot.set_state`。§10.3.3）。 */
+  export let ontogglestate: (() => void) | null = null;
 
   let rows: SwitcherRow[] = switcherRows(found);
   $: rows = switcherRows(found);
@@ -85,6 +92,17 @@
         <p class="empty" role="status">{t('workspace.unavailable')}</p>
       {/if}
     </div>
+
+    <!-- プロットの確認状態（`plot.set_state`。§10.3.3） -->
+    {#if scene}
+      <div class="section">
+        <button type="button" class="row" on:click={() => ontogglestate?.()}>
+          <span class="label">{t('api.op.plot.set_state')}</span>
+          <kbd>{plotState}</kbd>
+        </button>
+        <p class="path">{scene}</p>
+      </div>
+    {/if}
 
     <!-- 文書のリネーム（`document.rename`） -->
     {#if document}

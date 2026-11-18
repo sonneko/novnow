@@ -31,6 +31,15 @@
   export let onsave: (() => void) | null = null;
   /** 診断を押した（点検へ）。 */
   export let onreview: (() => void) | null = null;
+  /** 衝突しているパス（`save.state` の `conflicts`。§8.5）。 */
+  export let conflicts: string[] = [];
+  /**
+   * 衝突を解決する面を開く（`save.keep_mine` / `save.reload_external`）。
+   *
+   * 保存インジケータとは**別のボタン**にする。保存インジケータは「もう一度保存する」で、
+   * 衝突の解決は「どちらの版を残すか選ぶ」で、意味が違う（混ぜると押し間違える）。
+   */
+  export let onconflict: (() => void) | null = null;
 
   /** 状態 → 右端の予約幅（`REF:src/ui/status.rs` と同じ値）。 */
   $: reserved = save === 'error' ? 170 : save === 'saving' ? 46 : 23;
@@ -81,6 +90,19 @@
       <span class="message">{t('status.save_failed')}</span>
     {/if}
   </button>
+  {#if conflicts.length > 0}
+    <!-- 衝突の解決（§8.5）。押すとどちらを残すか選ぶ面が開く。 -->
+    <button
+      type="button"
+      class="conflict"
+      title={t('diff.title')}
+      aria-label={t('diff.title')}
+      on:click={() => onconflict?.()}
+    >
+      <span aria-hidden="true">⇄</span>
+      <span class="count">{conflicts.length}</span>
+    </button>
+  {/if}
 </footer>
 
 <style>
@@ -153,6 +175,27 @@
   }
   .save[data-state='saved'] {
     color: var(--state-ok);
+  }
+  .conflict {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    flex: 0 0 auto;
+    padding: 0 6px;
+    height: 18px;
+    border: 1px solid var(--state-warn);
+    border-radius: 2px;
+    background: transparent;
+    color: var(--state-warn);
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .conflict:hover {
+    background: var(--bg-selection);
+  }
+  .count {
+    font-family: var(--mono, ui-monospace, monospace);
   }
   .message {
     white-space: nowrap;
