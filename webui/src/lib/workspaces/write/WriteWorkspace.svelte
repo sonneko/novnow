@@ -82,6 +82,8 @@
   export let ondelete: ((scene: string) => void) | null = null;
   /** 参照ペインの行を押した。 */
   export let onjump: ((kind: string, value: unknown) => void) | null = null;
+  /** 参照ペインの行をダブルクリックした（`cast.get` / `dictionary.term_full`。§9.5.5）。 */
+  export let onopen: ((kind: string, value: unknown) => void) | null = null;
   /** 比率を保存した。 */
   export let onratio: ((key: string, value: number) => void) | null = null;
   /** 節を分ける（`section.split`。`Ctrl+Enter`。§8.1.1）。 */
@@ -508,7 +510,7 @@
   </div>
   {#if reference}
     <Splitter axis="horizontal" ratio={main} onchange={setMain} onmove={(next) => (main = next)} />
-    <ReferencePane {t} pane={screen.reference} onjump={onjump} />
+    <ReferencePane {t} pane={screen.reference} {onjump} {onopen} />
   {/if}
 </div>
 

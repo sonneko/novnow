@@ -34,6 +34,13 @@
   export let onswitcher: (() => void) | null = null;
   /** 文書の名前を変える（`document.rename`。パレットの `>rename-document` と同じ）。 */
   export let onrename: (() => void) | null = null;
+  /**
+   * 辞書の一覧を開く（`dictionary.list`。§6.1）。
+   *
+   * ヘッダの常設のボタンにする（キーを知らなくても押せる。§21.2.1）。§9.8 の
+   * `Ctrl+D` は「挿入モード」のキーなので、辞書へは画面のボタンから入る。
+   */
+  export let ondictionary: (() => void) | null = null;
 
   /** ワークスペースのアイコン（文字ではなく図形で示す。§9.2）。 */
   const ICONS: Record<string, string> = {
@@ -104,6 +111,15 @@
       on:click={() => ontheme?.()}
     >
       <span aria-hidden="true">{theme === 'dark' ? '◐' : '◑'}</span>
+    </button>
+    <button
+      type="button"
+      class="icon"
+      aria-label={t('api.op.dictionary.list')}
+      title={t('api.op.dictionary.list')}
+      on:click={() => ondictionary?.()}
+    >
+      <span aria-hidden="true">❖</span>
     </button>
     <button
       type="button"

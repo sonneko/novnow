@@ -328,5 +328,7 @@ test('PENDING から 5 件が外れ、parity の判定と一致する', async ()
   ]) {
     assert.ok(!PENDING.includes(id), `${id} がまだ未提供に残っている`);
   }
-  assert.equal(PENDING.length, 24, `未提供は 24 件（29 − 5）。いまは ${PENDING.length} 件`);
+  // バッチ 3 の時点では 24 件。**件数はバッチごとに減る**ので、ここでは「24 以下で、
+  // このバッチの 5 件が入っていない」ことだけを見る（件数の正本は `webui/tests/parity.mjs`）。
+  assert.ok(PENDING.length <= 24, `未提供が増えている（${PENDING.length} 件）`);
 });

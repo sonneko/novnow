@@ -13,6 +13,18 @@
   export let pane: Record<string, unknown> | null = null;
   /** 行を押した（§9.5.5 の飛び先）。 */
   export let onjump: ((kind: string, value: unknown) => void) | null = null;
+  /**
+   * 行を**ダブルクリック**した（§9.5.5 の本文）。
+   *
+   * シングルクリックでは移動しない。ダブルクリックで:
+   *
+   * - 配役 → `cast.get`（人物の情報を出す）
+   * - 用語 → `dictionary.term_full`（`Ctrl+Shift+W` と同じ全文表示）
+   * - 資料（明示参照） → 資料画面の当該資料
+   *
+   * を開く。押し分けを画面の都合で決めない（§9.5.5 の表のとおり）。
+   */
+  export let onopen: ((kind: string, value: unknown) => void) | null = null;
 
   /** 1 行（どのまとまりも同じ形にそろえる。`detail` は薄い補足）。 */
   interface Entry {
@@ -20,6 +32,16 @@
     detail: string;
     kind: string;
     value: unknown;
+  }
+
+  /**
+   * この行を開けるか（ダブルクリックの行き先があるか。§9.5.5）。
+   *
+   * 動かない行に「開く」の案内を出さない（§21.1.2）。配役・用語・資料（色分けが付く）の
+   * 3 種だけが開ける（§9.5.5 の 3・4・7）。
+   */
+  function openable(kind: string): boolean {
+    return onopen !== null && (kind === 'cast' || kind === 'word' || kind === 'material');
   }
 
   /** 配列を取り出す（`pane` が壊れていても落ちない）。 */
@@ -111,7 +133,15 @@
         <section class="group">
           <h2>{t(group.title)}</h2>
           {#each group.entries as row, index (index)}
-            <button type="button" class="row" on:click={() => onjump?.(row.kind, row.value)}>
+            <!-- 行は「単クリックで移動・ダブルクリックで開く」（§9.5.5）。キーは既存の
+                 `Ctrl+3` → `↑`/`↓` → `Enter` が同じ意味を持つ（新しいキーは決めない）。 -->
+            <button
+              type="button"
+              class="row"
+              title={openable(row.kind) ? t('review.key_open') : ''}
+              on:click={() => onjump?.(row.kind, row.value)}
+              on:dblclick={() => onopen?.(row.kind, row.value)}
+            >
               <span class="line">{row.text}</span>
               {#if row.detail}
                 <span class="detail">{row.detail}</span>

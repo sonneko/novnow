@@ -13,6 +13,7 @@
   //   形にし、理由を `diag.W064` の文言で示す。§21.1.2 MUST）。
   import { onDestroy, tick } from 'svelte';
   import { chord, strokeOf } from '../../keyboard/keys';
+  import { attachAnchor, attachArgs } from '../../reference/lookups';
   import type { Session } from '../../store/session';
   import type { Texts } from '../../i18n';
   import {
@@ -46,6 +47,17 @@
   export let session: Session;
   /** 読み直しの合図（値が変わると一覧を読み直す）。 */
   export let revision = 0;
+  /**
+   * 資料を添付する（`materials.attach`。§16.2 の「登録する」と §16.1 の添付）。
+   *
+   * 2 つの意味を**分けて**渡す（画面が機能核の 2 つの腕を取り違えないようにする）:
+   *
+   * - 索引に無い資料 MD を登録する（`W064` の行）→ `onattach(id, path)`。`id` は索引の錨。
+   * - 索引にある資料を添付する（索引の `updated_at` / `checksum` を更新）→ `onattach(id, '')`。
+   *
+   * 渡されていなければ押せない（理由を行の下に書く。§21.1.2）。
+   */
+  export let onattach: ((id: string, path: string) => Promise<string>) | null = null;
 
   const EMPTY: Review = { title: '', category: '', summary: '', tags: '', conditions: '', source: '' };
 
@@ -293,6 +305,40 @@
     select(outcome.result.id);
   }
 
+  /**
+   * 選んでいる資料を添付する（`materials.attach`。`onattach` が無ければ押せない理由を画面に書く。
+   * §21.1.2: 押しても何も起きないボタンを置かない）。
+   *
+   * 索引に無い行（`id === null`）は**登録**（`path` を渡す）、索引にある行は**添付**
+   * （`path` を渡さない）。`id` の錨は索引に 1 件も無ければ作れないので、そのときは押せない
+   * （`materials.propose` で 1 件作ってから登録する。理由を書く）。
+   */
+  async function attach(): Promise<void> {
+    const target = current;
+    if (target === null || !onattach) {
+      return;
+    }
+    const anchor =
+      target.id !== null
+        ? target.id
+        : attachAnchor(rows.map((row) => row.id));
+    if (anchor === null) {
+      session.notice(t('material.index_broken'), 'error');
+      return;
+    }
+    const args = target.id === null ? attachArgs(anchor, target.path) : attachArgs(target.id);
+    if (args === null) {
+      return;
+    }
+    await flushAll();
+    const message = await onattach(args.id, args.path ?? '');
+    if (message !== '') {
+      session.notice(message, 'error');
+      return;
+    }
+    await reload();
+  }
+
   /** 本文の引用（`^M0137`）を探す（右の「引用元」タブ）。 */
   async function loadCitations(): Promise<void> {
     if (current === null || current.id === null) {
@@ -511,7 +557,14 @@
           <button type="button" class="danger" disabled={unregistered} on:click={() => void reject()}
             >{t('material.reject')}</button
           >
+          <!-- 添付（`materials.attach`）。索引に無い行は「登録する」（W064 の口）。 -->
+          <button type="button" class="attach" disabled={onattach === null} on:click={() => void attach()}>
+            {unregistered ? t('material.register') : t('api.op.materials.attach')}
+          </button>
         </div>
+        {#if onattach === null}
+          <p class="note">{t('workspace.unavailable', [t('api.op.materials.attach')])}</p>
+        {/if}
         {#if unregistered}
           <p class="note">{t('diag.W064')}</p>
         {/if}
@@ -676,6 +729,7 @@
   }
   .chip,
   .actions button,
+  .attach,
   .new button,
   .cites button,
   .tabs button {
