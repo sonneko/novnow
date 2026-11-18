@@ -56,6 +56,18 @@
   export let onfocus: (() => void) | null = null;
   /** 提案の候補の間を移った（`Alt+,` で挿入した）。 */
   export let oncomma: ((position: number) => void) | null = null;
+  /**
+   * 節を分ける（`Ctrl+Enter`。§8.1.1・§9.8.3）。
+   *
+   * 引数は**キャレットの位置**（UTF-16。バイトへの換算は `App.svelte` が `byteOffset` で行う）。
+   * キーを知らなくても届くように、ミニバーのボタンからも呼ぶ（§21.2.1）。
+   *
+   * エディタが直接呼ぶ（`onkey` へ流さない）。キーを押した瞬間のキャレットは、画面の
+   * キャレットを経由すると 1 打鍵ぶんずれることがあるため、ここで持っている値を渡す。
+   */
+  export let onsplit: ((caret: number) => void) | null = null;
+  /** この節の提案を置く（`section.propose`。§8.7.1。本文は変えない）。 */
+  export let onpropose: (() => void) | null = null;
 
   let hidden: HTMLInputElement | null = null;
   let surface: HTMLElement | null = null;
@@ -520,6 +532,14 @@
     switch (event.key) {
       case 'Enter':
         if (event.ctrlKey || event.metaKey) {
+          // `Ctrl+Enter` はカーソルのバイト位置で節を分ける（§8.1.1・§9.8.3）。
+          // 分割の分岐（末尾なら次の節へ、先頭なら何もしない）は機能核が持つので、
+          // ここは位置を渡すだけにする（§19.1.4）。
+          if (onsplit) {
+            event.preventDefault();
+            onsplit(caret);
+            return;
+          }
           onkey?.(event);
           return;
         }
@@ -644,8 +664,29 @@
 </script>
 
 <!-- ミニヘッダー（§9.4.2）。置いてよいのはパンくず・台詞比率バー・有効モードの 3 つだけ。 -->
-<div class="mini" aria-hidden="true">
-  <span class="crumb">{section?.id.replaceAll('-', '›') ?? ''}</span>
+<div class="mini">
+  <span class="crumb" aria-hidden="true">{section?.id.replaceAll('-', '›') ?? ''}</span>
+  {#if section}
+    <!-- 節の操作（§8.1.1・§8.7.1）。キーを知らなくても押せるように置く（§21.2.1）。 -->
+    <button
+      type="button"
+      class="action"
+      title={`${t('api.op.section.split')} (Ctrl+Enter)`}
+      aria-label={t('api.op.section.split')}
+      on:click={() => onsplit?.(caret)}
+    >
+      <span aria-hidden="true">⑛</span>
+    </button>
+    <button
+      type="button"
+      class="action"
+      title={t('api.op.section.propose')}
+      aria-label={t('api.op.section.propose')}
+      on:click={() => onpropose?.()}
+    >
+      <span aria-hidden="true">✎</span>
+    </button>
+  {/if}
   {#if hasRatio}
     <span class="ratio" title={t('stage.dialogue_ratio')}>
       <span class="bar" role="img" aria-label={`${t('stage.dialogue_ratio')} ${Math.round(ratioValue * 100)}%`}>
@@ -765,6 +806,25 @@
   }
   .crumb {
     font-family: var(--mono, ui-monospace, monospace);
+  }
+  .action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 16px;
+    padding: 0;
+    border: 0;
+    border-radius: 2px;
+    background: transparent;
+    color: var(--fg-muted);
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .action:hover {
+    background: var(--bg-selection);
+    color: var(--fg-primary);
   }
   .ratio {
     display: inline-flex;

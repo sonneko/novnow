@@ -40,11 +40,6 @@ export interface SpecGap {
  * 並びはカタログの順（`tests/golden/api_catalog.json` の `operations`）に合わせる。
  */
 export const PENDING: readonly string[] = [
-  'section.split', // 節の分割
-  'section.propose', // 節の提案
-  'plot.set_state', // プロットの確認状態
-  'save.keep_mine', // 外部変更との衝突の解決（ブラウザは監視しないが、操作としては未提供）
-  'save.reload_external',
   'materials.attach',
   'cast.get',
   'dictionary.list',
@@ -90,6 +85,11 @@ export const SPEC_GAPS: readonly SpecGap[] = [
   // （仕様 §9.8.1 と `interfaces.md` の食い違い。仕様側の宿題）。
   { section: '9.8.2', what: '構造移動の残り（前後の節・場面・ファイルのキー、`Ctrl+Home`/`Ctrl+End`）' },
   { section: '9.8.3', what: '検索・置換の入り口（キーは表にあるが、入力欄が未提供）' },
+  // §9.6 の保存状態機のうち、**衝突の解決**（`save.keep_mine` / `save.reload_external`）と
+  // 差分の表示（`save.diff_external`）は解消した。ステータスバーの `⇄ <件数>` から開く。
+  // ただし**外部変更の監視そのものはブラウザでは行わない**（§13.3）ので、この面が出るのは
+  // ネイティブだけである（面は理由を書いて出る。§21.1.2）。
+  { section: '9.6', what: 'ブラウザでの外部変更の検知と衝突（§13.3: 監視しない。ネイティブのみ）' },
   // §10.0 の切替パネル（`nav.switcher` の一覧）は解消した（`Ctrl+K` とヘッダの `⇥`）。
   // 9 ワークスペースは `Alt+1..9` / パネルの行から切り替えられる。ただし切替先の**中身**は
   // `write` 以外が未実装なので、着地点の対応表（§10.0 の「対応物」）はまだ効かない。

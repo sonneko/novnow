@@ -84,6 +84,10 @@
   export let onjump: ((kind: string, value: unknown) => void) | null = null;
   /** 比率を保存した。 */
   export let onratio: ((key: string, value: number) => void) | null = null;
+  /** 節を分ける（`section.split`。`Ctrl+Enter`。§8.1.1）。 */
+  export let onsplit: ((caret: number) => void) | null = null;
+  /** この節の提案を置く（`section.propose`。§8.7.1。本文は変えない）。 */
+  export let onpropose: (() => void) | null = null;
   /** 参照ペインを出すか（`Ctrl+\`）。 */
   export let reference = true;
   /**
@@ -482,6 +486,8 @@
       oninput={oninput}
       oncaret={oncaret}
       onkey={onkey}
+      {onsplit}
+      {onpropose}
     />
     {#if !persistable || !store}
       <!-- この版でまだ提供していないもの（§21.1.2 MUST: 黙って隠さない）。

@@ -19,6 +19,18 @@
   import Switcher from './lib/nav/Switcher.svelte';
   import RenameDialog from './lib/nav/RenameDialog.svelte';
   import { didMove, movedScene, type SwitcherRow } from './lib/nav/moves';
+  import ProposalDialog from './lib/sections/ProposalDialog.svelte';
+  import ConflictDialog from './lib/save/ConflictDialog.svelte';
+  import {
+    conflictDiffs,
+    conflictPaths,
+    proposalArgs,
+    resolveArgs,
+    setStateArgs,
+    splitArgs,
+    stateOf,
+    type ConflictDiff,
+  } from './lib/sections/sectionOps';
   import type { Runtime, ZipExport } from './lib/project/picker';
   import { Ime } from './lib/keyboard/ime';
   import { command as commandOf, isLocal, keepPayload, strokeOf } from './lib/keyboard/keys';
@@ -57,6 +69,17 @@
 
   /** 文書のリネームの入力欄を出しているか（`document.rename`）。 */
   let renaming = false;
+
+  /** 提案の面を出しているか（`section.propose`。§8.7.1）。 */
+  let proposing = false;
+
+  /** 衝突の面を出しているか（`save.keep_mine` / `save.reload_external`。§8.5）。 */
+  let conflicting = false;
+  /** 衝突しているパス（`save.state` の `conflicts`）。 */
+  let conflicts: string[] = [];
+
+  /** いまのキャレット（UTF-16。節の中の位置）。`Ctrl+Enter` の分割に使う。 */
+  let caret = 0;
   /** リネームの対象（`document.rename` の `from`）。 */
   let renamingFrom = '';
   /**
@@ -188,6 +211,8 @@
         next.unsaved = state.result.unsaved.filter((path): path is string => typeof path === 'string');
         next.save = state.result.state as SaveState;
       });
+      // 衝突しているパス（§8.5）。面はここで一覧を持つ（押したときに取り直さない）。
+      conflicts = conflictPaths(state.result as unknown as Record<string, unknown>);
     }
     const words = await store.run('project.stats');
     if (words.ok) {
@@ -576,6 +601,137 @@
     await afterCommand(result.result as Record<string, unknown>);
   }
 
+  // ---------------------------------------------------------------- 節・プロット・衝突（§8.1.1・§8.5・§10.3.3）
+  //
+  // 5 つの操作（`section.split` / `section.propose` / `plot.set_state` / `save.keep_mine` /
+  // `save.reload_external`）の口。意味は機能核が決める（`src/app/ops/editing.rs`）ので、
+  // ここは「いつ呼ぶか」と「結果をどう画面へ反映するか」だけを持つ。
+
+  /**
+   * 節をカーソルの位置で 2 つに分ける（`section.split`。`Ctrl+Enter`。§8.1.1）。
+   *
+   * `at` は**バイト位置**（節の本文の中）。キャレット（UTF-16）をそのまま渡すと和文で
+   * 3 倍ずれるので、`splitArgs` が `byteOffset` で換算する。
+   * 節の末尾・先頭の分岐（次へ移る / 何もしない / 新規節を作る）は機能核が持つ。
+   */
+  async function splitSection(position: number): Promise<void> {
+    if (!screen.scene) {
+      store.notice(t('editor.no_sections'), 'info');
+      return;
+    }
+    const args = splitArgs(screen.scene, screen.text, position) as {
+      at: number;
+      role: string;
+      scene: string;
+    };
+    const found = await store.run('section.split', args);
+    if (!found.ok) {
+      store.notice(found.message, 'error');
+      return;
+    }
+    const result = found.result as Record<string, unknown>;
+    // 分割できなかった（先頭に居る・文字境界でない）ときは黙って止まる（§8.1.1）。
+    if (result.split === false) {
+      return;
+    }
+    await drain();
+    const scene = typeof result.scene === 'string' ? result.scene : '';
+    if (scene) {
+      await openSection(scene);
+      return;
+    }
+    await refresh();
+  }
+
+  /** 提案の面を開く（`section.propose`。本文は変えない。§8.7.1）。 */
+  function startProposal(): void {
+    if (!screen.scene) {
+      store.notice(t('editor.no_sections'), 'info');
+      return;
+    }
+    overlay = null;
+    proposing = true;
+  }
+
+  /**
+   * 提案を置く（`section.propose` → `via_mcp` で `agents/proposals/` に 1 件）。
+   *
+   * **本文は変わらない**ので、画面を取り直す必要はない。置いた提案の ID を通知に出す
+   * （何が起きたか分かるようにする。§21.1.2）。
+   */
+  async function proposeSection(raw: Record<string, unknown>): Promise<string> {
+    const args = raw as { note?: string; scene: string; text: string };
+    const found = await store.run('section.propose', args);
+    if (!found.ok) {
+      return found.message;
+    }
+    const result = found.result as { proposal?: unknown; status?: unknown };
+    const id = typeof result.proposal === 'string' ? result.proposal : '';
+    if (id) {
+      store.notice(`${t('api.op.section.propose')} — ${id}`, 'info', 0);
+    }
+    return '';
+  }
+
+  /**
+   * プロットの確認状態を切り替える（`plot.set_state`。§10.3.3）。
+   *
+   * `state` は `bool`（`true` → `fixed`）。いまの値を `stateOf` で読み、反転した値を送る
+   * （同じ値を送って何も起きないボタンにしない）。
+   */
+  async function togglePlotState(scene: string): Promise<void> {
+    const header = screen.sections.find((row) => row.id === scene)?.header ?? '';
+    const next = stateOf(header) === 'fixed' ? 'draft' : 'fixed';
+    const args = setStateArgs(scene, next) as { role: string; scene: string; state: boolean };
+    const found = await store.run('plot.set_state', args);
+    if (!found.ok) {
+      store.notice(found.message, 'error');
+      return;
+    }
+    await drain();
+    store.notice(`${t('api.op.plot.set_state')} — ${next}`, 'info');
+  }
+
+  /** 衝突の面を開く（`save.state` の `conflicts` を材料にする。§8.5）。 */
+  function openConflicts(): void {
+    overlay = null;
+    conflicting = true;
+  }
+
+  /** 差分を取る（`save.diff_external`。読むためだけ。§8.5）。 */
+  async function conflictDiff(path: string): Promise<ConflictDiff[]> {
+    const found = await store.run('save.diff_external', resolveArgs(path));
+    if (!found.ok) {
+      store.notice(found.message, 'error');
+      return [];
+    }
+    return conflictDiffs(found.result as Record<string, unknown>);
+  }
+
+  /**
+   * 自分の版を残す（`save.keep_mine`）／外部の版を読み込む（`save.reload_external`）。
+   *
+   * どちらを残すかは**利用者が選ぶ**（画面が勝手に決めない。§8.5 MUST）。解決したら一覧を
+   * 取り直し、無くなったら面を閉じる。外部の版を読み込んだときは本文が変わるので開き直す。
+   */
+  async function resolveConflict(path: string, keep: boolean): Promise<string> {
+    const op = keep ? 'save.keep_mine' : 'save.reload_external';
+    const found = keep
+      ? await store.run('save.keep_mine', resolveArgs(path))
+      : await store.run('save.reload_external', resolveArgs(path));
+    if (!found.ok) {
+      return found.message;
+    }
+    await drain();
+    await refresh();
+    if (conflicts.filter((found) => found !== path).length === 0) {
+      conflicting = false;
+    }
+    store.notice(t(keep ? 'api.op.save.keep_mine' : 'api.op.save.reload_external'), 'info');
+    void op;
+    return '';
+  }
+
   // ---------------------------------------------------------------- ナビゲーション（§9.7・§10.0）
   //
   // 6 つの操作（`nav.prev` / `nav.next` / `nav.back` / `nav.forward` / `nav.switcher` /
@@ -806,7 +962,7 @@
   {modes}
   {composing}
   oninput={oninput}
-  oncaret={() => {}}
+  oncaret={(position) => (caret = position)}
   onkey={onkey}
   onnav={nav}
   ondelete={remove}
@@ -820,6 +976,10 @@
   onproject={() => void openProjectPicker()}
   onswitcher={() => void openSwitcher()}
   onrename={() => void startRename()}
+  onsplit={(position) => void splitSection(position)}
+  onpropose={startProposal}
+  onconflict={openConflicts}
+  {conflicts}
 />
 
 <!-- 重ね物（`?` のヘルプ / `Ctrl+P` のパレット）。`Esc` と外側クリックで閉じる（§9.7.5）。 -->
@@ -841,6 +1001,9 @@
     onclose={() => (overlay = null)}
     onpick={(row) => void pickSwitcher(row)}
     onrename={() => void startRename()}
+    scene={screen.scene}
+    plotState={stateOf(screen.sections.find((row) => row.id === screen.scene)?.header ?? '')}
+    ontogglestate={() => void togglePlotState(screen.scene)}
   />
 {/if}
 
@@ -851,6 +1014,30 @@
     from={renamingFrom}
     onclose={() => (renaming = false)}
     onrename={renameDocument}
+  />
+{/if}
+
+<!-- 節の提案（`section.propose`。本文は変えない。§8.7.1）。 -->
+{#if proposing}
+  <ProposalDialog
+    {t}
+    scene={screen.scene}
+    text={screen.text}
+    onclose={() => (proposing = false)}
+    onpropose={proposeSection}
+  />
+{/if}
+
+<!-- 外部変更との衝突（`save.keep_mine` / `save.reload_external`。§8.5）。 -->
+{#if conflicting}
+  <ConflictDialog
+    {t}
+    {runtime}
+    {conflicts}
+    onclose={() => (conflicting = false)}
+    ondiffs={conflictDiff}
+    onkeep={(path) => resolveConflict(path, true)}
+    onreload={(path) => resolveConflict(path, false)}
   />
 {/if}
 

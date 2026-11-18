@@ -326,7 +326,7 @@ test('配線: 画面は切替パネルとリネームの面を持つ（押せる
 
 // ---------------------------------------------------- 4. パリティ判定との一致
 
-test('PENDING から 6 件が外れ、parity の判定と一致する', async () => {
+test('B2 の 6 件は PENDING から外れている（件数は parity.mjs が持つ）', async () => {
   const { PENDING } = await importTs('src/lib/coverage.ts');
   for (const id of [
     'nav.prev',
@@ -338,5 +338,7 @@ test('PENDING から 6 件が外れ、parity の判定と一致する', async ()
   ]) {
     assert.ok(!PENDING.includes(id), `${id} がまだ未提供に残っている`);
   }
-  assert.equal(PENDING.length, 29, `未提供は 29 件（35 − 6）。いまは ${PENDING.length} 件`);
+  // 総数は `parity.mjs` が突き合わせる（ここで固定すると次のバッチで前のテストが落ちる。
+  // 判定の 1 か所主義（§21.5.1）に反する）。
+  assert.ok(PENDING.length > 0, '未提供が 0 件になったら parity の判定を equivalent へ上げる');
 });

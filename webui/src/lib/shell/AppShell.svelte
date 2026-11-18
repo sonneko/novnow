@@ -45,6 +45,14 @@
   export let onswitcher: (() => void) | null = null;
   /** 文書の名前を変える（`document.rename`。パレットの `>rename-document` と同じ）。 */
   export let onrename: (() => void) | null = null;
+  /** 節を分ける（`section.split`。`Ctrl+Enter` と同じ。§8.1.1）。 */
+  export let onsplit: ((caret: number) => void) | null = null;
+  /** この節の提案を置く（`section.propose`。§8.7.1）。 */
+  export let onpropose: (() => void) | null = null;
+  /** 外部変更との衝突を解決する面を開く（§8.5）。 */
+  export let onconflict: (() => void) | null = null;
+  /** 衝突しているパス（`save.state` の `conflicts`）。 */
+  export let conflicts: string[] = [];
 
   /** テーマ（`ui.json` の `theme`。W2 では OS の設定に従う）。 */
   let theme: 'dark' | 'light' = 'dark';
@@ -110,6 +118,8 @@
         ondelete={ondelete}
         onjump={onjump}
         onratio={onratio}
+        onsplit={onsplit}
+        onpropose={onpropose}
       />
     {:else}
       <!-- 未提供の画面は「この版では使えません」を出す（§21.1.2）。空の画面を置かない。 -->
@@ -128,6 +138,8 @@
     saveMessage={screen.saveMessage}
     onsave={onsave}
     onreview={onreview}
+    {conflicts}
+    onconflict={onconflict}
   />
 </div>
 
