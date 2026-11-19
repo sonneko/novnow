@@ -31,6 +31,7 @@
     moveTab as stepTab,
   } from './review';
   import type { BaseView, DiagRow, MemoRow, PlaceIndex, ReviewTab, TreeRow } from './review';
+  import { placeKey, placeRef } from '../../reference/lookups';
   import { commentUsable, diffRows, proposalRowsOf, type DiffRow, type ProposalRow } from '../agent/agent';
 
   type Speaker = { name: string; chars: number; lines: number };
@@ -47,6 +48,18 @@
   export let revision = 0;
   /** スレッドの確認へ移る（§10.9.6 の表）。 */
   export let onopenthread: ((id: string) => void) | null = null;
+  /**
+   * 診断の「どこ」を機能核へ問い合わせる（`diagnostics.place`。§10.9.2・§14.2.5）。
+   *
+   * 画面が診断の一覧を組み立てるときの `placeOf` は**画面が持つ索引**（節・ブロック・資料）で
+   * 決める近似だが、`diagnostics.place` は機能核が文書を読んで決める**正本**である。
+   * 選んでいる行について、機能核の答えを下に出す（近い場合も違う場合も、両方見える）。
+   *
+   * 渡されていなければ何もしない（未提供を黙って隠さないため、行の下に理由を書く）。
+   */
+  export let onplace:
+    | ((path: string, byte: number | null) => Promise<{ place: unknown; path: string } | null>)
+    | null = null;
 
   let root: HTMLElement | null = null;
   let loading = true;
@@ -78,6 +91,10 @@
   let rejecting = false;
   let rejectComment = '';
   let lastScene = '\u0000';
+  /** `diagnostics.place` の答え（選んでいる行のもの。`null` なら未取得）。 */
+  let where: { path: string; place: unknown } | null = null;
+  /** `diagnostics.place` の問い合わせ中。 */
+  let placing = false;
 
   /** 表示中の診断（絞込・並べ替え後）。 */
   $: visible = sortRows(filterRows(rows, codeFilter), sortMode);
@@ -321,8 +338,51 @@
     return row.severity;
   }
 
+  /**
+   * 選んでいる行の「どこ」を機能核へ聞く（`diagnostics.place`。§10.9.2）。
+   *
+   * 画面の索引（`placeOf`）は近い答えを出すが、機能核の答えが正本である。行が変わったときだけ
+   * 問い合わせる（同じ行で何度も呼ばない）。`onplace` が無ければ何もしない。
+   */
+  async function askPlace(row: DiagRow | null): Promise<void> {
+    if (!row || !onplace) {
+      where = null;
+      return;
+    }
+    placing = true;
+    try {
+      where = await onplace(row.path, row.byte);
+    } finally {
+      placing = false;
+    }
+  }
+
+  /** 選んだ行が変わったら「どこ」を取り直す（行の同一性は `index` で見る）。 */
+  let placedIndex = -2;
+  let chosen: DiagRow | null = null;
+  $: {
+    const row = view === 'diagnostics' ? (visible[selected] ?? null) : null;
+    chosen = row;
+    // リアクティブ文の中では `await` できないので、状態の更新だけをここで行い、
+    // 問い合わせは別の文から始める（`placing` の切り替えはその中）。
+    if ((row?.index ?? -1) !== placedIndex) {
+      placedIndex = row?.index ?? -1;
+      void askPlace(row);
+    }
+  }
+
   function placeRow(row: DiagRow): string {
     return placeText(t, placeOf(row.path, row.line, index), { path: row.path, line: row.line, column: row.column });
+  }
+
+  /**
+   * `diagnostics.place` の `place` を `place.*` の文言へ写す（知らない種別は null → 生のパス）。
+   *
+   * 写しは `lookups.ts` の 1 か所だけが持つ（画面ごとに表を作り直さない）。
+   */
+  function placeKeyOf(value: unknown): { key: string; args: string[] } | null {
+    const found = placeRef(value);
+    return found === null ? null : placeKey(found);
   }
 
   function treeTitle(row: TreeRow): string {
@@ -592,6 +652,28 @@
               </tbody>
             </table>
           </div>
+          <!-- 機能核が決めた「どこ」（`diagnostics.place`。§10.9.2）。行の `placeOf` は画面の
+               索引による近似なので、正本の答えを別の行に出す（黙って置き換えない）。 -->
+          {#if chosen}
+            <p class="where" role="status">
+              <span class="where-label">{t('api.op.diagnostics.place')}</span>
+              {#if !onplace}
+                <span class="where-none">{t('workspace.unavailable', [t('api.op.diagnostics.place')])}</span>
+              {:else if placing}
+                <span class="where-none">{t('project.pick.loading')}</span>
+              {:else if where === null}
+                <span class="where-none">{t('definition.none')}</span>
+              {:else}
+                <span class="where-text">
+                  {placeText(
+                    t,
+                    placeKeyOf(where.place),
+                    { path: where.path, line: chosen.line, column: chosen.column },
+                  )}
+                </span>
+              {/if}
+            </p>
+          {/if}
           <p class="hint">{t('review.key_select')} {t('review.key_open')} {t('review.rerun_button')}</p>
         {/if}
       {:else if view === 'progress'}
@@ -1017,6 +1099,25 @@
   }
   .sev {
     color: var(--state-warn);
+  }
+  .where {
+    display: flex;
+    gap: 6px;
+    margin: 4px 0 0;
+    padding: 4px 6px;
+    background: var(--bg-inset);
+    border-radius: 2px;
+    font-size: 11px;
+  }
+  .where-label {
+    color: var(--fg-faint);
+  }
+  .where-none {
+    color: var(--fg-faint);
+  }
+  .where-text {
+    color: var(--fg-primary);
+    overflow-wrap: anywhere;
   }
   .place {
     color: var(--fg-muted);

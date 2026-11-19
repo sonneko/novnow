@@ -40,10 +40,10 @@ export interface SpecGap {
  * 並びはカタログの順（`tests/golden/api_catalog.json` の `operations`）に合わせる。
  */
 export const PENDING: readonly string[] = [
-  'materials.attach',
-  'cast.get',
-  'dictionary.list',
-  'dictionary.term_full',
+  // 素材の添付（`materials.attach`）・配役の情報（`cast.get`）・辞書の一覧（`dictionary.list`）・
+  // 用語の全文（`dictionary.term_full`）・診断の「どこ」（`diagnostics.place`）は解消した。
+  // 添付は資料の画面のボタン、配役と用語は参照ペインの行のダブルクリック、辞書はヘッダの
+  // ボタン、どこは点検の診断の行から呼ぶ。
   'lang.tokens', // LSP 相当の 12 操作（パレットの `>` から届く口がまだ無い）
   'lang.hover',
   'lang.definition',
@@ -53,7 +53,6 @@ export const PENDING: readonly string[] = [
   'lang.rename_preview',
   'lang.rename_apply',
   'lang.folding',
-  'diagnostics.place',
   'agent.audit_list',
   'prompt.list', // プロンプトの閲覧・比較・初期化
   'prompt.get',
@@ -91,12 +90,14 @@ export const SPEC_GAPS: readonly SpecGap[] = [
   // ネイティブだけである（面は理由を書いて出る。§21.1.2）。
   { section: '9.6', what: 'ブラウザでの外部変更の検知と衝突（§13.3: 監視しない。ネイティブのみ）' },
   // §10.0 の切替パネル（`nav.switcher` の一覧）は解消した（`Ctrl+K` とヘッダの `⇥`）。
-  // 9 ワークスペースは `Alt+1..9` / パネルの行から切り替えられる。ただし切替先の**中身**は
-  // `write` 以外が未実装なので、着地点の対応表（§10.0 の「対応物」）はまだ効かない。
-  { section: '10.0', what: '`write` 以外のワークスペースの中身（着地点の対応表が未実装）' },
+  // 9 ワークスペースは `Alt+1..9` / パネルの行から切り替えられ、切替先の中身も 9 つとも
+  // 描く（`webui/src/lib/shell/AppShell.svelte`。`write` 以外の 8 つは各ワークスペースの
+  // 部品を実際に置く）。着地点の対応表（§10.0 の「対応物」）はまだ届かない。
+  { section: '10.0', what: 'ワークスペースを切り替えたときの着地点の対応表（§10.0 の「対応物」）' },
   { section: '10.3', what: 'エージェントの監査ログ（`agent.audit_list`）' },
   { section: '10.4', what: 'プロンプトの閲覧・比較・初期化（`prompt.*`）' },
-  { section: '11.3', what: '診断の地名解決（`diagnostics.place`）の表示' },
+  // §11.3（診断の地名解決）は解消した。点検の診断の行が、機能核の `diagnostics.place` の
+  // 答え（正本の「どこ」）を `place.*` の文言で下に出す（`ReviewWorkspace.svelte`）。
   { section: '12.5', what: 'ヘルプ本文（`help.topic`）の全文表示' },
 ];
 

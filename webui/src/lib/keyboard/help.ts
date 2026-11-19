@@ -42,6 +42,8 @@ export const HELP_GROUPS: readonly HelpGroup[] = [
       { keys: 'F5', label: 'help.reload' },
       { keys: 'Ctrl+S', label: 'help.save' },
       { keys: 'Ctrl+P', label: 'help.palette' },
+      // 用語の全文（`dictionary.term_full`。§9.5.5 の 4・§9.8 の `Ctrl+Shift+W`）。
+      { keys: 'Ctrl+Shift+W', label: 'help.term' },
       { keys: 'Esc', label: 'help.escape' },
     ],
   },

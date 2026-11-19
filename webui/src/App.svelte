@@ -21,6 +21,8 @@
   import { didMove, movedScene, type SwitcherRow } from './lib/nav/moves';
   import ProposalDialog from './lib/sections/ProposalDialog.svelte';
   import ConflictDialog from './lib/save/ConflictDialog.svelte';
+  import LookupDialog from './lib/reference/LookupDialog.svelte';
+  import { attachArgs, attachResult, placeArgs, type LookupMode } from './lib/reference/lookups';
   import {
     conflictDiffs,
     conflictPaths,
@@ -50,8 +52,36 @@
   /** 変換中（IME）。 */
   let composing = false;
 
+  /**
+   * ワークスペースへ渡す読み直しの合図（切り替えるたびに 1 つ進める）。
+   *
+   * `revision` を受け取る画面（資料・着想・エージェント・点検）は、この値が変わると
+   * 材料を取り直す。ワークスペースを離れて戻ったときに古い一覧を出さないための口。
+   */
+  let revision = 0;
+
   /** 重ね物（`?` のヘルプと `Ctrl+P` のパレット。§9.7.5: 重ね物は 1 つずつ）。 */
   let overlay: 'help' | 'palette' | 'project' | 'switcher' | null = null;
+
+  /**
+   * 参照の面（`cast.get` / `dictionary.list` / `dictionary.term_full`。§9.5.5・§9.7）。
+   *
+   * 重ね物は 1 つずつ（§9.7.5）なので `overlay` とは別に持つ（同時には開かない。
+   * 開くときに `overlay` を閉じる）。
+   */
+  let lookup: LookupMode | null = null;
+  /** 参照の面の見出しに添える対象（場面 ID・語）。 */
+  let lookupSubject = '';
+  /** `cast.get` の結果。 */
+  let lookupCast: Record<string, unknown> | null = null;
+  /** `dictionary.list` の結果。 */
+  let lookupDictionary: Record<string, unknown> | null = null;
+  /** `dictionary.term_full` の結果。 */
+  let lookupTerms: Record<string, unknown> | null = null;
+  /** 参照の面の失敗の文言。 */
+  let lookupFailure = '';
+  /** 参照の面の読み込み中。 */
+  let lookupBusy = false;
 
   /**
    * `>` パレットに出すコマンド（§9.7.1）。まだ空。
@@ -393,18 +423,22 @@
         return;
       case 'ui:help':
         // `?` は重ね物を開く（§9.8.1 の「入力欄外」）。開いていれば閉じる。
+        closeLookup();
         overlay = overlay === 'help' ? null : 'help';
         return;
       case 'ui:palette':
+        closeLookup();
         overlay = overlay === 'palette' ? null : 'palette';
         return;
       case 'ui:project':
         // `Ctrl+O` と同じ規則（§9.7・§9.8）: 変更を保存してから入口の面を開く。
         // 保存に失敗している間は開かない（仕様 §9.7 の `Ctrl+O` の統一）。
+        closeLookup();
         void openProjectPicker();
         return;
       case 'ui:switcher':
         // 切替パネル（§10.0）。開いている間にもう一度押したら閉じる（§9.7.5: 重ね物は 1 つ）。
+        closeLookup();
         void openSwitcher();
         return;
       case 'ui:nav-prev':
@@ -414,7 +448,11 @@
         void move('nav.next');
         return;
       case 'ui:close':
-        // `Esc` は重ね物を閉じる。無ければ節エディタへフォーカスを戻す（§9.7.5）。
+        // `Esc` は重ね物を閉じる（参照の面も同じ。§9.7.5）。無ければ節エディタへ戻す。
+        if (lookup) {
+          closeLookup();
+          return;
+        }
         if (overlay) {
           overlay = null;
         }
@@ -443,6 +481,8 @@
       store.update((next) => {
         next.workspace = String(data.workspace);
       });
+      // キー（`Alt+5` など）から切り替えたときも取り直させる。
+      revision += 1;
     }
     store.update((next) => {
       next.locale = bridge.locale();
@@ -479,6 +519,162 @@
       return;
     }
     await refresh();
+  }
+
+  // ---------------------------------------------------------------- 参照の引き口（§9.5.5・§9.7）
+  //
+  // 4 つの操作の口。意味は機能核が決める（`src/app/ops/knowledge.rs` / `lang.rs`）ので、
+  // ここは「いつ呼ぶか」と「返ってきたものをどう渡すか」だけを持つ。
+  //
+  // - `cast.get` … 参照ペインの配役の行（ダブルクリック）。その人物のいる**場面**を渡す
+  //   （`cast.get` の `scene` は必須で、4 階層の ID でなければ usage エラーになる）
+  // - `dictionary.list` … ヘッダの辞書のボタン（`Ctrl+D` の辞書）
+  // - `dictionary.term_full` … 参照ペインの用語の行（ダブルクリック。`Ctrl+Shift+W` と同じ）
+  // - `diagnostics.place` … 点検の診断の行（正本の「どこ」を機能核へ聞く）
+
+  /** 参照の面を開く前に、他の重ね物を閉じる（§9.7.5: 重ね物は 1 つずつ）。 */
+  function closeLookup(): void {
+    lookup = null;
+    lookupSubject = '';
+    lookupFailure = '';
+    lookupCast = null;
+    lookupDictionary = null;
+    lookupTerms = null;
+  }
+
+  /**
+   * 配役の人物の情報を出す（`cast.get`。§9.5.5 の 3）。
+   *
+   * `cast.get` の `scene` はいまの節（`screen.scene`）。節が無ければ機能核が `usage` で
+   * 落ちるので先に断る（押しても何も起きない面を開かない。§21.1.2）。
+   */
+  async function openCast(): Promise<void> {
+    if (!screen.scene) {
+      store.notice(t('editor.no_sections'), 'info');
+      return;
+    }
+    overlay = null;
+    lookup = 'cast';
+    lookupSubject = screen.scene;
+    lookupCast = null;
+    lookupFailure = '';
+    lookupBusy = true;
+    const found = await store.run('cast.get', { scene: screen.scene });
+    lookupBusy = false;
+    if (!found.ok) {
+      lookupFailure = found.message;
+      return;
+    }
+    lookupCast = found.result as unknown as Record<string, unknown>;
+  }
+
+  /** 辞書の一覧を出す（`dictionary.list`。§6.1）。 */
+  async function openDictionary(): Promise<void> {
+    overlay = null;
+    lookup = 'dictionary';
+    lookupSubject = '';
+    lookupDictionary = null;
+    lookupFailure = '';
+    lookupBusy = true;
+    const found = await store.run('dictionary.list');
+    lookupBusy = false;
+    if (!found.ok) {
+      lookupFailure = found.message;
+      return;
+    }
+    lookupDictionary = found.result as unknown as Record<string, unknown>;
+  }
+
+  /**
+   * 用語の全文を出す（`dictionary.term_full`。§9.5.5 の 4・`Ctrl+Shift+W` と同じ）。
+   *
+   * `query` は必須。語を指定しなければ**空の query**（機能核は空なら全件を返す。
+   * `novnow.lexicon.search` の `needle.is_empty()` の分岐）。
+   */
+  async function openTerm(term: string): Promise<void> {
+    overlay = null;
+    lookup = 'term';
+    lookupSubject = term;
+    lookupTerms = null;
+    lookupFailure = '';
+    lookupBusy = true;
+    const found = await store.run('dictionary.term_full', { query: term });
+    lookupBusy = false;
+    if (!found.ok) {
+      lookupFailure = found.message;
+      return;
+    }
+    lookupTerms = found.result as unknown as Record<string, unknown>;
+  }
+
+  /**
+   * 診断の「どこ」を機能核へ聞く（`diagnostics.place`。§10.9.2）。
+   *
+   * 点検の一覧が持つ `placeOf` は画面の索引による近似なので、機能核の答え（正本）を
+   * 別の行に出す。失敗したら `null`（画面は「決まらない」と出す）。
+   */
+  async function placeOfDiag(
+    path: string,
+    byte: number | null,
+  ): Promise<{ path: string; place: unknown } | null> {
+    const args = placeArgs(path, byte);
+    if (args === null) {
+      return null;
+    }
+    const found = await store.run('diagnostics.place', args);
+    if (!found.ok) {
+      return null;
+    }
+    const result = found.result as { path?: unknown; place?: unknown };
+    return {
+      path: typeof result.path === 'string' ? result.path : path,
+      place: result.place ?? null,
+    };
+  }
+
+  /**
+   * 資料を添付する（`materials.attach`。§16.1・§16.2）。
+   *
+   * `path` があれば索引に無い資料 MD の**登録**、無ければ索引にある資料の**添付**
+   * （索引の `updated_at` / `checksum` の更新）。どちらも機能核の同じ操作の 2 つの腕で、
+   * 画面は `attachArgs` で引数を分ける（同じ引数で別の意味にしない）。
+   *
+   * 失敗したら文言を返す（呼んだ画面が通知に出す）。成功したら通知を出して空文字を返す。
+   */
+  async function attachMaterial(id: string, path: string): Promise<string> {
+    const args = attachArgs(id, path);
+    if (args === null) {
+      return t('material.index_broken');
+    }
+    const found =
+      args.path === undefined
+        ? await store.run('materials.attach', { id: args.id, role: args.role })
+        : await store.run('materials.attach', { id: args.id, path: args.path, role: args.role });
+    if (!found.ok) {
+      return found.message;
+    }
+    const result = attachResult(found.result as unknown as Record<string, unknown>);
+    store.notice(t('material.registered', [result.attached, result.path]), 'info');
+    await drain();
+    return '';
+  }
+
+  /** 参照ペインの行を**ダブルクリック**した（§9.5.5: 単クリックは移動、ダブルクリックは開く）。 */
+  async function openRow(kind: string, value: unknown): Promise<void> {
+    if (kind === 'cast') {
+      await openCast();
+      return;
+    }
+    if (kind === 'word') {
+      const term = (value as { term?: unknown } | null)?.term;
+      await openTerm(typeof term === 'string' ? term : '');
+      return;
+    }
+    // 資料（明示参照）は資料の画面で開く（§9.5.5 の 7）。移動の口（`nav.file`）を使う。
+    const nav = (value as { nav?: { path?: string } } | null)?.nav;
+    if (kind === 'material' && nav?.path) {
+      await navTo('', nav.path);
+    }
   }
 
   /** 参照ペインの行を押した（§9.5.5）。 */
@@ -538,6 +734,8 @@
       store.update((next) => {
         next.workspace = found.result.current;
       });
+      // 切り替えたら材料を取り直させる（古い一覧を出さない）。
+      revision += 1;
     }
   }
 
@@ -555,6 +753,11 @@
         return;
       case 'Ctrl+S':
         await saveNow();
+        return;
+      case 'Ctrl+Shift+W':
+      case 'Ctrl+Alt+Shift+W':
+        // 用語の全文（`dictionary.term_full`。§9.5.5 の 4）。語を指定しなければ全件。
+        await openTerm('');
         return;
       case 'Ctrl+Alt+L':
         await toggleLanguage();
@@ -774,7 +977,9 @@
     }
   }
 
-  /** `>` パレットの行を実行する（`session.command` の名前 → 機能核が操作を決める）。 */
+  /**
+   * `>` パレットの行を実行する（`session.command` の名前 → 機能核が操作を決める）。
+   */
   async function runPalette(name: string): Promise<void> {
     overlay = null;
     await runNamed(name);
@@ -980,6 +1185,13 @@
   onpropose={startProposal}
   onconflict={openConflicts}
   {conflicts}
+  session={store}
+  {revision}
+  onopen={openRow}
+  ondictionary={() => void openDictionary()}
+  onplace={placeOfDiag}
+  onattach={attachMaterial}
+  onreviewgoto={(scene) => void nav(scene)}
 />
 
 <!-- 重ね物（`?` のヘルプ / `Ctrl+P` のパレット）。`Esc` と外側クリックで閉じる（§9.7.5）。 -->
@@ -1040,6 +1252,20 @@
     onreload={(path) => resolveConflict(path, false)}
   />
 {/if}
+
+<!-- 参照の面（`cast.get` / `dictionary.list` / `dictionary.term_full`。§9.5.5・§9.7）。 -->
+<LookupDialog
+  {t}
+  mode={lookup}
+  subject={lookupSubject}
+  cast={lookupCast}
+  dictionary={lookupDictionary}
+  terms={lookupTerms}
+  failure={lookupFailure}
+  busy={lookupBusy}
+  onclose={closeLookup}
+  onfull={(term) => void openTerm(term)}
+/>
 
 <!-- プロジェクトの入口の面（`Ctrl+O` とプロジェクト名。§9.7・§13.5）。 -->
 {#if overlay === 'project'}
