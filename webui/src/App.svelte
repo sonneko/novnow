@@ -23,6 +23,20 @@
   import ConflictDialog from './lib/save/ConflictDialog.svelte';
   import LookupDialog from './lib/reference/LookupDialog.svelte';
   import { attachArgs, attachResult, placeArgs, type LookupMode } from './lib/reference/lookups';
+  import LangDialog from './lib/lang/LangDialog.svelte';
+  import {
+    LANG_PALETTE,
+    definitionRow,
+    foldRows,
+    hoverRows,
+    isLangOp,
+    renamePlanRow,
+    referenceRows,
+    symbolRows,
+    tokenRows,
+    type LangRow,
+  } from './lib/lang/langOps';
+  import { byteOffset } from './lib/editor/text';
   import {
     conflictDiffs,
     conflictPaths,
@@ -84,15 +98,34 @@
   let lookupBusy = false;
 
   /**
-   * `>` パレットに出すコマンド（§9.7.1）。まだ空。
+   * `lang.*` の結果の面（§9.7.1）。重ね物は 1 つずつ（§9.7.5）なので `lookup` とは別に持つ。
    *
-   * `name` は `session.command` が受ける名前（`REF:src/app/commands.rs` の表）でなければ
-   * ならない。`document.rename` のカタログ上の `command` は `rename-document` だが、
-   * **`commands.rs` の表にその名前は無い**（`session.command` では引けない）。したがって
-   * `>` には載せず、ヘッダのボタンと切替パネルの文書行から開く（押しても効かない行を作らない。
-   * §21.1.2）。
+   * `mode` は操作 ID（`lang.tokens` など）。`lang.format` は実行して通知に出すので这里へ来ない。
    */
-  const PALETTE_ROWS: readonly { name: string; label: string }[] = [];
+  let langMode: string | null = null;
+  /** `lang.*` の面の見出しに添える対象（文書のパス）。 */
+  let langSubject = '';
+  /** `lang.*` の結果の行。 */
+  let langRows: LangRow[] = [];
+  /** `lang.*` の結果の件数（ある操作だけ）。 */
+  let langCount: number | null = null;
+  /** `lang.*` の面の失敗の文言。 */
+  let langFailure = '';
+  /** `lang.*` の面の読み込み中。 */
+  let langBusy = false;
+
+  /**
+   * `>` パレットに出すコマンド（§9.7.1）。`lang.*`（LSP 相当の操作群）の 9 件。
+   *
+   * `name` は**操作 ID**（`lang.tokens` など）。`runPalette` が `lang.` で始まる名前を検出して
+   * `runLang` へ渡し、直接 `run('<操作 ID>')` で呼ぶ。`session.command` には
+   * `tokens` / `hover` / `symbols` / `rename_apply` / `folding` の名前が無いため、直接呼びが
+   * 唯一の口（`definition` / `references` / `format` / `rename_preview` はカタログの
+   * `command` 列にも載るが、キャレット位置を渡すため直接呼びを使う）。
+   *
+   * `label` は生成物 `i18n/catalog.ts` の `api.op.lang.*`（既存）。
+   */
+  const PALETTE_ROWS: readonly { name: string; label: string }[] = LANG_PALETTE;
 
   /** 切替パネルの一覧（`nav.switcher` の戻り値。開くたびに取り直す）。 */
   let switcher: Record<string, unknown> | null = null;
@@ -448,7 +481,11 @@
         void move('nav.next');
         return;
       case 'ui:close':
-        // `Esc` は重ね物を閉じる（参照の面も同じ。§9.7.5）。無ければ節エディタへ戻す。
+        // `Esc` は重ね物を閉じる（参照の面・`lang.*` の面も同じ。§9.7.5）。無ければ節エディタへ戻す。
+        if (langMode) {
+          closeLang();
+          return;
+        }
         if (lookup) {
           closeLookup();
           return;
@@ -540,6 +577,180 @@
     lookupCast = null;
     lookupDictionary = null;
     lookupTerms = null;
+  }
+
+  // ------------------------------------------------------------- `lang.*` の口（§9.7.1）
+  //
+  // `lang.*`（LSP 相当の操作群）9 件の口。パレット（`>`）から `runLang` で呼ぶ。
+  // 意味は機能核が決める（`src/app/ops/lang.rs`）ので、ここは「いつ呼ぶか」と「返ってきた
+  // ものをどう並べるか」だけを持つ。引数（`path` / `pos`）は画面の文脈（いまの節・キャレット）
+  // から組み立てる（§19.2.3）。
+
+  /** `lang.*` の面を開く前に、他の重ね物を閉じる（§9.7.5: 重ね物は 1 つずつ）。 */
+  function closeLang(): void {
+    langMode = null;
+    langSubject = '';
+    langRows = [];
+    langCount = null;
+    langFailure = '';
+  }
+
+  /** 定義・参照のジャンプ（`Location` の `path` へ移る）。 */
+  async function jumpLocation(value: unknown): Promise<void> {
+    const path = (value as { path?: unknown } | null)?.path;
+    if (typeof path === 'string' && path && path !== screen.path) {
+      await navTo('', path);
+    }
+    closeLang();
+  }
+
+  /**
+   * `lang.*` の操作を 1 つ呼ぶ（パレットから）。
+   *
+   * `pos` はキャレット（UTF-16）を byte へ直したもの（`byteOffset`）。節が文書のスライスで
+   * あっても、既存の `diagnostics.place` と同じく節相対の byte を渡す（§19.2.3 の文脈補完）。
+   */
+  async function runLang(op: string): Promise<void> {
+    closeLookup();
+    overlay = null;
+    const path = screen.path;
+    const pos = byteOffset(screen.text, caret);
+    if (op === 'lang.tokens') {
+      const found = await store.run('lang.tokens', { path });
+      if (!found.ok) {
+        store.notice(found.message, 'error');
+        return;
+      }
+      const result = found.result as Parameters<typeof tokenRows>[0];
+      langMode = op;
+      langSubject = path;
+      langRows = tokenRows(result);
+      langCount = result.count;
+      langFailure = '';
+      return;
+    }
+    if (op === 'lang.hover') {
+      const found = await store.run('lang.hover', { path, pos });
+      if (!found.ok) {
+        store.notice(found.message, 'error');
+        return;
+      }
+      const result = found.result as Parameters<typeof hoverRows>[0];
+      langMode = op;
+      langSubject = path;
+      langRows = hoverRows(result);
+      langCount = null;
+      langFailure = '';
+      return;
+    }
+    if (op === 'lang.definition') {
+      const found = await store.run('lang.definition', { path, pos });
+      if (!found.ok) {
+        store.notice(found.message, 'error');
+        return;
+      }
+      const result = found.result as Parameters<typeof definitionRow>[0];
+      langMode = op;
+      langSubject = path;
+      langRows = definitionRow(result);
+      langCount = null;
+      langFailure = '';
+      return;
+    }
+    if (op === 'lang.references') {
+      const found = await store.run('lang.references', { path, pos });
+      if (!found.ok) {
+        store.notice(found.message, 'error');
+        return;
+      }
+      const result = found.result as Parameters<typeof referenceRows>[0];
+      langMode = op;
+      langSubject = path;
+      langRows = referenceRows(result);
+      langCount = result.count;
+      langFailure = '';
+      return;
+    }
+    if (op === 'lang.symbols') {
+      const found = await store.run('lang.symbols', { path });
+      if (!found.ok) {
+        store.notice(found.message, 'error');
+        return;
+      }
+      const result = found.result as Parameters<typeof symbolRows>[0];
+      langMode = op;
+      langSubject = path;
+      langRows = symbolRows(result);
+      langCount = result.count;
+      langFailure = '';
+      return;
+    }
+    if (op === 'lang.format') {
+      // 整形は実行（`apply: true`）。結果は通知に出し、節を読み直す。
+      const found = await store.run('lang.format', { path, apply: true });
+      if (!found.ok) {
+        store.notice(found.message, 'error');
+        return;
+      }
+      const result = found.result as { count?: unknown; applied?: unknown };
+      const applied = typeof result.applied === 'number' ? result.applied : 0;
+      store.notice(applied > 0 ? t('lang.format_done') : t('lang.format_none'), 'info');
+      await drain();
+      // 本文が書き換わったので節を読み直す（エディタの本文を更新する）。
+      await refresh();
+      return;
+    }
+    if (op === 'lang.rename_preview') {
+      const found = await store.run('lang.rename_preview', { path, pos });
+      if (!found.ok) {
+        store.notice(found.message, 'error');
+        return;
+      }
+      const result = found.result as Parameters<typeof renamePlanRow>[0];
+      langMode = op;
+      langSubject = path;
+      langRows = renamePlanRow(result);
+      langCount = null;
+      langFailure = '';
+      return;
+    }
+    if (op === 'lang.rename_apply') {
+      // 適用は入力欄を出す（`LangDialog` の `onapply`）。プレビューと対になる（§9.7）。
+      langMode = op;
+      langSubject = path;
+      langRows = [];
+      langCount = null;
+      langFailure = '';
+      return;
+    }
+    if (op === 'lang.folding') {
+      const found = await store.run('lang.folding', { path });
+      if (!found.ok) {
+        store.notice(found.message, 'error');
+        return;
+      }
+      const result = found.result as Parameters<typeof foldRows>[0];
+      langMode = op;
+      langSubject = path;
+      langRows = foldRows(result);
+      langCount = result.count;
+      langFailure = '';
+      return;
+    }
+  }
+
+  /** `lang.rename_apply` の適用（`LangDialog` の `onapply`。失敗したら文言を返す）。 */
+  async function applyRename(to: string): Promise<string> {
+    const path = screen.path;
+    const pos = byteOffset(screen.text, caret);
+    const found = await store.run('lang.rename_apply', { path, pos, to, role: '' });
+    if (!found.ok) {
+      return found.message;
+    }
+    await drain();
+    await refresh();
+    store.notice(t('lang.applied'), 'info');
+    return '';
   }
 
   /**
@@ -982,6 +1193,11 @@
    */
   async function runPalette(name: string): Promise<void> {
     overlay = null;
+    // `lang.*` は直接 `run('<操作 ID>')` で呼ぶ（`session.command` に名前が無いものもある）。
+    if (isLangOp(name)) {
+      await runLang(name);
+      return;
+    }
     await runNamed(name);
   }
 
@@ -1265,6 +1481,20 @@
   busy={lookupBusy}
   onclose={closeLookup}
   onfull={(term) => void openTerm(term)}
+/>
+
+<!-- `lang.*`（LSP 相当の操作群）の結果の面（§9.7.1 の `>` パレットから開く）。 -->
+<LangDialog
+  {t}
+  mode={langMode}
+  subject={langSubject}
+  rows={langRows}
+  count={langCount}
+  failure={langFailure}
+  busy={langBusy}
+  onclose={closeLang}
+  onjump={(value) => void jumpLocation(value)}
+  onapply={applyRename}
 />
 
 <!-- プロジェクトの入口の面（`Ctrl+O` とプロジェクト名。§9.7・§13.5）。 -->

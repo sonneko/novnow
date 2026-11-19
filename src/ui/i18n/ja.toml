@@ -470,6 +470,26 @@ none = "「{0}」の使用箇所はありません"
 [definition]
 none = "この位置に定義はありません"
 
+[lang]
+# `lang.*`（LSP 相当の操作群）の結果の面。パレット（`>`）から開く（§9.7.1）。
+empty = "結果はありません"
+none_hover = "キャレットの位置に情報はありません"
+none_references = "参照は見つかりません"
+none_symbols = "シンボルは無いか、空です"
+none_folding = "折りたたみ範囲は無いか、空です"
+none_rename = "この位置から名前を変えられません"
+to = "新しい名前"
+apply = "適用"
+applied = "改名を適用しました"
+preview = "変更のプレビュー"
+jump = "ジャンプ"
+kind = "種別"
+range = "範囲"
+depth = "階層"
+line = "行"
+format_done = "整形しました"
+format_none = "整形する箇所はありません"
+
 [find]
 placeholder = "検索"
 count = "{0} 件"

@@ -418,7 +418,7 @@ test('配線: 9 つのワークスペースをシェルが実際に描く（`wri
 
 // ------------------------------------------------------------------ 4. パリティ判定との一致
 
-test('PENDING から 5 件が外れ、19 件である', async () => {
+test('PENDING からバッチ4・5 の 14 件が外れ、10 件である', async () => {
   const { PENDING } = await importTs('src/lib/coverage.ts');
   for (const id of [
     'materials.attach',
@@ -426,10 +426,19 @@ test('PENDING から 5 件が外れ、19 件である', async () => {
     'dictionary.list',
     'dictionary.term_full',
     'diagnostics.place',
+    'lang.tokens',
+    'lang.hover',
+    'lang.definition',
+    'lang.references',
+    'lang.symbols',
+    'lang.format',
+    'lang.rename_preview',
+    'lang.rename_apply',
+    'lang.folding',
   ]) {
     assert.ok(!PENDING.includes(id), `${id} がまだ未提供に残っている`);
   }
-  assert.equal(PENDING.length, 19, `未提供は 19 件（24 − 5）。いまは ${PENDING.length} 件`);
+  assert.equal(PENDING.length, 10, `未提供は 10 件（24 − 14）。いまは ${PENDING.length} 件`);
 });
 
 test('SPEC_GAPS から §11.3（診断の地名解決）が消えている', async () => {
