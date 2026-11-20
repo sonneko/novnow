@@ -338,7 +338,7 @@ test('B2 の 6 件は PENDING から外れている（件数は parity.mjs が�
   ]) {
     assert.ok(!PENDING.includes(id), `${id} がまだ未提供に残っている`);
   }
-  // 総数は `parity.mjs` が突き合わせる（ここで固定すると次のバッチで前のテストが落ちる。
-  // 判定の 1 か所主義（§21.5.1）に反する）。
-  assert.ok(PENDING.length > 0, '未提供が 0 件になったら parity の判定を equivalent へ上げる');
+  // バッチ6 で未提供は 0 件になった（`parity.mjs` が 10 → 0 を突き合わせる）。
+  // 判定の 1 か所主義（§21.5.1）に反しないよう、件数は `parity.mjs` が持つ。
+  assert.equal(PENDING.length, 0, '未提供が 0 件でない（parity の判定とずれている）');
 });

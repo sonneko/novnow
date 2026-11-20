@@ -492,6 +492,34 @@ line = "Line"
 format_done = "Formatted"
 format_none = "Nothing to format"
 
+[ops]
+# Batch-6 operations (audit log, prompts, mail, workspace, help) result surface.
+# Opened from the `>` palette by picking the operation ID itself (§9.7.1).
+empty = "No result"
+empty_audit = "No audit log yet"
+empty_prompt = "No prompt found"
+empty_workspace = "No workspace"
+empty_mail = "Enter a role to send mail to"
+# Prompt name (`name` for `prompt.get/diff/reset`).
+name = "Prompt name"
+name_placeholder = "e.g. writer"
+# `mail.send` inputs (`agent.md` §15.6). `kind` defaults to `note`.
+mail_to = "To (role)"
+mail_kind = "Kind"
+mail_scope = "Scope (optional)"
+mail_body = "Body"
+mail_kinds = "Kinds: request / deliver / question / reject / note"
+# Button to run an operation.
+run = "Run"
+send = "Send"
+# `prompt.reset` has a safety exception (`{M: safety}`), so surface the result.
+reset_result = "Reset {0} to default ({1})"
+# `mail.send` queues unapproved (`approved_by: pending`).
+mail_queued = "Queued a {1} for {0} (awaiting approval)"
+# `help.topic` topic selection.
+topic = "Topic"
+topics = "Topics: help / welcome / migration / shortcuts / api"
+
 [find]
 placeholder = "Find"
 count = "{0} found"

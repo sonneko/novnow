@@ -490,6 +490,34 @@ line = "行"
 format_done = "整形しました"
 format_none = "整形する箇所はありません"
 
+[ops]
+# バッチ6 の操作群（監査ログ・プロンプト・メール・ワークスペース・ヘルプ）の結果の面。
+# パレット（`>`）から操作 ID そのものを選んで開く（§9.7.1）。
+empty = "結果はありません"
+empty_audit = "監査ログはまだありません"
+empty_prompt = "プロンプトは見つかりません"
+empty_workspace = "ワークスペースはありません"
+empty_mail = "メールを送る宛先（役割）を入力してください"
+# プロンプトの名前（`prompt.get/diff/reset` の `name`）。
+name = "プロンプト名"
+name_placeholder = "例: writer"
+# `mail.send` の入力（`agent.md` §15.6）。`kind` の既定は `note`。
+mail_to = "宛先（役割）"
+mail_kind = "種別"
+mail_scope = "スコープ（任意）"
+mail_body = "本文"
+mail_kinds = "種類: request / deliver / question / reject / note"
+# 操作を実行するボタン。
+run = "実行"
+send = "送る"
+# `prompt.reset` は安全面の例外（`{M: safety}`）なので結果を画面に出す。
+reset_result = "{0}を既定に戻しました（{1} 件）"
+# `mail.send` は承認待ちのままキューに入る（`approved_by: pending`）。
+mail_queued = "{0}へ {1}を承認待ちでキューに入れました"
+# `help.topic` のトピック選択。
+topic = "トピック"
+topics = "トピック: help / welcome / migration / shortcuts / api"
+
 [find]
 placeholder = "検索"
 count = "{0} 件"
