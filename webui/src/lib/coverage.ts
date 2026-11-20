@@ -25,6 +25,32 @@
 /** 到達できるか。`done` は画面から届く、`pending` は未提供。 */
 export type OpState = 'done' | 'pending';
 
+/**
+ * 仕様上「画面からは呼ばない」と定められた操作（§21.5.1 の判定対象外）。
+ *
+ * 到達判定（`parity.mjs`）の対象外とし、`PENDING`（未提供）にも入れない。**根拠なしに
+ * 除外してはならない**（`parity.mjs` が「除外対象は実物からも到達していない」ことを
+ * 検証する）。根拠は仕様の節をここに引用し、PR 本文にも同じ引用を書く。
+ *
+ * - `session.poll_events` … イベントキューは**橋渡しの層**で消費される
+ *   （`interfaces.md` §19.2.4 / §147 / §202）。画面は `App.svelte` の `drain()` が
+ *   `bridge.pollEvents()` を呼ぶだけで、正規操作として画面から呼ぶ口を持たない。
+ * - `api.list` … 正規操作カタログの**機械可読出力**で、開発者／MCP／LSP／Python ツール向け
+ *   （`interfaces.md` §19.8.2）。§19.7 の対応表の行にも画面の経路が無い。
+ */
+export const EXCLUDED: readonly { id: string; section: string; why: string }[] = [
+  {
+    id: 'session.poll_events',
+    section: 'interfaces.md §19.2.4 / §147 / §202',
+    why: 'イベントキューは橋渡しの pollEvents() が消費する。画面からは正規操作として呼ばない。',
+  },
+  {
+    id: 'api.list',
+    section: 'interfaces.md §19.8.2',
+    why: '正規操作カタログの機械可読出力（開発者・MCP・LSP・Python 向け）。画面の操作ではない。',
+  },
+];
+
 /** 画面仕様（§9〜§12）の項目 1 つ分の未提供一覧の行。 */
 export interface SpecGap {
   /** §9〜§12 の節番号（`9.8.2` など）。 */
@@ -38,26 +64,13 @@ export interface SpecGap {
  * テストが見る（片方だけ直して「到達できる」と書く事故を防ぐ）。
  *
  * 並びはカタログの順（`tests/golden/api_catalog.json` の `operations`）に合わせる。
+ *
+ * バッチ6 で残っていた 10 件はすべて閉じた。8 件はパレットの `>` から
+ * `run('<操作 ID>')` で直接呼ぶ口ができ、2 件（`session.poll_events` / `api.list`）は
+ * 仕様上「画面からは呼ばない」と定められた操作として `EXCLUDED` へ移した
+ * （根拠は上と PR 本文。`parity.mjs` が実物からも到達していないことを検証する）。
  */
-export const PENDING: readonly string[] = [
-  // 素材の添付（`materials.attach`）・配役の情報（`cast.get`）・辞書の一覧（`dictionary.list`）・
-  // 用語の全文（`dictionary.term_full`）・診断の「どこ」（`diagnostics.place`）は解消した。
-  // 添付は資料の画面のボタン、配役と用語は参照ペインの行のダブルクリック、辞書はヘッダの
-  // ボタン、どこは点検の診断の行から呼ぶ。
-  // `lang.*`（LSP 相当の 9 操作）はパレットの `>` から `run('<操作 ID>')` で届く口ができた
-  // （`lang.tokens` / `lang.hover` / `lang.definition` / `lang.references` / `lang.symbols` /
-  // `lang.format` / `lang.rename_preview` / `lang.rename_apply` / `lang.folding`）。
-  'agent.audit_list',
-  'prompt.list', // プロンプトの閲覧・比較・初期化
-  'prompt.get',
-  'prompt.diff',
-  'prompt.reset',
-  'mail.send',
-  'session.workspace_get',
-  'session.poll_events', // 橋渡しの `pollEvents()` が担う（正規操作として画面からは呼ばない）
-  'help.topic', // ヘルプ本文（`?` の重ね物は画面側の表で描く）
-  'api.list', // 正規操作カタログの出力（開発者向け。画面の操作ではない）
-];
+export const PENDING: readonly string[] = [];
 
 /**
  * §9〜§12 の画面仕様のうち、まだ提供していない項目（§21.5.1 の 2 つ目の MUST）。
@@ -88,11 +101,11 @@ export const SPEC_GAPS: readonly SpecGap[] = [
   // 描く（`webui/src/lib/shell/AppShell.svelte`。`write` 以外の 8 つは各ワークスペースの
   // 部品を実際に置く）。着地点の対応表（§10.0 の「対応物」）はまだ届かない。
   { section: '10.0', what: 'ワークスペースを切り替えたときの着地点の対応表（§10.0 の「対応物」）' },
-  { section: '10.3', what: 'エージェントの監査ログ（`agent.audit_list`）' },
-  { section: '10.4', what: 'プロンプトの閲覧・比較・初期化（`prompt.*`）' },
+  // §10.3（監査ログ `agent.audit_list`）・§10.4（プロンプト `prompt.*`）・§12.5（ヘルプ本文
+  // `help.topic`）はバッチ6 で解消した。パレットの `>` から `run('<操作 ID>')` で呼ぶ口が
+  // でき、結果を `OpsDialog` が機能核の戻り値のまま表示する。
   // §11.3（診断の地名解決）は解消した。点検の診断の行が、機能核の `diagnostics.place` の
   // 答え（正本の「どこ」）を `place.*` の文言で下に出す（`ReviewWorkspace.svelte`）。
-  { section: '12.5', what: 'ヘルプ本文（`help.topic`）の全文表示' },
 ];
 
 /** 未提供の操作 ID（`PENDING` と同じ内容を集合で見るためのもの）。 */

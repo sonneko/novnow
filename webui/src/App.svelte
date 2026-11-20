@@ -36,6 +36,13 @@
     tokenRows,
     type LangRow,
   } from './lib/lang/langOps';
+  import OpsDialog from './lib/ops/OpsDialog.svelte';
+  import {
+    OPS_PALETTE,
+    isOpsOp,
+    type OpsId,
+    type OpsInput,
+  } from './lib/ops/opsOps';
   import { byteOffset } from './lib/editor/text';
   import {
     conflictDiffs,
@@ -115,17 +122,41 @@
   let langBusy = false;
 
   /**
-   * `>` パレットに出すコマンド（§9.7.1）。`lang.*`（LSP 相当の操作群）の 9 件。
-   *
-   * `name` は**操作 ID**（`lang.tokens` など）。`runPalette` が `lang.` で始まる名前を検出して
-   * `runLang` へ渡し、直接 `run('<操作 ID>')` で呼ぶ。`session.command` には
-   * `tokens` / `hover` / `symbols` / `rename_apply` / `folding` の名前が無いため、直接呼びが
-   * 唯一の口（`definition` / `references` / `format` / `rename_preview` はカタログの
-   * `command` 列にも載るが、キャレット位置を渡すため直接呼びを使う）。
-   *
-   * `label` は生成物 `i18n/catalog.ts` の `api.op.lang.*`（既存）。
+   * バッチ6 の操作群（監査ログ・プロンプト・メール・ワークスペース・ヘルプ）の結果の面。
+   * バッチ5 の `langMode` と同じ方針：パレット（`>`）から操作 ID を選んで `runOps` で
+   * 直接 `run('<操作 ID>')` で呼ぶ。`label` は生成物 `i18n/catalog.ts` の `api.op.*`（既存）。
    */
-  const PALETTE_ROWS: readonly { name: string; label: string }[] = LANG_PALETTE;
+  let opsMode: OpsId | null = null;
+  /** `ops.*` の面の見出しに添える対象（プロンプト名など）。 */
+  let opsSubject = '';
+  /** `ops.*` の結果の行。 */
+  let opsRows: { text: string; detail: string }[] = [];
+  /** `ops.*` の結果の本文（`prompt.get` / `help.topic`）。 */
+  let opsText = '';
+  /** `ops.*` の結果の件数（ある操作だけ）。 */
+  let opsCount: number | null = null;
+  /** `ops.*` の結果の文言（`prompt.reset` / `mail.send` の成功文）。 */
+  let opsResult = '';
+  /** `ops.*` の面の失敗の文言。 */
+  let opsFailure = '';
+  /** `ops.*` の面の読み込み中。 */
+  let opsBusy = false;
+
+  /**
+   * `>` パレットに出すコマンド（§9.7.1）。`lang.*`（LSP 相当の操作群）の 9 件と、
+   * バッチ6 の操作群の 8 件。
+   *
+   * `name` は**操作 ID**（`lang.tokens` など）。`runPalette` が名前を検出して
+   * `runLang` / `runOps` へ渡し、直接 `run('<操作 ID>')` で呼ぶ。`session.command` には
+   * これらの名前が無いため、直接呼びが唯一の口（`help.topic` は `>help` でも行けるが、
+   * パレット行では操作 ID で統一する）。
+   *
+   * `label` は生成物 `i18n/catalog.ts` の `api.op.*`（既存）。
+   */
+  const PALETTE_ROWS: readonly { name: string; label: string }[] = [
+    ...LANG_PALETTE,
+    ...OPS_PALETTE,
+  ];
 
   /** 切替パネルの一覧（`nav.switcher` の戻り値。開くたびに取り直す）。 */
   let switcher: Record<string, unknown> | null = null;
@@ -481,7 +512,12 @@
         void move('nav.next');
         return;
       case 'ui:close':
-        // `Esc` は重ね物を閉じる（参照の面・`lang.*` の面も同じ。§9.7.5）。無ければ節エディタへ戻す。
+        // `Esc` は重ね物を閉じる（参照の面・`lang.*` の面・バッチ6 の面も同じ。§9.7.5）。
+        // 無ければ節エディタへ戻す。
+        if (opsMode) {
+          closeOps();
+          return;
+        }
         if (langMode) {
           closeLang();
           return;
@@ -593,6 +629,17 @@
     langRows = [];
     langCount = null;
     langFailure = '';
+  }
+
+  /** `ops.*` の面を開く前に、他の重ね物を閉じる（§9.7.5: 重ね物は 1 つずつ）。 */
+  function closeOps(): void {
+    opsMode = null;
+    opsSubject = '';
+    opsRows = [];
+    opsText = '';
+    opsCount = null;
+    opsResult = '';
+    opsFailure = '';
   }
 
   /** 定義・参照のジャンプ（`Location` の `path` へ移る）。 */
@@ -751,6 +798,246 @@
     await refresh();
     store.notice(t('lang.applied'), 'info');
     return '';
+  }
+
+  // ------------------------------------------------------------- バッチ6 の操作群の口（§9.7.1）
+  //
+  // 監査ログ・プロンプト・メール・ワークスペース・ヘルプの 8 件。パレット（`>`）から
+  // `runOps` で直接 `run('<操作 ID>')` で呼ぶ。`command: null` の操作が大半で、
+  // `session.command` に名前が無いため直接呼びが唯一の口。意味は機能核が決める
+  // （`src/app/ops/agent.rs` / `session_ops.rs`）ので、ここは「いつ呼ぶか」と「返ってきた
+  // ものをどう並べるか」だけを持つ。
+  //
+  // `prompt.reset` は安全面の例外（`{M: safety}`）なので結果の件数を画面に出す。
+  // `mail.send` は承認待ち（`approved_by: pending`）でキューに入る。
+
+  /**
+   * バッチ6 の操作を 1 つ呼ぶ（パレットから）。引数は `OpsDialog` の入力フォームから
+   * 集めて渡す（引数不要な操作は `null`）。
+   */
+  async function runOps(op: OpsId): Promise<void> {
+    closeLookup();
+    overlay = null;
+    opsMode = op;
+    opsSubject = '';
+    opsRows = [];
+    opsText = '';
+    opsCount = null;
+    opsResult = '';
+    opsFailure = '';
+
+    if (op === 'agent.audit_list') {
+      const found = await store.run('agent.audit_list');
+      if (!found.ok) {
+        opsFailure = found.message;
+        return;
+      }
+      const result = found.result as { count?: unknown; events?: unknown };
+      const events = Array.isArray(result.events) ? result.events : [];
+      opsSubject = '';
+      opsRows = events.map((entry) => auditRow(entry));
+      opsCount = typeof result.count === 'number' ? result.count : opsRows.length;
+      return;
+    }
+    if (op === 'prompt.list') {
+      const found = await store.run('prompt.list');
+      if (!found.ok) {
+        opsFailure = found.message;
+        return;
+      }
+      const result = found.result as { count?: unknown; prompts?: unknown };
+      const prompts = Array.isArray(result.prompts) ? result.prompts : [];
+      opsRows = prompts.map((entry) => promptListRow(entry));
+      opsCount = typeof result.count === 'number' ? result.count : opsRows.length;
+      return;
+    }
+    if (op === 'session.workspace_get') {
+      const found = await store.run('session.workspace_get');
+      if (!found.ok) {
+        opsFailure = found.message;
+        return;
+      }
+      const result = found.result as {
+        current?: unknown;
+        previous?: unknown;
+        workspaces?: unknown;
+      };
+      const list = Array.isArray(result.workspaces) ? result.workspaces : [];
+      opsSubject = typeof result.current === 'string' ? result.current : '';
+      opsRows = list.map((entry) => workspaceRow(entry));
+      opsCount = list.length;
+      return;
+    }
+    // 以下は引数が必要なので、入力フォームを出して `onrun` で呼ぶ。
+    opsBusy = false;
+  }
+
+  /** `OpsDialog` の「実行」から呼ぶ（引数を集めて `store.run` を 1 回呼ぶ。失敗なら文言）。 */
+  async function invokeOps(input: OpsInput): Promise<string> {
+    if (!opsMode) {
+      return '';
+    }
+    const op = opsMode;
+    opsBusy = true;
+    try {
+      if (op === 'prompt.get') {
+        const name = (input as { name?: unknown } | null)?.name;
+        const found = await store.run('prompt.get', { name: String(name ?? '') });
+        if (!found.ok) {
+          opsFailure = found.message;
+          return '';
+        }
+        const result = found.result as {
+          name?: unknown;
+          path?: unknown;
+          text?: unknown;
+          edited?: unknown;
+          blockers?: unknown;
+        };
+        opsSubject = typeof result.name === 'string' ? result.name : '';
+        opsText = typeof result.text === 'string' ? result.text : '';
+        opsRows = (Array.isArray(result.blockers) ? result.blockers : []).map((line) => ({
+          text: String(line),
+          detail: '',
+        }));
+        opsCount = Array.isArray(result.blockers) ? result.blockers.length : null;
+        opsResult = '';
+        return '';
+      }
+      if (op === 'prompt.diff') {
+        const name = (input as { name?: unknown } | null)?.name;
+        const found = await store.run('prompt.diff', { name: String(name ?? '') });
+        if (!found.ok) {
+          opsFailure = found.message;
+          return '';
+        }
+        const result = found.result as {
+          name?: unknown;
+          path?: unknown;
+          count?: unknown;
+          lines?: unknown;
+        };
+        opsSubject = typeof result.name === 'string' ? result.name : '';
+        const lines = Array.isArray(result.lines) ? result.lines : [];
+        opsRows = lines.map((entry) => diffRow(entry));
+        opsCount = typeof result.count === 'number' ? result.count : opsRows.length;
+        opsText = '';
+        opsResult = '';
+        return '';
+      }
+      if (op === 'prompt.reset') {
+        const name = (input as { name?: unknown } | null)?.name;
+        const found = await store.run('prompt.reset', { name: String(name ?? '') });
+        if (!found.ok) {
+          opsFailure = found.message;
+          return '';
+        }
+        const result = found.result as { name?: unknown; reset?: unknown; save?: unknown };
+        const count = typeof result.reset === 'number' ? result.reset : 0;
+        opsSubject = typeof result.name === 'string' ? result.name : '';
+        opsResult = t('ops.reset_result', [opsSubject, String(count)]);
+        opsText = '';
+        opsRows = [];
+        opsCount = null;
+        return '';
+      }
+      if (op === 'mail.send') {
+        const mail = input as { to?: unknown; kind?: unknown; scope?: unknown; body?: unknown };
+        const to = String(mail.to ?? '');
+        const body = String(mail.body ?? '');
+        const found = await store.run('mail.send', {
+          to,
+          body,
+          ...(mail.kind ? { kind: String(mail.kind) } : {}),
+          ...(mail.scope ? { scope: String(mail.scope) } : {}),
+        });
+        if (!found.ok) {
+          opsFailure = found.message;
+          return '';
+        }
+        opsResult = t('ops.mail_queued', [to, String(mail.kind || 'note')]);
+        opsText = '';
+        opsRows = [];
+        opsCount = null;
+        return '';
+      }
+      if (op === 'help.topic') {
+        const topic = (input as { topic?: unknown } | null)?.topic;
+        const found = await store.run('help.topic', { topic: String(topic ?? 'shortcuts') });
+        if (!found.ok) {
+          opsFailure = found.message;
+          return '';
+        }
+        const result = found.result as { title?: unknown; text?: unknown; topic?: unknown };
+        opsSubject = typeof result.title === 'string' ? result.title : '';
+        opsText = typeof result.text === 'string' ? result.text : '';
+        opsRows = [];
+        opsCount = null;
+        opsResult = '';
+        return '';
+      }
+      return '';
+    } finally {
+      opsBusy = false;
+    }
+  }
+
+  /** 監査ログ 1 行（`LogEvent`。§5.10.5）。*/
+  function auditRow(entry: unknown): { text: string; detail: string } {
+    const record = (entry ?? {}) as Record<string, unknown>;
+    const parts = [
+      typeof record.ts === 'string' ? record.ts : '',
+      typeof record.event === 'string' ? record.event : '',
+    ];
+    const detail = [
+      record.role,
+      record.server,
+      record.task,
+      record.error,
+    ]
+      .filter((value): value is string => typeof value === 'string' && value !== '')
+      .join(' · ');
+    return { text: parts.filter(Boolean).join(' '), detail };
+  }
+
+  /** プロンプト一覧 1 行。 */
+  function promptListRow(entry: unknown): { text: string; detail: string } {
+    const record = (entry ?? {}) as Record<string, unknown>;
+    const name = typeof record.name === 'string' ? record.name : '';
+    const detail = [
+      typeof record.path === 'string' ? record.path : '',
+      record.edited === true ? 'edited' : '',
+      typeof record.blocks === 'number' ? `${record.blocks} blocks` : '',
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    return { text: name, detail };
+  }
+
+  /** ワークスペース 1 行。 */
+  function workspaceRow(entry: unknown): { text: string; detail: string } {
+    const record = (entry ?? {}) as Record<string, unknown>;
+    const name = typeof record.name === 'string' ? record.name : '';
+    const detail = [
+      typeof record.number === 'number' ? `#${record.number}` : '',
+      record.available === true ? 'available' : 'unavailable',
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    return { text: name, detail };
+  }
+
+  /** プロンプト差分 1 行（`side` と行番号を添える）。 */
+  function diffRow(entry: unknown): { text: string; detail: string } {
+    const record = (entry ?? {}) as Record<string, unknown>;
+    const text = typeof record.text === 'string' ? record.text : '';
+    const detail = [
+      typeof record.line === 'number' ? `L${record.line}` : '',
+      typeof record.side === 'string' ? record.side : '',
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    return { text, detail };
   }
 
   /**
@@ -1193,9 +1480,14 @@
    */
   async function runPalette(name: string): Promise<void> {
     overlay = null;
-    // `lang.*` は直接 `run('<操作 ID>')` で呼ぶ（`session.command` に名前が無いものもある）。
+    // `lang.*` / バッチ6 の操作群は直接 `run('<操作 ID>')` で呼ぶ
+    // （`session.command` に名前が無いものもある）。
     if (isLangOp(name)) {
       await runLang(name);
+      return;
+    }
+    if (isOpsOp(name)) {
+      await runOps(name);
       return;
     }
     await runNamed(name);
@@ -1495,6 +1787,21 @@
   onclose={closeLang}
   onjump={(value) => void jumpLocation(value)}
   onapply={applyRename}
+/>
+
+<!-- バッチ6 の操作群（監査ログ・プロンプト・メール・ワークスペース・ヘルプ）の結果の面。 -->
+<OpsDialog
+  {t}
+  mode={opsMode}
+  subject={opsSubject}
+  rows={opsRows}
+  text={opsText}
+  count={opsCount}
+  result={opsResult}
+  failure={opsFailure}
+  busy={opsBusy}
+  onclose={closeOps}
+  onrun={invokeOps}
 />
 
 <!-- プロジェクトの入口の面（`Ctrl+O` とプロジェクト名。§9.7・§13.5）。 -->

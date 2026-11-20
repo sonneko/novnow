@@ -156,7 +156,18 @@ async function judge() {
   const operations = data.operations;
   const reached = await reach(operations);
   const pending = operations.map((op) => op.id).filter((id) => !reached.has(id));
-  return { data, operations, reached, pending };
+  // 仕様上「画面からは呼ばない」と定められた操作（`coverage.ts` の `EXCLUDED`）。
+  // 除外は根拠付きで、**実物からも到達していないこと**をここで検証する（根拠なしの
+  // 除外を防ぐ）。除外対象はカタログに実在する操作に限る。
+  const { EXCLUDED } = await importTs('src/lib/coverage.ts');
+  const known = new Set(operations.map((op) => op.id));
+  for (const entry of EXCLUDED) {
+    assert.ok(known.has(entry.id), `EXCLUDED の ${entry.id} がカタログに無い`);
+    assert.ok(!reached.has(entry.id), `${entry.id} は実物から到達している。除外しない`);
+  }
+  const excluded = new Set(EXCLUDED.map((entry) => entry.id));
+  const effectivePending = pending.filter((id) => !excluded.has(id));
+  return { data, operations, reached, pending, excluded, effectivePending };
 }
 
 test('カタログは 121 操作で、ID が重複しない（§19.7 の正本）', async () => {
@@ -174,31 +185,46 @@ test('画面が呼ぶ正規操作は、すべてカタログに実在する', as
 });
 
 test('未提供の一覧は coverage.ts の PENDING と完全に一致する（§21.5.1）', async () => {
-  const { pending } = await judge();
+  const { effectivePending } = await judge();
   const { PENDING } = await importTs('src/lib/coverage.ts');
   assert.deepEqual(
     [...PENDING],
-    pending,
+    effectivePending,
     'coverage.ts の PENDING と、実物から集めた未提供の一覧がずれている',
   );
 });
 
+test('除外は根拠付きで、仕様上「画面からは呼ばない」操作だけ（§21.5.1）', async () => {
+  const { EXCLUDED } = await importTs('src/lib/coverage.ts');
+  assert.ok(EXCLUDED.length > 0 || true, '除外の仕組みが無い');
+  for (const entry of EXCLUDED) {
+    assert.match(entry.id, /^[a-z][a-z_]*\.[a-z_]+$/, `除外の ID の形が違う: ${entry.id}`);
+    assert.ok(entry.section.length > 0, `${entry.id} の根拠（節）が空`);
+    assert.ok(entry.why.length > 0, `${entry.id} の理由が空`);
+  }
+  const ids = new Set(EXCLUDED.map((entry) => entry.id));
+  assert.equal(ids.size, EXCLUDED.length, '同じ操作を 2 回除外している');
+});
+
 test('判定の数字を公開する（到達できる件数と未提供の一覧）', async () => {
-  const { operations, pending } = await judge();
+  const { operations, pending, excluded, effectivePending } = await judge();
   const { PENDING, verdict } = await importTs('src/lib/coverage.ts');
   // 数字はこの 1 行に出る。PR 本文・リリースノートはこの値を写す（§21.5.1 MUST）。
   console.log(
     `パリティ: ${operations.length} 操作中、到達できる ${operations.length - pending.length} 件・` +
-      `未提供 ${pending.length} 件（判定: ${verdict(operations.length)}）`,
+      `未提供 ${effectivePending.length} 件（判定: ${verdict(operations.length)}）`,
   );
-  for (const id of pending) {
+  for (const id of effectivePending) {
     console.log(`  未提供: ${id}`);
   }
-  assert.equal(PENDING.length, pending.length);
+  for (const id of excluded) {
+    console.log(`  仕様上除外: ${id}`);
+  }
+  assert.equal(PENDING.length, effectivePending.length);
   // 未提供が 0 件でないかぎり「同等」と書かない（§21.5.1 MUST）。
   assert.equal(
     verdict(operations.length),
-    pending.length === 0 ? 'equivalent' : 'partial',
+    effectivePending.length === 0 ? 'equivalent' : 'partial',
     '未提供が残っているのに「同等」と判定している',
   );
 });

@@ -9,7 +9,7 @@
 //    の `path` の分岐を、Rust のソースから読んで確かめる（画面が意味を作っていないこと）。
 // 3. 配線: 5 つを画面が実際に `run('<操作 ID>')` で呼び、呼び口（参照ペインのダブルクリック・
 //    ヘッダのボタン・点検の診断の行・資料の画面のボタン）が繋がっている。
-// 4. パリティ判定との一致: `coverage.ts` の `PENDING` から 5 件が外れ、19 件である。
+// 4. パリティ判定との一致: `coverage.ts` の `PENDING` から 5 件が外れ、バッチ6 で 0 件になる。
 //
 // TypeScript は `tsc` で 1 ファイルずつ書き出してから読む（`sections.test.mjs` と同じ方式）。
 
@@ -418,7 +418,7 @@ test('配線: 9 つのワークスペースをシェルが実際に描く（`wri
 
 // ------------------------------------------------------------------ 4. パリティ判定との一致
 
-test('PENDING からバッチ4・5 の 14 件が外れ、10 件である', async () => {
+test('PENDING からバッチ4・5・6 の 24 件が外れ、0 件である', async () => {
   const { PENDING } = await importTs('src/lib/coverage.ts');
   for (const id of [
     'materials.attach',
@@ -435,10 +435,18 @@ test('PENDING からバッチ4・5 の 14 件が外れ、10 件である', async
     'lang.rename_preview',
     'lang.rename_apply',
     'lang.folding',
+    'agent.audit_list',
+    'prompt.list',
+    'prompt.get',
+    'prompt.diff',
+    'prompt.reset',
+    'mail.send',
+    'session.workspace_get',
+    'help.topic',
   ]) {
     assert.ok(!PENDING.includes(id), `${id} がまだ未提供に残っている`);
   }
-  assert.equal(PENDING.length, 10, `未提供は 10 件（24 − 14）。いまは ${PENDING.length} 件`);
+  assert.equal(PENDING.length, 0, `未提供は 0 件（バッチ6 で全解除）。いまは ${PENDING.length} 件`);
 });
 
 test('SPEC_GAPS から §11.3（診断の地名解決）が消えている', async () => {
