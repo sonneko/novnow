@@ -44,15 +44,9 @@ export const PENDING: readonly string[] = [
   // 用語の全文（`dictionary.term_full`）・診断の「どこ」（`diagnostics.place`）は解消した。
   // 添付は資料の画面のボタン、配役と用語は参照ペインの行のダブルクリック、辞書はヘッダの
   // ボタン、どこは点検の診断の行から呼ぶ。
-  'lang.tokens', // LSP 相当の 12 操作（パレットの `>` から届く口がまだ無い）
-  'lang.hover',
-  'lang.definition',
-  'lang.references',
-  'lang.symbols',
-  'lang.format',
-  'lang.rename_preview',
-  'lang.rename_apply',
-  'lang.folding',
+  // `lang.*`（LSP 相当の 9 操作）はパレットの `>` から `run('<操作 ID>')` で届く口ができた
+  // （`lang.tokens` / `lang.hover` / `lang.definition` / `lang.references` / `lang.symbols` /
+  // `lang.format` / `lang.rename_preview` / `lang.rename_apply` / `lang.folding`）。
   'agent.audit_list',
   'prompt.list', // プロンプトの閲覧・比較・初期化
   'prompt.get',
@@ -71,8 +65,8 @@ export const PENDING: readonly string[] = [
  * 操作の未提供とは別に、節ごとの見え方の不足を挙げる。1 行 1 項目。
  */
 export const SPEC_GAPS: readonly SpecGap[] = [
-  { section: '9.7.1', what: 'コマンドパレット（`Ctrl+P`）の候補一覧（開いて理由を書くところまで）' },
-  { section: '9.7.3', what: '整形・リネーム・シンボル一覧のパレット項目' },
+  // §9.7.1 のコマンドパレット（`Ctrl+P`）の候補一覧と、§9.7.3 の整形・リネーム・シンボル一覧の
+  // パレット項目は解消した。`lang.*` の 9 件を `>` パレットから `run('<操作 ID>')` で呼べる。
   // §9.7 の `Ctrl+O`（プロジェクト選択画面へ戻る 2 段構成）は解消した。入口の面は
   // `webui/src/lib/project/ProjectPicker.svelte` が持ち、`Ctrl+O` から開く。
   // ただし**ブラウザでは一覧と新規作成が押せない**（機能核が `no_fs` を返す。下の §9.7 の行）。

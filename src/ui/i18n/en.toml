@@ -472,6 +472,26 @@ none = "No references to \"{0}\""
 [definition]
 none = "No definition here"
 
+[lang]
+# `lang.*` (LSP-equivalent operations). The result surface, opened from the `>` palette (§9.7.1).
+empty = "No result"
+none_hover = "Nothing at the caret"
+none_references = "No references"
+none_symbols = "No symbols or empty"
+none_folding = "No folding ranges or empty"
+none_rename = "Cannot rename at this position"
+to = "New name"
+apply = "Apply"
+applied = "Rename applied"
+preview = "Preview of changes"
+jump = "Jump"
+kind = "Kind"
+range = "Range"
+depth = "Depth"
+line = "Line"
+format_done = "Formatted"
+format_none = "Nothing to format"
+
 [find]
 placeholder = "Find"
 count = "{0} found"
