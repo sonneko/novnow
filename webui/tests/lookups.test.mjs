@@ -388,7 +388,7 @@ test('配線: 資料の添付は資料の画面のボタンから呼ぶ（索引
   assert.match(material, /export let onattach:/);
   assert.match(material, /on:click=\{\(\) => void attach\(\)\}/);
   assert.match(material, /target\.id === null \? attachArgs\(anchor, target\.path\) : attachArgs\(target\.id\)/);
-  assert.match(shell, /<MaterialWorkspace \{t\} \{session\} \{revision\} \{onattach\} \/>/);
+  assert.match(shell, /<MaterialWorkspace \{t\} \{session\} \{revision\} \{onattach\} focusId=\{materialFocusId\} onfocusdone=\{onfocusdone\} \/>/);
   assert.match(app, /onattach=\{attachMaterial\}/);
 });
 
