@@ -93,18 +93,28 @@ export const SPEC_GAPS: readonly SpecGap[] = [
   // §9.8.2 の表にある構造移動はこのバッチで全て経路ができたため、この gap は除去した。
   // `Ctrl+H` は表の `replace`（検索・置換）を維持し、`nav.back` には割り当てない。
   // （仕様 §9.8.1 と `interfaces.md` の食い違い。仕様側の宿題。）
-  { section: '9.8.3', what: '検索・置換の残り: プロジェクト全体の置換をプレビュー後に適用する原子的な複数ファイル操作と、search.project の1秒中断/部分結果が機能核にない。入力・大小文字トグル・全体検索・単一文書のプレビュー置換は提供済み。' },
+  // カタログ `tests/golden/api_catalog.json`: `search.project` は query/regex のみを受け
+  // count/hits/query を返し、timeout・partial の引数/戻り値がない。`search.replace_file` は
+  // path/query/replace/regex/role を受ける単一 path の操作。機能核 `src/app/ops/editing.rs`
+  // も search_project は全 documents を走査して完了後に返し、replace_file は editing_document
+  // 1 件を commit する。`src/core/features/search.rs` の1秒停止と WorkspaceEdit 生成は別機能核処理で、
+  // 上記の正規操作へ結線されておらず、画面から呼べる適用口ではない。
+  { section: '9.8.3', what: '検索・置換の残り: プロジェクト全体の置換をプレビュー後に原子的に適用する操作、および search.project の1秒中断/部分結果の正規API口がない（catalog: search.project / search.replace_file、src/app/ops/editing.rs）。入力・大小文字トグル・全体検索・単一文書のプレビュー置換は提供済み。' },
   // §9.6 の保存状態機の**衝突解決**（`save.keep_mine` / `save.reload_external`）と差分表示
   // (`save.diff_external`) は提供済み。外部変更の監視自体はブラウザ形態では意図的に行わない制限。
   // 仕様根拠: `webui.md` §21.2.3 は「外部変更の検知（§8.5）は、ブラウザでは行わない（§13.3）」
   // と明記。従ってこの gap は第2の画面全体の不足ではなく、ネイティブのみの機能として残す。
   { section: '9.6', what: 'ブラウザ形態での外部変更検知・衝突（仕様で無効。webui.md §21.2.3 / platform.md §13.3）' },
-  // §10.0 のキーは固定表からワークスペース名に変換して `session.workspace_switch` へ渡す。
-  // `plot-episode` / `plot-outline` は各画面が共通の `screen.scene` から話・節位置へ着地し、
-  // `idea` / `review` も現在節を受け取る。残りの §10.0 対応物（特に任意→cast の先頭キャラ、
-  // 任意→material の参照資料、 plot-episode→write 等でカーソルを実際に着地させる処理）は
-  // 各画面に選択対象を指定する正規操作/APIがなく、固定表全体の実到達を確認できないため残す。
-  { section: '10.0', what: '§10.0 の着地点表の残り（cast の先頭キャラ・material の先頭参照資料・一部の節/ブロック選択位置）' },
+  // §10.0 の reference.pane Nav から cast/material の選択着地は実装済み（App.svelte →
+  // AppShell → CastWorkspace / MaterialWorkspace。material_open は materials.get で解決）。
+  // ただし固定表全体は未実証: `tests/golden/api_catalog.json` の `session.workspace_switch`
+  // は必須 `workspace` のみ、`session.command` は必須 `name` のみで、着地点SceneIdや
+  // キャラ/資料IDを受け取らない。`reference.pane` は現在節の出現キャラ (`Nav::Character(index)`)
+  // と明示資料 (`Nav::OpenMaterial(id)`) を返すが、§10.0 の任意→cast は `mode:` の先頭キャラ、
+  // 任意→material は条件一致候補も必要。さらに plot-episode/outline と write 間のカーソル/節対応は
+  // workspace switch の返り値に位置を含まず、`src/app/ops/session_ops.rs` に位置選択処理がない。
+  // 従って partial な実装をもって固定表を閉じず、未到達の表全体は gap として維持する。
+  { section: '10.0', what: '§10.0固定表の未実証部分: 任意→cast の mode: 先頭キャラと任意→material の条件一致候補、plot-episode/outline↔write のSceneId・カーソル位置選択。session.workspace_switch はworkspace名のみ、session.command はcommand名のみ（catalog）、reference.pane Navのcharacter/material_openだけでは固定表全体を満たさない。参照Navから既知キャラ/明示資料への切替着地は提供済み。' },
   // §10.3（監査ログ `agent.audit_list`）・§10.4（プロンプト `prompt.*`）・§12.5（ヘルプ本文
   // `help.topic`）はバッチ6 で解消した。パレットの `>` から `run('<操作 ID>')` で呼ぶ口が
   // でき、結果を `OpsDialog` が機能核の戻り値のまま表示する。

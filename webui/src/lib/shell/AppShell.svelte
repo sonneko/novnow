@@ -80,6 +80,10 @@
   export let session: Session | null = null;
   /** 読み直しの合図（ワークスペースを切り替えるたびに 1 つ進む）。 */
   export let revision = 0;
+  /** §10.0: 参照ペインから切り替えるときの cast/material の着地点。 */
+  export let castFocusIndex: number | null = null;
+  export let materialFocusId: string | null = null;
+  export let onfocusdone: (() => void) | null = null;
   /** 参照ペインの行をダブルクリックした（`cast.get` / `dictionary.term_full`）。 */
   export let onplace: ((path: string, byte: number | null) => Promise<{ path: string; place: unknown } | null>) | null =
     null;
@@ -180,9 +184,9 @@
            （§21.1.2: 空の画面・動かないボタンを置かない）。 -->
       <p class="unavailable">{t(`header.workspace.${screen.workspace}`)}{t('workspace.unavailable', [''])}</p>
     {:else if screen.workspace === 'material'}
-      <MaterialWorkspace {t} {session} {revision} {onattach} />
+      <MaterialWorkspace {t} {session} {revision} {onattach} focusId={materialFocusId} onfocusdone={onfocusdone} />
     {:else if screen.workspace === 'cast'}
-      <CastWorkspace {t} run={run} onnav={onnav} onnotice={onnotice} {composing} />
+      <CastWorkspace {t} {revision} run={run} onnav={onnav} onnotice={onnotice} focusIndex={castFocusIndex} onfocusdone={onfocusdone} {composing} />
     {:else if screen.workspace === 'idea'}
       <IdeaWorkspace {t} {session} scene={screen.scene} {revision} />
     {:else if screen.workspace === 'plot-episode'}

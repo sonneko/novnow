@@ -33,6 +33,26 @@ test('残る検索 gap はAPIで不足する複数ファイル適用・タイム
   assert.doesNotMatch(coverage, /section: '9\.8\.2'/);
 });
 
+test('reference.pane のキャラ・明示資料 Nav は workspace switch 後の選択へ到達する', async () => {
+  const app = await text(new URL('App.svelte', ROOT));
+  const shell = await text(new URL('lib/shell/AppShell.svelte', ROOT));
+  const cast = await text(new URL('lib/workspaces/cast/CastWorkspace.svelte', ROOT));
+  const material = await text(new URL('lib/workspaces/material/MaterialWorkspace.svelte', ROOT));
+  const api = await text(new URL('../../tests/golden/api_catalog.json', import.meta.url));
+  assert.match(app, /nav\?\.kind === 'character'[\s\S]*?castFocusIndex = nav\.index[\s\S]*?setWorkspace\('cast'\)/);
+  assert.match(app, /nav\?\.kind === 'material_open'[\s\S]*?materialFocusId = nav\.id[\s\S]*?setWorkspace\('material'\)/);
+  assert.match(shell, /focusIndex=\{castFocusIndex\}/);
+  assert.match(shell, /focusId=\{materialFocusId\}/);
+  assert.match(shell, /\{revision\} run=\{run\}/);
+  assert.match(cast, /focusIndex !== null && characters\.some\(\(row\) => row\.index === focusIndex\)/);
+  assert.match(cast, /onfocusdone\?\.\(\)/);
+  assert.match(material, /session\.run\('materials\.get', \{ id: focusId \}\)/);
+  assert.match(material, /select\(item\.id\)/);
+  const switchOp = JSON.parse(api).operations.find((row) => row.id === 'session.workspace_switch');
+  assert.deepEqual(switchOp.arguments.required, ['workspace']);
+  assert.deepEqual(Object.keys(switchOp.arguments.properties), ['workspace']);
+});
+
 test('Ctrl+K の2打鍵は2秒以内で、上位プロットキーの写像がある', async () => {
   const write = await text(new URL('lib/workspaces/write/WriteWorkspace.svelte', ROOT));
   const outline = await text(new URL('lib/workspaces/plot-outline/PlotOutlineWorkspace.svelte', ROOT));

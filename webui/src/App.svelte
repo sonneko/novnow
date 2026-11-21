@@ -81,6 +81,14 @@
    * 材料を取り直す。ワークスペースを離れて戻ったときに古い一覧を出さないための口。
    */
   let revision = 0;
+  /** §10.0 の対応物を workspace switch 後に選ぶための画面側着地点。 */
+  let castFocusIndex: number | null = null;
+  let materialFocusId: string | null = null;
+
+  function clearWorkspaceFocus(): void {
+    castFocusIndex = null;
+    materialFocusId = null;
+  }
 
   /** 重ね物（`?` のヘルプと `Ctrl+P` のパレット。§9.7.5: 重ね物は 1 つずつ）。 */
   let overlay: 'help' | 'palette' | 'project' | 'switcher' | null = null;
@@ -1191,9 +1199,23 @@
 
   /** 参照ペインの行を押した（§9.5.5）。 */
   async function jump(kind: string, value: unknown): Promise<void> {
-    const nav = (value as { nav?: { path?: string; scene?: string } } | null)?.nav;
+    const nav = (value as { nav?: { path?: string; scene?: string; kind?: string; index?: number; id?: string } } | null)?.nav;
     if (nav?.scene) {
       await navTo(nav.scene);
+      return;
+    }
+    // `reference.pane` の正規 Nav は `character/index` と `material_open/id` を返す。
+    // 切替API自体は workspace 名のみ受けるため、選択対象は画面へ別途渡して着地させる。
+    if (nav?.kind === 'character' && typeof nav.index === 'number') {
+      castFocusIndex = nav.index;
+      materialFocusId = null;
+      await setWorkspace('cast');
+      return;
+    }
+    if (nav?.kind === 'material_open' && typeof nav.id === 'string') {
+      materialFocusId = nav.id;
+      castFocusIndex = null;
+      await setWorkspace('material');
       return;
     }
     if (kind === 'material' && nav?.path) {
@@ -1696,6 +1718,9 @@
   onjump={jump}
   onratio={setRatio}
   onworkspace={setWorkspace}
+  {castFocusIndex}
+  {materialFocusId}
+  onfocusdone={clearWorkspaceFocus}
   onlanguage={toggleLanguage}
   ontheme={toggleTheme}
   onsave={retrySave}
