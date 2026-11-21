@@ -32,6 +32,12 @@
   export let onnotice: ((text: string, kind?: 'info' | 'error') => void) | null = null;
   /** 変換中か（IME）。 */
   export let composing = false;
+  /** §10.0 の参照 Nav から引き継ぐ選択キャラ。 */
+  export let focusIndex: number | null = null;
+  /** 読み直しの合図（workspace switch 後に着地点を適用する）。 */
+  export let revision = 0;
+  export let onfocusdone: (() => void) | null = null;
+  let loadedRevision = -1;
 
   /** タブ（§10.6。既定は「モード」）。 */
   let tab: 'mode' | 'speech' | 'address' = 'mode';
@@ -66,7 +72,10 @@
     const list = await run('cast.list');
     if (list.ok) {
       characters = (list.result.characters as unknown as { index: number; name: string; reading: string }[]) ?? [];
-      if (selected >= characters.length) {
+      if (focusIndex !== null && characters.some((row) => row.index === focusIndex)) {
+        selected = focusIndex;
+        onfocusdone?.();
+      } else if (selected >= characters.length) {
         selected = Math.max(0, characters.length - 1);
       }
     }
@@ -178,8 +187,11 @@
     }
   }
 
-  /** 初期読み込み。 */
-  $: void load();
+  /** 初回と workspace switch 後に読み直し、指定されたキャラへ着地する。 */
+  $: if (revision !== loadedRevision) {
+    loadedRevision = revision;
+    void load();
+  }
 </script>
 
 <svelte:window on:keydown={onkey} />

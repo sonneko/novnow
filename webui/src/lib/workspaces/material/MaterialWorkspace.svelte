@@ -32,6 +32,7 @@
     rowsOf,
     sameReview,
     searchText,
+    statusOf,
     statusLabelKey,
     unregisteredOf,
     revealOffset,
@@ -47,6 +48,9 @@
   export let session: Session;
   /** 読み直しの合図（値が変わると一覧を読み直す）。 */
   export let revision = 0;
+  /** §10.0 の参照 Nav から切り替えるときに開く資料 ID。 */
+  export let focusId: string | null = null;
+  export let onfocusdone: (() => void) | null = null;
   /**
    * 資料を添付する（`materials.attach`。§16.2 の「登録する」と §16.1 の添付）。
    *
@@ -98,6 +102,29 @@
     const registered = hits.ok ? rowsOf(hits.result.hits) : [];
     const loose = diagnostics.ok ? unregisteredOf(diagnostics.result.diagnostics) : [];
     rows = listOf(loose, registered, filter, query);
+    if (focusId) {
+      // `materials.search` の既定一覧は却下済み資料を省くため、正規の `materials.get` で
+      // 明示参照された ID を解決し、必要なら一覧へ一時追加して選択する。
+      const got = await session.run('materials.get', { id: focusId });
+      if (got.ok) {
+        const item = got.result.material as unknown as { id: string; title?: string; path: string; status?: string; category?: string };
+        if (!rows.some((row) => row.key === item.id)) {
+          rows = [{
+            key: item.id,
+            id: item.id,
+            title: item.title || item.id,
+            path: item.path,
+            status: statusOf(item.status),
+            category: item.category ?? '',
+          }, ...rows];
+        }
+        if (selected !== item.id) {
+          select(item.id);
+        }
+        onfocusdone?.();
+        return;
+      }
+    }
     if (!rows.some((row) => row.key === selected)) {
       select(rows[0]?.key ?? null);
     }
