@@ -81,6 +81,8 @@
   /** 起動直後に全章を畳んだか（セッションごとに 1 回だけ。`WeakSet` で持つ）。 */
   const foldedOnce = new WeakSet<object>();
   let started = false;
+  let chordPending = false;
+  let chordTimer: ReturnType<typeof setTimeout> | null = null;
 
   /** 表示の対象のブロック（レベルで決まる）。 */
   $: blocks = blocksAt(tree, level);
@@ -153,6 +155,45 @@
       if (got.ok) {
         folded = got.result.folded.filter((value): value is number => typeof value === 'number');
       }
+    }
+  }
+
+  /** すべて展開する（`Ctrl+K Ctrl+J`）。 */
+  async function unfoldAll(): Promise<void> {
+    for (const chapter of [...folded]) {
+      await fold(chapter, false);
+    }
+  }
+
+  /** 構成ツリーの2打鍵（`Ctrl+K Ctrl+0/J`、2秒以内）。 */
+  function onWindowChord(event: KeyboardEvent): void {
+    if (ime.active || composing || event.isComposing) return;
+    const ctrl = event.ctrlKey || event.metaKey;
+    const key = event.key.toLowerCase();
+    if (chordPending && ctrl && !event.shiftKey && !event.altKey && (key === '0' || key === 'j')) {
+      event.preventDefault();
+      event.stopPropagation();
+      chordPending = false;
+      if (chordTimer !== null) clearTimeout(chordTimer);
+      chordTimer = null;
+      if (key === '0') void foldAll();
+      else void unfoldAll();
+      return;
+    }
+    if (chordPending && !(ctrl && !event.shiftKey && !event.altKey && key === 'k')) {
+      chordPending = false;
+      if (chordTimer !== null) clearTimeout(chordTimer);
+      chordTimer = null;
+    }
+    if (ctrl && !event.shiftKey && !event.altKey && key === 'k') {
+      event.preventDefault();
+      event.stopPropagation();
+      chordPending = true;
+      if (chordTimer !== null) clearTimeout(chordTimer);
+      chordTimer = setTimeout(() => {
+        chordPending = false;
+        chordTimer = null;
+      }, 2000);
     }
   }
 
@@ -374,6 +415,8 @@
     ime.dispose();
   });
 </script>
+
+<svelte:window on:keydown|capture={onWindowChord} />
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div class="outline" role="application" aria-label={t('header.workspace.plot-outline')} on:keydown={onkey}>

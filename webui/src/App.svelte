@@ -16,6 +16,7 @@
   import AppShell from './lib/shell/AppShell.svelte';
   import Overlay from './lib/shell/Overlay.svelte';
   import ProjectPicker from './lib/project/ProjectPicker.svelte';
+  import SearchDialog from './lib/search/SearchDialog.svelte';
   import Switcher from './lib/nav/Switcher.svelte';
   import RenameDialog from './lib/nav/RenameDialog.svelte';
   import { didMove, movedScene, type SwitcherRow } from './lib/nav/moves';
@@ -83,6 +84,7 @@
 
   /** 重ね物（`?` のヘルプと `Ctrl+P` のパレット。§9.7.5: 重ね物は 1 つずつ）。 */
   let overlay: 'help' | 'palette' | 'project' | 'switcher' | null = null;
+  let searchDialog: { scope: 'file' | 'project'; replaceMode: boolean; regexMode: boolean } | null = null;
 
   /**
    * 参照の面（`cast.get` / `dictionary.list` / `dictionary.term_full`。§9.5.5・§9.7）。
@@ -442,7 +444,7 @@
 
   /** キー（画面で 1 か所だけ受ける。§9.8）。 */
   async function onkey(event: KeyboardEvent): Promise<void> {
-    if (composing) {
+    if (event.defaultPrevented || composing) {
       // 変換中は 1 つも横取りしない（§9.8.5 の 2）
       return;
     }
@@ -455,9 +457,18 @@
       local(found);
       return;
     }
-    // `Ctrl+Shift+1..9`（節を持ち越す切替）は表に無いので、正規操作を直接呼ぶ（§10.0）
+    if (found === 'find' || found === 'replace' || found === 'search') {
+      searchDialog = {
+        scope: found === 'search' ? 'project' : 'file',
+        replaceMode: found === 'replace',
+        regexMode: false,
+      };
+      return;
+    }
+    // `Ctrl+Shift+1..9` は §10.0 の固定対応表のワークスペース名で切り替える。
     const keep = keepPayload(found);
     if (keep) {
+      await saveNow();
       const switched = await store.run('session.workspace_switch', {
         workspace: String(keep.workspace),
       });
@@ -465,6 +476,9 @@
         store.update((next) => {
           next.workspace = switched.result.current;
         });
+        revision += 1;
+      } else {
+        store.notice(switched.message, 'error');
       }
       return;
     }
@@ -1691,6 +1705,7 @@
   onrename={() => void startRename()}
   onsplit={(position) => void splitSection(position)}
   onpropose={startProposal}
+  onsearch={() => (searchDialog = { scope: 'project', replaceMode: true, regexMode: true })}
   onconflict={openConflicts}
   {conflicts}
   session={store}
@@ -1817,5 +1832,17 @@
     onforget={forgetProject}
     onimport={importProject}
     onexport={exportProject}
+  />
+{/if}
+
+{#if searchDialog}
+  <SearchDialog
+    {t}
+    session={store}
+    {screen}
+    scope={searchDialog.scope}
+    replaceMode={searchDialog.replaceMode}
+    regexMode={searchDialog.regexMode}
+    onclose={() => (searchDialog = null)}
   />
 {/if}
