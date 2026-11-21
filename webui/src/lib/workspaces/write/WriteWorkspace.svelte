@@ -90,6 +90,8 @@
   export let onsplit: ((caret: number) => void) | null = null;
   /** この節の提案を置く（`section.propose`。§8.7.1。本文は変えない）。 */
   export let onpropose: (() => void) | null = null;
+  /** 全文検索タブを開く（§9.7.4）。 */
+  export let onsearch: (() => void) | null = null;
   /** 参照ペインを出すか（`Ctrl+\`）。 */
   export let reference = true;
   /**
@@ -423,7 +425,16 @@
         return;
       }
     }
+    if (chordPending && !(ctrl && !event.shiftKey && !event.altKey && event.key.toLowerCase() === 'k')) {
+      chordPending = false;
+      if (chordTimer !== null) {
+        clearTimeout(chordTimer);
+        chordTimer = null;
+      }
+    }
     if (ctrl && !event.shiftKey && !event.altKey && event.key.toLowerCase() === 'k') {
+      event.preventDefault();
+      event.stopPropagation();
       chordPending = true;
       if (chordTimer !== null) {
         clearTimeout(chordTimer);
@@ -431,7 +442,7 @@
       chordTimer = setTimeout(() => {
         chordPending = false;
         chordTimer = null;
-      }, 1500);
+      }, 2000);
     }
   }
 
@@ -458,6 +469,7 @@
   style={`grid-template-columns:${reference ? `${Math.round(main * 100)}% auto 1fr` : '1fr'};`}
 >
   <div class="main" style={`grid-template-rows:${Math.round(context * 100)}% auto 1fr auto;`}>
+    <button class="search-tab" type="button" on:click={() => onsearch?.()}>{t('stage.search')}</button>
     <ContextView
       {t}
       scene={screen.scene}
@@ -526,10 +538,17 @@
   }
   .main {
     display: grid;
+    position: relative;
     min-height: 0;
     min-width: 0;
     /* 参照ペインは 320〜560px（§9.1） */
     contain: layout;
+  }
+  .search-tab {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    z-index: 3;
   }
   .limits {
     margin: 0;

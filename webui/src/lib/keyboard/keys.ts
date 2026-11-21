@@ -97,6 +97,7 @@ export const SHORTCUTS: Readonly<Record<string, string>> = {
   'Ctrl+F': 'find',
   'Ctrl+H': 'replace',
   'Ctrl+Shift+F': 'search',
+  'Ctrl+Shift+B': 'up',
   'F3': 'find-next',
   'Shift+F3': 'find-previous',
   'F5': 'reload',
@@ -235,6 +236,14 @@ export function command(stroke: KeyStroke, options: KeyOptions): string | null {
       return local;
     }
   }
+  // §10.0 の節位置を持ち越す切替はコマンド表に無い UI 操作。
+  // キーコードで判定するため、配列や Shift+数字の記号に依存しない。
+  if (stroke.ctrl && stroke.shift && !stroke.alt) {
+    const digit = /^Digit([1-9])$/.exec(stroke.code);
+    if (digit) {
+      return `workspace-keep-${digit[1]}`;
+    }
+  }
   let found = stroke;
   // macOS では `Option` が文字入力に使われるので `Alt` を `Ctrl+Alt` に読み替える（§9.8.4）
   if (options.mac && stroke.alt && !stroke.ctrl) {
@@ -265,7 +274,19 @@ export function isLocal(command: string): boolean {
  * （`session.command` は表のコマンドをそのまま実行する）。`Ctrl+Shift+1..9`（節を持ち越す
  * 切替）は表に無いので、こちらで `session.workspace_switch` へ回す。
  */
+const KEEP_WORKSPACES: Readonly<Record<string, string>> = {
+  '1': 'write',
+  '2': 'plot-episode',
+  '3': 'plot-outline',
+  '4': 'idea',
+  '5': 'material',
+  '6': 'cast',
+  '7': 'reader',
+  '8': 'agent',
+  '9': 'review',
+};
+
 export function keepPayload(name: string): Record<string, unknown> | null {
-  const found = /^workspace-keep-([1-9])$/.exec(name);
-  return found ? { workspace: Number(found[1]) } : null;
+  const digit = /^workspace-keep-([1-9])$/.exec(name)?.[1];
+  return digit ? { workspace: KEEP_WORKSPACES[digit] } : null;
 }

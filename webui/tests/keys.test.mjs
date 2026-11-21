@@ -111,12 +111,24 @@ test('Ctrl+Shift+P は提案モードで、パレットではない（§8.7）',
   assert.notEqual(found, 'ui:palette');
 });
 
-test('Ctrl+Shift+1..9 は節を持ち越す切替の引数を返す（§10.0）', async () => {
-  const { keepPayload } = await keys();
-  assert.deepEqual(keepPayload('workspace-keep-3'), { workspace: 3 });
-  assert.deepEqual(keepPayload('workspace-keep-9'), { workspace: 9 });
+test('Ctrl+Shift+1..9 は固定表のワークスペース名へ届く（§10.0）', async () => {
+  const { command, keepPayload } = await keys();
+  const options = { mac: false };
+  const names = ['write', 'plot-episode', 'plot-outline', 'idea', 'material', 'cast', 'reader', 'agent', 'review'];
+  names.forEach((workspace, index) => {
+    const digit = index + 1;
+    const found = command(stroke(String(digit), { ctrl: true, shift: true, code: `Digit${digit}` }), options);
+    assert.equal(found, `workspace-keep-${digit}`);
+    assert.deepEqual(keepPayload(found), { workspace });
+  });
   assert.equal(keepPayload('workspace-keep-0'), null);
   assert.equal(keepPayload('workspace-write'), null);
+});
+
+test('構造移動の不足キーはコマンド表に結び付く（§9.8.2）', async () => {
+  const { SHORTCUTS, command } = await keys();
+  assert.equal(SHORTCUTS['Ctrl+Shift+B'], 'up');
+  assert.equal(command(stroke('B', { ctrl: true, shift: true, code: 'KeyB' }), { mac: false }), 'up');
 });
 
 test('ヘルプの一覧は、文言カタログにあるキーだけを使う', async () => {

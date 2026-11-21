@@ -64,6 +64,7 @@
   export let onsplit: ((caret: number) => void) | null = null;
   /** この節の提案を置く（`section.propose`。§8.7.1）。 */
   export let onpropose: (() => void) | null = null;
+  export let onsearch: (() => void) | null = null;
   /** 外部変更との衝突を解決する面を開く（§8.5）。 */
   export let onconflict: (() => void) | null = null;
   /** 衝突しているパス（`save.state` の `conflicts`）。 */
@@ -172,6 +173,7 @@
         onratio={onratio}
         onsplit={onsplit}
         onpropose={onpropose}
+        onsearch={onsearch}
       />
     {:else if session === null}
       <!-- セッションが繋がっていないワークスペースは「この版では使えません」を出す
