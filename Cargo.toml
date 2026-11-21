@@ -4,13 +4,14 @@ default-members = ["."]
 # Python 拡張（REF:python/novnow-py）は pyo3 系の vendoring が済むまで解決から外す
 # （REF:docs/add-dependencies.md §2.2、対象一覧は REF:docs/plans.md §5.5）。
 # vendoring 後は exclude を外して member にする。
+members = ["crates/novnow-wasm"]
 exclude = ["python/novnow-py"]
 
 [package]
 name = "novnow"
-version = "0.1.2"
+version = "0.1.1"
 edition = "2021"
-description = "小説プロジェクト向け執筆 IDE+世界観ファイル形式"
+description = "小説プロジェクト（[title]/ レイアウト）向け執筆 IDE — egui + ropey"
 license = "MIT"
 repository = "https://github.com/sonneko/novnow"
 homepage = "https://sonneko.github.io/novnow/"

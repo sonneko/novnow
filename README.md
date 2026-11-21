@@ -175,7 +175,7 @@ novnow structure tree my-novel --json                    # 正規操作も --jso
 
 ## 仕様について
 
-エディタと novnow形式の仕様は、次の 12 冊の仕様書に書いてあります。
+エディタと novnow形式の仕様は、次の 13 冊の仕様書に書いてあります。
 
 - [`overview.md`](./docs/specifications/overview.md): 設計原則・用語・アーキテクチャ
 - [`project.md`](./docs/specifications/project.md): プロジェクト構造・`project.toml`・サンプル構成
@@ -189,6 +189,7 @@ novnow structure tree my-novel --json                    # 正規操作も --jso
 - [`workflows.md`](./docs/specifications/workflows.md): 資料収集・エクスポート・性能品質要件
 - [`interfaces.md`](./docs/specifications/interfaces.md): CLI・LSP・MCP・Python・Rust の外部インターフェース
 - [`external.md`](./docs/specifications/external.md): 配布形態（デスクトップ 10 通り・Python 5 通り・VSCode 拡張・GitHub Actions）
+- [`webui.md`](./docs/specifications/webui.md): 第 2 の画面実装（Svelte + Tauri による並行提供と、置き換えの条件）
 
 公式サイト（[https://sonneko.github.io/novnow/](https://sonneko.github.io/novnow/)）では、機能ガイド・診断コードの一覧・API リファレンスを読めます。仕様書はすべてこのリポジトリの [`docs/specifications/`](./docs/specifications/) にあり、実装と同じコミットで管理されています。
 

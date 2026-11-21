@@ -2,6 +2,7 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Header from "./Header.astro";
 import Footer from "./Footer.astro";
+import InlineText from "./InlineText.astro";
 import { diagnostics } from "../data/diagnostics";
 import diagnosticEnglish from "../data/diagnostics-en.json";
 
@@ -44,21 +45,23 @@ const japanese = lang === "ja";
             </span>
           </div>
 
-          <p class="diag-summary">{japanese ? ja : en}</p>
+          <p class="diag-summary"><InlineText text={japanese ? ja : en} /></p>
 
           <dl class="diag-details">
             <div>
               <dt>{japanese ? "発生条件" : "Cause"}</dt>
-              <dd>{japanese ? condition : diagnosticEnglish[code][0]}</dd>
+              <dd><InlineText text={japanese ? condition : diagnosticEnglish[code][0]} /></dd>
             </div>
             <div>
               <dt>{japanese ? "対応" : "Available action"}</dt>
               <dd>
-                {japanese
-                  ? action === "—"
-                    ? "自動修正なし。該当箇所を確認してください。"
-                    : action
-                  : diagnosticEnglish[code][1]}
+                <InlineText
+                  text={japanese
+                    ? action === "—"
+                      ? "自動修正なし。該当箇所を確認してください。"
+                      : action
+                    : diagnosticEnglish[code][1]}
+                />
               </dd>
             </div>
           </dl>

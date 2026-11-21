@@ -4,7 +4,7 @@ export const diagnostics = [
   {
     "code": "E001",
     "severity": "E",
-    "condition": "'` の後が辞書に一致しない",
+    "condition": "`'` の後が辞書に一致しない",
     "ja": "辞書にない参照です: {0}",
     "en": "Unknown reference: {0}",
     "action": "用語として登録 / キャラとして登録 / 類似候補に置換"
@@ -76,7 +76,7 @@ export const diagnostics = [
   {
     "code": "E013",
     "severity": "E",
-    "condition": "relations` 等の参照不能",
+    "condition": "`relations` 等の参照不能",
     "ja": "参照できません: {0}",
     "en": "Cannot resolve: {0}",
     "action": "候補に置換"
@@ -116,7 +116,7 @@ export const diagnostics = [
   {
     "code": "E021",
     "severity": "E",
-    "condition": "words.md` に `definition` 無し",
+    "condition": "`words.md` に `definition` 無し",
     "ja": "definition（定義）は必須です",
     "en": "definition is required",
     "action": "空の definition を挿入"
@@ -132,7 +132,7 @@ export const diagnostics = [
   {
     "code": "E024",
     "severity": "E",
-    "condition": "materials` 外を指す `path",
+    "condition": "`materials` 外を指す `path`",
     "ja": "資料ファイルは materials/ 配下に置いてください",
     "en": "Material files must live under materials/",
     "action": "移動して path 修正"
@@ -156,7 +156,7 @@ export const diagnostics = [
   {
     "code": "E027",
     "severity": "E",
-    "condition": "project.toml` の `lexicon.word_classes` の正規表現が不正（§6.5.1）",
+    "condition": "`project.toml` の `lexicon.word_classes` の正規表現が不正（§6.5.1）",
     "ja": "語クラス {0}の正規表現が不正です",
     "en": "Invalid regular expression for word class {0}",
     "action": "正規表現を直す / 項目を削除する"
@@ -175,7 +175,7 @@ export const diagnostics = [
     "condition": "プロンプトに必須のセクション（`## system` / `## task`）が無い（§15.5.4 (2)）",
     "ja": "プロンプトに必須のセクションがありません: {0}",
     "en": "The prompt is missing a required section: {0}",
-    "action": ">prompt reset` で既定に戻す"
+    "action": "`>prompt reset` で既定に戻す"
   },
   {
     "code": "E030",
@@ -196,10 +196,10 @@ export const diagnostics = [
   {
     "code": "W002",
     "severity": "W",
-    "condition": "本文中の裸の `@",
+    "condition": "本文中の裸の `@`",
     "ja": "@ は行頭の見出しか行末の話者注釈にのみ使えます",
     "en": "@ is only valid as a header or a trailing speaker tag",
-    "action": "\\@` にエスケープ"
+    "action": "`\\@` にエスケープ"
   },
   {
     "code": "W006",
@@ -228,7 +228,7 @@ export const diagnostics = [
   {
     "code": "W019",
     "severity": "W",
-    "condition": "summary` が 120 字超",
+    "condition": "`summary` が 120 字超",
     "ja": "要約が長すぎます（{0} 字）",
     "en": "Summary is too long ({0} chars)",
     "action": "—"
@@ -284,10 +284,10 @@ export const diagnostics = [
   {
     "code": "W033",
     "severity": "W",
-    "condition": "mcp.json` に秘密情報が直書き",
+    "condition": "`mcp.json` に秘密情報が直書き",
     "ja": "秘密情報は環境変数参照にしてください",
     "en": "Use an environment variable reference for secrets",
-    "action": "${{...}}` に変換"
+    "action": "`${{...}}` に変換"
   },
   {
     "code": "W041",
@@ -391,7 +391,7 @@ export const diagnostics = [
     "condition": "節順に対し `when` が巻き戻る（§5.3.5）",
     "ja": "作中日時が前の節より前に戻っています（{0} → {1}）",
     "en": "In-story time goes backwards ({0} → {1})",
-    "action": "回想` を追記 / `when` を修正"
+    "action": "`回想` を追記 / `when` を修正"
   },
   {
     "code": "W081",
@@ -415,7 +415,7 @@ export const diagnostics = [
     "condition": "連続 5 節以上で `senses` が視覚系のみ",
     "ja": "五感の宣言が視覚に偏っています（{0} 節連続）",
     "en": "Senses are sight-only for {0} sections",
-    "action": "senses:` を追記"
+    "action": "`senses:` を追記"
   },
   {
     "code": "W084",
@@ -484,7 +484,7 @@ export const diagnostics = [
   {
     "code": "W092",
     "severity": "W",
-    "condition": "icon` / `space` の参照先ファイルが無い",
+    "condition": "`icon` / `space` の参照先ファイルが無い",
     "ja": "ファイルが見つかりません: {0}",
     "en": "File not found: {0}",
     "action": "パスを修正"
@@ -668,7 +668,7 @@ export const diagnostics = [
   {
     "code": "I056",
     "severity": "I",
-    "condition": "prompts/custom/` に未登録のロールがある（§5.9.2）",
+    "condition": "`prompts/custom/` に未登録のロールがある（§5.9.2）",
     "ja": "未登録のカスタムロールがあります: {0}",
     "en": "Unregistered custom role: {0}",
     "action": "登録する"

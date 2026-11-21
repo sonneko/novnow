@@ -215,6 +215,8 @@ dont_close = "書き込みが終わるまで閉じないでください"
 chars_unit = "字"
 pages_unit = "枚"
 conflict = "外部で変更されたファイルがあります（未保存の変更があるため反映していません）"
+external_unreadable_encoding = "外部の変更を UTF-8 として読めませんでした: {0}"
+external_unreadable_io = "外部の変更を読めませんでした: {0}"
 font_fallback = "日本語フォントが見つからないため、同梱のフォントを使います"
 open_agent = "実行中のタスクの一覧を開く（agent ワークスペース）"
 write_failed = "{0}を書き込めませんでした: {1}"
@@ -276,6 +278,31 @@ incomplete = "ファイルが足りません: {0}"
 too_new = "新しい版の novnow で作られたプロジェクトです（schema_version {0}）"
 encoding = "UTF-8 として読めないファイルがあります: {0}"
 failed = "うまくいきませんでした: {0}"
+# スナップショット（§13.3.8。ブラウザ版だけの名前付き復元点）
+key_snapshot = "F9 スナップショット"
+key_snapshot_select = "↑↓ 選択"
+key_snapshot_save = "S 保存"
+key_snapshot_restore = "R 復元"
+key_snapshot_remove = "Delete 削除"
+key_snapshot_close = "Esc 閉じる"
+snapshots = "スナップショット: {0}"
+snapshot_note = "保存済みの内容の写しです。復元すると今の内容は置き換わり、元に戻せません"
+snapshot_save = "スナップショットを保存"
+snapshot_name = "スナップショットの名前"
+snapshot_empty = "まだスナップショットがありません"
+snapshot_files = "{0} ファイル"
+snapshot_restore = "復元"
+snapshot_remove = "削除"
+snapshot_restore_confirm = "{0}をスナップショット「{1}」の内容に戻します（元に戻せません）。確かめのため、スナップショットの名前を入力してください"
+snapshot_remove_confirm = "スナップショット「{0}」を削除します（元に戻せません）。確かめのため、名前を入力してください"
+snapshot_saved = "スナップショットを保存しました: {0}"
+snapshot_restored = "スナップショット「{0}」から復元しました（書き {1}・削除 {2} ファイル）"
+snapshot_removed = "スナップショットを削除しました: {0}"
+snapshot_limit = "スナップショットは {0} 件までです。不要なものを削除してください"
+snapshot_name_empty = "名前を入力してください"
+snapshot_name_long = "名前は {0} 文字までにしてください"
+snapshot_name_char = "名前に使えない文字があります: {0}"
+snapshot_name_dup = "同じ名前のスナップショットがあります"
 
 [header]
 # 言語ボタンの記号（今の言語を表す 1 文字。§12.5）
@@ -442,6 +469,54 @@ none = "「{0}」の使用箇所はありません"
 
 [definition]
 none = "この位置に定義はありません"
+
+[lang]
+# `lang.*`（LSP 相当の操作群）の結果の面。パレット（`>`）から開く（§9.7.1）。
+empty = "結果はありません"
+none_hover = "キャレットの位置に情報はありません"
+none_references = "参照は見つかりません"
+none_symbols = "シンボルは無いか、空です"
+none_folding = "折りたたみ範囲は無いか、空です"
+none_rename = "この位置から名前を変えられません"
+to = "新しい名前"
+apply = "適用"
+applied = "改名を適用しました"
+preview = "変更のプレビュー"
+jump = "ジャンプ"
+kind = "種別"
+range = "範囲"
+depth = "階層"
+line = "行"
+format_done = "整形しました"
+format_none = "整形する箇所はありません"
+
+[ops]
+# バッチ6 の操作群（監査ログ・プロンプト・メール・ワークスペース・ヘルプ）の結果の面。
+# パレット（`>`）から操作 ID そのものを選んで開く（§9.7.1）。
+empty = "結果はありません"
+empty_audit = "監査ログはまだありません"
+empty_prompt = "プロンプトは見つかりません"
+empty_workspace = "ワークスペースはありません"
+empty_mail = "メールを送る宛先（役割）を入力してください"
+# プロンプトの名前（`prompt.get/diff/reset` の `name`）。
+name = "プロンプト名"
+name_placeholder = "例: writer"
+# `mail.send` の入力（`agent.md` §15.6）。`kind` の既定は `note`。
+mail_to = "宛先（役割）"
+mail_kind = "種別"
+mail_scope = "スコープ（任意）"
+mail_body = "本文"
+mail_kinds = "種類: request / deliver / question / reject / note"
+# 操作を実行するボタン。
+run = "実行"
+send = "送る"
+# `prompt.reset` は安全面の例外（`{M: safety}`）なので結果を画面に出す。
+reset_result = "{0}を既定に戻しました（{1} 件）"
+# `mail.send` は承認待ちのままキューに入る（`approved_by: pending`）。
+mail_queued = "{0}へ {1}を承認待ちでキューに入れました"
+# `help.topic` のトピック選択。
+topic = "トピック"
+topics = "トピック: help / welcome / migration / shortcuts / api"
 
 [find]
 placeholder = "検索"

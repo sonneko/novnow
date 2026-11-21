@@ -2545,3 +2545,13 @@ grep -n -i '\[HIST-TAG:.*topics=.*ime' docs/history.md
   10ms → 12ms に改めた（残る費用は重複除去ではなく参照解決の生成側で、件数に対しては線形）。
 - 副産物: `diagnose.rs` に残っていた計測用の `eprintln!` を削除した。観察タブが全文書の診断を
   毎フレーム計算している箇所は、B13 の範囲外として次回の候補に記録した。
+
+### [HIST:DECISION:D-018] 2026-11-14 第 2 の画面実装（Svelte + Tauri）を並行して作る決定
+[HIST-TAG: category=DECISION id=D-018 topics=webui,svelte,tauri,wasm,parity,distribution]
+
+**「最初は X だったが Y に変更した」**: 画面の実装は egui で作り、ブラウザ版は `trunk` + `wasm-bindgen` で Web へ、デスクトップ版は `eframe` でネイティブへ出していた（`D-008`・`D-009`・`REF:docs/specifications/overview.md` §3.1）。これを **Svelte + TypeScript の画面を作り、Tauri でネイティブアプリにする方式へ移す**方針に変える。ただし移行は一気にではなく、**egui の第 1 の画面をそのまま動かしたまま、第 2 の画面を並行して作る**。
+
+- **決定（所有者指示、2026-11-14）**: 第 2 の画面はブラウザで先に提供し、そのあと Tauri でネイティブ化する。第 1 は完成済み（全 9 ワークスペース・87 診断・実機検証）なので、置き換えの途中で機能が減る期間を作らない。両系統は `REF:src/app/mod.rs` のセッション（121 の正規操作）を共通の機能核とし、画面は JSON の口だけを使う。
+- **変わらないもの**: §9〜§12 の画面仕様（レイアウト・キー・IME・色・文言）、§8 の保存状態機械、§13 の規則 10、§19 の機能パリティ、§20 の配布形態の 5 形態・18 通り。第 2 のために仕様を緩めない。第 2 を §20 の形態に加えるのは、置き換えの承認後（§21.4.2）。
+- **文書**: 仕様 §21（`REF:docs/specifications/webui.md`）と設計 §21（`REF:docs/designs/webui.md`）を新設し、13 冊目の対にした。計画は `REF:docs/plans.md#webui`（W1〜W7）。既存の記述は削除せず追記だけで反映した。`REF:docs/script/reference.py` の章番号表（`21` → `webui`）と `REF:scripts/docs-site.py` の並び順も追随した。
+- **状態**: W1（文書整備）のみ完了。`webui/` と `crates/novnow-wasm/` はまだ作っていない（空のディレクトリを置かない）。設計書 §21 の 5 節は「未実装・実装計画済み」。

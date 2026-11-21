@@ -1224,7 +1224,10 @@ pub fn gate(session: &Session, args: &Args) -> Result<Option<String>> {
     Ok(Some(role.to_owned()))
 }
 
-/// 監査ログ（§15.8.4）を 1 行書く（§19.5.2「すべての新しい書き込みツールでも記録する」）。
+/// 監査ログ（§15.8.4）を 1 行**控える**（§19.5.2「すべての新しい書き込みツールでも記録する」）。
+///
+/// 追記は操作が成功してから（[`Session::run`] の末尾）。書き込みが失敗して束ごと元へ戻した
+/// 操作（§19.1.6 の原子性）の記録は残さない＝実体のない `direct_write` が監査ログに溜まらない。
 ///
 /// `event` は §5.10.5 の `EVENTS` の 1 つ（`direct_write` など）。
 pub fn audit(session: &mut Session, event: &str, detail: &str) {
@@ -1234,7 +1237,7 @@ pub fn audit(session: &mut Session, event: &str, detail: &str) {
         detail: Some(detail.to_owned()),
         ..LogEvent::new(&stamp, event)
     };
-    let _ = session.host.append(&entry.path(), &entry.line());
+    session.queue_audit(entry);
 }
 
 // =========================================================================== 共通の実装部品
@@ -1281,8 +1284,10 @@ pub fn apply_plan(session: &mut Session, plan: &crate::core::agents::Plan) -> Re
     for change in &plan.writes {
         write_document(session, &change.path, change.text.clone());
     }
+    // ログも [`audit`] と同じく**操作が成功してから**追記する（§19.1.6 の原子性）: 保存が
+    // 失敗して束ごと元へ戻した操作の記録（実体のない `direct_write`）を残さない。
     for event in &plan.log {
-        let _ = session.host.append(&event.path(), &event.line());
+        session.queue_audit(event.clone());
     }
     Ok(())
 }

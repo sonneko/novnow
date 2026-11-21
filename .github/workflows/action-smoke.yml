@@ -37,11 +37,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          target="$RUNNER_TEMP/novnow-invalid"
-          rm -rf "$target"
-          cp -R examples/sample-novel "$target"
-          first="$(find "$target/contents" -type f -name '*.txt' | sort | head -1)"
-          printf "\n'action_unknown_term\n" >> "$first"
+          # 本文の解決はスクリプトに任せる。拡張子の決め打ち（かつての -name '*.txt'）は、
+          # 本文が .cnov へ変わったあと空を返して負例を作れず、後段の「E 診断で exit code 5」が
+          # 一度も走らないまま 3 OS ともここで失敗した（#61 追加監査 7）。本文が無ければ
+          # スクリプトが ::error:: を出して止まるので、空のまま先へ進まない。
+          manuscript="$(bash scripts/action/prepare-invalid-project.sh \
+            examples/sample-novel "${RUNNER_TEMP}/novnow-invalid")"
+          echo "injected an unknown reference into ${manuscript}"
       - name: Verify that E diagnostics fail the action
         id: invalid
         uses: ./

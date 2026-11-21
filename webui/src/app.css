@@ -1,0 +1,81 @@
+/* 画面全体の土台（L0 が所有する。§11.11.3）。
+ *
+ * 色は `tokens.ts` の CSS 変数だけを使う（§11.1 MUST）。ここには変数の定義と、
+ * 全画面に共通する字と余白だけを置く。コンポーネント固有の見た目は各 `.svelte` に書く。
+ */
+
+:root {
+  /* `applyTheme()` が `data-theme` と一緒に値を入れる。入れ忘れても読めるよう既定を置く。 */
+  --bg-base: #15171b;
+  --bg-raised: #1d2026;
+  --bg-inset: #111317;
+  --bg-selection: #2d3a4d;
+  --fg-primary: #e6e6e3;
+  --fg-muted: #a6a8ad;
+  --fg-faint: #82878e;
+  --border: #2a2e35;
+  --accent: #6fa8ff;
+  --accent-faint: #354a6b;
+  --state-unsaved: #e8a33d;
+  --state-error: #e5484d;
+  --state-warn: #d8a200;
+  --state-ok: #49b86b;
+  --mono: ui-monospace, 'SFMono-Regular', 'Noto Sans Mono', monospace;
+  color-scheme: dark;
+}
+
+html[data-theme='light'] {
+  --bg-base: #fbfbf9;
+  --bg-raised: #ffffff;
+  --bg-inset: #f1f1ee;
+  --bg-selection: #d6e4f7;
+  --fg-primary: #1b1c1e;
+  --fg-muted: #55585e;
+  --fg-faint: #727479;
+  --border: #deded9;
+  --accent: #1d5fd0;
+  --accent-faint: #adc4eb;
+  --state-unsaved: #b9720a;
+  --state-error: #c62a2f;
+  --state-warn: #8f6b00;
+  --state-ok: #1e7f43;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-base);
+  color: var(--fg-primary);
+  font-family: system-ui, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+  font-size: 15px;
+  /* 押せないラベルのテキスト選択を止める（§9.1.4） */
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  height: 100%;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* フォーカスは 2px の `accent` 枠（§9.2.3） */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* 動きを減らす設定を尊重する（スピナーの回転だけは残す） */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}

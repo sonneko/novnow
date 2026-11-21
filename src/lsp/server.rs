@@ -58,6 +58,11 @@ impl<W: std::io::Write> Sink for Writer<W> {
 struct ServerState {
     initialized: bool,
     cancelled: BTreeMap<String, usize>,
+    /// 要求 ID → その要求が起こしたエージェントタスク（§19.1.9 の取り消し対象）。
+    ///
+    /// `$/cancelRequest` は**要求 ID に対する**取り消しなので、その要求が起こしたタスクだけを
+    /// 止める。他の自律タスク（running / queue）には触れない。
+    started: BTreeMap<String, Vec<String>>,
     open_docs: BTreeSet<String>,
 }
 
@@ -96,17 +101,44 @@ fn cancel_target_key(msg: &Value) -> Option<String> {
         .and_then(id_key)
 }
 
-fn stop_running_agents(session: &mut Session) {
-    if !session.agents.running.is_empty() || !session.agents.queue.is_empty() {
-        let Session {
-            bench,
-            host,
-            agents,
-            clock,
-            locale,
-            ..
-        } = session;
-        let _ = crate::app::agents::stop_all(bench, host.as_mut(), agents, *clock, *locale);
+/// いま実行中・待機中のエージェントタスク（要求が起こしたものを比べるための写し）。
+fn held_tasks(session: &Session) -> Vec<String> {
+    let mut tasks: Vec<String> = session
+        .agents
+        .running
+        .iter()
+        .map(|found| found.task.clone())
+        .collect();
+    tasks.extend(session.agents.queue.iter().map(|(task, _, _)| task.clone()));
+    tasks.sort();
+    tasks
+}
+
+/// 1 つの要求が起こしたタスクだけを止める（§19.1.9「実行中の要求の取り消し」）。
+///
+/// すでに終わったタスク（running / queue に無い）では何もしない＝**完了済み ID の取り消しで
+/// 結果や部分書き込みが変わらない**。総停止（`agent.stop_all`。§15.7.4）は委譲レベルまで
+/// 下げてしまうので、ここでは使わない。
+fn cancel_tasks(session: &mut Session, tasks: &[String]) {
+    for task in tasks {
+        if !session.agents.holds(task) {
+            continue;
+        }
+        let id = task.clone();
+        {
+            let Session {
+                bench,
+                host,
+                agents,
+                clock,
+                ..
+            } = session;
+            crate::app::agents::cancel(&id, bench, host.as_mut(), agents, *clock);
+        }
+        session.push(crate::app::event::AppEvent::Cancelled {
+            op: "agent.task_run".to_owned(),
+            handle: id,
+        });
     }
 }
 
@@ -144,13 +176,24 @@ pub fn run(session: &mut Session, root: &str, input: &mut dyn BufRead, out: &mut
                 );
                 continue;
             };
+            // すでに終わった（running / queue から外れた）タスクの対応は忘れる。完了済み ID
+            // の取り消しで結果や部分書き込みが変わらないようにする（§19.1.9）。
+            state.started.retain(|_, tasks| {
+                tasks.retain(|task| session.agents.holds(task));
+                !tasks.is_empty()
+            });
             if method == "$/cancelRequest" {
                 if !consumed_cancels[idx] {
                     if let Some(key) = cancel_target_key(value) {
-                        state.add_cancel(key);
+                        state.add_cancel(key.clone());
+                        // 取り消すのは**この要求 ID に対する**ものだけ（§19.1.9）。
+                        // 知らない ID・完了済みの ID・エージェントでない要求の ID では何も止まらない。
+                        if let Some(tasks) = state.started.remove(&key) {
+                            cancel_tasks(session, &tasks);
+                        }
                     }
                 }
-                stop_running_agents(session);
+                drain(session, &mut outbox, root);
                 flush(&mut outbox, out);
                 continue;
             }
@@ -177,7 +220,11 @@ pub fn run(session: &mut Session, root: &str, input: &mut dyn BufRead, out: &mut
                         }
                     }
                     if cancelled_now {
-                        stop_running_agents(session);
+                        // 処理を始める前に取り消された: その要求が起こしたタスクだけを止める
+                        // （§19.1.9）。他の自律タスクは動き続ける。
+                        if let Some(tasks) = state.started.remove(&req_key) {
+                            cancel_tasks(session, &tasks);
+                        }
                         let err = Error::cancelled(session.locale);
                         write_app_error(out, req_id.clone(), REQUEST_CANCELLED, &err);
                         flush(&mut outbox, out);
@@ -188,6 +235,9 @@ pub fn run(session: &mut Session, root: &str, input: &mut dyn BufRead, out: &mut
 
             let method = method.to_owned();
             let params = value.get("params").cloned().unwrap_or(Value::Null);
+            // 要求 ID → タスクの対応を取るため、処理の前後で実行中・待機中を比べる
+            let request_key = id.as_ref().and_then(id_key);
+            let before = request_key.is_some().then(|| held_tasks(session));
             match handle(&mut state, session, &mut outbox, root, &method, &params) {
                 Ok(Some(outcome)) => {
                     if let Some(id) = id {
@@ -215,6 +265,17 @@ pub fn run(session: &mut Session, root: &str, input: &mut dyn BufRead, out: &mut
                             }
                         }
                     }
+                }
+            }
+            if let (Some(key), Some(before)) = (request_key, before) {
+                let started: Vec<String> = held_tasks(session)
+                    .into_iter()
+                    .filter(|task| !before.contains(task))
+                    .collect();
+                if started.is_empty() {
+                    state.started.remove(&key);
+                } else {
+                    state.started.entry(key).or_default().extend(started);
                 }
             }
             flush(&mut outbox, out);

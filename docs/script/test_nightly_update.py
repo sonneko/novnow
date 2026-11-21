@@ -29,7 +29,7 @@ class FakeGitHub:
         vsix = io.BytesIO()
         with zipfile.ZipFile(vsix, 'w') as archive:
             archive.writestr('extension/package.json', json.dumps({
-                'publisher': 'sonneko', 'name': 'novnow', 'version': '0.1.2',
+                'publisher': 'sonneko', 'name': 'novnow', 'version': '0.1.1',
             }))
         self.files = {
             updater.BINARY_ASSET: buffer.getvalue(), updater.VSIX_ASSET: vsix.getvalue(),
@@ -61,7 +61,7 @@ class UpdaterTests(unittest.TestCase):
             self.assertEqual(updater.fetch_bundle(directory, FakeGitHub()), 'a' * 40)
             self.assertEqual((directory / 'novnow').read_bytes(), b'fake executable')
             self.assertEqual((directory / 'novnow').stat().st_mode & 0o777, 0o755)
-            self.assertEqual(updater.verify_vsix(directory), '0.1.2')
+            self.assertEqual(updater.verify_vsix(directory), '0.1.1')
 
     def test_checksum_mismatch_does_not_extract_binary(self):
         github = FakeGitHub()

@@ -1,0 +1,29 @@
+[package]
+name = "novnow-native-bridge"
+version = "0.0.0"
+edition = "2021"
+description = "novnow の第 2 の画面実装（REF:docs/specifications/webui.md §21）のネイティブ用の橋渡し。Tauri に依存しない部分"
+license = "MIT"
+repository = "https://github.com/sonneko/novnow"
+publish = false
+
+# Tauri のコマンド 4 つ（`REF:webui/src-tauri/src/main.rs`）の中身。Tauri に依存しないので、
+# WebView の開発ライブラリが無い環境（作業サンドボックス・CI の `webui` ジョブ）でも
+# 組めて試せる。`REF:webui/tests/l6.test.mjs` はこのクレートを通してブラウザ版と突き合わせる。
+[lib]
+name = "novnow_native_bridge"
+path = "src/lib.rs"
+
+[dependencies]
+# 機能核（§19.1 の単一実装点）。**このクレートが使うのは `Session` の JSON の口と、既定ホスト
+# `FsHost`（`Session::open` / `Session::create` の中）、それに新規作成の場所を機能核と同じ
+# 規則で解くための関数 2 つ（`storage_fs::resolve`・`write_policy::normalize`）だけ**。
+# `src/` は第 2 のために変えない（`REF:docs/plans.md#webui-parallel` の所有者表）。
+novnow = { path = "../../..", default-features = false }
+serde_json = "1"
+
+# root の workspace（`REF:Cargo.toml`）にも、Tauri 側の workspace
+# （`REF:webui/src-tauri/Cargo.toml`。Tauri のクレートを解決できる環境が要る）にも入れない。
+# このクレートだけを組むときは、依存の版を root の `Cargo.lock` に合わせる
+# （`REF:webui/src-tauri/README.md` の「試す」）。
+[workspace]

@@ -112,15 +112,22 @@ async function shot(tab, name) {
   await tab.screenshot({ path: path.join(OUT, `${name}.png`) });
 }
 
-// IndexedDB を読む（ページの中で）。DB がまだ無ければ作らない（版 1 の空の DB を先に作ると、novnow の
-// onupgradeneeded が走らずストアが無いままになる）
+// IndexedDB を読む（ページの中で）。DB がまだ無ければ作らない（空の DB を先に作ると、novnow の
+// onupgradeneeded が走らずストアが無いままになる）。版とストアの一覧も返すので、§13.3.8 の
+// 版 1 → 2 の更新（`snapshots` が足わり、既存のレコードはそのまま）もこれで見る。
+const STORES = ['projects', 'files', 'app', 'snapshots'];
+const empty = (version, stores) => Object.fromEntries(
+  [...STORES.map((name) => [name, []]), ['version', version], ['stores', stores]]);
+
 async function db(tab) {
   return tab.evaluate(
-    () =>
+    (stores) =>
       new Promise(async (resolve) => {
+        const emptyState = (version, names) => resolve(
+          Object.fromEntries([...stores.map((name) => [name, []]), ['version', version], ['stores', names]]));
         const known = await indexedDB.databases();
         if (!known.some((entry) => entry.name === 'novnow')) {
-          resolve({ projects: [], files: [], app: [] });
+          emptyState(0, []);
           return;
         }
         const open = indexedDB.open('novnow');
@@ -128,19 +135,22 @@ async function db(tab) {
         open.onsuccess = () => {
           const database = open.result;
           const names = Array.from(database.objectStoreNames);
-          if (!names.includes('projects')) {
-            resolve({ projects: [], files: [], app: [] });
+          const wanted = stores.filter((name) => names.includes(name));
+          if (!wanted.includes('projects')) {
+            database.close();
+            emptyState(database.version, names);
             return;
           }
-          const tx = database.transaction(['projects', 'files', 'app'], 'readonly');
-          const out = {};
-          let pending = 3;
-          for (const store of ['projects', 'files', 'app']) {
+          const tx = database.transaction(wanted, 'readonly');
+          const out = { version: database.version, stores: names };
+          let pending = wanted.length;
+          for (const store of wanted) {
             const request = tx.objectStore(store).getAll();
             request.onsuccess = () => {
               out[store] = request.result;
               pending -= 1;
               if (pending === 0) {
+                for (const name of stores) out[name] ??= [];
                 database.close();
                 resolve(out);
               }
@@ -148,6 +158,7 @@ async function db(tab) {
           }
         };
       }),
+    STORES,
   );
 }
 
@@ -497,6 +508,93 @@ async function main() {
       return state.projects.find((project) => project.name === '改名した') ?? null;
     });
     check(renamed?.id === created?.id, 'F2 で名前を変えた（§13.4）');
+
+    // 8b. スナップショット（§13.3.8）: F9 のパネルで保存 → 別の経路でファイルを変える → 復元 → 削除
+    await key(tab, 'F9');
+    await sleep(900);
+    await shot(tab, '09a-snapshots-empty');
+    const beforeSnapshots = await db(tab);
+    check(beforeSnapshots.version === 2 && beforeSnapshots.stores.includes('snapshots'),
+      `§13.3.2: DB は版 2 で snapshots ストアがある（版 ${beforeSnapshots.version}）`);
+    check(beforeSnapshots.snapshots.length === 0, '§13.3.8: 最初はスナップショットが無い');
+    await key(tab, 's');
+    await tab.keyboard.type('第一稿');
+    await shot(tab, '09b-snapshot-name');
+    await key(tab, 'Enter');
+    const savedSnapshot = await until('スナップショットの保存', async () => {
+      const state = await db(tab);
+      return state.snapshots.find((entry) => entry.name === '第一稿') ?? null;
+    });
+    check(savedSnapshot !== null, '§13.3.8: スナップショットを保存した');
+    check(savedSnapshot?.project_id === created.id, '§13.3.8: 写しはそのプロジェクトのもの');
+    check((savedSnapshot?.files ?? []).length > 0, '§13.3.8: 写しはプロジェクトの全ファイル');
+    check(savedSnapshot?.files?.some((entry) => entry.path === 'assets/portrait.png' && entry.bytes),
+      '§13.3.8: バイナリ資料も bytes のまま写る');
+    // 同じ名前は 1 プロジェクトに 1 つ（規則に合わない入力は実行できない）
+    await sleep(700);
+    await key(tab, 's');
+    await tab.keyboard.type('第一稿');
+    await key(tab, 'Enter');
+    await sleep(900);
+    check((await db(tab)).snapshots.length === 1, '§13.3.8: 同じ名前のスナップショットは増えない');
+    await key(tab, 'Escape');
+    await sleep(400);
+    // スナップショットのあとに、別の経路でファイルを変える（既存 1 件の中身 + 新しい 1 件）
+    const tomlBefore = file(beforeSnapshots, created.id, 'project.toml');
+    await tab.evaluate(({ projectId, toml }) => new Promise((resolve, reject) => {
+      const request = indexedDB.open('novnow');
+      request.onsuccess = () => {
+        const database = request.result;
+        const tx = database.transaction(['files'], 'readwrite');
+        const store = tx.objectStore('files');
+        const stamp = '2026-11-12T09:00:00.000Z';
+        store.put({ project_id: projectId, path: 'project.toml', text: `${toml}\n# あとから足した行`, updated_at: stamp });
+        store.put({ project_id: projectId, path: 'materials/smoke-added.md', text: 'あとから足した資料', updated_at: stamp });
+        tx.oncomplete = () => { database.close(); resolve(); };
+        tx.onerror = () => reject(tx.error);
+      };
+      request.onerror = () => reject(request.error);
+    }), { projectId: created.id, toml: tomlBefore });
+    const changed = await until('スナップショットのあとの変更', async () => {
+      const state = await db(tab);
+      return file(state, created.id, 'materials/smoke-added.md') === 'あとから足した資料' ? state : null;
+    });
+    check(changed !== null && file(changed, created.id, 'project.toml').includes('あとから足した行'),
+      'スナップショットのあとにファイルが変わった');
+    // 復元（名前の入力で確かめる。プロジェクトの削除と同じ形）
+    await key(tab, 'r');
+    await tab.keyboard.type('第一稿');
+    await shot(tab, '09c-snapshot-restore');
+    await key(tab, 'Enter');
+    const restored = await until('スナップショットからの復元', async () => {
+      const state = await db(tab);
+      return file(state, created.id, 'materials/smoke-added.md') === null ? state : null;
+    });
+    check(restored !== null, '§13.3.8: スナップショットに無いファイルは復元で消える');
+    check(file(restored, created.id, 'project.toml') === tomlBefore, '§13.3.8: 中身は写しに戻る');
+    check(restored?.snapshots.length === 1, '§13.3.8: 復元してもスナップショットは残る');
+    const restoredIcon = restored?.files.find((entry) => entry.project_id === created.id && entry.path === 'assets/portrait.png');
+    check(restoredIcon && JSON.stringify(restoredIcon.bytes) === JSON.stringify(iconBytes),
+      '§13.3.8: バイナリ資料も写しどおりに戻る');
+    const stampBefore = beforeSnapshots.projects.find((project) => project.id === created.id)?.updated_at;
+    const stampAfter = restored?.projects.find((project) => project.id === created.id)?.updated_at;
+    check(stampAfter > stampBefore, `§13.3.3: 復元で projects.updated_at が更新された（${stampBefore} → ${stampAfter}）`);
+    // 削除（スナップショットだけ消え、作品は触らない）
+    await key(tab, 'Delete');
+    await tab.keyboard.type('第一稿');
+    await shot(tab, '09d-snapshot-remove');
+    await key(tab, 'Enter');
+    const afterRemove = await until('スナップショットの削除', async () => {
+      const state = await db(tab);
+      return state.snapshots.length === 0 ? state : null;
+    });
+    check(afterRemove !== null, '§13.3.8: スナップショットを削除した');
+    check(file(afterRemove, created.id, 'project.toml') === tomlBefore,
+      '§13.3.8: スナップショットの削除は作品を触らない');
+    await key(tab, 'Escape');
+    await sleep(600);
+    await shot(tab, '09e-snapshots-closed');
+
     const [chooser] = await Promise.all([tab.waitForFileChooser({ timeout: 5000 }), key(tab, 'Control+i')]);
     await chooser.accept([zip]);
     const imported = await until('Zip の取り込み', async () => {
@@ -560,6 +658,55 @@ async function main() {
     const localKeys = await tab.evaluate(() => Object.keys(localStorage));
     check(localKeys.length === 0, 'IndexedDB が無くても LocalStorage に書かない（§13.3.7）');
     await tab.close();
+
+    // 11. §13.3.8: DB の版 1 → 2 の更新（`snapshots` だけが足わり、既存の作品はそのまま）。
+    // 本体の筋書きを汚さないよう、別のブラウズコンテキスト（＝別の保存領域）で確かめる。
+    const context = await browser.createBrowserContext();
+    const upgradeTab = await context.newPage();
+    await upgradeTab.evaluateOnNewDocument((language) => {
+      Object.defineProperty(navigator, 'language', { get: () => language });
+    }, process.env.UI_LANG || 'ja-JP');
+    // 同じ原点の空ページ（404）で版 1 の DB を先に作る
+    await upgradeTab.goto(`${ADDRESS}__upgrade__`, { waitUntil: 'load' });
+    await upgradeTab.evaluate(() => new Promise((resolve, reject) => {
+      const request = indexedDB.open('novnow', 1);
+      request.onupgradeneeded = () => {
+        const database = request.result;
+        database.createObjectStore('projects', { keyPath: 'id' }).createIndex('by_updated', 'updated_at');
+        database.createObjectStore('files', { keyPath: ['project_id', 'path'] }).createIndex('by_project', 'project_id');
+        database.createObjectStore('app', { keyPath: 'key' });
+      };
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const database = request.result;
+        const tx = database.transaction(['projects', 'files'], 'readwrite');
+        const stamp = '2026-01-02T03:04:05.000Z';
+        tx.objectStore('projects').put({
+          id: 'legacy', name: '版 1 の作品', created_at: stamp, updated_at: stamp,
+          schema_version: 1, origin: 'new',
+        });
+        tx.objectStore('files').put({ project_id: 'legacy', path: 'contents/01.cnov', text: '版 1 の本文', updated_at: stamp });
+        tx.oncomplete = () => { database.close(); resolve(); };
+        tx.onerror = () => reject(tx.error);
+      };
+    }));
+    const seeded = await db(upgradeTab);
+    check(seeded.version === 1 && seeded.projects.length === 1 && !seeded.stores.includes('snapshots'),
+      `版 1 の DB を用意した（版 ${seeded.version}、ストア ${seeded.stores.join('/')}）`);
+    await upgradeTab.goto(ADDRESS, { waitUntil: 'load' });
+    const upgraded = await until('版 1 → 2 の更新', async () => {
+      const state = await db(upgradeTab);
+      return state && state.version === 2 ? state : null;
+    }, 60000);
+    check(upgraded?.stores.includes('snapshots'), '§13.3.8: 更新で snapshots ストアが足わった');
+    check(upgraded?.projects.some((project) => project.id === 'legacy' && project.name === '版 1 の作品'),
+      '§13.3.8: 版が上がっても既存のプロジェクトはそのまま');
+    check(file(upgraded, 'legacy', 'contents/01.cnov') === '版 1 の本文', '§13.3.8: 既存の本文もそのまま');
+    check((upgraded?.snapshots ?? []).length === 0, '§13.3.8: 更新で勝手にスナップショットは出来ない');
+    await sleep(1500);
+    await shot(upgradeTab, '14-upgraded-picker');
+    await upgradeTab.close();
+    await context.close();
   } finally {
     await browser.close();
     server.close();

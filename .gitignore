@@ -11,3 +11,14 @@ python/novnow-py/target/
 .pytest_cache/
 .mypy_cache/
 *.so
+
+# 第 2 の画面実装（`REF:docs/plans.md#webui`）
+# wasm-bindgen の生成物はビルドで作る（`bash scripts/webui-build.sh`）
+webui/src/wasm/
+webui/node_modules/
+webui/dist/
+crates/novnow-wasm/target/
+# workspace の member になったので、`crates/novnow-wasm/Cargo.lock` は使わない（root の Cargo.lock）
+crates/novnow-wasm/Cargo.lock
+# ブラウザのスモークテストが作業用に開くプロジェクト（`webui` の dev サーバから作られる）
+/project.toml/

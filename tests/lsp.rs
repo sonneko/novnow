@@ -22,7 +22,7 @@ use novnow::core::features::project::line_starts_of;
 use novnow::core::model::document::Document;
 use novnow::core::policy::ProjectPath;
 use novnow::core::template;
-use novnow::lsp::methods::uri_of;
+use novnow::lsp::methods::{path_of, uri_of};
 use novnow::lsp::{commands, convert, framing, server};
 
 /// プロジェクトルート（URI と相対パスの往復にだけ使う。メモリホストなので実体は無い）。
@@ -1346,4 +1346,451 @@ fn cancel_request_returns_minus_32800_without_side_effects_and_did_change_config
         result_of(&fs_messages, 3)["settings"]["context_sections"],
         json!(7)
     );
+}
+
+// =========================================================================== Issue #61 回帰検査
+
+/// 診断の位置（§19.4.2）。**実際の byte 範囲を UTF-16 に直した**行・列で出し、どの通知でも
+/// `start <= end` になる。
+///
+/// byte の列をそのまま `character` に入れ、`end` を行の長さで埋めると、日本語の行で
+/// `start > end` の範囲ができる（標準クライアントは範囲を解釈できない）。
+#[test]
+fn diagnostic_positions_are_utf16_offsets_and_never_run_backwards() {
+    let mut session = open();
+    // 0 行目: 注釈 / 1 行目: 見出し / 2 行目: 日本語 / 3 行目: 非 BMP（サロゲート組）/ 4 行目: ASCII
+    let text = "// 注釈の行\n@01-01-01 屋根裏の星図\nあああ'未定義\n🌟🌟'未定義絵文字\nascii 'undefined_ref\n";
+    let uri = uri_of(ROOT, MANUSCRIPT);
+    let messages = talk(
+        &mut session,
+        &[
+            request(1, "initialize", json!({})),
+            notify("initialized", json!({})),
+            notify(
+                "textDocument/didOpen",
+                json!({ "textDocument": { "languageId": "novnow", "text": text, "uri": uri, "version": 1 } }),
+            ),
+            notify(
+                "textDocument/didChange",
+                json!({
+                    "contentChanges": [{ "text": text }],
+                    "textDocument": { "uri": uri, "version": 2 },
+                }),
+            ),
+            notify("exit", Value::Null),
+        ],
+    );
+
+    let published = notifications(&messages, "textDocument/publishDiagnostics");
+    assert!(published.len() >= 2, "診断が出ていない: {messages:?}");
+
+    // 行（0 始まり）→ 期待する `start.character` / `end.character`（UTF-16 のコード単位）
+    let expected: &[(u64, u64, u64, &str)] = &[
+        (2, 3, 7, "'未定義"),     // 日本語: byte 列なら 9（`start > end` になった側）
+        (3, 4, 7, "'未定"),       // 非 BMP: 🌟 2 つは byte 8・UTF-16 4 単位
+        (4, 6, 16, "'undefined"), // ASCII: byte 列と UTF-16 列が一致する側
+    ];
+    let mut seen: Vec<(u64, u64, u64)> = Vec::new();
+    for params in &published {
+        assert_eq!(params["uri"], json!(uri), "{params}");
+        for found in params["diagnostics"].as_array().expect("diagnostics") {
+            let range = &found["range"];
+            let start_line = range["start"]["line"].as_u64().expect("start.line");
+            let start = range["start"]["character"]
+                .as_u64()
+                .expect("start.character");
+            let end_line = range["end"]["line"].as_u64().expect("end.line");
+            let end = range["end"]["character"].as_u64().expect("end.character");
+            // どの診断も範囲が逆にならない（§19.4.1 の Position）
+            assert!(
+                (start_line, start) <= (end_line, end),
+                "範囲が逆: {found}（{text:?}）"
+            );
+            // 行の UTF-16 長を超えない（byte 列をそのまま入れていない）
+            let line = text
+                .split('\n')
+                .nth(start_line as usize)
+                .unwrap_or_default();
+            assert!(
+                start <= convert::utf16_len(line) as u64,
+                "列が行の UTF-16 長を超えている（byte 列のまま）: {found}"
+            );
+            // LSP の位置を byte に戻すと、診断が指すトークンそのものになる（往復）
+            let bytes = convert::range_of(range, text);
+            let slice = &text[bytes.clone()];
+            assert!(
+                slice.starts_with('\''),
+                "範囲が参照トークンを指していない: {found} → {slice:?}"
+            );
+            seen.push((start_line, start, end));
+        }
+    }
+    for (line, start, end, slice) in expected {
+        assert!(
+            seen.contains(&(*line, *start, *end)),
+            "{line} 行目の {slice:?} が UTF-16 の位置（{start}..{end}）で出ていない: {seen:?}"
+        );
+    }
+}
+
+/// `textDocument/codeAction`（§19.4.2）は**編集を返すものだけ**を、`command` を付けずに返す。
+///
+/// 標準クライアントは `edit` を適用した**後**に `command` も実行するので、両方を付けると同じ
+/// 編集が 2 回当たる。実行は `workspace/executeCommand` + `lang.code_action`（引数はオブジェクト）
+/// でいつでもできる（§19.4.5）。
+#[test]
+fn code_actions_return_edits_without_a_command_and_execute_command_applies_them_once() {
+    let mut session = open();
+    let text = "// 注釈の行\n@01-01-01 屋根裏の星図\nあああ'未定義\n";
+    let uri = uri_of(ROOT, MANUSCRIPT);
+    let at = text.find("あああ'未定義").expect("診断の行");
+    let whole_line = json!({
+        "end": convert::position_json(text, at + "あああ'未定義".len()),
+        "start": convert::position_json(text, at),
+    });
+    let messages = talk(
+        &mut session,
+        &[
+            request(1, "initialize", json!({})),
+            notify("initialized", json!({})),
+            notify(
+                "textDocument/didOpen",
+                json!({ "textDocument": { "languageId": "novnow", "text": text, "uri": uri, "version": 1 } }),
+            ),
+            request(
+                2,
+                "textDocument/codeAction",
+                json!({ "context": { "diagnostics": [] }, "range": whole_line, "textDocument": { "uri": uri } }),
+            ),
+            notify("exit", Value::Null),
+        ],
+    );
+
+    let actions = result_of(&messages, 2);
+    let items = actions
+        .as_array()
+        .unwrap_or_else(|| panic!("CodeAction[] ではない: {actions}"));
+    assert!(!items.is_empty(), "E001 があるのに候補が無い: {actions}");
+    for action in items {
+        // 実行できない `command` を付けない（付けると編集が 2 回当たる）
+        assert!(
+            action.get("command").is_none(),
+            "編集を返す action に command がある: {action}"
+        );
+        assert_eq!(action["kind"], json!("quickfix.novnow"), "{action}");
+        let changes = action["edit"]["changes"]
+            .as_object()
+            .unwrap_or_else(|| panic!("WorkspaceEdit.changes が無い: {action}"));
+        assert!(
+            changes
+                .values()
+                .any(|edits| edits.as_array().is_some_and(|list| !list.is_empty())),
+            "中身の無い編集を返している: {action}"
+        );
+        // 編集の位置も UTF-16（§19.4.1）
+        for (edit_uri, edits) in changes {
+            let path =
+                path_of(ROOT, edit_uri).unwrap_or_else(|| panic!("URI が戻せない: {edit_uri}"));
+            let target = session
+                .run("document.get", json!({ "path": path }))
+                .expect("document.get");
+            let body = target["text"].as_str().expect("text");
+            for edit in edits.as_array().expect("TextEdit[]") {
+                let range = convert::range_of(&edit["range"], body);
+                assert!(
+                    range.start <= range.end && range.end <= body.len(),
+                    "編集の範囲が文書の外: {edit}（{path}）"
+                );
+                assert!(edit.get("newText").is_some(), "newText が無い: {edit}");
+            }
+        }
+    }
+
+    // クライアントの真似: 返ってきた `edit` だけを当てる → 登録は 1 回
+    let words_uri = uri_of(ROOT, "words.md");
+    let before = session
+        .run("document.get", json!({ "path": "words.md" }))
+        .expect("document.get");
+    let mut body = before["text"].as_str().expect("text").to_owned();
+    let edits = items[0]["edit"]["changes"][&words_uri]
+        .as_array()
+        .unwrap_or_else(|| panic!("words.md の編集が無い: {}", items[0]));
+    for edit in edits {
+        let range = convert::range_of(&edit["range"], &body);
+        body.replace_range(range, edit["newText"].as_str().expect("newText"));
+    }
+    assert_eq!(
+        body.matches("# 未定義").count(),
+        1,
+        "クライアントが編集を当てた結果が 2 重: {body}"
+    );
+
+    // 実行の口（§19.4.5）: 正規の名前 + オブジェクト引数で 1 回だけ当たる
+    let mut session = open();
+    let messages = talk(
+        &mut session,
+        &[
+            request(1, "initialize", json!({})),
+            notify("initialized", json!({})),
+            notify(
+                "textDocument/didOpen",
+                json!({ "textDocument": { "languageId": "novnow", "text": text, "uri": uri, "version": 1 } }),
+            ),
+            request(
+                2,
+                "workspace/executeCommand",
+                json!({
+                    "arguments": [{
+                        "apply": true,
+                        "end": at + "あああ'未定義".len(),
+                        "index": 0,
+                        "path": MANUSCRIPT,
+                        "start": at,
+                    }],
+                    "command": "lang.code_action",
+                }),
+            ),
+            notify("exit", Value::Null),
+        ],
+    );
+    for message in &messages {
+        assert!(
+            message.get("error").is_none(),
+            "lang.code_action の実行が誤った: {message}"
+        );
+    }
+    let applied = result_of(&messages, 2);
+    assert_eq!(applied["applied"], json!(0), "{applied}");
+    assert_eq!(
+        applied["written"],
+        json!(["words.md"]),
+        "編集が当たったファイルが違う: {applied}"
+    );
+    let words = session
+        .run("document.get", json!({ "path": "words.md" }))
+        .expect("document.get");
+    assert_eq!(
+        words["text"]
+            .as_str()
+            .expect("text")
+            .matches("# 未定義")
+            .count(),
+        1,
+        "同じ編集が 2 回当たっている: {}",
+        words["text"]
+    );
+}
+
+/// 1 通ずつ渡す読み口（§19.1.9）。
+///
+/// `talk` は全部を一度に渡すので、サーバは同じ読み込みの中に `$/cancelRequest` を見つけて
+/// 要求を**始める前**に取り消す（先読み。エディタが取り消しを先に送った場合）。ここでは
+/// 実物のエディタのもう一方の順、つまり「要求が処理されてタスクが起こった**後**に取り消しが
+/// 届く」状況を作る。
+struct OneMessageAtATime {
+    chunks: std::collections::VecDeque<Vec<u8>>,
+    current: Vec<u8>,
+}
+
+impl OneMessageAtATime {
+    fn new(bodies: &[String]) -> Self {
+        Self {
+            chunks: bodies.iter().map(|body| body.as_bytes().to_vec()).collect(),
+            current: Vec::new(),
+        }
+    }
+}
+
+impl std::io::Read for OneMessageAtATime {
+    fn read(&mut self, into: &mut [u8]) -> std::io::Result<usize> {
+        let count = {
+            let available = std::io::BufRead::fill_buf(self)?;
+            let count = available.len().min(into.len());
+            into[..count].copy_from_slice(&available[..count]);
+            count
+        };
+        std::io::BufRead::consume(self, count);
+        Ok(count)
+    }
+}
+
+impl std::io::BufRead for OneMessageAtATime {
+    fn fill_buf(&mut self) -> std::io::Result<&[u8]> {
+        if self.current.is_empty() {
+            self.current = self.chunks.pop_front().unwrap_or_default();
+        }
+        Ok(&self.current)
+    }
+
+    fn consume(&mut self, amount: usize) {
+        let upto = amount.min(self.current.len());
+        self.current.drain(..upto);
+    }
+}
+
+/// 1 通ずつ流し、出てきたメッセージを順番に返す。
+fn talk_one_at_a_time(session: &mut Session, bodies: &[String]) -> Vec<Value> {
+    let mut input = OneMessageAtATime::new(bodies);
+    let mut out = server::Writer(Vec::new());
+    server::run(session, ROOT, &mut input, &mut out);
+    let mut written = Cursor::new(out.0);
+    let mut messages = Vec::new();
+    while let Some(body) = framing::read_message(&mut written) {
+        messages.push(serde_json::from_str::<Value>(&body).expect("JSON"));
+    }
+    messages
+}
+
+/// エージェントを動かせるセッション（§15.7）。MCP サーバ 1 つ + 鍵あり + 呼び出しを
+/// 終わらせない（`hold`）ので、起こしたタスクは実行待ちに留まる。
+const AGENT_MCP: &str = r#"{
+  "schema_version": 1,
+  "servers": {
+    "llm-main": {
+      "transport": "stdio",
+      "command": "my-llm-mcp",
+      "env": { "API_KEY": "${NOVNOW_LLM_KEY}" },
+      "capabilities": ["sampling"],
+      "roles": ["*"]
+    }
+  }
+}"#;
+
+fn open_with_agents() -> Session {
+    let host = MemoryHost::default();
+    {
+        let mut files = host.files.borrow_mut();
+        files.mcp = true;
+        files.hold = true;
+        files
+            .env
+            .insert("NOVNOW_LLM_KEY".to_owned(), "secret".to_owned());
+    }
+    let documents = template::new_project("星屑の時計")
+        .into_iter()
+        .filter(|file| is_document(&ProjectPath::new(&file.path).expect("path")))
+        .map(|file| {
+            if file.path == "agents/mcp.json" {
+                Document::new(file.path, AGENT_MCP.to_owned())
+            } else {
+                Document::new(file.path, file.text)
+            }
+        });
+    let mut session = Session::with_documents(Box::new(host), documents.collect());
+    session.set_interface(Interface::Lsp);
+    session
+}
+
+/// `$/cancelRequest`（§19.1.9・§15）は**その要求 ID が起こしたタスクだけ**を止める。
+///
+/// 知らない ID・すでに終わった ID・エージェントを起こさない要求の ID では何も止まらず、
+/// 別の要求が起こした実行中/実行待ちのタスクは動き続ける（総停止 `agent.stop_all` とは別物で、
+/// 委譲レベルも下げない）。
+#[test]
+fn cancel_request_stops_only_the_tasks_that_request_started() {
+    let mut session = open_with_agents();
+    // 同じ節に 2 つ（役割が違うので両方できる）
+    for role in ["writer", "plotter"] {
+        let created = session
+            .run(
+                "agent.task_create",
+                json!({ "role": role, "scope": "@01-01-01-01" }),
+            )
+            .unwrap_or_else(|error| panic!("agent.task_create {role}: {error:?}"));
+        assert_eq!(created["created"].as_array().expect("created").len(), 1);
+    }
+
+    let run = |id: u64, task: &str| {
+        request(
+            id,
+            "workspace/executeCommand",
+            json!({ "arguments": [{ "id": task }], "command": "agent.task_run" }),
+        )
+    };
+    let list = |id: u64| {
+        request(
+            id,
+            "workspace/executeCommand",
+            json!({ "arguments": [{}], "command": "agent.task_list" }),
+        )
+    };
+    let status_of = |value: &Value, task: &str| {
+        value["tasks"]
+            .as_array()
+            .expect("tasks")
+            .iter()
+            .find(|found| found["id"] == json!(task))
+            .unwrap_or_else(|| panic!("{task} が無い: {value}"))["status"]
+            .clone()
+    };
+
+    let messages = talk_one_at_a_time(
+        &mut session,
+        &[
+            request(1, "initialize", json!({})),
+            notify("initialized", json!({})),
+            // 要求 30 が T0001 を、要求 31 が T0002 を起こす
+            run(30, "T0001"),
+            run(31, "T0002"),
+            // エージェントを起こさない要求（対応するタスクが無い ID）
+            request(
+                32,
+                "workspace/executeCommand",
+                json!({ "arguments": [{}], "command": "api.list" }),
+            ),
+            // 1) 知らない ID / 2) エージェントでない要求の ID: どちらも何も止めない
+            notify("$/cancelRequest", json!({ "id": 999 })),
+            notify("$/cancelRequest", json!({ "id": 32 })),
+            list(33),
+            // 3) 要求 30 だけを取り消す（4) 同じ ID の 2 回目はもう終わっている）
+            notify("$/cancelRequest", json!({ "id": 30 })),
+            notify("$/cancelRequest", json!({ "id": 30 })),
+            list(34),
+            notify("exit", Value::Null),
+        ],
+    );
+
+    // どの要求も取り消されていない（結果が返っている）
+    for id in [30u64, 31, 32, 33, 34] {
+        assert!(
+            messages
+                .iter()
+                .any(|message| message["id"] == json!(id) && message.get("result").is_some()),
+            "id {id} の結果が無い: {messages:?}"
+        );
+    }
+    assert_eq!(result_of(&messages, 30)["queued"], json!("T0001"));
+    assert_eq!(result_of(&messages, 31)["queued"], json!("T0002"));
+
+    // 知らない ID・エージェントでない ID の取り消しでは、どちらも動き続けている
+    let before = result_of(&messages, 33);
+    assert_eq!(status_of(&before, "T0001"), json!("ready"), "{before}");
+    assert_eq!(status_of(&before, "T0002"), json!("ready"), "{before}");
+
+    // 要求 30 の T0001 だけが止まり、要求 31 の T0002 は実行待ちのまま
+    let after = result_of(&messages, 34);
+    assert_eq!(status_of(&after, "T0001"), json!("canceled"), "{after}");
+    assert_eq!(status_of(&after, "T0002"), json!("ready"), "{after}");
+    assert!(
+        !session.agents().holds("T0001"),
+        "取り消したタスクがまだ実行待ちにいる: {:?}",
+        session.agents().queue
+    );
+    assert!(
+        session.agents().holds("T0002"),
+        "別の要求が起こしたタスクまで止めた: {:?}",
+        session.agents().queue
+    );
+
+    // 総停止（§15.7.4）の副作用は無い: 委譲レベルは下がったままにならない
+    let levels = session
+        .run("agent.delegation_get", json!({}))
+        .expect("delegation_get");
+    let writer = levels["levels"]
+        .as_array()
+        .expect("levels")
+        .iter()
+        .find(|level| level["role"] == json!("writer"))
+        .unwrap_or_else(|| panic!("writer が無い: {levels}"));
+    assert_eq!(writer["level"], json!("propose"), "{levels}");
 }

@@ -74,6 +74,17 @@ pub fn export_text(session: &mut Session, args: &Args) -> Result<Value> {
             "text": text,
         }));
     }
+    // 当てはまる節が無い（§17.2「何も書かない」）: 空のファイルを作らず、書き込みイベントも
+    // 監査ログも残さない。書き込みが無いので関門（§19.1.5）も掛けず 0 件を返すだけにする
+    // （CLI の `novnow export` は同じ場合に標準エラーへ知らせて 0 で終わる）。
+    if chosen.is_empty() {
+        return Ok(json!({
+            "chars": text.chars().count(),
+            "name": name,
+            "range": label,
+            "sections": 0,
+        }));
+    }
     // `out` は「利用者が明示した書き出し先」の特例（§13.1.1・§17.2）。MCP では `role` が要る
     let role = ops::gate(session, args)?;
     let written = session
