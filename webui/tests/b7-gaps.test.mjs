@@ -28,7 +28,7 @@ test('検索キーは入力面を開き、全文検索タブも同じ画面へ�
 
 test('残る検索 gap はAPIで不足する複数ファイル適用・タイムアウト等を明記している', async () => {
   const coverage = await text(new URL('lib/coverage.ts', ROOT));
-  assert.match(coverage, /プロジェクト全体の置換.*1秒中断\/部分結果/s);
+  assert.match(coverage, /search\.project は timeout\/partial を返さず、search\.replace_file は単一 path/);
   assert.match(coverage, /section: '9\.8\.3'/);
   assert.doesNotMatch(coverage, /section: '9\.8\.2'/);
 });
