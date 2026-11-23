@@ -60,15 +60,6 @@ export function lineColAt(
   return { line: index, column: Math.max(0, offset - (found?.start ?? 0)) };
 }
 
-/** 行と列から本文の位置へ（列が行より長ければ行末）。 */
-export function offsetAt(lines: readonly Line[], line: number, column: number): number {
-  const found = lines[Math.min(Math.max(line, 0), lines.length - 1)];
-  if (!found) {
-    return 0;
-  }
-  return found.start + Math.min(Math.max(column, 0), found.text.length);
-}
-
 /**
  * UTF-16 の位置を UTF-8 のバイト数へ直す（Rust 側へ渡すとき）。
  *
@@ -90,16 +81,6 @@ export function charIndex(text: string, bytes: number): number {
     index += found.length;
   }
   return text.length;
-}
-
-/** 選択範囲（UTF-16）。 */
-export interface Selection {
-  /** 始まり。 */
-  start: number;
-  /** 終わり（`start` 以上）。 */
-  end: number;
-  /** 流れの向き（`true` なら後ろから前へ選んだ）。 */
-  backward: boolean;
 }
 
 /** 文字数を数える（空白を除く。§9.6.1 の「文字数」）。 */

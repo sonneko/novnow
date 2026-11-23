@@ -70,8 +70,3 @@ export const HELP_GROUPS: readonly HelpGroup[] = [
     ],
   },
 ];
-
-/** 一覧に載っている行の数（テストが「動くキーが全部載っているか」を見るのに使う）。 */
-export const HELP_KEYS: readonly string[] = HELP_GROUPS.flatMap((group) =>
-  group.rows.map((row) => row.label),
-);

@@ -9,8 +9,6 @@
 // 引数が必要な操作（`prompt.get/diff/reset` の `name`、`mail.send` の 4 つ）は
 // `OpsDialog` の入力フォームで受け、不要な操作は即実行する。
 
-import type { OpId } from '../bridge/catalog';
-
 /** バッチ6 で画面から呼ぶ操作の ID（`command: null` のものが大半）。 */
 export type OpsId =
   | 'agent.audit_list'
@@ -48,11 +46,6 @@ export function isOpsOp(name: string): name is OpsId {
   return (OPS_PALETTE as readonly OpsRow[]).some((row) => row.name === name);
 }
 
-/** 引数が不要な操作（即実行）。 */
-export function isArglessOp(op: OpsId): boolean {
-  return op === 'agent.audit_list' || op === 'prompt.list' || op === 'session.workspace_get';
-}
-
 /** `prompt.*` の 3 つに渡す `name` の入力の形。 */
 export interface PromptInput {
   name: string;
@@ -73,9 +66,3 @@ export interface HelpInput {
 
 /** 画面が操作へ渡す引数（不要な操作は `null`）。 */
 export type OpsInput = PromptInput | MailInput | HelpInput | null;
-
-/** `mail.send` の `kind` の選択肢（`agent.md` §15.6 の 5 種。既定は `note`）。 */
-export const MAIL_KINDS = ['request', 'deliver', 'question', 'reject', 'note'] as const;
-
-/** `OpId` への收窄（`store.run` の型のため）。 */
-export type OpsOpId = OpId;

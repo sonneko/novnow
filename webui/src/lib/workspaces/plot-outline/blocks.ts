@@ -60,11 +60,6 @@ export function chapterNumber(id: string): number | null {
   return found?.[1] === undefined ? null : Number(found[1]);
 }
 
-/** 話の ID（`01-04`）の章番号。ブロックの ID が章の形（`01`）でも使える。 */
-export function chapterOfId(id: string): number | null {
-  return chapterNumber(id);
-}
-
 /** 話のブロックの ID か（`01-04`。章だけの `01` は false）。 */
 export function isEpisodeId(id: string): boolean {
   return /^\d{1,3}-\d{1,3}$/u.test(id);

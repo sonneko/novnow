@@ -167,9 +167,6 @@ export const SHORTCUTS: Readonly<Record<string, string>> = {
   'Alt+9': 'workspace-review',
 };
 
-/** `?` を押したとき（入力欄の外）。 */
-export const HELP = '?';
-
 /**
  * 画面側だけで完結する操作（`session.command` へ渡さない）。
  *
@@ -209,16 +206,6 @@ export const LOCAL: Readonly<Record<string, string>> = {
   'Ctrl+]': 'ui:nav-next',
   Escape: 'ui:close',
 };
-
-/** コマンド名からキーの表示を得る（`?` の一覧とボタンのツールチップに使う）。 */
-export function shortcutFor(command: string): string {
-  for (const [key, found] of Object.entries(SHORTCUTS)) {
-    if (found === command) {
-      return key;
-    }
-  }
-  return '';
-}
 
 /** 押されたキーをコマンド名へ写す（写せなければ `null`）。 */
 export function command(stroke: KeyStroke, options: KeyOptions): string | null {
