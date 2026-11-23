@@ -16,18 +16,10 @@
 //! 外部変更の監視は**しない**（§21.2.3・§13.3 のブラウザの規則）。MCP も呼べない（§15.8.2）。
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
 use std::rc::Rc;
 
 use novnow::adapters::clock_system;
-use novnow::app::agents::{Finished, Job};
-use novnow::app::host::{
-    save_now, ExportFailure, ExternalChange, Host, HostEvent, ReadFailure, SaveOutcome,
-};
-use novnow::core::diagnostics::Diagnostic;
-use novnow::core::policy::PolicyViolation;
-use novnow::core::policy::Violation;
-use novnow::ports::dialog::ChosenPath;
+use novnow::app::host::{save_now, ExternalChange, Host, SaveOutcome};
 
 use crate::storage::FileStore;
 
@@ -36,14 +28,8 @@ pub struct NovnowHost {
     store: Rc<dyn FileStore>,
     /// ヘッダと `project.info` に出す名前。
     name: String,
-    /// 「名前を付けて保存」で選ばれた場所（画面が設定する。§17.2）。
-    chosen: Option<(PathBuf, novnow::ports::dialog::ExportKind)>,
-    /// 利用者が明示した書き出し（`export.text --out` など）の結果を待つもの。
-    events: Vec<HostEvent>,
     /// 開始から経過した秒（保存状態機のタイマ。§9.6）。
     started_ms: f64,
-    /// 未保存の変更があるか（`beforeunload` の確認に使う。§13.3.7）。
-    unsaved: bool,
 }
 
 impl NovnowHost {
@@ -52,26 +38,8 @@ impl NovnowHost {
         Self {
             store,
             name,
-            chosen: None,
-            events: Vec::new(),
             started_ms: js_sys::Date::now(),
-            unsaved: false,
         }
-    }
-
-    /// 画面が「名前を付けて保存」の場所を決めた（`<a download>` の `suggestedName`）。
-    ///
-    /// ブラウザには OS の保存ダイアログが無いので、`export.text` の `out` は
-    /// [`NovnowHost::choose_export`] が「画面が決めた名前」を返す形で満たす（§21.2.3）。
-    ///
-    /// 画面から呼ぶ配線は書き出しの画面（W4）で入る。それまでは呼び出しが無い。
-    #[allow(dead_code)]
-    pub fn set_chosen(
-        &mut self,
-        path: impl Into<PathBuf>,
-        kind: novnow::ports::dialog::ExportKind,
-    ) {
-        self.chosen = Some((path.into(), kind));
     }
 }
 
@@ -119,41 +87,8 @@ impl Host for NovnowHost {
         self.store.remove(path)
     }
 
-    /// 「名前を付けて保存」の場所。ブラウザは OS のダイアログを使えないので、
-    /// 画面が決めた名前（`<a download>`）を返す（§21.2.3「利用者が明示したときだけ」）。
-    fn choose_export(&mut self, _suggested: &str) -> Option<ChosenPath> {
-        let (path, kind) = self.chosen.take()?;
-        Some(ChosenPath::from_save_dialog(path, kind))
-    }
-
-    /// 選ばれた場所へ書く。ブラウザの「書き出し」は**ダウンロードを始めること**なので、
-    /// 中身はメモリの正本の外（`exports/` の下）に置き、画面が `take_events` で受け取って
-    /// `Blob` にする（§13.1.1 の特例の範囲を超えない）。
-    fn write_export(&mut self, chosen: ChosenPath, text: &str) -> Result<String, ExportFailure> {
-        let name = chosen.path().to_string_lossy().into_owned();
-        let lower = name.to_ascii_lowercase();
-        if !lower.ends_with(".txt") && !lower.ends_with(".md") {
-            let violation = PolicyViolation {
-                target: chosen.path().to_path_buf(),
-                reason: Violation::NotAnExport,
-            };
-            self.events.push(HostEvent::WriteFailed(
-                name,
-                "the export must end with .txt or .md".to_owned(),
-            ));
-            return Err(ExportFailure::Refused(diagnostic(&violation)));
-        }
-        let path = format!("exports/{}", file_name(&name));
-        match self.store.put(&path, text) {
-            Ok(()) => Ok(name),
-            Err(message) => Err(ExportFailure::Failed(message)),
-        }
-    }
-
     /// 利用者が明示した書き出し先へ書く（`export.text --out`・`project.export_zip`）。
-    ///
-    /// ブラウザでは `out` を「ダウンロードの名前」として扱い、中身を `exports/` の下に
-    /// 置いてから `HostEvent::ZipExported` を積む（画面が `Blob` で受け取る）。
+    /// ブラウザでは `out` の basename を `exports/` の下に保存し、書いたパスを返す。
     fn write_chosen(
         &mut self,
         path: &str,
@@ -167,7 +102,6 @@ impl Host for NovnowHost {
             .map_err(|error| format!("the export is not UTF-8: {error}"))?;
         let stored = format!("exports/{}", file_name(path));
         self.store.put(&stored, &text)?;
-        self.events.push(HostEvent::ZipExported(path.to_owned()));
         Ok(path.to_owned())
     }
 
@@ -181,24 +115,6 @@ impl Host for NovnowHost {
             .unwrap_or_default();
         current.push_str(text);
         self.store.put(path, &current)
-    }
-
-    fn mcp_available(&self) -> bool {
-        false
-    }
-
-    fn mcp_start(&mut self, _job: Job) -> Option<u64> {
-        None
-    }
-
-    fn mcp_poll(&mut self) -> Vec<Finished> {
-        Vec::new()
-    }
-
-    fn mcp_cancel(&mut self, _job: u64) {}
-
-    fn env_var(&self, _name: &str) -> Option<String> {
-        None
     }
 
     /// メモリの正本があるので、控えも戻しもできる（§19.1.6 の原子性）。
@@ -235,12 +151,7 @@ impl Host for NovnowHost {
         Some(save_now(self, writes, removals))
     }
 
-    fn take_events(&mut self) -> Vec<HostEvent> {
-        std::mem::take(&mut self.events)
-    }
-
-    fn unsaved_changed(&mut self, unsaved: bool) {
-        self.unsaved = unsaved;
+    fn unsaved_changed(&mut self, _unsaved: bool) {
         // タブを閉じるときの確認（§13.3.7）。`beforeunload` は画面側が登録する。
         if let Some(window) = web_sys::window() {
             let event = web_sys::Event::new("novnow:unsaved").ok();
@@ -249,26 +160,9 @@ impl Host for NovnowHost {
             }
         }
     }
-
-    /// Zip のエクスポート（§13.5）。ブラウザはダウンロードを始めるだけなので `None` を返し、
-    /// 結果は [`Host::take_events`] で知らせる。
-    fn export_zip(&mut self, _name: &str) -> Option<Result<Option<String>, String>> {
-        None
-    }
 }
 
 /// パスの最後の要素（`a/b/c.txt` → `c.txt`）。
 fn file_name(path: &str) -> String {
     path.rsplit(['/', '\\']).next().unwrap_or(path).to_owned()
-}
-
-/// 関門の違反を診断にする（`write_export` の `Refused`。§13.1.1）。
-fn diagnostic(violation: &PolicyViolation) -> Diagnostic {
-    violation.diagnostic()
-}
-
-/// 読み取りの失敗を作る（ブラウザでは外部変更を見ないので使わないが、型を揃えておく）。
-#[allow(dead_code)]
-fn unreadable(path: &str, message: &str) -> ExternalChange {
-    ExternalChange::Unreadable(path.to_owned(), ReadFailure::Io(message.to_owned()))
 }

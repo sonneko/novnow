@@ -49,7 +49,7 @@ test('§9.6: native external polling and its behavioral tests exist, but no WebU
     read(WEBUI, 'src/lib/coverage.ts'),
   ]);
   assert.match(nativeMain, /fn poll_external\(/);
-  assert.match(nativeReadme, /画面が \*\*1 秒ごと\*\*に呼ぶ/);
+  assert.match(nativeReadme, /呼び出し元は 1 秒ごとに呼ぶ想定（§8\.5）だが、現在の画面はこの command を呼ばない/);
   assert.match(externalTests, /fn an_external_edit_is_reloaded_when_clean/);
   assert.match(externalTests, /fn an_external_edit_is_a_conflict_when_dirty/);
   assert.doesNotMatch(types, /pollExternal|poll_external/);
