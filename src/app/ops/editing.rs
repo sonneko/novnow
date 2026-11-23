@@ -327,7 +327,7 @@ fn step_history(session: &mut Session, forward: bool) -> Result<Value> {
     )
 }
 
-/// `nav.back`（`Ctrl+H` 親ディレクトリへ）。
+/// `nav.back`（親ディレクトリへ。専用キー割当なし）。
 pub fn nav_back(session: &mut Session, args: &Args) -> Result<Value> {
     let _ = args;
     let Some(current) = session.bench.current_id() else {
@@ -357,7 +357,7 @@ pub fn nav_back(session: &mut Session, args: &Args) -> Result<Value> {
     }
 }
 
-/// `nav.forward`（`Ctrl+Shift+H` 子の先頭へ）。
+/// `nav.forward`（子の先頭へ。専用キー割当なし）。
 pub fn nav_forward(session: &mut Session, args: &Args) -> Result<Value> {
     let _ = args;
     let Some(current) = session.bench.current_id() else {

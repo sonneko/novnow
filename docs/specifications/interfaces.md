@@ -374,8 +374,8 @@ GUI の全機能を正規操作 ID に対応づけるカタログ。この表が
 | nav.section | セクションへの移動（`Ctrl+G`） | | M—・C—（状態性） |
 | nav.jump | 行への移動（`Ctrl+L`） | | M—・C—（状態性） |
 | nav.prev / nav.next | 前の位置・次の位置（`Ctrl+[` `]`） | | M—・C—（状態性） |
-| nav.back | 親ディレクトリへ（`Ctrl+H`） | | M—・C—（状態性） |
-| nav.forward | 子の先頭へ（`Ctrl+Shift+H`） | | M—・C—（状態性） |
+| nav.back | 親ディレクトリへ（専用キー割当なし） | | M—・C—（状態性） |
+| nav.forward | 子の先頭へ（専用キー割当なし） | | M—・C—（状態性） |
 | nav.up | 1 つ上の階層へ（`Ctrl+B`） | | M—・C—（状態性。`plot.get` の level 指定で代替） |
 | nav.switcher | 切替パネルの一覧（§11.1 の 4 ワークスペース） | | M—・C—（状態性） |
 | document.get | ドキュメント（`.md`）全文の取得 | | |
