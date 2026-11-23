@@ -11,14 +11,14 @@
 | 区分 | 状態 | 対象範囲 | 参照 |
 |---|---|---|---|
 | 段階 ①（M0〜M11） | 完了 | コア仕様・全 9 ワークスペース・MCP・CLI・Web 版・ベンチマーク・サンプル一式 | `REF:docs/history.md` |
-| 設計書セクション実装状況 | 実装完了 142 節 / 実装中 0 節 / 未実装・実装計画済み 5 節 / 未実装・未計画 0 節 / 実装待ち 0 節 | 全 13 設計書の `### ` 節（合計 147 節） | `REF:docs/designs/` |
+| 設計書セクション実装状況 | 実装完了 144 節 / 実装中 3 節 / 未実装・実装計画済み 0 節 / 未実装・未計画 0 節 / 実装待ち 0 節 | 全 13 設計書の `### ` 節（合計 147 節） | `REF:docs/designs/` |
 | 仕様変更・修正（F-01〜F-44） | 実装完了（44 件） | UI・エディタ・パレット・辞書・ショートカット・性能等の修正 44 項目 | `REF:docs/plans.md#planned-fixes` |
 | 機能追加（小規模：S-01〜S-18） | 実装完了（18 件） | エージェント例指定・PWA・Zip 導入・形態素波線等の小規模機能追加 18 項目 | `REF:docs/plans.md#planned-small-features` |
 | 機能追加（比較的大規模：L-01） | 実装済み（CLI・デスクトップ） | 既存の本文テキストから `novnow` に移行するための手段の提供 | `REF:docs/plans.md#unplanned-large` |
 | 段階 ②（追加仕様 1〜27） | 実装済み・検証完了（#1〜27） | 予約済みの追加機能 27 項目（10 個の縫い代で受け入れ準備済み） | `REF:docs/plans.md#stage-2` |
 | 段階 ③（§19 外部インターフェース） | 実装済み・検証完了（H1〜H7。Python 拡張もサンドボックスでビルドし pytest まで通る。正式な wheel 検証は CI のホイール行列 `REF:.github/workflows/wheels.yml`。`REF:docs/plans.md` §5.5・§5.6） | Rust API・Python API・LSP・MCP 拡張・CLI 拡張による GUI 全機能のヘッドレス公開 | `REF:docs/plans.md#stage-3` |
 | 配布（D-01〜D-20） | v0.1.0公開済み。既知の問題は公開版一覧で管理 | 5 形態・17 成果物とSHA256SUMS、公開・検査ワークフロー | `REF:docs/plans.md#distribution` |
-| 第 2 の画面実装（仕様 §21） | 計画確定・未着手（W1 の文書整備だけ完了） | Svelte + TypeScript の画面と Tauri のネイティブ実行を、第 1 の画面と並行して作る | `REF:docs/plans.md#webui` |
+| 第 2 の画面実装（仕様 §21） | API 判定は equivalent（PENDING 0、119/119 対象操作）。画面仕様の SPEC_GAPS 4 件が残り、§21.5.2 #1 未達。#2 は PR #84 で承認済み、#3 実機確認は未実施 | Svelte + TypeScript の第2画面を提供中。Tauri 基盤はあるが画面から未接続。残る制限は `REF:docs/specifications/external.md` §20.6.5 | `REF:docs/plans.md#webui` |
 <!-- SYNC:END stage1-status -->
 
 ---
