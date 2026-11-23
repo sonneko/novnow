@@ -70,11 +70,11 @@ docs/
 - **Rust**: `REF:rust-toolchain.toml` の `channel = "stable"`（サンドボックスの退避ツールチェーンは 1.99.0。`REF:.github/toolchain.env` の `TOOLCHAIN=stable` も同じ指定）。ターゲット `x86_64-unknown-linux-gnu` および `wasm32-unknown-unknown`、コンポーネント `rustfmt` / `clippy`。
 - **Linux システムライブラリ（`ui` feature ビルド時）**:
   - `libxcb-render0-dev`, `libxcb-shape0-dev`, `libxcb-xfixes0-dev`, `libxkbcommon-dev`, `libssl-dev`, `libgtk-3-dev`
-- **Web ビルド・スモークテスト時**:
-  - `trunk`（`0.21.14`）、`wasm-bindgen-cli`（`0.2.118`）、`nodejs` / `playwright` / Headless Chromium。
+- **第 1 の Web ビルド・スモークテスト時**:
+  - `trunk`（`0.21.14`）、`wasm-bindgen-cli`（第1の `Cargo.lock` に合わせる）、`nodejs` / `playwright` / Headless Chromium。
 - **第 2 の画面実装（`REF:webui/...`、`REF:crates/novnow-wasm/...`。`REF:docs/plans.md#webui`）**:
-  - Node.js 22（`website/`・`vscode/` と同じ版）、`npm ci --prefix webui` で固定、`wasm-pack`、`rustup target add wasm32-unknown-unknown`。
-  - Tauri 2 の前提（Linux は `libwebkit2gtk-4.1-dev` / `libappindicator3-dev` / `librsvg2-dev`）。CI では開発版の成果物を作るときだけ入れる。
+  - Node.js 22、`npm ci --prefix webui`、`rustup target add wasm32-unknown-unknown` と、root `Cargo.lock` と同じ版の `wasm-bindgen-cli`。`scripts/webui-build.sh` は `wasm-pack` ではなく Cargo と `wasm-bindgen` CLI を使う。
+  - Tauri 2 の実機開発の前提（Linux は `libwebkit2gtk-4.1-dev` / `libappindicator3-dev` / `librsvg2-dev`）。現在 CI が行うのは native bridge crate のテストで、Tauri アプリ成果物のビルドではない。
 
 ### 2.2 Arena サンドボックス環境でのツールチェーン復旧
 
@@ -167,22 +167,20 @@ novnow/
 └── tests/                     # 統合テスト・アーキテクチャ境界検査・仕様照合テスト群
 ```
 
-第 2 の画面実装（`REF:docs/plans.md#webui`、仕様 §21）を作るときは、上のツリーに次の 3 つが加わる（W1 の時点ではまだ無い。空のディレクトリを先に置かない）。
+第 2 の画面実装（`REF:docs/plans.md#webui`、仕様 §21）は追加済み。現在の構成は次のとおり（`src/wasm/` はビルド生成物であり Git に入れない）。
 
 ```text
 novnow/
-├── crates/
-│   └── novnow-wasm/           # ブラウザ用の橋渡し（wasm-pack の cdylib。`src/lib.rs` と IndexedDB の Host）
-└── webui/                     # Svelte + TypeScript の画面（`src/lib/**`、`src-tauri/` は W5 で追加）
-    ├── package.json / package-lock.json
-    ├── vite.config.ts / tsconfig.json
-    ├── src/wasm/              # 生成物（`scripts/webui-build.sh`）。git に入れない
-    └── tests/                 # session.test.mjs（IndexedDB の永続化） / parity.mjs（121 操作の到達） /
-                               # coverage.mjs（§9〜§12 の未提供）
+├── crates/novnow-wasm/        # ブラウザ用 WASM bridge と IndexedDB Host
+└── webui/                     # Svelte + TypeScript の画面
+    ├── src/lib/               # shell・editor・keyboard・9 workspaces など
+    ├── src-tauri/             # Tauri app / commands / NativeSession bridge と tests
+    ├── src/wasm/              # scripts/webui-build.sh の生成物（ignore）
+    └── tests/                 # workspace tests、parity.mjs、b7-gaps / b8-closure など
 ```
 
 - `webui/` は第 1 の画面（`REF:src/ui/`）を import しない。共有するのは「生成物」（文言・色・操作 ID）だけで、生成は `scripts/` の Python が行う（`REF:docs/plans.md#webui-w3`）。
-- `crates/` は `REF:Cargo.toml` の `[workspace] members` に加える（`python/novnow-py` と同じく、解決から外す場合は `exclude` の扱いを `REF:docs/plans.md#webui-w2` で決める）。
+- `crates/novnow-wasm/` は `REF:Cargo.toml` の `[workspace members]` に追加済み。Tauri bridge の source と tests もあるが、WebUI の entry は現在 `wasmBridge()` 固定で native bridge を画面から呼ばない（仕様 §20.6.5）。
 
 リポジトリ直下に置いてよいのは、ビルド・配布・文書・サイトに直接必要なファイルとディレクトリだけとし、動作確認用のプロジェクトは `examples/` 配下に置く。
 
@@ -341,7 +339,7 @@ CI だけに検査が増えた時点で静かに壊れるため。CI の `docs` 
 | 配布 | `tests/distribution.rs` / `scripts/release-check.sh` / `scripts/release-matrix.py` / `scripts/action/test_install.py` / `docs/script/test_release_policy.py` | 市場公開の実績（発行者トークン待ち）、実機での起動（§4.9） |
 | 依存 | `.github/dependabot.yml` / `.github/workflows/dependency-audit.yml` / `scripts/dependency-audit.py` / `scripts/action/dependency-audit-issue.sh` / `deny.toml` / `docs/script/test_dependency_policy.py` | 実害の判断（開発経路の指摘を上げるか残すか）、licenses / bans の検査、Dependabot alerts の有効化（リポジトリ設定側。§4.10） |
 | 公開サイト | `scripts/website-check.py`（生成 HTML のリンク・版表示・診断数・inline code・検索索引） / `scripts/diagnostics-site.py` / `scripts/api-site.py` / `scripts/docs-site.py` / `docs/script/test_website.py` / `website/integrations/base-links.test.mjs` / `website/integrations/search-index.test.mjs` | 手書きの紹介文の文面（§4.6.1）、見た目・実ブラウザの描画、検索結果の並び順の妥当性 |
-| 第 2 の画面（W2 以降） | `scripts/webui-check.sh`（生成物 3 種の一致・wasm のビルド・型検査・Node の回帰・本番ビルド） / `scripts/api-ts.py` / `scripts/theme-ts.py` / `scripts/i18n-ts.py` / `webui/tests/session.test.mjs` / `docs/script/reference.py`（13 ファイル対） / `docs/plans.md#webui` の W2〜W7 | 画面の見た目（§7.5 の方針どおり固定しない）、実ブラウザの打鍵と IME（§7.5 に書いた画面テストは未作成）、Tauri の実機（§4.9） |
+| 第 2 の画面 | `scripts/webui-check.sh`（生成物 3 種・WASM。`--full` は型検査・Node 回帰・本番ビルドも実行） / `webui/tests/keys.test.mjs` / `webui/tests/project.test.mjs` / `webui/tests/parity.mjs` / `webui/tests/b7-gaps.test.mjs` / `webui/tests/b8-closure.test.mjs` / `scripts/pages-e2e.mjs`（ブラウザ起動・オフライン・チャネル分離） / `docs/script/reference.py` | 実ブラウザ上の打鍵と IME の実機確認、および Tauri の実機確認（§4.9）。自動の source/unit tests はあるが実機チェックの代替ではない。§21.5.2 #3 は未実施。 |
 
 ---
 
@@ -652,17 +650,17 @@ GUI の見た目（パレット位置、下線・波線の座標、枠線やバ�
 
 生成された `/tmp/shot.png` を `read_file` ツールで読み込むことで、サンドボックス内でも実際の描画結果を直接目視確認できる。
 
-### 7.5 第 2 の画面実装（`REF:webui/...`）のテスト（W2 以降）
+### 7.5 第 2 の画面実装（`REF:webui/...`）のテスト
 
-第 1（`REF:tests/gui.rs` のヘッドレス）に対して、第 2 は**ブラウザと Node の上**で確かめる。層を混ぜない。
+第 2 は**ブラウザと Node の上**で確かめる。自動テストと実機確認を区別し、後者を自動テストの成功で代替しない。
 
 | 層 | 何を確かめるか | どこで |
 |---|---|---|
 | 機能核（従来どおり） | 121 操作・保存状態・診断 | `REF:tests/api.rs` ほか（Rust。第 2 のために増やさない） |
 | 橋渡し（wasm） | `NovnowSession` の `run` が Rust と同じ JSON を返す | `webui/tests/session.test.mjs`（`wasm-bindgen --target web` の出力を Node で読み、IndexedDB は `fake-indexeddb` で代替する。`npm test`） |
 | キー写像 | キー → コマンド名が実在するか、`?` / `Ctrl+P` / `Esc` が画面側で完結するか、ヘルプの一覧の文言 | `webui/tests/keys.test.mjs`（`src/app/commands.rs` と `i18n/catalog.ts` を実物として読む） |
-| 画面 | キー・IME・保存の見え方・ワークスペース切替 | `webui/tests/ui.test.mjs`（Playwright。第 1 の `REF:scripts/web-smoke.mjs` と同じ `check(...)` の形。**未作成**） |
-| 到達性 | カタログ全操作に画面から届くか、§9〜§12 の未提供件数 | `webui/tests/parity.mjs` / `webui/tests/coverage.mjs` |
+| 画面 | キー写像やワークスペース部品の source/unit 回帰、公開ブラウザの起動・オフライン・入口分離 | `webui/tests/*.test.mjs` と `REF:scripts/pages-e2e.mjs`。Playwright による画面全体のキー・IME確認（`webui/tests/ui.test.mjs`）は未作成。第1と同じ範囲の実機確認は別途必要。 |
+| 到達性 | カタログの API 操作到達と、選定した§9〜§12の SPEC_GAPS 根拠 | `webui/tests/parity.mjs` / `webui/tests/b7-gaps.test.mjs` / `webui/tests/b8-closure.test.mjs`（旧 `coverage.mjs` は存在しない） |
 
 - **同じ入力で比べる**: 第 1 と第 2 の出力が同じであることは、同じ操作列を `REF:tests/golden/api_catalog.json` の順に流し、返る JSON を文字列で比べて確かめる（キー順まで含む。§19.1.4 の決定論）。
 - **実描画に頼らない**: 第 2 のテストで「見た目」を固定しない（第 1 の §7.4 の PNG に相当する仕組みは作らない）。色と文言は生成物（W3）の一致で守る。

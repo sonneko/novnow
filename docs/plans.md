@@ -12,14 +12,14 @@
 | 区分 | 状態 | 対象範囲 | 参照 |
 |---|---|---|---|
 | 段階 ①（M0〜M11） | 完了 | コア仕様・全 9 ワークスペース・MCP・CLI・Web 版・ベンチマーク・サンプル一式 | `REF:docs/history.md` |
-| 設計書セクション実装状況 | 実装完了 142 節 / 実装中 0 節 / 未実装・実装計画済み 5 節 / 未実装・未計画 0 節 / 実装待ち 0 節 | 全 13 設計書の `### ` 節（合計 147 節） | `REF:docs/designs/` |
+| 設計書セクション実装状況 | 実装完了 144 節 / 実装中 3 節 / 未実装・実装計画済み 0 節 / 未実装・未計画 0 節 / 実装待ち 0 節 | 全 13 設計書の `### ` 節（合計 147 節） | `REF:docs/designs/` |
 | 仕様変更・修正（F-01〜F-44） | 実装完了（44 件） | UI・エディタ・パレット・辞書・ショートカット・性能等の修正 44 項目 | `REF:docs/plans.md#planned-fixes` |
 | 機能追加（小規模：S-01〜S-18） | 実装完了（18 件） | エージェント例指定・PWA・Zip 導入・形態素波線等の小規模機能追加 18 項目 | `REF:docs/plans.md#planned-small-features` |
 | 機能追加（比較的大規模：L-01） | 実装済み（CLI・デスクトップ） | 既存の本文テキストから `novnow` に移行するための手段の提供 | `REF:docs/plans.md#unplanned-large` |
 | 段階 ②（追加仕様 1〜27） | 実装済み・検証完了（#1〜27） | 予約済みの追加機能 27 項目（10 個の縫い代で受け入れ準備済み） | `REF:docs/plans.md#stage-2` |
 | 段階 ③（§19 外部インターフェース） | 実装済み・検証完了（H1〜H7。Python 拡張もサンドボックスでビルドし pytest まで通る。正式な wheel 検証は CI のホイール行列 `REF:.github/workflows/wheels.yml`。`REF:docs/plans.md` §5.5・§5.6） | Rust API・Python API・LSP・MCP 拡張・CLI 拡張による GUI 全機能のヘッドレス公開 | `REF:docs/plans.md#stage-3` |
 | 配布（D-01〜D-20） | v0.1.0公開済み。既知の問題は公開版一覧で管理 | 5 形態・17 成果物とSHA256SUMS、公開・検査ワークフロー | `REF:docs/plans.md#distribution` |
-| 第 2 の画面実装（仕様 §21） | 計画確定・未着手（W1 の文書整備だけ完了） | Svelte + TypeScript の画面と Tauri のネイティブ実行を、第 1 の画面と並行して作る | `REF:docs/plans.md#webui` |
+| 第 2 の画面実装（仕様 §21） | API 判定は equivalent（PENDING 0、119/119 対象操作）。画面仕様の SPEC_GAPS 4 件が残り、§21.5.2 #1 未達。#2 は PR #84 で承認済み、#3 実機確認は未実施 | Svelte + TypeScript の第2画面を提供中。Tauri 基盤はあるが画面から未接続。残る制限は `REF:docs/specifications/external.md` §20.6.5 | `REF:docs/plans.md#webui` |
 <!-- SYNC:END stage1-status -->
 
 ---
@@ -2166,61 +2166,63 @@ Issue #55 で報告された 24 件の仕様不適合（重大・中程度 13 �
 ---
 
 <a id="webui"></a>
-## 11. 第 2 の画面実装（Web UI = Svelte + TypeScript / ネイティブ = Tauri）の計画（状態: 計画確定・未着手）
+## 11. 第 2 の画面実装（Web UI = Svelte + TypeScript / ネイティブ = Tauri）の実施状況と条件
 
-仕様は `REF:docs/specifications/webui.md`（§21）、設計は `REF:docs/designs/webui.md`（§21）に置いた。現在の画面（egui を `trunk` で Web 化し、`eframe` でデスクトップ化したもの）は**そのまま残す**。第 2 の画面を並行して作り、パリティが揃ってから置き換える。
+第2のブラウザ画面は `webui/` と `nightly-webui/` で提供中。W1〜W4 は完了し、W6 の CI・ブラウザ配備も実装済み。W5 の Tauri アプリ設定・commands・native bridge tests はあるが、画面入口は `wasmBridge()` 固定で native bridge 未接続、Tauri アプリの CI 配布ビルドもない。W7 の API 判定は119/119対象操作・未提供0で `equivalent`。ただし画面仕様の4件の `SPEC_GAPS` と実機確認が残り、§21.5.2 の置き換え条件は未達である。
+
+仕様は `REF:docs/specifications/webui.md`（§21）、設計は `REF:docs/designs/webui.md`（§21）に置く。第1の画面（egui を `trunk` で Web 化し、`eframe` でデスクトップ化したもの）は置き換え判断まで維持し、第2のブラウザ画面と並行提供する。
 
 - **なぜ並行にするか**: 第 1 は既に全機能・全診断・全キー・実機検証まで終わっている。作り直しの途中で第 1 を止めると、利用者から見て機能が減る期間ができる。2 系統を同じ機能核（`REF:src/app/mod.rs` のセッションと 121 の正規操作）の上に置けば、`core` / `app` の修正は両方へ同時に効き、二重実装の負債も出ない。
-- **依存の追加**: `webui/`（Svelte + TypeScript + Vite）と `REF:webui/...` の Tauri 2、`REF:crates/novnow-wasm/...` の wasm-pack。npm 側の依存は `website/`・`vscode/` と同じく `package-lock.json` を持ち、`npm ci` で固定する。Rust 側は新しいクレートを `core` / `app` に足さない（wasm-bindgen は既に wasm 目標で使用済み）。追加の判断は `REF:docs/add-dependencies.md` の手順に従う。
+- **依存の追加**: `webui/`（Svelte + TypeScript + Vite）、`REF:webui/src-tauri/` の Tauri 2、`REF:crates/novnow-wasm/` の WASM bridge を使用する。ブラウザ用 WASM は `scripts/webui-build.sh` が Cargo と `wasm-bindgen` CLI で組み立てる（`wasm-pack` は使わない）。npm 依存は `package-lock.json` と `npm ci` で固定する。第2の画面のために新しいクレートを `core` / `app` に足さない。依存追加の判断は `REF:docs/add-dependencies.md` の手順に従う。
 
 <a id="webui-w1"></a>
 ### 11.1 W1: 文書と骨組み（仕様・設計・計画、ディレクトリの新設）
 
-- 完了条件: 本章と §21 の仕様・設計が入っている。`REF:docs/developers.md` §3 のツリー・§1.1 のファイル対の表・§7 のテスト戦略が 13 ファイル対へ追随している。`REF:docs/script/duplicate.py` と `REF:docs/script/reference.py` が緑。
-- この段階では `webui/` を作らない（空のディレクトリを置かない）。
+- **完了**: 本章と §21 の仕様・設計、`REF:docs/developers.md` §3 のツリー・§1.1 のファイル対の表・§7 のテスト戦略を整備し、13 ファイル対へ追随した。現在の文書検査は `REF:docs/script/duplicate.py` と `REF:docs/script/reference.py` で行う。
+- 当時の「W1 では `webui/` を作らない」という条件は、その後のW2以降が実施済みの現在状態を示すものではない。
 
 <a id="webui-w2"></a>
 ### 11.2 W2: WASM の橋渡しと画面の骨格
 
-- `REF:crates/novnow-wasm/...` を作り、`NovnowSession`（`open` / `run` / `poll_events` / `flush`）を wasm-pack で公開する。Host は `REF:src/app/memory_host.rs` を土台にした「メモリ正本＋IndexedDB 書き込みキュー」。
-- `webui/` にシェル（ヘッダ・文脈ビュー・節エディタ・参照ペイン・ステータスバー）と `write` ワークスペースだけを作る。キー入力・IME・自動保存の 3 つは W2 の受け入れ条件に含める（後回しにしない。ここが崩れると後続の画面を作り直すことになる）。
-- 受け入れ: 手元で `npm run dev` を起動し、サンプル作品を開いて打鍵・節移動・保存ができ、`session.flush()` の後に再読み込みしても本文が残る。
+- **実施済み**: `REF:crates/novnow-wasm/` が `NovnowSession`（`open` / `run` / `poll_events` / `flush`）を公開する。Host は `REF:src/app/memory_host.rs` を土台としたメモリ正本＋IndexedDB 書き込みキュー。
+- `webui/` にシェル（ヘッダ・文脈ビュー・節エディタ・参照ペイン・ステータスバー）と `write` ワークスペースを実装し、キー入力・IME・自動保存も含めた。
+- **受け入れ条件**: `npm run dev` でサンプル作品を開き、打鍵・節移動・保存ができること、`session.flush()` 後の再読み込みで本文が残ること。
 
 <a id="webui-w3"></a>
 ### 11.3 W3: 生成物（文言・テーマ・操作 ID）の一本化
 
-- `scripts/i18n-ts.py`（未作成） が `REF:src/ui/i18n/*.toml` から `catalog.ts` を作り、`scripts/theme-ts.py`（未作成） が仕様 §11.1 の表から `tokens.ts` を作る。どちらも `--check` を持たせ、`REF:scripts/verify.sh` の `site-check` と同じ位置で一致を強制する。
-- 操作 ID の一覧は `REF:tests/golden/api_catalog.json` から取り、TS の定数と突き合わせる（`REF:tests` の Rust 側と同じ「カタログが正本」の形）。
+- **実施済み**: `scripts/i18n-ts.py` が `REF:src/ui/i18n/*.toml` から `catalog.ts` を、`scripts/theme-ts.py` が仕様 §11.1 の表から `tokens.ts` を生成する。各 `--check` で生成物の一致を検査する。
+- 操作 ID の一覧は `REF:tests/golden/api_catalog.json` を正本として TypeScript 側へ生成し、Rust 側の一覧と照合する。
 - 受け入れ: 第 1 の `ja.toml` を 1 行直すと、第 2 の画面の文言も同じ 1 行で変わる。CSS 変数は仕様の表と一致する。
 
 <a id="webui-w4"></a>
-### 11.4 W4: 残りのワークスペースとブラウザ提供
+### 11.4 W4: ワークスペースとブラウザ提供の実施状況
 
-- `plot-episode` / `plot-outline` / `idea` / `material` / `cast` / `reader` / `agent` / `review` を順に作る。§10 の節ごとに、対応する画面仕様（§9.1〜§9.10）の要件を満たしたことを確認して次へ進む。
-- `scripts/webui-build.sh`（未作成） でビルドし、Pages の `webui/` に出す。第 1 の `app/` はそのまま残す。Service Worker とマニフェストを付け、オフライン起動を確認する。
-- 受け入れ: `webui/tests/coverage.mjs` の `pending` が 0 件。オフラインで起動・執筆・保存ができる。第 1 の保存領域（DB 名 `novnow`）と混ざらない。
+- **実施済み**: `plot-episode` / `plot-outline` / `idea` / `material` / `cast` / `reader` / `agent` / `review` を含む9ワークスペースを実装した。画面仕様の全件到達ではなく、残る4件は `webui/src/lib/coverage.ts` の `SPEC_GAPS` として管理する（仕様 §20.6.5）。
+- `scripts/webui-build.sh` でビルドし、Pages の `webui/` と `nightly-webui/` に出す。第1の `app/` は維持する。Service Worker とマニフェスト、入口ごとの保存領域分離も実装済み。
+- **受け入れ条件**: API parity の `PENDING` が0件であることに加え、オフライン起動・執筆・保存、DB 名 `novnow` との分離を確認する。`coverage.mjs` は存在せず、API `PENDING` 0件と画面仕様の `SPEC_GAPS` は別の判定として扱う。
 
 <a id="webui-w5"></a>
-### 11.5 W5: Tauri によるネイティブ実行（開発版）
+### 11.5 W5: Tauri ネイティブ実行の基盤と残件
 
-- `REF:webui/...`（未作成）に `src-tauri` を置き、コマンド 4 つ（`open` / `run` / `poll_events` / `poll_external`）を実装する。Host は `REF:src/app/fs_host.rs` をそのまま使う。
-- CI の成果物としてだけ配る（§20 の 5 形態には加えない）。`REF:scripts/release-matrix.py` と `REF:action.yml` は触らない。
-- 受け入れ: 同じ作品をブラウザ版とネイティブ版で開き、保存後のファイルが 1 バイトも違わないこと。規則 10 の検査（`REF:tests/layering.rs`）が緑のままであること。
+- **実装済みの基盤**: `REF:webui/src-tauri/` にアプリ設定と4 command（`open` / `run` / `poll_events` / `poll_external`）、`NativeSession` bridge と tests がある。Host は `REF:src/app/fs_host.rs` を使う。一方、`webui/src/main.ts` は `wasmBridge()` 固定で、画面から native commands を呼ばない。
+- Tauri アプリ成果物の CI ビルド・配布経路は未実装で、現在 native アプリは配布していない（§20.6.5）。配布形態への追加は §20.6.5 と仕様 §21.4.2 の条件・承認を満たすまで行わない。`REF:scripts/release-matrix.py` と `REF:action.yml` は変更しない。
+- **受け入れ条件**: 同じ作品をブラウザ版とネイティブ版で開き、保存後のファイルが1バイトも違わないこと。規則10の検査（`REF:tests/layering.rs`）が緑のままであること。現在は画面からの接続とアプリ成果物が未実装なので未達。
 
 <a id="webui-w6"></a>
 ### 11.6 W6: 検証の配線（CI・実機チェックリスト）
 
-- `REF:scripts/verify.sh` に `webui` ジョブ（型検査・単体・ビルド・パリティ）を足す。Actions の使用時間を抑えるため、`docs` ジョブの変更フィルタに `webui/**` を加え、`webui` の変更があるときだけ走らせる。
-- 版の一元化: `webui/package.json` と `tauri.conf.json` の版を `REF:scripts/release-matrix.py --bump` の対象に加える。
-- `REF:docs/developers.md` §4.9（実機チェックリスト）に、WebView の IME・日本語入力・HiDPI の行を足す。
+- **実施済み**: CI の `webui` job は `scripts/webui-check.sh --full` と native bridge tests を行う。`docs` job の変更フィルタは `webui/**` と `crates/novnow-wasm/*` を検出する。ローカルの `scripts/verify.sh` は軽量の `scripts/webui-check.sh` を呼ぶ。
+- 版の一元化は `scripts/release-matrix.py --bump` により実装済み。`Cargo.toml` を正本に `webui/package.json` と `webui/src-tauri/tauri.conf.json` 等を同期する。
+- 実機チェックリストにWebViewの IME・日本語入力・HiDPI確認は未記録であり、§21.5.2 #3 の同範囲実機確認も未実施。
 - 実施記録（CI 補完 + GitHub Pages 公開）: `.github/workflows/ci.yml` の変更フィルタに `crates/novnow-wasm/*` を追加し、`webui` ジョブで `webui/src-tauri/bridge/Cargo.toml` の `cargo test` を実行するようにした。GitHub Pages 公開は `nightly.yml` / `deploy.yml` / `scripts/publish-channel.sh` / `scripts/channel-pages.py` に `webui/` と `nightly-webui/` を追加し、`webui/public/` に Service Worker とマニフェスト、`website/src/components/Hero.astro` に 4 形態の案内リンク、`scripts/website-check.py` と `scripts/pages-e2e.mjs` に検査・起動確認を追加した。
 - 実施記録（仕様・設計への反映。所有者の承認済み）: `REF:docs/specifications/external.md` §20.6.4 に公開の入口 4 つ（`app/`・`webui/`・`nightly-app/`・`nightly-webui/`）と nightly / stable の更新範囲を明記し、`REF:docs/specifications/platform.md` §13.3.2・§13.3.7 に第 2 の入口の DB 名の分離と入口ごとの Service Worker / Manifest の扱いを追記した。設計側は `REF:docs/designs/external.md` §20.6.4（payload と `--incoming-webui` の受け渡し）、`REF:docs/designs/platform.md` §13.3（第 2 の DB 名とオフライン資源の配置）、`REF:docs/designs/webui.md` §21.3（Pages の 2 チャネル配置・PWA の配置・CI の配線）に実装の在り処を書いた。
 
 <a id="webui-w7"></a>
 ### 11.7 W7: パリティ判定と置き換えの判断
 
-- `REF:crates/novnow-wasm/...`（未作成）の Rust 側ではなく、Node 側の回帰で、カタログ全 121 操作に画面から到達できることを判定する（`webui/tests/parity.mjs`）。
-- `webui/src/lib/coverage.ts` の `pending` を 0 にし、`REF:docs/specifications/webui.md` §21.5.2 の 5 条件を満たしたことを記録する。置き換えと §20 の改訂は、所有者の承認を得てから別 PR で行う。
+- **実施済み API 判定**: `webui/tests/parity.mjs` はカタログ121操作中119到達・未提供0、仕様上除外2（`session.poll_events` / `api.list`）、判定 `equivalent` を報告する。これはAPI単位の判定で、画面仕様の4件を閉じない。
+- `webui/src/lib/coverage.ts` の API `PENDING` は0だが、`SPEC_GAPS` に画面仕様上の4件を維持する。§21.5.2 の現状は、#1未達（4件の画面仕様ギャップ）、#2達成（§20.6.5のPR #84承認。置き換え承認ではない）、#3未実施（同範囲の実機確認）、#4達成（Zip I/Oの移行手順）、#5達成（第1の公開物を取り下げない）。5条件を満たし、sonneko が別途判断するまで置き換えない。
 
 <a id="webui-parity"></a>
 ### 11.8 受け入れ基準（W1〜W7 共通）
@@ -2239,21 +2241,21 @@ Issue #55 で報告された 24 件の仕様不適合（重大・中程度 13 �
 | ブラウザの Host が非同期で `Session` の同期 API と合わない | メモリ正本＋書き込みキュー（W2）。IndexedDB の失敗は状態機械の `error` として見せる | 設計で回避（§21.3 の Host） |
 | IME の挙動が WebView ごとに違う | `composition*` と 2 秒のフェイルセーフで統一し、実機チェックリストに追加する（W6） | 第 1 の規則をそのまま使う |
 | ビルド時間と Actions の使用量が増える | `webui/**` の変更時だけ走らせる（W6）。`npm ci` のキャッシュを使う | 未然に防ぐ（W6） |
-| 第 2 の完成が遅れて 2 系統が長期化する | 置き換えの条件（§21.5.2）を先に決め、`pending` の件数を公開して進み具合を見えるようにする | 仕様 §21.5 で先に決めた |
+| 第 2 の完成が遅れて 2 系統が長期化する | 置き換え条件（§21.5.2）を維持し、API `PENDING` と画面仕様 `SPEC_GAPS` を別々に記録する | API `PENDING` は0件だが画面仕様の4件は未解消。置き換え判断は未実施 |
 | 配布形態（§20）の数・名前が揺れる | 置き換えまで §20 を触らない（W5）。改訂は承認を得た別 PR にする | 未然に防ぐ（`REF:docs/script/reference.py` の検査 12 が数を見張る） |
 
-### 11.10 実施記録（2026-11-14: W1）
+### 11.10 当時の実施記録（2026-11-14: W1）
 
-W1（文書整備）だけを実施した。`webui/`・`crates/novnow-wasm/` は作っていない（空のディレクトリを置かない方針。`REF:docs/developers.md` §3）。
+2026-11-14 時点では W1（文書整備）だけを実施し、`webui/`・`crates/novnow-wasm/` は未作成だった（当時の空ディレクトリを置かない方針。`REF:docs/developers.md` §3）。この記録は当時の履歴であり、現在の実装状況は本節冒頭と W1〜W7 の各項に記す。
 
 - 新設: `REF:docs/specifications/webui.md`（§21）と `REF:docs/designs/webui.md`（§21）。設計書の 5 節はすべて「未実装・実装計画済み」（W1〜W7 を指す）。
 - 追記のみの追随: `REF:docs/developers.md` §1.1（12 → 13 ファイル対）・§2.1（Node / wasm-pack / Tauri の前提）・§3（予定ツリー。実物には無いので「これから加わる」と明記）・§4.6.2（検証の地図に 1 行）・§7.5（第 2 のテスト方針）・§8.10（注意点 30〜36）、SYNC 表（13 設計書・147 節）、`REF:docs/script/reference.py` の章番号表、`REF:docs/script/test_reference.py` の期待集合、`REF:scripts/docs-site.py` の `SPEC_ORDER`、README（日・英）・`REF:GUIDE.md`・サイトの「13 冊」表記。経緯は `REF:docs/history.md` の `D-018`。
 - 検証: `python3 docs/script/duplicate.py`（13 specifications / 13 designs / 142 完了・5 計画済み）、`python3 docs/script/reference.py`（13 項目）、`python3 -B -m unittest discover -s docs/script`（83 件）、`python3 scripts/docs-site.py --check`（docs と一致）が緑。Rust・Node のビルドは変更が無いため回していない。
 
 <a id="webui-parallel"></a>
-### 11.11 並列開発戦略（複数エージェントで同時に進める）
+### 11.11 W2〜W7 実装時の並列開発戦略（記録）
 
-W2〜W7 を複数のエージェントが同時に進めても衝突が小さくなるように、**触ってよいファイルを先に決め、共有ファイルは短い PR で先に着地させる**。ねらいは「迷わないこと」であり、調整会議を増やすことではない。
+以下はW2〜W7実装時に想定したファイル所有・レーン分割の記録であり、現在の作業割当ではない。引き続き適用する制約は、生成物は生成器だけが書くこと、`src/`（機能核）を第2画面の都合で変更しないこと、共有契約を保つこと。
 
 #### 11.11.1 3 つの原則
 
@@ -2312,8 +2314,8 @@ W2（橋渡し＋シェル＋`write`）は全レーンの前提なので、**最
 
 #### 11.11.6 検証をレーンごとに閉じる
 
-- 各レーンは `webui/tests/<lane>.test.mjs` を 1 つ持ち、自分のワークスペースだけを確かめる。`parity.mjs` / `coverage.mjs` は L7 が所有し、レーンは触らない。
-- L7 はレーンの着地ごとに `coverage.ts` の `pending` を 1 行減らす。`pending` の件数がそのまま進み具合になる（§21.5.1 の公開にも使う）。
+- 当時のレーンごとのテスト分割は実装時の記録。現在は `webui/tests/*.test.mjs` が個別テストを持ち、`parity.mjs` が API `PENDING` を、`b7-gaps.test.mjs` / `b8-closure.test.mjs` が画面仕様 `SPEC_GAPS` の根拠を検査する。`coverage.mjs` は存在しない。
+- API `PENDING` の件数と画面仕様 `SPEC_GAPS` は別に管理する。API `PENDING` 0件を画面仕様の完了とは扱わず、両方の現状は `coverage.ts` / テストで確認する。
 - CI は `webui/**` の変更があるときだけ走らせる（W6）。レーンごとの PR で `webui` ジョブが緑になることを着地の条件にする。
 
 #### 11.11.7 進行役（1 名）の仕事
