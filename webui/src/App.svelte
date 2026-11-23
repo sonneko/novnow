@@ -44,7 +44,7 @@
     type OpsId,
     type OpsInput,
   } from './lib/ops/opsOps';
-  import { byteOffset } from './lib/editor/text';
+  import { byteOffset, charsWithoutSpace as countChars } from './lib/editor/text';
   import {
     conflictDiffs,
     conflictPaths,
@@ -343,17 +343,6 @@
       }
     }
     modes = [...names].join(' ');
-  }
-
-  /** 文字数（空白を除く。§9.6.1）。 */
-  function countChars(text: string): number {
-    let found = 0;
-    for (const ch of text) {
-      if (!/\s/u.test(ch)) {
-        found += 1;
-      }
-    }
-    return found;
   }
 
   /** 本文が変わった（`section.write`。400ms のデバウンスは自動保存側で行う）。 */
