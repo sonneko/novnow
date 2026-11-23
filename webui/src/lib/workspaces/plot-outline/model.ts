@@ -130,11 +130,6 @@ export function blocksAt(tree: readonly Chapter[], level: Level): Block[] {
   return chapter ? chapter.episodes : [];
 }
 
-/** 章のストック（`00`）か。 */
-export function isStock(number: number): boolean {
-  return number === 0;
-}
-
 /**
  * 話・構成のキー（§9.8 のうち、この 2 画面で受けるもの）を、操作の名前へ写す。
  *

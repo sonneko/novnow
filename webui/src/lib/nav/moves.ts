@@ -20,14 +20,6 @@
 // （`docs/specifications/interfaces.md` も「前の位置・次の位置」と書く）。取り違えると
 // キーの意味が変わるので、`webui/tests/nav.test.mjs` が機能核のソースを読んで突き合わせる。
 
-/** 画面が使う文脈（`App.svelte` が持つ状態のうち、判断に要るものだけ）。 */
-export interface NavContext {
-  /** いまの節（`01-04-02-03`。空なら未選択）。 */
-  scene: string;
-  /** いまのワークスペース名（`write` など）。 */
-  workspace: string;
-}
-
 /** 切替パネルの 1 行。 */
 export interface SwitcherRow {
   /** 行の種類。`workspace` は `Alt+<number>` と同じ切替、`move` は移動の操作。 */
@@ -128,14 +120,6 @@ export function moveOf(key: string): string | null {
     default:
       return null;
   }
-}
-
-/** 文書のリネームの入力（`document.rename` の 1 引数だけを画面が持つ）。 */
-export interface RenameInput {
-  /** 元のパス（`contents/01-04.cnov` など）。 */
-  from: string;
-  /** 新しいパス（入力そのまま。検証は `renamePlan` が行う）。 */
-  to: string;
 }
 
 /** リネームの判定。 */

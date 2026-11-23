@@ -68,9 +68,6 @@ export const ADVERBIALS = ['ときに', 'ために', 'ように', 'ながら', '
 /** 優先度 3: 文頭から [`TOPIC_WINDOW`] 字以内の主題の助詞（§9.4.3 の表）。 */
 export const TOPIC_PARTICLES = ['は', 'も'] as const;
 
-/** 優先度 4: 列挙の助詞（§9.4.3 の表）。 */
-export const ENUM_PARTICLES = ['と', 'や'] as const;
-
 /** 文末記号（§7.2.3 と同じ。`…` は含めない）。 */
 const STOPS = /[。！？]/u;
 
