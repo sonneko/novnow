@@ -15,8 +15,8 @@
     
     
 <script type="module">
-import init, * as bindings from './novnow-3751fcb86ad2c3ce.js';
-const wasm = await init({ module_or_path: './novnow-3751fcb86ad2c3ce_bg.wasm' });
+import init, * as bindings from './novnow-1b4d0d8dbd0f4a2b.js';
+const wasm = await init({ module_or_path: './novnow-1b4d0d8dbd0f4a2b_bg.wasm' });
 
 
 window.wasmBindings = bindings;
@@ -49,7 +49,7 @@ dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
             height: 100%;
         }
     </style>
-<link rel="modulepreload" href="./novnow-3751fcb86ad2c3ce.js" crossorigin="anonymous" integrity="sha384-GvWYWlpVshyYbQteTnMjZgxbV9fxvJnzVFuJjOBFLg37ZYtMEIMI6H4eiF8ZzvAq"><link rel="preload" href="./novnow-3751fcb86ad2c3ce_bg.wasm" crossorigin="anonymous" integrity="sha384-JtAhzPa6R79vWSu+23pNTerSS7Qshg/PnHp5l4oInZqBIw1zK+McP96CJMXHHI7z" as="fetch" type="application/wasm"></head>
+<link rel="modulepreload" href="./novnow-1b4d0d8dbd0f4a2b.js" crossorigin="anonymous" integrity="sha384-xpoiI+r/a6xb057ajFRnrQ2NwhEpKxL6Xa48/H26wye+XwY4cM/Mah+E8Tooey29"><link rel="preload" href="./novnow-1b4d0d8dbd0f4a2b_bg.wasm" crossorigin="anonymous" integrity="sha384-Di30HVg6Fmvt59ZnsqvD5+0sW6BgEuPu0KGuNhrR1HY68HEYw8JsMHgFIpgO4oG4" as="fetch" type="application/wasm"></head>
 <body>
     <div id="offline-status" role="status" aria-live="polite" style="position:fixed;bottom:0;right:0;z-index:10;font:12px sans-serif;color:#ccc;background:#1a1a1a;padding:2px 6px">オフライン準備中</div>
     <script>
