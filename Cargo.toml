@@ -9,7 +9,7 @@ exclude = ["python/novnow-py"]
 
 [package]
 name = "novnow"
-version = "0.1.1"
+version = "0.1.3"
 edition = "2021"
 description = "小説プロジェクト（[title]/ レイアウト）向け執筆 IDE — egui + ropey"
 license = "MIT"
@@ -115,3 +115,9 @@ harness = false
 opt-level = 3
 lto = "thin"
 codegen-units = 1
+
+# objc2 0.4.1 and AccessKit's pinned 0.3 beta have Iterator forwarding overrides that fail on Rust 1.100 (E0277).
+# See both patches/*/PATCH.md; remove once the UI dependencies can use fixed upstream versions.
+[patch.crates-io]
+objc2 = { path = "patches/objc2-0.4.1" }
+objc2-beta = { package = "objc2", path = "patches/objc2-0.3.0-beta.3.patch-leaks.3" }

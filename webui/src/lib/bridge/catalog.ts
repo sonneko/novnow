@@ -8,7 +8,7 @@
 // `webui-api` が `--check` で一致を強制する）。
 
 export const CATALOG_VERSION = "1.1";
-export const PRODUCT_VERSION = "0.1.1";
+export const PRODUCT_VERSION = "0.1.3";
 /** カタログの操作 ID の全部（件数は `OP_IDS.length` で数える）。 */
 export const OP_IDS = [
   "project.info", // プロジェクト基本情報（タイトル・作者・言語・版）

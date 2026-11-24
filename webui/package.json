@@ -1,7 +1,7 @@
 {
   "name": "novnow-webui",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.1.3",
   "description": "novnow の第 2 の画面実装（REF:docs/specifications/webui.md §21）",
   "type": "module",
   "license": "MIT",
