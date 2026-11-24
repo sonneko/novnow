@@ -81,7 +81,7 @@ jobs:
           cp -a webui/dist website/dist/nightly-webui
           python3 scripts/website-check.py
           ! grep -q 'const PRECACHE = null' website/dist/app/sw.js
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: combined-pages
           path: website/dist

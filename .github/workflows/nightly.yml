@@ -128,7 +128,7 @@ jobs:
           (root / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
           (root / 'SHA256SUMS').write_text(''.join(f'{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}\n' for p in sorted(root.iterdir()) if p.name != 'SHA256SUMS'))
           PY
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: nightly-payload
           path: payload
