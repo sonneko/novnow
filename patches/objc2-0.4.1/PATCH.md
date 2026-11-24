@@ -1,6 +1,6 @@
 # Local patch to objc2 0.4.1
 
-This directory is the `objc2` 0.4.1 crate source from the repository's pinned Cargo vendor snapshot. It has one compatibility-only change: remove the forwarding overrides of `Iterator::nth` and `DoubleEndedIterator::nth_back` from `src/declare/ivar_forwarding_impls.rs`. The standard trait defaults provide the same iteration behavior.
+This directory is the `objc2` 0.4.1 crate source from the repository's pinned Cargo vendor snapshot. It has one compatibility-only change: remove the forwarding overrides of `Iterator::nth` and `DoubleEndedIterator::nth_back` from `src/declare/ivar_forwarding_impls.rs`. The standard trait defaults provide the same iteration behavior. A second objc2 patch is needed for the older prerelease pinned by AccessKit; see `../objc2-0.3.0-beta.3.patch-leaks.3/PATCH.md`.
 
 The upstream issue documents the Rust 1.100 E0277 regression and this workaround: https://github.com/madsmtm/objc2/issues/898
 

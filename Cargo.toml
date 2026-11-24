@@ -116,7 +116,8 @@ opt-level = 3
 lto = "thin"
 codegen-units = 1
 
-# objc2 0.4.1's Iterator forwarding overrides fail on Rust 1.100 (E0277).
-# See patches/objc2-0.4.1/PATCH.md; remove once dependencies can use a fixed upstream version.
+# objc2 0.4.1 and AccessKit's pinned 0.3 beta have Iterator forwarding overrides that fail on Rust 1.100 (E0277).
+# See both patches/*/PATCH.md; remove once the UI dependencies can use fixed upstream versions.
 [patch.crates-io]
 objc2 = { path = "patches/objc2-0.4.1" }
+objc2-beta = { package = "objc2", path = "patches/objc2-0.3.0-beta.3.patch-leaks.3" }
