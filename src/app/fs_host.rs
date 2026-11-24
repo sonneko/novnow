@@ -16,7 +16,7 @@ use crate::adapters::project_load;
 use crate::adapters::storage_fs::{FsGate, FsStorage};
 use crate::app::agents::{Finished, Job};
 use crate::app::error::{Error, Result};
-use crate::app::host::Host;
+use crate::app::host::{save_now, ExternalChange, Host, ReadFailure, SaveOutcome};
 use crate::core::policy::external_change::{ChangeKind, Snapshot};
 use crate::core::policy::write_policy::ProjectPath;
 use crate::core::text::lexer;
@@ -24,7 +24,7 @@ use crate::ports::clock::Clock;
 use crate::ports::dialog::ChosenPath;
 use crate::ports::env::Env;
 use crate::ports::mcp::McpClient;
-use crate::ports::storage::Storage;
+use crate::ports::storage::{Storage, StorageError};
 
 /// LLM 呼び出しのワーカ（`mcp_start` / `mcp_poll`）。
 struct Workers {
@@ -141,6 +141,32 @@ fn display(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
 
+/// 外部変更 1 件を読む（§8.5）。GUI の `Host`（`REF:src/ui/picker.rs`）と同じ 1 実装を共有する。
+///
+/// **読み取りの失敗と UTF-8 復号の失敗は削除と区別する**（[`ExternalChange::Unreadable`]）。
+/// どちらも利用者の削除操作ではないので、これで文書を消してはいけない（§4.3 の encoding /
+/// I/O エラーの扱い）。一覧に出た直後に消えた競合だけは「消えた」として扱う（次の監視を待たない）。
+pub fn external_change(
+    storage: &FsStorage,
+    path: &ProjectPath,
+    kind: ChangeKind,
+) -> ExternalChange {
+    let name = path.as_str().to_owned();
+    if kind == ChangeKind::Removed {
+        return ExternalChange::Removed(name);
+    }
+    match storage.read_bytes(path) {
+        Ok(bytes) => match String::from_utf8(bytes) {
+            Ok(text) => ExternalChange::Updated(name, lexer::normalize_on_load(&text).into_owned()),
+            Err(error) => {
+                ExternalChange::Unreadable(name, ReadFailure::Encoding(error.to_string()))
+            }
+        },
+        Err(StorageError::NotFound(_)) => ExternalChange::Removed(name),
+        Err(error) => ExternalChange::Unreadable(name, ReadFailure::Io(format!("{error:?}"))),
+    }
+}
+
 impl Host for FsHost {
     fn writable(&self) -> bool {
         self.storage.writable()
@@ -153,26 +179,70 @@ impl Host for FsHost {
             .map_err(|error| format!("{error:?}"))
     }
 
-    fn poll(&mut self) -> Vec<(String, Option<String>)> {
+    fn poll(&mut self) -> Vec<ExternalChange> {
         let Ok(changes) = block_on(project_load::poll(&self.storage, &mut self.snapshot)) else {
             return Vec::new();
         };
         changes
             .into_iter()
             .filter(|change| project_load::is_document(&change.path))
-            .map(|change| {
-                let text = match change.kind {
-                    ChangeKind::Removed => None,
-                    _ => self
-                        .storage
-                        .read_bytes(&change.path)
-                        .ok()
-                        .and_then(|bytes| String::from_utf8(bytes).ok())
-                        .map(|text| lexer::normalize_on_load(&text).into_owned()),
-                };
-                (change.path.as_str().to_owned(), text)
-            })
+            .map(|change| external_change(&self.storage, &change.path, change.kind))
             .collect()
+    }
+
+    /// 保存 1 回分（§8.3・§19.1.6）。
+    ///
+    /// 2 つ以上のファイルにまたがるときは [`FsStorage::write_batch`]（変える前の全 byte の
+    /// 控え + rollback）で**原子的**に行う: 途中の失敗ではどのファイルも変更されていない状態へ
+    /// 戻し、戻せなかったものだけ失敗として報告する。1 ファイルだけの保存は `write_atomic`
+    /// （一時ファイル + rename）でそもそも原子的なので、既定の実装（[`save_now`]）を使う。
+    fn save(
+        &mut self,
+        writes: Vec<(String, String)>,
+        removals: Vec<String>,
+    ) -> Option<SaveOutcome> {
+        if writes.len() + removals.len() <= 1 {
+            return Some(save_now(self, writes, removals));
+        }
+        let mut targets: Vec<ProjectPath> = Vec::with_capacity(writes.len() + removals.len());
+        for path in writes.iter().map(|(path, _)| path).chain(removals.iter()) {
+            match self.path(path) {
+                Ok(target) => targets.push(target),
+                // 関門が拒むパス（§13.1.1）: 1 つも書かない・消さない。
+                Err(error) => {
+                    return Some(SaveOutcome {
+                        failures: vec![(path.clone(), error.message)],
+                        removals_left: removals,
+                        ..SaveOutcome::default()
+                    })
+                }
+            }
+        }
+        let written: Vec<String> = writes.iter().map(|(path, _)| path.clone()).collect();
+        let texts: Vec<String> = writes.into_iter().map(|(_, text)| text).collect();
+        let (write_targets, remove_targets) = targets.split_at(written.len());
+        let batch: Vec<(ProjectPath, String)> = write_targets.iter().cloned().zip(texts).collect();
+        let doomed = remove_targets.to_vec();
+        match self.storage.write_batch(&batch, &doomed) {
+            Ok(stamps) => {
+                for (path, stamp) in stamps {
+                    // 自分の書き込み・削除を外部変更として拾わない（§8.5）。
+                    self.snapshot.acknowledge(path, stamp);
+                }
+                for path in &doomed {
+                    self.snapshot.forget(path);
+                }
+                Some(SaveOutcome {
+                    written,
+                    ..SaveOutcome::default()
+                })
+            }
+            Err(failure) => Some(SaveOutcome {
+                failures: failure.failures(),
+                removals_left: removals,
+                ..SaveOutcome::default()
+            }),
+        }
     }
 
     fn name(&self) -> String {

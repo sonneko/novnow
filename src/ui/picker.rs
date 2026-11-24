@@ -81,17 +81,17 @@ pub(crate) mod native {
     use crate::adapters::mcp_stdio::StdioClient;
     use crate::adapters::project_load;
     use crate::adapters::recent_file::RecentFile;
-    use crate::adapters::storage_fs::{FsGate, FsStorage};
+    use crate::adapters::storage_fs::{BatchFailure, FsGate, FsStorage};
     use crate::cli::{self, Cli, Terminal};
     use crate::core::model::project::ProjectError;
-    use crate::core::policy::external_change::{ChangeKind, Snapshot};
+    use crate::core::policy::external_change::Snapshot;
     use crate::core::policy::ProjectPath;
     use crate::ports::clock::Clock;
     use crate::ports::dialog::{ChosenPath, Dialog};
     use crate::ports::env::Env;
     use crate::ports::mcp::McpClient;
     use crate::ui::agents::{Finished, Job};
-    use crate::ui::app::{save_now, Host, NovnowApp, SaveOutcome, Session};
+    use crate::ui::app::{save_now, ExternalChange, Host, NovnowApp, SaveOutcome, Session};
     use crate::ui::i18n::{self, Locale};
     use crate::ui::settings::{LanguageChoice, UiSettings, UI_JSON};
     use crate::ui::theme::{self, Mode};
@@ -168,12 +168,17 @@ pub(crate) mod native {
     }
 
     impl Host for FsHost {
+        /// 保存 1 回分（§8.3・§19.1.6）。2 つ以上のファイルにまたがるときは
+        /// `FsStorage::write_batch`（変える前の全 byte の控え + rollback）で**原子的**に行う。
+        /// 1 ファイルだけの保存は `write_atomic`（一時ファイル + rename）でそもそも原子的なので
+        /// 既定の実装（[`save_now`]）を使う。ヘッドレスの `FsHost`
+        /// （`REF:src/app/fs_host.rs`）と同じ規則。
         fn save(
             &mut self,
             writes: Vec<(String, String)>,
             removals: Vec<String>,
         ) -> Option<SaveOutcome> {
-            if removals.is_empty() {
+            if writes.len() + removals.len() <= 1 {
                 return Some(save_now(self, writes, removals));
             }
             let parsed: Result<Vec<_>, _> = writes
@@ -183,11 +188,22 @@ pub(crate) mod native {
             let deleted: Result<Vec<_>, _> = removals.iter().map(|p| ProjectPath::new(p)).collect();
             let result = match (parsed, deleted) {
                 (Ok(w), Ok(r)) => self.storage.write_batch(&w, &r),
-                _ => Err("invalid batch path".to_owned()),
+                // プロジェクトの外を指すパス（§13.1.1）: 1 つも書かない・消さない。
+                _ => Err(BatchFailure::new(
+                    writes
+                        .iter()
+                        .map(|(p, _)| p)
+                        .chain(removals.iter())
+                        .find(|p| ProjectPath::new(p.as_str()).is_err())
+                        .cloned()
+                        .unwrap_or_default(),
+                    "invalid batch path".to_owned(),
+                )),
             };
             Some(match result {
                 Ok(stamps) => {
                     for (p, stamp) in stamps {
+                        // 自分の書き込みを外部変更として拾わない（§8.5）。
                         self.snapshot.acknowledge(p, stamp);
                     }
                     SaveOutcome {
@@ -195,11 +211,8 @@ pub(crate) mod native {
                         ..Default::default()
                     }
                 }
-                Err(error) => SaveOutcome {
-                    failures: writes
-                        .into_iter()
-                        .map(|(p, _)| (p, error.clone()))
-                        .collect(),
+                Err(failure) => SaveOutcome {
+                    failures: failure.failures(),
                     removals_left: removals,
                     ..Default::default()
                 },
@@ -216,7 +229,9 @@ pub(crate) mod native {
             Ok(())
         }
 
-        fn poll(&mut self) -> Vec<(String, Option<String>)> {
+        /// 外部変更の監視（§8.5）。読めなかったものは削除と区別する
+        /// （`REF:src/app/fs_host.rs` の `external_change` と同じ 1 実装）。
+        fn poll(&mut self) -> Vec<ExternalChange> {
             let Ok(changes) = block_on(project_load::poll(&self.storage, &mut self.snapshot))
             else {
                 return Vec::new();
@@ -225,18 +240,7 @@ pub(crate) mod native {
                 .into_iter()
                 .filter(|change| project_load::is_document(&change.path))
                 .map(|change| {
-                    let text = match change.kind {
-                        ChangeKind::Removed => None,
-                        _ => self
-                            .storage
-                            .read_bytes(&change.path)
-                            .ok()
-                            .and_then(|bytes| String::from_utf8(bytes).ok())
-                            .map(|text| {
-                                crate::core::text::lexer::normalize_on_load(&text).into_owned()
-                            }),
-                    };
-                    (change.path.as_str().to_owned(), text)
+                    crate::app::fs_host::external_change(&self.storage, &change.path, change.kind)
                 })
                 .collect()
         }

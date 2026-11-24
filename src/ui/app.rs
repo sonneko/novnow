@@ -35,7 +35,9 @@ pub use crate::ui::picker::native::run;
 
 pub use crate::ui::picker::{NoPicker, Picker, StartPath};
 
-pub use crate::app::host::{save_now, ExportFailure, Host, HostEvent, SaveOutcome};
+pub use crate::app::host::{
+    save_now, ExportFailure, ExternalChange, Host, HostEvent, ReadFailure, SaveOutcome,
+};
 
 /// フォーカス中のペイン（§9.2.3。外周 2px の `accent` 枠で示す）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -4408,7 +4410,20 @@ impl NovnowApp {
         // 外部変更の監視（1,000ms、§8.5）
         if now - session.last_poll >= 1.0 {
             session.last_poll = now;
-            for (path, text) in session.host.poll() {
+            for change in session.host.poll() {
+                // 読めなかったものは**削除と区別する**（§8.5・§4.3）: 文書はそのまま残し、
+                // 理由だけを示す。読み取りの失敗や文字コード不正を削除と誤認しない。
+                if let Some(failure) = change.failure() {
+                    let key = match failure {
+                        ReadFailure::Encoding(_) => "status.external_unreadable_encoding",
+                        ReadFailure::Io(_) => "status.external_unreadable_io",
+                    };
+                    let message = i18n::format(locale, key, &[change.path()]);
+                    session.notice = Some((message, now));
+                    continue;
+                }
+                let path = change.path().to_owned();
+                let text = change.text().map(str::to_owned);
                 match session.bench.external_change(&path, text.clone()) {
                     crate::ui::workbench::Reaction::Reloaded => {
                         let message = i18n::format(locale, "diag.I052", &[&path]);

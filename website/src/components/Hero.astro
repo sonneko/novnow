@@ -48,12 +48,20 @@ const screenshotAlt = {
       <a href="https://sonneko.github.io/novnow/nightly-app/">
         {lang === "ja" ? "開発版を試す（不安定版）" : "Try Nightly (unstable)"}
       </a>
+      {" · "}
+      <a href="https://sonneko.github.io/novnow/webui/">
+        {lang === "ja" ? "Web 版を試す" : "Try Web UI"}
+      </a>
+      {" · "}
+      <a href="https://sonneko.github.io/novnow/nightly-webui/">
+        {lang === "ja" ? "Web 版・開発版（不安定版）" : "Web UI Nightly (unstable)"}
+      </a>
     </p>
 
     <!-- Installation status notice -->
     <div class={styles.installNoticeBox}>
       <div class={styles.installNoticeHeader}>
-        <span class={styles.noticeTag}>{installT.status}</span>
+        <span class={styles.noticeTag} data-announcement="version">{installT.status}</span>
         <strong>{installT.title}</strong>
       </div>
       <p>{installT.desc}</p>

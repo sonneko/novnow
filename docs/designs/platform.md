@@ -24,19 +24,38 @@
 
 状態: 実装完了（REF:src/adapters/storage_idb.rs, REF:tests/storage_idb.rs, REF:index.html, REF:sw.js, REF:manifest.webmanifest, REF:scripts/web-smoke.mjs）
 
-検証用の `/novnow/nightly-app/` では `REF:src/adapters/storage_idb.rs` が DB を `novnow-nightly` に切り替える。通常の DB 名・スキーマは維持する。
+検証用の `/novnow/nightly-app/` では `REF:src/adapters/storage_idb.rs` が DB を `novnow-nightly` に切り替える。通常の DB 名・スキーマは維持する。第 2 の画面実装（`/novnow/webui/`・`/novnow/nightly-webui/`）は同じスキーマを別の DB 名で使う（`REF:crates/novnow-wasm/src/storage.rs` の `DB_NAME` = `novnow-webui` と `NIGHTLY_DB_NAME` = `novnow-webui-nightly`）。DB 名は `window.location.pathname` の入口だけで決め、第 1 の `novnow` は第 2 から決して選ばない（`db_name`。`/novnow/nightly-app/` の判定を第 1 が持つのと同じ形）。
 
-- DB 名 `novnow`（version 1）の 3 オブジェクトストア（`projects`, `files`, `app`）と `APP_KEYS`（`recent_projects` のみ許可）、残容量 10MB 未満の `W063` とクォータ使用量の選択画面表示、IndexedDB 利用不可時の `E062`、旧形式プロジェクト（`project.json` / `.txt`）の開時自動移行（`migrate_legacy_project_in_place`）、初回 `sample` プロジェクト投入は `REF:src/adapters/storage_idb.rs` と `REF:src/ui/web.rs` に実装する（`REF:docs/plans.md#issue-55`）。
+- DB 名 `novnow`（version 2）の 4 オブジェクトストア（`projects`, `files`, `app`, `snapshots`）と `APP_KEYS`（`recent_projects` のみ許可）、残容量 10MB 未満の `W063` とクォータ使用量の選択画面表示、IndexedDB 利用不可時の `E062`、旧形式プロジェクト（`project.json` / `.txt`）の開時自動移行（`migrate_legacy_project_in_place`）、初回 `sample` プロジェクト投入は `REF:src/adapters/storage_idb.rs` と `REF:src/ui/web.rs` に実装する（`REF:docs/plans.md#issue-55`）。
 - スキーマ定数と仕様表の一致は `REF:tests/storage_idb.rs` が `include_str!` で検証し、ブラウザ実機動作は `REF:scripts/web-smoke.mjs` で検証する。
+- **名前付きスナップショットと復元（§13.3.8）**: 判定はすべて `REF:src/adapters/storage_idb.rs` の
+  純粋な上半分（`SnapshotRecord` / `SnapshotFile` の形、`snapshot_name` の名前規則
+  （`SNAPSHOT_NAME_LEN` = 40・`SNAPSHOT_NAME_FORBIDDEN`・同一プロジェクト内の衝突）、
+  `snapshot_room`（`MAX_SNAPSHOTS` = 8。古いものを黙って捨てない）、`restore_plan`
+  （スナップショットに無いファイルは消す。壊れたパスはどちらにも入れない））に置き、
+  IndexedDB の読み書きは `web` の `Idb::snapshots` / `save_snapshot` / `restore_snapshot` /
+  `delete_snapshot` が担う。`create_stores` は版 1 → 2 の更新で `snapshots`（keyPath
+  `[project_id, name]`、索引 `by_project`）を**足すだけ**、`delete_project` は
+  `by_project` でスナップショットも消す。画面は `WebPicker`（`REF:src/ui/web.rs`）の `F9`
+  パネル: 一覧（名前・日時・大きさ・ファイル数）、「スナップショットを保存」、1 件ごとの
+  「復元」と「削除」（どちらも名前の入力で確かめる。プロジェクトの削除と同じ形）。
+  文言は `REF:src/ui/i18n/ja.toml`・`REF:src/ui/i18n/en.toml` の `project.pick.snapshot_*`
+  （§12.7 の表の抜粋には足さない）。検査は `REF:tests/storage_idb.rs`（純粋な部分と仕様書の
+  本文の一致）と `REF:scripts/web-smoke.mjs`（ブラウザ実機で保存・復元・削除と IndexedDB の版更新）。
 
 - **[S-03] Web 版の PWA 化とオフライン動作（実装完了: `REF:index.html`, `REF:sw.js`, `REF:README.md`, `REF:scripts/web-smoke.mjs`）**:
   - `REF:index.html` に Web App Manifest（`REF:manifest.webmanifest`）と Service Worker（`REF:sw.js`）登録を設け、オフラインキャッシュと `REF:README.md` への PWA 案内を実装する。`REF:scripts/pwa-assets.py` を Trunk post_build で実行し、全資源の一覧と内容ハッシュを worker に封入する。`REF:sw.js` は全件キャッシュが成功したときだけ activate する。旧キャッシュを install 中に消さない。`REF:scripts/web-smoke.mjs` では追加のオンライン再読み込みを挟まず、オフライン再起動と IndexedDB の継続性を確認する。
+
+- **4 つの入口のオフライン資源（実装完了: `REF:webui/public/sw.js`, `REF:webui/public/manifest.webmanifest`, `REF:webui/index.html`, `REF:scripts/website-check.py`, `REF:scripts/pages-e2e.mjs`）**:
+  - 第 2 の画面実装の Manifest と Service Worker は `REF:webui/public/` に置き、Vite がそのまま `dist/` へ写す。`REF:webui/index.html` は `./manifest.webmanifest` を読み、`./sw.js` をスコープ `./` で登録する（相対 URL なので `/novnow/webui/` と `/novnow/nightly-webui/` のどちらでも同じ資源で動く）。
+  - `REF:webui/public/sw.js` はキャッシュ名に `self.registration.scope` を含める（`novnow-webui-<入口>`）。したがって入口ごとにキャッシュが分かれ、`activate` で消すのは同じ接頭辞の古い世代だけ、`fetch` は同一 origin の GET だけを扱う（§13.3.7）。
+  - 第 1 の `REF:sw.js` は資源一覧を封入して全件取得できたときだけ activate する形なので、第 2 の「初回は入口の `index.html` だけを先に固定し、以降の取得を随時キャッシュする」形とは仕組みが違う。**受け持ち範囲が入口ごとに閉じているので、2 つの worker は干渉しない。** どちらの形を採るかは入口ごとに閉じた判断であり、同じ入口に 2 つの worker を置かない。
 
 ### 13.4 プロジェクト選択モーダル（Web）
 
 状態: 実装完了（REF:src/ui/web.rs, REF:src/adapters/storage_idb.rs, REF:scripts/web-smoke.mjs, REF:tests/gui.rs）
 
-- Web 起動時および `Ctrl+O` 時のプロジェクト選択モーダル（一覧・検索 `/`・新規作成 `Ctrl+N`・Zip 取込 `Ctrl+I`・改名 `F2`・削除 `Delete`・単一タブ利用の注記 `project.pick.single_tab`）は `WebPicker`（`REF:src/ui/web.rs`）に実装する（検証: `REF:scripts/web-smoke.mjs`）。
+- Web 起動時および `Ctrl+O` 時のプロジェクト選択モーダル（一覧・検索 `/`・新規作成 `Ctrl+N`・Zip 取込 `Ctrl+I`・改名 `F2`・削除 `Delete`・スナップショット `F9`（§13.3.8）・単一タブ利用の注記 `project.pick.single_tab`）は `WebPicker`（`REF:src/ui/web.rs`）に実装する（検証: `REF:scripts/web-smoke.mjs`）。
 
 - **[F-33 / S-02] Web 版の同名プロジェクト作成禁止と初回起動ウェルカム案内（実装完了: `REF:docs/plans.md#plan-F-33`, `REF:docs/plans.md#plan-S-02`）**:
   - `REF:src/ui/web.rs` と `REF:src/adapters/storage_idb.rs` で既存プロジェクトと同一タイトルの作成・改名を拒否する（F-33 は実装完了。`REF:tests/storage_idb.rs` と実ブラウザ `REF:scripts/web-smoke.mjs` で検証済み）。履歴が空の初回起動時に案内を表示し、`>welcome` パレットからウェルカム案内モーダルを再表示する（S-02 は `REF:src/ui/app.rs`, `REF:src/ui/web.rs`, `REF:tests/gui.rs` で確認済み）。

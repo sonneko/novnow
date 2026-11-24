@@ -464,6 +464,60 @@ fn io_error(path: &Path, error: &io::Error) -> StorageError {
     }
 }
 
+// ============================================================ 一括保存の失敗
+
+/// 一括保存（[`FsStorage::write_batch`]）の失敗（§19.1.6 の原子性）。
+///
+/// 束は**元へ戻してから**返すので、`rollback` が空なら「どのファイルも変更されていない」。
+/// [`BatchFailure::rollback`] にあるものは戻せなかったファイルで、呼び出し側は黙って捨てずに
+/// 報告する（rollback 自体の失敗も利用者に届ける）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BatchFailure {
+    /// 失敗したファイル（プロジェクトからの相対パス。書き込み・削除のどちらか）。
+    pub path: String,
+    /// 失敗の理由（OS のメッセージ）。
+    pub message: String,
+    /// 戻せなかった（ロールバックに失敗した）ファイルと理由。
+    pub rollback: Vec<(String, String)>,
+}
+
+impl BatchFailure {
+    /// 1 件の失敗（ロールバックの前）。
+    pub fn new(path: String, message: String) -> Self {
+        Self {
+            path,
+            message,
+            rollback: Vec::new(),
+        }
+    }
+
+    /// 表示用の 1 行（ロールバックの失敗もつなげる）。
+    pub fn report(&self) -> String {
+        let mut parts = vec![format!("{}: {}", self.path, self.message)];
+        parts.extend(
+            self.rollback
+                .iter()
+                .map(|(path, message)| format!("rollback {path}: {message}")),
+        );
+        parts.join("; ")
+    }
+
+    /// 呼び出し側へ返す失敗の一覧（[`crate::app::host::SaveOutcome::failures`] の形）。
+    ///
+    /// ロールバックに失敗したファイルも**別に 1 件ずつ**載せる（黙って部分的な状態を残さない）。
+    pub fn failures(&self) -> Vec<(String, String)> {
+        let mut out = vec![(self.path.clone(), self.message.clone())];
+        out.extend(self.rollback.iter().cloned());
+        out
+    }
+}
+
+impl std::fmt::Display for BatchFailure {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.report())
+    }
+}
+
 // ============================================================ プロジェクトのストレージ
 
 /// ネイティブのプロジェクト 1 つ分のストレージ（[`Storage`] の実装）。
@@ -590,21 +644,24 @@ impl FsStorage {
     }
 
     /// 構造の移動を 1 つの復旧可能な束として保存する。変える前の全 byte を控え、
-    /// 書き込み・削除のどれかが失敗したら `FsGate` 経由で束ごと元に戻す。
+    /// 書き込み・削除のどれかが失敗したら `FsGate` 経由で束ごと元に戻す（§19.1.6 の原子性）。
+    ///
+    /// 戻せなかったファイルは [`BatchFailure::rollback`] に入れる（呼び出し側は報告する）。
     pub fn write_batch(
         &self,
         writes: &[(ProjectPath, String)],
         removals: &[ProjectPath],
-    ) -> Result<Vec<(ProjectPath, Stamp)>, String> {
+    ) -> Result<Vec<(ProjectPath, Stamp)>, BatchFailure> {
         let mut backups = std::collections::BTreeMap::new();
         for path in writes.iter().map(|(p, _)| p).chain(removals) {
+            let name = path.as_str().to_owned();
             self.gate
                 .guard_file(&self.absolute(path), Allowed::Project)
-                .map_err(|e| format!("{e:?}"))?;
+                .map_err(|e| BatchFailure::new(name.clone(), format!("{e:?}")))?;
             let original = match self.read_bytes(path) {
                 Ok(bytes) => Some(bytes),
                 Err(StorageError::NotFound(_)) => None,
-                Err(e) => return Err(format!("{e:?}")),
+                Err(e) => return Err(BatchFailure::new(name, format!("{e:?}"))),
             };
             backups.insert(path.clone(), original);
         }
@@ -613,38 +670,45 @@ impl FsStorage {
             for (path, text) in writes {
                 stamps.push((
                     path.clone(),
-                    self.write_bytes(path, text.as_bytes())
-                        .map_err(|e| format!("{e:?}"))?,
+                    self.write_bytes(path, text.as_bytes()).map_err(|e| {
+                        BatchFailure::new(path.as_str().to_owned(), format!("{e:?}"))
+                    })?,
                 ));
             }
             for path in removals {
                 match self.gate.remove_file(&self.absolute(path)) {
                     Ok(()) => {}
-                    Err(e) if !self.absolute(path).exists() => {
-                        let _ = e;
+                    Err(_) if !self.absolute(path).exists() => {}
+                    Err(e) => {
+                        return Err(BatchFailure::new(
+                            path.as_str().to_owned(),
+                            format!("{e:?}"),
+                        ))
                     }
-                    Err(e) => return Err(format!("{e:?}")),
                 }
             }
             Ok(stamps)
         })();
-        if let Err(error) = result {
-            let mut errors = vec![error];
-            for (path, bytes) in backups {
-                let restored = if let Some(bytes) = bytes {
-                    self.write_bytes(&path, &bytes).map(|_| ())
-                } else if self.absolute(&path).exists() {
-                    self.gate.remove_file(&self.absolute(&path))
-                } else {
-                    Ok(())
-                };
-                if let Err(e) = restored {
-                    errors.push(format!("rollback {}: {e:?}", path.as_str()));
+        match result {
+            Ok(stamps) => Ok(stamps),
+            Err(mut failure) => {
+                for (path, bytes) in backups {
+                    let restored = if let Some(bytes) = bytes {
+                        self.write_bytes(&path, &bytes).map(|_| ())
+                    } else if self.absolute(&path).exists() {
+                        self.gate.remove_file(&self.absolute(&path))
+                    } else {
+                        Ok(())
+                    };
+                    if let Err(e) = restored {
+                        failure
+                            .rollback
+                            .push((path.as_str().to_owned(), format!("{e:?}")));
+                    }
                 }
+                Err(failure)
             }
-            return Err(errors.join("; "));
         }
-        result
     }
 
     /// 行き先（リンクを解決した実体）がルートの中か。解決できないものは `true`（読み込みのエラーに任せる）。

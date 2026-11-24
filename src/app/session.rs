@@ -27,7 +27,7 @@ use crate::app::agents::{self, Runtime};
 use crate::app::command::Command;
 use crate::app::error::{Class, Error, Result};
 use crate::app::event::AppEvent;
-use crate::app::host::Host;
+use crate::app::host::{ExternalChange, Host};
 use crate::app::ops::{self, Args, OpDef, OPS};
 
 use crate::app::save_machine::State;
@@ -171,6 +171,8 @@ pub struct Session {
     pub(crate) folded: BTreeSet<u16>,
     pub(crate) saving: Option<BTreeMap<String, String>>,
     pub(crate) trace: Vec<Trace>,
+    /// 監査ログ（§15.8.4）の控え。操作が成功してから追記する（§19.1.6 の原子性）。
+    pub(crate) audits: VecDeque<crate::core::agents::files::LogEvent>,
     pub(crate) root: Option<std::path::PathBuf>,
     /// プロジェクトが読み取り専用か（§4.1 の W041。開いたときの試し書きで決まる）。
     pub(crate) read_only: bool,
@@ -216,6 +218,7 @@ impl Session {
             folded: BTreeSet::new(),
             saving: None,
             trace: Vec::new(),
+            audits: VecDeque::new(),
             root: None,
             read_only,
         };
@@ -393,6 +396,21 @@ impl Session {
         self.callbacks.push(Box::new(callback));
     }
 
+    /// 監査ログ（§15.8.4）の 1 行を控える（[`crate::app::ops::audit`] が呼ぶ）。
+    pub(crate) fn queue_audit(&mut self, entry: crate::core::agents::files::LogEvent) {
+        self.audits.push_back(entry);
+    }
+
+    /// 控えた監査ログを追記する（操作が成功したとき。§19.1.6）。
+    ///
+    /// ログが書けなくても操作の結果は変えない（追記だけで、次の保存で気づける。
+    /// `REF:src/app/agents.rs` の `execute` と同じ扱い）。
+    fn write_audits(&mut self) {
+        while let Some(entry) = self.audits.pop_front() {
+            let _ = self.host.append(&entry.path(), &entry.line());
+        }
+    }
+
     /// イベントを積む（コールバックにも渡す）。
     pub fn push(&mut self, event: AppEvent) {
         for callback in &mut self.callbacks {
@@ -429,6 +447,13 @@ impl Session {
             self.sync_recent();
         }
         let outcome = (def.handler)(self, &map);
+        // 監査ログは**操作が成功してから**追記する（§19.1.6 の原子性）: 保存が失敗して束ごと
+        // 元へ戻した操作の記録（実体のない `direct_write`）を残さない。
+        if outcome.is_ok() {
+            self.write_audits();
+        } else {
+            self.audits.clear();
+        }
         if outcome.is_ok() && !is_recent_cycle {
             self.sync_recent();
         }
@@ -466,16 +491,31 @@ impl Session {
     }
 
     /// 外部変更を 1 回分取り込む（§8.5・§19.1.6）。
-    pub fn poll_external(&mut self) -> Vec<(String, Option<String>)> {
+    ///
+    /// 読めなかったファイル（[`ExternalChange::Unreadable`]）は**削除と区別する**: 文書は
+    /// そのまま残し、S024 / S030 相当の出来事（[`AppEvent::ExternalUnreadable`]）を積むだけにする。
+    /// 読み取りの失敗や文字コード不正を利用者の削除操作と誤認すると、開いている文書が
+    /// セッションから消える（Dirty の本文も、衝突として持つ外部版も上書きしない）。
+    pub fn poll_external(&mut self) -> Vec<ExternalChange> {
         let changes = self.host.poll();
-        for (path, text) in &changes {
+        for change in &changes {
+            if let Some(failure) = change.failure() {
+                self.push(AppEvent::ExternalUnreadable {
+                    path: change.path().to_owned(),
+                    code: failure.kind().to_owned(),
+                    message: failure.message().to_owned(),
+                });
+                continue;
+            }
+            let path = change.path();
+            let text = change.text().map(str::to_owned);
             let reaction = self.bench.external_change(path, text.clone());
             match reaction {
                 crate::app::workbench::Reaction::Conflict => {
-                    self.conflicts.insert(path.clone(), text.clone());
+                    self.conflicts.insert(path.to_owned(), text);
                     self.bench.save.request_now();
                     self.push(AppEvent::DocumentChanged {
-                        path: path.clone(),
+                        path: path.to_owned(),
                         change: "conflict".to_owned(),
                     });
                     self.push(AppEvent::SaveStateChanged {
@@ -486,14 +526,14 @@ impl Session {
                 crate::app::workbench::Reaction::Reloaded => {
                     self.conflicts.remove(path);
                     self.push(AppEvent::DocumentChanged {
-                        path: path.clone(),
+                        path: path.to_owned(),
                         change: "external".to_owned(),
                     });
                 }
                 crate::app::workbench::Reaction::Unchanged => {
                     self.conflicts.remove(path);
                     self.push(AppEvent::DocumentChanged {
-                        path: path.clone(),
+                        path: path.to_owned(),
                         change: "unchanged".to_owned(),
                     });
                 }

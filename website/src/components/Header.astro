@@ -47,6 +47,9 @@ const t = translations[lang].nav;
       <a href={`/${lang}/troubleshooting`} class:list={[styles.navLink, { [styles.active]: currentPath.includes("/troubleshooting") || currentPath.includes("/diagnostics") }]}>
         {t.troubleshooting}
       </a>
+      <a href={`/${lang}/search`} class:list={[styles.navLink, { [styles.active]: currentPath.includes("/search") }]} data-nav-search>
+        {t.search}
+      </a>
     </nav>
 
     <div class={styles.actions}>

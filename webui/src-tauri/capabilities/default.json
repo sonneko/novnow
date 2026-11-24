@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "第 2 の画面実装のネイティブ実行に与える許可（設計 §21.4）。保存・選択のダイアログだけで、ファイル入出力・通信・シェル・自動起動の許可は置かない。",
+  "windows": ["main"],
+  "permissions": ["core:default", "dialog:allow-save", "dialog:allow-open"]
+}

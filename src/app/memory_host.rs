@@ -6,7 +6,7 @@
 
 use std::path::PathBuf;
 
-use crate::app::host::{save_now, ExportFailure, Host, SaveOutcome};
+use crate::app::host::{save_now, ExportFailure, ExternalChange, Host, ReadFailure, SaveOutcome};
 use crate::ports::dialog::ChosenPath;
 
 /// [`MemoryHost`] の時計（`YYYYMMDD-HHMM`。テストで既定のファイル名を決め打ちできるように固定）。
@@ -32,6 +32,16 @@ pub struct MemoryFiles {
     pub writes: usize,
     /// 書き込みを失敗させる。
     pub fail: bool,
+    /// N 番目（0 始まり）の**書き込みの呼び出し**だけを失敗させる（§19.1.6 の原子性の検査）。
+    pub fail_write_at: Option<usize>,
+    /// N 番目（0 始まり）の**削除の呼び出し**だけを失敗させる。
+    pub fail_remove_at: Option<usize>,
+    /// 書き込みの呼び出し回数（成功・失敗を問わない。`fail_write_at` の番号）。
+    pub write_calls: usize,
+    /// 削除の呼び出し回数（成功・失敗を問わない。`fail_remove_at` の番号）。
+    pub remove_calls: usize,
+    /// 次の監視で「変わったが読めなかった」ものとして返すもの（§8.5。削除とは区別する）。
+    pub unreadable: Vec<(String, ReadFailure)>,
     /// 次の監視で外部変更として返すもの。
     pub changes: Vec<(String, Option<String>)>,
     /// 次の「名前を付けて保存」のダイアログで選ばれるパス（`None` なら取り消し）。
@@ -73,25 +83,94 @@ pub struct MemoryFiles {
 pub type HeldSave = (Vec<(String, String)>, Vec<String>);
 
 impl MemoryFiles {
-    /// 止めておいた保存を終わらせる（書き込みは `fail` に従う）。
+    /// 1 ファイルを書く（[`Host::write`] と同じ失敗の注入を通す）。
+    fn put(&mut self, path: &str, text: &str) -> Result<(), String> {
+        let index = self.write_calls;
+        self.write_calls += 1;
+        // `fail` は全部、`fail_write_at` は N 番目の呼び出しだけを失敗させる（失敗の注入）。
+        if self.fail || self.fail_write_at == Some(index) {
+            return Err("disk full".to_owned());
+        }
+        self.writes += 1;
+        self.written.insert(path.to_owned(), text.to_owned());
+        Ok(())
+    }
+
+    /// 1 ファイルを消す（[`Host::remove`] と同じ失敗の注入を通す）。
+    fn drop_file(&mut self, path: &str) -> Result<(), String> {
+        let index = self.remove_calls;
+        self.remove_calls += 1;
+        if self.fail_remove_at == Some(index) {
+            return Err(format!("cannot remove {path}"));
+        }
+        self.written.remove(path);
+        self.removed.push(path.to_owned());
+        Ok(())
+    }
+
+    /// 控えへ戻す（ロールバック）。メモリなので戻せないことは無い。
+    fn roll_back(&mut self, backup: Vec<(String, Option<String>)>) {
+        for (path, text) in backup {
+            let existed = text.is_some();
+            match text {
+                Some(text) => {
+                    self.written.insert(path.clone(), text);
+                }
+                None => {
+                    self.written.remove(&path);
+                }
+            }
+            if existed {
+                // 戻した削除は「消した」事実が無かったことになる。
+                self.removed.retain(|removed| removed != &path);
+            }
+        }
+    }
+
+    /// 止めておいた保存を終わらせる（書き込みは `fail` / `fail_write_at` に従う）。
+    ///
+    /// 2 つ以上のファイルにまたがるときは原子性を持つ（§19.1.6）: 失敗したら成功済みの
+    /// 書き込み・削除も元へ戻す（部分コミットを残さない）。
     pub fn release_save(&mut self) {
         let Some((writes, removals)) = self.held_save.take() else {
             return;
         };
+        let backup: Option<Vec<(String, Option<String>)>> = (writes.len() + removals.len() > 1)
+            .then(|| {
+                writes
+                    .iter()
+                    .map(|(path, _)| path)
+                    .chain(removals.iter())
+                    .map(|path| (path.clone(), self.written.get(path).cloned()))
+                    .collect()
+            });
         let mut outcome = SaveOutcome::default();
-        for (path, text) in writes {
-            if self.fail {
-                outcome.failures.push((path, "disk full".to_owned()));
-            } else {
-                self.writes += 1;
-                self.written.insert(path.clone(), text);
-                outcome.written.push(path);
+        for (path, text) in &writes {
+            match self.put(path, text) {
+                Ok(()) => outcome.written.push(path.clone()),
+                Err(message) => outcome.failures.push((path.clone(), message)),
             }
         }
+        let mut left: Vec<String> = Vec::new();
         if outcome.failures.is_empty() {
-            self.removed.extend(removals);
-        } else {
-            outcome.removals_left = removals;
+            for path in &removals {
+                if let Err(message) = self.drop_file(path) {
+                    outcome.failures.push((path.clone(), message));
+                    left.push(path.clone());
+                }
+            }
+        }
+        if !outcome.failures.is_empty() {
+            match backup {
+                Some(backup) => {
+                    outcome.written.clear();
+                    self.roll_back(backup);
+                    outcome.removals_left = removals;
+                }
+                None => {
+                    outcome.removals_left = if left.is_empty() { removals } else { left };
+                }
+            }
         }
         self.finished_save = Some(outcome);
     }
@@ -104,17 +183,44 @@ impl Host for MemoryHost {
     }
 
     fn write(&mut self, path: &str, text: &str) -> Result<(), String> {
-        let mut files = self.files.borrow_mut();
-        if files.fail {
-            return Err("disk full".into());
-        }
-        files.writes += 1;
-        files.written.insert(path.to_owned(), text.to_owned());
-        Ok(())
+        self.files.borrow_mut().put(path, text)
     }
 
-    fn poll(&mut self) -> Vec<(String, Option<String>)> {
-        std::mem::take(&mut self.files.borrow_mut().changes)
+    fn poll(&mut self) -> Vec<ExternalChange> {
+        let (changes, unreadable) = {
+            let mut files = self.files.borrow_mut();
+            (
+                std::mem::take(&mut files.changes),
+                std::mem::take(&mut files.unreadable),
+            )
+        };
+        changes
+            .into_iter()
+            .map(|(path, text)| match text {
+                Some(text) => ExternalChange::Updated(path, text),
+                None => ExternalChange::Removed(path),
+            })
+            .chain(
+                unreadable
+                    .into_iter()
+                    .map(|(path, failure)| ExternalChange::Unreadable(path, failure)),
+            )
+            .collect()
+    }
+
+    fn backup(&mut self, paths: &[String]) -> Option<Vec<(String, Option<String>)>> {
+        let files = self.files.borrow();
+        Some(
+            paths
+                .iter()
+                .map(|path| (path.clone(), files.written.get(path).cloned()))
+                .collect(),
+        )
+    }
+
+    fn restore(&mut self, backup: Vec<(String, Option<String>)>) -> Vec<(String, String)> {
+        self.files.borrow_mut().roll_back(backup);
+        Vec::new()
     }
 
     fn save(
@@ -146,10 +252,7 @@ impl Host for MemoryHost {
     }
 
     fn remove(&mut self, path: &str) -> Result<(), String> {
-        let mut files = self.files.borrow_mut();
-        files.written.remove(path);
-        files.removed.push(path.to_owned());
-        Ok(())
+        self.files.borrow_mut().drop_file(path)
     }
 
     fn choose_export(&mut self, suggested: &str) -> Option<ChosenPath> {

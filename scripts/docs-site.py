@@ -72,6 +72,7 @@ SPEC_ORDER = {
     "workflows.md": 9,
     "interfaces.md": 10,
     "external.md": 11,
+    "webui.md": 12,
 }
 
 LINK = re.compile(r"\]\(([^)\s]+)\)")

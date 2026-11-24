@@ -2,6 +2,7 @@
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import Header from "../../../components/Header.astro";
 import Footer from "../../../components/Footer.astro";
+import InlineText from "../../../components/InlineText.astro";
 import { diagnostics } from "../../../data/diagnostics";
 import diagnosticEnglish from "../../../data/diagnostics-en.json";
 import examples from "../../../data/diagnostics-examples.json";
@@ -45,23 +46,23 @@ const actionJa = row.action === "—" ? "自動修正なし。該当箇所を確
               : japanese ? "情報" : "Info"}
         </span>
       </div>
-      <h1 class="title">{japanese ? row.ja : row.en}</h1>
+      <h1 class="title"><InlineText text={japanese ? row.ja : row.en} /></h1>
     </div>
 
     <div class="cards">
       <section class="info-card">
         <h2>{japanese ? "発生条件" : "Cause"}</h2>
-        <p>{japanese ? row.condition : causeEn}</p>
+        <p><InlineText text={japanese ? row.condition : causeEn} /></p>
       </section>
 
       <section class="info-card">
         <h2>{japanese ? "具体例" : "Example"}</h2>
-        <p>{japanese ? exampleJa : exampleEn}</p>
+        <p><InlineText text={japanese ? exampleJa : exampleEn} /></p>
       </section>
 
       <section class="info-card resolution-card">
         <h2>{japanese ? "解消手順" : "What to do"}</h2>
-        <p>{japanese ? actionJa : actionEn}</p>
+        <p><InlineText text={japanese ? actionJa : actionEn} /></p>
       </section>
     </div>
   </main>

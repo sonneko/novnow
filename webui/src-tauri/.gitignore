@@ -1,0 +1,7 @@
+# Cargo の生成物（Tauri 側と、Tauri 無しで組む `bridge/` の両方）
+/target/
+/bridge/target/
+# `bridge/` の lock は置かない。組むたびに root の `Cargo.lock` から作る（README の「試す」）
+/bridge/Cargo.lock
+# tauri-build が作る権限の表（`capabilities/default.json` の `$schema` が指す先）
+/gen/schemas/

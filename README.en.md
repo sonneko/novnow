@@ -9,7 +9,7 @@ The novnow editor, built to manage the novnow format, runs both as a desktop app
 
 See the website for [known issues in published releases](https://sonneko.github.io/novnow/en/known-issues/).
 
-**v0.1.1 is available.** [Try in your browser](https://sonneko.github.io/novnow/app/) · [Download](https://sonneko.github.io/novnow/en/#downloads). Until v1, **novnow project formats have no cross-version compatibility guarantee**; an update may make existing projects unreadable. **No v0-to-v1 migration feature will be provided.** Before updating, back up your work as both Zip and plain text, and pin your version where needed. The CLI `migrate` command imports prose text; it does not migrate novnow format versions.
+**v0.1.3 is available.** [Try in your browser](https://sonneko.github.io/novnow/app/) · [Download](https://sonneko.github.io/novnow/en/#downloads). Until v1, **novnow project formats have no cross-version compatibility guarantee**; an update may make existing projects unreadable. **No v0-to-v1 migration feature will be provided.** Before updating, back up your work as both Zip and plain text, and pin your version where needed. The CLI `migrate` command imports prose text; it does not migrate novnow format versions.
 
 Development follows GitFlow. Merges into `main` are reserved for version updates. See `REF:docs/developers.md` and `REF:docs/distribution.md` for development and release procedures.
 
@@ -122,7 +122,7 @@ The format includes extension points for media beyond novels, such as visual nov
 
 ## Install and Run
 
-The distribution channels are the browser, GitHub Releases, PyPI, the VSIX file on GitHub Releases, and GitHub Actions (the `@v0` tag). There are 10 desktop builds (with or without a window, across 5 OS/CPU targets) and 5 Python wheels. Version v0.1.1 is published for all of these channels. See [how to install](./docs/users/install.md) for users and [distribution.md](./docs/distribution.md) for the release procedure and rules.
+The distribution channels are the browser, GitHub Releases, PyPI, the VSIX file on GitHub Releases, and GitHub Actions (the `@v0` tag). There are 10 desktop builds (with or without a window, across 5 OS/CPU targets) and 5 Python wheels. Version v0.1.3 is published for all of these channels. See [how to install](./docs/users/install.md) for users and [distribution.md](./docs/distribution.md) for the release procedure and rules.
 
 You can also build novnow from source. A stable Rust toolchain is required.
 
@@ -173,7 +173,7 @@ novnow structure tree my-novel --json                    # canonical operations 
 
 ## About the Specifications
 
-The editor and the novnow format are specified in the twelve documents below:
+The editor and the novnow format are specified in the thirteen documents below:
 
 - [`overview.md`](./docs/specifications/overview.md): Design principles, terminology, and architecture
 - [`project.md`](./docs/specifications/project.md): Project structure, `project.toml`, and sample layouts
@@ -187,6 +187,7 @@ The editor and the novnow format are specified in the twelve documents below:
 - [`workflows.md`](./docs/specifications/workflows.md): Material collection, export, and performance/quality requirements
 - [`interfaces.md`](./docs/specifications/interfaces.md): CLI, LSP, MCP, Python, and Rust interfaces
 - [`external.md`](./docs/specifications/external.md): Distribution formats (10 desktop builds, 5 wheels, a VS Code extension, and a GitHub Action)
+- [`webui.md`](./docs/specifications/webui.md): The second UI implementation (Svelte + Tauri, run in parallel, and the conditions for replacing the first)
 
 Our website ([https://sonneko.github.io/novnow/](https://sonneko.github.io/novnow/)) has a feature guide, the full diagnostics catalog, and an API reference. The specifications themselves live in this repository under [`docs/specifications/`](./docs/specifications/) and are versioned with the implementation.
 

@@ -223,9 +223,20 @@ fn all_archives_are_self_contained_and_release_checksums_cover_every_artifact() 
 
     let vsix_manifest =
         format!("{{\"name\":\"novnow\",\"publisher\":\"sonneko\",\"version\":\"{version}\"}}");
+    // 同梱 README（vsce は `vscode/README.md` を `extension/readme.md` として入れる）も
+    // manifest と同じ版を名乗ること。公開済み成果物は差し替えられないので、作る前で止める
+    // （#61 追加監査 8: novnow-0.1.1.vsix に v0.1.0 の README が入っていた）。
+    let download = format!("https://github.com/sonneko/novnow/releases/download/v{version}");
+    let vsix_readme = format!(
+        "Download [novnow-{version}.vsix]({download}/novnow-{version}.vsix). \
+         Version v{version} is published."
+    );
     write_zip(
         &release.join(format!("novnow-{version}.vsix")),
-        &[("extension/package.json", &vsix_manifest)],
+        &[
+            ("extension/package.json", &vsix_manifest),
+            ("extension/readme.md", &vsix_readme),
+        ],
     );
     let source = Command::new("git")
         .current_dir(root())
@@ -544,4 +555,110 @@ fn release_distributes_vsix_without_marketplace_or_publisher_signing() {
     assert!(release.contains("gh release upload \"$TAG\" release/*.vsix release/*-source.tar.gz"));
     assert!(release.contains("needs: [prepare, vscode-package, publish-crates]"));
     assert!(release.contains("without publisher signing; macOS notarization is not performed"));
+}
+
+/// 公開後 smoke が使う「E 診断が出る作品」を作る手順（#61 追加監査 7）。
+///
+/// 本文を `-name '*.txt'` で決め打ちしていたころは、サンプルの本文が `.cnov` へ変わったあと
+/// `find` が空を返して E 診断を注入できず、3 OS とも「Prepare a project with an E diagnostic」で
+/// 止まり、後段の「E 診断で exit code 5」が一度も走らなかった。ここでは公開される Actions と
+/// 同じスクリプトを本物のサンプル作品に対して回し、実際に E001 と終了コード 5 が出ることを
+/// 確かめる。選ばれた本文は**実装が文書と認めるもの**であることを見て、将来形式が変わっても
+/// 準備の段階で気付けるようにする。
+#[cfg(unix)]
+#[test]
+fn post_release_smoke_injects_an_unknown_reference_and_check_exits_5() {
+    let temp = TempDir::new("action-smoke");
+    let invalid = temp.join("novnow-invalid");
+    let prepared = Command::new("bash")
+        .arg(root().join("scripts/action/prepare-invalid-project.sh"))
+        .arg(root().join("examples/sample-novel"))
+        .arg(&invalid)
+        .output()
+        .expect("prepare-invalid-project.sh must run");
+    assert!(
+        prepared.status.success(),
+        "{}",
+        String::from_utf8_lossy(&prepared.stderr)
+    );
+    let manuscript = String::from_utf8_lossy(&prepared.stdout).trim().to_owned();
+    let relative = Path::new(&manuscript)
+        .strip_prefix(&invalid)
+        .expect("the manuscript must live inside the copy");
+    let path = novnow::core::policy::ProjectPath::new(relative.to_str().expect("utf-8 path"))
+        .expect("project path");
+    assert!(
+        novnow::adapters::project_load::is_document(&path),
+        "{relative:?} は実装が文書と認める本文ではない"
+    );
+
+    let check = |project: &Path| {
+        Command::new(env!("CARGO_BIN_EXE_novnow"))
+            .arg("check")
+            .arg(project)
+            .output()
+            .expect("novnow check must run")
+    };
+
+    // 素のサンプルは 0 で終わる（ワークフローの最初のステップと同じ）。ここが失敗するなら
+    // 負例を足す意味が無い。
+    let pristine = check(&root().join("examples/sample-novel"));
+    let pristine_out = String::from_utf8_lossy(&pristine.stdout);
+    assert_eq!(pristine.status.code(), Some(0), "{pristine_out}");
+    assert!(!pristine_out.contains("E001"), "{pristine_out}");
+
+    // 注入したほうは E001 が出て 5 で終わる（§14.2.5）。E001 の引数は §6.2.6 の先頭 1 形態素
+    // なので `'action_unknown_term` は `action` と表示される。ここでは言語に依存しない
+    // コードとファイル名だけを見る。
+    let checked = check(&invalid);
+    let stdout = String::from_utf8_lossy(&checked.stdout);
+    assert_eq!(checked.status.code(), Some(5), "{stdout}");
+    assert!(stdout.contains("E001"), "{stdout}");
+    assert!(
+        stdout.contains(relative.to_str().expect("utf-8 path")),
+        "{stdout}"
+    );
+}
+
+/// 本文が見つからないときは、曖昧なリダイレクトで先へ進まず理由を出して止まること。
+#[cfg(unix)]
+#[test]
+fn post_release_smoke_reports_a_project_without_a_manuscript() {
+    let temp = TempDir::new("action-smoke-empty");
+    let project = temp.mkdir("empty");
+    temp.mkdir("empty/contents");
+    // ドットで始まる名前は本文ではない（`REF:docs/specifications/project.md` §4.3-5）
+    temp.write("empty/contents/.novnow-local", "local state\n");
+    let prepared = Command::new("bash")
+        .arg(root().join("scripts/action/prepare-invalid-project.sh"))
+        .arg(&project)
+        .arg(temp.join("out"))
+        .output()
+        .expect("prepare-invalid-project.sh must run");
+    assert!(!prepared.status.success());
+    let stderr = String::from_utf8_lossy(&prepared.stderr);
+    assert!(stderr.contains("::error::"), "{stderr}");
+    assert!(stderr.contains("本文ファイルが無い"), "{stderr}");
+}
+
+/// ワークフロー側が本文解決をスクリプトへ任せ、拡張子を決め打っていないこと。
+#[test]
+fn post_release_smoke_workflow_does_not_hardcode_the_manuscript_extension() {
+    let workflow = include_str!("../.github/workflows/action-smoke.yml");
+    // 経緯を説明するコメントを除いた、実際に走る行だけを見る
+    let executed: Vec<&str> = workflow
+        .lines()
+        .filter(|line| !line.trim_start().starts_with('#'))
+        .collect();
+    let executed = executed.join("\n");
+    assert!(
+        executed.contains("scripts/action/prepare-invalid-project.sh"),
+        "{executed}"
+    );
+    assert!(
+        !executed.contains(".txt"),
+        "本文を拡張子で決め打っている（空振りしても気付けなくなる）: {executed}"
+    );
+    // 負例の確認（E 診断で exit code 5）はこれまでどおり後段のステップが担う
+    assert!(executed.contains("[ \"$INVALID_CODE\" = 5 ]"), "{executed}");
 }

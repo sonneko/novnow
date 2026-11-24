@@ -8,7 +8,9 @@ use serde_json::{json, Map, Value};
 
 use crate::app::error::Error;
 use crate::app::session::Session;
+use crate::core::diagnostics::Diagnostic;
 use crate::core::features::semantic_tokens::TokenType;
+use crate::ui::i18n::{self, Locale};
 
 use super::convert;
 
@@ -253,59 +255,53 @@ pub fn severity(name: &str) -> u8 {
     }
 }
 
-/// `diagnostics.run` の行を LSP の `Diagnostic` にする。
+/// 1 文書の診断を LSP の `Diagnostic` にする（§19.4.2「位置は LSP 標準の UTF-16 行・文字」）。
 ///
-/// 操作側は 1 始まりの行・列（§19.1.7）、LSP は 0 始まり。終わり位置は操作が出さないので
-/// 行末にする（エディタが行全体を引く）。
-pub fn diagnostics_json(text: &str, value: &Value) -> Vec<Value> {
-    let lines: Vec<&str> = text.lines().collect();
-    let mut items = Vec::new();
-    for row in value
-        .get("diagnostics")
-        .and_then(Value::as_array)
+/// 操作 `diagnostics.run` の行は 1 始まりの行・列だけで**終端を持たない**うえ、
+/// `novnow.diagnostics.run` は凍結 14 ツールの 1 つなので出力の形を変えられない（§19.8.3）。
+/// そこで操作が呼ぶのと同じ純粋関数（`core::diagnostics::document`。§19.1.2「同じ実装を
+/// 5 つの口が共有する」）が持つ **byte 範囲**を、[`convert::range_json`] で UTF-16 の
+/// `Range` に変換する（§3.4「位置表現」）。終端も行末ではなく診断の対象そのものになるので、
+/// 日本語や BMP 外文字の前後で波線がずれたり `start > end` になったりしない。
+pub fn document_diagnostics(session: &mut Session, path: &str) -> Vec<Value> {
+    // 操作（`diagnostics.run`）と同じく、編集中の節を先に文書へ確定させる。
+    session.bench.commit();
+    let locale = session.locale;
+    let Some(document) = session.aggregate().document(path) else {
+        return Vec::new();
+    };
+    let text = document.text.clone();
+    crate::core::diagnostics::document(document, session.aggregate())
         .into_iter()
-        .flatten()
-    {
-        let line = row
-            .get("line")
-            .and_then(Value::as_u64)
-            .unwrap_or(1)
-            .saturating_sub(1);
-        let column = row
-            .get("column")
-            .and_then(Value::as_u64)
-            .unwrap_or(1)
-            .saturating_sub(1);
-        let end = lines
-            .get(line as usize)
-            .map(|line| convert::utf16_len(line))
-            .unwrap_or(column as u32);
-        items.push(json!({
-            "code": row.get("code"),
-            "message": row.get("message"),
-            "range": {
-                "start": { "line": line, "character": column },
-                "end": { "line": line, "character": end },
-            },
-            "severity": severity(row.get("severity").and_then(Value::as_str).unwrap_or("info")),
-            "source": "novnow",
-        }));
-    }
-    items
+        .map(|found| diagnostic_json(&text, &found, locale))
+        .collect()
+}
+
+/// 診断 1 件を LSP の `Diagnostic` にする（`code` は E 番号、`source` は `"novnow"`、
+/// メッセージは §12.4 の言語。§19.4.2）。
+fn diagnostic_json(text: &str, found: &Diagnostic, locale: Locale) -> Value {
+    // 文書の中の位置を持たない診断（W041 など）は空範囲（§7.1「波線は出さない」）。
+    let range = found
+        .range
+        .as_ref()
+        .map(|range| convert::range_json(text, range))
+        .unwrap_or_else(|| convert::range_json(text, &(0..0)));
+    json!({
+        "code": found.code.as_str(),
+        "message": i18n::diagnostic(locale, found),
+        "range": range,
+        "severity": severity(crate::app::ops::severity_name(found.severity())),
+        "source": "novnow",
+    })
 }
 
 /// 1 文書の診断を出し直す（`textDocument/publishDiagnostics`。§19.4.4）。
 pub fn publish(session: &mut Session, out: &mut Outbox, path: &str, root: &str) {
-    let mut args = Map::new();
-    args.insert("path".to_owned(), json!(path));
-    let Ok(value) = run(session, "diagnostics.run", Value::Object(args)) else {
-        return;
-    };
-    let text = text_of(session, path);
+    let diagnostics = document_diagnostics(session, path);
     out.notify(
         "textDocument/publishDiagnostics",
         json!({
-            "diagnostics": diagnostics_json(&text, &value),
+            "diagnostics": diagnostics,
             "uri": uri_of(root, path),
         }),
     );
@@ -880,6 +876,11 @@ fn inlay_label(kind: Option<&Value>) -> String {
 }
 
 /// `textDocument/codeAction`（`lang.code_action`）。
+///
+/// **適用後のテキスト編集を返せるものだけ**を返す（§19.4.2）。編集を返す action に
+/// `command` を付けてはいけない: 標準クライアントは `edit` を適用した**後**に `command` も
+/// 実行するので、同じ編集が 2 回当たる（`workspace/executeCommand` から
+/// `lang.code_action` + `apply: true` でいつでも実行できる。§19.4.5）。
 pub fn code_action(session: &mut Session, params: &Value, root: &str) -> Result<Outcome, Error> {
     let Some((path, _text, range)) = range_of(session, params, root) else {
         return Ok(Outcome::Value(Value::Array(Vec::new())));
@@ -894,21 +895,32 @@ pub fn code_action(session: &mut Session, params: &Value, root: &str) -> Result<
         .and_then(Value::as_array)
         .into_iter()
         .flatten()
-        .map(|action| {
-            json!({
-                "command": {
-                    "arguments": [json!(action.get("arg"))],
-                    "command": "novnow.lang.code_action",
-                    "title": action.get("kind"),
-                },
-                "edit": workspace_edit(session, root, action.get("edit").unwrap_or(&Value::Null)),
+        .filter_map(|action| {
+            let edit = workspace_edit(session, root, action.get("edit").unwrap_or(&Value::Null));
+            // 編集を持たないもの（ファイルをまたぐ移動・UI 操作）は返さない（§19.4.2）。
+            if !has_edit(&edit) {
+                return None;
+            }
+            Some(json!({
+                "edit": edit,
                 "isPreferred": action.get("preferred"),
                 "kind": "quickfix.novnow",
                 "title": action.get("kind"),
-            })
+            }))
         })
         .collect();
     Ok(Outcome::Value(Value::Array(items)))
+}
+
+/// `WorkspaceEdit` に実際に当たる編集があるか（空の `changes` は「編集を返せない」）。
+fn has_edit(edit: &Value) -> bool {
+    edit.get("changes")
+        .and_then(Value::as_object)
+        .is_some_and(|changes| {
+            changes
+                .values()
+                .any(|edits| edits.as_array().is_some_and(|items| !items.is_empty()))
+        })
 }
 
 /// `textDocument/semanticTokens/full`（`lang.tokens`）。
@@ -1088,8 +1100,8 @@ pub fn did_change_configuration(
     }
 
     let mut targets: std::collections::BTreeSet<String> = open_docs.clone();
-    for (path, _) in external {
-        targets.insert(path);
+    for change in external {
+        targets.insert(change.path().to_owned());
     }
     for path in targets {
         publish(session, out, &path, root);
