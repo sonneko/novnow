@@ -109,6 +109,26 @@ test('reader 組版: ルビは親文字に添えて残す（§17.3.3）', async 
   assert.equal(target.ruby, 'ら', 'ルビが親文字に添えられる');
 });
 
+test('reader Svelte: 同じ行に重複文字があっても each key は一意（each_key_duplicate 回帰）', async () => {
+  const { layout } = await reader();
+  const pages = layout(
+    "失われた刻印\n\n'アルス が地下遺跡に惹かれ、'リリア を巻き込んで探索を始める導入章。",
+    { columns: 18, rows: 42 },
+  );
+  const duplicateLegacyKeys = pages.flatMap((page) => page.lines).some((line) => {
+    const keys = line.map((cell) => cell.ch + cell.ruby);
+    return new Set(keys).size !== keys.length;
+  });
+  assert.ok(duplicateLegacyKeys, 'fixture must reproduce duplicate ch+ruby keys');
+
+  const component = await readFile(new URL('src/lib/workspaces/reader/ReaderWorkspace.svelte', ROOT), 'utf8');
+  assert.match(
+    component,
+    /\{#each line as cell, cellIndex \(cellIndex\)\}/,
+    'cell each must key by its unique position, not by repeated glyph content',
+  );
+});
+
 test('cast 呼称表: 対角線は常に `—`（§10.6.1 MUST）', async () => {
   const { buildMatrix, DIAGONAL } = await cast();
   const names = [

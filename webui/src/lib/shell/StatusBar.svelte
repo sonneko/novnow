@@ -79,7 +79,7 @@
       </button>
     {/if}
   </div>
-  <button type="button" class="save" data-state={save} title={detail} aria-label={detail || t('status.saving')} on:click={() => onsave?.()}>
+  <button type="button" class="save" data-state={save} title={detail} aria-label={detail || t('api.op.save.now')} on:click={() => onsave?.()}>
     {#if mark}
       <span aria-hidden="true">{mark}</span>
     {/if}

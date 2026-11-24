@@ -400,7 +400,7 @@
     >
       {#each page.lines as line (line)}
         <div class="line">
-          {#each line as cell (cell.ch + cell.ruby)}
+          {#each line as cell, cellIndex (cellIndex)}
             <span class="cell" class:punctuation={cell.punctuation}>
               {cell.text}
               {#if showRuby && cell.ruby}
