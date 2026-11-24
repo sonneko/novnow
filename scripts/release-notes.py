@@ -2,7 +2,7 @@
 """リリースノートの定型を検査し、公開時の本文を出す（Issue #61 の提案 E）。
 
 公開された Release の本文は成果物と同じで、あとから読む人が「この版で何が変わり、何が壊れ、
-何が未解決か」を知る唯一の場所である。1 行の本文（`novnow 0.1.2 distribution artifacts`）では
+何が未解決か」を知る唯一の場所である。1 行の本文（`novnow 0.1.3 distribution artifacts`）では
 その役割を果たさないので、**本文が無い版は公開できない**ようにする。
 
 - 定型は `REF:docs/release-notes/TEMPLATE.md`。必須の 4 節は
@@ -17,7 +17,7 @@
     python3 scripts/release-notes.py --check --version 0.1.1   # 公開前のゲート（release.yml / release-check.sh）
     python3 scripts/release-notes.py --check-all               # 既にある本文と配線の検査（CI / verify.sh）
     python3 scripts/release-notes.py --print --version 0.1.1   # Release へ貼る本文を stdout へ
-    python3 scripts/release-notes.py --new --version 0.1.2     # 定型から書きかけを作る
+    python3 scripts/release-notes.py --new --version 0.1.3     # 定型から書きかけを作る
 """
 
 from __future__ import annotations
