@@ -1,0 +1,331 @@
+{
+  "url": "http://127.0.0.1:5187/novnow/nightly-webui/",
+  "console": [],
+  "pageErrors": [],
+  "unhandledRejections": [],
+  "network": [
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:5187/novnow/nightly-webui/",
+      "type": "document",
+      "status": 200,
+      "failure": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:5187/novnow/nightly-webui/assets/index-CwjQfZV2.js",
+      "type": "script",
+      "status": 200,
+      "failure": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:5187/novnow/nightly-webui/assets/index-DGmFaOFO.css",
+      "type": "stylesheet",
+      "status": 200,
+      "failure": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:5187/novnow/nightly-webui/assets/novnow_wasm_bg-CXIBeHSJ.wasm",
+      "type": "fetch",
+      "status": 200,
+      "failure": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:5187/novnow/nightly-webui/",
+      "type": "document",
+      "status": 200,
+      "failure": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:5187/novnow/nightly-webui/assets/index-CwjQfZV2.js",
+      "type": "script",
+      "status": 200,
+      "failure": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:5187/novnow/nightly-webui/assets/index-DGmFaOFO.css",
+      "type": "stylesheet",
+      "status": 200,
+      "failure": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:5187/novnow/nightly-webui/assets/novnow_wasm_bg-CXIBeHSJ.wasm",
+      "type": "fetch",
+      "status": 200,
+      "failure": null
+    }
+  ],
+  "workspaceSwitches": [
+    {
+      "label": "本文",
+      "mainText": "全文検索\n✎\n01-04-01-01\n85字\n削除\n削除\n01-04-02-01\n\n「やっぱり'アルス、ここにいたのね」@リリア\n\n呆れたような声とともに、'リリアが隣の椅子を引き寄せた。\n整えられた銀髪を揺らしながら、彼女は'アルスの手元にある本を覗き込む。\n\n「明日から期末試験だって分かってる？ '学院長が『今回の赤点者は補習漬けだ』って言ってたでしょ」@リリア\n\n01›04›01›01\n⑛\n✎\n0%\n1\n静まり返った'魔法学院の図書室。高い天井まで届く本棚の隙間から、午後の柔らかい光が差し込んでいる。 \n2\n古びた羊皮紙の匂いが漂う一角で、'アルスは厚みのある魔導書を開いていた。 \n\n設定の変更はこの版ではまだ使えません · 目標比（実績÷目標）はこの版ではまだ使えません · 診断はこの版ではまだ使えません\n\nプロット\n上位プロット\n試験前の図書室で'アルス が'リリア に設計図を見せ、放課後の探索を約束させる。\n'アルス が地下遺跡に惹かれ、'リリア を巻き込んで探索を始める導入章。\n配役\nアルス A 平常\n好奇心旺盛で一直線。詮索好きだが仲間思い。 / 好奇心 / 主人公\n用",
+      "activeCount": 1
+    },
+    {
+      "label": "話プロット",
+      "mainText": "章プロット plots/01.cnovに @01-04のブロックはまだありません\n\n01-04\n43%\n\nstate:はこの版ではまだ使えません when:はこの版ではまだ使えません\n\n01-01\n放課後の図書室\n85 字\n削除\n02-01\n図書室の攻防\n136 字\n削除\n02-02\n図書室の攻防\n117 字\n削除\n02-03\n図書室の攻防\n101 字\n削除\n02-04\n図書室の攻防\n138 字\n削除\n01-04-01\n放課後の図書室\n\n話プロット plots/01-04.cnovはまだありません。Ctrl+Shift+N で最初の節を作ります",
+      "activeCount": 1
+    },
+    {
+      "label": "構成",
+      "mainText": "全体\n基本\n時系列\n俯瞰表\n挿絵メモ\n五感\n空間\n章のあらすじ\n字数分布\n未分類ストック\nplots/all.cnovにブロックはまだありません。Ctrl+Shift+N で作ります\n\n一覧からブロックを選ぶと、ここで編集できます\n\n伏線\n\n伏線はこの版ではまだ使えません",
+      "activeCount": 1
+    },
+    {
+      "label": "アイデア",
+      "mainText": "すべて\ninbox\nkeep\npromoted\ndropped\nタグで絞り込む\ninbox\n学院長の動機\n学院長, 動機\n学院長の動機\n\nI0001\ninbox\nCtrl+Enter 昇格 · Ctrl+Delete 捨てる（行は残る）\n\n昇格の行き先\nCtrl+Delete 捨てる（行は残る）\n学院長の動機",
+      "activeCount": 1
+    },
+    {
+      "label": "資料",
+      "mainText": "却下以外\n提案\n採用\n却下\n絞り込み（語・#分類・@範囲・'参照・~日付）\nCtrl+Shift+N 新しい資料\n採用\n旧校舎の構造メモ\n一次資料\n旧校舎の構造メモ\n\nM0001\n採用\nCtrl+Enter 採用 · Ctrl+Delete 却下\n\n採用（Ctrl+Enter）\n却下（Ctrl+Delete）\n素材の添付\nmaterials/docs/M0001-kyukousha.md\nTab 審査フォーム\n引用元から本文へ\nタイトル\nこの資料のカテゴリ\n取材\n文献\nWeb\n画像\n体験\n一次資料\n二次資料\nその他\n要約\nタグ\n条件（1 行に 1 つ）\n出典",
+      "activeCount": 1
+    },
+    {
+      "label": "配役",
+      "mainText": "+\nアルス\nあるす\n学院長\nがくいんちょう\nリリア\nりりあ\nモード\n役割語\n呼称表\n@01\n@02\n平常\n探求\n\n帯をクリックしてから ↑ / ↓ で選び、Shift+← / → で 1 章ずらす（ドラッグも同じ）",
+      "activeCount": 1
+    },
+    {
+      "label": "読者",
+      "mainText": "目次\n失われた刻印\n2\n失 わ れ た 刻 印 \n' ア ル ス   が 地 下 遺 跡 に 惹 か れ 、 ' リ リ ア   を 巻 き 込 \nん で 探 索 を 始 め る 導 入 章 。 \n失われた刻印\n1",
+      "activeCount": 1
+    },
+    {
+      "label": "エージェント",
+      "mainText": "① タスク\n実行中 0 / 待機 0 / 完了 0\nN タスクを作る\nR 実行\nX 中止\nD ドライラン\nShift+R まとめて実行\n\nタスクはまだありません。N で作ります\n\nN 新規 · R 実行 · X 中止 · D ドライラン · Space 選択 · Shift+R まとめて実行\n\n② コンテキスト\n\n対象が 1 つの節ではないので、コンテキストを作れません\n\n↑↓ ブロック · Space 外す / 戻す · D ドライラン\n\n③ 結果レビュー\n採用する\nP\n却下の理由（必須。次の実行の history に入ります）\n未承認を承認\n\nまだ結果はありません。R で実行、D でドライラン\n\n④ 委譲レベル\nCtrl+Shift+X 総停止\nwriter\npropose\nplotter\npropose\nideator\npropose\nresearcher\npropose\nstylist\npropose\nlogician\npropose\nintegrator\noff\n\nMCP サーバ\n\nagents/mcp.json にサーバがありません\n\nMCP サーバー設定を編集",
+      "activeCount": 1
+    },
+    {
+      "label": "点検",
+      "mainText": "基本\n話者別\n字数分布\n文体観察\n執筆統計\n五感\n挿絵メモ\n人間の提案\n診断\n進捗\nスレッド\nコードで絞り込み（例: W08）\n場所順\nコード順\n重大度順\nエラー 0\n警告 0\n情報 1\nI054\tinfo\tmaterials/index.json\t引用されていない資料が 1 件あります\n\n地名解決\nmaterials/index.json\n\n↑ / ↓ 選ぶ Enter 開く Ctrl+Shift+E 数え直す",
+      "activeCount": 1
+    }
+  ],
+  "initial": {
+    "title": "星屑の時計",
+    "path": "/novnow/nightly-webui/",
+    "documentTitle": "novnow",
+    "workspaces": [
+      {
+        "label": "本文",
+        "current": true
+      },
+      {
+        "label": "話プロット",
+        "current": false
+      },
+      {
+        "label": "構成",
+        "current": false
+      },
+      {
+        "label": "アイデア",
+        "current": false
+      },
+      {
+        "label": "資料",
+        "current": false
+      },
+      {
+        "label": "配役",
+        "current": false
+      },
+      {
+        "label": "読者",
+        "current": false
+      },
+      {
+        "label": "エージェント",
+        "current": false
+      },
+      {
+        "label": "点検",
+        "current": false
+      }
+    ],
+    "saveState": "clean",
+    "saveTitle": "",
+    "editorText": "静まり返った'魔法学院の図書室。高い天井まで届く本棚の隙間から、午後の柔らかい光が差し込んでいる。 \n古びた羊皮紙の匂いが漂う一角で、'アルスは厚みのある魔導書を開いていた。 ",
+    "databases": [
+      {
+        "name": "novnow-webui-nightly",
+        "version": 2,
+        "stores": [
+          "app",
+          "files",
+          "projects"
+        ],
+        "projects": [
+          {
+            "id": "sample",
+            "name": "sample",
+            "origin": "sample",
+            "schema_version": 1
+          }
+        ],
+        "files": {
+          "count": 26,
+          "paths": [
+            ".gitignore",
+            "agents/log/.gitkeep",
+            "agents/mcp.json",
+            "agents/proposals/.gitkeep",
+            "agents/results/.gitkeep",
+            "agents/tasks/.gitkeep",
+            "agents/threads/.gitkeep",
+            "characters.md",
+            "contents/01-04.cnov",
+            "ideas.md",
+            "materials/docs/M0001-kyukousha.md",
+            "materials/index.json",
+            "plots/01-04.cnov",
+            "plots/01.cnov",
+            "plots/all.cnov",
+            "project.toml",
+            "prompts/_shared/output-contract.md",
+            "prompts/_shared/style.md",
+            "prompts/ideator.md",
+            "prompts/integrator.md",
+            "prompts/logician.md",
+            "prompts/plotter.md",
+            "prompts/researcher.md",
+            "prompts/stylist.md",
+            "prompts/writer.md",
+            "words.md"
+          ]
+        }
+      }
+    ]
+  },
+  "edit": {
+    "marker": "NIGHTLY_WEBUI_BROWSER_SAVE_PROBE_20261124",
+    "editorContainsMarker": true,
+    "state": "clean",
+    "title": "",
+    "ariaLabel": "保存",
+    "databases": [
+      {
+        "name": "novnow-webui-nightly",
+        "version": 2,
+        "stores": [
+          "app",
+          "files",
+          "projects"
+        ],
+        "projects": [
+          {
+            "id": "sample",
+            "name": "sample",
+            "created_at": "2026-11-24T03:52:09.102Z",
+            "updated_at": "2026-11-24T03:52:16.320Z",
+            "schema_version": 1,
+            "origin": "sample"
+          }
+        ],
+        "matches": [
+          {
+            "project_id": "sample",
+            "path": "contents/01-04.cnov",
+            "containsMarker": true,
+            "updated_at": "2026-11-24T03:52:16.320Z"
+          }
+        ]
+      }
+    ],
+    "saveStates": [
+      {
+        "at": "2026-11-24T03:52:09.000Z",
+        "state": "idle",
+        "title": "",
+        "ariaLabel": "保存"
+      },
+      {
+        "at": "2026-11-24T03:52:09.255Z",
+        "state": "clean",
+        "title": "",
+        "ariaLabel": "保存"
+      }
+    ],
+    "unhandledRejections": []
+  },
+  "reload": {
+    "title": "星屑の時計",
+    "editorContainsMarker": true,
+    "saveState": "clean",
+    "saveTitle": "",
+    "saveStates": [
+      {
+        "at": "2026-11-24T03:52:46.021Z",
+        "state": "idle",
+        "title": "",
+        "ariaLabel": "保存"
+      },
+      {
+        "at": "2026-11-24T03:52:46.256Z",
+        "state": "clean",
+        "title": "",
+        "ariaLabel": "保存"
+      }
+    ],
+    "unhandledRejections": [],
+    "databases": [
+      {
+        "name": "novnow-webui-nightly",
+        "version": 2,
+        "stores": [
+          "app",
+          "files",
+          "projects"
+        ],
+        "projects": [
+          {
+            "id": "sample",
+            "name": "sample",
+            "origin": "sample",
+            "schema_version": 1
+          }
+        ],
+        "files": {
+          "count": 26,
+          "paths": [
+            ".gitignore",
+            "agents/log/.gitkeep",
+            "agents/mcp.json",
+            "agents/proposals/.gitkeep",
+            "agents/results/.gitkeep",
+            "agents/tasks/.gitkeep",
+            "agents/threads/.gitkeep",
+            "characters.md",
+            "contents/01-04.cnov",
+            "ideas.md",
+            "materials/docs/M0001-kyukousha.md",
+            "materials/index.json",
+            "plots/01-04.cnov",
+            "plots/01.cnov",
+            "plots/all.cnov",
+            "project.toml",
+            "prompts/_shared/output-contract.md",
+            "prompts/_shared/style.md",
+            "prompts/ideator.md",
+            "prompts/integrator.md",
+            "prompts/logician.md",
+            "prompts/plotter.md",
+            "prompts/researcher.md",
+            "prompts/stylist.md",
+            "prompts/writer.md",
+            "words.md"
+          ]
+        }
+      }
+    ]
+  },
+  "result": "completed",
+  "phase": "reload persistence check"
+}

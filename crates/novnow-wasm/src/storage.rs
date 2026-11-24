@@ -58,14 +58,14 @@ const DRAIN_CHUNK: usize = 64;
 
 /// 配信の入口（`window.location.pathname`）から DB 名を決める（§21.3.1・§21.3.2）。
 ///
-/// 公開版と検証版は同じ origin の別の入口に置かれるので、`pathname` に `/nightly` を含む
-/// ときだけ [`NIGHTLY_DB_NAME`] を使う（第 1 の `REF:src/adapters/storage_idb.rs` の
-/// `/novnow/nightly-app/` と同じ考え方）。**第 1 の `novnow` は決して選ばない。**
+/// 公開版と検証版は同じ origin の別の入口に置かれるので、nightly 入口の path segment
+/// （`nightly` / `nightly-*` / `*-nightly`）では [`NIGHTLY_DB_NAME`] を使う。
+/// **第 1 の `novnow` と正式版の第 2 `novnow-webui` は決して選ばない。**
 pub fn db_name(pathname: &str) -> &'static str {
-    // `…/nightly/` と `…/webui-nightly/` の両方を受ける（配信の置き方は Pages 側で決まる）。
-    let nightly = pathname
-        .split('/')
-        .any(|segment| segment == "nightly" || segment.ends_with("-nightly"));
+    // Pages の `/nightly-app/`・`/nightly-webui/` と従来の階層配置を受ける。
+    let nightly = pathname.split('/').any(|segment| {
+        segment == "nightly" || segment.starts_with("nightly-") || segment.ends_with("-nightly")
+    });
     if nightly {
         NIGHTLY_DB_NAME
     } else {
@@ -1200,6 +1200,8 @@ mod tests {
     #[test]
     fn db_name_follows_the_entry_point() {
         assert_eq!(db_name("/novnow/webui/"), DB_NAME);
+        assert_eq!(db_name("/novnow/nightly-webui/"), NIGHTLY_DB_NAME);
+        assert_ne!(db_name("/novnow/webui/"), db_name("/novnow/nightly-webui/"));
         assert_eq!(db_name("/novnow/webui/nightly/"), NIGHTLY_DB_NAME);
         assert_eq!(db_name("/novnow/webui-nightly/index.html"), NIGHTLY_DB_NAME);
         // どちらの入口でも第 1 の `novnow` は選ばない（§21.3.2）。
