@@ -87,7 +87,7 @@ jobs:
           git fetch --depth=1 origin tag "$TAG"
           git checkout --detach "$TAG"
           test "$(git rev-parse HEAD)" = "$(git rev-parse "$TAG^{commit}")"
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Download the public release and verify every payload
@@ -193,7 +193,7 @@ jobs:
     steps:
       # 監査するのは「いまのリポジトリのアクション」と「公開済みの成果物」の組み合わせ。
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Check shell regressions on the candidate (not the published tag)

@@ -120,7 +120,7 @@ jobs:
       - name: Prepare Rosetta for the Intel macOS Python
         if: matrix.target == 'x86_64-apple-darwin' && runner.arch == 'ARM64'
         run: sudo /usr/sbin/softwareupdate --install-rosetta --agree-to-license
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           architecture: ${{ matrix.python_arch }}
@@ -191,7 +191,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
       - uses: actions/download-artifact@v4
