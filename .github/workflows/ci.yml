@@ -215,7 +215,7 @@ jobs:
       # 生成物を読めない）。`wasm` ジョブの trunk と同じく、版をキーにして持っておく。
       - name: Cache wasm-bindgen CLI
         id: bindgen-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cargo/bin/wasm-bindgen
           key: wasm-bindgen-${{ hashFiles('Cargo.lock') }}-x86_64-unknown-linux-musl
@@ -412,7 +412,7 @@ jobs:
           cache-all-crates: true
       - name: Cache Trunk binary
         id: trunk-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cargo/bin/trunk
           key: trunk-v0.21.14-x86_64-unknown-linux-gnu
