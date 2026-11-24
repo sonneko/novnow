@@ -112,7 +112,7 @@ jobs:
           path: website/dist
       - name: Cache Playwright browsers
         id: pw-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-1.64.1-ubuntu24.04-${{ matrix.browser }}

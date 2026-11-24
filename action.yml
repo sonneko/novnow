@@ -51,7 +51,7 @@ runs:
       run: bash "${{ github.action_path }}/scripts/action/install.sh" --resolve
 
     - name: Restore the release archive cache
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ${{ runner.temp }}/novnow-bin
         key: novnow-${{ steps.resolve.outputs.version }}-${{ steps.resolve.outputs.target }}
