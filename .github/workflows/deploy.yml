@@ -92,7 +92,7 @@ jobs:
           python3 scripts/website-check.py
 
       - run: mkdir -p payload && cp -a website/dist payload/site
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: stable-site-payload
           path: payload

@@ -148,7 +148,7 @@ jobs:
             args+=(--binary "target/${{ matrix.target }}/release/novnow")
           fi
           python3 scripts/release-matrix.py "${args[@]}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: desktop-${{ matrix.target }}-${{ matrix.gui }}
           path: release/${{ matrix.artifact }}
@@ -225,7 +225,7 @@ jobs:
           fi
           "${python[@]}" -m pip install --force-reinstall "dist/${{ matrix.artifact }}"
           "${python[@]}" -c 'import novnow,os,tomllib; expected=tomllib.load(open(os.path.join(os.environ["GITHUB_WORKSPACE"],"Cargo.toml"),"rb"))["package"]["version"]; assert novnow.__version__ == expected; assert novnow.operations(); print(novnow.__version__, len(novnow.operations()))'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: wheel-${{ matrix.target }}
           path: python/novnow-py/dist/${{ matrix.artifact }}
@@ -370,7 +370,7 @@ jobs:
       - run: npm run check
       - run: npm run test:unit
       - run: npm run package
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: vscode
           path: vscode/novnow-${{ needs.prepare.outputs.version }}.vsix
