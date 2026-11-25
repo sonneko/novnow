@@ -2,7 +2,8 @@
 #
 # 方針（監査コメント #61 の提案 D）:
 # - **minor / patch は 1 本にまとめる**。レビューの量を一定に保つため。
-# - **major はまとめない**。破壊的変更は 1 件ずつ見る（例: astro 7.4 は Node の下限を
+# ~~- **major はまとめない**。破壊的変更は 1 件ずつ見る（例: astro 7.4 は Node の下限を~~
+# PR乱立抑制のため、PRは全てグループ化する。
 #   22.23.4 へ上げるので、`website/package.json` の engines と開発環境を一緒に直す必要がある）。
 # - security の更新は Dependabot alerts 側が別の PR として作る（version-update とは別枠）。
 #   alerts の有効化はリポジトリ設定の操作なので、このファイルでは済まない（§4.10 の手順 1）。
@@ -25,10 +26,9 @@ updates:
       prefix: "chore(deps)"
     open-pull-requests-limit: 5
     groups:
-      minor-and-patch:
-        update-types:
-          - minor
-          - patch
+      all-dependencies:
+        patterns:
+          - "*"
 
   - package-ecosystem: npm
     directory: "/website"
@@ -43,10 +43,9 @@ updates:
       prefix: "chore(deps)"
     open-pull-requests-limit: 5
     groups:
-      minor-and-patch:
-        update-types:
-          - minor
-          - patch
+      all-dependencies:
+        patterns:
+          - "*"
 
   - package-ecosystem: npm
     directory: "/vscode"
@@ -61,10 +60,9 @@ updates:
       prefix: "chore(deps)"
     open-pull-requests-limit: 5
     groups:
-      minor-and-patch:
-        update-types:
-          - minor
-          - patch
+      all-dependencies:
+        patterns:
+          - "*"
 
   - package-ecosystem: npm
     directory: "/webui"
@@ -79,10 +77,9 @@ updates:
       prefix: "chore(deps)"
     open-pull-requests-limit: 5
     groups:
-      minor-and-patch:
-        update-types:
-          - minor
-          - patch
+      all-dependencies:
+        patterns:
+          - "*"
 
   - package-ecosystem: pip
     directory: "/python/novnow-py"
@@ -97,10 +94,9 @@ updates:
       prefix: "chore(deps)"
     open-pull-requests-limit: 5
     groups:
-      minor-and-patch:
-        update-types:
-          - minor
-          - patch
+      all-dependencies:
+        patterns:
+          - "*"
 
   - package-ecosystem: github-actions
     directory: "/"
@@ -115,7 +111,6 @@ updates:
       prefix: "chore(deps)"
     open-pull-requests-limit: 5
     groups:
-      minor-and-patch:
-        update-types:
-          - minor
-          - patch
+      all-dependencies:
+        patterns:
+          - "*"
