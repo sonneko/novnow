@@ -100,7 +100,7 @@ console_error_panic_hook = "0.1"
 # tests/layering.rs が src/core/** の AST を訪走するために使う（§3.2 / §12.2 の機械検査）。
 # 実行時には一切依存しない（dev-dependency）。
 proc-macro2 = "1"
-syn = { version = "2.0", features = ["full", "visit"] }
+syn = { version = "3.0", features = ["full", "visit"] }
 # tests/layering.rs が Cargo.toml 自身を読んで feature gate（上の [features]）を検査するのに使う
 # （`toml` は M6 から通常の依存でもあるが、テストの用途を明示するために dev 側にも残す）。
 toml = "1.1"
