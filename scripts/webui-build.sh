@@ -75,7 +75,7 @@ build_log="$(mktemp)"
 if ! cargo build --locked --release --target wasm32-unknown-unknown -p novnow-wasm >"$build_log" 2>&1; then
     cat "$build_log" >&2
     rm -f "$build_log"
-    echo "error: wasm のビルドに失敗した（cargo build --locked --release --target wasm32-unknown-unknown -p novnow-wasm）" >&2
+    echo "webui-build: wasm のビルドに失敗した（cargo build --locked --release --target wasm32-unknown-unknown -p novnow-wasm）" >&2
     exit 1
 fi
 rm -f "$build_log"
