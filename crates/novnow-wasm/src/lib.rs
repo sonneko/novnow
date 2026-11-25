@@ -127,7 +127,7 @@ fn project_search(session: &mut Session, args_json: &str) -> String {
     use serde_json::{json, Value};
     use std::time::Instant;
 
-    let args: Value = match serde_json::from_str(args_json) {
+    let args: Value = match serde_json::from_str::<Value>(args_json) {
         Ok(value) if value.is_object() => value,
         _ => return serde_json::to_string(&json!({"ok":false,"error":{"code":"usage","kind":"","message":"arguments must be a JSON object","path":null}})).unwrap_or_default(),
     };
