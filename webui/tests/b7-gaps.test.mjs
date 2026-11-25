@@ -18,19 +18,21 @@ test('検索キーは入力面を開き、全文検索タブも同じ画面へ�
   assert.match(shell, /onsearch=\{onsearch\}/);
   assert.match(write, /onsearch\?\.\(\)/);
   assert.match(dialog, /session\.run\('search\.file'/);
-  assert.match(dialog, /session\.run\('search\.project'/);
+  assert.match(dialog, /session\.projectSearch\(/);
   assert.match(dialog, /Alt\+R/);
   assert.match(dialog, /Alt\+C/);
-  assert.match(dialog, /startsWith\('\.novnow\/'\).*startsWith\('exports\/'\)/s);
+  assert.match(dialog, /case_sensitive: caseSensitive/);
+  assert.match(dialog, /timedOut \? ' · 時間上限のため部分結果'/);
   assert.match(dialog, /makePreview/);
   assert.match(dialog, /確認して置換/);
 });
 
-test('残る検索 gap はAPIで不足する複数ファイル適用・タイムアウト等を明記している', async () => {
-  const coverage = await text(new URL('lib/coverage.ts', ROOT));
-  assert.match(coverage, /search\.project は timeout\/partial を返さず、search\.replace_file は単一 path/);
-  assert.match(coverage, /section: '9\.8\.3'/);
-  assert.doesNotMatch(coverage, /section: '9\.8\.2'/);
+test('第2画面の全体置換はプレビュー後にWorkspaceEdit適用APIを呼ぶ', async () => {
+  const dialog = await text(new URL('lib/search/SearchDialog.svelte', ROOT));
+  const bridge = await text(new URL('lib/bridge/types.ts', ROOT));
+  assert.match(dialog, /session\.projectSearch\(\{ query, regex, case_sensitive: caseSensitive, replacement \}\)/);
+  assert.match(dialog, /await session\.run\('save\.now'\)/);
+  assert.match(bridge, /projectSearch\?\(args: Record<string, unknown>\)/);
 });
 
 test('reference.pane のキャラ・明示資料 Nav は workspace switch 後の選択へ到達する', async () => {

@@ -46,6 +46,7 @@
   export let session: Session;
   /** 構成を書いた（保存の予約は画面の仕事。`App` の `schedule` に渡す）。 */
   export let ondirty: (() => void) | null = null;
+  export let oncontext: ((value: { selectedId: string | null; level: Level }) => void) | null = null;
   /** 画面の状態（`session.state` の写し。`scene` はいまの節＝どの話の位置から入ったか）。 */
   $: screen = session.state;
 
@@ -214,6 +215,10 @@
     }
   }
 
+  function emitContext(): void {
+    oncontext?.({ selectedId, level: { ...level } });
+  }
+
   /** レベルを変える（全体 ⇄ 章）。編集中のブロックは先に書く。 */
   async function setLevel(next: Level): Promise<void> {
     await flush();
@@ -224,6 +229,7 @@
     } else {
       selectedId = null;
       editor = '';
+      emitContext();
     }
   }
 
@@ -231,6 +237,7 @@
   async function select(block: Block): Promise<void> {
     await flush();
     selectedId = block.id;
+    emitContext();
     const got = await session.run('document.get', { path: block.path });
     if (!got.ok) {
       session.notice(got.message, 'error', 0);

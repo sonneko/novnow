@@ -175,6 +175,12 @@ impl NativeSession {
         let op = op.to_owned();
         let called = self.call(move |slot| match slot.as_mut() {
             Some(session) => {
+                if op == "ui.search.project" {
+                    return project_search_session(session, args);
+                }
+                if op == "ui.shortcut.cast" {
+                    return shortcut_cast_session(session, args);
+                }
                 if op == CREATE_OP {
                     // `path` を読めないときは、機能核に断らせる（文言を機能核と揃える）
                     if let Some(Err(error)) = create_target(&args).as_deref().map(vacant) {
@@ -186,6 +192,19 @@ impl NativeSession {
                     Err(error) => fail(&error),
                 }
             }
+            None => not_open(),
+        });
+        called.unwrap_or_else(|stopped| fail(&stopped.error()))
+    }
+
+    /// 第2画面の全体検索／置換。複数ファイルの WorkspaceEdit は Workbench に1回だけ渡す。
+    pub fn project_search(&mut self, args: &str) -> String {
+        let args = match parse_args(args) {
+            Ok(args) => args,
+            Err(message) => return fail(&Error::new(Class::Usage, message)),
+        };
+        let called = self.call(move |slot| match slot.as_mut() {
+            Some(session) => project_search_session(session, args),
             None => not_open(),
         });
         called.unwrap_or_else(|stopped| fail(&stopped.error()))
@@ -336,6 +355,78 @@ pub fn deterministic_json() -> bool {
 
 /// [`deterministic_json`] の期待値（キーは辞書順・空白なし）。
 const SORTED_SAMPLE: &str = r#"{"a":{"c":1,"d":"é"},"b":[1.5,true,null]}"#;
+
+/// §10.0 固定表: mode: の先頭キャラクターを正規の SceneId / metadata / cast APIから解決する。
+fn shortcut_cast_session(session: &Session, args: Value) -> String {
+    let index = args.get("scene").and_then(Value::as_str).and_then(|scene| {
+        let id = novnow::core::id::SceneId::parse(scene).ok()?;
+        let rows = novnow::core::features::metadata::records(session.aggregate());
+        let mode = novnow::core::features::metadata::inherited(&rows, id, "mode")?;
+        let name = mode.split_whitespace().find_map(|token| {
+            let reference = token.strip_prefix('\'')?;
+            Some(
+                reference
+                    .split_once(':')
+                    .map_or(reference, |(name, _)| name),
+            )
+        })?;
+        novnow::core::features::cast::characters(session.aggregate())
+            .iter()
+            .find(|character| character.name == name)
+            .map(|character| character.index)
+    });
+    ok(&json!({"index":index}))
+}
+
+/// 第2画面の検索API。置換要求は結果から組み立てた WorkspaceEdit を1回で適用する。
+fn project_search_session(session: &mut Session, args: Value) -> String {
+    use novnow::core::features::search::{self, Query};
+    use std::time::Instant;
+
+    let Some(query_text) = args.get("query").and_then(Value::as_str) else {
+        return fail(&Error::missing(session.locale(), "query"));
+    };
+    let query = Query {
+        text: query_text.to_owned(),
+        regex: args.get("regex").and_then(Value::as_bool).unwrap_or(false),
+        case_sensitive: args
+            .get("case_sensitive")
+            .and_then(Value::as_bool)
+            .unwrap_or(true),
+    };
+    session.workbench_mut().commit();
+    let started = Instant::now();
+    let results = match search::run(session.aggregate(), &query, || {
+        started.elapsed().as_millis() as u64
+    }) {
+        Ok(value) => value,
+        Err(message) => return fail(&Error::new(Class::Usage, message)),
+    };
+    let hits: Vec<Value> = results.hits.iter().filter_map(|hit| {
+        let document = session.aggregate().document(&hit.path)?;
+        let start = document.text[..hit.range.start].rfind('\n').map_or(0, |at| at + 1);
+        let end = document.text[hit.range.end..].find('\n').map_or(document.text.len(), |at| hit.range.end + at);
+        let line = document.text[..hit.range.start].bytes().filter(|byte| *byte == b'\n').count() + 1;
+        Some(json!({"path":hit.path,"line":line,"text":document.text[start..end].trim_end(),"before":hit.before,"matched":hit.matched,"after":hit.after}))
+    }).collect();
+    let mut changed = Vec::new();
+    let mut replaced = 0usize;
+    if let Some(replacement) = args.get("replacement").and_then(Value::as_str) {
+        let edit = match search::replacement(session.aggregate(), &query, replacement, &results) {
+            Ok(edit) => edit,
+            Err(message) => return fail(&Error::new(Class::Conflict, message)),
+        };
+        replaced = edit.changes.iter().map(|file| file.edits.len()).sum();
+        changed = edit.changes.iter().map(|file| file.path.clone()).collect();
+        let now = session.clock();
+        if !edit.changes.is_empty() {
+            session.workbench_mut().apply_edit(&edit, now);
+        }
+    }
+    ok(
+        &json!({"count":hits.len(),"hits":hits,"query":query_text,"timed_out":results.timed_out,"partial":results.timed_out,"replaced":replaced,"paths":changed}),
+    )
+}
 
 /// `run` の成功の形（`REF:crates/novnow-wasm/src/lib.rs` の `RunOk` と同じ並び）。
 fn ok(result: &Value) -> String {

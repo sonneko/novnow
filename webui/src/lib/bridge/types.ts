@@ -77,8 +77,12 @@ export interface Bridge {
   openFallback?(): void;
   /** 正規操作 1 回。`args` は省ける（空のオブジェクトと同じ）。 */
   run(op: string, args?: Record<string, unknown>): Promise<RunOutcome>;
+  /** 第2画面の上限付き全体検索／複数ファイル WorkspaceEdit。 */
+  projectSearch?(args: Record<string, unknown>): Promise<RunOutcome>;
   /** 溜まったイベントを取る（無ければ空の配列）。 */
   pollEvents(): Promise<AppEvent[]>;
+  /** ネイティブのみ、ホスト上の外部変更を1回確認する。ブラウザでは提供しない。 */
+  pollExternal?(): Promise<RunOutcome>;
   /** 未保存の変更を書き、保存領域へ流し終えるまで待つ。 */
   flush(): Promise<RunOutcome>;
   /** 文言（`REF:src/ui/i18n/*.toml` の 1 行。`{0}` は `args` で差し込む）。 */

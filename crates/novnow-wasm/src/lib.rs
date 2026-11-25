@@ -98,6 +98,85 @@ struct RunErr {
     error: serde_json::Value,
 }
 
+/// 第2画面の全体検索／置換。置換は検索結果から作った WorkspaceEdit を1回で適用する。
+fn shortcut_cast(session: &Session, args_json: &str) -> String {
+    use serde_json::{json, Value};
+    let args: Value = serde_json::from_str(args_json).unwrap_or(Value::Null);
+    let index = args.get("scene").and_then(Value::as_str).and_then(|scene| {
+        let id = novnow::core::id::SceneId::parse(scene).ok()?;
+        let rows = novnow::core::features::metadata::records(session.aggregate());
+        let mode = novnow::core::features::metadata::inherited(&rows, id, "mode")?;
+        let name = mode.split_whitespace().find_map(|token| {
+            let reference = token.strip_prefix('\'')?;
+            Some(
+                reference
+                    .split_once(':')
+                    .map_or(reference, |(name, _)| name),
+            )
+        })?;
+        novnow::core::features::cast::characters(session.aggregate())
+            .iter()
+            .find(|character| character.name == name)
+            .map(|character| character.index)
+    });
+    serde_json::to_string(&json!({"ok":true,"result":{"index":index}})).unwrap_or_default()
+}
+
+fn project_search(session: &mut Session, args_json: &str) -> String {
+    use novnow::core::features::search::{self, Query};
+    use serde_json::{json, Value};
+    use std::time::Instant;
+
+    let args: Value = match serde_json::from_str(args_json) {
+        Ok(value) if value.is_object() => value,
+        _ => return serde_json::to_string(&json!({"ok":false,"error":{"code":"usage","kind":"","message":"arguments must be a JSON object","path":null}})).unwrap_or_default(),
+    };
+    let query_text = args
+        .get("query")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let query = Query {
+        text: query_text.to_owned(),
+        regex: args.get("regex").and_then(Value::as_bool).unwrap_or(false),
+        case_sensitive: args
+            .get("case_sensitive")
+            .and_then(Value::as_bool)
+            .unwrap_or(true),
+    };
+    session.workbench_mut().commit();
+    let started = Instant::now();
+    let results = match search::run(session.aggregate(), &query, || {
+        started.elapsed().as_millis() as u64
+    }) {
+        Ok(value) => value,
+        Err(message) => return serde_json::to_string(
+            &json!({"ok":false,"error":{"code":"usage","kind":"","message":message,"path":null}}),
+        )
+        .unwrap_or_default(),
+    };
+    let hits: Vec<Value> = results.hits.iter().filter_map(|hit| {
+        let document = session.aggregate().document(&hit.path)?;
+        let start = document.text[..hit.range.start].rfind('\n').map_or(0, |at| at + 1);
+        let end = document.text[hit.range.end..].find('\n').map_or(document.text.len(), |at| hit.range.end + at);
+        let line = document.text[..hit.range.start].bytes().filter(|byte| *byte == b'\n').count() + 1;
+        Some(json!({"path":hit.path,"line":line,"text":document.text[start..end].trim_end(),"before":hit.before,"matched":hit.matched,"after":hit.after}))
+    }).collect();
+    let mut changed = Vec::new();
+    let mut replaced = 0usize;
+    if let Some(replacement) = args.get("replacement").and_then(Value::as_str) {
+        match search::replacement(session.aggregate(), &query, replacement, &results) {
+            Ok(edit) => {
+                replaced = edit.changes.iter().map(|file| file.edits.len()).sum();
+                changed = edit.changes.iter().map(|file| file.path.clone()).collect();
+                let now = session.clock();
+                if !edit.changes.is_empty() { session.workbench_mut().apply_edit(&edit, now); }
+            }
+            Err(message) => return serde_json::to_string(&json!({"ok":false,"error":{"code":"conflict","kind":"","message":message,"path":null}})).unwrap_or_default(),
+        }
+    }
+    serde_json::to_string(&json!({"ok":true,"result":{"count":hits.len(),"hits":hits,"query":query_text,"timed_out":results.timed_out,"partial":results.timed_out,"replaced":replaced,"paths":changed}})).unwrap_or_else(|_| "{\"ok\":false}".to_owned())
+}
+
 #[wasm_bindgen]
 impl NovnowSession {
     /// 空のセッション（`open` を呼ぶまで操作できない）。
@@ -212,6 +291,24 @@ impl NovnowSession {
             })
             .unwrap_or_else(|_| not_open()),
         }
+    }
+
+    /// §10.0 の mode: 先頭キャラ着地（第2画面のショートカット用）。
+    pub fn shortcut_cast(&self, args_json: &str) -> String {
+        let inner = self.inner.borrow();
+        let Some(session) = inner.session.as_ref() else {
+            return not_open();
+        };
+        shortcut_cast(session, args_json)
+    }
+
+    /// 第2画面の全体検索。任意で置換語を渡すと、複数ファイル WorkspaceEdit を一度だけ適用する。
+    pub fn project_search(&self, args_json: &str) -> String {
+        let mut inner = self.inner.borrow_mut();
+        let Some(session) = inner.session.as_mut() else {
+            return not_open();
+        };
+        project_search(session, args_json)
     }
 
     /// 溜まったイベント（`AppEvent` の JSON 配列）。

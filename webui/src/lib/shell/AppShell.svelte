@@ -83,7 +83,9 @@
   /** §10.0: 参照ペインから切り替えるときの cast/material の着地点。 */
   export let castFocusIndex: number | null = null;
   export let materialFocusId: string | null = null;
+  export let writeFocusCaret: number | null = null;
   export let onfocusdone: (() => void) | null = null;
+  export let onoutlinecontext: ((value: { selectedId: string | null; level: { kind: 'all' } | { kind: 'chapter'; chapter: number } }) => void) | null = null;
   /** 参照ペインの行をダブルクリックした（`cast.get` / `dictionary.term_full`）。 */
   export let onplace: ((path: string, byte: number | null) => Promise<{ path: string; place: unknown } | null>) | null =
     null;
@@ -178,6 +180,8 @@
         onsplit={onsplit}
         onpropose={onpropose}
         onsearch={onsearch}
+        focusCaret={writeFocusCaret}
+        onfocusdone={onfocusdone}
       />
     {:else if session === null}
       <!-- セッションが繋がっていないワークスペースは「この版では使えません」を出す
@@ -192,7 +196,7 @@
     {:else if screen.workspace === 'plot-episode'}
       <PlotEpisodeWorkspace {t} {session} />
     {:else if screen.workspace === 'plot-outline'}
-      <PlotOutlineWorkspace {t} {session} />
+      <PlotOutlineWorkspace {t} {session} oncontext={onoutlinecontext} />
     {:else if screen.workspace === 'reader'}
       <ReaderWorkspace {t} {screen} run={run} onworkspace={onworkspace} onnotice={onnotice} {composing} />
     {:else if screen.workspace === 'agent'}
