@@ -69,10 +69,16 @@ echo "webui-build: cargo build --locked --release --target wasm32-unknown-unknow
 # `--offline` は付けない。手元（`scripts/bootstrap-toolchain.sh` の vendor）は
 # `$CARGO_HOME/config.toml` の `[net] offline = true` で既にオフラインになり、CI は
 # registry から取る。ここで固定すると、CI で「no matching package」になる。
-cargo build --locked --release --target wasm32-unknown-unknown -p novnow-wasm >/dev/null || {
+# 成功時の Cargo 出力は抑え、失敗時は stdout / stderr の両方を出す。CI の
+# wasm32 release build だけ失敗しても、本当の診断がラッパー文言に隠れないようにする。
+build_log="$(mktemp)"
+if ! cargo build --locked --release --target wasm32-unknown-unknown -p novnow-wasm >"$build_log" 2>&1; then
+    cat "$build_log" >&2
+    rm -f "$build_log"
     echo "error: wasm のビルドに失敗した（cargo build --locked --release --target wasm32-unknown-unknown -p novnow-wasm）" >&2
     exit 1
-}
+fi
+rm -f "$build_log"
 WASM="$ROOT/target/wasm32-unknown-unknown/release/novnow_wasm.wasm"
 [ -f "$WASM" ] || { echo "error: $WASM が無い" >&2; exit 1; }
 
