@@ -73,6 +73,11 @@ RE_LOCATION = re.compile(r"^\s*-->\s*([^:\s][^:]*):(\d+):(\d+)\s*$")
 # テスト失敗のブロックの始まり（`---- the_test_name stdout ----`）。
 RE_TEST_BLOCK = re.compile(r"^----\s+(\S+)\s+std(out|err)\s+----\s*$")
 
+# Node.js `node --test` TAP の失敗ブロックと位置（`not ok 12 - test name`）。
+RE_TAP_FAILURE = re.compile(r"^not ok \d+ - (.+)$")
+RE_TAP_BOUNDARY = re.compile(r"^(?:ok |not ok |# Subtest:|1\.\.\d+|# tests )")
+RE_TAP_LOCATION = re.compile(r"^\s+location: ['\"](.+):(\d+):(\d+)['\"]$")
+
 # panic の位置（`thread '…' panicked at tests/foo.rs:12:5:`）。
 RE_PANIC = re.compile(r"panicked at (\S+?):(\d+):(\d+)")
 
@@ -223,24 +228,28 @@ def parse_diagnostics(lines: list[str]) -> list[Item]:
 
 
 def parse_test_failures(lines: list[str]) -> list[Item]:
-    """`---- <name> stdout ----` のブロックを拾う（panic 位置とメッセージ）。"""
+    """Rust の panic と Node.js `node --test` TAP の失敗ブロックを拾う。"""
     found: list[Item] = []
     at = 0
     while at < len(lines):
-        matched = RE_TEST_BLOCK.match(lines[at])
-        if not matched:
+        tap = RE_TAP_FAILURE.match(lines[at])
+        rust = RE_TEST_BLOCK.match(lines[at])
+        if not tap and not rust:
             at += 1
             continue
-        name = matched.group(1)
+
+        name = tap.group(1) if tap else rust.group(1)
         end = at + 1
-        while end < len(lines) and not RE_TEST_BLOCK.match(lines[end]):
-            if RE_RESULT.match(lines[end]) or lines[end].strip() == "failures:":
+        while end < len(lines):
+            if tap and RE_TAP_BOUNDARY.match(lines[end]):
+                break
+            if rust and (RE_TEST_BLOCK.match(lines[end]) or RE_RESULT.match(lines[end]) or lines[end].strip() == "failures:"):
                 break
             end += 1
         block = lines[at + 1 : end][:TEST_CONTEXT_LINES]
         file = line = col = ""
         for text in block:
-            located = RE_PANIC.search(text)
+            located = RE_TAP_LOCATION.match(text) if tap else RE_PANIC.search(text)
             if located:
                 file, line, col = located.groups()
                 break
@@ -279,7 +288,7 @@ def parse_fmt_diffs(lines: list[str], workspace: str) -> list[Item]:
 
 
 def parse_results(lines: list[str]) -> list[tuple[str, str, int, int, int]]:
-    """`test result:` の行をターゲット名と組で拾う（成功時もサマリに出す）。"""
+    """Rust の `test result:` と Node.js TAP の件数を拾う（成功時もサマリに出す）。"""
     found: list[tuple[str, str, int, int, int]] = []
     target = ""
     for text in lines:
@@ -291,27 +300,37 @@ def parse_results(lines: list[str]) -> list[tuple[str, str, int, int, int]]:
         if matched:
             status, passed, failed, ignored = matched.groups()
             found.append((target, status, int(passed), int(failed), int(ignored)))
+
+    tap_totals: dict[str, int] = {}
+    for text in lines:
+        matched = re.match(r"^# (tests|pass|fail|skipped) (\d+)$", text)
+        if matched:
+            tap_totals[matched.group(1)] = int(matched.group(2))
+    if "tests" in tap_totals and "pass" in tap_totals:
+        failed = tap_totals.get("fail", 0)
+        found.append(("node --test", "FAILED" if failed else "ok", tap_totals["pass"], failed, tap_totals.get("skipped", 0)))
     return found
 
 
 def parse_failed_names(lines: list[str]) -> list[str]:
-    """末尾の `failures:` セクションから失敗テスト名だけを拾う（一覧用）。"""
-    names: list[str] = []
+    """Rust の末尾一覧と Node.js TAP から失敗テスト名を拾う。"""
+    tap_names = [matched.group(1) for text in lines if (matched := RE_TAP_FAILURE.match(text))]
+    rust_names: list[str] = []
     in_list = False
     for text in lines:
         if text.strip() == "failures:":
             # 2 回目の `failures:`（末尾の一覧）が本命。1 回目はブロックの直前
-            in_list = not names or in_list
+            in_list = not rust_names or in_list
             continue
         if in_list:
             matched = RE_FAILURE_NAME.match(text)
             if matched:
-                names.append(matched.group(1))
+                rust_names.append(matched.group(1))
             elif not text.strip():
                 continue
             else:
                 in_list = False
-    return names
+    return tap_names + rust_names
 
 
 # ============================================================ 出力
@@ -419,6 +438,11 @@ def markdown(
 
 def gist(item: Item) -> str:
     """注釈に付ける「ひとことの理由」。罫線（`|` だけ・行番号だけ）の行は飛ばす。"""
+    if item.kind == "test":
+        for text in item.body:
+            stripped = text.strip()
+            if stripped.startswith(("error:", "message:")):
+                return stripped[:200]
     for text in item.body:
         stripped = text.strip()
         if not stripped:
