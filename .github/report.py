@@ -77,6 +77,7 @@ RE_TEST_BLOCK = re.compile(r"^----\s+(\S+)\s+std(out|err)\s+----\s*$")
 RE_TAP_FAILURE = re.compile(r"^not ok \d+ - (.+)$")
 RE_TAP_BOUNDARY = re.compile(r"^(?:ok |not ok |# Subtest:|1\.\.\d+|# tests )")
 RE_TAP_LOCATION = re.compile(r"^\s+location: ['\"](.+):(\d+):(\d+)['\"]$")
+RE_ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
 # panic の位置（`thread '…' panicked at tests/foo.rs:12:5:`）。
 RE_PANIC = re.compile(r"panicked at (\S+?):(\d+):(\d+)")
@@ -246,7 +247,17 @@ def parse_test_failures(lines: list[str]) -> list[Item]:
             if rust and (RE_TEST_BLOCK.match(lines[end]) or RE_RESULT.match(lines[end]) or lines[end].strip() == "failures:"):
                 break
             end += 1
-        block = lines[at + 1 : end][:TEST_CONTEXT_LINES]
+        block = lines[at + 1 : end]
+        if tap:
+            block = [RE_ANSI.sub("", text) for text in block]
+            # TAP error details can contain a nested process log. Keep the metadata and the tail,
+            # where cargo test writes its failure summary, rather than only the beginning.
+            if len(block) > TEST_CONTEXT_LINES:
+                head_lines = 8
+                tail_lines = TEST_CONTEXT_LINES - head_lines - 1
+                block = block[:head_lines] + ["…（失敗詳細の末尾）…"] + block[-tail_lines:]
+        else:
+            block = block[:TEST_CONTEXT_LINES]
         file = line = col = ""
         for text in block:
             located = RE_TAP_LOCATION.match(text) if tap else RE_PANIC.search(text)
@@ -441,7 +452,11 @@ def gist(item: Item) -> str:
     if item.kind == "test":
         for text in item.body:
             stripped = text.strip()
-            if stripped.startswith(("error:", "message:")):
+            if stripped.startswith(("error:", "message:")) and stripped not in {"error: |-", "message: |-"}:
+                return stripped[:200]
+        for text in item.body:
+            stripped = text.strip()
+            if any(marker in stripped for marker in (" FAILED", "panicked at ", "assertion failed")):
                 return stripped[:200]
     for text in item.body:
         stripped = text.strip()

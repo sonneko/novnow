@@ -15,7 +15,7 @@ fn resolves_the_first_character_from_the_scene_mode_field() {
     let found = ok(&session.run(
         "ui.shortcut.cast",
         &json!({
-            "scene": "01-01-01-01"
+            "scene": "01-04-01-01"
         })
         .to_string(),
     ));
