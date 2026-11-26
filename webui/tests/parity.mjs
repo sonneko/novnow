@@ -254,13 +254,7 @@ test('カバレッジの数え方は 1 か所（coverage.ts）だけが持つ', 
   assert.equal(verdict(121), PENDING.length === 0 ? 'equivalent' : 'partial');
 });
 
-test('画面仕様（§9〜§12）の未提供も一覧にする（§21.5.1 の 2 つ目）', async () => {
+test('画面仕様（§9〜§12）のgap一覧は各回帰確認の後で空にする（§21.5.1）', async () => {
   const { SPEC_GAPS } = await importTs('src/lib/coverage.ts');
-  assert.ok(SPEC_GAPS.length > 0, '§9〜§12 の未提供が空になっている（まだ全部は提供していない）');
-  for (const gap of SPEC_GAPS) {
-    assert.match(gap.section, /^(9|10|11|12)\.\d+(\.\d+)?$/, `節番号の形が違う: ${gap.section}`);
-    assert.ok(gap.what.length > 0, `${gap.section} の説明が空`);
-  }
-  const sections = new Set(SPEC_GAPS.map((gap) => gap.section));
-  assert.equal(sections.size, SPEC_GAPS.length, '同じ節が 2 回出ている');
+  assert.deepEqual(SPEC_GAPS, [], '未解決gapは根拠を回帰テストに残したうえで解消する');
 });

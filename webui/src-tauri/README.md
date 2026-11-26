@@ -8,11 +8,8 @@
 
 ## いまの状態（W5 の範囲）
 
-- 入っているのは **Rust 側**（コマンド 4 つ・許可・窓の設定）と、その検査。
-- 画面はまだ `wasmBridge()` を固定で使う（`webui/src/main.ts`。橋渡しの置き場所は L0 の持ち物）。
-  `invoke` の橋渡しが入るまでは、**この窓の中でもブラウザ用の橋渡しが動く**。WebView は
-  `incognito` なので、その間は何も保存されない（プロジェクトの外に原稿を残さないため）。
-  画面から native commands を呼ぶ配線も native アプリのビルド・配布経路も未実装であり、現時点で成果物は配らない。配布形態への追加は §20.6.5 と §21.4.2 の条件・承認を別途満たす必要がある。
+- Rust 側（コマンド 4 つ・許可・窓の設定）に加え、`webui/src/lib/bridge/native.ts` から Tauri `invoke` へ接続している。`main.ts` は Tauri WebView で native bridge、通常ブラウザで wasm bridge を選ぶ。
+- Native WebView はプロジェクト選択ダイアログから `open` し、`run` / `poll_events` / `poll_external` を呼ぶ。外部変更監視は画面から 1 秒ごとに行う。native アプリのビルド・配布経路は未実装で、現時点で成果物は配らない。配布形態への追加は §20.6.5 と §21.4.2 の条件・承認を別途満たす必要がある。
 - 窓そのもの（Tauri アプリのビルド）は、Tauri のクレートと WebView の開発ライブラリが要る。
   現在の CI は Tauri アプリをビルドしない。これを確認するには依存ライブラリのある実機環境が必要で、CI にビルド確認を加える場合は別途配線する。
 
@@ -73,7 +70,7 @@ const out = await window.__TAURI__.dialog.save({ filters: [{ name: 'text', exten
   `novnow new` に「既存ファイルは絶対に上書きしない」を求め、§19.6.1 は `project.new` を同じ
   動作としている）。直すのは機能核の側（`REF:src/app/session.rs`）で、直るまで橋渡しが先に
   確かめて断る（`bridge/tests/create.rs`）。機能核が直ったら、この確認は外せる。
-- **`poll_external` の command 契約**: 呼び出し元は 1 秒ごとに呼ぶ想定（§8.5）だが、現在の画面はこの command を呼ばない。`webui/src/main.ts` は `wasmBridge()` 固定で、WebUI の `Bridge` 型にも `pollExternal` がない（仕様 §20.6.5）。`changes` は Host が見た差分
+- **`poll_external` の command 契約**: 呼び出し元は 1 秒ごとに呼ぶ（§8.5）。Tauri bridge と App は native のみで監視し、ブラウザ用 wasm bridge からは呼ばない。`changes` は Host が見た差分
   （`Session::poll_external` の戻り値。本文は載せない）で、`change` は `updated` / `removed` /
   `unreadable`（`code` と `message` も持つ）。**セッションの反応は `poll_events` の出来事で受け取る**:
   `document_changed` の `change` が `external`（読み直した）・`conflict`（未保存の変更と衝突）・
@@ -98,9 +95,9 @@ const out = await window.__TAURI__.dialog.save({ filters: [{ name: 'text', exten
 | `flush` | `run` の `save.now`（`FsHost` は同期で書き終える。保存領域へ流す段は無い） |
 | `pendingWrites` | 常に 0 |
 | `projectId` / `locale` / `version` | `open` の `result` の `root` / `locale` / `version` |
-| `setLocale` | `run` の `settings.set`（`key: "language"`） |
+| `setLocale` | `run` の `settings.set`（`key: "language"`、`ui.json` へ保存） |
 | `text` | 生成物の文言カタログ（`webui/src/lib/i18n/catalog.ts`） |
-| 外部変更（ブラウザには無い） | native command と `NativeSession` は実装済み。画面側の `Bridge` 型・`main.ts` からは未接続なので、現状は定期呼び出しなし（仕様 §20.6.5） |
+| 外部変更（ブラウザには無い） | native bridge の `pollExternal` を App が 1 秒ごとに呼び、`save.state` と `poll_events` から衝突一覧・本文を更新 |
 | 書き出し先の指定 | `dialog.save(…)` で選んだパスを `export.text` の `out` に渡す |
 
 ## 許可と規則 10（§21.4.1）

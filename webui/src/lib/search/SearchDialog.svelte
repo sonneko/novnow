@@ -11,6 +11,8 @@
   export let replaceMode = false;
   export let regexMode = false;
   export let onclose: (() => void) | null = null;
+  export let onsave: (() => Promise<void>) | null = null;
+  export let onapplied: (() => void) | null = null;
 
   type Hit = { path: string; line: number; text: string; before: string; matched: string; after: string };
   let query = '';
@@ -22,35 +24,12 @@
   let hits: Hit[] = [];
   let preview = '';
   let previewCount = 0;
+  let previewSignature = '';
   let previewReady = false;
+  let timedOut = false;
   let input: HTMLInputElement;
 
   onMount(() => input?.focus());
-
-  function allowed(path: string): boolean {
-    if (path.startsWith('.novnow/') || path.startsWith('exports/')) return false;
-    if (scope === 'file') return path === screen.path;
-    if (regex) return path.startsWith('contents/') || path.startsWith('plots/') || path.endsWith('.md');
-    return path.startsWith('contents/');
-  }
-
-  function context(text: string, queryText: string): Omit<Hit, 'path' | 'line' | 'text'> {
-    let start = -1;
-    let end = -1;
-    try {
-      if (regex) {
-        const flags = caseSensitive ? '' : 'i';
-        const found = new RegExp(queryText, flags).exec(text);
-        if (found) { start = found.index; end = start + found[0].length; }
-      } else {
-        const hay = caseSensitive ? text : text.toLocaleLowerCase();
-        start = hay.indexOf(caseSensitive ? queryText : queryText.toLocaleLowerCase());
-        if (start >= 0) end = start + queryText.length;
-      }
-    } catch { /* query error is reported by the core */ }
-    if (start < 0) return { before: text.slice(0, 20), matched: '', after: text.slice(0, 20) };
-    return contextAt(text, start, end);
-  }
 
   function contextAt(text: string, start: number, end: number): Omit<Hit, 'path' | 'line' | 'text'> {
     return {
@@ -58,6 +37,14 @@
       matched: text.slice(start, end),
       after: [...text.slice(end)].slice(0, 20).join(''),
     };
+  }
+
+  function projectSignature(rows: unknown): string {
+    if (!Array.isArray(rows)) return '';
+    return JSON.stringify(rows.map((row) => {
+      const hit = row as Record<string, unknown>;
+      return [hit.path, hit.line, hit.before, hit.matched, hit.after];
+    }));
   }
 
   const REGEX_META = new Set(['.', '*', '+', '?', '^', '$', '{', '}', '(', ')', '|', '[', ']', '\\']);
@@ -77,6 +64,7 @@
     busy = true;
     error = '';
     previewReady = false;
+    timedOut = false;
     try {
       const args = coreQuery();
       if (scope === 'file') {
@@ -95,24 +83,18 @@
           if (hits.length >= 200) break;
         }
       } else {
-        const found = await session.run('search.project', args);
+        const found = await session.projectSearch({ query, regex, case_sensitive: caseSensitive });
         if (!found.ok) { error = found.message; hits = []; return; }
+        timedOut = found.result.timed_out === true;
         const rows = Array.isArray(found.result.hits) ? found.result.hits as Record<string, unknown>[] : [];
-        hits = rows.filter((row) => typeof row.path === 'string' && allowed(row.path))
-          .flatMap((row) => {
-            const text = typeof row.text === 'string' ? row.text : '';
-            const path = String(row.path);
-            const line = typeof row.line === 'number' ? row.line : 1;
-            if (!regex && caseSensitive) return [{ path, line, text, ...context(text, query) }];
-            try {
-              const source = regex ? query : escapeRegex(query);
-              const matcher = new RegExp(source, caseSensitive ? 'g' : 'gi');
-              return [...text.matchAll(matcher)].map((match) => {
-                const start = match.index ?? 0;
-                return { path, line, text, ...contextAt(text, start, start + match[0].length) };
-              });
-            } catch { return [{ path, line, text, ...context(text, query) }]; }
-          });
+        hits = rows.flatMap((row) => typeof row.path === 'string' ? [{
+          path: row.path,
+          line: typeof row.line === 'number' ? row.line : 1,
+          text: typeof row.text === 'string' ? row.text : '',
+          before: typeof row.before === 'string' ? row.before : '',
+          matched: typeof row.matched === 'string' ? row.matched : '',
+          after: typeof row.after === 'string' ? row.after : '',
+        }] : []);
       }
     } finally { busy = false; }
   }
@@ -123,8 +105,13 @@
 
   function makePreview(): void {
     error = '';
-    if (scope !== 'file') {
-      error = 'プロジェクト全体の置換を行う正規操作はありません。プレビューのみで適用できません。';
+    if (scope === 'project') {
+      previewCount = hits.length;
+      previewSignature = JSON.stringify(hits.map((hit) => [hit.path, hit.line, hit.before, hit.matched, hit.after]));
+      const byPath = new Map<string, number>();
+      for (const hit of hits) byPath.set(hit.path, (byPath.get(hit.path) ?? 0) + 1);
+      preview = [...byPath].map(([path, count]) => `${path}: ${count}`).join('\\n');
+      previewReady = true;
       return;
     }
     try {
@@ -152,12 +139,31 @@
   }
 
   async function apply(): Promise<void> {
-    if (!previewReady || previewCount === 0 || busy || scope !== 'file') return;
+    if (!previewReady || previewCount === 0 || busy) return;
     busy = true;
     try {
-      const result = await session.run('search.file', { ...coreQuery(), replace: replacement });
-      if (!result.ok) { error = result.message; return; }
-      await session.run('save.now');
+      if (scope === 'project') {
+        const result = await session.projectSearch({ query, regex, case_sensitive: caseSensitive, replacement });
+        if (!result.ok) { error = result.message; return; }
+        const rows = Array.isArray(result.result.hits) ? result.result.hits as Record<string, unknown>[] : [];
+        const currentSignature = projectSignature(rows);
+        if (result.result.count !== previewCount || currentSignature !== previewSignature) {
+          error = '検索結果が変わりました。もう一度プレビューしてください。';
+          return;
+        }
+        timedOut = result.result.timed_out === true;
+        const saved = await session.run('save.now');
+        if (!saved.ok) { error = saved.message; return; }
+        await onsave?.();
+        onapplied?.();
+      } else {
+        const result = await session.run('search.file', { ...coreQuery(), replace: replacement });
+        if (!result.ok) { error = result.message; return; }
+        const saved = await session.run('save.now');
+        if (!saved.ok) { error = saved.message; return; }
+        await onsave?.();
+        onapplied?.();
+      }
       onclose?.();
     } finally { busy = false; }
   }
@@ -197,19 +203,20 @@
     {#if error}<p class="error" role="alert">{error}</p>{/if}
     {#if replaceMode}
       <div class="replace-actions"><button type="button" disabled={!query || busy} on:click={makePreview}>プレビュー</button>
-        {#if previewReady}<p>{previewCount} 箇所 · 変更前 / 変更後</p><pre>{screen.text}</pre><pre>{preview}</pre><button type="button" disabled={!previewCount || busy} on:click={() => void apply()}>確認して置換</button>{/if}
+        {#if previewReady}<p>{previewCount} 箇所{scope === 'project' ? ` · ${new Set(hits.map((hit) => hit.path)).size} ファイル` : ' · 変更前 / 変更後'}</p>
+          {#if scope === 'file'}<pre>{screen.text}</pre><pre>{preview}</pre>{:else}<pre>{preview}</pre>{/if}
+          <button type="button" disabled={!previewCount || busy} on:click={() => void apply()}>確認して置換</button>{/if}
       </div>
     {/if}
-    <p aria-live="polite">{busy ? '検索中…' : `${hits.length} 件`}</p>
+    <p aria-live="polite">{busy ? '検索中…' : `${hits.length} 件`}{timedOut ? ' · 時間上限のため部分結果' : ''}</p>
     <ul>{#each hits as hit, index (`${hit.path}:${hit.line}:${index}`)}
       <li><button type="button" on:click={() => void go(hit)}><code>{hit.path}{hit.line ? `:${hit.line}` : ''}</code><span>{hit.before}<mark>{hit.matched}</mark>{hit.after}</span></button></li>
     {/each}</ul>
-    {#if scope === 'project' && replaceMode}<p class="note">全体置換は、対応する原子的な複数ファイル操作がないため実行できません。</p>{/if}
   </div>
 </div>
 
 <style>
   .backdrop{position:fixed;inset:0;z-index:1000;background:#0008;display:grid;place-items:start center;padding:8vh 1rem}
   .dialog{width:min(760px,96vw);max-height:84vh;overflow:auto;background:var(--surface,#242424);color:var(--text,#eee);border:1px solid var(--border,#555);border-radius:10px;padding:1rem;box-shadow:0 12px 48px #0008}
-  header,.options,.replace-actions{display:flex;align-items:center;gap:.75rem;justify-content:space-between}h2{margin:.2rem 0 1rem}label{display:flex;gap:.5rem;align-items:center;margin:.6rem 0}label input:not([type=checkbox]){flex:1;min-width:0;padding:.55rem}button{cursor:pointer}ul{list-style:none;padding:0}li button{width:100%;display:flex;gap:.75rem;text-align:left;padding:.5rem;border:0;border-top:1px solid var(--border,#555);background:transparent;color:inherit}li button:hover{background:#ffffff12}code{min-width:180px;color:#9bc}mark{background:#e8c547;color:#111}.error{color:#ff8d8d}.note{font-size:.9em;opacity:.8}pre{white-space:pre-wrap;max-height:12rem;overflow:auto;background:#0002;padding:.5rem}
+  header,.options,.replace-actions{display:flex;align-items:center;gap:.75rem;justify-content:space-between}h2{margin:.2rem 0 1rem}label{display:flex;gap:.5rem;align-items:center;margin:.6rem 0}label input:not([type=checkbox]){flex:1;min-width:0;padding:.55rem}button{cursor:pointer}ul{list-style:none;padding:0}li button{width:100%;display:flex;gap:.75rem;text-align:left;padding:.5rem;border:0;border-top:1px solid var(--border,#555);background:transparent;color:inherit}li button:hover{background:#ffffff12}code{min-width:180px;color:#9bc}mark{background:#e8c547;color:#111}.error{color:#ff8d8d}pre{white-space:pre-wrap;max-height:12rem;overflow:auto;background:#0002;padding:.5rem}
 </style>

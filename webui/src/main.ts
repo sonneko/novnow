@@ -4,19 +4,21 @@
 import { mount } from 'svelte';
 import App from './App.svelte';
 import { wasmBridge } from './lib/bridge/wasm';
+import { nativeBridge } from './lib/bridge/native';
 import { applyTheme, systemMode } from './lib/theme/tokens';
 import './app.css';
 
 /** 配色を先に決める（最初の描画でちらつかせない）。 */
 applyTheme(systemMode());
 
-const bridge = wasmBridge();
+const native = typeof window !== 'undefined' && '__TAURI__' in window;
+const bridge = native ? nativeBridge() : wasmBridge();
 const app = mount(App, {
   target: document.getElementById('app') as HTMLElement,
   props: { bridge },
 });
 
-// 保存領域（IndexedDB `novnow-webui`）からプロジェクトを開く。開けなければ画面に理由を出す。
+// ブラウザは IndexedDB の最近の作品、Tauri は native file dialog から開く。
 void (app as unknown as { start?: (root?: string | null) => Promise<void> }).start?.();
 
 export default app;

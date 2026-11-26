@@ -51,7 +51,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           cache-all-crates: true
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: npm
@@ -81,7 +81,7 @@ jobs:
           cp -a webui/dist website/dist/nightly-webui
           python3 scripts/website-check.py
           ! grep -q 'const PRECACHE = null' website/dist/app/sw.js
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: combined-pages
           path: website/dist
@@ -103,16 +103,16 @@ jobs:
       matrix: ${{ fromJSON(needs.build.outputs.browsers) }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: combined-pages
           path: website/dist
       - name: Cache Playwright browsers
         id: pw-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-1.64.1-ubuntu24.04-${{ matrix.browser }}

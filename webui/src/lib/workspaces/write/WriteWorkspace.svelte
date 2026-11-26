@@ -92,6 +92,9 @@
   export let onpropose: (() => void) | null = null;
   /** 全文検索タブを開く（§9.7.4）。 */
   export let onsearch: (() => void) | null = null;
+  /** §10.0 の plot-outline → write 着地位置。 */
+  export let focusCaret: number | null = null;
+  export let onfocusdone: (() => void) | null = null;
   /** 参照ペインを出すか（`Ctrl+\`）。 */
   export let reference = true;
   /**
@@ -104,6 +107,11 @@
 
   /** エディタ（`Ctrl+2` でフォーカスするために持つ）。 */
   let editor: SectionEditor | null = null;
+
+  $: if (screen.workspace === 'write' && focusCaret !== null && editor) {
+    editor.setCaret(focusCaret);
+    onfocusdone?.();
+  }
 
   /** 分割比（`pane_ratio.main` / `pane_ratio.context_view`）。 */
   let main = 0.62;

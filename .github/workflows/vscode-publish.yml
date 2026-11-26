@@ -30,14 +30,14 @@ jobs:
         working-directory: vscode
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: vscode/package-lock.json
       - run: npm ci
       - run: npm run package
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: vsix
           path: vscode/novnow-*.vsix
@@ -49,10 +49,10 @@ jobs:
     runs-on: ubuntu-latest
     environment: vscode-publish
     steps:
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: vsix
       - name: Publish to VS Code Marketplace
@@ -74,10 +74,10 @@ jobs:
     runs-on: ubuntu-latest
     environment: vscode-publish
     steps:
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: vsix
       - name: Publish to Open VSX

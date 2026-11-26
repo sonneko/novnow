@@ -1,4 +1,4 @@
-// §21.5.2 #1 の closure audit。SPEC_GAPS を消すのではなく、実装形態と各経路を実物で照合する。
+// §21.5.2 #1 closure audit。gap を解消扱いにする前に各実装経路と回帰テストを照合する。
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
@@ -15,21 +15,22 @@ function operation(catalog, id) {
   return found;
 }
 
-test('§9.7: native project ops exist, but the actual WebUI entry still chooses wasmBridge', async () => {
-  const [main, app, picker, nativeReadme, nativeMain, projectOps, operations] = await Promise.all([
+test('§9.7: native project operations are reachable through the Tauri-backed Bridge', async () => {
+  const [main, native, app, picker, nativeMain, projectOps, operations] = await Promise.all([
     read(WEBUI, 'src/main.ts'),
+    read(WEBUI, 'src/lib/bridge/native.ts'),
     read(WEBUI, 'src/App.svelte'),
     read(WEBUI, 'src/lib/project/picker.ts'),
-    read(WEBUI, 'src-tauri/README.md'),
     read(WEBUI, 'src-tauri/src/main.rs'),
     read(ROOT, 'src/app/ops/project.rs'),
     catalog(),
   ]);
-  assert.match(main, /import \{ wasmBridge \} from '\.\/lib\/bridge\/wasm'/);
-  assert.match(main, /const bridge = wasmBridge\(\)/);
-  assert.match(app, /'__TAURI__' in window \? 'native' : 'browser'/);
+  assert.match(main, /native \? nativeBridge\(\) : wasmBridge\(\)/);
+  assert.match(native, /invoke<string>\('run'/);
+  assert.match(app, /store\.run\('project\.recent_list'\)/);
+  assert.match(app, /store\.run\('project\.new'/);
+  assert.match(native, /invoke<string>\('open'/);
   assert.match(picker, /newProject: native,[\s\S]*recentList: native/);
-  assert.match(nativeReadme, /画面はまだ `wasmBridge\(\)` を固定で使う/);
   assert.match(nativeMain, /fn run\(/);
   assert.match(nativeMain, /novnow_native_bridge::NativeSession/);
   assert.match(projectOps, /cfg\(target_arch = "wasm32"\)[\s\S]*no_fs/);
@@ -38,34 +39,34 @@ test('§9.7: native project ops exist, but the actual WebUI entry still chooses 
   assert.deepEqual(operation(operations, 'project.recent_list').arguments.properties, {});
 });
 
-test('§9.6: native external polling and its behavioral tests exist, but no WebUI Bridge method calls it', async () => {
-  const [types, main, app, nativeReadme, nativeMain, externalTests, coverage] = await Promise.all([
+test('§9.6: the native Bridge polls external changes and exposes conflicts to App', async () => {
+  const [types, native, app, nativeMain, externalTests] = await Promise.all([
     read(WEBUI, 'src/lib/bridge/types.ts'),
-    read(WEBUI, 'src/main.ts'),
+    read(WEBUI, 'src/lib/bridge/native.ts'),
     read(WEBUI, 'src/App.svelte'),
-    read(WEBUI, 'src-tauri/README.md'),
     read(WEBUI, 'src-tauri/src/main.rs'),
     read(WEBUI, 'src-tauri/bridge/tests/external.rs'),
-    read(WEBUI, 'src/lib/coverage.ts'),
   ]);
   assert.match(nativeMain, /fn poll_external\(/);
-  assert.match(nativeReadme, /呼び出し元は 1 秒ごとに呼ぶ想定（§8\.5）だが、現在の画面はこの command を呼ばない/);
+  assert.match(native, /invoke<string>\('poll_external'/);
+  assert.match(types, /pollExternal\?\(\): Promise<RunOutcome>/);
+  assert.match(app, /setInterval\(\(\) => void pollExternal\(\), 1000\)/);
+  assert.match(app, /conflicts = conflictPaths\(state\.result/);
   assert.match(externalTests, /fn an_external_edit_is_reloaded_when_clean/);
   assert.match(externalTests, /fn an_external_edit_is_a_conflict_when_dirty/);
-  assert.doesNotMatch(types, /pollExternal|poll_external/);
-  assert.match(main, /const bridge = wasmBridge\(\)/);
-  assert.doesNotMatch(app, /pollExternal|poll_external/);
-  assert.match(coverage, /Tauri native の poll_external \/ 衝突処理.*wasmBridge 固定/s);
 });
 
-test('§9.8.3: timeout and multi-file WorkspaceEdit exist in the first UI/core, not in the second screen API', async () => {
-  const [feature, firstUi, workbench, firstUiTest, editing, coverage, operations] = await Promise.all([
+test('§9.8.3: the second screen returns partial search results and applies one multi-file WorkspaceEdit', async () => {
+  const [feature, firstUi, workbench, firstUiTest, editing, wasm, native, dialog, nativeTest, operations] = await Promise.all([
     read(ROOT, 'src/core/features/search.rs'),
     read(ROOT, 'src/ui/workspaces/regex_search.rs'),
     read(ROOT, 'src/app/workbench.rs'),
     read(ROOT, 'tests/stage_two.rs'),
     read(ROOT, 'src/app/ops/editing.rs'),
-    read(WEBUI, 'src/lib/coverage.ts'),
+    read(ROOT, 'crates/novnow-wasm/src/lib.rs'),
+    read(WEBUI, 'src-tauri/bridge/src/lib.rs'),
+    read(WEBUI, 'src/lib/search/SearchDialog.svelte'),
+    read(WEBUI, 'src-tauri/bridge/tests/project_search.rs'),
     catalog(),
   ]);
   assert.match(feature, /elapsed_ms\(\) >= 1000/);
@@ -77,37 +78,53 @@ test('§9.8.3: timeout and multi-file WorkspaceEdit exist in the first UI/core, 
   assert.match(firstUiTest, /fn search_regex_case_deadline_replacement_and_snapshots/);
   assert.match(editing, /pub fn search_project\([\s\S]*?for document in session\.aggregate\(\)\.documents\(\)/);
   assert.doesNotMatch(editing.slice(editing.indexOf('pub fn search_project('), editing.indexOf('/// `search.find_next`')), /timed_out|elapsed_ms/);
+  assert.match(wasm, /fn project_search\([\s\S]*?search::replacement\([\s\S]*?apply_edit/);
+  assert.match(native, /fn project_search_session\([\s\S]*?search::replacement\([\s\S]*?apply_edit/);
+  assert.match(dialog, /session\.projectSearch\(\{ query, regex, case_sensitive: caseSensitive \}\)/);
+  assert.match(dialog, /timedOut \? ' · 時間上限のため部分結果'/);
+  assert.match(nativeTest, /one_multifile_workspace_edit/);
   assert.match(editing, /pub fn replace_file\([\s\S]*?let \(path, text, start\) = editing_document\(session\)/);
   assert.deepEqual(Object.keys(operation(operations, 'search.project').returns.properties).sort(), ['count', 'hits', 'query']);
   assert.deepEqual(Object.keys(operation(operations, 'search.replace_file').returns.properties).sort(), ['count', 'path', 'save']);
-  assert.match(coverage, /第1画面の search\.run は1秒 timeout\/partial hits を実装/);
+  const coverage = await read(WEBUI, 'src/lib/coverage.ts');
+  assert.ok(!coverage.includes("section: '9.8.3'"), 'the implemented second-screen path must not remain listed as a gap');
 });
 
-test('§10.0: the fixed-shortcut branch switches only workspace; B8 reference Nav is a different route', async () => {
-  const [app, keys, reference, coverage, operations] = await Promise.all([
+test('§10.0: fixed shortcut routing resolves the requested cast, material, and outline destination', async () => {
+  const [app, keys, reference, wasm, native, shell, write, castTest, operations] = await Promise.all([
     read(WEBUI, 'src/App.svelte'),
     read(WEBUI, 'src/lib/keyboard/keys.ts'),
     read(ROOT, 'src/core/features/reference.rs'),
-    read(WEBUI, 'src/lib/coverage.ts'),
+    read(ROOT, 'crates/novnow-wasm/src/lib.rs'),
+    read(WEBUI, 'src-tauri/bridge/src/lib.rs'),
+    read(WEBUI, 'src/lib/shell/AppShell.svelte'),
+    read(WEBUI, 'src/lib/workspaces/write/WriteWorkspace.svelte'),
+    read(WEBUI, 'src-tauri/bridge/tests/shortcut_cast.rs'),
     catalog(),
   ]);
-  const at = app.indexOf("const keep = keepPayload(found)");
-  const next = app.indexOf("// `Command` の名前は `session.command` が受ける", at);
-  assert.ok(at >= 0 && next > at, 'fixed-switch route is present');
-  const fixedRoute = app.slice(at, next);
-  assert.match(fixedRoute, /workspace: String\(keep\.workspace\)/);
-  assert.doesNotMatch(fixedRoute, /reference\.pane|castFocusIndex|materialFocusId/);
+  const route = app.slice(app.indexOf('async function landWorkspaceShortcut'), app.indexOf('async function setWorkspace'));
+  assert.match(route, /reference\.pane/);
+  assert.match(route, /ui\.shortcut\.cast/);
+  assert.match(wasm, /metadata::inherited\(&rows, id, \"mode\"\)/);
+  assert.match(native, /metadata::inherited\(&rows, id, \"mode\"\)/);
+  assert.match(route, /castFocusIndex = typeof index === 'number' \? index : null/);
+  assert.match(route, /materialFocusId = first\?\.id/);
+  assert.match(route, /plot\.get', \{ level: 'all' \}/);
+  assert.match(route, /row\.state !== 'Fixed'/);
+  assert.match(route, /writeFocusCaret = 0/);
+  assert.match(shell, /focusCaret=\{writeFocusCaret\}/);
+  assert.match(write, /editor\.setCaret\(focusCaret\)/);
+  assert.match(castTest, /resolves_the_first_character_from_the_scene_mode_field/);
   assert.match(keys, /return digit \? \{ workspace: KEEP_WORKSPACES\[digit\] \} : null/);
   assert.ok(reference.includes('Character(usize)'));
   assert.ok(reference.includes('OpenMaterial(String)'));
   assert.ok(reference.includes('AddMaterial(String)'));
   assert.deepEqual(Object.keys(operation(operations, 'session.workspace_switch').arguments.properties), ['workspace']);
   assert.deepEqual(Object.keys(operation(operations, 'session.command').arguments.properties), ['name']);
-  assert.match(coverage, /B8 の参照Navクリック経路は別経路/);
 });
 
-test('監査後も SPEC_GAPS の4項目を「提供済み」に移していない', async () => {
+test('実装を確認したSPEC_GAPSは空の一覧になり、PENDINGは別管理のまま0件', async () => {
   const coverage = await read(WEBUI, 'src/lib/coverage.ts');
-  const sections = [...coverage.matchAll(/\{ section: '(9\.7|9\.6|9\.8\.3|10\.0)'/g)].map((match) => match[1]);
-  assert.deepEqual(sections.sort(), ['10.0', '9.6', '9.7', '9.8.3']);
+  assert.ok(coverage.includes('export const SPEC_GAPS: readonly SpecGap[] = [];'));
+  assert.ok(coverage.includes('export const PENDING: readonly string[] = [];'));
 });

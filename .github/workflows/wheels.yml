@@ -120,7 +120,7 @@ jobs:
       - name: Prepare Rosetta for the Intel macOS Python
         if: matrix.target == 'x86_64-apple-darwin' && runner.arch == 'ARM64'
         run: sudo /usr/sbin/softwareupdate --install-rosetta --agree-to-license
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           architecture: ${{ matrix.python_arch }}
@@ -173,7 +173,7 @@ jobs:
           fi
           "${python[@]}" -m pip install --force-reinstall "dist/${{ matrix.artifact }}"
           "${python[@]}" -c 'import novnow,os,tomllib; expected=tomllib.load(open(os.path.join(os.environ["GITHUB_WORKSPACE"],"Cargo.toml"),"rb"))["package"]["version"]; assert novnow.__version__ == expected; assert novnow.operations(); print(novnow.__version__, len(novnow.operations()))'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: wheel-${{ matrix.target }}
           path: python/novnow-py/dist/${{ matrix.artifact }}
@@ -191,10 +191,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: wheel-x86_64-unknown-linux-gnu
           path: dist
@@ -213,7 +213,7 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: wheel-*
           path: dist

@@ -148,7 +148,7 @@ jobs:
             args+=(--binary "target/${{ matrix.target }}/release/novnow")
           fi
           python3 scripts/release-matrix.py "${args[@]}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: desktop-${{ matrix.target }}-${{ matrix.gui }}
           path: release/${{ matrix.artifact }}
@@ -180,7 +180,7 @@ jobs:
       - name: Prepare Rosetta for the Intel macOS Python
         if: matrix.target == 'x86_64-apple-darwin' && runner.arch == 'ARM64'
         run: sudo /usr/sbin/softwareupdate --install-rosetta --agree-to-license
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           architecture: ${{ matrix.python_arch }}
@@ -225,7 +225,7 @@ jobs:
           fi
           "${python[@]}" -m pip install --force-reinstall "dist/${{ matrix.artifact }}"
           "${python[@]}" -c 'import novnow,os,tomllib; expected=tomllib.load(open(os.path.join(os.environ["GITHUB_WORKSPACE"],"Cargo.toml"),"rb"))["package"]["version"]; assert novnow.__version__ == expected; assert novnow.operations(); print(novnow.__version__, len(novnow.operations()))'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: wheel-${{ matrix.target }}
           path: python/novnow-py/dist/${{ matrix.artifact }}
@@ -243,10 +243,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: wheel-x86_64-unknown-linux-gnu
           path: dist
@@ -273,12 +273,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: desktop-*
           path: release
           merge-multiple: true
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: wheel-*
           path: release
@@ -327,7 +327,7 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: wheel-*
           path: dist
@@ -345,7 +345,7 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: wheel-*
           path: dist
@@ -361,7 +361,7 @@ jobs:
         working-directory: vscode
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
@@ -370,7 +370,7 @@ jobs:
       - run: npm run check
       - run: npm run test:unit
       - run: npm run package
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: vscode
           path: vscode/novnow-${{ needs.prepare.outputs.version }}.vsix
@@ -382,17 +382,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: desktop-*
           path: release
           merge-multiple: true
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: wheel-*
           path: release
           merge-multiple: true
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: vscode
           path: release
@@ -436,17 +436,17 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: desktop-*
           path: release
           merge-multiple: true
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: wheel-*
           path: release
           merge-multiple: true
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: vscode
           path: release
