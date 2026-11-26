@@ -33,7 +33,7 @@ function start(): Promise<void> {
   if (!started) {
     started = init().then(() => undefined);
   }
-  return started;
+  return started!;
 }
 
 /** `run` の文字列を解く（壊れていたら失敗として返す。例外は投げない）。 */
@@ -84,8 +84,14 @@ export function wasmBridge(): Bridge {
     },
     async run(op, args) {
       const found = await ready();
+      const payload = args ? JSON.stringify(args) : '';
+      if (op === 'ui.shortcut.cast') return decode(found.shortcut_cast(payload));
       // 引数は文字列の JSON で渡す（キーの順は Rust 側で固定される。§8.10 の 32）
-      return decode(found.run(op, args ? JSON.stringify(args) : ''));
+      return decode(found.run(op, payload));
+    },
+    async projectSearch(args) {
+      const found = await ready();
+      return decode(found.project_search(JSON.stringify(args)));
     },
     async pollEvents() {
       const found = await ready();

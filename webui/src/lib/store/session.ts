@@ -170,6 +170,15 @@ export class Session {
     return { ok: true, result: found.result as OpResult[T] };
   }
 
+  /** 第2画面の全体検索／置換。Bridge 実装が無い旧 fixture では正規 search.project にフォールバックする。 */
+  async projectSearch(args: Record<string, unknown>): Promise<{ ok: true; result: Record<string, unknown> } | { ok: false; code: string; message: string }> {
+    const found = this.bridge.projectSearch
+      ? await this.bridge.projectSearch(args)
+      : await this.bridge.run('search.project', args);
+    if (!found.ok) return { ok: false, code: found.error.code, message: found.error.message };
+    return { ok: true, result: found.result as Record<string, unknown> };
+  }
+
   /** 失敗を通知にする（画面の操作から呼ぶ）。 */
   notice(text: string, kind: Notice['kind'] = 'info', ttl = 4000): void {
     this.update((screen) => {

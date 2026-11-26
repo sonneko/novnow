@@ -84,10 +84,14 @@
   /** §10.0 の対応物を workspace switch 後に選ぶための画面側着地点。 */
   let castFocusIndex: number | null = null;
   let materialFocusId: string | null = null;
+  let writeFocusCaret: number | null = null;
+  type OutlineLevel = { kind: 'all' } | { kind: 'chapter'; chapter: number };
+  let outlineContext: { selectedId: string | null; level: OutlineLevel } = { selectedId: null, level: { kind: 'all' } };
 
   function clearWorkspaceFocus(): void {
     castFocusIndex = null;
     materialFocusId = null;
+    writeFocusCaret = null;
   }
 
   /** 重ね物（`?` のヘルプと `Ctrl+P` のパレット。§9.7.5: 重ね物は 1 つずつ）。 */
@@ -207,6 +211,8 @@
   /** 自動保存の待ち（§8.2 の 400ms）と、いま走っている保存。 */
   let timer: ReturnType<typeof setTimeout> | null = null;
   let saving = false;
+  let externalTimer: ReturnType<typeof setInterval> | null = null;
+  let pollingExternal = false;
   /** 保存の待ち（ミリ秒。`ui.json` の `autosave_ms`）。 */
   const idle = 400;
 
@@ -231,6 +237,7 @@
       store.update((next) => {
         next.ready = true;
       });
+      startExternalPolling();
     } catch (error) {
       // 保存領域を使えない環境（IndexedDB の無い iframe・プライベートモードなど）では、
       // メモリだけで開いて「保存されない」ことを明示する（§21.1.2: 黙って別の結果にしない）
@@ -427,8 +434,10 @@
           next.saveMessage = event.message;
         });
         store.notice(event.message, 'error', 0);
+      } else if (event.kind === 'external_unreadable') {
+        store.notice(event.message, 'error', 0);
       } else if (event.kind === 'document_changed') {
-        // 本文は `section.get` で取り直す（保存の後に 1 度だけ）
+        // 本文は外部 polling の後に `section.get` で取り直す（保存の後に 1 度だけ）
       }
     }
     const state = await store.run('save.state');
@@ -436,6 +445,37 @@
       store.update((next) => {
         next.unsaved = state.result.unsaved.filter((path): path is string => typeof path === 'string');
       });
+    }
+  }
+
+  /** Tauri だけが持つ外部変更監視（ブラウザの wasm では呼ばない）。 */
+  function startExternalPolling(): void {
+    if (!bridge.pollExternal || externalTimer !== null) return;
+    externalTimer = setInterval(() => void pollExternal(), 1000);
+  }
+
+  async function pollExternal(): Promise<void> {
+    if (!bridge.pollExternal || pollingExternal || !screen.ready) return;
+    pollingExternal = true;
+    try {
+      const polled = await bridge.pollExternal();
+      if (!polled.ok) {
+        store.notice(polled.error.message, 'error', 0);
+        return;
+      }
+      const changes = (polled.result as { changes?: unknown[] }).changes ?? [];
+      await drain();
+      const state = await store.run('save.state');
+      if (state.ok) {
+        conflicts = conflictPaths(state.result as unknown as Record<string, unknown>);
+        store.update((next) => {
+          next.save = state.result.state as SaveState;
+          next.unsaved = state.result.unsaved.filter((path): path is string => typeof path === 'string');
+        });
+      }
+      if (changes.length > 0 && screen.scene) await openSection(screen.scene);
+    } finally {
+      pollingExternal = false;
     }
   }
 
@@ -462,21 +502,10 @@
       };
       return;
     }
-    // `Ctrl+Shift+1..9` は §10.0 の固定対応表のワークスペース名で切り替える。
+    // `Ctrl+Shift+1..9` の固定表で指定された着地点を解決してから切り替える。
     const keep = keepPayload(found);
     if (keep) {
-      await saveNow();
-      const switched = await store.run('session.workspace_switch', {
-        workspace: String(keep.workspace),
-      });
-      if (switched.ok) {
-        store.update((next) => {
-          next.workspace = switched.result.current;
-        });
-        revision += 1;
-      } else {
-        store.notice(switched.message, 'error');
-      }
+      await landWorkspaceShortcut(String(keep.workspace));
       return;
     }
     // `Command` の名前は `session.command` が受ける（実行は機能核が決める）
@@ -1250,6 +1279,53 @@
     await store.run('session.command', { name: 'theme' });
   }
 
+  /** §10.0 固定表の対象を正規操作から解決し、ワークスペース切替後の着地点に渡す。 */
+  async function landWorkspaceShortcut(name: string): Promise<void> {
+    await saveNow();
+    if (screen.save === 'error' || screen.save === 'conflict') return;
+    if (name === 'cast' && screen.scene) {
+      const result = await bridge.run('ui.shortcut.cast', { scene: screen.scene });
+      const index = result.ok ? (result.result as { index?: unknown }).index : null;
+      castFocusIndex = typeof index === 'number' ? index : null;
+      materialFocusId = null;
+    } else if (name === 'material' && screen.scene) {
+      const pane = await store.run('reference.pane', { scene: screen.scene });
+      const materials = pane.ok && Array.isArray(pane.result.materials)
+        ? pane.result.materials as { id?: string | null }[] : [];
+      const first = materials.find((row) => typeof row.id === 'string');
+      materialFocusId = first?.id ?? null;
+      castFocusIndex = null;
+    } else if (name === 'write' && screen.workspace === 'plot-outline') {
+      const plots = await store.run('plot.get', { level: 'all' });
+      const blocks = plots.ok && Array.isArray(plots.result.blocks)
+        ? plots.result.blocks as { id?: string; state?: string | null }[] : [];
+      const selectedId = outlineContext.selectedId ?? screen.scene;
+      const idParts = selectedId.split('-');
+      const scopePrefix = idParts.length > 1 && idParts[1] !== '00'
+        ? idParts.slice(0, 2).join('-') : idParts[0];
+      const inScope = blocks.filter((row) => typeof row.id === 'string'
+        && (row.id === scopePrefix || row.id.startsWith(`${scopePrefix}-`)));
+      const target = inScope.find((row) => row.state !== 'Fixed' && row.state !== 'fixed') ?? inScope[0];
+      const sections = await store.run('section.list');
+      const items = sections.ok && Array.isArray(sections.result.sections)
+        ? sections.result.sections as { id: string }[] : [];
+      const scopedSections = items.filter((row) => row.id.startsWith(`${scopePrefix}-`));
+      const section = scopedSections.find((row) => row.id === target?.id || row.id.startsWith(`${target?.id}-`))
+        ?? scopedSections[0] ?? items[0];
+      if (section) {
+        await openSection(section.id);
+        writeFocusCaret = 0;
+      }
+    }
+    const switched = await store.run('session.workspace_switch', { workspace: name });
+    if (switched.ok) {
+      store.update((next) => { next.workspace = switched.result.current; });
+      revision += 1;
+    } else {
+      store.notice(switched.message, 'error');
+    }
+  }
+
   /** ワークスペースを切り替える（`workspace-<name>`。W2 は write だけ）。 */
   async function setWorkspace(name: string): Promise<void> {
     const found = await store.run('session.workspace_switch', { workspace: name });
@@ -1709,6 +1785,8 @@
   onworkspace={setWorkspace}
   {castFocusIndex}
   {materialFocusId}
+  {writeFocusCaret}
+  onoutlinecontext={(value) => (outlineContext = value)}
   onfocusdone={clearWorkspaceFocus}
   onlanguage={toggleLanguage}
   ontheme={toggleTheme}
@@ -1857,6 +1935,8 @@
     scope={searchDialog.scope}
     replaceMode={searchDialog.replaceMode}
     regexMode={searchDialog.regexMode}
+    onsave={saveNow}
+    onapplied={() => void refresh()}
     onclose={() => (searchDialog = null)}
   />
 {/if}
